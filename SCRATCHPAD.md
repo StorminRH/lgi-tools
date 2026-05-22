@@ -158,57 +158,16 @@ Pushed page work to Session 7 (after the design system lands).
 
 ---
 
-## Session 6.5 — Design Iteration (planned)
+## Session 6.5 — Design Polish (2026-05-22)
 
-### Goal
-
-The session 6 cards are structurally correct but have visual rough edges
-(column misalignment, spacing inconsistencies, etc.). Before wiring real
-data the design needs one focused polish pass so the components look
-exactly right before they go into production pages.
-
-### How to run this session
-
-1. **Render the current state.** Boot `pnpm dev`, open
-   `http://localhost:3000/preview/cards`, screenshot or screencast the
-   full page. This becomes the "before" baseline.
-
-2. **Build a standalone HTML reference from what we actually have.**
-   Rather than going back to `card_reference.html` (the original
-   prototype), generate a new `LGI Tool References/card_built.html`
-   that matches the current React output pixel-for-pixel using the same
-   inline CSS values already in the components. This gives a fast
-   static editing surface where changes are instant (no rebuild).
-
-3. **Iterate in the HTML file.** Fix visual issues — column grids,
-   spacing, font sizing, chip wrapping, alignment — until the card
-   looks right. Keep notes on every rule that changes.
-
-4. **Translate changes back to the React components.** Each fix in the
-   HTML maps to one of the primitives or the composition layer.
-   Changes to spacing/grid live in `src/components/ui/row.tsx`,
-   `card.tsx`, etc. Changes to wormhole-specific layout live in
-   `src/features/wormhole-sites/components/`.
-
-5. **Re-verify in browser.** Reload `/preview/cards`, confirm parity
-   with the updated HTML reference.
-
-### Known visual issues to address
-
-- Column misalignment noticed in NPC rows and resource rows (count,
-  name, stats not lining up across rows in the same card).
-- Review chip wrapping on narrow columns — chips currently wrap to a
-  new line when the NPC name is long; decide whether to let them wrap
-  or constrain the name cell.
-- Any other issues caught during the before-screenshot review.
-
-### Output
-
-- Updated `card_built.html` in `LGI Tool References/` as the new
-  living design reference.
-- Cleaned-up component files in `src/components/ui/` and
-  `src/features/wormhole-sites/components/`.
-- One commit describing the visual polish.
+Fixed NPC row column alignment. Root cause: EWAR/TRIGGER chips were inline
+inside the `1fr` name column, causing rows with chips to push the trailing
+stats left. Fix: added an optional `chips` slot to `EntityRow` in
+`src/components/ui/row.tsx` — when chips are present the grid becomes
+`26px minmax(0,1fr) auto auto`, keeping the stats reliably right-aligned.
+`NpcRow.tsx` updated to pass chips separately. Generated
+`LGI Tool References/card_built.html` as a static snapshot of the final
+rendered output (inline CSS, dev-server-captured). `pnpm tsc --noEmit` clean.
 
 ---
 

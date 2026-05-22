@@ -25,20 +25,23 @@ function npcEwarKeys(npc: Npc): EwarKey[] {
 export function NpcRow({ npc }: { npc: Npc }) {
   const ewars = npcEwarKeys(npc);
   const tier = dpsTier(npc.dps);
+  const chipNodes =
+    ewars.length > 0 || npc.triggerLabel ? (
+      <>
+        {ewars.map((k) => (
+          <Chip key={k} tone={EWAR_TONE[k]}>
+            {EWAR_LABEL[k]}
+          </Chip>
+        ))}
+        {npc.triggerLabel && <Chip tone={TRIGGER_CHIP_TONE}>TRIGGER</Chip>}
+      </>
+    ) : undefined;
+
   return (
     <EntityRow
       leading={<>{npc.quantity}×</>}
-      name={
-        <>
-          {npc.sleeperName}
-          {ewars.map((k) => (
-            <Chip key={k} tone={EWAR_TONE[k]}>
-              {EWAR_LABEL[k]}
-            </Chip>
-          ))}
-          {npc.triggerLabel && <Chip tone={TRIGGER_CHIP_TONE}>TRIGGER</Chip>}
-        </>
-      }
+      name={npc.sleeperName}
+      chips={chipNodes}
       trailing={
         <>
           {npc.ehp != null && <Stat>{formatEhp(npc.ehp)} EHP</Stat>}

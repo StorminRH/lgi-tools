@@ -2,35 +2,40 @@ import type { ReactNode } from 'react';
 import { cn } from './cn';
 
 /**
- * EntityRow — three-column row (leading badge / name / trailing stats).
+ * EntityRow — grid row (leading badge / name / optional chips / trailing stats).
  * Used for any "count × thing → stats" line. Tunable column template via
- * `cols`. Defaults to the prototype's NPC layout.
+ * `cols`. When `chips` is provided the default cols add a dedicated chip column
+ * so trailing stats stay aligned regardless of chip count.
  */
 export function EntityRow({
   leading,
   name,
+  chips,
   trailing,
   className,
-  cols = '26px 1fr auto',
+  cols,
 }: {
   leading?: ReactNode;
   name: ReactNode;
+  chips?: ReactNode;
   trailing?: ReactNode;
   className?: string;
   cols?: string;
 }) {
+  const defaultCols = chips !== undefined ? '26px minmax(0,1fr) auto auto' : '26px minmax(0,1fr) auto';
   return (
     <div
       className={cn(
         'grid items-center gap-[6px] px-3.5 py-[5px] border-t border-border-soft text-[12px] hover:bg-[rgba(255,255,255,0.018)]',
         className,
       )}
-      style={{ gridTemplateColumns: cols }}
+      style={{ gridTemplateColumns: cols ?? defaultCols }}
     >
       {leading !== undefined && <span className="text-[10px] text-muted">{leading}</span>}
-      <span className="text-text flex items-center gap-[5px] flex-wrap leading-[1.5]">
-        {name}
-      </span>
+      <span className="text-text truncate leading-[1.5]">{name}</span>
+      {chips !== undefined && (
+        <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
+      )}
       {trailing !== undefined && (
         <span className="flex items-center gap-2 shrink-0 justify-end">{trailing}</span>
       )}
