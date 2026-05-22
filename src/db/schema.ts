@@ -2,4 +2,4 @@
 // and are re-exported from here so drizzle-kit sees them all in one place.
 // Per CLAUDE.md: schema stays extensible; features add their own tables.
 
-export {};
+export * from '../features/wormhole-sites/schema';

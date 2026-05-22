@@ -54,11 +54,56 @@ pnpm db:push       — Push schema directly to DB (no migration file, use for ra
 
 ---
 
-## Session 2 — Starting Point
+## Session 2 — Wormhole Sites Schema (2026-05-22)
 
-**Start with:** Define the first feature. Based on `CLAUDE.md`, the platform is for Eve Online players with "wave card" patterns suggesting wormhole data is the first feature.
+### What was built
 
-**Suggested first step:** Decide the first feature (e.g., wormhole reference data) and define its schema in `src/features/<name>/schema.ts`, re-export from `src/db/schema.ts`, then run `pnpm db:generate && pnpm db:migrate`.
+| File / Dir | What it is |
+|---|---|
+| `src/features/wormhole-sites/schema.ts` | First feature schema — `SITE_TYPES` and `WORMHOLE_CLASSES` constants, two `pgEnum` types, and the `sites` table |
+| `src/db/schema.ts` | Stub replaced with `export * from '../features/wormhole-sites/schema'` — the contract for adding features |
+| `drizzle/0000_peaceful_stick.sql` | Generated migration: `CREATE TYPE site_type`, `CREATE TYPE wormhole_class`, `CREATE TABLE sites` |
+| `drizzle/meta/_journal.json` | Journal updated with migration entry |
+
+**`sites` table columns:** `id` (serial PK), `name` (text), `site_type` (enum), `wormhole_class` (enum), `description` (nullable text), `created_at` (timestamp default now)
+
+### Decisions made
+
+- **One table for now** — `sites` holds shared metadata; type-specific child tables (NPC waves, rocks, clouds, containers) deferred to Session 3
+- **Enums driven from TS constants** — `SITE_TYPES` and `WORMHOLE_CLASSES` are `as const` arrays; `pgEnum` consumes them directly. One source of truth for both Postgres and TypeScript types — config-over-repetition per `CLAUDE.md`
+- **`wormhole_class` values are uppercase** (`'C1'…'C6'`) to match EVE convention
+- **Migration is safe to re-run** — Drizzle tracks state in `drizzle.__drizzle_migrations`; second run exits cleanly with "Migrations applied" (no-op)
+- **Feature folder pattern validated** — `src/features/<name>/schema.ts` → re-exported from `src/db/schema.ts` → picked up by `drizzle.config.ts` — the pattern works end-to-end
+
+### Verified
+
+- `\dt` shows `sites` table
+- `\d sites` confirms all 6 columns with correct types
+- `\dT+ site_type` and `\dT+ wormhole_class` show correct enum values
+- `pnpm db:migrate` run twice — second run is a no-op
+- `INSERT INTO sites ... VALUES ('Forgotten Frontier Recursive Depot', 'combat', 'C5')` — row written and read back successfully
+- `pnpm tsc --noEmit` — clean compile
+
+### Open questions / deferred
+
+- No child tables yet — site contents (NPC waves, rocks, gas clouds, relics) modelled in Session 3
+- No `updated_at`, unique constraints, soft delete, or slugs — all deferred
+- No seed data / data loading script yet — that's Session 3 or later
+
+---
+
+## Session 3 — Starting Point
+
+**Goal:** Add child tables to model site contents — the actual game data that makes each site meaningful.
+
+**Domain split:**
+
+- **Combat sites** → `waves` (wave number, trigger NPC name) → `npcs` (name, role `TRIGGER|NORMAL`, DPS, EHP, EWAR flags: web/scram/neut/rr)
+- **Resource sites** → `ore_rocks` (asteroid type, quantity, volume, ISK value), `gas_clouds` (type, volume, ISK value, Sleeper spawn timer minutes), `relic_data_containers` (name, ISK value, site_type: relic|data)
+
+**Key design question before writing schema:** Should the child tables use a shared `site_id` FK, or should combat/resource sites be separate parent tables? Recommendation: keep one `sites` parent table (already proven), add child tables with `site_id` FKs — avoids a structural rewrite.
+
+**Suggested first step:** Sketch the `npcs` table (the richest content type) and get alignment before writing anything. Then generate + apply migration, seed a full C5 combat site with real NPC data.
 
 **To boot local dev:**
 ```bash
