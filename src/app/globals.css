@@ -1,26 +1,43 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* ── A1 blue-gray surface palette ── */
+  --color-bg-deep:     #070809;
+  --color-bg:          #0d0f14;
+  --color-section:     #0a0c10;
+  --color-ewar:        #0b0d11;
+  --color-border:      #1e2535;
+  --color-border-soft: #141a24;
+  --color-row-hover:   rgba(255,255,255,0.018);
+
+  /* ── Text palette ── */
+  --color-text:  #9ab0c4;
+  --color-name:  #dce8f0;
+  --color-muted: #3a5060;
+  --color-isk:   #3dd68c;
+  --color-isk-sub: #4a7860;
+
+  /* ── DPS-tier accents (referenced from primitive callsites, not tone maps) ── */
+  --color-dps-low:  #3dd68c;
+  --color-dps-mid:  #ffaa22;
+  --color-dps-high: #ff5555;
+
+  /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ── */
+  --font-mono:    var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-barlow), system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  background: var(--color-bg-deep);
+  color: var(--color-text);
+  font-family: var(--font-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+details[data-collapsible][open] > summary [data-chevron] {
+  transform: rotate(180deg);
 }
