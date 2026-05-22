@@ -54,77 +54,81 @@ export function SiteCard({ site }: { site: SiteDetail }) {
 
   return (
     <Card>
-      <CardHeader
-        title={site.name}
-        meta={
-          <>
-            <Pill tone="neutral">{SCAN_PILL_LABEL[SITE_TYPE_SCAN[site.siteType]]}</Pill>
-            <Pill tone={SITE_TYPE_TONE[site.siteType]}>{SITE_TYPE_LABEL[site.siteType]}</Pill>
-            {site.wormholeClass && (
-              <Pill tone={CLASS_TONE[site.wormholeClass]}>{site.wormholeClass}</Pill>
-            )}
-          </>
-        }
-        trailing={
-          <MetricBlock
-            value={formatIskHeader(primaryIsk)}
-            sub={
-              isCombat ? (
-                'est. loot'
-              ) : killingWaveIsk ? (
-                <>
-                  +<span className="text-[#4a7860]">{formatIskHeader(killingWaveIsk).replace(' ISK', '')}</span> killing wave
-                </>
-              ) : (
-                'no combat wave'
-              )
+      <details data-collapsible>
+        <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
+          <CardHeader
+            title={site.name}
+            meta={
+              <>
+                <Pill tone="neutral">{SCAN_PILL_LABEL[SITE_TYPE_SCAN[site.siteType]]}</Pill>
+                <Pill tone={SITE_TYPE_TONE[site.siteType]}>{SITE_TYPE_LABEL[site.siteType]}</Pill>
+                {site.wormholeClass && (
+                  <Pill tone={CLASS_TONE[site.wormholeClass]}>{site.wormholeClass}</Pill>
+                )}
+              </>
+            }
+            trailing={
+              <MetricBlock
+                value={formatIskHeader(primaryIsk)}
+                sub={
+                  isCombat ? (
+                    'est. loot'
+                  ) : killingWaveIsk ? (
+                    <>
+                      +<span className="text-[#4a7860]">{formatIskHeader(killingWaveIsk).replace(' ISK', '')}</span> killing wave
+                    </>
+                  ) : (
+                    'no combat wave'
+                  )
+                }
+              />
             }
           />
-        }
-      />
+        </summary>
 
-      <EwarRow web={siteEwar.web} scram={siteEwar.scram} neut={siteEwar.neut} rr={siteEwar.rr} />
+        <EwarRow web={siteEwar.web} scram={siteEwar.scram} neut={siteEwar.neut} rr={siteEwar.rr} />
 
-      {!isCombat && (
-        <>
-          <SectionHeader label="Wave Spawns" />
-          {hasWaves ? (
-            site.waves.map((wave, i) => (
-              <WaveCard key={wave.id} wave={wave} defaultOpen={i === 0} />
-            ))
-          ) : (
-            <EmptyState>
-              {isHackSite
-                ? 'No Sleeper presence — hacking only'
-                : 'No Sleeper presence — mine freely'}
-            </EmptyState>
-          )}
-        </>
-      )}
-
-      {isCombat &&
-        site.waves.map((wave, i) => (
-          <WaveCard key={wave.id} wave={wave} defaultOpen={i === 0} />
-        ))}
-
-      {hasResources && (
-        <>
-          <SectionHeader
-            label={resourceSectionLabel(site.siteType)}
-            hint={resourceSectionHint(site.siteType)}
-          />
-          {isGas && (
-            <Callout label="Spawn">Sleeper wave arrives ~20 min after warp-in</Callout>
-          )}
-          {site.resources.map((resource) => (
-            <ResourceRow key={resource.id} resource={resource} siteType={site.siteType} />
+        {isCombat &&
+          site.waves.map((wave) => (
+            <WaveCard key={wave.id} wave={wave} defaultOpen={true} />
           ))}
-          <SectionFooter
-            label={resourceFooterLabel(site.siteType)}
-            value={formatIskHeader(totalResourceIsk)}
-          />
-        </>
-      )}
+
+        {hasResources && (
+          <>
+            <SectionHeader
+              label={resourceSectionLabel(site.siteType)}
+              hint={resourceSectionHint(site.siteType)}
+            />
+            {isGas && (
+              <Callout label="Spawn">Sleeper wave arrives ~20 min after warp-in</Callout>
+            )}
+            {site.resources.map((resource) => (
+              <ResourceRow key={resource.id} resource={resource} siteType={site.siteType} />
+            ))}
+            <SectionFooter
+              label={resourceFooterLabel(site.siteType)}
+              value={formatIskHeader(totalResourceIsk)}
+            />
+          </>
+        )}
+
+        {!isCombat && (
+          <>
+            <SectionHeader label="Wave Spawns" />
+            {hasWaves ? (
+              site.waves.map((wave) => (
+                <WaveCard key={wave.id} wave={wave} defaultOpen={true} />
+              ))
+            ) : (
+              <EmptyState>
+                {isHackSite
+                  ? 'No Sleeper presence — hacking only'
+                  : 'No Sleeper presence — mine freely'}
+              </EmptyState>
+            )}
+          </>
+        )}
+      </details>
     </Card>
   );
 }

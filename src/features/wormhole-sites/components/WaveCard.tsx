@@ -1,4 +1,4 @@
-import { Chevron, Collapsible } from '@/components/ui/collapsible';
+import { Collapsible } from '@/components/ui/collapsible';
 import type { Wave } from '../types';
 import { EwarRow } from './EwarRow';
 import { NpcRow } from './NpcRow';
@@ -23,15 +23,15 @@ export function WaveCard({
   return (
     <Collapsible
       defaultOpen={defaultOpen}
+      headerClassName="bg-section border-t border-border border-b border-border-soft"
       header={
         <>
           <span className="text-[9px] font-semibold tracking-[0.16em] uppercase text-muted shrink-0">
             {displayLabel}
           </span>
-          <span className={`text-[12px] font-semibold ${DPS_TIER_CLASS[tier]}`}>
+          <span className={`ml-auto text-[9px] font-semibold tracking-[0.08em] ${DPS_TIER_CLASS[tier]}`}>
             DPS {formatDps(wave.dpsTotal)}
           </span>
-          <Chevron />
         </>
       }
     >

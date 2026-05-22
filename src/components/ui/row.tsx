@@ -32,12 +32,12 @@ export function EntityRow({
       style={{ gridTemplateColumns: cols ?? defaultCols }}
     >
       {leading !== undefined && <span className="text-[10px] text-muted">{leading}</span>}
-      <span className="text-text truncate leading-[1.5]">{name}</span>
-      {chips !== undefined && (
-        <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
-      )}
+      <span className="text-name truncate leading-[1.5]">{name}</span>
       {trailing !== undefined && (
         <span className="flex items-center gap-2 shrink-0 justify-end">{trailing}</span>
+      )}
+      {chips !== undefined && (
+        <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
       )}
     </div>
   );
@@ -100,7 +100,7 @@ export function LabeledChipRow({
   children: ReactNode;
 }) {
   return (
-    <div className="px-3.5 py-[5px] border-b border-border-soft bg-ewar flex items-center gap-[7px] flex-wrap">
+    <div className="px-3.5 py-[5px] border-b border-border-soft bg-bg flex items-center gap-[7px] flex-wrap">
       <span className="text-[9px] tracking-[0.12em] uppercase text-muted">{label}</span>
       {children}
     </div>

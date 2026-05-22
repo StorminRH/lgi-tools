@@ -160,14 +160,27 @@ Pushed page work to Session 7 (after the design system lands).
 
 ## Session 6.5 — Design Polish (2026-05-22)
 
-Fixed NPC row column alignment. Root cause: EWAR/TRIGGER chips were inline
-inside the `1fr` name column, causing rows with chips to push the trailing
-stats left. Fix: added an optional `chips` slot to `EntityRow` in
-`src/components/ui/row.tsx` — when chips are present the grid becomes
-`26px minmax(0,1fr) auto auto`, keeping the stats reliably right-aligned.
-`NpcRow.tsx` updated to pass chips separately. Generated
-`LGI Tool References/card_built.html` as a static snapshot of the final
-rendered output (inline CSS, dev-server-captured). `pnpm tsc --noEmit` clean.
+Visual iteration pass on the card system. All changes verified in the live
+preview before committing. Key decisions that still matter:
+
+- **EWAR chips moved to far-right of NPC rows** — chips column swapped to
+  render after the trailing stats column (`EntityRow` render order change).
+- **Card header is now collapsible** — entire card body (EWAR, waves,
+  resources) wraps in `<details data-collapsible>` with `<CardHeader>` as the
+  `<summary>`. Default closed; all waves default open when expanded. No chevron
+  — the native `<details>` affordance is sufficient.
+- **Resources before wave spawns on non-combat sites** — ore/gas/relic/data
+  show deposits/clouds/containers first, wave spawns below.
+- **Wave headers styled as section dividers** — match `SectionHeader` exactly:
+  `text-[9px] font-semibold tracking-[0.16em] uppercase text-muted` on
+  `bg-section` with top + bottom borders. DPS kept at same size with tier color.
+  `Collapsible` gained an optional `headerClassName` prop to support this.
+- **Uniform text color** — `EntityRow` name changed from `text-text` to
+  `text-name` so NPC names match the brightness of ore/resource row names.
+- **EWAR row background** changed from `bg-ewar` to `bg-bg` to match the
+  card header background seamlessly.
+- Generated `LGI Tool References/card_built.html` as a static snapshot (inline
+  CSS, dev-server-captured) for offline reference.
 
 ---
 

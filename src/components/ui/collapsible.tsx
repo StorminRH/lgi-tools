@@ -11,11 +11,13 @@ export function Collapsible({
   children,
   defaultOpen = false,
   className,
+  headerClassName,
 }: {
   header: ReactNode;
   children: ReactNode;
   defaultOpen?: boolean;
   className?: string;
+  headerClassName?: string;
 }) {
   return (
     <details
@@ -24,7 +26,10 @@ export function Collapsible({
       className={cn('border-b border-border-soft last:border-b-0 group', className)}
     >
       <summary
-        className="w-full flex justify-between items-center gap-2 px-3.5 py-[7px] cursor-pointer select-none hover:bg-[rgba(255,255,255,0.018)] list-none [&::-webkit-details-marker]:hidden"
+        className={cn(
+          'w-full flex justify-between items-center gap-2 px-3.5 py-[7px] cursor-pointer select-none hover:bg-[rgba(255,255,255,0.018)] list-none [&::-webkit-details-marker]:hidden',
+          headerClassName,
+        )}
       >
         {header}
       </summary>
