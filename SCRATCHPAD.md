@@ -145,13 +145,55 @@ pnpm db:ingest:prod     — Run ingest with DOTENV_PATH=.env.production.local
 
 ---
 
-## Session 4 — Starting Point
+## Session 4 — API Endpoints (2026-05-22)
 
-**Goal:** Surface the ingested data through the app. First feature using these tables: a wave-card UI on the homepage or a dedicated `/sites` route.
+### What was built
 
-**Per CLAUDE.md "reusable primitives over one-off components":** the wave card is a **collapsible group-of-entities** component fed wormhole data today. Design the primitive so it can later render mining waves, escalation waves, or any other "group with rows and totals".
+| File | What it is |
+|---|---|
+| `src/features/wormhole-sites/types.ts` | Strict TypeScript response interfaces: `SiteListItem`, `Wave`, `Npc`, `SiteResource`, `SiteDetail`, `ApiError`. Re-exports `SiteType` / `WormholeClass` from schema — one source of truth. |
+| `src/features/wormhole-sites/queries.ts` | `listSites(filters)` and `getSiteDetail(id)` — all DB access for this feature. Uses explicit column selection so FK columns (`siteId`, `waveId`) are never exposed in responses. |
+| `src/app/api/sites/route.ts` | `GET /api/sites` — optional `?type=` and `?class=` query params. Returns `SiteListItem[]`. |
+| `src/app/api/sites/[id]/route.ts` | `GET /api/sites/[id]` — full detail. Returns `SiteDetail` (site + waves + npcs + resources). |
+| `src/db/index.ts` | Made db client **lazy** — connection deferred to first query via Proxy, not at module load. Fixes `next build` when `.env.production.local` has an empty `DATABASE_URL` placeholder from `vercel env pull`. |
 
-**Suggested first step:** Read `node_modules/next/dist/docs/` for the Next.js 16 App Router patterns (per AGENTS.md), then build a server-rendered `/sites` page that lists all 69 sites and a `/sites/[id]` detail view that renders a wave card per `waves` row with the NPC table inside.
+### Decisions made
+
+- **Sequential selects, not Drizzle relational API.** Avoided adding `relations()` definitions (which would require touching schema and db client). Three fast queries per detail request; acceptable for this data size.
+- **Validation in route handler, not query function.** Query functions accept already-typed values; handlers guard the boundary. This keeps queries reusable.
+- **Lazy db Proxy.** `.env.production.local` from `vercel env pull` sets `DATABASE_URL=""` (Vercel encrypts prod secrets). Next.js loads this file first and overrides `.env.local` during `next build`. Making `db` a Proxy defers the throw to request time so build succeeds. On Vercel itself, the real URL is injected by the platform at runtime.
+- **FK columns excluded from responses.** `queries.ts` uses explicit column objects — `waveId` / `siteId` never appear in JSON output.
+
+### Verified
+
+- `pnpm tsc --noEmit` — clean
+- `pnpm build` — clean (both routes compile as `ƒ Dynamic`)
+- Local (`localhost:3000`): count=69, combat=24, C3=8, combat+C3=4; detail has waves/npcs; 400/404 errors correct
+- Production (`lgi.tools`): identical results
+
+### API surface
+
+```
+GET /api/sites                     → SiteListItem[]  (69 sites)
+GET /api/sites?type=combat         → SiteListItem[]  (24 sites)
+GET /api/sites?class=C3            → SiteListItem[]  (8 sites)
+GET /api/sites?type=combat&class=C3 → SiteListItem[] (4 sites)
+GET /api/sites/[id]                → SiteDetail (waves + npcs + resources)
+```
+
+Error responses: `{ "error": "..." }` with HTTP 400 (invalid param) or 404 (not found).
+
+---
+
+## Session 5 — Starting Point
+
+**Goal:** Build the UI that consumes the new API. Server-rendered pages at `/sites` and `/sites/[id]`.
+
+**Per CLAUDE.md "reusable primitives over one-off components":** the wave card is a **collapsible group-of-entities** component fed wormhole data today. Design it so it can later render mining waves, escalation waves, or any "group with rows and totals".
+
+**Suggested first step:** Read `node_modules/next/dist/docs/` for Next.js 16 server component and layout patterns (per AGENTS.md), then build:
+- `/sites` — server component that calls `listSites()` directly (no fetch, it's a server component), renders a filterable table/grid of all 69 sites
+- `/sites/[id]` — server component that calls `getSiteDetail()`, renders site header + one wave card per wave with the NPC table inside
 
 **To boot local dev:**
 ```bash
@@ -163,6 +205,5 @@ pnpm dev                  # Next.js on :3000
 
 **Quick "is anything broken" check:**
 ```bash
-docker compose ps                                    # Postgres healthy
-PGPASSWORD=lgi psql -h localhost -p 5433 -U lgi -d lgi_tools -c "SELECT count(*) FROM sites;"  # expect 69
+curl http://localhost:3000/api/sites | python3 -c "import sys,json; print(len(json.load(sys.stdin)))"  # expect 69
 ```
