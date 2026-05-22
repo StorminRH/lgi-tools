@@ -21,4 +21,31 @@ Accommodate new content types and fields without structural rewrites.
 **Maintain SCRATCHPAD.md.**
 After every session update SCRATCHPAD.md with what was built, decisions made, open questions, and what the next session should start with. This is working memory across sessions — keep it current.
 
+## Commit Style
+
+Write commit messages in plain English. No function names, file paths, or technical jargon in the subject line or body. Describe what the change does for the project, not how the code is structured.
+
+**Subject line:** one sentence, lowercase after the colon, under 72 characters.
+**Body (optional):** 3–5 bullet points covering what changed and why — the kind of thing you'd tell a teammate over Slack. If a session built several things, list them briefly.
+
+Good:
+```
+feat: add API endpoints for browsing and filtering wormhole sites
+
+- sites can now be listed, filtered by class and type, and fetched by ID
+- full site detail includes waves, NPC counts, and resource values
+- invalid filters return a clear error instead of an empty result
+- made the database connection lazy so local builds work without prod credentials
+```
+
+Avoid:
+```
+feat(api): /api/sites list+filter and /api/sites/[id] detail endpoints
+
+Adds GET /api/sites (optional ?type= and ?class= filters) and
+GET /api/sites/[id] (full detail with waves, npcs, resources).
+Also makes the Drizzle db client lazy so next build succeeds when
+.env.production.local has an empty DATABASE_URL placeholder.
+```
+
 @AGENTS.md
