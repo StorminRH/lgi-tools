@@ -92,28 +92,77 @@ pnpm db:push       — Push schema directly to DB (no migration file, use for ra
 
 ---
 
-## Session 3 — Starting Point
+## Session 3 — Sheet Ingestion (2026-05-22)
 
-**Goal:** Add child tables to model site contents — the actual game data that makes each site meaningful.
+### What was built
 
-**Domain split:**
+| File / Dir | What it is |
+|---|---|
+| `src/features/wormhole-sites/schema.ts` | Extended — added `waves`, `npcs`, `site_resources` tables; new `sites` columns (`source_tab`, `signature_label`, `blue_loot_isk`, `isk_per_ehp`, `resource_value_isk`, `updated_at`); `wormhole_class` now nullable; unique `(source_tab, name)` natural key; exports `SIGNATURE_LABELS`, `TRIGGER_LABELS`, `SLEEPER_CLASS_CODES` as const arrays for downstream UI |
+| `src/features/wormhole-sites/sheet-source.ts` | Canonical 8-tab listing (C1–C6 + Gas + Ore) with gids, labels, and resource kind; CSV URL builder; signature-label → site_type mapping |
+| `src/features/wormhole-sites/sheet-parser.ts` | Pure CSV→normalized JSON. RFC 4180 parser handles quoted fields with embedded commas/newlines. Recognizes combat blocks (Wave N + Trigger NPCs) and resource blocks (Defenders + resource table). Block-end heuristic: 2 blank rows OR a row that looks like a new site header |
+| `src/features/wormhole-sites/ingest.ts` | Orchestrator — fetches all 8 tabs in parallel, parses, runs the entire upsert + child-replace + prune in one transaction |
+| `src/db/ingest.ts` | CLI entry. `DOTENV_PATH` env var picks the env file (defaults to `.env.local`); `--no-prune` disables the cleanup phase |
+| `drizzle/0001_majestic_slyde.sql` | Generated migration. Prepended `DELETE FROM "sites";` to wipe the Session-2 hand-typed row before adding NOT NULL columns |
+| `package.json` | Added `db:ingest`, `db:migrate:prod`, `db:ingest:prod` scripts (the `:prod` variants set `DOTENV_PATH=.env.production.local`) |
+| `.env.local`, `.env.example` | Added `SHEET_PUB_KEY` (the published `2PACX-...` token from the Sheet URL) |
 
-- **Combat sites** → `waves` (wave number, trigger NPC name) → `npcs` (name, role `TRIGGER|NORMAL`, DPS, EHP, EWAR flags: web/scram/neut/rr)
-- **Resource sites** → `ore_rocks` (asteroid type, quantity, volume, ISK value), `gas_clouds` (type, volume, ISK value, Sleeper spawn timer minutes), `relic_data_containers` (name, ISK value, site_type: relic|data)
+### Decisions made
 
-**Key design question before writing schema:** Should the child tables use a shared `site_id` FK, or should combat/resource sites be separate parent tables? Recommendation: keep one `sites` parent table (already proven), add child tables with `site_id` FKs — avoids a structural rewrite.
+- **Sheet-faithful schema.** Trigger labels (`Trigger`, `Opt`, `DTA`, `1st Death Trigger`, `Opt?`, `Trigger on Attack`) and sleeper class codes (`F`/`C`/`B`/`T`) stored as **free text** rather than enums. The Sheet has a long tail of one-off labels; locking to an enum would force a migration for every typo. TS `as const` arrays still give compile-time autocomplete for UI code per CLAUDE.md "config-over-repetition".
+- **`wormhole_class` is now nullable.** Gas/Ore tabs cover all classes in one sheet — the Sheet doesn't tag each gas/ore site with a class. NULL is the honest answer; populating it would mean smuggling outside game knowledge.
+- **Replace-children, not diff-by-natural-key.** On each upsert we `DELETE waves WHERE site_id=?` + `DELETE site_resources WHERE site_id=?` then re-insert. Cascade FKs drop NPCs. Simpler than per-row diff and guaranteed to converge to Sheet state.
+- **Prune scoped to fetched tabs.** Site rows whose `(source_tab, name)` no longer matches the parsed Sheet get deleted — but only within `source_tab IN (Class 1, …, Ore Signatures)`. A partial outage can't wipe unrelated rows.
+- **CSV via published `pub?gid=…&output=csv` endpoint.** No Google API key, no auth. The Sheet must remain published as "anyone with the link".
+- **`SHEET_PUB_KEY` lives in `.env.local`**, not hardcoded in source — keeps the URL one config edit away if the Sheet ever gets re-published.
 
-**Suggested first step:** Sketch the `npcs` table (the richest content type) and get alignment before writing anything. Then generate + apply migration, seed a full C5 combat site with real NPC data.
+### Verified
+
+- `pnpm db:migrate` clean on local Postgres (Docker :5433).
+- `pnpm db:ingest` produces: `sites=69, waves=183, npcs=509, resources=219, removed=0`.
+- Type breakdown: `combat=24, relic=12, data=12, ore=12, gas=9` (matches independent Python analyzer of raw CSVs).
+- Round-trip spot-check on **Forgotten Perimeter Coronation Platform** (C1, Relic, $12.8M loot): all 3 waves with correct NPC counts, classes, trigger labels, and DPS reproduce the raw CSV byte-for-byte.
+- Top gas sites by `resource_value_isk` rank correctly (Vital Core → Instrumental Core → Vast Frontier).
+- **Idempotency**: re-running ingest produces identical counts; no duplicates, no churn.
+- **Neon**: schema + data mirrored via inline `DATABASE_URL=… pnpm db:migrate` + `pnpm db:ingest`. Counts and spot-check match local exactly.
+- `pnpm tsc --noEmit` — clean compile.
+
+### Open questions / deferred
+
+- **Reference tabs not yet ingested**: sleeper bestiary (`gid=360740101`), sleeper TypeIDs (`590981029`), gas/ore prices (`16967167`/`716251505`/`421910724`), drifter missile data (`345568467`), escalation rules (`1160985461` Upgraded Avenger, `1813193533` Drifter). These are orthogonal to "sites" and may live as separate tables when needed.
+- **Gas/Ore wormhole class**: Sheet doesn't tag — NULL today. A later session might add a static mapping table (`name → C1|C2|…`) curated outside the Sheet, but only if a tool actually needs that filter.
+- **Vercel-encrypted env vars**: `vercel env pull` returns empty placeholders for DATABASE_URL et al. Neon push currently requires the URL be set inline. Long-term, consider a `vercel env pull --environment=development` workflow or a dedicated Neon secret in `.env.local`.
+- **Trigger-label normalization**: `Opt` vs `Opt?` and `Trigger` vs `Trigger on Attack` are stored raw. UI may want to fold them or expose both — defer until there's a UI consumer.
+
+### npm scripts added/changed
+
+```
+pnpm db:ingest          — Fetch Sheet → upsert local DB (default .env.local)
+pnpm db:ingest --no-prune  — Skip the prune phase (won't delete missing rows)
+pnpm db:migrate:prod    — Run migrate with DOTENV_PATH=.env.production.local
+pnpm db:ingest:prod     — Run ingest with DOTENV_PATH=.env.production.local
+```
+
+---
+
+## Session 4 — Starting Point
+
+**Goal:** Surface the ingested data through the app. First feature using these tables: a wave-card UI on the homepage or a dedicated `/sites` route.
+
+**Per CLAUDE.md "reusable primitives over one-off components":** the wave card is a **collapsible group-of-entities** component fed wormhole data today. Design the primitive so it can later render mining waves, escalation waves, or any other "group with rows and totals".
+
+**Suggested first step:** Read `node_modules/next/dist/docs/` for the Next.js 16 App Router patterns (per AGENTS.md), then build a server-rendered `/sites` page that lists all 69 sites and a `/sites/[id]` detail view that renders a wave card per `waves` row with the NPC table inside.
 
 **To boot local dev:**
 ```bash
-docker compose up -d      # Start Postgres on :5433
+docker compose up -d      # Postgres on :5433
+pnpm db:migrate           # No-op unless new migration files
+pnpm db:ingest            # Refresh from the Sheet (≈1s local, ≈30s Neon)
 pnpm dev                  # Next.js on :3000
 ```
 
-**To verify everything is still connected:**
+**Quick "is anything broken" check:**
 ```bash
-docker compose ps         # Postgres healthy
-pnpm db:migrate           # "Migrations applied" (no-op if no new migrations)
-curl localhost:3000        # HTTP 200
+docker compose ps                                    # Postgres healthy
+PGPASSWORD=lgi psql -h localhost -p 5433 -U lgi -d lgi_tools -c "SELECT count(*) FROM sites;"  # expect 69
 ```

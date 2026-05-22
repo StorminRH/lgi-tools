@@ -8,6 +8,13 @@
       "when": 1779483240537,
       "tag": "0000_peaceful_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779484735139,
+      "tag": "0001_majestic_slyde",
+      "breakpoints": true
     }
   ]
 }

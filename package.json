@@ -9,8 +9,11 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
+    "db:migrate:prod": "DOTENV_PATH=.env.production.local tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:ingest": "tsx src/db/ingest.ts",
+    "db:ingest:prod": "DOTENV_PATH=.env.production.local tsx src/db/ingest.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
