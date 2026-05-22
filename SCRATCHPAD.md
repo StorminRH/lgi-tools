@@ -6,204 +6,200 @@
 
 ## Session 1 — Project Skeleton (2026-05-22)
 
-### What was built
+Stood up Next.js 16.2.6 + App Router + TS + Tailwind v4 with **pnpm**.
+Drizzle ORM + postgres-js. Docker Postgres on **host port 5433** (5432
+already held by another EVE project, `wormhole_db`). Two-env split:
+local Docker, prod Neon (provisioned via Vercel Storage marketplace as
+`LGI-Tools-DB`). GitHub: [StorminRH/lgi-tools](https://github.com/StorminRH/lgi-tools);
+Vercel project `lgi-tools` under `stormins-projects` auto-deploys
+`main` to `lgi.tools`. Folder is `LGI Tools/` (space tolerated by all
+tooling); package name `lgi-tools`.
 
-| File / Dir | What it is |
-|---|---|
-| `src/app/` | Default Next.js 16 App Router scaffold (page, layout, globals.css) |
-| `src/db/index.ts` | Drizzle client — exports `db` wrapping a `postgres-js` connection |
-| `src/db/schema.ts` | Empty placeholder; features add their own tables and re-export here |
-| `src/db/migrate.ts` | CLI migration runner — `pnpm db:migrate` calls this |
-| `drizzle.config.ts` | Drizzle Kit config — reads `DATABASE_URL` from `.env.local` |
-| `drizzle/meta/` | Empty migration journal (no tables yet) |
-| `docker-compose.yml` | `postgres:16-alpine` on host port **5433** (5432 is taken by `wormhole_db`) |
-| `.env.local` | Local dev secrets (gitignored) — points at Docker Postgres |
-| `.env.example` | Committed template showing required env keys |
-| `.env.production.local` | Pulled from Vercel (gitignored) — prod values are encrypted server-side |
-| `CLAUDE.md` | Project principles + `@AGENTS.md` for Next.js 16 agent guidance |
-| `AGENTS.md` | Created by `create-next-app` — tells AI to read bundled Next.js docs |
-
-### Decisions made
-
-- **Next.js 16.2.6** with Turbopack, App Router, TypeScript, Tailwind v4, ESLint 9, `src/` layout
-- **pnpm** as the package manager
-- **Drizzle ORM + postgres-js** — lightweight, TypeScript-first, pairs naturally with Neon serverless
-- **Docker Postgres on 5433** — host port shifted from default 5432 because `wormhole_db` (another project) already holds that port
-- **Local = Docker Postgres, Prod = Neon** — clean two-env split; Vercel injects Neon `DATABASE_URL` automatically on deploy; Vercel encrypted env vars won't show in `vercel env pull` by design
-- **Neon database**: created via Vercel Storage marketplace, named `LGI-Tools-DB`, wired to Production + Preview environments
-- **GitHub**: private repo at [github.com/StorminRH/lgi-tools](https://github.com/StorminRH/lgi-tools) on branch `main`
-- **Vercel**: project `lgi-tools` under `stormins-projects` scope, GitHub connected (auto-deploy on push to `main`)
-- Local folder stays as `LGI Tools/` (space tolerated by all tooling); package name is `lgi-tools`
-
-### Open questions / deferred
-
-- No tables in the schema yet — Session 2 defines the first feature schema
-- No auth layer yet (will need one once there are user-specific features)
-- `wormhole_db` on port 5432 — presumably another EVE project; coordinate if both run at the same time
-
-### npm scripts added
-
-```
-pnpm dev           — Next.js dev server (Turbopack, port 3000)
-pnpm build         — Production build
-pnpm db:generate   — Generate Drizzle migration files from schema
-pnpm db:migrate    — Apply pending migrations to the DB
-pnpm db:studio     — Open Drizzle Studio (visual DB browser)
-pnpm db:push       — Push schema directly to DB (no migration file, use for rapid prototyping)
-```
-
----
+Scripts: `dev`, `build`, `db:generate`, `db:migrate`, `db:studio`,
+`db:push`.
 
 ## Session 2 — Wormhole Sites Schema (2026-05-22)
 
-### What was built
-
-| File / Dir | What it is |
-|---|---|
-| `src/features/wormhole-sites/schema.ts` | First feature schema — `SITE_TYPES` and `WORMHOLE_CLASSES` constants, two `pgEnum` types, and the `sites` table |
-| `src/db/schema.ts` | Stub replaced with `export * from '../features/wormhole-sites/schema'` — the contract for adding features |
-| `drizzle/0000_peaceful_stick.sql` | Generated migration: `CREATE TYPE site_type`, `CREATE TYPE wormhole_class`, `CREATE TABLE sites` |
-| `drizzle/meta/_journal.json` | Journal updated with migration entry |
-
-**`sites` table columns:** `id` (serial PK), `name` (text), `site_type` (enum), `wormhole_class` (enum), `description` (nullable text), `created_at` (timestamp default now)
-
-### Decisions made
-
-- **One table for now** — `sites` holds shared metadata; type-specific child tables (NPC waves, rocks, clouds, containers) deferred to Session 3
-- **Enums driven from TS constants** — `SITE_TYPES` and `WORMHOLE_CLASSES` are `as const` arrays; `pgEnum` consumes them directly. One source of truth for both Postgres and TypeScript types — config-over-repetition per `CLAUDE.md`
-- **`wormhole_class` values are uppercase** (`'C1'…'C6'`) to match EVE convention
-- **Migration is safe to re-run** — Drizzle tracks state in `drizzle.__drizzle_migrations`; second run exits cleanly with "Migrations applied" (no-op)
-- **Feature folder pattern validated** — `src/features/<name>/schema.ts` → re-exported from `src/db/schema.ts` → picked up by `drizzle.config.ts` — the pattern works end-to-end
-
-### Verified
-
-- `\dt` shows `sites` table
-- `\d sites` confirms all 6 columns with correct types
-- `\dT+ site_type` and `\dT+ wormhole_class` show correct enum values
-- `pnpm db:migrate` run twice — second run is a no-op
-- `INSERT INTO sites ... VALUES ('Forgotten Frontier Recursive Depot', 'combat', 'C5')` — row written and read back successfully
-- `pnpm tsc --noEmit` — clean compile
-
-### Open questions / deferred
-
-- No child tables yet — site contents (NPC waves, rocks, gas clouds, relics) modelled in Session 3
-- No `updated_at`, unique constraints, soft delete, or slugs — all deferred
-- No seed data / data loading script yet — that's Session 3 or later
-
----
+First feature schema at `src/features/wormhole-sites/schema.ts`,
+re-exported from `src/db/schema.ts` — that's the pattern for adding
+features. Enums driven from TS `as const` arrays (`SITE_TYPES`,
+`WORMHOLE_CLASSES`) so Postgres types and TS types share one source of
+truth. `wormhole_class` values are uppercase `C1…C6` to match EVE
+convention. Migrations are idempotent (re-running is a no-op).
 
 ## Session 3 — Sheet Ingestion (2026-05-22)
 
+CSV ingest from the published Google Sheet (no API key, `pub?gid=…`
+endpoint, `SHEET_PUB_KEY` in `.env.local`). Schema extended with
+`waves`, `npcs`, `site_resources` and additional `sites` columns.
+Key choices that still matter:
+
+- **Trigger labels & sleeper class codes are free text** (not enums) —
+  the Sheet has a long tail of one-off labels, locking would force a
+  migration per typo. `TRIGGER_LABELS` and `SLEEPER_CLASS_CODES` `as
+  const` arrays give compile-time autocomplete without DB rigidity.
+- **`wormhole_class` is nullable** — gas/ore tabs cover all classes in
+  one sheet and don't tag each site with a class.
+- **Replace-children on upsert** (`DELETE waves WHERE site_id=?` then
+  re-insert) — simpler than diff, converges to Sheet state.
+- **Prune scoped to fetched tabs** — partial outage can't wipe
+  unrelated rows.
+
+Output after ingest: 69 sites · 183 waves · 509 NPCs · 219 resources
+(combat 24, relic 12, data 12, ore 12, gas 9). Round-trips verified on
+local + Neon. Scripts: `db:ingest`, `db:ingest:prod`, `db:migrate:prod`
+(the `:prod` variants set `DOTENV_PATH=.env.production.local`).
+
+## Session 4 — API Endpoints (2026-05-22)
+
+`GET /api/sites` (with `?type=` and `?class=` filters) and
+`GET /api/sites/[id]`. Strict response types in
+`src/features/wormhole-sites/types.ts` — re-exports `SiteType` /
+`WormholeClass` from schema (one source of truth). Three notable
+decisions:
+
+- **Lazy db client (Proxy)** in `src/db/index.ts` — connection deferred
+  to first query, not module load. `.env.production.local` from
+  `vercel env pull` writes `DATABASE_URL=""` placeholders that would
+  otherwise crash `next build`. Vercel injects the real URL at
+  runtime.
+- **Validation in route handler, not query function** — queries accept
+  already-typed values, handlers guard the boundary.
+- **FK columns excluded from responses** — explicit column selection in
+  `queries.ts` means `waveId` / `siteId` never appear in JSON.
+
+API surface stable; production at `lgi.tools` matches local.
+
+## Session 5 — Deferred
+
+Original plan was to build server-rendered `/sites` + `/sites/[id]`
+pages, but the user had a finished HTML prototype to wire up first.
+Pushed page work to Session 7 (after the design system lands).
+
+---
+
+## Session 6 — Card Components & A1 Theme (2026-05-22)
+
 ### What was built
 
 | File / Dir | What it is |
 |---|---|
-| `src/features/wormhole-sites/schema.ts` | Extended — added `waves`, `npcs`, `site_resources` tables; new `sites` columns (`source_tab`, `signature_label`, `blue_loot_isk`, `isk_per_ehp`, `resource_value_isk`, `updated_at`); `wormhole_class` now nullable; unique `(source_tab, name)` natural key; exports `SIGNATURE_LABELS`, `TRIGGER_LABELS`, `SLEEPER_CLASS_CODES` as const arrays for downstream UI |
-| `src/features/wormhole-sites/sheet-source.ts` | Canonical 8-tab listing (C1–C6 + Gas + Ore) with gids, labels, and resource kind; CSV URL builder; signature-label → site_type mapping |
-| `src/features/wormhole-sites/sheet-parser.ts` | Pure CSV→normalized JSON. RFC 4180 parser handles quoted fields with embedded commas/newlines. Recognizes combat blocks (Wave N + Trigger NPCs) and resource blocks (Defenders + resource table). Block-end heuristic: 2 blank rows OR a row that looks like a new site header |
-| `src/features/wormhole-sites/ingest.ts` | Orchestrator — fetches all 8 tabs in parallel, parses, runs the entire upsert + child-replace + prune in one transaction |
-| `src/db/ingest.ts` | CLI entry. `DOTENV_PATH` env var picks the env file (defaults to `.env.local`); `--no-prune` disables the cleanup phase |
-| `drizzle/0001_majestic_slyde.sql` | Generated migration. Prepended `DELETE FROM "sites";` to wipe the Session-2 hand-typed row before adding NOT NULL columns |
-| `package.json` | Added `db:ingest`, `db:migrate:prod`, `db:ingest:prod` scripts (the `:prod` variants set `DOTENV_PATH=.env.production.local`) |
-| `.env.local`, `.env.example` | Added `SHEET_PUB_KEY` (the published `2PACX-...` token from the Sheet URL) |
+| `src/app/globals.css` | Rewritten with `@theme` A1 tokens (surface, text, isk, dps-tier colors) and a CSS rule rotating `[data-chevron]` inside open `<details>` |
+| `src/app/layout.tsx` | Swapped Geist → **IBM Plex Mono** + **Barlow Condensed** via `next/font/google` (CSS vars `--font-plex-mono`, `--font-barlow`); metadata set to "LGI.tools" |
+| `src/components/ui/*.tsx` | Domain-agnostic primitives: `Card`/`CardHeader`, `Pill`, `Chip`, `Collapsible`+`Chevron`, `MetricBlock`, `SectionHeader`, `SectionFooter`, `Callout`, `EmptyState`, `Dot`, `EntityRow`/`ResourceRow`/`Stat`/`LabeledChipRow`, `cn` helper |
+| `src/features/wormhole-sites/components/wormhole-styles.ts` | The **only** file in the codebase that knows "C5 is red" / "WEB is blue" — central mappings: `CLASS_TONE`, `SITE_TYPE_TONE`, `EWAR_TONE`, `TRIGGER_CHIP_TONE`, `DPS_TIER_CLASS`, `dpsTier()` thresholds, scan/anomaly mapping |
+| `src/features/wormhole-sites/components/{SiteCard,EwarRow,WaveCard,NpcRow,ResourceRow}.tsx` | Composition layer — assembles primitives with wormhole semantics, consumes `SiteDetail` shape directly |
+| `src/features/wormhole-sites/mock-data.ts` | 11 `SiteDetail` fixtures mirroring `card_reference.html` (combat C1/C3/C5, ore C2/C3, gas C2/C4, relic C1/C3, data C1/C4) |
+| `src/app/preview/cards/page.tsx` | Server component grouping mock fixtures by site type into the prototype's grid layout |
+| `.claude/launch.json` | Adds `next-dev` config for the Preview MCP tool |
 
 ### Decisions made
 
-- **Sheet-faithful schema.** Trigger labels (`Trigger`, `Opt`, `DTA`, `1st Death Trigger`, `Opt?`, `Trigger on Attack`) and sleeper class codes (`F`/`C`/`B`/`T`) stored as **free text** rather than enums. The Sheet has a long tail of one-off labels; locking to an enum would force a migration for every typo. TS `as const` arrays still give compile-time autocomplete for UI code per CLAUDE.md "config-over-repetition".
-- **`wormhole_class` is now nullable.** Gas/Ore tabs cover all classes in one sheet — the Sheet doesn't tag each gas/ore site with a class. NULL is the honest answer; populating it would mean smuggling outside game knowledge.
-- **Replace-children, not diff-by-natural-key.** On each upsert we `DELETE waves WHERE site_id=?` + `DELETE site_resources WHERE site_id=?` then re-insert. Cascade FKs drop NPCs. Simpler than per-row diff and guaranteed to converge to Sheet state.
-- **Prune scoped to fetched tabs.** Site rows whose `(source_tab, name)` no longer matches the parsed Sheet get deleted — but only within `source_tab IN (Class 1, …, Ore Signatures)`. A partial outage can't wipe unrelated rows.
-- **CSV via published `pub?gid=…&output=csv` endpoint.** No Google API key, no auth. The Sheet must remain published as "anyone with the link".
-- **`SHEET_PUB_KEY` lives in `.env.local`**, not hardcoded in source — keeps the URL one config edit away if the Sheet ever gets re-published.
+- **`Collapsible` is a pure `<details>`/`<summary>`** — no `'use client'`.
+  First attempt used a `useState` client component with a `header:
+  (open) => ReactNode` render prop; that crashes RSC because functions
+  can't cross the server/client boundary. Native `<details>` toggles
+  in-browser, the chevron rotates via a single CSS rule scoped to
+  `details[data-collapsible][open] > summary [data-chevron]`. Side
+  benefit: zero JS shipped for the toggle.
+- **Two layers, hard separation.** `src/components/ui/` accepts
+  abstract `tone` props (`green`, `orange`, `red`, …) and never imports
+  from `features/`. `wormhole-styles.ts` is the *only* bridge. Future
+  features (`mining-fits`, `pi-planner`, etc.) get their own
+  composition folder and reuse every primitive untouched.
+- **Tone palettes inlined in each primitive (TS lookup), not in
+  `@theme`.** The pill/chip colors use semi-transparent rgba and
+  three-shade soft/fg/border combos that don't map cleanly to
+  Tailwind's name-per-color model. Arbitrary hex values inside a
+  `Record<Tone, string>` are readable and survive `pnpm build`.
+  Structural colors (`bg`, `border`, `text`, `name`, `muted`, `isk`)
+  *are* in `@theme` so common utilities work.
+- **DPS thresholds** (`low <50`, `mid 50–199`, `high ≥200`) live in
+  `wormhole-styles.ts::dpsTier()` — one place to retune the visual
+  band if balancing changes.
+- **Mock data shape = real API shape.** Fixtures conform to the
+  existing `SiteDetail` interface from `types.ts`, so Session 7 swaps
+  `MOCK_SITES` → `getSiteDetail()` with no component changes.
 
 ### Verified
 
-- `pnpm db:migrate` clean on local Postgres (Docker :5433).
-- `pnpm db:ingest` produces: `sites=69, waves=183, npcs=509, resources=219, removed=0`.
-- Type breakdown: `combat=24, relic=12, data=12, ore=12, gas=9` (matches independent Python analyzer of raw CSVs).
-- Round-trip spot-check on **Forgotten Perimeter Coronation Platform** (C1, Relic, $12.8M loot): all 3 waves with correct NPC counts, classes, trigger labels, and DPS reproduce the raw CSV byte-for-byte.
-- Top gas sites by `resource_value_isk` rank correctly (Vital Core → Instrumental Core → Vast Frontier).
-- **Idempotency**: re-running ingest produces identical counts; no duplicates, no churn.
-- **Neon**: schema + data mirrored via inline `DATABASE_URL=… pnpm db:migrate` + `pnpm db:ingest`. Counts and spot-check match local exactly.
-- `pnpm tsc --noEmit` — clean compile.
+- `pnpm tsc --noEmit` clean.
+- `pnpm build` clean — `/preview/cards` prerenders static.
+- Visual parity vs `LGI Tool References/card_reference.html` at desktop
+  (1280px → 3-column grid) and mobile (375px → single column).
+- Pills: scan neutral, combat red-soft, ore yellow, gas teal, relic
+  orange-soft, data blue; C1 green, C2 green-strong, C3 orange,
+  C4 magenta, C5 red, C6 purple.
+- Chips: WEB blue, SCRAM red, NEUT purple, RR green, TRIGGER orange.
+- Chevron rotation: closed `transform: none`, open `matrix(-1,0,0,-1,
+  0,0)` (180°). Native `<summary>` click toggles details (true→false
+  confirmed).
+- DPS color tiers render: 24 green, 50/110/280 orange→red gradient,
+  1100 red.
+- Gas cards show the orange spawn callout; relic/data cards show
+  colored dots; "No Sleeper presence" empty-state on hack-only sites;
+  "no combat wave" sub-label on combat-free sites.
+- Console clean — no errors.
 
 ### Open questions / deferred
 
-- **Reference tabs not yet ingested**: sleeper bestiary (`gid=360740101`), sleeper TypeIDs (`590981029`), gas/ore prices (`16967167`/`716251505`/`421910724`), drifter missile data (`345568467`), escalation rules (`1160985461` Upgraded Avenger, `1813193533` Drifter). These are orthogonal to "sites" and may live as separate tables when needed.
-- **Gas/Ore wormhole class**: Sheet doesn't tag — NULL today. A later session might add a static mapping table (`name → C1|C2|…`) curated outside the Sheet, but only if a tool actually needs that filter.
-- **Vercel-encrypted env vars**: `vercel env pull` returns empty placeholders for DATABASE_URL et al. Neon push currently requires the URL be set inline. Long-term, consider a `vercel env pull --environment=development` workflow or a dedicated Neon secret in `.env.local`.
-- **Trigger-label normalization**: `Opt` vs `Opt?` and `Trigger` vs `Trigger on Attack` are stored raw. UI may want to fold them or expose both — defer until there's a UI consumer.
-
-### npm scripts added/changed
-
-```
-pnpm db:ingest          — Fetch Sheet → upsert local DB (default .env.local)
-pnpm db:ingest --no-prune  — Skip the prune phase (won't delete missing rows)
-pnpm db:migrate:prod    — Run migrate with DOTENV_PATH=.env.production.local
-pnpm db:ingest:prod     — Run ingest with DOTENV_PATH=.env.production.local
-```
-
----
-
-## Session 4 — API Endpoints (2026-05-22)
-
-### What was built
-
-| File | What it is |
-|---|---|
-| `src/features/wormhole-sites/types.ts` | Strict TypeScript response interfaces: `SiteListItem`, `Wave`, `Npc`, `SiteResource`, `SiteDetail`, `ApiError`. Re-exports `SiteType` / `WormholeClass` from schema — one source of truth. |
-| `src/features/wormhole-sites/queries.ts` | `listSites(filters)` and `getSiteDetail(id)` — all DB access for this feature. Uses explicit column selection so FK columns (`siteId`, `waveId`) are never exposed in responses. |
-| `src/app/api/sites/route.ts` | `GET /api/sites` — optional `?type=` and `?class=` query params. Returns `SiteListItem[]`. |
-| `src/app/api/sites/[id]/route.ts` | `GET /api/sites/[id]` — full detail. Returns `SiteDetail` (site + waves + npcs + resources). |
-| `src/db/index.ts` | Made db client **lazy** — connection deferred to first query via Proxy, not at module load. Fixes `next build` when `.env.production.local` has an empty `DATABASE_URL` placeholder from `vercel env pull`. |
-
-### Decisions made
-
-- **Sequential selects, not Drizzle relational API.** Avoided adding `relations()` definitions (which would require touching schema and db client). Three fast queries per detail request; acceptable for this data size.
-- **Validation in route handler, not query function.** Query functions accept already-typed values; handlers guard the boundary. This keeps queries reusable.
-- **Lazy db Proxy.** `.env.production.local` from `vercel env pull` sets `DATABASE_URL=""` (Vercel encrypts prod secrets). Next.js loads this file first and overrides `.env.local` during `next build`. Making `db` a Proxy defers the throw to request time so build succeeds. On Vercel itself, the real URL is injected by the platform at runtime.
-- **FK columns excluded from responses.** `queries.ts` uses explicit column objects — `waveId` / `siteId` never appear in JSON output.
-
-### Verified
-
-- `pnpm tsc --noEmit` — clean
-- `pnpm build` — clean (both routes compile as `ƒ Dynamic`)
-- Local (`localhost:3000`): count=69, combat=24, C3=8, combat+C3=4; detail has waves/npcs; 400/404 errors correct
-- Production (`lgi.tools`): identical results
-
-### API surface
-
-```
-GET /api/sites                     → SiteListItem[]  (69 sites)
-GET /api/sites?type=combat         → SiteListItem[]  (24 sites)
-GET /api/sites?class=C3            → SiteListItem[]  (8 sites)
-GET /api/sites?type=combat&class=C3 → SiteListItem[] (4 sites)
-GET /api/sites/[id]                → SiteDetail (waves + npcs + resources)
-```
-
-Error responses: `{ "error": "..." }` with HTTP 400 (invalid param) or 404 (not found).
+- **`SignatureLabel` import is unused in `types.ts` re-exports** — not a
+  bug, just noise; can drop when convenient.
+- **Wave-level vs site-level EWAR** — currently the card-header EWAR
+  row sums across all waves. Real combat sites might want per-wave
+  EWAR display only. Defer until the real-data session reveals which
+  reads better.
+- **`triggerLabel` rendering** — every non-null trigger label currently
+  shows "TRIGGER". The Sheet has a tail (`Opt`, `DTA`, `1st Death
+  Trigger`, `Opt?`) — when a real player asks, decide whether to
+  surface them.
+- **No filter / sort UI** on the preview route — that's the real
+  `/sites` list page job (Session 7).
 
 ---
 
-## Session 5 — Starting Point
+## Session 7 — Starting Point
 
-**Goal:** Build the UI that consumes the new API. Server-rendered pages at `/sites` and `/sites/[id]`.
+**Goal:** wire real data into the new components and stand up the real
+pages.
 
-**Per CLAUDE.md "reusable primitives over one-off components":** the wave card is a **collapsible group-of-entities** component fed wormhole data today. Design it so it can later render mining waves, escalation waves, or any "group with rows and totals".
+**The swap is one line:** in `src/app/preview/cards/page.tsx`, replace
 
-**Suggested first step:** Read `node_modules/next/dist/docs/` for Next.js 16 server component and layout patterns (per AGENTS.md), then build:
-- `/sites` — server component that calls `listSites()` directly (no fetch, it's a server component), renders a filterable table/grid of all 69 sites
-- `/sites/[id]` — server component that calls `getSiteDetail()`, renders site header + one wave card per wave with the NPC table inside
-
-**To boot local dev:**
-```bash
-docker compose up -d      # Postgres on :5433
-pnpm db:migrate           # No-op unless new migration files
-pnpm db:ingest            # Refresh from the Sheet (≈1s local, ≈30s Neon)
-pnpm dev                  # Next.js on :3000
+```ts
+import { MOCK_SITES } from '@/features/wormhole-sites/mock-data';
 ```
 
-**Quick "is anything broken" check:**
+with a server-side fetch via the existing helpers in
+`src/features/wormhole-sites/queries.ts`:
+
+```ts
+import { listSites } from '@/features/wormhole-sites/queries';
+// then in the component: const sites = await listSites();
+```
+
+(Note: `listSites()` returns `SiteListItem[]`, not `SiteDetail[]`.
+Either build a `listSiteDetails()` for the preview, or — better — split
+the work as planned:
+
+1. **`/sites`** server component — `listSites()` → grid of compact
+   list cards (subset of `SiteCard`, header + ISK + pills only).
+   Add `?type=` / `?class=` filter UI.
+2. **`/sites/[id]`** server component — `getSiteDetail(id)` → full
+   `SiteCard`. The preview page can be deleted once both real routes
+   exist (or kept under `/preview/cards` as a design-system regression
+   page).
+
+**Boot order for local dev:**
+
 ```bash
-curl http://localhost:3000/api/sites | python3 -c "import sys,json; print(len(json.load(sys.stdin)))"  # expect 69
+docker compose up -d   # Postgres on :5433
+pnpm db:migrate        # no-op unless new migrations
+pnpm db:ingest         # refresh from Sheet (≈1s local)
+pnpm dev               # localhost:3000
+```
+
+**Quick sanity check:**
+
+```bash
+curl http://localhost:3000/api/sites | jq length   # expect 69
 ```
