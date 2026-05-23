@@ -3,3 +3,4 @@
 // Per CLAUDE.md: schema stays extensible; features add their own tables.
 
 export * from '../features/wormhole-sites/schema';
+export * from '../data/eve-data/schema';

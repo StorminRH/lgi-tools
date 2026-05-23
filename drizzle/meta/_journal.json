@@ -15,6 +15,13 @@
       "when": 1779484735139,
       "tag": "0001_majestic_slyde",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779532051539,
+      "tag": "0002_typical_lilandra",
+      "breakpoints": true
     }
   ]
 }

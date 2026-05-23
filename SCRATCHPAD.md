@@ -4,6 +4,68 @@
 
 ---
 
+## Phase 2 — Session A (SDE plumbing): COMPLETE (2026-05-23)
+
+The `src/data/eve-data/` slice exists and is ingested locally:
+
+- **Schema:** three tables — `eve_categories`, `eve_groups`,
+  `eve_types`. Primary keys are CCP's SDE IDs (not `serial`), FK
+  chain types → groups → categories with `ON DELETE RESTRICT`. A
+  functional `lower(name)` btree index on `eve_types` powers
+  case-insensitive name lookup.
+- **Ingest:** `pnpm db:ingest:sde` downloads the three Fuzzwork
+  `latest/inv*.csv.bz2` dumps to `/tmp/lgi-sde/`, streams them
+  through `unbzip2-stream` → `csv-parse` (RFC 4180, handles
+  embedded newlines in descriptions) → batched 500-row inserts
+  inside one transaction guarded by `TRUNCATE ... RESTART IDENTITY
+  CASCADE`. Peak memory stays flat. Local run: 47 categories,
+  1556 groups, 50,235 types in ~4.5s. Idempotent.
+- **All types ingested.** Published/unpublished split observed at
+  25,818 / 24,417. `published` boolean stored on every row;
+  consumers filter if they care.
+- **Query API:** `getType`, `getTypeByName`, `getTypesByIds`,
+  `getTypesByNames`, `getGroup`, `getCategory`. All read-only;
+  no Drizzle handles or schema re-exported from `queries.ts`.
+  `getTypeByName` is case-insensitive and prefers published when
+  names collide.
+- **Migration:** `drizzle/0002_typical_lilandra.sql`. Applied
+  locally; not yet applied to Neon prod (Session A goal was local
+  verification; prod migrate is the next session's first action
+  if it needs SDE data).
+- **CLI entry:** `src/db/ingest-sde.ts` mirrors the
+  dotenv-load → client → `try/finally client.end()` shape of the
+  existing wormhole ingest. `--keep-cache` retains the `/tmp/`
+  bz2s for repeat runs.
+- **Decoupling verified.** Zero `@/features` imports under
+  `src/data/`; zero `@/data/eve-data` imports under `src/features/`
+  (becomes non-empty in Session C).
+
+### Session B should start with
+
+- Build `src/data/market-prices/` against Fuzzwork's market API.
+  Read PHASE_2_PLAN.md "Session B" + the Decisions-already-made
+  block. The session's first consumer of `eve-data` is a Tritanium
+  / Pyerite / Mexallon (typeIDs 34/35/36) sanity fetch — the
+  query API is ready.
+- Run `pnpm db:ingest:sde:prod` against Neon before Session C
+  needs it (no urgency until then). The migration file is in the
+  repo, so `pnpm db:migrate:prod` then `pnpm db:ingest:sde:prod`
+  is the sequence.
+
+### Rough edges from Session A
+
+- **`@types/unbzip2-stream` is published but minimal** — the
+  default-export shape was good enough to drop the `@ts-expect-error`.
+  If the upstream types ever change, the cast in
+  `src/data/eve-data/ingest.ts` may need revisiting.
+- **`fetch().body` → `Readable.fromWeb()` requires a cast** in
+  `src/data/eve-data/source.ts`. DOM `ReadableStream<Uint8Array>`
+  vs Node `stream/web`'s narrower type. Idiomatic Node-on-Next.js
+  friction; not eve-data-specific.
+- **No prod ingest yet.** Schema is migrated locally only.
+
+---
+
 ## Phase 1 — Wormhole Sites: COMPLETE (2026-05-22)
 
 The live site at [lgi.tools](https://lgi.tools/) ships an end-to-end
@@ -29,6 +91,11 @@ ore 12, relic 12, data 12.
 - **Feature slice = `src/features/<name>/`.** Each feature has its own
   `schema.ts` (re-exported from `src/db/schema.ts`), `queries.ts`,
   `types.ts`, `components/`. Features never import from each other.
+- **Data plumbing lives in `src/data/`, not `src/features/`.** Slices
+  like `src/data/eve-data/` and `src/data/market-prices/` own ingest,
+  schema, and a query API but no UI or end-user routes. Features in
+  `src/features/` import from `src/data/`; data layers never import
+  from features.
 - **UI primitives in `src/components/ui/` are domain-agnostic.** They
   accept abstract `tone` props (`green`, `red`, …). The only file that
   knows "C5 is red" or "WEB is blue" is

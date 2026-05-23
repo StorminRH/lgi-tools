@@ -10,7 +10,7 @@ Raise a conflict before proceeding if a task seems to violate one.
 A wave card is not a wormhole component — it is a collapsible group-of-entities component fed wormhole data today. Future features use the same primitives with different data.
 
 **Features don’t know about each other.**
-Each feature is a self-contained slice. Shared logic lives in a common layer that features import from — never the reverse.
+Each feature is a self-contained slice in `src/features/`. Shared logic lives in a common layer features import from — never the reverse. UI primitives in `src/components/ui/`; shared data layers (SDE, market prices, …) in `src/data/`. Two features never import from each other.
 
 **Configuration over repetition.**
 Types, classes, and variants are defined as constants in one place. Adding a new one is a config change, not a code change. Utilize strict typing to enforce these configurations.
