@@ -19,7 +19,7 @@ function npcEwarKeys(npc: Npc): EwarKey[] {
     neut: npc.neut,
     rr: npc.rrep,
   };
-  return EWAR_ORDER.filter((k) => (m[k] ?? 0) > 0);
+  return EWAR_ORDER.filter((k) => (m[k] ?? 0) !== 0);
 }
 
 export function NpcRow({ npc }: { npc: Npc }) {
@@ -30,7 +30,7 @@ export function NpcRow({ npc }: { npc: Npc }) {
       <>
         {ewars.map((k) => (
           <Chip key={k} tone={EWAR_TONE[k]}>
-            {EWAR_LABEL[k]}
+            {k === 'neut' && npc.neut ? `NEUT ${npc.neut}` : EWAR_LABEL[k]}
           </Chip>
         ))}
         {npc.triggerLabel && <Chip tone={TRIGGER_CHIP_TONE}>TRIGGER</Chip>}
@@ -44,7 +44,6 @@ export function NpcRow({ npc }: { npc: Npc }) {
       chips={chipNodes}
       trailing={
         <>
-          {npc.ehp != null && <Stat>{formatEhp(npc.ehp)} EHP</Stat>}
           {npc.dps != null && (
             <Stat className={DPS_TIER_CLASS[tier]}>{npc.dps} DPS</Stat>
           )}
@@ -54,7 +53,3 @@ export function NpcRow({ npc }: { npc: Npc }) {
   );
 }
 
-function formatEhp(ehp: number): string {
-  if (ehp >= 1000) return `${Math.round(ehp / 1000)}k`;
-  return String(ehp);
-}

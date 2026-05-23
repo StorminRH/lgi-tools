@@ -102,9 +102,11 @@ export function SiteCard({ site }: { site: SiteDetail }) {
             {isGas && (
               <Callout label="Spawn">Sleeper wave arrives ~20 min after warp-in</Callout>
             )}
-            {site.resources.map((resource) => (
-              <ResourceRow key={resource.id} resource={resource} siteType={site.siteType} />
-            ))}
+            {site.resources
+              .filter((r) => r.resourceKind !== 'ore' || (r.units ?? 0) > 0)
+              .map((resource) => (
+                <ResourceRow key={resource.id} resource={resource} siteType={site.siteType} />
+              ))}
             <SectionFooter
               label={resourceFooterLabel(site.siteType)}
               value={formatIskHeader(totalResourceIsk)}

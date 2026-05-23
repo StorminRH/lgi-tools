@@ -322,6 +322,24 @@ export function parseSheetTab(csvText: string, tab: SheetTab): ParsedSite[] {
       j++;
     }
 
+    // Recompute wave-level EWAR from per-NPC data — sheet summary rows may
+    // omit or misalign neut/rrep counts, so derive from ground truth.
+    for (const wave of site.waves) {
+      const totals = wave.npcs.reduce(
+        (acc, n) => ({
+          ewScram: acc.ewScram + (n.scram ?? 0),
+          ewWeb:   acc.ewWeb   + (n.web   ?? 0),
+          ewNeut:  acc.ewNeut  + (n.neut  ?? 0),
+          ewRrep:  acc.ewRrep  + (n.rrep  ?? 0),
+        }),
+        { ewScram: 0, ewWeb: 0, ewNeut: 0, ewRrep: 0 },
+      );
+      wave.ewScram = totals.ewScram || null;
+      wave.ewWeb   = totals.ewWeb   || null;
+      wave.ewNeut  = totals.ewNeut  || null;
+      wave.ewRrep  = totals.ewRrep  || null;
+    }
+
     sites.push(site);
     i = j;
   }

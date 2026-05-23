@@ -21,7 +21,7 @@ export function EwarRow({
   rr: number | null;
 }) {
   const counts = { web, scram, neut, rr };
-  const active = EWAR_ORDER.filter((k) => (counts[k] ?? 0) > 0);
+  const active = EWAR_ORDER.filter((k) => (counts[k] ?? 0) !== 0);
   if (active.length === 0) return null;
   return (
     <LabeledChipRow label="EWAR">
