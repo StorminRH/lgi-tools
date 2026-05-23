@@ -45,32 +45,25 @@ independent — pick whichever the user wants to land first.
 
 ## Sessions
 
-### Session E — Relic + data sites carry no container loot
+### Session E — Relic and data sites render killing-wave ISK as the primary value  ✅ SHIPPED
 
-**Goal.** Cards for relic and data sites display per-container
-resource rows the same way ore and gas sites already do — not just
-the "+killing wave" blue-loot value with a `—` primary ISK.
+**Status.** Shipped 2026-05-23 in commit `d1bfcd3`.
 
-**Problem.** The Sheet's relic/data tabs structure container loot
-differently from the ore/gas tabs, and `sheet-parser.ts` doesn't
-extract it. End result: 24 relic+data cards show empty resource
-sections. The blue-loot "killing wave" number alone underrepresents
-each site's value.
+**Original framing.** Parse per-container loot for relic/data sites from
+the Sheet, or document why it can't be parsed.
 
-**Investigation needed.** Read a few relic/data tabs in the Sheet
-directly to confirm container loot is even published there. If it's
-not, the cleanup is documenting that fact on the card (a "loot
-varies per can" note) rather than parsing nothing.
+**Actual resolution.** The DB confirmed every relic/data site has a
+killing-wave ISK and zero container-loot rows. The Sheet doesn't
+publish container loot for these sites. Rather than display `—` for
+the primary value and demote the only available ISK to a secondary
+`+ X killing wave` sub-line, the card now treats relic/data the same
+way it treats combat anomalies: primary ISK = `blueLootIsk`, waves
+render inline beneath the EWAR row.
 
-**Out of scope.** Container hacking difficulty, can spawn counts,
-loot-table simulation — those are tooling, not data fixes.
-
-**Verification.** A relic and a data site each show at least one
-resource row, OR each shows a clear "loot varies per can" message
-where today they show a blank section.
-
-**Known unknowns.** Whether the Sheet even contains the data. Inspect
-first; revise the plan if it doesn't.
+**What changed.** Single derived flag in `SiteCard.tsx`:
+`isWaveDriven = isCombat || isHackSite`. Substituted in four places
+(primary ISK, sub-line, inline wave block, "Wave Spawns" guard). The
+unreachable "hacking only" empty-state branch collapsed with it.
 
 ---
 
@@ -85,144 +78,153 @@ component flattens all non-null values to one display string. Players
 who use the Sheet today rely on distinguishing optional triggers from
 hard triggers from on-attack triggers.
 
+**Scope decision.** Render the Sheet label verbatim. No canonical
+shorthand map up-front — the Sheet's labels are already short. If a
+specific label overflows the layout we add a shorthand for that label
+only, on demand.
+
 **Constraints.** Keep the WAVE-card layout intact. The label is a
 small inline annotation, not a new column.
 
 **Verification.** A wave that mixes "Trigger" and "Opt" NPCs shows
-the two labels distinctly. Cards that previously showed "TRIGGER"
-now reflect the underlying value verbatim (or a short canonical
-shorthand mapping if the long phrases overflow the layout).
+both labels distinctly. Cards that previously showed "TRIGGER" now
+show the underlying value verbatim.
 
 ---
 
 ### Session G — `/api/sites` list endpoint serves Sheet ISK while `/api/sites/[id]` serves live
 
-**Goal.** Either both endpoints apply `overlayLivePrices`, or the
-list endpoint explicitly documents the difference. Today the
-inconsistency is invisible to consumers and dangerous to assume away.
+**Goal.** Make the list endpoint's ISK source unambiguous on the wire
+so a future external consumer can't mistake Sheet values for live ones.
 
-**Problem.** `/api/sites` (list) returns `resourceValueIsk` from the
-Sheet because it never fetches resources. `/api/sites/[id]` (detail)
-returns live values. The list aggregate is silently wrong if any
-consumer reads it for totals.
+**Problem.** `/api/sites` (list) returns `resourceValueIsk` straight
+from the Sheet because it never fetches per-resource rows.
+`/api/sites/[id]` (detail) returns the live-overlay value under the
+same field name. Currently nothing internal reads the list endpoint
+(`/sites` calls `listSiteDetails` directly, server-side), so the
+divergence bites no one today — but the naming collision is a
+footgun for future us.
 
-**Approach options.**
-1. Make the list endpoint also call a cheap live-aggregate path —
-   sum `effectiveIsk` across resources without returning the full
-   resource list.
-2. Document the divergence in the API docs and rename the list
-   field to `sheetResourceValueIsk` so the source is explicit.
+**Scope decision.** Rename the list endpoint's field from
+`resourceValueIsk` to `sheetResourceValueIsk`. Two-line change in
+`queries.ts` (the `listSites` projection) and `route.ts` (the API
+shape). No new compute, no duplicate code path, no overlay added to
+the list. The detail endpoint's `effectiveIsk` already announces
+itself as live.
 
-User picks at session start.
-
-**Verification.** Pull both endpoints; aggregate field reads the
-same source-of-truth in both, OR the field names make the
-divergence unambiguous.
-
----
-
-### Session H — Ingest tripwire for alias-map drift
-
-**Goal.** `pnpm db:ingest` warns loudly when the count of
-`resourcesWithoutTypeId` increases between runs — or when an alias
-key in `resource-aliases.ts` produces zero matches against the SDE.
-
-**Problem.** The alias map encodes two Sheet typos verbatim
-(`luminous kermite` → Kernite, `vivid hemorite` → Hemorphite). If
-the Sheet ever corrects those typos, the broken keys silently start
-resolving to NULL and the rows fall back to Sheet values — invisibly
-losing live prices.
-
-**Approach.** Compare ingest-time `resourcesWithoutTypeId` against
-the previous run's value (stored in a small metadata table or in a
-file under `.next/cache/`). Emit a clear warning when the count
-increases, and a separate warning when a key in the alias map
-matched zero Sheet rows during ingest (likely fixed-typo case).
-
-**Constraints.** No new external dependency. This is observability,
-not validation — ingest still succeeds either way.
-
-**Verification.** Manually rename one alias key to an unused string,
-re-run ingest, see the warning fire. Restore. Backdate the previous
-run, increase the no-typeId count by removing a real alias entry,
-re-run, see the count-increase warning fire.
+**Verification.** `curl /api/sites | jq '.[0]'` returns
+`sheetResourceValueIsk`, not `resourceValueIsk`. The detail endpoint
+is unchanged. No internal callers break (none read this field).
 
 ---
 
-### Session I — `db:ingest-sde` preemptive `process.exit(0)`
+### ~~Session H — Ingest tripwire for alias-map drift~~  → moved to Phase 2.6
 
-**Goal.** Apply the explicit `await client.end(); process.exit(0)`
-pattern (from `src/db/refresh-prices.ts`) to `src/db/ingest-sde.ts`
-before it ever exhibits the tsx+postgres hang documented in
-Session B.
+**Status.** Dropped from Phase 2.5. The underlying concern (the
+Sheet's two known typos drifting) is part of a larger architectural
+question the user surfaced mid-session: **the Sheet is not actually
+meant to be the long-term source of truth**. It was used as the
+initial data baseline for the wormhole-sites feature, but the
+intention was always to take ownership of the data in the local DB.
 
-**Constraints.** Trivial code change, no behavior change in the
+That conversation generated **Phase 2.6**, a single-item phase that
+covers:
+
+- Pulling every Sheet tab worth keeping (including ones skipped in
+  Phase 1) so nothing useful is lost.
+- Understanding the Sheet's full structure so it can be recreated
+  in-DB later.
+- Decoupling routine ingest from the Sheet — make `pnpm db:ingest`
+  a one-time / opt-in re-seed, not a routine pull that wipes local
+  edits.
+- Fixing the two typos (`luminous kermite`, `vivid hemorite`)
+  directly in the DB and removing those entries from the alias map.
+
+See [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md) for the full brief.
+
+---
+
+### Session I — `db:ingest-sde` preemptive clean-exit
+
+**Goal.** Apply the established clean-exit pattern (`await client.end();
+process.exit(0)`) from `src/db/refresh-prices.ts` to
+`src/db/ingest-sde.ts`. This is the **SDE** ingest (Eve static data
+from Fuzzwork) — a legitimate ongoing pull, separate from the Sheet
+ingest covered by Phase 2.6.
+
+**Why this exists.** Node-with-Postgres scripts hold a TCP connection
+open via keepalive; without explicit shutdown, the event loop never
+empties and the process hangs at the end. `refresh-prices.ts` already
+fixed this; `ingest-sde.ts` is the same shape and hasn't hit the bug
+yet — preempting it.
+
+**Constraints.** Three-line copy-paste. No behavior change in the
 happy path.
 
-**Verification.** Re-run `pnpm db:ingest:sde` locally; confirm clean
-exit and no lingering process. Production variant
-`pnpm db:ingest:sde:prod` likewise.
+**Verification.** `pnpm db:ingest:sde` exits cleanly; no lingering
+process. `pnpm db:ingest:sde:prod` likewise.
 
 ---
 
-### Session J — Sortable list view as a complement to the card grid
+### ~~Session J — Sortable list view~~  → deferred to Phase 2.9
 
-**Goal.** `/sites` offers a toggle (or a sibling route) showing the
-same dataset as a sortable table — name, type, class, primary ISK,
-killing-wave ISK. Cards stay as the default; the table answers
-"which is the highest-value combat site in C5?" without manual
-scanning.
-
-**Constraints.** Reuse the existing `listSiteDetails` + overlay
-pipeline. No new schema. No new data fetches per row.
-
-**Out of scope.** Search-by-name (Session K). Filters on the table
-beyond what the card view already has.
-
-**Verification.** Click column headers to sort by ISK; values match
-the cards exactly. Sort is purely client-side (no extra requests).
+**Status.** Deferred to the Phase 2.9 visual overhaul. A sortable
+table view is a real ergonomics win for "which site has the highest
+ISK in C5?" — but it conflicts with the broader information-density
+question Phase 2.9 will answer. Better to design the table view
+within that pass than to retrofit it.
 
 ---
 
-### Session K — Search-by-name on `/sites`
+### ~~Session K — Search-by-name on `/sites`~~  → deferred to Phase 2.9
 
-**Goal.** Type a partial name, see matching sites highlighted in
-place. Works alongside the existing type/class filters.
-
-**Constraints.** Client-side filter on the rendered card list — no
-new query, no new param round-trip. Existing filters stay
-URL-driven; search is ephemeral (not in the URL) unless trivially
-addable.
-
-**Verification.** Type "Frontier" and only Frontier* cards stay
-visible. Clear the search field and the full list returns. Existing
-type/class filters compose with search correctly.
+**Status.** Deferred to the Phase 2.9 visual overhaul. Same reason
+as J — search UX should be designed inside the overall layout pass.
 
 ---
 
 ### Session L — `/sites/[id]` deep-link route
 
-**Goal.** A shareable URL for one specific site — opens to that
-card pre-expanded, no filter chrome needed.
+**Goal.** A shareable URL for one specific site that doesn't break
+the inline browsing flow.
 
-**Problem.** Today every card is inline-only. Sharing a link to
-"that one Bistot anomaly in C5" requires sending a screenshot.
+**Three pieces in this session:**
 
-**Constraints.** Same renderer as the inline card so the layout
-contract carries over. The `getSiteDetail` query already exists;
-this is purely a routing + layout shell job.
+1. **The route itself.** `/sites/123` renders one site card fully
+   expanded on its own page. Re-uses the existing `getSiteDetail`
+   query and the inline `SiteCard` renderer so the layout contract
+   carries over.
+2. **"← Return to full list" link** at the top-left of `/sites/123`
+   only. Does not appear on `/sites` itself (no destination to go
+   back to from the list).
+3. **Silent URL sync on `/sites`.** Clicking a card on `/sites`
+   updates the URL to `/sites/123` via `history.replaceState`
+   without navigating — the list stays visible, the card expands
+   inline as it does today. Clicking the same card again (collapse)
+   reverts the URL to `/sites`. A direct visit to `/sites/123` still
+   hits the server route from piece 1.
+
+**JS dependency note.** Piece 3 requires a small client component on
+the cards. This intentionally breaks the existing "Collapsible is a
+pure `<details>`/`<summary>` — no 'use client'" invariant from Phase 1.
+That invariant was a performance/taste choice for the initial build,
+not a project-wide law; adding a few KB of JS to enable URL sync is
+an acceptable trade. SCRATCHPAD's invariants list should be updated
+when this lands.
 
 **Verification.** `/sites/123` (a real ID) renders one card fully
-expanded. `/sites/999999` returns a clean 404. The card on
-`/sites/[id]` matches what the same card looks like inline on
-`/sites`.
+expanded with the back link visible. `/sites/999999` returns a clean
+404. On `/sites`, clicking a card updates the URL bar to
+`/sites/<that-id>` without re-rendering the list; clicking the same
+card to collapse reverts it. Browser back/forward behave sensibly.
 
 ---
 
 ## Out of scope for Phase 2.5
 
 - Visual overhaul, navigation chrome, multi-tool landing page —
-  Phase 2.9.
+  Phase 2.9 (now includes deferred Sessions J and K).
+- Sheet ownership and decoupling — Phase 2.6.
 - New tools, new data slices, new auth — Phase 3+.
 - Per-wave EWAR row rendering (mentioned in older SCRATCHPAD).
   Decide during Phase 2.9 whether it stays a card concern or
@@ -234,30 +236,38 @@ expanded. `/sites/999999` returns a clean 404. The card on
 
 ## Phase 2.5 success criteria
 
-When all sessions ship:
+When all remaining sessions ship:
 
-- No "you should know" caveats remain on the wormhole-sites cards.
-- Relic and data sites display their loot or explicitly explain
-  why they can't.
-- Trigger annotations are useful, not flattened.
-- Both API endpoints either agree on ISK source or label the
-  difference explicitly.
-- Ingest catches alias-map drift on its own.
-- `/sites/[id]` exists and works.
-- The codebase no longer carries known-but-deferred issues that
-  newcomers must be briefed on.
+- Relic and data cards render killing-wave ISK as their primary value
+  (Session E — done).
+- Trigger annotations carry the Sheet's actual label verbatim
+  (Session F).
+- The list endpoint's ISK field is unambiguously labeled as Sheet-sourced
+  (Session G).
+- `pnpm db:ingest:sde` exits cleanly with the established pattern
+  (Session I).
+- `/sites/123` is a shareable URL, with inline URL syncing on card
+  clicks (Session L).
+
+What's *not* a Phase 2.5 success criterion anymore:
+
+- The "Ingest catches alias-map drift on its own" line from the
+  original spec — moved to Phase 2.6 alongside the broader Sheet
+  decoupling.
+- Sortable list / search — moved to Phase 2.9.
 
 ---
 
-## Known unknowns
+## Order of operations
 
-- **Order of operations.** No session blocks any other. The user
-  picks priority. Recommendation: data correctness first (E, F),
-  then API consistency (G), then ingest tripwires (H, I), then
-  ergonomics (J, K, L).
-- **Sheet structure for relic/data loot.** Investigate Session E
-  before committing to "we parse this" vs. "we explain this is
-  unparseable."
-- **Search/sort UX.** Could conflict with Phase 2.9's information-
-  density goals. Coordinate with the user before locking either
-  Session J or K's implementation.
+No session blocks any other. Recommended order — finish the data
+correctness fixes first, then the API hygiene rename, then the
+deep-link UX work:
+
+1. F (trigger labels)
+2. G (list field rename)
+3. I (clean-exit pattern)
+4. L (deep-link route + URL sync)
+
+E shipped first because the user picked it as the entry into
+Phase 2.5.

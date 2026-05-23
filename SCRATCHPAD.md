@@ -29,10 +29,56 @@ Phase 2 shipped the shared data plumbing every future tool will lean on:
   itself — the wormhole-sites ingest seeds it; the cache slice has
   zero imports from feature slices.
 
-What's open: see [PHASE_2.5_PLAN.md](PHASE_2.5_PLAN.md) for the
-rough-edges punch-list, [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) for
-the pre-Phase-3 visual overhaul, [PHASE_2_PLAN.md](PHASE_2_PLAN.md)
-for the historical Phase 2 brief.
+## Phase 2.5: IN PROGRESS
+
+Cleanup pass on Phase 2's known rough edges. Session-by-session
+status:
+
+- **E** ✅ shipped 2026-05-23. Relic/data cards render killing-wave
+  ISK as the primary value (treated as combat-style sites). Single
+  derived flag (`isWaveDriven = isCombat || isHackSite`) in
+  `SiteCard.tsx` substitutes for `isCombat` in four places.
+- **F** locked — render `triggerLabel` verbatim, no shorthand map.
+- **G** locked — rename list endpoint's `resourceValueIsk` to
+  `sheetResourceValueIsk` to make the Sheet source explicit.
+- **H** dropped from 2.5 — replaced by Phase 2.6 (see below).
+- **I** locked — copy the `await client.end(); process.exit(0)`
+  pattern from `refresh-prices.ts` into `ingest-sde.ts`.
+- **J, K** deferred to Phase 2.9 (visual overhaul). Sortable
+  list and search-by-name UX should be designed inside the
+  overall layout pass, not retrofitted before it.
+- **L** locked — three pieces: `/sites/[id]` route, "← Return to
+  full list" link on that page, silent URL sync on card clicks via
+  `history.replaceState`. Intentionally breaks the "Collapsible is
+  a pure `<details>` — no 'use client'" invariant; that was a Phase-1
+  taste choice, not a project-wide rule. Update this list when L
+  ships.
+
+## Phase 2.6: NEW — Decouple from the Sheet
+
+Surfaced mid-Phase-2.5: the Sheet was always meant to be a one-time
+seed, not the long-term source of truth. Today `pnpm db:ingest`
+still treats it as authoritative and would silently wipe any future
+in-DB edits. Phase 2.6 is a single-session phase that:
+
+- Audits every Sheet tab (including the ones Phase 1 skipped) to
+  make sure nothing useful is lost.
+- Schema-extends + seeds anything we want to keep into the DB.
+- Retires routine `pnpm db:ingest` (renamed + guarded, or removed).
+- Fixes the two known Sheet typos in the DB directly and removes
+  those entries from the alias map.
+
+See [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md).
+
+## Open phases
+
+- [PHASE_2.5_PLAN.md](PHASE_2.5_PLAN.md) — remaining rough-edges work
+  (F, G, I, L).
+- [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md) — Sheet decoupling.
+- [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-Phase-3 visual overhaul
+  (now also includes the deferred J and K from 2.5).
+- The Phase 2 historical brief is archived under
+  `LGI Tools Archive/PHASE_2_PLAN.md` (outside this repo).
 
 ---
 
