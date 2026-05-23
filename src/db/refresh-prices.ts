@@ -3,6 +3,7 @@ config({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { refreshKnownPricesIfStale } from '../data/market-prices/cache';
 import { refreshPrices } from '../data/market-prices/ingest';
 import { getPrices } from '../data/market-prices/queries';
 
@@ -13,11 +14,11 @@ function requiredEnv(name: string): string {
 }
 
 // Sanity trio: Tritanium / Pyerite / Mexallon. Always have deep
-// order books in Jita on both sides — a useful smoke-test default.
-const DEFAULT_IDS = [34, 35, 36];
+// order books in Jita on both sides — a useful smoke-test default
+// when the operator passes explicit IDs.
+const DEFAULT_DEBUG_IDS = [34, 35, 36];
 
-function parseIds(arg: string | undefined): number[] {
-  if (!arg) return DEFAULT_IDS;
+function parseIds(arg: string): number[] {
   const ids = arg
     .split(',')
     .map((s) => s.trim())
@@ -31,23 +32,64 @@ function parseIds(arg: string | undefined): number[] {
   return ids;
 }
 
+type Mode =
+  | { kind: 'cached'; force: boolean }
+  | { kind: 'explicit'; ids: number[] };
+
+function parseArgs(argv: string[]): Mode {
+  // Recognized argv shapes:
+  //   (none)         → cached path (respects 24h cache)
+  //   --force        → cached path, force=true
+  //   34,35,36       → explicit IDs, unconditional refresh
+  //   --debug        → explicit IDs (DEFAULT_DEBUG_IDS), unconditional
+  let force = false;
+  let debug = false;
+  let idsArg: string | undefined;
+  for (const a of argv) {
+    if (a === '--force') force = true;
+    else if (a === '--debug') debug = true;
+    else if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
+    else idsArg = a;
+  }
+  if (idsArg) return { kind: 'explicit', ids: parseIds(idsArg) };
+  if (debug) return { kind: 'explicit', ids: DEFAULT_DEBUG_IDS };
+  return { kind: 'cached', force };
+}
+
 const databaseUrl = requiredEnv('DATABASE_URL');
-const ids = parseIds(process.argv[2]);
+const mode = parseArgs(process.argv.slice(2));
 
 const client = postgres(databaseUrl, { max: 1 });
 
 async function main() {
   const db = drizzle(client);
-  const summary = await refreshPrices(db, ids);
-  console.log('Refresh complete.');
-  console.log(JSON.stringify(summary, null, 2));
 
-  // Round-trip read so we can see the public query API agrees with
-  // what was just written.
-  const map = await getPrices(ids);
-  const readback = ids.map((id) => map.get(id) ?? { typeId: id, missing: true });
-  console.log('Read-back via getPrices:');
-  console.log(JSON.stringify(readback, null, 2));
+  if (mode.kind === 'explicit') {
+    const summary = await refreshPrices(db, mode.ids);
+    console.log('Refresh complete (explicit IDs, no cache).');
+    console.log(JSON.stringify(summary, null, 2));
+
+    const map = await getPrices(mode.ids);
+    const readback = mode.ids.map((id) => map.get(id) ?? { typeId: id, missing: true });
+    console.log('Read-back via getPrices:');
+    console.log(JSON.stringify(readback, null, 2));
+    return;
+  }
+
+  const result = await refreshKnownPricesIfStale(db, { force: mode.force });
+  if (result.status === 'cached') {
+    console.log('Cached — no Fuzzwork call.');
+    console.log(JSON.stringify({
+      lastUpdatedAt: result.lastUpdatedAt.toISOString(),
+    }, null, 2));
+    return;
+  }
+
+  console.log(`Refresh complete${mode.force ? ' (--force)' : ''}.`);
+  console.log(JSON.stringify({
+    lastUpdatedAt: result.lastUpdatedAt.toISOString(),
+    ...result.summary,
+  }, null, 2));
 }
 
 main()

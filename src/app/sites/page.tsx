@@ -1,5 +1,8 @@
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterBar, type FilterOption } from '@/components/ui/filter-bar';
+import { getPricesFreshness } from '@/data/market-prices/cache';
+import { db } from '@/db';
+import { RefreshFooter } from '@/features/wormhole-sites/components/RefreshFooter';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import {
   CLASS_TONE,
@@ -54,6 +57,7 @@ export default async function SitesPage({
 
   const rawSites = await listSiteDetails({ type, wormholeClass });
   const sites = await overlayLivePrices(rawSites);
+  const { lastUpdatedAt } = await getPricesFreshness(db);
   const groups = groupBySection(sites);
   const currentParams = { type, class: wormholeClass };
 
@@ -117,6 +121,8 @@ export default async function SitesPage({
           );
         })
       )}
+
+      <RefreshFooter initialLastUpdatedAt={lastUpdatedAt?.toISOString() ?? null} />
     </div>
   );
 }
