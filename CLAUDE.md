@@ -21,6 +21,9 @@ Accommodate new content types and fields without structural rewrites.
 **Maintain SCRATCHPAD.md.**
 After every session update SCRATCHPAD.md with what was built, decisions made, open questions, and what the next session should start with. This is working memory across sessions — keep it current.
 
+**Archive completed phase plans.**
+When a phase ships, move its plan document (`PHASE_<n>_PLAN.md`) out of the repo into the sibling folder `../LGI Tools Archive/` and `git rm` the in-repo copy. Replace any remaining markdown links to the archived file with prose mentions (`(archived — see LGI Tools Archive/...)`). The active repo should only contain plan docs for phases that are in-progress or upcoming.
+
 ## Commit Style
 
 Write commit messages in plain English. No function names, file paths, or technical jargon in the subject line or body. Describe what the change does for the project, not how the code is structured.

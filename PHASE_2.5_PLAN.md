@@ -18,7 +18,9 @@ solid ground.
 
 ## How to use this document
 
-Same shape as `PHASE_2_PLAN.md`: session descriptions are
+Same shape as the Phase 2 plan (archived — see
+`LGI Tools Archive/PHASE_2_PLAN.md` outside this repo): session
+descriptions are
 deliberately non-prescriptive. Before any session, read
 [CLAUDE.md](CLAUDE.md), [AGENTS.md](AGENTS.md), and
 [SCRATCHPAD.md](SCRATCHPAD.md). Then read the session below and form
