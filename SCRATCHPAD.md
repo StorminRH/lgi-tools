@@ -61,32 +61,68 @@ Dropped/deferred:
   and search-by-name UX should be designed inside the overall
   layout pass.
 
-## Phase 2.6: NEW — Decouple from the Sheet
+## Phase 2.6: COMPLETE (2026-05-23)
 
-Surfaced mid-Phase-2.5: the Sheet was always meant to be a one-time
-seed, not the long-term source of truth. Today `pnpm db:ingest`
-still treats it as authoritative and would silently wipe any future
-in-DB edits. Phase 2.6 is a single-session phase that:
+Decoupled the wormhole-sites data from the upstream Google Sheet.
+The local Postgres is now authoritative — the Sheet is a historical
+seed, reproducible from `sheet-audit/`.
 
-- Audits every Sheet tab (including the ones Phase 1 skipped) to
-  make sure nothing useful is lost.
-- Schema-extends + seeds anything we want to keep into the DB.
-- Retires routine `pnpm db:ingest` (renamed + guarded, or removed).
-- Fixes the two known Sheet typos in the DB directly and removes
-  those entries from the alias map.
+Shipped on branch `phase-2.6-sheet-decouple` and reviewed on a
+Vercel preview backed by a Neon preview branch (the Vercel ↔ Neon
+marketplace integration provisions one per preview deployment
+automatically).
 
-See [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md).
+What landed:
+
+- **Full Sheet audit** in `sheet-audit/`. Every tab the Sheet
+  publishes (17 total — 8 already in DB, 9 previously ignored) is
+  documented in `sheet-audit/tabs-summary.md`. Raw CSV dumps live
+  in `sheet-audit/raw/` and the per-table seed snapshots in
+  `sheet-audit/seed-source/`. Re-runnable via
+  `pnpm tsx sheet-audit/fetch-tabs.ts` and `…/extract-seed.ts`.
+- **Reverse-engineering report** in
+  `sheet-audit/calculations-report.md`: per-sleeper DPS / EWAR / EHP
+  derive from a hidden **Sleeper Data** tab (raw `dgmTypeAttributes`
+  per sleeper typeID) and a **Calculations** tab that applies the
+  standard EVE turret + missile + omni-EHP formulas. The
+  archetypes table now captures the Sheet's computed snapshot so
+  silent upstream drift becomes detectable; a future phase can port
+  the math to our own `eve-data` slice using
+  `dgm_type_attributes` (not yet ingested).
+- **Two new tables**: `escalations` (Drifter Response BS, Drifter
+  Recon BS, Upgraded Avenger — the C5/C6 specials Phase 1 never
+  captured) and `sleeper_archetypes` (one row per sleeper typeID,
+  the durable seed of the Sheet's Calculations tab).
+- **Historical seed migration** (`drizzle/0006_historical_seed.sql`)
+  reproduces the full sites/waves/NPCs/resources +
+  escalations/archetypes from scratch — a fresh DB now boots with
+  zero Sheet dependency via `pnpm db:migrate`.
+- **Routine ingest retired**: `pnpm db:ingest` (and `:prod`) gone;
+  replaced by `pnpm db:reseed-from-sheet --confirm-wipe`, which
+  refuses to run without the flag. The clean-exit pattern was
+  already in place. `pnpm db:ingest:sde` is untouched.
+- **Typo fixes**: `drizzle/0007_fix_typos.sql` UPDATEs
+  `luminous kermite`→`Luminous Kernite` and
+  `vivid hemorite`→`Vivid Hemorphite`. The two typo entries are
+  removed from `src/features/wormhole-sites/resource-aliases.ts`;
+  the ~50 ore→compressed aliases stay as documentation and reseed
+  support.
+
+The wormhole-sites UI is unchanged — this was a plumbing pass, not
+a feature pass. The `escalations` and `sleeper_archetypes` tables
+are seeded but not yet surfaced anywhere; reading them is a future
+feature's job.
+
+PHASE_2.6_PLAN.md is archived in `../LGI Tools Archive/`.
 
 ## Open phases
 
-- [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md) — Sheet decoupling
-  (next up).
 - [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-Phase-3 visual overhaul
   (also covers the J/K UX work deferred out of 2.5).
 - [PHASE_2.5_PLAN.md](PHASE_2.5_PLAN.md) — complete, kept for the
   shipped-session record.
-- The Phase 2 historical brief is archived under
-  `LGI Tools Archive/PHASE_2_PLAN.md` (outside this repo).
+- Phase 2 and Phase 2.6 historical briefs are archived under
+  `../LGI Tools Archive/` (outside this repo).
 
 ---
 
@@ -120,8 +156,19 @@ See [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md).
   `vercel env pull`. Vercel injects the real URL at runtime.
 - **Validation lives in route handlers, not queries.** Queries accept
   already-typed values.
-- **Replace-children on ingest upsert** — `DELETE WHERE site_id=?` then
-  re-insert. Converges to Sheet state without diffing.
+- **Local DB is authoritative.** Post-Phase-2.6 the wormhole-sites
+  Sheet is a historical seed, not a live source. The DB is rebuilt
+  from migrations alone. The replace-children upsert pattern still
+  exists in `pnpm db:reseed-from-sheet --confirm-wipe`, but the
+  guarded flag is required and there is no `:prod` variant.
+- **Production deploys auto-migrate; previews don't.** `pnpm
+  vercel-build` chains a `migrate-if-production.ts` wrapper that
+  only runs `pnpm db:migrate` when `VERCEL_ENV=production` (i.e.
+  the merge-to-main deploy). Preview deploys skip the step because
+  the Vercel ↔ Neon integration is not currently isolating preview
+  builds to their own DB branch — without the guard, every preview
+  PR would silently migrate prod. Local `pnpm build` is also a
+  no-op for migrations; devs run `pnpm db:migrate` themselves.
 - **Batched list queries.** `listSiteDetails()` returns N sites'
   full details in 4 round-trips (sites + waves + npcs + resources),
   not 1 + 3N.
@@ -134,15 +181,15 @@ See [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md).
 
 ```bash
 docker compose up -d   # Postgres on :5433
-pnpm db:migrate        # no-op unless new migrations
-pnpm db:ingest         # refresh sites from Sheet (≈1s local)
+pnpm db:migrate        # builds full DB from migrations (incl. seed)
 pnpm dev               # http://localhost:3000
 ```
 
 Sanity check: `curl http://localhost:3000/api/sites | jq length` → 69.
 
 Scripts: `dev`, `build`, `db:generate`, `db:migrate`, `db:studio`,
-`db:push`, `db:ingest`, `db:ingest:prod`, `db:migrate:prod`,
+`db:push`, `db:reseed-from-sheet` (guarded —
+requires `--confirm-wipe`), `db:migrate:prod`,
 `db:ingest:sde`, `db:ingest:sde:prod`, `db:refresh-prices`,
 `db:refresh-prices:prod` (the `:prod` variants set
 `DOTENV_PATH=.env.production.local`).

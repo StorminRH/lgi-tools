@@ -1,0 +1,107 @@
+{
+  "fetchedAt": "2026-05-23T21:12:40.288Z",
+  "tabs": [
+    {
+      "gid": "0",
+      "label": "C1",
+      "path": "raw/0-c1.csv",
+      "bytes": 7427
+    },
+    {
+      "gid": "152271063",
+      "label": "C2",
+      "path": "raw/152271063-c2.csv",
+      "bytes": 8126
+    },
+    {
+      "gid": "1157002677",
+      "label": "C3",
+      "path": "raw/1157002677-c3.csv",
+      "bytes": 8855
+    },
+    {
+      "gid": "2012494173",
+      "label": "C4",
+      "path": "raw/2012494173-c4.csv",
+      "bytes": 8514
+    },
+    {
+      "gid": "124062662",
+      "label": "C5",
+      "path": "raw/124062662-c5.csv",
+      "bytes": 10936
+    },
+    {
+      "gid": "1314849064",
+      "label": "C6",
+      "path": "raw/1314849064-c6.csv",
+      "bytes": 14314
+    },
+    {
+      "gid": "141191379",
+      "label": "Gas",
+      "path": "raw/141191379-gas.csv",
+      "bytes": 6050
+    },
+    {
+      "gid": "1259304327",
+      "label": "Ore",
+      "path": "raw/1259304327-ore.csv",
+      "bytes": 15685
+    },
+    {
+      "gid": "1813193533",
+      "label": "Drifter",
+      "path": "raw/1813193533-drifter.csv",
+      "bytes": 1826
+    },
+    {
+      "gid": "1160985461",
+      "label": "Avenger",
+      "path": "raw/1160985461-avenger.csv",
+      "bytes": 902
+    },
+    {
+      "gid": "360740101",
+      "label": "Calculations",
+      "path": "raw/360740101-calculations.csv",
+      "bytes": 8814
+    },
+    {
+      "gid": "590981029",
+      "label": "Sleeper Data",
+      "path": "raw/590981029-sleeper-data.csv",
+      "bytes": 23659
+    },
+    {
+      "gid": "345568467",
+      "label": "Missile Data",
+      "path": "raw/345568467-missile-data.csv",
+      "bytes": 711
+    },
+    {
+      "gid": "421910724",
+      "label": "Market Data",
+      "path": "raw/421910724-market-data.csv",
+      "bytes": 1476
+    },
+    {
+      "gid": "16967167",
+      "label": "Gas/Ore Data",
+      "path": "raw/16967167-gas-ore-data.csv",
+      "bytes": 2577
+    },
+    {
+      "gid": "716251505",
+      "label": "Refine Data",
+      "path": "raw/716251505-refine-data.csv",
+      "bytes": 2172
+    },
+    {
+      "gid": "349639088",
+      "label": "Update",
+      "path": "raw/349639088-update.csv",
+      "bytes": 4089
+    }
+  ]
+}

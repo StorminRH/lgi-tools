@@ -11,6 +11,26 @@ function requiredEnv(name: string): string {
   return v;
 }
 
+// Post-Phase-2.6 the local Postgres is authoritative for sites / waves /
+// NPCs / site_resources — this script does a destructive replace-children
+// resync from the upstream Sheet and would silently overwrite any in-DB
+// edits. Require an explicit --confirm-wipe flag to acknowledge that.
+if (!process.argv.includes('--confirm-wipe')) {
+  console.error(
+    [
+      'pnpm db:reseed-from-sheet refuses to run without --confirm-wipe.',
+      '',
+      'This script does a destructive replace-children resync from the',
+      'upstream Google Sheet. Any in-DB edits to sites / waves / NPCs /',
+      'site_resources will be silently overwritten.',
+      '',
+      "If that's what you want, re-run as:",
+      '  pnpm db:reseed-from-sheet --confirm-wipe',
+    ].join('\n'),
+  );
+  process.exit(1);
+}
+
 const databaseUrl = requiredEnv('DATABASE_URL');
 const pubKey = requiredEnv('SHEET_PUB_KEY');
 const prune = !process.argv.includes('--no-prune');

@@ -62,10 +62,6 @@ export const RESOURCE_ALIASES: Record<string, string> = {
   'prime arkonor':         'Compressed Prime Arkonor',
   'vitreous mercoxit':     'Compressed Vitreous Mercoxit',
 
-  // Sheet typos — encoded with the misspelled key, correct SDE value.
-  'luminous kermite': 'Compressed Luminous Kernite',
-  'vivid hemorite':   'Compressed Vivid Hemorphite',
-
   // ── Ice products (appear in ore-tab anomalies) ──────────────────────────
   'dark glitter':           'Compressed Dark Glitter',
   'gelidus':                'Compressed Gelidus',

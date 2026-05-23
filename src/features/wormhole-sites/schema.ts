@@ -129,3 +129,80 @@ export const siteResources = pgTable(
     siteOrderUnique: uniqueIndex('site_resources_site_order_unique').on(t.siteId, t.orderInSite),
   }),
 );
+
+// Escalation spawns — C5/C6 specials (Drifter Response/Recon BS, Upgraded
+// Avenger). One row per escalation type. These don't belong on the
+// wave/npc tables because their spawn rules and HP-by-layer breakdown
+// are unique. Resists stored as 0–100 integers; web stored signed.
+export const escalations = pgTable('escalations', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  typeId: integer('type_id'),
+  classScope: text('class_scope').notNull(),
+  triggerNotes: text('trigger_notes').notNull(),
+  blueLootIsk: bigint('blue_loot_isk', { mode: 'number' }),
+  iskPerEhpMin: integer('isk_per_ehp_min'),
+  iskPerEhpMax: integer('isk_per_ehp_max'),
+  shieldHp: bigint('shield_hp', { mode: 'number' }),
+  shieldResEm: integer('shield_res_em'),
+  shieldResExp: integer('shield_res_exp'),
+  shieldResKin: integer('shield_res_kin'),
+  shieldResTherm: integer('shield_res_therm'),
+  armorHp: bigint('armor_hp', { mode: 'number' }),
+  armorResEm: integer('armor_res_em'),
+  armorResExp: integer('armor_res_exp'),
+  armorResKin: integer('armor_res_kin'),
+  armorResTherm: integer('armor_res_therm'),
+  structureHp: bigint('structure_hp', { mode: 'number' }),
+  ehpMin: bigint('ehp_min', { mode: 'number' }),
+  ehpMax: bigint('ehp_max', { mode: 'number' }),
+  dps: integer('dps'),
+  sig: integer('sig'),
+  speed: integer('speed'),
+  distance: integer('distance'),
+  velocity: integer('velocity'),
+  scram: integer('scram'),
+  web: integer('web'),
+  neut: integer('neut'),
+  rrep: integer('rrep'),
+});
+
+// One row per sleeper typeID — the durable seed of the Sheet's
+// Calculations tab. The npcs table keeps its per-NPC ints (what the UI
+// reads today); this table is the audit trail for where those numbers
+// came from and the reference for the future native-recompute phase.
+export const sleeperArchetypes = pgTable('sleeper_archetypes', {
+  typeId: integer('type_id').primaryKey(),
+  name: text('name').notNull(),
+  blueLootIsk: bigint('blue_loot_isk', { mode: 'number' }),
+  turretDps: integer('turret_dps'),
+  turretAlpha: integer('turret_alpha'),
+  missileDps: integer('missile_dps'),
+  missileAlpha: integer('missile_alpha'),
+  totalDps: integer('total_dps'),
+  totalAlpha: integer('total_alpha'),
+  shieldHp: bigint('shield_hp', { mode: 'number' }),
+  shieldResEm: integer('shield_res_em'),
+  shieldResExp: integer('shield_res_exp'),
+  shieldResKin: integer('shield_res_kin'),
+  shieldResTherm: integer('shield_res_therm'),
+  armorHp: bigint('armor_hp', { mode: 'number' }),
+  armorResEm: integer('armor_res_em'),
+  armorResExp: integer('armor_res_exp'),
+  armorResKin: integer('armor_res_kin'),
+  armorResTherm: integer('armor_res_therm'),
+  structureHp: bigint('structure_hp', { mode: 'number' }),
+  ehp: bigint('ehp', { mode: 'number' }),
+  sigRadius: integer('sig_radius'),
+  maxVelocity: integer('max_velocity'),
+  orbitDistance: integer('orbit_distance'),
+  orbitVelocity: integer('orbit_velocity'),
+  scram: integer('scram'),
+  web: integer('web'),
+  neutAmount: integer('neut_amount'),
+  neutDuration: integer('neut_duration'),
+  neutCount: integer('neut_count'),
+  rrepAmount: integer('rrep_amount'),
+  rrepDuration: integer('rrep_duration'),
+  rrepCount: integer('rrep_count'),
+});

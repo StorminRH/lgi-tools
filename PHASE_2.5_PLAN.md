@@ -142,7 +142,7 @@ covers:
 - Fixing the two typos (`luminous kermite`, `vivid hemorite`)
   directly in the DB and removing those entries from the alias map.
 
-See [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md) for the full brief.
+See PHASE_2.6_PLAN.md (archived — see `LGI Tools Archive/`).
 
 ---
 

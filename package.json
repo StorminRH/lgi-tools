@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "tsx src/db/migrate-if-production.ts && next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
@@ -12,8 +13,7 @@
     "db:migrate:prod": "DOTENV_PATH=.env.production.local tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push",
-    "db:ingest": "tsx src/db/ingest.ts",
-    "db:ingest:prod": "DOTENV_PATH=.env.production.local tsx src/db/ingest.ts",
+    "db:reseed-from-sheet": "tsx src/db/reseed-from-sheet.ts",
     "db:ingest:sde": "tsx src/db/ingest-sde.ts",
     "db:ingest:sde:prod": "DOTENV_PATH=.env.production.local tsx src/db/ingest-sde.ts",
     "db:refresh-prices": "tsx src/db/refresh-prices.ts",
