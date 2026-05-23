@@ -161,6 +161,11 @@ PHASE_2.6_PLAN.md is archived in `../LGI Tools Archive/`.
   from migrations alone. The replace-children upsert pattern still
   exists in `pnpm db:reseed-from-sheet --confirm-wipe`, but the
   guarded flag is required and there is no `:prod` variant.
+- **Vercel deploys auto-migrate.** `pnpm vercel-build` runs
+  `pnpm db:migrate` before `next build`. Production deploys migrate
+  the prod Neon DB; preview deploys migrate the auto-branched Neon
+  copy (via the marketplace integration). Local `pnpm build` still
+  does just `next build` — devs run `pnpm db:migrate` themselves.
 - **Batched list queries.** `listSiteDetails()` returns N sites'
   full details in 4 round-trips (sites + waves + npcs + resources),
   not 1 + 3N.
