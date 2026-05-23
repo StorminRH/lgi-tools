@@ -29,30 +29,37 @@ Phase 2 shipped the shared data plumbing every future tool will lean on:
   itself — the wormhole-sites ingest seeds it; the cache slice has
   zero imports from feature slices.
 
-## Phase 2.5: IN PROGRESS
+## Phase 2.5: COMPLETE (2026-05-23)
 
-Cleanup pass on Phase 2's known rough edges. Session-by-session
-status:
+Cleanup pass on Phase 2's known rough edges. All shipped sessions:
 
-- **E** ✅ shipped 2026-05-23. Relic/data cards render killing-wave
-  ISK as the primary value (treated as combat-style sites). Single
-  derived flag (`isWaveDriven = isCombat || isHackSite`) in
-  `SiteCard.tsx` substitutes for `isCombat` in four places.
-- **F** locked — render `triggerLabel` verbatim, no shorthand map.
-- **G** locked — rename list endpoint's `resourceValueIsk` to
-  `sheetResourceValueIsk` to make the Sheet source explicit.
+- **E** ✅ Relic/data cards render killing-wave ISK as the primary
+  value (treated as combat-style sites). Single derived flag
+  `isWaveDriven = isCombat || isHackSite` in `SiteCard.tsx`
+  substitutes for `isCombat` in four places.
+- **F** ✅ Sleeper trigger chips render the Sheet's actual label
+  (`Trigger`, `Opt`, `DTA`, `1st Death Trigger`, `Opt?`,
+  `Trigger on Attack`) verbatim. Previously every non-null value
+  collapsed to "TRIGGER".
+- **G** ✅ `/api/sites` list endpoint now returns
+  `sheetResourceValueIsk` instead of `resourceValueIsk` for the
+  per-site rollup. Wire-shape change only — the asymmetry vs. the
+  detail endpoint (which returns the live-overlaid sum under the
+  neutral `resourceValueIsk` name) is intentional and now explicit.
+- **I** ✅ `pnpm db:ingest:sde` uses the explicit
+  `await client.end(); process.exit(0)` pattern (matching
+  `refresh-prices.ts`).
+- **L** ✅ Shareable `/sites/[id]` route + inline URL sync on card
+  clicks. Reusable `UrlSync` primitive in
+  `src/components/ui/url-sync.tsx` syncs any child `<details>`'s
+  open state to `${basePath}/${entityId}`. Filter params carry
+  through.
+
+Dropped/deferred:
 - **H** dropped from 2.5 — replaced by Phase 2.6 (see below).
-- **I** locked — copy the `await client.end(); process.exit(0)`
-  pattern from `refresh-prices.ts` into `ingest-sde.ts`.
-- **J, K** deferred to Phase 2.9 (visual overhaul). Sortable
-  list and search-by-name UX should be designed inside the
-  overall layout pass, not retrofitted before it.
-- **L** locked — three pieces: `/sites/[id]` route, "← Return to
-  full list" link on that page, silent URL sync on card clicks via
-  `history.replaceState`. Intentionally breaks the "Collapsible is
-  a pure `<details>` — no 'use client'" invariant; that was a Phase-1
-  taste choice, not a project-wide rule. Update this list when L
-  ships.
+- **J, K** deferred to Phase 2.9 (visual overhaul). Sortable list
+  and search-by-name UX should be designed inside the overall
+  layout pass.
 
 ## Phase 2.6: NEW — Decouple from the Sheet
 
@@ -72,11 +79,12 @@ See [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md).
 
 ## Open phases
 
-- [PHASE_2.5_PLAN.md](PHASE_2.5_PLAN.md) — remaining rough-edges work
-  (F, G, I, L).
-- [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md) — Sheet decoupling.
+- [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md) — Sheet decoupling
+  (next up).
 - [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-Phase-3 visual overhaul
-  (now also includes the deferred J and K from 2.5).
+  (also covers the J/K UX work deferred out of 2.5).
+- [PHASE_2.5_PLAN.md](PHASE_2.5_PLAN.md) — complete, kept for the
+  shipped-session record.
 - The Phase 2 historical brief is archived under
   `LGI Tools Archive/PHASE_2_PLAN.md` (outside this repo).
 
@@ -98,8 +106,15 @@ See [PHASE_2.6_PLAN.md](PHASE_2.6_PLAN.md).
   `src/features/wormhole-sites/components/wormhole-styles.ts`.
 - **Enums driven from TS `as const` arrays** — Postgres types and TS
   types share one source of truth.
-- **`Collapsible` is a pure `<details>`/`<summary>`** — no `'use client'`.
-  Chevron rotation via a single CSS rule in `globals.css`.
+- **`Collapsible` is a pure `<details>`/`<summary>`** — the element
+  itself stays the source of truth for open/closed state, and no
+  component wraps it in React state. Chevron rotation via a single
+  CSS rule in `globals.css`. **L-era exception**: a domain-agnostic
+  `UrlSync` primitive (`src/components/ui/url-sync.tsx`) is allowed
+  to attach a `toggle` listener to sync the URL on open/close —
+  but only via the native DOM event, not by lifting state into React.
+  Any future feature wanting `/<base>/[id]` deep-link URLs reuses
+  the same primitive instead of duplicating the JS.
 - **Lazy DB client** (`src/db/index.ts` Proxy) — connection deferred to
   first query so `next build` survives empty `DATABASE_URL` from
   `vercel env pull`. Vercel injects the real URL at runtime.
