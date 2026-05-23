@@ -1,0 +1,113 @@
+,,,,,,,,,,,,,,,,,,
+,Gas Signatures,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Barren Perimeter Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,"$2,000,000"
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$154
+,Defenders,,,,,,-6,,,,,,74,535,"13,000",,,
+,,3,Emergent Patroller,F,0,0,0,0,35,"1,750","8,000",250,16,115,"3,000",,Gas Value,"$82,432,500"
+,,2,Emergent Watchman,F,0,0,-3,0,35,"1,925","5,000",275,12,95,"2,000",,,
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C50,"12,000","12,000","$4,795","$57,536,520",,,,,,,,,,,
+,,,Fullerite-C60,"6,000","6,000","$4,149","$24,895,980",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Bountiful Frontier Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,"$20,000,000"
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$151
+,Defenders,,,,,6,,,,,,,373,"3,385","132,533",,,
+,,6,Emergent Defender,F,0,1,0,0,35,"2,160","6,500",270,23,161,"4,200",,Gas Value,"$307,506,960"
+,,4,Awakened Defender,C,0,0,0,0,150,"1,480","15,000",185,59,605,"26,833",,,
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C28,"20,000","40,000","$5,853","$234,111,200",,,,,,,,,,,
+,,,Fullerite-C32,"4,000","20,000","$3,670","$73,395,760",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Instrumental Core Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,"$63,600,000"
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$108
+,Defenders,,,,4,4,-72,,,,,,"1,859","22,982","590,857",,,
+,,4,Sleepless Sentinel,B,1,1,-18,0,400,"1,125","19,000",125,465,"5,746","147,714",,Gas Value,"$1,012,255,140"
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C320,"24,000","120,000","$7,616","$913,879,440",,,,,,,,,,,
+,,,Fullerite-C540,2000,"20,000","$4,919","$98,375,700",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Minor Perimeter Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,"$2,000,000"
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$52
+,Defenders,,,,,,,,,,,,84,864,"38,333",,,
+,,2,Awakened Patroller,C,0,0,0,0,150,"1,190","15,000",170,42,432,"19,167",,Gas Value,"$126,600,000"
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C70,"12,000","12,000","$6,949","$83,388,120",,,,,,,,,,,
+,,,Fullerite-C72,"6,000","12,000","$3,601","$43,211,880",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Ordinary Perimeter Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,$0
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$0
+,Defenders,,,,,,-9,,,,,,86,630,"15,000",,,
+,,3,Emergent Patroller,F,0,0,0,0,35,"1,750","8,000",250,16,115,"3,000",,Gas Value,"$142,759,260"
+,,3,Emergent Watchman,F,0,0,-3,0,35,"1,925","5,000",275,12,95,"2,000",,,
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C72,"12,000","24,000","$3,601","$86,423,760",,,,,,,,,,,
+,,,Fullerite-C84,"6,000","12,000","$4,695","$56,335,500",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Sizeable Perimeter Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,"$2,400,000"
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$160
+,Defenders,,,,,,-9,,,,,,86,630,"15,000",,,
+,,3,Emergent Patroller,F,0,0,0,0,35,"1,750","8,000",250,16,115,"3,000",,Gas Value,"$141,439,260"
+,,3,Emergent Watchman,F,0,0,-3,0,35,"1,925","5,000",275,12,95,"2,000",,,
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C50,"6,000","6,000","$4,795","$28,768,260",,,,,,,,,,,
+,,,Fullerite-C84,"12,000","24,000","$4,695","$112,671,000",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Token Perimeter Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,"$1,800,000"
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$159
+,Defenders,,,,,2,-6,,,,,,76,591,"11,350",,,
+,,2,Emergent Escort,F,0,1,0,0,35,"2,100","5,000",300,23,163,"1,300",,Gas Value,"$91,486,020"
+,,1,Awakened Watchman,C,0,0,-6,0,150,"1,400","30,000",200,31,266,"8,750",,,
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C60,"12,000","12,000","$4,149","$49,791,960",,,,,,,,,,,
+,,,Fullerite-C70,"6,000","6,000","$6,949","$41,694,060",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Vast Frontier Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,"$23,200,000"
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$148
+,Defenders,,,,,4,-24,,,,,,410,"3,909","156,333",,,
+,,4,Awakened Defender,C,0,0,0,0,150,"1,480","15,000",185,59,605,"26,833",,Gas Value,"$413,801,040"
+,,4,Awakened Upholder,C,0,1,-6,0,150,"1,728","30,000",216,43,372,"12,250",,,
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C28,"4,000","8,000","$5,853","$46,822,240",,,,,,,,,,,
+,,,Fullerite-C32,"20,000","100,000","$3,670","$366,978,800",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,Vital Core Reservoir,,,,,,,,,,,,,,,,,
+,Gas Signature,,,,Effect(s),,,,,,Orbit,,,,,,Blue Loot,"$74,800,000"
+,,Qty,Sleeper,Class,Scram,Web,Neut,RRep,Sig,Speed,Distance,Velocity,DPS,Alpha,EHP,,ISK/EHP,$201
+,Defenders,,,,,,-60,104,,,,,"2,348","15,890","372,114",,,
+,,4,Emergent Keeper,F,0,0,-3,26,35,"2,880","5,000",320,22,171,"4,400",,Gas Value,"$1,256,665,020"
+,,4,Sleepless Keeper,B,0,0,-12,0,400,945,"65,000",105,565,"3,802","88,629",,,
+,,,,Units,m3,ISK/m3,ISK,,,,,,,,,,,
+,Gas,,,,,,,,,,,,,,,,,
+,,,Fullerite-C320,2000,"10,000","$7,616","$76,156,620",,,,,,,,,,,
+,,,Fullerite-C540,"24,000","240,000","$4,919","$1,180,508,400",,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,`,,,,,,,,,,,,,

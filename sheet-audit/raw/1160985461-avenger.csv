@@ -1,0 +1,14 @@
+,,,,,,,,,,,,,,,,,
+,Upgraded Avenger,,,,,,,,,,,,,,,,
+,"Upgraded Avengers will spawn for the first capital ship (Dreadnoughts, Carriers,  Force Auxiliaries, & Lancers) that warp to combat/data or relic sites in C5/C6 Wormholes",,,,,,,,,,,,,,,,
+,"Any escalation waves will despawn if capital ships leave the site, or strays further than 100KM of a site’s warp-in point.",,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,
+,,,,Effect(s),,,,,,,Orbit,,,,,,
+,,Qty,Class,Scram,Web,Neut,RRep,Sig,Speed,,Distance,,Velocity,DPS,,Blue Loot,"$50,000,000"
+,Upgraded Avenger,1,B,15,1,-75,,"30,000","3,000",,"20,000",,300,"1,210",,ISK/EHP Min,$43
+,,,,,,,,,,,,,,,,ISK/EHP Max,$36
+,,,,Resistances,,,,,,,,,,,,,
+,,HP,,EM,Exp,Kin,Therm,EHP Min,,EHP Max,,,,,,,
+,Armor,"250,000",,75%,75%,75%,80%,"1,000,000",,"1,250,000",,,,,,,
+,Structure,"150,000",,0%,0%,0%,0%,"150,000",,"150,000",,,,,,,
+,,,,,,,,"1,150,000",,"1,400,000",,,,,,,
