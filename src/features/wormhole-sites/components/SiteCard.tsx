@@ -28,7 +28,13 @@ function formatIskHeader(isk: number | null): string {
  * via wormhole-styles mappings; no styling decisions live here beyond
  * which sub-sections to show for each site type.
  */
-export function SiteCard({ site }: { site: SiteDetail }) {
+export function SiteCard({
+  site,
+  defaultOpen = false,
+}: {
+  site: SiteDetail;
+  defaultOpen?: boolean;
+}) {
   const hasWaves = site.waves.length > 0;
   const hasResources = site.resources.length > 0;
   const isCombat = site.siteType === 'combat';
@@ -58,7 +64,7 @@ export function SiteCard({ site }: { site: SiteDetail }) {
 
   return (
     <Card>
-      <details data-collapsible>
+      <details data-collapsible {...(defaultOpen ? { open: true } : {})}>
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
           <CardHeader
             title={site.name}

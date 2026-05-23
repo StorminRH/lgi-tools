@@ -1,5 +1,6 @@
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterBar, type FilterOption } from '@/components/ui/filter-bar';
+import { UrlSync } from '@/components/ui/url-sync';
 import { getPricesFreshness } from '@/data/market-prices/cache';
 import { db } from '@/db';
 import { RefreshFooter } from '@/features/wormhole-sites/components/RefreshFooter';
@@ -114,7 +115,9 @@ export default async function SitesPage({
                 style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}
               >
                 {sectionSites.map((site) => (
-                  <SiteCard key={site.id} site={site} />
+                  <UrlSync key={site.id} basePath="/sites" entityId={site.id}>
+                    <SiteCard site={site} />
+                  </UrlSync>
                 ))}
               </div>
             </section>
