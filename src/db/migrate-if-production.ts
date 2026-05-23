@@ -17,4 +17,8 @@ if (env !== 'production') {
   process.exit(0);
 }
 
-await import('./migrate');
+// Avoid top-level await — tsx's CJS transform on Vercel rejects it.
+import('./migrate').catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
