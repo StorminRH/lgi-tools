@@ -4,3 +4,4 @@
 
 export * from '../features/wormhole-sites/schema';
 export * from '../data/eve-data/schema';
+export * from '../data/market-prices/schema';

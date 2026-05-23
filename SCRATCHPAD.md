@@ -4,6 +4,91 @@
 
 ---
 
+## Phase 2 — Session B (market-prices): COMPLETE (2026-05-23)
+
+The `src/data/market-prices/` slice exists and ships live Jita
+prices end-to-end:
+
+- **Schema:** one table — `market_prices`. PK is the Eve type ID
+  (no FK to `eve_types`, by design — the two data slices stay
+  decoupled at the schema level). Four `double precision` price
+  columns are nullable; an empty market side (`orderCount == 0`)
+  stores NULL so Session C can distinguish "no live price" from a
+  real value. `updated_at` is NOT NULL with no default — set in
+  code so a single batch shares one timestamp, which Session D's
+  cache check (`MAX(updated_at)`) reads as a clean signal.
+- **Source (`source.ts`):** the only file that knows about
+  Fuzzwork. Hits the aggregates endpoint at
+  `market.fuzzwork.co.uk/aggregates/?region=10000002&types=…` with
+  comma-separated IDs, **chunked at 150 per request** to keep URL
+  length safe. Future ESI swap replaces this file alone.
+- **Ingest (`ingest.ts`):** `refreshPrices(db, typeIds)` calls the
+  source, computes one `new Date()` for the batch, upserts via
+  `.onConflictDoUpdate({ target: typeId, set: excluded.* })`. No
+  cache — Session D will wrap it.
+- **Query API (`queries.ts`):** `getPrices(typeIds)` returns a
+  `Map<number, MarketPrice>`. Read-only; mirrors the
+  `getTypesByIds` shape in `eve-data`.
+- **CLI:** `pnpm db:refresh-prices [csv-ids]` — defaults to
+  Tritanium / Pyerite / Mexallon (34,35,36). Round-trips the IDs
+  through `refreshPrices` then `getPrices` and prints both, so a
+  bare run proves the public read API agrees with what was just
+  written. `:prod` variant is wired but not yet exercised.
+- **Migration:** `drizzle/0003_adorable_senator_kelly.sql`.
+  Applied locally; **not yet applied to Neon prod**.
+- **Decoupling verified.** `src/data/market-prices/` has zero
+  imports from `@/features` and zero from `@/data/eve-data`.
+  `src/features/` has zero imports from `@/data/market-prices`
+  (becomes non-empty in Session C).
+- **Local verification.** Refresh on the sanity trio populates
+  three rows with all four prices set; re-run advances
+  `updated_at` without changing row count; adding Morphite (11399)
+  upserts a fourth row without touching the first three. Morphite
+  shows a normal spread (buy 21,620 / sell 22,990); minerals show
+  a real Jita inversion (buy.max > sell.min) — Fuzzwork is correct,
+  it's just that someone left an inflated buy order sitting at the
+  top of the book. The slice stores what Fuzzwork reports.
+- **`pnpm build` + `pnpm lint`** both green.
+
+### Session C should start with
+
+- Read `src/features/wormhole-sites/ingest.ts`,
+  `sheet-parser.ts`, and a sample of real `resource_name` values
+  from the DB before deciding the mapping rules. Confirm with
+  the user (see Session C "Known unknowns" in PHASE_2_PLAN.md).
+- Resolve type IDs at sheet-ingest time via
+  `eve-data`'s `getTypeByName` (case-insensitive, published-wins).
+  Store the resolved `type_id` on the resource row; leave it NULL
+  when no mapping exists (the existing Sheet value renders as
+  fallback).
+- After sheet ingest, collect all distinct `type_id` values across
+  resources and call `refreshPrices(db, typeIds)` once. Card
+  render reads `getPrices(typeIds)`; show `pct5Buy` (Jita 5% buy)
+  when present, fall back to the sheet value silently otherwise.
+- Apply `pnpm db:migrate:prod` then `pnpm db:ingest:sde:prod`
+  against Neon before deploying Session C — that's the moment
+  `eve-data` finally needs to be populated remotely.
+
+### Rough edges from Session B
+
+- **Explicit `process.exit(0)` in the CLI.** The existing
+  `ingest-sde.ts` relies on `.finally(() => client.end())` and
+  apparently exits in practice, but the same pattern hung here —
+  tsx's esbuild service plus the postgres pool kept the loop
+  alive long after the work finished. Session B's CLI awaits
+  `client.end()` and calls `process.exit(0)` to force a clean
+  exit. Worth retroactively applying to `ingest-sde.ts` if it
+  ever exhibits the same hang.
+- **No prod migrate / refresh yet.** Schema is in `0003_*.sql` in
+  the repo but Neon hasn't seen it. Session C (or any earlier
+  prod task) needs `pnpm db:migrate:prod` first.
+- **Jita mineral price inversion is real.** Not a code bug — the
+  sanity trio shows `best_buy > best_sell` because of an outlier
+  buy order. Session C should not assume "best buy < best sell"
+  if it ever uses both columns together.
+
+---
+
 ## Phase 2 — Session A (SDE plumbing): COMPLETE (2026-05-23)
 
 The `src/data/eve-data/` slice exists and is ingested locally:
@@ -42,15 +127,13 @@ The `src/data/eve-data/` slice exists and is ingested locally:
 
 ### Session B should start with
 
-- Build `src/data/market-prices/` against Fuzzwork's market API.
-  Read PHASE_2_PLAN.md "Session B" + the Decisions-already-made
-  block. The session's first consumer of `eve-data` is a Tritanium
-  / Pyerite / Mexallon (typeIDs 34/35/36) sanity fetch — the
-  query API is ready.
+- ~~Build `src/data/market-prices/` against Fuzzwork's market
+  API.~~ **Done — see the Session B block above.**
 - Run `pnpm db:ingest:sde:prod` against Neon before Session C
-  needs it (no urgency until then). The migration file is in the
-  repo, so `pnpm db:migrate:prod` then `pnpm db:ingest:sde:prod`
-  is the sequence.
+  needs it. The migration file is in the repo, so
+  `pnpm db:migrate:prod` then `pnpm db:ingest:sde:prod` is the
+  sequence. (Session B added `0003_*.sql` on top; both
+  migrations need to land before Session C deploys.)
 
 ### Rough edges from Session A
 
