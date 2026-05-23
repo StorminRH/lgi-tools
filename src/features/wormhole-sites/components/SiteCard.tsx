@@ -34,6 +34,10 @@ export function SiteCard({ site }: { site: SiteDetail }) {
   const isCombat = site.siteType === 'combat';
   const isHackSite = site.siteType === 'relic' || site.siteType === 'data';
   const isGas = site.siteType === 'gas';
+  // Combat anomalies and relic/data sites both publish only a
+  // killing-wave ISK figure — no per-resource breakdown. Treat them
+  // identically in the card header and wave layout.
+  const isWaveDriven = isCombat || isHackSite;
 
   // Combine all per-wave EWAR flags so the site-level EWAR row reflects
   // every kind of ewar the player will face anywhere in this site.
@@ -44,8 +48,8 @@ export function SiteCard({ site }: { site: SiteDetail }) {
     rr:    site.waves.reduce((n, w) => n + (w.ewRrep  ?? 0), 0),
   };
 
-  const primaryIsk = isCombat ? site.blueLootIsk : site.resourceValueIsk;
-  const killingWaveIsk = !isCombat && hasWaves ? site.blueLootIsk : null;
+  const primaryIsk = isWaveDriven ? site.blueLootIsk : site.resourceValueIsk;
+  const killingWaveIsk = !isWaveDriven && hasWaves ? site.blueLootIsk : null;
 
   const totalResourceIsk = site.resources.reduce(
     (sum, r) => sum + (r.effectiveIsk ?? 0),
@@ -71,7 +75,7 @@ export function SiteCard({ site }: { site: SiteDetail }) {
               <MetricBlock
                 value={formatIskHeader(primaryIsk)}
                 sub={
-                  isCombat ? (
+                  isWaveDriven ? (
                     'est. loot'
                   ) : killingWaveIsk ? (
                     <>
@@ -88,7 +92,7 @@ export function SiteCard({ site }: { site: SiteDetail }) {
 
         <EwarRow web={siteEwar.web} scram={siteEwar.scram} neut={siteEwar.neut} rr={siteEwar.rr} />
 
-        {isCombat &&
+        {isWaveDriven &&
           site.waves.map((wave) => (
             <WaveCard key={wave.id} wave={wave} defaultOpen={true} />
           ))}
@@ -114,7 +118,7 @@ export function SiteCard({ site }: { site: SiteDetail }) {
           </>
         )}
 
-        {!isCombat && (
+        {!isWaveDriven && (
           <>
             <SectionHeader label="Wave Spawns" />
             {hasWaves ? (
@@ -122,11 +126,7 @@ export function SiteCard({ site }: { site: SiteDetail }) {
                 <WaveCard key={wave.id} wave={wave} defaultOpen={true} />
               ))
             ) : (
-              <EmptyState>
-                {isHackSite
-                  ? 'No Sleeper presence — hacking only'
-                  : 'No Sleeper presence — mine freely'}
-              </EmptyState>
+              <EmptyState>No Sleeper presence — mine freely</EmptyState>
             )}
           </>
         )}
