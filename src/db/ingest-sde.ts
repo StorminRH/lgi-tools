@@ -24,8 +24,12 @@ async function main() {
 }
 
 main()
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
+  .then(async () => {
+    await client.end();
+    process.exit(0);
   })
-  .finally(() => client.end());
+  .catch(async (err) => {
+    console.error(err);
+    await client.end().catch(() => undefined);
+    process.exit(1);
+  });
