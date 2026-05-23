@@ -75,11 +75,13 @@ Scripts: `dev`, `build`, `db:generate`, `db:migrate`, `db:studio`,
 - **`triggerLabel` rendering collapses every variant to "TRIGGER".** The
   Sheet has `Opt`, `DTA`, `1st Death Trigger`, `Opt?`, `Trigger on
   Attack`. Decide which to surface when a player asks.
-- **EntityRow name truncation** when EWAR chips compete for width.
-  Cosmetic; sometimes shows `Awakened Sent…` instead of `Sentinel`.
 - **Site-level EWAR row sums across all waves** at the card header.
   Per-wave EWAR rendering may read better — defer until real
   feedback.
+- **Neut values in the sheet are negative integers** (cap drain in GJ,
+  e.g. -18). `rrep` is a positive repair amount. Only `scram` and `web`
+  are boolean counts (0/1). Keep this in mind if adding new EWAR display
+  logic — the `!== 0` presence check handles all cases.
 - **No `/sites/[id]` deep-link page.** Every card expands inline; a
   shareable per-site URL would need a new route.
 - **Filter clicks are full server navigations** (~100–300ms on Neon).
