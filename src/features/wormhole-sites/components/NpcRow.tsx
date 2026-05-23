@@ -33,7 +33,7 @@ export function NpcRow({ npc }: { npc: Npc }) {
             {k === 'neut' && npc.neut ? `NEUT ${npc.neut}` : EWAR_LABEL[k]}
           </Chip>
         ))}
-        {npc.triggerLabel && <Chip tone={TRIGGER_CHIP_TONE}>TRIGGER</Chip>}
+        {npc.triggerLabel && <Chip tone={TRIGGER_CHIP_TONE}>{npc.triggerLabel}</Chip>}
       </>
     ) : undefined;
 
