@@ -6,6 +6,7 @@ import {
   SITE_TYPE_LABEL,
   SITE_TYPE_TONE,
 } from '@/features/wormhole-sites/components/wormhole-styles';
+import { overlayLivePrices } from '@/features/wormhole-sites/live-prices';
 import { listSiteDetails } from '@/features/wormhole-sites/queries';
 import { SITE_TYPES, WORMHOLE_CLASSES } from '@/features/wormhole-sites/schema';
 import type { SiteDetail, SiteType, WormholeClass } from '@/features/wormhole-sites/types';
@@ -51,7 +52,8 @@ export default async function SitesPage({
       ? (raw.class as WormholeClass)
       : undefined;
 
-  const sites = await listSiteDetails({ type, wormholeClass });
+  const rawSites = await listSiteDetails({ type, wormholeClass });
+  const sites = await overlayLivePrices(rawSites);
   const groups = groupBySection(sites);
   const currentParams = { type, class: wormholeClass };
 

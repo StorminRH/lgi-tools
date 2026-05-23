@@ -57,6 +57,15 @@ export interface SiteResource {
   volumeM3: number | null;
   iskPerM3: number | null;
   totalIsk: number | null;
+  // Eve type ID resolved at sheet-ingest time via the strict alias map.
+  // NULL when the sheet name isn't in the map.
+  typeId: number | null;
+  // Populated by overlayLivePrices() when a live Jita 5% buy price is
+  // available for this type. NULL on the raw DB shape.
+  liveIsk: number | null;
+  // What the UI actually renders: liveIsk ?? totalIsk. Set by the overlay;
+  // falls back to totalIsk for raw rows (mock data, untouched DB reads).
+  effectiveIsk: number | null;
 }
 
 export interface SiteDetail extends SiteListItem {

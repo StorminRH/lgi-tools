@@ -107,6 +107,9 @@ function resource(
     volumeM3: extras.volumeM3 ?? null,
     iskPerM3: extras.iskPerM3 ?? null,
     totalIsk,
+    typeId: null,
+    liveIsk: null,
+    effectiveIsk: totalIsk,
   };
 }
 

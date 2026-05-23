@@ -98,7 +98,7 @@ export async function listSiteDetails(filters: {
           .orderBy(npcs.orderInWave)
       : [];
 
-  const resourceRows: (SiteResource & { siteId: number })[] = await db
+  const resourceRows: (Omit<SiteResource, 'liveIsk' | 'effectiveIsk'> & { siteId: number })[] = await db
     .select({
       id: siteResources.id,
       siteId: siteResources.siteId,
@@ -109,6 +109,7 @@ export async function listSiteDetails(filters: {
       volumeM3: siteResources.volumeM3,
       iskPerM3: siteResources.iskPerM3,
       totalIsk: siteResources.totalIsk,
+      typeId: siteResources.typeId,
     })
     .from(siteResources)
     .where(inArray(siteResources.siteId, siteIds))
@@ -131,8 +132,13 @@ export async function listSiteDetails(filters: {
 
   const resourcesBySiteId = new Map<number, SiteResource[]>();
   for (const { siteId, ...resource } of resourceRows) {
+    const hydrated: SiteResource = {
+      ...resource,
+      liveIsk: null,
+      effectiveIsk: resource.totalIsk,
+    };
     const bucket = resourcesBySiteId.get(siteId) ?? [];
-    bucket.push(resource);
+    bucket.push(hydrated);
     resourcesBySiteId.set(siteId, bucket);
   }
 
@@ -194,7 +200,7 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
           .orderBy(npcs.orderInWave)
       : [];
 
-  const resources: SiteResource[] = await db
+  const resourceRows = await db
     .select({
       id: siteResources.id,
       orderInSite: siteResources.orderInSite,
@@ -204,10 +210,17 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
       volumeM3: siteResources.volumeM3,
       iskPerM3: siteResources.iskPerM3,
       totalIsk: siteResources.totalIsk,
+      typeId: siteResources.typeId,
     })
     .from(siteResources)
     .where(eq(siteResources.siteId, id))
     .orderBy(siteResources.orderInSite);
+
+  const resources: SiteResource[] = resourceRows.map((r) => ({
+    ...r,
+    liveIsk: null,
+    effectiveIsk: r.totalIsk,
+  }));
 
   const npcsByWaveId = new Map<number, Npc[]>();
   for (const { waveId, ...npc } of allNpcs) {

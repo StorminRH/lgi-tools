@@ -32,7 +32,7 @@ export function ResourceRow({
             {resource.resourceName}
           </>
         }
-        value={formatIsk(resource.totalIsk)}
+        value={formatIsk(resource.effectiveIsk)}
       />
     );
   }
@@ -45,7 +45,7 @@ export function ResourceRow({
         cols="1fr auto auto"
         name={resource.resourceName}
         meta={`${units.toLocaleString()} rocks · ${formatM3(m3)}`}
-        value={formatIsk(resource.totalIsk)}
+        value={formatIsk(resource.effectiveIsk)}
       />
     );
   }
@@ -56,7 +56,7 @@ export function ResourceRow({
       cols="1fr auto auto"
       name={resource.resourceName}
       meta={formatM3(resource.volumeM3)}
-      value={formatIsk(resource.totalIsk)}
+      value={formatIsk(resource.effectiveIsk)}
     />
   );
 }

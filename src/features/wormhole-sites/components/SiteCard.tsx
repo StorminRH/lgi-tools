@@ -48,7 +48,7 @@ export function SiteCard({ site }: { site: SiteDetail }) {
   const killingWaveIsk = !isCombat && hasWaves ? site.blueLootIsk : null;
 
   const totalResourceIsk = site.resources.reduce(
-    (sum, r) => sum + (r.totalIsk ?? 0),
+    (sum, r) => sum + (r.effectiveIsk ?? 0),
     0,
   );
 

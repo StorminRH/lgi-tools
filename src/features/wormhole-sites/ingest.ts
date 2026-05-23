@@ -1,5 +1,8 @@
 import { eq, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { getTypesByNames } from '@/data/eve-data/queries';
+import { refreshPrices } from '@/data/market-prices/ingest';
+import { resolveAlias } from './resource-aliases';
 import { npcs, siteResources, sites, waves } from './schema';
 import { parseSheetTab, type ParsedSite } from './sheet-parser';
 import { csvUrlFor, SHEET_TABS } from './sheet-source';
@@ -9,6 +12,12 @@ export type IngestSummary = {
   wavesWritten: number;
   npcsWritten: number;
   resourcesWritten: number;
+  resourcesWithTypeId: number;
+  resourcesWithoutTypeId: number;
+  distinctTypeIds: number;
+  pricesFetched: number;
+  pricesWritten: number;
+  pricesFailed: boolean;
   sitesRemoved: number;
 };
 
@@ -38,12 +47,44 @@ export async function runIngest(
   const allSites: ParsedSite[] = fetched.flatMap(({ tab, text }) => parseSheetTab(text, tab));
   if (allSites.length === 0) throw new Error('Parsed 0 sites — refusing to wipe the DB.');
 
-  // 3. Upsert + replace-children within a single transaction.
+  // 3. Resolve resource names to Eve type IDs BEFORE the transaction so we
+  // don't hold row locks while reading eve-data. Degrades silently when
+  // eve_types is empty: every name yields typeId = null, ingest proceeds,
+  // UI falls back to sheet values.
+  const sheetNameToSdeName = new Map<string, string>();
+  for (const site of allSites) {
+    for (const r of site.resources) {
+      const sde = resolveAlias(r.resourceName);
+      if (sde) sheetNameToSdeName.set(r.resourceName.trim().toLowerCase(), sde);
+    }
+  }
+  const distinctSdeNames = [...new Set(sheetNameToSdeName.values())];
+  const typesByName = await getTypesByNames(distinctSdeNames);
+  // Build a map from the Sheet's (normalized) resource name → resolved typeId.
+  const sheetNameToTypeId = new Map<string, number>();
+  for (const [lowerSheet, sde] of sheetNameToSdeName) {
+    const t = typesByName.get(sde.toLowerCase());
+    if (t) sheetNameToTypeId.set(lowerSheet, t.id);
+  }
+
+  if (sheetNameToTypeId.size === 0 && distinctSdeNames.length > 0) {
+    console.warn(
+      `[ingest] Alias map produced ${distinctSdeNames.length} SDE names but eve_types resolved 0 — is the SDE ingested? Continuing with typeId = null for all resources.`,
+    );
+  }
+
+  // 4. Upsert + replace-children within a single transaction.
   const summary: IngestSummary = {
     sitesUpserted: 0,
     wavesWritten: 0,
     npcsWritten: 0,
     resourcesWritten: 0,
+    resourcesWithTypeId: 0,
+    resourcesWithoutTypeId: 0,
+    distinctTypeIds: 0,
+    pricesFetched: 0,
+    pricesWritten: 0,
+    pricesFailed: false,
     sitesRemoved: 0,
   };
 
@@ -132,22 +173,28 @@ export async function runIngest(
 
       if (s.resources.length > 0) {
         await tx.insert(siteResources).values(
-          s.resources.map((r) => ({
-            siteId,
-            orderInSite: r.orderInSite,
-            resourceKind: r.resourceKind,
-            resourceName: r.resourceName,
-            units: r.units,
-            volumeM3: r.volumeM3,
-            iskPerM3: r.iskPerM3,
-            totalIsk: r.totalIsk,
-          })),
+          s.resources.map((r) => {
+            const typeId = sheetNameToTypeId.get(r.resourceName.trim().toLowerCase()) ?? null;
+            if (typeId != null) summary.resourcesWithTypeId++;
+            else summary.resourcesWithoutTypeId++;
+            return {
+              siteId,
+              orderInSite: r.orderInSite,
+              resourceKind: r.resourceKind,
+              resourceName: r.resourceName,
+              units: r.units,
+              volumeM3: r.volumeM3,
+              iskPerM3: r.iskPerM3,
+              totalIsk: r.totalIsk,
+              typeId,
+            };
+          }),
         );
         summary.resourcesWritten += s.resources.length;
       }
     }
 
-    // 4. Prune sites whose row is no longer in the Sheet (scoped to fetched tabs only,
+    // 5. Prune sites whose row is no longer in the Sheet (scoped to fetched tabs only,
     // so a partial outage can't clear unrelated rows).
     if (prune) {
       const fetchedTabs = SHEET_TABS.map((t) => t.label);
@@ -165,6 +212,23 @@ export async function runIngest(
       }
     }
   });
+
+  // 6. After the transaction commits, refresh market prices for every type
+  // ID we resolved. Network call to Fuzzwork — wrap in try/catch so a
+  // transient outage never throws past the ingest boundary. Resource rows
+  // are already persisted; the UI degrades to sheet values on price miss.
+  const distinctTypeIds = [...new Set(sheetNameToTypeId.values())];
+  summary.distinctTypeIds = distinctTypeIds.length;
+  if (distinctTypeIds.length > 0) {
+    try {
+      const priceSummary = await refreshPrices(db, distinctTypeIds);
+      summary.pricesFetched = priceSummary.fetched;
+      summary.pricesWritten = priceSummary.written;
+    } catch (err) {
+      summary.pricesFailed = true;
+      console.error('[ingest] refreshPrices failed; sheet values will be used as fallback:', err);
+    }
+  }
 
   return summary;
 }

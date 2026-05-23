@@ -1,3 +1,4 @@
+import { overlayLivePrices } from '@/features/wormhole-sites/live-prices';
 import { getSiteDetail } from '@/features/wormhole-sites/queries';
 import type { ApiError, SiteDetail } from '@/features/wormhole-sites/types';
 
@@ -12,11 +13,12 @@ export async function GET(
     return Response.json({ error: 'Invalid id' } satisfies ApiError, { status: 400 });
   }
 
-  const site: SiteDetail | null = await getSiteDetail(id);
+  const raw: SiteDetail | null = await getSiteDetail(id);
 
-  if (!site) {
+  if (!raw) {
     return Response.json({ error: 'Not found' } satisfies ApiError, { status: 404 });
   }
 
+  const [site] = await overlayLivePrices([raw]);
   return Response.json(site);
 }

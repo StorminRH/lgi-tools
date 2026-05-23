@@ -4,6 +4,102 @@
 
 ---
 
+## Phase 2 — Session C (live prices on site cards): COMPLETE (2026-05-23)
+
+`src/features/wormhole-sites/` now ships live Jita 5%-percentile buy prices
+end-to-end with silent fallback to the Sheet value. Phase 1's UI is
+pixel-identical.
+
+- **Schema:** added nullable `type_id INTEGER` column to `site_resources`.
+  No FK to `eve_types` — preserves the data-slice decoupling that
+  `market_prices` also follows. Migration `0004_blushing_tomorrow_man.sql`.
+  Applied locally; **not yet applied to Neon prod**.
+- **Strict alias map** (`src/features/wormhole-sites/resource-aliases.ts`):
+  50 hand-authored entries covering every distinct `resource_name` in the
+  current DB. **Every ore, ice, and gas alias points to the Compressed
+  SDE variant** — what wormhole haulers actually sell in Jita. Two Sheet
+  typos are encoded verbatim with the correct SDE name as the value
+  (`luminous kermite` → `Compressed Luminous Kernite`,
+  `vivid hemorite` → `Compressed Vivid Hemorphite`). Missing names
+  resolve to typeId = null and continue rendering the Sheet value.
+- **Ingest changes:** `runIngest` now resolves resource names to type IDs
+  via `getTypesByNames` **before** opening the transaction (no read locks
+  held during eve-data reads). After the transaction commits, distinct
+  type IDs are fed into `refreshPrices(db, typeIds)` — wrapped in
+  try/catch so a Fuzzwork outage logs and continues. The summary
+  surfaces `resourcesWithTypeId`, `distinctTypeIds`,
+  `pricesFetched`/`Written`/`Failed` so a bad ingest is visible.
+  Current local run: 219/219 resources mapped, 50 distinct typeIds,
+  50/50 prices fetched.
+- **Live overlay** (`src/features/wormhole-sites/live-prices.ts`):
+  `overlayLivePrices(sites)` adds `liveIsk` + `effectiveIsk` to each
+  resource and replaces site-level `resourceValueIsk` with
+  `sum(effectiveIsk)`. **Formula: `liveIsk = round(units × pct5Buy)`** —
+  the Sheet stores `units` as raw EVE unit counts, and compressed-market
+  prices are per-unit (1 compressed unit = 1 raw unit equivalent for
+  ore/ice/gas), so no volume conversion is needed. Spot-checked against
+  Arkonor, Dark Glitter, Fullerite-C320 — all scale linearly with units.
+- **Type changes** (`src/features/wormhole-sites/types.ts`):
+  `SiteResource` gained `typeId`, `liveIsk`, `effectiveIsk`. Queries
+  hydrate `liveIsk: null`, `effectiveIsk: totalIsk` on raw DB reads so
+  the overlay is optional — anything that doesn't call it (mock data,
+  future consumers) still renders sheet values cleanly.
+- **UI edits** (only the absolute minimum):
+  - `ResourceRow.tsx`: switched `formatIsk(resource.totalIsk)` →
+    `formatIsk(resource.effectiveIsk)` in all three branches.
+  - `SiteCard.tsx`: footer total reduces over `r.effectiveIsk`.
+  - No layout/typography/class changes anywhere.
+- **Route + API cut-over:** `/sites/page.tsx` and `/api/sites/[id]/route.ts`
+  pipe the result through `overlayLivePrices`. `/api/sites` (list-only,
+  no resources) is untouched. The temporary `/preview/sites-live` route
+  used during Checkpoint 1 has been deleted.
+- **CLI fix:** applied the explicit `await client.end(); process.exit(0)`
+  pattern (lifted from `refresh-prices.ts`) to `src/db/ingest.ts` —
+  adding a Fuzzwork network call could resurface the tsx+postgres hang
+  documented in Session B.
+- **Fallback verified:** `DELETE FROM market_prices` + reload reverts
+  every card to its Sheet value exactly. No errors thrown. Sheet
+  `totalIsk` is preserved on every resource row in the DB.
+- **`pnpm build` + `pnpm lint`** both green.
+
+### Session D should start with
+
+- Read PHASE_2_PLAN.md Session D. The task is the 24-hour-cache refresh
+  button that wraps `refreshPrices`. Pick a button location on `/sites`
+  (footer / freshness chip / `/admin` route — agent's call) and a clear
+  cached-vs-refreshed status message.
+- **Production deploy sequence** (do this BEFORE merging Session C to
+  main, or as the first action of Session D):
+  1. `pnpm db:migrate:prod` — applies `0002`, `0003`, `0004` to Neon
+     (none have been applied to prod yet).
+  2. `pnpm db:ingest:sde:prod` — populates `eve_types` on Neon.
+  3. `pnpm db:ingest:prod` — re-ingests sites against the now-populated
+     SDE, resolves type IDs, refreshes Fuzzwork prices.
+  4. Merge / push code to deploy via Vercel.
+- The cache-check needed by Session D is already telegraphed in the
+  schema: `MAX(updated_at)` on `market_prices`. The current
+  ingest-time refresh resets that timestamp on every `pnpm db:ingest` —
+  acceptable, since an operator running ingest implies they want fresh
+  data.
+
+### Rough edges from Session C
+
+- **Sheet `resource_name` typos are now in the alias map.** If the Sheet
+  ever fixes the typos (`Luminous Kermite` → `Luminous Kernite`,
+  `Vivid Hemorite` → `Vivid Hemorphite`), the broken keys silently
+  start resolving to NULL. Watch the ingest summary's
+  `resourcesWithoutTypeId` count — non-zero means a new name appeared
+  or an old key broke.
+- **`/api/sites` (list) still returns Sheet values for `resourceValueIsk`**
+  because it never fetches resources. Only `/api/sites/[id]` (detail)
+  applies the overlay. Documented but mildly inconsistent — flag if a
+  consumer ever needs aggregate live values without per-row resources.
+- **No badge / freshness indicator on the card.** Per PHASE_2_PLAN.md
+  Session C "Out of scope" — the live prices are silent. Session D
+  introduces user-facing freshness.
+
+---
+
 ## Phase 2 — Session B (market-prices): COMPLETE (2026-05-23)
 
 The `src/data/market-prices/` slice exists and ships live Jita
@@ -52,22 +148,8 @@ prices end-to-end:
 
 ### Session C should start with
 
-- Read `src/features/wormhole-sites/ingest.ts`,
-  `sheet-parser.ts`, and a sample of real `resource_name` values
-  from the DB before deciding the mapping rules. Confirm with
-  the user (see Session C "Known unknowns" in PHASE_2_PLAN.md).
-- Resolve type IDs at sheet-ingest time via
-  `eve-data`'s `getTypeByName` (case-insensitive, published-wins).
-  Store the resolved `type_id` on the resource row; leave it NULL
-  when no mapping exists (the existing Sheet value renders as
-  fallback).
-- After sheet ingest, collect all distinct `type_id` values across
-  resources and call `refreshPrices(db, typeIds)` once. Card
-  render reads `getPrices(typeIds)`; show `pct5Buy` (Jita 5% buy)
-  when present, fall back to the sheet value silently otherwise.
-- Apply `pnpm db:migrate:prod` then `pnpm db:ingest:sde:prod`
-  against Neon before deploying Session C — that's the moment
-  `eve-data` finally needs to be populated remotely.
+- ~~Wire wormhole sites to live prices.~~ **Done — see the Session C
+  block at the top of this file.**
 
 ### Rough edges from Session B
 

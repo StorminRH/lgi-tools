@@ -120,6 +120,10 @@ export const siteResources = pgTable(
     volumeM3: bigint('volume_m3', { mode: 'number' }),
     iskPerM3: integer('isk_per_m3'),
     totalIsk: bigint('total_isk', { mode: 'number' }),
+    // Resolved at sheet-ingest time via the strict alias dict in
+    // resource-aliases.ts. NULL when the sheet name isn't in the map —
+    // the row then renders its sheet totalIsk unchanged (the fallback).
+    typeId: integer('type_id'),
   },
   (t) => ({
     siteOrderUnique: uniqueIndex('site_resources_site_order_unique').on(t.siteId, t.orderInSite),

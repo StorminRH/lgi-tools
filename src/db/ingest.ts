@@ -26,9 +26,16 @@ async function main() {
   console.log(JSON.stringify(summary, null, 2));
 }
 
+// Explicit exit — Session B documented a tsx + postgres-js hang where the
+// event loop stays alive long after `client.end()` resolves. Adding the
+// Fuzzwork network call to runIngest could resurface it; force a clean exit.
 main()
-  .catch((err) => {
-    console.error(err);
-    process.exit(1);
+  .then(async () => {
+    await client.end();
+    process.exit(0);
   })
-  .finally(() => client.end());
+  .catch(async (err) => {
+    console.error(err);
+    await client.end().catch(() => undefined);
+    process.exit(1);
+  });
