@@ -472,26 +472,37 @@ async function main() {
   // SQL migration. Drizzle's migrator splits on `--> statement-breakpoint`
   // to run each block as a separate statement; we put a breakpoint
   // between each table's INSERT.
+  //
+  // The four "existing table" inserts (sites / waves / npcs / resources)
+  // use explicit IDs captured from the local DB, which won't match the
+  // IDs in a prod-snapshot DB (e.g. a Neon preview branch). Guard them
+  // behind an "only if sites is empty" DO block so the seed is a no-op
+  // against any DB that already holds those rows. The new-table inserts
+  // (escalations, sleeper_archetypes) always run — both tables are new
+  // in this migration and therefore empty in any prior snapshot.
   const SB = '--> statement-breakpoint';
+  const existingTablesBlock = [
+    'DO $$',
+    'BEGIN',
+    '  IF NOT EXISTS (SELECT 1 FROM sites LIMIT 1) THEN',
+    buildSiteInsert(sites),
+    buildWaveInsert(waves),
+    buildNpcInsert(npcs),
+    buildResourceInsert(resources),
+    buildSequenceResets(sites, waves, npcs, resources, []),
+    '  END IF;',
+    'END $$;',
+  ].join('\n');
   const sqlParts: string[] = [
     '-- Historical seed migration. Generated once by sheet-audit/extract-seed.ts',
     '-- from the local DB + the Sheet audit snapshot taken during Phase 2.6.',
-    "-- Each block is ON CONFLICT-safe so this migration is idempotent against",
-    "-- DBs that already hold a subset of the data (e.g. the dev's local).",
+    '-- See the block-level comment below for the empty-table guard rationale.',
     '',
-    buildSiteInsert(sites),
-    SB,
-    buildWaveInsert(waves),
-    SB,
-    buildNpcInsert(npcs),
-    SB,
-    buildResourceInsert(resources),
+    existingTablesBlock,
     SB,
     buildEscalationInsert(escalations),
     SB,
     buildArchetypeInsert(archetypes),
-    SB,
-    buildSequenceResets(sites, waves, npcs, resources, escalations),
     '',
   ].filter((s) => s !== undefined);
 
