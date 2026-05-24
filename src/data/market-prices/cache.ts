@@ -1,5 +1,6 @@
 import { desc } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { CACHE_TTL_MS } from './constants';
 import { refreshPrices, type RefreshSummary } from './ingest';
 import { marketPrices } from './schema';
 
@@ -8,8 +9,6 @@ import { marketPrices } from './schema';
 // callers should not have to know which one they're holding.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPgDb = PostgresJsDatabase<any>;
-
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export type CachedRefreshResult =
   | { status: 'cached'; lastUpdatedAt: Date }

@@ -1,10 +1,10 @@
 import { cn } from './cn';
 
-export type DotTone = 'relic' | 'data';
+export type DotTone = 'orange' | 'blue';
 
 const TONE: Record<DotTone, string> = {
-  relic: 'bg-[#cc7733] shadow-[0_0_4px_rgba(204,119,51,0.4)]',
-  data:  'bg-[#3399cc] shadow-[0_0_4px_rgba(51,153,204,0.4)]',
+  orange: 'bg-[#cc7733] shadow-[0_0_4px_rgba(204,119,51,0.4)]',
+  blue:   'bg-[#3399cc] shadow-[0_0_4px_rgba(51,153,204,0.4)]',
 };
 
 export function Dot({ tone }: { tone: DotTone }) {

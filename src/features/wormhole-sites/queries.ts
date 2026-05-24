@@ -181,16 +181,39 @@ export async function listSiteDetails(filters: {
 
   const siteIds = siteRows.map((s) => s.id);
 
-  const waveRows: WaveRow[] = await db
-    .select({
-      id: waves.id,
-      siteId: waves.siteId,
-      waveNumber: waves.waveNumber,
-      waveLabel: waves.waveLabel,
-    })
-    .from(waves)
-    .where(inArray(waves.siteId, siteIds))
-    .orderBy(waves.siteId, waves.waveNumber);
+  // Waves and resources are both keyed off siteIds with no dependency on each
+  // other; fetch them concurrently. NPCs still wait on waveIds afterwards.
+  const [waveRows, resourceRows]: [
+    WaveRow[],
+    (Omit<SiteResource, 'liveIsk' | 'effectiveIsk'> & { siteId: number })[],
+  ] = await Promise.all([
+    db
+      .select({
+        id: waves.id,
+        siteId: waves.siteId,
+        waveNumber: waves.waveNumber,
+        waveLabel: waves.waveLabel,
+      })
+      .from(waves)
+      .where(inArray(waves.siteId, siteIds))
+      .orderBy(waves.siteId, waves.waveNumber),
+    db
+      .select({
+        id: siteResources.id,
+        siteId: siteResources.siteId,
+        orderInSite: siteResources.orderInSite,
+        resourceKind: siteResources.resourceKind,
+        resourceName: siteResources.resourceName,
+        units: siteResources.units,
+        volumeM3: siteResources.volumeM3,
+        iskPerM3: siteResources.iskPerM3,
+        totalIsk: siteResources.totalIsk,
+        typeId: siteResources.typeId,
+      })
+      .from(siteResources)
+      .where(inArray(siteResources.siteId, siteIds))
+      .orderBy(siteResources.orderInSite),
+  ]);
 
   const waveIds = waveRows.map((w) => w.id);
 
@@ -211,23 +234,6 @@ export async function listSiteDetails(filters: {
           .where(inArray(npcs.waveId, waveIds))
           .orderBy(npcs.orderInWave)
       : [];
-
-  const resourceRows: (Omit<SiteResource, 'liveIsk' | 'effectiveIsk'> & { siteId: number })[] = await db
-    .select({
-      id: siteResources.id,
-      siteId: siteResources.siteId,
-      orderInSite: siteResources.orderInSite,
-      resourceKind: siteResources.resourceKind,
-      resourceName: siteResources.resourceName,
-      units: siteResources.units,
-      volumeM3: siteResources.volumeM3,
-      iskPerM3: siteResources.iskPerM3,
-      totalIsk: siteResources.totalIsk,
-      typeId: siteResources.typeId,
-    })
-    .from(siteResources)
-    .where(inArray(siteResources.siteId, siteIds))
-    .orderBy(siteResources.orderInSite);
 
   // One batched fetch of combat stats for every distinct NPC type across all
   // sites — same shape as the existing 4-round-trip pattern for listSiteDetails.
@@ -272,16 +278,35 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   const [site] = await db.select(SITE_LIST_COLUMNS).from(sites).where(eq(sites.id, id));
   if (!site) return null;
 
-  const siteWaves: WaveRow[] = await db
-    .select({
-      id: waves.id,
-      siteId: waves.siteId,
-      waveNumber: waves.waveNumber,
-      waveLabel: waves.waveLabel,
-    })
-    .from(waves)
-    .where(eq(waves.siteId, id))
-    .orderBy(waves.waveNumber);
+  // Waves and resources both key off the site id with no inter-dependency;
+  // fetch them concurrently. NPCs still wait on waveIds afterwards.
+  const [siteWaves, resourceRows] = await Promise.all([
+    db
+      .select({
+        id: waves.id,
+        siteId: waves.siteId,
+        waveNumber: waves.waveNumber,
+        waveLabel: waves.waveLabel,
+      })
+      .from(waves)
+      .where(eq(waves.siteId, id))
+      .orderBy(waves.waveNumber),
+    db
+      .select({
+        id: siteResources.id,
+        orderInSite: siteResources.orderInSite,
+        resourceKind: siteResources.resourceKind,
+        resourceName: siteResources.resourceName,
+        units: siteResources.units,
+        volumeM3: siteResources.volumeM3,
+        iskPerM3: siteResources.iskPerM3,
+        totalIsk: siteResources.totalIsk,
+        typeId: siteResources.typeId,
+      })
+      .from(siteResources)
+      .where(eq(siteResources.siteId, id))
+      .orderBy(siteResources.orderInSite),
+  ]);
 
   const waveIds = siteWaves.map((w) => w.id);
 
@@ -302,22 +327,6 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
           .where(inArray(npcs.waveId, waveIds))
           .orderBy(npcs.orderInWave)
       : [];
-
-  const resourceRows = await db
-    .select({
-      id: siteResources.id,
-      orderInSite: siteResources.orderInSite,
-      resourceKind: siteResources.resourceKind,
-      resourceName: siteResources.resourceName,
-      units: siteResources.units,
-      volumeM3: siteResources.volumeM3,
-      iskPerM3: siteResources.iskPerM3,
-      totalIsk: siteResources.totalIsk,
-      typeId: siteResources.typeId,
-    })
-    .from(siteResources)
-    .where(eq(siteResources.siteId, id))
-    .orderBy(siteResources.orderInSite);
 
   const resources: SiteResource[] = resourceRows.map((r) => ({
     ...r,

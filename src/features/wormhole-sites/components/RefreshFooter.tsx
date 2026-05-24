@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
-
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+import { CACHE_TTL_MS } from '@/data/market-prices/constants';
 
 type RefreshResponse = {
   cached: boolean;

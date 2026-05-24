@@ -296,9 +296,11 @@ slot is decided.
   on first deploy of any branch and no-ops thereafter. SDE ingest
   failures are non-fatal. Local `pnpm build` is a no-op for migrations;
   devs run `pnpm db:migrate` themselves.
-- **Batched list queries.** `listSiteDetails()` returns N sites'
-  full details in 4 round-trips (sites + waves + npcs + resources),
-  not 1 + 3N.
+- **Batched list queries.** `listSiteDetails()` returns N sites' full
+  details in 3 sequential await steps for the wormhole-sites tables —
+  sites → (waves + resources in parallel) → npcs — plus the
+  `getCombatStatsBatch` lookup against `dgm_type_attributes` that
+  follows once distinct NPC typeIds are known. Never 1 + 3N.
 - **Filter UI is URL-driven anchor links** — pure RSC, shareable URLs.
 - **Cache logic lives in the slice that owns the data, not the route.**
   Both the API endpoint and the CLI go through the same cache wrapper
