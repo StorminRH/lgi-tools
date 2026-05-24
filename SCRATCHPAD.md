@@ -113,7 +113,7 @@ a feature pass. The `escalations` and `sleeper_archetypes` tables
 are seeded but not yet surfaced anywhere; reading them is a future
 feature's job.
 
-PHASE_2.6_PLAN.md is archived in `../LGI Tools Archive/`.
+PHASE_2.6_PLAN.md is archived in `../LGI Tools Document Archive/`.
 
 ## Version 2.7.2: COMPLETE (2026-05-24)
 
@@ -215,10 +215,10 @@ Naming convention switched from "phase" to "version" starting at
 - [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-3.0 visual overhaul
   (also covers the J/K UX work deferred out of 2.5). Will rename
   to VERSION_2.9 when the version is actually opened.
-- [PHASE_2.5_PLAN.md](PHASE_2.5_PLAN.md) — complete, kept for the
-  shipped-session record.
-- Phase 2 and Phase 2.6 historical briefs are archived under
-  `../LGI Tools Archive/` (outside this repo).
+- Phase 2, 2.5, and 2.6 historical briefs are archived under
+  `../LGI Tools Document Archive/` (outside this repo) — the
+  active repo only carries plan docs for work that's in-progress
+  or upcoming.
 
 ## Backlog (no version assigned yet)
 

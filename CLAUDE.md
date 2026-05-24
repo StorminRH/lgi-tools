@@ -22,7 +22,7 @@ Accommodate new content types and fields without structural rewrites.
 After every session update SCRATCHPAD.md with what was built, decisions made, open questions, and what the next session should start with. This is working memory across sessions — keep it current.
 
 **Archive completed plan docs.**
-When a version (or pre-2.7 phase) ships, move its plan document out of the repo into the sibling folder `../LGI Tools Archive/` and `git rm` the in-repo copy. Replace any remaining markdown links to the archived file with prose mentions (`(archived — see LGI Tools Archive/...)`). The active repo should only contain plan docs for work that is in-progress or upcoming.
+When a version (or pre-2.7 phase) ships, move its plan document out of the repo into the sibling folder `../LGI Tools Document Archive/` and `git rm` the in-repo copy. Replace any remaining markdown links to the archived file with prose mentions (`(archived — see LGI Tools Document Archive/...)`). The active repo should only contain plan docs for work that is in-progress or upcoming.
 
 Naming: from 2.7 onward, plan docs are `VERSION_<n>_PLAN.md` and the work itself is referred to as a "version" with semver-style sub-versions (2.7.1, 2.7.2, …). Pre-2.7 docs use `PHASE_<n>_PLAN.md` and stay named that way for historical accuracy.
 
