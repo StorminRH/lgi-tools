@@ -115,6 +115,62 @@ feature's job.
 
 PHASE_2.6_PLAN.md is archived in `../LGI Tools Document Archive/`.
 
+## Version 2.7.3: COMPLETE (2026-05-24)
+
+Three-pass repo sweep before any 3.0 work. Shipped as three sequential PRs;
+forensic record of every deletion / fix / decision lives in
+`../LGI Tools Document Archive/VERSION_2.7.3_CLEANUP_LEDGER.md` so it survives
+future cleanup passes.
+
+What landed:
+
+- **Pass 1 — dead code + unused deps** ([PR #4](https://github.com/StorminRH/lgi-tools/pull/4)).
+  Added `knip` as a standing devDep + `pnpm knip` script. Deleted `Chevron`,
+  `HACK_DOT_TONE` (identity map), the speculative `getType` / `getTypeByName`
+  / `getGroup` / `getCategory` helpers in eve-data, the single-arg
+  `getCombatStats` + its sole-caller `getTypeAttributes`, the dead cross-module
+  re-export in `wormhole-sites/ingest.ts`, and the `EveCategory`/`EveGroup`
+  types they fed. De-exported a dozen items only used inside their own file.
+  Refreshed the stale "migrate-if-production" architecture-invariant entry.
+- **Pass 2 — efficiency + structural sweep** ([PR #5](https://github.com/StorminRH/lgi-tools/pull/5)).
+  Parallelised the `waves` + `site_resources` fetches in `listSiteDetails` and
+  `getSiteDetail` (one fewer round-trip's latency per detail load). Fixed the
+  architecture-invariant violation in `src/components/ui/dot.tsx` —
+  `DotTone` went from `'relic' | 'data'` (domain leak) to `'orange' | 'blue'`
+  (abstract), with the domain → tone mapping moved into
+  `wormhole-styles.ts` as a real `HACK_DOT_TONE` (Pass 1's identity map but
+  doing something useful this time). Deduplicated `CACHE_TTL_MS` via a new
+  `src/data/market-prices/constants.ts` that both the server cache wrapper
+  and the client `RefreshFooter` import from. Audits confirmed no N+1 in the
+  post-2.7.1 hot paths, no missing indexes worth adding at current row
+  counts (the big tables — `dgm_type_attributes` 612k, `eve_types` 50k —
+  are correctly indexed; everything else is under 1k rows), and no
+  cross-slice import violations anywhere.
+- **Pass 3 — security audit + hardening** ([PR #6](https://github.com/StorminRH/lgi-tools/pull/6)).
+  Tightened `/api/sites/[id]` input validation: strict `^[1-9]\d*$` regex
+  plus an upper-bound check against the Postgres `serial` max, replacing
+  the loose `parseInt` + `isNaN` that silently accepted `"123abc"` as `123`
+  and could pass too-large numbers to the DB. Pinned `esbuild >= 0.25.0`
+  and `postcss >= 8.5.10` via `pnpm.overrides` to clear two moderate
+  transitive-dep CVEs. Audits confirmed no SQL-injection surface
+  (5 raw `` sql`` `` sites all use Drizzle parameter binding or
+  compile-time identifier escapes), the `--confirm-wipe` guard on
+  reseed-from-sheet is strict, the asymmetric lack of a guard on
+  `db:ingest:sde` is intentional and safe (single transaction rollback),
+  the sheet-audit fetcher has no SSRF/traversal surface, and the
+  migrate-on-deploy chain hard-fails on migration error rather than
+  half-completing. `security-review` skill confirmed the diff introduces
+  no new vulnerabilities.
+
+Snyk MCP wasn't usable — `snyk_trust` consistently timed out, likely on an
+interactive consent prompt that didn't surface. Used `pnpm audit` instead.
+If we want Snyk on the next pass, it'll need to be wired up out-of-band first.
+
+`VERSION_2.7_PLAN.md` has been moved into the document archive alongside the
+other shipped plans (`PHASE_2_PLAN.md`, `PHASE_2.5_PLAN.md`,
+`PHASE_2.6_PLAN.md`). This SCRATCHPAD entry + the ledger are the durable
+record.
+
 ## Version 2.7.2: COMPLETE (2026-05-24)
 
 Folded into the same PR as 2.7.1 once Vercel-Neon preview branching turned out
@@ -201,24 +257,23 @@ Deferred to 2.7.4:
   similar) is its own focused pass; combat sites continue to show the
   static `sites.blueLootIsk` until then.
 
-VERSION_2.7_PLAN.md stays in-repo — 2.7.2 and 2.7.3 are still ahead.
+VERSION_2.7_PLAN.md is archived in `../LGI Tools Document Archive/` now that
+2.7.3 has shipped (the last sub-version it specified).
 
 ## Open versions
 
 Naming convention switched from "phase" to "version" starting at
 2.7. Historical PHASE_*.md files stay named as-is.
 
-- [VERSION_2.7_PLAN.md](VERSION_2.7_PLAN.md) — three sub-versions
-  originally; 2.7.4 added during 2.7.1.
-  - **2.7.1 SHIPPED 2026-05-24** — see section above.
-  - **2.7.2 SHIPPED 2026-05-24** — folded into the same PR; see section
-    above. Branch protection on `main` is the one remaining manual
-    GitHub setting.
-  - **2.7.3** is a full-repo cleanup pass (dead code → efficiency →
-    security, three PRs). Next up.
-  - **2.7.4** is live blue-loot ISK for combat sites, decoupled from
-    2.7.1 because the Sheet doesn't encode the drop tables we'd need.
-    Source TBD (EVE-Uni wiki is the working assumption).
+- **VERSION_2.7** (archived — see `LGI Tools Document Archive/VERSION_2.7_PLAN.md`).
+  All three originally-planned sub-versions shipped (2.7.1 own-the-math,
+  2.7.2 PR workflow + CI, 2.7.3 cleanup sweep). The forensic record of
+  2.7.3's three passes lives at `LGI Tools Document Archive/
+  VERSION_2.7.3_CLEANUP_LEDGER.md`.
+- **2.7.4** (no plan doc yet) — live blue-loot ISK for combat sites,
+  decoupled from 2.7.1 because the Sheet doesn't encode the drop tables
+  we'd need. Source TBD (EVE-Uni wiki is the working assumption).
+  Promote to `VERSION_2.7.4_PLAN.md` when work starts.
 - [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-3.0 visual overhaul
   (also covers the J/K UX work deferred out of 2.5). Will rename
   to VERSION_2.9 when the version is actually opened.
