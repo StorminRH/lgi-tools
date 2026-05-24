@@ -57,6 +57,20 @@
       "when": 1779571500000,
       "tag": "0007_fix_typos",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779649571365,
+      "tag": "0008_special_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779650000000,
+      "tag": "0009_drop_persisted_npc_stats",
+      "breakpoints": true
     }
   ]
 }

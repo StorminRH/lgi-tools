@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local verification snapshots (wire-format diffs, not committed)
+.verify-snapshots/

@@ -7,6 +7,18 @@ import { npcs, siteResources, sites, waves } from './schema';
 import { parseSheetTab, type ParsedSite } from './sheet-parser';
 import { csvUrlFor, SHEET_TABS } from './sheet-source';
 
+export class NpcTypeIdResolutionError extends Error {
+  constructor(public readonly missingNames: string[]) {
+    super(
+      `Could not resolve typeId for ${missingNames.length} sleeper name(s) — ` +
+        `make sure SDE is ingested (pnpm db:ingest:sde). Missing: ${missingNames
+          .slice(0, 5)
+          .join(', ')}${missingNames.length > 5 ? '…' : ''}`,
+    );
+    this.name = 'NpcTypeIdResolutionError';
+  }
+}
+
 export type IngestSummary = {
   sitesUpserted: number;
   wavesWritten: number;
@@ -73,6 +85,31 @@ export async function runIngest(
     );
   }
 
+  // 3b. Resolve every sleeper NPC's typeId from eve_types by exact name match
+  // (the same relationship 0006_historical_seed encoded via sleeper_name →
+  // sleeper_archetypes.type_id, but now sourced from the SDE directly). The
+  // npcs.type_id column is NOT NULL post-0009, so we refuse to ingest a wave
+  // where any sleeper name didn't resolve — better to fail loudly than to
+  // crash the live combat-stats lookup downstream.
+  const distinctSleeperNames = new Set<string>();
+  for (const site of allSites) {
+    for (const w of site.waves) {
+      for (const n of w.npcs) distinctSleeperNames.add(n.sleeperName);
+    }
+  }
+  const sleeperTypesByName = await getTypesByNames([...distinctSleeperNames]);
+  const sleeperNameToTypeId = new Map<string, number>();
+  for (const name of distinctSleeperNames) {
+    const t = sleeperTypesByName.get(name.toLowerCase());
+    if (t) sleeperNameToTypeId.set(name, t.id);
+  }
+  const missingSleeperNames = [...distinctSleeperNames].filter(
+    (n) => !sleeperNameToTypeId.has(n),
+  );
+  if (missingSleeperNames.length > 0) {
+    throw new NpcTypeIdResolutionError(missingSleeperNames);
+  }
+
   // 4. Upsert + replace-children within a single transaction.
   const summary: IngestSummary = {
     sitesUpserted: 0,
@@ -133,13 +170,6 @@ export async function runIngest(
             siteId,
             waveNumber: w.waveNumber,
             waveLabel: w.waveLabel,
-            ewScram: w.ewScram,
-            ewWeb: w.ewWeb,
-            ewNeut: w.ewNeut,
-            ewRrep: w.ewRrep,
-            dpsTotal: w.dpsTotal,
-            alphaTotal: w.alphaTotal,
-            ehpTotal: w.ehpTotal,
           })
           .returning({ id: waves.id });
         const waveId = wRow.id;
@@ -154,17 +184,7 @@ export async function runIngest(
               quantity: n.quantity,
               sleeperName: n.sleeperName,
               sleeperClassCode: n.sleeperClassCode,
-              scram: n.scram,
-              web: n.web,
-              neut: n.neut,
-              rrep: n.rrep,
-              sig: n.sig,
-              speed: n.speed,
-              distance: n.distance,
-              velocity: n.velocity,
-              dps: n.dps,
-              alpha: n.alpha,
-              ehp: n.ehp,
+              typeId: sleeperNameToTypeId.get(n.sleeperName)!,
             })),
           );
           summary.npcsWritten += w.npcs.length;
