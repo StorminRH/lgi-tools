@@ -63,6 +63,16 @@ Test framework (Vitest) lands in version 2.7.1. The convention going forward, on
 
 **Skip what doesn't earn it.** Pure presentational components in `src/components/ui/` and `src/features/*/components/` don't need unit tests; visual review covers them. Route handlers in `src/app/api/` get tests when they contain non-trivial logic beyond "call the query and return the result."
 
-**One PR = green tests.** Once CI is wired (version 2.7.2), every PR runs `pnpm test`. A red suite blocks merge. No "I'll fix it in a follow-up."
+**One PR = green tests.** CI runs `pnpm test` on every PR (set up in 2.7.2). A red suite blocks merge. No "I'll fix it in a follow-up."
+
+## Workflow
+
+All changes go through PRs. `main` is the only deploy target.
+
+**Each PR gets an isolated database.** The Vercel ↔ Neon integration creates a `preview/<branch-name>` Neon branch for every preview deployment, forked from production. `pnpm vercel-build` runs schema migrations against that branch and auto-populates the SDE attribute tables on first deploy. Production data is untouched until merge.
+
+**Merging to `main` triggers production.** Migrations apply automatically; the same auto-ingest step populates anything new the migration created.
+
+**CI runs Vitest on every PR.** Green tests are required to merge.
 
 @AGENTS.md

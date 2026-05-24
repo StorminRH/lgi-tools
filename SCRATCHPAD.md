@@ -115,6 +115,40 @@ feature's job.
 
 PHASE_2.6_PLAN.md is archived in `../LGI Tools Archive/`.
 
+## Version 2.7.2: COMPLETE (2026-05-24)
+
+Folded into the same PR as 2.7.1 once Vercel-Neon preview branching turned out
+to be a one-toggle fix. Shipped on the same branch.
+
+What landed:
+
+- **Preview branching is on.** The Vercel ↔ Neon integration's "Create
+  Database Branch For Deployment" toggle (Preview + Production both checked,
+  Required Active Resource ON) was flipped via the Vercel Storage panel.
+  Confirmed: pushing to a feature branch creates a `preview/<branch-name>`
+  Neon branch forked from main, with the per-branch DATABASE_URL injected
+  into the preview deployment at runtime. Production is no longer at risk
+  from PR work.
+- **`migrate-if-production.ts` is gone.** `pnpm vercel-build` now runs
+  `tsx src/db/migrate.ts && tsx src/db/ingest-sde-if-empty.ts && next build`.
+  Each preview branch self-migrates; the new auto-ingest step populates
+  `dgm_type_attributes` on first deploy and no-ops thereafter (idempotent
+  on row count). SDE ingest failures are non-fatal — build continues, per-NPC
+  stats degrade to nulls until the next deploy retries successfully.
+- **CI workflow.** `.github/workflows/test.yml` runs `pnpm install --frozen-lockfile`
+  + `pnpm test` on every PR and on pushes to `main`. Node 24, pnpm 10,
+  pnpm-store cached. Red suite blocks merge once branch protection is set.
+- **CLAUDE.md Workflow section.** Documents PR-default, isolated previews,
+  auto-migrate / auto-ingest on deploy, CI-as-merge-gate.
+
+Still requires one click from the operator (not scriptable without a
+repo-admin GitHub token):
+
+- **Branch protection on `main`.** GitHub → Settings → Branches → Add
+  protection rule for `main`: require PR + 1 approval (self-approve fine
+  for solo), require the `Test` status check to pass, no direct pushes,
+  no force-pushes.
+
 ## Version 2.7.1: COMPLETE (2026-05-24)
 
 The wormhole-sites combat numbers are now computed live from raw EVE SDE
@@ -170,11 +204,11 @@ Naming convention switched from "phase" to "version" starting at
 - [VERSION_2.7_PLAN.md](VERSION_2.7_PLAN.md) — three sub-versions
   originally; 2.7.4 added during 2.7.1.
   - **2.7.1 SHIPPED 2026-05-24** — see section above.
-  - **2.7.2** fixes the Vercel-Neon preview branching, enforces
-    PR-default with branch protection, adds a CI workflow that runs
-    the Vitest suite on PRs. Next up.
+  - **2.7.2 SHIPPED 2026-05-24** — folded into the same PR; see section
+    above. Branch protection on `main` is the one remaining manual
+    GitHub setting.
   - **2.7.3** is a full-repo cleanup pass (dead code → efficiency →
-    security, three PRs).
+    security, three PRs). Next up.
   - **2.7.4** is live blue-loot ISK for combat sites, decoupled from
     2.7.1 because the Sheet doesn't encode the drop tables we'd need.
     Source TBD (EVE-Uni wiki is the working assumption).
