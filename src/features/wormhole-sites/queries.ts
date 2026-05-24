@@ -1,6 +1,9 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from '@/db/schema';
+import { getCombatStatsBatch } from '@/data/npc-stats/queries';
+import { summariseWave } from '@/data/npc-stats/math';
+import type { CombatStats } from '@/data/npc-stats/types';
 import type { Npc, SiteDetail, SiteListItem, SiteResource, Wave, WormholeClass, SiteType } from './types';
 
 const SITE_LIST_COLUMNS = {
@@ -14,6 +17,134 @@ const SITE_LIST_COLUMNS = {
   iskPerEhp: sites.iskPerEhp,
   resourceValueIsk: sites.resourceValueIsk,
 } as const;
+
+// Raw `npcs` row as the DB returns it now that the cached stat columns are
+// gone. Combat stats are merged on top from getCombatStatsBatch.
+type NpcRow = {
+  id: number;
+  waveId: number;
+  typeId: number;
+  orderInWave: number;
+  triggerLabel: string | null;
+  quantity: number;
+  sleeperName: string;
+  sleeperClassCode: string;
+};
+
+type WaveRow = {
+  id: number;
+  siteId: number;
+  waveNumber: number;
+  waveLabel: string;
+};
+
+// Wire-format conversion from CombatStats to the per-NPC fields the API has
+// always returned. Kept in one place — same mapping used by both list and
+// detail queries.
+//
+// Three semantics preserved from the original Phase 1 ingest of the C1-C6
+// tabs (NOT the Calculations tab):
+//  - `web` is a 0/1 presence flag (the sleeper either fits a web or it doesn't),
+//    not the speed factor (the SDE attribute -60% lives in stats.ewar.web)
+//  - `neut` is the NEGATIVE per-NPC neut count (the Sheet's C1-C6 tabs print
+//    it as "-6" to read as "you take 6 neut")
+//  - `rrep` is the POSITIVE per-NPC rep count
+function mergeNpc(base: NpcRow, stats: CombatStats | undefined): Npc {
+  const { waveId: _waveId, typeId: _typeId, ...rest } = base;
+  if (!stats) {
+    // Type isn't in the SDE ingest (shouldn't happen in normal operation;
+    // surface as null fields rather than crash so the rest of the response
+    // stays valid).
+    return { ...rest, scram: null, web: null, neut: null, rrep: null,
+      sig: null, speed: null, distance: null, velocity: null,
+      dps: null, alpha: null, ehp: null };
+  }
+  return {
+    ...rest,
+    scram: stats.ewar.scram,
+    web: stats.ewar.web !== 0 ? 1 : 0,
+    neut: -stats.ewar.neutCount,
+    rrep: stats.ewar.rrepCount,
+    sig: stats.movement.sigRadius,
+    speed: stats.movement.maxVelocity,
+    distance: stats.movement.orbitDistance,
+    velocity: stats.movement.orbitVelocity,
+    dps: Math.round(stats.total.dps),
+    alpha: Math.round(stats.total.alpha),
+    ehp: Math.round(stats.hp.ehp),
+  };
+}
+
+// Build wave-level aggregates. Combat totals (dps/alpha/ehp) go through
+// summariseWave's quantity-weighted sum — that's the honest "what damage
+// hits you per second" number. EWAR aggregates follow a different rule
+// preserved from pre-2.7.1: each ew* field is the sum across distinct NPC
+// TYPES of that type's per-NPC EWAR value, NOT quantity-weighted (so a
+// wave with 3× Awakened Watchman (neut=-6) reports ewNeut=-6, not -18).
+// The wire is null when no NPC contributes to that category, otherwise the
+// integer sum.
+function nullIfZero(value: number, anyContrib: boolean): number | null {
+  return anyContrib ? value : null;
+}
+
+function aggregateWave(
+  row: WaveRow,
+  npcRows: NpcRow[],
+  statsByType: Map<number, CombatStats>,
+): Wave {
+  const enriched: Npc[] = npcRows.map((n) => mergeNpc(n, statsByType.get(n.typeId)));
+
+  const contributing = npcRows
+    .map((n) => ({ stats: statsByType.get(n.typeId), quantity: n.quantity }))
+    .filter((x): x is { stats: CombatStats; quantity: number } => x.stats !== undefined);
+  const totals = summariseWave(contributing);
+
+  // Sum each per-NPC EWAR value across the wave's NPC types (no quantity
+  // multiplication — see comment above). One row per NPC type, taking the
+  // wire-format per-NPC value, including the sign convention.
+  let ewScramSum = 0;
+  let ewWebSum = 0;
+  let ewNeutSum = 0;
+  let ewRrepSum = 0;
+  let anyScram = false;
+  let anyWeb = false;
+  let anyNeut = false;
+  let anyRrep = false;
+  for (const n of npcRows) {
+    const stats = statsByType.get(n.typeId);
+    if (!stats) continue;
+    if (stats.ewar.scram > 0) {
+      ewScramSum += stats.ewar.scram;
+      anyScram = true;
+    }
+    if (stats.ewar.web !== 0) {
+      ewWebSum += 1;
+      anyWeb = true;
+    }
+    if (stats.ewar.neutCount > 0) {
+      ewNeutSum += -stats.ewar.neutCount;
+      anyNeut = true;
+    }
+    if (stats.ewar.rrepCount > 0) {
+      ewRrepSum += stats.ewar.rrepCount;
+      anyRrep = true;
+    }
+  }
+
+  return {
+    id: row.id,
+    waveNumber: row.waveNumber,
+    waveLabel: row.waveLabel,
+    ewScram: nullIfZero(ewScramSum, anyScram),
+    ewWeb: nullIfZero(ewWebSum, anyWeb),
+    ewNeut: nullIfZero(ewNeutSum, anyNeut),
+    ewRrep: nullIfZero(ewRrepSum, anyRrep),
+    dpsTotal: totals.dpsTotal,
+    alphaTotal: totals.alphaTotal,
+    ehpTotal: totals.ehpTotal,
+    npcs: enriched,
+  };
+}
 
 export async function listSites(filters: {
   type?: SiteType;
@@ -50,19 +181,12 @@ export async function listSiteDetails(filters: {
 
   const siteIds = siteRows.map((s) => s.id);
 
-  const waveRows = await db
+  const waveRows: WaveRow[] = await db
     .select({
       id: waves.id,
       siteId: waves.siteId,
       waveNumber: waves.waveNumber,
       waveLabel: waves.waveLabel,
-      ewScram: waves.ewScram,
-      ewWeb: waves.ewWeb,
-      ewNeut: waves.ewNeut,
-      ewRrep: waves.ewRrep,
-      dpsTotal: waves.dpsTotal,
-      alphaTotal: waves.alphaTotal,
-      ehpTotal: waves.ehpTotal,
     })
     .from(waves)
     .where(inArray(waves.siteId, siteIds))
@@ -70,28 +194,18 @@ export async function listSiteDetails(filters: {
 
   const waveIds = waveRows.map((w) => w.id);
 
-  const npcRows: (Npc & { waveId: number })[] =
+  const npcRows: NpcRow[] =
     waveIds.length > 0
       ? await db
           .select({
             id: npcs.id,
             waveId: npcs.waveId,
+            typeId: npcs.typeId,
             orderInWave: npcs.orderInWave,
             triggerLabel: npcs.triggerLabel,
             quantity: npcs.quantity,
             sleeperName: npcs.sleeperName,
             sleeperClassCode: npcs.sleeperClassCode,
-            scram: npcs.scram,
-            web: npcs.web,
-            neut: npcs.neut,
-            rrep: npcs.rrep,
-            sig: npcs.sig,
-            speed: npcs.speed,
-            distance: npcs.distance,
-            velocity: npcs.velocity,
-            dps: npcs.dps,
-            alpha: npcs.alpha,
-            ehp: npcs.ehp,
           })
           .from(npcs)
           .where(inArray(npcs.waveId, waveIds))
@@ -115,19 +229,24 @@ export async function listSiteDetails(filters: {
     .where(inArray(siteResources.siteId, siteIds))
     .orderBy(siteResources.orderInSite);
 
-  const npcsByWaveId = new Map<number, Npc[]>();
-  for (const { waveId, ...npc } of npcRows) {
-    const bucket = npcsByWaveId.get(waveId) ?? [];
-    bucket.push(npc);
-    npcsByWaveId.set(waveId, bucket);
+  // One batched fetch of combat stats for every distinct NPC type across all
+  // sites — same shape as the existing 4-round-trip pattern for listSiteDetails.
+  const distinctTypeIds = [...new Set(npcRows.map((n) => n.typeId))];
+  const statsByType = await getCombatStatsBatch(distinctTypeIds);
+
+  const npcsByWaveId = new Map<number, NpcRow[]>();
+  for (const n of npcRows) {
+    const bucket = npcsByWaveId.get(n.waveId) ?? [];
+    bucket.push(n);
+    npcsByWaveId.set(n.waveId, bucket);
   }
 
   const wavesBySiteId = new Map<number, Wave[]>();
-  for (const { siteId, ...rest } of waveRows) {
-    const wave: Wave = { ...rest, npcs: npcsByWaveId.get(rest.id) ?? [] };
-    const bucket = wavesBySiteId.get(siteId) ?? [];
+  for (const w of waveRows) {
+    const wave = aggregateWave(w, npcsByWaveId.get(w.id) ?? [], statsByType);
+    const bucket = wavesBySiteId.get(w.siteId) ?? [];
     bucket.push(wave);
-    wavesBySiteId.set(siteId, bucket);
+    wavesBySiteId.set(w.siteId, bucket);
   }
 
   const resourcesBySiteId = new Map<number, SiteResource[]>();
@@ -153,18 +272,12 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   const [site] = await db.select(SITE_LIST_COLUMNS).from(sites).where(eq(sites.id, id));
   if (!site) return null;
 
-  const siteWaves = await db
+  const siteWaves: WaveRow[] = await db
     .select({
       id: waves.id,
+      siteId: waves.siteId,
       waveNumber: waves.waveNumber,
       waveLabel: waves.waveLabel,
-      ewScram: waves.ewScram,
-      ewWeb: waves.ewWeb,
-      ewNeut: waves.ewNeut,
-      ewRrep: waves.ewRrep,
-      dpsTotal: waves.dpsTotal,
-      alphaTotal: waves.alphaTotal,
-      ehpTotal: waves.ehpTotal,
     })
     .from(waves)
     .where(eq(waves.siteId, id))
@@ -172,28 +285,18 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
 
   const waveIds = siteWaves.map((w) => w.id);
 
-  const allNpcs: (Npc & { waveId: number })[] =
+  const allNpcs: NpcRow[] =
     waveIds.length > 0
       ? await db
           .select({
             id: npcs.id,
             waveId: npcs.waveId,
+            typeId: npcs.typeId,
             orderInWave: npcs.orderInWave,
             triggerLabel: npcs.triggerLabel,
             quantity: npcs.quantity,
             sleeperName: npcs.sleeperName,
             sleeperClassCode: npcs.sleeperClassCode,
-            scram: npcs.scram,
-            web: npcs.web,
-            neut: npcs.neut,
-            rrep: npcs.rrep,
-            sig: npcs.sig,
-            speed: npcs.speed,
-            distance: npcs.distance,
-            velocity: npcs.velocity,
-            dps: npcs.dps,
-            alpha: npcs.alpha,
-            ehp: npcs.ehp,
           })
           .from(npcs)
           .where(inArray(npcs.waveId, waveIds))
@@ -222,17 +325,19 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
     effectiveIsk: r.totalIsk,
   }));
 
-  const npcsByWaveId = new Map<number, Npc[]>();
-  for (const { waveId, ...npc } of allNpcs) {
-    const bucket = npcsByWaveId.get(waveId) ?? [];
-    bucket.push(npc);
-    npcsByWaveId.set(waveId, bucket);
+  const distinctTypeIds = [...new Set(allNpcs.map((n) => n.typeId))];
+  const statsByType = await getCombatStatsBatch(distinctTypeIds);
+
+  const npcsByWaveId = new Map<number, NpcRow[]>();
+  for (const n of allNpcs) {
+    const bucket = npcsByWaveId.get(n.waveId) ?? [];
+    bucket.push(n);
+    npcsByWaveId.set(n.waveId, bucket);
   }
 
-  const assembledWaves: Wave[] = siteWaves.map((w) => ({
-    ...w,
-    npcs: npcsByWaveId.get(w.id) ?? [],
-  }));
+  const assembledWaves: Wave[] = siteWaves.map((w) =>
+    aggregateWave(w, npcsByWaveId.get(w.id) ?? [], statsByType),
+  );
 
   return { ...site, waves: assembledWaves, resources };
 }

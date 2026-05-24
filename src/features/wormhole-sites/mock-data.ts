@@ -85,8 +85,8 @@ function wave(
     ewNeut:  ew.neut  || null,
     ewRrep:  ew.rr    || null,
     dpsTotal,
-    alphaTotal: null,
-    ehpTotal: null,
+    alphaTotal: 0,
+    ehpTotal: 0,
     npcs,
   };
 }

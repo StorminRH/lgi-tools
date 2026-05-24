@@ -55,6 +55,9 @@ export const sites = pgTable(
   }),
 );
 
+// Wave aggregates (DPS / alpha / EHP totals, EWAR counts) are recomputed
+// live in queries.ts via the npc-stats summariseWave helper as of 2.7.1.
+// The columns that used to cache them are dropped in drizzle/0009.
 export const waves = pgTable(
   'waves',
   {
@@ -64,19 +67,16 @@ export const waves = pgTable(
       .references(() => sites.id, { onDelete: 'cascade' }),
     waveNumber: integer('wave_number').notNull(),
     waveLabel: text('wave_label').notNull(),
-    ewScram: integer('ew_scram'),
-    ewWeb: integer('ew_web'),
-    ewNeut: integer('ew_neut'),
-    ewRrep: integer('ew_rrep'),
-    dpsTotal: integer('dps_total'),
-    alphaTotal: integer('alpha_total'),
-    ehpTotal: integer('ehp_total'),
   },
   (t) => ({
     siteWaveUnique: uniqueIndex('waves_site_wave_number_unique').on(t.siteId, t.waveNumber),
   }),
 );
 
+// Per-NPC combat stats (dps, alpha, ehp, scram, web, neut, rrep, sig, speed,
+// distance, velocity) are computed live from raw EVE SDE attributes via
+// src/data/npc-stats as of 2.7.1. The columns that used to cache them are
+// dropped in drizzle/0009. `type_id` is the new join key.
 export const npcs = pgTable(
   'npcs',
   {
@@ -89,17 +89,7 @@ export const npcs = pgTable(
     quantity: integer('quantity').notNull(),
     sleeperName: text('sleeper_name').notNull(),
     sleeperClassCode: text('sleeper_class_code').notNull(),
-    scram: integer('scram'),
-    web: integer('web'),
-    neut: integer('neut'),
-    rrep: integer('rrep'),
-    sig: integer('sig'),
-    speed: integer('speed'),
-    distance: integer('distance'),
-    velocity: integer('velocity'),
-    dps: integer('dps'),
-    alpha: integer('alpha'),
-    ehp: integer('ehp'),
+    typeId: integer('type_id').notNull(),
   },
   (t) => ({
     waveOrderUnique: uniqueIndex('npcs_wave_order_unique').on(t.waveId, t.orderInWave),
@@ -167,42 +157,8 @@ export const escalations = pgTable('escalations', {
   rrep: integer('rrep'),
 });
 
-// One row per sleeper typeID — the durable seed of the Sheet's
-// Calculations tab. The npcs table keeps its per-NPC ints (what the UI
-// reads today); this table is the audit trail for where those numbers
-// came from and the reference for the future native-recompute phase.
-export const sleeperArchetypes = pgTable('sleeper_archetypes', {
-  typeId: integer('type_id').primaryKey(),
-  name: text('name').notNull(),
-  blueLootIsk: bigint('blue_loot_isk', { mode: 'number' }),
-  turretDps: integer('turret_dps'),
-  turretAlpha: integer('turret_alpha'),
-  missileDps: integer('missile_dps'),
-  missileAlpha: integer('missile_alpha'),
-  totalDps: integer('total_dps'),
-  totalAlpha: integer('total_alpha'),
-  shieldHp: bigint('shield_hp', { mode: 'number' }),
-  shieldResEm: integer('shield_res_em'),
-  shieldResExp: integer('shield_res_exp'),
-  shieldResKin: integer('shield_res_kin'),
-  shieldResTherm: integer('shield_res_therm'),
-  armorHp: bigint('armor_hp', { mode: 'number' }),
-  armorResEm: integer('armor_res_em'),
-  armorResExp: integer('armor_res_exp'),
-  armorResKin: integer('armor_res_kin'),
-  armorResTherm: integer('armor_res_therm'),
-  structureHp: bigint('structure_hp', { mode: 'number' }),
-  ehp: bigint('ehp', { mode: 'number' }),
-  sigRadius: integer('sig_radius'),
-  maxVelocity: integer('max_velocity'),
-  orbitDistance: integer('orbit_distance'),
-  orbitVelocity: integer('orbit_velocity'),
-  scram: integer('scram'),
-  web: integer('web'),
-  neutAmount: integer('neut_amount'),
-  neutDuration: integer('neut_duration'),
-  neutCount: integer('neut_count'),
-  rrepAmount: integer('rrep_amount'),
-  rrepDuration: integer('rrep_duration'),
-  rrepCount: integer('rrep_count'),
-});
+// `sleeperArchetypes` was dropped in drizzle/0009. Combat stats are now
+// computed live in src/data/npc-stats from raw EVE SDE attributes. The
+// archetype snapshot lives on as historical reference in
+// sheet-audit/seed-source/sleeper-archetypes.json and as the input fixture
+// for src/data/npc-stats/math.test.ts.

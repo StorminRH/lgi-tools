@@ -38,13 +38,18 @@ export interface Wave {
   id: number;
   waveNumber: number;
   waveLabel: string;
+  // EWAR totals are null when no NPC in the wave carries that effect (the
+  // pre-2.7.1 wire-format convention, preserved). Combat totals are always
+  // numbers — empty waves return 0, not null. The persisted columns that
+  // used to back any of these fields were dropped in drizzle/0009; the
+  // values are now recomputed live via npc-stats/summariseWave.
   ewScram: number | null;
   ewWeb: number | null;
   ewNeut: number | null;
   ewRrep: number | null;
-  dpsTotal: number | null;
-  alphaTotal: number | null;
-  ehpTotal: number | null;
+  dpsTotal: number;
+  alphaTotal: number;
+  ehpTotal: number;
   npcs: Npc[];
 }
 
