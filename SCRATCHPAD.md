@@ -118,7 +118,13 @@ PHASE_2.6_PLAN.md is archived in `../LGI Tools Document Archive/`.
 ## Version 2.7.2: COMPLETE (2026-05-24)
 
 Folded into the same PR as 2.7.1 once Vercel-Neon preview branching turned out
-to be a one-toggle fix. Shipped on the same branch.
+to be a one-toggle fix. Shipped on the same branch. A follow-up
+[chore PR](https://github.com/StorminRH/lgi-tools/pull/3) (`chore-archive-cleanup`,
+merged the same day) doubled as the first deliberate end-to-end test of the
+new workflow — Neon auto-created `preview/chore-archive-cleanup`, vercel-build
+no-op'd migrate + skipped SDE auto-ingest (already populated), and the preview
+API matched prod byte-for-byte. The post-merge production deploy went through
+in seconds with no migrations or ingest needed (already at 0009).
 
 What landed:
 
@@ -141,13 +147,14 @@ What landed:
 - **CLAUDE.md Workflow section.** Documents PR-default, isolated previews,
   auto-migrate / auto-ingest on deploy, CI-as-merge-gate.
 
-Still requires one click from the operator (not scriptable without a
-repo-admin GitHub token):
+Deferred:
 
-- **Branch protection on `main`.** GitHub → Settings → Branches → Add
-  protection rule for `main`: require PR + 1 approval (self-approve fine
-  for solo), require the `Test` status check to pass, no direct pushes,
-  no force-pushes.
+- **Branch protection on `main` enforcement.** GitHub gates real enforcement
+  of branch protection / rulesets behind a paid plan (Pro $4/mo for personal
+  repos, or any org plan) for private repos. The convention is documented in
+  CLAUDE.md and observed in practice; revisit if/when we add collaborators
+  or upgrade. The `Test` workflow still runs on every PR regardless and is
+  visible as a status check — just not as a merge-blocker.
 
 ## Version 2.7.1: COMPLETE (2026-05-24)
 
