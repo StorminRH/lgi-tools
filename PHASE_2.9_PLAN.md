@@ -22,7 +22,7 @@ production CSS) before any code is written.
 ## How to use this document
 
 Same shape as the Phase 2 plan (archived — see
-`LGI Tools Archive/PHASE_2_PLAN.md` outside this repo). Read
+`LGI Tools Document Archive/PHASE_2_PLAN.md` outside this repo). Read
 [CLAUDE.md](CLAUDE.md),
 [AGENTS.md](AGENTS.md), [SCRATCHPAD.md](SCRATCHPAD.md), and any
 in-flight Phase 2.5 work before proposing a Phase 2.9 plan.

@@ -39,6 +39,7 @@ yarn-error.log*
 
 # claude code (user-local settings only; .claude/launch.json is shared)
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # typescript
 *.tsbuildinfo
