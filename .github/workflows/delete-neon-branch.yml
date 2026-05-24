@@ -1,0 +1,21 @@
+name: Delete Neon Branch
+
+# Vercel ↔ Neon creates `preview/<branch-name>` for each PR's preview
+# deployment but never deletes it when the PR closes. This workflow does.
+# Runs on both merged and closed-without-merging PRs so abandoned branches
+# also get cleaned up.
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  delete-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete preview/<branch> in Neon
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch: preview/${{ github.event.pull_request.head.ref }}
+          api_key: ${{ secrets.NEON_API_KEY }}
