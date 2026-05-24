@@ -115,19 +115,69 @@ feature's job.
 
 PHASE_2.6_PLAN.md is archived in `../LGI Tools Archive/`.
 
+## Version 2.7.1: COMPLETE (2026-05-24)
+
+The wormhole-sites combat numbers are now computed live from raw EVE SDE
+attributes — no more pre-baked Sheet values rotting in the DB. Shipped on
+branch `version-2.7.1-own-the-math` in three commits.
+
+What landed:
+
+- **Raw attribute ingest**. `pnpm db:ingest:sde` now pulls Fuzzwork's
+  `dgmAttributeTypes` (~3k rows, attribute metadata) and `dgmTypeAttributes`
+  (~600k rows, every typeId × attributeId → value) into the existing
+  `eve-data` slice. Two new query helpers — `getTypeAttributes(id)` and
+  `getTypeAttributesBatch(ids)` — return a flat `{attrId: value}` map.
+- **New `src/data/npc-stats/` slice**. Pure formulas for turret DPS,
+  missile DPS, omni EHP, EWAR counts, movement; plus `summariseWave` for
+  wave-level aggregates. Generic across sleepers / mission rats /
+  incursion NPCs — anything with `dgmTypeAttributes`. `queries.ts` is the
+  DB boundary; `math.ts` has zero DB imports.
+- **Vitest is in**. `pnpm test` (and `pnpm test:watch`) runs the suite.
+  `src/data/npc-stats/math.test.ts` validates the formulas against all 36
+  sleeper rows of `sheet-audit/seed-source/sleeper-archetypes.json`. 327
+  assertions, all green. Drifters tolerate ±10 ISK on EHP (a six-ISK
+  Sheet authoring artefact, documented inline); Avenger's neutCount uses
+  the standard /10 baseline divisor (the Sheet's special-case /20 doesn't
+  matter because Avenger never appears in wave data).
+- **Stat columns dropped**. Migration `drizzle/0009_drop_persisted_npc_stats.sql`
+  backfills `npcs.type_id` from the archetype name before dropping eleven
+  per-NPC stat columns from `npcs`, seven aggregate columns from `waves`,
+  and the `sleeper_archetypes` table itself. The reseed script now refuses
+  to ingest a wave whose sleeper name doesn't resolve in `eve_types`.
+- **Wire format unchanged**. Spot-checked 7 sites pre-/post-migration with
+  byte-identical responses, then swept all 183 historical-seed waves ×
+  7 fields (1281 values). 3 values drift — all in one C5 wave whose Sheet
+  total was stale (`3 × Keeper.dps = 1695` but the Sheet stored 1694).
+  The live compute is now correct; the Sheet was wrong. Exactly the silent
+  drift this version was built to expose.
+
+Deferred to 2.7.4:
+
+- **Live blue-loot ISK for combat sites**. The Sheet doesn't carry per-item
+  drop quantities — only a single ISK total per sleeper baked at the
+  author's snapshot prices. Building a proper drop table (EVE-Uni wiki or
+  similar) is its own focused pass; combat sites continue to show the
+  static `sites.blueLootIsk` until then.
+
+VERSION_2.7_PLAN.md stays in-repo — 2.7.2 and 2.7.3 are still ahead.
+
 ## Open versions
 
 Naming convention switched from "phase" to "version" starting at
 2.7. Historical PHASE_*.md files stay named as-is.
 
-- [VERSION_2.7_PLAN.md](VERSION_2.7_PLAN.md) — three sub-versions:
-  2.7.1 owns the combat math natively (SDE attribute ingest +
-  DPS/EWAR/EHP compute + sleeper drop tables for live combat
-  ISK), sets up Vitest with the math as the first test subject.
-  2.7.2 fixes the Vercel-Neon preview branching, enforces
-  PR-default with branch protection, adds a CI workflow that
-  runs the Vitest suite on PRs. 2.7.3 is a full-repo cleanup
-  pass (dead code → efficiency → security, three PRs). Next up.
+- [VERSION_2.7_PLAN.md](VERSION_2.7_PLAN.md) — three sub-versions
+  originally; 2.7.4 added during 2.7.1.
+  - **2.7.1 SHIPPED 2026-05-24** — see section above.
+  - **2.7.2** fixes the Vercel-Neon preview branching, enforces
+    PR-default with branch protection, adds a CI workflow that runs
+    the Vitest suite on PRs. Next up.
+  - **2.7.3** is a full-repo cleanup pass (dead code → efficiency →
+    security, three PRs).
+  - **2.7.4** is live blue-loot ISK for combat sites, decoupled from
+    2.7.1 because the Sheet doesn't encode the drop tables we'd need.
+    Source TBD (EVE-Uni wiki is the working assumption).
 - [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-3.0 visual overhaul
   (also covers the J/K UX work deferred out of 2.5). Will rename
   to VERSION_2.9 when the version is actually opened.
