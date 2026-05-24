@@ -1,7 +1,12 @@
 import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { eveCategories, eveGroups, eveTypes } from '@/db/schema';
-import type { EveCategory, EveGroup, EveType } from './types';
+import {
+  dgmTypeAttributes,
+  eveCategories,
+  eveGroups,
+  eveTypes,
+} from '@/db/schema';
+import type { AttrMap, EveCategory, EveGroup, EveType } from './types';
 
 const TYPE_COLUMNS = {
   id: eveTypes.id,
@@ -90,4 +95,40 @@ export async function getCategory(id: number): Promise<EveCategory | null> {
     .from(eveCategories)
     .where(eq(eveCategories.id, id));
   return row ?? null;
+}
+
+// Flat attrId → value lookup for one type. Returns {} if the type has no rows
+// (genuinely unattributed or simply missing from the SDE ingest).
+export async function getTypeAttributes(typeId: number): Promise<AttrMap> {
+  const rows = await db
+    .select({ attributeId: dgmTypeAttributes.attributeId, value: dgmTypeAttributes.value })
+    .from(dgmTypeAttributes)
+    .where(eq(dgmTypeAttributes.typeId, typeId));
+  const out: AttrMap = {};
+  for (const r of rows) out[r.attributeId] = r.value;
+  return out;
+}
+
+// One round-trip variant for hot paths like listSiteDetails(). Returns a map
+// keyed by typeId; missing typeIds get an empty AttrMap so callers don't have
+// to null-check.
+export async function getTypeAttributesBatch(
+  typeIds: number[],
+): Promise<Map<number, AttrMap>> {
+  const result = new Map<number, AttrMap>();
+  if (typeIds.length === 0) return result;
+  for (const id of typeIds) result.set(id, {});
+  const rows = await db
+    .select({
+      typeId: dgmTypeAttributes.typeId,
+      attributeId: dgmTypeAttributes.attributeId,
+      value: dgmTypeAttributes.value,
+    })
+    .from(dgmTypeAttributes)
+    .where(inArray(dgmTypeAttributes.typeId, typeIds));
+  for (const r of rows) {
+    const map = result.get(r.typeId);
+    if (map) map[r.attributeId] = r.value;
+  }
+  return result;
 }

@@ -3,13 +3,21 @@ import { parse as parseCsv } from 'csv-parse';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import unbzip2Stream from 'unbzip2-stream';
-import { eveCategories, eveGroups, eveTypes } from './schema';
+import {
+  dgmAttributeTypes,
+  dgmTypeAttributes,
+  eveCategories,
+  eveGroups,
+  eveTypes,
+} from './schema';
 import { downloadDumps, cleanupDumps, type SdeDumpPaths } from './source';
 
 export type IngestSummary = {
   categoriesWritten: number;
   groupsWritten: number;
   typesWritten: number;
+  attributeTypesWritten: number;
+  typeAttributesWritten: number;
   durationMs: number;
 };
 
@@ -84,14 +92,17 @@ export async function runIngest(
     categoriesWritten: 0,
     groupsWritten: 0,
     typesWritten: 0,
+    attributeTypesWritten: 0,
+    typeAttributesWritten: 0,
     durationMs: 0,
   };
 
   try {
     await db.transaction(async (tx) => {
       // FK-safe wipe: types → groups → categories, then refill in reverse.
+      // Attribute tables stand alone and are wiped here too.
       await tx.execute(
-        sql`TRUNCATE TABLE ${eveTypes}, ${eveGroups}, ${eveCategories} RESTART IDENTITY CASCADE`,
+        sql`TRUNCATE TABLE ${dgmTypeAttributes}, ${dgmAttributeTypes}, ${eveTypes}, ${eveGroups}, ${eveCategories} RESTART IDENTITY CASCADE`,
       );
 
       summary.categoriesWritten = await streamInsert(
@@ -163,6 +174,47 @@ export async function runIngest(
         },
         async (batch) => {
           await tx.insert(eveTypes).values(batch);
+        },
+      );
+
+      summary.attributeTypesWritten = await streamInsert(
+        paths.dgmAttributeTypes,
+        (r) => {
+          const id = toInt(r.attributeID);
+          const name = nullable(r.attributeName);
+          if (id === null || name === null) return null;
+          return {
+            id,
+            name,
+            description: nullable(r.description),
+            iconId: toInt(r.iconID),
+            defaultValue: toFloat(r.defaultValue),
+            published: toBool(r.published),
+            displayName: nullable(r.displayName),
+            unitId: toInt(r.unitID),
+            stackable: toBool(r.stackable),
+            highIsGood: toBool(r.highIsGood),
+            categoryId: toInt(r.categoryID),
+          };
+        },
+        async (batch) => {
+          await tx.insert(dgmAttributeTypes).values(batch);
+        },
+      );
+
+      summary.typeAttributesWritten = await streamInsert(
+        paths.dgmTypeAttributes,
+        (r) => {
+          const typeId = toInt(r.typeID);
+          const attributeId = toInt(r.attributeID);
+          // Fuzzwork stores every value in valueFloat; valueInt is always "None"
+          // in current dumps. Defensive: accept either source.
+          const value = toFloat(r.valueFloat) ?? toFloat(r.valueInt);
+          if (typeId === null || attributeId === null || value === null) return null;
+          return { typeId, attributeId, value };
+        },
+        async (batch) => {
+          await tx.insert(dgmTypeAttributes).values(batch);
         },
       );
     });
