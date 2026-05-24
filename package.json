@@ -46,5 +46,11 @@
     "tsx": "^4.22.3",
     "typescript": "^5",
     "vitest": "^4.1.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild": ">=0.25.0",
+      "postcss": ">=8.5.10"
+    }
   }
 }
