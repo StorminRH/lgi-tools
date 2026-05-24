@@ -1,6 +1,7 @@
 import { Dot } from '@/components/ui/dot';
 import { ResourceRow as ResourceRowPrimitive } from '@/components/ui/row';
 import type { SiteResource, SiteType } from '../types';
+import { HACK_DOT_TONE } from './wormhole-styles';
 
 const ISK_ZEROS = 1_000_000;
 
@@ -28,7 +29,7 @@ export function ResourceRow({
         cols="1fr auto"
         name={
           <>
-            <Dot tone={siteType} />
+            <Dot tone={HACK_DOT_TONE[siteType]} />
             {resource.resourceName}
           </>
         }

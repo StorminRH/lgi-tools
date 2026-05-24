@@ -1,5 +1,6 @@
 import type { PillTone } from '@/components/ui/pill';
 import type { ChipTone } from '@/components/ui/chip';
+import type { DotTone } from '@/components/ui/dot';
 import type { SiteType, WormholeClass } from '../types';
 
 /**
@@ -53,6 +54,14 @@ export const EWAR_LABEL: Record<EwarKey, string> = {
 
 /** Trigger labels (free-text in DB) → trigger chip is always orange. */
 export const TRIGGER_CHIP_TONE: ChipTone = 'orange';
+
+/** Hackable-container site types → bullet-dot abstract tone. The Dot
+ *  primitive itself only knows colors; this is where "relic = orange,
+ *  data = blue" lives. */
+export const HACK_DOT_TONE: Record<'relic' | 'data', DotTone> = {
+  relic: 'orange',
+  data:  'blue',
+};
 
 /** DPS thresholds → text color class. Thresholds match the prototype's
  *  intuitive bands; tweak in one place if balancing changes. */
