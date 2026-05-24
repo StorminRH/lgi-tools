@@ -9,7 +9,7 @@ import { marketPrices } from './schema';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPgDb = PostgresJsDatabase<any>;
 
-export const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export type CachedRefreshResult =
   | { status: 'cached'; lastUpdatedAt: Date }

@@ -4,7 +4,7 @@
 // Rules:
 // - Keys are the Sheet's resource_name, normalized to lowercase + trimmed.
 // - Values are the canonical SDE type name. Ingest resolves the name via
-//   `getTypeByName` (case-insensitive, published-wins) from eve-data.
+//   `getTypesByNames` (case-insensitive, published-wins) from eve-data.
 // - Every ore and gas entry points to the COMPRESSED SDE variant — that's
 //   what wormhole haulers actually sell in Jita, so the 5%-percentile buy
 //   reflects what a seller realistically receives.
@@ -15,7 +15,7 @@
 // - Names absent from this map resolve to typeId = null; the row continues
 //   rendering the Sheet's totalIsk (fallback path).
 
-export const RESOURCE_ALIASES: Record<string, string> = {
+const RESOURCE_ALIASES: Record<string, string> = {
   // ── Gas ─────────────────────────────────────────────────────────────────
   'fullerite-c28':  'Compressed Fullerite-C28',
   'fullerite-c32':  'Compressed Fullerite-C32',

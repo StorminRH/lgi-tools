@@ -1,12 +1,7 @@
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { desc, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import {
-  dgmTypeAttributes,
-  eveCategories,
-  eveGroups,
-  eveTypes,
-} from '@/db/schema';
-import type { AttrMap, EveCategory, EveGroup, EveType } from './types';
+import { dgmTypeAttributes, eveTypes } from '@/db/schema';
+import type { AttrMap, EveType } from './types';
 
 const TYPE_COLUMNS = {
   id: eveTypes.id,
@@ -26,48 +21,13 @@ const TYPE_COLUMNS = {
   graphicId: eveTypes.graphicId,
 } as const;
 
-const GROUP_COLUMNS = {
-  id: eveGroups.id,
-  categoryId: eveGroups.categoryId,
-  name: eveGroups.name,
-  iconId: eveGroups.iconId,
-  useBasePrice: eveGroups.useBasePrice,
-  anchored: eveGroups.anchored,
-  anchorable: eveGroups.anchorable,
-  fittableNonSingleton: eveGroups.fittableNonSingleton,
-  published: eveGroups.published,
-} as const;
-
-const CATEGORY_COLUMNS = {
-  id: eveCategories.id,
-  name: eveCategories.name,
-  iconId: eveCategories.iconId,
-  published: eveCategories.published,
-} as const;
-
-export async function getType(id: number): Promise<EveType | null> {
-  const [row] = await db.select(TYPE_COLUMNS).from(eveTypes).where(eq(eveTypes.id, id));
-  return row ?? null;
-}
-
-// Case-insensitive lookup. If two types share a name (rare but happens for
-// retired/republished items), the published one wins.
-export async function getTypeByName(name: string): Promise<EveType | null> {
-  const [row] = await db
-    .select(TYPE_COLUMNS)
-    .from(eveTypes)
-    .where(sql`lower(${eveTypes.name}) = ${name.toLowerCase()}`)
-    .orderBy(desc(eveTypes.published))
-    .limit(1);
-  return row ?? null;
-}
-
 export async function getTypesByIds(ids: number[]): Promise<EveType[]> {
   if (ids.length === 0) return [];
   return db.select(TYPE_COLUMNS).from(eveTypes).where(inArray(eveTypes.id, ids));
 }
 
-// Returns a lowercase-name-keyed map. Same published-wins rule as the singular.
+// Returns a lowercase-name-keyed map. If two types share a name (rare but
+// happens for retired/republished items), the published one wins.
 export async function getTypesByNames(names: string[]): Promise<Map<string, EveType>> {
   if (names.length === 0) return new Map();
   const lowered = names.map((n) => n.toLowerCase());
@@ -81,31 +41,6 @@ export async function getTypesByNames(names: string[]): Promise<Map<string, EveT
     const key = r.name.toLowerCase();
     if (!out.has(key)) out.set(key, r);
   }
-  return out;
-}
-
-export async function getGroup(id: number): Promise<EveGroup | null> {
-  const [row] = await db.select(GROUP_COLUMNS).from(eveGroups).where(eq(eveGroups.id, id));
-  return row ?? null;
-}
-
-export async function getCategory(id: number): Promise<EveCategory | null> {
-  const [row] = await db
-    .select(CATEGORY_COLUMNS)
-    .from(eveCategories)
-    .where(eq(eveCategories.id, id));
-  return row ?? null;
-}
-
-// Flat attrId → value lookup for one type. Returns {} if the type has no rows
-// (genuinely unattributed or simply missing from the SDE ingest).
-export async function getTypeAttributes(typeId: number): Promise<AttrMap> {
-  const rows = await db
-    .select({ attributeId: dgmTypeAttributes.attributeId, value: dgmTypeAttributes.value })
-    .from(dgmTypeAttributes)
-    .where(eq(dgmTypeAttributes.typeId, typeId));
-  const out: AttrMap = {};
-  for (const r of rows) out[r.attributeId] = r.value;
   return out;
 }
 

@@ -7,7 +7,7 @@ import { npcs, siteResources, sites, waves } from './schema';
 import { parseSheetTab, type ParsedSite } from './sheet-parser';
 import { csvUrlFor, SHEET_TABS } from './sheet-source';
 
-export class NpcTypeIdResolutionError extends Error {
+class NpcTypeIdResolutionError extends Error {
   constructor(public readonly missingNames: string[]) {
     super(
       `Could not resolve typeId for ${missingNames.length} sleeper name(s) — ` +
@@ -253,5 +253,3 @@ export async function runIngest(
   return summary;
 }
 
-// Re-export for the CLI entry.
-export { SHEET_TABS, csvUrlFor } from './sheet-source';

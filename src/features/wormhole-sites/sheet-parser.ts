@@ -20,7 +20,7 @@ export type ParsedSite = {
   resources: ParsedResource[];
 };
 
-export type ParsedWave = {
+type ParsedWave = {
   waveNumber: number;
   waveLabel: string;
   ewScram: number | null;
@@ -33,7 +33,7 @@ export type ParsedWave = {
   npcs: ParsedNpc[];
 };
 
-export type ParsedNpc = {
+type ParsedNpc = {
   orderInWave: number;
   triggerLabel: string | null;
   quantity: number;
@@ -52,7 +52,7 @@ export type ParsedNpc = {
   ehp: number | null;
 };
 
-export type ParsedResource = {
+type ParsedResource = {
   orderInSite: number;
   resourceKind: 'gas' | 'ore';
   resourceName: string;

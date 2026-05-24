@@ -3,21 +3,13 @@
 // incursion / abyssal NPC features can call this with their typeIds the same
 // way wormhole-sites does.
 
-import { getTypeAttributes, getTypeAttributesBatch } from '@/data/eve-data/queries';
+import { getTypeAttributesBatch } from '@/data/eve-data/queries';
 import { composeCombatStats, missileTypeIdFor } from './math';
 import type { CombatStats } from './types';
 
-export async function getCombatStats(typeId: number): Promise<CombatStats | null> {
-  const attrs = await getTypeAttributes(typeId);
-  if (Object.keys(attrs).length === 0) return null;
-  const missileTypeId = missileTypeIdFor(attrs);
-  const missileAttrs = missileTypeId == null ? null : await getTypeAttributes(missileTypeId);
-  return composeCombatStats(attrs, missileAttrs);
-}
-
-// Batched. One round-trip pulls every sleeper's attrs, a second pulls the
-// distinct missile attrs. Hot path for listSiteDetails(), which fetches dozens
-// of NPCs at once.
+// One round-trip pulls every sleeper's attrs, a second pulls the distinct
+// missile attrs. Hot path for listSiteDetails(), which fetches dozens of NPCs
+// at once.
 export async function getCombatStatsBatch(
   typeIds: number[],
 ): Promise<Map<number, CombatStats>> {

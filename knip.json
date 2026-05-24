@@ -1,0 +1,7 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "sheet-audit/fetch-tabs.ts",
+    "sheet-audit/extract-seed.ts"
+  ]
+}
