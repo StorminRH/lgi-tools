@@ -351,6 +351,16 @@ slot is decided.
   on first deploy of any branch and no-ops thereafter. SDE ingest
   failures are non-fatal. Local `pnpm build` is a no-op for migrations;
   devs run `pnpm db:migrate` themselves.
+- **Preview Neon branches auto-delete when the PR closes.** The
+  Vercel ↔ Neon integration creates `preview/<branch-name>` per
+  deployment but doesn't clean up on its own. The
+  `.github/workflows/delete-neon-branch.yml` workflow fires on
+  `pull_request: closed` and calls `neondatabase/delete-branch-action`
+  to drop the matching branch. Requires `NEON_API_KEY` +
+  `NEON_PROJECT_ID` repo secrets; if either is missing the workflow
+  fails loudly without affecting anything else. Old Vercel preview
+  *deployments* still linger — they're harmless and occasionally
+  useful as rollback targets, so we don't auto-clean them.
 - **Batched list queries.** `listSiteDetails()` returns N sites' full
   details in 3 sequential await steps for the wormhole-sites tables —
   sites → (waves + resources in parallel) → npcs — plus the
