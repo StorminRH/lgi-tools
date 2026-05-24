@@ -1,22 +1,3 @@
-export interface EveCategory {
-  id: number;
-  name: string;
-  iconId: number | null;
-  published: boolean;
-}
-
-export interface EveGroup {
-  id: number;
-  categoryId: number;
-  name: string;
-  iconId: number | null;
-  useBasePrice: boolean;
-  anchored: boolean;
-  anchorable: boolean;
-  fittableNonSingleton: boolean;
-  published: boolean;
-}
-
 export interface EveType {
   id: number;
   groupId: number;

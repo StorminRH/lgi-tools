@@ -1,6 +1,6 @@
 import type { SiteType, WormholeClass } from './schema';
 
-export type SheetTabKind = 'combat' | 'resource';
+type SheetTabKind = 'combat' | 'resource';
 
 export type SheetTab = {
   gid: string;

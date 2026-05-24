@@ -11,14 +11,14 @@ import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 // where the bytes come from.
 const FUZZWORK_BASE = 'https://www.fuzzwork.co.uk/dump/latest';
 
-export type SdeDumpName =
+type SdeDumpName =
   | 'invCategories'
   | 'invGroups'
   | 'invTypes'
   | 'dgmAttributeTypes'
   | 'dgmTypeAttributes';
 
-export const SDE_DUMPS: readonly SdeDumpName[] = [
+const SDE_DUMPS: readonly SdeDumpName[] = [
   'invCategories',
   'invGroups',
   'invTypes',

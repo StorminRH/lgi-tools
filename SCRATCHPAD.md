@@ -288,14 +288,14 @@ slot is decided.
   from migrations alone. The replace-children upsert pattern still
   exists in `pnpm db:reseed-from-sheet --confirm-wipe`, but the
   guarded flag is required and there is no `:prod` variant.
-- **Production deploys auto-migrate; previews don't.** `pnpm
-  vercel-build` chains a `migrate-if-production.ts` wrapper that
-  only runs `pnpm db:migrate` when `VERCEL_ENV=production` (i.e.
-  the merge-to-main deploy). Preview deploys skip the step because
-  the Vercel ↔ Neon integration is not currently isolating preview
-  builds to their own DB branch — without the guard, every preview
-  PR would silently migrate prod. Local `pnpm build` is also a
-  no-op for migrations; devs run `pnpm db:migrate` themselves.
+- **Every deploy migrates its own branch.** `pnpm vercel-build` runs
+  `tsx src/db/migrate.ts && tsx src/db/ingest-sde-if-empty.ts && next
+  build`. Production migrates production; each preview deploy migrates
+  the per-PR Neon branch (forked from main by the Vercel ↔ Neon
+  integration). `ingest-sde-if-empty.ts` populates `dgm_type_attributes`
+  on first deploy of any branch and no-ops thereafter. SDE ingest
+  failures are non-fatal. Local `pnpm build` is a no-op for migrations;
+  devs run `pnpm db:migrate` themselves.
 - **Batched list queries.** `listSiteDetails()` returns N sites'
   full details in 4 round-trips (sites + waves + npcs + resources),
   not 1 + 3N.

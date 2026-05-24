@@ -37,14 +37,3 @@ export function Collapsible({
     </details>
   );
 }
-
-export function Chevron() {
-  return (
-    <span
-      data-chevron
-      className="text-[9px] text-muted shrink-0 transition-transform duration-[180ms] inline-block"
-    >
-      ▾
-    </span>
-  );
-}

@@ -94,7 +94,7 @@ function divideDamage(d: DamageBreakdown, secs: number): DamageBreakdown {
   };
 }
 
-export function computeTurretDps(attrs: AttrMap): {
+function computeTurretDps(attrs: AttrMap): {
   dps: DamageBreakdown;
   alpha: DamageBreakdown;
 } {
@@ -106,7 +106,7 @@ export function computeTurretDps(attrs: AttrMap): {
   return { dps, alpha };
 }
 
-export function computeMissileDps(
+function computeMissileDps(
   sleeperAttrs: AttrMap,
   missileAttrs: AttrMap | null,
 ): { dps: DamageBreakdown; alpha: DamageBreakdown } {
@@ -171,7 +171,7 @@ function armorResistsArray(attrs: AttrMap, fallback: number): number[] {
   ];
 }
 
-export function computeHp(attrs: AttrMap): CombatStats['hp'] {
+function computeHp(attrs: AttrMap): CombatStats['hp'] {
   const shieldHp = val(attrs, ATTR.shieldHp);
   const armorHp = val(attrs, ATTR.armorHp);
   const structureHp = val(attrs, ATTR.structureHp);
@@ -202,7 +202,7 @@ export function computeHp(attrs: AttrMap): CombatStats['hp'] {
   };
 }
 
-export function computeEwar(attrs: AttrMap): CombatStats['ewar'] {
+function computeEwar(attrs: AttrMap): CombatStats['ewar'] {
   const neutAmount = val(attrs, ATTR.neutAmount);
   const rrepAmount = val(attrs, ATTR.rrepAmount);
   return {
@@ -217,7 +217,7 @@ export function computeEwar(attrs: AttrMap): CombatStats['ewar'] {
   };
 }
 
-export function computeMovement(attrs: AttrMap): CombatStats['movement'] {
+function computeMovement(attrs: AttrMap): CombatStats['movement'] {
   return {
     sigRadius: val(attrs, ATTR.sigRadius),
     maxVelocity: val(attrs, ATTR.maxVelocity),
