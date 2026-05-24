@@ -115,14 +115,50 @@ feature's job.
 
 PHASE_2.6_PLAN.md is archived in `../LGI Tools Archive/`.
 
-## Open phases
+## Open versions
 
-- [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-Phase-3 visual overhaul
-  (also covers the J/K UX work deferred out of 2.5).
+Naming convention switched from "phase" to "version" starting at
+2.7. Historical PHASE_*.md files stay named as-is.
+
+- [VERSION_2.7_PLAN.md](VERSION_2.7_PLAN.md) — three sub-versions:
+  2.7.1 owns the combat math natively (SDE attribute ingest +
+  DPS/EWAR/EHP compute + sleeper drop tables for live combat
+  ISK), sets up Vitest with the math as the first test subject.
+  2.7.2 fixes the Vercel-Neon preview branching, enforces
+  PR-default with branch protection, adds a CI workflow that
+  runs the Vitest suite on PRs. 2.7.3 is a full-repo cleanup
+  pass (dead code → efficiency → security, three PRs). Next up.
+- [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-3.0 visual overhaul
+  (also covers the J/K UX work deferred out of 2.5). Will rename
+  to VERSION_2.9 when the version is actually opened.
 - [PHASE_2.5_PLAN.md](PHASE_2.5_PLAN.md) — complete, kept for the
   shipped-session record.
 - Phase 2 and Phase 2.6 historical briefs are archived under
   `../LGI Tools Archive/` (outside this repo).
+
+## Backlog (no version assigned yet)
+
+Loose ideas captured here so they don't get lost. No commitment
+on order or scope — each gets a real plan doc when its version
+slot is decided.
+
+- **ESI login + admin dashboard.** Use EVE SSO to authenticate
+  users, then gate an in-app admin surface for editing
+  sites / waves / NPCs / resources directly instead of via SQL or
+  Drizzle Studio. Replaces the "edit the DB by hand" workflow
+  assumed in 2.6.
+- **Usage analytics for the EVE Partnership Program.** Page
+  views, unique users, engagement metrics in a shape suitable
+  for partnership reporting. Self-hosted is probably the right
+  call given player-data sensitivity; needs a privacy story.
+- **Public changelog page.** A `/changelog` route visible to all
+  users showing what's shipped over time. Could be auto-built
+  from git tags / merged PR titles or hand-maintained — decide
+  when authored.
+- **"Suggest edit" / feedback button.** UI affordance for users
+  to flag data corrections or send general feedback on any site
+  or page. Needs a triage destination (issue queue, email,
+  Discord webhook — TBD).
 
 ---
 

@@ -21,8 +21,10 @@ Accommodate new content types and fields without structural rewrites.
 **Maintain SCRATCHPAD.md.**
 After every session update SCRATCHPAD.md with what was built, decisions made, open questions, and what the next session should start with. This is working memory across sessions — keep it current.
 
-**Archive completed phase plans.**
-When a phase ships, move its plan document (`PHASE_<n>_PLAN.md`) out of the repo into the sibling folder `../LGI Tools Archive/` and `git rm` the in-repo copy. Replace any remaining markdown links to the archived file with prose mentions (`(archived — see LGI Tools Archive/...)`). The active repo should only contain plan docs for phases that are in-progress or upcoming.
+**Archive completed plan docs.**
+When a version (or pre-2.7 phase) ships, move its plan document out of the repo into the sibling folder `../LGI Tools Archive/` and `git rm` the in-repo copy. Replace any remaining markdown links to the archived file with prose mentions (`(archived — see LGI Tools Archive/...)`). The active repo should only contain plan docs for work that is in-progress or upcoming.
+
+Naming: from 2.7 onward, plan docs are `VERSION_<n>_PLAN.md` and the work itself is referred to as a "version" with semver-style sub-versions (2.7.1, 2.7.2, …). Pre-2.7 docs use `PHASE_<n>_PLAN.md` and stay named that way for historical accuracy.
 
 ## Commit Style
 
@@ -50,5 +52,17 @@ GET /api/sites/[id] (full detail with waves, npcs, resources).
 Also makes the Drizzle db client lazy so next build succeeds when
 .env.production.local has an empty DATABASE_URL placeholder.
 ```
+
+## Testing
+
+Test framework (Vitest) lands in version 2.7.1. The convention going forward, once it's in place:
+
+**Add tests organically.** New code that's testable — pure functions, query helpers, math modules, anything in `src/data/` whose output you can assert against known inputs — gets tests written alongside it in the same PR. Tests live next to source (`foo.test.ts` next to `foo.ts`), same convention as `schema.ts` / `queries.ts` / `types.ts`.
+
+**Don't backfill for coverage's sake.** Existing untested code stays untested until something touches it; then the change picks up tests as it lands. Forced retroactive coverage is busywork that produces brittle, low-value tests.
+
+**Skip what doesn't earn it.** Pure presentational components in `src/components/ui/` and `src/features/*/components/` don't need unit tests; visual review covers them. Route handlers in `src/app/api/` get tests when they contain non-trivial logic beyond "call the query and return the result."
+
+**One PR = green tests.** Once CI is wired (version 2.7.2), every PR runs `pnpm test`. A red suite blocks merge. No "I'll fix it in a follow-up."
 
 @AGENTS.md
