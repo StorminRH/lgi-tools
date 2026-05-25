@@ -7,7 +7,7 @@ export const characterRoleEnum = pgEnum('character_role', CHARACTER_ROLES);
 
 // `ADMIN` is in the enum from day one even though only USER is assigned in 2.8.1:
 // adding enum values mid-flight is a heavier migration than including both up front.
-// SUPERADMIN is env-based (see VERSION_2.8_PLAN.md decisions), not a DB role.
+// SUPERADMIN is env-based, not a DB role.
 export const characters = pgTable('characters', {
   characterId: bigint('character_id', { mode: 'number' }).primaryKey(),
   name: text('name').notNull(),
