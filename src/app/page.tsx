@@ -9,6 +9,8 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     'EVE rejected the sign-in. Wait a moment and try again.',
   db_write_failed:
     'We signed you in but could not save your character record. Try again or report this.',
+  admin_required:
+    'The admin dashboard is only available to authorized characters.',
 };
 
 export default async function Home({

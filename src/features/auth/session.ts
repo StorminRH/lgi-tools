@@ -72,3 +72,14 @@ export async function getSession(): Promise<Session | null> {
     role: character.role,
   };
 }
+
+// THE authz primitive — paired with getSession() as identity. Every "can this
+// user touch X?" gate routes through here. Pure: takes a session + env, no DB
+// or next/headers. Two paths grant admin: env-driven superadmin (Number()
+// returns NaN for unset/garbage env, which never equals a real characterId)
+// or DB-driven ADMIN role (mutated via the /admin dashboard).
+export function isAdmin(session: Session | null): boolean {
+  if (!session) return false;
+  const superId = Number(process.env.SUPERADMIN_CHARACTER_ID);
+  return session.characterId === superId || session.role === 'ADMIN';
+}

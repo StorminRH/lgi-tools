@@ -1,10 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { Chip } from '@/components/ui/chip';
 import { Pill } from '@/components/ui/pill';
 import type { Session } from '../types';
 
-export function LoginButton({ session }: { session: Session | null }) {
+export function LoginButton({
+  session,
+  showAdminLink = false,
+}: {
+  session: Session | null;
+  showAdminLink?: boolean;
+}) {
   if (!session) {
     return (
       <a
@@ -18,6 +25,11 @@ export function LoginButton({ session }: { session: Session | null }) {
 
   return (
     <div className="flex items-center gap-3">
+      {showAdminLink ? (
+        <a href="/admin" title="Open the admin dashboard">
+          <Chip tone="purple">Admin</Chip>
+        </a>
+      ) : null}
       <img
         src={session.portraitUrl}
         alt={session.name}
