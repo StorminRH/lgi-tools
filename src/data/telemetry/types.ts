@@ -7,6 +7,7 @@ export const USAGE_ACTIONS = [
   'auth_login',
   'auth_logout',
   'role_change',
+  'feedback_submitted',
 ] as const;
 
 export type UsageAction = (typeof USAGE_ACTIONS)[number];

@@ -6,6 +6,10 @@ for the full forensic record.
 
 ### 2026-05-25
 
+- The Feedback button now actually works. Click it on any page, type your message, and it goes straight to the developer. Logged-in submissions include your character name; logged-out submissions land anonymously.
+- Added a Legal page describing what the site records about your visits and the EVE Online third-party developer notice. Linked from the footer.
+- Added a BETA banner at the top of the changelog so first-time visitors know what kind of polish to expect.
+- Missing pages and unexpected crashes now render polite EVE-themed pages instead of bare stack traces.
 - Added a terminal-style search to the wormhole sites browser. Type filters like `c5/relic` or just `ore` to jump straight to a slice of the catalogue. Suggestions populate below the input as you type.
 - Added a global footer with the current version, a changelog link, and a feedback affordance.
 - Added this changelog page.
