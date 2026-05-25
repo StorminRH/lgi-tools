@@ -274,6 +274,33 @@ export async function listSiteDetails(filters: {
   }));
 }
 
+// Minimal site shape for the global search dropdown. Server-rendered once
+// in AppHeader and passed to the client via AppHeaderShell, so the search
+// dropdown can filter against name/class/type without a per-keystroke
+// round-trip. ~69 rows today; trivial payload.
+export type SiteSearchEntry = {
+  id: number;
+  name: string;
+  siteType: SiteType;
+  wormholeClass: WormholeClass | null;
+  blueLootIsk: number | null;
+  resourceValueIsk: number | null;
+};
+
+export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
+  return db
+    .select({
+      id: sites.id,
+      name: sites.name,
+      siteType: sites.siteType,
+      wormholeClass: sites.wormholeClass,
+      blueLootIsk: sites.blueLootIsk,
+      resourceValueIsk: sites.resourceValueIsk,
+    })
+    .from(sites)
+    .orderBy(sites.sourceTab, sites.name);
+}
+
 export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   const [site] = await db.select(SITE_LIST_COLUMNS).from(sites).where(eq(sites.id, id));
   if (!site) return null;

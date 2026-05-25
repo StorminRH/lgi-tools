@@ -6,6 +6,10 @@ for the full forensic record.
 
 ### 2026-05-25
 
+- Added a global search bar in the header. Press ⌘K (or Ctrl-K) from any page to focus it, then type to navigate across sites, tools, and commands. Sites by name jump straight to the deep-link page; commands cover refreshing prices, opening the changelog, logging out, and more.
+- Recently-viewed sites now surface in the search dropdown when you focus the empty input — find what you were just looking at without retyping its name.
+- Hovering an ore or gas site card on the wormhole sites page now reveals a quick preview showing the top three resources by ISK and the site's total. Combat, relic, and data cards stay static — their header value already answers the question.
+- The wormhole site detail page now shows the originating source tab and the last market-price refresh time above the card, and uses the full page width for a feature-single-site feel.
 - The landing page now shows the full LGI.tools lineup — Wormhole Sites is live; Industry Planner and Wormhole Roll Calculator are stubbed as Coming Soon.
 - A persistent tool strip now sits in the header, so you can jump between tools without going through the landing page.
 - The landing hero now reads "Lo-Gang Industries.tools" in a sharper typeface that pairs with the LGI.tools wordmark.

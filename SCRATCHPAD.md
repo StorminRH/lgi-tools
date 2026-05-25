@@ -4,6 +4,240 @@
 
 ---
 
+## Version 2.9.4: COMPLETE (2026-05-25)
+
+Session P-equivalent of the 2.9 plan doc. Closes the four threads
+deliberately deferred from 2.9.3: the global in-nav search, the scoped
+hover-glow + resource preview on `/sites` cards, the `/sites/[id]` polish
+(full-width + meta strip), and the "Lo-Gang Industries" footer wordmark.
+After 2.9.4 the 2.9 visual envelope is functionally complete; the
+remaining 2.9.x slot is the cross-site table view (Session Q in the plan
+doc) — a topic for the 2.9.5+ planning conversation.
+
+What landed:
+
+- **Global in-nav search is the platform's new navigator.** Spotlight-
+  style cross-source dropdown with Sites + Tools + Commands + Recent
+  sections. ⌘K (Cmd-K on Mac, Ctrl-K on Win/Linux) focuses the input
+  from anywhere; the bar grows 280px → 440px on focus while NavTools
+  collapses its labels to 2-letter abbreviations (`WH` / `IP` / `WR`)
+  so the right login cluster never moves. ArrowUp/Down cycles active
+  rows across sections, Enter fires the row, Esc closes. Match
+  highlighting renders the matched substring in green inside Site
+  rows. The wireframe specifies the layout verbatim
+  ([nav-search-inline-push.html](docs/wireframes/nav-search-inline-push.html));
+  the production port lives in `globals.css` between the
+  `/* end /sites density block */` and `/* end global-search block */`
+  comments.
+
+- **Search is a registry primitive, not a one-off.** New slice
+  `src/data/search/` exposes `registerSearchSource(source)` +
+  `searchAll(query, ctx)`. Each feature drops a `search.ts` and is
+  instantly searchable from the global bar — `src/data/search/register-
+  all.ts` is the barrel that imports every source for its side-effect
+  registration. **Imported from `AppHeaderShell` (Client Component),
+  NOT from `AppHeader` (Server Component)** — Next.js's server and
+  client module graphs are separate, and the dropdown logic lives on
+  the client; importing register-all from the server graph would
+  leave the client-side `sources[]` array empty. The deferred-tools
+  contract is `(query, ctx) => Promise<SearchResult[]>`, sync sources
+  resolve immediately so future async ones don't change the
+  dispatcher's shape. Tests in `src/data/search/search.test.ts`.
+
+- **Four sources at launch.**
+  - **Sites** (`src/features/wormhole-sites/search.ts`) reads from a
+    module-scoped index seeded by AppHeaderShell on mount via
+    `setSiteSearchIndex(entries)`. The server-rendered
+    `getSiteSearchIndex()` query returns the ~69-row minimal payload
+    (`id`, `name`, `siteType`, `wormholeClass`, ISK fields). Sort:
+    class C1→C6, then by primary ISK desc. Icon-tone classes
+    (`.dd-icon.cls-c5` etc.) added to globals.css to match the
+    domain tone vocabulary that already exists in `wormhole-styles.ts`.
+  - **Tools** (`src/data/tools/search.ts`) reads from a new shared
+    `src/data/tools/registry.ts`. `TOOLS` lifted out of NavTools.tsx
+    so the in-nav strip and the search source share one source of
+    truth; the `abbr` field (`WH` / `IP` / `WR`) lives here too.
+    SOON tools (`href: null`) surface as disabled rows with
+    `.dd-row.disabled` styling.
+  - **Commands** (`src/data/commands/search.ts`) is the command
+    palette: `Refresh prices` (placeholder — navigates home, real
+    side-effect wiring deferred), `Open changelog`, `Open legal`,
+    `Open admin` (admin-gated via `ctx.isAdmin`), `Log out` (session-
+    gated), `Log in with EVE` (visible only when logged out). The
+    `Log out` row has `command: 'logout'` — GlobalSearch dispatches a
+    hidden `<form method=POST>` instead of router.push for it.
+  - **Recent** (`src/features/search-recents/search.ts` +
+    `storage.ts`) opts into `showOnEmpty: true` so focusing an empty
+    bar surfaces the user's previously-clicked sites. localStorage
+    persistence under `lgi:search:recents`, capped at 10. Dedupes by
+    id (re-pushing an existing id floats it to the top). The kind
+    flips to `recent` on read; the original kind is preserved as
+    `originKind` for future re-tone logic.
+
+- **`SearchContext.isAdmin` is precomputed server-side.** Same
+  pattern as the existing `showAdminLink` boolean passed to
+  AppHeader — `isAdmin()` checks the env-only
+  `SUPERADMIN_CHARACTER_ID`, which can't safely be read from the
+  client. AppHeader passes `showAdminLink` into AppHeaderShell, which
+  flows it into GlobalSearch as the `isAdmin` prop and into the
+  SearchContext on every dispatch.
+
+- **AppHeader is now four slots.** `[wordmark] [<GlobalSearch>]
+  [<NavTools>] [login-cluster]`. Header dropped the `gap-3` utility
+  — the wireframe uses borders between slots, not gaps. Wordmark and
+  login cluster get `shrink-0` (the load-bearing CSS contract from
+  the 2.9.1 carry-forward); NavTools gets `flex-shrink: 1 min-w-0
+  overflow-hidden` so it absorbs the squeeze when search expands;
+  GlobalSearch is `shrink-0` and self-animates its width. AppHeader
+  itself stays a Server Component — it fetches the site index, then
+  mounts AppHeaderShell (Client Component) for everything else.
+
+- **`/sites` density refresh is one CSS-class binary plus one new
+  component.** SiteCard tags the Card root with `card resource` or
+  `card wave-driven` based on the already-computed `isWaveDriven`
+  flag (line 46 — unchanged since Phase 1). Resource cards
+  (`!isWaveDriven`) mount the new `<ResourcePreview site={site} />`
+  as a direct child of `<Card>`; visibility is pure CSS
+  (`.card.resource:hover .resource-preview { display: block }`).
+  Combat / relic / data cards get `.card.wave-driven` and no `:hover`
+  rule — completely flat, exactly the spec from
+  [sites-density.html](docs/wireframes/sites-density.html). Preview
+  surfaces top-3 resources by `effectiveIsk` descending + the
+  total; labels (`Top ore` / `Top gas` / `Top resources`) and footer
+  labels derive from `siteType`.
+
+- **`--color-isk-dim: #1a3a28` is now tokenized.** The 2.9.3
+  SCRATCHPAD deferred this until a second consumer appeared.
+  2.9.4 has three — resource preview border, nav-search inset shadow,
+  dropdown border — so it landed alongside the other tokens in
+  `@theme`. Tailwind's `border-isk-dim` / `bg-isk-dim` utilities
+  are now available, though the new CSS rules reference the var
+  directly via `var(--color-isk-dim)` since they're not in
+  utility-class scope.
+
+- **`/sites/[id]` deep-link polish.** Container widened from
+  `max-w-[1100px]` (the `/sites` list width) to `max-w-[1400px]` so
+  the detail page reads as a feature-single-site presentation rather
+  than a list-with-one-item. New `<SiteMetaStrip>` partial at
+  `src/features/wormhole-sites/components/SiteMetaStrip.tsx` shows
+  `SOURCE  <sourceTab>` + `LAST PRICE UPDATE  <relative>` between
+  the back link and the card. Last-update value comes from
+  `getPricesFreshness(db)` (the existing helper from
+  `src/data/market-prices/cache.ts`) formatted as relative time
+  (`3h ago` / `2d ago`). The filter-preserving back link from Phase
+  2.5 Session L is unchanged.
+
+- **Footer wordmark.** `<span class="font-jb font-bold text-[11px]
+  text-name normal-case tracking-normal">Lo-Gang Industries</span>`
+  prepended to the existing left-slot span in `Footer.tsx`. PageFooter
+  primitive untouched.
+
+- **`APP_VERSION` bumped to `2.9.4`.**
+
+- **Tests + verification.** Three new test files: registry behavior
+  (`src/data/search/search.test.ts`, 10 cases), recents storage
+  (`src/features/search-recents/storage.test.ts`, 10 cases), commands
+  session/admin gating (`src/data/commands/search.test.ts`, 7 cases),
+  plus an in-test localStorage shim because vitest runs node-only and
+  there's no jsdom in the project's deps. **Vitest at 439/439 green**
+  (was 411 at end of 2.9.3). `pnpm build` green. Full browser
+  walkthrough at `localhost:3000`:
+  - Footer wordmark renders JetBrains Bold 11px in `text-name` color
+    on every page; verified font-family + weight + color via
+    `preview_inspect`.
+  - `/sites/128?type=ore` renders the meta strip
+    (`SOURCE  Ore Signatures · LAST PRICE UPDATE  2d ago`), the
+    full-width 1400px container, and the back link
+    `← Return to full list` → `/sites?type=ore`.
+  - `/sites` emits 21 `.card.resource` + 48 `.card.wave-driven`
+    elements (total 69; matches the canonical site count).
+    ResourcePreview is mounted on every resource card with the
+    correct top-3 + total content; CSS-forced hover reveals it as
+    a 240px right-side overlay.
+  - Global search: typing `forg` returns 6 site rows sorted C1→C3
+    with green-highlighted `Forg` substring; typing `industry`
+    returns the Industry Planner tool row (disabled); typing
+    `refresh` returns the `Refresh prices` command row; typing
+    `admin` while logged in as superadmin returns `Open admin`
+    (verifying the env-superadmin → isAdmin → command-visibility
+    chain). Empty input on a fresh load shows nothing (no recents);
+    after clicking a Site row → navigating → focusing empty input,
+    the Recent section appears with the clicked site. localStorage
+    confirmed via the DevTools-equivalent `localStorage.getItem`
+    read.
+
+Shipped on branch `version-2.9.4-density-and-global-search`.
+
+Decisions worth carrying forward to the 2.9.5+ planning conversation:
+
+- **`register-all.ts` lives in `AppHeaderShell` (Client Component).**
+  This is non-obvious — a future contributor adding a new source
+  might assume they can wire it into `register-all.ts` and have it
+  work from any context. It only works from the *client* side. The
+  comment in `AppHeader.tsx` documents the reason; the comment in
+  `AppHeaderShell.tsx` documents the location. If a server-side
+  consumer of the registry ever shows up (e.g., a server-rendered
+  "popular searches" surface), it'll need its own server-side
+  register-all import. Don't try to share one — the module graphs
+  are genuinely separate.
+
+- **`Refresh prices` is a placeholder command.** Today it navigates
+  to `/` with no side effect. The real wire — POST to
+  `/api/market-prices/refresh` from the dropdown — needs to either
+  go through a query-param trigger that the home page reads, or
+  through a client-side fetch with an inline toast/feedback. The
+  `onSelect?: (router) => void` callback shape sketched in the
+  plan didn't earn its keep in 2.9.4 (only Log out needed a side
+  effect, and a hidden form was simpler). When the second
+  command-with-side-effect lands, that's the moment to introduce
+  `onSelect` and refactor Log out to use it.
+
+- **Fuzzy matching is still ahead.** Today's matcher is strict
+  substring + prefix. "Forgotten" requires typing at least `forg`;
+  `ffrd` doesn't find "Forgotten Frontier Recursive Depot."
+  `fuzzysort` or similar is the natural fit, but lands when the
+  data set is large enough to make strict-substring genuinely
+  insufficient (probably alongside the first 1k+ entity source —
+  SDE types or blueprints).
+
+- **Async-source lazy-loading is in the contract but not exercised
+  yet.** The registry's `search` callback returns `Promise<...>`
+  precisely so a future BlueprintsSource can `await import()` its
+  15k-entry index on first call without changing the dispatcher's
+  shape. When that lands, also wire `AbortController` into
+  `GlobalSearch`'s search-dispatch effect (currently uses a
+  `cancelled` flag, which is adequate for sync sources but doesn't
+  stop in-flight async work).
+
+- **The right login cluster now has a `border-left`.** Per the
+  wireframe — adds a visual seam between the tool strip and the
+  user identity area. If the user reads as "too segmented" on the
+  next visual review, this is the easy thing to back out.
+
+- **ResourcePreview always renders; CSS hover reveals it.** Mounted
+  unconditionally on every resource card so the hover behavior is
+  zero-JS. Implication: even on `/sites/[id]` (which sets
+  `defaultOpen` and is full-width), the preview overlay is in the
+  DOM and the CSS hover rule still fires when the user moves the
+  pointer over the card. The default position (top: 12px, right:
+  -14px translated 100%) puts it just past the page padding on
+  full-width — not a problem visually but worth knowing. If a
+  future change widens the deep-link container further, the
+  preview will overflow the viewport on small windows.
+
+- **Tile freshness chip on the LIVE landing tile is still
+  deferred.** No work toward it in 2.9.4. Carries forward to the
+  2.9.5+ conversation.
+
+- **Cross-site sortable table view (Session Q in the plan doc) is
+  still ahead.** The 2.9 envelope is otherwise complete after
+  2.9.4 lands.
+
+`VERSION_2.9_PLAN.md` stays in the repo — Session Q (cross-site
+table) hasn't shipped, and the user has flagged a 2.9.5+ planning
+conversation post-merge to potentially expand the slate before
+3.0. No archive moves this session.
+
 ## Version 2.9.3: COMPLETE (2026-05-25)
 
 Session O of the 2.9 plan doc. The cross-tool navigation chrome + the
