@@ -85,7 +85,7 @@ What landed:
   checkpoints for visual review per the iteration-plan workflow.
 
 Shipped on branch `version-2.8.3-terminal-search-footer-changelog` —
-[PR #TODO](https://github.com/StorminRH/lgi-tools/pulls).
+[PR #13](https://github.com/StorminRH/lgi-tools/pull/13).
 
 Decisions worth carrying forward:
 
