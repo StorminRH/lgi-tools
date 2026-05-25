@@ -4,6 +4,97 @@
 
 ---
 
+## Version 2.8.2: COMPLETE (2026-05-25)
+
+Admin gate + privilege management UI shipped. The latent `role` column on
+`characters` is now a real surface — the superadmin (and anyone they
+promote) can visit `/admin`, search the character roster by name, and flip
+the `ADMIN` role on or off. No schema changes; everything builds on
+2.8.1's `characters` table and session cookie.
+
+What landed:
+
+- **`isAdmin()` is THE authz primitive.** Lives in
+  `src/features/auth/session.ts` next to `getSession()`. Pure function:
+  takes a `Session | null` and the env, returns `boolean`. Two paths
+  grant admin — `characterId === Number(SUPERADMIN_CHARACTER_ID)` from
+  the env, or `role === 'ADMIN'` in the DB. Every future "can this user
+  do X?" check goes through this one function the same way every
+  "who's calling?" question goes through `getSession()`.
+- **Gate sits in `page.tsx`, not a layout.** `src/app/admin/page.tsx`
+  calls `getSession()` + `isAdmin()` and redirects unauthorized callers
+  to `/?auth_error=admin_required`, where the existing `<Callout>` on
+  the home page surfaces the message. Symmetric with how the 2.8.1
+  `state_mismatch` redirect is rendered. Deliberately *not* in a
+  layout: 2.8.4's `/admin/usage` sub-route will do its own `isAdmin()`
+  check at the top of its own `page.tsx` — deny-by-default per route
+  so each new admin surface has to opt in.
+- **API handler is the real self-toggle guard.** `/api/admin/role`
+  reruns the gate independently, validates `characterId` is a positive
+  integer, checks `nextRole` against the runtime `CHARACTER_ROLES`
+  array (not just TS narrowing), confirms the target row exists, and
+  refuses self-toggles via `characterId === session.characterId`.
+  The UI disable on the viewer's own row is decoration — a crafted
+  POST still hits this guard. Same form-POST → 303 redirect shape as
+  `/api/auth/logout`; no Server Actions, no client `fetch`.
+- **"Admins" + "Search results" stack.** Empty-q view lists current
+  admins ordered by name; with `?q=`, the matches render in a second
+  section below, de-duped against the admins list. The env superadmin
+  is merged in synthetically with a `Superadmin` chip and "managed via
+  env" sentinel — otherwise they'd be invisible on the page they have
+  authority over, since their DB role stays `USER` by design. The
+  toggle is omitted from the synthetic row entirely (no DB role to
+  flip).
+- **Header chip-link.** When `isAdmin(session)` is true, the
+  LoginButton renders a small purple `<Chip>` linking to `/admin`
+  before the portrait. `isAdmin` is called server-side in
+  `src/app/layout.tsx` and the resulting boolean is passed to the
+  Client Component — so `SUPERADMIN_CHARACTER_ID` never crosses into
+  the client bundle (avoiding the `NEXT_PUBLIC_*` leak that the naive
+  fix would create).
+- **Tests + verification.** `is-admin.test.ts` (6 cases: null /
+  USER non-super / ADMIN / USER-is-super / env-unset / env-garbage),
+  `queries.test.ts` (empty + whitespace short-circuit, asserts the
+  DB is never touched), `route.test.ts` (the three primary rejection
+  branches: 403 non-admin, 400 self-toggle, 400 invalid nextRole).
+  Vitest stayed green at 352/352. Full local e2e through curl + a
+  seeded `Test Alt` character covered grant, revoke, DB-ADMIN-only
+  path, self-toggle handler guard, and four malformed-input branches.
+
+Shipped on branch `version-2.8.2-admin-gate` — [PR #11](https://github.com/StorminRH/lgi-tools/pull/11).
+Production verified post-merge: `curl -I https://lgi.tools/admin` from
+a logged-out client returned `307 → /?auth_error=admin_required` and the
+follow-up `/` rendered the AUTH Callout with the expected copy.
+
+Decisions worth carrying forward to 2.8.4:
+
+- **Role-change logging belongs in `usage_logs`.** 2.8.4 already ships
+  the table (id, timestamp, characterId, action, metadata). When that
+  lands, `setCharacterRole` should grow an `actorCharacterId` param
+  and the route handler should write `action: 'role_change'` with
+  `{ target, from, to }` in metadata. Deliberately did not add a
+  separate `role_changes` audit table — one place for operational
+  audit + telemetry is cleaner than two.
+- **Revisit the empty-q UX once 2.8.4's aggregate metrics land.**
+  Today the `/admin` empty-q view shows "Admins" with the synthetic
+  superadmin. When usage metrics get a section on the page, the
+  layout will want a second pass — probably metrics first, admins
+  second, search third.
+- **`pg_trgm` GIN index on `characters.name` deferred.** Substring
+  ILIKE over a tiny table is sub-millisecond; the one-line migration
+  earns its cost when there are 5k+ rows, not 1.
+- **`isAdmin` for the env path uses `Number(process.env...)`.**
+  `Number(undefined)` and `Number('not-a-number')` both yield `NaN`,
+  which never equals a real characterId — so unset/garbage env
+  gracefully degrades to the DB-role-only check. Unit tested in
+  `is-admin.test.ts`.
+- **Two equal-rank gates per route.** Page + handler both call
+  `isAdmin()`. Belt-and-suspenders by design — neither relies on the
+  other being right. Pattern to repeat for any future admin surface.
+
+`VERSION_2.8_PLAN.md` stays in the repo (2.8.3 through 2.8.5 ahead). No
+archive moves this session.
+
 ## Version 2.8.1: COMPLETE (2026-05-25)
 
 EVE SSO login shipped. The site now has an identity layer — every future
