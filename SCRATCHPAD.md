@@ -4,6 +4,145 @@
 
 ---
 
+## Version 2.8.5: COMPLETE (2026-05-25)
+
+Public-beta readiness shipped. The user-facing trust layer — the
+last piece before strangers can arrive cold from EVE forums / Reddit
+without something embarrassing happening. Five surfaces in one PR,
+none sharing state, none requiring schema changes.
+
+What landed:
+
+- **`<Modal>` is the third domain-agnostic UI primitive after
+  `<UrlSync>` and `<TerminalSearch>`.** Lives at
+  `src/components/ui/modal.tsx` — a thin wrapper around the native
+  HTML `<dialog>` element. Browser handles focus trap, Esc-to-close,
+  and inert-ing the rest of the page; backdrop-click-to-close is
+  wired explicitly via target-equality (`event.target === ref.current`).
+  Zero new deps. Controlled `open` prop, parent owns state, `onClose`
+  callback covers all three close paths (X-button, Esc, backdrop).
+  The only consumer in this PR is `<FeedbackModal>`, but the next
+  overlay (admin confirmations, EVE auth detail, future "expand to
+  edit" affordances) reuses it for free.
+- **Feedback feature slice is `src/features/feedback/`.** Just one
+  file — `components/FeedbackModal.tsx`. No `schema.ts` / `queries.ts`
+  because the feature owns no DB writes; the `usage_logs` write is
+  brokered by the telemetry slice (`logUsageEvent()` called inside
+  the API route handler, server-side dispatch). Per the 2.8.4
+  carry-forward decision (lines 124–131 of the previous entry):
+  feedback events live in `usage_logs` with `action: 'feedback_submitted'`,
+  not a dedicated `feedback_events` table. One operational record
+  store is cleaner than two.
+- **Page-URL capture on modal OPEN, not on SUBMIT.** The reactive
+  intent behind feedback ("this page is wrong") should not get
+  clipped if the user happens to client-side-nav between opening
+  the modal and submitting. Captured once in `useEffect` when
+  `open` flips to true: `window.location.pathname + window.location.search`.
+  Sent as `path` in the request body; server validates it starts
+  with `/` and caps length. Stored in `usage_logs.metadata.path` so
+  future `/admin/usage` sections can group feedback by page without
+  re-parsing the Discord channel.
+- **Telemetry write is AFTER Discord succeeds, not before.** Same
+  precedent as the 2.8.2 role-toggle route — the audit log records
+  *successful* state-changing actions, not attempts. If Discord
+  returns non-2xx or the fetch throws, we return 502 to the modal
+  (which surfaces it inline so the user can retry) and skip the
+  `logUsageEvent()` call entirely. The Discord channel is the
+  durable record of message content; `usage_logs` is the local
+  pointer that something was sent. Don't log content to `usage_logs`
+  — only `messageLength` + `path`.
+- **`<FeedbackButton>` is now a Client Component.** Owns the modal's
+  open state (`useState`). Layout passes the `Session | null` through
+  as a prop (server-rendered, mirrors how `<LoginButton>` gets its
+  session). Floating fixed-position styling unchanged. The trigger
+  switched from `<a href="/feedback">` to `<button onClick>` — the
+  `/feedback` URL becomes dead but `not-found.tsx` (same PR) catches
+  any stale link with the new EVE-themed 404.
+- **`/legal` route at `src/app/legal/page.tsx`.** Static Server
+  Component, two `<Card>` sections — "What we collect" describing
+  `usage_logs` in plain English, and "EVE Online developer notice"
+  with the Fenris Creations boilerplate. Linked from the footer's
+  `left` slot adjacent to the existing trademark line (one extra
+  `<Link>`, no slot restructure). Layout mirrors `/changelog`
+  (`max-w-[800px]`, centered, uppercase `font-display` header).
+- **BETA banner on `/changelog`, not in the global header.** Reuses
+  the existing `<Callout label="Beta">` primitive (orange-tinted
+  attention element, same component the auth-error messages on `/`
+  use). Sits above the page `<header>` block. Decision driven by
+  the 2.8 plan doc — header stays clean; BETA expectation only
+  fires when someone actively looks at "what's shipping," which
+  the version-link in the footer is the entry point for.
+- **`error.tsx` + `not-found.tsx` at the app root.** Both centered
+  EVE-themed layouts mirroring `src/app/page.tsx`. `not-found.tsx`
+  is a Server Component (no props per Next.js 16 contract);
+  `error.tsx` is a Client Component (`'use client'` required) and
+  uses the v16.2.0+ `unstable_retry` prop (not the deprecated
+  `reset`). The error page renders `error.digest` in a `<Pill>` so
+  the user can include it in a feedback report. Deliberately *not*
+  adding `global-error.tsx` — `error.tsx` lets the global header /
+  footer keep rendering, which is the better UX for the 99% case.
+  `global-error.tsx` is only worth adding when errors are crashing
+  the root layout itself, which they aren't.
+- **`APP_VERSION` bumped to `2.8.5`.** Hand-edited per the 2.8.3
+  convention.
+- **Tests + verification.** New `src/app/api/feedback/route.test.ts`
+  with 12 cases covering: happy path (logged in, with captured path),
+  anonymous path, empty-message rejection, oversize message
+  rejection, missing-`/`-prefix path rejection, oversize path
+  rejection, malformed JSON, non-string message, control-char strip
+  on both fields, Discord 5xx → 502 with no telemetry write, Discord
+  network error → 502 with no telemetry write, missing
+  `DISCORD_WEBHOOK_URL` → 503. Vitest at 408/408 green (was 396).
+  Full e2e in local dev confirmed: real test feedback fired through
+  to Discord, `usage_logs` row landed with `character_id = 2114872920`
+  and `metadata = { path: '/sites?class=c3&type=combat',
+  messageLength: 152 }`.
+
+Shipped on branch `version-2.8.5-public-beta-readiness`.
+
+Decisions worth carrying forward:
+
+- **The `<Modal>` primitive is the new fast path for any overlay.**
+  Don't reinvent dialog-with-focus-trap-and-Esc-handling per
+  feature. The native `<dialog>` element with an explicit
+  backdrop-click handler is the whole contract. If a future overlay
+  needs custom backdrop behavior (e.g., persistent until completed),
+  grow the primitive's contract — don't fork it.
+- **Server-side telemetry dispatch is the right pattern for
+  state-changing actions.** Page-view + terminal-search go through
+  `/api/telemetry` because they're client-initiated. Feedback,
+  login, logout, role-change all log directly via `logUsageEvent()`
+  inside the route handler. The boundary is: who initiates the
+  action determines who logs it. Mixing the two (logging from both
+  client AND server for the same event) double-counts; pick one
+  side and stick with it.
+- **DISCORD_WEBHOOK_URL needs to be in Vercel env vars before merge
+  — both preview AND production.** Preview because the Vercel
+  preview deploy of this PR will exercise the feedback flow; without
+  the env var the modal returns 503. Production for the actual
+  public-beta. Add via `vercel env add DISCORD_WEBHOOK_URL preview`
+  and `vercel env add DISCORD_WEBHOOK_URL production` (or use the
+  Vercel dashboard).
+- **`VERSION_2.8_PLAN.md` should be archived after this PR merges.**
+  2.8.5 was the last sub-version; the plan doc has served its
+  purpose. Move it to `../LGI Tools Document Archive/` and `git rm`
+  the in-repo copy per the CLAUDE.md convention. This was deferred
+  out of this PR because the plan doc is still being referenced
+  during review — archive in a follow-up chore commit.
+- **2.9 visual pass still on the schedule.** Per 2.8.4's
+  carry-forward (lines 156–163 of the previous entry), the admin
+  surfaces are functional-only and need a polish pass in 2.9. The
+  2.8.5 surfaces (feedback modal, legal page, 404 / error pages)
+  should get the same review in that pass — they're shipped
+  functional but the typography / spacing wasn't audited at the
+  pixel level, and the EVE flavor copy ("Nothing on D-Scan", "Pod
+  malfunction") is opening salvo, not load-bearing.
+- **`postTelemetry()` is now unused by 2.8.5 but stays.** Feedback
+  uses server-side `logUsageEvent()` directly. `postTelemetry()`
+  remains the right primitive for any future client-initiated event
+  (the page-view reporter and terminal-search consumer still use
+  it). Don't delete it on grounds of one new feature not needing it.
+
 ## Version 2.8.4: COMPLETE (2026-05-25)
 
 First-party telemetry + the preference-write primitive shipped. The site
