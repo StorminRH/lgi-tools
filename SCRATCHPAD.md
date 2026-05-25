@@ -4,6 +4,108 @@
 
 ---
 
+## Version 2.8.1: COMPLETE (2026-05-25)
+
+EVE SSO login shipped. The site now has an identity layer — every future
+2.8.x sub-version (admin gate, telemetry, preferences, feedback) builds on
+the `characters` row and the session cookie introduced here.
+
+What landed:
+
+- **Custom OAuth2 + JOSE, not Auth.js.** A ~150-line route-handler set
+  (`/api/auth/login`, `/callback`, `/logout`, `/me`) plus a `jose`-backed
+  encrypted session cookie. Picked custom over Auth.js v5 because (a)
+  Next.js 16 is days-old and the framework-agnostic auth libs are still
+  catching up, (b) Auth.js's `users` / `accounts` / `sessions` triplet
+  doesn't match our planned `characters` shape, and (c) the codebase
+  culture is one focused primitive per concern — a 60-line OAuth handler
+  fits that voice. `jose` is the only new dep.
+- **`characters` table.** `drizzle/0010_clever_maestro.sql` — bigint PK
+  (`character_id`), `name`, `portrait_url`, `role` enum (`USER` / `ADMIN`
+  from day one, defaults to `USER`), `preferences` jsonb default `{}`,
+  plus `created_at` / `updated_at` / `last_login_at`. Both enum values
+  are present even though only `USER` is assigned in 2.8.1; adding enum
+  values later is a heavier migration than including both up front.
+  SUPERADMIN stays env-based per the 2.8 decisions doc, so two DB roles
+  is the full set.
+- **`getSession()` is THE identity primitive.** `src/features/auth/
+  session.ts` exports the one function every future feature uses to ask
+  "who is calling?". It reads the `lgi_session` cookie, decrypts the JWE,
+  and re-queries the `characters` row each call — so admin grants in
+  2.8.2 and preference writes in 2.8.4 take effect without forcing a
+  re-login. Decode failures (missing cookie, tampered value, expired JWE,
+  deleted row) all silently return `null` rather than throwing.
+- **Three-tier slice discipline.** `src/features/auth/` splits by purity:
+  pure helpers (`pkce.ts`, `eve-sso.ts`, the JWE crypto in `session.ts`)
+  have zero `@/db` / `next/headers` imports and are trivially
+  unit-testable; the data tier (`schema.ts`, `queries.ts`) is pure
+  Drizzle; only the server-shell glue (`getSession()`, the route
+  handlers, `LoginButton`) reads cookies, calls EVE, or composes the
+  above. Single-knob constants (`EVE_SCOPES = ['publicData'] as const`,
+  cookie names, session lifetime) live in their owning module so
+  extending scopes / renaming cookies / changing the TTL is one config
+  change.
+- **`PageHeader` is a reusable UI primitive, not auth-specific.**
+  `src/components/ui/page-header.tsx` is a domain-agnostic slot wrapper
+  (`{ left?, right? }`) — the auth feature *consumes* it, doesn't own
+  it. 2.8.3's global footer will mirror it as `page-footer.tsx` with the
+  same shape. The characterId display reuses the existing `Pill`
+  primitive; the auth-error message on `/` reuses the existing `Callout`
+  primitive. No bespoke styled spans, no one-off "AuthError" component,
+  no premature `<Copyable>` abstraction (one consumer, inline
+  `navigator.clipboard.writeText` is correct for now).
+- **PKCE S256 + opaque state.** The `/login` route mints a 32-byte
+  base64url verifier + 16-byte state, sets both as 10-minute httpOnly
+  `path=/api/auth` cookies, and redirects to `login.eveonline.com/v2/
+  oauth/authorize`. The callback validates state, exchanges the code for
+  an access token, `jose.jwtVerify`s it against EVE's JWKS, parses
+  `sub: "CHARACTER:EVE:<id>"`, upserts the row (name + portrait +
+  lastLoginAt updated; role + preferences preserved), and seals a JWE
+  session cookie (`alg=dir`, `enc=A256GCM`, 7-day expiry). The refresh
+  token is **discarded** — 2.8.1 doesn't call ESI, so persisting it would
+  be premature. When ESI calls become a thing, a `tokens` table keyed by
+  characterId lands then.
+- **Login button + characterId pill.** The root layout is now `async`
+  and renders `<PageHeader right={<LoginButton session={session} />} />`.
+  Logged-out: anchor "Log in with EVE". Logged-in: portrait, name,
+  click-to-copy `<Pill>` with the characterId — the bootstrap copy
+  target for 2.8.2's `SUPERADMIN_CHARACTER_ID`. Logout is a POST-only
+  form to keep link prefetch from logging users out.
+- **Tests + verification.** New `pkce.test.ts` and `eve-sso.test.ts`
+  cover the pure helpers (verifier shape, S256 math, `claimsToCharacter`
+  parsing + rejection of malformed `sub`, authorize URL params). Vitest
+  suite stayed at 339/339 green. Verified locally: `/api/auth/login`
+  with placeholder creds 302s to `login.eveonline.com` with all OAuth +
+  PKCE params and both handshake cookies set; `/api/auth/callback?
+  code=garbage&state=garbage` cleanly redirects to `/?auth_error=
+  state_mismatch` and the `Callout` renders. The full
+  CCP-portal-to-DB-row e2e needs real EVE app credentials in
+  `.env.local`.
+
+Decisions worth carrying forward:
+
+- Refresh tokens are discarded in 2.8.1. The earliest version that needs
+  them adds a separate `tokens` table; don't bolt them onto
+  `characters`.
+- The `CHARACTER_ROLES` enum has both `USER` and `ADMIN` from day one,
+  even though `ADMIN` isn't assigned to anyone until 2.8.2. Extending
+  the enum mid-flight is a heavier migration than including both up
+  front.
+- `getSession()` always re-queries the DB row. The session cookie is
+  *just* an authenticated reference to a characterId; the source of
+  truth for role / preferences / name / portrait is the table. Future
+  callers should treat `getSession()` as cheap and call it from
+  wherever they need identity, not pass it through props from the
+  layout.
+- The session cookie uses `alg=dir` + `enc=A256GCM` with a 32-byte
+  `SESSION_SECRET`. Rotating the secret invalidates all live sessions.
+
+Shipped on branch `version-2.8.1-eve-sso-login` — PR link will be added
+to this entry once posted.
+
+`VERSION_2.8_PLAN.md` stays in the repo (still active — 2.8.2 through
+2.8.5 ahead). No archive moves this session.
+
 ## Phase 2: COMPLETE (2026-05-23)
 
 Phase 2 shipped the shared data plumbing every future tool will lean on:

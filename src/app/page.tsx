@@ -1,9 +1,34 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
+import { Callout } from '@/components/ui/callout';
 
-export default function Home() {
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  state_mismatch:
+    'Sign-in could not be verified. Try clicking "Log in with EVE" again.',
+  token_exchange_failed:
+    'EVE rejected the sign-in. Wait a moment and try again.',
+  db_write_failed:
+    'We signed you in but could not save your character record. Try again or report this.',
+};
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const rawError = params.auth_error;
+  const errorKey =
+    typeof rawError === 'string' && rawError in AUTH_ERROR_MESSAGES ? rawError : null;
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-20 gap-12">
+      {errorKey && (
+        <div className="w-full max-w-[640px]">
+          <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
+        </div>
+      )}
+
       <header className="flex flex-col items-center text-center gap-3">
         <h1 className="font-display font-bold text-[56px] sm:text-[72px] leading-none tracking-[0.04em] uppercase text-name">
           LGI<span className="text-muted">.</span>tools
