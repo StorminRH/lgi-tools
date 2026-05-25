@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import { Chip } from '@/components/ui/chip';
-import { Pill } from '@/components/ui/pill';
 import type { Session } from '../types';
 
 export function LoginButton({
@@ -38,7 +36,6 @@ export function LoginButton({
         className="rounded-[2px] border border-[#1e2c3a]"
       />
       <span className="font-mono text-[11px] text-text">{session.name}</span>
-      <CharacterIdPill characterId={session.characterId} />
       <form method="POST" action="/api/auth/logout">
         <button
           type="submit"
@@ -48,33 +45,5 @@ export function LoginButton({
         </button>
       </form>
     </div>
-  );
-}
-
-function CharacterIdPill({ characterId }: { characterId: number }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(String(characterId));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    } catch {
-      // clipboard write failed — pill stays unmarked.
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={copy}
-      title="Click to copy"
-      className="cursor-pointer"
-    >
-      <Pill tone={copied ? 'green' : 'neutral'}>
-        ID {characterId}
-        <span className="ml-1.5 opacity-60">{copied ? '✓' : '⧉'}</span>
-      </Pill>
-    </button>
   );
 }
