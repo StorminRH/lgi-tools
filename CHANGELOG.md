@@ -10,6 +10,7 @@ for the full forensic record.
 - Added a global footer with the current version, a changelog link, and a feedback affordance.
 - Added this changelog page.
 - Added EVE SSO sign-in. Click "Log in with EVE" in the header to authenticate via the Fenris Creations (formerly CCP) servers.
+- Admins can now see at-a-glance usage metrics on the admin dashboard and open a full printable usage report with date-range controls.
 
 ### 2026-05-24
 

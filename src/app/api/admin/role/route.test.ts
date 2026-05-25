@@ -12,6 +12,7 @@ const ADMIN_SESSION: Session = {
 const getSessionMock = vi.fn();
 const getCharacterByIdMock = vi.fn();
 const setCharacterRoleMock = vi.fn();
+const logUsageEventMock = vi.fn();
 
 vi.mock('@/features/auth/session', async () => {
   const actual = await vi.importActual<typeof import('@/features/auth/session')>(
@@ -26,6 +27,10 @@ vi.mock('@/features/auth/session', async () => {
 vi.mock('@/features/auth/queries', () => ({
   getCharacterById: (id: number) => getCharacterByIdMock(id),
   setCharacterRole: (id: number, role: string) => setCharacterRoleMock(id, role),
+}));
+
+vi.mock('@/data/telemetry/queries', () => ({
+  logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
 async function importRoute() {
@@ -48,6 +53,8 @@ describe('POST /api/admin/role', () => {
     getSessionMock.mockReset();
     getCharacterByIdMock.mockReset();
     setCharacterRoleMock.mockReset();
+    logUsageEventMock.mockReset();
+    logUsageEventMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {

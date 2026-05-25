@@ -6,6 +6,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TerminalSearch } from '@/components/ui/terminal-search';
+import { postTelemetry } from '@/components/telemetry/client';
 import {
   formatTerminalQuery,
   parseTerminalQuery,
@@ -30,11 +31,20 @@ export function SitesTerminalSearch() {
 
   const initialValue = formatTerminalQuery({ type, wormholeClass });
 
-  const navigate = (p: TerminalParams) => {
+  const navigate = (p: TerminalParams, raw?: string) => {
     const params = new URLSearchParams();
     if (p.wormholeClass) params.set('class', p.wormholeClass);
     if (p.type) params.set('type', p.type);
     const qs = params.toString();
+    if (raw !== undefined) {
+      postTelemetry({
+        action: 'terminal_search',
+        metadata: {
+          query: raw,
+          parsed: { class: p.wormholeClass ?? null, type: p.type ?? null },
+        },
+      });
+    }
     router.push(`/sites${qs ? `?${qs}` : ''}`);
   };
 

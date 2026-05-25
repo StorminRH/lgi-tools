@@ -22,7 +22,7 @@ export type TerminalSearchProps<Params, Err> = {
   parse: (input: string) => ParseResult<Params, Err>;
   suggest: (input: string) => string[];
   errorMessage: (error: Err) => string;
-  onSubmit: (params: Params) => void;
+  onSubmit: (params: Params, raw: string) => void;
   onClear: () => void;
   errorLabel?: string;
   // Hint shown beneath the input when nothing is typed yet.
@@ -82,7 +82,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
     if (result.ok) {
       setError(null);
       setOpen(false);
-      onSubmit(result.params);
+      onSubmit(result.params, trimmed);
     } else {
       // The `empty` discriminant is the parser's signal for clear; everything
       // else is a real error to surface in the Callout. Cast through unknown

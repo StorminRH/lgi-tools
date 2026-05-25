@@ -6,3 +6,4 @@ export * from '../features/wormhole-sites/schema';
 export * from '../data/eve-data/schema';
 export * from '../data/market-prices/schema';
 export * from '../features/auth/schema';
+export * from '../data/telemetry/schema';
