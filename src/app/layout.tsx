@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { IBM_Plex_Mono, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { PageHeader } from "@/components/ui/page-header";
+import { Footer } from "@/components/Footer";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import { LoginButton } from "@/features/auth/components/LoginButton";
 import { getSession, isAdmin } from "@/features/auth/session";
 
@@ -35,11 +37,13 @@ export default async function RootLayout({
       lang="en"
       className={`${plexMono.variable} ${barlow.variable} h-full`}
     >
-      <body className="min-h-full">
+      <body className="min-h-full flex flex-col">
         <PageHeader
           right={<LoginButton session={session} showAdminLink={showAdminLink} />}
         />
-        {children}
+        <main className="flex-1">{children}</main>
+        <Footer />
+        <FeedbackButton />
       </body>
     </html>
   );

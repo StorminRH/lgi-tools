@@ -3,7 +3,7 @@ import { cn } from './cn';
 
 // Domain-agnostic page header. Slot-based: callers pass `left` / `right`
 // nodes; this component owns only the strip's layout + spacing. Mirrors
-// `page-footer.tsx` (introduced in 2.8.3) — keep the shapes symmetric.
+// `page-footer.tsx` — keep the shapes symmetric.
 export function PageHeader({
   left,
   right,

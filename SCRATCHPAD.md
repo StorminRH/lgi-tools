@@ -4,6 +4,114 @@
 
 ---
 
+## Version 2.8.3: COMPLETE (2026-05-25)
+
+The public-beta shell shipped. Three deliverables in one PR — terminal
+search, global footer, changelog — none sharing data plumbing, all needing
+to land before the public-beta launch at the end of 2.8.5. No schema
+changes, no migrations, no new npm dependencies.
+
+What landed:
+
+- **`<TerminalSearch>` is the second domain-agnostic UI primitive after
+  `<UrlSync>`.** Lives at `src/components/ui/terminal-search.tsx` —
+  generic over `<Params, Err>`, takes parse / suggest / errorMessage
+  callbacks plus onSubmit / onClear navigation hooks. Owns the input,
+  autocomplete dropdown, click-outside / Esc to close, and inline error
+  Callout. Future features (sleeper lookup, killmail browsing, fits
+  browser) each contribute a ~50-line `terminal-query.ts` and a thin
+  client wrapper and reuse the entire UI/UX shell. The wormhole-sites
+  slice is its first consumer via `terminal-query.ts` +
+  `SitesTerminalSearch.tsx`.
+- **Order-agnostic parser, REPLACE semantics.** `parseTerminalQuery`
+  classifies each `/`-separated token against a lookup table built once
+  from `SITE_TYPES` + `WORMHOLE_CLASSES`, so `c2/combat` and `combat/c2`
+  both parse to `{ class: 'C2', type: 'combat' }`. Submit REPLACES the
+  URL (terminal feels like a command line — what you type IS the filter
+  state); the existing `<FilterBar>` pill bar continues to MERGE
+  (toggle one dimension). Two affordances, one URL state.
+- **Discriminated-union errors over throwing.** Same precedent as
+  `getSession()` returning `null` on decode failure. The `kind: 'empty'`
+  case is the parser's signal to the primitive to call `onClear()`;
+  every other kind renders as an inline `<Callout>` with copy supplied
+  by the feature's own `terminalErrorMessage`. Empty input on submit
+  navigates to `/sites` — clear-all is part of the contract, not a
+  separate UI affordance.
+- **Global footer mirrors `PageHeader` but added a `center` slot.** The
+  primitive at `src/components/ui/page-footer.tsx` started as a pure
+  mirror of `PageHeader` but grew a `center` slot when the floating
+  `<FeedbackButton>` claimed the bottom-right corner of the viewport —
+  the version-link in the right slot would have collided when scrolled
+  to the bottom. PageHeader stays at `{ left, right }`; the shapes
+  diverged where the use case actually demanded it, not preemptively.
+- **`<FeedbackButton>` is a fixed-position floating affordance**
+  (`bottom-4 right-4 z-30`) so feedback is reachable at any scroll
+  position. Deliberately NOT extracted into a `<FloatingAction>`
+  primitive — five Tailwind classes wrapping the existing `<Pill>` is
+  not an abstraction worth its weight. The second floating affordance
+  (whenever it lands) will dictate the right shape; abstracting against
+  one consumer is guessing.
+- **`/feedback` 404s by design.** 2.8.5 lands the real Discord-webhook
+  route at that path. The button can ship today; the route lands later
+  with zero rewrite. Production isn't public-beta yet, so the broken
+  link is invisible to real users.
+- **`/changelog` route + curated `CHANGELOG.md` + tiny custom parser.**
+  Repo-root `CHANGELOG.md` (universal convention), restricted to
+  `### YYYY-MM-DD` + `- bullet` format. `parseChangelog` is ~25 lines
+  in `src/features/changelog/parse.ts` — explicitly chose this over
+  pulling in `marked` / `react-markdown`. Curated content + curated
+  parser is the right pairing; a markdown library invites authors to
+  use whatever syntax and then we write CSS for every variant. If a
+  future entry truly needs richer formatting, grow this parser exactly
+  the feature it needs. Read at request time via `readFileSync`
+  against `process.cwd()` — works in dev and on Vercel's RSC runtime
+  with no bundler config.
+- **`APP_VERSION` is hand-bumped, decoupled from `package.json`.** Lives
+  at `src/config/app-version.ts` — a new `src/config/` directory for
+  global constants that aren't slice-owned and aren't UI primitives.
+  `package.json`'s `"version"` stays at `0.1.0`; npm package version
+  and user-facing release line are different concepts and don't need
+  to align.
+- **Fenris Creations, not CCP.** Discovered mid-session that CCP Games
+  rebranded to Fenris Creations on 2026-05-06 (split from Pearl Abyss,
+  partnership with Google DeepMind). Footer trademark notice + changelog
+  copy both updated. EVE Online IP now sits with Fenris.
+- **Tests + verification.** `terminal-query.test.ts` (23 cases: parser
+  across every error kind + happy paths, formatter round-trip,
+  suggester prefix-match logic incl. invalid-first-token edge),
+  `parse.test.ts` (6 cases: empty / single / multi / prose / orphan
+  bullets / no-headings). Vitest at 381/381 green (was 352).
+  Full e2e on local dev across all three blocks with three pause
+  checkpoints for visual review per the iteration-plan workflow.
+
+Shipped on branch `version-2.8.3-terminal-search-footer-changelog` —
+[PR #TODO](https://github.com/StorminRH/lgi-tools/pulls).
+
+Decisions worth carrying forward:
+
+- **The `<TerminalSearch>` primitive is the new fast path for any
+  typed-filter affordance.** Don't reinvent the input + dropdown +
+  error UI per feature — write a ~50-line `terminal-query.ts` and a
+  thin client wrapper, and reuse. Confirm the contract by reading
+  `SitesTerminalSearch.tsx`.
+- **PageHeader and PageFooter no longer strictly mirror each other.**
+  PageFooter has an additional `center` slot because the application
+  footer needs it (floating button in the right corner); PageHeader
+  doesn't have a use case for center yet. Adding it preemptively was
+  rejected — extract symmetry when both sides demand it, not before.
+- **`/feedback` is a known-404 placeholder until 2.8.5.** Don't "fix"
+  the link by pointing it elsewhere — 2.8.5's plan is the Discord
+  webhook at that exact path.
+- **Audit-trail carry-forward from 2.8.2 still stands.** Role changes
+  belong in 2.8.4's `usage_logs` table as `action: 'role_change'`.
+  This version didn't touch that.
+- **`/admin` empty-q UX revisit still pending.** 2.8.4's aggregate
+  metrics will reshape that page's layout — defer the rework until
+  the metrics section lands.
+
+`VERSION_2.8_PLAN.md` stays in the repo — 2.8.4 and 2.8.5 are still
+ahead. No archive moves this session.
+
 ## Version 2.8.2: COMPLETE (2026-05-25)
 
 Admin gate + privilege management UI shipped. The latent `role` column on
