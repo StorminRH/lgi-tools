@@ -1,11 +1,14 @@
 import Link from 'next/link';
-import { PageHeader } from '@/components/ui/page-header';
 import { LoginButton } from '@/features/auth/components/LoginButton';
+import { NavTools } from '@/components/NavTools';
 import type { Session } from '@/features/auth/types';
 
-// Application-shell header. Brand wordmark on the left (links back to the
-// landing); login chip on the right. Parallel to `Footer.tsx` wrapping the
-// `PageFooter` primitive — `PageHeader` stays domain-agnostic.
+// Application-shell header. Three-slot layout — bracket-stamp wordmark on
+// the left, cross-tool nav strip in the middle, login cluster on the right.
+// Renders the `<header>` element directly rather than wrapping the two-slot
+// `PageHeader` primitive: the cross-tool nav strip is a third slot only this
+// surface needs, and `PageHeader` stays the simple primitive that anywhere
+// else can consume.
 export function AppHeader({
   session,
   showAdminLink,
@@ -14,16 +17,22 @@ export function AppHeader({
   showAdminLink: boolean;
 }) {
   return (
-    <PageHeader
-      left={
+    <header className="flex items-stretch gap-3 px-6 h-11 text-body border-b border-border bg-section">
+      <div className="flex items-center shrink-0">
         <Link
           href="/"
-          className="font-display font-bold text-[14px] tracking-[0.04em] uppercase text-name"
+          className="font-jb font-extrabold text-[14px] tracking-[0.04em] uppercase text-name inline-flex items-center"
         >
-          LGI<span className="text-muted">.</span>tools
+          <span className="text-isk">[</span>
+          <span className="px-[2px]">LGI</span>
+          <span className="text-isk">]</span>
+          <span className="text-muted font-normal">.tools</span>
         </Link>
-      }
-      right={<LoginButton session={session} showAdminLink={showAdminLink} />}
-    />
+      </div>
+      <NavTools />
+      <div className="ml-auto flex items-center shrink-0">
+        <LoginButton session={session} showAdminLink={showAdminLink} />
+      </div>
+    </header>
   );
 }

@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { Card } from '@/components/ui/card';
 import { Callout } from '@/components/ui/callout';
+import { Pill } from '@/components/ui/pill';
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   state_mismatch:
@@ -24,45 +24,107 @@ export default async function Home({
     typeof rawError === 'string' && rawError in AUTH_ERROR_MESSAGES ? rawError : null;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-20 gap-12">
+    <div className="flex flex-col items-center">
       {errorKey && (
-        <div className="w-full max-w-[640px]">
+        <div className="w-full max-w-[640px] px-6 pt-8">
           <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
         </div>
       )}
 
-      <header className="flex flex-col items-center text-center gap-3">
-        <h1 className="font-display font-bold text-[56px] sm:text-[72px] leading-none tracking-[0.04em] uppercase text-name">
-          LGI<span className="text-muted">.</span>tools
-        </h1>
-        <p className="text-[11px] text-muted tracking-[0.18em] uppercase">
-          Lo-Gang Industries · Eve Online wormhole tools
+      <header className="flex flex-col items-center text-center gap-5 max-w-[680px] px-6 pt-20 pb-16">
+        <div className="flex flex-col items-center gap-1.5">
+          <h1 className="font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
+            <span className="text-isk">[ </span>
+            Lo-Gang
+            <span className="text-isk"> ]</span>
+          </h1>
+          <div className="font-jb font-normal text-[clamp(14px,2.4vw,24px)] tracking-[0.28em] uppercase leading-none">
+            <span className="text-muted">Industries</span>
+            <span className="text-isk tracking-normal">.</span>
+            <span className="text-isk">tools</span>
+          </div>
+        </div>
+        <p className="font-mono text-[12px] text-muted tracking-[0.04em] leading-[1.7] max-w-[420px]">
+          A collection of tools for Eve Online.
         </p>
       </header>
 
-      <div
-        className="grid w-full max-w-[1100px] gap-4"
-        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}
-      >
-        <Link
-          href="/sites"
-          className="group block transition-colors"
+      <section className="w-full max-w-[960px] px-6 pt-4 pb-20">
+        <div className="flex items-center gap-2.5 mb-5 text-[10px] font-semibold text-muted tracking-[0.14em] uppercase">
+          <span>Tools</span>
+          <span className="flex-1 h-px bg-border-soft" />
+        </div>
+
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))' }}
         >
-          <Card className="px-5 py-5 group-hover:border-[#2a3550] transition-colors">
-            <div className="font-display font-bold text-[20px] tracking-[0.04em] uppercase text-name mb-1.5">
-              Wormhole Sites
+          <Link href="/sites" className="tool-tile tool-tile-live no-underline">
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                Wormhole Sites
+              </div>
+              <Pill tone="green">LIVE</Pill>
             </div>
-            <div className="text-[11px] text-text leading-relaxed">
-              Browse every wormhole site — combat anomalies, gas clouds, ore
-              deposits, and hackable containers. Filter by class and type;
-              expand any site for waves, NPCs, EWAR, and resource values.
+            <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
+              Browse all 69 wormhole anomalies and signatures by class, site
+              type, and ISK value. Live Jita prices on ore and gas resources.
+            </p>
+            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center gap-1">
+                <Pill tone="green">C1</Pill>
+                <Pill tone="orange">C3</Pill>
+                <Pill tone="red">C5</Pill>
+                <Pill tone="purple">C6</Pill>
+              </div>
             </div>
-            <div className="mt-4 text-[10px] tracking-[0.18em] uppercase text-muted group-hover:text-isk transition-colors">
-              Open →
+          </Link>
+
+          <div className="tool-tile tool-tile-soon">
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                Industry Planner
+              </div>
+              <Pill tone="neutral">SOON</Pill>
             </div>
-          </Card>
-        </Link>
-      </div>
+            <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
+              Plan manufacturing runs end-to-end — blueprint efficiency,
+              material costs, job fees, and margin estimates across production
+              and reaction chains.
+            </p>
+            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center gap-1">
+                <Pill tone="neutral">T1</Pill>
+                <Pill tone="blue">T2</Pill>
+                <Pill tone="teal">Reactions</Pill>
+              </div>
+              <span className="text-[10px] text-muted tracking-[0.04em]">Phase 3</span>
+            </div>
+          </div>
+
+          <div className="tool-tile tool-tile-soon">
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                Wormhole Roll Calculator
+              </div>
+              <Pill tone="neutral">SOON</Pill>
+            </div>
+            <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
+              Plan a hole-roll with live mass tracking. Battleship + HIC pass
+              counts for any static, with critical-vs-full thresholds and abort
+              cues.
+            </p>
+            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center gap-1">
+                <Pill tone="green">C1</Pill>
+                <Pill tone="orange">C3</Pill>
+                <Pill tone="red">C5</Pill>
+              </div>
+              <span className="text-[10px] text-muted tracking-[0.04em]">Backlog</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
