@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { IBM_Plex_Mono, Barlow_Condensed } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
-import { PageHeader } from "@/components/ui/page-header";
+import { AppHeader } from "@/components/AppHeader";
 import { Footer } from "@/components/Footer";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
-import { LoginButton } from "@/features/auth/components/LoginButton";
 import { getSession, isAdmin } from "@/features/auth/session";
 
 const plexMono = IBM_Plex_Mono({
@@ -40,9 +39,7 @@ export default async function RootLayout({
       className={`${plexMono.variable} ${barlow.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
-        <PageHeader
-          right={<LoginButton session={session} showAdminLink={showAdminLink} />}
-        />
+        <AppHeader session={session} showAdminLink={showAdminLink} />
         <main className="flex-1">{children}</main>
         <Footer />
         <FeedbackButton session={session} />

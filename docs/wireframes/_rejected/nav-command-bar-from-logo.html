@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGI.tools — Nav: Command Bar from Wordmark Cursor — v2.9.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-deep:    #070809;
+    --bg:         #0d0f14;
+    --bg-section: #0a0c10;
+    --border:     #1e2535;
+    --border-soft:#141a24;
+    --text:       #9ab0c4;
+    --text-name:  #dce8f0;
+    --text-muted: #3a5060;
+    --text-muted-2: #6a7a8a;
+    --isk:        #3dd68c;
+    --isk-dim:    #1a3a28;
+    --font-mono:  'IBM Plex Mono', ui-monospace, monospace;
+    --font-jb:    'JetBrains Mono', ui-monospace, monospace;
+    --font-disp:  'Barlow', system-ui, sans-serif;
+  }
+  html, body {
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 100vh;
+  }
+  a { color: inherit; text-decoration: none; transition: color 0.15s; }
+  a:hover { color: var(--isk); }
+
+  /* ── TOP NAV (44px, same as nav-top-bar) ── */
+  .nav {
+    background: var(--bg-section);
+    border-bottom: 1px solid var(--border);
+    height: 44px;
+    display: flex;
+    align-items: stretch;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+  }
+  .nav-wordmark {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-right: 1px solid var(--border);
+    position: relative;
+  }
+  .nav-tools { display: flex; align-items: stretch; padding: 0 6px; }
+  .nav-tool {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted-2);
+    letter-spacing: 0.03em;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s;
+    cursor: pointer;
+  }
+  .nav-tool:hover { color: var(--isk); }
+  .nav-tool.active { color: var(--text-name); border-bottom-color: var(--isk); }
+  .nav-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 16px;
+    font-size: 10px;
+    color: var(--text-muted-2);
+    border-left: 1px solid var(--border);
+  }
+  .nav-freshness { display: flex; align-items: center; gap: 6px; }
+  .price-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--isk); display: inline-block; }
+  .login-chip { display: flex; align-items: center; gap: 6px; padding-left: 12px; border-left: 1px solid var(--border-soft); height: 100%; }
+  .login-portrait { width: 24px; height: 24px; border-radius: 2px; border: 1px solid var(--border); background: linear-gradient(135deg, #2a3a4a 0%, #1a2230 100%); flex-shrink: 0; }
+  .login-name { font-family: var(--font-mono); font-size: 11px; color: var(--text); white-space: nowrap; }
+  .charid-pill { font-family: var(--font-mono); font-size: 9px; color: var(--text-muted-2); padding: 2px 6px; border: 1px solid var(--border); border-radius: 2px; background: #0d1018; }
+  .admin-chip { font-family: var(--font-mono); font-size: 9px; font-weight: 600; color: #aa55ff; padding: 2px 6px; border: 1px solid #2a1040; background: #100a1a; border-radius: 2px; letter-spacing: 0.08em; }
+
+  /* The wordmark SVG cursor sits at roughly x=198..210 in its 220-wide viewBox,
+     rendered at height=30 → display width ≈ 132px. Cursor block ≈ x 119–126px
+     inside the SVG = ~135–142px from the page-left edge once the 16px wordmark
+     padding is added. We use those numbers as the anchor for the connector line
+     and the command panel's left edge. */
+
+  /* ── CONNECTOR — the green vertical line from the cursor to the panel ── */
+  .cursor-connector {
+    position: absolute;
+    top: 44px;            /* sits flush under the nav */
+    left: 134px;          /* aligned with the cursor's left edge */
+    width: 8px;           /* cursor's display width */
+    height: 14px;         /* visible run before it meets the panel */
+    background: var(--isk);
+    z-index: 50;
+    box-shadow: 0 0 12px rgba(61, 214, 140, 0.6);
+  }
+
+  /* ── COMMAND PANEL — anchored to the wordmark cursor ── */
+  .cmd-panel {
+    position: absolute;
+    top: 58px;            /* nav (44) + connector run (14) */
+    left: 16px;           /* aligned with the wordmark's padding-left */
+    width: 540px;
+    max-width: calc(100vw - 32px);
+    background: var(--bg);
+    border: 1px solid var(--isk-dim);
+    border-radius: 0 6px 6px 6px;  /* top-left flat so it docks visually to the cursor */
+    box-shadow:
+      0 0 0 1px rgba(61, 214, 140, 0.18),
+      0 24px 64px -16px rgba(0, 0, 0, 0.6),
+      0 0 32px -8px rgba(61, 214, 140, 0.25);
+    overflow: hidden;
+    z-index: 55;
+  }
+  /* The panel's top edge gets a green line that picks up where the connector lands */
+  .cmd-panel::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    width: 126px;          /* extends right from the cursor's landing position */
+    height: 2px;
+    background: var(--isk);
+    box-shadow: 0 0 8px rgba(61, 214, 140, 0.5);
+  }
+
+  .cmd-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    background: linear-gradient(180deg, rgba(61, 214, 140, 0.04) 0%, transparent 100%);
+  }
+  .cmd-prompt {
+    color: var(--isk);
+    font-weight: 700;
+    font-family: var(--font-jb);
+    font-size: 14px;
+  }
+  .cmd-input {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: var(--text-name);
+    background: transparent;
+    border: none;
+    outline: none;
+  }
+  .cmd-input::placeholder { color: var(--text-muted-2); font-style: italic; }
+  /* The caret inside the input is THE SAME █ as the wordmark — visual continuity */
+  .cmd-caret {
+    color: var(--isk);
+    font-family: var(--font-jb);
+    font-weight: 800;
+    animation: blink 1s steps(2, end) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .cmd-section { padding: 8px 0 6px; border-top: 1px solid var(--border-soft); }
+  .cmd-section:first-of-type { border-top: none; }
+  .cmd-section-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-muted-2);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 18px 6px;
+  }
+  .cmd-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    border-left: 2px solid transparent;
+  }
+  .cmd-row:hover { background: rgba(61, 214, 140, 0.05); border-left-color: var(--isk-dim); }
+  .cmd-row.active {
+    background: rgba(61, 214, 140, 0.08);
+    border-left-color: var(--isk);
+    box-shadow: inset 0 0 24px -8px rgba(61, 214, 140, 0.18);
+  }
+  .cmd-row-icon {
+    width: 22px; height: 22px;
+    border-radius: 3px;
+    background: #161e28;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-jb);
+    font-weight: 800;
+    font-size: 10px;
+    color: var(--isk);
+    flex-shrink: 0;
+  }
+  .cmd-row-name {
+    flex: 1;
+    font-family: var(--font-disp);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-name);
+  }
+  .cmd-row-sub { font-size: 10px; color: var(--text-muted-2); margin-right: 8px; }
+  .cmd-pill {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 2px;
+    border: 1px solid;
+    letter-spacing: 0.04em;
+    background:#161e28; color:#506070; border-color:#1e2c3a;
+  }
+  .cmd-row .return-key {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--isk);
+    opacity: 0;
+    margin-left: 8px;
+  }
+  .cmd-row.active .return-key { opacity: 1; }
+  .cmd-footer {
+    padding: 10px 18px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 10px;
+    color: var(--text-muted-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #0a0c10;
+  }
+  .cmd-footer code { color: var(--isk); background: #0f2218; padding: 1px 5px; border-radius: 2px; font-size: 9px; margin: 0 2px; }
+  .kbd { background: #161e28; border: 1px solid var(--border); border-radius: 2px; padding: 0 4px; font-size: 9px; color: var(--text-name); margin-right: 4px; }
+
+  /* ── BACKGROUND PAGE (faded so the panel reads as foreground) ── */
+  .scrim {
+    position: fixed;
+    inset: 44px 0 0 0;
+    background: rgba(7, 8, 9, 0.55);
+    backdrop-filter: blur(1.5px);
+    z-index: 40;
+    pointer-events: none;
+  }
+  .page-stub {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 24px;
+    opacity: 0.55;
+  }
+  .page-title {
+    font-family: var(--font-disp);
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--text-name);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .page-sub {
+    font-size: 10px;
+    color: var(--text-muted-2);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  .ghost-card {
+    background: var(--bg-section);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ghost-name { font-family: var(--font-disp); font-weight: 700; font-size: 15px; color: var(--text-name); }
+  .ghost-isk { font-family: var(--font-mono); font-size: 14px; color: var(--isk); font-weight: 600; }
+
+  /* ── ANNOTATION ── */
+  .annotation {
+    background: #0a0c10;
+    border-top: 1px dashed #1e2535;
+    padding: 24px 24px 40px;
+    max-width: 1100px;
+    margin: 80px auto 0;
+    position: relative;
+    z-index: 200;
+  }
+  .annotation h3 {
+    font-family: var(--font-jb);
+    font-size: 11px;
+    color: var(--isk);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 12px;
+  }
+  .annotation p {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+  .annotation .note { color: var(--text-muted-2); font-size: 11px; }
+  .annotation code {
+    background: #161e28;
+    color: var(--isk);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 11px;
+  }
+  .annotation strong { color: var(--text-name); }
+</style>
+</head>
+<body>
+
+<!-- ═══ TOP NAV ═══ -->
+<nav class="nav">
+  <a class="nav-wordmark" href="#">
+    <svg viewBox="0 0 220 50" height="30" style="display:block;">
+      <path d="M 18,10 L 8,10 L 8,40 L 18,40" fill="none" stroke="#3dd68c" stroke-width="4" stroke-linecap="square"/>
+      <path d="M 82,10 L 92,10 L 92,40 L 82,40" fill="none" stroke="#3dd68c" stroke-width="4" stroke-linecap="square"/>
+      <text x="24" y="35" font-family="'JetBrains Mono',monospace" font-weight="800" font-size="28" fill="#dce8f0" letter-spacing="1">LGI</text>
+      <text x="106" y="35" font-family="'JetBrains Mono',monospace" font-weight="400" font-size="24" fill="#9ab0c4">.tools</text>
+      <!-- The cursor — the visual entry point for the command panel below -->    </svg>
+  </a>
+  <div class="nav-tools">
+    <a class="nav-tool active" href="#">Wormhole Sites</a>
+    <a class="nav-tool" href="#">Industry Planner</a>
+    <a class="nav-tool" href="#">Wormhole Roll Calc</a>
+  </div>
+  <div class="nav-right">
+    <div class="nav-freshness">
+      <span class="price-dot"></span>prices updated 3h ago
+    </div>
+    <div class="login-chip">
+      <a href="#" class="admin-chip">Admin</a>
+      <div class="login-portrait"></div>
+      <span class="login-name">Nimrots Sarikusa</span>
+      <span class="charid-pill">2114872920</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══ CONNECTOR — green bar from cursor down to panel ═══ -->
+<div class="cursor-connector"></div>
+
+<!-- ═══ COMMAND PANEL — anchored to the wordmark cursor ═══ -->
+<div class="cmd-panel">
+  <div class="cmd-input-row">
+    <span class="cmd-prompt">&gt;</span>
+    <input class="cmd-input" placeholder="Jump to a tool, search a site, run a query…" />  </div>
+
+  <div class="cmd-section">
+    <div class="cmd-section-label">Tools</div>
+    <div class="cmd-row active">
+      <span class="cmd-row-icon">WH</span>
+      <span class="cmd-row-name">Wormhole Sites</span>
+      <span class="cmd-row-sub">69 sites · live prices</span>
+      <span class="return-key">↵</span>
+    </div>
+    <div class="cmd-row">
+      <span class="cmd-row-icon">IP</span>
+      <span class="cmd-row-name">Industry Planner</span>
+      <span class="cmd-pill">SOON</span>
+    </div>
+    <div class="cmd-row">
+      <span class="cmd-row-icon">WR</span>
+      <span class="cmd-row-name">Wormhole Roll Calculator</span>
+      <span class="cmd-pill">SOON</span>
+    </div>
+  </div>
+
+  <div class="cmd-section">
+    <div class="cmd-section-label">Recent</div>
+    <div class="cmd-row">
+      <span class="cmd-row-icon" style="color:#cc6666;border-color:#3a1010;background:#1a0a0a;">C5</span>
+      <span class="cmd-row-name">Forgotten Frontier Recursive Depot</span>
+      <span class="cmd-row-sub">Relic · 820M</span>
+    </div>
+    <div class="cmd-row">
+      <span class="cmd-row-icon" style="color:#cc6666;border-color:#3a1010;background:#1a0a0a;">C5</span>
+      <span class="cmd-row-name">Sleeper Drug Manufactory</span>
+      <span class="cmd-row-sub">Combat · 650M</span>
+    </div>
+    <div class="cmd-row">
+      <span class="cmd-row-icon" style="color:#d68c3d;border-color:#3a2510;background:#1f1508;">C3</span>
+      <span class="cmd-row-name">Bountiful Frontier Reservoir</span>
+      <span class="cmd-row-sub">Ore · 280M</span>
+    </div>
+  </div>
+
+  <div class="cmd-footer">
+    <span>Try <code>c5/relic</code>, <code>c2/combat</code>, <code>ore</code></span>
+    <span><span class="kbd">↑↓</span> <span class="kbd">↵</span> <span class="kbd">esc</span></span>
+  </div>
+</div>
+
+<!-- ═══ FADED BACKGROUND PAGE ═══ -->
+<div class="scrim"></div>
+<div class="page-stub">
+  <div class="page-title">Wormhole Sites</div>
+  <div class="page-sub">69 sites · live Jita prices</div>
+  <div class="ghost-card">
+    <div class="ghost-name">Bountiful Frontier Reservoir</div>
+    <div class="ghost-isk">280.4M ISK</div>
+  </div>
+  <div class="ghost-card">
+    <div class="ghost-name">Forgotten Frontier Recursive Depot</div>
+    <div class="ghost-isk">820.0M ISK</div>
+  </div>
+  <div class="ghost-card">
+    <div class="ghost-name">Sleeper Drug Manufactory</div>
+    <div class="ghost-isk">650.0M ISK</div>
+  </div>
+  <div class="ghost-card">
+    <div class="ghost-name">Vidette Conjugate Reservoir</div>
+    <div class="ghost-isk">410.0M ISK</div>
+  </div>
+</div>
+
+<!-- ═══ ANNOTATION ═══ -->
+<div class="annotation">
+  <h3>Wireframe Notes — nav-command-bar-from-logo (Hybrid)</h3>
+  <p>
+    <strong>The concept.</strong> The terminal cursor <code>█</code> already in the wordmark IS the entry point.
+    On <code>⌘K</code> (or click on the cursor block), the command panel drops out of the wordmark like a CLI
+    prompt opening — a green connector bar extends from the cursor downward, the panel's top-left dock-aligns
+    so its border picks up exactly where the cursor lands, and the caret inside the search input is the same
+    green <code>█</code> as the one in the logo. The user reads it as: <em>"the cursor that's always there opened up."</em>
+  </p>
+  <p>
+    <strong>Layout.</strong> Standard 44px top nav (wordmark + tool strip + freshness + login). Tools listed in the
+    nav: <code>Wormhole Sites</code> (active), <code>Industry Planner</code>, <code>Wormhole Roll Calc</code>.
+    The command panel anchors to the wordmark's left edge and is 540px wide; its top-left corner is square (not rounded)
+    so it docks cleanly to the connector. Two-tier glow: green border accent + a wider <code>0 0 32px -8px rgba(61,214,140,0.25)</code>
+    halo so it reads as the only interactive thing on the page.
+  </p>
+  <p>
+    <strong>Why this beats both standalone options.</strong> The plain top-bar nav requires the user to click a tool name
+    to navigate; the plain command-bar requires keyboard discovery. This hybrid does both — the nav tools are still
+    visible and clickable, AND the cursor advertises a keyboard-driven super-power right in the brand mark. New users see
+    a normal nav; power users see the cursor blink and try ⌘K. The terminal-stamp logo finally <em>does</em> something
+    instead of just signalling tone.
+  </p>
+  <p>
+    <strong>Implementation notes.</strong> The panel reuses the existing <code>&lt;Modal&gt;</code> primitive's
+    open/close/Esc contract but with anchored positioning instead of centered (so it'll need an <code>anchor</code> prop
+    or a thin subclass — small lift). The search input is the existing <code>&lt;TerminalSearch&gt;</code> primitive
+    promoted from feature-scoped to global. The connector bar is a fixed-position <code>&lt;div&gt;</code> with a
+    green box-shadow; pin coordinates (<code>left: 134px</code> in this wireframe) come from the wordmark SVG's
+    viewBox math — re-derive once if the wordmark's final SVG dimensions change.
+  </p>
+  <p class="note">
+    Tradeoffs to call out: <strong>(1)</strong> the connector is brittle if the wordmark is responsive — a fluid nav
+    height or a different wordmark size would shift the anchor. Mitigation: derive the connector's left/width from the
+    actual rendered SVG with one <code>useLayoutEffect</code>. <strong>(2)</strong> Esc-to-close + click-outside-to-close
+    must be wired the same as <code>&lt;Modal&gt;</code> to keep keyboard discipline. <strong>(3)</strong> The cursor's
+    blink animation is more prominent now (it's an affordance, not just decoration) — confirm it's not distracting at rest.
+  </p>
+</div>
+
+</body>
+</html>

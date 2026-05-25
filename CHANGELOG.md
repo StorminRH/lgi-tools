@@ -6,6 +6,9 @@ for the full forensic record.
 
 ### 2026-05-25
 
+- Improved readability across the site by brightening secondary text in footers, captions, and chrome elements.
+- Every link now glows green on hover for a more consistent interactive feel.
+- The LGI.tools wordmark now sits in the top-left of every page and clicks back to the landing.
 - The Feedback button now actually works. Click it on any page, type your message, and it goes straight to the developer. Logged-in submissions include your character name; logged-out submissions land anonymously.
 - Added a Legal page describing what the site records about your visits and the EVE Online third-party developer notice. Linked from the footer.
 - Added a BETA banner at the top of the changelog so first-time visitors know what kind of polish to expect.

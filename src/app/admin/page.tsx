@@ -160,7 +160,7 @@ export default async function AdminPage({
           {query ? (
             <a
               href="/admin"
-              className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text px-2 py-1 transition-colors"
+              className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted px-2 py-1"
             >
               Clear
             </a>

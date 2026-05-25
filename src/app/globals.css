@@ -13,7 +13,7 @@
   /* ── Text palette ── */
   --color-text:  #9ab0c4;
   --color-name:  #dce8f0;
-  --color-muted: #3a5060;
+  --color-muted: #6a7a8a;
   --color-isk:   #3dd68c;
   --color-isk-sub: #4a7860;
 
@@ -21,6 +21,20 @@
   --color-dps-low:  #3dd68c;
   --color-dps-mid:  #ffaa22;
   --color-dps-high: #ff5555;
+
+  /* ── Typography scale ──
+   * Named sizes for the canonical type ladder. Existing ad-hoc `text-[Npx]`
+   * usages stay valid; new code references the named scale via Tailwind's
+   * `text-caption` / `text-micro` / … utilities. Tailwind v4 JIT only emits
+   * a utility class on first reference, so adding a new size here is
+   * inert until something actually uses it.
+   */
+  --text-caption:  9px;   /* footers, freshness stamps, dense table chrome */
+  --text-micro:    10px;  /* pill labels, section meta, dense chip text */
+  --text-body:     11px;  /* primary body copy, page-header strip */
+  --text-title-sm: 18px;  /* card titles */
+  --text-title:    22px;  /* page titles */
+  --text-hero:     clamp(40px, 7vw, 72px); /* landing wordmark */
 
   /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ── */
   --font-mono:    var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -36,6 +50,17 @@ html, body {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Universal link hover vocabulary — every <a> transitions toward the green
+ * ISK accent on hover. Established in the v2.9.1 wireframes; replaces the
+ * ad-hoc `hover:text-*` / `hover:opacity-*` Tailwind utilities scattered
+ * across the codebase. */
+a {
+  transition: color 0.15s;
+}
+a:hover {
+  color: var(--color-isk);
 }
 
 details[data-collapsible][open] > summary [data-chevron] {

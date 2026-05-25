@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGI.tools — Nav Search: Dominant / Spotlight — v2.9.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-deep:#070809; --bg:#0d0f14; --bg-section:#0a0c10;
+    --border:#1e2535; --border-soft:#141a24;
+    --text:#9ab0c4; --text-name:#dce8f0;
+    --text-muted:#3a5060; --text-muted-2:#6a7a8a;
+    --isk:#3dd68c; --isk-dim:#1a3a28;
+    --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+    --font-jb:'JetBrains Mono',ui-monospace,monospace;
+    --font-disp:'Barlow',system-ui,sans-serif;
+  }
+  html,body { background:var(--bg-deep); color:var(--text); font-family:var(--font-mono); font-size:13px; min-height:100vh; }
+  a { color:inherit; text-decoration:none; transition:color 0.15s; }
+  a:hover { color:var(--isk); }
+
+  .page { max-width:1400px; margin:0 auto; padding:32px 24px 80px; }
+  .state-label {
+    font-family:var(--font-jb); font-size:11px; color:var(--isk);
+    text-transform:uppercase; letter-spacing:0.14em; font-weight:700;
+    margin:32px 0 12px; display:flex; align-items:center; gap:10px;
+  }
+  .state-label::after { content:''; flex:1; height:1px; background:var(--border-soft); }
+  .state-label .lab-sub { color:var(--text-muted-2); font-weight:400; letter-spacing:0.04em; text-transform:none; font-family:var(--font-mono); }
+
+  /* ── NAV ── */
+  .nav {
+    background:var(--bg-section); border:1px solid var(--border); border-radius:4px;
+    height:52px; display:flex; align-items:stretch;
+    position:relative; overflow:visible;
+  }
+  .nav-wordmark { display:flex; align-items:center; padding:0 16px; border-right:1px solid var(--border); flex-shrink:0; }
+
+  /* ── DOMINANT SEARCH — always large, takes ~60% of the nav middle ── */
+  .nav-search {
+    display:flex; align-items:center; gap:10px;
+    padding:0 18px; flex:1; min-width:0;
+    background:#0c1018;
+    border-right:1px solid var(--border-soft);
+    transition:background 0.2s ease, box-shadow 0.2s ease;
+  }
+  .nav-search.active {
+    background:#0e1320;
+    box-shadow: inset 0 0 0 1px var(--isk-dim), inset 0 0 32px -8px rgba(61,214,140,0.18);
+  }
+  .ns-prompt { color:var(--isk); font-weight:700; font-family:var(--font-jb); font-size:15px; flex-shrink:0; }
+  .ns-input {
+    flex:1; min-width:0;
+    background:transparent; border:none; outline:none;
+    font-family:var(--font-mono); font-size:14px;
+    color:var(--text-name);
+  }
+  .ns-input::placeholder { color:var(--text-muted-2); font-style:italic; }
+  .ns-caret { color:var(--isk); font-family:var(--font-jb); font-weight:800; font-size:15px; opacity:0; flex-shrink:0; }
+  .nav-search.active .ns-caret { opacity:1; animation:blink 1s steps(2,end) infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+
+  /* Scope chips ALWAYS visible (this is the dominant-spotlight angle: persistent scoping) */
+  .ns-scope { display:flex; gap:4px; padding-right:10px; border-right:1px solid var(--border-soft); margin-right:8px; flex-shrink:0; }
+  .ns-scope-chip {
+    font-family:var(--font-mono); font-size:9px; color:var(--text-muted-2);
+    padding:3px 8px; border:1px solid var(--border); border-radius:2px; background:#161e28;
+    letter-spacing:0.06em; cursor:pointer; transition:color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .ns-scope-chip:hover { color:var(--isk); }
+  .ns-scope-chip.on { color:var(--isk); border-color:var(--isk-dim); background:#0f2218; }
+
+  .ns-kbd-hint { font-family:var(--font-mono); font-size:9px; color:var(--text-muted-2); background:#161e28; border:1px solid var(--border); border-radius:2px; padding:2px 6px; flex-shrink:0; }
+  .nav-search.active .ns-kbd-hint { display:none; }
+  .ns-esc-hint { font-family:var(--font-mono); font-size:10px; color:var(--text-muted-2); background:#161e28; border:1px solid var(--border); border-radius:2px; padding:2px 6px; flex-shrink:0; display:none; }
+  .nav-search.active .ns-esc-hint { display:inline-flex; }
+
+  /* ── TOOLS REDUCED TO ICONS ── */
+  .nav-tools { display:flex; align-items:stretch; padding:0 4px; flex-shrink:0; }
+  .nav-tool-icon {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    width:48px; padding:0 4px;
+    font-family:var(--font-jb); font-size:11px; font-weight:800;
+    color:var(--text-muted-2); letter-spacing:0;
+    border-bottom:2px solid transparent;
+    cursor:pointer; transition:color 0.15s;
+  }
+  .nav-tool-icon:hover { color:var(--isk); }
+  .nav-tool-icon.active { color:var(--text-name); border-bottom-color:var(--isk); }
+  .nav-tool-icon .tlabel { font-size:7px; font-weight:500; font-family:var(--font-mono); letter-spacing:0.04em; color:inherit; opacity:0.7; margin-top:1px; }
+
+  .nav-right {
+    margin-left:auto;
+    display:flex; align-items:center; padding:0 12px; gap:16px;
+    font-size:10px; color:var(--text-muted-2);
+    border-left:1px solid var(--border); flex-shrink:0;
+  }
+  .nav-freshness { display:flex; align-items:center; gap:6px; }
+  .price-dot { width:5px; height:5px; border-radius:50%; background:var(--isk); display:inline-block; }
+  .login-chip { display:flex; align-items:center; gap:6px; padding-left:12px; border-left:1px solid var(--border-soft); height:100%; }
+  .login-portrait { width:28px; height:28px; border-radius:2px; border:1px solid var(--border); background:linear-gradient(135deg,#2a3a4a 0%,#1a2230 100%); flex-shrink:0; }
+  .charid-pill { font-family:var(--font-mono); font-size:9px; color:var(--text-muted-2); padding:2px 6px; border:1px solid var(--border); border-radius:2px; background:#0d1018; }
+  .admin-chip { font-family:var(--font-mono); font-size:9px; font-weight:600; color:#aa55ff; padding:2px 6px; border:1px solid #2a1040; background:#100a1a; border-radius:2px; letter-spacing:0.08em; }
+
+  /* ── DROPDOWN ── */
+  .nav-host { position:relative; }
+  .dropdown {
+    position:absolute;
+    top:54px;
+    left:151px;
+    right:calc(48px * 3 + 8px + 240px);   /* leaves room above tool icons + right slot */
+    min-width:680px;
+    background:var(--bg); border:1px solid var(--isk-dim); border-radius:0 0 6px 6px;
+    box-shadow: 0 0 0 1px rgba(61,214,140,0.12), 0 24px 64px -16px rgba(0,0,0,0.6);
+    overflow:hidden;
+    z-index:5;
+  }
+
+  .dd-header {
+    padding:10px 18px; background:linear-gradient(180deg, rgba(61,214,140,0.06) 0%, transparent 100%);
+    border-bottom:1px solid var(--border-soft);
+    font-size:11px; color:var(--text-muted-2);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .dd-header .scope-active { color:var(--isk); font-weight:600; }
+
+  .dd-section { padding:8px 0; }
+  .dd-section + .dd-section { border-top:1px solid var(--border-soft); }
+  .dd-section-label {
+    font-size:9px; font-weight:600; color:var(--text-muted-2);
+    letter-spacing:0.14em; text-transform:uppercase;
+    padding:6px 18px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .dd-section-label .count { color:var(--text-muted); font-weight:400; }
+  .dd-row {
+    display:flex; align-items:center; gap:10px;
+    padding:7px 18px; cursor:pointer;
+    transition:background 0.15s;
+    border-left:2px solid transparent;
+  }
+  .dd-row:hover { background:rgba(61,214,140,0.05); border-left-color:var(--isk-dim); }
+  .dd-row.active { background:rgba(61,214,140,0.08); border-left-color:var(--isk); box-shadow: inset 0 0 24px -8px rgba(61,214,140,0.18); }
+  .dd-icon {
+    width:24px; height:24px; border-radius:3px;
+    background:#161e28; border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-jb); font-weight:800; font-size:10px; color:var(--isk);
+    flex-shrink:0;
+  }
+  .dd-icon.cls-c5  { background:#1a0a0a; color:#cc6666; border-color:#3a1010; }
+  .dd-icon.cls-c4  { background:#1a0a14; color:#cc3388; border-color:#3a1028; }
+  .dd-icon.cls-c3  { background:#1f1508; color:#d68c3d; border-color:#3a2510; }
+  .dd-icon.ore     { background:#1a1a0a; color:#ccaa33; border-color:#332e10; }
+  .dd-icon.gas     { background:#0a1a14; color:#33cc88; border-color:#104a2a; }
+  .dd-icon.tool    { background:#0f2218; color:var(--isk); border-color:var(--isk-dim); }
+  .dd-icon.cmd     { background:#0c1018; color:var(--text-muted-2); border-color:var(--border); }
+  .dd-name {
+    flex:1; font-family:var(--font-disp); font-weight:600; font-size:14px; color:var(--text-name);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .dd-name .match { color:var(--isk); }
+  .dd-sub { font-size:10px; color:var(--text-muted-2); white-space:nowrap; }
+  .dd-return { font-size:10px; color:var(--isk); opacity:0; margin-left:8px; }
+  .dd-row.active .dd-return { opacity:1; }
+
+  .dd-footer {
+    padding:10px 18px; border-top:1px solid var(--border-soft);
+    font-size:10px; color:var(--text-muted-2);
+    display:flex; justify-content:space-between; background:#0a0c10;
+  }
+  .kbd { background:#161e28; border:1px solid var(--border); border-radius:2px; padding:0 4px; font-size:9px; color:var(--text-name); margin-right:4px; }
+
+  /* ── ANNOTATION ── */
+  .annotation { background:#0a0c10; border-top:1px dashed #1e2535; padding:24px 24px 40px; margin-top:56px; }
+  .annotation h3 { font-family:var(--font-jb); font-size:11px; color:var(--isk); text-transform:uppercase; letter-spacing:0.14em; margin-bottom:12px; }
+  .annotation p { font-family:var(--font-mono); font-size:12px; color:var(--text); line-height:1.7; margin-bottom:10px; max-width:920px; }
+  .annotation .note { color:var(--text-muted-2); font-size:11px; }
+  .annotation code { background:#161e28; color:var(--isk); padding:1px 5px; border-radius:2px; font-size:11px; }
+  .annotation strong { color:var(--text-name); }
+  .annotation ul { margin:8px 0 8px 20px; }
+  .annotation li { font-size:12px; color:var(--text); line-height:1.7; }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div style="font-family:var(--font-disp); font-weight:700; font-size:22px; color:var(--text-name); text-transform:uppercase; margin-bottom:4px;">
+    Nav search · Dominant / Spotlight
+  </div>
+  <div style="font-size:10px; color:var(--text-muted-2); letter-spacing:0.18em; text-transform:uppercase;">
+    Search is always large · scope chips always visible · tools reduce to 48px icon-buttons
+  </div>
+
+  <!-- ════ STATE 1: AT REST ════ -->
+  <div class="state-label">At rest <span class="lab-sub">— search is dominant even when not focused; tool icons sit right of search</span></div>
+  <nav class="nav">
+    <a class="nav-wordmark" href="#">
+      <svg viewBox="0 0 220 50" height="32">
+        <path d="M 18,10 L 8,10 L 8,40 L 18,40" fill="none" stroke="#3dd68c" stroke-width="4" stroke-linecap="square"/>
+        <path d="M 82,10 L 92,10 L 92,40 L 82,40" fill="none" stroke="#3dd68c" stroke-width="4" stroke-linecap="square"/>
+        <text x="24" y="35" font-family="'JetBrains Mono',monospace" font-weight="800" font-size="28" fill="#dce8f0" letter-spacing="1">LGI</text>
+        <text x="106" y="35" font-family="'JetBrains Mono',monospace" font-weight="400" font-size="24" fill="#9ab0c4">.tools</text>      </svg>
+    </a>
+    <div class="nav-search">
+      <div class="ns-scope">
+        <span class="ns-scope-chip on">all</span>
+        <span class="ns-scope-chip">tools</span>
+        <span class="ns-scope-chip">sites</span>
+        <span class="ns-scope-chip">resources</span>
+        <span class="ns-scope-chip">commands</span>
+      </div>
+      <span class="ns-prompt">&gt;</span>
+      <input class="ns-input" placeholder="Search anything in LGI.tools…" />      <span class="ns-kbd-hint">⌘K</span>
+      <span class="ns-esc-hint">esc</span>
+    </div>
+    <div class="nav-tools">
+      <a class="nav-tool-icon active" href="#" title="Wormhole Sites">WH<span class="tlabel">sites</span></a>
+      <a class="nav-tool-icon" href="#" title="Industry Planner">IP<span class="tlabel">planner</span></a>
+      <a class="nav-tool-icon" href="#" title="Wormhole Roll Calc">WR<span class="tlabel">roll</span></a>
+    </div>
+    <div class="nav-right">
+      <div class="nav-freshness"><span class="price-dot"></span>3h</div>
+      <div class="login-chip">
+        <a href="#" class="admin-chip">Admin</a>
+        <div class="login-portrait"></div>
+        <span class="charid-pill">2114872920</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ════ STATE 2: ACTIVE WITH QUERY + SCOPE FILTERED ════ -->
+  <div class="state-label">Active — query <code style="background:#161e28; color:var(--isk); padding:1px 5px; border-radius:2px; font-size:11px;">bistot</code>, scope <code style="background:#161e28; color:var(--isk); padding:1px 5px; border-radius:2px; font-size:11px;">resources</code> selected <span class="lab-sub">— logo cursor solid; search caret blinks</span></div>
+  <div class="nav-host">
+    <nav class="nav">
+      <a class="nav-wordmark" href="#">
+        <svg viewBox="0 0 220 50" height="32">
+          <path d="M 18,10 L 8,10 L 8,40 L 18,40" fill="none" stroke="#3dd68c" stroke-width="4" stroke-linecap="square"/>
+          <path d="M 82,10 L 92,10 L 92,40 L 82,40" fill="none" stroke="#3dd68c" stroke-width="4" stroke-linecap="square"/>
+          <text x="24" y="35" font-family="'JetBrains Mono',monospace" font-weight="800" font-size="28" fill="#dce8f0" letter-spacing="1">LGI</text>
+          <text x="106" y="35" font-family="'JetBrains Mono',monospace" font-weight="400" font-size="24" fill="#9ab0c4">.tools</text>        </svg>
+      </a>
+      <div class="nav-search active">
+        <div class="ns-scope">
+          <span class="ns-scope-chip">all</span>
+          <span class="ns-scope-chip">tools</span>
+          <span class="ns-scope-chip">sites</span>
+          <span class="ns-scope-chip on">resources</span>
+          <span class="ns-scope-chip">commands</span>
+        </div>
+        <span class="ns-prompt">&gt;</span>
+        <input class="ns-input" value="bistot" />        <span class="ns-esc-hint">esc</span>
+      </div>
+      <div class="nav-tools">
+        <a class="nav-tool-icon active" href="#" title="Wormhole Sites">WH<span class="tlabel">sites</span></a>
+        <a class="nav-tool-icon" href="#" title="Industry Planner">IP<span class="tlabel">planner</span></a>
+        <a class="nav-tool-icon" href="#" title="Wormhole Roll Calc">WR<span class="tlabel">roll</span></a>
+      </div>
+      <div class="nav-right">
+        <div class="nav-freshness"><span class="price-dot"></span>3h</div>
+        <div class="login-chip">
+          <a href="#" class="admin-chip">Admin</a>
+          <div class="login-portrait"></div>
+          <span class="charid-pill">2114872920</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- DROPDOWN -->
+    <div class="dropdown">
+      <div class="dd-header">
+        <span>Scope: <span class="scope-active">resources only</span> · click another chip to switch</span>
+        <span>Match against SDE type names + variants</span>
+      </div>
+
+      <div class="dd-section">
+        <div class="dd-section-label">Resources <span class="count">4 matches in SDE</span></div>
+        <div class="dd-row active">
+          <span class="dd-icon ore">ORE</span>
+          <span class="dd-name">Compressed <span class="match">Bistot</span></span>
+          <span class="dd-sub">142.1M ISK · Jita 5%</span>
+          <span class="dd-return">↵</span>
+        </div>
+        <div class="dd-row">
+          <span class="dd-icon ore">ORE</span>
+          <span class="dd-name"><span class="match">Bistot</span> (uncompressed)</span>
+          <span class="dd-sub">126.0M ISK · Jita 5%</span>
+        </div>
+        <div class="dd-row">
+          <span class="dd-icon ore">ORE</span>
+          <span class="dd-name">Triclinic <span class="match">Bistot</span></span>
+          <span class="dd-sub">170.5M ISK · Jita 5%</span>
+        </div>
+        <div class="dd-row">
+          <span class="dd-icon ore">ORE</span>
+          <span class="dd-name">Monoclinic <span class="match">Bistot</span></span>
+          <span class="dd-sub">198.8M ISK · Jita 5%</span>
+        </div>
+      </div>
+
+      <div class="dd-section">
+        <div class="dd-section-label">Sites containing this resource <span class="count">12 sites</span></div>
+        <div class="dd-row">
+          <span class="dd-icon cls-c5">C5</span>
+          <span class="dd-name">Vital Core Reservoir</span>
+          <span class="dd-sub">contains Bistot · 510M</span>
+        </div>
+        <div class="dd-row">
+          <span class="dd-icon cls-c4">C4</span>
+          <span class="dd-name">Average Frontier Deposit</span>
+          <span class="dd-sub">contains Bistot · 195M</span>
+        </div>
+        <div class="dd-row">
+          <span class="dd-icon cls-c3">C3</span>
+          <span class="dd-name">Bountiful Frontier Reservoir</span>
+          <span class="dd-sub">contains Bistot · 280M</span>
+        </div>
+      </div>
+
+      <div class="dd-footer">
+        <span>Cross-reference: types → sites → waves → resources</span>
+        <span><span class="kbd">⌘1-5</span> switch scope · <span class="kbd">↵</span> open</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:480px;"></div>
+
+  <!-- ════ ANNOTATION ════ -->
+  <div class="annotation">
+    <h3>Wireframe Notes — nav-search-dominant-spotlight</h3>
+    <p>
+      <strong>Mechanic.</strong> Search is the dominant element of the nav at all times — it claims roughly 60% of the
+      nav width even when no one's interacting with it. Tool links collapse to 48px-wide icon-buttons (acronym +
+      micro-label) to keep navigation visible without competing for space. Nav is 52px (8px taller than the other two)
+      to accommodate the always-visible scope chips inside the search field.
+    </p>
+    <p>
+      <strong>The thesis.</strong> If search is going to cover <em>every feature and item in the site</em> — tools, all
+      69 sites, all SDE ore + gas + salvage types, commands, recent history, admin actions — then it deserves to be the
+      primary navigation, not a secondary affordance. Tool icons are still discoverable but they're shortcuts for
+      "open the live tool," not "navigate the platform."
+    </p>
+    <p>
+      <strong>Scope chips are persistent.</strong> Unlike the overlay-takeover variant where chips appear only when
+      active, here they're always visible. <code>⌘1-5</code> keyboard shortcuts switch scope without needing to mouse.
+      The selected scope changes what the dropdown shows AND filters results in real time as you type.
+    </p>
+    <p>
+      <strong>Cross-reference dropdown.</strong> The example shows the power: searching <code>bistot</code> with
+      <strong>resources</strong> scope returns the type itself AND every site containing that resource. This is the
+      "build lots of functionality into it" angle — the same search can be a type lookup, a site filter, a command palette,
+      and a recent-history jumper. Future scopes (sleepers, drops, fits, killmails) all slot into the same UI.
+    </p>
+    <p>
+      <strong>Pros.</strong>
+    </p>
+    <ul>
+      <li>Strongest commitment to search as a first-class platform feature.</li>
+      <li>Scope chips make the breadth of searchability self-documenting — a new visitor sees "ah, I can search resources
+        AND commands AND sites."</li>
+      <li>Tool icons stay clickable for users who want the classic nav model, but they're explicitly secondary.</li>
+      <li>52px nav is the only one with room for inline scope chips AND keyboard hints — no compromise.</li>
+    </ul>
+    <p>
+      <strong>Cons / open questions.</strong>
+    </p>
+    <ul>
+      <li>52px nav is 8px taller than the other options. Confirm the vertical real-estate cost is acceptable.</li>
+      <li>Tool icons (WH/IP/WR) need to be self-explanatory or the micro-label has to do work. Acronyms collide as more
+        tools land — by tool #6, "WR" vs "WC" is ambiguous.</li>
+      <li>Persistent scope chips are visual noise when the user isn't searching. Counter-argument: they advertise
+        functionality, so the noise is also the discoverability.</li>
+      <li>Login chip drops the character name (no room) — only portrait + characterId pill survive. Confirm that's OK
+        post-2.8.1 (the name was originally added so users could verify which alt they're logged in as).</li>
+    </ul>
+    <p class="note">
+      The <code>bistot → sites containing this resource</code> cross-reference uses the existing
+      <code>siteResources.typeId</code> column (set in Phase 2.6's resource-aliases pass) — no new schema or queries
+      needed beyond a reverse-lookup. <strong>Scopes</strong> map directly to data sources the codebase already has:
+      <code>tools</code> = the landing-grid tile registry, <code>sites</code> = <code>listSiteDetails()</code>,
+      <code>resources</code> = <code>eve_types</code> SDE table filtered to ore/gas/salvage categories,
+      <code>commands</code> = a static registry like <code>USAGE_ACTIONS</code> mapped to handlers.
+    </p>
+  </div>
+
+</div>
+</body>
+</html>

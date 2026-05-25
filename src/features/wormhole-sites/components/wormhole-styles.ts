@@ -1,6 +1,5 @@
-import type { PillTone } from '@/components/ui/pill';
-import type { ChipTone } from '@/components/ui/chip';
-import type { DotTone } from '@/components/ui/dot';
+import { toneTextClass } from '@/components/ui/tones';
+import type { PillTone, ChipTone, DotTone } from '@/components/ui/tones';
 import type { SiteType, WormholeClass } from '../types';
 
 /**
@@ -75,9 +74,9 @@ export function dpsTier(dps: number | null | undefined): DpsTier {
 }
 
 export const DPS_TIER_CLASS: Record<DpsTier, string> = {
-  low:  'text-[#3dd68c]',
-  mid:  'text-[#ffaa22]',
-  high: 'text-[#ff5555]',
+  low:  toneTextClass('green'),
+  mid:  toneTextClass('orange'),
+  high: toneTextClass('red'),
 };
 
 /** Scan-class pill ("Cosmic Anomaly" vs "Cosmic Signature"). */

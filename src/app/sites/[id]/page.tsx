@@ -33,7 +33,7 @@ export default async function SiteDetailPage({
       <div className="w-full max-w-[1100px] mb-6">
         <Link
           href={backHref}
-          className="text-[10px] tracking-[0.12em] uppercase text-muted hover:text-name"
+          className="text-[10px] tracking-[0.12em] uppercase text-muted"
         >
           ← Return to full list
         </Link>

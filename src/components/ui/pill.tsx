@@ -1,19 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import type { PillTone } from './tones';
 
-export type PillTone =
-  | 'neutral'
-  | 'green'
-  | 'green-strong'
-  | 'orange'
-  | 'orange-soft'
-  | 'red'
-  | 'red-soft'
-  | 'magenta'
-  | 'purple'
-  | 'yellow'
-  | 'teal'
-  | 'blue';
+export type { PillTone };
 
 const TONE: Record<PillTone, string> = {
   neutral:      'bg-[#161e28] text-[#506070] border-[#1e2c3a]',

@@ -4,6 +4,264 @@
 
 ---
 
+## Version 2.9.2: COMPLETE (2026-05-25)
+
+Session N of the 2.9 plan doc. The slice-agnostic foundation the rest of 2.9
+needs: a centralized tone vocabulary, a documented typography scale, the
+polish/motion vocabulary baked into globals, and a proper chrome wrapper so
+the brand wordmark appears on every page. No new pages, no new features —
+the site looks ~95% identical to today; the visible deltas are a brighter
+muted text color, a universal link-hover-to-green, and the LGI.tools
+wordmark joining the top header.
+
+What landed:
+
+- **`src/components/ui/tones.ts` is the shared tone vocabulary.** Twelve
+  named tones (`neutral`, `green`, `green-strong`, `orange`, `orange-soft`,
+  `red`, `red-soft`, `magenta`, `purple`, `yellow`, `teal`, `blue`) exposed
+  as a single `Tone` union. `PillTone = Tone` (full vocabulary), `ChipTone =
+  Extract<Tone, 'blue' | 'red' | 'purple' | 'green' | 'orange'>`,
+  `DotTone = Extract<Tone, 'orange' | 'blue'>`. Pill / Chip / Dot import their
+  types from here and re-export — their internal className lookup tables
+  (the rendering concern) stay where they live. `toneTextClass(tone)` is
+  the text-only helper for inline values like DPS tier labels; returns a
+  `text-[var(--color-…)]` className.
+
+- **`wormhole-styles.ts` imports from `tones.ts`, not from primitive files.**
+  Domain mappings (C5 → red, WEB → blue, …) are unchanged in meaning — only
+  the import path moved. The one hex-literal that used to live in
+  `wormhole-styles.ts` (`DPS_TIER_CLASS = { low: 'text-[#3dd68c]', … }`) is
+  gone — replaced with `toneTextClass('green' | 'orange' | 'red')`. Verified
+  in-browser: DPS cells now render with `text-[var(--color-isk)]` and
+  `text-[var(--color-dps-mid)]` classes.
+
+- **`--color-muted` value flipped from `#3a5060` to `#6a7a8a` globally.**
+  Per user decision (one token migration, every `text-muted` consumer
+  brightens). 32 source files use `text-muted` — all picked up the lift
+  without any other edits. `git grep "#3a5060"` returns zero hits inside
+  `src/` after the change. The token name stays `--color-muted` for
+  source-compatibility; the value is the only thing that moved.
+
+- **Typography scale added to `@theme`.** `--text-caption` (9px),
+  `--text-micro` (10px), `--text-body` (11px), `--text-title-sm` (18px),
+  `--text-title` (22px), `--text-hero` (clamp(40px, 7vw, 72px)). Existing
+  ad-hoc `text-[Npx]` usages stay valid. Tailwind v4 JIT only emits a
+  utility class on first reference — `text-caption` activates via PageFooter
+  and `text-body` via PageHeader; the rest are documented but inert until
+  used (the comment block above the declarations calls this out).
+
+- **Universal `a:hover` rule landed in `globals.css`.** Every `<a>`
+  transitions `color: var(--color-isk)` in 150ms. Bake-in of the wireframes'
+  link-hover vocabulary. Tailwind hover utilities removed from the four
+  anchors where the global rule supersedes them: `Footer.tsx` (both Legal
+  and version Links), `sites/[id]/page.tsx` (back affordance), and
+  `admin/page.tsx` (Clear link). The three places where explicit hover
+  overrides are *load-bearing* — `app/page.tsx` (`group-hover:text-isk` on a
+  child of a `<Link>`, where the child's explicit `text-muted` would block
+  inheritance from the global rule), `admin/AdminActivitySummary.tsx`
+  (`text-isk hover:text-name`, intentional inversion since text is already
+  green by default), and `admin/usage/page.tsx` (range-selector chip,
+  hovering an inactive chip green would visually collide with the active-chip
+  green) — keep their explicit overrides.
+
+- **`src/components/AppHeader.tsx` is the chrome pattern.** Parallel to
+  `Footer.tsx`. Composes the brand wordmark on the left + `<LoginButton>` on
+  the right inside the slot-based `PageHeader` primitive. Wordmark is
+  text-only (`LGI<span className="text-muted">.</span>tools`), Barlow
+  Condensed bold, 14px, uppercase, linked to `/`. `layout.tsx` now mounts
+  `<AppHeader session={…} showAdminLink={…}/>` in place of the older
+  `<PageHeader right={…}/>` — `PageHeader` itself is untouched, still the
+  generic two-slot primitive.
+
+- **`PageHeader` and `PageFooter` tightened to the token system.** PageHeader
+  uses `text-body` (was `text-[11px]`); PageFooter uses `border-border` (was
+  `border-[#1e2535]`) and `text-caption` (was `text-[9px]`). No behavior
+  change.
+
+- **`APP_VERSION` bumped to `2.9.2`.** Hand-edit per the 2.8.3 convention.
+  Footer version-link now reads `v2.9.2`.
+
+- **Tests + verification.** New `src/components/ui/tones.test.ts` (3 cases —
+  one per `toneTextClass` mapping). Vitest at 411/411 green (was 408 at end
+  of 2.8.5). `pnpm build` green. Browser walkthrough confirmed:
+  - Landing (`/`) — wordmark in header, footer is brighter muted, hero
+    untouched, single LIVE tile renders.
+  - `/sites` — wordmark in header, 69 sites render in their domain tones
+    (C1 green, C4 magenta, C5 red, Combat red-soft), DPS cells emit
+    `text-[var(--color-isk)]` etc., filter bar unchanged.
+  - `/changelog` — wordmark in header, version-link reads `v2.9.2`, body
+    copy brighter.
+  - `FeedbackModal` opens, no console errors.
+  - Zero `#3a5060` hits in `src/` after the migration.
+
+Shipped on branch `version-2.9.2-shared-visual-primitives`.
+
+Decisions worth carrying forward to Session O (navigation chrome + landing
+grid):
+
+- **The brand wordmark slot in `AppHeader` will grow to host the nav-tool
+  strip.** Today's `AppHeader` renders only the wordmark on the left. Session
+  O extends it: `[wordmark] [global search] [Wormhole Sites · Industry
+  Planner · Wormhole Roll Calc]` per `nav-search-inline-push.html`. Right
+  slot (LoginButton cluster) stays protected via `flex-shrink: 0` per the
+  2.9.1 carry-forward.
+
+- **JetBrains Mono still open.** Deferred from 2.9.2 per user call ("decide
+  when the SVG wordmark goes into production"). Re-ask at the top of
+  Session O. If adopted, add `--font-jb` via next/font in layout.tsx and
+  render the hero wordmark with it; otherwise the existing Barlow Bold
+  carries the brand.
+
+- **Typography scale is in source but only `text-caption` + `text-body` are
+  live.** Tailwind v4 JIT generation means the other sizes won't render
+  until a consumer references them. Session O / P naturally pick this up as
+  new content lands — no special migration needed, just *use* `text-title`
+  for the hero, `text-title-sm` for card titles, `text-micro` for pill labels.
+
+- **The `toneTextClass` helper takes a deliberately narrow subset (`green |
+  orange | red`).** Future status labels (freshness, online/offline) extend
+  this when they ship — widen the input type in `tones.ts`, add a new branch
+  to the switch. Don't widen ahead of an actual consumer.
+
+- **The global `a:hover` rule is intentionally simple.** Specificity-wise,
+  Tailwind's `hover:text-X` overrides it; that's the escape hatch when an
+  anchor genuinely needs different hover behavior. Keep adding `hover:text-*`
+  to anchors only when the green-on-hover default is wrong for the context.
+
+`VERSION_2.9_PLAN.md` stays in the repo — Sessions O through Q are still
+ahead. No archive moves this session.
+
+## Version 2.9.1: COMPLETE (2026-05-25)
+
+Planning-only session (Session M in the 2.9 plan doc) establishing the
+cross-tool visual identity, navigation shape, and information density for
+the 2.9 envelope. Three approved wireframes plus six rejected explorations
+shipped to `docs/wireframes/`; one plan-doc rename. Zero production code,
+zero `src/` edits — implementation lands in subsequent sessions (N → Q).
+
+What landed:
+
+- **`PHASE_2.9_PLAN.md` → `VERSION_2.9_PLAN.md` rename** via `git mv`, plus
+  a SCRATCHPAD sweep removing the "Will rename when the version is actually
+  opened" placeholder. The 2.7-onward `VERSION_<n>_PLAN.md` naming is now
+  consistent across every active plan doc.
+
+- **`docs/wireframes/` is the new directory for low-fi sketches.** Three
+  approved files at the top level, six rejected explorations in
+  `_rejected/` (kept as decision records, not deleted, per user call).
+  Each file is self-contained HTML/SVG with inline `<style>`, opens in any
+  browser via `file://`, no dev server needed.
+
+- **`landing-grid.html` (approved) — multi-tool landing replacement.**
+  Hero `[ Lo-Gang ] Industries.tools` (no terminal cursor — see below),
+  three tiles: 1 LIVE (`Wormhole Sites`, drawn in its hover state to
+  demo the polish vocabulary), 2 SOON (`Industry Planner`, `Wormhole
+  Roll Calculator`). Grid uses `repeat(auto-fill, minmax(270px, 1fr))`
+  with 12px gap; handles 4–8 tools without rebalancing. SOON tiles are
+  `cursor: default` with 60% description opacity and no hover-glow —
+  the LIVE/SOON badge is the only permanent differentiator.
+
+- **`nav-search-inline-push.html` (approved) — global nav with embedded search.**
+  44px sticky top bar. Layout: `[wordmark] [search 280px] [Wormhole
+  Sites · Industry Planner · Wormhole Roll Calc] [freshness · login chip]`.
+  On focus, the search expands to 440px and tool links shrink from full
+  labels to 2-letter abbreviations (`WH/IP/WR`). Tools have `flex-shrink: 1`;
+  search bar's expansion ceilings at whatever room remains. **Right slot
+  (admin chip · portrait · name · characterId) is bulletproof via
+  `flex-shrink: 0` — never gets pushed, even at narrow viewports.**
+  Dropdown anchors to the search input position, ~520px wide, with
+  Spotlight-style categorized results: `Sites`, `Recent`, `Commands`.
+  Future scopes (`Tools`, `Resources`, `Help`) plug into the same UI.
+
+- **`sites-density.html` (approved) — resource-scoped card hovers.**
+  Both density affordances (card-glow + resource-preview overlay) scoped
+  to **ore + gas cards only**. Combat / relic / data cards stay completely
+  static — no `:hover` rule, no glow, no preview. Implementation note for
+  Session P: `SiteCard.tsx` already computes `isWaveDriven = isCombat ||
+  isHackSite` (line 46) — emit a `.card.resource` vs `.card.wave-driven`
+  class from there. No new prop, no new logic. The resource preview shows
+  top-3 by ISK + total, anchored to the trailing metric block.
+
+- **Wordmark stripped of the terminal cursor across all wireframes.** Earlier
+  iterations had a green `█` block at the end of `[LGI].tools` (animated
+  blink) and at the end of the hero's `Industries.tools`. All removed
+  per user feedback ("no more blinking it's too much"). Search inputs use
+  the browser's native text caret when focused; the only styled visual
+  is the green `>` prompt at the input's left edge. One thing happening
+  at a time.
+
+- **Six rejected explorations in `docs/wireframes/_rejected/`** as decision
+  records. `nav-top-bar.html` (pre-search-in-nav recommendation, superseded
+  once search-in-nav was on the table). `nav-side-rail.html` (vertical rail
+  — lost on brand legibility). `nav-command-bar.html` (⌘K modal overlay —
+  superseded by inline). `nav-command-bar-from-logo.html` (panel dropping
+  from the wordmark cursor — obsolete after cursor removal).
+  `nav-search-overlay-takeover.html` (search expanding over the whole nav —
+  too dramatic; chosen variant pushes instead). `nav-search-dominant-
+  spotlight.html` (search permanently dominant with always-visible scope
+  chips — too aggressive for current scale).
+
+- **Reference HTML files at `../LGI Tool References/`** (`lgi-landing-v2.html`
+  + `lgi-nav-logo.html`) are the canonical visual baseline. Same tokens as
+  `globals.css` verbatim. Two divergences from current code that the
+  wireframes adopted: **JetBrains Mono** for the wordmark/hero (the codebase
+  currently uses Barlow Condensed for display), and a new
+  **`--text-muted-2: #6a7a8a`** brighter muted token that replaces today's
+  `#3a5060` everywhere footer copy / freshness chips / dim nav-tools /
+  section labels appear.
+
+Decisions worth carrying forward to Session N (shared visual primitives):
+
+- **Polish & motion vocabulary is documented in the wireframes**, ready to
+  port verbatim to production CSS:
+  - Tile hover: 2px green top-border via `::before` pseudo-element + tinted
+    background (`#090e0c`) + outer glow `box-shadow: 0 0 0 1px
+    rgba(61,214,140,0.15), 0 8px 24px -8px rgba(61,214,140,0.2)`.
+  - Card hover (site cards, ore/gas only): lower-intensity glow
+    `box-shadow: 0 0 0 1px rgba(61,214,140,0.08)` + 1px green-tinged border.
+  - Link hover: every `<a>` transitions color to `--isk` in 150ms. Replaces
+    the codebase's ad-hoc `hover:opacity-90` / `hover:text-name` patterns.
+
+- **`--text-muted-2: #6a7a8a` should land in `globals.css`.** Used everywhere
+  a footer/dim/freshness/section-label currently uses `--text-muted`. Decide
+  during Session N whether to retire the original token or keep both.
+
+- **Right-slot protection is load-bearing.** The login chip cluster must
+  never get pushed by search expansion or tool growth. CSS contract:
+  `flex-shrink: 0` on `.nav-right`, `flex-shrink: 1` on `.nav-tools`. If
+  the platform ever exceeds ~5 top-level tools, group them under
+  `Wormholes ▾ → Sites / Roll Calc` / `Industry ▾ → Planner / Blueprints`
+  dropdowns rather than letting the nav grow. User explicitly chose grouping
+  over horizontal expansion.
+
+- **Search becomes the global navigation primitive.** Inline-push is the
+  chosen mechanic. Long-term the search covers tools, all 69 sites, all SDE
+  ore + gas + salvage types, recent history, and commands (refresh prices,
+  open changelog, log out, admin actions). The existing `<TerminalSearch>`
+  primitive (currently feature-scoped to `/sites`) is the starting point —
+  Session N or O promotes it to global and extends the parse + suggest
+  callbacks to handle the cross-source result set.
+
+- **JetBrains Mono adoption is undecided.** Wireframes use it for the
+  wordmark + hero per the reference files. Adopting means a third Google
+  Font import in `layout.tsx` and a new `--font-jb` token. Substituting
+  re-renders the SVG wordmark using Barlow Bold (the bracket-stamp shape
+  carries the brand regardless). Confirm before any production CSS lands.
+
+- **The `nav-command-bar-from-logo.html` concept is dead.** It was the
+  bridge between "pure command-bar overlay" and "inline search" — the
+  user converged on inline-push, which makes the cursor-as-portal mechanic
+  unnecessary. File remains in `_rejected/` for context but should not
+  inform Session N.
+
+- **No `CHANGELOG.md` entry for 2.9.1.** Per CLAUDE.md ("would a wormhole
+  pilot loading the site notice this?"): no — this is internal planning,
+  no user-facing surface changed. A "platform groundwork" one-liner can
+  land when Session N's user-visible primitives ship.
+
+`VERSION_2.9_PLAN.md` stays in the repo — sessions N through Q are still
+ahead. No archive moves this session.
+
 ## Version 2.8.5: COMPLETE (2026-05-25)
 
 Public-beta readiness shipped. The user-facing trust layer — the
@@ -909,9 +1167,8 @@ Naming convention switched from "phase" to "version" starting at
   decoupled from 2.7.1 because the Sheet doesn't encode the drop tables
   we'd need. Source TBD (EVE-Uni wiki is the working assumption).
   Promote to `VERSION_2.7.4_PLAN.md` when work starts.
-- [PHASE_2.9_PLAN.md](PHASE_2.9_PLAN.md) — pre-3.0 visual overhaul
-  (also covers the J/K UX work deferred out of 2.5). Will rename
-  to VERSION_2.9 when the version is actually opened.
+- [VERSION_2.9_PLAN.md](VERSION_2.9_PLAN.md) — pre-3.0 visual overhaul
+  (also covers the J/K UX work deferred out of 2.5).
 - Phase 2, 2.5, and 2.6 historical briefs are archived under
   `../LGI Tools Document Archive/` (outside this repo) — the
   active repo only carries plan docs for work that's in-progress
