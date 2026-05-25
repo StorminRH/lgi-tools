@@ -6,6 +6,9 @@ for the full forensic record.
 
 ### 2026-05-25
 
+- The landing page now shows the full LGI.tools lineup — Wormhole Sites is live; Industry Planner and Wormhole Roll Calculator are stubbed as Coming Soon.
+- A persistent tool strip now sits in the header, so you can jump between tools without going through the landing page.
+- The landing hero now reads "Lo-Gang Industries.tools" in a sharper typeface that pairs with the LGI.tools wordmark.
 - Improved readability across the site by brightening secondary text in footers, captions, and chrome elements.
 - Every link now glows green on hover for a more consistent interactive feel.
 - The LGI.tools wordmark now sits in the top-left of every page and clicks back to the landing.

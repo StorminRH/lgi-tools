@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Barlow_Condensed } from "next/font/google";
+import { IBM_Plex_Mono, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import { AppHeader } from "@/components/AppHeader";
@@ -20,6 +20,12 @@ const barlow = Barlow_Condensed({
   weight: ["400", "500", "600", "700"],
 });
 
+const jetBrainsMono = JetBrains_Mono({
+  variable: "--font-jb",
+  subsets: ["latin"],
+  weight: ["400", "700", "800"],
+});
+
 export const metadata: Metadata = {
   title: "LGI.tools",
   description: "Lo-Gang Industries — Eve Online wormhole tools",
@@ -36,7 +42,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plexMono.variable} ${barlow.variable} h-full`}
+      className={`${plexMono.variable} ${barlow.variable} ${jetBrainsMono.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
         <AppHeader session={session} showAdminLink={showAdminLink} />

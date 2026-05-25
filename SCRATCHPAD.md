@@ -4,6 +4,174 @@
 
 ---
 
+## Version 2.9.3: COMPLETE (2026-05-25)
+
+Session O of the 2.9 plan doc. The cross-tool navigation chrome + the
+multi-tool landing grid land — porting two of the three approved 2.9.1
+wireframes (`docs/wireframes/landing-grid.html` and the nav-tools portion
+of `docs/wireframes/nav-search-inline-push.html`) into production. After
+2.9.3 a visitor on `/` sees the full LGI.tools lineup as a 3-tile grid;
+from any page a persistent header tool-strip lets them jump between
+tools without going through the landing.
+
+What landed:
+
+- **`AppHeader` is now the cross-tool nav surface, not a `PageHeader`
+  wrapper.** Renders the `<header>` element directly with a three-slot
+  layout: bracket-stamp wordmark on the left, `NavTools` strip in the
+  middle, login cluster on the right. Per the 2.8.3 SCRATCHPAD decision
+  ("PageHeader and PageFooter no longer strictly mirror each other …
+  extract symmetry when both sides demand it"), didn't grow `PageHeader`
+  to three slots for one consumer — the two-slot primitive stays
+  available to any other surface that wants it. Headline chrome: `h-11`
+  (44px per wireframe), `border-b border-border`, `bg-section`.
+
+- **`src/components/NavTools.tsx` is the cross-tool nav strip.** Tiny
+  Client Component (`'use client'`) using `usePathname()` for active
+  state. Hard-coded `TOOLS` const-array with three entries — Wormhole
+  Sites (`/sites`, prefix-matched so `/sites/[id]` also activates),
+  Industry Planner (`href: null`, dim span, `cursor: default`,
+  opacity 0.55), Wormhole Roll Calc (same SOON treatment). Active state
+  flips the link's `text-muted` → `text-name` and `border-transparent` →
+  `border-isk`, exactly matching the wireframe's `.nav-tool.active`
+  vocabulary.
+
+- **JetBrains Mono added via `next/font/google`.** Weights 400 / 700 /
+  800. Variable name `--font-jb`, exposed in `@theme` next to
+  `--font-mono` and `--font-display`. Reachable via Tailwind's `font-jb`
+  utility. First two live consumers: the header wordmark and the landing
+  hero. Barlow Condensed stays the display font for card titles,
+  section headers, and any other large-but-not-hero copy.
+
+- **Header wordmark is now `[LGI].tools` in JetBrains 800.** Replaces
+  the 2.9.2 Barlow `LGI.tools` per the wireframe's bracket-stamp brand
+  mark. Color split: brackets `text-isk`, `LGI` `text-name`, `.tools`
+  `text-muted`. Stays a `<Link href="/">` so wordmark-click still
+  returns home.
+
+- **Landing hero is `[ Lo-Gang ] Industries.tools` in JetBrains.** First
+  live consumer of the `--text-hero` token added in 2.9.2 (clamp 40 ↔
+  72px). Two-line layout: `[ Lo-Gang ]` at hero size with green
+  bracket-stamps, `Industries.tools` underneath at clamp(14, 2.4vw, 24)
+  with the canonical color split (Industries muted, `.` and `tools` in
+  ISK green). Tagline below in mono: "A collection of tools for Eve
+  Online."
+
+- **Three-tile landing grid replaces the single-tile placeholder.**
+  Inline in `src/app/page.tsx` — no `<ToolTile>` primitive extracted
+  (single consumer; extract when a second tile-grid surface lands per
+  CLAUDE.md "Three similar lines is better than a premature
+  abstraction"). Grid uses `repeat(auto-fill, minmax(270px, 1fr))` with
+  12px gap; at 1280px viewport it renders as 3 columns of ~296px each.
+  Lineup: Wormhole Sites (LIVE, `<Link href="/sites">`), Industry
+  Planner (SOON `<div>`, Phase 3), Wormhole Roll Calculator (SOON
+  `<div>`, Backlog). Fit Mapper was NOT added — confirmed with user
+  this session that the wireframe lineup is correct.
+
+- **`.tool-tile` styles live in `globals.css`.** Three classes:
+  `.tool-tile` (shared chrome: bg-section, border, 4px radius, 22px
+  padding, flex column with 12px gap), `.tool-tile-live` (cursor
+  pointer, hover with `border-color #1a3a28` + `background #090e0c` +
+  multi-layer green-tinged box-shadow, `::before` pseudo-element for
+  the 2px top-border accent that fades in on hover, opacity 0 → 1 in
+  150ms), `.tool-tile-soon` (`cursor: default`, `.tile-desc` opacity
+  0.6). Pushed into globals because the hover vocabulary (pseudo +
+  multi-layer shadow) is too rich for utility classes. Hex `#1a3a28`
+  reused inline from `pill.tsx` green tone — not yet tokenized as
+  `--color-isk-dim` because one consumer doesn't justify it.
+
+- **Override of the universal `a:hover` rule on the LIVE tile.**
+  The 2.9.2 universal `a:hover { color: var(--color-isk) }` would turn
+  the tile's title text green on hover, but the tile already
+  telegraphs interactivity via border + box-shadow + top-border
+  pseudo. Added `.tool-tile-live:hover, .tool-tile-live:hover * { color:
+  inherit }` to keep inner text in its at-rest palette.
+
+- **`APP_VERSION` bumped to `2.9.3`.** Hand-edit per the 2.8.3
+  convention. Footer version-link now reads `v2.9.3`.
+
+- **Tests + verification.** No new tests — `NavTools` is a
+  pathname-→-className branch (presentational), and the landing is
+  pure JSX. Vitest at 411/411 green (unchanged from 2.9.2). `pnpm
+  build` green. Browser walkthrough at `localhost:3000`:
+  - `/` — bracket-stamp hero in JetBrains, three tiles in one row,
+    SOON descriptions visibly dimmer (opacity 0.6, cursor default),
+    LIVE tile's `::before` armed (content `""`, position absolute, 2px
+    ISK-green, opacity 0 at rest, flips to 1 on `:hover`).
+  - `/sites` — "Wormhole Sites" in the nav strip gets `text-name`
+    (rgb 220, 232, 240) + 2px ISK-green bottom border. Filter bar +
+    69 sites + terminal search untouched.
+  - `/?auth_error=state_mismatch` — Callout renders above the hero
+    (existing behavior preserved through the rewrite).
+  - Login cluster (admin chip + portrait + name + logout) intact in
+    the right slot across all pages.
+
+- **Dev-environment gotchas encountered, again.** Hit the documented
+  Postgres "too many clients already" mid-session (per the 2.8.4
+  carry-forward in this scratchpad). Cleared via:
+  ```
+  docker compose exec -T postgres psql -U lgi -d lgi_tools -c "SELECT
+  pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name
+  = 'postgres.js' AND state = 'idle';"
+  ```
+  Also hit a Tailwind v4 / Turbopack quirk where appending raw CSS to
+  `globals.css` didn't trigger HMR — the served stylesheet kept the old
+  contents until a trivial edit (adding a comment line) forced a
+  rebuild. Worth noting: if a new raw CSS rule doesn't seem to apply
+  after editing `globals.css` in dev, a no-op re-save forces Turbopack
+  to re-emit the CSS chunk.
+
+Shipped on branch `version-2.9.3-nav-and-landing-grid`.
+
+Decisions worth carrying forward (Session O+ follow-ups):
+
+- **In-nav global search bar is still ahead.** The
+  `nav-search-inline-push.html` wireframe also specifies a 280px
+  expandable search input between the wordmark and the tool strip;
+  promoting `<TerminalSearch>` to a global cross-source primitive
+  (parse / suggest hitting sites + tools + recents + commands) is the
+  larger work this session deliberately deferred. When it lands,
+  `AppHeader`'s three-slot layout becomes four-slot — wordmark / search
+  / tools / right-cluster — and the existing flex layout already has
+  `min-w-0` + `shrink-0` in the right places to absorb the new
+  middle slot. Right slot's `shrink-0` is load-bearing.
+
+- **Tile freshness chip on the LIVE tile is a small unbuilt detail.**
+  The wireframe shows `prices 3h ago` in the LIVE tile's footer next
+  to the class pills — would need a server-side read of the latest
+  `market_prices` write timestamp. Worth landing alongside any future
+  market-prices polish pass.
+
+- **Footer `Lo-Gang Industries` brand wordmark is also deferred.** The
+  wireframe shows it in JetBrains Bold at the footer-left; current
+  `Footer.tsx` doesn't have a corp-name slot. Land alongside any future
+  footer polish.
+
+- **Tile primitive extraction stays deferred.** Three inline tiles in
+  `page.tsx` is fine until a second tile-grid surface appears
+  (sub-tool index page, "you might also like" surface, etc.). Then
+  extract `<ToolTile>` with `variant: 'live' | 'soon'` and consume
+  from both sites.
+
+- **JetBrains Mono adoption decision is now closed.** It's in. The
+  three font families now wired through `next/font` are IBM Plex Mono
+  (`--font-mono` / body copy), Barlow Condensed (`--font-display` /
+  card + section titles), and JetBrains Mono (`--font-jb` / wordmark +
+  hero + future "command-line voice" chrome). No further fonts likely
+  needed for the foreseeable.
+
+- **Active-state contract is prefix-match per tool.** `NavTools` walks
+  the TOOLS array, treating `matchPrefix` as a `pathname.startsWith()`
+  check. Adding a new tool with sub-routes (e.g., Industry Planner with
+  `/industry/[blueprintId]`) is a one-line addition — set `matchPrefix:
+  '/industry'` and any `/industry/*` route activates it. Don't reach
+  for regex or route-segment introspection until the prefix-match
+  contract genuinely breaks.
+
+`VERSION_2.9_PLAN.md` stays in the repo — Sessions P (sites density
+refresh) and Q (cross-site table view) are still ahead. No archive moves
+this session.
+
 ## Version 2.9.2: COMPLETE (2026-05-25)
 
 Session N of the 2.9 plan doc. The slice-agnostic foundation the rest of 2.9
