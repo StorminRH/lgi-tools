@@ -3,7 +3,7 @@ import { IBM_Plex_Mono, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import { PageHeader } from "@/components/ui/page-header";
 import { LoginButton } from "@/features/auth/components/LoginButton";
-import { getSession } from "@/features/auth/session";
+import { getSession, isAdmin } from "@/features/auth/session";
 
 const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
@@ -28,6 +28,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSession();
+  const showAdminLink = isAdmin(session);
 
   return (
     <html
@@ -35,7 +36,9 @@ export default async function RootLayout({
       className={`${plexMono.variable} ${barlow.variable} h-full`}
     >
       <body className="min-h-full">
-        <PageHeader right={<LoginButton session={session} />} />
+        <PageHeader
+          right={<LoginButton session={session} showAdminLink={showAdminLink} />}
+        />
         {children}
       </body>
     </html>
