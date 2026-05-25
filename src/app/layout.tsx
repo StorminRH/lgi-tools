@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoginButton } from "@/features/auth/components/LoginButton";
+import { getSession } from "@/features/auth/session";
 
 const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
@@ -19,17 +22,22 @@ export const metadata: Metadata = {
   description: "Lo-Gang Industries — Eve Online wormhole tools",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSession();
+
   return (
     <html
       lang="en"
       className={`${plexMono.variable} ${barlow.variable} h-full`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <PageHeader right={<LoginButton session={session} />} />
+        {children}
+      </body>
     </html>
   );
 }
