@@ -102,6 +102,22 @@ Decisions worth carrying forward:
 
 Shipped on branch `version-2.8.1-eve-sso-login` — [PR #10](https://github.com/StorminRH/lgi-tools/pull/10).
 
+**Bootstrap done in this session.** EVE character `2114872920` (Nimrots
+Sarikusa — the developer's primary account, also the owner of the EVE
+SSO app registration in CCP's portal) is the superadmin. The
+`SUPERADMIN_CHARACTER_ID` env var is already set in `.env.local` and in
+Vercel production, so 2.8.2's admin gate will recognise it the moment
+the middleware ships. The DB row stays role `USER` — superadmin
+authority comes from the env, ADMIN from the DB, intentional separation
+per the 2.8 decisions doc.
+
+**JWT issuer bugfix.** First real login surfaced one bug — `EVE_ISSUER`
+was set to `login.eveonline.com` but EVE's JWT `iss` claim is the full
+URL `https://login.eveonline.com`. One-character fix in `eve-sso.ts`.
+Worth remembering: EVE's JWT claims use full URLs for `iss`, and `aud`
+is an array containing both the client_id and the literal string `"EVE
+Online"` — we audience-check against the latter.
+
 `VERSION_2.8_PLAN.md` stays in the repo (still active — 2.8.2 through
 2.8.5 ahead). No archive moves this session.
 

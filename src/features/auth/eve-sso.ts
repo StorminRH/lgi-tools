@@ -7,7 +7,7 @@ import type { EveJwtClaims, EveTokenResponse } from './types';
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
 export const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
 export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
-export const EVE_ISSUER = 'login.eveonline.com';
+export const EVE_ISSUER = 'https://login.eveonline.com';
 export const EVE_AUDIENCE = 'EVE Online';
 
 // Extending scopes is a config change, not a code change.

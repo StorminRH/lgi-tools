@@ -39,8 +39,9 @@ Same shape as prior plan docs. Before this session, read `CLAUDE.md`, `AGENTS.md
 
 **Goal.** Create a `/admin` route protected by ESI authentication. The dashboard should allow the superadmin to search for other users who have logged in and grant them admin privileges.
 
+**Bootstrap pre-completed in 2.8.1.** The `SUPERADMIN_CHARACTER_ID` env var is already set in `.env.local` and Vercel production (character ID `2114872920`, Nimrots Sarikusa — the developer's primary account, also the account that owns the EVE SSO app registration). No bootstrap step needed in this version.
+
 **Details:**
-- Add `SUPERADMIN_CHARACTER_ID` to `.env.local`.
 - Create middleware or a Server Component check to protect `/admin/*`. Access is granted if the logged-in character's ID matches the `SUPERADMIN_CHARACTER_ID` or if their database role is `ADMIN`.
 - Build the `/admin` dashboard. Include a search bar that queries the `characters` table by name.
 - Display a list of returned characters with a toggle/button to grant or revoke the `ADMIN` role.
