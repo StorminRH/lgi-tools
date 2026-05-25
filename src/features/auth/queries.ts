@@ -85,3 +85,36 @@ export async function setCharacterRole(
 
   return (row as Character | undefined) ?? null;
 }
+
+// Top-level merge into the preferences JSONB. Setting key `b` does not
+// clobber key `a`. Nested objects merge only at the top level — value
+// for an existing key is replaced wholesale.
+export async function setCharacterPreference(
+  characterId: number,
+  key: string,
+  value: unknown,
+): Promise<Record<string, unknown> | null> {
+  const patch = JSON.stringify({ [key]: value });
+  const [row] = await db
+    .update(characters)
+    .set({
+      preferences: sql`${characters.preferences} || ${patch}::jsonb`,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(characters.characterId, characterId))
+    .returning({ preferences: characters.preferences });
+
+  return (row?.preferences as Record<string, unknown> | undefined) ?? null;
+}
+
+export async function getCharacterPreferences(
+  characterId: number,
+): Promise<Record<string, unknown> | null> {
+  const [row] = await db
+    .select({ preferences: characters.preferences })
+    .from(characters)
+    .where(eq(characters.characterId, characterId))
+    .limit(1);
+
+  return (row?.preferences as Record<string, unknown> | undefined) ?? null;
+}

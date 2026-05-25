@@ -4,6 +4,167 @@
 
 ---
 
+## Version 2.8.4: COMPLETE (2026-05-25)
+
+First-party telemetry + the preference-write primitive shipped. The site
+now records its own usage to a `usage_logs` table and an admin-only
+report surfaces it. This is the data plumbing the EVE Partner Program
+audit asks for — no third-party trackers, no IP/UA capture, just
+characterId (nullable for anonymous reach) + action + JSONB metadata.
+
+What landed:
+
+- **`src/data/telemetry/` is the new data slice**, modelled on
+  `src/data/market-prices/` (schema + types + queries, no UI). One
+  table — `usage_logs` (id, timestamp, characterId nullable FK ON
+  DELETE SET NULL, action text, metadata jsonb) — plus three indexes
+  matching the three real read shapes (recent-events by timestamp,
+  group-by-action, per-character timeline). `logUsageEvent()` is the
+  server-side write primitive; six read helpers (`getAggregateSummary`,
+  `getTopActions`, `getDailyCounts`, `getTopPages`, `getTopSearches`,
+  `getRoleChangeAudit`) cover the dashboard + report.
+- **`action` is `text` + a TS const array, NOT a Postgres enum.** The
+  vocabulary grows with every feature (2.8.5 adds `feedback_submitted`,
+  future versions add more) and we don't want a migration per addition.
+  Same pattern the codebase already uses for URL filter validation
+  against `SITE_TYPES` / `WORMHOLE_CLASSES`. Runtime check at the route
+  handler boundary; compile-time check via `UsageAction` literal type.
+- **Anonymous visitors ARE tracked** with `character_id = NULL`. The
+  Partner Program cares about total reach; the EVE Online community is
+  not all logged in. Privacy story is unchanged: no IP, no UA, no
+  session fingerprint — just the URL path and (for terminal search)
+  the typed query.
+- **`<TelemetryReporter>` is the single page-view source.** Client
+  Component mounted once in `src/app/layout.tsx` inside a
+  `<Suspense fallback={null}>` (the `useSearchParams()` hook requires
+  a Suspense boundary or it forces the whole app to client-render).
+  Listens to `usePathname()` + `useSearchParams()`, fires a beacon
+  to `/api/telemetry` per URL change. Skip-list includes `/admin/*`
+  and `/api/*` so the developer's own dashboard inspection doesn't
+  pollute the metrics they're reading.
+- **Server-side actions log directly via `logUsageEvent()`.**
+  `/api/auth/callback` writes `auth_login`, `/api/auth/logout` writes
+  `auth_logout` (after reading the session but before clearing the
+  cookie, so the actor is attributed correctly), `/api/admin/role`
+  writes `role_change` with `{ actorCharacterId, targetCharacterId,
+  from, to }` in metadata. Each call is wrapped in `.catch(console.error)`
+  so a telemetry failure never breaks the user-facing path.
+- **`postTelemetry()` is the client-side helper** at
+  `src/components/telemetry/client.ts`. Two consumers (the page-view
+  reporter and `<SitesTerminalSearch>`) share the sendBeacon-with-fetch-
+  fallback logic. The `keepalive: true` flag on the fetch matters for
+  tab-close cases — sendBeacon is preferred but isn't universally
+  available.
+- **Terminal search now passes the raw input through.** Tiny additive
+  change to the `<TerminalSearch>` primitive's `onSubmit` signature
+  (`(params, raw) => void`). The wormhole-sites wrapper uses the raw
+  string for the `terminal_search` event payload while still passing
+  the parsed params to navigation. Future TerminalSearch consumers
+  (sleeper lookup, killmail browsing, ...) get the same raw-string
+  capture for free without changing their adapter.
+- **Preference infrastructure ships without a consumer.** The original
+  2.8.4 plan was to wire this against the wormhole-sites filter, but
+  the user reversed that call — players bounce between site types as
+  they hop systems in-game, so sticky filters fight the natural flow.
+  Built `setCharacterPreference(characterId, key, value)` /
+  `getCharacterPreferences(characterId)` in `src/features/auth/queries.ts`
+  with the JSONB `||` merge so setting key `b` doesn't clobber key `a`.
+  `POST /api/auth/preferences` is the public surface with a strict
+  key slug regex (`^[a-zA-Z][a-zA-Z0-9_-]*$`), 64-char key cap, and
+  4KB value cap. First real consumer lands when a feature actually
+  wants sticky state (theme, default landing tab, ...).
+- **`/admin` aggregate card** at the top of the page, above the search
+  + admins list. Three stat blocks (total events, unique characters,
+  anonymous events) + a top-5 actions list with horizontal-bar
+  visualisation. Bars are styled `<div>`s with width computed from
+  count/max — no charting library. This is also the 2.8.3-deferred
+  empty-q layout pass; the admin page now opens with overview metrics
+  before the drill-down tools.
+- **`/admin/usage` is the full report.** Server Component, gated by
+  the same `isAdmin()` check as `/admin` (deny-by-default per route,
+  per the 2.8.2 pattern). Range driven by URL: `?range=7d|30d|90d|all`,
+  default 30d. Sections: Summary (3 stat blocks), Daily Activity
+  (table with inline volume bars), Top Actions (bars), Top Pages
+  (bars), Top Terminal Searches (bars), Role Change Audit (chronological
+  table with actor → target via Pill chips). `<PrintButton>` is a small
+  client component that calls `window.print()`.
+- **`@media print` stylesheet in `globals.css`.** Hides global header,
+  footer, FeedbackButton, every `<button>`, and anything marked
+  `.no-print` (range chips + print button itself). Reveals
+  `.print-only` content (a header with "LGI.tools — Usage report" +
+  the date range so a printed page is self-identifying when it leaves
+  the browser). Forces dark text on white, tightens table borders to
+  print-friendly grey, locks the bar fills to a single mid-grey
+  attribute selector so the bars remain visible after the dark-mode
+  override. Sections get `break-inside: avoid` so a Card doesn't split
+  mid-page. Zero new deps — browser's native "Save as PDF" produces
+  the partner-program submission directly.
+- **`APP_VERSION` bumped to `2.8.4`.** Hand-edited per the convention
+  introduced in 2.8.3 (decoupled from `package.json`'s `version`).
+- **Tests + verification.** New tests: `lastNDaysRange` correctness
+  (3 cases), `/api/telemetry` route input validation (6 cases —
+  authenticated write, anonymous write, unknown action, non-object
+  metadata, oversized metadata, malformed JSON), `/api/auth/preferences`
+  route validation (6 cases — 401 unauth, valid write, bad key
+  pattern, oversized key, oversized value, 404 missing character).
+  Updated the 2.8.2 role-toggle test to mock the new telemetry module
+  so route tests stay decoupled from the data layer. Vitest at 396/396
+  green (was 381 at the end of 2.8.3). Full local e2e in the browser:
+  page-view rows confirmed for both authenticated and anonymous
+  navigations, terminal_search rows captured the raw query + parsed
+  shape, /admin and /admin/usage both excluded from the skip-list,
+  preference merge confirmed via two sequential POSTs producing
+  `{ theme: 'dark', tab: 'overview' }`, print stylesheet rules
+  verified loaded in the document's CSSOM.
+
+Shipped on branch `version-2.8.4-telemetry-and-preferences`.
+
+Decisions worth carrying forward to 2.8.5:
+
+- **`role_change` audit lives in `usage_logs`, not a dedicated table.**
+  One operational audit + telemetry store is cleaner than two; the
+  Role Change Audit section of `/admin/usage` reads back via
+  `getRoleChangeAudit()` and joins to `characters` for name display.
+  2.8.5 should follow the same pattern: log `feedback_submitted`
+  to `usage_logs` rather than a separate `feedback_events` table.
+  The Discord webhook is the user-facing destination; `usage_logs`
+  is the local record that something was sent.
+- **`postTelemetry()` is the client-side fast path for any new event.**
+  When 2.8.5 adds the feedback modal, the submit handler should call
+  `postTelemetry({ action: 'feedback_submitted', metadata: {} })`
+  alongside the Discord webhook POST. Add `feedback_submitted` to
+  `USAGE_ACTIONS` and the dashboard will pick it up automatically
+  (it's already in the Top Actions list logic).
+- **Preference primitive is ready for a real consumer.**
+  `setCharacterPreference(characterId, key, value)` is the write
+  path; the API endpoint is `/api/auth/preferences`. If 2.8.5 (or
+  later) wants the user to dismiss the beta banner permanently, that
+  becomes `preferences.dismissedBetaBanner: true` written via this
+  endpoint. No new infrastructure needed.
+- **The `<TelemetryReporter>` Suspense boundary is load-bearing.**
+  Don't move the reporter out of its `<Suspense fallback={null}>` —
+  `useSearchParams()` is the trigger for Next.js's full-page CSR
+  bailout, and the Suspense scopes the bailout to the reporter only
+  (which renders nothing anyway).
+- **The dev DB connection pool can exhaust during Fast Refresh.** If
+  you see "sorry, too many clients already" in dev logs, run
+  `docker compose exec -T postgres psql -U lgi -d lgi_tools -c
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE
+  application_name = 'postgres.js' AND state = 'idle';"` to clear
+  stale idle connections. Not specific to telemetry — any heavy
+  Next.js editing session can trigger it.
+- **2.9 visual pass deferral.** The user has explicitly said the
+  2.8.4 surfaces (admin aggregate card, /admin/usage layout, print
+  output) are functional-only — visual polish lands in 2.9.
+  Recommended pass for 2.9: tighten the stat-block typography,
+  reconsider the volume-bar density on Daily Activity (currently
+  each row has its own bar — might collapse to a single sparkline),
+  and audit the print output against an actual letter/A4 PDF rather
+  than the in-browser approximation.
+
+`VERSION_2.8_PLAN.md` stays in the repo — 2.8.5 is the last sub-version
+ahead. After 2.8.5 ships, archive the plan doc.
+
 ## Version 2.8.3: COMPLETE (2026-05-25)
 
 The public-beta shell shipped. Three deliverables in one PR — terminal

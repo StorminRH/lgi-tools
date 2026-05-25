@@ -41,3 +41,76 @@ body {
 details[data-collapsible][open] > summary [data-chevron] {
   transform: rotate(180deg);
 }
+
+/* Print-only content (e.g. report header) is hidden on screen and shown
+ * when printing. Pair with the .no-print class below for the inverse. */
+.print-only {
+  display: none;
+}
+
+/* Reset for print: force a clean letter/A4 layout on the usage report.
+ * Hides global chrome (header, footer, feedback button, the print button
+ * itself) and forces dark-on-light typography that survives the user's
+ * "Save as PDF" step in their browser's print dialog. */
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #111 !important;
+  }
+
+  /* Hide everything in the global shell that isn't the report itself. */
+  body > header,
+  body > footer,
+  body > a[href="/feedback"],
+  .no-print,
+  button {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  /* Cards stay visible but lose their dark-mode backgrounds. */
+  main {
+    padding-top: 0 !important;
+  }
+  main * {
+    background: transparent !important;
+    color: #111 !important;
+    border-color: #999 !important;
+  }
+
+  /* Keep each Card section together when possible. */
+  main section,
+  main [class*='border-border'] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Bar fills stay visible — print stylesheets can override them, so we
+   * lock the visualisation divs to a printable mid-grey via attribute. */
+  [aria-hidden][style*='width:'] {
+    background: #222 !important;
+  }
+
+  /* Tables: print-friendly borders, no row hover. */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th, td {
+    border-bottom: 1px solid #ccc !important;
+    padding: 4px 6px !important;
+  }
+
+  /* Links look like plain text in print. */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}

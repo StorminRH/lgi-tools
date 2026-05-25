@@ -14,6 +14,7 @@ import {
 } from '@/features/auth/eve-sso';
 import { upsertCharacterOnLogin } from '@/features/auth/queries';
 import { encryptSession } from '@/features/auth/session';
+import { logUsageEvent } from '@/data/telemetry/queries';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -78,6 +79,13 @@ export async function GET(request: NextRequest): Promise<Response> {
     jwe,
     cookieOptions({ maxAge: SESSION_MAX_AGE_SECONDS }),
   );
+
+  // Best-effort: telemetry never blocks auth completion.
+  void logUsageEvent({
+    action: 'auth_login',
+    characterId,
+    metadata: {},
+  }).catch((err) => console.error('[auth/callback] telemetry write failed', err));
 
   return redirectHome(request);
 }

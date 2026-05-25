@@ -5,6 +5,7 @@ import {
 } from '@/features/auth/queries';
 import { CHARACTER_ROLES, type CharacterRole } from '@/features/auth/schema';
 import { getSession, isAdmin } from '@/features/auth/session';
+import { logUsageEvent } from '@/data/telemetry/queries';
 
 const MAX_QUERY_LENGTH = 200;
 const CONTROL_CHARS = /\p{C}/gu;
@@ -64,7 +65,19 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('Character not found', { status: 404 });
   }
 
+  const previousRole = target.role;
   await setCharacterRole(characterId, nextRole);
+
+  void logUsageEvent({
+    action: 'role_change',
+    characterId: session!.characterId,
+    metadata: {
+      actorCharacterId: session!.characterId,
+      targetCharacterId: characterId,
+      from: previousRole,
+      to: nextRole,
+    },
+  }).catch((err) => console.error('[admin/role] telemetry write failed', err));
 
   const query = sanitiseQuery(form.get('q'));
   return Response.redirect(buildRedirect(request, query), 303);

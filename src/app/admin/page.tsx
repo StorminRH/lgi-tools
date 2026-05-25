@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
+import { AdminActivitySummary } from './AdminActivitySummary';
 import { RoleToggleForm } from '@/features/auth/components/RoleToggleForm';
 import {
   getCharacterById,
@@ -139,6 +140,8 @@ export default async function AdminPage({
       </header>
 
       <div className="w-full max-w-[1100px] flex flex-col gap-6">
+        <AdminActivitySummary />
+
         <form method="GET" action="/admin" className="flex items-center gap-2">
           <input
             type="text"
