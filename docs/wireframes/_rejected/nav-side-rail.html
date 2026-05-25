@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LGI.tools — Nav: Side Rail (Alt) — v2.9.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=JetBrains+Mono:wght@400;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-deep:    #070809;
+    --bg:         #0d0f14;
+    --bg-section: #0a0c10;
+    --border:     #1e2535;
+    --border-soft:#141a24;
+    --text:       #9ab0c4;
+    --text-name:  #dce8f0;
+    --text-muted: #3a5060;
+    --text-muted-2: #6a7a8a;
+    --isk:        #3dd68c;
+    --isk-dim:    #1a3a28;
+    --font-mono:  'IBM Plex Mono', ui-monospace, monospace;
+    --font-jb:    'JetBrains Mono', ui-monospace, monospace;
+    --font-disp:  'Barlow', system-ui, sans-serif;
+  }
+  html, body {
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 100vh;
+  }
+  a { color: inherit; text-decoration: none; transition: color 0.15s; }
+  a:hover { color: var(--isk); }
+
+  .layout { display: flex; min-height: 100vh; }
+
+  /* ── SIDE RAIL ── */
+  .rail {
+    width: 56px;
+    background: var(--bg-section);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    flex-shrink: 0;
+  }
+  .rail-mark { padding: 8px 0 16px; border-bottom: 1px solid var(--border-soft); margin-bottom: 8px; width: 100%; display: flex; justify-content: center; }
+  .rail-tools { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 0 8px; }
+  .rail-item {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-muted-2);
+    transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+    border-left: 2px solid transparent;
+  }
+  .rail-item:hover { color: var(--isk); background: #090e0c; box-shadow: 0 0 12px -4px rgba(61,214,140,0.4); }
+  .rail-item.active { color: var(--text-name); border-left-color: var(--isk); background: #0c1014; }
+  .rail-item.demo-hover { color: var(--isk); background: #090e0c; box-shadow: 0 0 12px -4px rgba(61,214,140,0.4); }
+  .rail-icon { font-family: var(--font-jb); font-weight: 800; font-size: 14px; letter-spacing: -0.05em; }
+
+  /* Tooltip — drawn as static label so user can read it */
+  .rail-tooltip {
+    position: absolute;
+    left: 52px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #161e28;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--text-name);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 10;
+  }
+  .rail-item:hover .rail-tooltip,
+  .rail-item.demo-hover .rail-tooltip { opacity: 1; }
+
+  .rail-bottom {
+    margin-top: auto;
+    width: 100%;
+    padding: 8px;
+    border-top: 1px solid var(--border-soft);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .rail-freshness {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 8px;
+    color: var(--text-muted-2);
+    letter-spacing: 0.04em;
+  }
+  .price-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--isk); }
+  .rail-portrait {
+    width: 32px; height: 32px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    background: linear-gradient(135deg, #2a3a4a 0%, #1a2230 100%);
+  }
+
+  /* ── MAIN AREA ── */
+  .main { flex: 1; display: flex; flex-direction: column; }
+  .page-header-bar {
+    background: var(--bg-section);
+    border-bottom: 1px solid var(--border-soft);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+  .page-header-title {
+    font-family: var(--font-disp);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--text-name);
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+  }
+  .page-header-sub {
+    font-size: 10px;
+    color: var(--text-muted-2);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .page-body { padding: 24px 28px 64px; max-width: 1100px; }
+  .terminal-search {
+    background: var(--bg-section);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    font-size: 12px;
+    color: var(--text-muted-2);
+  }
+  .ts-prompt { color: var(--isk); font-weight: 600; }
+  .ts-placeholder { font-style: italic; }
+
+  .ghost-card {
+    background: var(--bg-section);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px 20px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ghost-card:hover {
+    border-color: #2a3d50;
+    box-shadow: 0 0 0 1px rgba(61, 214, 140, 0.08);
+  }
+  .ghost-name { font-family: var(--font-disp); font-weight: 700; font-size: 15px; color: var(--text-name); }
+  .ghost-isk { font-family: var(--font-mono); font-size: 14px; color: var(--isk); font-weight: 600; }
+
+  /* ── ANNOTATION ── */
+  .annotation {
+    background: #0a0c10;
+    border-top: 1px dashed #1e2535;
+    padding: 24px 28px 40px;
+    margin-top: 40px;
+  }
+  .annotation h3 {
+    font-family: var(--font-jb);
+    font-size: 11px;
+    color: var(--isk);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 12px;
+  }
+  .annotation p {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.7;
+    margin-bottom: 10px;
+    max-width: 800px;
+  }
+  .annotation .note { color: var(--text-muted-2); font-size: 11px; }
+  .annotation code {
+    background: #161e28;
+    color: var(--isk);
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 11px;
+  }
+  .annotation strong { color: var(--text-name); }
+  .annotation .con { color: #d68c3d; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ═══ SIDE RAIL ═══ -->
+  <aside class="rail">
+    <div class="rail-mark">
+      <!-- Bracket-mark only, no .tools wordmark — vertical text reads poorly -->
+      <svg viewBox="0 0 100 50" height="28">
+        <path d="M 18,10 L 8,10 L 8,40 L 18,40" fill="none" stroke="#3dd68c" stroke-width="4" stroke-linecap="square"/>
+        <path d="M 82,10 L 92,10 L 92,40 L 82,40" fill="none" stroke="#3dd68c" stroke-width="4" stroke-linecap="square"/>
+        <text x="24" y="35" font-family="'JetBrains Mono',monospace" font-weight="800" font-size="28" fill="#dce8f0" letter-spacing="1">LGI</text>
+      </svg>
+    </div>
+
+    <div class="rail-tools">
+      <a class="rail-item active" href="#">
+        <span class="rail-icon">WH</span>
+        <span class="rail-tooltip">Wormhole Sites</span>
+      </a>
+      <!-- Drawn in hover state -->
+      <a class="rail-item demo-hover" href="#">
+        <span class="rail-icon">IP</span>
+        <span class="rail-tooltip">Industry Planner</span>
+      </a>
+      <a class="rail-item" href="#">
+        <span class="rail-icon">WR</span>
+        <span class="rail-tooltip">Wormhole Roll Calc</span>
+      </a>
+    </div>
+
+    <div class="rail-bottom">
+      <div class="rail-freshness">
+        <span class="price-dot"></span>
+        <span>3h</span>
+      </div>
+      <div class="rail-portrait"></div>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="main">
+    <div class="page-header-bar">
+      <div>
+        <div class="page-header-title">Wormhole Sites</div>
+        <div class="page-header-sub">69 sites · live Jita prices</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted-2);">
+        <a href="#">Nimrots Sarikusa</a> · <a href="#">log out</a>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="terminal-search">
+        <span class="ts-prompt">&gt;</span>
+        <span class="ts-placeholder">type a class, site type, or both — c5/relic, ore, c2/combat …</span>
+      </div>
+
+      <div class="ghost-card">
+        <div class="ghost-name">Bountiful Frontier Reservoir</div>
+        <div class="ghost-isk">280.4M ISK</div>
+      </div>
+      <div class="ghost-card">
+        <div class="ghost-name">Forgotten Frontier Recursive Depot</div>
+        <div class="ghost-isk">820.0M ISK</div>
+      </div>
+      <div class="ghost-card">
+        <div class="ghost-name">Sleeper Drug Manufactory</div>
+        <div class="ghost-isk">650.0M ISK</div>
+      </div>
+    </div>
+
+    <!-- ═══ ANNOTATION ═══ -->
+    <div class="annotation">
+      <h3>Wireframe Notes — nav-side-rail (Alt)</h3>
+      <p>
+        <strong>Layout.</strong> 56px-wide vertical rail on the left. <strong>Top:</strong> bracket-mark only (no
+        <code>.tools</code> wordmark — vertical text would read poorly). <strong>Middle:</strong> icon-only tool list using
+        2-letter monogram glyphs (WH / IN / BP) with hover tooltips. The <code>Industry</code> item is drawn in its hover
+        state — icon shifts to <code>--isk</code>, faint green outer glow, tooltip slides in. <strong>Bottom:</strong> compact
+        freshness dot + portrait square.
+      </p>
+      <p>
+        <strong>Page header bar.</strong> Because the rail can no longer hold the tool name in a horizontal line, the main
+        area gains a thin 48px header bar identifying the active tool, plus a corner slot for the login session. This is new
+        chrome the top-bar option doesn't need.
+      </p>
+      <p>
+        <strong>Pros:</strong> wins horizontal space, looks unmistakably "professional tool" rather than "blog with nav."
+        Rail stays out of the way on a wide monitor and never crowds the right side of the content.
+      </p>
+      <p>
+        <span class="con">Cons:</span> brand legibility takes a hit — the full <code>LGI.tools</code> wordmark only appears
+        on the landing page, not next to the tool you're using. The 2-letter monograms work for three tools but get strained
+        at 6-8 (BP vs BC vs B?). And the page-header bar duplicates information the rail could otherwise convey, eating some
+        of the space the rail just saved.
+      </p>
+      <p class="note">
+        Recommended only if the user wants the horizontal real estate back for wide tool surfaces (the eventual Industry
+        Helper's bill-of-materials table, say). For a content-density tool like <code>/sites</code>, the top-bar option is
+        a cleaner fit.
+      </p>
+    </div>
+  </main>
+
+</div>
+
+</body>
+</html>

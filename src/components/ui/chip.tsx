@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import type { ChipTone } from './tones';
 
-export type ChipTone = 'blue' | 'red' | 'purple' | 'green' | 'orange';
+export type { ChipTone };
 
 const TONE: Record<ChipTone, string> = {
   blue:   'bg-[rgba(40,90,255,0.16)]  text-[#6688ff] border-[rgba(40,90,255,0.32)]',

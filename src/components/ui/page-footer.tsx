@@ -20,7 +20,7 @@ export function PageFooter({
   return (
     <footer
       className={cn(
-        'flex items-center gap-3 px-6 py-3 border-t border-[#1e2535] text-[9px]',
+        'flex items-center gap-3 px-6 py-3 border-t border-border text-caption',
         className,
       )}
     >

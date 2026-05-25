@@ -13,7 +13,7 @@ export function Footer() {
         <span className="font-mono text-muted tracking-[0.12em] uppercase">
           EVE Online and the EVE logo are the registered trademarks of Fenris Creations. All rights reserved.
           {' · '}
-          <Link href="/legal" className="hover:text-text transition-colors">
+          <Link href="/legal">
             Legal
           </Link>
         </span>
@@ -21,7 +21,7 @@ export function Footer() {
       center={
         <Link
           href="/changelog"
-          className="font-mono text-muted hover:text-text uppercase tracking-[0.12em] transition-colors"
+          className="font-mono text-muted uppercase tracking-[0.12em]"
         >
           v{APP_VERSION}
         </Link>

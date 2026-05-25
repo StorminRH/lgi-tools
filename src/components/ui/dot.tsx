@@ -1,6 +1,7 @@
 import { cn } from './cn';
+import type { DotTone } from './tones';
 
-export type DotTone = 'orange' | 'blue';
+export type { DotTone };
 
 const TONE: Record<DotTone, string> = {
   orange: 'bg-[#cc7733] shadow-[0_0_4px_rgba(204,119,51,0.4)]',

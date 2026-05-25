@@ -16,7 +16,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        'flex items-center justify-between gap-3 px-6 py-3 text-[11px]',
+        'flex items-center justify-between gap-3 px-6 py-3 text-body',
         className,
       )}
     >
