@@ -75,4 +75,12 @@ All changes go through PRs. `main` is the only deploy target.
 
 **CI runs Vitest on every PR.** Green tests are required to merge.
 
+## MCP tools
+
+The developer has the following MCPs configured in their Claude Code setup. They're optional — the workflow doesn't require any of them — but reach for them when the right tool saves a step.
+
+- **Vercel MCP** — read-side deployment + runtime introspection (deploy status, build logs, runtime logs, env-var inventory). Strong for "did this request succeed?" — `get_runtime_logs` shows the exact path + status code of recent requests, so a callback that returned 302 with no `auth_error=*` redirect is observable proof the handler ran cleanly, without needing to peek at the DB. For *setting* env vars the `vercel` CLI (`vercel env add`) is still the cleaner path.
+- **Neon MCP** — direct SQL via `run_sql` against any Neon branch. **Doesn't reach LGI's production DB:** the Vercel ↔ Neon marketplace integration provisions the LGI Neon project under an isolated, Vercel-managed Neon org that the developer's personal Neon API key has zero visibility into — both `list_projects` and `list_shared_projects` return empty, and `run_sql` would 403 even with a hard-coded project_id. To actually query production via MCP, the developer would need to mint a fresh Neon API key inside the Vercel-managed org and add it to the MCP config (out-of-session setup). Until then, the path for production reads is `vercel env pull --environment=production` followed by local `psql`, *or* — usually better — inspect the runtime logs via the Vercel MCP and infer DB state from the HTTP response shape.
+- **Context7 MCP** — current library docs (especially valuable for Next.js, since training data is well behind the version this codebase uses — see AGENTS.md).
+
 @AGENTS.md

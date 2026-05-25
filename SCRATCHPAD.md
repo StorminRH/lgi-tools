@@ -118,6 +118,25 @@ Worth remembering: EVE's JWT claims use full URLs for `iss`, and `aud`
 is an array containing both the client_id and the literal string `"EVE
 Online"` — we audience-check against the latter.
 
+**Two EVE apps, not one.** CCP's portal only allows one Callback URL
+per app, so we registered two apps in their portal: `lgi.tools` (prod,
+callback `https://lgi.tools/api/auth/callback`) and `lgi.tools (dev)`
+(local, callback `http://localhost:3000/api/auth/callback`). Each has
+its own client_id + secret; `.env.local` uses the dev app, Vercel
+production uses the prod app. Standard OAuth pattern — every
+future env that needs auth (a real staging tier, etc.) gets its own
+EVE app registration. Don't try to make one app cover multiple
+environments; the portal won't let you.
+
+**Production verified via Vercel runtime logs**, not via a direct prod
+DB query. The Neon MCP's API key can't see the LGI project (it's
+provisioned by the Vercel-Neon marketplace integration under an
+isolated Vercel-managed Neon org), so the path-of-least-friction for
+"did the prod callback succeed?" is `get_runtime_logs` via the Vercel
+MCP — a 302 with no `auth_error=*` follow-up redirect is observable
+proof the upsert and session-cookie set both completed. Documented in
+CLAUDE.md alongside the other MCP notes.
+
 `VERSION_2.8_PLAN.md` stays in the repo (still active — 2.8.2 through
 2.8.5 ahead). No archive moves this session.
 
