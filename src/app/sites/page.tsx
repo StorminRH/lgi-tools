@@ -5,6 +5,7 @@ import { getPricesFreshness } from '@/data/market-prices/cache';
 import { db } from '@/db';
 import { RefreshFooter } from '@/features/wormhole-sites/components/RefreshFooter';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
+import { SitesTerminalSearch } from '@/features/wormhole-sites/components/SitesTerminalSearch';
 import {
   CLASS_TONE,
   SITE_TYPE_LABEL,
@@ -74,6 +75,10 @@ export default async function SitesPage({
           {wormholeClass ? ` · ${wormholeClass}` : ''}
         </div>
       </header>
+
+      <div className="w-full max-w-[1100px] mb-4">
+        <SitesTerminalSearch />
+      </div>
 
       <div className="w-full max-w-[1100px] flex flex-col gap-2.5 mb-8">
         <FilterBar
