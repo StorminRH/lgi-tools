@@ -100,8 +100,7 @@ Decisions worth carrying forward:
 - The session cookie uses `alg=dir` + `enc=A256GCM` with a 32-byte
   `SESSION_SECRET`. Rotating the secret invalidates all live sessions.
 
-Shipped on branch `version-2.8.1-eve-sso-login` — PR link will be added
-to this entry once posted.
+Shipped on branch `version-2.8.1-eve-sso-login` — [PR #10](https://github.com/StorminRH/lgi-tools/pull/10).
 
 `VERSION_2.8_PLAN.md` stays in the repo (still active — 2.8.2 through
 2.8.5 ahead). No archive moves this session.
