@@ -21,6 +21,18 @@ Accommodate new content types and fields without structural rewrites.
 **Maintain SCRATCHPAD.md.**
 After every session update SCRATCHPAD.md with what was built, decisions made, open questions, and what the next session should start with. This is working memory across sessions — keep it current.
 
+**Maintain CHANGELOG.md.**
+After every session, decide whether the work that shipped is worth a public-facing changelog entry — and if it is, add one to `CHANGELOG.md` at the repo root. The file feeds `/changelog`, which is what end users see. Only log user-facing features and significant platform changes; skip internal cleanup, CI/infrastructure work, refactors, and rapid intra-session PR iteration. When in doubt, ask: *would a wormhole pilot loading the site notice this?* If no, leave it out.
+
+Format is strict (the parser in `src/features/changelog/parse.ts` is intentionally narrow):
+
+```
+### YYYY-MM-DD
+- One user-facing change per bullet, written for someone who doesn't know the codebase.
+```
+
+Group multiple ship-points from the same calendar day under one date heading. Newest entries at the top. Don't reach for bold, links, or other markdown — if a future entry genuinely needs richer formatting, grow the parser to match. SCRATCHPAD remains the internal forensic record; CHANGELOG is the curated user-facing one.
+
 **Archive completed plan docs.**
 When a version (or pre-2.7 phase) ships, move its plan document out of the repo into the sibling folder `../LGI Tools Document Archive/` and `git rm` the in-repo copy. Replace any remaining markdown links to the archived file with prose mentions (`(archived — see LGI Tools Document Archive/...)`). The active repo should only contain plan docs for work that is in-progress or upcoming.
 
