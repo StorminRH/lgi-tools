@@ -4,6 +4,190 @@
 
 ---
 
+## Version 2.9.5: COMPLETE (2026-05-26)
+
+Session 2.9.5 of the 2.9 plan doc. Swaps the user-driven price refresh
+model for a Vercel-cron-driven hourly refresh. The nav chip stops being
+interactive and becomes a passive status indicator. The vestigial
+`/api/market-prices/refresh` endpoint and the matching "Refresh prices"
+command-palette row are removed in the same PR — both lose their reason
+to exist once the cron owns the cadence.
+
+What landed:
+
+- **Vercel cron declared in `vercel.json`.** Single `crons` entry,
+  `path: /api/cron/refresh-prices`, `schedule: "0 * * * *"` (top of
+  every hour). First file at the repo root — there was no prior
+  `vercel.json`.
+
+- **`/api/cron/refresh-prices` endpoint.** GET handler at
+  `src/app/api/cron/refresh-prices/route.ts`. Bearer-auth gated via
+  `process.env.CRON_SECRET` — rejects with 401 if the header is missing
+  or wrong. Returns 500 if `CRON_SECRET` itself is unset (so a
+  misconfigured environment is loud, not silently 401-ing the cron
+  invoker). Thin wrapper around the existing
+  `refreshKnownPricesIfStale(db, { force: true })` helper.
+
+- **`force: true` is intentional.** Vercel cron has a documented ±1min
+  scheduling jitter, so consecutive ticks can be 58–62 minutes apart.
+  Without `force` a ~59-minute tick would hit the 1h TTL inside
+  `refreshKnownPricesIfStale` and silently skip the refresh — meaning
+  prices would actually refresh ~every 2 hours instead of ~every 1
+  hour. The cache TTL exists for non-cron callers (the dev CLI in
+  `src/db/refresh-prices.ts`), not for the cron itself.
+
+- **`CACHE_TTL_MS` dropped from 24h to 1h.** One-line change in
+  `src/data/market-prices/constants.ts`. With cron as the only
+  meaningful caller and a fixed hourly cadence, 1h is the natural
+  defensive ceiling.
+
+- **`PriceFreshness` chip rewritten as display-only.** Replaces the
+  click-to-refresh `<button>` with a static `<span>` showing
+  `● prices live` (CSS uppercases it). No `onClick`, no `useTransition`,
+  no `fetch` — the chip is now ~70 lines of pure rendering plus a 1s
+  countdown tick. Native `title` attribute supplies the
+  `Next refresh in MM:SS` tooltip; no popover primitive needed. When
+  the countdown crosses zero, fires `router.refresh()` exactly once
+  per `initialLastUpdatedAt` value (tracked via a `useRef<boolean>`
+  that resets in a `useEffect` keyed on the prop) so the next server
+  render picks up the cron-fresh timestamp. The null-data fallback
+  shows `● no price data` with an orange dot — same vocabulary as the
+  pre-rewrite version.
+
+- **"Refresh prices" removed from the global search palette.** Dropped
+  the `cmd:refresh-prices` entry from `src/data/commands/search.ts`
+  and the matching test case. The `'refresh-prices'` literal also came
+  out of the `command?` union in `src/data/search/index.ts` — with no
+  remaining producers, leaving the literal in the union would be dead
+  surface.
+
+- **`/api/market-prices/refresh` endpoint deleted.** No remaining
+  callers after the chip rewrite + command palette removal. Parent
+  `src/app/api/market-prices/` directory removed alongside (now empty).
+  Revivable from git if an admin force-refresh ever becomes a real
+  need.
+
+- **`APP_VERSION` bumped to `2.9.5`.**
+
+- **Tests + verification.** Vitest at 438/438 green (down one from
+  439 — the deleted Refresh-prices command test). `pnpm build` green;
+  `/api/cron/refresh-prices` shows up as a dynamic route in the build
+  output and `/api/market-prices/refresh` is gone. Local dev
+  verification (with a temporary `CRON_SECRET` in `.env.local`,
+  removed before commit) confirmed:
+  - Chip is a `<span>`, not a `<button>`; `cursor: auto`; text reads
+    `prices live`; `title` reads `Next refresh in MM:SS`.
+  - Countdown ticks live (verified 59:33 → 59:30 across a 2.5s wait).
+  - `/api/cron/refresh-prices` returns 401 with no auth header.
+  - `/api/cron/refresh-prices` returns 401 with the wrong bearer.
+  - `/api/cron/refresh-prices` with the right bearer returns 200 with
+    `{cached: false, fetched: 54, written: 54}` and a fresh
+    `lastUpdatedAt`. The chip's tooltip on next page load read
+    `Next refresh in 59:40` — proving the round trip end-to-end.
+  - `/api/market-prices/refresh` returns 404.
+  - Search palette no longer surfaces a "Refresh prices" row when you
+    type `refresh`; the rest of the commands source (`Open changelog`
+    etc.) still works.
+
+Shipped on branch `version-2.9.5-automated-price-refresh`.
+
+### Post-CI revision (same session): daily cron instead of hourly
+
+The first push of this branch failed the Vercel preview deploy with:
+`Hobby accounts are limited to daily cron jobs. This cron expression
+(0 * * * *) would run more than once per day. Upgrade to the Pro plan
+to unlock all Cron Jobs features on Vercel.` (PR #21 preview-deploy
+status.) Hourly crons are a Vercel Pro feature; LGI.tools is on
+Hobby. Three options surfaced: switch to daily, upgrade to Pro
+($20/mo), or move the cron off-Vercel (GitHub Actions). User picked
+daily.
+
+Revised this PR before merge:
+
+- **Cron schedule → `0 11 * * *`** (11:00 UTC). Avoids midnight cron
+  rush hour; lands in EU evening / US morning, a natural moment for
+  the dashboard to look freshly-refreshed.
+- **`CACHE_TTL_MS` restored to 24h.** With daily cron + force:true,
+  the TTL once again only guards the dev CLI in
+  `src/db/refresh-prices.ts`. Same role as the original 2.8.x value,
+  matched to the new cadence.
+- **Countdown formatter handles hours.** `MM:SS` would have rendered
+  `1440:00` for a 24h countdown — broken. New format: `Xh MMm` when
+  the countdown is ≥1h (`"23h 45m"`), `MM:SS` when in the final
+  hour. Drops from a per-second tick to a per-minute tick — sub-minute
+  precision adds nothing when the countdown spans most of a day.
+- **`useMemo` on `lastUpdatedAt`.** Applied the Greptile bot's
+  suggestion. The bot's stated rationale (effect re-running every
+  tick) is misleading — the effect runs every tick anyway because
+  `now` is a dep — but stabilizing the Date reference still removes
+  one source of per-tick churn and quiets the bot.
+
+Carry-forward for future cron-cadence work:
+
+- **The Hobby-tier limit is a hard ceiling.** Any future cron-based
+  feature (e.g., periodic ESI fetches in 3.0.3) is constrained to
+  daily unless we upgrade. GitHub Actions remains the obvious
+  off-Vercel escape hatch — it can run every minute on the free tier
+  — and the bearer-auth pattern in
+  `/api/cron/refresh-prices` is generic enough to be reused.
+
+- **The chip's countdown is now stable across a 24h window.** It
+  spends >99% of its time showing `Xh MMm` (the minutes tick once
+  per minute); only the final hour shows `MM:SS`. The format switch
+  inside `formatCountdown` is the only branch.
+
+Decisions worth carrying forward:
+
+- **The `CRON_SECRET` env var must exist in Vercel for both Preview
+  and Production before the cron starts firing.** One-time setup via
+  `vercel env add CRON_SECRET preview` and `vercel env add
+  CRON_SECRET production`. Generate via `openssl rand -hex 32` or any
+  32-byte random source. Without this env var the cron endpoint will
+  return 500 on every Vercel-invoked call and prices will never
+  refresh.
+
+- **Silent cron-failure risk is explicitly accepted for 2.9.5.** If
+  cron stops firing for several days, the chip would show a tooltip
+  frozen at `00:00` with no obvious alert. The visible chip text would
+  still read "prices live" — wrong, but only visible to anyone
+  hovering for the tooltip. A future "if older than Nh, chip turns
+  orange" warning state is the natural follow-up; out of scope for
+  this PR per the 2.9 plan doc.
+
+- **The `router.refresh()` once-per-window mechanic is bounded.** The
+  ref resets only when `initialLastUpdatedAt` (a server prop) changes,
+  which only changes when the server re-renders with a newer
+  `getPricesFreshness()` row. So a single mounted client component
+  fires at most one `router.refresh()` per cron-driven server-side
+  freshness bump. No infinite-loop risk even if the dev DB is stale.
+
+- **The temporary local CRON_SECRET pattern.** During verification I
+  added `CRON_SECRET=local-dev-verification-secret-001` to
+  `.env.local` (gitignored), restarted dev, exercised the endpoint,
+  then removed the line before commit. Documenting here so future
+  sessions touching cron-secret behavior have a working recipe.
+
+- **Vercel cron registration cadence.** Vercel registers crons from
+  `vercel.json` at deploy time. The schedule is effective once the
+  branch deploys to Production; whether Preview deployments register
+  the cron is environment-specific (verify in the Vercel dashboard's
+  "Crons" tab when the PR's preview deploy lands). Worst case the
+  cron only fires on Production — which is the desired end state
+  anyway.
+
+- **The `command?: 'logout' | 'login' | null` union is now narrower.**
+  When the next side-effectful search command lands (the 2.9.4
+  carry-forward note flagged this as the moment to introduce a
+  proper `onSelect?: (router) => void` callback), revisit whether the
+  discriminator-union pattern still earns its keep or whether
+  `onSelect` should replace it entirely.
+
+`VERSION_2.9_PLAN.md` stays in the repo — 2.9.6 (responsive defensive
++ ResourcePreview overflow fix) and 2.9.7 (cross-site sortable table
+view) remain ahead. No archive moves this session.
+
+---
+
 ## 2026-05-26 — 3.x price system implementation plan drafted
 
 Planning-only session sitting between 2.9.4 (shipped) and the start of

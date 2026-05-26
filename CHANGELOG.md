@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-05-26
+
+- Market prices now refresh automatically once a day in the background. The price status chip in the header has become a passive indicator — no click needed. Hover the chip to see how long until the next refresh.
+
 ### 2026-05-25
 
 - The market-price freshness indicator now lives in the top navigation bar instead of at the bottom of the wormhole sites page. Click it to refresh prices from any page once the 24h cache window has elapsed.

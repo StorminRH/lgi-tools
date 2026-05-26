@@ -18,15 +18,6 @@ type CommandEntry = {
 
 const COMMANDS: CommandEntry[] = [
   {
-    id: 'cmd:refresh-prices',
-    label: 'Refresh prices',
-    sub: 'Re-fetch the latest Jita 5%-percentile snapshot',
-    href: '/sites',
-    iconText: '⟳',
-    command: 'refresh-prices',
-    visible: () => true,
-  },
-  {
     id: 'cmd:open-changelog',
     label: 'Open changelog',
     sub: 'What\'s shipped recently',
