@@ -28,7 +28,7 @@ export type SearchResult = {
   matchRange?: [number, number];
   // Discriminator for command-with-side-effect rows. The component
   // checks this and routes to its handler instead of href navigation.
-  command?: 'logout' | 'login' | 'refresh-prices' | null;
+  command?: 'logout' | 'login' | null;
   // True for the cosmetic "coming soon" tool rows. The component renders
   // these dimmed and disables click.
   disabled?: boolean;

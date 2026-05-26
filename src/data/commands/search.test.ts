@@ -38,9 +38,9 @@ async function runCommands(query: string, c: SearchContext) {
 }
 
 describe('commands search source', () => {
-  it('surfaces "Refresh prices" for everyone', async () => {
-    const out = await runCommands('refresh', ctx());
-    expect(out.map((r) => r.label)).toContain('Refresh prices');
+  it('surfaces "Open changelog" for everyone', async () => {
+    const out = await runCommands('changelog', ctx());
+    expect(out.map((r) => r.label)).toContain('Open changelog');
   });
 
   it('shows "Log in with EVE" only when logged out', async () => {
@@ -71,12 +71,6 @@ describe('commands search source', () => {
     const out = await runCommands('log', ctx({ session: mockSession() }));
     const logout = out.find((r) => r.label === 'Log out');
     expect(logout?.command).toBe('logout');
-  });
-
-  it('attaches the command discriminator to Refresh prices', async () => {
-    const out = await runCommands('refresh', ctx());
-    const refresh = out.find((r) => r.label === 'Refresh prices');
-    expect(refresh?.command).toBe('refresh-prices');
   });
 
   it('filters by substring match against the label', async () => {
