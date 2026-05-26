@@ -46,10 +46,10 @@ export function FilterBar({
             scroll={false}
             className={cn(
               'transition-opacity',
-              isActive ? 'opacity-100' : 'opacity-45 hover:opacity-90',
+              isActive ? 'opacity-100' : 'opacity-70 hover:opacity-95',
             )}
           >
-            <Pill tone={isActive ? (opt.tone ?? 'neutral') : 'neutral'}>{opt.label}</Pill>
+            <Pill size="md" tone={isActive ? (opt.tone ?? 'neutral') : 'neutral'}>{opt.label}</Pill>
           </Link>
         );
       })}

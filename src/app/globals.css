@@ -52,6 +52,11 @@ html, body {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Slight global scale-up — most type in the codebase is hardcoded in
+   * pixels (text-[11px], text-caption: 9px, …), so a single zoom on body
+   * is the lightest-weight way to raise every size proportionally without
+   * touching every consumer. Tune up/down per visual review. */
+  zoom: 1.10;
 }
 
 /* Universal link hover vocabulary — every <a> transitions toward the green
@@ -63,6 +68,39 @@ a {
 }
 a:hover {
   color: var(--color-isk);
+}
+
+/* Landing hero + tools-grid background — subtle grey lift that elevates
+ * the whole upper portion of the landing off the page-deep black. The
+ * gradient covers both the hero and the tools grid so the tiles sit on a
+ * raised surface; it fades to transparent at the bottom so the footer
+ * returns to the normal page background. */
+.home-hero-bg {
+  background:
+    radial-gradient(
+      ellipse 95% 70% at 50% 25%,
+      rgba(45, 55, 70, 0.55) 0%,
+      rgba(30, 38, 52, 0.30) 45%,
+      rgba(20, 26, 36, 0.12) 75%,
+      transparent 100%
+    );
+}
+
+/* Long-page lift used on /sites (and reusable on any tall content page).
+ * Same design language as .home-hero-bg — grey radial elevation that
+ * separates content from the page-deep background — tuned for height:
+ * the ellipse is wider + extends further down so cards across multiple
+ * scrolls all sit on a raised surface, fading near the bottom so the
+ * page footer returns to deep. */
+.sites-page-bg {
+  background:
+    radial-gradient(
+      ellipse 110% 95% at 50% 18%,
+      rgba(45, 55, 70, 0.45) 0%,
+      rgba(30, 38, 52, 0.25) 35%,
+      rgba(20, 26, 36, 0.12) 65%,
+      transparent 95%
+    );
 }
 
 /* Landing-grid tool tiles. Two variants: `.tool-tile-live` (interactive,
@@ -221,11 +259,11 @@ a:hover {
   background: #0c1018;
   border-right: 1px solid var(--color-border-soft);
   transition: width 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-  width: 280px;
+  width: 420px;
   flex-shrink: 0;
 }
 .nav-search.active {
-  width: 440px;
+  width: 660px;
   background: #0e1320;
   box-shadow:
     inset 0 0 0 1px var(--color-isk-dim),
@@ -279,7 +317,10 @@ a:hover {
   position: absolute;
   top: 100%;
   left: 0;
-  width: 520px;
+  /* Match the expanded .nav-search width — the dropdown only appears when
+   * the search is active, so the parent .nav-host's intrinsic width is
+   * always the active search width. */
+  width: 100%;
   margin-top: 1px;
   background: var(--color-bg);
   border: 1px solid var(--color-isk-dim);

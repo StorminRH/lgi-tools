@@ -133,7 +133,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"
-          className="w-full font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-[#2a3a4a] focus:outline-none focus:border-[#2a3550]"
+          className="w-full font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-[#2a3550]"
         />
       </form>
 

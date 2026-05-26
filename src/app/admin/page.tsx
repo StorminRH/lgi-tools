@@ -149,7 +149,7 @@ export default async function AdminPage({
             defaultValue={query ?? ''}
             placeholder="Search by character name"
             maxLength={MAX_QUERY_LENGTH}
-            className="flex-1 font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-[#2a3a4a] focus:outline-none focus:border-[#2a3550]"
+            className="flex-1 font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-[#2a3550]"
           />
           <button
             type="submit"

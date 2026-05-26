@@ -5,7 +5,7 @@ import type { PillTone } from './tones';
 export type { PillTone };
 
 const TONE: Record<PillTone, string> = {
-  neutral:      'bg-[#161e28] text-[#506070] border-[#1e2c3a]',
+  neutral:      'bg-[#161e28] text-muted border-[#1e2c3a]',
   green:        'bg-[#0f2218] text-[#3dd68c] border-[#1a3a28] font-semibold',
   'green-strong':'bg-[#0f2218] text-[#44dd99] border-[#1a3a28] font-semibold',
   orange:       'bg-[#1f1508] text-[#d68c3d] border-[#3a2510] font-semibold',
@@ -19,19 +19,33 @@ const TONE: Record<PillTone, string> = {
   blue:         'bg-[#0a101a] text-[#3399cc] border-[#10283a]',
 };
 
+export type PillSize = 'sm' | 'md';
+
+// Two sizes: 'sm' (default) matches the dense wireframe card-meta spec —
+// 9px / 600 / 4px tracking. 'md' is the clickable-affordance size used by
+// the FilterBar and any other interactive pill consumer that needs more
+// click target + readability.
+const SIZE: Record<PillSize, string> = {
+  sm: 'text-[9px] px-[6px] py-[2px] tracking-[0.04em]',
+  md: 'text-[11px] px-[9px] py-[3px] tracking-[0.05em]',
+};
+
 export function Pill({
   tone = 'neutral',
+  size = 'sm',
   children,
   className,
 }: {
   tone?: PillTone;
+  size?: PillSize;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <span
       className={cn(
-        'font-mono text-[10px] font-medium px-[7px] py-[2px] rounded-[2px] tracking-[0.05em] border inline-flex items-center',
+        'font-mono font-semibold rounded-[2px] border inline-flex items-center',
+        SIZE[size],
         TONE[tone],
         className,
       )}

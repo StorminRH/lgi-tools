@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { AppHeaderShell } from '@/components/AppHeaderShell';
+import { getPricesFreshness } from '@/data/market-prices/cache';
+import { db } from '@/db';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 import type { Session } from '@/features/auth/types';
 
@@ -23,7 +25,10 @@ export async function AppHeader({
   session: Session | null;
   showAdminLink: boolean;
 }) {
-  const siteIndex = await getSiteSearchIndex();
+  const [siteIndex, { lastUpdatedAt }] = await Promise.all([
+    getSiteSearchIndex(),
+    getPricesFreshness(db),
+  ]);
 
   return (
     <header className="flex items-stretch h-11 text-body border-b border-border bg-section">
@@ -42,6 +47,7 @@ export async function AppHeader({
         session={session}
         showAdminLink={showAdminLink}
         siteIndex={siteIndex}
+        initialLastUpdatedAt={lastUpdatedAt?.toISOString() ?? null}
       />
     </header>
   );

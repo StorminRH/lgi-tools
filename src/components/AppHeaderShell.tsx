@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { LoginButton } from '@/features/auth/components/LoginButton';
 import { NavTools } from '@/components/NavTools';
+import { PriceFreshness } from '@/components/PriceFreshness';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import type { Session } from '@/features/auth/types';
 
@@ -28,10 +29,12 @@ export function AppHeaderShell({
   session,
   showAdminLink,
   siteIndex,
+  initialLastUpdatedAt,
 }: {
   session: Session | null;
   showAdminLink: boolean;
   siteIndex: SiteSearchEntry[];
+  initialLastUpdatedAt: string | null;
 }) {
   const [searchActive, setSearchActive] = useState(false);
 
@@ -45,7 +48,10 @@ export function AppHeaderShell({
         siteIndex={siteIndex}
       />
       <NavTools shrunk={searchActive} />
-      <div className="login-cluster ml-auto flex items-center shrink-0 px-3 border-l border-border">
+      <div className="ml-auto flex items-stretch shrink-0 border-l border-border">
+        <PriceFreshness initialLastUpdatedAt={initialLastUpdatedAt} />
+      </div>
+      <div className="login-cluster flex items-center shrink-0 px-3 border-l border-border">
         <LoginButton session={session} showAdminLink={showAdminLink} />
       </div>
     </>

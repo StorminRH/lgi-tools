@@ -238,6 +238,79 @@ table) hasn't shipped, and the user has flagged a 2.9.5+ planning
 conversation post-merge to potentially expand the slate before
 3.0. No archive moves this session.
 
+### Post-PR visual iteration pass (2026-05-25, same session)
+
+After PR #18 went up the user asked for a back-and-forth visual
+iteration pre-merge. Single commit on the same branch refreshes the
+PR + preview. Changes, in order applied:
+
+- **`zoom: 1.10` on `body`.** Most type in the codebase is hardcoded
+  in pixels, so a single zoom on body is the lightest-weight way to
+  raise every size proportionally. Tuned 1.08 → 1.10 after first look.
+- **Low-contrast text bumped to `text-muted`.** Three offenders that
+  fell below the legal page's readable muted (`#6a7a8a`) were lifted:
+  `pill-neutral` text (`#506070` → `text-muted`), terminal-search +
+  admin search placeholders (`#2a3a4a` → `text-muted`), section-
+  header hints (`#2a3a4a` → `text-muted`).
+- **`/sites` switched to 2-column card grid.** `repeat(auto-fill,
+  minmax(340px, 1fr))` → `repeat(2, 1fr)`. Cards get more breathing
+  room; ~5-6 visible per fold vs ~9 in 3-column. Section headers
+  bumped from 9px to 11px and divider from `bg-border-soft` →
+  `bg-border` for clearer chapter breaks.
+- **Card primitives aligned to the wireframe spec.** Header padding
+  `px-3.5 pt-[11px] pb-[9px]` → `px-[18px] py-[14px]`; gap `gap-2`
+  → `gap-[14px]`; title `leading-none tracking-[0.02em]` → `leading-
+  [1.15]` (no tracking). Pill smaller + bolder: `text-[10px] font-
+  medium tracking-[0.05em]` → `text-[9px] font-semibold tracking-
+  [0.04em]`. Card border `border` → `border-[1.5px]`.
+- **Pill primitive grew a `size` prop.** `sm` (default, 9px) for the
+  dense card-meta vocabulary, `md` (11px, more padding) for the
+  FilterBar's clickable-affordance pills. FilterBar opted into `md`
+  + bumped inactive opacity 0.45 → 0.70 for legibility.
+- **Landing hero + tools-grid sit on a grey radial gradient.** New
+  `.home-hero-bg` class — `radial-gradient(ellipse 95% 70% at 50%
+  25%, ...)` lifts the upper portion of `/` off page-deep. Wrapped
+  both the hero header AND the tools section so the tiles sit on
+  the elevated surface, fading near the footer.
+- **`/sites` sits on a sibling gradient.** New `.sites-page-bg` —
+  same design language, tuned wider (ellipse 110% × 95% at 50% 18%)
+  for the longer scroll. Reverted a brief attempt at lifting the
+  Card primitive's bg directly (`#0d0f14` → `#141822`) — the
+  gradient-behind approach is the right answer; cards keep their
+  original darker tone, and the lifted backdrop provides the
+  contrast.
+- **PriceFreshness chip is now in the AppHeader, not a /sites
+  footer.** New `src/components/PriceFreshness.tsx` — slim button
+  with a green/orange dot + "prices Nh ago" text, slotted between
+  NavTools and the login cluster. Lives in `src/components/` (not
+  `src/features/wormhole-sites/`) because market prices are shared
+  infrastructure that every future tool will lean on — `/industry-
+  planner` will need fresh prices for material costs the same way
+  `/sites` does. AppHeader (Server Component) fetches
+  `getPricesFreshness(db)` in parallel with `getSiteSearchIndex()`
+  and threads the `initialLastUpdatedAt` through AppHeaderShell to
+  the chip. The old `RefreshFooter.tsx` was deleted (single
+  consumer in /sites/page.tsx, now gone).
+- **Global search width bumped 50%.** `.nav-search` 280→420px at
+  rest, 440→660px expanded. Verified clean at 1920×1080; at narrower
+  viewports (~1600px) the nav-tools labels clip. Documented as a
+  future-item: add a media-query that flips NavTools to abbreviations
+  under ~1500px wide.
+- **Search dropdown width matches the nav-search.** `.dropdown`
+  changed from fixed `width: 520px` to `width: 100%` so it inherits
+  the parent `.nav-host`'s width — which equals the active search
+  width by virtue of being its only flex child.
+- **Landing tile content polish.** Wormhole Sites tile: LIVE pill
+  removed, bottom pills changed from C1/C3/C5/C6 to Combat/Gas/Ore
+  (in their type-tone colors). Industry Planner: SOON → "Coming
+  Soon", added T3 pill, "Phase 3" → `v4.0`, description trimmed to
+  "Manufacturing profitability for blueprints and reactions." Roll
+  Calculator: SOON → "Coming Soon", "Backlog" → `v5.0`, description
+  trimmed to "Plan hole rolls with live mass tracking."
+
+Tests + build stayed green (439/439) — no test files changed
+behavior. Visual iteration only.
+
 ## Version 2.9.3: COMPLETE (2026-05-25)
 
 Session O of the 2.9 plan doc. The cross-tool navigation chrome + the
