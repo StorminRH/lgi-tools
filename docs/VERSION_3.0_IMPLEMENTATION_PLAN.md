@@ -769,17 +769,16 @@ checklist plus the following user-facing checks pass:
 
 ---
 
-## Plan-mode handoff
+## Handoff
 
-Once this plan is approved (via ExitPlanMode), the implementation
-session should:
+When the next implementation session starts:
 
-1. Mark this plan superseded or merge into `VERSION_3.0_PLAN.md`
-   (the user's call — the slate is the same shape, just more
-   detailed).
-2. Update `SCRATCHPAD.md` with a short note pointing to wherever
-   this plan ended up (and noting that PRICE_SYSTEM_DESIGN.md is
-   the source of truth for the *what*, this plan is the source of
-   truth for the *how/when*).
+1. Decide whether to merge this plan into `VERSION_3.0_PLAN.md` or
+   leave it as a companion doc. The slate is the same shape, just
+   more detailed — either choice works.
+2. `SCRATCHPAD.md` already carries a continuity pointer to this
+   plan; update it if the plan moves. `PRICE_SYSTEM_DESIGN.md`
+   remains the source of truth for *what*; this document is the
+   source of truth for *how* and *when*.
 3. Open 3.0.1 first (search-platform extension) — it's the lowest
    risk and unblocks the global-search blueprint source in 3.0.5.

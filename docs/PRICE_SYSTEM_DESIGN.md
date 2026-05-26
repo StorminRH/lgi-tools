@@ -126,12 +126,23 @@ live.
 ### Tracked type IDs are derived, not enumerated
 
 After SDE ingest, the set of "types we need prices for" is computed
-by selecting all distinct `typeId` values that appear in
-`industry_activity_materials` (manufacturing + reactions). These are
-seeded into `market_prices` with null price columns and `stale_after =
-epoch` (immediately stale). The first bulk refresh after ingest fills
-them in. There is no manually maintained "list of items to track" —
-the SDE defines it.
+as the **union** of:
+
+- All distinct `material_type_id` values in
+  `industry_activity_materials` (manufacturing + reaction inputs).
+- All distinct `product_type_id` values in
+  `industry_activity_products` (manufacturing + reaction outputs).
+
+Both sides are required because the profitability math is
+`output_sell_price − input_buy_cost` — we need live prices for the
+outputs as well as the inputs. Most types appear on both sides (a T1
+module is a manufactured output and also an input to higher-tier
+recipes) so the union is mostly overlap.
+
+These types are seeded into `market_prices` with null price columns
+and `stale_after = epoch` (immediately stale). The first bulk
+refresh after ingest fills them in. There is no manually maintained
+"list of items to track" — the SDE defines it.
 
 ### Stays inside the LGI Tools repo
 
