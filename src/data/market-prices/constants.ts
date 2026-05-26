@@ -3,4 +3,4 @@
 // without pulling the server-only cache.ts / ingest.ts modules — and their
 // drizzle / postgres dependencies — into the client bundle.
 
-export const CACHE_TTL_MS = 60 * 60 * 1000;
+export const CACHE_TTL_MS = 24 * 60 * 60 * 1000;

@@ -1,15 +1,15 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CACHE_TTL_MS } from '@/data/market-prices/constants';
 
-// Passive freshness indicator. Vercel cron refreshes market prices every
-// hour (see vercel.json + src/app/api/cron/refresh-prices), so this chip
-// is display-only — no click, no fetch, no button. The visible label is
-// the constant "● prices live"; a native `title` tooltip surfaces the
-// countdown to the next expected refresh for the curious. When the
-// countdown crosses zero we fire one `router.refresh()` per
+// Passive freshness indicator. Vercel cron refreshes market prices once
+// a day (see vercel.json + src/app/api/cron/refresh-prices), so this
+// chip is display-only — no click, no fetch, no button. The visible
+// label is the constant "● prices live"; a native `title` tooltip
+// surfaces a countdown to the next expected refresh for the curious.
+// When the countdown crosses zero we fire one `router.refresh()` per
 // initialLastUpdatedAt so the next server render picks up the cron's
 // fresh timestamp.
 
@@ -19,9 +19,10 @@ export function PriceFreshness({
   initialLastUpdatedAt: string | null;
 }) {
   const router = useRouter();
-  const lastUpdatedAt = initialLastUpdatedAt
-    ? new Date(initialLastUpdatedAt)
-    : null;
+  const lastUpdatedAt = useMemo(
+    () => (initialLastUpdatedAt ? new Date(initialLastUpdatedAt) : null),
+    [initialLastUpdatedAt],
+  );
   const [now, setNow] = useState(() => Date.now());
   const hasRefreshedRef = useRef(false);
 
@@ -31,7 +32,7 @@ export function PriceFreshness({
   }, [initialLastUpdatedAt]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -71,8 +72,12 @@ export function PriceFreshness({
 }
 
 function formatCountdown(deltaMs: number): string {
-  const sec = Math.max(0, Math.floor(deltaMs / 1000));
-  const min = Math.floor(sec / 60);
-  const rem = sec % 60;
-  return `${String(min).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+  const totalSec = Math.max(0, Math.floor(deltaMs / 1000));
+  const hours = Math.floor(totalSec / 3600);
+  const min = Math.floor((totalSec % 3600) / 60);
+  const sec = totalSec % 60;
+  if (hours > 0) {
+    return `${hours}h ${String(min).padStart(2, '0')}m`;
+  }
+  return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }

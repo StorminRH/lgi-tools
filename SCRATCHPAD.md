@@ -91,6 +91,51 @@ What landed:
 
 Shipped on branch `version-2.9.5-automated-price-refresh`.
 
+### Post-CI revision (same session): daily cron instead of hourly
+
+The first push of this branch failed the Vercel preview deploy with:
+`Hobby accounts are limited to daily cron jobs. This cron expression
+(0 * * * *) would run more than once per day. Upgrade to the Pro plan
+to unlock all Cron Jobs features on Vercel.` (PR #21 preview-deploy
+status.) Hourly crons are a Vercel Pro feature; LGI.tools is on
+Hobby. Three options surfaced: switch to daily, upgrade to Pro
+($20/mo), or move the cron off-Vercel (GitHub Actions). User picked
+daily.
+
+Revised this PR before merge:
+
+- **Cron schedule → `0 11 * * *`** (11:00 UTC). Avoids midnight cron
+  rush hour; lands in EU evening / US morning, a natural moment for
+  the dashboard to look freshly-refreshed.
+- **`CACHE_TTL_MS` restored to 24h.** With daily cron + force:true,
+  the TTL once again only guards the dev CLI in
+  `src/db/refresh-prices.ts`. Same role as the original 2.8.x value,
+  matched to the new cadence.
+- **Countdown formatter handles hours.** `MM:SS` would have rendered
+  `1440:00` for a 24h countdown — broken. New format: `Xh MMm` when
+  the countdown is ≥1h (`"23h 45m"`), `MM:SS` when in the final
+  hour. Drops from a per-second tick to a per-minute tick — sub-minute
+  precision adds nothing when the countdown spans most of a day.
+- **`useMemo` on `lastUpdatedAt`.** Applied the Greptile bot's
+  suggestion. The bot's stated rationale (effect re-running every
+  tick) is misleading — the effect runs every tick anyway because
+  `now` is a dep — but stabilizing the Date reference still removes
+  one source of per-tick churn and quiets the bot.
+
+Carry-forward for future cron-cadence work:
+
+- **The Hobby-tier limit is a hard ceiling.** Any future cron-based
+  feature (e.g., periodic ESI fetches in 3.0.3) is constrained to
+  daily unless we upgrade. GitHub Actions remains the obvious
+  off-Vercel escape hatch — it can run every minute on the free tier
+  — and the bearer-auth pattern in
+  `/api/cron/refresh-prices` is generic enough to be reused.
+
+- **The chip's countdown is now stable across a 24h window.** It
+  spends >99% of its time showing `Xh MMm` (the minutes tick once
+  per minute); only the final hour shows `MM:SS`. The format switch
+  inside `formatCountdown` is the only branch.
+
 Decisions worth carrying forward:
 
 - **The `CRON_SECRET` env var must exist in Vercel for both Preview
