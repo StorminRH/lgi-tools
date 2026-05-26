@@ -31,25 +31,26 @@ export default async function Home({
         </div>
       )}
 
-      <header className="flex flex-col items-center text-center gap-5 max-w-[680px] px-6 pt-20 pb-16">
-        <div className="flex flex-col items-center gap-1.5">
-          <h1 className="font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
-            <span className="text-isk">[ </span>
-            Lo-Gang
-            <span className="text-isk"> ]</span>
-          </h1>
-          <div className="font-jb font-normal text-[clamp(14px,2.4vw,24px)] tracking-[0.28em] uppercase leading-none">
-            <span className="text-muted">Industries</span>
-            <span className="text-isk tracking-normal">.</span>
-            <span className="text-isk">tools</span>
+      <div className="home-hero-bg w-full flex flex-col items-center">
+        <header className="flex flex-col items-center text-center gap-5 max-w-[680px] px-6 pt-20 pb-16">
+          <div className="flex flex-col items-center gap-1.5">
+            <h1 className="font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
+              <span className="text-isk">[ </span>
+              Lo-Gang
+              <span className="text-isk"> ]</span>
+            </h1>
+            <div className="font-jb font-normal text-[clamp(14px,2.4vw,24px)] tracking-[0.28em] uppercase leading-none">
+              <span className="text-muted">Industries</span>
+              <span className="text-isk tracking-normal">.</span>
+              <span className="text-isk">tools</span>
+            </div>
           </div>
-        </div>
-        <p className="font-mono text-[12px] text-muted tracking-[0.04em] leading-[1.7] max-w-[420px]">
-          A collection of tools for Eve Online.
-        </p>
-      </header>
+          <p className="font-mono text-[12px] text-muted tracking-[0.04em] leading-[1.7] max-w-[420px]">
+            A collection of tools for Eve Online.
+          </p>
+        </header>
 
-      <section className="w-full max-w-[960px] px-6 pt-4 pb-20">
+        <section className="w-full max-w-[960px] px-6 pt-4 pb-20">
         <div className="flex items-center gap-2.5 mb-5 text-[10px] font-semibold text-muted tracking-[0.14em] uppercase">
           <span>Tools</span>
           <span className="flex-1 h-px bg-border-soft" />
@@ -64,7 +65,6 @@ export default async function Home({
               <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
                 Wormhole Sites
               </div>
-              <Pill tone="green">LIVE</Pill>
             </div>
             <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
               Browse all 69 wormhole anomalies and signatures by class, site
@@ -72,10 +72,9 @@ export default async function Home({
             </p>
             <div className="flex items-center justify-between pt-3 border-t border-border-soft">
               <div className="flex items-center gap-1">
-                <Pill tone="green">C1</Pill>
-                <Pill tone="orange">C3</Pill>
-                <Pill tone="red">C5</Pill>
-                <Pill tone="purple">C6</Pill>
+                <Pill tone="red-soft">Combat</Pill>
+                <Pill tone="teal">Gas</Pill>
+                <Pill tone="yellow">Ore</Pill>
               </div>
             </div>
           </Link>
@@ -85,20 +84,19 @@ export default async function Home({
               <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
                 Industry Planner
               </div>
-              <Pill tone="neutral">SOON</Pill>
+              <Pill tone="neutral">Coming Soon</Pill>
             </div>
             <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
-              Plan manufacturing runs end-to-end — blueprint efficiency,
-              material costs, job fees, and margin estimates across production
-              and reaction chains.
+              Manufacturing profitability for blueprints and reactions.
             </p>
             <div className="flex items-center justify-between pt-3 border-t border-border-soft">
               <div className="flex items-center gap-1">
                 <Pill tone="neutral">T1</Pill>
                 <Pill tone="blue">T2</Pill>
+                <Pill tone="purple">T3</Pill>
                 <Pill tone="teal">Reactions</Pill>
               </div>
-              <span className="text-[10px] text-muted tracking-[0.04em]">Phase 3</span>
+              <span className="text-[10px] text-muted tracking-[0.04em]">v4.0</span>
             </div>
           </div>
 
@@ -107,12 +105,10 @@ export default async function Home({
               <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
                 Wormhole Roll Calculator
               </div>
-              <Pill tone="neutral">SOON</Pill>
+              <Pill tone="neutral">Coming Soon</Pill>
             </div>
             <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
-              Plan a hole-roll with live mass tracking. Battleship + HIC pass
-              counts for any static, with critical-vs-full thresholds and abort
-              cues.
+              Plan hole rolls with live mass tracking.
             </p>
             <div className="flex items-center justify-between pt-3 border-t border-border-soft">
               <div className="flex items-center gap-1">
@@ -120,11 +116,12 @@ export default async function Home({
                 <Pill tone="orange">C3</Pill>
                 <Pill tone="red">C5</Pill>
               </div>
-              <span className="text-[10px] text-muted tracking-[0.04em]">Backlog</span>
+              <span className="text-[10px] text-muted tracking-[0.04em]">v5.0</span>
             </div>
           </div>
         </div>
       </section>
+      </div>
     </div>
   );
 }

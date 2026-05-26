@@ -16,6 +16,7 @@ import {
 import { EwarRow } from './EwarRow';
 import { WaveCard } from './WaveCard';
 import { ResourceRow } from './ResourceRow';
+import { ResourcePreview } from './ResourcePreview';
 
 function formatIskHeader(isk: number | null): string {
   if (isk == null) return '—';
@@ -62,8 +63,14 @@ export function SiteCard({
     0,
   );
 
+  // Density vocabulary — see docs/wireframes/sites-density.html and the
+  // matching CSS rules in globals.css. Ore + gas cards opt into the hover
+  // glow + ResourcePreview overlay; combat / relic / data stay flat.
+  const cardVariant = isWaveDriven ? 'wave-driven' : 'resource';
+
   return (
-    <Card>
+    <Card className={`card ${cardVariant}`}>
+      {!isWaveDriven && hasResources && <ResourcePreview site={site} />}
       <details data-collapsible {...(defaultOpen ? { open: true } : {})}>
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
           <CardHeader

@@ -1,9 +1,6 @@
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterBar, type FilterOption } from '@/components/ui/filter-bar';
 import { UrlSync } from '@/components/ui/url-sync';
-import { getPricesFreshness } from '@/data/market-prices/cache';
-import { db } from '@/db';
-import { RefreshFooter } from '@/features/wormhole-sites/components/RefreshFooter';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SitesTerminalSearch } from '@/features/wormhole-sites/components/SitesTerminalSearch';
 import {
@@ -59,12 +56,11 @@ export default async function SitesPage({
 
   const rawSites = await listSiteDetails({ type, wormholeClass });
   const sites = await overlayLivePrices(rawSites);
-  const { lastUpdatedAt } = await getPricesFreshness(db);
   const groups = groupBySection(sites);
   const currentParams = { type, class: wormholeClass };
 
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+    <div className="sites-page-bg flex flex-col items-center px-6 pt-12 pb-20 gap-0">
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
         <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
           LGI.tools — Wormhole Sites
@@ -110,14 +106,14 @@ export default async function SitesPage({
           return (
             <section key={sectionType} className="w-full max-w-[1100px]">
               <div className={`w-full flex items-center gap-3.5 ${i === 0 ? 'mt-0' : 'mt-12'} mb-5`}>
-                <span className="text-[9px] font-semibold tracking-[0.18em] uppercase text-muted whitespace-nowrap">
+                <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted whitespace-nowrap">
                   {SITE_TYPE_LABEL[sectionType]} Sites
                 </span>
-                <div className="flex-1 h-px bg-border-soft" />
+                <div className="flex-1 h-px bg-border" />
               </div>
               <div
                 className="grid items-start gap-4"
-                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}
+                style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
               >
                 {sectionSites.map((site) => (
                   <UrlSync key={site.id} basePath="/sites" entityId={site.id}>
@@ -130,7 +126,6 @@ export default async function SitesPage({
         })
       )}
 
-      <RefreshFooter initialLastUpdatedAt={lastUpdatedAt?.toISOString() ?? null} />
     </div>
   );
 }
