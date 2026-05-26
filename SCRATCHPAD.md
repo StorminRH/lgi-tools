@@ -4,6 +4,71 @@
 
 ---
 
+## 2026-05-26 — 3.x price system implementation plan drafted
+
+Planning-only session sitting between 2.9.4 (shipped) and the start of
+3.0.1. Mapped the architecture in
+[docs/PRICE_SYSTEM_DESIGN.md](docs/PRICE_SYSTEM_DESIGN.md) onto a
+sequenced PR slate for 3.0. Output lives at
+[docs/VERSION_3.0_IMPLEMENTATION_PLAN.md](docs/VERSION_3.0_IMPLEMENTATION_PLAN.md).
+
+Recommended sub-version slate (revises the rough 3.0.2 → 3.0.5 sketch
+in VERSION_3.0_PLAN.md):
+
+- **3.0.1** — search platform extension (unchanged: fuzzy matching,
+  AbortController, lazy-loaded source pattern, onSelect callback).
+- **3.0.2** — `market_prices` schema additions (`buy_volume`,
+  `sell_volume`, `stale_after`, `source`), per-row staleness,
+  advisory lock, hourly cron declaration. Source stays Fuzzwork.
+- **3.0.3** — ESI source rewrite + Fuzzwork fallback + rate-limit
+  wrapper (`esi-budget.ts`). Wormhole-sites' 69 types get the new
+  source automatically — no parallel pipeline.
+- **3.0.4** — industry SDE schema (6 new tables), CSV ingest, tree
+  resolver (memoized, JSONB output), `blueprint_flat_materials`,
+  tracked-types seeding via `union(materials, products)`. **Riskiest
+  PR.** De-risking plan: standalone resolver spike + pin Rifter /
+  Drake / Archon known-good values as test fixtures before the main
+  PR opens.
+- **3.0.5** — `src/data/industry-math/` slice (pure-function
+  profitability math + tests) + Industry Planner UI at `/industry/[id]`
+  + tile-activation. May split into 3.0.5 (math) and 3.1.0 (UI) if
+  scope balloons.
+
+The plan also pushes back on six items in the design doc:
+- Tracked set must include products, not just materials (output
+  prices are needed for margin math).
+- The 2-second on-demand acceptance bar needs an ESI per-type
+  latency spike in 3.0.3 to confirm feasible.
+- Streaming aggregation needs an explicit `Map`-based shape; should
+  be unit-tested against a synthetic page stream first.
+- Advisory lock ID needs to live as a named bigint in
+  `constants.ts`.
+- `/api/cron/refresh-prices` needs bearer auth via `CRON_SECRET`;
+  the existing manual `/api/market-prices/refresh` stays public
+  but gets a soft per-minute rate-limit.
+- Staleness UX should drive the `<PriceFreshness>` chip color
+  (green → orange) when any visible row is past expected refresh
+  window.
+
+Open-question recommendations: separate post-ingest tree resolver
+(not inside SDE transaction); thin `esi-budget.ts` wrapper; JSONB
+for `blueprint_trees`; idempotent ingest skip with
+`LGI_FORCE_TREE_REBUILD=1` escape hatch; union semantics for the
+tracked set; `ON CONFLICT DO NOTHING` for the wormhole-sites ∪
+industry-derived merge.
+
+PRICE_SYSTEM_DESIGN.md remains the source of truth for *what*; the
+new implementation plan is the source of truth for *how* and *when*.
+VERSION_3.0_PLAN.md's high-level shape (3.0.1 fixed scope, "slip to
+3.1 rather than sprawl" rule) is preserved, but its 3.0.2 → 3.0.5
+sub-version sketch is superseded by the implementation plan's
+revised slate.
+
+**Next session should start with 3.0.1.** Lowest risk; unblocks the
+lazy-loaded blueprint search source that 3.0.5's UI needs.
+
+---
+
 ## Version 2.9.4: COMPLETE (2026-05-25)
 
 Session P-equivalent of the 2.9 plan doc. Closes the four threads
