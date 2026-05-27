@@ -6,9 +6,15 @@ export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
 // Default Open Graph card. Rendered at build/request time by Next's
-// ImageResponse — no static PNG asset to commit. Per-route OG images
-// (e.g. site detail) can grow into sibling opengraph-image.tsx files
-// later; this is the catch-all fallback the root metadata points at.
+// ImageResponse — placeholder generated wordmark until a hand-designed
+// PNG replaces it. To swap to a static asset:
+//   1. Drop the file at public/og-default.png (1200×630).
+//   2. In src/app/layout.tsx, change the openGraph.images URL from
+//      "/opengraph-image" to "/og-default.png" (same for twitter.images).
+//   3. Delete this file. Next picks up the static asset directly from
+//      /public/og-default.png.
+// Per-route OG images (e.g. site detail) can grow into sibling
+// opengraph-image.tsx files later under each route folder.
 export default function OpengraphImage(): ImageResponse {
   return new ImageResponse(
     (

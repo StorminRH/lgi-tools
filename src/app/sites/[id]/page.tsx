@@ -8,7 +8,6 @@ import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SiteMetaStrip } from '@/features/wormhole-sites/components/SiteMetaStrip';
 import { overlayLivePrices } from '@/features/wormhole-sites/live-prices';
 import { getSiteDetail } from '@/features/wormhole-sites/queries';
-import { siteScramTotal } from '@/features/wormhole-sites/sort';
 
 const SITE_TYPE_LABEL: Record<string, string> = {
   combat: 'Combat',
@@ -43,24 +42,9 @@ export async function generateMetadata({
   const title = titlePieces.filter(Boolean).join(' — ');
 
   const iskTotal = (site.blueLootIsk ?? 0) + (site.resourceValueIsk ?? 0);
-  const waveCount = site.waves.length;
-  const scrams = siteScramTotal(site);
-
-  const sentences: string[] = [];
-  if (iskTotal > 0) sentences.push(`${formatIsk(iskTotal)} total value.`);
-  if (waveCount > 0) {
-    const wavesNoun = waveCount === 1 ? 'wave' : 'waves';
-    const sleeperPrefix = site.siteType === 'combat' ? 'Sleeper ' : '';
-    let waveSentence = `${waveCount} ${sleeperPrefix}${wavesNoun}`;
-    if (scrams > 0) {
-      const scramNoun = scrams === 1 ? 'scram' : 'scrams';
-      waveSentence += `, ${scrams} ${scramNoun}`;
-    }
-    sentences.push(`${waveSentence}.`);
-  }
   const description =
-    sentences.length > 0
-      ? sentences.join(' ')
+    iskTotal > 0
+      ? `${formatIsk(iskTotal)} total value.`
       : `Wormhole site detail on LGI.tools.`;
 
   const canonicalUrl = `${SITE_URL}/sites/${id}`;
