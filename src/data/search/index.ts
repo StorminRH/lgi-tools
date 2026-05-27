@@ -144,7 +144,12 @@ export async function searchAll(
   const trimmed = query.trim();
   const isEmpty = trimmed.length === 0;
 
-  const settled = await Promise.all(
+  // Promise.allSettled (not Promise.all) so one source's failure — e.g. a
+  // transient network error inside a lazy source's `await import()` —
+  // doesn't kill the other sources' results for the same keystroke.
+  // Rejected sources are dropped from this query; the next keystroke
+  // retries them. AbortError still propagates via the signal check below.
+  const settled = await Promise.allSettled(
     sources.map(async (s) => {
       if (isEmpty && !s.showOnEmpty) {
         return { name: s.name, results: [] };
@@ -158,7 +163,18 @@ export async function searchAll(
     throw new DOMException('Aborted', 'AbortError');
   }
 
-  return settled.filter((s) => s.results.length > 0);
+  const out: SearchSection[] = [];
+  for (let i = 0; i < settled.length; i++) {
+    const r = settled[i];
+    if (r.status === 'fulfilled') {
+      if (r.value.results.length > 0) out.push(r.value);
+    } else {
+      // Surface the failure for debugging without breaking the dropdown.
+      // eslint-disable-next-line no-console
+      console.warn(`searchAll: source "${sources[i].name}" failed`, r.reason);
+    }
+  }
+  return out;
 }
 
 // Test-only: clear the source list so each test starts from empty.

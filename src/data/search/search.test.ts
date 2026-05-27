@@ -214,15 +214,44 @@ describe('registerLazySearchSource', () => {
     });
     registerLazySearchSource({ name: 'Lazy', load });
 
-    // First call fails — the rejected load promise must NOT be cached,
-    // or the source stays broken for the rest of the session.
-    await expect(searchAll('a', makeCtx())).rejects.toThrow('network blip');
+    // Silence the searchAll console.warn for the first failing call so
+    // it doesn't pollute test output. The behavior we care about is
+    // that the rejected load promise gets cleared and the next
+    // keystroke retries.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    // Second call should retry and succeed.
-    const out = await searchAll('a', makeCtx());
+    // First call: lazy load rejects. searchAll drops the source for this
+    // keystroke and returns the other sources' results (empty here since
+    // it's the only source registered) — NOT a top-level rejection.
+    const firstOut = await searchAll('a', makeCtx());
+    expect(firstOut).toEqual([]);
+
+    // Second call: load is retried (the rejected promise was cleared).
+    const secondOut = await searchAll('a', makeCtx());
     expect(load).toHaveBeenCalledTimes(2);
-    expect(out).toHaveLength(1);
-    expect(out[0].results[0].label).toBe('lazy-row');
+    expect(secondOut).toHaveLength(1);
+    expect(secondOut[0].results[0].label).toBe('lazy-row');
+
+    warnSpy.mockRestore();
+  });
+
+  it('does not let one rejecting source poison the others', async () => {
+    registerSearchSource({
+      name: 'Broken',
+      async search() {
+        throw new Error('source error');
+      },
+    });
+    registerSearchSource(makeSource('Working', [ROW('1', 'one')]));
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = await searchAll('q', makeCtx());
+    expect(out.map((s) => s.name)).toEqual(['Working']);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"Broken" failed'),
+      expect.any(Error),
+    );
+    warnSpy.mockRestore();
   });
 
   it('honors a pre-aborted signal by throwing AbortError before delegating', async () => {
