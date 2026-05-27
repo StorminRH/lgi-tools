@@ -9,6 +9,7 @@ import type {
   PathCount,
   RoleChangeAuditEntry,
   SearchCount,
+  SitesViewSplit,
   UsageAction,
 } from './types';
 
@@ -175,6 +176,32 @@ export async function getRoleChangeAudit(
     from: r.from,
     to: r.to,
   }));
+}
+
+// Aggregates /sites page views by which view they used. `metadata.search`
+// stores the raw query string (e.g., "view=table&type=ore"), so a substring
+// match against `view=table` is enough — no other query parameter shares
+// that exact prefix. Filters on `path = '/sites'` exactly so /sites/[id]
+// detail-page hits are excluded.
+export async function getSitesViewSplit(range: DateRange): Promise<SitesViewSplit> {
+  const isTable = sql<boolean>`(${usageLogs.metadata} ->> 'search') LIKE '%view=table%'`;
+  const rows = await db
+    .select({ isTable, count: count() })
+    .from(usageLogs)
+    .where(and(
+      inRange(range),
+      eq(usageLogs.action, 'page_view'),
+      eq(sql`${usageLogs.metadata} ->> 'path'`, '/sites'),
+    ))
+    .groupBy(isTable);
+
+  let cards = 0;
+  let table = 0;
+  for (const r of rows) {
+    if (r.isTable) table += Number(r.count);
+    else cards += Number(r.count);
+  }
+  return { cards, table };
 }
 
 // Convenience for routes that want a quick "last 7d" snapshot.
