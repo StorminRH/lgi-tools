@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   registerSearchSource,
+  registerLazySearchSource,
   searchAll,
   __resetSearchSources,
   type SearchContext,
@@ -139,5 +140,77 @@ describe('search registry', () => {
     registerSearchSource(makeSource('Sites', [ROW('1', 'one')]));
     const out = await searchAll('   ', makeCtx());
     expect(out).toEqual([]);
+  });
+
+  it('throws AbortError if the signal aborts mid-flight', async () => {
+    const controller = new AbortController();
+    registerSearchSource({
+      name: 'Slow',
+      async search() {
+        await new Promise((r) => setTimeout(r, 30));
+        return [ROW('s', 'slow')];
+      },
+    });
+    setTimeout(() => controller.abort(), 10);
+    await expect(
+      searchAll('q', makeCtx({ signal: controller.signal })),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('forwards the signal to each source via the context', async () => {
+    const controller = new AbortController();
+    let received: AbortSignal | undefined;
+    registerSearchSource({
+      name: 'Sites',
+      async search(_q, ctx) {
+        received = ctx.signal;
+        return [ROW('1', 'one')];
+      },
+    });
+    await searchAll('q', makeCtx({ signal: controller.signal }));
+    expect(received).toBe(controller.signal);
+  });
+});
+
+describe('registerLazySearchSource', () => {
+  it('calls load() at most once across multiple keystrokes', async () => {
+    const realSource: SearchSource = {
+      name: 'Lazy',
+      async search() {
+        return [ROW('l', 'lazy-row')];
+      },
+    };
+    const load = vi.fn(async () => realSource);
+    registerLazySearchSource({ name: 'Lazy', load });
+
+    await searchAll('a', makeCtx());
+    await searchAll('ab', makeCtx());
+    await searchAll('abc', makeCtx());
+
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not invoke load() when the query is empty and showOnEmpty is false', async () => {
+    const load = vi.fn(async () => makeSource('Lazy', []));
+    registerLazySearchSource({ name: 'Lazy', load });
+
+    await searchAll('', makeCtx());
+
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('honors a pre-aborted signal by throwing AbortError before delegating', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const realSearch = vi.fn(async () => [ROW('l', 'lazy-row')]);
+    registerLazySearchSource({
+      name: 'Lazy',
+      load: async () => ({ name: 'Lazy', search: realSearch }),
+    });
+
+    await expect(
+      searchAll('a', makeCtx({ signal: controller.signal })),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(realSearch).not.toHaveBeenCalled();
   });
 });

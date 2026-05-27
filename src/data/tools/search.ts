@@ -4,32 +4,29 @@
 
 import { registerSearchSource } from '@/data/search';
 import type { SearchResult } from '@/data/search';
+import { fuzzyMatch } from '@/data/search/match';
 import { TOOLS } from './registry';
-
-function matchRange(label: string, query: string): [number, number] | undefined {
-  if (query.length === 0) return undefined;
-  const idx = label.toLowerCase().indexOf(query.toLowerCase());
-  if (idx < 0) return undefined;
-  return [idx, idx + query.length];
-}
 
 registerSearchSource({
   name: 'Tools',
   limit: 5,
   async search(query) {
-    const q = query.toLowerCase();
-    return TOOLS
-      .filter((t) => t.label.toLowerCase().includes(q))
-      .map<SearchResult>((t) => ({
-        kind: 'tool',
-        id: `tool:${t.label}`,
-        label: t.label,
-        sub: t.description,
-        href: t.href ?? '#',
-        iconText: t.abbr,
-        iconTone: 'tool',
-        matchRange: matchRange(t.label, query),
-        disabled: t.href === null,
-      }));
+    const matched = TOOLS
+      .map((t) => ({ tool: t, match: fuzzyMatch(query, t.label) }))
+      .filter((row): row is { tool: typeof TOOLS[number]; match: NonNullable<typeof row.match> } => row.match !== null);
+
+    matched.sort((a, b) => b.match.score - a.match.score);
+
+    return matched.map<SearchResult>(({ tool, match }) => ({
+      kind: 'tool',
+      id: `tool:${tool.label}`,
+      label: tool.label,
+      sub: tool.description,
+      href: tool.href ?? '#',
+      iconText: tool.abbr,
+      iconTone: 'tool',
+      matchIndices: match.matchIndices,
+      disabled: tool.href === null,
+    }));
   },
 });

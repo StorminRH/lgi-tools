@@ -7,26 +7,27 @@
 
 import { registerSearchSource } from '@/data/search';
 import type { SearchResult } from '@/data/search';
-
-function matchRange(label: string, query: string): [number, number] | undefined {
-  if (query.length === 0) return undefined;
-  const idx = label.toLowerCase().indexOf(query.toLowerCase());
-  if (idx < 0) return undefined;
-  return [idx, idx + query.length];
-}
+import { fuzzyMatch } from '@/data/search/match';
 
 registerSearchSource({
   name: 'Recent',
   limit: 5,
   showOnEmpty: true,
   async search(query, ctx) {
-    const q = query.toLowerCase();
-    const filtered = q.length === 0
-      ? ctx.recents
-      : ctx.recents.filter((r) => r.label.toLowerCase().includes(q));
-    return filtered.map<SearchResult>((r) => ({
-      ...r,
-      matchRange: matchRange(r.label, query),
+    if (query.length === 0) {
+      // Preserve recency order — no scoring needed when the bar is empty.
+      return ctx.recents.map<SearchResult>((r) => ({ ...r, matchIndices: [] }));
+    }
+
+    const matched = ctx.recents
+      .map((r) => ({ row: r, match: fuzzyMatch(query, r.label) }))
+      .filter((entry): entry is { row: SearchResult; match: NonNullable<typeof entry.match> } => entry.match !== null);
+
+    matched.sort((a, b) => b.match.score - a.match.score);
+
+    return matched.map<SearchResult>(({ row, match }) => ({
+      ...row,
+      matchIndices: match.matchIndices,
     }));
   },
 });

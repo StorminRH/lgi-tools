@@ -5,15 +5,14 @@
 
 import { registerSearchSource } from '@/data/search';
 import type { SearchResult } from '@/data/search';
+import { fuzzyMatch, type FuzzyMatch } from '@/data/search/match';
 import type { SiteSearchEntry } from './queries';
 import { SITE_TYPE_LABEL } from './components/wormhole-styles';
 
 let SITE_INDEX: SiteSearchEntry[] = [];
-let LOWER_NAMES: string[] = [];
 
 export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
-  LOWER_NAMES = entries.map((e) => e.name.toLowerCase());
 }
 
 function formatIsk(isk: number | null): string {
@@ -42,23 +41,24 @@ registerSearchSource({
   name: 'Sites',
   limit: 6,
   async search(query) {
-    const q = query.toLowerCase();
-    const matches: { entry: SiteSearchEntry; matchIdx: number }[] = [];
-    for (let i = 0; i < SITE_INDEX.length; i++) {
-      const idx = LOWER_NAMES[i].indexOf(q);
-      if (idx >= 0) {
-        matches.push({ entry: SITE_INDEX[i], matchIdx: idx });
-      }
+    const matches: { entry: SiteSearchEntry; match: FuzzyMatch }[] = [];
+    for (const entry of SITE_INDEX) {
+      const match = fuzzyMatch(query, entry.name);
+      if (match) matches.push({ entry, match });
     }
 
+    // Sort by fuzzy score desc, then keep the existing class C1→C6 +
+    // primary-ISK desc tiebreaker so equal-score hits still cluster
+    // the same way they did before fuzzy matching landed.
     matches.sort((a, b) => {
+      if (a.match.score !== b.match.score) return b.match.score - a.match.score;
       const ca = a.entry.wormholeClass ? CLASS_ORDER[a.entry.wormholeClass] ?? 9 : 9;
       const cb = b.entry.wormholeClass ? CLASS_ORDER[b.entry.wormholeClass] ?? 9 : 9;
       if (ca !== cb) return ca - cb;
       return (primaryIsk(b.entry) ?? 0) - (primaryIsk(a.entry) ?? 0);
     });
 
-    return matches.map<SearchResult>(({ entry, matchIdx }) => ({
+    return matches.map<SearchResult>(({ entry, match }) => ({
       kind: 'site',
       id: `site:${entry.id}`,
       label: entry.name,
@@ -66,7 +66,7 @@ registerSearchSource({
       href: `/sites/${entry.id}`,
       iconText: entry.wormholeClass ?? '—',
       iconTone: iconTone(entry),
-      matchRange: q.length > 0 ? [matchIdx, matchIdx + q.length] : undefined,
+      matchIndices: match.matchIndices,
     }));
   },
 });
