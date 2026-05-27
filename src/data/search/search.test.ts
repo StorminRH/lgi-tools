@@ -235,6 +235,25 @@ describe('registerLazySearchSource', () => {
     warnSpy.mockRestore();
   });
 
+  it('does not warn when a source rejects with AbortError', async () => {
+    // Sim a lazy source that gets cancelled mid-flight: it throws
+    // AbortError, but the parent signal is not yet aborted at the
+    // searchAll level (e.g. an internal source-level abort).
+    registerSearchSource({
+      name: 'CancelledLazy',
+      async search() {
+        throw new DOMException('Aborted', 'AbortError');
+      },
+    });
+    registerSearchSource(makeSource('Working', [ROW('1', 'one')]));
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = await searchAll('q', makeCtx());
+    expect(out.map((s) => s.name)).toEqual(['Working']);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
   it('does not let one rejecting source poison the others', async () => {
     registerSearchSource({
       name: 'Broken',

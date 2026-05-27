@@ -169,9 +169,17 @@ export async function searchAll(
     if (r.status === 'fulfilled') {
       if (r.value.results.length > 0) out.push(r.value);
     } else {
-      // Surface the failure for debugging without breaking the dropdown.
-      // eslint-disable-next-line no-console
-      console.warn(`searchAll: source "${sources[i].name}" failed`, r.reason);
+      // Filter AbortError out of the warn branch — once async lazy
+      // sources exist (3.0.5's Blueprints), a cancelled-mid-flight
+      // search() will throw AbortError that Promise.allSettled catches
+      // as a rejection. Those are expected cancellations, not real
+      // failures; warning on them would spam the console on every
+      // keystroke during fast typing.
+      const isAbort = r.reason instanceof DOMException && r.reason.name === 'AbortError';
+      if (!isAbort) {
+        // eslint-disable-next-line no-console
+        console.warn(`searchAll: source "${sources[i].name}" failed`, r.reason);
+      }
     }
   }
   return out;
