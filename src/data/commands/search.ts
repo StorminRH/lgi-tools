@@ -55,17 +55,18 @@ const COMMANDS: CommandEntry[] = [
     href: '/api/auth/logout',
     iconText: '⏏',
     onSelect: () => {
-      // Only redirect on success — if the POST fails (network drop, 5xx)
-      // the server never cleared the session cookie, so landing on /
-      // would silently look "logged out" while the session is still
-      // active. Staying on the current page lets the user notice the
-      // failure and retry.
+      // Only redirect on success — if the POST fails (network drop, 4xx,
+      // or 5xx) the server never cleared the session cookie, so landing
+      // on / would silently look "logged out" while the session is still
+      // active. fetch() only rejects on network errors, so `res.ok` is
+      // the load-bearing check for HTTP-level failures.
       void fetch('/api/auth/logout', { method: 'POST' })
-        .then(() => {
-          window.location.href = '/';
+        .then((res) => {
+          if (res.ok) window.location.href = '/';
+          // else: server returned an error; stay put so the user can retry.
         })
         .catch(() => {
-          // Logout request failed; stay put.
+          // Network error; stay put.
         });
     },
     visible: (ctx) => ctx.session !== null,
