@@ -1,0 +1,127 @@
+import Link from 'next/link';
+import { Callout } from '@/components/ui/callout';
+import { Pill } from '@/components/ui/pill';
+
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  state_mismatch:
+    'Sign-in could not be verified. Try clicking "Log in with EVE" again.',
+  token_exchange_failed:
+    'EVE rejected the sign-in. Wait a moment and try again.',
+  db_write_failed:
+    'We signed you in but could not save your character record. Try again or report this.',
+  admin_required:
+    'The admin dashboard is only available to authorized characters.',
+};
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const rawError = params.auth_error;
+  const errorKey =
+    typeof rawError === 'string' && rawError in AUTH_ERROR_MESSAGES ? rawError : null;
+
+  return (
+    <div className="flex flex-col items-center">
+      {errorKey && (
+        <div className="w-full max-w-[640px] px-6 pt-8">
+          <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
+        </div>
+      )}
+
+      <div className="home-hero-bg w-full flex flex-col items-center">
+        <header className="flex flex-col items-center text-center gap-5 max-w-[680px] px-6 pt-20 pb-16">
+          <div className="flex flex-col items-center gap-1.5">
+            <h1 className="font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
+              <span className="text-isk">[ </span>
+              Lo-Gang
+              <span className="text-isk"> ]</span>
+            </h1>
+            <div className="font-jb font-normal text-[clamp(14px,2.4vw,24px)] tracking-[0.28em] uppercase leading-none">
+              <span className="text-muted">Industries</span>
+              <span className="text-isk tracking-normal">.</span>
+              <span className="text-isk">tools</span>
+            </div>
+          </div>
+          <p className="font-mono text-[12px] text-muted tracking-[0.04em] leading-[1.7] max-w-[420px]">
+            A collection of tools for Eve Online.
+          </p>
+        </header>
+
+        <section className="w-full max-w-[960px] px-6 pt-4 pb-20">
+        <div className="flex items-center gap-2.5 mb-5 text-[10px] font-semibold text-muted tracking-[0.14em] uppercase">
+          <span>Tools</span>
+          <span className="flex-1 h-px bg-border-soft" />
+        </div>
+
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))' }}
+        >
+          <Link href="/sites" className="tool-tile tool-tile-live no-underline">
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                Wormhole Sites
+              </div>
+            </div>
+            <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
+              Browse all 69 wormhole anomalies and signatures by class, site
+              type, and ISK value. Live Jita prices on ore and gas resources.
+            </p>
+            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center gap-1">
+                <Pill tone="red-soft">Combat</Pill>
+                <Pill tone="teal">Gas</Pill>
+                <Pill tone="yellow">Ore</Pill>
+              </div>
+            </div>
+          </Link>
+
+          <div className="tool-tile tool-tile-soon">
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                Industry Planner
+              </div>
+              <Pill tone="neutral">Coming Soon</Pill>
+            </div>
+            <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
+              Manufacturing profitability for blueprints and reactions.
+            </p>
+            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center gap-1">
+                <Pill tone="neutral">T1</Pill>
+                <Pill tone="blue">T2</Pill>
+                <Pill tone="purple">T3</Pill>
+                <Pill tone="teal">Reactions</Pill>
+              </div>
+              <span className="text-[10px] text-muted tracking-[0.04em]">v4.0</span>
+            </div>
+          </div>
+
+          <div className="tool-tile tool-tile-soon">
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                Wormhole Roll Calculator
+              </div>
+              <Pill tone="neutral">Coming Soon</Pill>
+            </div>
+            <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
+              Plan hole rolls with live mass tracking.
+            </p>
+            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center gap-1">
+                <Pill tone="green">C1</Pill>
+                <Pill tone="orange">C3</Pill>
+                <Pill tone="red">C5</Pill>
+              </div>
+              <span className="text-[10px] text-muted tracking-[0.04em]">v5.0</span>
+            </div>
+          </div>
+        </div>
+      </section>
+      </div>
+    </div>
+  );
+}

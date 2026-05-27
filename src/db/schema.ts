@@ -1,0 +1,9 @@
+// Feature tables live alongside their feature in `src/features/<name>/schema.ts`
+// and are re-exported from here so drizzle-kit sees them all in one place.
+// Per CLAUDE.md: schema stays extensible; features add their own tables.
+
+export * from '../features/wormhole-sites/schema';
+export * from '../data/eve-data/schema';
+export * from '../data/market-prices/schema';
+export * from '../features/auth/schema';
+export * from '../data/telemetry/schema';

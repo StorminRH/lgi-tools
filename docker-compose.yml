@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lgi-tools-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lgi
+      POSTGRES_PASSWORD: lgi
+      POSTGRES_DB: lgi_tools
+    ports:
+      - "5433:5432"
+    volumes:
+      - lgi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lgi -d lgi_tools"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lgi_pgdata:

@@ -1,0 +1,1 @@
+ALTER TABLE "site_resources" ADD COLUMN "type_id" integer;
