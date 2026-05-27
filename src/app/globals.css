@@ -330,13 +330,17 @@ a:hover {
 
 /* Below 1024px the PriceFreshness chip is the first thing to push the
  * login cluster off-screen. Hide the whole slot (wrapper carries the
- * border-l, so dropping the slot leaves a clean seam). Also let the
- * search bar shrink instead of holding its 420px fixed width — the
- * 420 + wordmark + nav-tools + login-cluster sum starts overflowing
- * around ~850px otherwise. (Discovered in 2.9.6 verification; the
- * input's min-width:0 lets the flex squeeze cascade in.) */
+ * border-l, so dropping the slot leaves a clean seam). The `ml-auto`
+ * that pushed the right side of the header outward lived on the
+ * price-freshness-slot wrapper — once it's hidden, the login cluster
+ * floats mid-row, so re-hang the auto margin on the login cluster
+ * itself. Also let the search bar shrink instead of holding its 420px
+ * fixed width — the 420 + wordmark + nav-tools + login-cluster sum
+ * starts overflowing around ~850px otherwise. (Discovered in 2.9.6
+ * verification; the input's min-width:0 lets the squeeze cascade in.) */
 @media (max-width: 1024px) {
   .price-freshness-slot { display: none; }
+  .app-header .login-cluster { margin-left: auto; }
   .nav-search { width: 280px; flex-shrink: 1; min-width: 0; }
   .nav-search.active { width: 420px; }
 }
@@ -351,12 +355,21 @@ a:hover {
   .card.resource:hover .resource-preview { display: none; }
 }
 
-/* Below 640px stack the header vertically: row 1 keeps wordmark + nav-tools
- * (abbreviated) + login cluster; the search input drops to a full-width
- * row 2. PriceFreshness is already hidden by the 1024px rule. */
+/* Below 640px wrap the header into two rows: row 1 keeps wordmark +
+ * nav-tools (abbreviated) + login cluster inline; the search input wraps
+ * to a full-width row 2. PriceFreshness is already hidden by the 1024px
+ * rule. Uses `flex-wrap: wrap` rather than `flex-direction: column` so
+ * the three siblings on row 1 stay on the same row — column would put
+ * each on its own line, producing four single-element rows. The search
+ * bar gets `order: 99` to land last and `flex-basis: 100%` to force the
+ * wrap point. */
 @media (max-width: 640px) {
-  .app-header { flex-direction: column; height: auto; }
-  .app-header .nav-host { order: 2; width: 100%; border-top: 1px solid var(--color-border); }
+  .app-header { flex-wrap: wrap; height: auto; }
+  .app-header .nav-host {
+    order: 99;
+    flex-basis: 100%;
+    border-top: 1px solid var(--color-border);
+  }
   .app-header .nav-search { width: 100% !important; border-right: none; }
 }
 
