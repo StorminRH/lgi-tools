@@ -1,5 +1,5 @@
--- Historical seed migration. Generated once by sheet-audit/extract-seed.ts
--- from the local DB + the Sheet audit snapshot taken during Phase 2.6.
+-- Historical seed migration. Generated once from the canonical wormhole
+-- sites snapshot captured during the Phase 2.6 audit.
 -- See the block-level comment below for the empty-table guard rationale.
 
 DO $$

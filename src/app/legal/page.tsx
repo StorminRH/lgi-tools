@@ -78,6 +78,31 @@ export default function LegalPage() {
             Fenris Creations&apos; third-party developer license.
           </p>
         </Card>
+
+        <Card className="px-5 py-5 flex flex-col gap-3">
+          <div className="font-display font-bold text-[16px] tracking-[0.06em] uppercase text-name">
+            Open-source licensing
+          </div>
+          <p className="text-[12px] leading-relaxed text-text">
+            LGI.tools is open-source under the{' '}
+            <a
+              href="https://github.com/StorminRH/lgi-tools/blob/main/LICENSE"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              MIT License
+            </a>
+            . The full source lives at{' '}
+            <a
+              href="https://github.com/StorminRH/lgi-tools"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              github.com/StorminRH/lgi-tools
+            </a>
+            . Issues, feature requests, and pull requests are welcome.
+          </p>
+        </Card>
       </div>
     </div>
   );

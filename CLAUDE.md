@@ -31,7 +31,7 @@ Next.js (current — see warning above) · TypeScript (strict) · Drizzle ORM ·
 - `src/app/api/` — route handlers.
 - `src/features/*/components/` — feature-specific components.
 - `CHANGELOG.md` (repo root) — user-facing changelog, parsed by `src/features/changelog/parse.ts`.
-- `SCRATCHPAD.md` (repo root) — cross-session working memory.
+- `docs/SCRATCHPAD.md` — cross-session working memory. The whole `docs/` folder is gitignored (planning docs stay private to maintainers).
 - `../LGI Tools Document Archive/` — sibling folder for shipped plan docs.
 
 ## Core Principles
@@ -52,7 +52,7 @@ Accommodate new content types and fields without structural rewrites.
 
 ## Session Maintenance
 
-**Maintain SCRATCHPAD.md.** After every session, update it with what was built, decisions made, open questions, and what the next session should start with. This is working memory across sessions — keep it current.
+**Maintain SCRATCHPAD.md.** After every session, update `docs/SCRATCHPAD.md` (gitignored) with what was built, decisions made, open questions, and what the next session should start with. This is working memory across sessions — keep it current.
 
 **Maintain CHANGELOG.md.** After every session, decide whether the work that shipped is worth a public-facing changelog entry. Only log user-facing features and significant platform changes; skip internal cleanup, CI/infrastructure work, refactors, and rapid intra-session PR iteration. When in doubt, ask: *would a wormhole pilot loading the site notice this?* If no, leave it out.
 

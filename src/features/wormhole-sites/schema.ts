@@ -159,6 +159,5 @@ export const escalations = pgTable('escalations', {
 
 // `sleeperArchetypes` was dropped in drizzle/0009. Combat stats are now
 // computed live in src/data/npc-stats from raw EVE SDE attributes. The
-// archetype snapshot lives on as historical reference in
-// sheet-audit/seed-source/sleeper-archetypes.json and as the input fixture
-// for src/data/npc-stats/math.test.ts.
+// historical archetype snapshot lives on as the input fixture for
+// src/data/npc-stats/math.test.ts (see src/data/npc-stats/__fixtures__/).

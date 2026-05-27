@@ -17,15 +17,15 @@ const adminSession: Session = {
 };
 
 const superSession: Session = {
-  characterId: 2114872920,
-  name: 'Nimrots Sarikusa',
-  portraitUrl: 'https://images.evetech.net/characters/2114872920/portrait?size=128',
+  characterId: 1000000000,
+  name: 'Test Pilot',
+  portraitUrl: 'https://images.evetech.net/characters/1000000000/portrait?size=128',
   role: 'USER',
 };
 
 describe('isAdmin', () => {
   beforeEach(() => {
-    vi.stubEnv('SUPERADMIN_CHARACTER_ID', '2114872920');
+    vi.stubEnv('SUPERADMIN_CHARACTER_ID', '1000000000');
   });
 
   afterEach(() => {

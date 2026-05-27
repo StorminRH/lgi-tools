@@ -1,7 +1,6 @@
 // Pure formulas for per-NPC combat stats. No DB imports — takes a flat
-// `{ attrId: value }` map and returns typed shapes. Spec for the formulas:
-// `sheet-audit/calculations-report.md` plus the spot-checks recorded in
-// math.test.ts.
+// `{ attrId: value }` map and returns typed shapes. Spec is the
+// historical snapshot fixtures + spot-checks recorded in math.test.ts.
 //
 // SDE attribute IDs that show up here are real CCP IDs from dgmAttributeTypes.
 // The Sheet's column *labels* for per-damage-type DPS are sometimes off (it
@@ -121,10 +120,10 @@ function computeMissileDps(
   const mult = val(sleeperAttrs, ATTR.missileDamageMult);
   const rofMs = val(sleeperAttrs, ATTR.missileRateOfFire);
   if (mult <= 0 || rofMs <= 0) return { dps: ZERO_DAMAGE, alpha: ZERO_DAMAGE };
-  // Per sheet-audit/calculations-report.md: the standard EVE damage-application
-  // formula `min(1, sigRad/explRad, (sigRad/explRad)·(explVel/maxVel)^DRF)` caps
-  // near 1 for sleeper-vs-sleeper-sized targets. The Sheet's Calculations tab
-  // assumes the fully-applied case (factor = 1), so we mirror that.
+  // Sleeper-vs-sleeper missile damage is treated as fully-applied here:
+  // the EVE damage-application formula `min(1, sigRad/explRad,
+  // (sigRad/explRad)·(explVel/maxVel)^DRF)` caps near 1 for sleeper-sized
+  // targets, so we use factor = 1.
   const alpha = scaleDamage(damageQuad(missileAttrs), mult);
   const dps = divideDamage(alpha, rofMs / 1000);
   return { dps, alpha };

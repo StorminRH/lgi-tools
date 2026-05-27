@@ -47,3 +47,6 @@ next-env.d.ts
 
 # local verification snapshots (wire-format diffs, not committed)
 .verify-snapshots/
+
+# internal planning docs and working memory (kept private to maintainers)
+/docs/

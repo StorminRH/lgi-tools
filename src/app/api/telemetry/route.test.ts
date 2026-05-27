@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '@/features/auth/types';
 
 const USER_SESSION: Session = {
-  characterId: 2114872920,
-  name: 'Nimrots Sarikusa',
-  portraitUrl: 'https://images.evetech.net/characters/2114872920/portrait?size=128',
+  characterId: 1000000000,
+  name: 'Test Pilot',
+  portraitUrl: 'https://images.evetech.net/characters/1000000000/portrait?size=128',
   role: 'USER',
 };
 

@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-05-26
 
+- LGI.tools is now open-source under the MIT License. The full source lives at https://github.com/StorminRH/lgi-tools — issues, feature requests, and pull requests welcome. See the new "Open-source licensing" section on the Legal page for details.
 - Market prices now refresh automatically once a day in the background. The price status chip in the header has become a passive indicator — no click needed. Hover the chip to see how long until the next refresh.
 
 ### 2026-05-25

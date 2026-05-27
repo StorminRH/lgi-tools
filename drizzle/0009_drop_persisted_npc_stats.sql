@@ -62,6 +62,6 @@ ALTER TABLE "waves"
 --> statement-breakpoint
 
 -- 7. Sleeper archetypes table goes too. The JSON snapshot in
--- sheet-audit/seed-source/sleeper-archetypes.json stays as the math test
--- fixture and as the historical baseline the 2.6 audit produced.
+-- src/data/npc-stats/__fixtures__/sleeper-archetypes.json stays as the
+-- math test fixture and as the historical baseline.
 DROP TABLE "sleeper_archetypes";

@@ -1,9 +1,7 @@
-// Validate every formula in math.ts against the Sheet's 2.6 snapshot of all
-// 36 sleeper typeIDs. The snapshot files are the historical ground truth
-// captured pre-2.7 — if our compute drifts from them, either the math is wrong
-// or the snapshot has rotted and needs deliberate refresh.
-//
-// Read sheet-audit/calculations-report.md before changing thresholds in here.
+// Validate every formula in math.ts against a historical snapshot of all
+// 36 sleeper typeIDs. The snapshot files are the pre-2.7 ground truth —
+// if our compute drifts from them, either the math is wrong or the
+// snapshot has rotted and needs a deliberate refresh.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,7 +14,7 @@ import {
 import type { CombatStats } from './types';
 import type { AttrMap } from '@/data/eve-data/types';
 
-const SNAP_DIR = join(__dirname, '..', '..', '..', 'sheet-audit', 'seed-source');
+const SNAP_DIR = join(__dirname, '__fixtures__');
 
 function loadJson<T>(name: string): T {
   return JSON.parse(readFileSync(join(SNAP_DIR, name), 'utf8')) as T;
