@@ -22,7 +22,6 @@ function installLocalStorageShim() {
 
 installLocalStorageShim();
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { clearRecents, pushRecent, readRecents, __TEST_ONLY__ } = await import('./storage');
 
 function row(id: string, label = id): SearchResult {

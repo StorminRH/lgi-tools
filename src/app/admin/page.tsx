@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
@@ -71,7 +72,7 @@ function CharacterRow({
     <EntityRow
       cols="36px minmax(0,1fr) auto auto auto"
       leading={
-        <img
+        <Image
           src={character.portraitUrl}
           alt={character.name}
           width={28}
