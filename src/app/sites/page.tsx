@@ -111,10 +111,7 @@ export default async function SitesPage({
                 </span>
                 <div className="flex-1 h-px bg-border" />
               </div>
-              <div
-                className="grid items-start gap-4"
-                style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}
-              >
+              <div className="sites-grid">
                 {sectionSites.map((site) => (
                   <UrlSync key={site.id} basePath="/sites" entityId={site.id}>
                     <SiteCard site={site} />
