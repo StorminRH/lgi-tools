@@ -85,6 +85,13 @@
       "when": 1779731342692,
       "tag": "0011_chemical_wallow",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1779871511621,
+      "tag": "0012_sour_wiccan",
+      "breakpoints": true
     }
   ]
 }

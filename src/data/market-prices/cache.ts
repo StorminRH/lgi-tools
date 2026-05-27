@@ -1,7 +1,8 @@
-import { desc } from 'drizzle-orm';
+import { desc, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { CACHE_TTL_MS } from './constants';
+import { ADVISORY_LOCK_REFRESH_PRICES } from './constants';
 import { refreshPrices, type RefreshSummary } from './ingest';
+import { listAllTypeIds, listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
 
 // Accept either the strict default schema (CLI's `drizzle(client)`) or
@@ -11,7 +12,7 @@ import { marketPrices } from './schema';
 type AnyPgDb = PostgresJsDatabase<any>;
 
 export type CachedRefreshResult =
-  | { status: 'cached'; lastUpdatedAt: Date }
+  | { status: 'cached'; lastUpdatedAt: Date | null }
   | { status: 'refreshed'; lastUpdatedAt: Date; summary: RefreshSummary };
 
 // Reads the most recent updated_at. Returns null when the table is empty
@@ -28,39 +29,52 @@ export async function getPricesFreshness(
   return { lastUpdatedAt: row?.updatedAt ?? null };
 }
 
-// Cache-guarded refresh. Source-of-truth for "which type IDs to refresh"
-// is the market_prices table itself — the wormhole-sites ingest seeds it
-// during `pnpm db:ingest`, and this slice must not import from any
-// feature slice. force=true bypasses the freshness check.
-export async function refreshKnownPricesIfStale(
+// Per-row staleness contract. Identifies which type IDs have
+// `stale_after < NOW()` and refreshes only those. Serialized behind a
+// Postgres advisory lock so concurrent cron + on-demand callers don't
+// double-fetch from the source.
+//
+// `force: true` widens the set to "every tracked type ID" rather than
+// bypassing the lock — used by the cron handler, which runs on its
+// own cadence and should always actually refresh.
+//
+// `pg_try_advisory_xact_lock` over the session-level variant because
+// the transaction boundary auto-releases on commit *and* on error,
+// so there is no finally { unlock } to forget. Trade-off: the
+// transaction stays open during the source HTTP call (~2-5s for the
+// current 69-type Fuzzwork batch). If 3.0.3's ESI region dump pushes
+// the in-flight duration past ~10s we'll switch to session-level
+// `pg_try_advisory_lock` with a reserved connection.
+export async function refreshStalePrices(
   db: AnyPgDb,
   options?: { force?: boolean },
 ): Promise<CachedRefreshResult> {
   const force = options?.force ?? false;
 
-  const { lastUpdatedAt } = await getPricesFreshness(db);
-  if (
-    !force &&
-    lastUpdatedAt != null &&
-    Date.now() - lastUpdatedAt.getTime() < CACHE_TTL_MS
-  ) {
-    return { status: 'cached', lastUpdatedAt };
-  }
+  return db.transaction(async (tx) => {
+    const [{ got }] = await tx.execute<{ got: boolean }>(sql`
+      SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_REFRESH_PRICES}) AS got
+    `);
+    if (!got) {
+      const { lastUpdatedAt } = await getPricesFreshness(tx);
+      return { status: 'cached', lastUpdatedAt };
+    }
 
-  const trackedIds = await db
-    .select({ typeId: marketPrices.typeId })
-    .from(marketPrices);
-  const typeIds = trackedIds.map((r) => r.typeId);
+    const typeIds = force
+      ? await listAllTypeIds(tx)
+      : await listStaleTypeIds(tx);
 
-  const summary = await refreshPrices(db, typeIds);
+    if (typeIds.length === 0) {
+      const { lastUpdatedAt } = await getPricesFreshness(tx);
+      return { status: 'cached', lastUpdatedAt };
+    }
 
-  // Re-read freshness so the caller sees the new MAX(updated_at). If the
-  // refresh wrote nothing (typeIds was empty), fall back to "now" so the
-  // UI doesn't loop on the empty-table edge case.
-  const { lastUpdatedAt: newLastUpdated } = await getPricesFreshness(db);
-  return {
-    status: 'refreshed',
-    lastUpdatedAt: newLastUpdated ?? new Date(),
-    summary,
-  };
+    const summary = await refreshPrices(tx, typeIds);
+    const { lastUpdatedAt } = await getPricesFreshness(tx);
+    return {
+      status: 'refreshed',
+      lastUpdatedAt: lastUpdatedAt ?? new Date(),
+      summary,
+    };
+  });
 }

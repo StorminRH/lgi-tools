@@ -3,7 +3,7 @@ config({ path: process.env.DOTENV_PATH ?? '.env.local' });
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { refreshKnownPricesIfStale } from '../data/market-prices/cache';
+import { refreshStalePrices } from '../data/market-prices/cache';
 import { refreshPrices } from '../data/market-prices/ingest';
 import { getPrices } from '../data/market-prices/queries';
 
@@ -76,11 +76,11 @@ async function main() {
     return;
   }
 
-  const result = await refreshKnownPricesIfStale(db, { force: mode.force });
+  const result = await refreshStalePrices(db, { force: mode.force });
   if (result.status === 'cached') {
     console.log('Cached — no Fuzzwork call.');
     console.log(JSON.stringify({
-      lastUpdatedAt: result.lastUpdatedAt.toISOString(),
+      lastUpdatedAt: result.lastUpdatedAt?.toISOString() ?? null,
     }, null, 2));
     return;
   }

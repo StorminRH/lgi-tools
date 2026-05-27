@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { STALE_AFTER_TTL_MS } from './constants';
 import { marketPrices } from './schema';
 import { fetchPricesFromSource } from './source';
 
@@ -15,8 +16,14 @@ function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
 
+// Accept either the strict default schema (CLI's `drizzle(client)`) or the
+// lazy proxy from `@/db` (which infers a wider generic). Same wrinkle as
+// cache.ts — callers shouldn't have to know which one they're holding.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyPgDb = PostgresJsDatabase<any>;
+
 export async function refreshPrices(
-  db: PostgresJsDatabase,
+  db: AnyPgDb,
   typeIds: number[],
 ): Promise<RefreshSummary> {
   const start = Date.now();
@@ -39,16 +46,22 @@ export async function refreshPrices(
     return summary;
   }
 
-  // One timestamp for the whole batch — Session D's cache uses
-  // MAX(updated_at) and per-row jitter would muddy that signal.
+  // One updatedAt + staleAfter for the whole batch. Per-row variance
+  // arrives in 3.0.3 when on-demand fetches update single rows out of
+  // band — bulk-refresh rows still expire together.
   const updatedAt = new Date();
+  const staleAfter = new Date(updatedAt.getTime() + STALE_AFTER_TTL_MS);
   const rows = raw.map((r) => ({
     typeId: r.typeId,
     bestBuy: r.bestBuy,
     bestSell: r.bestSell,
     pct5Buy: r.pct5Buy,
     pct5Sell: r.pct5Sell,
+    buyVolume: r.buyVolume,
+    sellVolume: r.sellVolume,
     updatedAt,
+    staleAfter,
+    source: r.source,
   }));
 
   await db
@@ -61,7 +74,11 @@ export async function refreshPrices(
         bestSell: excluded('best_sell'),
         pct5Buy: excluded('pct5_buy'),
         pct5Sell: excluded('pct5_sell'),
+        buyVolume: excluded('buy_volume'),
+        sellVolume: excluded('sell_volume'),
         updatedAt: excluded('updated_at'),
+        staleAfter: excluded('stale_after'),
+        source: excluded('source'),
       },
     });
 
