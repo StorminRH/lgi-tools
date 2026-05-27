@@ -18,7 +18,6 @@ function makeSite(over: Partial<SiteDetail> & { siteType: SiteType }): SiteDetai
   return {
     id: 1,
     name: 'A site',
-    siteType: over.siteType,
     wormholeClass: 'C1',
     signatureLabel: 'Cosmic Anomaly',
     sourceTab: 'Tab',

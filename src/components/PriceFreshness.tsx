@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CACHE_TTL_MS } from '@/data/market-prices/constants';
+import { STALE_AFTER_TTL_MS } from '@/data/market-prices/constants';
 
 // Passive freshness indicator. Vercel cron refreshes market prices once
 // a day (see vercel.json + src/app/api/cron/refresh-prices), so this
@@ -38,7 +38,7 @@ export function PriceFreshness({
 
   useEffect(() => {
     if (lastUpdatedAt == null || hasRefreshedRef.current) return;
-    const msUntilNext = lastUpdatedAt.getTime() + CACHE_TTL_MS - now;
+    const msUntilNext = lastUpdatedAt.getTime() + STALE_AFTER_TTL_MS - now;
     if (msUntilNext <= 0) {
       hasRefreshedRef.current = true;
       router.refresh();
@@ -57,7 +57,7 @@ export function PriceFreshness({
     );
   }
 
-  const msUntilNext = lastUpdatedAt.getTime() + CACHE_TTL_MS - now;
+  const msUntilNext = lastUpdatedAt.getTime() + STALE_AFTER_TTL_MS - now;
   const tooltip = `Next refresh in ${formatCountdown(msUntilNext)}`;
 
   return (

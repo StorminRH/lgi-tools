@@ -14,7 +14,8 @@ const MAX_BATCH = 150;
 
 // Fuzzwork's aggregates response shape. Numbers come back as
 // stringified decimals; we coerce in `parseSide`.
-interface FuzzworkSide {
+// Exported for testing.
+export interface FuzzworkSide {
   weightedAverage: string;
   max: string;
   min: string;
@@ -25,7 +26,8 @@ interface FuzzworkSide {
   percentile: string;
 }
 
-interface FuzzworkPair {
+// Exported for testing.
+export interface FuzzworkPair {
   buy: FuzzworkSide;
   sell: FuzzworkSide;
 }
@@ -42,10 +44,34 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+// Fuzzwork volumes are decimal strings (e.g. "1234567.0"); truncate before
+// BigInt() so we don't blow up on the fractional part. Floor (not round)
+// matches the "this many units are actually for sale" intent.
+//
+// Scientific-notation fallback ("1.5e6") wasn't observed in any Fuzzwork
+// response when this slice was first written, but `BigInt("1.5e6")` throws
+// SyntaxError — one such row would fail the entire refresh batch. The
+// `Number(raw)` path floors correctly for any finite value and only loses
+// precision above Number.MAX_SAFE_INTEGER (~9 quadrillion), well past any
+// realistic Jita market volume.
+// Exported for testing.
+export function parseVolume(raw: string): bigint {
+  if (!raw) return BigInt(0);
+  if (/[eE]/.test(raw)) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return BigInt(0);
+    return BigInt(Math.floor(n));
+  }
+  const dot = raw.indexOf('.');
+  const intPart = dot >= 0 ? raw.slice(0, dot) : raw;
+  return BigInt(intPart || '0');
+}
+
 // Buy side: "best" is the *highest* bid (`max`). Sell side: "best"
 // is the *lowest* ask (`min`). Both percentiles read the 5% column.
 // `orderCount == 0` on either side → NULL for that side's columns.
-function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
+// Exported for testing.
+export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
   const buy = pair.buy;
   const sell = pair.sell;
   const buyOrderCount = Number.parseInt(buy.orderCount, 10);
@@ -56,6 +82,9 @@ function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
     pct5Buy: buyOrderCount > 0 ? Number.parseFloat(buy.percentile) : null,
     bestSell: sellOrderCount > 0 ? Number.parseFloat(sell.min) : null,
     pct5Sell: sellOrderCount > 0 ? Number.parseFloat(sell.percentile) : null,
+    buyVolume: buyOrderCount > 0 ? parseVolume(buy.volume) : null,
+    sellVolume: sellOrderCount > 0 ? parseVolume(sell.volume) : null,
+    source: 'fuzzwork',
   };
 }
 

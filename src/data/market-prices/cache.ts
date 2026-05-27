@@ -1,7 +1,9 @@
 import { desc } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { CACHE_TTL_MS } from './constants';
+import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type postgres from 'postgres';
+import { ADVISORY_LOCK_REFRESH_PRICES } from './constants';
 import { refreshPrices, type RefreshSummary } from './ingest';
+import { listAllTypeIds, listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
 
 // Accept either the strict default schema (CLI's `drizzle(client)`) or
@@ -10,8 +12,19 @@ import { marketPrices } from './schema';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPgDb = PostgresJsDatabase<any>;
 
+// postgres-js's Sql type — the raw client. refreshStalePrices needs it
+// directly so it can reserve a connection from the pool for the lifetime
+// of the lock.
+type Sql = ReturnType<typeof postgres>;
+
+// The lock key fits comfortably in a JS Number (well under 2^53) and
+// Postgres bigint accepts numeric literals up to int8 range, so the
+// Number() cast is exact and lets postgres-js's tag bind it without
+// needing a custom bigint parser configured on the client.
+const LOCK_KEY_NUM = Number(ADVISORY_LOCK_REFRESH_PRICES);
+
 export type CachedRefreshResult =
-  | { status: 'cached'; lastUpdatedAt: Date }
+  | { status: 'cached'; lastUpdatedAt: Date | null }
   | { status: 'refreshed'; lastUpdatedAt: Date; summary: RefreshSummary };
 
 // Reads the most recent updated_at. Returns null when the table is empty
@@ -28,39 +41,69 @@ export async function getPricesFreshness(
   return { lastUpdatedAt: row?.updatedAt ?? null };
 }
 
-// Cache-guarded refresh. Source-of-truth for "which type IDs to refresh"
-// is the market_prices table itself — the wormhole-sites ingest seeds it
-// during `pnpm db:ingest`, and this slice must not import from any
-// feature slice. force=true bypasses the freshness check.
-export async function refreshKnownPricesIfStale(
-  db: AnyPgDb,
+// Per-row staleness contract. Identifies which type IDs have
+// `stale_after < NOW()` and refreshes only those. Serialized behind a
+// Postgres advisory lock so concurrent cron + on-demand callers don't
+// double-fetch from the source.
+//
+// `force: true` widens the set to "every tracked type ID" rather than
+// bypassing the lock — used by the cron handler, which runs on its
+// own cadence and should always actually refresh.
+//
+// Session-level lock (`pg_try_advisory_lock`, not `_xact_lock`) on a
+// reserved connection from the postgres-js pool. The data ops run on a
+// regular `drizzle(client)` — a different connection from the pool —
+// so the Fuzzwork HTTP call happens with no transaction open and no
+// connection pinned to it. Postgres advisory locks are per-session, so
+// the lock held on the reserved connection blocks other callers'
+// `pg_try_advisory_lock` attempts regardless of which pool connection
+// they land on.
+//
+// `pg_advisory_unlock` is called in `finally` so the connection goes
+// back to the pool clean. Without it, the lock would persist on the
+// connection and the next caller to receive it would see a held lock.
+export async function refreshStalePrices(
+  client: Sql,
   options?: { force?: boolean },
 ): Promise<CachedRefreshResult> {
   const force = options?.force ?? false;
+  const db = drizzle(client);
 
-  const { lastUpdatedAt } = await getPricesFreshness(db);
-  if (
-    !force &&
-    lastUpdatedAt != null &&
-    Date.now() - lastUpdatedAt.getTime() < CACHE_TTL_MS
-  ) {
-    return { status: 'cached', lastUpdatedAt };
+  const reserved = await client.reserve();
+  let lockHeld = false;
+  try {
+    const lockResult = await reserved<{ got: boolean }[]>`
+      SELECT pg_try_advisory_lock(${LOCK_KEY_NUM}) AS got
+    `;
+    if (!lockResult[0].got) {
+      const { lastUpdatedAt } = await getPricesFreshness(db);
+      return { status: 'cached', lastUpdatedAt };
+    }
+    lockHeld = true;
+
+    const typeIds = force ? await listAllTypeIds(db) : await listStaleTypeIds(db);
+
+    if (typeIds.length === 0) {
+      const { lastUpdatedAt } = await getPricesFreshness(db);
+      return { status: 'cached', lastUpdatedAt };
+    }
+
+    // HTTP call to Fuzzwork happens here — outside any open transaction
+    // and on a connection separate from the one holding the lock. The
+    // advisory lock keeps concurrent callers out; refreshPrices' upsert
+    // is a single statement, so we never hold a long transaction open
+    // across the network round-trip.
+    const summary = await refreshPrices(db, typeIds);
+    const { lastUpdatedAt } = await getPricesFreshness(db);
+    return {
+      status: 'refreshed',
+      lastUpdatedAt: lastUpdatedAt ?? new Date(),
+      summary,
+    };
+  } finally {
+    if (lockHeld) {
+      await reserved`SELECT pg_advisory_unlock(${LOCK_KEY_NUM})`;
+    }
+    reserved.release();
   }
-
-  const trackedIds = await db
-    .select({ typeId: marketPrices.typeId })
-    .from(marketPrices);
-  const typeIds = trackedIds.map((r) => r.typeId);
-
-  const summary = await refreshPrices(db, typeIds);
-
-  // Re-read freshness so the caller sees the new MAX(updated_at). If the
-  // refresh wrote nothing (typeIds was empty), fall back to "now" so the
-  // UI doesn't loop on the empty-table edge case.
-  const { lastUpdatedAt: newLastUpdated } = await getPricesFreshness(db);
-  return {
-    status: 'refreshed',
-    lastUpdatedAt: newLastUpdated ?? new Date(),
-    summary,
-  };
 }

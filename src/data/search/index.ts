@@ -36,6 +36,10 @@ export type SearchResult = {
   href: string;
   iconText?: string;
   iconTone?: string;
+  // Only set on rows produced by `readRecents()` — preserves the source
+  // `kind` from before the row was relabeled to `kind: 'recent'`, so the
+  // dropdown can re-tone or future cleanup can filter by origin.
+  originKind?: string;
   // Character positions inside `label` that should render highlighted.
   // Empty array or omitted means no highlight. Fuzzy matchers produce
   // non-contiguous indices (e.g. 'ffrd' → [0, 10, 19, 28] in
