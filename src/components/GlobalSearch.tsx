@@ -7,8 +7,11 @@
 //   - the categorized dropdown (Sites / Tools / Commands / Recent)
 //   - keyboard navigation (⌘K to focus, ↑/↓ to move, Enter to fire, Esc to close)
 //   - recording rows into localStorage for the Recent source
-//   - the command-with-side-effect contract (logout/login fire a form POST
-//     or anchor click instead of router.push)
+//   - dispatching `onSelect(router)` for side-effectful rows (Log out,
+//     Log in) instead of router-pushing their href
+//   - an AbortController per debounced query so a fast typist's earlier
+//     in-flight searches don't overwrite their newer results when the
+//     future Blueprints source's `await import()` lands
 //
 // The Sites source's data is seeded once on mount via setSiteSearchIndex
 // (called here, fed by the `siteIndex` prop from AppHeaderShell).
@@ -35,7 +38,6 @@ export function GlobalSearch({ active, onActiveChange, session, isAdmin, siteInd
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const logoutFormRef = useRef<HTMLFormElement | null>(null);
   const [value, setValue] = useState('');
   const [debounced, setDebounced] = useState('');
   const [sections, setSections] = useState<SearchSection[]>([]);
@@ -61,17 +63,24 @@ export function GlobalSearch({ active, onActiveChange, session, isAdmin, siteInd
     return () => clearTimeout(id);
   }, [value]);
 
-  // Dispatch the debounced query. AbortController isn't useful yet
-  // (all sources are sync), but the contract is async-ready.
+  // Dispatch the debounced query. Each run gets its own AbortController
+  // so the lazy-loaded Blueprints source (3.0.5) can cancel its
+  // `await import()` follow-up when the user keeps typing. AbortError
+  // is the expected cleanup signal — swallow it; anything else propagates.
   useEffect(() => {
-    let cancelled = false;
-    searchAll(debounced, { session, isAdmin, recents }).then((next) => {
-      if (cancelled) return;
-      setSections(next);
-      setActiveIndex(0);
-    });
+    const controller = new AbortController();
+    searchAll(debounced, { session, isAdmin, recents, signal: controller.signal })
+      .then((next) => {
+        if (controller.signal.aborted) return;
+        setSections(next);
+        setActiveIndex(0);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        throw err;
+      });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [debounced, session, isAdmin, recents]);
 
@@ -110,12 +119,8 @@ export function GlobalSearch({ active, onActiveChange, session, isAdmin, siteInd
     onActiveChange(false);
     inputRef.current?.blur();
 
-    if (result.command === 'logout') {
-      logoutFormRef.current?.submit();
-      return;
-    }
-    if (result.command === 'login') {
-      window.location.href = result.href;
+    if (result.onSelect) {
+      result.onSelect(router);
       return;
     }
     router.push(result.href);
@@ -211,7 +216,7 @@ export function GlobalSearch({ active, onActiveChange, session, isAdmin, siteInd
                       >
                         <span className={`dd-icon ${row.iconTone ?? ''}`}>{row.iconText}</span>
                         <span className="dd-name">
-                          {renderLabel(row.label, row.matchRange)}
+                          {renderLabel(row.label, row.matchIndices)}
                         </span>
                         {row.sub && <span className="dd-sub">{row.sub}</span>}
                         <span className="dd-return">↵</span>
@@ -234,25 +239,27 @@ export function GlobalSearch({ active, onActiveChange, session, isAdmin, siteInd
           </div>
         </div>
       )}
-
-      {/* Hidden form so command rows with `command: 'logout'` can submit a
-          POST to /api/auth/logout without a synthetic anchor. */}
-      {session && (
-        <form ref={logoutFormRef} method="POST" action="/api/auth/logout" className="hidden" />
-      )}
     </div>
   );
 }
 
-function renderLabel(label: string, range?: [number, number]) {
-  if (!range) return label;
-  const [start, end] = range;
-  if (start < 0 || end > label.length || start >= end) return label;
-  return (
-    <>
-      {label.slice(0, start)}
-      <span className="match">{label.slice(start, end)}</span>
-      {label.slice(end)}
-    </>
-  );
+// Walk the label one char at a time. Characters whose index is in the
+// matchIndices set get wrapped in `<span class="match">` (green); the
+// rest render plain. Adjacent matched chars collapse into one span so
+// substring matches still render as a single highlighted run, not N
+// nested spans.
+function renderLabel(label: string, indices?: number[]) {
+  if (!indices || indices.length === 0) return label;
+  const hit = new Set(indices);
+  const parts: React.ReactNode[] = [];
+  let i = 0;
+  while (i < label.length) {
+    const matched = hit.has(i);
+    let j = i;
+    while (j < label.length && hit.has(j) === matched) j++;
+    const slice = label.slice(i, j);
+    parts.push(matched ? <span key={i} className="match">{slice}</span> : slice);
+    i = j;
+  }
+  return <>{parts}</>;
 }

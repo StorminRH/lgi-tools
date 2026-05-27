@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-05-26
 
+- The site search now matches initials and partial typos — typing "ffrd" finds "Forgotten Frontier Recursive Depot", with the matched letters highlighted in green so you can see exactly why a row was returned.
 - The wormhole sites page now has a table view alongside the card grid. Use the Cards / Table pill at the top of the page to switch. The table is sortable by name, type, ISK, blue loot, scram count, and class — click any header to sort. Click a row to expand it inline and see the same wave, NPC, and resource detail the card shows. All existing filters (type, class) are preserved when toggling.
 - Gas sites now show the wormhole class range they actually spawn in (Perimeter sites in C1–C6, Frontier sites in C3–C6, Core sites in C5–C6) and the class filter respects those ranges — picking "C3" includes Frontier and Perimeter gas, not just wave-driven C3 sites.
 - The "killing wave" callout on combat-adjacent site cards now reads "blue loot" — the actual EVE-Online term for the loot dropped by Sleeper killing waves.

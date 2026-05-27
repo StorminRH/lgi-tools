@@ -2,9 +2,16 @@
 // action a user might fire from the keyboard ends up here. Session/admin
 // gating keeps the list relevant: logged-out users see "Log in with EVE",
 // logged-in users see "Log out", and admins additionally see "Open admin".
+//
+// Rows with side effects use `onSelect(router)` instead of `href`-driven
+// navigation. Log out fires a fetch then a hard reload (drops cached
+// server-component output that referenced the now-gone session); Log in
+// hard-navigates to the OAuth endpoint (router.push can't reach the SSO
+// redirect chain).
 
 import { registerSearchSource } from '@/data/search';
-import type { SearchContext, SearchResult } from '@/data/search';
+import type { AppRouterInstance, SearchContext, SearchResult } from '@/data/search';
+import { fuzzyMatch } from '@/data/search/match';
 
 type CommandEntry = {
   id: string;
@@ -12,7 +19,7 @@ type CommandEntry = {
   sub?: string;
   href: string;
   iconText: string;
-  command?: SearchResult['command'];
+  onSelect?: (router: AppRouterInstance) => void;
   visible: (ctx: SearchContext) => boolean;
 };
 
@@ -47,7 +54,21 @@ const COMMANDS: CommandEntry[] = [
     sub: 'End the current EVE session',
     href: '/api/auth/logout',
     iconText: '⏏',
-    command: 'logout',
+    onSelect: () => {
+      // Only redirect on success — if the POST fails (network drop, 4xx,
+      // or 5xx) the server never cleared the session cookie, so landing
+      // on / would silently look "logged out" while the session is still
+      // active. fetch() only rejects on network errors, so `res.ok` is
+      // the load-bearing check for HTTP-level failures.
+      void fetch('/api/auth/logout', { method: 'POST' })
+        .then((res) => {
+          if (res.ok) window.location.href = '/';
+          // else: server returned an error; stay put so the user can retry.
+        })
+        .catch(() => {
+          // Network error; stay put.
+        });
+    },
     visible: (ctx) => ctx.session !== null,
   },
   {
@@ -56,36 +77,34 @@ const COMMANDS: CommandEntry[] = [
     sub: 'Sign in via EVE SSO',
     href: '/api/auth/login',
     iconText: '↪',
-    command: 'login',
+    onSelect: () => {
+      window.location.href = '/api/auth/login';
+    },
     visible: (ctx) => ctx.session === null,
   },
 ];
-
-function matchRange(label: string, query: string): [number, number] | undefined {
-  if (query.length === 0) return undefined;
-  const idx = label.toLowerCase().indexOf(query.toLowerCase());
-  if (idx < 0) return undefined;
-  return [idx, idx + query.length];
-}
 
 registerSearchSource({
   name: 'Commands',
   limit: 5,
   async search(query, ctx) {
-    const q = query.toLowerCase();
-    return COMMANDS
+    const matched = COMMANDS
       .filter((c) => c.visible(ctx))
-      .filter((c) => c.label.toLowerCase().includes(q))
-      .map<SearchResult>((c) => ({
-        kind: 'command',
-        id: c.id,
-        label: c.label,
-        sub: c.sub,
-        href: c.href,
-        iconText: c.iconText,
-        iconTone: 'cmd',
-        matchRange: matchRange(c.label, query),
-        command: c.command ?? null,
-      }));
+      .map((c) => ({ cmd: c, match: fuzzyMatch(query, c.label) }))
+      .filter((row): row is { cmd: CommandEntry; match: NonNullable<typeof row.match> } => row.match !== null);
+
+    matched.sort((a, b) => b.match.score - a.match.score);
+
+    return matched.map<SearchResult>(({ cmd, match }) => ({
+      kind: 'command',
+      id: cmd.id,
+      label: cmd.label,
+      sub: cmd.sub,
+      href: cmd.href,
+      iconText: cmd.iconText,
+      iconTone: 'cmd',
+      matchIndices: match.matchIndices,
+      onSelect: cmd.onSelect,
+    }));
   },
 });

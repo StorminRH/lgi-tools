@@ -11,8 +11,22 @@
 //    regardless of source size.
 //  - Empty-query branch: only sources with `showOnEmpty: true` (Recent)
 //    contribute when the input is empty.
+//  - Cancellation: `searchAll` accepts a `signal` on the SearchContext and
+//    throws an AbortError if the signal is aborted by the time every
+//    source resolves. GlobalSearch wires this to an AbortController per
+//    debounced query so a fast typist's earlier in-flight searches don't
+//    overwrite their newer results.
+//  - Side-effects: rows that need to do something other than navigate
+//    expose an `onSelect(router)` callback. The component calls it
+//    instead of `router.push(href)`.
+//  - Lazy loading: large indexes (e.g. the future Blueprints source) can
+//    register via `registerLazySearchSource`, which memoizes the dynamic
+//    import so the cost only lands on the user's first matching keystroke.
 
+import type { useRouter } from 'next/navigation';
 import type { Session } from '@/features/auth/types';
+
+export type AppRouterInstance = ReturnType<typeof useRouter>;
 
 export type SearchResult = {
   kind: string;
@@ -22,13 +36,16 @@ export type SearchResult = {
   href: string;
   iconText?: string;
   iconTone?: string;
-  // Highlighted substring inside `label`; the component renders the
-  // [start, end) slice in green. Optional — sources without
-  // substring-matching semantics omit it.
-  matchRange?: [number, number];
-  // Discriminator for command-with-side-effect rows. The component
-  // checks this and routes to its handler instead of href navigation.
-  command?: 'logout' | 'login' | null;
+  // Character positions inside `label` that should render highlighted.
+  // Empty array or omitted means no highlight. Fuzzy matchers produce
+  // non-contiguous indices (e.g. 'ffrd' → [0, 10, 19, 28] in
+  // "Forgotten Frontier Recursive Depot").
+  matchIndices?: number[];
+  // Side-effect handler. When present, fires instead of router.push(href).
+  // Use for log-out (fetch + hard reload), log-in (window.location to
+  // the OAuth endpoint), or any future row that needs a non-navigation
+  // action. `router` is the App Router instance from useRouter().
+  onSelect?: (router: AppRouterInstance) => void;
   // True for the cosmetic "coming soon" tool rows. The component renders
   // these dimmed and disables click.
   disabled?: boolean;
@@ -40,6 +57,11 @@ export type SearchContext = {
   // `SUPERADMIN_CHARACTER_ID`. Don't try to recompute on the client.
   isAdmin: boolean;
   recents: SearchResult[];
+  // Optional cancellation signal. Sources that do real async work
+  // (lazy imports, network fetches) should check `signal.aborted` and
+  // bail; sync sources may ignore it. `searchAll` re-checks at the end
+  // and throws AbortError if the signal aborted mid-flight.
+  signal?: AbortSignal;
 };
 
 export type SearchSource = {
@@ -53,6 +75,57 @@ const sources: SearchSource[] = [];
 
 export function registerSearchSource(source: SearchSource): void {
   sources.push(source);
+}
+
+// Lazy-loaded source. The `load()` callback runs at most once per
+// session — its promise is memoized on first invocation so subsequent
+// keystrokes reuse the resolved SearchSource without re-importing the
+// underlying module.
+//
+// Example consumer (lands in 3.0.5 with the Blueprints source):
+//
+//   registerLazySearchSource({
+//     name: 'Blueprints',
+//     limit: 6,
+//     load: () => import('./blueprints-source').then((m) => m.blueprintsSource),
+//   });
+//
+// The wrapper presents the same SearchSource shape as a static source
+// to the dispatcher, so `searchAll` doesn't need to know lazy sources
+// exist. The signal check between `await load()` and `await
+// resolved.search(...)` means a cancelled query doesn't waste a freshly-
+// loaded module's first call.
+export function registerLazySearchSource(meta: {
+  name: string;
+  limit?: number;
+  showOnEmpty?: boolean;
+  load: () => Promise<SearchSource>;
+}): void {
+  let loadPromise: Promise<SearchSource> | null = null;
+
+  registerSearchSource({
+    name: meta.name,
+    limit: meta.limit,
+    showOnEmpty: meta.showOnEmpty,
+    async search(query, ctx) {
+      if (!loadPromise) {
+        // Cache the in-flight load on success. On failure (network drop,
+        // bad chunk URL) clear the cache so the next keystroke retries
+        // — a rejected promise is still truthy, so the naive
+        // `if (!loadPromise) loadPromise = meta.load()` would never
+        // retry and the source would stay broken for the whole session.
+        loadPromise = meta.load().catch((err) => {
+          loadPromise = null;
+          throw err;
+        });
+      }
+      const resolved = await loadPromise;
+      if (ctx.signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+      return resolved.search(query, ctx);
+    },
+  });
 }
 
 export function listRegisteredSources(): readonly SearchSource[] {
@@ -71,7 +144,12 @@ export async function searchAll(
   const trimmed = query.trim();
   const isEmpty = trimmed.length === 0;
 
-  const settled = await Promise.all(
+  // Promise.allSettled (not Promise.all) so one source's failure — e.g. a
+  // transient network error inside a lazy source's `await import()` —
+  // doesn't kill the other sources' results for the same keystroke.
+  // Rejected sources are dropped from this query; the next keystroke
+  // retries them. AbortError still propagates via the signal check below.
+  const settled = await Promise.allSettled(
     sources.map(async (s) => {
       if (isEmpty && !s.showOnEmpty) {
         return { name: s.name, results: [] };
@@ -81,7 +159,30 @@ export async function searchAll(
     }),
   );
 
-  return settled.filter((s) => s.results.length > 0);
+  if (ctx.signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+
+  const out: SearchSection[] = [];
+  for (let i = 0; i < settled.length; i++) {
+    const r = settled[i];
+    if (r.status === 'fulfilled') {
+      if (r.value.results.length > 0) out.push(r.value);
+    } else {
+      // Filter AbortError out of the warn branch — once async lazy
+      // sources exist (3.0.5's Blueprints), a cancelled-mid-flight
+      // search() will throw AbortError that Promise.allSettled catches
+      // as a rejection. Those are expected cancellations, not real
+      // failures; warning on them would spam the console on every
+      // keystroke during fast typing.
+      const isAbort = r.reason instanceof DOMException && r.reason.name === 'AbortError';
+      if (!isAbort) {
+        // eslint-disable-next-line no-console
+        console.warn(`searchAll: source "${sources[i].name}" failed`, r.reason);
+      }
+    }
+  }
+  return out;
 }
 
 // Test-only: clear the source list so each test starts from empty.

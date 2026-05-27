@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   registerSearchSource,
+  registerLazySearchSource,
   searchAll,
   __resetSearchSources,
   type SearchContext,
@@ -139,5 +140,151 @@ describe('search registry', () => {
     registerSearchSource(makeSource('Sites', [ROW('1', 'one')]));
     const out = await searchAll('   ', makeCtx());
     expect(out).toEqual([]);
+  });
+
+  it('throws AbortError if the signal aborts mid-flight', async () => {
+    const controller = new AbortController();
+    registerSearchSource({
+      name: 'Slow',
+      async search() {
+        await new Promise((r) => setTimeout(r, 30));
+        return [ROW('s', 'slow')];
+      },
+    });
+    setTimeout(() => controller.abort(), 10);
+    await expect(
+      searchAll('q', makeCtx({ signal: controller.signal })),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('forwards the signal to each source via the context', async () => {
+    const controller = new AbortController();
+    let received: AbortSignal | undefined;
+    registerSearchSource({
+      name: 'Sites',
+      async search(_q, ctx) {
+        received = ctx.signal;
+        return [ROW('1', 'one')];
+      },
+    });
+    await searchAll('q', makeCtx({ signal: controller.signal }));
+    expect(received).toBe(controller.signal);
+  });
+});
+
+describe('registerLazySearchSource', () => {
+  it('calls load() at most once across multiple keystrokes', async () => {
+    const realSource: SearchSource = {
+      name: 'Lazy',
+      async search() {
+        return [ROW('l', 'lazy-row')];
+      },
+    };
+    const load = vi.fn(async () => realSource);
+    registerLazySearchSource({ name: 'Lazy', load });
+
+    await searchAll('a', makeCtx());
+    await searchAll('ab', makeCtx());
+    await searchAll('abc', makeCtx());
+
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not invoke load() when the query is empty and showOnEmpty is false', async () => {
+    const load = vi.fn(async () => makeSource('Lazy', []));
+    registerLazySearchSource({ name: 'Lazy', load });
+
+    await searchAll('', makeCtx());
+
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it('retries load() on the next keystroke if the first load rejects', async () => {
+    let attempts = 0;
+    const realSource: SearchSource = {
+      name: 'Lazy',
+      async search() {
+        return [ROW('l', 'lazy-row')];
+      },
+    };
+    const load = vi.fn(async () => {
+      attempts++;
+      if (attempts === 1) throw new Error('network blip');
+      return realSource;
+    });
+    registerLazySearchSource({ name: 'Lazy', load });
+
+    // Silence the searchAll console.warn for the first failing call so
+    // it doesn't pollute test output. The behavior we care about is
+    // that the rejected load promise gets cleared and the next
+    // keystroke retries.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // First call: lazy load rejects. searchAll drops the source for this
+    // keystroke and returns the other sources' results (empty here since
+    // it's the only source registered) — NOT a top-level rejection.
+    const firstOut = await searchAll('a', makeCtx());
+    expect(firstOut).toEqual([]);
+
+    // Second call: load is retried (the rejected promise was cleared).
+    const secondOut = await searchAll('a', makeCtx());
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(secondOut).toHaveLength(1);
+    expect(secondOut[0].results[0].label).toBe('lazy-row');
+
+    warnSpy.mockRestore();
+  });
+
+  it('does not warn when a source rejects with AbortError', async () => {
+    // Sim a lazy source that gets cancelled mid-flight: it throws
+    // AbortError, but the parent signal is not yet aborted at the
+    // searchAll level (e.g. an internal source-level abort).
+    registerSearchSource({
+      name: 'CancelledLazy',
+      async search() {
+        throw new DOMException('Aborted', 'AbortError');
+      },
+    });
+    registerSearchSource(makeSource('Working', [ROW('1', 'one')]));
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = await searchAll('q', makeCtx());
+    expect(out.map((s) => s.name)).toEqual(['Working']);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('does not let one rejecting source poison the others', async () => {
+    registerSearchSource({
+      name: 'Broken',
+      async search() {
+        throw new Error('source error');
+      },
+    });
+    registerSearchSource(makeSource('Working', [ROW('1', 'one')]));
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = await searchAll('q', makeCtx());
+    expect(out.map((s) => s.name)).toEqual(['Working']);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"Broken" failed'),
+      expect.any(Error),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('honors a pre-aborted signal by throwing AbortError before delegating', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const realSearch = vi.fn(async () => [ROW('l', 'lazy-row')]);
+    registerLazySearchSource({
+      name: 'Lazy',
+      load: async () => ({ name: 'Lazy', search: realSearch }),
+    });
+
+    await expect(
+      searchAll('a', makeCtx({ signal: controller.signal })),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(realSearch).not.toHaveBeenCalled();
   });
 });

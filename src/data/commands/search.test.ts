@@ -67,10 +67,16 @@ describe('commands search source', () => {
     expect(admin.map((r) => r.label)).toContain('Open admin');
   });
 
-  it('attaches the command discriminator to Log out', async () => {
+  it('exposes an onSelect handler on Log out (no command discriminator)', async () => {
     const out = await runCommands('log', ctx({ session: mockSession() }));
     const logout = out.find((r) => r.label === 'Log out');
-    expect(logout?.command).toBe('logout');
+    expect(typeof logout?.onSelect).toBe('function');
+  });
+
+  it('exposes an onSelect handler on Log in (no command discriminator)', async () => {
+    const out = await runCommands('log', ctx());
+    const login = out.find((r) => r.label === 'Log in with EVE');
+    expect(typeof login?.onSelect).toBe('function');
   });
 
   it('filters by substring match against the label', async () => {
