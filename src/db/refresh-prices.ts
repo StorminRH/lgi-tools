@@ -59,7 +59,10 @@ function parseArgs(argv: string[]): Mode {
 const databaseUrl = requiredEnv('DATABASE_URL');
 const mode = parseArgs(process.argv.slice(2));
 
-const client = postgres(databaseUrl, { max: 1 });
+// max: 2 so refreshStalePrices can hold one connection for the advisory
+// lock (via client.reserve()) and still run the data ops on a separate
+// pool connection. max: 1 deadlocks the reserve pattern.
+const client = postgres(databaseUrl, { max: 2 });
 
 async function main() {
   const db = drizzle(client);

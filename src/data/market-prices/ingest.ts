@@ -47,8 +47,8 @@ export async function refreshPrices(
   }
 
   // One updatedAt + staleAfter for the whole batch. Per-row variance
-  // arrives in 3.0.3 when on-demand fetches update single rows out of
-  // band — bulk-refresh rows still expire together.
+  // arrives in 3.0.5 when the on-demand UI consumer updates single rows
+  // out of band — bulk-refresh rows still expire together.
   const updatedAt = new Date();
   const staleAfter = new Date(updatedAt.getTime() + STALE_AFTER_TTL_MS);
   const rows = raw.map((r) => ({

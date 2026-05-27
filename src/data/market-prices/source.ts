@@ -1,109 +1,270 @@
+import {
+  BULK_THRESHOLD,
+  ESI_BASE_URL,
+  ESI_REGION_ID_FORGE,
+  PAGE_CONCURRENCY,
+  PER_TYPE_CONCURRENCY,
+} from './constants';
+import {
+  EsiBudgetExhaustedError,
+  EsiServerError,
+  esiFetch,
+} from './esi-budget';
+import { fetchPricesFromFuzzwork } from './source-fallback';
 import type { RawMarketPrice } from './types';
 
-// Fuzzwork market aggregates API. Swapping to ESI in a future phase
-// means replacing this file only — nothing in ingest.ts or
-// queries.ts knows where the bytes come from.
-const FUZZWORK_AGGREGATES = 'https://market.fuzzwork.co.uk/aggregates/';
+// ESI source dispatcher. Above BULK_THRESHOLD types stale at once, the
+// region-dump path streams every order in The Forge and filters in memory.
+// Below the threshold, per-type calls are cheaper. Either way, a Fuzzwork
+// fallback covers ESI degradation — preserving the per-row staleness
+// contract so the next cron tick gets a fresh attempt.
 
-// Jita 4-4 region. Phase 2 is Jita-only.
-const REGION_ID = 10000002;
-
-// Comma-joined IDs go in the URL. 150 keeps the URL under ~1.1KB
-// even at 6-digit type IDs — well under the 2KB safe-URL threshold.
-const MAX_BATCH = 150;
-
-// Fuzzwork's aggregates response shape. Numbers come back as
-// stringified decimals; we coerce in `parseSide`.
-// Exported for testing.
-export interface FuzzworkSide {
-  weightedAverage: string;
-  max: string;
-  min: string;
-  stddev: string;
-  median: string;
-  volume: string;
-  orderCount: string;
-  percentile: string;
+// ESI's /markets/{region}/orders/ response item shape — only the fields
+// we actually use.
+interface EsiOrder {
+  type_id: number;
+  is_buy_order: boolean;
+  price: number;
+  volume_remain: number;
 }
 
-// Exported for testing.
-export interface FuzzworkPair {
-  buy: FuzzworkSide;
-  sell: FuzzworkSide;
+interface OrderEntry {
+  price: number;
+  volume: bigint;
 }
 
-type FuzzworkResponse = Record<string, FuzzworkPair>;
+interface OrderBucket {
+  buyOrders: OrderEntry[];
+  sellOrders: OrderEntry[];
+}
 
 function dedupe(ids: number[]): number[] {
   return Array.from(new Set(ids));
 }
 
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
+// Bounded-concurrency worker pool. Workers pull from a shared index until
+// the input is exhausted. If any worker throws, Promise.all rejects;
+// in-flight work completes but no new items dispatch. Used by both the
+// region-dump page loop and the per-type fan-out.
+async function runConcurrent<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= items.length) return;
+        await worker(items[i]);
+      }
+    },
+  );
+  await Promise.all(workers);
 }
 
-// Fuzzwork volumes are decimal strings (e.g. "1234567.0"); truncate before
-// BigInt() so we don't blow up on the fractional part. Floor (not round)
-// matches the "this many units are actually for sale" intent.
-//
-// Scientific-notation fallback ("1.5e6") wasn't observed in any Fuzzwork
-// response when this slice was first written, but `BigInt("1.5e6")` throws
-// SyntaxError — one such row would fail the entire refresh batch. The
-// `Number(raw)` path floors correctly for any finite value and only loses
-// precision above Number.MAX_SAFE_INTEGER (~9 quadrillion), well past any
-// realistic Jita market volume.
-// Exported for testing.
-export function parseVolume(raw: string): bigint {
-  if (!raw) return BigInt(0);
-  if (/[eE]/.test(raw)) {
-    const n = Number(raw);
-    if (!Number.isFinite(n) || n <= 0) return BigInt(0);
-    return BigInt(Math.floor(n));
+// Funnel ESI orders into per-type buckets, ignoring types we didn't ask
+// about. Mutates `buckets` in place. The region-dump path calls this once
+// per page; the per-type path passes the whole response as one "page."
+function absorbOrders(
+  orders: EsiOrder[],
+  wanted: Set<number>,
+  buckets: Map<number, OrderBucket>,
+): void {
+  for (const o of orders) {
+    if (!wanted.has(o.type_id)) continue;
+    let bucket = buckets.get(o.type_id);
+    if (!bucket) {
+      bucket = { buyOrders: [], sellOrders: [] };
+      buckets.set(o.type_id, bucket);
+    }
+    const entry: OrderEntry = {
+      price: o.price,
+      volume: BigInt(o.volume_remain),
+    };
+    if (o.is_buy_order) bucket.buyOrders.push(entry);
+    else bucket.sellOrders.push(entry);
   }
-  const dot = raw.indexOf('.');
-  const intPart = dot >= 0 ? raw.slice(0, dot) : raw;
-  return BigInt(intPart || '0');
 }
 
-// Buy side: "best" is the *highest* bid (`max`). Sell side: "best"
-// is the *lowest* ask (`min`). Both percentiles read the 5% column.
-// `orderCount == 0` on either side → NULL for that side's columns.
-// Exported for testing.
-export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
-  const buy = pair.buy;
-  const sell = pair.sell;
-  const buyOrderCount = Number.parseInt(buy.orderCount, 10);
-  const sellOrderCount = Number.parseInt(sell.orderCount, 10);
+// 5%-percentile — the volume-weighted average price of the cheapest 5%
+// of side volume (Fuzzwork's definition; we match it so wormhole-sites
+// ISK totals don't drift when the source swaps). Buy side sorts
+// descending (best bid first); sell side sorts ascending (best ask first).
+// Walk the sorted list, accumulating price × units_taken until 5% of
+// total side volume is consumed; divide to get the average. Empty side
+// returns nulls; zero-volume side returns best for pct5.
+//
+// Exported for testing — the math is delicate enough that a direct
+// regression test is worth the extra surface.
+export function computeSide(
+  orders: OrderEntry[],
+  direction: 'asc' | 'desc',
+): { best: number | null; pct5: number | null; volume: bigint | null } {
+  if (orders.length === 0) {
+    return { best: null, pct5: null, volume: null };
+  }
+  const sorted = [...orders].sort((a, b) =>
+    direction === 'asc' ? a.price - b.price : b.price - a.price,
+  );
+  const best = sorted[0].price;
+
+  let totalVolume = BigInt(0);
+  for (const o of sorted) totalVolume += o.volume;
+  if (totalVolume === BigInt(0)) {
+    return { best, pct5: best, volume: BigInt(0) };
+  }
+
+  // Threshold = ceil(5% of total volume) — bigint math truncates by
+  // default, which on small volumes rounds the threshold down to zero;
+  // bump up by one when there's any remainder so a single tiny order
+  // still gets sampled.
+  const fivePct = totalVolume * BigInt(5);
+  const threshold =
+    fivePct % BigInt(100) === BigInt(0)
+      ? fivePct / BigInt(100)
+      : fivePct / BigInt(100) + BigInt(1);
+
+  let used = BigInt(0);
+  let weightedSum = 0;
+  for (const o of sorted) {
+    const remaining = threshold - used;
+    if (remaining <= BigInt(0)) break;
+    const take = o.volume < remaining ? o.volume : remaining;
+    weightedSum += o.price * Number(take);
+    used += take;
+  }
+  const pct5 = used > BigInt(0) ? weightedSum / Number(used) : best;
+  return { best, pct5, volume: totalVolume };
+}
+
+function bucketToRawPrice(
+  typeId: number,
+  bucket: OrderBucket,
+): RawMarketPrice {
+  const buy = computeSide(bucket.buyOrders, 'desc');
+  const sell = computeSide(bucket.sellOrders, 'asc');
   return {
     typeId,
-    bestBuy: buyOrderCount > 0 ? Number.parseFloat(buy.max) : null,
-    pct5Buy: buyOrderCount > 0 ? Number.parseFloat(buy.percentile) : null,
-    bestSell: sellOrderCount > 0 ? Number.parseFloat(sell.min) : null,
-    pct5Sell: sellOrderCount > 0 ? Number.parseFloat(sell.percentile) : null,
-    buyVolume: buyOrderCount > 0 ? parseVolume(buy.volume) : null,
-    sellVolume: sellOrderCount > 0 ? parseVolume(sell.volume) : null,
-    source: 'fuzzwork',
+    bestBuy: buy.best,
+    pct5Buy: buy.pct5,
+    bestSell: sell.best,
+    pct5Sell: sell.pct5,
+    buyVolume: buy.volume,
+    sellVolume: sell.volume,
+    source: 'esi',
   };
 }
 
-async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
-  const url = `${FUZZWORK_AGGREGATES}?region=${REGION_ID}&types=${typeIds.join(',')}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(
-      `Fuzzwork aggregates request failed: ${res.status} ${res.statusText}`,
-    );
+// Materialize a row per requested type ID, falling back to an empty bucket
+// when ESI returned no orders for that type. Matches Fuzzwork's behavior
+// of always emitting a row for every requested type (so stale_after
+// advances even for "no orders" types).
+function bucketsToRawPrices(
+  typeIds: number[],
+  buckets: Map<number, OrderBucket>,
+): RawMarketPrice[] {
+  const emptyBucket: OrderBucket = { buyOrders: [], sellOrders: [] };
+  return typeIds.map((typeId) =>
+    bucketToRawPrice(typeId, buckets.get(typeId) ?? emptyBucket),
+  );
+}
+
+function regionDumpPageUrl(page: number): string {
+  return `${ESI_BASE_URL}/markets/${ESI_REGION_ID_FORGE}/orders/?order_type=all&page=${page}`;
+}
+
+function perTypeUrl(typeId: number): string {
+  return `${ESI_BASE_URL}/markets/${ESI_REGION_ID_FORGE}/orders/?type_id=${typeId}&order_type=all`;
+}
+
+// Bulk path: stream every order page in The Forge, filter to the requested
+// type set in memory. Concurrent across pages with PAGE_CONCURRENCY cap.
+// Any 5xx or budget exhaustion aborts the bulk attempt — the dispatcher
+// catches and routes to Fuzzwork fallback.
+async function fetchViaEsiRegionDump(
+  typeIds: number[],
+): Promise<RawMarketPrice[]> {
+  const wanted = new Set(typeIds);
+  const buckets = new Map<number, OrderBucket>();
+
+  // First page synchronously to learn the page count.
+  const firstRes = await esiFetch(regionDumpPageUrl(1));
+  const totalPages = Number(firstRes.headers.get('X-Pages') ?? '1');
+  const firstOrders = (await firstRes.json()) as EsiOrder[];
+  absorbOrders(firstOrders, wanted, buckets);
+
+  if (totalPages > 1) {
+    const pages: number[] = [];
+    for (let p = 2; p <= totalPages; p++) pages.push(p);
+    await runConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
+      const res = await esiFetch(regionDumpPageUrl(page));
+      const orders = (await res.json()) as EsiOrder[];
+      absorbOrders(orders, wanted, buckets);
+    });
   }
-  const body = (await res.json()) as FuzzworkResponse;
-  const out: RawMarketPrice[] = [];
-  for (const id of typeIds) {
-    const pair = body[String(id)];
-    if (!pair) continue;
-    out.push(normalize(id, pair));
+
+  return bucketsToRawPrices(typeIds, buckets);
+}
+
+// Per-type path: one ESI call per stale type, concurrent with
+// PER_TYPE_CONCURRENCY cap. Per-type failures route the affected type to
+// the Fuzzwork fallback batch at the end (best-effort). Budget exhaustion
+// short-circuits dispatch — remaining types route to Fuzzwork too.
+async function fetchViaEsiPerType(
+  typeIds: number[],
+): Promise<RawMarketPrice[]> {
+  const results: RawMarketPrice[] = [];
+  const fallbackNeeded: number[] = [];
+  let budgetExhausted = false;
+
+  await runConcurrent(typeIds, PER_TYPE_CONCURRENCY, async (typeId) => {
+    if (budgetExhausted) {
+      fallbackNeeded.push(typeId);
+      return;
+    }
+    try {
+      const res = await esiFetch(perTypeUrl(typeId));
+      if (!res.ok) {
+        // 4xx — invalid type ID or similar. Route to Fuzzwork; if it also
+        // returns nothing, the row simply doesn't update (same as today).
+        fallbackNeeded.push(typeId);
+        return;
+      }
+      const orders = (await res.json()) as EsiOrder[];
+      const buckets = new Map<number, OrderBucket>();
+      absorbOrders(orders, new Set([typeId]), buckets);
+      results.push(...bucketsToRawPrices([typeId], buckets));
+    } catch (err) {
+      if (err instanceof EsiBudgetExhaustedError) {
+        budgetExhausted = true;
+        fallbackNeeded.push(typeId);
+        return;
+      }
+      // EsiServerError or any other transient — route to Fuzzwork.
+      fallbackNeeded.push(typeId);
+    }
+  });
+
+  if (fallbackNeeded.length > 0) {
+    const fb = await fallbackToFuzzwork(fallbackNeeded);
+    results.push(...fb);
   }
-  return out;
+
+  return results;
+}
+
+// One Fuzzwork round-trip for the affected types, with source rewritten
+// to 'fuzzwork-fallback' on the way out. Keeps source-fallback.ts itself
+// emitting the bare 'fuzzwork' literal so a future delete is clean.
+async function fallbackToFuzzwork(
+  typeIds: number[],
+): Promise<RawMarketPrice[]> {
+  const raw = await fetchPricesFromFuzzwork(typeIds);
+  return raw.map((r) => ({ ...r, source: 'fuzzwork-fallback' as const }));
 }
 
 export async function fetchPricesFromSource(
@@ -111,11 +272,20 @@ export async function fetchPricesFromSource(
 ): Promise<RawMarketPrice[]> {
   if (typeIds.length === 0) return [];
   const unique = dedupe(typeIds);
-  const batches = chunk(unique, MAX_BATCH);
-  const results: RawMarketPrice[] = [];
-  for (const batch of batches) {
-    const part = await fetchOneBatch(batch);
-    results.push(...part);
+
+  if (unique.length >= BULK_THRESHOLD) {
+    try {
+      return await fetchViaEsiRegionDump(unique);
+    } catch (err) {
+      if (
+        err instanceof EsiBudgetExhaustedError ||
+        err instanceof EsiServerError
+      ) {
+        return fallbackToFuzzwork(unique);
+      }
+      throw err;
+    }
   }
-  return results;
+
+  return fetchViaEsiPerType(unique);
 }

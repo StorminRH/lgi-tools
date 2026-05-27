@@ -14,3 +14,36 @@ export const STALE_AFTER_TTL_MS = 24 * 60 * 60 * 1000;
 // so the value is opaque. BigInt(...) call (vs an `n` literal) keeps the
 // TS target at ES2017.
 export const ADVISORY_LOCK_REFRESH_PRICES = BigInt(8273619012);
+
+// ESI (Eve Online's official API) base URL. Path-versioned routes hang
+// off this — `/markets/{region}/orders/` for both bulk and per-type
+// fetches.
+export const ESI_BASE_URL = 'https://esi.evetech.net/latest';
+
+// The Forge region — Jita. The same number that REGION_ID was in
+// source-fallback.ts; promoted to a shared constant now that two source
+// implementations use it.
+export const ESI_REGION_ID_FORGE = 10000002;
+
+// Stale-set size at which the ESI region-dump (one paginated stream of
+// every order in The Forge) becomes cheaper than fetching each type one
+// by one. Below the threshold the dispatcher uses the per-type endpoint;
+// at or above it switches to the region-dump path. 100 is a guess that's
+// comfortable for the 54-row 3.0.3 state and the ~6,000-row 3.0.4 load;
+// revisit if real production timing data justifies tuning either way.
+export const BULK_THRESHOLD = 100;
+
+// Max concurrent page fetches inside the ESI region-dump. Jita has
+// ~400–600 pages; 8 keeps the dispatch pipeline saturated without
+// hammering ESI or our own outbound connection budget.
+export const PAGE_CONCURRENCY = 8;
+
+// Max concurrent per-type ESI fetches. The 54-row daily cron hits this
+// at 10-wide and finishes in ~6 batches.
+export const PER_TYPE_CONCURRENCY = 10;
+
+// Refuse to dispatch new ESI calls when X-ESI-Error-Limit-Remain falls
+// below this floor. ESI's actual ceiling is 100 errors per rolling
+// window; a 20-error pre-ban margin gives us enough slack to log and
+// fall back to Fuzzwork before the next request would trip the ban.
+export const ESI_BUDGET_FLOOR = 20;
