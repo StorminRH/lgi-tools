@@ -58,6 +58,21 @@ export interface SitesViewSplit {
   table: number;
 }
 
+export interface ReferrerCount {
+  host: string;
+  count: number;
+}
+
+export interface UtmSourceCount {
+  source: string;
+  count: number;
+}
+
+export interface EntryPageCount {
+  path: string;
+  count: number;
+}
+
 export interface RoleChangeAuditEntry {
   timestamp: Date;
   actorCharacterId: number | null;

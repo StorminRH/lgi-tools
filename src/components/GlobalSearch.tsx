@@ -50,8 +50,13 @@ export function GlobalSearch({ active, onActiveChange, session, isAdmin, siteInd
   }, [siteIndex]);
 
   // Read localStorage Recents on mount; SSR-safe because the read is
-  // inside useEffect.
+  // inside useEffect. `useSyncExternalStore` is the canonical pattern
+  // for external-state sync, but readRecents() returns a fresh array
+  // each call so the snapshot identity check would loop infinitely.
+  // Memoizing the storage layer would be a heavier refactor than this
+  // one-shot setState is worth.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRecents(readRecents());
   }, []);
 

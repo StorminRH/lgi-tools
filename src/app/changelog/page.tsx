@@ -6,7 +6,7 @@ import { EntryCard } from '@/features/changelog/components/EntryCard';
 import { parseChangelog } from '@/features/changelog/parse';
 
 export const metadata = {
-  title: 'Changelog — LGI.tools',
+  title: 'Changelog',
   description: 'User-facing changes to LGI.tools, grouped by ship date.',
 };
 

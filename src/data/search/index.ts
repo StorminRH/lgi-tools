@@ -181,7 +181,6 @@ export async function searchAll(
       // keystroke during fast typing.
       const isAbort = r.reason instanceof DOMException && r.reason.name === 'AbortError';
       if (!isAbort) {
-        // eslint-disable-next-line no-console
         console.warn(`searchAll: source "${sources[i].name}" failed`, r.reason);
       }
     }

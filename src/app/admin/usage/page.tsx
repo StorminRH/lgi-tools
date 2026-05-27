@@ -9,8 +9,11 @@ import {
   getRoleChangeAudit,
   getSitesViewSplit,
   getTopActions,
+  getTopEntryPages,
   getTopPages,
+  getTopReferrers,
   getTopSearches,
+  getTopUtmSources,
 } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { getSession, isAdmin } from '@/features/auth/session';
@@ -136,16 +139,29 @@ export default async function AdminUsagePage({
   const activeRange = parseRange(raw.range);
   const range = rangeFor(activeRange);
 
-  const [summary, topActions, dailyCounts, topPages, topSearches, roleAudit, viewSplit] =
-    await Promise.all([
-      getAggregateSummary(range),
-      getTopActions(range, 10),
-      getDailyCounts(range),
-      getTopPages(range, 10),
-      getTopSearches(range, 10),
-      getRoleChangeAudit(range, 50),
-      getSitesViewSplit(range),
-    ]);
+  const [
+    summary,
+    topActions,
+    dailyCounts,
+    topPages,
+    topSearches,
+    roleAudit,
+    viewSplit,
+    topReferrers,
+    topUtmSources,
+    topEntryPages,
+  ] = await Promise.all([
+    getAggregateSummary(range),
+    getTopActions(range, 10),
+    getDailyCounts(range),
+    getTopPages(range, 10),
+    getTopSearches(range, 10),
+    getRoleChangeAudit(range, 50),
+    getSitesViewSplit(range),
+    getTopReferrers(range, 10),
+    getTopUtmSources(range, 10),
+    getTopEntryPages(range, 10),
+  ]);
 
   const topActionMax = topActions.reduce((m, r) => Math.max(m, r.count), 0);
   const topPagesMax = topPages.reduce((m, r) => Math.max(m, r.count), 0);
@@ -153,6 +169,9 @@ export default async function AdminUsagePage({
   const dailyMax = dailyCounts.reduce((m, r) => Math.max(m, r.totalEvents), 0);
   const viewSplitTotal = viewSplit.cards + viewSplit.table;
   const viewSplitMax = Math.max(viewSplit.cards, viewSplit.table);
+  const topReferrersMax = topReferrers.reduce((m, r) => Math.max(m, r.count), 0);
+  const topUtmSourcesMax = topUtmSources.reduce((m, r) => Math.max(m, r.count), 0);
+  const topEntryPagesMax = topEntryPages.reduce((m, r) => Math.max(m, r.count), 0);
 
   return (
     <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
@@ -271,6 +290,66 @@ export default async function AdminUsagePage({
               />
             ))
           )}
+        </Card>
+
+        <Card>
+          <SectionHeader
+            label="Acquisition"
+            hint={`${topReferrers.length + topUtmSources.length + topEntryPages.length} signals`}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border-soft">
+            <div className="bg-bg">
+              <div className="px-3.5 py-2 text-[9px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+                Top referrers
+              </div>
+              {topReferrers.length === 0 ? (
+                <EmptyState>No external referrers in this range.</EmptyState>
+              ) : (
+                topReferrers.map((row) => (
+                  <HorizontalBar
+                    key={row.host}
+                    label={row.host}
+                    count={row.count}
+                    max={topReferrersMax}
+                  />
+                ))
+              )}
+            </div>
+            <div className="bg-bg">
+              <div className="px-3.5 py-2 text-[9px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+                Top UTM sources
+              </div>
+              {topUtmSources.length === 0 ? (
+                <EmptyState>No UTM-tagged traffic in this range.</EmptyState>
+              ) : (
+                topUtmSources.map((row) => (
+                  <HorizontalBar
+                    key={row.source}
+                    label={row.source}
+                    count={row.count}
+                    max={topUtmSourcesMax}
+                  />
+                ))
+              )}
+            </div>
+            <div className="bg-bg">
+              <div className="px-3.5 py-2 text-[9px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+                Top entry pages
+              </div>
+              {topEntryPages.length === 0 ? (
+                <EmptyState>No session entry events in this range.</EmptyState>
+              ) : (
+                topEntryPages.map((row) => (
+                  <HorizontalBar
+                    key={row.path}
+                    label={row.path}
+                    count={row.count}
+                    max={topEntryPagesMax}
+                  />
+                ))
+              )}
+            </div>
+          </div>
         </Card>
 
         <Card>

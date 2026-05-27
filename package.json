@@ -32,6 +32,7 @@
     "knip": "knip"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
     "csv-parse": "^6.2.1",
     "drizzle-orm": "^0.45.2",
     "fuzzysort": "^3.1.0",

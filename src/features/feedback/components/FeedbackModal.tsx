@@ -35,11 +35,17 @@ export function FeedbackModal({
   // Capture the URL at the moment the modal opens. Stays stable for the
   // life of the open modal even if the user navigates underneath (rare
   // but possible via keyboard shortcuts on routes that handle them).
+  // The React-blessed alternative to setState-in-effect for "reset state
+  // when a prop flips" is a `key` remount in the parent, but that would
+  // require coordinating with FeedbackButton and adds more surface area
+  // than this single open-flip handler is worth.
   useEffect(() => {
     if (!open) return;
+    /* eslint-disable react-hooks/set-state-in-effect */
     setPath(window.location.pathname + window.location.search);
     setMessage('');
     setState({ kind: 'idle' });
+    /* eslint-enable react-hooks/set-state-in-effect */
     // Focus the textarea once the dialog has opened.
     queueMicrotask(() => textareaRef.current?.focus());
   }, [open]);

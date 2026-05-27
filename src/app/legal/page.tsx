@@ -1,7 +1,7 @@
 import { Card } from '@/components/ui/card';
 
 export const metadata = {
-  title: 'Legal — LGI.tools',
+  title: 'Legal',
   description: 'Telemetry collection disclosure and EVE Online developer notice.',
 };
 
@@ -38,6 +38,20 @@ export default function LegalPage() {
               (for example, <span className="font-mono">c3/relic</span>).
             </li>
             <li>
+              The hostname of the site that linked you to us (for example,{' '}
+              <span className="font-mono">discord.com</span>), and any{' '}
+              <span className="font-mono">utm_source</span> /{' '}
+              <span className="font-mono">utm_medium</span> /{' '}
+              <span className="font-mono">utm_campaign</span> tags present on the URL you arrived
+              through. We never record the full referring URL — only the hostname.
+            </li>
+            <li>
+              A randomly-generated visitor ID kept in your browser&apos;s{' '}
+              <span className="font-mono">localStorage</span>. It is used to distinguish a
+              first-time lander from a returning page-hopper — nothing more. Clearing your
+              browser storage clears the ID.
+            </li>
+            <li>
               Your EVE character ID, but only if you are logged in via EVE SSO. If you are
               not logged in, the same events are recorded anonymously.
             </li>
@@ -57,6 +71,20 @@ export default function LegalPage() {
           <p className="text-[12px] leading-relaxed text-text">
             If you would prefer not to be attributed by character, log out via the header
             and continue using the site — your visits will be recorded anonymously.
+          </p>
+          <p className="text-[12px] leading-relaxed text-text">
+            Page performance metrics — load time, layout shift, and other{' '}
+            <a
+              href="https://web.dev/articles/vitals"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Core Web Vitals
+            </a>
+            {' '}— are collected anonymously by Vercel Speed Insights, the analytics
+            product built into our hosting provider. This is performance telemetry only:
+            no behavioural tracking, no advertising profile, no cross-site identity. The
+            data is aggregated by Vercel and used to surface slow pages so we can fix them.
           </p>
         </Card>
 
