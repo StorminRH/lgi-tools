@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
 import { Suspense } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { AppHeader } from "@/components/AppHeader";
 import { Footer } from "@/components/Footer";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
 import { getSession, isAdmin } from "@/features/auth/session";
+import { SITE_URL } from "@/config/site-url";
 
 const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
@@ -26,9 +28,35 @@ const jetBrainsMono = JetBrains_Mono({
   weight: ["400", "700", "800"],
 });
 
+const DEFAULT_DESCRIPTION =
+  "Lo-Gang Industries — first-party Eve Online tools for wormhole pilots. " +
+  "Browse all 69 wormhole sites with live Jita prices on ore and gas resources.";
+
+const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
+
 export const metadata: Metadata = {
-  title: "LGI.tools",
-  description: "Lo-Gang Industries — Eve Online wormhole tools",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "LGI.tools",
+    template: "%s | LGI.tools",
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: "LGI.tools",
+  openGraph: {
+    type: "website",
+    siteName: "LGI.tools",
+    title: "LGI.tools",
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "LGI.tools" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LGI.tools",
+    description: DEFAULT_DESCRIPTION,
+    images: ["/opengraph-image"],
+  },
+  ...(googleVerification ? { verification: { google: googleVerification } } : {}),
 };
 
 export default async function RootLayout({
@@ -52,6 +80,7 @@ export default async function RootLayout({
         <Suspense fallback={null}>
           <TelemetryReporter />
         </Suspense>
+        <SpeedInsights />
       </body>
     </html>
   );

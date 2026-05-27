@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Callout } from '@/components/ui/callout';
 import { Pill } from '@/components/ui/pill';
+import { getFeatureFlags } from '@/config/feature-flags';
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   state_mismatch:
@@ -22,6 +23,8 @@ export default async function Home({
   const rawError = params.auth_error;
   const errorKey =
     typeof rawError === 'string' && rawError in AUTH_ERROR_MESSAGES ? rawError : null;
+
+  const flags = getFeatureFlags();
 
   return (
     <div className="flex flex-col items-center">
@@ -79,46 +82,87 @@ export default async function Home({
             </div>
           </Link>
 
-          <div className="tool-tile tool-tile-soon">
-            <div className="flex items-start justify-between gap-2">
-              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
-                Industry Planner
+          {flags.industryPlanner ? (
+            <Link href="/industry" className="tool-tile tool-tile-live no-underline">
+              <div className="flex items-start justify-between gap-2">
+                <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                  Industry Planner
+                </div>
               </div>
-              <Pill tone="neutral">Coming Soon</Pill>
-            </div>
-            <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
-              Manufacturing profitability for blueprints and reactions.
-            </p>
-            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
-              <div className="flex items-center gap-1">
-                <Pill tone="neutral">T1</Pill>
-                <Pill tone="blue">T2</Pill>
-                <Pill tone="purple">T3</Pill>
-                <Pill tone="teal">Reactions</Pill>
+              <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
+                Manufacturing profitability for blueprints and reactions.
+              </p>
+              <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+                <div className="flex items-center gap-1">
+                  <Pill tone="neutral">T1</Pill>
+                  <Pill tone="blue">T2</Pill>
+                  <Pill tone="purple">T3</Pill>
+                  <Pill tone="teal">Reactions</Pill>
+                </div>
               </div>
-              <span className="text-[10px] text-muted tracking-[0.04em]">v4.0</span>
+            </Link>
+          ) : (
+            <div className="tool-tile tool-tile-soon">
+              <div className="flex items-start justify-between gap-2">
+                <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                  Industry Planner
+                </div>
+                <Pill tone="neutral">Coming Soon</Pill>
+              </div>
+              <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
+                Manufacturing profitability for blueprints and reactions.
+              </p>
+              <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+                <div className="flex items-center gap-1">
+                  <Pill tone="neutral">T1</Pill>
+                  <Pill tone="blue">T2</Pill>
+                  <Pill tone="purple">T3</Pill>
+                  <Pill tone="teal">Reactions</Pill>
+                </div>
+                <span className="text-[10px] text-muted tracking-[0.04em]">v4.0</span>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="tool-tile tool-tile-soon">
-            <div className="flex items-start justify-between gap-2">
-              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
-                Wormhole Roll Calculator
+          {flags.wormholeRollCalc ? (
+            <Link href="/wormhole-roll" className="tool-tile tool-tile-live no-underline">
+              <div className="flex items-start justify-between gap-2">
+                <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                  Wormhole Roll Calculator
+                </div>
               </div>
-              <Pill tone="neutral">Coming Soon</Pill>
-            </div>
-            <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
-              Plan hole rolls with live mass tracking.
-            </p>
-            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
-              <div className="flex items-center gap-1">
-                <Pill tone="green">C1</Pill>
-                <Pill tone="orange">C3</Pill>
-                <Pill tone="red">C5</Pill>
+              <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
+                Plan hole rolls with live mass tracking.
+              </p>
+              <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+                <div className="flex items-center gap-1">
+                  <Pill tone="green">C1</Pill>
+                  <Pill tone="orange">C3</Pill>
+                  <Pill tone="red">C5</Pill>
+                </div>
               </div>
-              <span className="text-[10px] text-muted tracking-[0.04em]">v5.0</span>
+            </Link>
+          ) : (
+            <div className="tool-tile tool-tile-soon">
+              <div className="flex items-start justify-between gap-2">
+                <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                  Wormhole Roll Calculator
+                </div>
+                <Pill tone="neutral">Coming Soon</Pill>
+              </div>
+              <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
+                Plan hole rolls with live mass tracking.
+              </p>
+              <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+                <div className="flex items-center gap-1">
+                  <Pill tone="green">C1</Pill>
+                  <Pill tone="orange">C3</Pill>
+                  <Pill tone="red">C5</Pill>
+                </div>
+                <span className="text-[10px] text-muted tracking-[0.04em]">v5.0</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
       </div>

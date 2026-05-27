@@ -1,11 +1,87 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPricesFreshness } from '@/data/market-prices/cache';
 import { db } from '@/db';
+import { SITE_URL } from '@/config/site-url';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SiteMetaStrip } from '@/features/wormhole-sites/components/SiteMetaStrip';
 import { overlayLivePrices } from '@/features/wormhole-sites/live-prices';
 import { getSiteDetail } from '@/features/wormhole-sites/queries';
+import { siteScramTotal } from '@/features/wormhole-sites/sort';
+
+const SITE_TYPE_LABEL: Record<string, string> = {
+  combat: 'Combat',
+  ore: 'Ore',
+  gas: 'Gas',
+  relic: 'Relic',
+  data: 'Data',
+};
+
+function formatIsk(value: number): string {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B ISK`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M ISK`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K ISK`;
+  return `${value} ISK`;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id: rawId } = await params;
+  const id = Number.parseInt(rawId, 10);
+  if (!Number.isFinite(id)) return {};
+
+  const site = await getSiteDetail(id);
+  if (!site) return {};
+
+  const typeLabel = SITE_TYPE_LABEL[site.siteType] ?? site.siteType;
+  const classLabel = site.wormholeClass ?? (site.siteType === 'gas' ? 'Wormhole' : null);
+  const titlePieces = [site.name, classLabel ? `${classLabel} ${typeLabel}` : typeLabel];
+  const title = titlePieces.filter(Boolean).join(' — ');
+
+  const iskTotal = (site.blueLootIsk ?? 0) + (site.resourceValueIsk ?? 0);
+  const waveCount = site.waves.length;
+  const scrams = siteScramTotal(site);
+
+  const sentences: string[] = [];
+  if (iskTotal > 0) sentences.push(`${formatIsk(iskTotal)} total value.`);
+  if (waveCount > 0) {
+    const wavesNoun = waveCount === 1 ? 'wave' : 'waves';
+    const sleeperPrefix = site.siteType === 'combat' ? 'Sleeper ' : '';
+    let waveSentence = `${waveCount} ${sleeperPrefix}${wavesNoun}`;
+    if (scrams > 0) {
+      const scramNoun = scrams === 1 ? 'scram' : 'scrams';
+      waveSentence += `, ${scrams} ${scramNoun}`;
+    }
+    sentences.push(`${waveSentence}.`);
+  }
+  const description =
+    sentences.length > 0
+      ? sentences.join(' ')
+      : `Wormhole site detail on LGI.tools.`;
+
+  const canonicalUrl = `${SITE_URL}/sites/${id}`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+  };
+}
 
 export default async function SiteDetailPage({
   params,

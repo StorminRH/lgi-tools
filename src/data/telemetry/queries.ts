@@ -6,11 +6,14 @@ import type {
   AggregateSummary,
   DailyCount,
   DateRange,
+  EntryPageCount,
   PathCount,
+  ReferrerCount,
   RoleChangeAuditEntry,
   SearchCount,
   SitesViewSplit,
   UsageAction,
+  UtmSourceCount,
 } from './types';
 
 interface LogEventInput {
@@ -105,6 +108,77 @@ export async function getTopPages(range: DateRange, limit = 10): Promise<PathCou
     })
     .from(usageLogs)
     .where(and(inRange(range), eq(usageLogs.action, 'page_view'), isNotNull(path)))
+    .groupBy(path)
+    .orderBy(desc(count()))
+    .limit(limit);
+
+  return rows
+    .filter((r) => r.path !== null)
+    .map((r) => ({ path: r.path as string, count: Number(r.count) }));
+}
+
+// Top referrer hostnames among page_view events. TelemetryReporter only
+// writes metadata.referrer when the referring origin is different from the
+// current host, so same-origin page-hops never appear here. Joining on
+// `path = '/sites'` would over-narrow it — we want acquisition across the
+// whole platform.
+export async function getTopReferrers(
+  range: DateRange,
+  limit = 10,
+): Promise<ReferrerCount[]> {
+  const host = sql<string>`${usageLogs.metadata} ->> 'referrer'`;
+  const rows = await db
+    .select({ host, count: count() })
+    .from(usageLogs)
+    .where(and(inRange(range), eq(usageLogs.action, 'page_view'), isNotNull(host)))
+    .groupBy(host)
+    .orderBy(desc(count()))
+    .limit(limit);
+
+  return rows
+    .filter((r) => r.host !== null)
+    .map((r) => ({ host: r.host as string, count: Number(r.count) }));
+}
+
+// Top utm_source values. metadata.utm is a nested JSON object so we extract
+// via `metadata -> 'utm' ->> 'source'`. Future-medium/campaign panels can
+// follow the same shape; one query per dimension keeps the SQL flat.
+export async function getTopUtmSources(
+  range: DateRange,
+  limit = 10,
+): Promise<UtmSourceCount[]> {
+  const source = sql<string>`${usageLogs.metadata} -> 'utm' ->> 'source'`;
+  const rows = await db
+    .select({ source, count: count() })
+    .from(usageLogs)
+    .where(and(inRange(range), eq(usageLogs.action, 'page_view'), isNotNull(source)))
+    .groupBy(source)
+    .orderBy(desc(count()))
+    .limit(limit);
+
+  return rows
+    .filter((r) => r.source !== null)
+    .map((r) => ({ source: r.source as string, count: Number(r.count) }));
+}
+
+// Top entry pages — paths where metadata.is_entry is true. Tracks the first
+// page-view per browser session, so this aggregates landing pages rather
+// than every page a user opens after they're already on the site.
+export async function getTopEntryPages(
+  range: DateRange,
+  limit = 10,
+): Promise<EntryPageCount[]> {
+  const path = sql<string>`${usageLogs.metadata} ->> 'path'`;
+  const isEntry = sql<string>`${usageLogs.metadata} ->> 'is_entry'`;
+  const rows = await db
+    .select({ path, count: count() })
+    .from(usageLogs)
+    .where(and(
+      inRange(range),
+      eq(usageLogs.action, 'page_view'),
+      isNotNull(path),
+      eq(isEntry, 'true'),
+    ))
     .groupBy(path)
     .orderBy(desc(count()))
     .limit(limit);

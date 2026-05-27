@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Pill } from '@/components/ui/pill';
 
 export const metadata = {
-  title: 'Not found — LGI.tools',
+  title: 'Not found',
 };
 
 export default function NotFound() {
