@@ -20,7 +20,7 @@ export default function PreviewCardsPage() {
     <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
       <header className="w-full max-w-[1100px] mb-10 pb-4 border-b border-[#1a2535]">
         <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-          LGI.tools — Site Card Reference
+          Site Card Reference
         </div>
         <div className="text-[10px] text-[#2a4050] tracking-[0.12em] uppercase">
           All wormhole site types · A1 blue-gray theme · Mock data

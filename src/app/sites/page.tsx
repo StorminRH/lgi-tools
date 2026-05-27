@@ -2,6 +2,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { FilterBar, type FilterOption } from '@/components/ui/filter-bar';
 import { UrlSync } from '@/components/ui/url-sync';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
+import { SitesTable } from '@/features/wormhole-sites/components/SitesTable';
 import { SitesTerminalSearch } from '@/features/wormhole-sites/components/SitesTerminalSearch';
 import {
   CLASS_TONE,
@@ -11,6 +12,7 @@ import {
 import { overlayLivePrices } from '@/features/wormhole-sites/live-prices';
 import { listSiteDetails } from '@/features/wormhole-sites/queries';
 import { SITE_TYPES, WORMHOLE_CLASSES } from '@/features/wormhole-sites/schema';
+import { parseSortDir, parseSortKey } from '@/features/wormhole-sites/sort';
 import type { SiteDetail, SiteType, WormholeClass } from '@/features/wormhole-sites/types';
 
 const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
@@ -29,6 +31,11 @@ const CLASS_OPTIONS: FilterOption[] = [
   ),
 ];
 
+const VIEW_OPTIONS: FilterOption[] = [
+  { value: null, label: 'Cards' },
+  { value: 'table', label: 'Table', tone: 'blue' },
+];
+
 function groupBySection(sites: SiteDetail[]): Record<SiteType, SiteDetail[]> {
   const groups: Record<SiteType, SiteDetail[]> = {
     combat: [], ore: [], gas: [], relic: [], data: [],
@@ -40,7 +47,7 @@ function groupBySection(sites: SiteDetail[]): Record<SiteType, SiteDetail[]> {
 export default async function SitesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; class?: string }>;
+  searchParams: Promise<{ type?: string; class?: string; view?: string; sort?: string; dir?: string }>;
 }) {
   const raw = await searchParams;
 
@@ -54,16 +61,29 @@ export default async function SitesPage({
       ? (raw.class as WormholeClass)
       : undefined;
 
+  const isTableView = raw.view === 'table';
+  const sortKey = parseSortKey(raw.sort);
+  const sortDir = parseSortDir(raw.dir);
+
   const rawSites = await listSiteDetails({ type, wormholeClass });
   const sites = await overlayLivePrices(rawSites);
   const groups = groupBySection(sites);
-  const currentParams = { type, class: wormholeClass };
+
+  // Threaded through every FilterBar so toggling any filter preserves the
+  // others (Type/Class/View/sort all survive each other).
+  const currentParams: Record<string, string | undefined> = {
+    type,
+    class: wormholeClass,
+    view: isTableView ? 'table' : undefined,
+    sort: sortKey ?? undefined,
+    dir: sortKey ? sortDir : undefined,
+  };
 
   return (
     <div className="sites-page-bg flex flex-col items-center px-6 pt-12 pb-20 gap-0">
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
         <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-          LGI.tools — Wormhole Sites
+          Wormhole Sites
         </div>
         <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
           {sites.length} site{sites.length === 1 ? '' : 's'}
@@ -77,6 +97,14 @@ export default async function SitesPage({
       </div>
 
       <div className="w-full max-w-[1100px] flex flex-col gap-2.5 mb-8">
+        <FilterBar
+          label="View"
+          paramName="view"
+          options={VIEW_OPTIONS}
+          activeValue={isTableView ? 'table' : null}
+          basePath="/sites"
+          currentParams={currentParams}
+        />
         <FilterBar
           label="Type"
           paramName="type"
@@ -98,6 +126,15 @@ export default async function SitesPage({
       {sites.length === 0 ? (
         <div className="w-full max-w-[1100px]">
           <EmptyState>No sites match this filter combination.</EmptyState>
+        </div>
+      ) : isTableView ? (
+        <div className="w-full max-w-[1100px]">
+          <SitesTable
+            sites={sites}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            currentParams={currentParams}
+          />
         </div>
       ) : (
         SECTION_ORDER.map((sectionType, i) => {

@@ -53,6 +53,11 @@ export interface SearchCount {
   count: number;
 }
 
+export interface SitesViewSplit {
+  cards: number;
+  table: number;
+}
+
 export interface RoleChangeAuditEntry {
   timestamp: Date;
   actorCharacterId: number | null;

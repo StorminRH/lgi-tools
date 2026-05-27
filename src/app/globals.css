@@ -544,6 +544,28 @@ a:hover {
 }
 /* end global-search block */
 
+/* ── Sortable table block (v2.9.7) ─────────────────────────────────────
+ * Generic primitive lives in src/components/ui/sortable-table.tsx; the
+ * /sites table view consumes it via SitesTable. Header row + body rows
+ * share their grid-template via an inline style passed from the primitive,
+ * so headers stay aligned with summary cells. Row body (when expanded)
+ * is a plain block child of <details> and naturally spans full width
+ * below the summary. */
+.sites-table-row > summary > * {
+  /* Cell containers passed through from the primitive carry their own
+   * font-mono and alignment. This rule just ensures grid item layout
+   * doesn't collapse content with `min-width: 0` so truncation works. */
+  min-width: 0;
+}
+.sites-table-row[open] > summary {
+  background: #0d1218;
+}
+.sites-table-expanded {
+  border-top: 1px solid var(--color-border-soft);
+  background: var(--color-bg);
+  padding: 0;
+}
+
 details[data-collapsible][open] > summary [data-chevron] {
   transform: rotate(180deg);
 }

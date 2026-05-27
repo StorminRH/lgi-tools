@@ -7,6 +7,7 @@ import {
   getAggregateSummary,
   getDailyCounts,
   getRoleChangeAudit,
+  getSitesViewSplit,
   getTopActions,
   getTopPages,
   getTopSearches,
@@ -111,6 +112,11 @@ function HorizontalBar({
   );
 }
 
+function pctLabel(part: number, total: number): string {
+  if (total === 0) return '0%';
+  return `${Math.round((part / total) * 100)}%`;
+}
+
 function parseRange(raw: string | string[] | undefined): RangeKey {
   if (typeof raw !== 'string') return '30d';
   return (RANGES as readonly string[]).includes(raw) ? (raw as RangeKey) : '30d';
@@ -130,7 +136,7 @@ export default async function AdminUsagePage({
   const activeRange = parseRange(raw.range);
   const range = rangeFor(activeRange);
 
-  const [summary, topActions, dailyCounts, topPages, topSearches, roleAudit] =
+  const [summary, topActions, dailyCounts, topPages, topSearches, roleAudit, viewSplit] =
     await Promise.all([
       getAggregateSummary(range),
       getTopActions(range, 10),
@@ -138,23 +144,26 @@ export default async function AdminUsagePage({
       getTopPages(range, 10),
       getTopSearches(range, 10),
       getRoleChangeAudit(range, 50),
+      getSitesViewSplit(range),
     ]);
 
   const topActionMax = topActions.reduce((m, r) => Math.max(m, r.count), 0);
   const topPagesMax = topPages.reduce((m, r) => Math.max(m, r.count), 0);
   const topSearchesMax = topSearches.reduce((m, r) => Math.max(m, r.count), 0);
   const dailyMax = dailyCounts.reduce((m, r) => Math.max(m, r.totalEvents), 0);
+  const viewSplitTotal = viewSplit.cards + viewSplit.table;
+  const viewSplitMax = Math.max(viewSplit.cards, viewSplit.table);
 
   return (
     <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
         <div className="print-only font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-1">
-          LGI.tools — Usage report — {formatDate(range.from)} to {formatDate(range.to)}
+          Usage report — {formatDate(range.from)} to {formatDate(range.to)}
         </div>
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-              LGI.tools — Usage report
+              Usage report
             </div>
             <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
               {formatDate(range.from)} → {formatDate(range.to)} · {summary.totalEvents.toLocaleString()} events
@@ -261,6 +270,29 @@ export default async function AdminUsagePage({
                 max={topPagesMax}
               />
             ))
+          )}
+        </Card>
+
+        <Card>
+          <SectionHeader
+            label="Wormhole Sites · view split"
+            hint={`${viewSplitTotal.toLocaleString()} total`}
+          />
+          {viewSplitTotal === 0 ? (
+            <EmptyState>No /sites page views in this range.</EmptyState>
+          ) : (
+            <>
+              <HorizontalBar
+                label={`Card grid (default) — ${pctLabel(viewSplit.cards, viewSplitTotal)}`}
+                count={viewSplit.cards}
+                max={viewSplitMax}
+              />
+              <HorizontalBar
+                label={`Table view — ${pctLabel(viewSplit.table, viewSplitTotal)}`}
+                count={viewSplit.table}
+                max={viewSplitMax}
+              />
+            </>
           )}
         </Card>
 

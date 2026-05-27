@@ -26,7 +26,7 @@ export default async function ChangelogPage() {
 
       <header className="w-full max-w-[800px] mb-6 pb-4 border-b border-border-soft">
         <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-          LGI.tools — Changelog
+          Changelog
         </div>
         <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
           {entries.length} update{entries.length === 1 ? '' : 's'}
