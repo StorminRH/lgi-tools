@@ -31,7 +31,7 @@ export async function AppHeader({
   ]);
 
   return (
-    <header className="flex items-stretch h-11 text-body border-b border-border bg-section">
+    <header className="app-header flex items-stretch h-11 text-body border-b border-border bg-section">
       <div className="flex items-center shrink-0 px-4 border-r border-border">
         <Link
           href="/"

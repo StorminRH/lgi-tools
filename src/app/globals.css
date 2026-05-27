@@ -312,6 +312,87 @@ a:hover {
 .nav-tools.shrunk .nav-tool .full { display: none; }
 .nav-tools.shrunk .nav-tool .abbr { display: inline; }
 
+/* ── Responsive defensive layer (v2.9.6) ───────────────────────────────
+ * LGI.tools is desktop-first; this block is the Level-1 floor that keeps
+ * the site usable on laptop (1366×768) and tablet (1024×768) viewports
+ * without overlap or horizontal scroll. Full mobile UX defers to a
+ * post-Phase-3 version. Breakpoints (1500 / 1024 / 900 / 700 / 640) match
+ * the VERSION_2.9_PLAN.md spec. */
+
+/* Below 1500px the global search bar leaves no room for full tool labels.
+ * Mirror the .nav-tools.shrunk rules above so the strip pre-emptively flips
+ * to its 2-letter abbreviations regardless of search-focus state. */
+@media (max-width: 1500px) {
+  .nav-tool { padding: 0 10px; font-size: 10px; letter-spacing: 0.08em; }
+  .nav-tool .full { display: none; }
+  .nav-tool .abbr { display: inline; }
+}
+
+/* Below 1024px the PriceFreshness chip is the first thing to push the
+ * login cluster off-screen. Hide the whole slot (wrapper carries the
+ * border-l, so dropping the slot leaves a clean seam). Also let the
+ * search bar shrink instead of holding its 420px fixed width — the
+ * 420 + wordmark + nav-tools + login-cluster sum starts overflowing
+ * around ~850px otherwise. (Discovered in 2.9.6 verification; the
+ * input's min-width:0 lets the flex squeeze cascade in.) */
+@media (max-width: 1024px) {
+  .price-freshness-slot { display: none; }
+  .nav-search { width: 280px; flex-shrink: 1; min-width: 0; }
+  .nav-search.active { width: 420px; }
+}
+@media (max-width: 800px) {
+  .nav-search { width: 200px; }
+  .nav-search.active { width: 320px; }
+}
+
+/* Below 900px the ResourcePreview hover overlay either overflows the
+ * viewport or sits on top of the card. Hide outright — desktop chrome. */
+@media (max-width: 900px) {
+  .card.resource:hover .resource-preview { display: none; }
+}
+
+/* Below 640px stack the header vertically: row 1 keeps wordmark + nav-tools
+ * (abbreviated) + login cluster; the search input drops to a full-width
+ * row 2. PriceFreshness is already hidden by the 1024px rule. */
+@media (max-width: 640px) {
+  .app-header { flex-direction: column; height: auto; }
+  .app-header .nav-host { order: 2; width: 100%; border-top: 1px solid var(--color-border); }
+  .app-header .nav-search { width: 100% !important; border-right: none; }
+}
+
+/* /sites card grid: 2-column at rest, single column under 700px. Replaces
+ * the inline `gridTemplateColumns: 'repeat(2, 1fr)'` that used to live on
+ * the section div in sites/page.tsx. */
+.sites-grid {
+  display: grid;
+  align-items: start;
+  gap: 1rem;
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (max-width: 700px) {
+  .sites-grid { grid-template-columns: 1fr; }
+}
+
+/* ResourcePreview overflow fix: at desktop widths the overlay extends off
+ * the right edge of any card in the right column. Mirror it to the left for
+ * even-indexed grid children (i.e., right-column cards in the 2-column
+ * grid). Scoped to ≥700px because below that the grid is 1-column and
+ * `:nth-child(even)` matches every other ROW — all left-aligned, where
+ * flipping would push the overlay off the LEFT side. (Below 900px the
+ * overlay is hidden anyway, so the 700–899 band is harmless but inert.) */
+@media (min-width: 700px) {
+  .sites-grid > :nth-child(even) .resource-preview {
+    right: auto;
+    left: -14px;
+    transform: translateX(-100%);
+  }
+  .sites-grid > :nth-child(even) .resource-preview::before {
+    left: auto;
+    right: -14px;
+  }
+}
+/* end responsive defensive block */
+
 /* ── Dropdown panel ── */
 .dropdown {
   position: absolute;
