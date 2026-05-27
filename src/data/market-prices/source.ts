@@ -47,8 +47,21 @@ function chunk<T>(arr: T[], size: number): T[][] {
 // Fuzzwork volumes are decimal strings (e.g. "1234567.0"); truncate before
 // BigInt() so we don't blow up on the fractional part. Floor (not round)
 // matches the "this many units are actually for sale" intent.
+//
+// Scientific-notation fallback ("1.5e6") wasn't observed in any Fuzzwork
+// response when this slice was first written, but `BigInt("1.5e6")` throws
+// SyntaxError — one such row would fail the entire refresh batch. The
+// `Number(raw)` path floors correctly for any finite value and only loses
+// precision above Number.MAX_SAFE_INTEGER (~9 quadrillion), well past any
+// realistic Jita market volume.
 // Exported for testing.
 export function parseVolume(raw: string): bigint {
+  if (!raw) return BigInt(0);
+  if (/[eE]/.test(raw)) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return BigInt(0);
+    return BigInt(Math.floor(n));
+  }
   const dot = raw.indexOf('.');
   const intPart = dot >= 0 ? raw.slice(0, dot) : raw;
   return BigInt(intPart || '0');

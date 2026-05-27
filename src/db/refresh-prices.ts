@@ -76,7 +76,7 @@ async function main() {
     return;
   }
 
-  const result = await refreshStalePrices(db, { force: mode.force });
+  const result = await refreshStalePrices(client, { force: mode.force });
   if (result.status === 'cached') {
     console.log('Cached — no Fuzzwork call.');
     console.log(JSON.stringify({

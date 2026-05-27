@@ -40,6 +40,16 @@ describe('parseVolume', () => {
   it('returns 0n for an empty string', () => {
     expect(parseVolume('')).toBe(BigInt(0));
   });
+
+  it('handles scientific notation without throwing', () => {
+    // BigInt("1.5e6") would throw SyntaxError; we floor via Number() instead.
+    expect(parseVolume('1.5e6')).toBe(BigInt(1_500_000));
+    expect(parseVolume('2E3')).toBe(BigInt(2_000));
+  });
+
+  it('returns 0n for non-finite scientific-notation values', () => {
+    expect(parseVolume('1e9999')).toBe(BigInt(0));
+  });
 });
 
 describe('normalize', () => {

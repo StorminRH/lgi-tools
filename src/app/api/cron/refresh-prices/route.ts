@@ -1,5 +1,5 @@
 import { refreshStalePrices } from '@/data/market-prices/cache';
-import { db } from '@/db';
+import { client } from '@/db';
 
 // Vercel-cron endpoint. Wired to "0 11 * * *" in vercel.json (daily at
 // 11:00 UTC — Vercel Hobby caps crons at daily cadence). Vercel's cron
@@ -11,7 +11,9 @@ import { db } from '@/db';
 // refresher and should always actually refresh when it fires, even if
 // an on-demand call updated some rows in the same window. The advisory
 // lock inside refreshStalePrices still serializes concurrent callers;
-// `force` widens the set, it doesn't bypass the lock.
+// `force` widens the set, it doesn't bypass the lock. The lock lives
+// on a reserved postgres-js connection, not a transaction — the raw
+// `client` is what we pass in.
 export async function GET(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -21,7 +23,7 @@ export async function GET(req: Request): Promise<Response> {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const result = await refreshStalePrices(db, { force: true });
+  const result = await refreshStalePrices(client, { force: true });
   return Response.json({
     cached: result.status === 'cached',
     lastUpdatedAt: result.lastUpdatedAt?.toISOString() ?? null,
