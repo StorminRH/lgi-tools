@@ -1,3 +1,4 @@
+import { gasClassRange } from './gas-classes';
 import type { SiteDetail, WormholeClass } from './types';
 
 export const SORTABLE_KEYS = [
@@ -31,9 +32,11 @@ export function parseSortDir(raw: string | undefined): SortDir {
 
 // Returns the column's default direction (the one the URL gets the first time
 // a user clicks the header). Numeric columns descend by default — biggest
-// first; string columns ascend.
+// first. String + categorical-rank columns (name, type, class) ascend, since
+// "data → combat" or "C6 → C1" on first click is counter-intuitive.
 export function defaultDirFor(key: SortableKey): SortDir {
-  return key === 'name' ? 'asc' : 'desc';
+  if (key === 'name' || key === 'type' || key === 'class') return 'asc';
+  return 'desc';
 }
 
 function siteIskValue(s: SiteDetail): number | null {
@@ -58,7 +61,17 @@ function valueFor(s: SiteDetail, key: SortableKey): string | number | null {
     case 'isk':      return siteIskValue(s);
     case 'blueLoot': return s.blueLootIsk;
     case 'scrams':   return siteScramTotal(s);
-    case 'class':    return s.wormholeClass ? CLASS_ORDER[s.wormholeClass] : null;
+    case 'class': {
+      if (s.wormholeClass) return CLASS_ORDER[s.wormholeClass];
+      // Gas sites have a class RANGE rather than a single class; sort them
+      // by their min class so they slot in next to wave-driven sites of the
+      // lowest class they can spawn in.
+      if (s.siteType === 'gas') {
+        const range = gasClassRange(s.name);
+        if (range) return CLASS_ORDER[range.min];
+      }
+      return null;
+    }
   }
 }
 

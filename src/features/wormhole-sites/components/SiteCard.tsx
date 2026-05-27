@@ -1,6 +1,7 @@
 import { Card, CardHeader } from '@/components/ui/card';
 import { MetricBlock } from '@/components/ui/metric-block';
 import { Pill } from '@/components/ui/pill';
+import { formatClassRange, gasClassRange } from '../gas-classes';
 import type { SiteDetail } from '../types';
 import { ResourcePreview } from './ResourcePreview';
 import { SiteDetailsBody, formatIskHeader } from './SiteDetailsBody';
@@ -50,9 +51,16 @@ export function SiteCard({
               <>
                 <Pill tone="neutral">{SCAN_PILL_LABEL[SITE_TYPE_SCAN[site.siteType]]}</Pill>
                 <Pill tone={SITE_TYPE_TONE[site.siteType]}>{SITE_TYPE_LABEL[site.siteType]}</Pill>
-                {site.wormholeClass && (
+                {site.wormholeClass ? (
                   <Pill tone={CLASS_TONE[site.wormholeClass]}>{site.wormholeClass}</Pill>
-                )}
+                ) : site.siteType === 'gas' ? (
+                  (() => {
+                    const range = gasClassRange(site.name);
+                    return range ? (
+                      <Pill tone={CLASS_TONE[range.min]}>{formatClassRange(range)}</Pill>
+                    ) : null;
+                  })()
+                ) : null}
               </>
             }
             trailing={

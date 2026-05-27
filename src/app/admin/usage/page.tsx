@@ -158,12 +158,12 @@ export default async function AdminUsagePage({
     <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
         <div className="print-only font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-1">
-          LGI.tools — Usage report — {formatDate(range.from)} to {formatDate(range.to)}
+          Usage report — {formatDate(range.from)} to {formatDate(range.to)}
         </div>
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-              LGI.tools — Usage report
+              Usage report
             </div>
             <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
               {formatDate(range.from)} → {formatDate(range.to)} · {summary.totalEvents.toLocaleString()} events

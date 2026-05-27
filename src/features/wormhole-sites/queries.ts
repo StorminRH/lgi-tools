@@ -4,6 +4,7 @@ import { npcs, siteResources, sites, waves } from '@/db/schema';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
+import { classRangeIncludes, gasClassRange } from './gas-classes';
 import type { Npc, SiteDetail, SiteListItem, SiteResource, Wave, WormholeClass, SiteType } from './types';
 
 const SITE_LIST_COLUMNS = {
@@ -146,36 +147,61 @@ function aggregateWave(
   };
 }
 
+// Class match accounts for two cases: ordinary classed sites (an exact
+// match on the column) AND gas sites whose `wormhole_class` is always NULL
+// in the data but whose name encodes a class RANGE (see ./gas-classes).
+// Filtering by class therefore happens in JS so the range logic can apply.
+function matchesClass(s: Pick<SiteListItem, 'name' | 'siteType' | 'wormholeClass'>, cls: WormholeClass): boolean {
+  if (s.wormholeClass === cls) return true;
+  if (s.siteType === 'gas') {
+    const range = gasClassRange(s.name);
+    return range !== null && classRangeIncludes(range, cls);
+  }
+  return false;
+}
+
 export async function listSites(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
 }): Promise<SiteListItem[]> {
+  // Class filtering happens post-fetch (see matchesClass) — only `type` goes
+  // into the SQL clause. The whole-table cost of fetching ~70 rows is
+  // negligible vs. the clarity of single-source-of-truth class matching.
   const conditions = [
     filters.type ? eq(sites.siteType, filters.type) : undefined,
-    filters.wormholeClass ? eq(sites.wormholeClass, filters.wormholeClass) : undefined,
   ].filter((c) => c !== undefined);
 
-  return db
+  const rows = await db
     .select(SITE_LIST_COLUMNS)
     .from(sites)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(sites.sourceTab, sites.name);
+
+  return filters.wormholeClass
+    ? rows.filter((s) => matchesClass(s, filters.wormholeClass!))
+    : rows;
 }
 
 export async function listSiteDetails(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
 }): Promise<SiteDetail[]> {
+  // Class filtering applied in JS post-fetch (see matchesClass) so gas
+  // sites can match by their name-derived class range rather than the
+  // always-NULL `wormhole_class` column.
   const conditions = [
     filters.type ? eq(sites.siteType, filters.type) : undefined,
-    filters.wormholeClass ? eq(sites.wormholeClass, filters.wormholeClass) : undefined,
   ].filter((c) => c !== undefined);
 
-  const siteRows = await db
+  const allRows = await db
     .select(SITE_LIST_COLUMNS)
     .from(sites)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(sites.sourceTab, sites.name);
+
+  const siteRows = filters.wormholeClass
+    ? allRows.filter((s) => matchesClass(s, filters.wormholeClass!))
+    : allRows;
 
   if (siteRows.length === 0) return [];
 

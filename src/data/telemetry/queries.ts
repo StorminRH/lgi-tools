@@ -179,12 +179,14 @@ export async function getRoleChangeAudit(
 }
 
 // Aggregates /sites page views by which view they used. `metadata.search`
-// stores the raw query string (e.g., "view=table&type=ore"), so a substring
-// match against `view=table` is enough — no other query parameter shares
-// that exact prefix. Filters on `path = '/sites'` exactly so /sites/[id]
-// detail-page hits are excluded.
+// stores the raw query string (e.g., "view=table&type=ore"). The match
+// anchors on a parameter boundary (either start-of-string or after `&`)
+// so a future param whose value happens to include the substring
+// `view=table` doesn't accidentally count. Filters on `path = '/sites'`
+// exactly so /sites/[id] detail-page hits are excluded.
 export async function getSitesViewSplit(range: DateRange): Promise<SitesViewSplit> {
-  const isTable = sql<boolean>`(${usageLogs.metadata} ->> 'search') LIKE '%view=table%'`;
+  const search = sql<string>`(${usageLogs.metadata} ->> 'search')`;
+  const isTable = sql<boolean>`(${search} LIKE 'view=table%' OR ${search} LIKE '%&view=table%')`;
   const rows = await db
     .select({ isTable, count: count() })
     .from(usageLogs)

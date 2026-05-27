@@ -1,6 +1,7 @@
 import { Pill } from '@/components/ui/pill';
 import { SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
 import { UrlSync } from '@/components/ui/url-sync';
+import { formatClassRange, gasClassRange } from '../gas-classes';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
 import type { SiteDetail } from '../types';
 import { SiteDetailsBody } from './SiteDetailsBody';
@@ -67,13 +68,23 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
   {
     key: 'class',
     label: 'Class',
-    width: '0.6fr',
-    render: (s) =>
-      s.wormholeClass ? (
-        <Pill tone={CLASS_TONE[s.wormholeClass]} size="sm">{s.wormholeClass}</Pill>
-      ) : (
-        <span className="text-muted">—</span>
-      ),
+    width: '0.7fr',
+    render: (s) => {
+      if (s.wormholeClass) {
+        return <Pill tone={CLASS_TONE[s.wormholeClass]} size="sm">{s.wormholeClass}</Pill>;
+      }
+      if (s.siteType === 'gas') {
+        const range = gasClassRange(s.name);
+        if (range) {
+          // Tone tracks the MIN class so the colour reads as "this is
+          // available from that class up". C1/C2 → green, C3 → orange, etc.
+          return (
+            <Pill tone={CLASS_TONE[range.min]} size="sm">{formatClassRange(range)}</Pill>
+          );
+        }
+      }
+      return <span className="text-muted">—</span>;
+    },
   },
 ];
 
@@ -102,10 +113,15 @@ export function SitesTable({
       getRowKey={(s) => s.id}
       emptyState="No sites match this filter combination."
       renderRow={({ row, cells, key, gridTemplate }) => (
-        <UrlSync key={key} basePath="/sites" entityId={row.id}>
-          <details className="sites-table-row border-b border-border-soft last:border-b-0">
+        <UrlSync
+          key={key}
+          basePath="/sites"
+          entityId={row.id}
+          className="border-b border-border-soft last:border-b-0"
+        >
+          <details className="sites-table-row">
             <summary
-              className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-3 px-3 py-2 transition-colors hover:bg-[#0d1218]"
+              className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-[#0d1218]"
               style={{ gridTemplateColumns: gridTemplate }}
             >
               {cells}

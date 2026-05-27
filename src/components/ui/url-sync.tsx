@@ -19,10 +19,15 @@ import type { ReactNode } from 'react';
 export function UrlSync({
   basePath,
   entityId,
+  className,
   children,
 }: {
   basePath: string;
   entityId: number | string;
+  // Optional class applied to the wrapper div. Useful when the wrapper itself
+  // needs sibling-aware styles (e.g. `last:border-b-0`), which can't reach
+  // through the wrapper from inside <details>.
+  className?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -45,5 +50,5 @@ export function UrlSync({
     return () => details.removeEventListener('toggle', onToggle);
   }, [basePath, entityId]);
 
-  return <div ref={ref}>{children}</div>;
+  return <div ref={ref} className={className}>{children}</div>;
 }

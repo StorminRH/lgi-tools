@@ -91,7 +91,7 @@ export function SortableTable<Row>({
 
   const renderHeader = () => (
     <div
-      className="sortable-table-header grid items-center px-3 py-2 border-b border-border"
+      className="sortable-table-header grid items-center gap-4 px-3 py-2 border-b border-border"
       style={{ gridTemplateColumns: gridTemplate }}
     >
       {columns.map((col) => {
@@ -158,7 +158,7 @@ export function SortableTable<Row>({
   );
 
   return (
-    <div className="sortable-table border border-border bg-section" style={{ ['--st-grid' as string]: gridTemplate }}>
+    <div className="sortable-table border border-border bg-section">
       {renderHeader()}
       {rows.length === 0 ? (
         <div className="px-3 py-6 text-center text-muted text-[11px]">{emptyState ?? 'No rows.'}</div>
@@ -172,7 +172,7 @@ export function SortableTable<Row>({
           return (
             <div
               key={key}
-              className="sortable-table-row grid items-center px-3 py-2 border-b border-border-soft last:border-b-0"
+              className="sortable-table-row grid items-center gap-4 px-3 py-2 border-b border-border-soft last:border-b-0"
               style={{ gridTemplateColumns: gridTemplate }}
             >
               {cells}
