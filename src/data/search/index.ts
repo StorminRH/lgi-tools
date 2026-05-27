@@ -108,7 +108,17 @@ export function registerLazySearchSource(meta: {
     limit: meta.limit,
     showOnEmpty: meta.showOnEmpty,
     async search(query, ctx) {
-      if (!loadPromise) loadPromise = meta.load();
+      if (!loadPromise) {
+        // Cache the in-flight load on success. On failure (network drop,
+        // bad chunk URL) clear the cache so the next keystroke retries
+        // — a rejected promise is still truthy, so the naive
+        // `if (!loadPromise) loadPromise = meta.load()` would never
+        // retry and the source would stay broken for the whole session.
+        loadPromise = meta.load().catch((err) => {
+          loadPromise = null;
+          throw err;
+        });
+      }
       const resolved = await loadPromise;
       if (ctx.signal?.aborted) {
         throw new DOMException('Aborted', 'AbortError');

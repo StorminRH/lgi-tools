@@ -199,6 +199,32 @@ describe('registerLazySearchSource', () => {
     expect(load).not.toHaveBeenCalled();
   });
 
+  it('retries load() on the next keystroke if the first load rejects', async () => {
+    let attempts = 0;
+    const realSource: SearchSource = {
+      name: 'Lazy',
+      async search() {
+        return [ROW('l', 'lazy-row')];
+      },
+    };
+    const load = vi.fn(async () => {
+      attempts++;
+      if (attempts === 1) throw new Error('network blip');
+      return realSource;
+    });
+    registerLazySearchSource({ name: 'Lazy', load });
+
+    // First call fails — the rejected load promise must NOT be cached,
+    // or the source stays broken for the rest of the session.
+    await expect(searchAll('a', makeCtx())).rejects.toThrow('network blip');
+
+    // Second call should retry and succeed.
+    const out = await searchAll('a', makeCtx());
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(out).toHaveLength(1);
+    expect(out[0].results[0].label).toBe('lazy-row');
+  });
+
   it('honors a pre-aborted signal by throwing AbortError before delegating', async () => {
     const controller = new AbortController();
     controller.abort();
