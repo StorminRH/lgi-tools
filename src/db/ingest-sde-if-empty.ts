@@ -1,14 +1,19 @@
-// One-shot SDE ingest used by vercel-build. Skips when the dgm_type_attributes
-// table already has rows, so it only does the 14-second Fuzzwork download +
-// 600k-row insert on the first deploy to a fresh DB branch (a brand-new
-// preview branch, or the production branch after the 2.7.1 migration first
-// lands). Subsequent builds on the same branch find a populated table and
-// no-op.
+// Deploy-time SDE gate. Runs on every `pnpm vercel-build`. Skips the
+// full pipeline when:
+//   (a) the eve-data tables are populated AND
+//   (b) the stored `sde_version` matches Fuzzwork's current
+//       Last-Modified on invTypes.csv.bz2
 //
-// Ingest failures are logged but do NOT fail the build — the rest of the app
-// keeps working; per-NPC combat stats degrade to nulls until SDE is populated
-// (either by a successful subsequent build or by running pnpm db:ingest:sde
-// manually).
+// On a brand-new branch (e.g. a fresh preview Neon), case (a) fails
+// and we ingest. On a steady-state redeploy with no SDE patch, both
+// pass and we no-op in <1s. When CCP has patched the SDE between
+// deploys, case (b) fails and we re-ingest — the weekly drift cron
+// is the primary path for this, but the build-time check is the
+// belt-and-braces.
+//
+// Failures are SOFT — the build continues. Per-NPC combat stats and
+// industry tree data degrade to nulls until a successful subsequent
+// run; the rest of the app keeps working.
 
 import { config } from 'dotenv';
 config({ path: process.env.DOTENV_PATH ?? '.env.local' });
@@ -16,7 +21,16 @@ config({ path: process.env.DOTENV_PATH ?? '.env.local' });
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { runIngest } from '../data/eve-data/ingest';
+import {
+  ADVISORY_LOCK_SDE_INGEST,
+  SDE_META_KEY_VERSION,
+} from '../data/eve-data/constants';
+import {
+  getSdeMetaValue,
+  setSdeMetaValue,
+} from '../data/eve-data/queries';
+import { getRemoteSdeVersion } from '../data/eve-data/source';
+import { runSdePipeline } from './sde-pipeline';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -24,37 +38,75 @@ if (!databaseUrl) {
   process.exit(0);
 }
 
-const client = postgres(databaseUrl, { max: 1 });
+// max: 2 — one connection holds the advisory lock, the other runs the
+// data ops. Same pattern as src/db/refresh-prices.ts.
+const client = postgres(databaseUrl, { max: 2 });
+const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
 async function main() {
   const db = drizzle(client);
 
-  // The table only exists post-migration. If it doesn't exist yet (e.g. the
-  // migration step that creates it is skipped on a local build), treat that
-  // as "nothing to do" and exit clean.
+  // Migration order means the dgm_type_attributes table always exists
+  // when this runs — kept the existence check for the case where this
+  // ever runs against a pre-migration DB.
   const [{ exists }] = await db.execute<{ exists: boolean }>(sql`
     SELECT EXISTS (
       SELECT 1 FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name = 'dgm_type_attributes'
+      WHERE table_schema = 'public' AND table_name = 'eve_data_meta'
     ) AS exists
   `);
   if (!exists) {
-    console.log('Skipping SDE auto-ingest (dgm_type_attributes does not exist).');
+    console.log('Skipping SDE auto-ingest (eve_data_meta does not exist; migration pending).');
     return;
   }
 
-  const [{ count }] = await db.execute<{ count: string }>(sql`
-    SELECT COUNT(*)::text AS count FROM dgm_type_attributes
-  `);
-  if (Number(count) > 0) {
-    console.log(`Skipping SDE auto-ingest (dgm_type_attributes already has ${count} rows).`);
-    return;
-  }
+  const reserved = await client.reserve();
+  let lockHeld = false;
+  try {
+    const lockResult = await reserved<{ got: boolean }[]>`
+      SELECT pg_try_advisory_lock(${LOCK_KEY_NUM}) AS got
+    `;
+    if (!lockResult[0].got) {
+      console.log('Skipping SDE auto-ingest (advisory lock held — another ingest in flight).');
+      return;
+    }
+    lockHeld = true;
 
-  console.log('Auto-ingesting SDE (dgm_type_attributes is empty)…');
-  const summary = await runIngest(db);
-  console.log('SDE auto-ingest complete.');
-  console.log(JSON.stringify(summary, null, 2));
+    const [{ rowCount }] = await db.execute<{ rowCount: string }>(sql`
+      SELECT COUNT(*)::text AS "rowCount" FROM dgm_type_attributes
+    `);
+    const hasRows = Number(rowCount) > 0;
+
+    const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
+    const remoteVersion = await getRemoteSdeVersion();
+
+    if (hasRows && storedVersion !== null && remoteVersion !== null && storedVersion === remoteVersion) {
+      console.log(
+        `Skipping SDE auto-ingest (already at SDE version "${storedVersion}", ${rowCount} attribute rows present).`,
+      );
+      return;
+    }
+
+    if (!hasRows) {
+      console.log('Auto-ingesting SDE (eve-data tables empty on this branch)…');
+    } else if (storedVersion !== remoteVersion) {
+      console.log(
+        `Auto-ingesting SDE (drift detected: stored=${storedVersion ?? '<none>'} remote=${remoteVersion ?? '<unreachable>'}).`,
+      );
+    }
+
+    const summary = await runSdePipeline(db);
+    if (remoteVersion) {
+      await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
+    }
+    console.log('SDE pipeline complete.');
+    console.log(JSON.stringify(summary, null, 2));
+  } finally {
+    if (lockHeld) {
+      await reserved`SELECT pg_advisory_unlock(${LOCK_KEY_NUM})`;
+    }
+    reserved.release();
+  }
 }
 
 main()

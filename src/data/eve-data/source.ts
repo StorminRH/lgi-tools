@@ -16,7 +16,11 @@ type SdeDumpName =
   | 'invGroups'
   | 'invTypes'
   | 'dgmAttributeTypes'
-  | 'dgmTypeAttributes';
+  | 'dgmTypeAttributes'
+  | 'industryBlueprints'
+  | 'industryActivity'
+  | 'industryActivityMaterials'
+  | 'industryActivityProducts';
 
 const SDE_DUMPS: readonly SdeDumpName[] = [
   'invCategories',
@@ -24,7 +28,18 @@ const SDE_DUMPS: readonly SdeDumpName[] = [
   'invTypes',
   'dgmAttributeTypes',
   'dgmTypeAttributes',
+  'industryBlueprints',
+  'industryActivity',
+  'industryActivityMaterials',
+  'industryActivityProducts',
 ] as const;
+
+// `invTypes.csv.bz2` is the canonical "did CCP patch the SDE?" marker.
+// All Fuzzwork dumps share the same modification timestamp when CCP
+// rebuilds, so any one of them would work; invTypes is the largest and
+// stablest. Drift-detection lives in the weekly cron + the build-time
+// gate in `ingest-sde-if-empty.ts`.
+const SDE_VERSION_PROBE_NAME: SdeDumpName = 'invTypes';
 
 export type SdeDumpPaths = Record<SdeDumpName, string>;
 
@@ -65,4 +80,20 @@ export async function cleanupDumps(paths: SdeDumpPaths): Promise<void> {
   await Promise.all(
     Object.values(paths).map((p) => unlink(p).catch(() => undefined)),
   );
+}
+
+// HEAD the version-probe dump and return its Last-Modified header verbatim.
+// The weekly cron + the build-time gate compare this against the stored
+// `sde_version` in `eve_data_meta`. Returns null when the header is absent
+// or the request fails — callers treat null as "version unknown, assume
+// drift" rather than as a hard error so a transient Fuzzwork outage never
+// blocks a deploy.
+export async function getRemoteSdeVersion(): Promise<string | null> {
+  try {
+    const res = await fetch(urlFor(SDE_VERSION_PROBE_NAME), { method: 'HEAD' });
+    if (!res.ok) return null;
+    return res.headers.get('last-modified');
+  } catch {
+    return null;
+  }
 }

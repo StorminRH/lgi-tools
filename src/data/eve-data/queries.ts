@@ -1,7 +1,23 @@
-import { desc, inArray, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db } from '@/db';
-import { dgmTypeAttributes, eveTypes } from '@/db/schema';
+import {
+  blueprintFlatMaterials,
+  blueprintTrees,
+  dgmTypeAttributes,
+  eveDataMeta,
+  eveTypes,
+  industryActivityMaterials,
+  industryActivityProducts,
+} from '@/db/schema';
+import { INDUSTRY_ACTIVITY_IDS } from './constants';
+import type { TreeNode } from './tree-resolver';
 import type { AttrMap, EveType } from './types';
+
+// Same wrinkle as market-prices queries — accept the lazy `@/db` proxy
+// or a transactional handle.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyPgDb = PostgresJsDatabase<any>;
 
 const TYPE_COLUMNS = {
   id: eveTypes.id,
@@ -66,4 +82,91 @@ export async function getTypeAttributesBatch(
     if (map) map[r.attributeId] = r.value;
   }
   return result;
+}
+
+// ----- Industry-side helpers ------------------------------------------
+
+export type FlatMaterial = { rawMaterialTypeId: number; totalQuantity: bigint };
+
+// Pre-computed flat materials for one blueprint. Returns [] when the
+// resolver hasn't seen this blueprint yet (e.g. a brand-new SDE patch
+// added a blueprint but the tree resolver hasn't been re-run). UI must
+// handle the empty case gracefully (banner: "blueprint pending
+// resolution"); the next cron tick fills it.
+export async function getFlatMaterials(blueprintId: number): Promise<FlatMaterial[]> {
+  return db
+    .select({
+      rawMaterialTypeId: blueprintFlatMaterials.rawMaterialTypeId,
+      totalQuantity: blueprintFlatMaterials.totalQuantity,
+    })
+    .from(blueprintFlatMaterials)
+    .where(eq(blueprintFlatMaterials.blueprintTypeId, blueprintId));
+}
+
+// Nested tree-shape JSON for one blueprint, for the Industry Planner
+// UI's expandable material breakdown. `null` when the blueprint hasn't
+// been resolved yet.
+export async function getBlueprintTree(
+  blueprintId: number,
+): Promise<{ treeJson: TreeNode[]; computedAt: Date } | null> {
+  const [row] = await db
+    .select({
+      treeJson: blueprintTrees.treeJson,
+      computedAt: blueprintTrees.computedAt,
+    })
+    .from(blueprintTrees)
+    .where(eq(blueprintTrees.blueprintTypeId, blueprintId))
+    .limit(1);
+  if (!row) return null;
+  return { treeJson: row.treeJson as TreeNode[], computedAt: row.computedAt };
+}
+
+// Union of all type IDs that appear as either a material input OR a
+// product output under manufacturing/reactions. This is the set we
+// upsert into `market_prices` after every SDE ingest; on conflict we
+// preserve existing prices, so the existing 54 wormhole-site rows stay
+// intact and the ~6,000 new types arrive with NULL prices + epoch
+// staleness for the next cron tick to fill.
+export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
+  const activityIds = [...INDUSTRY_ACTIVITY_IDS];
+
+  const materialRows = await db
+    .selectDistinct({ id: industryActivityMaterials.materialTypeId })
+    .from(industryActivityMaterials)
+    .where(inArray(industryActivityMaterials.activityId, activityIds));
+
+  const productRows = await db
+    .selectDistinct({ id: industryActivityProducts.productTypeId })
+    .from(industryActivityProducts)
+    .where(inArray(industryActivityProducts.activityId, activityIds));
+
+  const set = new Set<number>();
+  for (const r of materialRows) set.add(r.id);
+  for (const r of productRows) set.add(r.id);
+  return [...set];
+}
+
+// ----- SDE meta key/value -------------------------------------------
+
+export async function getSdeMetaValue(db: AnyPgDb, key: string): Promise<string | null> {
+  const [row] = await db
+    .select({ value: eveDataMeta.value })
+    .from(eveDataMeta)
+    .where(eq(eveDataMeta.key, key))
+    .limit(1);
+  return row?.value ?? null;
+}
+
+export async function setSdeMetaValue(
+  db: AnyPgDb,
+  key: string,
+  value: string,
+): Promise<void> {
+  await db
+    .insert(eveDataMeta)
+    .values({ key, value, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: eveDataMeta.key,
+      set: { value, updatedAt: new Date() },
+    });
 }

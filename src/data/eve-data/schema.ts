@@ -3,11 +3,14 @@ import {
   bigint,
   boolean,
   doublePrecision,
+  foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
+  timestamp,
 } from 'drizzle-orm/pg-core';
 
 // Eve Static Data Export (SDE) tables. Sourced from Fuzzwork's CSV dumps:
@@ -94,3 +97,139 @@ export const dgmTypeAttributes = pgTable(
     typeIdIdx: index('dgm_type_attributes_type_id_idx').on(t.typeId),
   }),
 );
+
+// Industry tables. Source: Fuzzwork's `industryBlueprints.csv.bz2`,
+// `industryActivity.csv.bz2`, `industryActivityMaterials.csv.bz2`,
+// `industryActivityProducts.csv.bz2`. Truncate+refill on every SDE
+// ingest; the SDE version stamp lives in `eveDataMeta` below.
+//
+// Activity IDs used downstream: 1 = manufacturing, 11 = reactions.
+// Invention (8), copying (5), research (3, 4) are ingested verbatim
+// but ignored by the tree resolver per design-doc non-goals.
+//
+// No FKs to `eve_types` from the industry tables — same gotcha as
+// dgm_type_attributes: Fuzzwork's industry CSVs reference type IDs
+// that aren't in the published invTypes dump (rare unpublished /
+// retired-but-referenced items). The application invariant is that
+// the ingest is internally consistent (always streams ALL four CSVs
+// in one transaction from the same Fuzzwork dump), so dangling type
+// IDs cause `getTypesByIds` to return short maps, not orphaned rows.
+
+export const industryBlueprints = pgTable('industry_blueprints', {
+  blueprintTypeId: integer('blueprint_type_id').primaryKey(),
+  maxProductionLimit: integer('max_production_limit').notNull(),
+});
+
+export const industryActivities = pgTable(
+  'industry_activities',
+  {
+    blueprintTypeId: integer('blueprint_type_id')
+      .notNull()
+      .references(() => industryBlueprints.blueprintTypeId, {
+        onDelete: 'cascade',
+      }),
+    activityId: integer('activity_id').notNull(),
+    timeSeconds: integer('time_seconds').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.blueprintTypeId, t.activityId] }),
+  }),
+);
+
+export const industryActivityMaterials = pgTable(
+  'industry_activity_materials',
+  {
+    blueprintTypeId: integer('blueprint_type_id').notNull(),
+    activityId: integer('activity_id').notNull(),
+    materialTypeId: integer('material_type_id').notNull(),
+    quantity: integer('quantity').notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({
+      columns: [t.blueprintTypeId, t.activityId, t.materialTypeId],
+    }),
+    activityFk: foreignKey({
+      columns: [t.blueprintTypeId, t.activityId],
+      foreignColumns: [
+        industryActivities.blueprintTypeId,
+        industryActivities.activityId,
+      ],
+    }).onDelete('cascade'),
+    materialIdx: index('industry_activity_materials_material_idx').on(
+      t.materialTypeId,
+    ),
+  }),
+);
+
+export const industryActivityProducts = pgTable(
+  'industry_activity_products',
+  {
+    blueprintTypeId: integer('blueprint_type_id').notNull(),
+    activityId: integer('activity_id').notNull(),
+    productTypeId: integer('product_type_id').notNull(),
+    quantity: integer('quantity').notNull(),
+    probability: doublePrecision('probability'),
+  },
+  (t) => ({
+    pk: primaryKey({
+      columns: [t.blueprintTypeId, t.activityId, t.productTypeId],
+    }),
+    activityFk: foreignKey({
+      columns: [t.blueprintTypeId, t.activityId],
+      foreignColumns: [
+        industryActivities.blueprintTypeId,
+        industryActivities.activityId,
+      ],
+    }).onDelete('cascade'),
+    productIdx: index('industry_activity_products_product_idx').on(t.productTypeId),
+  }),
+);
+
+// Computed by the tree resolver after each successful SDE ingest. Both
+// tables are wiped + repopulated together; idempotency is gated on the
+// `tree_resolver_hash` row in `eveDataMeta`.
+
+export const blueprintTrees = pgTable('blueprint_trees', {
+  blueprintTypeId: integer('blueprint_type_id')
+    .primaryKey()
+    .references(() => industryBlueprints.blueprintTypeId, {
+      onDelete: 'cascade',
+    }),
+  treeJson: jsonb('tree_json').notNull(),
+  computedAt: timestamp('computed_at', { withTimezone: true }).notNull(),
+});
+
+export const blueprintFlatMaterials = pgTable(
+  'blueprint_flat_materials',
+  {
+    blueprintTypeId: integer('blueprint_type_id')
+      .notNull()
+      .references(() => industryBlueprints.blueprintTypeId, {
+        onDelete: 'cascade',
+      }),
+    rawMaterialTypeId: integer('raw_material_type_id').notNull(),
+    totalQuantity: bigint('total_quantity', { mode: 'bigint' }).notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.blueprintTypeId, t.rawMaterialTypeId] }),
+    blueprintIdx: index('blueprint_flat_materials_blueprint_idx').on(
+      t.blueprintTypeId,
+    ),
+  }),
+);
+
+// Key/value metadata for the eve-data slice. Two keys live here today:
+//   `sde_version` — Fuzzwork's `Last-Modified` header on `invTypes.csv.bz2`,
+//                   used by the weekly drift cron to decide when CCP has
+//                   patched the SDE.
+//   `tree_resolver_hash` — content hash of the industry tables, used by
+//                   the resolver to skip its expensive pass when nothing
+//                   downstream of it has changed.
+// New keys can be added without a migration; the table is plain k/v.
+export const eveDataMeta = pgTable('eve_data_meta', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
