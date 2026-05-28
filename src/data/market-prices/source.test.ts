@@ -287,6 +287,39 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
   });
 
+  it('stops dispatching new region-dump pages after one worker fails', async () => {
+    // Without the runConcurrent cancellation flag, surviving workers would
+    // drain the remaining ~500 pages against a known-failing endpoint,
+    // burning ESI error budget toward the floor. The flag caps post-throw
+    // dispatch at one extra item per surviving worker — so for a 100-page
+    // synthetic region with PAGE_CONCURRENCY = 8, we should see at most
+    // 1 (page 1 sync) + 8 (workers' first iteration) + 7 (workers'
+    // possible second iteration in flight when cancel sets) = 16 calls,
+    // not 100.
+    let calls = 0;
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      calls++;
+      if (url.includes('page=1') && !url.includes('page=10')) {
+        // First page succeeds; report a 100-page region.
+        return ordersResponse([], '100');
+      }
+      // Every subsequent page throws server error.
+      throw new EsiServerError(503);
+    });
+    vi.mocked(fetchPricesFromFuzzwork).mockImplementation(async (ids) =>
+      ids.map(fuzzworkRow),
+    );
+
+    const ids = bulkTypeIds();
+    const result = await fetchPricesFromSource(ids);
+
+    expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
+    // Hard upper bound: cursor advancement plus in-flight workers when
+    // the cancel flag flips. PAGE_CONCURRENCY = 8, so post-throw dispatch
+    // is capped at 8 extra items. Pre-fix this assertion would see ~100.
+    expect(calls).toBeLessThanOrEqual(20);
+  });
+
   it('falls back to Fuzzwork when ESI bulk returns a 4xx (non-array body)', async () => {
     // `esiFetch` passes 4xx through as a non-ok Response whose JSON body
     // is an error object, not an array. Without the explicit res.ok

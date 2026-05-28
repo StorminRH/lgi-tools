@@ -43,9 +43,17 @@ function dedupe(ids: number[]): number[] {
 }
 
 // Bounded-concurrency worker pool. Workers pull from a shared index until
-// the input is exhausted. If any worker throws, Promise.all rejects;
-// in-flight work completes but no new items dispatch. Used by both the
-// region-dump page loop and the per-type fan-out.
+// the input is exhausted. If any worker throws, a shared `cancelled` flag
+// short-circuits the other workers' next iteration — surviving workers
+// finish their current item and then exit cleanly, so we don't drain the
+// rest of the cursor against a known-failing endpoint. The first thrown
+// error is what surfaces to the caller via Promise.all rejection.
+//
+// Why the flag matters: the region-dump bulk path can have ~500 pages.
+// Without cancellation, a single 5xx on page 5 would leave (PAGE_CONCURRENCY
+// - 1) = 7 workers draining the remaining ~495 pages — each call burning
+// outbound bandwidth and ESI error budget toward the floor. The flag caps
+// post-throw dispatch at one extra item per surviving worker.
 async function runConcurrent<T>(
   items: T[],
   concurrency: number,
@@ -53,13 +61,20 @@ async function runConcurrent<T>(
 ): Promise<void> {
   if (items.length === 0) return;
   let cursor = 0;
+  let cancelled = false;
   const workers = Array.from(
     { length: Math.min(concurrency, items.length) },
     async () => {
       while (true) {
+        if (cancelled) return;
         const i = cursor++;
         if (i >= items.length) return;
-        await worker(items[i]);
+        try {
+          await worker(items[i]);
+        } catch (err) {
+          cancelled = true;
+          throw err;
+        }
       }
     },
   );
