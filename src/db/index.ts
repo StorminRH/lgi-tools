@@ -29,7 +29,14 @@ function getDb(): Db {
 // underlying backend between statements and so cannot hold a session-scoped
 // advisory lock. Exported for the connection unit test.
 export function isPooledHost(url: string): boolean {
-  return new URL(url).hostname.includes('-pooler');
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    // Don't surface the value — it carries credentials.
+    throw new Error('Database connection string is not a valid URL.');
+  }
+  return hostname.includes('-pooler');
 }
 
 // Resolves the connection string for session-scoped lock holders. Prefers the

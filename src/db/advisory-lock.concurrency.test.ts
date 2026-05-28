@@ -11,7 +11,7 @@ import { resolveLockConnectionUrl } from './index';
 // Gated on DATABASE_URL so CI (no database) skips it. Run locally against
 // the Docker SDE container:
 //   DATABASE_URL=postgres://lgi:lgi@localhost:5433/lgi_tools pnpm test
-const HAS_DB = Boolean(process.env.DATABASE_URL);
+const HAS_DB = Boolean(process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL);
 
 // Throwaway key, not one of the real ADVISORY_LOCK_* constants.
 const TEST_LOCK_KEY = 918273645;

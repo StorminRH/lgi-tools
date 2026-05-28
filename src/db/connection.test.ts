@@ -18,6 +18,10 @@ describe('isPooledHost', () => {
     expect(isPooledHost(DIRECT)).toBe(false);
     expect(isPooledHost(LOCAL)).toBe(false);
   });
+
+  it('throws a readable error on a malformed connection string', () => {
+    expect(() => isPooledHost('not-a-url')).toThrow(/not a valid URL/);
+  });
 });
 
 describe('resolveLockConnectionUrl', () => {
