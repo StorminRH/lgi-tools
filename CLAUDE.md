@@ -113,6 +113,19 @@ All changes go through PRs. `main` is the only deploy target.
 - **Merging to `main` triggers production.** Migrations apply automatically; the same auto-ingest step populates anything new the migration created.
 - **CI runs Vitest on every PR.** Green tests required to merge.
 
+**Session-end process.** The end of a coding session is *opening the PR*, not merging it. Open the PR, push the branch, leave it on the user. The maintainer waits for Greptile's automated review to land before merging — Greptile catches per-line concerns that a fast turnaround would otherwise miss. The session is over once the PR is open and the test plan is filled in. Do not call `gh pr merge` unless the user explicitly says merge.
+
+## CSP gotcha: never use inline `style="..."` attributes
+
+Production CSP is `style-src 'self' 'nonce-<random>'`. CSP `style-src` nonces cover **inline `<style>` blocks only**, NOT `style="..."` attribute values on individual elements. Any JSX `style={{...}}` prop renders as a `style="..."` attribute in the server HTML and gets silently dropped by the browser on first paint. The symptom: a layout / dimension that should be applied by the inline style is missing on initial load, then "self-heals" on client-side navigation because React's hydration re-applies the style via JS DOM access (which CSP doesn't gate).
+
+Use Tailwind arbitrary values instead: `className="grid-cols-[repeat(auto-fill,minmax(270px,1fr))]"` not `style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))' }}`. For truly dynamic values (a progress bar width derived from runtime data), use a CSS custom property: `style={{ '--bar-pct': pct + '%' }}` is still a `style="..."` attribute and still blocked — fix is to define a CSS class that reads a CSS variable and set the variable via inline style after mount (`useEffect` + `ref.current.style.setProperty`), since JS-applied styles are not gated by CSP.
+
+Known remaining inline-style usages elsewhere in the codebase (sweep target — fix when the relevant page is next touched, not as a standalone task):
+- `src/app/admin/AdminActivitySummary.tsx`, `src/app/admin/usage/page.tsx` — progress bar widths
+- `src/components/ui/sortable-table.tsx`, `src/components/ui/row.tsx`, `src/features/wormhole-sites/components/SitesTable.tsx` — dynamic grid templates
+- `src/components/GlobalSearch.tsx`, `src/app/preview/cards/page.tsx` — minor
+
 ## MCP Tools
 
 The developer has the following MCPs configured in Claude Code. They're optional — the workflow doesn't require any of them — but reach for them when the right tool saves a step.

@@ -328,6 +328,23 @@ a:hover {
   .nav-tool .abbr { display: inline; }
 }
 
+/* PriceFreshness chip. The native `title` attribute on the outer span
+ * technically covers the whole hit area, but without a visible hover
+ * state the user can't tell that the entire chip is interactive — they
+ * perceive only the small green dot as the trigger. A subtle background
+ * tint on hover signals "the whole block is one target" without
+ * promising click behavior (this is a passive display chip — no
+ * onClick). Transition matches the universal `a { transition: color }`
+ * cadence elsewhere. */
+.price-chip {
+  transition: background-color 0.15s, color 0.15s;
+  cursor: help;
+}
+.price-chip:hover {
+  background-color: var(--color-row-hover);
+  color: var(--color-name);
+}
+
 /* Below 1024px the PriceFreshness chip is the first thing to push the
  * login cluster off-screen. Hide the whole slot (wrapper carries the
  * border-l, so dropping the slot leaves a clean seam). The `ml-auto`
