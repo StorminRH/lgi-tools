@@ -191,8 +191,13 @@ async function fetchViaEsiRegionDump(
   const wanted = new Set(typeIds);
   const buckets = new Map<number, OrderBucket>();
 
-  // First page synchronously to learn the page count.
+  // First page synchronously to learn the page count. `esiFetch` only
+  // throws on 5xx / 420; 4xx passes through as a non-ok Response whose
+  // body is an error object, not an array. Guard explicitly so we throw
+  // `EsiServerError` (which the dispatcher catches and routes to Fuzzwork)
+  // instead of letting `absorbOrders` trip a TypeError on the non-array.
   const firstRes = await esiFetch(regionDumpPageUrl(1));
+  if (!firstRes.ok) throw new EsiServerError(firstRes.status);
   const totalPages = Number(firstRes.headers.get('X-Pages') ?? '1');
   const firstOrders = (await firstRes.json()) as EsiOrder[];
   absorbOrders(firstOrders, wanted, buckets);
@@ -202,6 +207,7 @@ async function fetchViaEsiRegionDump(
     for (let p = 2; p <= totalPages; p++) pages.push(p);
     await runConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
       const res = await esiFetch(regionDumpPageUrl(page));
+      if (!res.ok) throw new EsiServerError(res.status);
       const orders = (await res.json()) as EsiOrder[];
       absorbOrders(orders, wanted, buckets);
     });

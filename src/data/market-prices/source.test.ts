@@ -286,6 +286,31 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     expect(result).toHaveLength(ids.length);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
   });
+
+  it('falls back to Fuzzwork when ESI bulk returns a 4xx (non-array body)', async () => {
+    // `esiFetch` passes 4xx through as a non-ok Response whose JSON body
+    // is an error object, not an array. Without the explicit res.ok
+    // guard, `absorbOrders` would trip a TypeError trying to iterate the
+    // error object — and TypeError isn't caught by the dispatcher's
+    // EsiServerError / EsiBudgetExhaustedError guard, so the refresh
+    // would crash instead of falling back.
+    vi.mocked(esiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'Bad Request' }), {
+        status: 400,
+        headers: { 'X-Pages': '1' },
+      }),
+    );
+    vi.mocked(fetchPricesFromFuzzwork).mockImplementation(async (ids) =>
+      ids.map(fuzzworkRow),
+    );
+
+    const ids = bulkTypeIds();
+    const result = await fetchPricesFromSource(ids);
+
+    expect(result).toHaveLength(ids.length);
+    expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith(ids);
+  });
 });
 
 describe('fetchPricesFromSource — dispatch', () => {
