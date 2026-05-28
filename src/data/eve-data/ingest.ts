@@ -4,11 +4,17 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
 import unbzip2Stream from 'unbzip2-stream';
 import {
+  blueprintFlatMaterials,
+  blueprintTrees,
   dgmAttributeTypes,
   dgmTypeAttributes,
   eveCategories,
   eveGroups,
   eveTypes,
+  industryActivities,
+  industryActivityMaterials,
+  industryActivityProducts,
+  industryBlueprints,
 } from './schema';
 import { downloadDumps, cleanupDumps, type SdeDumpPaths } from './source';
 
@@ -18,6 +24,10 @@ export type IngestSummary = {
   typesWritten: number;
   attributeTypesWritten: number;
   typeAttributesWritten: number;
+  blueprintsWritten: number;
+  activitiesWritten: number;
+  activityMaterialsWritten: number;
+  activityProductsWritten: number;
   durationMs: number;
 };
 
@@ -94,15 +104,23 @@ export async function runIngest(
     typesWritten: 0,
     attributeTypesWritten: 0,
     typeAttributesWritten: 0,
+    blueprintsWritten: 0,
+    activitiesWritten: 0,
+    activityMaterialsWritten: 0,
+    activityProductsWritten: 0,
     durationMs: 0,
   };
 
   try {
     await db.transaction(async (tx) => {
       // FK-safe wipe: types → groups → categories, then refill in reverse.
-      // Attribute tables stand alone and are wiped here too.
+      // Attribute tables stand alone and are wiped here too. Industry
+      // tables (blueprints/activities/materials/products) and the
+      // resolver-computed tables (trees/flat_materials) all cascade off
+      // the same wipe — they reference industry_blueprints which
+      // references eve_types.
       await tx.execute(
-        sql`TRUNCATE TABLE ${dgmTypeAttributes}, ${dgmAttributeTypes}, ${eveTypes}, ${eveGroups}, ${eveCategories} RESTART IDENTITY CASCADE`,
+        sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}, ${industryActivityProducts}, ${industryActivityMaterials}, ${industryActivities}, ${industryBlueprints}, ${dgmTypeAttributes}, ${dgmAttributeTypes}, ${eveTypes}, ${eveGroups}, ${eveCategories} RESTART IDENTITY CASCADE`,
       );
 
       summary.categoriesWritten = await streamInsert(
@@ -215,6 +233,84 @@ export async function runIngest(
         },
         async (batch) => {
           await tx.insert(dgmTypeAttributes).values(batch);
+        },
+      );
+
+      // Industry tables. FK order matters: blueprints → activities →
+      // (materials, products). The CSVs are guaranteed-consistent
+      // because Fuzzwork rebuilds them from one SDE source, so a row
+      // in `industryActivityMaterials` with (bpId, activityId) always
+      // has a matching row in `industryActivity`.
+
+      summary.blueprintsWritten = await streamInsert(
+        paths.industryBlueprints,
+        (r) => {
+          const id = toInt(r.typeID);
+          const max = toInt(r.maxProductionLimit);
+          if (id === null || max === null) return null;
+          return { blueprintTypeId: id, maxProductionLimit: max };
+        },
+        async (batch) => {
+          await tx.insert(industryBlueprints).values(batch);
+        },
+      );
+
+      summary.activitiesWritten = await streamInsert(
+        paths.industryActivity,
+        (r) => {
+          const bpId = toInt(r.typeID);
+          const activityId = toInt(r.activityID);
+          const time = toInt(r.time);
+          if (bpId === null || activityId === null || time === null) return null;
+          return { blueprintTypeId: bpId, activityId, timeSeconds: time };
+        },
+        async (batch) => {
+          await tx.insert(industryActivities).values(batch);
+        },
+      );
+
+      summary.activityMaterialsWritten = await streamInsert(
+        paths.industryActivityMaterials,
+        (r) => {
+          const bpId = toInt(r.typeID);
+          const activityId = toInt(r.activityID);
+          const matId = toInt(r.materialTypeID);
+          const qty = toInt(r.quantity);
+          if (bpId === null || activityId === null || matId === null || qty === null) {
+            return null;
+          }
+          return {
+            blueprintTypeId: bpId,
+            activityId,
+            materialTypeId: matId,
+            quantity: qty,
+          };
+        },
+        async (batch) => {
+          await tx.insert(industryActivityMaterials).values(batch);
+        },
+      );
+
+      summary.activityProductsWritten = await streamInsert(
+        paths.industryActivityProducts,
+        (r) => {
+          const bpId = toInt(r.typeID);
+          const activityId = toInt(r.activityID);
+          const prodId = toInt(r.productTypeID);
+          const qty = toInt(r.quantity);
+          if (bpId === null || activityId === null || prodId === null || qty === null) {
+            return null;
+          }
+          return {
+            blueprintTypeId: bpId,
+            activityId,
+            productTypeId: prodId,
+            quantity: qty,
+            probability: toFloat(r.probability),
+          };
+        },
+        async (batch) => {
+          await tx.insert(industryActivityProducts).values(batch);
         },
       );
     });

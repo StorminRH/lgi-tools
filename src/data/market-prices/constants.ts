@@ -4,9 +4,12 @@
 // drizzle / postgres dependencies — into the client bundle.
 
 // Per-row TTL. Every write sets stale_after = NOW() + STALE_AFTER_TTL_MS.
-// Matches the daily cron cadence in vercel.json ("0 11 * * *"). Drop to 1h
-// when cron moves hourly in a future sub-version.
-export const STALE_AFTER_TTL_MS = 24 * 60 * 60 * 1000;
+// Matches the hourly cron cadence in vercel.json ("0 * * * *"). Vercel
+// Pro unlocks hourly crons; Hobby was the daily-only constraint. The
+// 1h TTL means on-demand callers (Industry Planner blueprint loads)
+// can trust freshly-pulled prices for 60 minutes before falling back
+// to a per-type ESI refresh.
+export const STALE_AFTER_TTL_MS = 60 * 60 * 1000;
 
 // Postgres advisory-lock key for the bulk price refresh path. Arbitrary
 // project-unique bigint. Convention if a second lock ever lands: high 32
