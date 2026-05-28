@@ -30,17 +30,29 @@ import {
   setSdeMetaValue,
 } from '../data/eve-data/queries';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
+import { resolveLockConnectionUrl } from './index';
 import { runSdePipeline } from './sde-pipeline';
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
+if (!process.env.DATABASE_URL) {
   console.log('Skipping SDE auto-ingest (DATABASE_URL is not set).');
+  process.exit(0);
+}
+
+// Direct (unpooled) endpoint — the SDE ingest advisory lock is
+// session-scoped and won't hold through the `-pooler` endpoint. Resolved
+// here (not inside main) so the fail-closed throw soft-skips the
+// build-time ingest rather than failing the build.
+let lockUrl: string;
+try {
+  lockUrl = resolveLockConnectionUrl();
+} catch (err) {
+  console.error('Skipping SDE auto-ingest (build continues):', err);
   process.exit(0);
 }
 
 // max: 2 — one connection holds the advisory lock, the other runs the
 // data ops. Same pattern as src/db/refresh-prices.ts.
-const client = postgres(databaseUrl, { max: 2 });
+const client = postgres(lockUrl, { max: 2 });
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
 async function main() {

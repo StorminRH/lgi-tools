@@ -51,13 +51,15 @@ export async function getPricesFreshness(
 // own cadence and should always actually refresh.
 //
 // Session-level lock (`pg_try_advisory_lock`, not `_xact_lock`) on a
-// reserved connection from the postgres-js pool. The data ops run on a
-// regular `drizzle(client)` — a different connection from the pool —
-// so the Fuzzwork HTTP call happens with no transaction open and no
-// connection pinned to it. Postgres advisory locks are per-session, so
-// the lock held on the reserved connection blocks other callers'
-// `pg_try_advisory_lock` attempts regardless of which pool connection
-// they land on.
+// reserved connection. Callers MUST pass a client on the direct
+// (unpooled) endpoint: a session-scoped lock only holds if the backend
+// session is stable, and Neon's `-pooler` (PgBouncer transaction mode)
+// recycles the backend between statements — so the lock would silently
+// fail to serialize. With a direct connection the lock held on the
+// reserved session blocks other callers' `pg_try_advisory_lock`
+// attempts, while the Fuzzwork HTTP call still happens with no
+// transaction open (we never pin a long transaction across the network
+// round-trip).
 //
 // `pg_advisory_unlock` is called in `finally` so the connection goes
 // back to the pool clean. Without it, the lock would persist on the

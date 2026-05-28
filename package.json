@@ -18,6 +18,7 @@
     "vercel-build": "tsx src/db/migrate.ts && tsx src/db/ingest-sde-if-empty.ts && next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:migrate:prod": "DOTENV_PATH=.env.production.local tsx src/db/migrate.ts",

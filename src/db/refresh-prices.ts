@@ -6,12 +6,7 @@ import postgres from 'postgres';
 import { refreshStalePrices } from '../data/market-prices/cache';
 import { refreshPrices } from '../data/market-prices/ingest';
 import { getPrices } from '../data/market-prices/queries';
-
-function requiredEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} is not set`);
-  return v;
-}
+import { resolveLockConnectionUrl } from './index';
 
 // Sanity trio: Tritanium / Pyerite / Mexallon. Always have deep
 // order books in Jita on both sides — a useful smoke-test default
@@ -56,17 +51,20 @@ function parseArgs(argv: string[]): Mode {
   return { kind: 'cached', force };
 }
 
-const databaseUrl = requiredEnv('DATABASE_URL');
 const mode = parseArgs(process.argv.slice(2));
 
+// Direct (unpooled) endpoint — the advisory lock is session-scoped and
+// only holds on a stable backend, which the `-pooler` endpoint doesn't
+// provide. resolveLockConnectionUrl prefers DATABASE_URL_UNPOOLED and
+// fails closed if it would resolve to a pooled host.
+//
 // max: 5 — 1 connection holds the advisory lock (via client.reserve())
 // for the full refresh window, leaving 4 for parallel bulk-upsert
 // operations. Bumped from 2 in 3.0.4: the 6,000-type tracked set
 // expanded the bulk-refresh load enough that headroom matters, and
 // future on-demand callers (3.0.5's Industry Planner) compete for the
-// same pool. Cron + serverless functions go through @/db (Neon HTTP
-// + lazy proxy) and are unaffected.
-const client = postgres(databaseUrl, { max: 5 });
+// same pool.
+const client = postgres(resolveLockConnectionUrl(), { max: 5 });
 
 async function main() {
   const db = drizzle(client);

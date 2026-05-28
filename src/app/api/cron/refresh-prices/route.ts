@@ -1,19 +1,18 @@
 import { refreshStalePrices } from '@/data/market-prices/cache';
-import { client } from '@/db';
+import { directClient } from '@/db';
 
-// Vercel-cron endpoint. Wired to "0 11 * * *" in vercel.json (daily at
-// 11:00 UTC — Vercel Hobby caps crons at daily cadence). Vercel's cron
-// invoker sends GET with `Authorization: Bearer ${CRON_SECRET}`; reject
-// anything else with 401 so the URL stays inert if scraped.
+// Vercel-cron endpoint, scheduled in vercel.json. Vercel's cron invoker
+// sends GET with `Authorization: Bearer ${CRON_SECRET}`; reject anything
+// else with 401 so the URL stays inert if scraped.
 //
 // `force: true` means refresh every tracked type ID, not just the
 // stale subset — used here because the cron is the authoritative
 // refresher and should always actually refresh when it fires, even if
 // an on-demand call updated some rows in the same window. The advisory
 // lock inside refreshStalePrices still serializes concurrent callers;
-// `force` widens the set, it doesn't bypass the lock. The lock lives
-// on a reserved postgres-js connection, not a transaction — the raw
-// `client` is what we pass in.
+// `force` widens the set, it doesn't bypass the lock. The lock lives on
+// a reserved session connection — we pass `directClient` (the unpooled
+// endpoint) so the session-scoped lock actually holds.
 // No user input — bearer-auth only, body and query params ignored.
 export async function GET(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
@@ -24,7 +23,7 @@ export async function GET(req: Request): Promise<Response> {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const result = await refreshStalePrices(client, { force: true });
+  const result = await refreshStalePrices(directClient, { force: true });
   return Response.json({
     cached: result.status === 'cached',
     lastUpdatedAt: result.lastUpdatedAt?.toISOString() ?? null,

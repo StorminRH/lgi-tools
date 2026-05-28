@@ -5,7 +5,7 @@ import {
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/queries';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
-import { client } from '@/db';
+import { directClient } from '@/db';
 import { runSdePipeline, summarizeMarketPricesRowCount } from '@/db/sde-pipeline';
 
 // Vercel cron endpoint. Wired to "0 5 * * 1" in vercel.json (Mondays
@@ -34,7 +34,7 @@ export async function GET(req: Request): Promise<Response> {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const db = drizzle(client);
+  const db = drizzle(directClient);
   const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
   const remoteVersion = await getRemoteSdeVersion();
 
@@ -56,7 +56,7 @@ export async function GET(req: Request): Promise<Response> {
     });
   }
 
-  const reserved = await client.reserve();
+  const reserved = await directClient.reserve();
   let lockHeld = false;
   try {
     const lockResult = await reserved<{ got: boolean }[]>`
