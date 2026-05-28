@@ -156,6 +156,17 @@ a:hover {
 .tool-tile-soon .tile-desc { opacity: 0.6; }
 /* end tool-tile block */
 
+/* ── progress bar fill (CSP-safe dynamic width) ─────────────────────────
+ * The fill width is a runtime value (a telemetry percentage), so it can't be
+ * a build-time Tailwind class. <ProgressBar> sets `--pct` via
+ * style.setProperty in an effect — JS-applied styles aren't gated by the
+ * production CSP's `style-src`, unlike an inline `style="width:N%"` attribute
+ * which the strict policy silently drops. Falls back to 0% pre-hydration. */
+.progress-fill {
+  width: var(--pct, 0%);
+  transition: width 0.3s ease;
+}
+
 /* ── /sites density vocabulary (v2.9.4) ─────────────────────────────────
  * Site cards are tagged `.card.resource` or `.card.wave-driven` by
  * SiteCard.tsx based on the `isWaveDriven` flag. Only resource cards

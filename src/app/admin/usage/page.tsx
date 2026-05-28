@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import {
   getAggregateSummary,
@@ -104,13 +105,7 @@ function HorizontalBar({
           {count.toLocaleString()}
         </span>
       </div>
-      <div className="h-[4px] bg-[#0a1018] border border-[#101820]">
-        <div
-          className="h-full bg-[#10283a]"
-          style={{ width: `${pct}%` }}
-          aria-hidden
-        />
-      </div>
+      <ProgressBar pct={pct} />
     </div>
   );
 }
@@ -243,13 +238,7 @@ export default async function AdminUsagePage({
                           {row.anonymousEvents.toLocaleString()}
                         </td>
                         <td className="py-1.5 pl-4">
-                          <div className="h-[4px] bg-[#0a1018] border border-[#101820]">
-                            <div
-                              className="h-full bg-[#10283a]"
-                              style={{ width: `${pct}%` }}
-                              aria-hidden
-                            />
-                          </div>
+                          <ProgressBar pct={pct} />
                         </td>
                       </tr>
                     );

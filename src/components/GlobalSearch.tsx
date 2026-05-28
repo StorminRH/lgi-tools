@@ -234,7 +234,7 @@ export function GlobalSearch({ active, onActiveChange, session, isAdmin, siteInd
           })}
           <div className="dd-footer">
             <span>
-              Scope: <span style={{ color: 'var(--color-isk)' }}>all</span> · sites · tools · commands
+              Scope: <span className="text-isk">all</span> · sites · tools · commands
             </span>
             <span>
               <span className="kbd">↑↓</span>

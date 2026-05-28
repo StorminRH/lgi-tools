@@ -26,7 +26,7 @@ export function ResourceRow({
   if (siteType === 'relic' || siteType === 'data') {
     return (
       <ResourceRowPrimitive
-        cols="1fr auto"
+        colsClass="grid-cols-[1fr_auto]"
         name={
           <>
             <Dot tone={HACK_DOT_TONE[siteType]} />
@@ -43,7 +43,7 @@ export function ResourceRow({
     const m3 = resource.volumeM3;
     return (
       <ResourceRowPrimitive
-        cols="1fr auto auto"
+        colsClass="grid-cols-[1fr_auto_auto]"
         name={resource.resourceName}
         meta={`${units.toLocaleString()} rocks · ${formatM3(m3)}`}
         value={formatIsk(resource.effectiveIsk)}
@@ -54,7 +54,7 @@ export function ResourceRow({
   // gas
   return (
     <ResourceRowPrimitive
-      cols="1fr auto auto"
+      colsClass="grid-cols-[1fr_auto_auto]"
       name={resource.resourceName}
       meta={formatM3(resource.volumeM3)}
       value={formatIsk(resource.effectiveIsk)}

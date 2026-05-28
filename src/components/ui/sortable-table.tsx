@@ -12,8 +12,6 @@ export interface SortableColumn<Row> {
   // 'right' is the convention for numeric columns; the primitive uses this
   // to right-align both the header label and the cell content.
   align?: 'left' | 'right';
-  // CSS grid track size, e.g. '1fr', '2fr', '120px'. Defaults to '1fr'.
-  width?: string;
   render: (row: Row) => ReactNode;
 }
 
@@ -21,14 +19,18 @@ interface RenderRowArg<Row> {
   row: Row;
   cells: ReactNode;
   key: string | number;
-  // CSS grid-template-columns string the consumer should pass to whatever
-  // element holds the cells, so the summary row lines up with the header.
-  gridTemplate: string;
+  // The Tailwind `grid-cols-[…]` class the consumer applies to whatever element
+  // holds the cells, so its row lines up with the header.
+  gridColsClass: string;
 }
 
 interface Props<Row> {
   columns: SortableColumn<Row>[];
   rows: Row[];
+  // Tailwind `grid-cols-[…]` class shared by the header and every row so their
+  // columns line up; must match the column count/order. Never an inline style —
+  // the production CSP's strict `style-src` drops inline `style="…"` attributes.
+  gridColsClass: string;
   // sortKey === null means "default order" (no ?sort param in the URL).
   sortKey: string | null;
   sortDir: 'asc' | 'desc';
@@ -76,6 +78,7 @@ function buildSortHref(
 export function SortableTable<Row>({
   columns,
   rows,
+  gridColsClass,
   sortKey,
   sortDir,
   basePath,
@@ -87,12 +90,12 @@ export function SortableTable<Row>({
   renderRow,
   emptyState,
 }: Props<Row>) {
-  const gridTemplate = columns.map((c) => c.width ?? '1fr').join(' ');
-
   const renderHeader = () => (
     <div
-      className="sortable-table-header grid items-center gap-4 px-3 py-2 border-b border-border"
-      style={{ gridTemplateColumns: gridTemplate }}
+      className={cn(
+        'sortable-table-header grid items-center gap-4 px-3 py-2 border-b border-border',
+        gridColsClass,
+      )}
     >
       {columns.map((col) => {
         const isActive = sortKey === col.key;
@@ -167,13 +170,15 @@ export function SortableTable<Row>({
           const key = getRowKey(row);
           const cells = renderCells(row);
           if (renderRow) {
-            return <Fragment key={key}>{renderRow({ row, cells, key, gridTemplate })}</Fragment>;
+            return <Fragment key={key}>{renderRow({ row, cells, key, gridColsClass })}</Fragment>;
           }
           return (
             <div
               key={key}
-              className="sortable-table-row grid items-center gap-4 px-3 py-2 border-b border-border-soft last:border-b-0"
-              style={{ gridTemplateColumns: gridTemplate }}
+              className={cn(
+                'sortable-table-row grid items-center gap-4 px-3 py-2 border-b border-border-soft last:border-b-0',
+                gridColsClass,
+              )}
             >
               {cells}
             </div>
