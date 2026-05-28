@@ -24,19 +24,15 @@ import {
   setSdeMetaValue,
 } from '../data/eve-data/queries';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
+import { resolveLockConnectionUrl } from './index';
 import { runSdePipeline, summarizeMarketPricesRowCount } from './sde-pipeline';
 
-function requiredEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} is not set`);
-  return v;
-}
-
-const databaseUrl = requiredEnv('DATABASE_URL');
 const force = process.argv.includes('--force');
 
+// Direct (unpooled) endpoint — the SDE ingest advisory lock is
+// session-scoped and won't hold through the `-pooler` endpoint.
 // max: 2 — one for the advisory lock, one for the data ops.
-const client = postgres(databaseUrl, { max: 2 });
+const client = postgres(resolveLockConnectionUrl(), { max: 2 });
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
 async function main() {

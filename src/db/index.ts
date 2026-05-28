@@ -6,11 +6,14 @@ type Sql = ReturnType<typeof postgres>;
 
 let _client: Sql | undefined;
 let _db: Db | undefined;
+let _directClient: Sql | undefined;
 
 function getClient(): Sql {
   if (_client) return _client;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not set');
+  // `prepare: false` is required for the pooled (`-pooler`) endpoint —
+  // PgBouncer in transaction mode can't cache prepared statements.
   _client = postgres(url, { prepare: false });
   return _client;
 }
@@ -21,6 +24,45 @@ function getDb(): Db {
   return _db;
 }
 
+// A Neon connection string is "pooled" when its host carries the `-pooler`
+// suffix — that endpoint is PgBouncer in transaction mode, which recycles the
+// underlying backend between statements and so cannot hold a session-scoped
+// advisory lock. Exported for the connection unit test.
+export function isPooledHost(url: string): boolean {
+  return new URL(url).hostname.includes('-pooler');
+}
+
+// Resolves the connection string for session-scoped lock holders. Prefers the
+// direct (unpooled) endpoint and falls back to DATABASE_URL — which on local
+// Docker has no `-pooler`, so dev works without the extra var.
+//
+// Fail-closed: if the resolved URL is still a pooled host (unpooled var missing
+// in production), throw rather than silently run a lock that won't hold. The
+// request path never calls this, so this can't affect normal query throughput.
+export function resolveLockConnectionUrl(
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const url = env.DATABASE_URL_UNPOOLED ?? env.DATABASE_URL;
+  if (!url) throw new Error('DATABASE_URL is not set');
+  if (isPooledHost(url)) {
+    throw new Error(
+      'Refusing to hold a session advisory lock on a pooled (-pooler) connection: ' +
+        'set DATABASE_URL_UNPOOLED to the direct Neon endpoint. ' +
+        'Session-scoped locks do not hold through PgBouncer transaction-mode pooling.',
+    );
+  }
+  return url;
+}
+
+function getDirectClient(): Sql {
+  if (_directClient) return _directClient;
+  // max: 3 — one connection reserved for the advisory lock, headroom for the
+  // data ops the lock protects. Direct endpoints have a lower connection
+  // ceiling than the pooler and the lock holders (cron/CLI) are infrequent.
+  _directClient = postgres(resolveLockConnectionUrl(), { max: 3 });
+  return _directClient;
+}
+
 // Proxy preserves the `db.select(...)` call-site API while deferring
 // connection until the first actual database call at request time.
 export const db: Db = new Proxy({} as Db, {
@@ -29,12 +71,12 @@ export const db: Db = new Proxy({} as Db, {
   },
 });
 
-// Same lazy contract for the raw postgres-js client. Only needed by callers
-// that have to bypass Drizzle's ORM layer — currently just the price-refresh
-// path, which reserves a connection from the pool to hold a session-level
-// advisory lock across a non-transactional HTTP call.
-export const client: Sql = new Proxy({} as Sql, {
+// Raw postgres-js client on the direct (unpooled) endpoint. Only lock holders
+// need it: they reserve a connection to hold a session-level advisory lock
+// across a non-transactional HTTP call, which requires a stable backend — so it
+// must NOT run through the pooler. Request-path code uses `db` above instead.
+export const directClient: Sql = new Proxy({} as Sql, {
   get(_target, prop) {
-    return (getClient() as unknown as Record<string | symbol, unknown>)[prop];
+    return (getDirectClient() as unknown as Record<string | symbol, unknown>)[prop];
   },
 });
