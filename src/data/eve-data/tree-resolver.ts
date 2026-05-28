@@ -309,69 +309,79 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
     .select({ id: industryBlueprints.blueprintTypeId })
     .from(industryBlueprints);
 
-  // Wipe + rewrite trees + flat materials. Cascade FKs handle the
-  // ordering; everything that references industry_blueprints was
-  // already truncated by runIngest if this is the deploy-time path.
-  // On the cron-triggered re-resolve path (no full SDE re-ingest)
-  // we still want a clean slate.
-  await db.execute(
-    sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}`,
-  );
-
   const FLAT_BATCH_SIZE = 1000;
   const TREE_BATCH_SIZE = 500;
-  let flatBatch: Array<{
-    blueprintTypeId: number;
-    rawMaterialTypeId: number;
-    totalQuantity: bigint;
-  }> = [];
-  let treeBatch: Array<{
-    blueprintTypeId: number;
-    treeJson: unknown;
-    computedAt: Date;
-  }> = [];
+  const computedAt = new Date();
   let flatWritten = 0;
   let treeWritten = 0;
-  const computedAt = new Date();
 
-  for (const { id } of allBlueprintIds) {
-    const flat = resolver.flatForOneRun(id);
-    for (const [rawType, qty] of flat) {
-      flatBatch.push({
+  // TRUNCATE + writes + hash update all live in one transaction so a
+  // mid-flight timeout (Vercel function killed at 300s, transient DB
+  // error, etc.) rolls back to the pre-resolve state instead of
+  // leaving the tables empty for up to a week until the next Monday
+  // cron retries. Recovery becomes automatic: the hash isn't written
+  // unless every batch committed, so the next invocation will see a
+  // hash mismatch and re-run.
+  await db.transaction(async (tx) => {
+    // Wipe + rewrite trees + flat materials. Cascade FKs handle the
+    // ordering; everything that references industry_blueprints was
+    // already truncated by runIngest if this is the deploy-time path.
+    // On the cron-triggered re-resolve path (no full SDE re-ingest)
+    // we still want a clean slate.
+    await tx.execute(
+      sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}`,
+    );
+
+    let flatBatch: Array<{
+      blueprintTypeId: number;
+      rawMaterialTypeId: number;
+      totalQuantity: bigint;
+    }> = [];
+    let treeBatch: Array<{
+      blueprintTypeId: number;
+      treeJson: unknown;
+      computedAt: Date;
+    }> = [];
+
+    for (const { id } of allBlueprintIds) {
+      const flat = resolver.flatForOneRun(id);
+      for (const [rawType, qty] of flat) {
+        flatBatch.push({
+          blueprintTypeId: id,
+          rawMaterialTypeId: rawType,
+          totalQuantity: qty,
+        });
+        if (flatBatch.length >= FLAT_BATCH_SIZE) {
+          await tx.insert(blueprintFlatMaterials).values(flatBatch);
+          flatWritten += flatBatch.length;
+          flatBatch = [];
+        }
+      }
+
+      const tree = resolver.treeForOneRun(id);
+      treeBatch.push({
         blueprintTypeId: id,
-        rawMaterialTypeId: rawType,
-        totalQuantity: qty,
+        treeJson: tree,
+        computedAt,
       });
-      if (flatBatch.length >= FLAT_BATCH_SIZE) {
-        await db.insert(blueprintFlatMaterials).values(flatBatch);
-        flatWritten += flatBatch.length;
-        flatBatch = [];
+      if (treeBatch.length >= TREE_BATCH_SIZE) {
+        await tx.insert(blueprintTrees).values(treeBatch);
+        treeWritten += treeBatch.length;
+        treeBatch = [];
       }
     }
 
-    const tree = resolver.treeForOneRun(id);
-    treeBatch.push({
-      blueprintTypeId: id,
-      treeJson: tree,
-      computedAt,
-    });
-    if (treeBatch.length >= TREE_BATCH_SIZE) {
-      await db.insert(blueprintTrees).values(treeBatch);
-      treeWritten += treeBatch.length;
-      treeBatch = [];
+    if (flatBatch.length > 0) {
+      await tx.insert(blueprintFlatMaterials).values(flatBatch);
+      flatWritten += flatBatch.length;
     }
-  }
+    if (treeBatch.length > 0) {
+      await tx.insert(blueprintTrees).values(treeBatch);
+      treeWritten += treeBatch.length;
+    }
 
-  if (flatBatch.length > 0) {
-    await db.insert(blueprintFlatMaterials).values(flatBatch);
-    flatWritten += flatBatch.length;
-  }
-  if (treeBatch.length > 0) {
-    await db.insert(blueprintTrees).values(treeBatch);
-    treeWritten += treeBatch.length;
-  }
-
-  await writeMeta(db, SDE_META_KEY_TREE_HASH, hashAfter);
+    await writeMeta(tx, SDE_META_KEY_TREE_HASH, hashAfter);
+  });
 
   const stats = resolver.stats();
   return {

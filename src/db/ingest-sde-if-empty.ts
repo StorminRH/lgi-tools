@@ -87,6 +87,18 @@ async function main() {
       return;
     }
 
+    // Fuzzwork-unreachable path: if our DB is fully populated and on a
+    // known version but the HEAD probe failed, there's nothing
+    // actionable — proceeding to runSdePipeline burns 30s on doomed
+    // downloads that exit the build with a soft failure anyway.
+    // Drift-detection runs again at the next cron tick / next deploy.
+    if (hasRows && storedVersion !== null && remoteVersion === null) {
+      console.log(
+        `Skipping SDE auto-ingest (Fuzzwork unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`,
+      );
+      return;
+    }
+
     if (!hasRows) {
       console.log('Auto-ingesting SDE (eve-data tables empty on this branch)…');
     } else if (storedVersion !== remoteVersion) {

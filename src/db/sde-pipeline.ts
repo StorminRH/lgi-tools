@@ -67,14 +67,20 @@ export async function seedTrackedTypes(db: AnyPgDb): Promise<SeedSummary> {
   // Batched insert keeps the parameter count under Postgres's 64k bind
   // limit. 6,000 rows × 10 cols = 60k params — close to the wire. 1k
   // rows × 10 cols = 10k params per call, well clear.
+  //
+  // Count via RETURNING rather than slice size — ON CONFLICT DO NOTHING
+  // can skip rows if a concurrent ingest sneaks past the advisory lock
+  // (rare but observable in logs would otherwise overcount and confuse
+  // debugging).
   const BATCH = 1000;
   let inserted = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
-    await db
+    const written = await db
       .insert(marketPrices)
       .values(rows.slice(i, i + BATCH))
-      .onConflictDoNothing();
-    inserted += Math.min(BATCH, rows.length - i);
+      .onConflictDoNothing()
+      .returning({ typeId: marketPrices.typeId });
+    inserted += written.length;
   }
 
   return { tracked: tracked.length, missing: missing.length, inserted };
