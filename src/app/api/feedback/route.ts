@@ -1,7 +1,9 @@
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
 import { APP_VERSION } from '@/config/app-version';
+import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
 
 // Discord's webhook content limit is 2000 chars; embed description is 4096.
 // We cap at 2000 on input so a single feedback report always fits in one
@@ -14,7 +16,20 @@ const MAX_MESSAGE_LENGTH = 2000;
 // admitting outright abuse.
 const MAX_PATH_LENGTH = 512;
 
+// Per-IP rate limit. Feedback POSTs fan out to a Discord webhook, so an
+// unthrottled endpoint is a webhook-spam vector. 5/min is generous for a
+// real user typing thoughtfully but cuts a scripted flood off fast.
+const FEEDBACK_LIMIT_PER_MINUTE = 5;
+
 const CONTROL_CHARS = /\p{C}/gu;
+
+// Bounded loose — the post-parse sanitiseText() trims and slices to the real
+// caps below; the *4 multiplier here just rejects runaway 100KB bodies before
+// we spend cycles cleaning them up. Same intent as the pre-Zod check.
+const feedbackSchema = z.object({
+  message: z.string().min(1).max(MAX_MESSAGE_LENGTH * 4),
+  path: z.string().regex(/^\//, 'path must start with /').max(MAX_PATH_LENGTH * 4),
+});
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -22,10 +37,6 @@ function requireEnv(name: string): string {
     throw new Error(`${name} is not set`);
   }
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function sanitiseText(raw: string, max: number): string {
@@ -74,33 +85,33 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  if (!isRecord(body)) {
-    return new Response('Body must be a JSON object', { status: 400 });
+  const parsed = feedbackSchema.safeParse(body);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    const detail = firstIssue ? `${firstIssue.path.join('.') || 'body'}: ${firstIssue.message}` : 'invalid body';
+    return new Response(detail, { status: 400 });
   }
 
-  const { message: rawMessage, path: rawPath } = body;
-  if (typeof rawMessage !== 'string') {
-    return new Response('message must be a string', { status: 400 });
-  }
-  if (typeof rawPath !== 'string') {
-    return new Response('path must be a string', { status: 400 });
-  }
-  if (rawMessage.length > MAX_MESSAGE_LENGTH * 4) {
-    // Reject runaway payloads early — the trim/cap below would clip them
-    // silently, but a 100KB body is a misbehaving client, not a long
-    // bug report.
-    return new Response('message too large', { status: 400 });
-  }
-  if (rawPath.length > MAX_PATH_LENGTH * 4) {
-    return new Response('path too large', { status: 400 });
+  const limit = await rateLimit(clientIdentifier(request.headers), {
+    name: 'feedback',
+    perMinute: FEEDBACK_LIMIT_PER_MINUTE,
+  });
+  if (!limit.ok) {
+    return Response.json(
+      { error: 'rate_limited', retryAfter: limit.retryAfter },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(limit.retryAfter) },
+      },
+    );
   }
 
-  const message = sanitiseText(rawMessage, MAX_MESSAGE_LENGTH);
+  const message = sanitiseText(parsed.data.message, MAX_MESSAGE_LENGTH);
   if (message.length === 0) {
     return new Response('message must not be empty', { status: 400 });
   }
 
-  const path = sanitiseText(rawPath, MAX_PATH_LENGTH);
+  const path = sanitiseText(parsed.data.path, MAX_PATH_LENGTH);
   if (path.length === 0 || !path.startsWith('/')) {
     return new Response('path must start with /', { status: 400 });
   }

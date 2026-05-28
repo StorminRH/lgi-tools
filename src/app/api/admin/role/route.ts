@@ -1,18 +1,33 @@
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
 import {
   getCharacterById,
   setCharacterRole,
 } from '@/features/auth/queries';
-import { CHARACTER_ROLES, type CharacterRole } from '@/features/auth/schema';
+import { CHARACTER_ROLES } from '@/features/auth/schema';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { logUsageEvent } from '@/data/telemetry/queries';
 
 const MAX_QUERY_LENGTH = 200;
 const CONTROL_CHARS = /\p{C}/gu;
-const POSITIVE_INTEGER = /^[1-9]\d{0,18}$/;
 
-function sanitiseQuery(raw: FormDataEntryValue | null): string | undefined {
-  if (typeof raw !== 'string') return undefined;
+// Form payload from <RoleToggleForm>. characterId arrives as a numeric
+// string in the FormData; transform-to-Number gates on the regex first so
+// junk like "12abc" never reaches parseInt's silent truncation. `q`
+// (optional search-state preserver) is loosely validated here — the
+// post-parse sanitiseQuery() does the real cleaning.
+const roleFormSchema = z.object({
+  characterId: z
+    .string()
+    .regex(/^[1-9]\d{0,18}$/)
+    .transform(Number)
+    .pipe(z.number().int().positive().refine(Number.isSafeInteger)),
+  nextRole: z.enum(CHARACTER_ROLES),
+  q: z.string().max(MAX_QUERY_LENGTH * 4).optional(),
+});
+
+function sanitiseQuery(raw: string | undefined): string | undefined {
+  if (raw === undefined) return undefined;
   const cleaned = raw.replace(CONTROL_CHARS, '').trim();
   if (cleaned.length === 0) return undefined;
   return cleaned.slice(0, MAX_QUERY_LENGTH);
@@ -35,24 +50,17 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const form = await request.formData();
-
-  const rawCharacterId = form.get('characterId');
-  if (typeof rawCharacterId !== 'string' || !POSITIVE_INTEGER.test(rawCharacterId)) {
-    return new Response('Invalid characterId', { status: 400 });
+  const parsed = roleFormSchema.safeParse({
+    characterId: form.get('characterId'),
+    nextRole: form.get('nextRole'),
+    q: form.get('q') ?? undefined,
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const detail = issue ? `Invalid ${issue.path.join('.') || 'field'}` : 'Invalid form';
+    return new Response(detail, { status: 400 });
   }
-  const characterId = Number(rawCharacterId);
-  if (!Number.isSafeInteger(characterId)) {
-    return new Response('characterId out of range', { status: 400 });
-  }
-
-  const rawNextRole = form.get('nextRole');
-  if (
-    typeof rawNextRole !== 'string' ||
-    !(CHARACTER_ROLES as readonly string[]).includes(rawNextRole)
-  ) {
-    return new Response('Invalid nextRole', { status: 400 });
-  }
-  const nextRole = rawNextRole as CharacterRole;
+  const { characterId, nextRole } = parsed.data;
 
   // Self-toggle guard. The UI disables this button on the viewer's own row,
   // but a crafted POST would still arrive here — this is the real defense.
@@ -79,6 +87,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     },
   }).catch((err) => console.error('[admin/role] telemetry write failed', err));
 
-  const query = sanitiseQuery(form.get('q'));
+  const query = sanitiseQuery(parsed.data.q);
   return Response.redirect(buildRedirect(request, query), 303);
 }

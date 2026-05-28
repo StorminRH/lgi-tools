@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
+import { z } from 'zod';
 import {
   OAUTH_STATE_COOKIE,
   OAUTH_VERIFIER_COOKIE,
@@ -16,6 +17,15 @@ import { upsertCharacterOnLogin } from '@/features/auth/queries';
 import { encryptSession } from '@/features/auth/session';
 import { logUsageEvent } from '@/data/telemetry/queries';
 
+// EVE SSO callback always supplies non-empty `code` and `state`. A request
+// missing either is either a malformed bookmark or a half-finished spoof
+// attempt; both deserve the same state_mismatch redirect as a real
+// CSRF-style tampered callback.
+const callbackQuerySchema = z.object({
+  code: z.string().min(1),
+  state: z.string().min(1),
+});
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -31,8 +41,10 @@ function redirectHome(request: NextRequest, errorCode?: string): Response {
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const code = request.nextUrl.searchParams.get('code');
-  const state = request.nextUrl.searchParams.get('state');
+  const parsed = callbackQuerySchema.safeParse({
+    code: request.nextUrl.searchParams.get('code') ?? '',
+    state: request.nextUrl.searchParams.get('state') ?? '',
+  });
 
   const jar = await cookies();
   const stateCookie = jar.get(OAUTH_STATE_COOKIE)?.value;
@@ -42,9 +54,10 @@ export async function GET(request: NextRequest): Promise<Response> {
   jar.delete(OAUTH_STATE_COOKIE);
   jar.delete(OAUTH_VERIFIER_COOKIE);
 
-  if (!code || !state || !stateCookie || !verifierCookie || state !== stateCookie) {
+  if (!parsed.success || !stateCookie || !verifierCookie || parsed.data.state !== stateCookie) {
     return redirectHome(request, 'state_mismatch');
   }
+  const { code } = parsed.data;
 
   const clientId = requireEnv('EVE_CLIENT_ID');
   const clientSecret = requireEnv('EVE_CLIENT_SECRET');

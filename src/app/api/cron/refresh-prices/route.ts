@@ -14,6 +14,7 @@ import { client } from '@/db';
 // `force` widens the set, it doesn't bypass the lock. The lock lives
 // on a reserved postgres-js connection, not a transaction — the raw
 // `client` is what we pass in.
+// No user input — bearer-auth only, body and query params ignored.
 export async function GET(req: Request): Promise<Response> {
   const secret = process.env.CRON_SECRET;
   if (!secret) {

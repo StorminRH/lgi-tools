@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-05-27
 
+- Tightened the platform's security posture and added abuse protection ahead of upcoming features.
 - Sharing a wormhole site link in Discord, Reddit, or a forum now produces a rich preview card showing the site name, wormhole class, total ISK value, wave count, and scram count — instead of a blank embed.
 - The site catalogue is now discoverable through Google. A sitemap and robots file are published so search engines can crawl every public page; the admin dashboard and internal API routes remain hidden from indexing.
 - Real-user page-performance metrics (load time, layout shift, and the other Core Web Vitals) are now collected anonymously by Vercel Speed Insights so we can spot and fix slow pages. No behavioural tracking — performance only. See the Legal page for the full disclosure.

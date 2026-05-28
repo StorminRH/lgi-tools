@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { USAGE_ACTIONS, type UsageAction } from '@/data/telemetry/types';
+import { USAGE_ACTIONS } from '@/data/telemetry/types';
 import { getSession } from '@/features/auth/session';
 
 // Hard cap on serialised metadata to keep one bad payload from filling the
@@ -8,9 +9,10 @@ import { getSession } from '@/features/auth/session';
 // payloads keeps a misbehaving client from running away.
 const MAX_METADATA_BYTES = 2048;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const telemetrySchema = z.object({
+  action: z.enum(USAGE_ACTIONS),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
 
 // Silent first-party tracker. Accepts JSON { action, metadata? }, reads the
 // session for characterId (null when logged out — anonymous reach matters
@@ -25,32 +27,29 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  if (!isRecord(body)) {
-    return new Response('Body must be a JSON object', { status: 400 });
+  const parsed = telemetrySchema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
+    return new Response(detail, { status: 400 });
   }
 
-  const { action, metadata } = body;
-  if (typeof action !== 'string' || !(USAGE_ACTIONS as readonly string[]).includes(action)) {
-    return new Response('Invalid action', { status: 400 });
-  }
-
-  let safeMetadata: Record<string, unknown> = {};
-  if (metadata !== undefined) {
-    if (!isRecord(metadata)) {
-      return new Response('metadata must be a JSON object', { status: 400 });
-    }
-    const serialised = JSON.stringify(metadata);
+  const safeMetadata = parsed.data.metadata ?? {};
+  // Byte-cap is a separate concern from shape validation; Zod can't bound
+  // a JSON.stringify length without a refine, and the refine would force
+  // double-serialising. Leave it as a post-parse check.
+  if (parsed.data.metadata !== undefined) {
+    const serialised = JSON.stringify(safeMetadata);
     if (Buffer.byteLength(serialised, 'utf8') > MAX_METADATA_BYTES) {
       return new Response('metadata too large', { status: 400 });
     }
-    safeMetadata = metadata;
   }
 
   const session = await getSession();
 
   try {
     await logUsageEvent({
-      action: action as UsageAction,
+      action: parsed.data.action,
       characterId: session?.characterId ?? null,
       metadata: safeMetadata,
     });
