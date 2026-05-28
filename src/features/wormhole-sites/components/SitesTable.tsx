@@ -1,3 +1,4 @@
+import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
 import { UrlSync } from '@/components/ui/url-sync';
@@ -116,7 +117,10 @@ export function SitesTable({
         >
           <details className="sites-table-row">
             <summary
-              className={`list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-[#0d1218] ${gridColsClass}`}
+              className={cn(
+                'list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-[#0d1218]',
+                gridColsClass,
+              )}
             >
               {cells}
             </summary>

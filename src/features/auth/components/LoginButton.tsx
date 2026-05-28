@@ -33,7 +33,7 @@ export function LoginButton({
         alt={session.name}
         width={28}
         height={28}
-        loading="lazy"
+        loading="eager"
         decoding="async"
         className="rounded-[2px] border border-[#1e2c3a]"
       />
