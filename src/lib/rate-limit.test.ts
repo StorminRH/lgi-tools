@@ -116,6 +116,12 @@ describe('rateLimit', () => {
   });
 
   it('bypasses the limiter in development when env vars are unset', async () => {
+    // Stub both env-var pairs to empty — without this, a `KV_*` value pulled
+    // into the local env (from `vercel env pull`) would flip the limiter
+    // from bypass to live-call and the test would silently exercise the
+    // wrong path.
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
     vi.stubEnv('NODE_ENV', 'development');
@@ -127,6 +133,8 @@ describe('rateLimit', () => {
   });
 
   it('bypasses the limiter in test when env vars are unset', async () => {
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
     vi.stubEnv('NODE_ENV', 'test');
