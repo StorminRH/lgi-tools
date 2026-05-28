@@ -68,38 +68,43 @@ export type ProductRow = {
   quantity: number;
 };
 
-// Builds the resolver indexes from raw material/product rows. A
-// blueprint's self-referential material edge is dropped: ~51 deprecated
-// SDE blueprints (old POS assembly arrays, silos, reactor arrays,
-// outpost platforms, etc.) ship a degenerate "1 of X makes 1 of X"
-// recipe where the sole material equals the product. EVE manufacturing
-// is a strict DAG, so these are non-recipes — not real cycles to
-// resolve. Without this filter the walker reads each as a self-loop and
-// returns empty flat materials. Dropping the material edge (not the
-// product edge) leaves productToBlueprint intact; those products are
-// consumed by no other blueprint, so nothing else is affected.
+// Builds the resolver indexes from raw material/product rows, correcting
+// for a degenerate shape in the SDE: ~51 deprecated, non-manufacturable
+// items (old POS assembly arrays, silos, reactor arrays, outpost
+// platforms, orbital ammo, a couple of hulls) ship a "1 of X makes 1 of
+// X" recipe whose sole material is the product itself. EVE manufacturing
+// is a strict DAG, so these are non-recipes, not real cycles.
+//
+// Two corrections, both keyed on the same self-referential shape:
+//   1. Drop the self-referential material edge so the walker never reads
+//      it as a self-loop.
+//   2. A blueprint whose entire material list was self-referential can't
+//      actually produce anything, so it is not registered as a producer.
+//      Its product then resolves as a leaf (raw input) wherever consumed,
+//      instead of routing into an empty blueprint and silently
+//      contributing nothing. Today none of these products are consumed
+//      elsewhere, but this keeps us correct if a future SDE starts
+//      consuming one of these deprecated types.
 export function buildIndexesFromRows(
   matRows: MaterialRow[],
   prodRows: ProductRow[],
 ): Indexes {
+  // What each blueprint produces — drives both the self-edge filter and
+  // the degenerate-producer demotion below.
   const blueprintProducts = new Map<number, Set<number>>();
-  const productToBlueprint = new Map<
-    number,
-    { blueprintTypeId: number; quantityPerRun: number }
-  >();
   for (const r of prodRows) {
     const products = blueprintProducts.get(r.blueprintTypeId);
     if (products) products.add(r.productTypeId);
     else blueprintProducts.set(r.blueprintTypeId, new Set([r.productTypeId]));
-    if (productToBlueprint.has(r.productTypeId)) continue; // first writer wins
-    productToBlueprint.set(r.productTypeId, {
-      blueprintTypeId: r.blueprintTypeId,
-      quantityPerRun: r.quantity,
-    });
   }
 
+  // Direct materials, self-referential edges dropped. Track which
+  // blueprints had any material row so we can tell a genuine "no recipe"
+  // blueprint apart from one whose entire recipe was self-referential.
   const blueprintMaterials = new Map<number, Material[]>();
+  const hadMaterialRow = new Set<number>();
   for (const r of matRows) {
+    hadMaterialRow.add(r.blueprintTypeId);
     if (blueprintProducts.get(r.blueprintTypeId)?.has(r.materialTypeId)) {
       continue; // self-referential edge — see fn comment
     }
@@ -107,6 +112,24 @@ export function buildIndexesFromRows(
     const entry: Material = { typeId: r.materialTypeId, quantity: r.quantity };
     if (list) list.push(entry);
     else blueprintMaterials.set(r.blueprintTypeId, [entry]);
+  }
+
+  // outputType -> producer. Skip blueprints whose entire material list was
+  // self-referential (had rows, none survived) — see correction 2 above.
+  const productToBlueprint = new Map<
+    number,
+    { blueprintTypeId: number; quantityPerRun: number }
+  >();
+  for (const r of prodRows) {
+    const degenerate =
+      hadMaterialRow.has(r.blueprintTypeId) &&
+      !blueprintMaterials.has(r.blueprintTypeId);
+    if (degenerate) continue;
+    if (productToBlueprint.has(r.productTypeId)) continue; // first writer wins
+    productToBlueprint.set(r.productTypeId, {
+      blueprintTypeId: r.blueprintTypeId,
+      quantityPerRun: r.quantity,
+    });
   }
 
   return { blueprintMaterials, productToBlueprint };

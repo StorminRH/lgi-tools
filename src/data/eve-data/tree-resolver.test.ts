@@ -227,4 +227,23 @@ describe('TreeResolver — self-referential SDE recipes', () => {
     expect(Object.fromEntries(flat)).toEqual({ 34: BigInt(30) }); // 3 runs × 10
     expect(resolver.stats().cycleWarnings).toHaveLength(0);
   });
+
+  it("treats a degenerate blueprint's product as a leaf when consumed elsewhere", () => {
+    // Forward-compat: BP 900 is degenerate (makes 24684 from 24684). If a
+    // future SDE adds BP 901 that consumes 24684, that type must surface as
+    // a raw leaf in 901's flat materials — not silently vanish into the
+    // now-empty BP 900 (which would pass the cycle guardrail cleanly).
+    const matRows: MaterialRow[] = [
+      { blueprintTypeId: 900, materialTypeId: 24684, quantity: 1 }, // self → filtered
+      { blueprintTypeId: 901, materialTypeId: 24684, quantity: 7 }, // consumes the degenerate product
+    ];
+    const prodRows: ProductRow[] = [
+      { blueprintTypeId: 900, productTypeId: 24684, quantity: 1 },
+      { blueprintTypeId: 901, productTypeId: 800, quantity: 1 },
+    ];
+    const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
+    const flat = resolver.flatForOneRun(901);
+    expect(Object.fromEntries(flat)).toEqual({ 24684: BigInt(7) });
+    expect(resolver.stats().cycleWarnings).toHaveLength(0);
+  });
 });
