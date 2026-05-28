@@ -1,5 +1,5 @@
 import { createWriteStream, existsSync } from 'node:fs';
-import { mkdir, unlink } from 'node:fs/promises';
+import { mkdir, rename, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -61,10 +61,23 @@ async function downloadOne(name: SdeDumpName): Promise<string> {
   if (!res.ok || !res.body) {
     throw new Error(`Fetch failed for ${name}: ${res.status} ${res.statusText}`);
   }
-  await pipeline(
-    Readable.fromWeb(res.body as unknown as NodeWebReadableStream<Uint8Array>),
-    createWriteStream(dest),
-  );
+  // Write to .tmp and rename on success. A mid-stream network drop
+  // would otherwise leave a partial bz2 at `dest`, and Vercel reuses
+  // /tmp across warm Lambda invocations — the next call's
+  // `existsSync(dest)` would return true and feed the corrupt file
+  // straight to the CSV parser. Atomic rename means a partial write
+  // never becomes the cached path.
+  const tmp = `${dest}.tmp`;
+  try {
+    await pipeline(
+      Readable.fromWeb(res.body as unknown as NodeWebReadableStream<Uint8Array>),
+      createWriteStream(tmp),
+    );
+    await rename(tmp, dest);
+  } catch (err) {
+    await unlink(tmp).catch(() => undefined);
+    throw err;
+  }
   return dest;
 }
 

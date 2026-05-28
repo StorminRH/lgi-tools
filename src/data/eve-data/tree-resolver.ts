@@ -187,7 +187,15 @@ export class TreeResolver {
         nodes.push({ typeId: mat.typeId, quantity: mat.quantity, inputs: [] });
         continue;
       }
-      const runsNeeded = Math.ceil(mat.quantity / child.quantityPerRun);
+      // Share the bigint ceilDiv helper with walkFlat so the two
+      // walkers can never disagree on runs-needed. Float64 / 32-bit
+      // ints is exact today, but if a future caller multiplies
+      // runsNeeded values up the tree the float path and the bigint
+      // path could drift; routing both through one helper rules that
+      // out by construction.
+      const runsNeeded = Number(
+        ceilDiv(BigInt(mat.quantity), BigInt(child.quantityPerRun)),
+      );
       nodes.push({
         typeId: mat.typeId,
         quantity: mat.quantity,
