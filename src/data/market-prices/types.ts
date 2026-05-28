@@ -10,9 +10,12 @@ export interface MarketPrice {
   updatedAt: Date;
 }
 
-// Source attribution stored on every market_prices row. Starts narrow;
-// widens to include 'esi' and 'fuzzwork-fallback' in 3.0.3.
-export type PriceSource = 'fuzzwork';
+// Source attribution stored on every market_prices row. 'esi' is the
+// happy path (3.0.3+). 'fuzzwork-fallback' is the circuit-breaker target
+// when ESI is degraded. 'fuzzwork' stays legal so pre-3.0.3 rows in
+// production still validate against this union; new writes never use
+// the bare 'fuzzwork' literal.
+export type PriceSource = 'esi' | 'fuzzwork-fallback' | 'fuzzwork';
 
 // Source-shaped record before persistence. Volume + source are populated
 // from the source response; updatedAt + staleAfter are set by the ingest
