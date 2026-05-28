@@ -47,3 +47,16 @@ export const PER_TYPE_CONCURRENCY = 10;
 // window; a 20-error pre-ban margin gives us enough slack to log and
 // fall back to Fuzzwork before the next request would trip the ban.
 export const ESI_BUDGET_FLOOR = 20;
+
+// IP-keyed rate limit on the public on-demand refresh trigger
+// (/api/market-prices/refresh). 20 requests per minute is generous for the
+// real consumer (3.0.5's Industry Planner client refreshes one blueprint's
+// stale rows per user action) while clearly throttling a scraper. Bumped
+// up or down post-ship from the Upstash analytics dashboard.
+export const ON_DEMAND_REFRESH_LIMIT_PER_MINUTE = 20;
+
+// Hard cap on the number of typeIds a single on-demand refresh call may
+// request. Matches the practical upper bound for a single blueprint's
+// flattened-materials list (T2 hulls hit ~25; capital BPCs may approach
+// the cap — revisit if a real consumer exceeds it).
+export const ON_DEMAND_REFRESH_MAX_TYPE_IDS = 50;

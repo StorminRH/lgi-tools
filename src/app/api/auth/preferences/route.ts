@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { setCharacterPreference } from '@/features/auth/queries';
 import { getSession } from '@/features/auth/session';
 
@@ -8,11 +9,15 @@ import { getSession } from '@/features/auth/session';
 // the characters table.
 const MAX_VALUE_BYTES = 4096;
 const MAX_KEY_LENGTH = 64;
-const KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const preferenceSchema = z.object({
+  key: z
+    .string()
+    .min(1)
+    .max(MAX_KEY_LENGTH)
+    .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/, 'key must match [a-zA-Z][a-zA-Z0-9_-]*'),
+  value: z.unknown(),
+});
 
 // Generic per-character preference setter. Accepts JSON { key, value }
 // — key is a short alphanumeric slug, value is any JSON-serialisable
@@ -34,17 +39,14 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  if (!isRecord(body)) {
-    return new Response('Body must be a JSON object', { status: 400 });
+  const parsed = preferenceSchema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
+    return new Response(detail, { status: 400 });
   }
 
-  const { key, value } = body;
-  if (typeof key !== 'string' || key.length === 0 || key.length > MAX_KEY_LENGTH) {
-    return new Response('Invalid key', { status: 400 });
-  }
-  if (!KEY_PATTERN.test(key)) {
-    return new Response('Key must match [a-zA-Z][a-zA-Z0-9_-]*', { status: 400 });
-  }
+  const { key, value } = parsed.data;
 
   // Value must be JSON-serialisable. We accept undefined-as-null but reject
   // values whose serialised form is too large.

@@ -21,6 +21,7 @@ function requireEnv(name: string): string {
   return value;
 }
 
+// No user input — handshake initiator, all PKCE state generated server-side.
 export async function GET(_request: NextRequest): Promise<Response> {
   const clientId = requireEnv('EVE_CLIENT_ID');
   const callbackUrl = requireEnv('EVE_CALLBACK_URL');

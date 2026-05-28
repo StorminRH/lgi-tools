@@ -1,7 +1,8 @@
 import type { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { SITE_TYPES, WORMHOLE_CLASSES } from '@/features/wormhole-sites/schema';
 import { listSites } from '@/features/wormhole-sites/queries';
-import type { ApiError, SiteListItem, SiteType, WormholeClass } from '@/features/wormhole-sites/types';
+import type { ApiError, SiteListItem } from '@/features/wormhole-sites/types';
 
 // API response shape: makes the ISK source explicit so consumers
 // can't mistake the Sheet's static rollup for the live-overlaid
@@ -15,31 +16,34 @@ function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiIte
   return { ...rest, sheetResourceValueIsk: resourceValueIsk };
 }
 
-export async function GET(
-  request: NextRequest
-): Promise<Response> {
-  const { searchParams } = request.nextUrl;
+const sitesQuerySchema = z.object({
+  type: z.enum(SITE_TYPES).optional(),
+  class: z.enum(WORMHOLE_CLASSES).optional(),
+});
 
-  const rawType = searchParams.get('type');
-  const rawClass = searchParams.get('class');
-
-  if (rawType !== null && !(SITE_TYPES as readonly string[]).includes(rawType)) {
+export async function GET(request: NextRequest): Promise<Response> {
+  const parsed = sitesQuerySchema.safeParse({
+    type: request.nextUrl.searchParams.get('type') ?? undefined,
+    class: request.nextUrl.searchParams.get('class') ?? undefined,
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const field = issue?.path.join('.') ?? 'query';
+    const expected =
+      field === 'type'
+        ? SITE_TYPES.join(', ')
+        : field === 'class'
+          ? WORMHOLE_CLASSES.join(', ')
+          : '';
     return Response.json(
-      { error: `Invalid type. Must be one of: ${SITE_TYPES.join(', ')}` } satisfies ApiError,
-      { status: 400 }
-    );
-  }
-
-  if (rawClass !== null && !(WORMHOLE_CLASSES as readonly string[]).includes(rawClass)) {
-    return Response.json(
-      { error: `Invalid class. Must be one of: ${WORMHOLE_CLASSES.join(', ')}` } satisfies ApiError,
-      { status: 400 }
+      { error: `Invalid ${field}. Must be one of: ${expected}` } satisfies ApiError,
+      { status: 400 },
     );
   }
 
   const result: SiteListItem[] = await listSites({
-    type: rawType !== null ? (rawType as SiteType) : undefined,
-    wormholeClass: rawClass !== null ? (rawClass as WormholeClass) : undefined,
+    type: parsed.data.type,
+    wormholeClass: parsed.data.class,
   });
 
   return Response.json(result.map(toApiShape));
