@@ -215,10 +215,13 @@ export class TreeResolver {
 // Content hash of the industry tables. Sensitive to row-level edits
 // in the reference blueprints (so a CCP nudge to Rifter's Tritanium
 // flips the hash) without scanning the full ~50k material rows on
-// every check. Stored under SDE_META_KEY_TREE_HASH; the resolver
-// short-circuits when the stored value matches.
+// every check. Both sides — materials AND products — of the reference
+// blueprints are sampled so a CCP edit to product-quantity (e.g.
+// Rifter starts yielding 2 ships per run) flips the hash. Stored
+// under SDE_META_KEY_TREE_HASH; the resolver short-circuits when the
+// stored value matches.
 export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
-  const refRows = await db
+  const refMatRows = await db
     .select({
       blueprintTypeId: industryActivityMaterials.blueprintTypeId,
       activityId: industryActivityMaterials.activityId,
@@ -234,14 +237,38 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     );
   // Deterministic ordering JS-side so the hash is stable across
   // postgres versions without relying on ORDER BY in the SQL.
-  refRows.sort(
+  refMatRows.sort(
     (a, b) =>
       a.blueprintTypeId - b.blueprintTypeId ||
       a.activityId - b.activityId ||
       a.materialTypeId - b.materialTypeId,
   );
-  const samples = refRows
+  const matSamples = refMatRows
     .map((r) => `${r.blueprintTypeId}:${r.activityId}:${r.materialTypeId}:${r.quantity}`)
+    .join(',');
+
+  const refProdRows = await db
+    .select({
+      blueprintTypeId: industryActivityProducts.blueprintTypeId,
+      activityId: industryActivityProducts.activityId,
+      productTypeId: industryActivityProducts.productTypeId,
+      quantity: industryActivityProducts.quantity,
+    })
+    .from(industryActivityProducts)
+    .where(
+      inArray(
+        industryActivityProducts.blueprintTypeId,
+        [...REFERENCE_BLUEPRINT_TYPE_IDS],
+      ),
+    );
+  refProdRows.sort(
+    (a, b) =>
+      a.blueprintTypeId - b.blueprintTypeId ||
+      a.activityId - b.activityId ||
+      a.productTypeId - b.productTypeId,
+  );
+  const prodSamples = refProdRows
+    .map((r) => `${r.blueprintTypeId}:${r.activityId}:${r.productTypeId}:${r.quantity}`)
     .join(',');
 
   const [{ counts }] = await db.execute<{ counts: string }>(sql`
@@ -253,7 +280,9 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   return createHash('sha256')
     .update(counts)
     .update(':')
-    .update(samples)
+    .update(matSamples)
+    .update(':')
+    .update(prodSamples)
     .digest('hex');
 }
 

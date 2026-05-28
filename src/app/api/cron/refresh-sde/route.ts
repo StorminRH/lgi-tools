@@ -45,6 +45,17 @@ export async function GET(req: Request): Promise<Response> {
     });
   }
 
+  // Fuzzwork-unreachable path: nothing actionable. Falling through to
+  // runSdePipeline would burn ~30s on doomed downloads and emit a noisy
+  // 500. Next Monday's tick (or any sooner manual run) retries. Same
+  // guard as src/db/ingest-sde-if-empty.ts.
+  if (storedVersion !== null && remoteVersion === null) {
+    return Response.json({
+      status: 'remote-unreachable',
+      sdeVersion: storedVersion,
+    });
+  }
+
   const reserved = await client.reserve();
   let lockHeld = false;
   try {
