@@ -1,13 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const limitMock = vi.fn();
+const redisCtorSpy = vi.fn();
 
-// Mock Upstash before importing the helper. `Redis.fromEnv()` reads env
-// vars and constructs a client; we never need it to actually do anything,
-// only to exist so the `Ratelimit` constructor doesn't throw.
+// Mock Upstash before importing the helper. The helper does
+// `new Redis({ url, token })`; we never need the constructed instance to
+// do anything, only to exist so the `Ratelimit` constructor doesn't throw.
+// Class form (not vi.fn) because the helper invokes it with `new`.
 vi.mock('@upstash/redis', () => ({
-  Redis: {
-    fromEnv: vi.fn(() => ({})),
+  Redis: class MockRedis {
+    constructor(opts: unknown) {
+      redisCtorSpy(opts);
+    }
   },
 }));
 
@@ -134,6 +138,8 @@ describe('rateLimit', () => {
   });
 
   it('throws in production when env vars are unset (fail-closed)', async () => {
+    vi.stubEnv('KV_REST_API_URL', '');
+    vi.stubEnv('KV_REST_API_TOKEN', '');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
     vi.stubEnv('NODE_ENV', 'production');
@@ -141,7 +147,48 @@ describe('rateLimit', () => {
     const { rateLimit } = await importHelper();
     await expect(
       rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 }),
-    ).rejects.toThrow(/UPSTASH_REDIS_REST_URL/);
+    ).rejects.toThrow(/UPSTASH_REDIS_REST_URL|KV_REST_API_URL/);
+  });
+
+  it('reads KV_REST_API_URL / KV_REST_API_TOKEN (Vercel marketplace naming)', async () => {
+    vi.stubEnv('KV_REST_API_URL', 'https://kv.example.upstash.io');
+    vi.stubEnv('KV_REST_API_TOKEN', 'kv-token');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '');
+    vi.stubEnv('NODE_ENV', 'production');
+    limitMock.mockResolvedValue({
+      success: true,
+      remaining: 9,
+      reset: Date.now() + 60_000,
+      pending: Promise.resolve(),
+    });
+
+    const { rateLimit } = await importHelper();
+    const result = await rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 });
+    expect(result).toEqual({ ok: true, remaining: 9 });
+  });
+
+  it('prefers KV_REST_API_* over UPSTASH_REDIS_REST_* when both are set', async () => {
+    redisCtorSpy.mockReset();
+    vi.stubEnv('KV_REST_API_URL', 'https://kv.example.upstash.io');
+    vi.stubEnv('KV_REST_API_TOKEN', 'kv-token');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://upstash.example.com');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'upstash-token');
+    vi.stubEnv('NODE_ENV', 'production');
+    limitMock.mockResolvedValue({
+      success: true,
+      remaining: 4,
+      reset: Date.now() + 60_000,
+      pending: Promise.resolve(),
+    });
+
+    const { rateLimit } = await importHelper();
+    await rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 });
+
+    expect(redisCtorSpy).toHaveBeenCalledWith({
+      url: 'https://kv.example.upstash.io',
+      token: 'kv-token',
+    });
   });
 });
 

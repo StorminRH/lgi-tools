@@ -30,11 +30,22 @@ interface RateLimitOptions {
 const limiters = new Map<string, Ratelimit>();
 let warnedAboutMissingEnv = false;
 
+// Vercel's Upstash marketplace integration provisions env vars as
+// `KV_REST_API_URL` + `KV_REST_API_TOKEN` (the Vercel-KV-style naming —
+// same Upstash database underneath). A direct Upstash.com signup gives
+// the `UPSTASH_REDIS_REST_*` names that `Redis.fromEnv()` expects.
+// We accept either so the code works on both provisioning paths
+// without an env-var alias being a hidden requirement.
+function redisUrl(): string | undefined {
+  return process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+}
+
+function redisToken(): string | undefined {
+  return process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+}
+
 function isConfigured(): boolean {
-  return Boolean(
-    process.env.UPSTASH_REDIS_REST_URL &&
-      process.env.UPSTASH_REDIS_REST_TOKEN,
-  );
+  return Boolean(redisUrl() && redisToken());
 }
 
 function getLimiter(options: RateLimitOptions): Ratelimit {
@@ -43,7 +54,7 @@ function getLimiter(options: RateLimitOptions): Ratelimit {
   if (cached) return cached;
 
   const limiter = new Ratelimit({
-    redis: Redis.fromEnv(),
+    redis: new Redis({ url: redisUrl()!, token: redisToken()! }),
     limiter: Ratelimit.slidingWindow(options.perMinute, "60 s"),
     analytics: true,
     prefix: `lgi:ratelimit:${options.name}`,
