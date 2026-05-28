@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## What This Is
 
-**LGI.tools** (Lo-Gang Industries) is a multi-tool web platform for Eve Online players. Features are added incrementally — each one builds on shared infrastructure without requiring rewrites of what came before.
+**LGI.tools** (Lo-Gang Industries) is a multi-tool web platform for Eve Online players. Features are added incrementally — each one builds on shared infrastructure without rewriting what came before.
 
 ## Tech Stack
 
@@ -14,124 +14,138 @@ Next.js (current — see warning above) · TypeScript (strict) · Drizzle ORM ·
 
 ## Commands
 
-> Verify these match your current `package.json` — adjust as needed.
+> Verify these match the current `package.json`.
 
 - Install: `pnpm install`
 - Dev: `pnpm dev`
-- Build: `pnpm vercel-build` — runs schema migrations against the active Neon branch and auto-populates SDE attribute tables on first deploy
+- Build: `pnpm vercel-build` — migrates the active Neon branch and auto-populates SDE tables on first deploy
 - Test: `pnpm test`
 - Typecheck: `pnpm typecheck`
 - Lint: `pnpm lint`
 
 ## Project Structure
 
-- `src/features/` — self-contained feature slices. Two features never import from each other.
-- `src/components/ui/` — reusable UI primitives.
-- `src/data/` — shared data layers (SDE, market prices, etc.).
+- `src/features/<name>/` — self-contained feature slices (`schema.ts`, `queries.ts`, `types.ts`, `components/`). Two features never import from each other.
+- `src/components/ui/` — domain-agnostic UI primitives.
+- `src/data/` — shared data layers (SDE, market prices, search, telemetry). Own ingest/schema/queries, no UI.
 - `src/app/api/` — route handlers.
-- `src/features/*/components/` — feature-specific components.
 - `CHANGELOG.md` (repo root) — user-facing changelog, parsed by `src/features/changelog/parse.ts`.
-- `docs/SCRATCHPAD.md` — cross-session working memory. The whole `docs/` folder is gitignored (planning docs stay private to maintainers).
+- `docs/SCRATCHPAD.md` — cross-session working memory. The whole `docs/` folder is gitignored.
 - `../LGI Tools Document Archive/` — sibling folder for shipped plan docs.
 
 ## Core Principles
 
 Raise a conflict before proceeding if a task seems to violate one.
 
-**Reusable primitives over one-off components.**
-A wave card is not a wormhole component — it is a collapsible group-of-entities component fed wormhole data today. Future features use the same primitives with different data.
+- **Reusable primitives over one-off components.** A wave card is a collapsible group-of-entities component fed wormhole data today — not a wormhole component. Future features reuse the same primitives with different data.
+- **Minimal by default; build for the task, not for hypotheticals.** Only make changes directly requested or clearly necessary for the session's goal. Don't add features, abstractions, configurability, or defensive handling for scenarios that can't occur. A primitive earns its place when there's a real second consumer — not speculatively. Don't add docstrings, comments, or type annotations to code you didn't change; comment only where logic isn't self-evident. Validate at system boundaries (user input, external APIs), not between trusted internal code. The right amount of complexity is the minimum the current task needs. (This complements the primitives rule: extract a primitive when reuse is real, not when it's imagined.)
+- **Static by default; dynamic holes, not dynamic routes.** Every page should be as static (`○` in `next build`) as its data allows. A page being interactive does not make it dynamic — the static shell hydrates and dynamic work happens through user-triggered API calls. Isolate genuinely per-request data (logged-in user identity, live prices) into a `<Suspense>` leaf so it's a *dynamic hole* in an otherwise-static route, rather than letting one dependency mark the whole route `ƒ`. Pure reference surfaces (legal, changelog, the wormhole index, SDE-backed pages) are fully static with revalidation tied to SDE re-ingest. Verify in build output: a route is `ƒ` only with a justified reason.
+- **Features don't know about each other.** Each feature is a self-contained slice. Shared logic lives in a common layer features import from — never the reverse.
+- **Configuration over repetition.** Types, classes, and variants are constants defined in one place. Adding one is a config change, not a code change. Enforce with strict typing.
+- **Schema stays extensible.** Accommodate new content types and fields without structural rewrites.
 
-**Features don't know about each other.**
-Each feature is a self-contained slice in `src/features/`. Shared logic lives in a common layer features import from — never the reverse. Two features never import from each other.
+## Architecture Invariants
 
-**Configuration over repetition.**
-Types, classes, and variants are defined as constants in one place. Adding a new one is a config change, not a code change. Use strict typing to enforce these configurations.
+Load-bearing constraints. Don't regress these without raising a conflict.
 
-**Schema stays extensible.**
-Accommodate new content types and fields without structural rewrites.
+- **`src/data/` slices never import from `src/features/`.** Features import from data layers, never the reverse. Two data slices never import each other (e.g. `eve-data` ⊥ `market-prices`). Cross-slice composition lives in a layer *above* both (see `src/db/sde-pipeline.ts` for the template).
+- **UI primitives accept abstract `tone` props** (`green`, `red`, …). The only files that know "C5 is red" are the feature-level `*-styles.ts` mappings.
+- **Postgres enums are driven from TS `as const` arrays** — one source of truth.
+- **`Collapsible` is a pure `<details>`/`<summary>`** — the element owns open/closed state; no React state wrapper. `UrlSync` syncs the URL via a native `toggle` listener.
+- **Lazy DB client** (`src/db/index.ts` Proxy) — connection deferred to first query so `next build` survives an empty `DATABASE_URL`.
+- **Validation lives in route handlers, not queries.** Queries accept already-typed values. Every input-accepting route validates with a co-located Zod schema; routes with no user input carry a one-line marker comment so the invariant stays grep-auditable.
+- **Advisory locks are session-scoped on a reserved connection**, released in `finally`. Network calls (ESI, Fuzzwork) happen with no transaction open and no connection pinned. Lock IDs are constants in the owning slice.
+- **Every deploy migrates its own branch.** Production migrates production; each preview deploy migrates its per-PR Neon branch. Preview branches auto-delete on PR close.
+- **The visual identity is the existing terminal/EVE aesthetic defined by `tones.ts` and the established styles.** Build within it. Do not introduce a default design palette or typeface (warm cream backgrounds, serif display fonts, terracotta accents, etc.) — a new tone or font needs explicit written justification, the same bar as a new `tones.ts` entry.
+
+## Working with the agent
+
+These reflect how the current model behaves; they shape how sessions should be written and read.
+
+- **Instructions are followed literally and are not silently generalized.** If a rule should apply to every item (every query batched, every row using a primitive, every section formatted a certain way), the prompt must say "every" — the agent applies an instruction to what was named, not to siblings it wasn't told about. Session prompts already state scope explicitly; keep doing so.
+- **Prefer goals over prescribed steps.** State the destination, success criteria, and constraints; let the agent plan the "how" in plan mode. Hand-written step-by-step procedures usually underperform the agent's own planning. (Diagnosis-first framing for bug/uncertain work is the exception worth keeping — "verify the claim before fixing" is a constraint, not a procedure.)
 
 ## Session Maintenance
 
-**Maintain SCRATCHPAD.md.** After every session, update `docs/SCRATCHPAD.md` (gitignored) with what was built, decisions made, open questions, and what the next session should start with. This is working memory across sessions — keep it current.
+**SCRATCHPAD.md** — after every session, update `docs/SCRATCHPAD.md` (gitignored). It's the agent's session-to-session memory: discoveries made *during* a session, cross-cutting bugs, and gotchas — not forward plans (those live in the version docs and prompts). The file documents its own upkeep rules at the bottom; follow them so it stays skimmable.
 
-**Maintain CHANGELOG.md.** After every session, decide whether the work that shipped is worth a public-facing changelog entry. Only log user-facing features and significant platform changes; skip internal cleanup, CI/infrastructure work, refactors, and rapid intra-session PR iteration. When in doubt, ask: *would a wormhole pilot loading the site notice this?* If no, leave it out.
+**CHANGELOG.md** — after every session, decide whether the work is user-facing. Only log features and significant platform changes; skip internal cleanup, CI, refactors, and intra-session iteration. The test: *would a wormhole pilot loading the site notice this?* If no, leave it out.
 
-Format is strict (the parser in `src/features/changelog/parse.ts` is intentionally narrow):
+Format is strict (the parser is intentionally narrow):
 
 ```
 ### YYYY-MM-DD
 - One user-facing change per bullet, written for someone who doesn't know the codebase.
 ```
 
-Group multiple ship-points from the same calendar day under one date heading. Newest entries at the top. Don't reach for bold, links, or other markdown — if a future entry genuinely needs richer formatting, grow the parser to match. SCRATCHPAD remains the internal forensic record; CHANGELOG is the curated user-facing one.
+Group same-day entries under one date heading. Newest at top. No bold, links, or rich markdown — grow the parser first if a future entry needs it.
 
-**Archive completed plan docs.** When a version (or pre-2.7 phase) ships, move its plan document out of the repo into `../LGI Tools Document Archive/` and `git rm` the in-repo copy. Replace any remaining markdown links with prose mentions (`(archived — see LGI Tools Document Archive/...)`). The active repo should only contain plan docs for work that is in-progress or upcoming.
+**Archive completed plan docs.** When a version ships, move its plan doc to `../LGI Tools Document Archive/` and `git rm` the in-repo copy. Replace markdown links with prose mentions. The active repo holds only in-progress or upcoming plan docs.
 
-Naming: from 2.7 onward, plan docs are `VERSION_<n>_PLAN.md` and the work itself is referred to as a "version" with semver-style sub-versions (2.7.1, 2.7.2, …). Pre-2.7 docs use `PHASE_<n>_PLAN.md` and stay named that way for historical accuracy.
+**Naming.** From 2.7 onward, plan docs are `VERSION_<n>_PLAN.md` and work is a "version" with semver-style sub-versions (2.7.1, …). Pre-2.7 docs stay `PHASE_<n>_PLAN.md` for historical accuracy.
 
 ## Commit Style
 
-Write commit messages in plain English. No function names, file paths, or technical jargon in the subject line or body. Describe what the change does for the project, not how the code is structured.
+Plain English. No function names, file paths, or jargon in subject or body. Describe what the change does for the project, not how the code is structured.
 
-**Subject line:** one sentence, lowercase after the colon, under 72 characters.
-**Body (optional):** 3–5 bullet points covering what changed and why — the kind of thing you'd tell a teammate over Slack. If a session built several things, list them briefly.
+**Subject:** one sentence, lowercase after the colon, under 72 characters.
+**Body (optional):** 3–5 bullets on what changed and why — what you'd tell a teammate over Slack.
 
-Good:
 ```
 feat: add API endpoints for browsing and filtering wormhole sites
 
 - sites can now be listed, filtered by class and type, and fetched by ID
 - full site detail includes waves, NPC counts, and resource values
 - invalid filters return a clear error instead of an empty result
-- made the database connection lazy so local builds work without prod credentials
 ```
 
-Avoid:
-```
-feat(api): /api/sites list+filter and /api/sites/[id] detail endpoints
-
-Adds GET /api/sites (optional ?type= and ?class= filters) and
-GET /api/sites/[id] (full detail with waves, npcs, resources).
-Also makes the Drizzle db client lazy so next build succeeds when
-.env.production.local has an empty DATABASE_URL placeholder.
-```
+Avoid technical subject lines (`feat(api): /api/sites list+filter …`) and bodies full of endpoint signatures, Drizzle internals, or file paths.
 
 ## Testing
 
-Vitest is the test framework. CI runs the suite on every PR.
+Vitest. CI runs the suite on every PR; a red suite blocks merge.
 
-- **Add tests organically.** New testable code (pure functions, query helpers, math modules, `src/data/` whose output you can assert against known inputs) gets tests written alongside it in the same PR. Tests live next to source (`foo.test.ts` next to `foo.ts`).
-- **Don't backfill for coverage's sake.** Existing untested code stays untested until something touches it.
-- **Skip what doesn't earn it.** Presentational components in `src/components/ui/` and `src/features/*/components/` don't need unit tests; visual review covers them. Route handlers get tests when they contain non-trivial logic beyond "call the query and return the result."
-- **One PR = green tests.** CI runs `pnpm test` on every PR. A red suite blocks merge.
+- **Add tests organically.** New testable code (pure functions, query helpers, math, `src/data/` with assertable output) gets tests in the same PR, co-located (`foo.test.ts` next to `foo.ts`).
+- **Don't backfill for coverage's sake.** Untested code stays untested until something touches it.
+- **Skip what doesn't earn it.** Presentational components are covered by visual review. Route handlers get tests when they hold non-trivial logic.
 
 ## Workflow
 
 All changes go through PRs. `main` is the only deploy target.
 
-- **Each PR gets an isolated database.** The Vercel ↔ Neon integration creates a `preview/<branch-name>` Neon branch for every preview deployment, forked from production. `pnpm vercel-build` runs migrations against that branch and auto-populates SDE attribute tables on first deploy. Production data is untouched until merge.
-- **Merging to `main` triggers production.** Migrations apply automatically; the same auto-ingest step populates anything new the migration created.
-- **CI runs Vitest on every PR.** Green tests required to merge.
+- **Branch per sub-version, not per session.** Multiple sessions build one
+  coherent sub-version on a single long-lived feature branch. Most sessions end
+  with a commit and a Vercel preview check — **not** a PR. One PR opens when the
+  sub-version is complete.
+- **Each branch gets an isolated database** via the Vercel ↔ Neon integration (a
+  `preview/<branch>` Neon branch forked from production). Every push gets a
+  preview deployment — that's the review surface between sessions. Production is
+  untouched until merge.
+- **Merging to `main` triggers production.** Migrations and SDE auto-ingest apply
+  automatically.
+- **Fix things in-branch, don't carry them forward.** A bug found mid-session or
+  during review gets fixed on the branch if it belongs to this sub-version. Only
+  genuinely out-of-scope items go to the scratchpad.
+- **Never `gh pr merge` unless the user explicitly says merge.**
 
-**Session-end process.** The end of a coding session is *opening the PR*, not merging it. Open the PR, push the branch, leave it on the user. The maintainer waits for Greptile's automated review to land before merging — Greptile catches per-line concerns that a fast turnaround would otherwise miss. The session is over once the PR is open and the test plan is filled in. Do not call `gh pr merge` unless the user explicitly says merge.
+The session-close ritual is in **`SESSION_END.md`** (read at the end of every
+session). The PR + Greptile loop is in **`PR_REVIEW.md`** (read when opening a
+sub-version's PR).
 
-## CSP gotcha: never use inline `style="..."` attributes
+## CSP: never use inline `style="..."` attributes
 
-Production CSP is `style-src 'self' 'nonce-<random>'`. CSP `style-src` nonces cover **inline `<style>` blocks only**, NOT `style="..."` attribute values on individual elements. Any JSX `style={{...}}` prop renders as a `style="..."` attribute in the server HTML and gets silently dropped by the browser on first paint. The symptom: a layout / dimension that should be applied by the inline style is missing on initial load, then "self-heals" on client-side navigation because React's hydration re-applies the style via JS DOM access (which CSP doesn't gate).
+Production CSP is `style-src 'self' 'nonce-<random>'`. Nonces cover inline `<style>` blocks only — NOT `style="..."` attributes. Any JSX `style={{...}}` renders as a `style="..."` attribute and is silently dropped by the browser on first paint (symptom: a dimension missing on initial load that "self-heals" on client navigation, because hydration reapplies it via JS, which CSP doesn't gate).
 
-Use Tailwind arbitrary values instead: `className="grid-cols-[repeat(auto-fill,minmax(270px,1fr))]"` not `style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))' }}`. For truly dynamic values (a progress bar width derived from runtime data), use a CSS custom property: `style={{ '--bar-pct': pct + '%' }}` is still a `style="..."` attribute and still blocked — fix is to define a CSS class that reads a CSS variable and set the variable via inline style after mount (`useEffect` + `ref.current.style.setProperty`), since JS-applied styles are not gated by CSP.
+**Fixes:**
+- Static values → Tailwind arbitrary values: `className="grid-cols-[repeat(auto-fill,minmax(270px,1fr))]"`.
+- Runtime-dynamic values (e.g. a progress bar width) → define a CSS class that reads a custom property, then set the variable via `useEffect` + `ref.current.style.setProperty(...)` after mount. JS-applied styles aren't CSP-gated.
 
-Known remaining inline-style usages elsewhere in the codebase (sweep target — fix when the relevant page is next touched, not as a standalone task):
-- `src/app/admin/AdminActivitySummary.tsx`, `src/app/admin/usage/page.tsx` — progress bar widths
-- `src/components/ui/sortable-table.tsx`, `src/components/ui/row.tsx`, `src/features/wormhole-sites/components/SitesTable.tsx` — dynamic grid templates
-- `src/components/GlobalSearch.tsx`, `src/app/preview/cards/page.tsx` — minor
+(Inline-style sweep targets are tracked in SCRATCHPAD, fixed when the relevant page is next touched — not as standalone work.)
 
 ## MCP Tools
 
-The developer has the following MCPs configured in Claude Code. They're optional — the workflow doesn't require any of them — but reach for them when the right tool saves a step.
+Optional — the workflow needs none of them — but reach for them when they save a step.
 
-- **Vercel MCP** — read-side deployment + runtime introspection (deploy status, build logs, runtime logs, env-var inventory). Strong for "did this request succeed?" — `get_runtime_logs` shows the exact path + status code of recent requests, so a callback that returned 302 with no `auth_error=*` redirect is observable proof the handler ran cleanly without peeking at the DB. For *setting* env vars the `vercel` CLI (`vercel env add`) is still the cleaner path.
-
-- **Neon MCP** — direct SQL via `run_sql` against any Neon branch. **Doesn't reach LGI's production DB:** the Vercel ↔ Neon marketplace integration provisions LGI's Neon project under an isolated, Vercel-managed Neon org that the developer's personal Neon API key has zero visibility into (`list_projects` and `list_shared_projects` both return empty; `run_sql` 403s even with a hard-coded project_id). For production reads: `vercel env pull --environment=production` + local `psql`, or — usually better — infer DB state from Vercel runtime logs.
-
-- **Context7 MCP** — current library docs. Especially valuable for Next.js, since training data lags the version this codebase uses (see the warning at the top).
+- **Vercel MCP** — read-side deploy + runtime introspection. `get_runtime_logs` shows exact path + status of recent requests, which is the cleanest way to confirm a handler ran without peeking at the DB. For *setting* env vars, the `vercel` CLI is better.
+- **Neon MCP** — direct SQL via `run_sql`. **Cannot reach LGI's production DB** (Vercel-managed Neon org, invisible to a personal API key). For production reads: `vercel env pull --environment=production` + local `psql`, or infer state from Vercel runtime logs.
+- **Context7 MCP** — current library docs. Especially valuable for Next.js, since training data lags this codebase's version.
