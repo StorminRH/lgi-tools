@@ -7,6 +7,7 @@
 
 import { Card } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import {
   getAggregateSummary,
@@ -55,13 +56,7 @@ function ActionBar({
           {count.toLocaleString()}
         </span>
       </div>
-      <div className="h-[4px] bg-[#0a1018] border border-[#101820]">
-        <div
-          className="h-full bg-[#10283a]"
-          style={{ width: `${pct}%` }}
-          aria-hidden
-        />
-      </div>
+      <ProgressBar pct={pct} />
     </div>
   );
 }

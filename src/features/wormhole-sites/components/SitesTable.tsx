@@ -1,3 +1,4 @@
+import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
 import { UrlSync } from '@/components/ui/url-sync';
@@ -26,13 +27,11 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
   {
     key: 'name',
     label: 'Name',
-    width: '2.4fr',
     render: (s) => <span className="truncate text-name">{s.name}</span>,
   },
   {
     key: 'type',
     label: 'Type',
-    width: '0.9fr',
     render: (s) => (
       <Pill tone={SITE_TYPE_TONE[s.siteType]} size="sm">
         {SITE_TYPE_LABEL[s.siteType]}
@@ -42,21 +41,18 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
   {
     key: 'isk',
     label: 'ISK',
-    width: '0.7fr',
     align: 'right',
     render: (s) => <span className="tabular-nums">{formatIskShort(primaryIskFor(s))}</span>,
   },
   {
     key: 'blueLoot',
     label: 'Blue loot',
-    width: '0.8fr',
     align: 'right',
     render: (s) => <span className="tabular-nums text-muted">{formatIskShort(s.blueLootIsk)}</span>,
   },
   {
     key: 'scrams',
     label: 'Scrams',
-    width: '0.6fr',
     align: 'right',
     render: (s) => {
       const total = siteScramTotal(s);
@@ -68,7 +64,6 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
   {
     key: 'class',
     label: 'Class',
-    width: '0.7fr',
     render: (s) => {
       if (s.wormholeClass) {
         return <Pill tone={CLASS_TONE[s.wormholeClass]} size="sm">{s.wormholeClass}</Pill>;
@@ -105,6 +100,7 @@ export function SitesTable({
     <SortableTable<SiteDetail>
       columns={COLUMNS}
       rows={sorted}
+      gridColsClass="grid-cols-[2.4fr_0.9fr_0.7fr_0.8fr_0.6fr_0.7fr]"
       sortKey={sortKey}
       sortDir={sortDir}
       basePath="/sites"
@@ -112,7 +108,7 @@ export function SitesTable({
       defaultDirFor={(k) => defaultDirFor(k as SortableKey)}
       getRowKey={(s) => s.id}
       emptyState="No sites match this filter combination."
-      renderRow={({ row, cells, key, gridTemplate }) => (
+      renderRow={({ row, cells, key, gridColsClass }) => (
         <UrlSync
           key={key}
           basePath="/sites"
@@ -121,8 +117,10 @@ export function SitesTable({
         >
           <details className="sites-table-row">
             <summary
-              className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-[#0d1218]"
-              style={{ gridTemplateColumns: gridTemplate }}
+              className={cn(
+                'list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-[#0d1218]',
+                gridColsClass,
+              )}
             >
               {cells}
             </summary>

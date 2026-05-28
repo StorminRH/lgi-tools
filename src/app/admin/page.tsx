@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
@@ -70,13 +69,15 @@ function CharacterRow({
 
   return (
     <EntityRow
-      cols="36px minmax(0,1fr) auto auto auto"
+      colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto_auto]"
       leading={
-        <Image
+        <img
           src={character.portraitUrl}
           alt={character.name}
           width={28}
           height={28}
+          loading="lazy"
+          decoding="async"
           className="rounded-[2px] border border-[#1e2c3a]"
         />
       }

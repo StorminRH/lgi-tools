@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { Chip } from '@/components/ui/chip';
 import type { Session } from '../types';
 
@@ -29,11 +28,13 @@ export function LoginButton({
           <Chip tone="purple">Admin</Chip>
         </a>
       ) : null}
-      <Image
+      <img
         src={session.portraitUrl}
         alt={session.name}
         width={28}
         height={28}
+        loading="eager"
+        decoding="async"
         className="rounded-[2px] border border-[#1e2c3a]"
       />
       <span className="font-mono text-[11px] text-text">{session.name}</span>

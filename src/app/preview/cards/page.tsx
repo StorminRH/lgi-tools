@@ -38,10 +38,7 @@ export default function PreviewCardsPage() {
               </span>
               <div className="flex-1 h-px bg-border-soft" />
             </div>
-            <div
-              className="grid items-start gap-4"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}
-            >
+            <div className="grid items-start gap-4 grid-cols-[repeat(auto-fill,minmax(340px,1fr))]">
               {sites.map((site) => (
                 <SiteCard key={site.id} site={site} />
               ))}

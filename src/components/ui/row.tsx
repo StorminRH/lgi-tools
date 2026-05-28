@@ -4,8 +4,9 @@ import { cn } from './cn';
 /**
  * EntityRow — grid row (leading badge / name / optional chips / trailing stats).
  * Used for any "count × thing → stats" line. Tunable column template via
- * `cols`. When `chips` is provided the default cols add a dedicated chip column
- * so trailing stats stay aligned regardless of chip count.
+ * `colsClass` (a Tailwind `grid-cols-[…]` class — never an inline style, which
+ * the production CSP drops). When `chips` is provided the default columns add a
+ * dedicated chip column so trailing stats stay aligned regardless of chip count.
  */
 export function EntityRow({
   leading,
@@ -13,23 +14,26 @@ export function EntityRow({
   chips,
   trailing,
   className,
-  cols,
+  colsClass,
 }: {
   leading?: ReactNode;
   name: ReactNode;
   chips?: ReactNode;
   trailing?: ReactNode;
   className?: string;
-  cols?: string;
+  colsClass?: string;
 }) {
-  const defaultCols = chips !== undefined ? '26px minmax(0,1fr) auto auto' : '26px minmax(0,1fr) auto';
+  const defaultColsClass =
+    chips !== undefined
+      ? 'grid-cols-[26px_minmax(0,1fr)_auto_auto]'
+      : 'grid-cols-[26px_minmax(0,1fr)_auto]';
   return (
     <div
       className={cn(
         'grid items-center gap-[6px] px-3.5 py-[5px] border-t border-border-soft text-[12px] hover:bg-[rgba(255,255,255,0.018)]',
+        colsClass ?? defaultColsClass,
         className,
       )}
-      style={{ gridTemplateColumns: cols ?? defaultCols }}
     >
       {leading !== undefined && <span className="text-[10px] text-muted">{leading}</span>}
       <span className="text-name truncate leading-[1.5]">{name}</span>
@@ -45,29 +49,30 @@ export function EntityRow({
 
 /**
  * ResourceRow — two- or three-column row for any "thing → meta → value"
- * listing (ore deposits, gas clouds, hackable cans). The caller picks
- * the column template; the primitive only owns spacing / divider / hover.
+ * listing (ore deposits, gas clouds, hackable cans). The caller picks the
+ * column template via `colsClass` (a Tailwind `grid-cols-[…]` class, never an
+ * inline style); the primitive only owns spacing / divider / hover.
  */
 export function ResourceRow({
   name,
   meta,
   value,
-  cols,
+  colsClass,
   className,
 }: {
   name: ReactNode;
   meta?: ReactNode;
   value?: ReactNode;
-  cols: string;
+  colsClass: string;
   className?: string;
 }) {
   return (
     <div
       className={cn(
         'grid items-center gap-[6px] px-3.5 py-[6px] border-t border-border-soft text-[12px] first:border-t-0 hover:bg-[rgba(255,255,255,0.018)]',
+        colsClass,
         className,
       )}
-      style={{ gridTemplateColumns: cols }}
     >
       <span className="text-name text-[12px] flex items-center gap-[6px]">{name}</span>
       {meta !== undefined && <span className="text-[10px] text-muted whitespace-nowrap">{meta}</span>}
