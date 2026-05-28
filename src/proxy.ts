@@ -28,7 +28,7 @@ export function proxy(request: NextRequest): NextResponse {
     style-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-inline'" : ""};
     img-src 'self' blob: data: https://images.evetech.net;
     font-src 'self';
-    connect-src 'self' https://login.eveonline.com https://esi.evetech.net https://discord.com https://*.vercel-insights.com;
+    connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com;
     frame-src 'none';
     frame-ancestors 'none';
     form-action 'self';
