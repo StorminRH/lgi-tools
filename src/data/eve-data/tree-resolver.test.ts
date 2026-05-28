@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { TreeResolver, type Indexes } from './tree-resolver';
+import {
+  TreeResolver,
+  buildIndexesFromRows,
+  type Indexes,
+  type MaterialRow,
+  type ProductRow,
+} from './tree-resolver';
 import flatMaterialsFixture from './__fixtures__/blueprint-flat-materials.json';
 
 // Synthetic mini-universe for the algorithm tests. Type IDs are
@@ -169,5 +175,56 @@ describe('TreeResolver — reference-blueprint fixture is well-formed', () => {
     // multi-million Tritanium/Pyerite from the recursive walk.
     expect(archon.materials['34']).toBeGreaterThan(4_000_000);
     expect(archon.materials['35']).toBeGreaterThan(12_000_000);
+  });
+});
+
+// Regression: ~51 deprecated SDE blueprints (e.g. Biochemical Reactor
+// Array BP 2790) ship a degenerate "1 of X makes 1 of X" recipe where
+// the sole material equals the product. buildIndexesFromRows must drop
+// that self-referential edge so the walker never reads it as a cycle.
+describe('TreeResolver — self-referential SDE recipes', () => {
+  it('drops a blueprint whose sole material is its own product (no cycle)', () => {
+    const matRows: MaterialRow[] = [
+      { blueprintTypeId: 900, materialTypeId: 24684, quantity: 1 },
+    ];
+    const prodRows: ProductRow[] = [
+      { blueprintTypeId: 900, productTypeId: 24684, quantity: 1 },
+    ];
+    const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
+    const flat = resolver.flatForOneRun(900);
+    expect(flat.size).toBe(0); // non-recipe → empty flat materials
+    expect(resolver.stats().cycleWarnings).toHaveLength(0);
+  });
+
+  it('keeps real materials when a self-edge sits alongside them', () => {
+    const matRows: MaterialRow[] = [
+      { blueprintTypeId: 900, materialTypeId: 24684, quantity: 1 }, // self
+      { blueprintTypeId: 900, materialTypeId: 34, quantity: 500 }, // real leaf
+    ];
+    const prodRows: ProductRow[] = [
+      { blueprintTypeId: 900, productTypeId: 24684, quantity: 1 },
+    ];
+    const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
+    const flat = resolver.flatForOneRun(900);
+    expect(Object.fromEntries(flat)).toEqual({ 34: BigInt(500) });
+    expect(resolver.stats().cycleWarnings).toHaveLength(0);
+  });
+
+  it('does not drop a material produced by a different blueprint', () => {
+    // BP 900 consumes 3 of type 70; BP 901 (a different blueprint)
+    // produces type 70 from a leaf. The cross-blueprint edge must
+    // survive — only self-edges are filtered.
+    const matRows: MaterialRow[] = [
+      { blueprintTypeId: 900, materialTypeId: 70, quantity: 3 },
+      { blueprintTypeId: 901, materialTypeId: 34, quantity: 10 },
+    ];
+    const prodRows: ProductRow[] = [
+      { blueprintTypeId: 900, productTypeId: 800, quantity: 1 },
+      { blueprintTypeId: 901, productTypeId: 70, quantity: 1 },
+    ];
+    const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
+    const flat = resolver.flatForOneRun(900);
+    expect(Object.fromEntries(flat)).toEqual({ 34: BigInt(30) }); // 3 runs × 10
+    expect(resolver.stats().cycleWarnings).toHaveLength(0);
   });
 });

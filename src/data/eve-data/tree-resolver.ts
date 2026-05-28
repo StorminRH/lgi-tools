@@ -57,6 +57,61 @@ export type Indexes = {
   productToBlueprint: Map<number, { blueprintTypeId: number; quantityPerRun: number }>;
 };
 
+export type MaterialRow = {
+  blueprintTypeId: number;
+  materialTypeId: number;
+  quantity: number;
+};
+export type ProductRow = {
+  blueprintTypeId: number;
+  productTypeId: number;
+  quantity: number;
+};
+
+// Builds the resolver indexes from raw material/product rows. A
+// blueprint's self-referential material edge is dropped: ~51 deprecated
+// SDE blueprints (old POS assembly arrays, silos, reactor arrays,
+// outpost platforms, etc.) ship a degenerate "1 of X makes 1 of X"
+// recipe where the sole material equals the product. EVE manufacturing
+// is a strict DAG, so these are non-recipes — not real cycles to
+// resolve. Without this filter the walker reads each as a self-loop and
+// returns empty flat materials. Dropping the material edge (not the
+// product edge) leaves productToBlueprint intact; those products are
+// consumed by no other blueprint, so nothing else is affected.
+export function buildIndexesFromRows(
+  matRows: MaterialRow[],
+  prodRows: ProductRow[],
+): Indexes {
+  const blueprintProducts = new Map<number, Set<number>>();
+  const productToBlueprint = new Map<
+    number,
+    { blueprintTypeId: number; quantityPerRun: number }
+  >();
+  for (const r of prodRows) {
+    const products = blueprintProducts.get(r.blueprintTypeId);
+    if (products) products.add(r.productTypeId);
+    else blueprintProducts.set(r.blueprintTypeId, new Set([r.productTypeId]));
+    if (productToBlueprint.has(r.productTypeId)) continue; // first writer wins
+    productToBlueprint.set(r.productTypeId, {
+      blueprintTypeId: r.blueprintTypeId,
+      quantityPerRun: r.quantity,
+    });
+  }
+
+  const blueprintMaterials = new Map<number, Material[]>();
+  for (const r of matRows) {
+    if (blueprintProducts.get(r.blueprintTypeId)?.has(r.materialTypeId)) {
+      continue; // self-referential edge — see fn comment
+    }
+    const list = blueprintMaterials.get(r.blueprintTypeId);
+    const entry: Material = { typeId: r.materialTypeId, quantity: r.quantity };
+    if (list) list.push(entry);
+    else blueprintMaterials.set(r.blueprintTypeId, [entry]);
+  }
+
+  return { blueprintMaterials, productToBlueprint };
+}
+
 async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
   const activityIds = [...INDUSTRY_ACTIVITY_IDS];
 
@@ -78,27 +133,7 @@ async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
     .from(industryActivityProducts)
     .where(inArray(industryActivityProducts.activityId, activityIds));
 
-  const blueprintMaterials = new Map<number, Material[]>();
-  for (const r of matRows) {
-    const list = blueprintMaterials.get(r.blueprintTypeId);
-    const entry: Material = { typeId: r.materialTypeId, quantity: r.quantity };
-    if (list) list.push(entry);
-    else blueprintMaterials.set(r.blueprintTypeId, [entry]);
-  }
-
-  const productToBlueprint = new Map<
-    number,
-    { blueprintTypeId: number; quantityPerRun: number }
-  >();
-  for (const r of prodRows) {
-    if (productToBlueprint.has(r.productTypeId)) continue; // first writer wins
-    productToBlueprint.set(r.productTypeId, {
-      blueprintTypeId: r.blueprintTypeId,
-      quantityPerRun: r.quantity,
-    });
-  }
-
-  return { blueprintMaterials, productToBlueprint };
+  return buildIndexesFromRows(matRows, prodRows);
 }
 
 function ceilDiv(a: bigint, b: bigint): bigint {
@@ -415,6 +450,19 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
     if (treeBatch.length > 0) {
       await tx.insert(blueprintTrees).values(treeBatch);
       treeWritten += treeBatch.length;
+    }
+
+    // EVE manufacturing is a strict DAG, and buildIndexesFromRows drops
+    // the known degenerate self-recipes. Any remaining cycle is a novel
+    // SDE shape the filter doesn't cover — fail loudly (rolling back the
+    // TRUNCATE + writes) rather than silently persisting empty flat
+    // materials for the offending blueprints.
+    const { cycleWarnings } = resolver.stats();
+    if (cycleWarnings.length > 0) {
+      throw new Error(
+        `tree resolver detected ${cycleWarnings.length} unexpected cycle(s); ` +
+          `first few: ${cycleWarnings.slice(0, 5).join(' | ')}`,
+      );
     }
 
     await writeMeta(tx, SDE_META_KEY_TREE_HASH, hashAfter);
