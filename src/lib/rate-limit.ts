@@ -84,14 +84,14 @@ export async function rateLimit(
     if (process.env.NODE_ENV !== "production") {
       if (!warnedAboutMissingEnv && process.env.NODE_ENV === "development") {
         console.warn(
-          "[rate-limit] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set — rate limiting disabled in dev",
+          "[rate-limit] KV_REST_API_URL / KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN) not set — rate limiting disabled in dev",
         );
         warnedAboutMissingEnv = true;
       }
       return { ok: true, remaining: Number.POSITIVE_INFINITY };
     }
     throw new Error(
-      "Rate limiter not configured: set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN",
+      "Rate limiter not configured: set KV_REST_API_URL + KV_REST_API_TOKEN (Vercel marketplace) or UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (direct Upstash)",
     );
   }
 

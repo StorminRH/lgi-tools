@@ -47,26 +47,34 @@ export function PriceFreshness({
 
   if (lastUpdatedAt == null) {
     return (
-      <span className="flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
+      <span className="price-chip flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
         <span
           aria-hidden
           className="w-[5px] h-[5px] rounded-full bg-[#d68c3d]"
         />
         no price data
+        <span className="price-chip-popover" aria-hidden>
+          <span className="price-chip-popover-label">Status</span>
+          <span className="price-chip-popover-value">Awaiting first refresh</span>
+        </span>
       </span>
     );
   }
 
   const msUntilNext = lastUpdatedAt.getTime() + STALE_AFTER_TTL_MS - now;
-  const tooltip = `Next refresh in ${formatCountdown(msUntilNext)}`;
+  const msSinceLast = Math.max(0, now - lastUpdatedAt.getTime());
 
   return (
-    <span
-      title={tooltip}
-      className="flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap"
-    >
+    <span className="price-chip flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
       <span aria-hidden className="w-[5px] h-[5px] rounded-full bg-isk" />
       prices live
+      <span className="price-chip-popover" aria-hidden>
+        <span className="price-chip-popover-label">Next refresh</span>
+        <span className="price-chip-popover-value">{formatCountdown(msUntilNext)}</span>
+        <span className="price-chip-popover-footer">
+          Updated {formatCountdown(msSinceLast)} ago
+        </span>
+      </span>
     </span>
   );
 }

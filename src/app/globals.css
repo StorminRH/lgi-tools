@@ -328,6 +328,79 @@ a:hover {
   .nav-tool .abbr { display: inline; }
 }
 
+/* PriceFreshness chip + on-hover popover. Mirrors the resource-preview
+ * pattern from /sites cards (always-mounted DOM, pure CSS :hover reveal,
+ * same theme palette + shadow shape) so the platform speaks with one
+ * visual vocabulary for "hover this for more detail." Popover anchors
+ * flush to the chip's bottom-right so a small left-edge mouse drift
+ * stays inside the chip's hover zone — no `cursor: help` (the `?`
+ * cursor reads as "I need help" rather than "passive info"), the
+ * popover itself is the discoverability cue. */
+.price-chip {
+  position: relative;
+  transition: background-color 0.15s, color 0.15s;
+}
+.price-chip:hover {
+  background-color: var(--color-row-hover);
+  color: var(--color-name);
+}
+/* Invisible bridge spanning the 12px gap between chip and popover. Without
+ * it the mouse leaves .price-chip mid-travel and the popover snaps shut.
+ * Width matches the popover so the cursor doesn't slip off the side when
+ * tracking down at an angle. */
+.price-chip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 12px;
+}
+.price-chip-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  flex-direction: column;
+  background: var(--color-section);
+  border: 1px solid var(--color-isk-dim);
+  border-radius: 4px;
+  padding: 12px 14px;
+  box-shadow:
+    0 0 0 1px rgba(61, 214, 140, 0.12),
+    0 8px 24px -8px rgba(61, 214, 140, 0.2);
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  z-index: 50;
+}
+.price-chip:hover .price-chip-popover { display: flex; }
+.price-chip-popover-label {
+  font-size: 9px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 4px;
+}
+.price-chip-popover-value {
+  font-size: 13px;
+  color: var(--color-name);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.price-chip-popover-footer {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-soft);
+  font-size: 9px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
 /* Below 1024px the PriceFreshness chip is the first thing to push the
  * login cluster off-screen. Hide the whole slot (wrapper carries the
  * border-l, so dropping the slot leaves a clean seam). The `ml-auto`
