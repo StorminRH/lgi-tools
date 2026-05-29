@@ -1,3 +1,4 @@
+import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { ESI_BUDGET_FLOOR } from './constants';
 
@@ -64,6 +65,9 @@ export async function esiFetch(
   if (!headers.has('User-Agent')) {
     headers.set('User-Agent', OUTBOUND_USER_AGENT);
   }
+  // Pin the ESI contract date (forced — the app speaks one route and the date
+  // is a single reviewed constant; a per-call override would un-pin it).
+  headers.set('X-Compatibility-Date', ESI_COMPATIBILITY_DATE);
 
   const res = await fetch(url, { ...init, headers });
 

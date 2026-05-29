@@ -18,10 +18,12 @@ export const STALE_AFTER_TTL_MS = 60 * 60 * 1000;
 // TS target at ES2017.
 export const ADVISORY_LOCK_REFRESH_PRICES = BigInt(8273619012);
 
-// ESI (Eve Online's official API) base URL. Path-versioned routes hang
-// off this — `/markets/{region}/orders/` for both bulk and per-type
-// fetches.
-export const ESI_BASE_URL = 'https://esi.evetech.net/latest';
+// ESI (Eve Online's official API) base URL. Label-less by design: CCP warns
+// against the `/latest` label (it can shift behavior when they bump what it
+// points at), so we drop it and pin the contract via the X-Compatibility-Date
+// header instead (see src/config/esi.ts). `/markets/{region}/orders/` hangs
+// off this for both bulk and per-type fetches.
+export const ESI_BASE_URL = 'https://esi.evetech.net';
 
 // The Forge region — Jita. The same number that REGION_ID was in
 // source-fallback.ts; promoted to a shared constant now that two source
