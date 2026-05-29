@@ -2,6 +2,7 @@
 // HTTP + JWT verification + claim parsing only.
 
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import type { EveJwtClaims, EveTokenResponse } from './types';
 
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
@@ -17,7 +18,9 @@ export const EVE_SCOPES = ['publicData'] as const;
 let jwksCache: ReturnType<typeof createRemoteJWKSet> | undefined;
 function jwks() {
   if (!jwksCache) {
-    jwksCache = createRemoteJWKSet(new URL(EVE_JWKS_URL));
+    jwksCache = createRemoteJWKSet(new URL(EVE_JWKS_URL), {
+      headers: { 'User-Agent': OUTBOUND_USER_AGENT },
+    });
   }
   return jwksCache;
 }
@@ -74,6 +77,7 @@ export async function exchangeCodeForToken({
       Authorization: `Basic ${basic}`,
       'Content-Type': 'application/x-www-form-urlencoded',
       Host: 'login.eveonline.com',
+      'User-Agent': OUTBOUND_USER_AGENT,
     },
     body: body.toString(),
   });
