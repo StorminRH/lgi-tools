@@ -1,3 +1,4 @@
+import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import type { RawMarketPrice } from './types';
 
 // Fuzzwork fallback path. Retained as a circuit-breaker target for the ESI
@@ -99,7 +100,9 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
 
 async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
   const url = `${FUZZWORK_AGGREGATES}?region=${REGION_ID}&types=${typeIds.join(',')}`;
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: { 'User-Agent': OUTBOUND_USER_AGENT },
+  });
   if (!res.ok) {
     throw new Error(
       `Fuzzwork aggregates request failed: ${res.status} ${res.statusText}`,

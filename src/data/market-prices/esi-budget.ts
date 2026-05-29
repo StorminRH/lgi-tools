@@ -1,3 +1,4 @@
+import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { ESI_BUDGET_FLOOR } from './constants';
 
 // Wrapper around `fetch` that enforces ESI's error-limit budget. Every ESI
@@ -33,6 +34,9 @@ export class EsiServerError extends Error {
 
 // Latest X-ESI-Error-Limit-Remain seen across all calls. Initialized to
 // Infinity so the first call always dispatches (no info → assume healthy).
+// Module-level, so per-Lambda: each cold Vercel instance starts fresh at
+// Infinity and concurrent invocations don't share this knowledge. Fine given
+// the hourly cron cadence and ESI's ~60s reset window — not shared global state.
 let latestRemaining = Number.POSITIVE_INFINITY;
 
 // Read the budget remaining; intended for diagnostics + tests, not for
@@ -54,7 +58,14 @@ export async function esiFetch(
     throw new EsiBudgetExhaustedError(latestRemaining);
   }
 
-  const res = await fetch(url, init);
+  // Identify ourselves on every ESI call. Default (set-if-absent) so a
+  // deliberate caller could override, while no call goes out anonymous.
+  const headers = new Headers(init?.headers);
+  if (!headers.has('User-Agent')) {
+    headers.set('User-Agent', OUTBOUND_USER_AGENT);
+  }
+
+  const res = await fetch(url, { ...init, headers });
 
   const remainHeader = res.headers.get('X-ESI-Error-Limit-Remain');
   if (remainHeader !== null) {

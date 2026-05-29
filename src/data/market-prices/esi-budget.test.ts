@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { ESI_BUDGET_FLOOR } from './constants';
 import {
   __resetBudgetForTests,
@@ -40,6 +41,17 @@ describe('esiFetch', () => {
     expect(res.status).toBe(200);
     expect(getBudgetRemaining()).toBe(95);
     expect(fetchSpy).toHaveBeenCalledOnce();
+  });
+
+  it('sends the outbound User-Agent on every ESI call', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, '95'));
+
+    await esiFetch('https://esi.evetech.net/test');
+
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(new Headers(init?.headers).get('User-Agent')).toBe(
+      OUTBOUND_USER_AGENT,
+    );
   });
 
   it('refuses to dispatch when the remaining count is below ESI_BUDGET_FLOOR', async () => {
