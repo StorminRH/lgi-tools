@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
   buildAuthorizeUrl,
   claimsToCharacter,
   EVE_AUTHORIZE_URL,
+  exchangeCodeForToken,
   portraitUrl,
 } from './eve-sso';
 
@@ -76,5 +78,38 @@ describe('buildAuthorizeUrl', () => {
     expect(params.get('state')).toBe('state-token');
     expect(params.get('code_challenge')).toBe('challenge-token');
     expect(params.get('code_challenge_method')).toBe('S256');
+  });
+});
+
+describe('exchangeCodeForToken outbound headers', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('sends the outbound User-Agent to the EVE token endpoint', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ access_token: 'tok', token_type: 'Bearer' }),
+        { status: 200 },
+      ),
+    );
+
+    await exchangeCodeForToken({
+      code: 'auth-code',
+      codeVerifier: 'verifier',
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+    });
+
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(new Headers(init?.headers).get('User-Agent')).toBe(
+      OUTBOUND_USER_AGENT,
+    );
   });
 });
