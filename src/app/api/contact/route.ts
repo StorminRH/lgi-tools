@@ -4,10 +4,8 @@ import { APP_VERSION } from '@/config/app-version';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
+import { CONTACT_MESSAGE_MAX_LENGTH } from '@/features/contact/constants';
 import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
-
-// The visitor's message. Generous cap; the email body carries it verbatim.
-const MAX_MESSAGE_LENGTH = 4000;
 
 // RFC 5321 caps an email address at 254 chars.
 const MAX_EMAIL_LENGTH = 254;
@@ -32,7 +30,7 @@ const CONTROL_CHARS = /\p{C}/gu;
 // before we spend cycles cleaning them; sanitiseText() enforces the real cap.
 const contactSchema = z.object({
   email: z.email().max(MAX_EMAIL_LENGTH),
-  message: z.string().min(1).max(MAX_MESSAGE_LENGTH * 4),
+  message: z.string().min(1).max(CONTACT_MESSAGE_MAX_LENGTH * 4),
   website: z.string().max(200).optional(),
 });
 
@@ -84,7 +82,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  const message = sanitiseText(parsed.data.message, MAX_MESSAGE_LENGTH);
+  const message = sanitiseText(parsed.data.message, CONTACT_MESSAGE_MAX_LENGTH);
   if (message.length === 0) {
     return new Response('message must not be empty', { status: 400 });
   }

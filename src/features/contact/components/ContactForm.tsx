@@ -2,8 +2,7 @@
 
 import { useId, useState } from 'react';
 import { Pill } from '@/components/ui/pill';
-
-const MAX_MESSAGE_LENGTH = 4000;
+import { CONTACT_MESSAGE_MAX_LENGTH } from '../constants';
 
 type SubmitState =
   | { kind: 'idle' }
@@ -39,11 +38,18 @@ export function ContactForm() {
         body: JSON.stringify({ email, message, website }),
       });
       if (!response.ok) {
-        const text = await response.text();
-        setState({
-          kind: 'error',
-          message: text || 'Something went wrong sending your message. Try again.',
-        });
+        // Only 400s carry a visitor-readable validation message; everything
+        // else (429 / 5xx) is infrastructure-facing, so show a friendly line
+        // instead of the raw server text.
+        let message: string;
+        if (response.status === 400) {
+          message = (await response.text()) || 'Please check your email and message.';
+        } else if (response.status === 429) {
+          message = 'Too many messages — please wait a minute and try again.';
+        } else {
+          message = 'Something went wrong sending your message. Please try again.';
+        }
+        setState({ kind: 'error', message });
         return;
       }
       setState({ kind: 'success' });
@@ -107,7 +113,7 @@ export function ContactForm() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           disabled={disabled}
-          maxLength={MAX_MESSAGE_LENGTH}
+          maxLength={CONTACT_MESSAGE_MAX_LENGTH}
           rows={8}
           placeholder="Your message"
           className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 resize-none focus:outline-none focus:border-[#2a3550] disabled:opacity-50"
