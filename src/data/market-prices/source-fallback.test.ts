@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
+  fetchPricesFromFuzzwork,
   type FuzzworkPair,
   type FuzzworkSide,
   normalize,
@@ -98,5 +100,28 @@ describe('normalize', () => {
     // rewrites to 'fuzzwork-fallback' when calling this file as a fallback.
     const raw = normalize(34, pair({ orderCount: '1' }, { orderCount: '1' }));
     expect(raw.source).toBe('fuzzwork');
+  });
+});
+
+describe('fetchPricesFromFuzzwork outbound headers', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('sends the outbound User-Agent to the Fuzzwork aggregates endpoint', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    await fetchPricesFromFuzzwork([34]);
+
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(new Headers(init?.headers).get('User-Agent')).toBe(
+      OUTBOUND_USER_AGENT,
+    );
   });
 });
