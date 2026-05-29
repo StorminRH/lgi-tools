@@ -22,6 +22,10 @@ export function Footer() {
           <Link href="/legal">
             Legal
           </Link>
+          {' · '}
+          <Link href="/contact">
+            Contact
+          </Link>
         </span>
       }
       center={
