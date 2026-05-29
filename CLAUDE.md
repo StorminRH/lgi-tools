@@ -48,8 +48,8 @@ Raise a conflict before proceeding if a task seems to violate one.
 
 Load-bearing constraints. Don't regress these without raising a conflict.
 
-- **`src/data/` slices never import from `src/features/`.** Features import from data layers, never the reverse. Two data slices never import each other (e.g. `eve-data` ⊥ `market-prices`). Cross-slice composition lives in a layer *above* both (see `src/db/sde-pipeline.ts` for the template).
-- **UI primitives accept abstract `tone` props** (`green`, `red`, …). The only files that know "C5 is red" are the feature-level `*-styles.ts` mappings.
+- **`src/data/` slices never import from `src/features/`.** Features import from data layers, never the reverse. Two data slices never import each other (e.g. `eve-data` ⊥ `market-prices`). Cross-slice composition lives in a layer *above* both (see `src/db/sde-pipeline.ts` for the template). *Lint-enforced* (`boundaries/dependencies` in `eslint.config.mjs`), with three documented exceptions encoded there: auth's shared surface (`auth/types`, `auth/schema`) is importable anywhere as platform infra; the `search` registry hub is importable by any data slice; and `npc-stats → eve-data` is allowed as directed layering. Features also never import each other (same rule) — *also lint-enforced*.
+- **UI primitives accept abstract `tone` props** (`green`, `red`, …). The only files that know "C5 is red" are the feature-level `*-styles.ts` mappings. The *import edge* — `src/components/ui/**` may not import features or data — is lint-enforced; whether a component is a *good* primitive stays a review judgment.
 - **Postgres enums are driven from TS `as const` arrays** — one source of truth.
 - **`Collapsible` is a pure `<details>`/`<summary>`** — the element owns open/closed state; no React state wrapper. `UrlSync` syncs the URL via a native `toggle` listener.
 - **Lazy DB client** (`src/db/index.ts` Proxy) — connection deferred to first query so `next build` survives an empty `DATABASE_URL`.
@@ -134,7 +134,7 @@ sub-version's PR).
 
 ## CSP: never use inline `style="..."` attributes
 
-Production CSP is `style-src 'self' 'nonce-<random>'`. Nonces cover inline `<style>` blocks only — NOT `style="..."` attributes. Any JSX `style={{...}}` renders as a `style="..."` attribute and is silently dropped by the browser on first paint (symptom: a dimension missing on initial load that "self-heals" on client navigation, because hydration reapplies it via JS, which CSP doesn't gate).
+Production CSP is `style-src 'self' 'nonce-<random>'`. Nonces cover inline `<style>` blocks only — NOT `style="..."` attributes. Any JSX `style={{...}}` renders as a `style="..."` attribute and is silently dropped by the browser on first paint (symptom: a dimension missing on initial load that "self-heals" on client navigation, because hydration reapplies it via JS, which CSP doesn't gate). *Lint-enforced*: a JSX `style` attribute fails `pnpm lint` (`no-restricted-syntax` in `eslint.config.mjs`).
 
 **Fixes:**
 - Static values → Tailwind arbitrary values: `className="grid-cols-[repeat(auto-fill,minmax(270px,1fr))]"`.
