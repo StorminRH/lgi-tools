@@ -61,6 +61,11 @@ export default function LegalPage() {
               forwarded to a private Discord channel for the developer to read — it is
               not stored in our database.
             </li>
+            <li>
+              When you send a message through the contact form, the length of your message.
+              Your email address and the message text are emailed directly to the developer
+              so they can reply — they are not stored in our database.
+            </li>
           </ul>
           <p className="text-[12px] leading-relaxed text-text">
             We do <span className="text-name">not</span> record your IP address, your

@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-05-29
+
+- Added a Contact page, linked in the footer, with a simple form for bug reports, feature ideas, and data corrections. Messages go straight to the developer by email; the address you enter is used only to reply and is never stored or shown publicly.
+
 ### 2026-05-27
 
 - Tightened the platform's security posture and added abuse protection ahead of upcoming features.
