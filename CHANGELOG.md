@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-05-30
+
+- The Industry Planner is live: search any blueprint and open it to see its full material tree next to a live Jita build cost and profit margin. The tree renders instantly while prices stream in beside it and refresh on demand, so the cost breakdown is never blank while it loads.
+
 ### 2026-05-29
 
 - Added a Contact page, linked in the footer, with a simple form for bug reports, feature ideas, and data corrections. Messages go straight to the developer by email; the address you enter is used only to reply and is never stored or shown publicly.

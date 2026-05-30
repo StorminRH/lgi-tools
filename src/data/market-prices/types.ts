@@ -8,6 +8,11 @@ export interface MarketPrice {
   pct5Buy: number | null;
   pct5Sell: number | null;
   updatedAt: Date;
+  // Row-level expiry — the authoritative staleness signal (the bulk refresh
+  // keys off `stale_after < NOW()`). A row can have a null price yet a future
+  // stale_after (the last refresh confirmed no orders); on-demand callers must
+  // honour that rather than re-fetching null-priced rows every time.
+  staleAfter: Date;
 }
 
 // Source attribution stored on every market_prices row. 'esi' is the

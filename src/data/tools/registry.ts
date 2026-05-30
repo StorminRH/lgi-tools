@@ -23,8 +23,9 @@ export const TOOLS: Tool[] = [
   {
     label: 'Industry Planner',
     abbr: 'IP',
-    href: null,
-    description: 'Soon · Phase 3',
+    href: '/industry',
+    matchPrefix: '/industry',
+    description: 'Live · /industry',
   },
   {
     label: 'Wormhole Roll Calc',

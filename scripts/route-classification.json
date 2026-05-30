@@ -6,6 +6,9 @@
     "/sites/[id]": "Per-site detail (params + DB + live prices) streams from a dynamic hole.",
     "/admin": "Per-user: session-gated content is a request-time dynamic hole.",
     "/admin/usage": "Per-user: session-gated telemetry report is a request-time dynamic hole.",
+    "/industry": "Static landing — intro + example blueprint links, no request-time reads.",
+    "/industry/[id]": "Per-blueprint planner ([id] param + cached structure/prices) streams from a dynamic hole; page chrome is the static shell.",
+    "/api/industry/blueprints": "Blueprint search index is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input.",
     "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic."
   },
   "routes": {
@@ -14,6 +17,8 @@
     "/admin/usage": "partial",
     "/changelog": "static",
     "/contact": "static",
+    "/industry": "static",
+    "/industry/[id]": "partial",
     "/legal": "static",
     "/preview/cards": "static",
     "/robots.txt": "static",
@@ -30,6 +35,7 @@
     "/api/cron/refresh-prices": "dynamic",
     "/api/cron/refresh-sde": "dynamic",
     "/api/feedback": "dynamic",
+    "/api/industry/blueprints": "static",
     "/api/market-prices/refresh": "dynamic",
     "/api/sites": "dynamic",
     "/api/sites/[id]": "dynamic",
