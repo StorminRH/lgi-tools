@@ -115,7 +115,7 @@ export async function exchangeCodeForToken({
   if (!parsed.success) {
     throw new Error('EVE token response failed boundary validation');
   }
-  return parsed.data as EveTokenResponse;
+  return parsed.data;
 }
 
 export async function verifyEveJwt(accessToken: string): Promise<EveJwtClaims> {

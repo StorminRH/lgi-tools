@@ -54,6 +54,22 @@ describe('fetchWithTimeout', () => {
     expect(res.status).toBe(200);
   });
 
+  it('honors a caller-provided signal alongside the timeout', async () => {
+    // jose's customFetch hook forwards jose's own init, which may carry a
+    // cancellation signal — aborting it must still abort the request.
+    fetchSpy.mockImplementation(abortAwareFetch());
+    const controller = new AbortController();
+
+    const pending = fetchWithTimeout(
+      'https://example.test/',
+      { signal: controller.signal },
+      5_000,
+    );
+    controller.abort(new Error('caller cancelled'));
+
+    await expect(pending).rejects.toThrow('caller cancelled');
+  });
+
   it('defaults to OUTBOUND_FETCH_TIMEOUT_MS when no timeout is given', async () => {
     // A signal whose abort is far in the future (the default) must not have
     // fired by the time the request resolves.

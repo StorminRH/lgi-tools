@@ -15,12 +15,18 @@ export const OUTBOUND_FETCH_TIMEOUT_MS = 10_000;
 export const SDE_DOWNLOAD_TIMEOUT_MS = 60_000;
 
 // Wraps `fetch`, attaching an abort signal that fires after `timeoutMs`.
-// Callers keep setting their own headers; this only adds the signal. No
-// caller passes its own `signal` today, so no merge is needed.
+// Callers keep setting their own headers. If a caller (e.g. jose's
+// `customFetch` hook, which forwards jose's own `init`) already supplied a
+// `signal`, it is merged with the timeout via `AbortSignal.any` so either can
+// abort the request — the timeout never silently drops a caller's cancellation.
 export function fetchWithTimeout(
   input: string | URL,
   init?: RequestInit,
   timeoutMs: number = OUTBOUND_FETCH_TIMEOUT_MS,
 ): Promise<Response> {
-  return fetch(input, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  const signals = [AbortSignal.timeout(timeoutMs), init?.signal].filter(
+    (s): s is AbortSignal => s != null,
+  );
+  const signal = signals.length === 1 ? signals[0] : AbortSignal.any(signals);
+  return fetch(input, { ...init, signal });
 }
