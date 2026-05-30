@@ -9,7 +9,6 @@ import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SiteMetaStrip } from '@/features/wormhole-sites/components/SiteMetaStrip';
 import {
   getPricedSiteDetail,
-  getSiteDetail,
   getSiteSearchIndex,
 } from '@/features/wormhole-sites/queries';
 import type { SiteDetail } from '@/features/wormhole-sites/types';
@@ -73,7 +72,10 @@ export async function generateMetadata({
   const id = Number.parseInt(rawId, 10);
   if (!Number.isFinite(id)) return {};
 
-  const site = await getSiteDetail(id);
+  // Use the priced read (same hourly-tagged cache the page body uses) so the
+  // ISK in the description matches the page and its "live Jita prices" claim,
+  // rather than freezing at the deploy-time structural snapshot.
+  const site = await getPricedSiteDetail(id);
   if (!site) return {};
 
   const typeLabel = SITE_TYPE_LABEL[site.siteType] ?? site.siteType;
