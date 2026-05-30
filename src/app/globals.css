@@ -169,14 +169,10 @@ a:hover {
 
 /* ── /sites density vocabulary (v2.9.4) ─────────────────────────────────
  * Site cards are tagged `.card.resource` or `.card.wave-driven` by
- * SiteCard.tsx based on the `isWaveDriven` flag. Only resource cards
- * (ore + gas) get the hover glow and the absolutely-positioned
- * top-3-resources preview. Wave-driven cards stay completely flat —
- * the header's est-loot number already answers their "is it worth it?"
- * question, and there's no compact resource list to preview. Spec lives
- * in docs/wireframes/sites-density.html. */
+ * SiteCard.tsx based on the `isWaveDriven` flag. Resource cards (ore + gas)
+ * get a subtle hover glow; wave-driven cards stay completely flat. Spec
+ * lives in docs/wireframes/sites-density.html. */
 .card.resource {
-  position: relative;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .card.resource:hover {
@@ -185,69 +181,6 @@ a:hover {
 }
 .card.wave-driven {
   /* no :hover rule — combat/relic/data cards stay static. */
-}
-
-.card.resource .resource-preview {
-  display: none;
-  position: absolute;
-  top: 12px;
-  right: -14px;
-  transform: translateX(100%);
-  width: 240px;
-  background: var(--color-section);
-  border: 1px solid var(--color-isk-dim);
-  border-radius: 4px;
-  padding: 10px 14px;
-  box-shadow:
-    0 0 0 1px rgba(61, 214, 140, 0.12),
-    0 8px 24px -8px rgba(61, 214, 140, 0.2);
-  font-size: 11px;
-  z-index: 5;
-}
-.card.resource:hover .resource-preview {
-  display: block;
-}
-.card.resource .resource-preview::before {
-  content: '';
-  position: absolute;
-  left: -14px;
-  top: 18px;
-  width: 14px;
-  height: 1px;
-  background: var(--color-isk-dim);
-}
-.resource-preview-label {
-  font-size: 9px;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  margin-bottom: 8px;
-}
-.resource-preview-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
-  color: var(--color-text);
-}
-.resource-preview-row + .resource-preview-row {
-  border-top: 1px dashed var(--color-border-soft);
-}
-.resource-preview-row .val {
-  color: var(--color-isk);
-  font-variant-numeric: tabular-nums;
-}
-.resource-preview-footer {
-  border-top: 1px solid var(--color-border-soft);
-  margin-top: 6px;
-  padding-top: 8px;
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--color-muted);
-}
-.resource-preview-footer .val {
-  color: var(--color-name);
-  font-weight: 600;
 }
 /* end /sites density block */
 
@@ -415,12 +348,6 @@ a:hover {
   .nav-search.active { width: 320px; }
 }
 
-/* Below 900px the ResourcePreview hover overlay either overflows the
- * viewport or sits on top of the card. Hide outright — desktop chrome. */
-@media (max-width: 900px) {
-  .card.resource:hover .resource-preview { display: none; }
-}
-
 /* Below 640px wrap the header into two rows: row 1 keeps wordmark +
  * nav-tools (abbreviated) + login cluster inline; the search input wraps
  * to a full-width row 2. PriceFreshness is already hidden by the 1024px
@@ -451,26 +378,6 @@ a:hover {
 @media (max-width: 700px) {
   .sites-grid { grid-template-columns: 1fr; }
 }
-
-/* ResourcePreview overflow fix: at desktop widths the overlay extends off
- * the right edge of any card in the right column. Mirror it to the left for
- * even-indexed grid children (i.e., right-column cards in the 2-column
- * grid). Scoped to ≥700px because below that the grid is 1-column and
- * `:nth-child(even)` matches every other ROW — all left-aligned, where
- * flipping would push the overlay off the LEFT side. (Below 900px the
- * overlay is hidden anyway, so the 700–899 band is harmless but inert.) */
-@media (min-width: 700px) {
-  .sites-grid > :nth-child(even) .resource-preview {
-    right: auto;
-    left: -14px;
-    transform: translateX(-100%);
-  }
-  .sites-grid > :nth-child(even) .resource-preview::before {
-    left: auto;
-    right: -14px;
-  }
-}
-/* end responsive defensive block */
 
 /* ── Dropdown panel ── */
 .dropdown {

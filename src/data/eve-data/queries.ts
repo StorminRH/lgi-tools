@@ -5,7 +5,9 @@ import {
   blueprintFlatMaterials,
   blueprintTrees,
   dgmTypeAttributes,
+  eveCategories,
   eveDataMeta,
+  eveGroups,
   eveTypes,
   industryActivityMaterials,
   industryActivityProducts,
@@ -40,6 +42,31 @@ const TYPE_COLUMNS = {
 export async function getTypesByIds(ids: number[]): Promise<EveType[]> {
   if (ids.length === 0) return [];
   return db.select(TYPE_COLUMNS).from(eveTypes).where(inArray(eveTypes.id, ids));
+}
+
+export type TypeLabel = { name: string; groupName: string; categoryName: string };
+
+// Name + SDE group/category for a set of types, in one join. The Industry
+// Planner uses the group/category to bucket raw materials by source and
+// intermediates by construction phase (see the feature's classification).
+export async function getTypeLabels(ids: number[]): Promise<Map<number, TypeLabel>> {
+  const out = new Map<number, TypeLabel>();
+  if (ids.length === 0) return out;
+  const rows = await db
+    .select({
+      id: eveTypes.id,
+      name: eveTypes.name,
+      groupName: eveGroups.name,
+      categoryName: eveCategories.name,
+    })
+    .from(eveTypes)
+    .innerJoin(eveGroups, eq(eveGroups.id, eveTypes.groupId))
+    .innerJoin(eveCategories, eq(eveCategories.id, eveGroups.categoryId))
+    .where(inArray(eveTypes.id, ids));
+  for (const r of rows) {
+    out.set(r.id, { name: r.name, groupName: r.groupName, categoryName: r.categoryName });
+  }
+  return out;
 }
 
 // Returns a lowercase-name-keyed map. If two types share a name (rare but

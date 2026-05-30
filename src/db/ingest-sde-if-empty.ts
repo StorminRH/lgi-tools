@@ -30,6 +30,7 @@ import {
   setSdeMetaValue,
 } from '../data/eve-data/queries';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
+import { resolveAllTrees } from '../data/eve-data/tree-resolver';
 import { resolveLockConnectionUrl } from './index';
 import { runSdePipeline } from './sde-pipeline';
 
@@ -92,21 +93,26 @@ async function main() {
     const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
     const remoteVersion = await getRemoteSdeVersion();
 
-    if (hasRows && storedVersion !== null && remoteVersion !== null && storedVersion === remoteVersion) {
-      console.log(
-        `Skipping SDE auto-ingest (already at SDE version "${storedVersion}", ${rowCount} attribute rows present).`,
-      );
-      return;
-    }
+    const sdeCurrent =
+      hasRows &&
+      storedVersion !== null &&
+      (remoteVersion === null || storedVersion === remoteVersion);
 
-    // Fuzzwork-unreachable path: if our DB is fully populated and on a
-    // known version but the HEAD probe failed, there's nothing
-    // actionable — proceeding to runSdePipeline burns 30s on doomed
-    // downloads that exit the build with a soft failure anyway.
-    // Drift-detection runs again at the next cron tick / next deploy.
-    if (hasRows && storedVersion !== null && remoteVersion === null) {
+    if (sdeCurrent) {
       console.log(
-        `Skipping SDE auto-ingest (Fuzzwork unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`,
+        remoteVersion === null
+          ? `SDE ingest skipped (Fuzzwork unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`
+          : `SDE ingest skipped (already at SDE version "${storedVersion}", ${rowCount} attribute rows present).`,
+      );
+      // The SDE *data* is current, but the resolver's algorithm may have
+      // changed — its hash is now versioned, so this self-gates to an instant
+      // no-op unless the math changed, in which case it rebuilds the flat
+      // materials + trees here at deploy time instead of waiting for the cron.
+      const resolve = await resolveAllTrees(db);
+      console.log(
+        resolve.skipped
+          ? 'Tree resolver: up to date (no rebuild).'
+          : `Tree resolver: rebuilt ${resolve.flatMaterialsWritten} flat-material rows across ${resolve.blueprintsResolved} blueprints.`,
       );
       return;
     }

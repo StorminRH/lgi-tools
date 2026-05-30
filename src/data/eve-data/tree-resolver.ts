@@ -5,6 +5,7 @@ import {
   INDUSTRY_ACTIVITY_IDS,
   REFERENCE_BLUEPRINT_TYPE_IDS,
   SDE_META_KEY_TREE_HASH,
+  TREE_RESOLVER_ALGO_VERSION,
 } from './constants';
 import {
   blueprintFlatMaterials,
@@ -28,7 +29,8 @@ export type TreeNode = {
   // multiplied through. Leaves carry the empty array.
   inputs: TreeNode[];
   // Present only on non-leaf nodes — the blueprint that produces this
-  // type and how many it yields per run.
+  // type, how many it yields per run, and the (fractional) runs the parent's
+  // need represents — see `runsFor`.
   producedBy?: { blueprintTypeId: number; quantityPerRun: number; runsNeeded: number };
 };
 
@@ -159,9 +161,19 @@ async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
   return buildIndexesFromRows(matRows, prodRows);
 }
 
-function ceilDiv(a: bigint, b: bigint): bigint {
-  if (b === BigInt(0)) throw new Error('ceilDiv: divisor is zero');
-  return (a + b - BigInt(1)) / b;
+// How many runs of a producing blueprint a parent's need represents, as a
+// FRACTION — `quantity / quantityPerRun`. We deliberately do NOT round up to
+// whole runs: a build is charged only the fraction of a batch it actually
+// consumes, with the remainder treated as reusable inventory. Whole-run
+// rounding (the old `ceilDiv`) massively overstated deep builds where an
+// intermediate is produced in large batches — e.g. one Fullerene Intercalated
+// Sheets needs 33 Fulleroferrocene but the reaction makes 1000/run, so rounding
+// up pulled a full 1000-unit batch's raw gas to satisfy 33 (~30× overbuild),
+// which compounded across a T3/capital tree. Marginal (fractional) runs are the
+// standard basis for a build-cost estimate.
+function runsFor(quantity: number, quantityPerRun: number): number {
+  if (quantityPerRun === 0) throw new Error('runsFor: quantityPerRun is zero');
+  return quantity / quantityPerRun;
 }
 
 // Walks one blueprint's tree, producing both the JSONB tree shape and
@@ -169,18 +181,23 @@ function ceilDiv(a: bigint, b: bigint): bigint {
 // totals — the per-run flat materials are stable across parents, and
 // capital recursion is what makes memoization worth the bytes.
 export class TreeResolver {
-  private flatMemo = new Map<number, Map<number, bigint>>();
+  // Raw-material totals are FRACTIONAL during the walk (a parent consumes a
+  // fraction of a producing run — see `runsFor`), so they accumulate as numbers,
+  // not bigints. The caller rounds to whole units at the storage boundary. Real
+  // totals (a capital's millions of minerals) stay far under 2^53, so float
+  // accumulation is exact enough; rounding happens once, at the end.
+  private flatMemo = new Map<number, Map<number, number>>();
   private cycleWarnings: string[] = [];
   private memoHits = 0;
   private memoMisses = 0;
 
   constructor(private indexes: Indexes) {}
 
-  flatForOneRun(blueprintId: number): Map<number, bigint> {
+  flatForOneRun(blueprintId: number): Map<number, number> {
     return this.walkFlat(blueprintId, new Set());
   }
 
-  private walkFlat(blueprintId: number, visited: Set<number>): Map<number, bigint> {
+  private walkFlat(blueprintId: number, visited: Set<number>): Map<number, number> {
     const memoed = this.flatMemo.get(blueprintId);
     if (memoed) {
       this.memoHits++;
@@ -196,7 +213,7 @@ export class TreeResolver {
     }
     visited.add(blueprintId);
 
-    const result = new Map<number, bigint>();
+    const result = new Map<number, number>();
     const materials = this.indexes.blueprintMaterials.get(blueprintId);
     if (!materials) {
       this.flatMemo.set(blueprintId, result);
@@ -207,17 +224,18 @@ export class TreeResolver {
     for (const mat of materials) {
       const child = this.indexes.productToBlueprint.get(mat.typeId);
       if (!child) {
-        const cur = result.get(mat.typeId) ?? BigInt(0);
-        result.set(mat.typeId, cur + BigInt(mat.quantity));
+        const cur = result.get(mat.typeId) ?? 0;
+        result.set(mat.typeId, cur + mat.quantity);
         continue;
       }
-      const runsNeeded = ceilDiv(
-        BigInt(mat.quantity),
-        BigInt(child.quantityPerRun),
-      );
+      // childPerRun is the raws for ONE run of the producing blueprint
+      // (memoized, stable across parents). The parent only needs `mat.quantity`
+      // of the child's `quantityPerRun`-per-run output, so it bears that
+      // fraction of the run's raws — not a whole rounded-up run.
+      const runs = runsFor(mat.quantity, child.quantityPerRun);
       const childPerRun = this.walkFlat(child.blueprintTypeId, visited);
       for (const [k, v] of childPerRun) {
-        result.set(k, (result.get(k) ?? BigInt(0)) + v * runsNeeded);
+        result.set(k, (result.get(k) ?? 0) + v * runs);
       }
     }
 
@@ -245,15 +263,10 @@ export class TreeResolver {
         nodes.push({ typeId: mat.typeId, quantity: mat.quantity, inputs: [] });
         continue;
       }
-      // Share the bigint ceilDiv helper with walkFlat so the two
-      // walkers can never disagree on runs-needed. Float64 / 32-bit
-      // ints is exact today, but if a future caller multiplies
-      // runsNeeded values up the tree the float path and the bigint
-      // path could drift; routing both through one helper rules that
-      // out by construction.
-      const runsNeeded = Number(
-        ceilDiv(BigInt(mat.quantity), BigInt(child.quantityPerRun)),
-      );
+      // Share the fractional `runsFor` helper with walkFlat so the two
+      // walkers can never disagree on runs-needed — the displayed tree's
+      // marginal runs match the flat-material cost basis by construction.
+      const runsNeeded = runsFor(mat.quantity, child.quantityPerRun);
       nodes.push({
         typeId: mat.typeId,
         quantity: mat.quantity,
@@ -344,6 +357,8 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
       (SELECT COUNT(*)::text FROM industry_activity_products) AS counts
   `);
   return createHash('sha256')
+    .update(TREE_RESOLVER_ALGO_VERSION)
+    .update(':')
     .update(counts)
     .update(':')
     .update(matSamples)
@@ -441,10 +456,15 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
     for (const { id } of allBlueprintIds) {
       const flat = resolver.flatForOneRun(id);
       for (const [rawType, qty] of flat) {
+        // Fractional totals are rounded to whole units once here, at the
+        // storage boundary (the column is bigint). A material whose marginal
+        // share rounds to zero contributes nothing and is dropped.
+        const rounded = Math.round(qty);
+        if (rounded <= 0) continue;
         flatBatch.push({
           blueprintTypeId: id,
           rawMaterialTypeId: rawType,
-          totalQuantity: qty,
+          totalQuantity: BigInt(rounded),
         });
         if (flatBatch.length >= FLAT_BATCH_SIZE) {
           await tx.insert(blueprintFlatMaterials).values(flatBatch);

@@ -1,3 +1,4 @@
+import type { Tone } from '@/components/ui/tones';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 
 // One searchable blueprint: its type ID and the name of the item it builds.
@@ -20,6 +21,39 @@ export interface BlueprintProduct {
   quantityPerRun: number;
 }
 
+// One direct recipe ingredient of a buildable, scaled to the parent's gross
+// demand. The tone is its own category's colour, for the marker dot.
+export interface BomInput {
+  typeId: number;
+  name: string;
+  quantity: number;
+  tone: Tone;
+}
+
+// One buildable in the condensed bill of materials: shown once at its gross
+// demand (total units needed across the whole build), expandable to the direct
+// inputs that produce that quantity.
+export interface BomItem {
+  typeId: number;
+  name: string;
+  quantity: number;
+  inputs: BomInput[];
+}
+
+// A construction category (Reactions, Components, …) with its colour and the
+// buildables that belong to it.
+export interface BomGroup {
+  label: string;
+  tone: Tone;
+  items: BomItem[];
+}
+
+// A raw-material source category present in this build, with its colour.
+export interface MaterialCategoryMeta {
+  label: string;
+  tone: Tone;
+}
+
 export interface BlueprintStructure {
   blueprintTypeId: number;
   activityId: number;
@@ -27,11 +61,20 @@ export interface BlueprintStructure {
   // Nested breakdown for the structural tree display. Empty when the resolver
   // hasn't produced a tree for this blueprint yet.
   tree: TreeNode[];
+  // The condensed bill of materials: buildables grouped by construction
+  // category, each at gross demand and expandable to its direct inputs. Derived
+  // from the tree. Empty when there is no tree.
+  buildGroups: BomGroup[];
   // Flattened raw materials — the authoritative cost basis (already fully
   // recursed by the 3.0.4 resolver). Quantities are plain numbers (the DB
   // stores bigint; the largest real total — a capital's ~12M minerals — is far
   // under 2^53, so the narrowing is lossless).
   flatMaterials: { typeId: number; quantity: number }[];
+  // typeId → raw-material source category label, for grouping the priced
+  // ledger. `materialCategories` lists the present categories in display order
+  // with their colours.
+  materialCategory: Record<number, string>;
+  materialCategories: MaterialCategoryMeta[];
   // typeId → name for every type that appears in the tree, the flat list, or
   // as the product. Lets the structural tree label nodes without re-querying.
   materialNames: Record<number, string>;
