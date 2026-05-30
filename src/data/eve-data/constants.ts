@@ -32,6 +32,15 @@ export const ADVISORY_LOCK_SDE_INGEST = BigInt(8273619013);
 export const SDE_META_KEY_VERSION = 'sde_version';
 export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 
+// Version token for the tree-resolver ALGORITHM, folded into the resolver
+// hash. The hash is otherwise derived from SDE row data, so a change to the
+// resolver's math (not the data) wouldn't invalidate it — the rebuild would
+// be skipped and stale flat materials would persist. Bump this whenever the
+// resolver's output for unchanged SDE data changes, so the next deploy/cron
+// rebuilds. History: 'v1' = whole-run rounding; 'v2-marginal' = fractional
+// (marginal) runs — 3.0.5.3.
+export const TREE_RESOLVER_ALGO_VERSION = 'v2-marginal';
+
 // Revalidation tag for cached blueprint *structure* reads (the Industry
 // Planner's `'use cache'` tree + flat-materials view, and the blueprint search
 // index). `cacheLife('max')` already drops these on deploy, which covers the

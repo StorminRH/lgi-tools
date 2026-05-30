@@ -5,6 +5,7 @@ import {
   INDUSTRY_ACTIVITY_IDS,
   REFERENCE_BLUEPRINT_TYPE_IDS,
   SDE_META_KEY_TREE_HASH,
+  TREE_RESOLVER_ALGO_VERSION,
 } from './constants';
 import {
   blueprintFlatMaterials,
@@ -356,6 +357,8 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
       (SELECT COUNT(*)::text FROM industry_activity_products) AS counts
   `);
   return createHash('sha256')
+    .update(TREE_RESOLVER_ALGO_VERSION)
+    .update(':')
     .update(counts)
     .update(':')
     .update(matSamples)
