@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 export const metadata = {
   title: 'Legal',
   description: 'Telemetry collection disclosure and EVE Online developer notice.',
+  alternates: { canonical: '/legal' },
 };
 
 export default function LegalPage() {

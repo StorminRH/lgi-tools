@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterBar, type FilterOption } from '@/components/ui/filter-bar';
@@ -15,6 +16,13 @@ import { listSiteDetails } from '@/features/wormhole-sites/queries';
 import { SITE_TYPES, WORMHOLE_CLASSES } from '@/features/wormhole-sites/schema';
 import { parseSortDir, parseSortKey } from '@/features/wormhole-sites/sort';
 import type { SiteDetail, SiteType, WormholeClass } from '@/features/wormhole-sites/types';
+
+export const metadata: Metadata = {
+  title: 'Wormhole Sites — Live Jita Loot & Resource Values',
+  description:
+    'All 69 Eve Online wormhole sites — combat, ore, gas, relic, and data — filterable by class and type, with live Jita prices on ore and gas resources and full NPC wave breakdowns.',
+  alternates: { canonical: '/sites' },
+};
 
 const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
 
@@ -83,9 +91,9 @@ async function SitesContent({
   return (
     <>
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
-        <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
+        <h1 className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
           Wormhole Sites
-        </div>
+        </h1>
         <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
           {sites.length} site{sites.length === 1 ? '' : 's'}
           {type ? ` · ${SITE_TYPE_LABEL[type]}` : ''}

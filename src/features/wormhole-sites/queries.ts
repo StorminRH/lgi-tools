@@ -1,11 +1,13 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { cacheLife } from 'next/cache';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from '@/db/schema';
+import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
 import { classRangeIncludes, gasClassRange } from './gas-classes';
+import { overlayLivePrices } from './live-prices';
 import type { Npc, SiteDetail, SiteListItem, SiteResource, Wave, WormholeClass, SiteType } from './types';
 
 const SITE_LIST_COLUMNS = {
@@ -334,6 +336,12 @@ export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
 }
 
 export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
+  // The catalogue is deploy-static (seeded once by migration, untouched by either
+  // cron), so cache the structural read into the prerender shell and let the build
+  // ID invalidate it — same pattern as getSiteSearchIndex. Live prices are layered
+  // on separately (getPricedSiteDetail) so they can carry their own freshness.
+  'use cache';
+  cacheLife('max');
   const [site] = await db.select(SITE_LIST_COLUMNS).from(sites).where(eq(sites.id, id));
   if (!site) return null;
 
@@ -408,4 +416,20 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   );
 
   return { ...site, waves: assembledWaves, resources };
+}
+
+// Price-overlaid site detail, cached for the static prerender shell. The site
+// structure is deploy-static (getSiteDetail, cacheLife 'max'); live Jita prices
+// only change on the hourly cron, so we cache the overlaid result under the same
+// freshness tag the cron revalidates. This gives the detail page the same price
+// freshness as a per-request fetch while letting the full site content prerender
+// into the static shell for crawlers. Returns null for an unknown id.
+export async function getPricedSiteDetail(id: number): Promise<SiteDetail | null> {
+  'use cache';
+  cacheLife('hours');
+  cacheTag(PRICES_FRESHNESS_TAG);
+  const raw = await getSiteDetail(id);
+  if (!raw) return null;
+  const [priced] = await overlayLivePrices([raw]);
+  return priced;
 }
