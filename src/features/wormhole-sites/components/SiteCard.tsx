@@ -3,7 +3,6 @@ import { MetricBlock } from '@/components/ui/metric-block';
 import { Pill } from '@/components/ui/pill';
 import { formatClassRange, gasClassRange } from '../gas-classes';
 import type { SiteDetail } from '../types';
-import { ResourcePreview } from './ResourcePreview';
 import { SiteDetailsBody, formatIskHeader } from './SiteDetailsBody';
 import {
   CLASS_TONE,
@@ -27,7 +26,6 @@ export function SiteCard({
   defaultOpen?: boolean;
 }) {
   const hasWaves = site.waves.length > 0;
-  const hasResources = site.resources.length > 0;
   const isCombat = site.siteType === 'combat';
   const isHackSite = site.siteType === 'relic' || site.siteType === 'data';
   const isWaveDriven = isCombat || isHackSite;
@@ -36,13 +34,12 @@ export function SiteCard({
   const killingWaveIsk = !isWaveDriven && hasWaves ? site.blueLootIsk : null;
 
   // Density vocabulary — see docs/wireframes/sites-density.html and the
-  // matching CSS rules in globals.css. Ore + gas cards opt into the hover
-  // glow + ResourcePreview overlay; combat / relic / data stay flat.
+  // matching CSS rules in globals.css. Ore + gas cards get a subtle hover
+  // glow; combat / relic / data stay flat.
   const cardVariant = isWaveDriven ? 'wave-driven' : 'resource';
 
   return (
     <Card className={`card ${cardVariant}`}>
-      {!isWaveDriven && hasResources && <ResourcePreview site={site} />}
       <details data-collapsible {...(defaultOpen ? { open: true } : {})}>
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
           <CardHeader
