@@ -38,6 +38,7 @@ yarn-error.log*
 .vercel
 
 # claude code (user-local settings only; .claude/launch.json is shared)
+.claude/settings.json
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
