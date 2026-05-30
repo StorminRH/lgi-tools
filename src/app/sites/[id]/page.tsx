@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getPricesFreshness } from '@/data/market-prices/cache';
-import { db } from '@/db';
+import { Suspense } from 'react';
+import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SiteMetaStrip } from '@/features/wormhole-sites/components/SiteMetaStrip';
@@ -67,7 +67,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function SiteDetailPage({
+async function SiteDetailContent({
   params,
   searchParams,
 }: {
@@ -83,7 +83,7 @@ export default async function SiteDetailPage({
   if (!raw) notFound();
 
   const [site] = await overlayLivePrices([raw]);
-  const { lastUpdatedAt } = await getPricesFreshness(db);
+  const { lastUpdatedAt } = await getCachedPricesFreshness();
 
   // Forward any active filter params so the back link returns to
   // the same filtered view the user was on before sharing.
@@ -93,7 +93,7 @@ export default async function SiteDetailPage({
   const backHref = qs.toString() ? `/sites?${qs}` : '/sites';
 
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+    <>
       <div className="w-full max-w-[1400px] mb-4">
         <Link
           href={backHref}
@@ -111,6 +111,33 @@ export default async function SiteDetailPage({
       <div className="w-full max-w-[1400px]">
         <SiteCard site={site} defaultOpen />
       </div>
+    </>
+  );
+}
+
+function SiteDetailLoading() {
+  return (
+    <div className="w-full max-w-[1400px] text-[10px] tracking-[0.12em] uppercase text-muted">
+      Loading site…
+    </div>
+  );
+}
+
+// `generateMetadata` above resolves the per-site `<head>` at request time; the
+// page chrome prerenders and the site detail (params + DB + live prices) streams
+// from the dynamic hole.
+export default function SiteDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  return (
+    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+      <Suspense fallback={<SiteDetailLoading />}>
+        <SiteDetailContent params={params} searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }

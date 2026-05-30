@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FilterBar, type FilterOption } from '@/components/ui/filter-bar';
 import { UrlSync } from '@/components/ui/url-sync';
@@ -44,7 +45,7 @@ function groupBySection(sites: SiteDetail[]): Record<SiteType, SiteDetail[]> {
   return groups;
 }
 
-export default async function SitesPage({
+async function SitesContent({
   searchParams,
 }: {
   searchParams: Promise<{ type?: string; class?: string; view?: string; sort?: string; dir?: string }>;
@@ -80,7 +81,7 @@ export default async function SitesPage({
   };
 
   return (
-    <div className="sites-page-bg flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+    <>
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
         <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
           Wormhole Sites
@@ -160,6 +161,30 @@ export default async function SitesPage({
         })
       )}
 
+    </>
+  );
+}
+
+function SitesLoading() {
+  return (
+    <div className="w-full max-w-[1100px] text-[10px] tracking-[0.12em] uppercase text-muted">
+      Loading sites…
+    </div>
+  );
+}
+
+// Static page chrome (background + padding) prerenders; the searchParams-driven
+// list, filters, and live-price overlay stream from the dynamic hole.
+export default function SitesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string; class?: string; view?: string; sort?: string; dir?: string }>;
+}) {
+  return (
+    <div className="sites-page-bg flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+      <Suspense fallback={<SitesLoading />}>
+        <SitesContent searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }

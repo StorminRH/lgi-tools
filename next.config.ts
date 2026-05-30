@@ -23,6 +23,13 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  // Cache Components (Next 16): enables the stable `use cache` directive and
+  // makes Partial Prerendering the default — routes prerender a static shell
+  // and stream genuinely per-request data from `<Suspense>` holes. This is what
+  // takes the site off the all-dynamic path, now that the nonce CSP that blocked
+  // static rendering is gone (3.0.4.6). It also drives `use cache`/`cacheLife`/
+  // `cacheTag`; do not reintroduce a script nonce without re-checking this.
+  cacheComponents: true,
   // CCP's official third-party image server. Serves character portraits today
   // (used by the login chip and admin dashboard) and will serve type icons,
   // blueprint art, and ship renders for the 3.1 Industry Planner visual pass.

@@ -1,0 +1,38 @@
+{
+  "_comment": "Expected `next build` render mode for every route, asserted by scripts/assert-route-classification.mjs after a build. Guards the conversion-track payoff (3.0.4.8+3.0.4.9): a route must not silently regress to a more dynamic mode. Modes: 'static' = O (fully prerendered), 'partial' = (partial prerender — static shell + request-time <Suspense> holes), 'dynamic' = f (server-rendered per request). New routes must be added here or the check fails. If a change is intentional, update this file in the same commit.",
+  "_reasons": {
+    "/": "Transient auth_error query param renders in a Suspense dynamic hole; hero + tiles are static.",
+    "/sites": "searchParams-driven filtered list + live-price overlay stream from a dynamic hole.",
+    "/sites/[id]": "Per-site detail (params + DB + live prices) streams from a dynamic hole.",
+    "/admin": "Per-user: session-gated content is a request-time dynamic hole.",
+    "/admin/usage": "Per-user: session-gated telemetry report is a request-time dynamic hole.",
+    "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic."
+  },
+  "routes": {
+    "/": "partial",
+    "/admin": "partial",
+    "/admin/usage": "partial",
+    "/changelog": "static",
+    "/contact": "static",
+    "/legal": "static",
+    "/preview/cards": "static",
+    "/robots.txt": "static",
+    "/sitemap.xml": "static",
+    "/sites": "partial",
+    "/sites/[id]": "partial",
+    "/api/admin/role": "dynamic",
+    "/api/auth/callback": "dynamic",
+    "/api/auth/login": "dynamic",
+    "/api/auth/logout": "dynamic",
+    "/api/auth/me": "dynamic",
+    "/api/auth/preferences": "dynamic",
+    "/api/contact": "dynamic",
+    "/api/cron/refresh-prices": "dynamic",
+    "/api/cron/refresh-sde": "dynamic",
+    "/api/feedback": "dynamic",
+    "/api/market-prices/refresh": "dynamic",
+    "/api/sites": "dynamic",
+    "/api/sites/[id]": "dynamic",
+    "/api/telemetry": "dynamic"
+  }
+}

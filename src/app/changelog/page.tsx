@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { cacheLife } from 'next/cache';
 import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { EntryCard } from '@/features/changelog/components/EntryCard';
@@ -10,9 +11,18 @@ export const metadata = {
   description: 'User-facing changes to LGI.tools, grouped by ship date.',
 };
 
-export default async function ChangelogPage() {
+// The changelog only changes on deploy, so cache the file read + parse and let
+// the build ID invalidate it — this keeps /changelog in the static prerender
+// shell instead of forcing the route dynamic on an uncached file read.
+async function loadChangelog() {
+  'use cache';
+  cacheLife('max');
   const md = await readFile(join(process.cwd(), 'CHANGELOG.md'), 'utf8');
-  const entries = parseChangelog(md);
+  return parseChangelog(md);
+}
+
+export default async function ChangelogPage() {
+  const entries = await loadChangelog();
 
   return (
     <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">

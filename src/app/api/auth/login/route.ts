@@ -1,4 +1,4 @@
-import type { NextRequest } from 'next/server';
+import { connection, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import {
   OAUTH_HANDSHAKE_MAX_AGE_SECONDS,
@@ -23,6 +23,10 @@ function requireEnv(name: string): string {
 
 // No user input — handshake initiator, all PKCE state generated server-side.
 export async function GET(_request: NextRequest): Promise<Response> {
+  // Handshake initiator: must run per-request (fresh PKCE state + cookie writes).
+  // Cache Components prerenders GET handlers by default, so defer to request time
+  // before any env or crypto access.
+  await connection();
   const clientId = requireEnv('EVE_CLIENT_ID');
   const callbackUrl = requireEnv('EVE_CALLBACK_URL');
 

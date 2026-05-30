@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Suspense } from 'react';
 import { TOOLS } from '@/data/tools/registry';
 import { cn } from '@/components/ui/cn';
 
@@ -10,10 +11,14 @@ import { cn } from '@/components/ui/cn';
 // inert spans. When `shrunk` is true (the parent's global search is
 // focused), every label collapses to its 2-letter abbreviation so the
 // expanded search bar can claim the room.
+//
+// The active-tab highlight depends on the current pathname, which is
+// request-time data under Cache Components (it can't be known when the header
+// is prerendered into the static shell — see `/sites/[id]`). So the strip
+// itself is in the static shell (the Suspense fallback renders it with nothing
+// highlighted) and the active highlight streams in at request time.
 
-export function NavTools({ shrunk = false }: { shrunk?: boolean }) {
-  const pathname = usePathname();
-
+function NavStrip({ shrunk, pathname }: { shrunk: boolean; pathname: string | null }) {
   return (
     <nav
       className={cn(
@@ -36,7 +41,7 @@ export function NavTools({ shrunk = false }: { shrunk?: boolean }) {
         }
 
         const isActive =
-          !!tool.matchPrefix && pathname.startsWith(tool.matchPrefix);
+          pathname != null && !!tool.matchPrefix && pathname.startsWith(tool.matchPrefix);
 
         return (
           <Link
@@ -56,5 +61,18 @@ export function NavTools({ shrunk = false }: { shrunk?: boolean }) {
         );
       })}
     </nav>
+  );
+}
+
+function ActiveNavStrip({ shrunk }: { shrunk: boolean }) {
+  const pathname = usePathname();
+  return <NavStrip shrunk={shrunk} pathname={pathname} />;
+}
+
+export function NavTools({ shrunk = false }: { shrunk?: boolean }) {
+  return (
+    <Suspense fallback={<NavStrip shrunk={shrunk} pathname={null} />}>
+      <ActiveNavStrip shrunk={shrunk} />
+    </Suspense>
   );
 }

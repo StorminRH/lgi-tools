@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -106,7 +107,7 @@ function CharacterRow({
   );
 }
 
-export default async function AdminPage({
+async function AdminContent({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string | string[] }>;
@@ -130,7 +131,7 @@ export default async function AdminPage({
   const nonAdminMatches = searchResults.filter(c => !adminIds.has(c.characterId));
 
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+    <>
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
         <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
           Admin
@@ -215,6 +216,28 @@ export default async function AdminPage({
           </Card>
         ) : null}
       </div>
+    </>
+  );
+}
+
+function AdminLoading() {
+  return (
+    <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>
+  );
+}
+
+// Per-user, session-gated: the content (auth check, redirect, DB reads) is a
+// fully request-time dynamic hole. Only the page container prerenders.
+export default function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>;
+}) {
+  return (
+    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+      <Suspense fallback={<AdminLoading />}>
+        <AdminContent searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }
