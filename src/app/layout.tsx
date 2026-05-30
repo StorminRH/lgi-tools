@@ -7,7 +7,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { Footer } from "@/components/Footer";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
-import { getSession, isAdmin } from "@/features/auth/session";
+import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { SITE_URL } from "@/config/site-url";
 
 const plexMono = IBM_Plex_Mono({
@@ -59,24 +59,23 @@ export const metadata: Metadata = {
   ...(googleVerification ? { verification: { google: googleVerification } } : {}),
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getSession();
-  const showAdminLink = isAdmin(session);
-
   return (
     <html
       lang="en"
       className={`${plexMono.variable} ${barlow.variable} ${jetBrainsMono.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
-        <AppHeader session={session} showAdminLink={showAdminLink} />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <FeedbackButton session={session} />
+        <AuthProvider>
+          <AppHeader />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <FeedbackButton />
+        </AuthProvider>
         <Suspense fallback={null}>
           <TelemetryReporter />
         </Suspense>

@@ -21,10 +21,12 @@ export function FeedbackModal({
   open,
   onClose,
   session,
+  loading,
 }: {
   open: boolean;
   onClose: () => void;
   session: Session | null;
+  loading: boolean;
 }) {
   const titleId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -107,7 +109,9 @@ export function FeedbackModal({
 
         <div className="px-4 py-3 flex flex-col gap-3">
           <div className="flex flex-col gap-1 text-[10px] tracking-[0.08em] uppercase text-muted">
-            {session ? (
+            {loading ? (
+              <div>Submitting…</div>
+            ) : session ? (
               <div>
                 <span>Submitting as</span>{' '}
                 <span className="text-text normal-case tracking-normal">{session.name}</span>

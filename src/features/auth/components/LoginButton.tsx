@@ -1,15 +1,23 @@
 'use client';
 
 import { Chip } from '@/components/ui/chip';
-import type { Session } from '../types';
+import { useAuth } from './AuthProvider';
 
-export function LoginButton({
-  session,
-  showAdminLink = false,
-}: {
-  session: Session | null;
-  showAdminLink?: boolean;
-}) {
+export function LoginButton() {
+  const { session, isAdmin: showAdminLink, loading } = useAuth();
+
+  // Neutral placeholder until /api/auth/me resolves — same footprint as the
+  // logged-in cluster (28px portrait + a short name run) so the right edge
+  // barely settles, and no "Log in" → username flash for logged-in viewers.
+  if (loading) {
+    return (
+      <div className="flex items-center gap-3" aria-hidden="true">
+        <div className="w-7 h-7 rounded-[2px] border border-[#1e2c3a]" />
+        <div className="w-16 h-3 rounded-[2px] bg-[#1e2c3a]" />
+      </div>
+    );
+  }
+
   if (!session) {
     return (
       <a

@@ -22,19 +22,18 @@ import { searchAll, type SearchResult, type SearchSection } from '@/data/search'
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { readRecents, pushRecent } from '@/features/search-recents/storage';
-import type { Session } from '@/features/auth/types';
+import { useAuth } from '@/features/auth/components/AuthProvider';
 
 type Props = {
   active: boolean;
   onActiveChange: (active: boolean) => void;
-  session: Session | null;
-  isAdmin: boolean;
   siteIndex: SiteSearchEntry[];
 };
 
 const DEBOUNCE_MS = 120;
 
-export function GlobalSearch({ active, onActiveChange, session, isAdmin, siteIndex }: Props) {
+export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
+  const { session, isAdmin } = useAuth();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
