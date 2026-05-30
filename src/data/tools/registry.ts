@@ -10,6 +10,8 @@ export type Tool = {
   href: string | null; // null = SOON, not yet navigable
   matchPrefix?: string;
   description?: string; // surfaced in the search dropdown's sub-text
+  navDisabled?: boolean; // true = show in the header nav strip but don't link
+                         // it; still reachable via search and direct URL
 };
 
 export const TOOLS: Tool[] = [
@@ -26,6 +28,7 @@ export const TOOLS: Tool[] = [
     href: '/industry',
     matchPrefix: '/industry',
     description: 'Live · /industry',
+    navDisabled: true,
   },
   {
     label: 'Wormhole Roll Calc',

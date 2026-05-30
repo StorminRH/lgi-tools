@@ -27,11 +27,12 @@ function NavStrip({ shrunk, pathname }: { shrunk: boolean; pathname: string | nu
       )}
     >
       {TOOLS.map((tool) => {
-        if (tool.href === null) {
+        if (tool.href === null || tool.navDisabled) {
+          const title = tool.href === null ? `${tool.label} — coming soon` : tool.label;
           return (
             <span
               key={tool.label}
-              title={`${tool.label} — coming soon`}
+              title={title}
               className="nav-tool flex items-center px-3.5 text-[11px] font-medium text-muted opacity-55 cursor-default whitespace-nowrap tracking-[0.03em]"
             >
               <span className="full">{tool.label}</span>
