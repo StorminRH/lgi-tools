@@ -20,7 +20,9 @@ export interface PriceLite {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
-  updatedAtMs: number | null;
+  // Epoch millis of the row's stale_after — the staleness signal the client
+  // uses to decide what to refresh. Null when there is no price row at all.
+  staleAfterMs: number | null;
 }
 
 export type PriceLiteOf = (typeId: number) => PriceLite | undefined;
@@ -53,7 +55,7 @@ export function assemblePricing(
       bestSell: p?.bestSell ?? null,
       pct5Buy: p?.pct5Buy ?? null,
       pct5Sell: p?.pct5Sell ?? null,
-      updatedAtMs: p?.updatedAtMs ?? null,
+      staleAfterMs: p?.staleAfterMs ?? null,
     };
   });
 
@@ -64,7 +66,7 @@ export function assemblePricing(
       name: structure.product.name,
       quantityPerRun: structure.product.quantityPerRun,
       bestSell: productPrice?.bestSell ?? null,
-      updatedAtMs: productPrice?.updatedAtMs ?? null,
+      staleAfterMs: productPrice?.staleAfterMs ?? null,
     },
     summary: {
       inputCost: buildCost.total,

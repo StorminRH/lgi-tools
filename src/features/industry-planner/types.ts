@@ -46,9 +46,10 @@ export interface MaterialCostRow {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
-  // Epoch millis of the last price write, or null when there is no price row.
-  // The client uses this (+ the staleness TTL) to decide what to refresh.
-  updatedAtMs: number | null;
+  // Epoch millis of the row's stale_after, or null when there is no price row.
+  // The client refreshes a material when this is null or already in the past —
+  // honouring a row that confirmed "no orders" recently (future stale_after).
+  staleAfterMs: number | null;
 }
 
 export interface BlueprintPricing {
@@ -58,7 +59,7 @@ export interface BlueprintPricing {
     name: string;
     quantityPerRun: number;
     bestSell: number | null;
-    updatedAtMs: number | null;
+    staleAfterMs: number | null;
   };
   summary: {
     inputCost: number;

@@ -1,10 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  ON_DEMAND_REFRESH_MAX_TYPE_IDS,
-  STALE_AFTER_TTL_MS,
-} from '@/data/market-prices/constants';
+import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from '@/data/market-prices/constants';
 import { assemblePricing, type PriceLite } from '../build-pricing';
 import type { BlueprintPricing, BlueprintStructure } from '../types';
 import { CostPanelView } from './CostPanelView';
@@ -16,7 +13,7 @@ interface RefreshedPrice {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
-  updatedAt: string;
+  staleAfter: string;
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -25,9 +22,9 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
-// Live price map seeded from the server's initial snapshot. Each row already
-// carries both sides + the last-write timestamp, so the client can decide
-// staleness and recompute margin without re-reading the DB.
+// Live price map seeded from the server's initial snapshot. Each row carries
+// its row-level stale_after, so the client decides staleness and recomputes
+// margin without re-reading the DB.
 function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
   const map = new Map<number, PriceLite>();
   for (const r of pricing.rows) {
@@ -36,7 +33,7 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
       bestSell: r.bestSell,
       pct5Buy: r.pct5Buy,
       pct5Sell: r.pct5Sell,
-      updatedAtMs: r.updatedAtMs,
+      staleAfterMs: r.staleAfterMs,
     });
   }
   map.set(pricing.product.typeId, {
@@ -44,22 +41,18 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
     bestSell: pricing.product.bestSell,
     pct5Buy: null,
     pct5Sell: null,
-    updatedAtMs: pricing.product.updatedAtMs,
+    staleAfterMs: pricing.product.staleAfterMs,
   });
   return map;
 }
 
-// A material needs refreshing if it has no row, a null buy side, or a write
-// older than the staleness TTL.
-function materialStale(p: PriceLite | undefined, now: number): boolean {
-  if (!p || p.bestBuy === null || p.updatedAtMs === null) return true;
-  return now - p.updatedAtMs > STALE_AFTER_TTL_MS;
-}
-
-// The product needs refreshing on the same rule, but its usable side is sell.
-function productStale(p: PriceLite | undefined, now: number): boolean {
-  if (!p || p.bestSell === null || p.updatedAtMs === null) return true;
-  return now - p.updatedAtMs > STALE_AFTER_TTL_MS;
+// A type needs refreshing if it has no price row, or its row-level stale_after
+// has passed. A null price with a future stale_after is NOT stale — the last
+// refresh confirmed there are simply no orders, which is still fresh data, so
+// we don't re-fetch it on every visit. (Matches the cron's `stale_after < NOW()`
+// contract; works for buy-side materials and the sell-side product alike.)
+function isStale(p: PriceLite | undefined, now: number): boolean {
+  return !p || p.staleAfterMs === null || p.staleAfterMs <= now;
 }
 
 // Client wrapper around the cost panel. On mount it finds the stale/missing
@@ -83,9 +76,9 @@ export function CostPanel({
 
     const stale = new Set<number>();
     for (const m of structure.flatMaterials) {
-      if (materialStale(map.get(m.typeId), now)) stale.add(m.typeId);
+      if (isStale(map.get(m.typeId), now)) stale.add(m.typeId);
     }
-    if (productStale(map.get(structure.product.typeId), now)) {
+    if (isStale(map.get(structure.product.typeId), now)) {
       stale.add(structure.product.typeId);
     }
     if (stale.size === 0) return;
@@ -112,7 +105,7 @@ export function CostPanel({
               bestSell: p.bestSell,
               pct5Buy: p.pct5Buy,
               pct5Sell: p.pct5Sell,
-              updatedAtMs: Date.parse(p.updatedAt),
+              staleAfterMs: Date.parse(p.staleAfter),
             });
           }
           setPricing(assemblePricing(structure, (t) => map.get(t)));

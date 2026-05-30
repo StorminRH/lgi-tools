@@ -135,7 +135,7 @@ export async function getBlueprintPricing(
       bestSell: p.bestSell,
       pct5Buy: p.pct5Buy,
       pct5Sell: p.pct5Sell,
-      updatedAtMs: p.updatedAt.getTime(),
+      staleAfterMs: p.staleAfter.getTime(),
     };
   });
 }

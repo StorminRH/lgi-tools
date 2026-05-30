@@ -19,6 +19,7 @@ const PRICE_COLUMNS = {
   pct5Buy: marketPrices.pct5Buy,
   pct5Sell: marketPrices.pct5Sell,
   updatedAt: marketPrices.updatedAt,
+  staleAfter: marketPrices.staleAfter,
 } as const;
 
 export async function getPrices(
