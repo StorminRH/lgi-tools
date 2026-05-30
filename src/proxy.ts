@@ -1,31 +1,36 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
-// Per-request Content-Security-Policy with a fresh nonce. Next 16 renamed
-// `middleware.ts` to `proxy.ts` and the exported function from `middleware`
-// to `proxy` (runtime is nodejs, not Edge — `crypto.randomUUID()` and
-// `Buffer` work natively, no polyfills required).
+// Per-request Content-Security-Policy. Through 3.0.4.5 this used a fresh
+// per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which
+// forced every route to dynamic rendering. 3.0.4.6 retired the nonce — the
+// conversion-track enabler — for a basic origin-locked policy: scripts and
+// styles load only from our own origin (`'self'`), with `'unsafe-inline'`
+// admitting the inline RSC flight-data scripts that hydration needs.
 //
-// We use the `'strict-dynamic'` directive so Next.js's framework scripts
-// (which carry the nonce) can in turn load Speed Insights' beacon and any
-// other dynamically-injected trusted scripts without explicit allowlisting.
+// Why `'unsafe-inline'` and not a stricter form: every App Router page emits
+// inline `self.__next_f.push(...)` scripts that `'self'` alone can't bless, and
+// the nonce that used to bless them is what we're removing. Subresource
+// Integrity doesn't help — it signs only external script files, never inline
+// content (re-confirmed empirically in 3.0.4.6; see
+// docs/VERSION_3.0.4.3_CSP_DECISION.md). This keeps origin-level XSS protection
+// (no third-party script hosts, no object/base/frame vectors) while dropping the
+// per-request mechanism that fought the stack. The header is still emitted from
+// proxy.ts per request; relocating/caching it is a later conversion-track step.
 //
-// Static security headers (HSTS, X-Frame-Options, etc.) live in
-// next.config.ts so they apply uniformly to API responses too — the CSP
-// is the only header that needs per-request state.
-export function proxy(request: NextRequest): NextResponse {
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+// Static security headers (HSTS, X-Frame-Options, etc.) live in next.config.ts
+// so they apply to API responses too.
+export function proxy(): NextResponse {
   const isDev = process.env.NODE_ENV === "development";
 
-  // Dev mode notes:
-  //   - `'unsafe-eval'` is required because React uses `eval` to reconstruct
-  //     server-side error stacks in the browser during dev.
-  //   - `'unsafe-inline'` on style-src preserves Next.js Fast Refresh / HMR,
-  //     which injects inline <style> tags without nonces. Production sticks
-  //     to a strict `'nonce-…'` for styles.
+  // Dev-only relaxations: `'unsafe-eval'` (React rebuilds server-side error
+  // stacks via eval in dev) and `'unsafe-inline'` on style-src (Fast Refresh /
+  // HMR injects nonce-less inline <style> tags). Production keeps `style-src
+  // 'self'` — styles ship in the external stylesheet — which still drops inline
+  // `style="…"` attributes, so the 3.0.4.4 inline-style lint rule stays correct.
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""};
-    style-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-inline'" : ""};
+    script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
+    style-src 'self'${isDev ? " 'unsafe-inline'" : ""};
     img-src 'self' blob: data: https://images.evetech.net;
     font-src 'self';
     connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com;
@@ -39,21 +44,15 @@ export function proxy(request: NextRequest): NextResponse {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
-  requestHeaders.set("Content-Security-Policy", cspHeader);
-
-  const response = NextResponse.next({
-    request: { headers: requestHeaders },
-  });
+  const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", cspHeader);
   return response;
 }
 
 // Skip API routes (JSON responses don't need CSP), Next.js static + image
 // optimizer paths, the favicon, and prefetch requests. Prefetches re-use the
-// initial document's CSP header, so adding nonces per-prefetch would only
-// burn CPU. Same pattern recommended in the Next 16 CSP guide.
+// initial document's CSP header, so adding it per-prefetch would only burn CPU.
+// Same pattern recommended in the Next 16 CSP guide.
 export const config = {
   matcher: [
     {

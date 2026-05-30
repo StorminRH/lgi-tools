@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
 
 // Static security headers applied to every response (page routes + API
-// routes). The dynamic, per-request `Content-Security-Policy` is set by
-// proxy.ts so that each page gets a unique nonce; everything below is
-// safe to bake in once at config time.
+// routes). The `Content-Security-Policy` itself is set by proxy.ts — a basic
+// origin-locked policy since 3.0.4.6 (no per-request nonce); everything below
+// is safe to bake in once at config time.
 const SECURITY_HEADERS = [
   {
     key: "Strict-Transport-Security",
