@@ -1,16 +1,11 @@
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
-import { HoverPopover } from '@/components/ui/hover-popover';
 import { ResourceRow } from '@/components/ui/row';
 import { SectionFooter } from '@/components/ui/section-footer';
 import { SectionHeader } from '@/components/ui/section-header';
 import { formatIsk, formatPct, formatQuantity } from '@/lib/format';
 import { marginToneClass } from '../industry-styles';
-import type {
-  BlueprintPricing,
-  BlueprintStructure,
-  MaterialCostRow,
-} from '../types';
+import type { BlueprintPricing, BlueprintStructure } from '../types';
 
 // Presentational cost panel, shared by the streamed priced view and its
 // Suspense fallback so the layout is identical the moment the shell paints and
@@ -19,61 +14,23 @@ import type {
 
 const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto_auto]';
 
-// One line of the price-detail popover (the planner's HoverPopover consumer).
-function DetailLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4 py-[2px]">
-      <span className="text-[10px] uppercase tracking-[0.1em] text-muted">{label}</span>
-      <span className="text-[11px] text-isk tabular-nums">{value}</span>
-    </div>
-  );
-}
-
 // name | quantity (muted) | extended ISK cost. One row primitive for both the
-// priced and the skeleton states. When `detail` is present (priced rows), the
-// cost is a HoverPopover trigger showing the per-unit Jita price breakdown —
-// the planner's use of the shared popover primitive.
+// priced and the skeleton states.
 function CostRow({
   name,
   quantity,
   extendedCost,
-  detail,
 }: {
   name: string;
   quantity: number;
   extendedCost: number | null;
-  detail?: MaterialCostRow;
 }) {
-  const cost = formatIsk(extendedCost);
-  const value =
-    detail && detail.unitBuy !== null ? (
-      <HoverPopover
-        placement="bottom-end"
-        label={`${name} Jita prices`}
-        trigger={
-          <span className="underline decoration-dotted decoration-border-soft underline-offset-2">
-            {cost}
-          </span>
-        }
-      >
-        <div className="text-[9px] uppercase tracking-[0.14em] text-muted mb-1.5">
-          {name} · per unit
-        </div>
-        <DetailLine label="Buy" value={formatIsk(detail.unitBuy)} />
-        <DetailLine label="Sell" value={formatIsk(detail.bestSell)} />
-        <DetailLine label="Buy 5%" value={formatIsk(detail.pct5Buy)} />
-        <DetailLine label="Sell 5%" value={formatIsk(detail.pct5Sell)} />
-      </HoverPopover>
-    ) : (
-      cost
-    );
-
   return (
     <ResourceRow
       colsClass={ROW_COLS}
       name={name}
       meta={`× ${formatQuantity(quantity)}`}
-      value={value}
+      value={formatIsk(extendedCost)}
     />
   );
 }
@@ -146,7 +103,6 @@ export function CostPanelView({
               name={row.name}
               quantity={row.quantity}
               extendedCost={row.extendedCost}
-              detail={row}
             />
           ))
         ) : (

@@ -389,10 +389,6 @@ a:hover {
   left: 50%;
   transform: translateX(-50%);
 }
-.hover-popover-panel[data-placement='bottom-end'] {
-  top: calc(100% + 8px);
-  right: 0;
-}
 .hover-popover-panel[data-placement='right'] {
   top: 0;
   left: calc(100% + 14px);

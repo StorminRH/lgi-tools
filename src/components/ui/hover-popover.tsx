@@ -27,22 +27,29 @@ export function HoverPopover({
   className,
   panelClassName,
   triggerClassName,
+  onOpenChange,
 }: {
   trigger: ReactNode;
   children: ReactNode;
-  // 'bottom' centers below; 'bottom-end' right-aligns below (for triggers near
-  // the right edge); 'right' opens to the right.
-  placement?: 'bottom' | 'bottom-end' | 'right';
+  // 'bottom' centers below; 'right' opens to the right.
+  placement?: 'bottom' | 'right';
   // Accessible name for the popover region (it has role="tooltip").
   label?: string;
   className?: string;
   panelClassName?: string;
   triggerClassName?: string;
+  // Notified whenever the open state changes — e.g. so a consumer can run a
+  // live countdown only while the panel is visible.
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panelId = useId();
 
+  const setOpenState = (next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  };
   const cancelClose = () => {
     if (timer.current) {
       clearTimeout(timer.current);
@@ -51,17 +58,17 @@ export function HoverPopover({
   };
   const openNow = () => {
     cancelClose();
-    setOpen(true);
+    setOpenState(true);
   };
   const closeNow = () => {
     cancelClose();
-    setOpen(false);
+    setOpenState(false);
   };
   // Delay close so moving the cursor across the trigger→panel gap (or between
   // the two) doesn't snap it shut — re-entering cancels the pending close.
   const scheduleClose = () => {
     cancelClose();
-    timer.current = setTimeout(() => setOpen(false), 90);
+    timer.current = setTimeout(() => setOpenState(false), 90);
   };
 
   return (
