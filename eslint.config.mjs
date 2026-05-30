@@ -14,7 +14,7 @@ const eslintConfig = defineConfig([
     rules: {
       // EVE images (character portraits, type icons) render via plain <img>,
       // not next/image: next/image injects an inline `style="color:transparent"`
-      // attribute that the production CSP's strict `style-src` (nonce, no
+      // attribute that the production CSP's `style-src 'self'` (no nonce, no
       // unsafe-inline) silently drops. See docs/VERSION_3.0.4.3_CSP_DECISION.md.
       "@next/next/no-img-element": "off",
       "@typescript-eslint/no-unused-vars": [
@@ -119,20 +119,37 @@ const eslintConfig = defineConfig([
     },
   },
 
-  // CSP: the production policy is `style-src 'self' 'nonce-…'`, which covers
-  // inline <style> blocks but NOT `style="…"` attributes — any JSX `style={{}}`
-  // renders as such an attribute and is silently dropped on first paint. Forbid
-  // it; runtime-dynamic values use a CSS class reading a custom property set via
-  // ref.style.setProperty in an effect. See CLAUDE.md > CSP.
+  // CSP: the production policy is `style-src 'self'` (no nonce, no
+  // unsafe-inline), which covers the external stylesheet but NOT inline
+  // `style="…"` attributes — any JSX `style={{}}` renders as such an attribute
+  // and is silently dropped on first paint. Forbid it; runtime-dynamic values
+  // use a CSS class reading a custom property set via ref.style.setProperty in
+  // an effect. The dangerouslySetInnerHTML / raw-innerHTML bans (3.0.4.6) keep
+  // the "no raw-HTML sinks" property that makes `script-src 'self'
+  // 'unsafe-inline'` safe — with inline scripts allowed, an unescaped HTML sink
+  // is an XSS vector. The `.ts`/`.tsx` glob is deliberate: it also catches a
+  // direct `el.innerHTML = …` write in a plain `.ts` helper, not just the JSX
+  // escape hatch. See CLAUDE.md > CSP.
   {
-    files: ["**/*.tsx"],
+    files: ["**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",
         {
           selector: "JSXAttribute[name.name='style']",
           message:
-            "No inline `style` attributes — the production CSP's strict style-src drops them. Use Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones. See CLAUDE.md > CSP.",
+            "No inline `style` attributes — the production CSP's `style-src 'self'` drops them. Use Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones. See CLAUDE.md > CSP.",
+        },
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message:
+            "No `dangerouslySetInnerHTML` — the production CSP allows `'unsafe-inline'` scripts, so an unescaped HTML sink becomes an XSS vector. Render text through JSX (auto-escaped) instead. See CLAUDE.md > CSP.",
+        },
+        {
+          selector:
+            "AssignmentExpression[left.property.name=/^(inner|outer)HTML$/]",
+          message:
+            "No raw `innerHTML`/`outerHTML` writes — same XSS risk as dangerouslySetInnerHTML under the `'unsafe-inline'` CSP. Use safe DOM APIs (textContent, createElement) instead. See CLAUDE.md > CSP.",
         },
       ],
     },

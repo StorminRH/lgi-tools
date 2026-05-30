@@ -60,12 +60,12 @@ export default async function Home({
         </div>
 
         {/* Tailwind arbitrary-value class, not an inline `style` prop —
-         * production CSP is `style-src 'self' 'nonce-...'`, and CSP nonces
-         * cover inline <style> blocks only, NOT `style="..."` attributes.
-         * Inline-style attributes would be blocked, leaving this grid with
-         * no column template (so cards stack like a 1-column small-viewport
-         * view) until client-side hydration / navigation re-applied the
-         * styles via JS. */}
+         * production CSP is `style-src 'self'` (no nonce, no unsafe-inline),
+         * which covers the external stylesheet but NOT `style="..."`
+         * attributes. Inline-style attributes would be blocked, leaving this
+         * grid with no column template (so cards stack like a 1-column
+         * small-viewport view) until client-side hydration / navigation
+         * re-applied the styles via JS. */}
         <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(270px,1fr))]">
           <Link href="/sites" className="tool-tile tool-tile-live no-underline">
             <div className="flex items-start justify-between gap-2">
