@@ -28,6 +28,7 @@ export function HoverPopover({
   panelClassName,
   triggerClassName,
   onOpenChange,
+  interactiveTrigger = false,
 }: {
   trigger: ReactNode;
   children: ReactNode;
@@ -41,6 +42,12 @@ export function HoverPopover({
   // Notified whenever the open state changes — e.g. so a consumer can run a
   // live countdown only while the panel is visible.
   onOpenChange?: (open: boolean) => void;
+  // Set when the `trigger` is already focusable (a button/link/etc.). The
+  // wrapper then drops its own `tabIndex` so keyboard users get one focus stop,
+  // not two; focus still opens the popover via the capture handler. Default
+  // false: non-interactive triggers (the price chips) need the wrapper to be
+  // focusable to be reachable at all.
+  interactiveTrigger?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,7 +91,7 @@ export function HoverPopover({
     >
       <span
         className={cn('hover-popover-trigger', triggerClassName)}
-        tabIndex={0}
+        tabIndex={interactiveTrigger ? undefined : 0}
         aria-describedby={panelId}
       >
         {trigger}
