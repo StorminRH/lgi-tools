@@ -42,8 +42,8 @@ describe('TreeResolver — synthetic walker', () => {
     const resolver = new TreeResolver(buildSyntheticIndexes());
     const flat = resolver.flatForOneRun(100);
     expect(Object.fromEntries(flat)).toEqual({
-      99: BigInt(1000), // 10 runs of B × 100 minerals each
-      3: BigInt(5), // direct leaf
+      99: 1000, // 10 of B (made 1/run) × 100 minerals each
+      3: 5, // direct leaf
     });
   });
 
@@ -55,7 +55,7 @@ describe('TreeResolver — synthetic walker', () => {
     // Walk A (100) which descends into B — should hit memo for B.
     resolver.flatForOneRun(100);
     const after = resolver.stats().memoHits;
-    expect(first.get(99)).toBe(BigInt(100));
+    expect(first.get(99)).toBe(100);
     expect(after).toBeGreaterThan(before);
   });
 
@@ -87,10 +87,11 @@ describe('TreeResolver — synthetic walker', () => {
     expect(stats.cycleWarnings[0]).toMatch(/cycle at blueprint/);
   });
 
-  it('applies ceil division when child output > 1 per run', () => {
-    // Parent needs 25 of type X. Producing blueprint outputs 10 per run.
-    // ceil(25/10) = 3 runs. Each run consumes 7 of a leaf mineral.
-    // Expected: 21 of the leaf.
+  it('charges the fractional run share when child output > 1 per run', () => {
+    // Parent needs 25 of type X. Producing blueprint outputs 10 per run, so the
+    // parent consumes 25/10 = 2.5 runs' worth — NOT a rounded-up 3 runs. Each
+    // run consumes 7 of a leaf mineral. Expected: 2.5 × 7 = 17.5 (the marginal
+    // share; whole-run rounding here is the bug that overstated deep builds).
     const blueprintMaterials = new Map<
       number,
       { typeId: number; quantity: number }[]
@@ -105,7 +106,7 @@ describe('TreeResolver — synthetic walker', () => {
 
     const resolver = new TreeResolver({ blueprintMaterials, productToBlueprint });
     const flat = resolver.flatForOneRun(700);
-    expect(flat.get(1000)).toBe(BigInt(21));
+    expect(flat.get(1000)).toBe(17.5);
   });
 
   it('builds nested tree shape with producedBy on non-leaves', () => {
@@ -133,7 +134,7 @@ describe('TreeResolver — reference-blueprint fixture is well-formed', () => {
   // in the spike (scripts/spike-tree-resolver.ts) which is run on
   // demand and gated against this same fixture file via
   // scripts/spike-known-good.json.
-  const blueprints = ['Rifter', 'Drake', 'Archon'] as const;
+  const blueprints = ['Rifter', 'Drake', 'Archon', 'Legion'] as const;
 
   for (const name of blueprints) {
     it(`${name}: fixture entry is present and well-shaped`, () => {
@@ -171,10 +172,28 @@ describe('TreeResolver — reference-blueprint fixture is well-formed', () => {
       materials: Record<string, number>;
     };
     expect(Object.keys(archon.materials).length).toBe(76);
-    // Sanity check the mineral totals — Archon at ME 0 needs
-    // multi-million Tritanium/Pyerite from the recursive walk.
-    expect(archon.materials['34']).toBeGreaterThan(4_000_000);
+    // Sanity check the mineral totals — Archon at ME 0 still needs
+    // multi-million Tritanium/Pyerite from the recursive walk (marginal basis).
+    expect(archon.materials['34']).toBeGreaterThan(3_000_000);
     expect(archon.materials['35']).toBeGreaterThan(12_000_000);
+  });
+
+  it('Legion (T3) flattens on the marginal basis, not whole-run overbuild', () => {
+    // The case that exposed the bug. Under the old whole-run rounding, batch
+    // reactions ballooned the raw gas — e.g. Fullerite-C50 (30370) was 33,400.
+    // On the marginal basis a single Legion consumes only ~825, so this guards
+    // against ceilDiv (or any whole-run rounding) creeping back in.
+    const legion = (flatMaterialsFixture as Record<string, unknown>).Legion as {
+      blueprintTypeId: number;
+      materials: Record<string, number>;
+    };
+    expect(legion.blueprintTypeId).toBe(29987);
+    expect(Object.keys(legion.materials).length).toBe(43);
+    expect(legion.materials['30370']).toBeLessThan(2_000); // not the ~33k overbuild
+    // Direct Ancient-Salvage leaves are not behind a batch, so they are
+    // unchanged by the fix — a fixed point that confirms the basis is marginal,
+    // not a blanket scale-down.
+    expect(legion.materials['30251']).toBe(452); // Neurovisual Input Matrix
   });
 });
 
@@ -206,7 +225,7 @@ describe('TreeResolver — self-referential SDE recipes', () => {
     ];
     const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
     const flat = resolver.flatForOneRun(900);
-    expect(Object.fromEntries(flat)).toEqual({ 34: BigInt(500) });
+    expect(Object.fromEntries(flat)).toEqual({ 34: 500 });
     expect(resolver.stats().cycleWarnings).toHaveLength(0);
   });
 
@@ -224,7 +243,7 @@ describe('TreeResolver — self-referential SDE recipes', () => {
     ];
     const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
     const flat = resolver.flatForOneRun(900);
-    expect(Object.fromEntries(flat)).toEqual({ 34: BigInt(30) }); // 3 runs × 10
+    expect(Object.fromEntries(flat)).toEqual({ 34: 30 }); // 3 of type 70 (1/run) × 10
     expect(resolver.stats().cycleWarnings).toHaveLength(0);
   });
 
@@ -243,7 +262,7 @@ describe('TreeResolver — self-referential SDE recipes', () => {
     ];
     const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
     const flat = resolver.flatForOneRun(901);
-    expect(Object.fromEntries(flat)).toEqual({ 24684: BigInt(7) });
+    expect(Object.fromEntries(flat)).toEqual({ 24684: 7 });
     expect(resolver.stats().cycleWarnings).toHaveLength(0);
   });
 });
