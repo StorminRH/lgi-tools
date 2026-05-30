@@ -17,5 +17,6 @@
  */
 import '@/features/search-recents/search';
 import '@/features/wormhole-sites/search';
+import '@/features/industry-planner/search';
 import '@/data/tools/search';
 import '@/data/commands/search';

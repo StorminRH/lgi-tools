@@ -1,5 +1,12 @@
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 
+// One searchable blueprint: its type ID and the name of the item it builds.
+// Feeds the lazy Blueprints search source.
+export interface BlueprintIndexEntry {
+  blueprintTypeId: number;
+  name: string;
+}
+
 // View-model types for the Industry Planner. The page composes two reads:
 //  - `BlueprintStructure` — deploy-static structure (tree + flat materials +
 //    names), cached `'max'`. Has no price dependency, so it renders in the

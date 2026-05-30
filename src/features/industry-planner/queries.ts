@@ -1,7 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
-import { industryActivityProducts } from '@/db/schema';
+import { eveTypes, industryActivityProducts } from '@/db/schema';
 import { BLUEPRINT_STRUCTURE_TAG, INDUSTRY_ACTIVITY_IDS } from '@/data/eve-data/constants';
 import {
   getBlueprintTree,
@@ -12,7 +12,11 @@ import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getPrices } from '@/data/market-prices/queries';
 import { assemblePricing, type PriceLite } from './build-pricing';
-import type { BlueprintPricing, BlueprintStructure } from './types';
+import type {
+  BlueprintIndexEntry,
+  BlueprintPricing,
+  BlueprintStructure,
+} from './types';
 
 // The industry-planner feature is the composition layer that sits ABOVE the
 // eve-data, market-prices, and industry-math data slices — the one place
@@ -134,4 +138,44 @@ export async function getBlueprintPricing(
       updatedAtMs: p.updatedAt.getTime(),
     };
   });
+}
+
+// Compact search index: one entry per blueprint, labelled by the published
+// item it produces. Cached `'max'` (deploy-static, SDE-tagged). Fetched once by
+// the lazy Blueprints search source on the client's first blueprint keystroke,
+// so the ~5k-entry index never rides the initial bundle. Filtering to published
+// products also drops the degenerate self-recipe junk (those produce
+// unpublished types).
+export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+
+  const rows = await db
+    .select({
+      blueprintTypeId: industryActivityProducts.blueprintTypeId,
+      activityId: industryActivityProducts.activityId,
+      name: eveTypes.name,
+    })
+    .from(industryActivityProducts)
+    .innerJoin(eveTypes, eq(eveTypes.id, industryActivityProducts.productTypeId))
+    .where(
+      and(
+        inArray(industryActivityProducts.activityId, ACTIVITY_IDS),
+        eq(eveTypes.published, true),
+      ),
+    );
+
+  // One entry per blueprint; prefer the manufacturing product (lower activity
+  // id) if a blueprint somehow carries both.
+  const byBlueprint = new Map<number, { name: string; activityId: number }>();
+  for (const r of rows) {
+    const existing = byBlueprint.get(r.blueprintTypeId);
+    if (!existing || r.activityId < existing.activityId) {
+      byBlueprint.set(r.blueprintTypeId, { name: r.name, activityId: r.activityId });
+    }
+  }
+  return [...byBlueprint.entries()]
+    .map(([blueprintTypeId, v]) => ({ blueprintTypeId, name: v.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
