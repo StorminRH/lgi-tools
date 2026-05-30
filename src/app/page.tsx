@@ -1,8 +1,44 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import Link from 'next/link';
+import { JsonLd } from '@/components/JsonLd';
 import { Callout } from '@/components/ui/callout';
 import { Pill } from '@/components/ui/pill';
 import { getFeatureFlags } from '@/config/feature-flags';
+import { SITE_URL } from '@/config/site-url';
+
+export const metadata: Metadata = {
+  title: {
+    absolute: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
+  },
+  description:
+    'Browse all 69 Eve Online wormhole sites by class, type, and ISK value, with live Jita prices on ore and gas resources. Free first-party tools for wormhole pilots.',
+  alternates: { canonical: '/' },
+};
+
+// WebSite + Organization structured data for the homepage — associates the
+// brand, site, and logo for search engines, and anchors future schema by @id.
+const HOME_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: 'Lo-Gang Industries',
+      url: SITE_URL,
+      logo: `${SITE_URL}/logo.png`,
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      name: 'LGI.tools',
+      url: SITE_URL,
+      description:
+        'First-party Eve Online tools for wormhole pilots — a searchable database of wormhole sites with live Jita loot prices.',
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+  ],
+};
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   state_mismatch:
@@ -44,6 +80,7 @@ export default function Home({
 
   return (
     <div className="flex flex-col items-center">
+      <JsonLd data={HOME_JSON_LD} />
       <Suspense fallback={null}>
         <AuthErrorNotice searchParams={searchParams} />
       </Suspense>

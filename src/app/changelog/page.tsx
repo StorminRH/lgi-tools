@@ -9,6 +9,7 @@ import { parseChangelog } from '@/features/changelog/parse';
 export const metadata = {
   title: 'Changelog',
   description: 'User-facing changes to LGI.tools, grouped by ship date.',
+  alternates: { canonical: '/changelog' },
 };
 
 // The changelog only changes on deploy, so cache the file read + parse and let
