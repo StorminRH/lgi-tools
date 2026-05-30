@@ -31,13 +31,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     fetch('/api/auth/me', { cache: 'no-store' })
-      .then((res) => res.json() as Promise<{ session: Session | null; isAdmin: boolean }>)
+      .then((res) => {
+        if (!res.ok) throw new Error(`/api/auth/me returned ${res.status}`);
+        return res.json() as Promise<{ session: Session | null; isAdmin: boolean }>;
+      })
       .then((data) => {
         if (cancelled) return;
         setState({ session: data.session, isAdmin: data.isAdmin, loading: false });
       })
       .catch(() => {
-        // Network/parse failure → treat the viewer as logged out, stop loading.
+        // Network/HTTP/parse failure → treat the viewer as logged out, stop loading.
         if (cancelled) return;
         setState({ session: null, isAdmin: false, loading: false });
       });
