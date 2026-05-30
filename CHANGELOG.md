@@ -7,6 +7,7 @@ for the full forensic record.
 ### 2026-05-30
 
 - The Industry Planner is live: search any blueprint and open it to see its full material tree next to a live Jita build cost and profit margin. The tree renders instantly while prices stream in beside it and refresh on demand, so the cost breakdown is never blank while it loads.
+- The wormhole sites page now shows its title, search box, and filters right away while the site list loads in, instead of holding the whole page behind a "Loading sites…" message until everything is ready.
 
 ### 2026-05-29
 
