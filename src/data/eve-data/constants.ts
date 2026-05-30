@@ -31,3 +31,13 @@ export const ADVISORY_LOCK_SDE_INGEST = BigInt(8273619013);
 // `eve_data_meta` keys. Plain k/v table — see schema.ts.
 export const SDE_META_KEY_VERSION = 'sde_version';
 export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
+
+// Revalidation tag for cached blueprint *structure* reads (the Industry
+// Planner's `'use cache'` tree + flat-materials view, and the blueprint search
+// index). `cacheLife('max')` already drops these on deploy, which covers the
+// deploy-time SDE ingest; the weekly drift cron re-ingests WITHOUT a deploy, so
+// it busts this tag after re-running the tree resolver to keep warm structure
+// reads honest. Lives in eve-data (not the feature) so the SDE pipeline — which
+// is not governed by the feature/data import boundaries — can revalidate it
+// without a data → feature edge.
+export const BLUEPRINT_STRUCTURE_TAG = 'blueprint-structure';
