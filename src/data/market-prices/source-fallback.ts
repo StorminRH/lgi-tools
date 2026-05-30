@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import type { RawMarketPrice } from './types';
 
 // Fuzzwork fallback path. Retained as a circuit-breaker target for the ESI
@@ -18,27 +20,32 @@ const REGION_ID = 10000002;
 // even at 6-digit type IDs — well under the 2KB safe-URL threshold.
 const MAX_BATCH = 150;
 
-// Fuzzwork's aggregates response shape. Numbers come back as
-// stringified decimals; we coerce in `parseSide`.
+// Fuzzwork's aggregates response shape. Numbers come back as stringified
+// decimals; we coerce in `parseVolume`/`normalize`. Boundary schema: the
+// documented per-side fields are all required strings, keyed by type ID.
 // Exported for testing.
-export interface FuzzworkSide {
-  weightedAverage: string;
-  max: string;
-  min: string;
-  stddev: string;
-  median: string;
-  volume: string;
-  orderCount: string;
-  percentile: string;
-}
+const fuzzworkSideSchema = z.object({
+  weightedAverage: z.string(),
+  max: z.string(),
+  min: z.string(),
+  stddev: z.string(),
+  median: z.string(),
+  volume: z.string(),
+  orderCount: z.string(),
+  percentile: z.string(),
+});
 
 // Exported for testing.
-export interface FuzzworkPair {
-  buy: FuzzworkSide;
-  sell: FuzzworkSide;
-}
+const fuzzworkPairSchema = z.object({
+  buy: fuzzworkSideSchema,
+  sell: fuzzworkSideSchema,
+});
 
-type FuzzworkResponse = Record<string, FuzzworkPair>;
+const fuzzworkResponseSchema = z.record(z.string(), fuzzworkPairSchema);
+
+export type FuzzworkSide = z.infer<typeof fuzzworkSideSchema>;
+export type FuzzworkPair = z.infer<typeof fuzzworkPairSchema>;
+type FuzzworkResponse = z.infer<typeof fuzzworkResponseSchema>;
 
 function dedupe(ids: number[]): number[] {
   return Array.from(new Set(ids));
@@ -100,7 +107,7 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
 
 async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
   const url = `${FUZZWORK_AGGREGATES}?region=${REGION_ID}&types=${typeIds.join(',')}`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: { 'User-Agent': OUTBOUND_USER_AGENT },
   });
   if (!res.ok) {
@@ -108,7 +115,14 @@ async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
       `Fuzzwork aggregates request failed: ${res.status} ${res.statusText}`,
     );
   }
-  const body = (await res.json()) as FuzzworkResponse;
+  // Validate at the boundary. A malformed body throws here the same way an
+  // HTTP error does above — Fuzzwork is the fallback target, so the throw
+  // propagates exactly as a Fuzzwork outage does today.
+  const parsed = fuzzworkResponseSchema.safeParse(await res.json());
+  if (!parsed.success) {
+    throw new Error('Fuzzwork aggregates response failed boundary validation');
+  }
+  const body: FuzzworkResponse = parsed.data;
   const out: RawMarketPrice[] = [];
   for (const id of typeIds) {
     const pair = body[String(id)];

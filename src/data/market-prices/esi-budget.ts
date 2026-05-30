@@ -1,5 +1,6 @@
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { ESI_BUDGET_FLOOR } from './constants';
 
 // Wrapper around `fetch` that enforces ESI's error-limit budget. Every ESI
@@ -30,6 +31,16 @@ export class EsiServerError extends Error {
   constructor(public readonly status: number) {
     super(`ESI server error: ${status}`);
     this.name = 'EsiServerError';
+  }
+}
+
+// Thrown when an ESI response body fails its boundary schema (a shape change
+// or an unexpected error body). Routed to Fuzzwork the same way an HTTP error
+// is — a malformed body is no more usable than a 5xx.
+export class EsiContractError extends Error {
+  constructor() {
+    super('ESI response failed boundary validation');
+    this.name = 'EsiContractError';
   }
 }
 
@@ -69,7 +80,7 @@ export async function esiFetch(
   // is a single reviewed constant; a per-call override would un-pin it).
   headers.set('X-Compatibility-Date', ESI_COMPATIBILITY_DATE);
 
-  const res = await fetch(url, { ...init, headers });
+  const res = await fetchWithTimeout(url, { ...init, headers });
 
   const remainHeader = res.headers.get('X-ESI-Error-Limit-Remain');
   if (remainHeader !== null) {

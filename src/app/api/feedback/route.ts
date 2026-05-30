@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
 import { APP_VERSION } from '@/config/app-version';
+import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
 
 // Discord's webhook content limit is 2000 chars; embed description is 4096.
@@ -132,9 +134,12 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   let discordResponse: Response;
   try {
-    discordResponse = await fetch(webhookUrl, {
+    discordResponse = await fetchWithTimeout(webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': OUTBOUND_USER_AGENT,
+      },
       body: JSON.stringify({ embeds: [embed] }),
     });
   } catch {

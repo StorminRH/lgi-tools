@@ -186,6 +186,35 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
     expect([...calledWith].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
   });
 
+  it('routes a malformed ESI body to Fuzzwork fallback (per-type path)', async () => {
+    // 200 OK but the body isn't a valid orders array — a shape change or an
+    // unexpected payload. The boundary schema rejects it and the affected
+    // type routes to Fuzzwork, exactly like a transient ESI failure.
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const id = Number(/type_id=(\d+)/.exec(url)![1]);
+      if (id === 77) {
+        return new Response(JSON.stringify({ unexpected: 'shape' }), {
+          status: 200,
+        });
+      }
+      return ordersResponse([
+        { type_id: id, is_buy_order: true, price: 1, volume_remain: 1 },
+        { type_id: id, is_buy_order: false, price: 2, volume_remain: 1 },
+      ]);
+    });
+    vi.mocked(fetchPricesFromFuzzwork).mockResolvedValue([fuzzworkRow(77)]);
+
+    const result = await fetchPricesFromSource([10, 20, 77]);
+
+    expect(result).toHaveLength(3);
+    expect(result.map((r) => r.source).sort()).toEqual([
+      'esi',
+      'esi',
+      'fuzzwork-fallback',
+    ]);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith([77]);
+  });
+
   it('emits a row with null prices for a type that ESI returns no orders for', async () => {
     vi.mocked(esiFetch).mockResolvedValue(ordersResponse([]));
 
@@ -318,6 +347,28 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     // the cancel flag flips. PAGE_CONCURRENCY = 8, so post-throw dispatch
     // is capped at 8 extra items. Pre-fix this assertion would see ~100.
     expect(calls).toBeLessThanOrEqual(20);
+  });
+
+  it('falls back to Fuzzwork when ESI bulk returns a malformed 200 body', async () => {
+    // A non-array 200 body on the bulk path: the boundary schema throws
+    // EsiContractError, which the dispatcher catches and routes to Fuzzwork
+    // for the whole set — same as a 5xx.
+    vi.mocked(esiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: 'nope' }), {
+        status: 200,
+        headers: { 'X-Pages': '1' },
+      }),
+    );
+    vi.mocked(fetchPricesFromFuzzwork).mockImplementation(async (ids) =>
+      ids.map(fuzzworkRow),
+    );
+
+    const ids = bulkTypeIds();
+    const result = await fetchPricesFromSource(ids);
+
+    expect(result).toHaveLength(ids.length);
+    expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
+    expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith(ids);
   });
 
   it('falls back to Fuzzwork when ESI bulk returns a 4xx (non-array body)', async () => {

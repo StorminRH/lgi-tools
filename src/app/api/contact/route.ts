@@ -5,6 +5,7 @@ import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
 import { CONTACT_MESSAGE_MAX_LENGTH } from '@/features/contact/constants';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
 
 // RFC 5321 caps an email address at 254 chars.
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   let mailResponse: Response;
   try {
-    mailResponse = await fetch(RESEND_ENDPOINT, {
+    mailResponse = await fetchWithTimeout(RESEND_ENDPOINT, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,

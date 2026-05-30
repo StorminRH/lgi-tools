@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   BULK_THRESHOLD,
   ESI_BASE_URL,
@@ -7,6 +8,7 @@ import {
 } from './constants';
 import {
   EsiBudgetExhaustedError,
+  EsiContractError,
   EsiServerError,
   esiFetch,
 } from './esi-budget';
@@ -20,12 +22,25 @@ import type { RawMarketPrice } from './types';
 // contract so the next cron tick gets a fresh attempt.
 
 // ESI's /markets/{region}/orders/ response item shape — only the fields
-// we actually use.
-interface EsiOrder {
-  type_id: number;
-  is_buy_order: boolean;
-  price: number;
-  volume_remain: number;
+// we actually use. Boundary schema: ESI sends more keys; z.object ignores
+// the unknown ones, so an upstream addition can't break parsing, but a
+// changed/missing consumed field rejects the body at the boundary.
+const esiOrderSchema = z.object({
+  type_id: z.number(),
+  is_buy_order: z.boolean(),
+  price: z.number(),
+  volume_remain: z.number(),
+});
+const esiOrdersSchema = z.array(esiOrderSchema);
+
+type EsiOrder = z.infer<typeof esiOrderSchema>;
+
+// Validate a parsed-JSON ESI orders body, throwing EsiContractError on a
+// shape mismatch so callers route to Fuzzwork exactly as they do for a 5xx.
+function parseEsiOrders(body: unknown): EsiOrder[] {
+  const result = esiOrdersSchema.safeParse(body);
+  if (!result.success) throw new EsiContractError();
+  return result.data;
 }
 
 interface OrderEntry {
@@ -214,7 +229,7 @@ async function fetchViaEsiRegionDump(
   const firstRes = await esiFetch(regionDumpPageUrl(1));
   if (!firstRes.ok) throw new EsiServerError(firstRes.status);
   const totalPages = Number(firstRes.headers.get('X-Pages') ?? '1');
-  const firstOrders = (await firstRes.json()) as EsiOrder[];
+  const firstOrders = parseEsiOrders(await firstRes.json());
   absorbOrders(firstOrders, wanted, buckets);
 
   if (totalPages > 1) {
@@ -223,7 +238,7 @@ async function fetchViaEsiRegionDump(
     await runConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
       const res = await esiFetch(regionDumpPageUrl(page));
       if (!res.ok) throw new EsiServerError(res.status);
-      const orders = (await res.json()) as EsiOrder[];
+      const orders = parseEsiOrders(await res.json());
       absorbOrders(orders, wanted, buckets);
     });
   }
@@ -255,7 +270,7 @@ async function fetchViaEsiPerType(
         fallbackNeeded.push(typeId);
         return;
       }
-      const orders = (await res.json()) as EsiOrder[];
+      const orders = parseEsiOrders(await res.json());
       const buckets = new Map<number, OrderBucket>();
       absorbOrders(orders, new Set([typeId]), buckets);
       results.push(...bucketsToRawPrices([typeId], buckets));
@@ -265,7 +280,8 @@ async function fetchViaEsiPerType(
         fallbackNeeded.push(typeId);
         return;
       }
-      // EsiServerError or any other transient — route to Fuzzwork.
+      // EsiServerError, EsiContractError (malformed body), or any other
+      // transient — route to Fuzzwork.
       fallbackNeeded.push(typeId);
     }
   });
@@ -300,7 +316,8 @@ export async function fetchPricesFromSource(
     } catch (err) {
       if (
         err instanceof EsiBudgetExhaustedError ||
-        err instanceof EsiServerError
+        err instanceof EsiServerError ||
+        err instanceof EsiContractError
       ) {
         return fallbackToFuzzwork(unique);
       }

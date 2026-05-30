@@ -1,8 +1,10 @@
 // Pure EVE SSO helpers. Zero DB imports, zero `next/headers` imports.
 // HTTP + JWT verification + claim parsing only.
 
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, customFetch, jwtVerify } from 'jose';
+import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import type { EveJwtClaims, EveTokenResponse } from './types';
 
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
@@ -14,12 +16,31 @@ export const EVE_AUDIENCE = 'EVE Online';
 // Extending scopes is a config change, not a code change.
 export const EVE_SCOPES = ['publicData'] as const;
 
+// Boundary schema for the token-exchange envelope. The JWT *claims* are
+// cryptographically verified by jose; this wrapping envelope is not, so it
+// gets a boundary check. `access_token` is the only field we consume — it is
+// required and non-empty; the rest are present-but-lenient so a discarded
+// field changing shape can't fail an otherwise-valid login.
+const eveTokenResponseSchema = z.object({
+  access_token: z.string().min(1),
+  token_type: z.string().optional(),
+  expires_in: z.number().optional(),
+  refresh_token: z.string().optional(),
+});
+
 // EVE's JWKS rotates rarely; `jose` caches the remote set per process.
+// jose v6 has no `timeoutDuration` option and the bare `{ headers }` arg is
+// legacy — the `[customFetch]` symbol is the supported extensibility hook, so
+// the timeout and the outbound identity header live together at this one site.
 let jwksCache: ReturnType<typeof createRemoteJWKSet> | undefined;
 function jwks() {
   if (!jwksCache) {
     jwksCache = createRemoteJWKSet(new URL(EVE_JWKS_URL), {
-      headers: { 'User-Agent': OUTBOUND_USER_AGENT },
+      [customFetch]: (input, init) => {
+        const headers = new Headers(init?.headers);
+        headers.set('User-Agent', OUTBOUND_USER_AGENT);
+        return fetchWithTimeout(input, { ...init, headers });
+      },
     });
   }
   return jwksCache;
@@ -71,7 +92,7 @@ export async function exchangeCodeForToken({
 
   const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-  const res = await fetch(EVE_TOKEN_URL, {
+  const res = await fetchWithTimeout(EVE_TOKEN_URL, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${basic}`,
@@ -87,7 +108,14 @@ export async function exchangeCodeForToken({
     throw new Error(`EVE token exchange failed (${res.status}): ${text}`);
   }
 
-  return (await res.json()) as EveTokenResponse;
+  // Validate the envelope at the boundary. A malformed body throws here the
+  // same way an HTTP error does above; the callback turns that into a
+  // token_exchange_failed auth-error redirect.
+  const parsed = eveTokenResponseSchema.safeParse(await res.json());
+  if (!parsed.success) {
+    throw new Error('EVE token response failed boundary validation');
+  }
+  return parsed.data as EveTokenResponse;
 }
 
 export async function verifyEveJwt(accessToken: string): Promise<EveJwtClaims> {
