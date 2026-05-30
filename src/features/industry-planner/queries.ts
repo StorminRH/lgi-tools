@@ -11,16 +11,8 @@ import {
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getPrices } from '@/data/market-prices/queries';
-import {
-  computeBuildCost,
-  computeMargin,
-  type PriceOf,
-} from '@/data/industry-math/profitability';
-import type {
-  BlueprintPricing,
-  BlueprintStructure,
-  MaterialCostRow,
-} from './types';
+import { assemblePricing, type PriceLite } from './build-pricing';
+import type { BlueprintPricing, BlueprintStructure } from './types';
 
 // The industry-planner feature is the composition layer that sits ABOVE the
 // eve-data, market-prices, and industry-math data slices — the one place
@@ -129,51 +121,17 @@ export async function getBlueprintPricing(
   ]);
   const priceMap = await getPrices(priceIds); // single WHERE type_id IN (...)
 
-  const priceOf: PriceOf = (typeId) => {
+  // Same assembler the client uses after an on-demand refresh, so the streamed
+  // figure and the refreshed figure are computed identically.
+  return assemblePricing(structure, (typeId): PriceLite | undefined => {
     const p = priceMap.get(typeId);
-    return p ? { bestBuy: p.bestBuy, bestSell: p.bestSell } : undefined;
-  };
-
-  const buildCost = computeBuildCost(structure.flatMaterials, priceOf);
-  const productPrice = priceMap.get(structure.product.typeId);
-  const margin = computeMargin({
-    buildCost: buildCost.total,
-    productSell: productPrice?.bestSell ?? null,
-    productQty: structure.product.quantityPerRun,
-  });
-
-  const rows: MaterialCostRow[] = buildCost.perMaterial.map((c) => {
-    const p = priceMap.get(c.typeId);
+    if (!p) return undefined;
     return {
-      typeId: c.typeId,
-      name: structure.materialNames[c.typeId] ?? `Type ${c.typeId}`,
-      quantity: c.quantity,
-      unitBuy: c.unitBuy,
-      extendedCost: c.extendedCost,
-      bestSell: p?.bestSell ?? null,
-      pct5Buy: p?.pct5Buy ?? null,
-      pct5Sell: p?.pct5Sell ?? null,
-      updatedAtMs: p ? p.updatedAt.getTime() : null,
+      bestBuy: p.bestBuy,
+      bestSell: p.bestSell,
+      pct5Buy: p.pct5Buy,
+      pct5Sell: p.pct5Sell,
+      updatedAtMs: p.updatedAt.getTime(),
     };
   });
-
-  return {
-    rows,
-    product: {
-      typeId: structure.product.typeId,
-      name: structure.product.name,
-      quantityPerRun: structure.product.quantityPerRun,
-      bestSell: productPrice?.bestSell ?? null,
-      updatedAtMs: productPrice ? productPrice.updatedAt.getTime() : null,
-    },
-    summary: {
-      inputCost: buildCost.total,
-      revenue: margin.revenue,
-      margin: margin.margin,
-      marginPct: margin.marginPct,
-      incomplete:
-        buildCost.missingTypeIds.length > 0 ||
-        (productPrice?.bestSell ?? null) === null,
-    },
-  };
 }

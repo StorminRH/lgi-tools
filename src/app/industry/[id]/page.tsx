@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { Pill } from '@/components/ui/pill';
 import { SITE_URL } from '@/config/site-url';
+import { CostPanel } from '@/features/industry-planner/components/CostPanel';
 import { CostPanelView } from '@/features/industry-planner/components/CostPanelView';
 import { MaterialTree } from '@/features/industry-planner/components/MaterialTree';
 import { activityLabel } from '@/features/industry-planner/industry-styles';
@@ -61,7 +62,8 @@ async function PricedCostPanel({
   structure: BlueprintStructure;
 }) {
   const pricing = await getBlueprintPricing(blueprintId);
-  return <CostPanelView pricing={pricing} structure={structure} />;
+  if (!pricing) return <CostPanelView pricing={null} structure={structure} />;
+  return <CostPanel initialPricing={pricing} structure={structure} />;
 }
 
 // All page content depends on the [id] param. With no generateStaticParams,

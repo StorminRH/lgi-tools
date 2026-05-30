@@ -81,9 +81,12 @@ function Summary({ pricing }: { pricing: BlueprintPricing | null }) {
 export function CostPanelView({
   pricing,
   structure,
+  refreshing = false,
 }: {
   pricing: BlueprintPricing | null;
   structure: BlueprintStructure;
+  // True while the client is fetching fresh prices for stale/missing rows.
+  refreshing?: boolean;
 }) {
   const hasMaterials =
     pricing !== null ? pricing.rows.length > 0 : structure.flatMaterials.length > 0;
@@ -91,7 +94,7 @@ export function CostPanelView({
   return (
     <Card>
       <Summary pricing={pricing} />
-      <SectionHeader label="Raw Materials" hint="Jita buy" />
+      <SectionHeader label="Raw Materials" hint={refreshing ? 'Jita buy · updating…' : 'Jita buy'} />
       {hasMaterials ? (
         pricing !== null ? (
           pricing.rows.map((row) => (
