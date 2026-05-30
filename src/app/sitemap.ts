@@ -1,19 +1,16 @@
 import type { MetadataRoute } from 'next';
+import { cacheLife } from 'next/cache';
 import { SITE_URL } from '@/config/site-url';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
-// Rendered on each request, not at build time. Next.js otherwise tries
-// to statically generate metadata routes (sitemap.xml, robots.txt) during
-// `next build`, which fails locally without DATABASE_URL — same constraint
-// that drove the lazy DB client. Catalogue size is 69 rows; on-demand
-// rendering is the right call regardless.
-export const dynamic = 'force-dynamic';
-
-// Sitemap is regenerated on each request. The catalogue read is 69 rows
-// with no joins via getSiteSearchIndex(); cheap enough that we don't need
-// a separate cache layer. Google Search Console re-crawls weekly so the
-// on-demand cost is negligible.
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+// The catalogue (69 rows) only changes on deploy, so the sitemap is cached into
+// the prerendered shell and the build ID invalidates it on each deploy — no
+// per-request work. `use cache` can't sit directly on the route export, so the
+// body lives in this helper; `new Date()` is captured inside the cache scope
+// (the build/revalidation time), which `use cache` permits.
+async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
+  'use cache';
+  cacheLife('max');
   const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -32,4 +29,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   return [...staticRoutes, ...siteRoutes];
+}
+
+export default function sitemap(): Promise<MetadataRoute.Sitemap> {
+  return buildSitemap();
 }

@@ -1,4 +1,6 @@
-import { refreshStalePrices } from '@/data/market-prices/cache';
+import { revalidateTag } from 'next/cache';
+import { connection } from 'next/server';
+import { PRICES_FRESHNESS_TAG, refreshStalePrices } from '@/data/market-prices/cache';
 import { directClient } from '@/db';
 
 // Vercel-cron endpoint, scheduled in vercel.json. Vercel's cron invoker
@@ -15,6 +17,9 @@ import { directClient } from '@/db';
 // endpoint) so the session-scoped lock actually holds.
 // No user input — bearer-auth only, body and query params ignored.
 export async function GET(req: Request): Promise<Response> {
+  // Cron endpoint: runs per-invocation and writes. Defer to request time so
+  // Cache Components doesn't try to prerender it.
+  await connection();
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return new Response('CRON_SECRET not configured', { status: 500 });
@@ -24,6 +29,13 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   const result = await refreshStalePrices(directClient, { force: true });
+  if (result.status === 'refreshed') {
+    // The header's freshness chip reads a `use cache` snapshot of the latest
+    // price timestamp; this cron is the authoritative hourly refresher, so nudge
+    // that cache to the new value as soon as the write lands (the `'hours'`
+    // cacheLife is the backstop).
+    revalidateTag(PRICES_FRESHNESS_TAG, 'max');
+  }
   return Response.json({
     cached: result.status === 'cached',
     lastUpdatedAt: result.lastUpdatedAt?.toISOString() ?? null,

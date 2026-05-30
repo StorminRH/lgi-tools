@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
@@ -120,7 +121,7 @@ function parseRange(raw: string | string[] | undefined): RangeKey {
   return (RANGES as readonly string[]).includes(raw) ? (raw as RangeKey) : '30d';
 }
 
-export default async function AdminUsagePage({
+async function AdminUsageContent({
   searchParams,
 }: {
   searchParams: Promise<{ range?: string | string[] }>;
@@ -169,7 +170,7 @@ export default async function AdminUsagePage({
   const topEntryPagesMax = topEntryPages.reduce((m, r) => Math.max(m, r.count), 0);
 
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+    <>
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
         <div className="print-only font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-1">
           Usage report — {formatDate(range.from)} to {formatDate(range.to)}
@@ -427,6 +428,28 @@ export default async function AdminUsagePage({
           )}
         </Card>
       </div>
+    </>
+  );
+}
+
+function AdminUsageLoading() {
+  return (
+    <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>
+  );
+}
+
+// Per-user, session-gated telemetry: the whole report is a request-time dynamic
+// hole. Only the page container prerenders.
+export default function AdminUsagePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string | string[] }>;
+}) {
+  return (
+    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
+      <Suspense fallback={<AdminUsageLoading />}>
+        <AdminUsageContent searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }

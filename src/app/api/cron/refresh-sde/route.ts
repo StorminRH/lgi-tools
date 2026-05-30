@@ -5,6 +5,7 @@ import {
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/queries';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
+import { connection } from 'next/server';
 import { directClient } from '@/db';
 import { runSdePipeline, summarizeMarketPricesRowCount } from '@/db/sde-pipeline';
 
@@ -26,6 +27,9 @@ const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
 // No user input — bearer-auth only, no body or query params consumed.
 export async function GET(req: Request): Promise<Response> {
+  // Cron endpoint: runs per-invocation and writes. Defer to request time so
+  // Cache Components doesn't try to prerender it.
+  await connection();
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return new Response('CRON_SECRET not configured', { status: 500 });

@@ -23,7 +23,10 @@ export function PriceFreshness({
     () => (initialLastUpdatedAt ? new Date(initialLastUpdatedAt) : null),
     [initialLastUpdatedAt],
   );
-  const [now, setNow] = useState(() => Date.now());
+  // Starts null so the (now static) prerender of the header never reads the wall
+  // clock — Cache Components forbids `Date.now()` in a prerendered Client
+  // Component. The mount effect below fills it in on the client.
+  const [now, setNow] = useState<number | null>(null);
   const hasRefreshedRef = useRef(false);
 
   useEffect(() => {
@@ -32,12 +35,21 @@ export function PriceFreshness({
   }, [initialLastUpdatedAt]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
+    // Client-only: initialise and tick after hydration. The clock is read in these
+    // timer callbacks, never during render, so the static prerender of the header
+    // never touches the wall clock. The initial read is a 0ms timer (not a direct
+    // call) to keep setState out of the synchronous effect body.
+    const tick = () => setNow(Date.now());
+    const initial = setTimeout(tick, 0);
+    const id = setInterval(tick, 60_000);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
-    if (lastUpdatedAt == null || hasRefreshedRef.current) return;
+    if (lastUpdatedAt == null || now == null || hasRefreshedRef.current) return;
     const msUntilNext = lastUpdatedAt.getTime() + STALE_AFTER_TTL_MS - now;
     if (msUntilNext <= 0) {
       hasRefreshedRef.current = true;
@@ -61,8 +73,9 @@ export function PriceFreshness({
     );
   }
 
-  const msUntilNext = lastUpdatedAt.getTime() + STALE_AFTER_TTL_MS - now;
-  const msSinceLast = Math.max(0, now - lastUpdatedAt.getTime());
+  const msUntilNext =
+    now == null ? null : lastUpdatedAt.getTime() + STALE_AFTER_TTL_MS - now;
+  const msSinceLast = now == null ? null : Math.max(0, now - lastUpdatedAt.getTime());
 
   return (
     <span className="price-chip flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
@@ -70,9 +83,11 @@ export function PriceFreshness({
       prices live
       <span className="price-chip-popover" aria-hidden>
         <span className="price-chip-popover-label">Next refresh</span>
-        <span className="price-chip-popover-value">{formatCountdown(msUntilNext)}</span>
+        <span className="price-chip-popover-value">
+          {msUntilNext == null ? '—' : formatCountdown(msUntilNext)}
+        </span>
         <span className="price-chip-popover-footer">
-          Updated {formatCountdown(msSinceLast)} ago
+          Updated {msSinceLast == null ? '—' : formatCountdown(msSinceLast)} ago
         </span>
       </span>
     </span>

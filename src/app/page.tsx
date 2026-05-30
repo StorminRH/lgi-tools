@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { Callout } from '@/components/ui/callout';
 import { Pill } from '@/components/ui/pill';
@@ -14,7 +15,10 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     'The admin dashboard is only available to authorized characters.',
 };
 
-export default async function Home({
+// The only per-request input on this page is the transient `auth_error` query
+// param from a failed OAuth redirect. Isolating it in a Suspense hole lets the
+// hero and tool tiles prerender into the static shell.
+async function AuthErrorNotice({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -23,16 +27,26 @@ export default async function Home({
   const rawError = params.auth_error;
   const errorKey =
     typeof rawError === 'string' && rawError in AUTH_ERROR_MESSAGES ? rawError : null;
+  if (!errorKey) return null;
+  return (
+    <div className="w-full max-w-[640px] px-6 pt-8">
+      <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
+    </div>
+  );
+}
 
+export default function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const flags = getFeatureFlags();
 
   return (
     <div className="flex flex-col items-center">
-      {errorKey && (
-        <div className="w-full max-w-[640px] px-6 pt-8">
-          <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
-        </div>
-      )}
+      <Suspense fallback={null}>
+        <AuthErrorNotice searchParams={searchParams} />
+      </Suspense>
 
       <div className="home-hero-bg w-full flex flex-col items-center">
         <header className="flex flex-col items-center text-center gap-5 max-w-[680px] px-6 pt-20 pb-16">

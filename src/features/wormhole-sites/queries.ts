@@ -1,4 +1,5 @@
 import { and, eq, inArray } from 'drizzle-orm';
+import { cacheLife } from 'next/cache';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from '@/db/schema';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
@@ -314,6 +315,11 @@ export type SiteSearchEntry = {
 };
 
 export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
+  // The wormhole catalogue is deploy-static (seeded once by migration, untouched
+  // by either cron), so cache it into the prerender shell and let the build ID
+  // invalidate it on deploy. Consumed by AppHeader and the sitemap.
+  'use cache';
+  cacheLife('max');
   return db
     .select({
       id: sites.id,

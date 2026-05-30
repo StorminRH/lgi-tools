@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { AppHeaderShell } from '@/components/AppHeaderShell';
-import { getPricesFreshness } from '@/data/market-prices/cache';
-import { db } from '@/db';
+import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
 // Note: the search-source side-effect registration (`register-all`) is done
@@ -20,7 +19,7 @@ import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 export async function AppHeader() {
   const [siteIndex, { lastUpdatedAt }] = await Promise.all([
     getSiteSearchIndex(),
-    getPricesFreshness(db),
+    getCachedPricesFreshness(),
   ]);
 
   return (
