@@ -6,6 +6,10 @@ for the full forensic record.
 
 ### 2026-05-30
 
+- The Industry Planner's build cost is now correct for deep, multi-tier builds like Tech III cruisers. It had been overcounting by building each intermediate in whole production runs — pulling an entire reaction batch to use a fraction of it — which inflated the total several times over. A Legion hull now comes out around 180M ISK instead of 650M.
+- The planner's material breakdown is now a build plan: each thing you manufacture is listed once at the total amount the whole build needs, grouped by construction step — reactions, advanced components, fuel, then the final hull — with a colour for each. Tap any step to expand exactly what it is made from, so a reaction's gas and fuel blocks sit underneath it.
+- Raw materials in the planner are grouped by source — minerals, ice, gas, moon materials, salvage, and planetary — each with its own running subtotal.
+- The pop-up resource preview that appeared when hovering an ore or gas site card has been removed; the same resource breakdown is still available by expanding the card.
 - The Industry Planner is live: search any blueprint and open it to see its full material tree next to a live Jita build cost and profit margin. The tree renders instantly while prices stream in beside it and refresh on demand, so the cost breakdown is never blank while it loads.
 - The wormhole sites page now shows its title, search box, and filters right away while the site list loads in, instead of holding the whole page behind a "Loading sites…" message until everything is ready.
 
