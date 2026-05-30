@@ -3,7 +3,7 @@
 // reusable primitives stay domain-agnostic; this file picks tones/labels from
 // the shared vocabulary (CLAUDE.md > Architecture Invariants).
 
-import { toneTextClass } from '@/components/ui/tones';
+import { toneTextClass, type Tone } from '@/components/ui/tones';
 
 // Below this percentage a positive margin is "thin" (orange) rather than
 // healthy (green). A rough cut for at-a-glance scanning, not a trading signal.
@@ -27,4 +27,95 @@ export const ACTIVITY_LABEL: Record<number, string> = {
 
 export function activityLabel(activityId: number): string {
   return ACTIVITY_LABEL[activityId] ?? 'Industry';
+}
+
+// A material/build category: a display label, a palette tone, and a sort order.
+// Categories are keyed off the SDE *group* (not the broader category), because
+// group is what distinguishes e.g. a manufactured Fuel Block from a reaction
+// output — both sit under the `Material` SDE category. Adding/retuning a
+// category is a config edit here; nothing else changes.
+export interface Category {
+  label: string;
+  tone: Tone;
+  order: number;
+}
+
+// --- Buildables (the build tree — things you make) ---------------------
+// Classified by production type. Reactions first (purple), then manufactured
+// components (blue), the fuel those reactions burn (yellow), and the end
+// product (teal) — mirroring how a builder sequences the job.
+const REACTIONS: Category = { label: 'Reactions', tone: 'purple', order: 1 };
+const COMPONENTS: Category = { label: 'Components', tone: 'blue', order: 2 };
+const FUEL: Category = { label: 'Fuel & Consumables', tone: 'yellow', order: 3 };
+const FINAL_PRODUCT: Category = { label: 'Final Product', tone: 'teal', order: 4 };
+
+const BUILD_BY_GROUP: Record<string, Category> = {
+  'Hybrid Polymers': REACTIONS,
+  Composite: REACTIONS,
+  'Biochemical Material': REACTIONS,
+  'Intermediate Materials': REACTIONS,
+  'Molecular-Forged Materials': REACTIONS,
+  'Fuel Block': FUEL,
+  'Construction Components': COMPONENTS,
+  'Capital Construction Components': COMPONENTS,
+  'Advanced Capital Construction Components': COMPONENTS,
+  'Hybrid Tech Components': COMPONENTS,
+  'Structure Components': COMPONENTS,
+  Tool: COMPONENTS,
+};
+
+// A buildable's category. Anything not in the table — ships, modules, charges,
+// drones, subsystems, … — is the thing the blueprint ultimately makes.
+export function classifyBuildable(groupName: string): Category {
+  return BUILD_BY_GROUP[groupName] ?? FINAL_PRODUCT;
+}
+
+// --- Raw materials (the cost panel — things you buy/gather) ------------
+const MINERALS: Category = { label: 'Minerals', tone: 'neutral', order: 21 };
+const ICE: Category = { label: 'Ice Products', tone: 'blue', order: 22 };
+const GAS: Category = { label: 'Gas', tone: 'teal', order: 23 };
+const MOON: Category = { label: 'Moon Materials', tone: 'magenta', order: 24 };
+const SALVAGE: Category = { label: 'Salvage', tone: 'yellow', order: 25 };
+const PLANETARY: Category = { label: 'Planetary', tone: 'orange-soft', order: 26 };
+const OTHER_MATERIAL: Category = { label: 'Other Materials', tone: 'neutral', order: 29 };
+
+const RAW_BY_GROUP: Record<string, Category> = {
+  Mineral: MINERALS,
+  'Ice Product': ICE,
+  'Harvestable Cloud': GAS,
+  'Moon Materials': MOON,
+  'Ancient Salvage': SALVAGE,
+  'Salvaged Materials': SALVAGE,
+  'Named Components': SALVAGE,
+  'Rogue Drone Components': SALVAGE,
+  'Abyssal Materials': SALVAGE,
+};
+
+export function classifyRaw(groupName: string, categoryName: string): Category {
+  return (
+    RAW_BY_GROUP[groupName] ??
+    (categoryName === 'Planetary Commodities' ? PLANETARY : OTHER_MATERIAL)
+  );
+}
+
+// Tailwind bg classes for a small category marker dot. Literal strings (not
+// interpolated) so the JIT keeps them; CSP-safe (no inline style). Keyed by
+// tone so every category resolves through its `Category.tone`.
+const DOT_CLASS: Record<Tone, string> = {
+  neutral: 'bg-[#6a7a8a]',
+  green: 'bg-[#3dd68c]',
+  'green-strong': 'bg-[#44dd99]',
+  orange: 'bg-[#d68c3d]',
+  'orange-soft': 'bg-[#cc7733]',
+  red: 'bg-[#dd4444]',
+  'red-soft': 'bg-[#cc5555]',
+  magenta: 'bg-[#cc55cc]',
+  purple: 'bg-[#aa55ff]',
+  yellow: 'bg-[#ccaa33]',
+  teal: 'bg-[#33cc88]',
+  blue: 'bg-[#3399cc]',
+};
+
+export function toneDotClass(tone: Tone): string {
+  return DOT_CLASS[tone];
 }

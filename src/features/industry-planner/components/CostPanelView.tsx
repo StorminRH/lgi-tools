@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { Pill } from '@/components/ui/pill';
 import { ResourceRow } from '@/components/ui/row';
 import { SectionFooter } from '@/components/ui/section-footer';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -13,6 +14,10 @@ import type { BlueprintPricing, BlueprintStructure } from '../types';
 // come from the (already-known) structure with "—" placeholders.
 
 const ROW_COLS = 'grid-cols-[minmax(0,1fr)_auto_auto]';
+
+// One priced (or skeleton) ledger line, independent of whether prices have
+// streamed in yet.
+type LedgerRow = { typeId: number; name: string; quantity: number; extendedCost: number | null };
 
 // name | quantity (muted) | extended ISK cost. One row primitive for both the
 // priced and the skeleton states.
@@ -88,33 +93,60 @@ export function CostPanelView({
   // True while the client is fetching fresh prices for stale/missing rows.
   refreshing?: boolean;
 }) {
-  const hasMaterials =
-    pricing !== null ? pricing.rows.length > 0 : structure.flatMaterials.length > 0;
+  // Unify the priced and skeleton states into one ledger shape, then bucket by
+  // source category so the panel renders ordered sections with subtotals.
+  const rows: LedgerRow[] =
+    pricing !== null
+      ? pricing.rows.map((r) => ({
+          typeId: r.typeId,
+          name: r.name,
+          quantity: r.quantity,
+          extendedCost: r.extendedCost,
+        }))
+      : structure.flatMaterials.map((m) => ({
+          typeId: m.typeId,
+          name: structure.materialNames[m.typeId] ?? `Type ${m.typeId}`,
+          quantity: m.quantity,
+          extendedCost: null,
+        }));
+
+  const byCategory = new Map<string, LedgerRow[]>();
+  for (const r of rows) {
+    const cat = structure.materialCategory[r.typeId] ?? 'Other Materials';
+    const list = byCategory.get(cat);
+    if (list) list.push(r);
+    else byCategory.set(cat, [r]);
+  }
 
   return (
     <Card>
       <Summary pricing={pricing} />
       <SectionHeader label="Raw Materials" hint={refreshing ? 'Jita buy · updating…' : 'Jita buy'} />
-      {hasMaterials ? (
-        pricing !== null ? (
-          pricing.rows.map((row) => (
-            <CostRow
-              key={row.typeId}
-              name={row.name}
-              quantity={row.quantity}
-              extendedCost={row.extendedCost}
-            />
-          ))
-        ) : (
-          structure.flatMaterials.map((m) => (
-            <CostRow
-              key={m.typeId}
-              name={structure.materialNames[m.typeId] ?? `Type ${m.typeId}`}
-              quantity={m.quantity}
-              extendedCost={null}
-            />
-          ))
-        )
+      {rows.length > 0 ? (
+        structure.materialCategories
+          .filter((c) => byCategory.has(c.label))
+          .map((cat) => {
+            const catRows = byCategory.get(cat.label) ?? [];
+            const subtotal = catRows.some((r) => r.extendedCost !== null)
+              ? catRows.reduce((s, r) => s + (r.extendedCost ?? 0), 0)
+              : null;
+            return (
+              <div key={cat.label}>
+                <SectionHeader
+                  label={<Pill tone={cat.tone}>{cat.label}</Pill>}
+                  hint={subtotal !== null ? formatIsk(subtotal) : undefined}
+                />
+                {catRows.map((row) => (
+                  <CostRow
+                    key={row.typeId}
+                    name={row.name}
+                    quantity={row.quantity}
+                    extendedCost={row.extendedCost}
+                  />
+                ))}
+              </div>
+            );
+          })
       ) : (
         <div className="px-3.5 py-3 text-[11px] text-muted">No raw materials to price.</div>
       )}
