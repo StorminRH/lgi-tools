@@ -1,6 +1,8 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { revalidateTag } from 'next/cache';
 import {
   ADVISORY_LOCK_SDE_INGEST,
+  BLUEPRINT_STRUCTURE_TAG,
   SDE_META_KEY_VERSION,
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/queries';
@@ -78,6 +80,11 @@ export async function GET(req: Request): Promise<Response> {
     if (remoteVersion) {
       await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
     }
+    // A re-ingest rebuilds the blueprint trees + flat materials, so bust the
+    // cached structure reads (planner trees + the blueprint search index).
+    // Deploy-time ingest is covered by the build id; this is the no-deploy
+    // weekly-drift path that `cacheLife('max')` alone wouldn't refresh.
+    revalidateTag(BLUEPRINT_STRUCTURE_TAG, 'max');
     const marketPrices = await summarizeMarketPricesRowCount(db);
 
     return Response.json({
