@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { HoverPopover } from '@/components/ui/hover-popover';
 import { STALE_AFTER_TTL_MS } from '@/data/market-prices/constants';
 
 // Passive freshness indicator. Vercel cron refreshes market prices once
@@ -59,17 +60,20 @@ export function PriceFreshness({
 
   if (lastUpdatedAt == null) {
     return (
-      <span className="price-chip flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
-        <span
-          aria-hidden
-          className="w-[5px] h-[5px] rounded-full bg-[#d68c3d]"
-        />
-        no price data
-        <span className="price-chip-popover" aria-hidden>
-          <span className="price-chip-popover-label">Status</span>
-          <span className="price-chip-popover-value">Awaiting first refresh</span>
-        </span>
-      </span>
+      <HoverPopover
+        className="h-full"
+        triggerClassName="h-full"
+        label="Market price status"
+        trigger={
+          <span className="price-chip flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
+            <span aria-hidden className="w-[5px] h-[5px] rounded-full bg-[#d68c3d]" />
+            no price data
+          </span>
+        }
+      >
+        <div className="text-[9px] uppercase tracking-[0.14em] text-muted mb-1">Status</div>
+        <div className="text-[13px] text-name font-semibold">Awaiting first refresh</div>
+      </HoverPopover>
     );
   }
 
@@ -78,19 +82,25 @@ export function PriceFreshness({
   const msSinceLast = now == null ? null : Math.max(0, now - lastUpdatedAt.getTime());
 
   return (
-    <span className="price-chip flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
-      <span aria-hidden className="w-[5px] h-[5px] rounded-full bg-isk" />
-      prices live
-      <span className="price-chip-popover" aria-hidden>
-        <span className="price-chip-popover-label">Next refresh</span>
-        <span className="price-chip-popover-value">
-          {msUntilNext == null ? '—' : formatCountdown(msUntilNext)}
+    <HoverPopover
+      className="h-full"
+      triggerClassName="h-full"
+      label="Market price freshness"
+      trigger={
+        <span className="price-chip flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
+          <span aria-hidden className="w-[5px] h-[5px] rounded-full bg-isk" />
+          prices live
         </span>
-        <span className="price-chip-popover-footer">
-          Updated {msSinceLast == null ? '—' : formatCountdown(msSinceLast)} ago
-        </span>
-      </span>
-    </span>
+      }
+    >
+      <div className="text-[9px] uppercase tracking-[0.14em] text-muted mb-1">Next refresh</div>
+      <div className="text-[13px] text-name font-semibold tabular-nums">
+        {msUntilNext == null ? '—' : formatCountdown(msUntilNext)}
+      </div>
+      <div className="mt-2.5 pt-2 border-t border-border-soft text-[9px] uppercase tracking-[0.1em] text-muted">
+        Updated {msSinceLast == null ? '—' : formatCountdown(msSinceLast)} ago
+      </div>
+    </HoverPopover>
   );
 }
 

@@ -339,43 +339,36 @@ a:hover {
   .nav-tool .abbr { display: inline; }
 }
 
-/* PriceFreshness chip + on-hover popover. Mirrors the resource-preview
- * pattern from /sites cards (always-mounted DOM, pure CSS :hover reveal,
- * same theme palette + shadow shape) so the platform speaks with one
- * visual vocabulary for "hover this for more detail." Popover anchors
- * flush to the chip's bottom-right so a small left-edge mouse drift
- * stays inside the chip's hover zone — no `cursor: help` (the `?`
- * cursor reads as "I need help" rather than "passive info"), the
- * popover itself is the discoverability cue. */
+/* PriceFreshness chip trigger styling. The on-hover detail is now the shared
+ * HoverPopover primitive (above) — this just styles the chip itself (the
+ * popover's trigger) and its hover tint. No `cursor: help` (the `?` cursor
+ * reads as "I need help" rather than "passive info"); the popover is the cue. */
 .price-chip {
-  position: relative;
   transition: background-color 0.15s, color 0.15s;
 }
 .price-chip:hover {
   background-color: var(--color-row-hover);
   color: var(--color-name);
 }
-/* Invisible bridge spanning the 12px gap between chip and popover. Without
- * it the mouse leaves .price-chip mid-travel and the popover snaps shut.
- * Width matches the popover so the cursor doesn't slip off the side when
- * tracking down at an angle. */
-.price-chip::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200px;
-  height: 12px;
+/* Reusable hover/focus popover primitive (src/components/ui/hover-popover.tsx).
+ * One implementation for the price-freshness chip, the planner's material-price
+ * chips, and (future) the /sites resource preview. The panel is hidden until
+ * [data-open], which the component toggles on hover + focus with a short close
+ * delay — so the trigger→panel gap needs no invisible click-catching bridge. */
+.hover-popover {
+  position: relative;
+  display: inline-flex;
 }
-.price-chip-popover {
+.hover-popover-trigger {
+  display: inline-flex;
+  align-items: center;
+  outline: none;
+}
+.hover-popover-panel {
   display: none;
   position: absolute;
-  top: calc(100% + 12px);
-  left: 50%;
-  transform: translateX(-50%);
+  z-index: 50;
   width: 200px;
-  flex-direction: column;
   background: var(--color-section);
   border: 1px solid var(--color-isk-dim);
   border-radius: 4px;
@@ -386,30 +379,23 @@ a:hover {
   text-transform: none;
   letter-spacing: normal;
   white-space: normal;
-  z-index: 50;
+  font-size: 11px;
 }
-.price-chip:hover .price-chip-popover { display: flex; }
-.price-chip-popover-label {
-  font-size: 9px;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  margin-bottom: 4px;
+.hover-popover-panel[data-open] {
+  display: block;
 }
-.price-chip-popover-value {
-  font-size: 13px;
-  color: var(--color-name);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.hover-popover-panel[data-placement='bottom'] {
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
 }
-.price-chip-popover-footer {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--color-border-soft);
-  font-size: 9px;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+.hover-popover-panel[data-placement='bottom-end'] {
+  top: calc(100% + 8px);
+  right: 0;
+}
+.hover-popover-panel[data-placement='right'] {
+  top: 0;
+  left: calc(100% + 14px);
 }
 
 /* Below 1024px the PriceFreshness chip is the first thing to push the
