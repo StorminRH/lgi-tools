@@ -7,8 +7,9 @@
 // for the expanded 440px search bar.
 //
 // AppHeader (the Server Component) renders the wordmark and the
-// async-derived data (session, site index) inside the <header> element;
-// this shell owns the rest.
+// async-derived site index inside the <header> element; this shell owns the
+// rest. Login state is read client-side via useAuth() inside GlobalSearch and
+// LoginButton, so it is not threaded through here.
 
 import { useState } from 'react';
 import { GlobalSearch } from '@/components/GlobalSearch';
@@ -16,7 +17,6 @@ import { LoginButton } from '@/features/auth/components/LoginButton';
 import { NavTools } from '@/components/NavTools';
 import { PriceFreshness } from '@/components/PriceFreshness';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
-import type { Session } from '@/features/auth/types';
 
 // Side-effect import: registers every search source on the CLIENT instance
 // of the registry. Lives here (not in AppHeader, which is a Server
@@ -26,13 +26,9 @@ import type { Session } from '@/features/auth/types';
 import '@/data/search/register-all';
 
 export function AppHeaderShell({
-  session,
-  showAdminLink,
   siteIndex,
   initialLastUpdatedAt,
 }: {
-  session: Session | null;
-  showAdminLink: boolean;
   siteIndex: SiteSearchEntry[];
   initialLastUpdatedAt: string | null;
 }) {
@@ -43,8 +39,6 @@ export function AppHeaderShell({
       <GlobalSearch
         active={searchActive}
         onActiveChange={setSearchActive}
-        session={session}
-        isAdmin={showAdminLink}
         siteIndex={siteIndex}
       />
       <NavTools shrunk={searchActive} />
@@ -52,7 +46,7 @@ export function AppHeaderShell({
         <PriceFreshness initialLastUpdatedAt={initialLastUpdatedAt} />
       </div>
       <div className="login-cluster flex items-center shrink-0 px-3 border-l border-border">
-        <LoginButton session={session} showAdminLink={showAdminLink} />
+        <LoginButton />
       </div>
     </>
   );

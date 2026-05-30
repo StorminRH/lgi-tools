@@ -3,7 +3,6 @@ import { AppHeaderShell } from '@/components/AppHeaderShell';
 import { getPricesFreshness } from '@/data/market-prices/cache';
 import { db } from '@/db';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
-import type { Session } from '@/features/auth/types';
 
 // Note: the search-source side-effect registration (`register-all`) is done
 // from AppHeaderShell, which is the Client Component — Next.js's server +
@@ -18,13 +17,7 @@ import type { Session } from '@/features/auth/types';
 //
 // Right-slot `shrink-0` on the login cluster is load-bearing — never let
 // search expansion or tool growth push it.
-export async function AppHeader({
-  session,
-  showAdminLink,
-}: {
-  session: Session | null;
-  showAdminLink: boolean;
-}) {
+export async function AppHeader() {
   const [siteIndex, { lastUpdatedAt }] = await Promise.all([
     getSiteSearchIndex(),
     getPricesFreshness(db),
@@ -44,8 +37,6 @@ export async function AppHeader({
         </Link>
       </div>
       <AppHeaderShell
-        session={session}
-        showAdminLink={showAdminLink}
         siteIndex={siteIndex}
         initialLastUpdatedAt={lastUpdatedAt?.toISOString() ?? null}
       />
