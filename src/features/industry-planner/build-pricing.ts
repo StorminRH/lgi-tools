@@ -3,6 +3,7 @@ import {
   computeMargin,
   type PriceOf,
 } from '@/data/industry-math/profitability';
+import type { PriceSource } from '@/data/market-prices/types';
 import type {
   BlueprintPricing,
   BlueprintStructure,
@@ -20,6 +21,13 @@ export interface PriceLite {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
+  // Order-book depth on each side + provenance, carried so the feature can
+  // judge price confidence (liquidity + source), not just cost. Volumes are
+  // narrowed from the DB bigint to number for the RSC boundary (real depths
+  // are far under 2^53).
+  buyVolume: number | null;
+  sellVolume: number | null;
+  source: PriceSource | null;
   // Epoch millis of the row's stale_after — the staleness signal the client
   // uses to decide what to refresh. Null when there is no price row at all.
   staleAfterMs: number | null;
@@ -55,6 +63,9 @@ export function assemblePricing(
       bestSell: p?.bestSell ?? null,
       pct5Buy: p?.pct5Buy ?? null,
       pct5Sell: p?.pct5Sell ?? null,
+      buyVolume: p?.buyVolume ?? null,
+      sellVolume: p?.sellVolume ?? null,
+      source: p?.source ?? null,
       staleAfterMs: p?.staleAfterMs ?? null,
     };
   });

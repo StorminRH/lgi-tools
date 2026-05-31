@@ -3,7 +3,9 @@
 // reusable primitives stay domain-agnostic; this file picks tones/labels from
 // the shared vocabulary (CLAUDE.md > Architecture Invariants).
 
+import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
+import type { PriceSource } from '@/data/market-prices/types';
 
 // Below this percentage a positive margin is "thin" (orange) rather than
 // healthy (green). A rough cut for at-a-glance scanning, not a trading signal.
@@ -103,24 +105,106 @@ export function classifyBuildNode(args: {
   return { label: groupName || categoryName || 'Manufacturing', tone: 'blue' };
 }
 
-// Tailwind bg classes for a small category marker dot. Literal strings (not
-// interpolated) so the JIT keeps them; CSP-safe (no inline style). Keyed by
-// tone so every category resolves through its `Category.tone`.
-const DOT_CLASS: Record<Tone, string> = {
-  neutral: 'bg-[#6a7a8a]',
-  green: 'bg-[#3dd68c]',
-  'green-strong': 'bg-[#44dd99]',
-  orange: 'bg-[#d68c3d]',
-  'orange-soft': 'bg-[#cc7733]',
-  red: 'bg-[#dd4444]',
-  'red-soft': 'bg-[#cc5555]',
-  magenta: 'bg-[#cc55cc]',
-  purple: 'bg-[#aa55ff]',
-  yellow: 'bg-[#ccaa33]',
-  teal: 'bg-[#33cc88]',
-  blue: 'bg-[#3399cc]',
+// --- Price confidence: data quality → an abstract level + reasons ------
+// The only place that maps a material's price signals (source / freshness /
+// liquidity) onto the abstract `level` the `PriceConfidence` primitive renders.
+// The primitive stays domain-agnostic; this is the domain mapping.
+//
+// Buy-side depth (units) below this reads as illiquid — a rough at-a-glance
+// cut, not a trading signal (mirrors THIN_MARGIN_PCT).
+const THIN_LIQUIDITY_UNITS = 100;
+// Aggregate headline bands: share of fully-trustworthy (high) material rows.
+const HIGH_CONFIDENCE_SHARE = 0.75;
+const MEDIUM_CONFIDENCE_SHARE = 0.4;
+
+// The price signals a confidence verdict reads — a subset of MaterialCostRow.
+export interface ConfidenceInput {
+  source: PriceSource | null;
+  buyVolume: number | null;
+  unitBuy: number | null; // null = no usable buy price (excluded from cost)
+  staleAfterMs: number | null; // null = no price row at all
+}
+
+export interface RowConfidence {
+  level: ConfidenceLevel;
+  reasons: string[];
+}
+
+export interface AggregateConfidence {
+  level: ConfidenceLevel;
+  summary: string;
+}
+
+const CONFIDENCE_HEADLINE: Record<ConfidenceLevel, string> = {
+  high: 'High confidence',
+  medium: 'Medium confidence',
+  low: 'Low confidence',
+  unknown: 'Unknown confidence',
 };
 
-export function toneDotClass(tone: Tone): string {
-  return DOT_CLASS[tone];
+export function confidenceHeadline(level: ConfidenceLevel): string {
+  return CONFIDENCE_HEADLINE[level];
+}
+
+// One material's price-confidence verdict at time `nowMs`. high = fresh ESI
+// price with real depth; low = priced row but no usable price; unknown = no
+// price row yet; medium = any single shortfall (stale / fallback source /
+// thin depth). `nowMs` is passed in, never read from the wall clock, so this
+// stays pure (and Cache-Components-safe — see CostPanel for who supplies it).
+export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfidence {
+  if (input.staleAfterMs === null) {
+    return { level: 'unknown', reasons: ['No price data yet'] };
+  }
+  if (input.unitBuy === null) {
+    return { level: 'low', reasons: ['No live price — excluded from cost'] };
+  }
+  const reasons: string[] = [];
+  if (input.staleAfterMs <= nowMs) reasons.push('Stale — price may have moved');
+  if (input.source !== null && input.source !== 'esi') reasons.push('Fallback price source');
+  if (input.buyVolume !== null && input.buyVolume < THIN_LIQUIDITY_UNITS) {
+    reasons.push('Thin market depth');
+  }
+  return reasons.length === 0 ? { level: 'high', reasons: [] } : { level: 'medium', reasons };
+}
+
+// Roll the per-row verdicts into one headline level + a breakdown string for
+// the cost panel's aggregate line ("High confidence — 1 stale · 1 missing").
+// The headline is share-based (mostly-trustworthy rows still read "high", with
+// the exceptions surfaced in the summary); the summary counts each shortfall.
+export function aggregateConfidence(
+  inputs: ConfidenceInput[],
+  nowMs: number,
+): AggregateConfidence {
+  if (inputs.length === 0) return { level: 'unknown', summary: 'No materials to price' };
+
+  let high = 0;
+  let stale = 0;
+  let fallback = 0;
+  let thin = 0;
+  let missing = 0;
+  for (const input of inputs) {
+    const { level } = priceConfidence(input, nowMs);
+    if (level === 'high') high += 1;
+    if (level === 'low' || level === 'unknown') missing += 1;
+    if (input.staleAfterMs !== null && input.unitBuy !== null) {
+      if (input.staleAfterMs <= nowMs) stale += 1;
+      if (input.source !== null && input.source !== 'esi') fallback += 1;
+      if (input.buyVolume !== null && input.buyVolume < THIN_LIQUIDITY_UNITS) thin += 1;
+    }
+  }
+
+  const share = high / inputs.length;
+  const level: ConfidenceLevel =
+    share >= HIGH_CONFIDENCE_SHARE
+      ? 'high'
+      : share >= MEDIUM_CONFIDENCE_SHARE
+        ? 'medium'
+        : 'low';
+
+  const parts: string[] = [];
+  if (stale) parts.push(`${stale} stale`);
+  if (fallback) parts.push(`${fallback} fallback`);
+  if (thin) parts.push(`${thin} illiquid`);
+  if (missing) parts.push(`${missing} missing`);
+  return { level, summary: parts.length ? parts.join(' · ') : 'all live · liquid' };
 }

@@ -6,6 +6,10 @@ for the full forensic record.
 
 ### 2026-05-31
 
+- The Industry Planner is now linked from the home page and the top navigation — it was previously reachable only by direct link or search.
+- Blueprints and materials in the planner now show their real in-game item icons, so you can recognise what you're looking at at a glance.
+- Every priced material now carries a confidence indicator: filled green when the price is fresh, live, and liquid; half-filled amber when it's stale, from the backup source, or thinly traded; a hollow ring when there's no live price. A summary over the whole build rolls these up ("High confidence — 1 stale · 1 missing") so you can judge how far to trust the cost.
+- The build plan is now an interactive column view: start from the item you're making and click any component to fan its own inputs out as a floating column beside it, walking the production chain as deep as it goes. The drill path is kept in the page address, so a specific breakdown is shareable and bookmarkable and the browser back button steps you back out.
 - The market-price pipeline is now monitored end to end. When the main price source has trouble and the site falls back to its backup, or a scheduled refresh is skipped, that now gets recorded and flagged instead of passing silently — so price-data problems get noticed and fixed faster, keeping Jita prices across the site fresher and more dependable.
 
 ### 2026-05-30

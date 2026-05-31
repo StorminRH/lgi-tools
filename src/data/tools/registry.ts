@@ -28,7 +28,6 @@ export const TOOLS: Tool[] = [
     href: '/industry',
     matchPrefix: '/industry',
     description: 'Live · /industry',
-    navDisabled: true,
   },
   {
     label: 'Wormhole Roll Calc',

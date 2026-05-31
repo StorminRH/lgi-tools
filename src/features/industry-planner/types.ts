@@ -1,5 +1,6 @@
 import type { Tone } from '@/components/ui/tones';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { PriceSource } from '@/data/market-prices/types';
 
 // One searchable blueprint: its type ID and the name of the item it builds.
 // Feeds the lazy Blueprints search source.
@@ -94,6 +95,12 @@ export interface MaterialCostRow {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
+  // Order-book depth + provenance, carried so the cost panel can show a
+  // price-confidence badge (liquidity + source), not just cost. Null when
+  // there is no price row.
+  buyVolume: number | null;
+  sellVolume: number | null;
+  source: PriceSource | null;
   // Epoch millis of the row's stale_after, or null when there is no price row.
   // The client refreshes a material when this is null or already in the past —
   // honouring a row that confirmed "no orders" recently (future stale_after).

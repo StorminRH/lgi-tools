@@ -4,9 +4,9 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { Pill } from '@/components/ui/pill';
 import { SITE_URL } from '@/config/site-url';
+import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
 import { CostPanel } from '@/features/industry-planner/components/CostPanel';
 import { CostPanelView } from '@/features/industry-planner/components/CostPanelView';
-import { MaterialTree } from '@/features/industry-planner/components/MaterialTree';
 import { activityLabel } from '@/features/industry-planner/industry-styles';
 import {
   getBlueprintPricing,
@@ -106,11 +106,15 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         </div>
       </header>
 
-      <div className="grid gap-4 items-start lg:grid-cols-2">
-        <MaterialTree structure={structure} />
-        <Suspense fallback={<CostPanelView pricing={null} structure={structure} />}>
-          <PricedCostPanel blueprintId={id} structure={structure} />
-        </Suspense>
+      <div className="flex flex-col gap-4 items-stretch">
+        {/* The cascade fans floating columns out horizontally, so it takes the
+            full width; the priced cost panel streams in below it. */}
+        <BuildCascade structure={structure} />
+        <div className="lg:max-w-[520px]">
+          <Suspense fallback={<CostPanelView pricing={null} structure={structure} />}>
+            <PricedCostPanel blueprintId={id} structure={structure} />
+          </Suspense>
+        </div>
       </div>
     </div>
   );
