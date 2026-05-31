@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db } from '@/db';
 import {
@@ -146,6 +146,37 @@ export async function getBlueprintTree(
     .limit(1);
   if (!row) return null;
   return { treeJson: row.treeJson as TreeNode[], computedAt: row.computedAt };
+}
+
+// The industry activity (1 = manufacturing, 11 = reaction) that produces each
+// of the given blueprints, in one batched query — for labelling tree nodes by
+// how they're made without an N+1. A blueprint carries at most one of {1, 11}
+// (the resolver collapses the two on that basis); if one somehow carries both,
+// we prefer manufacturing (the lower id), matching the structure read.
+export async function getActivityByBlueprint(
+  blueprintTypeIds: number[],
+): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  if (blueprintTypeIds.length === 0) return out;
+  const rows = await db
+    .selectDistinct({
+      blueprintTypeId: industryActivityProducts.blueprintTypeId,
+      activityId: industryActivityProducts.activityId,
+    })
+    .from(industryActivityProducts)
+    .where(
+      and(
+        inArray(industryActivityProducts.blueprintTypeId, blueprintTypeIds),
+        inArray(industryActivityProducts.activityId, [...INDUSTRY_ACTIVITY_IDS]),
+      ),
+    );
+  for (const r of rows) {
+    const existing = out.get(r.blueprintTypeId);
+    if (existing === undefined || r.activityId < existing) {
+      out.set(r.blueprintTypeId, r.activityId);
+    }
+  }
+  return out;
 }
 
 // Union of all type IDs that appear as either a material input OR a
