@@ -98,6 +98,41 @@ export function classifyRaw(groupName: string, categoryName: string): Category {
   );
 }
 
+// --- Build-sequence tree: a node's label + colour ----------------------
+// The phase a node sits in (how deep it is) is derived from graph height in
+// the data layer; this picks only its LABEL and colour, and every label is a
+// real in-game identifier — never an invented bucket. A reaction output
+// (activity 11) reads as "Reaction"; any other buildable reads as its own SDE
+// group name. The root product reads as its group/category (e.g. "Frigate").
+// Raws reuse the ledger's source-category colour but show their real SDE group
+// name, so no invented name enters the tree.
+const REACTION_ACTIVITY_ID = 11;
+
+export interface NodeLabel {
+  label: string;
+  tone: Tone;
+}
+
+export function classifyBuildNode(args: {
+  isRaw: boolean;
+  isRoot: boolean;
+  activityId?: number;
+  groupName: string;
+  categoryName: string;
+}): NodeLabel {
+  const { isRaw, isRoot, activityId, groupName, categoryName } = args;
+  if (isRaw) {
+    return { label: groupName || categoryName || 'Raw Material', tone: classifyRaw(groupName, categoryName).tone };
+  }
+  if (isRoot) {
+    return { label: groupName || categoryName || 'Final Product', tone: 'teal' };
+  }
+  if (activityId === REACTION_ACTIVITY_ID) {
+    return { label: 'Reaction', tone: 'purple' };
+  }
+  return { label: groupName || categoryName || 'Manufacturing', tone: 'blue' };
+}
+
 // Tailwind bg classes for a small category marker dot. Literal strings (not
 // interpolated) so the JIT keeps them; CSP-safe (no inline style). Keyed by
 // tone so every category resolves through its `Category.tone`.

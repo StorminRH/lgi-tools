@@ -4,15 +4,17 @@ import { db } from '@/db';
 import { eveTypes, industryActivityProducts } from '@/db/schema';
 import { BLUEPRINT_STRUCTURE_TAG, INDUSTRY_ACTIVITY_IDS } from '@/data/eve-data/constants';
 import {
+  getActivityByBlueprint,
   getBlueprintTree,
   getFlatMaterials,
   getTypeLabels,
   type TypeLabel,
 } from '@/data/eve-data/queries';
-import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getPrices } from '@/data/market-prices/queries';
 import { assemblePricing, type PriceLite } from './build-pricing';
+import { toBuildTree } from './build-tree';
 import { classifyBuildable, classifyRaw } from './industry-styles';
 import type {
   BlueprintIndexEntry,
@@ -38,6 +40,16 @@ function collectTreeTypeIds(nodes: TreeNode[], acc: number[] = []): number[] {
   for (const node of nodes) {
     acc.push(node.typeId);
     if (node.inputs.length > 0) collectTreeTypeIds(node.inputs, acc);
+  }
+  return acc;
+}
+
+// Every blueprint that produces a buildable anywhere in the tree, deduped — so
+// we can fetch each one's activity (manufacturing vs reaction) in one query.
+function collectBlueprintIds(nodes: TreeNode[], acc: Set<number> = new Set()): Set<number> {
+  for (const node of nodes) {
+    if (node.producedBy) acc.add(node.producedBy.blueprintTypeId);
+    if (node.inputs.length > 0) collectBlueprintIds(node.inputs, acc);
   }
   return acc;
 }
@@ -172,7 +184,10 @@ export async function getBlueprintStructure(
     ...flat.map((f) => f.rawMaterialTypeId),
     ...collectTreeTypeIds(tree),
   ]);
-  const labels = await getTypeLabels(labelIds);
+  const [labels, activityByBlueprint] = await Promise.all([
+    getTypeLabels(labelIds),
+    getActivityByBlueprint([...collectBlueprintIds(tree)]),
+  ]);
   const materialNames: Record<number, string> = {};
   for (const [id, l] of labels) materialNames[id] = l.name;
 
@@ -190,6 +205,18 @@ export async function getBlueprintStructure(
     .sort((a, b) => a[1].order - b[1].order)
     .map(([label, c]) => ({ label, tone: c.tone }));
 
+  const { buildTree, buildNodeDisplay, rootHeight } = toBuildTree({
+    tree,
+    labels,
+    heights: computeHeights(tree),
+    activityByBlueprint,
+    product: {
+      typeId: chosen.productTypeId,
+      quantityPerRun: chosen.quantity,
+      activityId: chosen.activityId,
+    },
+  });
+
   return {
     blueprintTypeId: blueprintId,
     activityId: chosen.activityId,
@@ -203,6 +230,9 @@ export async function getBlueprintStructure(
       typeId: chosen.productTypeId,
       quantityPerRun: chosen.quantity,
     }),
+    buildTree,
+    buildNodeDisplay,
+    rootHeight,
     flatMaterials: flat.map((f) => ({
       typeId: f.rawMaterialTypeId,
       quantity: Number(f.totalQuantity),
