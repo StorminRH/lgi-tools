@@ -34,6 +34,31 @@ export type TreeNode = {
   producedBy?: { blueprintTypeId: number; quantityPerRun: number; runsNeeded: number };
 };
 
+// Graph height of every type that appears in a materialised build tree: the
+// longest path from the type down to a raw leaf. A raw leaf (empty `inputs`)
+// is height 0; a buildable is 1 + the tallest of its inputs. Height is a
+// property of a type's recipe subtree, which the resolver guarantees is
+// identical wherever that type appears (cycle-free DAG, path-independent), so
+// we memoise by typeId and the first computed value is authoritative — this
+// collapses a capital's millions of duplicated occurrences to one entry per
+// distinct type. Pure: operates on the JSON tree, no DB.
+export function computeHeights(nodes: TreeNode[]): Map<number, number> {
+  const heights = new Map<number, number>();
+  const visit = (node: TreeNode): number => {
+    const memoed = heights.get(node.typeId);
+    if (memoed !== undefined) return memoed;
+    let h = 0;
+    for (const child of node.inputs) {
+      const childHeight = visit(child);
+      if (childHeight + 1 > h) h = childHeight + 1;
+    }
+    heights.set(node.typeId, h);
+    return h;
+  };
+  for (const node of nodes) visit(node);
+  return heights;
+}
+
 export type ResolveSummary = {
   blueprintsResolved: number;
   flatMaterialsWritten: number;
