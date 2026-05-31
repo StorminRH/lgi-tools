@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   TreeResolver,
   buildIndexesFromRows,
+  computeHeights,
   type Indexes,
   type MaterialRow,
   type ProductRow,
+  type TreeNode,
 } from './tree-resolver';
 import flatMaterialsFixture from './__fixtures__/blueprint-flat-materials.json';
 
@@ -123,6 +125,62 @@ describe('TreeResolver — synthetic walker', () => {
     const cNode = tree.find((n) => n.typeId === 3);
     expect(cNode?.producedBy).toBeUndefined();
     expect(cNode?.inputs).toEqual([]);
+  });
+});
+
+// A buildable node with the producedBy marker; quantity is irrelevant to
+// height, so we leave it at 1.
+function bp(typeId: number, inputs: TreeNode[]): TreeNode {
+  return {
+    typeId,
+    quantity: 1,
+    inputs,
+    producedBy: { blueprintTypeId: typeId + 10000, quantityPerRun: 1, runsNeeded: 1 },
+  };
+}
+function raw(typeId: number): TreeNode {
+  return { typeId, quantity: 1, inputs: [] };
+}
+
+describe('computeHeights', () => {
+  it('a raw leaf is height 0', () => {
+    expect(computeHeights([raw(99)]).get(99)).toBe(0);
+  });
+
+  it('a T1-shaped build (buildable over raw leaves) is height 1', () => {
+    // The product's direct inputs are all raws; each input node is itself a
+    // leaf at height 0, so the root product computed from them is height 1.
+    const tree = [raw(34), raw(35), raw(36)];
+    const heights = computeHeights(tree);
+    expect([...heights.values()]).toEqual([0, 0, 0]);
+  });
+
+  it('takes the LONGEST path to a leaf, not the shortest', () => {
+    // Product (implicit) ← B ← C ← raw, plus a shallow raw sibling under B.
+    //   raw(99) height 0; C height 1; B height 2.
+    const c = bp(3, [raw(99)]);
+    const b = bp(2, [c, raw(98)]);
+    const heights = computeHeights([b]);
+    expect(heights.get(99)).toBe(0);
+    expect(heights.get(98)).toBe(0);
+    expect(heights.get(3)).toBe(1);
+    expect(heights.get(2)).toBe(2); // 1 + max(C=1, raw=0)
+  });
+
+  it('memoises by typeId — a shared subtree resolves to one stable height', () => {
+    // The same component (typeId 2) appears under two different parents; its
+    // height must be identical and computed once.
+    const shared = () => bp(2, [raw(99)]);
+    const parentA = bp(10, [shared()]);
+    const parentB = bp(11, [shared(), raw(98)]);
+    const heights = computeHeights([parentA, parentB]);
+    expect(heights.get(2)).toBe(1);
+    expect(heights.get(10)).toBe(2);
+    expect(heights.get(11)).toBe(2);
+  });
+
+  it('returns an empty map for an empty tree', () => {
+    expect(computeHeights([]).size).toBe(0);
   });
 });
 

@@ -21,31 +21,32 @@ export interface BlueprintProduct {
   quantityPerRun: number;
 }
 
-// One direct recipe ingredient of a buildable, scaled to the parent's gross
-// demand. The tone is its own category's colour, for the marker dot.
-export interface BomInput {
-  typeId: number;
+// --- Build-sequence tree -------------------------------------------------
+// The "what do I make next" view: the dependency tree rooted at the product,
+// shown as a phased build sequence. Two separate axes:
+//   - STRUCTURE: per-type graph height (how many build stages sit beneath a
+//     type, down to raw materials) — derived in the data layer.
+//   - DISPLAY: a label + colour per type, every label a real in-game
+//     identifier (activity / SDE group / category), never an invented bucket.
+// Display data is keyed by typeId (per-type-stable) so a component shared
+// across many parents carries it once, not per occurrence — keeping the
+// cached structure small even for capital trees with millions of duplicates.
+
+export interface BuildNodeDisplay {
   name: string;
-  quantity: number;
+  height: number; // 0 for a raw leaf; 1 + tallest input otherwise
+  isRaw: boolean;
+  label: string; // derived in-game identifier
   tone: Tone;
 }
 
-// One buildable in the condensed bill of materials: shown once at its gross
-// demand (total units needed across the whole build), expandable to the direct
-// inputs that produce that quantity.
-export interface BomItem {
+// One node in the nested build tree. Carries only the per-occurrence facts (its
+// type and the absolute quantity one run of the final product needs);
+// everything per-type-stable is looked up from `buildNodeDisplay`.
+export interface BuildNode {
   typeId: number;
-  name: string;
   quantity: number;
-  inputs: BomInput[];
-}
-
-// A construction category (Reactions, Components, …) with its colour and the
-// buildables that belong to it.
-export interface BomGroup {
-  label: string;
-  tone: Tone;
-  items: BomItem[];
+  inputs: BuildNode[];
 }
 
 // A raw-material source category present in this build, with its colour.
@@ -61,10 +62,14 @@ export interface BlueprintStructure {
   // Nested breakdown for the structural tree display. Empty when the resolver
   // hasn't produced a tree for this blueprint yet.
   tree: TreeNode[];
-  // The condensed bill of materials: buildables grouped by construction
-  // category, each at gross demand and expandable to its direct inputs. Derived
-  // from the tree. Empty when there is no tree.
-  buildGroups: BomGroup[];
+  // The phased build-sequence tree: a single root (the product) whose nested
+  // inputs descend reactions → components → raws. Empty when there is no tree.
+  // `buildNodeDisplay` carries each type's label/colour/height (keyed by
+  // typeId); `rootHeight` is the product's own height (1 = a T1 item whose
+  // direct inputs are all raws).
+  buildTree: BuildNode[];
+  buildNodeDisplay: Record<number, BuildNodeDisplay>;
+  rootHeight: number;
   // Flattened raw materials — the authoritative cost basis (already fully
   // recursed by the 3.0.4 resolver). Quantities are plain numbers (the DB
   // stores bigint; the largest real total — a capital's ~12M minerals — is far
