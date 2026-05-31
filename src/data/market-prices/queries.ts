@@ -2,7 +2,7 @@ import { inArray, lt, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db as defaultDb } from '@/db';
 import { marketPrices } from '@/db/schema';
-import type { MarketPrice } from './types';
+import type { MarketPrice, PriceSource } from './types';
 
 // Accept either the strict default schema (CLI's `drizzle(client)`) or the
 // lazy proxy from `@/db` (which infers a wider generic). Same wrinkle as
@@ -18,6 +18,9 @@ const PRICE_COLUMNS = {
   bestSell: marketPrices.bestSell,
   pct5Buy: marketPrices.pct5Buy,
   pct5Sell: marketPrices.pct5Sell,
+  buyVolume: marketPrices.buyVolume,
+  sellVolume: marketPrices.sellVolume,
+  source: marketPrices.source,
   updatedAt: marketPrices.updatedAt,
   staleAfter: marketPrices.staleAfter,
 } as const;
@@ -31,7 +34,9 @@ export async function getPrices(
     .from(marketPrices)
     .where(inArray(marketPrices.typeId, typeIds));
   const out = new Map<number, MarketPrice>();
-  for (const r of rows) out.set(r.typeId, r);
+  // `source` is a free `text` column at the DB level; narrow it to the
+  // PriceSource union (only the union's literals are ever written).
+  for (const r of rows) out.set(r.typeId, { ...r, source: r.source as PriceSource });
   return out;
 }
 

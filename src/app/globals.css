@@ -543,6 +543,87 @@ details[data-collapsible][open] > summary [data-chevron] {
   transform: rotate(180deg);
 }
 
+/* ── TypeIcon (src/components/ui/type-icon.tsx) ──────────────────────
+ * EVE type image with a graceful 404 fallback. Sizing is set via the
+ * element's width/height attributes (CSP-safe — not a style attribute);
+ * these rules carry only the shared chrome + the monogram fallback. */
+.type-icon {
+  border-radius: 3px;
+  background: #11161f;
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.type-icon-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-jb);
+  font-weight: 800;
+  font-size: 11px;
+  color: var(--color-isk);
+  background: #0f1a14;
+  border-color: var(--color-isk-dim);
+}
+
+/* ── PriceConfidence (src/components/ui/price-confidence.tsx) ─────────
+ * Abstract data-quality badge: an abstract level → glyph (● ◐ ○) + tone.
+ * The glyph is a ::after pseudo-element (the half-circle uses clip-path),
+ * neither expressible as a CSP-safe inline style. Tooltips are handled by
+ * the HoverPopover primitive at the call site, not a CSS title tooltip. */
+.price-confidence {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.price-confidence--high { background: rgba(61, 214, 140, 0.18); box-shadow: inset 0 0 0 1.5px var(--color-isk); }
+.price-confidence--medium { background: rgba(255, 170, 34, 0.18); box-shadow: inset 0 0 0 1.5px var(--color-dps-mid); }
+.price-confidence--low { background: transparent; box-shadow: inset 0 0 0 1.5px var(--color-dps-high); }
+.price-confidence--unknown { background: transparent; box-shadow: inset 0 0 0 1.5px var(--color-muted); }
+.price-confidence--high::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--color-isk); }
+.price-confidence--medium::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--color-dps-mid); clip-path: inset(0 50% 0 0); }
+
+/* ── CascadingPanels (src/components/ui/cascading-panels.tsx) ─────────
+ * Floating, gapped, horizontally-scrolling Miller-column container. The
+ * primitive owns layout + the pop-in transition only; panes supply their
+ * own content. The animation keyframe can't live in a style attribute. */
+.cascade {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  overflow-x: auto;
+  padding-bottom: 14px;
+}
+.cascade-col {
+  flex-shrink: 0;
+}
+.cascade-col-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Every column past the first fans in when it mounts — the CSS animation
+ * plays once on DOM insertion, so opening a deeper column (or swapping a
+ * sibling) animates it without replaying the columns already on screen, and
+ * the root column never animates on load. */
+.cascade-col:not(:first-child) {
+  animation: cascade-fan-in 0.28s cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+@keyframes cascade-fan-in {
+  from { opacity: 0; transform: translateX(-18px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
 /* Print-only content (e.g. report header) is hidden on screen and shown
  * when printing. Pair with the .no-print class below for the inverse. */
 .print-only {

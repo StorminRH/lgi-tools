@@ -7,6 +7,13 @@ export interface MarketPrice {
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
+  // Order-book depth on each side (null = no orders there at last refresh).
+  // Carried alongside the price so consumers can judge liquidity, not just
+  // price (e.g. the planner's price-confidence badge).
+  buyVolume: bigint | null;
+  sellVolume: bigint | null;
+  // Provenance of this row — ESI (happy path) vs the Fuzzwork fallback.
+  source: PriceSource;
   updatedAt: Date;
   // Row-level expiry — the authoritative staleness signal (the bulk refresh
   // keys off `stale_after < NOW()`). A row can have a null price yet a future

@@ -137,47 +137,24 @@ export default function Home({
             </div>
           </Link>
 
-          {flags.industryPlanner ? (
-            <Link href="/industry" className="tool-tile tool-tile-live no-underline">
-              <div className="flex items-start justify-between gap-2">
-                <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
-                  Industry Planner
-                </div>
-              </div>
-              <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
-                Manufacturing profitability for blueprints and reactions.
-              </p>
-              <div className="flex items-center justify-between pt-3 border-t border-border-soft">
-                <div className="flex items-center gap-1">
-                  <Pill tone="neutral">T1</Pill>
-                  <Pill tone="blue">T2</Pill>
-                  <Pill tone="purple">T3</Pill>
-                  <Pill tone="teal">Reactions</Pill>
-                </div>
-              </div>
-            </Link>
-          ) : (
-            <div className="tool-tile tool-tile-soon">
-              <div className="flex items-start justify-between gap-2">
-                <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
-                  Industry Planner
-                </div>
-                <Pill tone="neutral">Coming Soon</Pill>
-              </div>
-              <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
-                Manufacturing profitability for blueprints and reactions.
-              </p>
-              <div className="flex items-center justify-between pt-3 border-t border-border-soft">
-                <div className="flex items-center gap-1">
-                  <Pill tone="neutral">T1</Pill>
-                  <Pill tone="blue">T2</Pill>
-                  <Pill tone="purple">T3</Pill>
-                  <Pill tone="teal">Reactions</Pill>
-                </div>
-                <span className="text-[10px] text-muted tracking-[0.04em]">v4.0</span>
+          <Link href="/industry" className="tool-tile tool-tile-live no-underline">
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                Industry Planner
               </div>
             </div>
-          )}
+            <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
+              Manufacturing profitability for blueprints and reactions.
+            </p>
+            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center gap-1">
+                <Pill tone="neutral">T1</Pill>
+                <Pill tone="blue">T2</Pill>
+                <Pill tone="purple">T3</Pill>
+                <Pill tone="teal">Reactions</Pill>
+              </div>
+            </div>
+          </Link>
 
           {flags.wormholeRollCalc ? (
             <Link href="/wormhole-roll" className="tool-tile tool-tile-live no-underline">

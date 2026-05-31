@@ -2,17 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from '@/data/market-prices/constants';
+import type { PriceSource } from '@/data/market-prices/types';
 import { assemblePricing, type PriceLite } from '../build-pricing';
 import type { BlueprintPricing, BlueprintStructure } from '../types';
 import { CostPanelView } from './CostPanelView';
 
 // The `prices` array shape returned by POST /api/market-prices/refresh.
+// Volumes serialize as strings (DB bigint); source is the provenance text.
 interface RefreshedPrice {
   typeId: number;
   bestBuy: number | null;
   bestSell: number | null;
   pct5Buy: number | null;
   pct5Sell: number | null;
+  buyVolume: string | null;
+  sellVolume: string | null;
+  source: PriceSource;
   staleAfter: string;
 }
 
@@ -33,6 +38,9 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
       bestSell: r.bestSell,
       pct5Buy: r.pct5Buy,
       pct5Sell: r.pct5Sell,
+      buyVolume: r.buyVolume,
+      sellVolume: r.sellVolume,
+      source: r.source,
       staleAfterMs: r.staleAfterMs,
     });
   }
@@ -41,6 +49,9 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
     bestSell: pricing.product.bestSell,
     pct5Buy: null,
     pct5Sell: null,
+    buyVolume: null,
+    sellVolume: null,
+    source: null,
     staleAfterMs: pricing.product.staleAfterMs,
   });
   return map;
@@ -69,6 +80,17 @@ export function CostPanel({
 }) {
   const [pricing, setPricing] = useState(initialPricing);
   const [refreshing, setRefreshing] = useState(false);
+  // Client clock for freshness, filled after hydration so the static prerender
+  // never reads the wall clock (Cache Components forbids it). Until then the
+  // view withholds confidence badges, exactly like PriceFreshness.
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Defer via a 0ms timer so setState isn't called synchronously in the
+    // effect body (same shape as PriceFreshness's clock read).
+    const t = setTimeout(() => setNow(Date.now()), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const now = Date.now();
@@ -105,6 +127,9 @@ export function CostPanel({
               bestSell: p.bestSell,
               pct5Buy: p.pct5Buy,
               pct5Sell: p.pct5Sell,
+              buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
+              sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
+              source: p.source,
               staleAfterMs: Date.parse(p.staleAfter),
             });
           }
@@ -122,5 +147,7 @@ export function CostPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <CostPanelView pricing={pricing} structure={structure} refreshing={refreshing} />;
+  return (
+    <CostPanelView pricing={pricing} structure={structure} refreshing={refreshing} now={now} />
+  );
 }
