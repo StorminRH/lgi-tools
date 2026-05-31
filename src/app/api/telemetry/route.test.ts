@@ -82,6 +82,16 @@ describe('POST /api/telemetry', () => {
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
+  it('rejects server-only actions a client must not forge with 400', async () => {
+    getSessionMock.mockResolvedValue(USER_SESSION);
+    const { POST } = await importRoute();
+    // cron_prices is server-only (written by the price cron) — a client POST
+    // of it would pollute the health signal, so the public route must reject it.
+    const res = await POST(buildRequest({ action: 'cron_prices' }));
+    expect(res.status).toBe(400);
+    expect(logUsageEventMock).not.toHaveBeenCalled();
+  });
+
   it('rejects non-object metadata with 400', async () => {
     getSessionMock.mockResolvedValue(USER_SESSION);
     const { POST } = await importRoute();

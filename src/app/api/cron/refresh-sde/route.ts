@@ -7,9 +7,22 @@ import {
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/queries';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
+import { logUsageEvent } from '@/data/telemetry/queries';
 import { connection } from 'next/server';
 import { directClient } from '@/db';
 import { runSdePipeline, summarizeMarketPricesRowCount } from '@/db/sde-pipeline';
+
+// Awaited fire-and-forget telemetry: failures swallowed so observability never
+// breaks the cron, awaited so the row lands before the serverless function
+// freezes on return (3.0.10 O-2/O-3).
+async function logSdeCronEvent(metadata: Record<string, unknown>): Promise<void> {
+  console.log(JSON.stringify({ scope: 'cron:sde', ...metadata }));
+  try {
+    await logUsageEvent({ action: 'cron_sde', metadata });
+  } catch (err) {
+    console.error('[cron:sde] telemetry write failed', err);
+  }
+}
 
 // Vercel cron endpoint. Wired to "0 5 * * 1" in vercel.json (Mondays
 // 05:00 UTC — well clear of the 11:00 daily prices cron). Vercel
@@ -32,6 +45,7 @@ const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 export async function GET(req: Request): Promise<Response> {
   // Cron endpoint: runs per-invocation and writes. Defer to request time so
   // Cache Components doesn't try to prerender it.
+  const start = Date.now();
   await connection();
   const secret = process.env.CRON_SECRET;
   if (!secret) {
@@ -46,6 +60,13 @@ export async function GET(req: Request): Promise<Response> {
   const remoteVersion = await getRemoteSdeVersion();
 
   if (remoteVersion !== null && storedVersion === remoteVersion) {
+    // O-3: the healthy "ran, nothing to do" case — recorded so a no-drift
+    // tick is observable, not silence.
+    await logSdeCronEvent({
+      outcome: 'up-to-date',
+      sdeVersion: storedVersion,
+      durationMs: Date.now() - start,
+    });
     return Response.json({
       status: 'up-to-date',
       sdeVersion: storedVersion,
@@ -57,6 +78,11 @@ export async function GET(req: Request): Promise<Response> {
   // 500. Next Monday's tick (or any sooner manual run) retries. Same
   // guard as src/db/ingest-sde-if-empty.ts.
   if (storedVersion !== null && remoteVersion === null) {
+    await logSdeCronEvent({
+      outcome: 'remote-unreachable',
+      sdeVersion: storedVersion,
+      durationMs: Date.now() - start,
+    });
     return Response.json({
       status: 'remote-unreachable',
       sdeVersion: storedVersion,
@@ -70,6 +96,9 @@ export async function GET(req: Request): Promise<Response> {
       SELECT pg_try_advisory_lock(${LOCK_KEY_NUM}) AS got
     `;
     if (!lockResult[0].got) {
+      // O-3: a busy-skip (another ingest holds the lock) is distinct from a
+      // healthy run.
+      await logSdeCronEvent({ outcome: 'busy', durationMs: Date.now() - start });
       return Response.json({
         status: 'busy',
         message: 'Another SDE ingest in flight',
@@ -87,6 +116,16 @@ export async function GET(req: Request): Promise<Response> {
     // weekly-drift path that `cacheLife('max')` alone wouldn't refresh.
     revalidateTag(BLUEPRINT_STRUCTURE_TAG, 'max');
     const marketPrices = await summarizeMarketPricesRowCount(db);
+
+    // O-2: the weekly re-ingest outcome — counts, durations, version bump.
+    await logSdeCronEvent({
+      outcome: 'reingested',
+      sdeVersionBefore: storedVersion,
+      sdeVersionAfter: remoteVersion,
+      summary,
+      marketPrices,
+      durationMs: Date.now() - start,
+    });
 
     return Response.json({
       status: 'reingested',

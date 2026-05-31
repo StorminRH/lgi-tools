@@ -252,7 +252,7 @@ async function fetchViaEsiRegionDump(
 // short-circuits dispatch — remaining types route to Fuzzwork too.
 async function fetchViaEsiPerType(
   typeIds: number[],
-): Promise<RawMarketPrice[]> {
+): Promise<{ prices: RawMarketPrice[]; budgetExhausted: boolean }> {
   const results: RawMarketPrice[] = [];
   const fallbackNeeded: number[] = [];
   let budgetExhausted = false;
@@ -291,7 +291,7 @@ async function fetchViaEsiPerType(
     results.push(...fb);
   }
 
-  return results;
+  return { prices: results, budgetExhausted };
 }
 
 // One Fuzzwork round-trip for the affected types, with source rewritten
@@ -304,22 +304,30 @@ async function fallbackToFuzzwork(
   return raw.map((r) => ({ ...r, source: 'fuzzwork-fallback' as const }));
 }
 
+// Returns the priced rows plus a `budgetExhausted` flag — true when ESI's
+// error budget was hit (either the pre-dispatch gate or a 420), which forced
+// the Fuzzwork fallback. The flag is the one degradation fact callers can't
+// reconstruct from the row `source` values alone (a fallback row reads the
+// same whether it came from an ESI 5xx or budget exhaustion); the route
+// handlers thread it into the O-1 telemetry. The data slice itself never
+// imports telemetry — the boundary stays sealed.
 export async function fetchPricesFromSource(
   typeIds: number[],
-): Promise<RawMarketPrice[]> {
-  if (typeIds.length === 0) return [];
+): Promise<{ prices: RawMarketPrice[]; budgetExhausted: boolean }> {
+  if (typeIds.length === 0) return { prices: [], budgetExhausted: false };
   const unique = dedupe(typeIds);
 
   if (unique.length >= BULK_THRESHOLD) {
     try {
-      return await fetchViaEsiRegionDump(unique);
+      return { prices: await fetchViaEsiRegionDump(unique), budgetExhausted: false };
     } catch (err) {
       if (
         err instanceof EsiBudgetExhaustedError ||
         err instanceof EsiServerError ||
         err instanceof EsiContractError
       ) {
-        return fallbackToFuzzwork(unique);
+        const prices = await fallbackToFuzzwork(unique);
+        return { prices, budgetExhausted: err instanceof EsiBudgetExhaustedError };
       }
       throw err;
     }

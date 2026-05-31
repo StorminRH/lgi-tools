@@ -9,6 +9,13 @@ export interface RefreshSummary {
   fetched: number;
   written: number;
   durationMs: number;
+  // Source mix of the fetched rows (3.0.10 O-1). A non-zero
+  // fuzzworkFallbackCount means ESI degraded for those types; budgetExhausted
+  // means ESI's error budget was hit (the CCP rate-limit signal). Route
+  // handlers emit O-1 telemetry off these.
+  esiCount: number;
+  fuzzworkFallbackCount: number;
+  budgetExhausted: boolean;
 }
 
 // EXCLUDED is the proposed-but-conflicted row inside ON CONFLICT.
@@ -32,6 +39,9 @@ export async function refreshPrices(
     fetched: 0,
     written: 0,
     durationMs: 0,
+    esiCount: 0,
+    fuzzworkFallbackCount: 0,
+    budgetExhausted: false,
   };
 
   if (typeIds.length === 0) {
@@ -39,8 +49,13 @@ export async function refreshPrices(
     return summary;
   }
 
-  const raw = await fetchPricesFromSource(typeIds);
+  const { prices: raw, budgetExhausted } = await fetchPricesFromSource(typeIds);
   summary.fetched = raw.length;
+  summary.budgetExhausted = budgetExhausted;
+  for (const r of raw) {
+    if (r.source === 'esi') summary.esiCount++;
+    else summary.fuzzworkFallbackCount++;
+  }
   if (raw.length === 0) {
     summary.durationMs = Date.now() - start;
     return summary;

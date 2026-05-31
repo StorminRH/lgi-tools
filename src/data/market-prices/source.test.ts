@@ -133,10 +133,11 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
       ]);
     });
 
-    const result = await fetchPricesFromSource([34, 35]);
+    const { prices: result, budgetExhausted } = await fetchPricesFromSource([34, 35]);
 
     expect(result).toHaveLength(2);
     expect(result.every((r) => r.source === 'esi')).toBe(true);
+    expect(budgetExhausted).toBe(false);
     const r34 = result.find((r) => r.typeId === 34)!;
     expect(r34.bestBuy).toBe(100);
     expect(r34.bestSell).toBe(110);
@@ -157,7 +158,7 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
     });
     vi.mocked(fetchPricesFromFuzzwork).mockResolvedValue([fuzzworkRow(99)]);
 
-    const result = await fetchPricesFromSource([10, 20, 30, 99]);
+    const { prices: result } = await fetchPricesFromSource([10, 20, 30, 99]);
 
     expect(result).toHaveLength(4);
     const sources = result.map((r) => r.source).sort();
@@ -176,10 +177,13 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
       ids.map(fuzzworkRow),
     );
 
-    const result = await fetchPricesFromSource([1, 2, 3, 4, 5]);
+    const { prices: result, budgetExhausted } = await fetchPricesFromSource([1, 2, 3, 4, 5]);
 
     expect(result).toHaveLength(5);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
+    // Budget exhaustion is the one degradation cause not visible from the row
+    // sources alone — the route handlers thread it into the O-1 telemetry.
+    expect(budgetExhausted).toBe(true);
     expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledOnce();
     // All five typeIds present in the one Fuzzwork call (order may vary).
     const calledWith = vi.mocked(fetchPricesFromFuzzwork).mock.calls[0][0];
@@ -204,7 +208,7 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
     });
     vi.mocked(fetchPricesFromFuzzwork).mockResolvedValue([fuzzworkRow(77)]);
 
-    const result = await fetchPricesFromSource([10, 20, 77]);
+    const { prices: result } = await fetchPricesFromSource([10, 20, 77]);
 
     expect(result).toHaveLength(3);
     expect(result.map((r) => r.source).sort()).toEqual([
@@ -218,7 +222,7 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
   it('emits a row with null prices for a type that ESI returns no orders for', async () => {
     vi.mocked(esiFetch).mockResolvedValue(ordersResponse([]));
 
-    const result = await fetchPricesFromSource([42]);
+    const { prices: result } = await fetchPricesFromSource([42]);
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
       typeId: 42,
@@ -264,10 +268,11 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
       return ordersResponse(pageOrders[page] ?? [], '3');
     });
 
-    const result = await fetchPricesFromSource(bulkTypeIds());
+    const { prices: result, budgetExhausted } = await fetchPricesFromSource(bulkTypeIds());
 
     expect(result).toHaveLength(BULK_THRESHOLD + 20);
     expect(result.every((r) => r.source === 'esi')).toBe(true);
+    expect(budgetExhausted).toBe(false);
 
     const r1000 = result.find((r) => r.typeId === 1000)!;
     expect(r1000.bestBuy).toBe(55); // max across pages 1+2
@@ -296,10 +301,12 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     );
 
     const ids = bulkTypeIds();
-    const result = await fetchPricesFromSource(ids);
+    const { prices: result, budgetExhausted } = await fetchPricesFromSource(ids);
 
     expect(result).toHaveLength(ids.length);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
+    // A 5xx is an ESI failure, not budget exhaustion.
+    expect(budgetExhausted).toBe(false);
     expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith(ids);
   });
 
@@ -310,10 +317,11 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     );
 
     const ids = bulkTypeIds();
-    const result = await fetchPricesFromSource(ids);
+    const { prices: result, budgetExhausted } = await fetchPricesFromSource(ids);
 
     expect(result).toHaveLength(ids.length);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
+    expect(budgetExhausted).toBe(true);
   });
 
   it('stops dispatching new region-dump pages after one worker fails', async () => {
@@ -340,7 +348,7 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     );
 
     const ids = bulkTypeIds();
-    const result = await fetchPricesFromSource(ids);
+    const { prices: result } = await fetchPricesFromSource(ids);
 
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
     // Hard upper bound: cursor advancement plus in-flight workers when
@@ -364,7 +372,7 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     );
 
     const ids = bulkTypeIds();
-    const result = await fetchPricesFromSource(ids);
+    const { prices: result } = await fetchPricesFromSource(ids);
 
     expect(result).toHaveLength(ids.length);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
@@ -389,7 +397,7 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     );
 
     const ids = bulkTypeIds();
-    const result = await fetchPricesFromSource(ids);
+    const { prices: result } = await fetchPricesFromSource(ids);
 
     expect(result).toHaveLength(ids.length);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
@@ -399,7 +407,7 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
 
 describe('fetchPricesFromSource — dispatch', () => {
   it('returns [] for an empty type-ID list without calling ESI or Fuzzwork', async () => {
-    const result = await fetchPricesFromSource([]);
+    const { prices: result } = await fetchPricesFromSource([]);
     expect(result).toEqual([]);
     expect(vi.mocked(esiFetch)).not.toHaveBeenCalled();
     expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
@@ -414,7 +422,7 @@ describe('fetchPricesFromSource — dispatch', () => {
       ]);
     });
 
-    const result = await fetchPricesFromSource([5, 5, 5, 6, 6]);
+    const { prices: result } = await fetchPricesFromSource([5, 5, 5, 6, 6]);
     expect(result).toHaveLength(2);
     expect(vi.mocked(esiFetch).mock.calls).toHaveLength(2);
   });
