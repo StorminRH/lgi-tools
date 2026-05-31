@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { overlayLivePrices } from '@/features/wormhole-sites/live-prices';
-import { getSiteDetail } from '@/features/wormhole-sites/queries';
+import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import type { ApiError, SiteDetail } from '@/features/wormhole-sites/types';
 
 // Postgres `serial` is signed 32-bit, so site IDs cannot exceed this. Reject
@@ -29,12 +28,11 @@ export async function GET(
     return Response.json({ error: 'Invalid id' } satisfies ApiError, { status: 400 });
   }
 
-  const raw: SiteDetail | null = await getSiteDetail(parsed.data.id);
+  const site: SiteDetail | null = await getPricedSiteDetail(parsed.data.id);
 
-  if (!raw) {
+  if (!site) {
     return Response.json({ error: 'Not found' } satisfies ApiError, { status: 404 });
   }
 
-  const [site] = await overlayLivePrices([raw]);
   return Response.json(site);
 }
