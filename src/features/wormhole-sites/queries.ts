@@ -167,6 +167,11 @@ export async function listSites(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
 }): Promise<SiteListItem[]> {
+  // The catalogue is deploy-static (seeded once by migration, untouched by either
+  // cron), so cache the read and let the build ID invalidate it — same pattern as
+  // getSiteSearchIndex / getSiteDetail. Keyed automatically on the filter args.
+  'use cache';
+  cacheLife('max');
   // Class filtering happens post-fetch (see matchesClass) — only `type` goes
   // into the SQL clause. The whole-table cost of fetching ~70 rows is
   // negligible vs. the clarity of single-source-of-truth class matching.
