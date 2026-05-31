@@ -124,4 +124,18 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
       OUTBOUND_USER_AGENT,
     );
   });
+
+  it('rejects a malformed aggregates body at the boundary', async () => {
+    // 200 OK but a pair is the wrong shape — the boundary schema rejects it,
+    // throwing the same way a Fuzzwork HTTP error does today.
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ '34': { buy: 'not-a-side' } }), {
+        status: 200,
+      }),
+    );
+
+    await expect(fetchPricesFromFuzzwork([34])).rejects.toThrow(
+      /boundary validation/,
+    );
+  });
 });

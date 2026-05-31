@@ -112,4 +112,43 @@ describe('exchangeCodeForToken outbound headers', () => {
       OUTBOUND_USER_AGENT,
     );
   });
+
+  it('attaches a timeout abort signal to the token request', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ access_token: 'tok', token_type: 'Bearer' }),
+        { status: 200 },
+      ),
+    );
+
+    await exchangeCodeForToken({
+      code: 'auth-code',
+      codeVerifier: 'verifier',
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+    });
+
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('rejects a token envelope missing access_token at the boundary', async () => {
+    // 200 OK but no access_token — the boundary schema rejects it, throwing
+    // the same way an HTTP error does; the callback maps that to the
+    // token_exchange_failed auth-error redirect.
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ token_type: 'Bearer', expires_in: 1199 }), {
+        status: 200,
+      }),
+    );
+
+    await expect(
+      exchangeCodeForToken({
+        code: 'auth-code',
+        codeVerifier: 'verifier',
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+      }),
+    ).rejects.toThrow(/boundary validation/);
+  });
 });

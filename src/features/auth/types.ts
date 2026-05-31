@@ -23,13 +23,16 @@ export interface Session {
   role: CharacterRole;
 }
 
-// EVE SSO v2 token endpoint response. We only consume `access_token` in 2.8.1;
-// `refresh_token` is captured in the type for clarity but discarded.
+// EVE SSO v2 token endpoint response. We only consume `access_token`, so that
+// is the only field guaranteed (and boundary-validated) — the rest are
+// best-effort metadata the envelope happens to carry and are left optional so
+// the type can't promise a value the boundary doesn't enforce. Mirrors
+// `eveTokenResponseSchema` in `eve-sso.ts`.
 export interface EveTokenResponse {
   access_token: string;
-  token_type: 'Bearer';
-  expires_in: number;
-  refresh_token: string;
+  token_type?: string;
+  expires_in?: number;
+  refresh_token?: string;
 }
 
 // Claims we read out of the verified EVE access-token JWT.

@@ -6,6 +6,10 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import {
+  fetchWithTimeout,
+  SDE_DOWNLOAD_TIMEOUT_MS,
+} from '@/lib/fetch-with-timeout';
 
 // Fuzzwork SDE dump URLs. Swapping to CCP's official SDE later means
 // replacing this module only — nothing in ingest.ts or queries.ts knows
@@ -58,9 +62,11 @@ async function downloadOne(name: SdeDumpName): Promise<string> {
   const dest = localPathFor(name);
   if (existsSync(dest)) return dest;
   const url = urlFor(name);
-  const res = await fetch(url, {
-    headers: { 'User-Agent': OUTBOUND_USER_AGENT },
-  });
+  const res = await fetchWithTimeout(
+    url,
+    { headers: { 'User-Agent': OUTBOUND_USER_AGENT } },
+    SDE_DOWNLOAD_TIMEOUT_MS,
+  );
   if (!res.ok || !res.body) {
     throw new Error(`Fetch failed for ${name}: ${res.status} ${res.statusText}`);
   }
@@ -106,7 +112,7 @@ export async function cleanupDumps(paths: SdeDumpPaths): Promise<void> {
 // blocks a deploy.
 export async function getRemoteSdeVersion(): Promise<string | null> {
   try {
-    const res = await fetch(urlFor(SDE_VERSION_PROBE_NAME), {
+    const res = await fetchWithTimeout(urlFor(SDE_VERSION_PROBE_NAME), {
       method: 'HEAD',
       headers: { 'User-Agent': OUTBOUND_USER_AGENT },
     });
