@@ -22,6 +22,7 @@ function requireEnv(name: string): string {
 }
 
 // No user input — handshake initiator, all PKCE state generated server-side.
+// authz: public
 export async function GET(_request: NextRequest): Promise<Response> {
   // Handshake initiator: must run per-request (fresh PKCE state + cookie writes).
   // Cache Components prerenders GET handlers by default, so defer to request time

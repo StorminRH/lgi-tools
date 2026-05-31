@@ -43,6 +43,7 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
 //   characterId, nextRole, q (optional).
 // Independent isAdmin() gate — never trust a UI-level disable; the handler
 // is the source of truth for who can mutate roles.
+// authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession();
   if (!isAdmin(session)) {

@@ -16,6 +16,7 @@ import { directClient } from '@/db';
 // a reserved session connection — we pass `directClient` (the unpooled
 // endpoint) so the session-scoped lock actually holds.
 // No user input — bearer-auth only, body and query params ignored.
+// authz: cron
 export async function GET(req: Request): Promise<Response> {
   // Cron endpoint: runs per-invocation and writes. Defer to request time so
   // Cache Components doesn't try to prerender it.

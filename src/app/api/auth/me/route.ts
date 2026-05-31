@@ -6,6 +6,7 @@ import { getSession, isAdmin } from '@/features/auth/session';
 // server-side, because its superadmin branch reads SUPERADMIN_CHARACTER_ID — an
 // env var the client must never see. `no-store` keeps login state fresh across
 // login/logout navigations.
+// authz: public
 export async function GET(): Promise<Response> {
   const session = await getSession();
   return Response.json(

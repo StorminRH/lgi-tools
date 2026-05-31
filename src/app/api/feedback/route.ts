@@ -79,6 +79,7 @@ function buildEmbed({
 // pattern — one operational record, not a separate feedback table).
 // Discord failure returns 502 and does NOT log telemetry; the action didn't
 // happen.
+// authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   let body: unknown;
   try {

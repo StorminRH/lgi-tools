@@ -26,6 +26,7 @@ const preferenceSchema = z.object({
 //
 // 2.8.4 ships this without a UI consumer. First real consumer (theme,
 // sticky tab, etc.) lands in a later version.
+// authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession();
   if (!session) {

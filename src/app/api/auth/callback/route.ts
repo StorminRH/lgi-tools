@@ -40,6 +40,7 @@ function redirectHome(request: NextRequest, errorCode?: string): Response {
   return Response.redirect(url, 302);
 }
 
+// authz: public
 export async function GET(request: NextRequest): Promise<Response> {
   const parsed = callbackQuerySchema.safeParse({
     code: request.nextUrl.searchParams.get('code') ?? '',
