@@ -93,14 +93,14 @@ export function CostPanel({
   }, []);
 
   useEffect(() => {
-    const now = Date.now();
+    const nowMs = Date.now();
     const map = initialMap(initialPricing);
 
     const stale = new Set<number>();
     for (const m of structure.flatMaterials) {
-      if (isStale(map.get(m.typeId), now)) stale.add(m.typeId);
+      if (isStale(map.get(m.typeId), nowMs)) stale.add(m.typeId);
     }
-    if (isStale(map.get(structure.product.typeId), now)) {
+    if (isStale(map.get(structure.product.typeId), nowMs)) {
       stale.add(structure.product.typeId);
     }
     if (stale.size === 0) return;
