@@ -25,8 +25,12 @@ type Sql = ReturnType<typeof postgres>;
 // needing a custom bigint parser configured on the client.
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_REFRESH_PRICES);
 
+// `reason` distinguishes the two 'cached' (no-write) outcomes so the cron can
+// tell a genuine lock-skip apart from a healthy "nothing was stale" run (O-3):
+// 'lock-contended' — another refresher held the advisory lock;
+// 'empty-set' — the lock was acquired but no type IDs needed refreshing.
 export type CachedRefreshResult =
-  | { status: 'cached'; lastUpdatedAt: Date | null }
+  | { status: 'cached'; reason: 'lock-contended' | 'empty-set'; lastUpdatedAt: Date | null }
   | { status: 'refreshed'; lastUpdatedAt: Date; summary: RefreshSummary };
 
 // Reads the most recent updated_at. Returns null when the table is empty
@@ -98,7 +102,7 @@ export async function refreshStalePrices(
     `;
     if (!lockResult[0].got) {
       const { lastUpdatedAt } = await getPricesFreshness(db);
-      return { status: 'cached', lastUpdatedAt };
+      return { status: 'cached', reason: 'lock-contended', lastUpdatedAt };
     }
     lockHeld = true;
 
@@ -106,7 +110,7 @@ export async function refreshStalePrices(
 
     if (typeIds.length === 0) {
       const { lastUpdatedAt } = await getPricesFreshness(db);
-      return { status: 'cached', lastUpdatedAt };
+      return { status: 'cached', reason: 'empty-set', lastUpdatedAt };
     }
 
     // HTTP call to Fuzzwork happens here — outside any open transaction

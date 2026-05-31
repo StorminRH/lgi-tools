@@ -7,6 +7,7 @@ import {
 } from "@/data/market-prices/constants";
 import { refreshPrices } from "@/data/market-prices/ingest";
 import { marketPrices } from "@/data/market-prices/schema";
+import { logUsageEvent } from "@/data/telemetry/queries";
 import { clientIdentifier, rateLimit } from "@/lib/rate-limit";
 import { inArray } from "drizzle-orm";
 
@@ -68,6 +69,25 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
   const summary = await refreshPrices(db, typeIds);
+
+  if (summary.fuzzworkFallbackCount > 0 || summary.budgetExhausted) {
+    // O-1 + S-2: surface ESI degradation on the public path via telemetry. A
+    // spike of these with caller:'on-demand' is how the deferred amplification
+    // concern would show. Fire-and-forget (no added latency); no Discord alert
+    // from this public surface so it can't be driven to post to Discord.
+    void logUsageEvent({
+      action: "price_source_degraded",
+      metadata: {
+        caller: "on-demand",
+        fetched: summary.fetched,
+        esiCount: summary.esiCount,
+        fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
+        budgetExhausted: summary.budgetExhausted,
+      },
+    }).catch((err) =>
+      console.error("[market-prices/refresh] telemetry write failed", err),
+    );
+  }
 
   const rows = await db
     .select()

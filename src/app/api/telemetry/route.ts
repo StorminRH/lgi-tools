@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { USAGE_ACTIONS } from '@/data/telemetry/types';
+import { CLIENT_USAGE_ACTIONS } from '@/data/telemetry/types';
 import { getSession } from '@/features/auth/session';
 
 // Hard cap on serialised metadata to keep one bad payload from filling the
@@ -9,8 +9,11 @@ import { getSession } from '@/features/auth/session';
 // payloads keeps a misbehaving client from running away.
 const MAX_METADATA_BYTES = 2048;
 
+// Validates against CLIENT_USAGE_ACTIONS, not the full set: server-only
+// actions (cron health signals, auth/admin audit) must not be forgeable by a
+// client POST, or the health/audit rows they write could be polluted.
 const telemetrySchema = z.object({
-  action: z.enum(USAGE_ACTIONS),
+  action: z.enum(CLIENT_USAGE_ACTIONS),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 

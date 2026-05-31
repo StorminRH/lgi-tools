@@ -1,14 +1,29 @@
-// Closed enumeration of recognised actions. Extending: add to this list,
-// the route handler will start accepting it. No migration needed because
-// the DB column is plain text.
-export const USAGE_ACTIONS = [
-  'page_view',
-  'terminal_search',
+// Actions a first-party CLIENT is allowed to POST to /api/telemetry — kept to
+// the two the browser actually emits. The public route validates against this
+// list (not the full set), so a client can't forge server-only rows (cron
+// health signals, the auth/admin/feedback audit trail).
+export const CLIENT_USAGE_ACTIONS = ['page_view', 'terminal_search'] as const;
+
+// Server-only actions — written via logUsageEvent from route handlers/crons,
+// never accepted from a client. The auth/admin/feedback audit trail plus the
+// 3.0.10 observability health signals.
+export const SERVER_USAGE_ACTIONS = [
   'auth_login',
   'auth_logout',
   'role_change',
   'feedback_submitted',
   'contact_submitted',
+  // 3.0.10 observability:
+  'price_source_degraded', // ESI→Fuzzwork degradation / budget exhaustion (O-1, S-2)
+  'cron_prices', // hourly price-cron outcome — refreshed / skipped (O-2, O-3)
+  'cron_sde', // weekly SDE-cron outcome (O-2, O-3)
+] as const;
+
+// Closed enumeration of recognised actions. Extending: add to the client or
+// server list above. No migration needed because the DB column is plain text.
+export const USAGE_ACTIONS = [
+  ...CLIENT_USAGE_ACTIONS,
+  ...SERVER_USAGE_ACTIONS,
 ] as const;
 
 export type UsageAction = (typeof USAGE_ACTIONS)[number];

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const refreshPricesMock = vi.fn();
 const rateLimitMock = vi.fn();
 const dbSelectMock = vi.fn();
+const logUsageEventMock = vi.fn();
 
 vi.mock('@/db', () => ({
   db: {
@@ -13,6 +14,10 @@ vi.mock('@/db', () => ({
 
 vi.mock('@/data/market-prices/ingest', () => ({
   refreshPrices: (...args: unknown[]) => refreshPricesMock(...args),
+}));
+
+vi.mock('@/data/telemetry/queries', () => ({
+  logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
@@ -49,12 +54,17 @@ describe('POST /api/market-prices/refresh', () => {
     refreshPricesMock.mockReset();
     rateLimitMock.mockReset();
     dbSelectMock.mockReset();
+    logUsageEventMock.mockReset();
+    logUsageEventMock.mockResolvedValue(undefined);
     rateLimitMock.mockResolvedValue({ ok: true, remaining: 19 });
     refreshPricesMock.mockResolvedValue({
       requested: 1,
       fetched: 1,
       written: 1,
       durationMs: 42,
+      esiCount: 1,
+      fuzzworkFallbackCount: 0,
+      budgetExhausted: false,
     });
     dbSelectMock.mockReturnValue(
       buildSelectChain([
@@ -88,6 +98,36 @@ describe('POST /api/market-prices/refresh', () => {
     expect(body.prices[0].typeId).toBe(34);
     expect(body.prices[0].buyVolume).toBe('1000000');
     expect(body.prices[0].source).toBe('esi');
+  });
+
+  it('emits price_source_degraded telemetry when the refresh fell back to Fuzzwork', async () => {
+    refreshPricesMock.mockResolvedValue({
+      requested: 3,
+      fetched: 3,
+      written: 3,
+      durationMs: 50,
+      esiCount: 1,
+      fuzzworkFallbackCount: 2,
+      budgetExhausted: false,
+    });
+    const { POST } = await importRoute();
+    await POST(buildRequest({ typeIds: [34, 35, 36] }));
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'price_source_degraded',
+      metadata: {
+        caller: 'on-demand',
+        fetched: 3,
+        esiCount: 1,
+        fuzzworkFallbackCount: 2,
+        budgetExhausted: false,
+      },
+    });
+  });
+
+  it('does not emit degradation telemetry on a clean all-ESI refresh', async () => {
+    const { POST } = await importRoute();
+    await POST(buildRequest({ typeIds: [34] }));
+    expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('deduplicates typeIds before passing to refreshPrices', async () => {

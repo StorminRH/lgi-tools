@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-05-31
+
+- The market-price pipeline is now monitored end to end. When the main price source has trouble and the site falls back to its backup, or a scheduled refresh is skipped, that now gets recorded and flagged instead of passing silently — so price-data problems get noticed and fixed faster, keeping Jita prices across the site fresher and more dependable.
+
 ### 2026-05-30
 
 - The Industry Planner's build cost is now correct for deep, multi-tier builds like Tech III cruisers. It had been overcounting by building each intermediate in whole production runs — pulling an entire reaction batch to use a fraction of it — which inflated the total several times over. A Legion hull now comes out around 180M ISK instead of 650M.
