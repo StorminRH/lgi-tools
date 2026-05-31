@@ -5,11 +5,13 @@ import { CascadingPanels, type CascadePane } from '@/components/ui/cascading-pan
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
+import { PriceConfidence } from '@/components/ui/price-confidence';
 import { SectionHeader } from '@/components/ui/section-header';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { useCascadePath } from '@/components/ui/use-cascade-path';
 import { formatQuantity } from '@/lib/format';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from '../types';
+import { usePricing } from './PricingProvider';
 
 // The build plan as a floating-column cascade (the detail-page consumer of the
 // CascadingPanels primitive — decision #2's refinement of #4). Column 0 is the
@@ -28,7 +30,7 @@ function formatNodeQty(quantity: number): string {
 }
 
 const ROW =
-  'grid grid-cols-[32px_minmax(0,1fr)_auto_auto_16px] items-center gap-2.5 px-3.5 py-[7px] border-t border-border-soft first:border-t-0 text-[12px]';
+  'grid grid-cols-[32px_minmax(0,1fr)_auto_auto_13px_16px] items-center gap-2.5 px-3.5 py-[7px] border-t border-border-soft first:border-t-0 text-[12px]';
 
 function BuildRow({
   node,
@@ -41,8 +43,10 @@ function BuildRow({
   open: boolean;
   onToggle?: () => void;
 }) {
+  const { confidenceFor } = usePricing();
   const d = display[node.typeId];
   const buildable = !d.isRaw;
+  const conf = confidenceFor(node.typeId);
   const inner = (
     <>
       <TypeIcon typeId={node.typeId} size={32} mono={d.name.slice(0, 2)} />
@@ -51,6 +55,9 @@ function BuildRow({
         {d.label}
       </span>
       <span className="text-[11px] text-muted whitespace-nowrap">× {formatNodeQty(node.quantity)}</span>
+      <span className="flex justify-center">
+        {conf && <PriceConfidence level={conf.level} reasons={conf.reasons} />}
+      </span>
       <span className={cn('text-[11px] text-center', open ? 'text-isk' : 'text-muted')}>
         {buildable ? '▸' : ''}
       </span>
@@ -124,6 +131,41 @@ function BuildBlock({
   );
 }
 
+// The open drill path as a breadcrumb: the product, then each fanned-out
+// column's component, URL-synced. Clicking a crumb collapses back to that
+// depth. Mirrors the mockup's "Archon › … — drill path" line.
+function DrillBreadcrumb({
+  crumbs,
+  setPath,
+}: {
+  crumbs: { key: string; name: string }[];
+  setPath: (path: string[]) => void;
+}) {
+  return (
+    <div className="mb-2.5 flex items-center gap-1.5 text-[10px] flex-wrap">
+      {crumbs.map((crumb, i) => {
+        const last = i === crumbs.length - 1;
+        return (
+          <span key={crumb.key} className="flex items-center gap-1.5">
+            {i > 0 && <span className="text-muted">›</span>}
+            {last ? (
+              <span className="text-name">{crumb.name}</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPath(crumbs.slice(1, i + 1).map((c) => c.key))}
+                className="text-muted hover:text-name cursor-pointer"
+              >
+                {crumb.name}
+              </button>
+            )}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
   const { buildTree, buildNodeDisplay: display } = structure;
   const [path, setPath] = useCascadePath('build');
@@ -136,6 +178,11 @@ export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
       </Card>
     );
   }
+
+  // The product anchors the breadcrumb; resolved drill segments append to it.
+  const crumbs: { key: string; name: string }[] = [
+    { key: 'root', name: display[buildTree[0].typeId]?.name ?? 'Build steps' },
+  ];
 
   const panes: CascadePane[] = [
     {
@@ -167,6 +214,7 @@ export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
       (n) => String(n.typeId) === path[p] && !display[n.typeId].isRaw,
     );
     if (!node) break;
+    crumbs.push({ key: String(node.typeId), name: display[node.typeId].name });
     panes.push({
       key: String(node.typeId),
       label: display[node.typeId].name,
@@ -184,9 +232,9 @@ export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
   }
 
   return (
-    <div>
-      <SectionHeader label="Build Plan" hint="build sequence · click a step to fan out" />
-      <CascadingPanels panes={panes} className="mt-3" />
+    <div className="mb-4">
+      <DrillBreadcrumb crumbs={crumbs} setPath={setPath} />
+      <CascadingPanels panes={panes} />
     </div>
   );
 }
