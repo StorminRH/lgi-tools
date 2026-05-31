@@ -10,6 +10,7 @@ for the full forensic record.
 
 ### 2026-05-30
 
+- The planner's build plan now reads top-down as a build sequence: it starts from the item you're making and nests the components and reactions that feed it, down to the raw materials, with the first couple of layers open and deeper steps a tap away. Each step is labelled by its real in-game role — reactions read as reactions, manufactured parts by their actual component group — instead of hand-picked category names.
 - The Industry Planner's build cost is now correct for deep, multi-tier builds like Tech III cruisers. It had been overcounting by building each intermediate in whole production runs — pulling an entire reaction batch to use a fraction of it — which inflated the total several times over. A Legion hull now comes out around 180M ISK instead of 650M.
 - The planner's material breakdown is now a build plan: each thing you manufacture is listed once at the total amount the whole build needs, grouped by construction step — reactions, advanced components, fuel, then the final hull — with a colour for each. Tap any step to expand exactly what it is made from, so a reaction's gas and fuel blocks sit underneath it.
 - Raw materials in the planner are grouped by source — minerals, ice, gas, moon materials, salvage, and planetary — each with its own running subtotal.
