@@ -90,6 +90,22 @@ describe('GET /api/cron/refresh-prices', () => {
     expect(alertMock).not.toHaveBeenCalled();
   });
 
+  it('records an empty-set skip as cron_prices/skipped with reason empty-set (O-3)', async () => {
+    refreshStalePricesMock.mockResolvedValue({
+      status: 'cached',
+      reason: 'empty-set',
+      lastUpdatedAt: new Date('2026-05-30T11:00:00Z'),
+    });
+    const { GET } = await importRoute();
+    const res = await GET(authedRequest());
+    expect((await res.json()).cached).toBe(true);
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'cron_prices',
+      metadata: expect.objectContaining({ outcome: 'skipped', reason: 'empty-set' }),
+    });
+    expect(alertMock).not.toHaveBeenCalled();
+  });
+
   it('records a clean refresh as cron_prices/refreshed with counts (O-2) and no degradation', async () => {
     refreshStalePricesMock.mockResolvedValue({
       status: 'refreshed',

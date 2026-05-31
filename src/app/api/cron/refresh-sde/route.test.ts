@@ -102,6 +102,20 @@ describe('GET /api/cron/refresh-sde', () => {
     expect(reserveMock).not.toHaveBeenCalled();
   });
 
+  it('records a remote-unreachable run as cron_sde/remote-unreachable (O-3)', async () => {
+    getSdeMetaValueMock.mockResolvedValue('2026-05-01');
+    getRemoteSdeVersionMock.mockResolvedValue(null); // Fuzzwork HEAD failed
+    const { GET } = await importRoute();
+    const res = await GET(authedRequest());
+    expect((await res.json()).status).toBe('remote-unreachable');
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'cron_sde',
+      metadata: expect.objectContaining({ outcome: 'remote-unreachable' }),
+    });
+    // No lock attempt on the doomed-download guard path.
+    expect(reserveMock).not.toHaveBeenCalled();
+  });
+
   it('records a busy skip as cron_sde/busy when the lock is held (O-3)', async () => {
     getSdeMetaValueMock.mockResolvedValue('2026-05-01');
     getRemoteSdeVersionMock.mockResolvedValue('2026-05-08'); // drift
