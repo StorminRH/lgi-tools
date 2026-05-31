@@ -7,6 +7,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 // POST-only on purpose — prevents accidental logout via link prefetch.
 // The LoginButton submits a small <form method="POST"> here.
 // No user input — session read from cookie, response is a redirect.
+// authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   // Capture the session before clearing the cookie so we can attribute the
   // logout event to the right character. Logged-out callers (idempotent

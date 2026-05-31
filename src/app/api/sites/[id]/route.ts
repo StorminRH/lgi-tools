@@ -19,6 +19,7 @@ const idParamSchema = z.object({
     .pipe(z.number().int().positive().max(PG_SERIAL_MAX)),
 });
 
+// authz: public
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },

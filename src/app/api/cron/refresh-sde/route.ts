@@ -28,6 +28,7 @@ export const maxDuration = 300;
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
 // No user input — bearer-auth only, no body or query params consumed.
+// authz: cron
 export async function GET(req: Request): Promise<Response> {
   // Cron endpoint: runs per-invocation and writes. Defer to request time so
   // Cache Components doesn't try to prerender it.

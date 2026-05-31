@@ -21,6 +21,7 @@ const sitesQuerySchema = z.object({
   class: z.enum(WORMHOLE_CLASSES).optional(),
 });
 
+// authz: public
 export async function GET(request: NextRequest): Promise<Response> {
   const parsed = sitesQuerySchema.safeParse({
     type: request.nextUrl.searchParams.get('type') ?? undefined,

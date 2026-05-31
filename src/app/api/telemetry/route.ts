@@ -19,6 +19,7 @@ const telemetrySchema = z.object({
 // for partner-program reporting), and returns 204 on success. Validation
 // failures return 400 so a misconfigured client surfaces in the network
 // tab instead of polluting the table.
+// authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   let body: unknown;
   try {

@@ -35,6 +35,7 @@ const refreshSchema = z.object({
 // Rate-limited per client IP. The threshold lives in
 // src/data/market-prices/constants.ts so post-ship tuning is one config
 // change, not a code edit.
+// authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   let body: unknown;
   try {

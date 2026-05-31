@@ -46,6 +46,7 @@ function sanitiseText(raw: string, max: number): string {
 // sender happens to be logged in. On success, logs `contact_submitted`
 // (message length + attribution only — never the address or body). Mail
 // failure returns 502 and skips telemetry; the action didn't happen.
+// authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   let body: unknown;
   try {
