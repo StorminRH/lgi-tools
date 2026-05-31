@@ -21,33 +21,6 @@ export interface BlueprintProduct {
   quantityPerRun: number;
 }
 
-// One direct recipe ingredient of a buildable, scaled to the parent's gross
-// demand. The tone is its own category's colour, for the marker dot.
-export interface BomInput {
-  typeId: number;
-  name: string;
-  quantity: number;
-  tone: Tone;
-}
-
-// One buildable in the condensed bill of materials: shown once at its gross
-// demand (total units needed across the whole build), expandable to the direct
-// inputs that produce that quantity.
-export interface BomItem {
-  typeId: number;
-  name: string;
-  quantity: number;
-  inputs: BomInput[];
-}
-
-// A construction category (Reactions, Components, …) with its colour and the
-// buildables that belong to it.
-export interface BomGroup {
-  label: string;
-  tone: Tone;
-  items: BomItem[];
-}
-
 // --- Build-sequence tree -------------------------------------------------
 // The "what do I make next" view: the dependency tree rooted at the product,
 // shown as a phased build sequence. Two separate axes:
@@ -91,10 +64,6 @@ export interface BlueprintStructure {
   // Nested breakdown for the structural tree display. Empty when the resolver
   // hasn't produced a tree for this blueprint yet.
   tree: TreeNode[];
-  // The condensed bill of materials: buildables grouped by construction
-  // category, each at gross demand and expandable to its direct inputs. Derived
-  // from the tree. Empty when there is no tree.
-  buildGroups: BomGroup[];
   // The phased build-sequence tree: a single root (the product) whose nested
   // inputs descend reactions → components → raws. Empty when there is no tree.
   // `buildNodeDisplay` carries each type's label/colour/height (keyed by

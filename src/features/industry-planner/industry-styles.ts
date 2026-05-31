@@ -40,36 +40,6 @@ export interface Category {
   order: number;
 }
 
-// --- Buildables (the build tree — things you make) ---------------------
-// Classified by production type. Reactions first (purple), then manufactured
-// components (blue), the fuel those reactions burn (yellow), and the end
-// product (teal) — mirroring how a builder sequences the job.
-const REACTIONS: Category = { label: 'Reactions', tone: 'purple', order: 1 };
-const COMPONENTS: Category = { label: 'Components', tone: 'blue', order: 2 };
-const FUEL: Category = { label: 'Fuel & Consumables', tone: 'yellow', order: 3 };
-const FINAL_PRODUCT: Category = { label: 'Final Product', tone: 'teal', order: 4 };
-
-const BUILD_BY_GROUP: Record<string, Category> = {
-  'Hybrid Polymers': REACTIONS,
-  Composite: REACTIONS,
-  'Biochemical Material': REACTIONS,
-  'Intermediate Materials': REACTIONS,
-  'Molecular-Forged Materials': REACTIONS,
-  'Fuel Block': FUEL,
-  'Construction Components': COMPONENTS,
-  'Capital Construction Components': COMPONENTS,
-  'Advanced Capital Construction Components': COMPONENTS,
-  'Hybrid Tech Components': COMPONENTS,
-  'Structure Components': COMPONENTS,
-  Tool: COMPONENTS,
-};
-
-// A buildable's category. Anything not in the table — ships, modules, charges,
-// drones, subsystems, … — is the thing the blueprint ultimately makes.
-export function classifyBuildable(groupName: string): Category {
-  return BUILD_BY_GROUP[groupName] ?? FINAL_PRODUCT;
-}
-
 // --- Raw materials (the cost panel — things you buy/gather) ------------
 const MINERALS: Category = { label: 'Minerals', tone: 'neutral', order: 21 };
 const ICE: Category = { label: 'Ice Products', tone: 'blue', order: 22 };
