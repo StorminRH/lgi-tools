@@ -69,14 +69,6 @@ describe('toBuildTree', () => {
     expect(byId.get(3)!.inputs[0].quantity).toBe(2);
   });
 
-  it('flags whether a node has further buildables beneath it', () => {
-    const root = build().buildTree[0];
-    const byId = new Map(root.inputs.map((n) => [n.typeId, n]));
-    expect(root.hasBuildableChildren).toBe(true); // component + reaction
-    expect(byId.get(2)!.hasBuildableChildren).toBe(false); // only a raw mineral under it
-    expect(byId.get(4)!.hasBuildableChildren).toBe(false); // a raw leaf
-  });
-
   it('labels every node from an in-game identifier — never an invented bucket', () => {
     const d = build().buildNodeDisplay;
     expect(d[1]).toMatchObject({ label: 'Assault Frigate', tone: 'teal', isRaw: false, height: 2 }); // root: its group

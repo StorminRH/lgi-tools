@@ -40,14 +40,12 @@ export interface BuildNodeDisplay {
   tone: Tone;
 }
 
-// One node in the nested build tree. Carries only the per-occurrence facts
-// (its type, the absolute quantity one run of the final product needs, and
-// whether it has further buildables beneath it); everything per-type-stable is
-// looked up from `buildNodeDisplay`.
+// One node in the nested build tree. Carries only the per-occurrence facts (its
+// type and the absolute quantity one run of the final product needs);
+// everything per-type-stable is looked up from `buildNodeDisplay`.
 export interface BuildNode {
   typeId: number;
   quantity: number;
-  hasBuildableChildren: boolean;
   inputs: BuildNode[];
 }
 

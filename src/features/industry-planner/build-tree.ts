@@ -63,7 +63,6 @@ export function toBuildTree(args: {
         // the marginal basis a single end product's share of a batch input can
         // be sub-unit — the renderer decides how to show that.
         quantity: absQty,
-        hasBuildableChildren: inputs.some((c) => !display[c.typeId].isRaw),
         inputs,
       };
     });
@@ -95,7 +94,6 @@ export function toBuildTree(args: {
   const root: BuildNode = {
     typeId: product.typeId,
     quantity: product.quantityPerRun,
-    hasBuildableChildren: rootInputs.some((c) => !display[c.typeId].isRaw),
     inputs: rootInputs,
   };
   return { buildTree: [root], buildNodeDisplay: display, rootHeight };
