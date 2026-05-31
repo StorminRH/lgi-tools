@@ -59,7 +59,10 @@ export function toBuildTree(args: {
         : [];
       return {
         typeId: node.typeId,
-        quantity: Math.round(absQty),
+        // Exact (possibly fractional) units; rounding is a display concern. On
+        // the marginal basis a single end product's share of a batch input can
+        // be sub-unit — the renderer decides how to show that.
+        quantity: absQty,
         hasBuildableChildren: inputs.some((c) => !display[c.typeId].isRaw),
         inputs,
       };
