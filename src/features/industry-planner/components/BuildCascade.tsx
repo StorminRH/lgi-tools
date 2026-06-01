@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { Card } from '@/components/ui/card';
 import { CascadingPanels, type CascadePane } from '@/components/ui/cascading-panels';
 import { cn } from '@/components/ui/cn';
@@ -12,6 +13,7 @@ import { useCascadePath } from '@/components/ui/use-cascade-path';
 import { formatQuantity } from '@/lib/format';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from '../types';
 import { ConsolidatedBuild } from './ConsolidatedBuild';
+import { CostLedger } from './CostLedger';
 
 // The build plan as a floating-column cascade (the detail-page consumer of the
 // CascadingPanels primitive — decision #2's refinement of #4). Column 0 is the
@@ -263,11 +265,15 @@ function ToggleButton({
   );
 }
 
-// The build plan, in two interchangeable views. Consolidated (default) sums the
-// whole tree into one by-stage view; "By branch" is the original drill-down
-// cascade, kept as a fallback while the consolidated view settles.
+// The build plan, in three interchangeable views. Consolidated (default) sums
+// the whole tree into a by-stage view; "By branch" is the original drill-down
+// cascade; "Raw ledger" is the raw-materials cost breakdown gridded by source
+// category. Switching views animates the old one out and the new one in.
+type BuildView = 'consolidated' | 'branch' | 'raw';
+
 export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
-  const [mode, setMode] = useState<'consolidated' | 'branch'>('consolidated');
+  const [mode, setMode] = useState<BuildView>('consolidated');
+  const [viewRef] = useAutoAnimate<HTMLDivElement>();
 
   if (structure.buildTree.length === 0) {
     return (
@@ -287,12 +293,27 @@ export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
         <ToggleButton active={mode === 'branch'} onClick={() => setMode('branch')}>
           By branch
         </ToggleButton>
+        <ToggleButton active={mode === 'raw'} onClick={() => setMode('raw')}>
+          Raw ledger
+        </ToggleButton>
       </div>
-      {mode === 'consolidated' ? (
-        <ConsolidatedBuild structure={structure} />
-      ) : (
-        <BranchCascade structure={structure} />
-      )}
+      <div ref={viewRef}>
+        {mode === 'consolidated' && (
+          <div key="consolidated">
+            <ConsolidatedBuild structure={structure} />
+          </div>
+        )}
+        {mode === 'branch' && (
+          <div key="branch">
+            <BranchCascade structure={structure} />
+          </div>
+        )}
+        {mode === 'raw' && (
+          <div key="raw">
+            <CostLedger structure={structure} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

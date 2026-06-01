@@ -5,7 +5,6 @@ import { Suspense } from 'react';
 import { SITE_URL } from '@/config/site-url';
 import { BlueprintHero } from '@/features/industry-planner/components/BlueprintHero';
 import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
-import { CostLedger } from '@/features/industry-planner/components/CostLedger';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
 import {
@@ -88,7 +87,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
       <PricingProvider structure={structure} pricingPromise={pricingPromise}>
         <BlueprintHero structure={structure} />
         <BuildCascade structure={structure} />
-        <CostLedger structure={structure} />
       </PricingProvider>
     </div>
   );
