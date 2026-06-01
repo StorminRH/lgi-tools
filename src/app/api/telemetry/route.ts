@@ -50,17 +50,20 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   try {
-    // The session read is inside the guard: its DB lookup (getCharacterById)
-    // can fail, and telemetry must never break user flows — a failed read
-    // just means we don't attach a characterId. Swallow and 204.
+    // Both the session read (getSession → getCharacterById hits the DB) and the
+    // insert run inside this guard. Telemetry must never break a user flow, so
+    // if either throws the event is skipped entirely and we still return 204.
     const session = await getSession();
     await logUsageEvent({
       action: parsed.data.action,
       characterId: session?.characterId ?? null,
       metadata: safeMetadata,
     });
-  } catch {
-    // Telemetry failures must never break user flows. Swallow and 204.
+  } catch (err) {
+    // Swallow so the tracker can't break a page — but log it, so a genuine
+    // bug here stays visible. Under the HTTP driver a cold DB no longer
+    // errors, so a failure on this path is now actually exceptional.
+    console.error('[telemetry] failed to record usage event', err);
     return new Response(null, { status: 204 });
   }
 
