@@ -111,8 +111,9 @@ export function classifyBuildNode(args: {
 // The primitive stays domain-agnostic; this is the domain mapping.
 //
 // Buy-side depth (units) below this reads as illiquid — a rough at-a-glance
-// cut, not a trading signal (mirrors THIN_MARGIN_PCT).
-const THIN_LIQUIDITY_UNITS = 100;
+// cut, not a trading signal (mirrors THIN_MARGIN_PCT). Exported so the browse
+// catalog's SQL confidence aggregate uses the same threshold (one source).
+export const THIN_LIQUIDITY_UNITS = 100;
 // Aggregate headline bands: share of fully-trustworthy (high) material rows.
 const HIGH_CONFIDENCE_SHARE = 0.75;
 const MEDIUM_CONFIDENCE_SHARE = 0.4;
@@ -167,6 +168,41 @@ export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfi
   return reasons.length === 0 ? { level: 'high', reasons: [] } : { level: 'medium', reasons };
 }
 
+// The shortfall tallies behind an aggregate verdict. `total` is the row count
+// the share is taken over; `high` is the fully-trustworthy rows; the rest count
+// each shortfall independently (a row can be both stale and fallback).
+export interface ConfidenceCounts {
+  high: number;
+  total: number;
+  stale: number;
+  fallback: number;
+  thin: number;
+  missing: number;
+}
+
+// Map shortfall counts onto one headline level + a breakdown string — the ONE
+// place the share bands and summary format live. The browse catalog computes
+// the counts in SQL (`aggregateConfidence` below tallies them in JS from the
+// per-row verdicts); both funnel through here so neither can drift.
+export function aggregateConfidenceFromCounts(c: ConfidenceCounts): AggregateConfidence {
+  if (c.total === 0) return { level: 'unknown', summary: 'No materials to price' };
+
+  const share = c.high / c.total;
+  const level: ConfidenceLevel =
+    share >= HIGH_CONFIDENCE_SHARE
+      ? 'high'
+      : share >= MEDIUM_CONFIDENCE_SHARE
+        ? 'medium'
+        : 'low';
+
+  const parts: string[] = [];
+  if (c.stale) parts.push(`${c.stale} stale`);
+  if (c.fallback) parts.push(`${c.fallback} fallback`);
+  if (c.thin) parts.push(`${c.thin} illiquid`);
+  if (c.missing) parts.push(`${c.missing} missing`);
+  return { level, summary: parts.length ? parts.join(' · ') : 'all live · liquid' };
+}
+
 // Roll the per-row verdicts into one headline level + a breakdown string for
 // the cost panel's aggregate line ("High confidence — 1 stale · 1 missing").
 // The headline is share-based (mostly-trustworthy rows still read "high", with
@@ -175,8 +211,6 @@ export function aggregateConfidence(
   inputs: ConfidenceInput[],
   nowMs: number,
 ): AggregateConfidence {
-  if (inputs.length === 0) return { level: 'unknown', summary: 'No materials to price' };
-
   let high = 0;
   let stale = 0;
   let fallback = 0;
@@ -193,18 +227,5 @@ export function aggregateConfidence(
     }
   }
 
-  const share = high / inputs.length;
-  const level: ConfidenceLevel =
-    share >= HIGH_CONFIDENCE_SHARE
-      ? 'high'
-      : share >= MEDIUM_CONFIDENCE_SHARE
-        ? 'medium'
-        : 'low';
-
-  const parts: string[] = [];
-  if (stale) parts.push(`${stale} stale`);
-  if (fallback) parts.push(`${fallback} fallback`);
-  if (thin) parts.push(`${thin} illiquid`);
-  if (missing) parts.push(`${missing} missing`);
-  return { level, summary: parts.length ? parts.join(' · ') : 'all live · liquid' };
+  return aggregateConfidenceFromCounts({ high, total: inputs.length, stale, fallback, thin, missing });
 }
