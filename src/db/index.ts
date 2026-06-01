@@ -1,26 +1,29 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { neon } from '@neondatabase/serverless';
+import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import postgres from 'postgres';
 
-type Db = ReturnType<typeof drizzle>;
+type Db = ReturnType<typeof drizzleHttp>;
+type HttpClient = ReturnType<typeof neon>;
 type Sql = ReturnType<typeof postgres>;
 
-let _client: Sql | undefined;
+let _client: HttpClient | undefined;
 let _db: Db | undefined;
 let _directClient: Sql | undefined;
 
-function getClient(): Sql {
+function getClient(): HttpClient {
   if (_client) return _client;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL is not set');
-  // `prepare: false` is required for the pooled (`-pooler`) endpoint —
-  // PgBouncer in transaction mode can't cache prepared statements.
-  _client = postgres(url, { prepare: false });
+  // Neon HTTP driver: one `fetch` per query, no TCP connection held. A Neon
+  // compute that has scaled to zero slows the first query instead of erroring
+  // it on a dead socket — that's the production-outage fix.
+  _client = neon(url);
   return _client;
 }
 
 function getDb(): Db {
   if (_db) return _db;
-  _db = drizzle(getClient());
+  _db = drizzleHttp({ client: getClient() });
   return _db;
 }
 

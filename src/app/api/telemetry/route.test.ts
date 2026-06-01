@@ -74,6 +74,20 @@ describe('POST /api/telemetry', () => {
     });
   });
 
+  it('returns 204 and logs when the session read fails (fail-soft)', async () => {
+    // getSession() re-queries the characters row; that DB read can fail. The
+    // tracker must never break a user flow, so a thrown session read still 204s
+    // — but the failure is logged so a genuine bug stays visible.
+    getSessionMock.mockRejectedValue(new Error('Failed query: connection error'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { POST } = await importRoute();
+    const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
+    expect(res.status).toBe(204);
+    expect(logUsageEventMock).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
   it('rejects unknown actions with 400', async () => {
     getSessionMock.mockResolvedValue(USER_SESSION);
     const { POST } = await importRoute();

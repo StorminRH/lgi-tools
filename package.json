@@ -36,6 +36,7 @@
     "knip": "knip"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "@vercel/speed-insights": "^2.0.0",
@@ -69,7 +70,9 @@
     "vitest": "^4.1.7"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"],
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
     "overrides": {
       "esbuild": ">=0.25.0",
       "postcss": ">=8.5.10"

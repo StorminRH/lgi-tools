@@ -14,6 +14,17 @@ const ALG = 'dir';
 const ENC = 'A256GCM';
 const SESSION_EXPIRES = `${SESSION_MAX_AGE_SECONDS}s`;
 
+// Pure base64url → bytes decode, no Node `Buffer` (keeps the request path
+// runnable on the Edge runtime — `atob` is global in Node 18+ and Edge).
+export function base64UrlToBytes(b64url: string): Uint8Array {
+  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), '=');
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 let cachedKey: Uint8Array | undefined;
 function sessionKey(): Uint8Array {
   if (cachedKey) return cachedKey;
@@ -21,13 +32,13 @@ function sessionKey(): Uint8Array {
   if (!raw) {
     throw new Error('SESSION_SECRET is not set');
   }
-  const key = Buffer.from(raw, 'base64url');
+  const key = base64UrlToBytes(raw);
   if (key.byteLength !== 32) {
     throw new Error(
       `SESSION_SECRET must be 32 bytes after base64url decode (got ${key.byteLength})`,
     );
   }
-  cachedKey = new Uint8Array(key);
+  cachedKey = key;
   return cachedKey;
 }
 

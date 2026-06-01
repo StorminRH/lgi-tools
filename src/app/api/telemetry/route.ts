@@ -44,21 +44,26 @@ export async function POST(request: NextRequest): Promise<Response> {
   // double-serialising. Leave it as a post-parse check.
   if (parsed.data.metadata !== undefined) {
     const serialised = JSON.stringify(safeMetadata);
-    if (Buffer.byteLength(serialised, 'utf8') > MAX_METADATA_BYTES) {
+    if (new TextEncoder().encode(serialised).length > MAX_METADATA_BYTES) {
       return new Response('metadata too large', { status: 400 });
     }
   }
 
-  const session = await getSession();
-
   try {
+    // Both the session read (getSession → getCharacterById hits the DB) and the
+    // insert run inside this guard. Telemetry must never break a user flow, so
+    // if either throws the event is skipped entirely and we still return 204.
+    const session = await getSession();
     await logUsageEvent({
       action: parsed.data.action,
       characterId: session?.characterId ?? null,
       metadata: safeMetadata,
     });
-  } catch {
-    // Telemetry failures must never break user flows. Swallow and 204.
+  } catch (err) {
+    // Swallow so the tracker can't break a page — but log it, so a genuine
+    // bug here stays visible. Under the HTTP driver a cold DB no longer
+    // errors, so a failure on this path is now actually exceptional.
+    console.error('[telemetry] failed to record usage event', err);
     return new Response(null, { status: 204 });
   }
 
