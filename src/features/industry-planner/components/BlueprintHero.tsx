@@ -26,7 +26,7 @@ function HeroStat({ label, value }: { label: string; value: string }) {
 }
 
 export function BlueprintHero({ structure }: { structure: BlueprintStructure }) {
-  const { pricing, aggregate } = usePricing();
+  const { pricing, seeded, aggregate } = usePricing();
   const summary = pricing?.summary ?? null;
   const margin = summary?.margin ?? null;
   const marginPct = summary?.marginPct ?? null;
@@ -65,7 +65,9 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
       <div>
         <div className="text-[9px] uppercase tracking-[0.16em] text-muted">Margin (before fees)</div>
         {summary === null ? (
-          <div className="text-[22px] font-semibold text-muted leading-[1.15]">Calculating…</div>
+          <div className="text-[22px] font-semibold text-muted leading-[1.15]">
+            {seeded ? 'Pricing unavailable' : 'Calculating…'}
+          </div>
         ) : (
           <>
             <div className={cn('text-[22px] font-semibold leading-[1.15]', marginToneClass(marginPct))}>

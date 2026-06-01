@@ -110,6 +110,10 @@ function isStale(p: PriceLite | undefined, now: number): boolean {
 
 interface PricingContextValue {
   pricing: BlueprintPricing | null;
+  // True once the streamed price read has settled — distinguishes "still
+  // loading" (false) from "resolved, but no pricing available" (true +
+  // pricing === null), so consumers don't show a perpetual loading state.
+  seeded: boolean;
   now: number | null;
   refreshing: boolean;
   // A row's confidence verdict, or null when prices/clock aren't ready yet or
@@ -135,15 +139,15 @@ function PricingSeeder({
   onSeed,
 }: {
   pricingPromise: Promise<BlueprintPricing | null>;
-  onSeed: (pricing: BlueprintPricing) => void;
+  onSeed: (pricing: BlueprintPricing | null) => void;
 }) {
   const resolved = use(pricingPromise);
   useEffect(() => {
     // Defer via a 0ms timer so setState isn't called synchronously from the
-    // effect body (the established Cache-Components-safe shape).
-    const t = setTimeout(() => {
-      if (resolved) onSeed(resolved);
-    }, 0);
+    // effect body (the established Cache-Components-safe shape). Always reports
+    // the result — including null — so the store can settle into an
+    // "unavailable" state rather than loading forever.
+    const t = setTimeout(() => onSeed(resolved), 0);
     return () => clearTimeout(t);
   }, [resolved, onSeed]);
   return null;
@@ -159,6 +163,7 @@ export function PricingProvider({
   children: ReactNode;
 }) {
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
+  const [seeded, setSeeded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // Client clock for freshness, filled after hydration so the static prerender
   // never reads the wall clock (Cache Components forbids it). Until then the
@@ -171,9 +176,13 @@ export function PricingProvider({
     return () => clearTimeout(t);
   }, []);
 
-  // Seed only the first snapshot; a refresh batch may already have advanced it.
-  const seed = useCallback((initial: BlueprintPricing) => {
-    setPricing((prev) => prev ?? initial);
+  // Settle the store from the streamed read. Mark it seeded either way (so a
+  // null result reads as "unavailable", not "loading"); only adopt a non-null
+  // snapshot, and only the first one — a refresh batch may already have
+  // advanced it.
+  const seed = useCallback((initial: BlueprintPricing | null) => {
+    setSeeded(true);
+    if (initial) setPricing((prev) => prev ?? initial);
   }, []);
 
   // Once seeded, top up stale/missing prices on demand — across the raw cost
@@ -266,8 +275,8 @@ export function PricingProvider({
   }, [pricing, now]);
 
   const value = useMemo<PricingContextValue>(
-    () => ({ pricing, now, refreshing, confidenceFor, aggregate }),
-    [pricing, now, refreshing, confidenceFor, aggregate],
+    () => ({ pricing, seeded, now, refreshing, confidenceFor, aggregate }),
+    [pricing, seeded, now, refreshing, confidenceFor, aggregate],
   );
 
   return (
