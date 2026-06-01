@@ -589,9 +589,9 @@ details[data-collapsible][open] > summary [data-chevron] {
 .price-confidence--medium::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--color-dps-mid); clip-path: inset(0 50% 0 0); }
 
 /* ── CascadingPanels (src/components/ui/cascading-panels.tsx) ─────────
- * Floating, gapped, horizontally-scrolling Miller-column container. The
- * primitive owns layout + the pop-in transition only; panes supply their
- * own content. The animation keyframe can't live in a style attribute. */
+ * Floating, gapped, horizontally-scrolling Miller-column container. These
+ * rules own only the layout; panes supply their own content, and the
+ * column fan-in/out is driven by auto-animate on the container. */
 .cascade {
   display: flex;
   align-items: flex-start;
@@ -612,17 +612,8 @@ details[data-collapsible][open] > summary [data-chevron] {
   align-items: center;
   gap: 8px;
 }
-/* Every column past the first fans in when it mounts — the CSS animation
- * plays once on DOM insertion, so opening a deeper column (or swapping a
- * sibling) animates it without replaying the columns already on screen, and
- * the root column never animates on load. */
-.cascade-col:not(:first-child) {
-  animation: cascade-fan-in 0.28s cubic-bezier(0.22, 0.8, 0.3, 1);
-}
-@keyframes cascade-fan-in {
-  from { opacity: 0; transform: translateX(-18px) scale(0.97); }
-  to { opacity: 1; transform: none; }
-}
+/* The column fan-in/out is driven by auto-animate on the .cascade container
+ * (see cascading-panels.tsx), so there's no CSS keyframe here. */
 
 /* Print-only content (e.g. report header) is hidden on screen and shown
  * when printing. Pair with the .no-print class below for the inverse. */
