@@ -31,6 +31,12 @@ export function loadInputs(blueprintId: number): Promise<ColumnResult> {
       )
       .catch((): ColumnResult => ({ ok: false }));
     cache.set(blueprintId, promise);
+    // Don't wedge a column on a transient failure: evict a failed result once
+    // it settles so re-opening the row refetches (the "try again" message is
+    // only honest if a retry actually re-hits the network).
+    void promise.then((res) => {
+      if (!res.ok) cache.delete(blueprintId);
+    });
   }
   return promise;
 }

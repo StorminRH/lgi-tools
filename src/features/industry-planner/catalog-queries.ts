@@ -216,10 +216,14 @@ export async function getBlueprintDirectInputs(
       productTypeId: industryActivityProducts.productTypeId,
     })
     .from(industryActivityProducts)
+    .innerJoin(eveTypes, eq(eveTypes.id, industryActivityProducts.productTypeId))
     .where(
       and(
         inArray(industryActivityProducts.productTypeId, materialTypeIds),
         inArray(industryActivityProducts.activityId, ACTIVITY_IDS),
+        // Match getBlueprintCatalog's published guard so a ▸ never fans into an
+        // unpublished/removed item the catalog itself would never list.
+        eq(eveTypes.published, true),
       ),
     );
   // productTypeId → producing blueprint, preferring the manufacturing producer.
