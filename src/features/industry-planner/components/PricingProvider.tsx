@@ -8,7 +8,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -169,7 +168,6 @@ export function PricingProvider({
   // never reads the wall clock (Cache Components forbids it). Until then the
   // consumers withhold confidence badges, exactly like PriceFreshness.
   const [now, setNow] = useState<number | null>(null);
-  const startedRef = useRef(false);
 
   useEffect(() => {
     const t = setTimeout(() => setNow(Date.now()), 0);
@@ -188,10 +186,17 @@ export function PricingProvider({
   // Once seeded, top up stale/missing prices on demand — across the raw cost
   // basis, the product, and the buildable intermediates (their badges want a
   // fresh price too). Recompute the whole snapshot after each batch so margin
-  // and every badge update as prices stream in. Runs once per blueprint load.
+  // and every badge update as prices stream in.
+  //
+  // Keyed on `seeded` (a one-shot false→true), NOT on `pricing`: each batch
+  // calls setPricing, and if `pricing` were a dependency React would run this
+  // effect's cleanup (controller.abort()) between batches and kill the in-flight
+  // loop — stranding deep builds (e.g. an Archon, >1 batch) after the first
+  // batch with `refreshing` stuck true. With `seeded` deps the loop starts once
+  // when the seed lands and the abort fires only on unmount. `pricing` here is
+  // the seed snapshot captured at that transition; `structure` is a stable prop.
   useEffect(() => {
-    if (!pricing || startedRef.current) return;
-    startedRef.current = true;
+    if (!pricing) return;
 
     const nowMs = Date.now();
     const map = initialMap(pricing);
@@ -245,7 +250,8 @@ export function PricingProvider({
     })();
 
     return () => controller.abort();
-  }, [pricing, structure]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seeded]);
 
   const inputs = useMemo(
     () => (pricing ? buildConfidenceInputs(pricing) : null),
