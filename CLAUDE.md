@@ -80,6 +80,8 @@ Format is strict (the parser is intentionally narrow):
 
 Group same-day entries under one date heading. Newest at top. No bold, links, or rich markdown — grow the parser first if a future entry needs it.
 
+Update the version link at the footer of the website to match what's shipped.
+
 **Archive completed plan docs.** When a version ships, move its plan doc to `../LGI Tools Document Archive/` and `git rm` the in-repo copy. Replace markdown links with prose mentions. The active repo holds only in-progress or upcoming plan docs.
 
 **Naming.** From 2.7 onward, plan docs are `VERSION_<n>_PLAN.md` and work is a "version" with semver-style sub-versions (2.7.1, …). Pre-2.7 docs stay `PHASE_<n>_PLAN.md` for historical accuracy.
