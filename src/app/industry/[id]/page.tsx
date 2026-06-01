@@ -7,6 +7,7 @@ import { BlueprintHero } from '@/features/industry-planner/components/BlueprintH
 import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
 import { CostLedger } from '@/features/industry-planner/components/CostLedger';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
+import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
 import {
   getBlueprintPricing,
   getBlueprintStructure,
@@ -69,6 +70,11 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="w-full max-w-[1100px]">
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
+      <RecordRecentBlueprint
+        typeId={id}
+        productTypeId={structure.product.typeId}
+        name={structure.product.name}
+      />
 
       <div className="mb-4">
         <Link
