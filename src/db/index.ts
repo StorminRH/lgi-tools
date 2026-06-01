@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
+import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 type Db = ReturnType<typeof drizzleHttp>;
@@ -23,6 +24,19 @@ function getClient(): HttpClient {
 
 function getDb(): Db {
   if (_db) return _db;
+  // Dev-only escape hatch: the neon-http driver speaks HTTP to a Neon SQL
+  // endpoint and cannot reach a plain local Postgres, so local `next dev`
+  // would 500 every request-path DB read. When LOCAL_DB_DRIVER=postgres-js is
+  // set (only ever in a developer's .env.local), build the request client over
+  // TCP postgres-js instead — the pre-3.2.1 behaviour, fully compatible since
+  // the request path uses no `db.batch`. Production never sets this var, so it
+  // always takes the neon-http path below.
+  if (process.env.LOCAL_DB_DRIVER === 'postgres-js') {
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error('DATABASE_URL is not set');
+    _db = drizzlePg(postgres(url)) as unknown as Db;
+    return _db;
+  }
   _db = drizzleHttp({ client: getClient() });
   return _db;
 }
