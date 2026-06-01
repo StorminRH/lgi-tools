@@ -2,18 +2,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import { Pill } from '@/components/ui/pill';
 import { SITE_URL } from '@/config/site-url';
+import { BlueprintHero } from '@/features/industry-planner/components/BlueprintHero';
 import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
-import { CostPanel } from '@/features/industry-planner/components/CostPanel';
-import { CostPanelView } from '@/features/industry-planner/components/CostPanelView';
-import { activityLabel } from '@/features/industry-planner/industry-styles';
+import { CostLedger } from '@/features/industry-planner/components/CostLedger';
+import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import {
   getBlueprintPricing,
   getBlueprintStructure,
 } from '@/features/industry-planner/queries';
-import type { BlueprintStructure } from '@/features/industry-planner/types';
-import { formatQuantity } from '@/lib/format';
 
 export async function generateMetadata({
   params,
@@ -51,26 +48,14 @@ export async function generateMetadata({
   };
 }
 
-// The priced cost panel — the only ESI-backed read. Isolated in its own
-// <Suspense> hole so the structural tree paints first and prices stream in
-// beside it (never blocking the tree on the price read).
-async function PricedCostPanel({
-  blueprintId,
-  structure,
-}: {
-  blueprintId: number;
-  structure: BlueprintStructure;
-}) {
-  const pricing = await getBlueprintPricing(blueprintId);
-  if (!pricing) return <CostPanelView pricing={null} structure={structure} />;
-  return <CostPanel initialPricing={pricing} structure={structure} />;
-}
-
 // All page content depends on the [id] param. With no generateStaticParams,
 // `params` is runtime data, so the whole planner streams from a <Suspense>
 // boundary (the page chrome below is the static shell). The structure read is
-// cached `'max'`, so the tree resolves fast; the priced cost panel streams in a
-// nested hole after it.
+// cached `'max'`, so the tree + hero chrome paint fast. The price read is
+// started here but NOT awaited — the promise is handed to PricingProvider,
+// which resolves it in its own isolated <Suspense> and fans the prices out to
+// the hero margin and every cascade row. So prices + confidence stream in
+// while the build structure never waits on them (the 3.0.5.1 lesson).
 async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = await params;
   const id = Number.parseInt(rawId, 10);
@@ -78,6 +63,8 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
   const structure = await getBlueprintStructure(id);
   if (!structure) notFound();
+
+  const pricingPromise = getBlueprintPricing(id);
 
   return (
     <div className="w-full max-w-[1100px]">
@@ -92,30 +79,11 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         </Link>
       </div>
 
-      <header className="mb-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="font-display font-bold text-[22px] text-name leading-[1.1]">
-            {structure.product.name}
-          </span>
-          <Pill tone="blue" size="sm">
-            {activityLabel(structure.activityId)}
-          </Pill>
-        </div>
-        <div className="text-[11px] text-muted mt-1.5">
-          Builds {formatQuantity(structure.product.quantityPerRun)} per run · margin before job fees
-        </div>
-      </header>
-
-      <div className="flex flex-col gap-4 items-stretch">
-        {/* The cascade fans floating columns out horizontally, so it takes the
-            full width; the priced cost panel streams in below it. */}
+      <PricingProvider structure={structure} pricingPromise={pricingPromise}>
+        <BlueprintHero structure={structure} />
         <BuildCascade structure={structure} />
-        <div className="lg:max-w-[520px]">
-          <Suspense fallback={<CostPanelView pricing={null} structure={structure} />}>
-            <PricedCostPanel blueprintId={id} structure={structure} />
-          </Suspense>
-        </div>
-      </div>
+        <CostLedger structure={structure} />
+      </PricingProvider>
     </div>
   );
 }

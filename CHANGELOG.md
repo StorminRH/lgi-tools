@@ -6,6 +6,8 @@ for the full forensic record.
 
 ### 2026-05-31
 
+- The blueprint planner page now leads with a profitability summary pinned to the top: a product shot, the margin and percentage colour-coded by health, the input cost and Jita sell price, and an at-a-glance confidence read over the whole build — so "is this worth building?" is answerable the moment the page loads, without scrolling.
+- Every row in the build chain now carries its own price-confidence indicator, including the buildable components — hover any of them to see why a price is trusted or shaky (stale, thin, or from the backup source). The detailed cost breakdown, grouped by material source with subtotals, remains below the chain.
 - The Industry Planner is now linked from the home page and the top navigation — it was previously reachable only by direct link or search.
 - Blueprints and materials in the planner now show their real in-game item icons, so you can recognise what you're looking at at a glance.
 - Every priced material now carries a confidence indicator: filled green when the price is fresh, live, and liquid; half-filled amber when it's stale, from the backup source, or thinly traded; a hollow ring when there's no live price. A summary over the whole build rolls these up ("High confidence — 1 stale · 1 missing") so you can judge how far to trust the cost.

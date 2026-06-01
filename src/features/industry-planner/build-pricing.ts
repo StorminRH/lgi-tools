@@ -4,9 +4,13 @@ import {
   type PriceOf,
 } from '@/data/industry-math/profitability';
 import type { PriceSource } from '@/data/market-prices/types';
+import type { ConfidenceInput } from './industry-styles';
 import type {
   BlueprintPricing,
   BlueprintStructure,
+  BuildNode,
+  BuildNodeDisplay,
+  IntermediatePrice,
   MaterialCostRow,
 } from './types';
 
@@ -34,6 +38,51 @@ export interface PriceLite {
 }
 
 export type PriceLiteOf = (typeId: number) => PriceLite | undefined;
+
+// The buildable intermediates in a build tree — every non-raw node except the
+// root products (the products are shown as block headers / the hero, not as
+// priceable rows). Deduped by typeId, since a component shared across parents
+// appears many times but needs pricing once. Drives the cascade's per-row
+// build-vs-buy confidence badge.
+export function collectIntermediateTypeIds(
+  buildTree: BuildNode[],
+  display: Record<number, BuildNodeDisplay>,
+): number[] {
+  const out = new Set<number>();
+  const rootIds = new Set(buildTree.map((r) => r.typeId));
+  const walk = (node: BuildNode) => {
+    if (!rootIds.has(node.typeId) && display[node.typeId] && !display[node.typeId].isRaw) {
+      out.add(node.typeId);
+    }
+    for (const input of node.inputs) walk(input);
+  };
+  for (const root of buildTree) walk(root);
+  return [...out];
+}
+
+// The per-typeId confidence inputs for every cascade row a badge can attach to:
+// the priced raw materials (`rows`) plus the buildable intermediates. Pure, so
+// the provider derives the same map server- and client-side.
+export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, ConfidenceInput> {
+  const map = new Map<number, ConfidenceInput>();
+  for (const r of pricing.rows) {
+    map.set(r.typeId, {
+      source: r.source,
+      buyVolume: r.buyVolume,
+      unitBuy: r.unitBuy,
+      staleAfterMs: r.staleAfterMs,
+    });
+  }
+  for (const ip of pricing.intermediatePrices) {
+    map.set(ip.typeId, {
+      source: ip.source,
+      buyVolume: ip.buyVolume,
+      unitBuy: ip.bestBuy,
+      staleAfterMs: ip.staleAfterMs,
+    });
+  }
+  return map;
+}
 
 export function assemblePricing(
   structure: BlueprintStructure,
@@ -70,8 +119,27 @@ export function assemblePricing(
     };
   });
 
+  const intermediatePrices: IntermediatePrice[] = collectIntermediateTypeIds(
+    structure.buildTree,
+    structure.buildNodeDisplay,
+  ).map((typeId) => {
+    const p = priceOf(typeId);
+    return {
+      typeId,
+      bestBuy: p?.bestBuy ?? null,
+      bestSell: p?.bestSell ?? null,
+      pct5Buy: p?.pct5Buy ?? null,
+      pct5Sell: p?.pct5Sell ?? null,
+      buyVolume: p?.buyVolume ?? null,
+      sellVolume: p?.sellVolume ?? null,
+      source: p?.source ?? null,
+      staleAfterMs: p?.staleAfterMs ?? null,
+    };
+  });
+
   return {
     rows,
+    intermediatePrices,
     product: {
       typeId: structure.product.typeId,
       name: structure.product.name,

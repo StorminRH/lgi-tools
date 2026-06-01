@@ -107,8 +107,27 @@ export interface MaterialCostRow {
   staleAfterMs: number | null;
 }
 
+// A buildable intermediate's market price, carried only so the cascade can show
+// a price-confidence badge on it (a build-vs-buy liquidity hint). These are NOT
+// summed into the cost basis — the cost stays the recursed raw materials
+// (`rows`). One entry per non-raw, non-root node typeId in the build tree.
+export interface IntermediatePrice {
+  typeId: number;
+  bestBuy: number | null;
+  bestSell: number | null;
+  pct5Buy: number | null;
+  pct5Sell: number | null;
+  buyVolume: number | null;
+  sellVolume: number | null;
+  source: PriceSource | null;
+  staleAfterMs: number | null;
+}
+
 export interface BlueprintPricing {
   rows: MaterialCostRow[];
+  // Confidence-only side-channel for the buildable intermediates shown in the
+  // cascade (kept out of `rows`/`summary` so the margin math is untouched).
+  intermediatePrices: IntermediatePrice[];
   product: {
     typeId: number;
     name: string;

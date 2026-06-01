@@ -12,7 +12,11 @@ import {
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getPrices } from '@/data/market-prices/queries';
-import { assemblePricing, type PriceLite } from './build-pricing';
+import {
+  assemblePricing,
+  collectIntermediateTypeIds,
+  type PriceLite,
+} from './build-pricing';
 import { toBuildTree } from './build-tree';
 import { classifyRaw } from './industry-styles';
 import type {
@@ -166,9 +170,14 @@ export async function getBlueprintPricing(
   const structure = await getBlueprintStructure(blueprintId); // cache hit — no extra DB
   if (!structure) return null;
 
+  // Raw materials (the cost basis) + the product + every buildable intermediate
+  // shown in the cascade. Intermediates are priced only to badge confidence on
+  // their rows (build-vs-buy hint) — they're never summed into cost. Still ONE
+  // batched query across the whole set.
   const priceIds = uniq([
     ...structure.flatMaterials.map((m) => m.typeId),
     structure.product.typeId,
+    ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
   ]);
   const priceMap = await getPrices(priceIds); // single WHERE type_id IN (...)
 
