@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-05-31
 
+- The Industry Planner now opens on a browsable catalog instead of a near-empty landing: arrive with no blueprint in mind and see buildable items ranked by profit margin, filter by category or down to just-profitable, and sort by margin, cost, or name. Click any product and its production inputs fan out as a floating column beside the catalog — keep clicking to walk the build chain sideways, one level at a time, without leaving the page. The open path lives in the address bar, so a drilled view is shareable and the back button steps the columns out. Browsing reads the latest stored Jita prices and never kicks off a refresh, so it stays fast across thousands of blueprints.
 - The blueprint planner page now leads with a profitability summary pinned to the top: a product shot, the margin and percentage colour-coded by health, the input cost and Jita sell price, and an at-a-glance confidence read over the whole build — so "is this worth building?" is answerable the moment the page loads, without scrolling.
 - Every row in the build chain now carries its own price-confidence indicator, including the buildable components — hover any of them to see why a price is trusted or shaky (stale, thin, or from the backup source). The detailed cost breakdown, grouped by material source with subtotals, remains below the chain.
 - The Industry Planner is now linked from the home page and the top navigation — it was previously reachable only by direct link or search.
