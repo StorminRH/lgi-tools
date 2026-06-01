@@ -111,9 +111,9 @@ export function classifyBuildNode(args: {
 // The primitive stays domain-agnostic; this is the domain mapping.
 //
 // Buy-side depth (units) below this reads as illiquid — a rough at-a-glance
-// cut, not a trading signal (mirrors THIN_MARGIN_PCT). Exported so the browse
-// catalog's SQL confidence aggregate uses the same threshold (one source).
-export const THIN_LIQUIDITY_UNITS = 100;
+// cut, not a trading signal (mirrors THIN_MARGIN_PCT). Used internally by the
+// per-row and aggregate confidence mappers below.
+const THIN_LIQUIDITY_UNITS = 100;
 // Aggregate headline bands: share of fully-trustworthy (high) material rows.
 const HIGH_CONFIDENCE_SHARE = 0.75;
 const MEDIUM_CONFIDENCE_SHARE = 0.4;

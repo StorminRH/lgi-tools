@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-06-01
 
+- The Industry Planner home is now a dashboard. Search any blueprint or reaction to plan its build, and jump straight back to the ones you recently viewed. Saved favorites and active-build tracking are previewed here and coming soon. The old profit-margin browse catalog has been retired.
 - Pages no longer error on the first load after a quiet period. When the site had been idle for a while, the very first visit could fail with a database error while the database was waking up; it now waits for the wake-up and loads normally instead.
 
 ### 2026-05-31

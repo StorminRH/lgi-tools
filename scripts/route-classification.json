@@ -6,10 +6,9 @@
     "/sites/[id]": "Per-site detail (params + DB + live prices) streams from a dynamic hole.",
     "/admin": "Per-user: session-gated content is a request-time dynamic hole.",
     "/admin/usage": "Per-user: session-gated telemetry report is a request-time dynamic hole.",
-    "/industry": "Discovery-browse cascade — searchParams-driven catalog (filter/sort) + landing rail stream from dynamic holes; the title shell is static.",
+    "/industry": "Industry dashboard — static shell of cached sample reads (favorites); recently-viewed hydrates client-side from localStorage; no request-time server data.",
     "/industry/[id]": "Per-blueprint planner ([id] param + cached structure/prices) streams from a dynamic hole; page chrome is the static shell.",
     "/api/industry/blueprints": "Blueprint search index is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input.",
-    "/api/industry/inputs": "Per-request blueprint param (a fanned cascade column's direct inputs); reuses a cached, refresh-free read. Justified dynamic.",
     "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic."
   },
   "routes": {
@@ -18,7 +17,7 @@
     "/admin/usage": "partial",
     "/changelog": "static",
     "/contact": "static",
-    "/industry": "partial",
+    "/industry": "static",
     "/industry/[id]": "partial",
     "/legal": "static",
     "/preview/cards": "static",
@@ -37,7 +36,6 @@
     "/api/cron/refresh-sde": "dynamic",
     "/api/feedback": "dynamic",
     "/api/industry/blueprints": "static",
-    "/api/industry/inputs": "dynamic",
     "/api/market-prices/refresh": "dynamic",
     "/api/sites": "dynamic",
     "/api/sites/[id]": "dynamic",
