@@ -165,6 +165,10 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
         <input
           ref={inputRef}
           type="text"
+          // Stable hook for off-header consumers to focus this input (e.g. the
+          // Industry dashboard's search hero). An explicit, grep-auditable
+          // contract — don't rely on the styling class name for this.
+          data-search-input
           value={value}
           spellCheck={false}
           autoCorrect="off"

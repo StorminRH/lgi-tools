@@ -4,11 +4,11 @@
 // that focuses the existing global search in the header rather than mounting a
 // second search engine. Clicking (or ⌘K, handled globally by GlobalSearch)
 // drops the user straight into the cross-source navigator, where typing a
-// blueprint name routes to /industry/[id]. Falls back to a no-op if the header
-// input isn't found.
+// blueprint name routes to /industry/[id]. Targets the header input by its
+// explicit `data-search-input` contract; falls back to a no-op if absent.
 export function SearchHero() {
   const focusHeaderSearch = () => {
-    const input = document.querySelector<HTMLInputElement>('.ns-input');
+    const input = document.querySelector<HTMLInputElement>('[data-search-input]');
     if (!input) return;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     input.focus();

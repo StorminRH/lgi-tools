@@ -9,6 +9,7 @@ const MAX_RECENT = 8;
 
 export type RecentBlueprint = {
   typeId: number; // the blueprint type id (the /industry/[id] route param)
+  productTypeId: number; // the produced item — used for the row icon, not the blueprint scroll
   name: string; // the produced item's name, for the row label
 };
 
@@ -35,7 +36,11 @@ function safeStorage(): Storage | null {
 function isRecentBlueprint(value: unknown): value is RecentBlueprint {
   if (typeof value !== 'object' || value === null) return false;
   const r = value as Record<string, unknown>;
-  return typeof r.typeId === 'number' && typeof r.name === 'string';
+  return (
+    typeof r.typeId === 'number' &&
+    typeof r.productTypeId === 'number' &&
+    typeof r.name === 'string'
+  );
 }
 
 export function readRecentBlueprints(): RecentBlueprint[] {

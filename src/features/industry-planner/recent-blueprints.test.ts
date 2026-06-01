@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { mergeRecent, type RecentBlueprint } from './recent-blueprints';
 
-const bp = (typeId: number, name = `BP ${typeId}`): RecentBlueprint => ({ typeId, name });
+const bp = (typeId: number, name = `BP ${typeId}`): RecentBlueprint => ({
+  typeId,
+  productTypeId: typeId + 1000,
+  name,
+});
 
 describe('mergeRecent', () => {
   it('prepends a new entry, newest first', () => {

@@ -70,7 +70,11 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="w-full max-w-[1100px]">
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
-      <RecordRecentBlueprint typeId={id} name={structure.product.name} />
+      <RecordRecentBlueprint
+        typeId={id}
+        productTypeId={structure.product.typeId}
+        name={structure.product.name}
+      />
 
       <div className="mb-4">
         <Link

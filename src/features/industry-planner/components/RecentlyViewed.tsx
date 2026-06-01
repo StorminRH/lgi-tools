@@ -34,7 +34,7 @@ export function RecentlyViewed() {
       {recent.map((r) => (
         <BlueprintRow
           key={r.typeId}
-          typeId={r.typeId}
+          typeId={r.productTypeId}
           name={r.name}
           href={`/industry/${r.typeId}`}
         />
