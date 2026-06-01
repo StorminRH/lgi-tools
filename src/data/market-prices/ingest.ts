@@ -3,6 +3,7 @@ import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { STALE_AFTER_TTL_MS } from './constants';
 import { marketPrices } from './schema';
 import { fetchPricesFromSource } from './source';
+import type { RawMarketPrice } from './types';
 
 export interface RefreshSummary {
   requested: number;
@@ -34,25 +35,43 @@ export async function refreshPrices(
   db: AnyPgDb,
   typeIds: number[],
 ): Promise<RefreshSummary> {
+  if (typeIds.length === 0) {
+    return {
+      requested: 0,
+      fetched: 0,
+      written: 0,
+      durationMs: 0,
+      esiCount: 0,
+      fuzzworkFallbackCount: 0,
+      budgetExhausted: false,
+    };
+  }
+  const { prices: raw, budgetExhausted } = await fetchPricesFromSource(typeIds);
+  return persistPrices(db, raw, { requested: typeIds.length, budgetExhausted });
+}
+
+// Upsert already-fetched price rows and summarize them. Split out from
+// refreshPrices so the refresh-on-view engine can persist rows it already has
+// from the short-term coalescing cache (write-behind) without re-fetching the
+// source. `requested` defaults to the row count (the on-view caller persists
+// exactly what it fetched); `budgetExhausted` is the one degradation fact the
+// rows themselves don't carry, threaded through from the source fetch.
+export async function persistPrices(
+  db: AnyPgDb,
+  raw: RawMarketPrice[],
+  meta?: { requested?: number; budgetExhausted?: boolean },
+): Promise<RefreshSummary> {
   const start = Date.now();
   const summary: RefreshSummary = {
-    requested: typeIds.length,
-    fetched: 0,
+    requested: meta?.requested ?? raw.length,
+    fetched: raw.length,
     written: 0,
     durationMs: 0,
     esiCount: 0,
     fuzzworkFallbackCount: 0,
-    budgetExhausted: false,
+    budgetExhausted: meta?.budgetExhausted ?? false,
   };
 
-  if (typeIds.length === 0) {
-    summary.durationMs = Date.now() - start;
-    return summary;
-  }
-
-  const { prices: raw, budgetExhausted } = await fetchPricesFromSource(typeIds);
-  summary.fetched = raw.length;
-  summary.budgetExhausted = budgetExhausted;
   for (const r of raw) {
     if (r.source === 'esi') summary.esiCount++;
     else summary.fuzzworkFallbackCount++;
