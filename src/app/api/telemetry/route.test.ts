@@ -74,6 +74,16 @@ describe('POST /api/telemetry', () => {
     });
   });
 
+  it('returns 204 when the session read fails (fail-soft)', async () => {
+    // getSession() re-queries the characters row; that DB read can fail. The
+    // tracker must never break a user flow, so a thrown session read still 204s.
+    getSessionMock.mockRejectedValue(new Error('Failed query: connection error'));
+    const { POST } = await importRoute();
+    const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
+    expect(res.status).toBe(204);
+    expect(logUsageEventMock).not.toHaveBeenCalled();
+  });
+
   it('rejects unknown actions with 400', async () => {
     getSessionMock.mockResolvedValue(USER_SESSION);
     const { POST } = await importRoute();

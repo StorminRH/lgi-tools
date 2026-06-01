@@ -44,14 +44,16 @@ export async function POST(request: NextRequest): Promise<Response> {
   // double-serialising. Leave it as a post-parse check.
   if (parsed.data.metadata !== undefined) {
     const serialised = JSON.stringify(safeMetadata);
-    if (Buffer.byteLength(serialised, 'utf8') > MAX_METADATA_BYTES) {
+    if (new TextEncoder().encode(serialised).length > MAX_METADATA_BYTES) {
       return new Response('metadata too large', { status: 400 });
     }
   }
 
-  const session = await getSession();
-
   try {
+    // The session read is inside the guard: its DB lookup (getCharacterById)
+    // can fail, and telemetry must never break user flows — a failed read
+    // just means we don't attach a characterId. Swallow and 204.
+    const session = await getSession();
     await logUsageEvent({
       action: parsed.data.action,
       characterId: session?.characterId ?? null,

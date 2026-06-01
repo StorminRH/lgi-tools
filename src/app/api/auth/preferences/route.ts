@@ -57,7 +57,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   } catch {
     return new Response('Value is not JSON-serialisable', { status: 400 });
   }
-  if (Buffer.byteLength(serialised, 'utf8') > MAX_VALUE_BYTES) {
+  if (new TextEncoder().encode(serialised).length > MAX_VALUE_BYTES) {
     return new Response('Value too large', { status: 400 });
   }
 

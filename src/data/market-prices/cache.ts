@@ -1,5 +1,6 @@
 import { desc } from 'drizzle-orm';
-import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
 import type postgres from 'postgres';
 import { db } from '@/db';
@@ -8,11 +9,12 @@ import { refreshPrices, type RefreshSummary } from './ingest';
 import { listAllTypeIds, listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
 
-// Accept either the strict default schema (CLI's `drizzle(client)`) or
-// the lazy proxy from `@/db` (which infers a wider generic). Refresh
-// callers should not have to know which one they're holding.
+// Accept either driver: the lock path passes a postgres-js `drizzle(client)`,
+// while `getCachedPricesFreshness` passes the request-path `@/db` proxy (now
+// neon-http). Both extend Drizzle's `PgDatabase`; these helpers use only the
+// shared query-builder surface (no interactive `.transaction`).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PostgresJsDatabase<any>;
+type AnyPgDb = PgDatabase<any, any, any>;
 
 // postgres-js's Sql type — the raw client. refreshStalePrices needs it
 // directly so it can reserve a connection from the pool for the lifetime
