@@ -68,7 +68,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const pricingPromise = getBlueprintPricing(id);
 
   return (
-    <div className="w-full max-w-[1100px]">
+    <div className="w-full max-w-[1124px]">
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
       <RecordRecentBlueprint
         typeId={id}
@@ -96,7 +96,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
 function PlannerSkeleton() {
   return (
-    <div className="w-full max-w-[1100px] text-[11px] text-muted">Loading blueprint…</div>
+    <div className="w-full max-w-[1124px] text-[11px] text-muted">Loading blueprint…</div>
   );
 }
 

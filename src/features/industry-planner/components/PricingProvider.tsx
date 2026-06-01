@@ -100,13 +100,6 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
   return map;
 }
 
-// A type needs refreshing if it has no price row, or its row-level stale_after
-// has passed. A null price with a future stale_after is NOT stale — the last
-// refresh confirmed there are simply no orders, which is still fresh data.
-function isStale(p: PriceLite | undefined, now: number): boolean {
-  return !p || p.staleAfterMs === null || p.staleAfterMs <= now;
-}
-
 interface PricingContextValue {
   pricing: BlueprintPricing | null;
   // True once the streamed price read has settled — distinguishes "still
@@ -120,6 +113,12 @@ interface PricingContextValue {
   confidenceFor: (typeId: number) => RowConfidence | null;
   // The headline confidence over the cost-basis (raw) rows, for the hero.
   aggregate: AggregateConfidence | null;
+  // True while a type is awaiting its live confirmation — every viewed type is
+  // refreshed on view, so this is the dimmed→flash signal: dim the seed and show
+  // the loading badge while pending, then flash to the toned value when it lands.
+  isPending: (typeId: number) => boolean;
+  // Pending over the cost-basis (raw) rows, for the hero's dimmed→flash margin.
+  aggregatePending: boolean;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -164,6 +163,10 @@ export function PricingProvider({
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // Type IDs still awaiting their live confirmation. Seeded to the full
+  // refresh set when the loop starts and drained one batch at a time, so each
+  // row knows when to stop being dimmed and flash to its toned value.
+  const [pending, setPending] = useState<Set<number>>(() => new Set());
   // Client clock for freshness, filled after hydration so the static prerender
   // never reads the wall clock (Cache Components forbids it). Until then the
   // consumers withhold confidence badges, exactly like PriceFreshness.
@@ -183,10 +186,14 @@ export function PricingProvider({
     if (initial) setPricing((prev) => prev ?? initial);
   }, []);
 
-  // Once seeded, top up stale/missing prices on demand — across the raw cost
-  // basis, the product, and the buildable intermediates (their badges want a
-  // fresh price too). Recompute the whole snapshot after each batch so margin
-  // and every badge update as prices stream in.
+  // Once seeded, re-confirm every viewed price live on view — across the raw
+  // cost basis, the product, and the buildable intermediates. We refresh the
+  // whole set, not just stale rows: the seed is always shown dimmed as the
+  // last-known and each row flashes to its confirmed value as the batch lands
+  // (the engine's per-item coalescing makes a fresh item cache-hit and flash
+  // back near-instantly, so always-refresh stays cheap). Recompute the whole
+  // snapshot after each batch so margin and every badge update as prices stream
+  // in.
   //
   // Keyed on `seeded` (a one-shot false→true), NOT on `pricing`: each batch
   // calls setPricing, and if `pricing` were a dependency React would run this
@@ -198,49 +205,63 @@ export function PricingProvider({
   useEffect(() => {
     if (!pricing) return;
 
-    const nowMs = Date.now();
     const map = initialMap(pricing);
-    const candidates = new Set<number>([
-      ...structure.flatMaterials.map((m) => m.typeId),
-      structure.product.typeId,
-      ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
-    ]);
-
-    const stale = new Set<number>();
-    for (const typeId of candidates) {
-      if (isStale(map.get(typeId), nowMs)) stale.add(typeId);
-    }
-    if (stale.size === 0) return;
+    const toRefresh = [
+      ...new Set<number>([
+        ...structure.flatMaterials.map((m) => m.typeId),
+        structure.product.typeId,
+        ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
+      ]),
+    ];
+    if (toRefresh.length === 0) return;
 
     const controller = new AbortController();
-    const batches = chunk([...stale], ON_DEMAND_REFRESH_MAX_TYPE_IDS);
+    const batches = chunk(toRefresh, ON_DEMAND_REFRESH_MAX_TYPE_IDS);
+
+    // Drop a whole batch from `pending` once its request settles — whatever the
+    // engine couldn't price simply falls back to its dimmed seed, so a row never
+    // spins forever (covers rate-limit, partial responses, and network errors).
+    const clearBatch = (batch: number[]) =>
+      setPending((prev) => {
+        const next = new Set(prev);
+        for (const t of batch) next.delete(t);
+        return next;
+      });
 
     (async () => {
+      // Mark the whole set pending up front (inside the async body, not the
+      // effect body, so the set-state-in-effect lint stays satisfied) — every
+      // viewed row shows its dimmed seed + loading badge until its batch lands.
+      setPending(new Set(toRefresh));
       setRefreshing(true);
       try {
         for (const batch of batches) {
-          const res = await fetch('/api/market-prices/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ typeIds: batch }),
-            cache: 'no-store',
-            signal: controller.signal,
-          });
-          if (!res.ok) continue; // rate-limited / error → keep what we have
-          const data = (await res.json()) as { prices: RefreshedPrice[] };
-          for (const p of data.prices) {
-            map.set(p.typeId, {
-              bestBuy: p.bestBuy,
-              bestSell: p.bestSell,
-              pct5Buy: p.pct5Buy,
-              pct5Sell: p.pct5Sell,
-              buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
-              sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
-              source: p.source,
-              staleAfterMs: Date.parse(p.staleAfter),
+          try {
+            const res = await fetch('/api/market-prices/refresh', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ typeIds: batch }),
+              cache: 'no-store',
+              signal: controller.signal,
             });
+            if (!res.ok) continue; // rate-limited / error → keep what we have
+            const data = (await res.json()) as { prices: RefreshedPrice[] };
+            for (const p of data.prices) {
+              map.set(p.typeId, {
+                bestBuy: p.bestBuy,
+                bestSell: p.bestSell,
+                pct5Buy: p.pct5Buy,
+                pct5Sell: p.pct5Sell,
+                buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
+                sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
+                source: p.source,
+                staleAfterMs: Date.parse(p.staleAfter),
+              });
+            }
+            setPricing(assemblePricing(structure, (t) => map.get(t)));
+          } finally {
+            if (!controller.signal.aborted) clearBatch(batch);
           }
-          setPricing(assemblePricing(structure, (t) => map.get(t)));
         }
       } catch {
         // aborted on unmount, or a network error — leave the last good state
@@ -280,9 +301,25 @@ export function PricingProvider({
     );
   }, [pricing, now]);
 
+  const isPending = useCallback((typeId: number) => pending.has(typeId), [pending]);
+
+  const aggregatePending = useMemo(
+    () => (pricing ? pricing.rows.some((r) => pending.has(r.typeId)) : pending.size > 0),
+    [pricing, pending],
+  );
+
   const value = useMemo<PricingContextValue>(
-    () => ({ pricing, seeded, now, refreshing, confidenceFor, aggregate }),
-    [pricing, seeded, now, refreshing, confidenceFor, aggregate],
+    () => ({
+      pricing,
+      seeded,
+      now,
+      refreshing,
+      confidenceFor,
+      aggregate,
+      isPending,
+      aggregatePending,
+    }),
+    [pricing, seeded, now, refreshing, confidenceFor, aggregate, isPending, aggregatePending],
   );
 
   return (

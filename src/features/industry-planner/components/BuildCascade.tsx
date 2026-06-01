@@ -1,17 +1,17 @@
 'use client';
 
+import { useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { CascadingPanels, type CascadePane } from '@/components/ui/cascading-panels';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
-import { PriceConfidence } from '@/components/ui/price-confidence';
 import { SectionHeader } from '@/components/ui/section-header';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { useCascadePath } from '@/components/ui/use-cascade-path';
 import { formatQuantity } from '@/lib/format';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from '../types';
-import { usePricing } from './PricingProvider';
+import { ConsolidatedBuild } from './ConsolidatedBuild';
 
 // The build plan as a floating-column cascade (the detail-page consumer of the
 // CascadingPanels primitive — decision #2's refinement of #4). Column 0 is the
@@ -30,7 +30,7 @@ function formatNodeQty(quantity: number): string {
 }
 
 const ROW =
-  'grid grid-cols-[32px_minmax(0,1fr)_auto_auto_13px_16px] items-center gap-2.5 px-3.5 py-[7px] border-t border-border-soft first:border-t-0 text-[12px]';
+  'grid grid-cols-[32px_minmax(0,1fr)_auto_16px] items-center gap-2.5 px-3.5 py-[7px] border-t border-border-soft first:border-t-0 text-[12px]';
 
 function BuildRow({
   node,
@@ -43,21 +43,16 @@ function BuildRow({
   open: boolean;
   onToggle?: () => void;
 }) {
-  const { confidenceFor } = usePricing();
   const d = display[node.typeId];
   const buildable = !d.isRaw;
-  const conf = confidenceFor(node.typeId);
   const inner = (
     <>
       <TypeIcon typeId={node.typeId} size={32} mono={d.name.slice(0, 2)} />
-      <span className="truncate text-name">{d.name}</span>
-      <span className="text-[9px] tracking-[0.08em] uppercase text-muted whitespace-nowrap">
-        {d.label}
-      </span>
+      <div className="min-w-0">
+        <div className="truncate text-name">{d.name}</div>
+        <div className="text-[9px] tracking-[0.08em] uppercase text-muted truncate">{d.label}</div>
+      </div>
       <span className="text-[11px] text-muted whitespace-nowrap">× {formatNodeQty(node.quantity)}</span>
-      <span className="flex justify-center">
-        {conf && <PriceConfidence level={conf.level} reasons={conf.reasons} />}
-      </span>
       <span className={cn('text-[11px] text-center', open ? 'text-isk' : 'text-muted')}>
         {buildable ? '▸' : ''}
       </span>
@@ -115,18 +110,30 @@ function BuildBlock({
           × {formatNodeQty(node.quantity)}
         </span>
       </div>
-      {node.inputs.map((input) => {
-        const buildable = !display[input.typeId].isRaw;
-        return (
-          <BuildRow
-            key={input.typeId}
-            node={input}
-            display={display}
-            open={path[paneIndex] === String(input.typeId)}
-            onToggle={buildable ? () => toggle(input.typeId) : undefined}
-          />
-        );
-      })}
+      {[...node.inputs]
+        .sort((a, b) => {
+          const da = display[a.typeId];
+          const db = display[b.typeId];
+          // Buildable items (a further step you can drill into) first, then
+          // grouped by component type, then alphabetical within each group.
+          return (
+            Number(da.isRaw) - Number(db.isRaw) ||
+            da.label.localeCompare(db.label) ||
+            da.name.localeCompare(db.name)
+          );
+        })
+        .map((input) => {
+          const buildable = !display[input.typeId].isRaw;
+          return (
+            <BuildRow
+              key={input.typeId}
+              node={input}
+              display={display}
+              open={path[paneIndex] === String(input.typeId)}
+              onToggle={buildable ? () => toggle(input.typeId) : undefined}
+            />
+          );
+        })}
     </Card>
   );
 }
@@ -166,18 +173,9 @@ function DrillBreadcrumb({
   );
 }
 
-export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
+function BranchCascade({ structure }: { structure: BlueprintStructure }) {
   const { buildTree, buildNodeDisplay: display } = structure;
   const [path, setPath] = useCascadePath('build');
-
-  if (buildTree.length === 0) {
-    return (
-      <Card>
-        <SectionHeader label="Build Plan" />
-        <EmptyState>No build breakdown — this blueprint has no resolved inputs yet.</EmptyState>
-      </Card>
-    );
-  }
 
   // The product anchors the breadcrumb; resolved drill segments append to it.
   const crumbs: { key: string; name: string }[] = [
@@ -232,9 +230,69 @@ export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
   }
 
   return (
-    <div className="mb-4">
+    <>
       <DrillBreadcrumb crumbs={crumbs} setPath={setPath} />
       <CascadingPanels panes={panes} />
+    </>
+  );
+}
+
+function ToggleButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'text-[10px] tracking-[0.12em] uppercase px-2.5 py-1 border cursor-pointer transition-colors',
+        active
+          ? 'border-border text-name bg-[rgba(255,255,255,0.05)]'
+          : 'border-border-soft text-muted hover:text-name',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+// The build plan, in two interchangeable views. Consolidated (default) sums the
+// whole tree into one by-stage view; "By branch" is the original drill-down
+// cascade, kept as a fallback while the consolidated view settles.
+export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
+  const [mode, setMode] = useState<'consolidated' | 'branch'>('consolidated');
+
+  if (structure.buildTree.length === 0) {
+    return (
+      <Card>
+        <SectionHeader label="Build Plan" />
+        <EmptyState>No build breakdown — this blueprint has no resolved inputs yet.</EmptyState>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="mb-4">
+      <div className="mb-2.5 flex items-center gap-1.5">
+        <ToggleButton active={mode === 'consolidated'} onClick={() => setMode('consolidated')}>
+          Consolidated
+        </ToggleButton>
+        <ToggleButton active={mode === 'branch'} onClick={() => setMode('branch')}>
+          By branch
+        </ToggleButton>
+      </div>
+      {mode === 'consolidated' ? (
+        <ConsolidatedBuild structure={structure} />
+      ) : (
+        <BranchCascade structure={structure} />
+      )}
     </div>
   );
 }

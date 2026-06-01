@@ -587,6 +587,62 @@ details[data-collapsible][open] > summary [data-chevron] {
 .price-confidence--unknown { background: transparent; box-shadow: inset 0 0 0 1.5px var(--color-muted); }
 .price-confidence--high::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--color-isk); }
 .price-confidence--medium::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--color-dps-mid); clip-path: inset(0 50% 0 0); }
+/* Loading: an indeterminate spinner ring while a price is being confirmed live.
+ * CSP-safe (class-driven keyframe, no inline style); reduced-motion holds it as
+ * a static muted ring so it still reads as "working". */
+.price-confidence--loading::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-muted);
+  border-top-color: var(--color-isk);
+  animation: price-confidence-spin 0.7s linear infinite;
+}
+@keyframes price-confidence-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .price-confidence--loading::after { animation: none; opacity: 0.6; }
+}
+
+/* ── Hero ISK figure refresh effect ──────────────────────────────────
+ * While a hero price is being confirmed live, the figure fades and a soft
+ * light wave sweeps across it (a gradient clipped to the glyphs). When the
+ * live value lands it pulses a touch brighter, then holds solid in its tone.
+ * CSP-safe: class-driven keyframes, no inline style. */
+.isk-fx-pending {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-muted) 0%,
+    var(--color-muted) 40%,
+    var(--color-name) 50%,
+    var(--color-muted) 60%,
+    var(--color-muted) 100%
+  );
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: isk-fx-wave 1.7s ease-in-out infinite;
+}
+@keyframes isk-fx-wave {
+  0% { background-position: 130% 0; }
+  100% { background-position: -130% 0; }
+}
+.isk-fx-settle {
+  animation: isk-fx-pulse 0.7s ease-out;
+}
+@keyframes isk-fx-pulse {
+  0% { filter: brightness(1.7); }
+  40% { filter: brightness(1.35); }
+  100% { filter: brightness(1); }
+}
+/* This price effect intentionally plays regardless of prefers-reduced-motion
+ * (operator call): it's a small, localized text shimmer, not large/vestibular
+ * motion. The cascade column motion stays gated — auto-animate respects the
+ * preference on its own. */
 
 /* ── CascadingPanels (src/components/ui/cascading-panels.tsx) ─────────
  * Floating, gapped, horizontally-scrolling Miller-column container. These
