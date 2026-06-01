@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-06-01
+
+- Pages no longer error on the first load after a quiet period. When the site had been idle for a while, the very first visit could fail with a database error while the database was waking up; it now waits for the wake-up and loads normally instead.
+
 ### 2026-05-31
 
 - The Industry Planner now opens on a browsable catalog instead of a near-empty landing: arrive with no blueprint in mind and see buildable items ranked by profit margin, filter by category or down to just-profitable, and sort by margin, cost, or name. Click any product and its production inputs fan out as a floating column beside the catalog — keep clicking to walk the build chain sideways, one level at a time, without leaving the page. The open path lives in the address bar, so a drilled view is shareable and the back button steps the columns out. Browsing reads the latest stored Jita prices and never kicks off a refresh, so it stays fast across thousands of blueprints.
