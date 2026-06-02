@@ -67,9 +67,9 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   // The header's freshness chip reads a `use cache` snapshot of the latest
-  // price timestamp; this cron is the authoritative hourly refresher, so nudge
-  // that cache to the new value as soon as the write lands (the `'hours'`
-  // cacheLife is the backstop).
+  // price timestamp; nudge that cache to the new value as soon as the nightly
+  // write lands (the `'hours'` cacheLife provides sub-day freshness between
+  // runs; the tag gives the immediate post-refresh bump).
   revalidateTag(PRICES_FRESHNESS_TAG, 'max');
 
   const { summary } = result;

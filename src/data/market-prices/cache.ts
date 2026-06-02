@@ -47,9 +47,9 @@ export const PRICES_FRESHNESS_TAG = 'market-prices-freshness';
 // Cached, no-arg view of the latest price timestamp for the header chip. Caching
 // the DB read off the render path keeps it in the static shell (the raw
 // `getPricesFreshness(db)` takes a non-serializable client and is reused inside
-// the refresh write-loop, so it can't carry the directive itself). Cron cadence
-// is hourly, so `'hours'` revalidate matches reality, with the tag for an
-// immediate bump on each refresh.
+// the refresh write-loop, so it can't carry the directive itself). The `'hours'`
+// cacheLife gives sub-day freshness between the nightly cron runs; the tag bumps
+// it immediately the moment a refresh writes new rows.
 export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date | null }> {
   'use cache';
   cacheLife('hours');
