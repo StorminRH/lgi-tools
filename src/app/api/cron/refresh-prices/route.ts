@@ -28,14 +28,14 @@ async function logCronEvent(
 // sends GET with `Authorization: Bearer ${CRON_SECRET}`; reject anything
 // else with 401 so the URL stays inert if scraped.
 //
-// `force: true` means refresh every tracked type ID, not just the
-// stale subset — used here because the cron is the authoritative
-// refresher and should always actually refresh when it fires, even if
-// an on-demand call updated some rows in the same window. The advisory
-// lock inside refreshStalePrices still serializes concurrent callers;
-// `force` widens the set, it doesn't bypass the lock. The lock lives on
-// a reserved session connection — we pass `directClient` (the unpooled
-// endpoint) so the session-scoped lock actually holds.
+// Nightly backstop (11:30 UTC — EVE's low-traffic trough, clear of the
+// 11:00–11:15 UTC downtime when ESI is offline). The live user path
+// refreshes prices on view, so this sweep only bounds staleness to ~24h
+// for the cases the browser-side refresh never reaches (ESI down, server-
+// rendered snapshots, crawlers, link-preview embeds). It's lock-free: the
+// cron is the only bulk writer, and a race with an on-demand write is
+// last-write-wins (both write fresh rows). We pass `directClient` — the
+// sweep runs on the cron's existing postgres-js client.
 // No user input — bearer-auth only, body and query params ignored.
 // authz: cron
 export async function GET(req: Request): Promise<Response> {
@@ -51,12 +51,12 @@ export async function GET(req: Request): Promise<Response> {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const result = await refreshStalePrices(directClient, { force: true });
+  const result = await refreshStalePrices(directClient);
   const durationMs = Date.now() - start;
 
   if (result.status === 'cached') {
-    // O-3: a skipped run (the advisory lock was held, or nothing was stale)
-    // must be distinguishable from a healthy refresh in the record.
+    // O-3: a skipped run (nothing was stale) must be distinguishable from a
+    // healthy refresh in the record.
     const outcome = { scope: 'cron:prices', outcome: 'skipped', reason: result.reason, durationMs };
     console.log(JSON.stringify(outcome));
     await logCronEvent('cron_prices', { outcome: 'skipped', reason: result.reason, durationMs });
@@ -67,9 +67,9 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   // The header's freshness chip reads a `use cache` snapshot of the latest
-  // price timestamp; this cron is the authoritative hourly refresher, so nudge
-  // that cache to the new value as soon as the write lands (the `'hours'`
-  // cacheLife is the backstop).
+  // price timestamp; nudge that cache to the new value as soon as the nightly
+  // write lands (the `'hours'` cacheLife provides sub-day freshness between
+  // runs; the tag gives the immediate post-refresh bump).
   revalidateTag(PRICES_FRESHNESS_TAG, 'max');
 
   const { summary } = result;

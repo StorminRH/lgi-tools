@@ -22,10 +22,10 @@ export const REFERENCE_BLUEPRINT_TYPE_IDS = [691, 24699, 23758] as const;
 //   - /api/cron/refresh-sde when a drift triggers a re-ingest
 //   - pnpm db:refresh-sde / :prod CLIs
 //   - vercel-build's ingest-sde-if-empty.ts on the first deploy
-// Distinct from market-prices's ADVISORY_LOCK_REFRESH_PRICES so an
-// in-flight price cron and an in-flight SDE re-ingest don't serialize
-// each other. One above the prices lock — namespace by feature if a
-// third lock ever lands.
+// Arbitrary project-unique bigint serializing the three SDE ingest paths
+// above against each other. The only advisory lock in the app now that the
+// prices refresh is lock-free — namespace by feature if a second lock ever
+// lands.
 export const ADVISORY_LOCK_SDE_INGEST = BigInt(8273619013);
 
 // `eve_data_meta` keys. Plain k/v table — see schema.ts.

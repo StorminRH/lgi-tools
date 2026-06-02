@@ -28,42 +28,34 @@ function parseIds(arg: string): number[] {
 }
 
 type Mode =
-  | { kind: 'cached'; force: boolean }
+  | { kind: 'cached' }
   | { kind: 'explicit'; ids: number[] };
 
 function parseArgs(argv: string[]): Mode {
   // Recognized argv shapes:
-  //   (none)         → cached path (respects 24h cache)
-  //   --force        → cached path, force=true
+  //   (none)         → stale sweep (only rows past their TTL)
   //   34,35,36       → explicit IDs, unconditional refresh
   //   --debug        → explicit IDs (DEFAULT_DEBUG_IDS), unconditional
-  let force = false;
   let debug = false;
   let idsArg: string | undefined;
   for (const a of argv) {
-    if (a === '--force') force = true;
-    else if (a === '--debug') debug = true;
+    if (a === '--debug') debug = true;
     else if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
     else idsArg = a;
   }
   if (idsArg) return { kind: 'explicit', ids: parseIds(idsArg) };
   if (debug) return { kind: 'explicit', ids: DEFAULT_DEBUG_IDS };
-  return { kind: 'cached', force };
+  return { kind: 'cached' };
 }
 
 const mode = parseArgs(process.argv.slice(2));
 
-// Direct (unpooled) endpoint — the advisory lock is session-scoped and
-// only holds on a stable backend, which the `-pooler` endpoint doesn't
-// provide. resolveLockConnectionUrl prefers DATABASE_URL_UNPOOLED and
-// fails closed if it would resolve to a pooled host.
+// Direct (unpooled) endpoint via resolveLockConnectionUrl — prefers
+// DATABASE_URL_UNPOOLED and fails closed on a pooled host. The bulk upsert
+// runs fine on the direct endpoint, which this shared resolver hands us.
 //
-// max: 5 — 1 connection holds the advisory lock (via client.reserve())
-// for the full refresh window, leaving 4 for parallel bulk-upsert
-// operations. Bumped from 2 in 3.0.4: the 6,000-type tracked set
-// expanded the bulk-refresh load enough that headroom matters, and
-// future on-demand callers (3.0.5's Industry Planner) compete for the
-// same pool.
+// max: 5 gives headroom for the parallel bulk-upsert against the ~6,000-type
+// tracked set (bumped from 2 in 3.0.4 when the set grew).
 const client = postgres(resolveLockConnectionUrl(), { max: 5 });
 
 async function main() {
@@ -81,16 +73,16 @@ async function main() {
     return;
   }
 
-  const result = await refreshStalePrices(client, { force: mode.force });
+  const result = await refreshStalePrices(client);
   if (result.status === 'cached') {
-    console.log('Cached — no Fuzzwork call.');
+    console.log('Nothing stale — no Fuzzwork call.');
     console.log(JSON.stringify({
       lastUpdatedAt: result.lastUpdatedAt?.toISOString() ?? null,
     }, null, 2));
     return;
   }
 
-  console.log(`Refresh complete${mode.force ? ' (--force)' : ''}.`);
+  console.log('Refresh complete.');
   console.log(JSON.stringify({
     lastUpdatedAt: result.lastUpdatedAt.toISOString(),
     ...result.summary,

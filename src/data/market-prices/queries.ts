@@ -40,17 +40,7 @@ export async function getPrices(
   return out;
 }
 
-// Every type ID in market_prices, regardless of staleness. Used by the
-// `force: true` refresh path to mean "refresh everything" without
-// bypassing the advisory lock.
-export async function listAllTypeIds(db: AnyPgDb): Promise<number[]> {
-  const rows = await db
-    .select({ typeId: marketPrices.typeId })
-    .from(marketPrices);
-  return rows.map((r) => r.typeId);
-}
-
-// Type IDs with stale_after < NOW(). Drives the normal-path bulk refresh:
+// Type IDs with stale_after < NOW(). Drives the nightly backstop sweep:
 // only the rows that have actually expired get fetched from the source.
 export async function listStaleTypeIds(db: AnyPgDb): Promise<number[]> {
   const rows = await db
