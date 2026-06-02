@@ -6,6 +6,8 @@ for the full forensic record.
 
 ### 2026-06-01
 
+- Opening a blueprint now refreshes its market prices live, right then: the profit figures at the top fade and shimmer while they update, then settle the moment the live price lands, so a stale number is never shown as if it were confirmed.
+- The build plan can now be viewed three ways. "Consolidated" sums the whole build by stage, showing every component and raw material once with its total quantity — click any component to trace just its chain through the stages beneath it. "By branch" keeps the original click-to-drill column view. "Raw ledger" lays out the raw materials by source category with a grand total.
 - The Industry Planner home is now a dashboard. Search any blueprint or reaction to plan its build, and jump straight back to the ones you recently viewed. Saved favorites and active-build tracking are previewed here and coming soon. The old profit-margin browse catalog has been retired.
 - Pages no longer error on the first load after a quiet period. When the site had been idle for a while, the very first visit could fail with a database error while the database was waking up; it now waits for the wake-up and loads normally instead.
 
