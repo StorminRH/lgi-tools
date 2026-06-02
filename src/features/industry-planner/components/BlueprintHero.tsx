@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { TypeIcon } from '@/components/ui/type-icon';
@@ -18,16 +19,19 @@ import { usePricing } from './PricingProvider';
 // Hero ISK figure effect: while the live price is being confirmed the value
 // fades and a soft light wave sweeps across it; once the live value lands it
 // pulses a touch brighter, then holds solid in its tone. The classes live in
-// globals.css (CSP-safe — keyframes, not inline style).
-function priceFx(pending: boolean): string {
-  return pending ? 'isk-fx-pending' : 'isk-fx-settle';
+// globals.css (CSP-safe — keyframes, not inline style). Before any pending
+// cycle has been seen it returns no class, so a figure that paints already-fresh
+// doesn't pulse on first load for no reason.
+function priceFx(pending: boolean, wasPending: boolean): string {
+  if (pending) return 'isk-fx-pending';
+  return wasPending ? 'isk-fx-settle' : '';
 }
 
-function HeroStat({ label, value, pending }: { label: string; value: string; pending: boolean }) {
+function HeroStat({ label, value, fxClass }: { label: string; value: string; fxClass: string }) {
   return (
     <div className="text-right">
       <div className="text-[9px] uppercase tracking-[0.12em] text-muted">{label}</div>
-      <div className={cn('text-[13px] font-semibold text-isk whitespace-nowrap', priceFx(pending))}>
+      <div className={cn('text-[13px] font-semibold text-isk whitespace-nowrap', fxClass)}>
         {value}
       </div>
     </div>
@@ -36,6 +40,17 @@ function HeroStat({ label, value, pending }: { label: string; value: string; pen
 
 export function BlueprintHero({ structure }: { structure: BlueprintStructure }) {
   const { pricing, seeded, aggregatePending } = usePricing();
+  // Latches once the first confirmation cycle starts, so the settle pulse only
+  // plays after a real shimmer — not on the initial paint.
+  const [everPending, setEverPending] = useState(false);
+  useEffect(() => {
+    if (!aggregatePending) return;
+    // Deferred set (0ms) to satisfy the set-state-in-effect lint, the same
+    // escape the pricing clock used.
+    const t = setTimeout(() => setEverPending(true), 0);
+    return () => clearTimeout(t);
+  }, [aggregatePending]);
+  const fx = priceFx(aggregatePending, everPending);
   const summary = pricing?.summary ?? null;
   const margin = summary?.margin ?? null;
   const marginPct = summary?.marginPct ?? null;
@@ -75,7 +90,7 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
               className={cn(
                 'text-[22px] font-semibold leading-[1.15]',
                 marginToneClass(marginPct),
-                priceFx(aggregatePending),
+                fx,
               )}
             >
               {sign}
@@ -92,16 +107,8 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
       </div>
 
       <div className="flex gap-5">
-        <HeroStat
-          label="Input cost"
-          value={summary ? formatIsk(summary.inputCost) : '—'}
-          pending={aggregatePending}
-        />
-        <HeroStat
-          label="Sell (Jita)"
-          value={summary ? formatIsk(summary.revenue) : '—'}
-          pending={aggregatePending}
-        />
+        <HeroStat label="Input cost" value={summary ? formatIsk(summary.inputCost) : '—'} fxClass={fx} />
+        <HeroStat label="Sell (Jita)" value={summary ? formatIsk(summary.revenue) : '—'} fxClass={fx} />
       </div>
     </div>
   );

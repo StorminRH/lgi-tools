@@ -15,16 +15,9 @@ import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from '@/data/market-prices/constants';
 import type { PriceSource } from '@/data/market-prices/types';
 import {
   assemblePricing,
-  buildConfidenceInputs,
   collectIntermediateTypeIds,
   type PriceLite,
 } from '../build-pricing';
-import {
-  aggregateConfidence,
-  priceConfidence,
-  type AggregateConfidence,
-  type RowConfidence,
-} from '../industry-styles';
 import type { BlueprintPricing, BlueprintStructure } from '../types';
 
 // The planner's single live-pricing store. It owns what `CostPanel` used to:
@@ -106,13 +99,7 @@ interface PricingContextValue {
   // loading" (false) from "resolved, but no pricing available" (true +
   // pricing === null), so consumers don't show a perpetual loading state.
   seeded: boolean;
-  now: number | null;
   refreshing: boolean;
-  // A row's confidence verdict, or null when prices/clock aren't ready yet or
-  // the type has no price (badge withheld, exactly as 3.1.1's panel did).
-  confidenceFor: (typeId: number) => RowConfidence | null;
-  // The headline confidence over the cost-basis (raw) rows, for the hero.
-  aggregate: AggregateConfidence | null;
   // True while a type is awaiting its live confirmation — every viewed type is
   // refreshed on view, so this is the dimmed→flash signal: dim the seed and show
   // the loading badge while pending, then flash to the toned value when it lands.
@@ -167,15 +154,6 @@ export function PricingProvider({
   // refresh set when the loop starts and drained one batch at a time, so each
   // row knows when to stop being dimmed and flash to its toned value.
   const [pending, setPending] = useState<Set<number>>(() => new Set());
-  // Client clock for freshness, filled after hydration so the static prerender
-  // never reads the wall clock (Cache Components forbids it). Until then the
-  // consumers withhold confidence badges, exactly like PriceFreshness.
-  const [now, setNow] = useState<number | null>(null);
-
-  useEffect(() => {
-    const t = setTimeout(() => setNow(Date.now()), 0);
-    return () => clearTimeout(t);
-  }, []);
 
   // Settle the store from the streamed read. Mark it seeded either way (so a
   // null result reads as "unavailable", not "loading"); only adopt a non-null
@@ -266,40 +244,20 @@ export function PricingProvider({
       } catch {
         // aborted on unmount, or a network error — leave the last good state
       } finally {
-        if (!controller.signal.aborted) setRefreshing(false);
+        if (!controller.signal.aborted) {
+          setRefreshing(false);
+          // Drain anything the loop never reached — a thrown error breaks out of
+          // it mid-sequence — so those rows fall back to their dimmed seed
+          // instead of spinning forever (the per-batch finally only covers the
+          // batch that was in flight).
+          setPending(new Set());
+        }
       }
     })();
 
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seeded]);
-
-  const inputs = useMemo(
-    () => (pricing ? buildConfidenceInputs(pricing) : null),
-    [pricing],
-  );
-
-  const confidenceFor = useCallback(
-    (typeId: number): RowConfidence | null => {
-      if (now === null || !inputs) return null;
-      const input = inputs.get(typeId);
-      return input ? priceConfidence(input, now) : null;
-    },
-    [inputs, now],
-  );
-
-  const aggregate = useMemo<AggregateConfidence | null>(() => {
-    if (!pricing || now === null) return null;
-    return aggregateConfidence(
-      pricing.rows.map((r) => ({
-        source: r.source,
-        buyVolume: r.buyVolume,
-        unitBuy: r.unitBuy,
-        staleAfterMs: r.staleAfterMs,
-      })),
-      now,
-    );
-  }, [pricing, now]);
 
   const isPending = useCallback((typeId: number) => pending.has(typeId), [pending]);
 
@@ -309,17 +267,8 @@ export function PricingProvider({
   );
 
   const value = useMemo<PricingContextValue>(
-    () => ({
-      pricing,
-      seeded,
-      now,
-      refreshing,
-      confidenceFor,
-      aggregate,
-      isPending,
-      aggregatePending,
-    }),
-    [pricing, seeded, now, refreshing, confidenceFor, aggregate, isPending, aggregatePending],
+    () => ({ pricing, seeded, refreshing, isPending, aggregatePending }),
+    [pricing, seeded, refreshing, isPending, aggregatePending],
   );
 
   return (
