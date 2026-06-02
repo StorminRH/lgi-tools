@@ -4,19 +4,13 @@
 // drizzle / postgres dependencies — into the client bundle.
 
 // Per-row TTL. Every write sets stale_after = NOW() + STALE_AFTER_TTL_MS.
-// Matches the hourly cron cadence in vercel.json ("0 * * * *"). Vercel
-// Pro unlocks hourly crons; Hobby was the daily-only constraint. The
-// 1h TTL means on-demand callers (Industry Planner blueprint loads)
-// can trust freshly-pulled prices for 60 minutes before falling back
-// to a per-type ESI refresh.
-export const STALE_AFTER_TTL_MS = 60 * 60 * 1000;
-
-// Postgres advisory-lock key for the bulk price refresh path. Arbitrary
-// project-unique bigint. Convention if a second lock ever lands: high 32
-// bits = feature namespace, low 32 bits = lock kind. Only one lock today,
-// so the value is opaque. BigInt(...) call (vs an `n` literal) keeps the
-// TS target at ES2017.
-export const ADVISORY_LOCK_REFRESH_PRICES = BigInt(8273619012);
+// Its only remaining role is the "last refreshed" marker the nightly sweep
+// keys off: `listStaleTypeIds` selects rows with stale_after < NOW(), so a
+// ~24h TTL means the sweep re-fetches anything not refreshed in the last day
+// — matching the nightly cron cadence ("30 11 * * *") and skipping types an
+// on-demand view already refreshed today. It does NOT gate the live view path:
+// `getLivePrices` always fetches live regardless of staleAfter.
+export const STALE_AFTER_TTL_MS = 24 * 60 * 60 * 1000;
 
 // ESI (Eve Online's official API) base URL. Label-less by design: CCP warns
 // against the `/latest` label (it can shift behavior when they bump what it

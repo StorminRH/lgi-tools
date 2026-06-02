@@ -73,23 +73,6 @@ describe('GET /api/cron/refresh-prices', () => {
     expect(refreshStalePricesMock).not.toHaveBeenCalled();
   });
 
-  it('records a lock-contended skip as cron_prices/skipped (O-3)', async () => {
-    refreshStalePricesMock.mockResolvedValue({
-      status: 'cached',
-      reason: 'lock-contended',
-      lastUpdatedAt: new Date('2026-05-30T11:00:00Z'),
-    });
-    const { GET } = await importRoute();
-    const res = await GET(authedRequest());
-    expect(res.status).toBe(200);
-    expect((await res.json()).cached).toBe(true);
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'cron_prices',
-      metadata: expect.objectContaining({ outcome: 'skipped', reason: 'lock-contended' }),
-    });
-    expect(alertMock).not.toHaveBeenCalled();
-  });
-
   it('records an empty-set skip as cron_prices/skipped with reason empty-set (O-3)', async () => {
     refreshStalePricesMock.mockResolvedValue({
       status: 'cached',
