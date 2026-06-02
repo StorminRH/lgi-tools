@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/ui/type-icon';
@@ -94,7 +93,6 @@ interface Focus {
 export function ConsolidatedBuild({ structure }: { structure: BlueprintStructure }) {
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
-  const [parent] = useAutoAnimate<HTMLDivElement>();
 
   // The focused item's own chain, indexed by depth RELATIVE to the focus (0 =
   // the focused item, 1 = its direct inputs, 2 = theirs, …). Walking
@@ -137,7 +135,6 @@ export function ConsolidatedBuild({ structure }: { structure: BlueprintStructure
         </div>
       )}
       <div
-        ref={parent}
         className={cn(
           'grid grid-cols-1 gap-[22px] pb-3.5 xl:items-start xl:justify-center',
           TIER_GRID_COLS[Math.min(visibleTiers.length, 4)],
