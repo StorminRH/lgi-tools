@@ -1,15 +1,12 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
-import { db } from "@/db";
 import {
   ON_DEMAND_REFRESH_LIMIT_PER_MINUTE,
   ON_DEMAND_REFRESH_MAX_TYPE_IDS,
 } from "@/data/market-prices/constants";
-import { refreshPrices } from "@/data/market-prices/ingest";
-import { marketPrices } from "@/data/market-prices/schema";
+import { getLivePrices } from "@/data/market-prices/refresh-on-view";
 import { logUsageEvent } from "@/data/telemetry/queries";
 import { clientIdentifier, rateLimit } from "@/lib/rate-limit";
-import { inArray } from "drizzle-orm";
 
 // Postgres 32-bit `integer` ceiling. Matches the equivalent guard in
 // /api/sites/[id]/route.ts — defined locally on each route because both
@@ -26,12 +23,13 @@ const refreshSchema = z.object({
 // POST /api/market-prices/refresh
 // Body: { typeIds: number[] }
 //
-// On-demand refresh trigger. Consumed by 3.0.5's Industry Planner client
-// when a user opens a blueprint and one or more of its flattened-material
-// rows are stale. Does NOT acquire the bulk-refresh advisory lock — that
-// path is reserved for the cron's whole-set refresh; per-blueprint sets
-// are small (≤ ON_DEMAND_REFRESH_MAX_TYPE_IDS) and the upsert tolerates
-// concurrent writers.
+// On-demand live-price read. Consumed by the Industry Planner client when a
+// user opens a blueprint and one or more of its rows are stale. Runs the
+// refresh-on-view engine: read the DB seed, fetch live (coalesced across
+// concurrent viewers of the same item via the short-term shared cache), return
+// the freshest value, and persist the fresh rows back as the new seed behind
+// the response. Does NOT acquire the bulk-refresh advisory lock — that path is
+// the cron's whole-set refresh.
 //
 // Rate-limited per client IP. The threshold lives in
 // src/data/market-prices/constants.ts so post-ship tuning is one config
@@ -68,9 +66,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
-  const summary = await refreshPrices(db, typeIds);
+  const { prices, degraded } = await getLivePrices(typeIds);
 
-  if (summary.fuzzworkFallbackCount > 0 || summary.budgetExhausted) {
+  if (degraded.fuzzworkFallbackCount > 0 || degraded.budgetExhausted) {
     // O-1 + S-2: surface ESI degradation on the public path via telemetry. A
     // spike of these with caller:'on-demand' is how the deferred amplification
     // concern would show. Fire-and-forget (no added latency); no Discord alert
@@ -79,34 +77,31 @@ export async function POST(request: NextRequest): Promise<Response> {
       action: "price_source_degraded",
       metadata: {
         caller: "on-demand",
-        fetched: summary.fetched,
-        esiCount: summary.esiCount,
-        fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
-        budgetExhausted: summary.budgetExhausted,
+        fetched: degraded.fetched,
+        esiCount: degraded.esiCount,
+        fuzzworkFallbackCount: degraded.fuzzworkFallbackCount,
+        budgetExhausted: degraded.budgetExhausted,
       },
     }).catch((err) =>
       console.error("[market-prices/refresh] telemetry write failed", err),
     );
   }
 
-  const rows = await db
-    .select()
-    .from(marketPrices)
-    .where(inArray(marketPrices.typeId, typeIds));
-
   return Response.json({
-    summary,
-    prices: rows.map((row) => ({
-      typeId: row.typeId,
-      bestBuy: row.bestBuy,
-      bestSell: row.bestSell,
-      pct5Buy: row.pct5Buy,
-      pct5Sell: row.pct5Sell,
-      buyVolume: row.buyVolume?.toString() ?? null,
-      sellVolume: row.sellVolume?.toString() ?? null,
-      updatedAt: row.updatedAt.toISOString(),
-      staleAfter: row.staleAfter.toISOString(),
-      source: row.source,
-    })),
+    prices: typeIds
+      .map((typeId) => prices.get(typeId))
+      .filter((row): row is NonNullable<typeof row> => row !== undefined)
+      .map((row) => ({
+        typeId: row.typeId,
+        bestBuy: row.bestBuy,
+        bestSell: row.bestSell,
+        pct5Buy: row.pct5Buy,
+        pct5Sell: row.pct5Sell,
+        buyVolume: row.buyVolume?.toString() ?? null,
+        sellVolume: row.sellVolume?.toString() ?? null,
+        updatedAt: row.updatedAt.toISOString(),
+        staleAfter: row.staleAfter.toISOString(),
+        source: row.source,
+      })),
   });
 }

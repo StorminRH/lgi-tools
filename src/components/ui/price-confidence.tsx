@@ -21,17 +21,33 @@ const ACCESSIBLE_LABEL: Record<ConfidenceLevel, string> = {
 
 export function PriceConfidence({
   level,
+  loading,
   reasons,
   label,
   className,
 }: {
   level: ConfidenceLevel;
+  // While true the badge spins instead of showing the level glyph — the same
+  // visual language doubling as the "confirming live price" indicator. The
+  // level is withheld (not yet confirmed), so no tone and no reasons popover.
+  loading?: boolean;
   // Optional human-readable reasons shown in the hover/focus tooltip.
   reasons?: string[];
   // Accessible name override (defaults to the level's label).
   label?: string;
   className?: string;
 }) {
+  if (loading) {
+    return (
+      <span
+        className={cn('price-confidence price-confidence--loading', className)}
+        role="img"
+        aria-busy="true"
+        aria-label="Confirming price"
+      />
+    );
+  }
+
   const name = label ?? ACCESSIBLE_LABEL[level];
 
   const badge = (

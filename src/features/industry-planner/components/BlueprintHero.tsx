@@ -1,10 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
-import { PriceConfidence } from '@/components/ui/price-confidence';
 import { TypeIcon } from '@/components/ui/type-icon';
-import { activityLabel, confidenceHeadline, marginToneClass } from '../industry-styles';
+import { activityLabel, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { formatIsk, formatPct, formatQuantity } from '@/lib/format';
 import { usePricing } from './PricingProvider';
@@ -16,17 +16,41 @@ import { usePricing } from './PricingProvider';
 // arrive it shows "Calculating…" and withholds the aggregate badge, mirroring
 // the 3.1.1 cost panel's loading state.
 
-function HeroStat({ label, value }: { label: string; value: string }) {
+// Hero ISK figure effect: while the live price is being confirmed the value
+// fades and a soft light wave sweeps across it; once the live value lands it
+// pulses a touch brighter, then holds solid in its tone. The classes live in
+// globals.css (CSP-safe — keyframes, not inline style). Before any pending
+// cycle has been seen it returns no class, so a figure that paints already-fresh
+// doesn't pulse on first load for no reason.
+function priceFx(pending: boolean, wasPending: boolean): string {
+  if (pending) return 'isk-fx-pending';
+  return wasPending ? 'isk-fx-settle' : '';
+}
+
+function HeroStat({ label, value, fxClass }: { label: string; value: string; fxClass: string }) {
   return (
     <div className="text-right">
       <div className="text-[9px] uppercase tracking-[0.12em] text-muted">{label}</div>
-      <div className="text-[13px] font-semibold text-isk whitespace-nowrap">{value}</div>
+      <div className={cn('text-[13px] font-semibold text-isk whitespace-nowrap', fxClass)}>
+        {value}
+      </div>
     </div>
   );
 }
 
 export function BlueprintHero({ structure }: { structure: BlueprintStructure }) {
-  const { pricing, seeded, aggregate } = usePricing();
+  const { pricing, seeded, aggregatePending } = usePricing();
+  // Latches once the first confirmation cycle starts, so the settle pulse only
+  // plays after a real shimmer — not on the initial paint.
+  const [everPending, setEverPending] = useState(false);
+  useEffect(() => {
+    if (!aggregatePending) return;
+    // Deferred set (0ms) to satisfy the set-state-in-effect lint, the same
+    // escape the pricing clock used.
+    const t = setTimeout(() => setEverPending(true), 0);
+    return () => clearTimeout(t);
+  }, [aggregatePending]);
+  const fx = priceFx(aggregatePending, everPending);
   const summary = pricing?.summary ?? null;
   const margin = summary?.margin ?? null;
   const marginPct = summary?.marginPct ?? null;
@@ -52,14 +76,6 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
         <div className="text-[11px] text-muted mt-1">
           Builds {formatQuantity(structure.product.quantityPerRun)} per run · margin before job fees
         </div>
-        {aggregate && (
-          <div className="flex items-center gap-[7px] text-[11px] text-text mt-1.5">
-            <PriceConfidence level={aggregate.level} />
-            <span>
-              {confidenceHeadline(aggregate.level)} — {aggregate.summary}
-            </span>
-          </div>
-        )}
       </div>
 
       <div>
@@ -70,7 +86,13 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
           </div>
         ) : (
           <>
-            <div className={cn('text-[22px] font-semibold leading-[1.15]', marginToneClass(marginPct))}>
+            <div
+              className={cn(
+                'text-[22px] font-semibold leading-[1.15]',
+                marginToneClass(marginPct),
+                fx,
+              )}
+            >
               {sign}
               {formatIsk(margin)}
               {marginPct !== null && <span className="text-[14px] ml-2">({formatPct(marginPct)})</span>}
@@ -85,8 +107,8 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
       </div>
 
       <div className="flex gap-5">
-        <HeroStat label="Input cost" value={summary ? formatIsk(summary.inputCost) : '—'} />
-        <HeroStat label="Sell (Jita)" value={summary ? formatIsk(summary.revenue) : '—'} />
+        <HeroStat label="Input cost" value={summary ? formatIsk(summary.inputCost) : '—'} fxClass={fx} />
+        <HeroStat label="Sell (Jita)" value={summary ? formatIsk(summary.revenue) : '—'} fxClass={fx} />
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ vi.mock('./source', () => ({
   fetchPricesFromSource: (...args: unknown[]) => fetchPricesFromSourceMock(...args),
 }));
 
-import { refreshPrices } from './ingest';
+import { persistPrices, refreshPrices } from './ingest';
 
 function row(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
   return {
@@ -58,5 +58,32 @@ describe('refreshPrices — source mix (3.0.10 O-1)', () => {
       budgetExhausted: false,
     });
     expect(fetchPricesFromSourceMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', () => {
+  it('upserts the rows and summarizes the source mix from the given meta', async () => {
+    const db = fakeDb();
+    const summary = await persistPrices(
+      db as never,
+      [row(1, 'esi'), row(2, 'fuzzwork-fallback')],
+      { requested: 3, budgetExhausted: true },
+    );
+    expect(db.insert).toHaveBeenCalledTimes(1);
+    expect(summary).toMatchObject({
+      requested: 3,
+      fetched: 2,
+      written: 2,
+      esiCount: 1,
+      fuzzworkFallbackCount: 1,
+      budgetExhausted: true,
+    });
+  });
+
+  it('defaults requested to the row count and skips the write on empty input', async () => {
+    const db = fakeDb();
+    const summary = await persistPrices(db as never, []);
+    expect(db.insert).not.toHaveBeenCalled();
+    expect(summary).toMatchObject({ requested: 0, fetched: 0, written: 0, budgetExhausted: false });
   });
 });

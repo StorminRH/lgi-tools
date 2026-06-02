@@ -5,7 +5,6 @@ import { Suspense } from 'react';
 import { SITE_URL } from '@/config/site-url';
 import { BlueprintHero } from '@/features/industry-planner/components/BlueprintHero';
 import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
-import { CostLedger } from '@/features/industry-planner/components/CostLedger';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
 import {
@@ -68,7 +67,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const pricingPromise = getBlueprintPricing(id);
 
   return (
-    <div className="w-full max-w-[1100px]">
+    <div className="w-full max-w-[1124px]">
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
       <RecordRecentBlueprint
         typeId={id}
@@ -88,7 +87,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
       <PricingProvider structure={structure} pricingPromise={pricingPromise}>
         <BlueprintHero structure={structure} />
         <BuildCascade structure={structure} />
-        <CostLedger structure={structure} />
       </PricingProvider>
     </div>
   );
@@ -96,7 +94,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
 function PlannerSkeleton() {
   return (
-    <div className="w-full max-w-[1100px] text-[11px] text-muted">Loading blueprint…</div>
+    <div className="w-full max-w-[1124px] text-[11px] text-muted">Loading blueprint…</div>
   );
 }
 
