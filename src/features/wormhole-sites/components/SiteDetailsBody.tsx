@@ -1,6 +1,7 @@
 import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
+import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
 import { EwarRow } from './EwarRow';
 import { SiteResourcesLive } from './SiteResourcesLive';
@@ -45,9 +46,7 @@ export function SiteDetailsBody({ site }: { site: SiteDetail }) {
             <Callout label="Spawn">Sleeper wave arrives ~20 min after warp-in</Callout>
           )}
           <SiteResourcesLive
-            resources={site.resources.filter(
-              (r) => r.resourceKind !== 'ore' || (r.units ?? 0) > 0,
-            )}
+            resources={displayableResources(site.resources)}
             siteType={site.siteType}
             footerLabel={resourceFooterLabel(site.siteType)}
           />

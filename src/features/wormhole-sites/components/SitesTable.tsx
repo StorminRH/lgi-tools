@@ -4,6 +4,7 @@ import { SortableTable, type SortableColumn } from '@/components/ui/sortable-tab
 import { UrlSync } from '@/components/ui/url-sync';
 import { formatClassRange, gasClassRange } from '../gas-classes';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
+import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteLiveProvider } from './SiteResourcesLive';
@@ -125,7 +126,7 @@ export function SitesTable({
             >
               {cells}
             </summary>
-            <SiteLiveProvider resources={row.resources}>
+            <SiteLiveProvider resources={displayableResources(row.resources)}>
               <div className="sites-table-expanded">
                 <SiteDetailsBody site={row} />
               </div>

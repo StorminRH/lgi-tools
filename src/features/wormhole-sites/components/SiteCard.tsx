@@ -3,6 +3,7 @@ import { MetricBlock } from '@/components/ui/metric-block';
 import { Pill } from '@/components/ui/pill';
 import { formatClassRange, gasClassRange } from '../gas-classes';
 import { formatIskHeader } from '../format';
+import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteHeaderTotal, SiteLiveProvider } from './SiteResourcesLive';
@@ -34,6 +35,9 @@ export function SiteCard({
 
   const primaryIsk = isWaveDriven ? site.blueLootIsk : site.resourceValueIsk;
   const killingWaveIsk = !isWaveDriven && hasWaves ? site.blueLootIsk : null;
+  // The same set the body shows + sums, so the header total can never disagree
+  // with the footer or the visible rows.
+  const liveResources = displayableResources(site.resources);
 
   // Density vocabulary — see docs/wireframes/sites-density.html and the
   // matching CSS rules in globals.css. Ore + gas cards get a subtle hover
@@ -42,7 +46,7 @@ export function SiteCard({
 
   return (
     <Card className={`card ${cardVariant}`}>
-      <SiteLiveProvider resources={site.resources}>
+      <SiteLiveProvider resources={liveResources}>
       <details data-collapsible {...(defaultOpen ? { open: true } : {})}>
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
           <CardHeader
@@ -69,7 +73,7 @@ export function SiteCard({
                   isWaveDriven ? (
                     formatIskHeader(primaryIsk)
                   ) : (
-                    <SiteHeaderTotal resources={site.resources} />
+                    <SiteHeaderTotal resources={liveResources} />
                   )
                 }
                 sub={
