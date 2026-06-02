@@ -5,6 +5,7 @@ import { formatClassRange, gasClassRange } from '../gas-classes';
 import { formatIskHeader } from '../format';
 import type { SiteDetail } from '../types';
 import { SiteDetailsBody } from './SiteDetailsBody';
+import { SiteHeaderTotal, SiteLiveProvider } from './SiteResourcesLive';
 import {
   CLASS_TONE,
   SCAN_PILL_LABEL,
@@ -41,6 +42,7 @@ export function SiteCard({
 
   return (
     <Card className={`card ${cardVariant}`}>
+      <SiteLiveProvider resources={site.resources}>
       <details data-collapsible {...(defaultOpen ? { open: true } : {})}>
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
           <CardHeader
@@ -63,7 +65,13 @@ export function SiteCard({
             }
             trailing={
               <MetricBlock
-                value={formatIskHeader(primaryIsk)}
+                value={
+                  isWaveDriven ? (
+                    formatIskHeader(primaryIsk)
+                  ) : (
+                    <SiteHeaderTotal resources={site.resources} />
+                  )
+                }
                 sub={
                   isWaveDriven ? (
                     'est. loot'
@@ -82,6 +90,7 @@ export function SiteCard({
 
         <SiteDetailsBody site={site} />
       </details>
+      </SiteLiveProvider>
     </Card>
   );
 }

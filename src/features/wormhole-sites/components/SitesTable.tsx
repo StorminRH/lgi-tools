@@ -6,6 +6,7 @@ import { formatClassRange, gasClassRange } from '../gas-classes';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
 import type { SiteDetail } from '../types';
 import { SiteDetailsBody } from './SiteDetailsBody';
+import { SiteLiveProvider } from './SiteResourcesLive';
 import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
 
 function formatIskShort(isk: number | null): string {
@@ -124,9 +125,11 @@ export function SitesTable({
             >
               {cells}
             </summary>
-            <div className="sites-table-expanded">
-              <SiteDetailsBody site={row} />
-            </div>
+            <SiteLiveProvider resources={row.resources}>
+              <div className="sites-table-expanded">
+                <SiteDetailsBody site={row} />
+              </div>
+            </SiteLiveProvider>
           </details>
         </UrlSync>
       )}

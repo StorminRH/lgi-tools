@@ -12,12 +12,17 @@ export interface SiteLiveValue {
   priceOf: (typeId: number) => RefreshedPrice | undefined;
   isPending: (typeId: number) => boolean;
   everPending: boolean;
+  // Called by the in-body view sentinel when the site first comes on screen, so
+  // the provider (which wraps both the header and the body) can start the
+  // refresh. Decouples the open-gated trigger from the provider's placement.
+  requestEnable: () => void;
 }
 
 const NO_LIVE: SiteLiveValue = {
   priceOf: () => undefined,
   isPending: () => false,
   everPending: false,
+  requestEnable: () => {},
 };
 
 export const SiteLiveContext = createContext<SiteLiveValue>(NO_LIVE);
