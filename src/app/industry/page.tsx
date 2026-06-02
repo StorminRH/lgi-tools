@@ -80,7 +80,7 @@ async function FavoritesSection() {
 // static; the recently-viewed panel hydrates client-side from localStorage.
 export default function IndustryDashboardPage() {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20">
+    <div className="flex flex-col items-center px-4 pt-12 pb-20 sm:px-6">
       <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
         <h1 className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
           Industry Planner

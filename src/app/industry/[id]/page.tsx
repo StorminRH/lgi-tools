@@ -78,7 +78,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
       <div className="mb-4">
         <Link
           href="/industry"
-          className="text-[10px] tracking-[0.12em] uppercase text-muted"
+          className="inline-flex items-center min-h-[40px] text-[10px] tracking-[0.12em] uppercase text-muted"
         >
           ← Industry Planner
         </Link>
@@ -104,7 +104,7 @@ export default function BlueprintPlannerPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20">
+    <div className="flex flex-col items-center px-4 pt-12 pb-20 sm:px-6">
       <Suspense fallback={<PlannerSkeleton />}>
         <PlannerContent params={params} />
       </Suspense>

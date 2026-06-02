@@ -32,7 +32,7 @@ function formatNodeQty(quantity: number): string {
 }
 
 const ROW =
-  'grid grid-cols-[32px_minmax(0,1fr)_auto_16px] items-center gap-2.5 px-3.5 py-[7px] border-t border-border-soft first:border-t-0 text-[12px]';
+  'grid grid-cols-[32px_minmax(0,1fr)_auto_16px] items-center gap-2.5 px-3.5 py-[7px] min-h-[40px] border-t border-border-soft first:border-t-0 text-[12px]';
 
 function BuildRow({
   node,
@@ -254,7 +254,7 @@ function ToggleButton({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'text-[10px] tracking-[0.12em] uppercase px-2.5 py-1 border cursor-pointer transition-colors',
+        'text-[10px] tracking-[0.12em] uppercase px-3 min-h-[40px] inline-flex items-center justify-center border cursor-pointer transition-colors',
         active
           ? 'border-border text-name bg-[rgba(255,255,255,0.05)]'
           : 'border-border-soft text-muted hover:text-name',
@@ -286,7 +286,7 @@ export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
 
   return (
     <div className="mb-4">
-      <div className="mb-2.5 flex items-center gap-1.5">
+      <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
         <ToggleButton active={mode === 'consolidated'} onClick={() => setMode('consolidated')}>
           Consolidated
         </ToggleButton>

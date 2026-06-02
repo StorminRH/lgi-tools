@@ -21,7 +21,7 @@ export function SearchHero() {
       className="w-full max-w-[1100px] flex items-center gap-3 px-4 py-3.5 mb-6 border-[1.5px] border-border bg-bg text-left rounded-[3px] cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.018)] hover:border-isk-dim"
     >
       <span className="font-mono text-isk text-[13px]">&gt;</span>
-      <span className="font-mono text-[13px] text-muted flex-1">
+      <span className="font-mono text-[13px] text-muted flex-1 truncate">
         Search any blueprint or reaction to plan its build…
       </span>
       <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-muted border border-border-soft rounded-[2px] px-1.5 py-0.5">

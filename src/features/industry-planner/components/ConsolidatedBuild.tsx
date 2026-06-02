@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/ui/type-icon';
@@ -11,17 +10,25 @@ import type { BlueprintStructure } from '../types';
 
 // The consolidated build view: a column per tier (build step below the
 // product), each listing every input consumed at that depth — buildables and
-// raws alike — with quantities summed across that tier. It opens to the first
-// three tiers; clicking a buildable focuses on that tier and the one beneath
-// it (its inputs), sliding the pair to the centre and hiding the rest, so you
-// can walk a single component's chain one step at a time. The clicked item's
-// downstream chain stays lit while everything else dims. Clicking the focused
-// item again, or "All tiers", returns to the opening view.
+// raws alike — with quantities summed across that tier. Every tier is always
+// shown in a wrapping grid; clicking a buildable lights its downstream chain
+// (everything else dims) without changing the layout, and clicking it again (or
+// Clear) drops the highlight.
 
-const DEFAULT_TIERS = 3;
+// Desktop column count for the tier grid, capped at 4. Each column scales to
+// fill the width (shrinking from its 360px natural max); a 5th/6th tier wraps
+// to a second row, landing under the 1st/2nd column. Static classes, indexed by
+// min(tierCount, 4), so Tailwind's JIT emits them.
+const TIER_GRID_COLS = [
+  '',
+  'xl:grid-cols-[minmax(0,360px)]',
+  'xl:grid-cols-[repeat(2,minmax(0,360px))]',
+  'xl:grid-cols-[repeat(3,minmax(0,360px))]',
+  'xl:grid-cols-[repeat(4,minmax(0,360px))]',
+];
 
 const ROW =
-  'grid grid-cols-[32px_minmax(0,1fr)_auto_12px] items-center gap-2.5 px-3.5 py-[7px] border-t border-border-soft first:border-t-0 text-[12px] transition-opacity';
+  'grid grid-cols-[32px_minmax(0,1fr)_auto_12px] items-center gap-2.5 px-3.5 py-[7px] min-h-[40px] border-t border-border-soft first:border-t-0 text-[12px] transition-opacity';
 
 // On a marginal basis a deep input's share of one end product can be sub-unit.
 function formatNodeQty(quantity: number): string {
@@ -84,23 +91,32 @@ interface Focus {
 }
 
 export function ConsolidatedBuild({ structure }: { structure: BlueprintStructure }) {
-  const { tiers, descendants } = useMemo(() => consolidateBuild(structure), [structure]);
+  const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
-  const [parent] = useAutoAnimate<HTMLDivElement>();
 
-  // Opening view: the first few tiers. Focused: the chosen tier and the one
-  // beneath it (its inputs), centred.
-  const visibleTiers = focus
-    ? tiers.filter((t) => t.depth === focus.depth || t.depth === focus.depth + 1)
-    : tiers.slice(0, DEFAULT_TIERS);
-
-  // The lit set when focused: the chosen item plus everything downstream of it.
-  const lit = useMemo(() => {
+  // The focused item's own chain, indexed by depth RELATIVE to the focus (0 =
+  // the focused item, 1 = its direct inputs, 2 = theirs, …). Walking
+  // `childrenOf` from the focus keeps each tier to the types actually consumed
+  // at that step of THIS item's subtree — unlike a flat descendant set, which
+  // would also match a type that sits at this depth elsewhere in the build
+  // (e.g. a mineral a sibling capital part consumes directly).
+  const chainLevels = useMemo(() => {
     if (!focus) return null;
-    const set = new Set<number>([focus.typeId]);
-    for (const d of descendants.get(focus.typeId) ?? []) set.add(d);
-    return set;
-  }, [focus, descendants]);
+    const levels = new Map<number, Set<number>>();
+    levels.set(0, new Set([focus.typeId]));
+    for (let k = 1; ; k += 1) {
+      const next = new Set<number>();
+      for (const parentId of levels.get(k - 1)!) {
+        for (const child of childrenOf.get(parentId) ?? []) next.add(child);
+      }
+      if (next.size === 0) break;
+      levels.set(k, next);
+    }
+    return levels;
+  }, [focus, childrenOf]);
+
+  // The layout never changes with focus: every tier is always in the grid.
+  const visibleTiers = tiers;
 
   return (
     <>
@@ -109,24 +125,33 @@ export function ConsolidatedBuild({ structure }: { structure: BlueprintStructure
           <button
             type="button"
             onClick={() => setFocus(null)}
-            className="tracking-[0.12em] uppercase text-muted hover:text-name cursor-pointer"
+            className="inline-flex items-center min-h-[40px] tracking-[0.12em] uppercase text-muted hover:text-name cursor-pointer"
           >
-            ← All tiers
+            ✕ Clear
           </button>
           <span className="text-muted">
             Tracing <span className="text-name">{focus.name}</span>
           </span>
         </div>
       )}
-      <div ref={parent} className="cascade justify-center">
-        {visibleTiers.map((tier) => (
-          <div key={tier.depth} className="cascade-col w-[360px]">
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-[22px] pb-3.5 xl:items-start xl:justify-center',
+          TIER_GRID_COLS[Math.min(visibleTiers.length, 4)],
+        )}
+      >
+        {visibleTiers.map((tier) => {
+          // Which of this tier's types belong to the focused chain at this exact
+          // step (relative depth), so only those light up and the rest dim.
+          const inChain = focus && chainLevels ? chainLevels.get(tier.depth - focus.depth) : null;
+          return (
+          <div key={tier.depth} className="min-w-0">
             <div className="cascade-col-label">Tier {tier.depth}</div>
             <Card>
               {tier.items.map((item) => {
                 const isSelected = !!focus && focus.typeId === item.typeId && focus.depth === tier.depth;
-                const isRelated = !isSelected && (lit?.has(item.typeId) ?? false);
-                const isFaded = lit !== null && !lit.has(item.typeId);
+                const isRelated = !isSelected && (inChain?.has(item.typeId) ?? false);
+                const isFaded = !!focus && !isSelected && !isRelated;
                 return (
                   <TierItem
                     key={item.typeId}
@@ -149,7 +174,8 @@ export function ConsolidatedBuild({ structure }: { structure: BlueprintStructure
               })}
             </Card>
           </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
