@@ -43,7 +43,7 @@ function makeStructure(): BlueprintStructure {
 }
 
 describe('consolidateBuild', () => {
-  const { tiers, descendants } = consolidateBuild(makeStructure());
+  const { tiers, descendants, childrenOf } = consolidateBuild(makeStructure());
 
   it('produces a tier per depth, product-side first (no product tier)', () => {
     expect(tiers.map((t) => t.depth)).toEqual([1, 2]);
@@ -70,5 +70,13 @@ describe('consolidateBuild', () => {
     expect([...(descendants.get(2) ?? [])].sort()).toEqual([8, 9]);
     expect([...(descendants.get(3) ?? [])].sort()).toEqual([9]);
     expect([...(descendants.get(1) ?? [])].sort()).toEqual([2, 3, 8, 9]);
+  });
+
+  it('maps each type to its DIRECT inputs only (for walking a subtree by depth)', () => {
+    expect([...(childrenOf.get(1) ?? [])].sort()).toEqual([2, 3, 9]);
+    expect([...(childrenOf.get(2) ?? [])].sort()).toEqual([8, 9]);
+    expect([...(childrenOf.get(3) ?? [])].sort()).toEqual([9]);
+    // Raws have no inputs.
+    expect([...(childrenOf.get(9) ?? [])]).toEqual([]);
   });
 });

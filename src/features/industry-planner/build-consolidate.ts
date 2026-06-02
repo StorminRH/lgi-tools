@@ -33,6 +33,11 @@ export interface ConsolidatedBuild {
   tiers: ConsolidatedTier[];
   // typeId → every type downstream of it (its full requirement chain).
   descendants: Map<number, Set<number>>;
+  // typeId → its DIRECT inputs only. Lets a consumer walk one item's subtree by
+  // relative depth (which `descendants` flattens away) — needed to light a
+  // focused item's chain at the right tier, since the same type can be consumed
+  // at several depths across the whole build.
+  childrenOf: Map<number, Set<number>>;
 }
 
 export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBuild {
@@ -108,5 +113,5 @@ export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBui
         ),
     }));
 
-  return { tiers, descendants };
+  return { tiers, descendants, childrenOf };
 }
