@@ -47,7 +47,7 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
   const sign = margin !== null && margin > 0 ? '+' : '';
 
   return (
-    <div className="z-20 mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-[1.5px] border-border bg-bg px-[18px] py-[14px] font-mono lg:sticky lg:top-0">
+    <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 border-[1.5px] border-border bg-bg px-[18px] py-[14px] font-mono">
       <TypeIcon
         typeId={structure.product.typeId}
         variant="render"
