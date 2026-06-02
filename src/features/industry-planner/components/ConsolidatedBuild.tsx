@@ -21,7 +21,7 @@ import type { BlueprintStructure } from '../types';
 const DEFAULT_TIERS = 3;
 
 const ROW =
-  'grid grid-cols-[32px_minmax(0,1fr)_auto_12px] items-center gap-2.5 px-3.5 py-[7px] border-t border-border-soft first:border-t-0 text-[12px] transition-opacity';
+  'grid grid-cols-[32px_minmax(0,1fr)_auto_12px] items-center gap-2.5 px-3.5 py-[7px] min-h-[40px] border-t border-border-soft first:border-t-0 text-[12px] transition-opacity';
 
 // On a marginal basis a deep input's share of one end product can be sub-unit.
 function formatNodeQty(quantity: number): string {
@@ -109,7 +109,7 @@ export function ConsolidatedBuild({ structure }: { structure: BlueprintStructure
           <button
             type="button"
             onClick={() => setFocus(null)}
-            className="tracking-[0.12em] uppercase text-muted hover:text-name cursor-pointer"
+            className="inline-flex items-center min-h-[40px] tracking-[0.12em] uppercase text-muted hover:text-name cursor-pointer"
           >
             ← All tiers
           </button>
@@ -118,9 +118,12 @@ export function ConsolidatedBuild({ structure }: { structure: BlueprintStructure
           </span>
         </div>
       )}
-      <div ref={parent} className="cascade justify-center">
+      <div
+        ref={parent}
+        className="flex flex-col gap-[22px] pb-3.5 xl:flex-row xl:items-start xl:justify-center xl:overflow-x-auto"
+      >
         {visibleTiers.map((tier) => (
-          <div key={tier.depth} className="cascade-col w-[360px]">
+          <div key={tier.depth} className="w-full shrink-0 xl:w-[360px]">
             <div className="cascade-col-label">Tier {tier.depth}</div>
             <Card>
               {tier.items.map((item) => {

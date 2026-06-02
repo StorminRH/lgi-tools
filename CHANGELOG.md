@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-06-02
+
+- The Industry Planner now works on a phone. The dashboard and every blueprint page reflow to fit narrow screens — the build plan stacks instead of forcing a sideways scroll, the cost ledger drops to a single column, the profit summary wraps cleanly, and buttons and rows are sized for tapping.
+
 ### 2026-06-01
 
 - Wormhole ore and gas site values now refresh live the moment you open a site: each resource fades and shimmers while its price updates, then settles to the confirmed figure, so the ISK estimate is never shown stale as if it were fresh. The blueprint planner already worked this way — sites now use the same engine and the same feel.

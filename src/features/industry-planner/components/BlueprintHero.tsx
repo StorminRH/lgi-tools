@@ -68,7 +68,7 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
         </div>
       </div>
 
-      <div>
+      <div className="min-w-0">
         <div className="text-[9px] uppercase tracking-[0.16em] text-muted">Margin (before fees)</div>
         {summary === null ? (
           <div className="text-[22px] font-semibold text-muted leading-[1.15]">
@@ -96,7 +96,7 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
         )}
       </div>
 
-      <div className="flex gap-5">
+      <div className="flex gap-5 flex-wrap">
         <HeroStat label="Input cost" value={summary ? formatIsk(summary.inputCost) : '—'} fxClass={fx} />
         <HeroStat label="Sell (Jita)" value={summary ? formatIsk(summary.revenue) : '—'} fxClass={fx} />
       </div>

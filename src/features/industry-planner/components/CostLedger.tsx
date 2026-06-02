@@ -91,7 +91,7 @@ export function CostLedger({ structure }: { structure: BlueprintStructure }) {
 
   return (
     <div>
-      <div className="grid grid-cols-3 gap-[22px] items-start">
+      <div className="grid grid-cols-1 gap-[22px] items-start sm:grid-cols-2 lg:grid-cols-3">
         {present.map((cat) => {
           const catRows = byCategory.get(cat.label) ?? [];
           const subtotal = catRows.some((r) => r.extendedCost !== null)

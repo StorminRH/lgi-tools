@@ -11,7 +11,7 @@ import { TypeIcon } from '@/components/ui/type-icon';
 // it renders as a static, dimmed row.
 
 const ROW =
-  'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2.5 px-3.5 py-[7px] border-t border-border-soft first:border-t-0 text-[12px]';
+  'grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2.5 px-3.5 py-[7px] min-h-[40px] border-t border-border-soft first:border-t-0 text-[12px]';
 
 export function BlueprintRow({
   typeId,
