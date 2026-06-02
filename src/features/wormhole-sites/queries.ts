@@ -219,7 +219,7 @@ export async function listSiteDetails(filters: {
   // other; fetch them concurrently. NPCs still wait on waveIds afterwards.
   const [waveRows, resourceRows]: [
     WaveRow[],
-    (Omit<SiteResource, 'liveIsk' | 'effectiveIsk'> & { siteId: number })[],
+    (Omit<SiteResource, 'liveIsk' | 'effectiveIsk' | 'liveEligible'> & { siteId: number })[],
   ] = await Promise.all([
     db
       .select({
@@ -295,6 +295,7 @@ export async function listSiteDetails(filters: {
       ...resource,
       liveIsk: null,
       effectiveIsk: resource.totalIsk,
+      liveEligible: false,
     };
     const bucket = resourcesBySiteId.get(siteId) ?? [];
     bucket.push(hydrated);
@@ -404,6 +405,7 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
     ...r,
     liveIsk: null,
     effectiveIsk: r.totalIsk,
+    liveEligible: false,
   }));
 
   const distinctTypeIds = [...new Set(allNpcs.map((n) => n.typeId))];

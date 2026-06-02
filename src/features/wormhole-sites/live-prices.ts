@@ -1,5 +1,6 @@
 import { getTypesByIds } from '@/data/eve-data/queries';
 import { getPrices } from '@/data/market-prices/queries';
+import { liveIskFor } from './live-isk';
 import type { SiteDetail, SiteResource } from './types';
 
 // Overlays live Jita 5%-percentile buy values onto a list of sites.
@@ -40,9 +41,12 @@ export async function overlayLivePrices(sites: SiteDetail[]): Promise<SiteDetail
     if (site.resources.length === 0) return site;
 
     const newResources: SiteResource[] = site.resources.map((r) => {
-      const liveIsk = computeLiveIsk(r, prices, typeById);
+      const liveEligible = isLiveEligible(r, typeById);
+      const liveIsk = liveEligible
+        ? liveIskFor(r.units, prices.get(r.typeId!)?.pct5Buy ?? null)
+        : null;
       const effectiveIsk = liveIsk ?? r.totalIsk;
-      return { ...r, liveIsk, effectiveIsk };
+      return { ...r, liveIsk, effectiveIsk, liveEligible };
     });
     const newResourceValueIsk = newResources.reduce(
       (sum, r) => sum + (r.effectiveIsk ?? 0),
@@ -57,15 +61,15 @@ export async function overlayLivePrices(sites: SiteDetail[]): Promise<SiteDetail
   });
 }
 
-function computeLiveIsk(
+// Whether a resource can take a live value: a resolved typeId, a positive unit
+// count, and a present SDE volume (the sanity gate — skip the overlay when the
+// SDE row is missing). The same conditions gate the client island, which is fed
+// this verdict because the refresh API doesn't return SDE volume.
+function isLiveEligible(
   r: SiteResource,
-  prices: Map<number, { pct5Buy: number | null }>,
   typeById: Map<number, { volume: number | null }>,
-): number | null {
-  if (r.typeId == null) return null;
-  const price = prices.get(r.typeId);
-  const type = typeById.get(r.typeId);
-  if (!price?.pct5Buy || !type?.volume) return null;
-  if (r.units == null || r.units <= 0) return null;
-  return Math.round(r.units * price.pct5Buy);
+): boolean {
+  if (r.typeId == null) return false;
+  if (r.units == null || r.units <= 0) return false;
+  return !!typeById.get(r.typeId)?.volume;
 }

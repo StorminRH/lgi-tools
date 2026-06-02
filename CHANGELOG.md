@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-06-01
 
+- Wormhole ore and gas site values now refresh live the moment you open a site: each resource fades and shimmers while its price updates, then settles to the confirmed figure, so the ISK estimate is never shown stale as if it were fresh. The blueprint planner already worked this way — sites now use the same engine and the same feel.
 - Opening a blueprint now refreshes its market prices live, right then: the profit figures at the top fade and shimmer while they update, then settle the moment the live price lands, so a stale number is never shown as if it were confirmed.
 - The build plan can now be viewed three ways. "Consolidated" sums the whole build by stage, showing every component and raw material once with its total quantity — click any component to trace just its chain through the stages beneath it. "By branch" keeps the original click-to-drill column view. "Raw ledger" lays out the raw materials by source category with a grand total.
 - The Industry Planner home is now a dashboard. Search any blueprint or reaction to plan its build, and jump straight back to the ones you recently viewed. Saved favorites and active-build tracking are previewed here and coming soon. The old profit-margin browse catalog has been retired.

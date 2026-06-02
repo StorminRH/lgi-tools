@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
+import { priceFx } from '@/components/ui/price-fx';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { activityLabel, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
@@ -15,17 +16,6 @@ import { usePricing } from './PricingProvider';
 // from the pricing store and update as on-demand refreshes land. Until prices
 // arrive it shows "Calculating…" and withholds the aggregate badge, mirroring
 // the 3.1.1 cost panel's loading state.
-
-// Hero ISK figure effect: while the live price is being confirmed the value
-// fades and a soft light wave sweeps across it; once the live value lands it
-// pulses a touch brighter, then holds solid in its tone. The classes live in
-// globals.css (CSP-safe — keyframes, not inline style). Before any pending
-// cycle has been seen it returns no class, so a figure that paints already-fresh
-// doesn't pulse on first load for no reason.
-function priceFx(pending: boolean, wasPending: boolean): string {
-  if (pending) return 'isk-fx-pending';
-  return wasPending ? 'isk-fx-settle' : '';
-}
 
 function HeroStat({ label, value, fxClass }: { label: string; value: string; fxClass: string }) {
   return (

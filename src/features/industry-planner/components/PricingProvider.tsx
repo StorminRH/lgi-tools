@@ -8,11 +8,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
-import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from '@/data/market-prices/constants';
-import type { PriceSource } from '@/data/market-prices/types';
+import {
+  useRefreshOnView,
+  type RefreshedPrice,
+} from '@/data/market-prices/use-refresh-on-view';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
@@ -29,26 +32,6 @@ import type { BlueprintPricing, BlueprintStructure } from '../types';
 // price read fans out to all of them while the structure stays in the static
 // shell. Prices arrive via an un-awaited promise the server hands down (see
 // PricingSeeder), so the cascade structure never waits on the price read.
-
-// The `prices` array shape returned by POST /api/market-prices/refresh.
-// Volumes serialize as strings (DB bigint); source is the provenance text.
-interface RefreshedPrice {
-  typeId: number;
-  bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: string | null;
-  sellVolume: string | null;
-  source: PriceSource;
-  staleAfter: string;
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}
 
 // Live price map seeded from the server snapshot — the priced raw rows, the
 // product, and the buildable intermediates (so a refresh recomputes the same
@@ -149,11 +132,11 @@ export function PricingProvider({
 }) {
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  // Type IDs still awaiting their live confirmation. Seeded to the full
-  // refresh set when the loop starts and drained one batch at a time, so each
-  // row knows when to stop being dimmed and flash to its toned value.
-  const [pending, setPending] = useState<Set<number>>(() => new Set());
+  // The seed price map, captured when the snapshot first lands. Each refresh
+  // batch merges over it (refreshed value wins; un-refreshed rows keep their
+  // seed) before recomputing margin, so the assembly never drops back to nulls
+  // mid-loop.
+  const seedMapRef = useRef<Map<number, PriceLite>>(new Map());
 
   // Settle the store from the streamed read. Mark it seeded either way (so a
   // null result reads as "unavailable", not "loading"); only adopt a non-null
@@ -161,109 +144,53 @@ export function PricingProvider({
   // advanced it.
   const seed = useCallback((initial: BlueprintPricing | null) => {
     setSeeded(true);
-    if (initial) setPricing((prev) => prev ?? initial);
+    if (initial) {
+      seedMapRef.current = initialMap(initial);
+      setPricing((prev) => prev ?? initial);
+    }
   }, []);
 
-  // Once seeded, re-confirm every viewed price live on view — across the raw
-  // cost basis, the product, and the buildable intermediates. We refresh the
-  // whole set, not just stale rows: the seed is always shown dimmed as the
-  // last-known and each row flashes to its confirmed value as the batch lands
-  // (the engine's per-item coalescing makes a fresh item cache-hit and flash
-  // back near-instantly, so always-refresh stays cheap). Recompute the whole
-  // snapshot after each batch so margin and every badge update as prices stream
-  // in.
-  //
-  // Keyed on `seeded` (a one-shot false→true), NOT on `pricing`: each batch
-  // calls setPricing, and if `pricing` were a dependency React would run this
-  // effect's cleanup (controller.abort()) between batches and kill the in-flight
-  // loop — stranding deep builds (e.g. an Archon, >1 batch) after the first
-  // batch with `refreshing` stuck true. With `seeded` deps the loop starts once
-  // when the seed lands and the abort fires only on unmount. `pricing` here is
-  // the seed snapshot captured at that transition; `structure` is a stable prop.
-  useEffect(() => {
-    if (!pricing) return;
-
-    const map = initialMap(pricing);
-    const toRefresh = [
+  // Every viewed price re-confirmed live on view — across the raw cost basis,
+  // the product, and the buildable intermediates. We refresh the whole set, not
+  // just stale rows: the seed is shown dimmed as the last-known and each row
+  // flashes to its confirmed value as the batch lands (the engine's per-item
+  // coalescing makes a fresh item cache-hit and flash back near-instantly, so
+  // always-refresh stays cheap). Stable across batches — `structure` is a stable
+  // prop — so the hook captures it once when the loop fires.
+  const toRefresh = useMemo(
+    () => [
       ...new Set<number>([
         ...structure.flatMaterials.map((m) => m.typeId),
         structure.product.typeId,
         ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
       ]),
-    ];
-    if (toRefresh.length === 0) return;
+    ],
+    [structure],
+  );
 
-    const controller = new AbortController();
-    const batches = chunk(toRefresh, ON_DEMAND_REFRESH_MAX_TYPE_IDS);
+  // Recompute the whole snapshot after each batch so margin and every badge
+  // update as prices stream in. RefreshedPrice is structurally a PriceLite, so
+  // the merged lookup feeds assemblePricing directly.
+  const onBatch = useCallback(
+    (refreshed: Map<number, RefreshedPrice>) => {
+      setPricing(
+        assemblePricing(structure, (t) => refreshed.get(t) ?? seedMapRef.current.get(t)),
+      );
+    },
+    [structure],
+  );
 
-    // Drop a whole batch from `pending` once its request settles — whatever the
-    // engine couldn't price simply falls back to its dimmed seed, so a row never
-    // spins forever (covers rate-limit, partial responses, and network errors).
-    const clearBatch = (batch: number[]) =>
-      setPending((prev) => {
-        const next = new Set(prev);
-        for (const t of batch) next.delete(t);
-        return next;
-      });
-
-    (async () => {
-      // Mark the whole set pending up front (inside the async body, not the
-      // effect body, so the set-state-in-effect lint stays satisfied) — every
-      // viewed row shows its dimmed seed + loading badge until its batch lands.
-      setPending(new Set(toRefresh));
-      setRefreshing(true);
-      try {
-        for (const batch of batches) {
-          try {
-            const res = await fetch('/api/market-prices/refresh', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ typeIds: batch }),
-              cache: 'no-store',
-              signal: controller.signal,
-            });
-            if (!res.ok) continue; // rate-limited / error → keep what we have
-            const data = (await res.json()) as { prices: RefreshedPrice[] };
-            for (const p of data.prices) {
-              map.set(p.typeId, {
-                bestBuy: p.bestBuy,
-                bestSell: p.bestSell,
-                pct5Buy: p.pct5Buy,
-                pct5Sell: p.pct5Sell,
-                buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
-                sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
-                source: p.source,
-                staleAfterMs: Date.parse(p.staleAfter),
-              });
-            }
-            setPricing(assemblePricing(structure, (t) => map.get(t)));
-          } finally {
-            if (!controller.signal.aborted) clearBatch(batch);
-          }
-        }
-      } catch {
-        // aborted on unmount, or a network error — leave the last good state
-      } finally {
-        if (!controller.signal.aborted) {
-          setRefreshing(false);
-          // Drain anything the loop never reached — a thrown error breaks out of
-          // it mid-sequence — so those rows fall back to their dimmed seed
-          // instead of spinning forever (the per-batch finally only covers the
-          // batch that was in flight).
-          setPending(new Set());
-        }
-      }
-    })();
-
-    return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seeded]);
-
-  const isPending = useCallback((typeId: number) => pending.has(typeId), [pending]);
+  // The shared refresh loop. Gated on `seeded && !!pricing` (a one-shot
+  // false→true): it starts once the seed lands and never re-fires, so deep
+  // builds (>1 batch) run to completion.
+  const { isPending, refreshing } = useRefreshOnView(toRefresh, {
+    enabled: seeded && !!pricing,
+    onBatch,
+  });
 
   const aggregatePending = useMemo(
-    () => (pricing ? pricing.rows.some((r) => pending.has(r.typeId)) : pending.size > 0),
-    [pricing, pending],
+    () => (pricing ? pricing.rows.some((r) => isPending(r.typeId)) : refreshing),
+    [pricing, isPending, refreshing],
   );
 
   const value = useMemo<PricingContextValue>(

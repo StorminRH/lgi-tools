@@ -110,6 +110,7 @@ function resource(
     typeId: null,
     liveIsk: null,
     effectiveIsk: totalIsk,
+    liveEligible: false,
   };
 }
 

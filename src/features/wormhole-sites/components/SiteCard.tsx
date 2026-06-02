@@ -2,8 +2,11 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { MetricBlock } from '@/components/ui/metric-block';
 import { Pill } from '@/components/ui/pill';
 import { formatClassRange, gasClassRange } from '../gas-classes';
+import { formatIskHeader } from '../format';
+import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
-import { SiteDetailsBody, formatIskHeader } from './SiteDetailsBody';
+import { SiteDetailsBody } from './SiteDetailsBody';
+import { SiteHeaderTotal, SiteLiveProvider } from './SiteResourcesLive';
 import {
   CLASS_TONE,
   SCAN_PILL_LABEL,
@@ -32,6 +35,9 @@ export function SiteCard({
 
   const primaryIsk = isWaveDriven ? site.blueLootIsk : site.resourceValueIsk;
   const killingWaveIsk = !isWaveDriven && hasWaves ? site.blueLootIsk : null;
+  // The same set the body shows + sums, so the header total can never disagree
+  // with the footer or the visible rows.
+  const liveResources = displayableResources(site.resources);
 
   // Density vocabulary — see docs/wireframes/sites-density.html and the
   // matching CSS rules in globals.css. Ore + gas cards get a subtle hover
@@ -40,6 +46,7 @@ export function SiteCard({
 
   return (
     <Card className={`card ${cardVariant}`}>
+      <SiteLiveProvider resources={liveResources}>
       <details data-collapsible {...(defaultOpen ? { open: true } : {})}>
         <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
           <CardHeader
@@ -62,7 +69,13 @@ export function SiteCard({
             }
             trailing={
               <MetricBlock
-                value={formatIskHeader(primaryIsk)}
+                value={
+                  isWaveDriven ? (
+                    formatIskHeader(primaryIsk)
+                  ) : (
+                    <SiteHeaderTotal resources={liveResources} />
+                  )
+                }
                 sub={
                   isWaveDriven ? (
                     'est. loot'
@@ -81,6 +94,7 @@ export function SiteCard({
 
         <SiteDetailsBody site={site} />
       </details>
+      </SiteLiveProvider>
     </Card>
   );
 }
