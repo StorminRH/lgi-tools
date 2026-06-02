@@ -11,8 +11,8 @@ import type { MarketPrice, RawMarketPrice } from './types';
 // read the durable DB seed, fetch live (coalesced so concurrent viewers of the
 // same item share one source call), return the freshest available value, and
 // persist the fresh rows back as the new seed behind the response. A primitive
-// the Industry Planner consumes today (via the refresh route) and the wormhole
-// sites page will consume in 3.2.5 — not planner-specific.
+// both the Industry Planner and the wormhole sites page consume (via the refresh
+// route, through the shared useRefreshOnView hook) — not planner-specific.
 //
 // It threads degradation facts out in its return value and never imports
 // telemetry: `data ⊥ telemetry` stays sealed, and the route handler emits

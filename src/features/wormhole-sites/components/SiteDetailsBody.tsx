@@ -1,17 +1,10 @@
 import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
-import { SectionFooter } from '@/components/ui/section-footer';
 import { SectionHeader } from '@/components/ui/section-header';
 import type { SiteDetail } from '../types';
 import { EwarRow } from './EwarRow';
-import { ResourceRow } from './ResourceRow';
+import { SiteResourcesLive } from './SiteResourcesLive';
 import { WaveCard } from './WaveCard';
-
-export function formatIskHeader(isk: number | null): string {
-  if (isk == null) return '—';
-  if (isk >= 1_000_000_000) return `${(isk / 1_000_000_000).toFixed(1)}B ISK`;
-  return `${(isk / 1_000_000).toFixed(1)}M ISK`;
-}
 
 /**
  * The expanded body for a wormhole site — everything that appears inside
@@ -33,11 +26,6 @@ export function SiteDetailsBody({ site }: { site: SiteDetail }) {
     rr:    site.waves.reduce((n, w) => n + (w.ewRrep  ?? 0), 0),
   };
 
-  const totalResourceIsk = site.resources.reduce(
-    (sum, r) => sum + (r.effectiveIsk ?? 0),
-    0,
-  );
-
   return (
     <>
       <EwarRow web={siteEwar.web} scram={siteEwar.scram} neut={siteEwar.neut} rr={siteEwar.rr} />
@@ -56,14 +44,12 @@ export function SiteDetailsBody({ site }: { site: SiteDetail }) {
           {isGas && (
             <Callout label="Spawn">Sleeper wave arrives ~20 min after warp-in</Callout>
           )}
-          {site.resources
-            .filter((r) => r.resourceKind !== 'ore' || (r.units ?? 0) > 0)
-            .map((resource) => (
-              <ResourceRow key={resource.id} resource={resource} siteType={site.siteType} />
-            ))}
-          <SectionFooter
-            label={resourceFooterLabel(site.siteType)}
-            value={formatIskHeader(totalResourceIsk)}
+          <SiteResourcesLive
+            resources={site.resources.filter(
+              (r) => r.resourceKind !== 'ore' || (r.units ?? 0) > 0,
+            )}
+            siteType={site.siteType}
+            footerLabel={resourceFooterLabel(site.siteType)}
           />
         </>
       )}

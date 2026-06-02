@@ -71,6 +71,11 @@ export interface SiteResource {
   // What the UI actually renders: liveIsk ?? totalIsk. Set by the overlay;
   // falls back to totalIsk for raw rows (mock data, untouched DB reads).
   effectiveIsk: number | null;
+  // True when this row CAN take a live value — it has a typeId, the SDE volume
+  // gate passes, and a positive unit count. The on-view client island refreshes
+  // only these (and the refresh API doesn't return SDE volume, so the gate must
+  // be decided here, server-side). False rows always show their static seed.
+  liveEligible: boolean;
 }
 
 export interface SiteDetail extends SiteListItem {

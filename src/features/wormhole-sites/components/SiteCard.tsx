@@ -2,8 +2,9 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { MetricBlock } from '@/components/ui/metric-block';
 import { Pill } from '@/components/ui/pill';
 import { formatClassRange, gasClassRange } from '../gas-classes';
+import { formatIskHeader } from '../format';
 import type { SiteDetail } from '../types';
-import { SiteDetailsBody, formatIskHeader } from './SiteDetailsBody';
+import { SiteDetailsBody } from './SiteDetailsBody';
 import {
   CLASS_TONE,
   SCAN_PILL_LABEL,
