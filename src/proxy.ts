@@ -57,11 +57,12 @@ export function proxy(request: NextRequest): NextResponse {
   const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", cspHeader);
 
-  // Anything that isn't the canonical host must never be indexed — see
-  // CANONICAL_HOST above. Keeps Google anchored on lgi.tools regardless of
-  // which alias a crawler happens to reach.
+  // Anything that isn't positively the canonical host must never be indexed —
+  // see CANONICAL_HOST above. Fail closed: an absent/unknown Host (never the
+  // case for a real HTTP/1.1 request) is treated as non-canonical too, so the
+  // only host that stays indexable is lgi.tools itself.
   const host = request.headers.get("host");
-  if (host && host !== CANONICAL_HOST) {
+  if (!host || host !== CANONICAL_HOST) {
     response.headers.set("X-Robots-Tag", "noindex");
   }
   return response;
