@@ -1,4 +1,15 @@
-import { and, between, count, countDistinct, desc, eq, isNotNull, lt, sql } from 'drizzle-orm';
+import {
+  and,
+  between,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  lt,
+  sql,
+} from 'drizzle-orm';
 import { db } from '@/db';
 import { characters } from '@/features/auth/schema';
 import { usageLogs } from './schema';
@@ -338,6 +349,8 @@ export async function getFallbackRate(range: DateRange): Promise<FallbackRateDat
 // floor was hit and the sweep fell back. Counted across both the cron outcome
 // rows and the dedicated degradation rows (deduped by the caller is overkill —
 // these answer "how often did we hit the floor", a frequency, not a unique set).
+// Scoped to the two actions that actually emit the flag so a future action
+// reusing the metadata key can't silently inflate the count.
 export async function getBudgetExhaustionCount(range: DateRange): Promise<number> {
   const [row] = await db
     .select({ n: count() })
@@ -345,6 +358,7 @@ export async function getBudgetExhaustionCount(range: DateRange): Promise<number
     .where(
       and(
         inRange(range),
+        inArray(usageLogs.action, ['cron_prices', 'price_source_degraded']),
         eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true'),
       ),
     );

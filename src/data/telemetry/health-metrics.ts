@@ -143,7 +143,7 @@ export function cronHealthSummary(h: CronHealth): string {
     return `${h.neutral} run${h.neutral === 1 ? '' : 's'} skipped while another ingest held the lock; none failed.`;
   }
   if (h.ratio === 1) return 'Every recorded cron run completed healthy.';
-  return `${h.healthy} of ${h.total} cron runs completed healthy; ${h.unhealthy} need attention.`;
+  return `${h.healthy} of ${h.total} cron runs completed healthy; ${h.unhealthy} ${h.unhealthy === 1 ? 'needs' : 'need'} attention.`;
 }
 
 export function returningVsNewSummary({ newUsers, returning }: ReturningVsNew): string {

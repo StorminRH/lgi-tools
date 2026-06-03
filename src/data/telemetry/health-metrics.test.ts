@@ -92,7 +92,15 @@ describe('cronHealthSummary edges', () => {
       [{ outcome: 'refreshed', count: 3, avgDurationMs: 100 }],
       [{ outcome: 'remote-unreachable', count: 1, avgDurationMs: 30 }],
     );
-    expect(cronHealthSummary(h)).toBe('3 of 4 cron runs completed healthy; 1 need attention.');
+    expect(cronHealthSummary(h)).toBe('3 of 4 cron runs completed healthy; 1 needs attention.');
+  });
+
+  it('pluralizes when more than one is unhealthy', () => {
+    const h = summarizeCronHealth(
+      [{ outcome: 'refreshed', count: 3, avgDurationMs: 100 }],
+      [{ outcome: 'remote-unreachable', count: 2, avgDurationMs: 30 }],
+    );
+    expect(cronHealthSummary(h)).toBe('3 of 5 cron runs completed healthy; 2 need attention.');
   });
 });
 
