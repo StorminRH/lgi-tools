@@ -8,6 +8,7 @@
     "/admin/usage": "Per-user: session-gated telemetry report is a request-time dynamic hole.",
     "/industry": "Industry dashboard — static shell of cached sample reads (favorites); recently-viewed hydrates client-side from localStorage; no request-time server data.",
     "/industry/[id]": "Per-blueprint planner ([id] param + cached structure/prices) streams from a dynamic hole; page chrome is the static shell.",
+    "/dev/sparkline": "Unlinked dev demo of the visx sparkline primitive — static shell, no request-time data; the chart is a client-only component loaded via dynamic(ssr:false).",
     "/api/industry/blueprints": "Blueprint search index is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input.",
     "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic."
   },
@@ -17,6 +18,7 @@
     "/admin/usage": "partial",
     "/changelog": "static",
     "/contact": "static",
+    "/dev/sparkline": "static",
     "/industry": "static",
     "/industry/[id]": "partial",
     "/legal": "static",

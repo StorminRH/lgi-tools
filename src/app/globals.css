@@ -167,6 +167,35 @@ a:hover {
   transition: width 0.3s ease;
 }
 
+/* ── Sparkline tooltip (CSP-safe dynamic position) ──────────────────────
+ * <Sparkline> (src/components/ui/sparkline.tsx) sets `--tt-x` / `--tt-y` via
+ * style.setProperty on hover — the same CSSOM trick as .progress-fill, since
+ * the production CSP's `style-src 'self'` drops an inline `style="left:…"`
+ * attribute. The anchor element translates to the hovered point; the inner
+ * box (static transform) floats centered just above it. */
+.sparkline-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(var(--tt-x, 0), var(--tt-y, 0));
+  pointer-events: none;
+}
+.sparkline-tooltip-box {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: var(--color-section);
+  border: 1px solid var(--color-isk-dim);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  box-shadow:
+    0 0 0 1px rgba(61, 214, 140, 0.1),
+    0 6px 20px -8px rgba(0, 0, 0, 0.6);
+}
+
 /* ── /sites density vocabulary (v2.9.4) ─────────────────────────────────
  * Site cards are tagged `.card.resource` or `.card.wave-driven` by
  * SiteCard.tsx based on the `isWaveDriven` flag. Resource cards (ore + gas)
