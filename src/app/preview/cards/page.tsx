@@ -1,7 +1,12 @@
+import type { Metadata } from 'next';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-styles';
 import { MOCK_SITES } from '@/features/wormhole-sites/mock-data';
 import type { SiteDetail, SiteType } from '@/features/wormhole-sites/types';
+
+// Internal visual reference for the site cards — not a user-facing route, so
+// keep it out of the index.
+export const metadata: Metadata = { robots: { index: false } };
 
 const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
 

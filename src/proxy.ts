@@ -1,4 +1,14 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { SITE_URL } from "@/config/site-url";
+
+// The one host that should ever be indexed. Every other host that reaches the
+// app — preview/branch aliases, a stray `www`, or the production `*.vercel.app`
+// alias — gets `X-Robots-Tag: noindex` below. Today Vercel Deployment
+// Protection already 401s those aliases at the edge (before this runs), but
+// that's a dashboard toggle; stamping the header here is the code-level
+// guarantee that they can never be indexed even if protection is turned off.
+const CANONICAL_HOST = new URL(SITE_URL).host;
 
 // Per-request Content-Security-Policy. Through 3.0.4.5 this used a fresh
 // per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which
@@ -19,7 +29,7 @@ import { NextResponse } from "next/server";
 //
 // Static security headers (HSTS, X-Frame-Options, etc.) live in next.config.ts
 // so they apply to API responses too.
-export function proxy(): NextResponse {
+export function proxy(request: NextRequest): NextResponse {
   const isDev = process.env.NODE_ENV === "development";
 
   // Dev-only relaxations: `'unsafe-eval'` (React rebuilds server-side error
@@ -46,6 +56,15 @@ export function proxy(): NextResponse {
 
   const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", cspHeader);
+
+  // Anything that isn't positively the canonical host must never be indexed —
+  // see CANONICAL_HOST above. Fail closed: an absent/unknown Host (never the
+  // case for a real HTTP/1.1 request) is treated as non-canonical too, so the
+  // only host that stays indexable is lgi.tools itself.
+  const host = request.headers.get("host");
+  if (!host || host !== CANONICAL_HOST) {
+    response.headers.set("X-Robots-Tag", "noindex");
+  }
   return response;
 }
 

@@ -90,7 +90,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: canonicalUrl },
+    alternates: { canonical: `/sites/${id}` },
     openGraph: {
       title,
       description,

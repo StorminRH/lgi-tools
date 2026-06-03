@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: 'Industry Planner',
   description:
     'Your Eve Online manufacturing dashboard — search any blueprint to see its build cost, profit margin, and price confidence at live Jita rates, and jump back to the builds you recently viewed.',
-  alternates: { canonical: `${SITE_URL}/industry` },
+  alternates: { canonical: '/industry' },
   openGraph: {
     title: 'Industry Planner — LGI.tools',
     description:
