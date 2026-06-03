@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { LinePath, AreaClosed } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
 import { useTooltip } from '@visx/tooltip';
@@ -122,8 +122,11 @@ export function Sparkline({
   } = useTooltip<SparklinePoint>();
 
   // Position the (self-rendered) tooltip via CSS custom properties set through
-  // the CSSOM — never an inline `style` attribute. Mirrors ProgressBar.
-  useEffect(() => {
+  // the CSSOM — never an inline `style` attribute. Mirrors ProgressBar, but
+  // runs in a layout effect: the tooltip mounts conditionally on hover, so the
+  // position must land before paint or the first frame flashes at the
+  // `translate(0,0)` fallback. (Client-only via `ssr: false`, so no SSR warning.)
+  useLayoutEffect(() => {
     if (tooltipLeft == null || tooltipTop == null) return;
     tooltipRef.current?.style.setProperty('--tt-x', `${tooltipLeft}px`);
     tooltipRef.current?.style.setProperty('--tt-y', `${tooltipTop}px`);
@@ -195,8 +198,9 @@ export function Sparkline({
               x2={tooltipLeft}
               y1={MARGIN.top}
               y2={height - MARGIN.bottom}
-              stroke="#2a3d50"
+              className="stroke-[var(--color-muted)]"
               strokeWidth={1}
+              strokeOpacity={0.3}
               strokeDasharray="2 2"
             />
             <circle cx={tooltipLeft} cy={tooltipTop} r={3} fill={stroke} />
