@@ -5,6 +5,7 @@ import { ContactForm } from '@/features/contact/components/ContactForm';
 export const metadata: Metadata = {
   title: 'Contact',
   description: 'Reach the developer of LGI.tools — bug reports, ideas, and data corrections.',
+  alternates: { canonical: '/contact' },
 };
 
 export default function ContactPage() {

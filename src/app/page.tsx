@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   },
   description:
     'Browse all 69 Eve Online wormhole sites by class, type, and ISK value, with live Jita prices on ore and gas resources. Free first-party tools for wormhole pilots.',
+  // Next normalizes the root canonical to the bare origin (`https://lgi.tools`)
+  // under `trailingSlash: false` — Google treats that as identical to
+  // `https://lgi.tools/`, the form URL Inspection displays.
   alternates: { canonical: '/' },
 };
 
