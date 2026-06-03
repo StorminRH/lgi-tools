@@ -98,3 +98,51 @@ export interface RoleChangeAuditEntry {
   from: string | null;
   to: string | null;
 }
+
+// ── Health dashboard aggregates (3.2.13) ────────────────────────────────
+// All read-only rollups over the existing usage_logs cron/health rows plus
+// the characters table. SQL emits raw numerators/denominators; ratios,
+// bucketing, and edge-safe summary wording live in health-metrics.ts.
+
+// ESI source health: ESI vs Fuzzwork-fallback row counts from `cron_prices`
+// refreshed rows, with a per-day series for the trend chart.
+export interface FallbackRateData {
+  esi: number;
+  fallback: number;
+  perDay: { day: string; esi: number; fallback: number }[];
+}
+
+// One cron `outcome` value with its run count and average duration. Duration
+// is averaged only over rows that recorded a numeric `durationMs`.
+export interface CronOutcomeCount {
+  outcome: string;
+  count: number;
+  avgDurationMs: number;
+}
+
+// Per-caller degradation-event counts. `caller` exists only on
+// `price_source_degraded` rows (emitted only when degraded), so this counts
+// degradation events by origin — there is no full-refresh denominator.
+export interface DegradationCallerCount {
+  caller: string;
+  count: number;
+}
+
+// Per-day fetched/written totals from `cron_prices` refreshed rows.
+export interface RefreshVolumePoint {
+  day: string;
+  fetched: number;
+  written: number;
+}
+
+// Aggregate returning-vs-new user counts. Counts only — no identity surfaced.
+export interface ReturningVsNew {
+  newUsers: number;
+  returning: number;
+}
+
+// Direct (no external referrer) vs referred page-view counts.
+export interface SearchVsDirect {
+  referred: number;
+  direct: number;
+}

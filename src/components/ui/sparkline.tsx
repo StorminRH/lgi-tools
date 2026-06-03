@@ -34,7 +34,8 @@ export type SparklineTone = Extract<
   'green' | 'orange' | 'red' | 'blue' | 'purple' | 'teal'
 >;
 
-const TONE_STROKE: Record<SparklineTone, string> = {
+// Shared with bar-chart.tsx so the two viz primitives draw from one palette.
+export const TONE_STROKE: Record<SparklineTone, string> = {
   green: '#3dd68c',
   orange: '#d68c3d',
   red: '#dd4444',
