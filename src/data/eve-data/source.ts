@@ -5,15 +5,257 @@ import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web';
+import yauzl from 'yauzl';
+import type { Entry } from 'yauzl';
+import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
   fetchWithTimeout,
   SDE_DOWNLOAD_TIMEOUT_MS,
 } from '@/lib/fetch-with-timeout';
 
-// Fuzzwork SDE dump URLs. Swapping to CCP's official SDE later means
-// replacing this module only — nothing in ingest.ts or queries.ts knows
-// where the bytes come from.
+// ===========================================================================
+// CCP first-party SDE (JSON Lines) — the ACTIVE source.
+//
+// CCP publishes the Static Data Export straight from the Tranquility build
+// pipeline as one zip of `.jsonl` files (one JSON object per line). This module
+// owns only "bytes → the six files we need on disk"; parsing those lines into
+// rows is the ingest layer's job (3.3.2b). Swapping the data source means
+// touching this module only — nothing downstream knows where the bytes come
+// from. The legacy Fuzzwork CSV source is parked at the bottom of this file and
+// still backs the CSV ingest until 3.3.2b lands the JSONL parser.
+// ===========================================================================
+
+const CCP_SDE_BASE = 'https://developers.eveonline.com/static-data';
+
+// Always-latest zip; 302-redirects to the build-pinned
+// `…/tranquility/eve-online-static-data-<build>-jsonl.zip` (Node `fetch`
+// follows redirects by default). ~84 MB compressed, 60 files at the archive
+// root, ~532 MB uncompressed.
+const CCP_SDE_LATEST_ZIP_URL = `${CCP_SDE_BASE}/eve-online-static-data-latest-jsonl.zip`;
+
+// 80-byte JSONL version manifest. Its `sde` record carries the current build
+// number; ETag/Last-Modified supported, cached 5 min.
+const CCP_SDE_LATEST_MANIFEST_URL = `${CCP_SDE_BASE}/tranquility/latest.jsonl`;
+
+type SdeJsonlName =
+  | 'categories'
+  | 'groups'
+  | 'types'
+  | 'dogmaAttributes'
+  | 'typeDogma'
+  | 'blueprints';
+
+const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
+  'categories',
+  'groups',
+  'types',
+  'dogmaAttributes',
+  'typeDogma',
+  'blueprints',
+] as const;
+
+// The download interface 3.3.2b inherits: a map of name → on-disk path of the
+// extracted `.jsonl` file. Each file is one JSON object per line; the `_key`
+// field is the entity id (typeID/groupID/…), and `types.jsonl`'s `name` is a
+// localized object (`{en, de, …}`), NOT a flat string. `types.jsonl` is the
+// large one (~149 MB / 52k lines) — read it line-by-line, never whole.
+export type SdeJsonlPaths = Record<SdeJsonlName, string>;
+
+const JSONL_CACHE_DIR = join(tmpdir(), 'lgi-sde-jsonl');
+
+function localJsonlPathFor(name: SdeJsonlName): string {
+  return join(JSONL_CACHE_DIR, `${name}.jsonl`);
+}
+
+// Stream the zip to a `.tmp` file then atomically rename. A mid-stream network
+// drop would otherwise leave a partial zip at `dest`, and Vercel reuses /tmp
+// across warm Lambda invocations — the next call would feed a corrupt archive
+// straight to yauzl. Atomic rename means a partial write never becomes `dest`.
+async function downloadZipTo(dest: string): Promise<void> {
+  const res = await fetchWithTimeout(
+    CCP_SDE_LATEST_ZIP_URL,
+    { headers: { 'User-Agent': OUTBOUND_USER_AGENT } },
+    SDE_DOWNLOAD_TIMEOUT_MS,
+  );
+  if (!res.ok || !res.body) {
+    throw new Error(
+      `Fetch failed for SDE JSONL zip: ${res.status} ${res.statusText}`,
+    );
+  }
+  const tmp = `${dest}.tmp`;
+  try {
+    await pipeline(
+      Readable.fromWeb(res.body as unknown as NodeWebReadableStream<Uint8Array>),
+      createWriteStream(tmp),
+    );
+    await rename(tmp, dest);
+  } catch (err) {
+    await unlink(tmp).catch(() => undefined);
+    throw err;
+  }
+}
+
+// Extract just the six files we need out of the zip on disk, streaming each
+// entry to its own atomically-renamed `.tmp`. yauzl reads the central directory
+// (so the zip must be on disk) and streams one entry at a time under
+// `lazyEntries`, so peak memory is the inflate buffers — never the 149 MB
+// uncompressed `types.jsonl`. Stops once all six are found rather than walking
+// the remaining ~54 entries.
+async function extractEntries(
+  zipPath: string,
+  paths: SdeJsonlPaths,
+): Promise<void> {
+  const remaining = new Map<string, string>(
+    SDE_JSONL_NAMES.map((name) => [`${name}.jsonl`, paths[name]]),
+  );
+
+  await new Promise<void>((resolve, reject) => {
+    yauzl.open(zipPath, { lazyEntries: true }, (openErr, zipfile) => {
+      if (openErr || !zipfile) {
+        reject(openErr ?? new Error('yauzl: failed to open zip'));
+        return;
+      }
+
+      const fail = (err: unknown) => {
+        zipfile.close();
+        reject(err);
+      };
+
+      zipfile.on('error', fail);
+
+      zipfile.on('entry', (entry: Entry) => {
+        const dest = remaining.get(entry.fileName);
+        if (!dest) {
+          zipfile.readEntry();
+          return;
+        }
+        zipfile.openReadStream(entry, (rsErr, readStream) => {
+          if (rsErr || !readStream) {
+            fail(rsErr ?? new Error('yauzl: failed to open read stream'));
+            return;
+          }
+          readStream.on('error', fail);
+          const tmp = `${dest}.tmp`;
+          pipeline(readStream, createWriteStream(tmp))
+            .then(() => rename(tmp, dest))
+            .then(() => {
+              remaining.delete(entry.fileName);
+              if (remaining.size === 0) {
+                zipfile.close();
+                resolve();
+              } else {
+                zipfile.readEntry();
+              }
+            })
+            .catch((pErr) => {
+              unlink(tmp).catch(() => undefined);
+              fail(pErr);
+            });
+        });
+      });
+
+      zipfile.on('end', () => {
+        if (remaining.size > 0) {
+          reject(
+            new Error(
+              `SDE zip missing expected entries: ${[...remaining.keys()].join(', ')}`,
+            ),
+          );
+        } else {
+          resolve();
+        }
+      });
+
+      zipfile.readEntry();
+    });
+  });
+}
+
+// Download CCP's latest SDE JSONL zip and extract the six files the ingest
+// layer needs, returning their on-disk paths. Idempotent within a run: if all
+// six are already cached (warm /tmp), reuses them; callers run cleanupSdeJsonl
+// after ingest so a later drift-triggered run re-downloads fresh.
+export async function downloadSdeJsonl(): Promise<SdeJsonlPaths> {
+  await mkdir(JSONL_CACHE_DIR, { recursive: true });
+  const paths = Object.fromEntries(
+    SDE_JSONL_NAMES.map((name) => [name, localJsonlPathFor(name)]),
+  ) as SdeJsonlPaths;
+
+  if (SDE_JSONL_NAMES.every((name) => existsSync(paths[name]))) return paths;
+
+  const zipPath = join(JSONL_CACHE_DIR, 'sde-jsonl.zip');
+  await downloadZipTo(zipPath);
+  try {
+    await extractEntries(zipPath, paths);
+  } finally {
+    // Reclaim the 84 MB archive immediately; the extracted files are ~181 MB.
+    await unlink(zipPath).catch(() => undefined);
+  }
+  return paths;
+}
+
+export async function cleanupSdeJsonl(paths: SdeJsonlPaths): Promise<void> {
+  await Promise.all(
+    Object.values(paths).map((p) => unlink(p).catch(() => undefined)),
+  );
+}
+
+// The manifest's `sde` record. Other records (other `_key`s) safe-parse-fail
+// and are skipped. `buildNumber` is an integer; we store it as text in
+// `eve_data_meta.sde_version`.
+const sdeBuildRecord = z.object({
+  _key: z.literal('sde'),
+  buildNumber: z.number(),
+});
+
+// Pure, testable: find the `sde` record in a JSONL manifest body and return its
+// build number as a string, or null if absent/malformed. Validates at the
+// boundary (the body is an external response) rather than casting.
+export function parseSdeBuildNumber(body: string): string | null {
+  for (const line of body.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    const result = sdeBuildRecord.safeParse(parsed);
+    if (result.success) return String(result.data.buildNumber);
+  }
+  return null;
+}
+
+// Drift probe: GET the 80-byte manifest and return CCP's current build number.
+// The weekly cron + the build-time gate compare this against the stored
+// `sde_version`. Returns null when the request fails or the body is malformed —
+// callers treat null as "version unknown, assume no drift" rather than as a hard
+// error, so a transient CCP outage never blocks a deploy.
+export async function getRemoteSdeVersion(): Promise<string | null> {
+  try {
+    const res = await fetchWithTimeout(CCP_SDE_LATEST_MANIFEST_URL, {
+      headers: { 'User-Agent': OUTBOUND_USER_AGENT },
+    });
+    if (!res.ok) return null;
+    return parseSdeBuildNumber(await res.text());
+  } catch {
+    return null;
+  }
+}
+
+// ===========================================================================
+// LEGACY Fuzzwork CSV source — PARKED.
+//
+// Fuzzwork re-packages CCP's SDE into per-table `.csv.bz2` dumps. These
+// functions still back the CSV ingest (`ingest.ts`) until 3.3.2b swaps the
+// parser over to the JSONL files above; remove this whole block once ingest
+// reads JSONL. The drift probe was migrated to CCP's manifest above — the old
+// Fuzzwork HEAD/Last-Modified probe is preserved as a commented fallback at the
+// very bottom in case the CCP probe ever needs to be backed out.
+// ===========================================================================
+
 const FUZZWORK_BASE = 'https://www.fuzzwork.co.uk/dump/latest';
 
 type SdeDumpName =
@@ -38,13 +280,6 @@ const SDE_DUMPS: readonly SdeDumpName[] = [
   'industryActivityMaterials',
   'industryActivityProducts',
 ] as const;
-
-// `invTypes.csv.bz2` is the canonical "did CCP patch the SDE?" marker.
-// All Fuzzwork dumps share the same modification timestamp when CCP
-// rebuilds, so any one of them would work; invTypes is the largest and
-// stablest. Drift-detection lives in the weekly cron + the build-time
-// gate in `ingest-sde-if-empty.ts`.
-const SDE_VERSION_PROBE_NAME: SdeDumpName = 'invTypes';
 
 export type SdeDumpPaths = Record<SdeDumpName, string>;
 
@@ -104,21 +339,22 @@ export async function cleanupDumps(paths: SdeDumpPaths): Promise<void> {
   );
 }
 
-// HEAD the version-probe dump and return its Last-Modified header verbatim.
-// The weekly cron + the build-time gate compare this against the stored
-// `sde_version` in `eve_data_meta`. Returns null when the header is absent
-// or the request fails — callers treat null as "version unknown, assume
-// drift" rather than as a hard error so a transient Fuzzwork outage never
-// blocks a deploy.
-export async function getRemoteSdeVersion(): Promise<string | null> {
-  try {
-    const res = await fetchWithTimeout(urlFor(SDE_VERSION_PROBE_NAME), {
-      method: 'HEAD',
-      headers: { 'User-Agent': OUTBOUND_USER_AGENT },
-    });
-    if (!res.ok) return null;
-    return res.headers.get('last-modified');
-  } catch {
-    return null;
-  }
-}
+// Legacy Fuzzwork drift probe, superseded by getRemoteSdeVersion() above.
+// `invTypes.csv.bz2`'s Last-Modified was the "did CCP patch the SDE?" marker
+// (all Fuzzwork dumps share a rebuild timestamp). Kept as a fallback reference
+// only — restore here if the CCP manifest probe ever needs to be backed out.
+//
+//   const SDE_VERSION_PROBE_NAME: SdeDumpName = 'invTypes';
+//
+//   export async function getRemoteSdeVersionFromFuzzwork(): Promise<string | null> {
+//     try {
+//       const res = await fetchWithTimeout(urlFor(SDE_VERSION_PROBE_NAME), {
+//         method: 'HEAD',
+//         headers: { 'User-Agent': OUTBOUND_USER_AGENT },
+//       });
+//       if (!res.ok) return null;
+//       return res.headers.get('last-modified');
+//     } catch {
+//       return null;
+//     }
+//   }
