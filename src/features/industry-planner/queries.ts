@@ -1,10 +1,9 @@
-import { and, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
-import { db } from '@/db';
-import { eveTypes, industryActivityProducts } from '@/db/schema';
-import { BLUEPRINT_STRUCTURE_TAG, INDUSTRY_ACTIVITY_IDS } from '@/data/eve-data/constants';
+import { BLUEPRINT_STRUCTURE_TAG } from '@/data/eve-data/constants';
 import {
   getActivityByBlueprint,
+  getBlueprintOutput,
+  getBlueprintSearchRows,
   getBlueprintTree,
   getFlatMaterials,
   getTypeLabels,
@@ -29,8 +28,6 @@ import type {
 // eve-data, market-prices, and industry-math data slices — the one place
 // allowed to join them (feature → data is permitted; data ⊥ data is not). The
 // pure margin math lives in industry-math; everything here is glue + caching.
-
-const ACTIVITY_IDS = Array.from(INDUSTRY_ACTIVITY_IDS);
 
 function uniq(ids: number[]): number[] {
   return [...new Set(ids)];
@@ -69,24 +66,10 @@ export async function getBlueprintStructure(
 
   // Which item does this blueprint produce, and how many per run? A blueprint
   // has at most one of manufacturing (1) / reaction (11); prefer manufacturing
-  // if both somehow exist. No product row ⇒ not a manufacturable/reaction
-  // blueprint ⇒ no planner page.
-  const productRows = await db
-    .select({
-      productTypeId: industryActivityProducts.productTypeId,
-      quantity: industryActivityProducts.quantity,
-      activityId: industryActivityProducts.activityId,
-    })
-    .from(industryActivityProducts)
-    .where(
-      and(
-        eq(industryActivityProducts.blueprintTypeId, blueprintId),
-        inArray(industryActivityProducts.activityId, ACTIVITY_IDS),
-      ),
-    );
-  if (productRows.length === 0) return null;
-  productRows.sort((a, b) => a.activityId - b.activityId);
-  const chosen = productRows[0];
+  // if both somehow exist. No product ⇒ not a manufacturable/reaction blueprint
+  // ⇒ no planner page.
+  const chosen = await getBlueprintOutput(blueprintId);
+  if (!chosen) return null;
 
   const [treeResult, flat] = await Promise.all([
     getBlueprintTree(blueprintId),
@@ -210,20 +193,7 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
   cacheLife('max');
   cacheTag(BLUEPRINT_STRUCTURE_TAG);
 
-  const rows = await db
-    .select({
-      blueprintTypeId: industryActivityProducts.blueprintTypeId,
-      activityId: industryActivityProducts.activityId,
-      name: eveTypes.name,
-    })
-    .from(industryActivityProducts)
-    .innerJoin(eveTypes, eq(eveTypes.id, industryActivityProducts.productTypeId))
-    .where(
-      and(
-        inArray(industryActivityProducts.activityId, ACTIVITY_IDS),
-        eq(eveTypes.published, true),
-      ),
-    );
+  const rows = await getBlueprintSearchRows();
 
   // One entry per blueprint; prefer the manufacturing product (lower activity
   // id) if a blueprint somehow carries both.

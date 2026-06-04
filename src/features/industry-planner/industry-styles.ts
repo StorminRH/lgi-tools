@@ -21,7 +21,7 @@ export function marginToneClass(marginPct: number | null): string {
 }
 
 // Industry activity labels. Manufacturing (1) and reactions (11) are the only
-// activities the planner models (see eve-data INDUSTRY_ACTIVITY_IDS).
+// activities the planner models (see eve-data INDUSTRY_ACTIVITY_NAMES).
 export const ACTIVITY_LABEL: Record<number, string> = {
   1: 'Manufacturing',
   11: 'Reaction',

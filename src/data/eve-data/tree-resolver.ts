@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import {
-  INDUSTRY_ACTIVITY_IDS,
+  INDUSTRY_ACTIVITY_NAMES,
   REFERENCE_BLUEPRINT_TYPE_IDS,
   SDE_META_KEY_TREE_HASH,
   TREE_RESOLVER_ALGO_VERSION,
@@ -11,8 +11,6 @@ import {
   blueprintFlatMaterials,
   blueprintTrees,
   eveDataMeta,
-  industryActivityMaterials,
-  industryActivityProducts,
   industryBlueprints,
 } from './schema';
 
@@ -162,26 +160,56 @@ export function buildIndexesFromRows(
   return { blueprintMaterials, productToBlueprint };
 }
 
+// CCP blueprint `activities` JSON — the subset the resolver reads. Each activity
+// (keyed by CCP's string name: `manufacturing`, `reaction`, …) carries optional
+// `materials` / `products` lists of `{ typeID, quantity }`.
+type ActivityIO = {
+  materials?: { typeID: number; quantity: number }[];
+  products?: { typeID: number; quantity: number }[];
+};
+export type BlueprintActivities = Record<string, ActivityIO | undefined>;
+
+// Flatten a blueprint's manufacturing + reaction activities into the flat
+// material/product rows buildIndexesFromRows consumes. The two activities are
+// collapsed per blueprint (see Indexes — a blueprint has one or the other), so
+// the activity id itself isn't carried.
+export function activitiesToRows(
+  blueprintTypeId: number,
+  activities: BlueprintActivities,
+): { mats: MaterialRow[]; prods: ProductRow[] } {
+  const mats: MaterialRow[] = [];
+  const prods: ProductRow[] = [];
+  for (const name of INDUSTRY_ACTIVITY_NAMES) {
+    const act = activities?.[name];
+    if (!act) continue;
+    for (const m of act.materials ?? []) {
+      mats.push({ blueprintTypeId, materialTypeId: m.typeID, quantity: m.quantity });
+    }
+    for (const p of act.products ?? []) {
+      prods.push({ blueprintTypeId, productTypeId: p.typeID, quantity: p.quantity });
+    }
+  }
+  return { mats, prods };
+}
+
 async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
-  const activityIds = [...INDUSTRY_ACTIVITY_IDS];
-
-  const matRows = await db
+  const rows = await db
     .select({
-      blueprintTypeId: industryActivityMaterials.blueprintTypeId,
-      materialTypeId: industryActivityMaterials.materialTypeId,
-      quantity: industryActivityMaterials.quantity,
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
     })
-    .from(industryActivityMaterials)
-    .where(inArray(industryActivityMaterials.activityId, activityIds));
+    .from(industryBlueprints);
 
-  const prodRows = await db
-    .select({
-      blueprintTypeId: industryActivityProducts.blueprintTypeId,
-      productTypeId: industryActivityProducts.productTypeId,
-      quantity: industryActivityProducts.quantity,
-    })
-    .from(industryActivityProducts)
-    .where(inArray(industryActivityProducts.activityId, activityIds));
+  const matRows: MaterialRow[] = [];
+  const prodRows: ProductRow[] = [];
+  for (const r of rows) {
+    const { mats, prods } = activitiesToRows(
+      r.blueprintTypeId,
+      r.activities as BlueprintActivities,
+    );
+    matRows.push(...mats);
+    prodRows.push(...prods);
+  }
 
   return buildIndexesFromRows(matRows, prodRows);
 }
@@ -316,79 +344,58 @@ export class TreeResolver {
   }
 }
 
-// Content hash of the industry tables. Sensitive to row-level edits
-// in the reference blueprints (so a CCP nudge to Rifter's Tritanium
-// flips the hash) without scanning the full ~50k material rows on
-// every check. Both sides — materials AND products — of the reference
-// blueprints are sampled so a CCP edit to product-quantity (e.g.
-// Rifter starts yielding 2 ships per run) flips the hash. Stored
-// under SDE_META_KEY_TREE_HASH; the resolver short-circuits when the
-// stored value matches.
+// Content hash of the blueprint recipe data, the resolver's idempotency gate.
+// Sensitive to recipe edits in the reference blueprints (so a CCP nudge to
+// Rifter's Tritanium — or a yield change — flips the hash) by sampling their
+// manufacturing + reaction recipes fully, PLUS global edge counts so a blueprint
+// added/removed or re-recipe'd anywhere triggers a rebuild — without
+// canonicalising all ~5k blueprints' JSON on every check. Stored under
+// SDE_META_KEY_TREE_HASH; the resolver short-circuits when the stored value
+// matches (and trees are still present — see resolveAllTrees).
 export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
-  const refMatRows = await db
+  const all = await db
     .select({
-      blueprintTypeId: industryActivityMaterials.blueprintTypeId,
-      activityId: industryActivityMaterials.activityId,
-      materialTypeId: industryActivityMaterials.materialTypeId,
-      quantity: industryActivityMaterials.quantity,
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
     })
-    .from(industryActivityMaterials)
-    .where(
-      inArray(
-        industryActivityMaterials.blueprintTypeId,
-        [...REFERENCE_BLUEPRINT_TYPE_IDS],
-      ),
-    );
-  // Deterministic ordering JS-side so the hash is stable across
-  // postgres versions without relying on ORDER BY in the SQL.
-  refMatRows.sort(
-    (a, b) =>
-      a.blueprintTypeId - b.blueprintTypeId ||
-      a.activityId - b.activityId ||
-      a.materialTypeId - b.materialTypeId,
-  );
-  const matSamples = refMatRows
-    .map((r) => `${r.blueprintTypeId}:${r.activityId}:${r.materialTypeId}:${r.quantity}`)
-    .join(',');
+    .from(industryBlueprints);
 
-  const refProdRows = await db
-    .select({
-      blueprintTypeId: industryActivityProducts.blueprintTypeId,
-      activityId: industryActivityProducts.activityId,
-      productTypeId: industryActivityProducts.productTypeId,
-      quantity: industryActivityProducts.quantity,
-    })
-    .from(industryActivityProducts)
-    .where(
-      inArray(
-        industryActivityProducts.blueprintTypeId,
-        [...REFERENCE_BLUEPRINT_TYPE_IDS],
-      ),
-    );
-  refProdRows.sort(
-    (a, b) =>
-      a.blueprintTypeId - b.blueprintTypeId ||
-      a.activityId - b.activityId ||
-      a.productTypeId - b.productTypeId,
-  );
-  const prodSamples = refProdRows
-    .map((r) => `${r.blueprintTypeId}:${r.activityId}:${r.productTypeId}:${r.quantity}`)
-    .join(',');
+  const refSet = new Set<number>(REFERENCE_BLUEPRINT_TYPE_IDS);
+  let blueprintCount = 0;
+  let matEdges = 0;
+  let prodEdges = 0;
+  const refSamples: string[] = [];
 
-  const [{ counts }] = await db.execute<{ counts: string }>(sql`
-    SELECT
-      (SELECT COUNT(*)::text FROM industry_blueprints) || ':' ||
-      (SELECT COUNT(*)::text FROM industry_activity_materials) || ':' ||
-      (SELECT COUNT(*)::text FROM industry_activity_products) AS counts
-  `);
+  for (const r of all) {
+    blueprintCount++;
+    const activities = (r.activities ?? {}) as BlueprintActivities;
+    // Global edge counts across every activity key — matches the old row-count
+    // sensitivity to any recipe edge appearing/disappearing.
+    for (const key of Object.keys(activities)) {
+      const act = activities[key];
+      matEdges += act?.materials?.length ?? 0;
+      prodEdges += act?.products?.length ?? 0;
+    }
+    if (!refSet.has(r.blueprintTypeId)) continue;
+    // Full deterministic sample of the resolver-relevant (manufacturing +
+    // reaction) recipe for each reference blueprint.
+    const { mats, prods } = activitiesToRows(r.blueprintTypeId, activities);
+    for (const m of mats) {
+      refSamples.push(`${m.blueprintTypeId}:m:${m.materialTypeId}:${m.quantity}`);
+    }
+    for (const p of prods) {
+      refSamples.push(`${p.blueprintTypeId}:p:${p.productTypeId}:${p.quantity}`);
+    }
+  }
+  // Deterministic ordering JS-side so the hash is stable across runs.
+  refSamples.sort();
+
   return createHash('sha256')
     .update(TREE_RESOLVER_ALGO_VERSION)
     .update(':')
-    .update(counts)
+    .update(`${blueprintCount}:${matEdges}:${prodEdges}`)
     .update(':')
-    .update(matSamples)
-    .update(':')
-    .update(prodSamples)
+    .update(refSamples.join(','))
     .digest('hex');
 }
 

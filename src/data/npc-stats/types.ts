@@ -1,6 +1,6 @@
 // Shapes for per-NPC combat stats computed from raw EVE SDE attributes.
 // Generic across sleepers, mission rats, incursion NPCs, abyssal NPCs —
-// anything with a dgmTypeAttributes row gets the same shape.
+// anything with a type_dogma attributes row gets the same shape.
 
 export interface DamageBreakdown {
   em: number;

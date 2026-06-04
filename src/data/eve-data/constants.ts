@@ -1,14 +1,26 @@
 // Shared constants for the eve-data slice.
 
-// Industry activity IDs we walk. 1 = manufacturing, 11 = reactions.
-// Invention (8), copying (5), and research (3, 4) are deliberately
-// EXCLUDED:
-//   - invention has a probability dimension we don't model
-//   - copying/research don't produce a tradeable output type
-// If a future contributor wants to add one of these, the resolver's
-// leaf-detection and the tracked-types union both need updates. Don't
-// just append to this set.
-export const INDUSTRY_ACTIVITY_IDS = new Set<number>([1, 11]);
+// CCP's `blueprints.jsonl` keys each activity by a string; the resolver and
+// planner work in CCP's numeric activity IDs. This map is the single source of
+// truth for that translation. IDs per CCP/ESI industry docs:
+//   manufacturing 1, research_time 3, research_material 4, copying 5,
+//   invention 8, reaction 11.
+export const ACTIVITY_NAME_TO_ID: Record<string, number> = {
+  manufacturing: 1,
+  research_time: 3,
+  research_material: 4,
+  copying: 5,
+  invention: 8,
+  reaction: 11,
+};
+
+// The only activities the resolver + planner walk: 1 = manufacturing,
+// 11 = reactions, as CCP string keys. Invention (8), copying (5), and research
+// (3, 4) are deliberately EXCLUDED — invention has a probability dimension we
+// don't model, and copying/research don't produce a tradeable output type. A
+// contributor adding one of these must also update the resolver's leaf-detection
+// and the tracked-types union; don't just append here.
+export const INDUSTRY_ACTIVITY_NAMES = ['manufacturing', 'reaction'] as const;
 
 // Reference blueprints pinned by the tree-resolver test fixture. Their
 // flat material totals are committed in

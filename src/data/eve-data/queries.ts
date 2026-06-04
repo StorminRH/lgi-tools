@@ -4,16 +4,15 @@ import { db } from '@/db';
 import {
   blueprintFlatMaterials,
   blueprintTrees,
-  dgmTypeAttributes,
   eveCategories,
   eveDataMeta,
   eveGroups,
   eveTypes,
-  industryActivityMaterials,
-  industryActivityProducts,
+  industryBlueprints,
+  typeDogma,
 } from '@/db/schema';
-import { INDUSTRY_ACTIVITY_IDS } from './constants';
-import type { TreeNode } from './tree-resolver';
+import { ACTIVITY_NAME_TO_ID, INDUSTRY_ACTIVITY_NAMES } from './constants';
+import { activitiesToRows, type BlueprintActivities, type TreeNode } from './tree-resolver';
 import type { AttrMap, EveType } from './types';
 
 // Same wrinkle as market-prices queries — accept the lazy `@/db` proxy
@@ -97,16 +96,14 @@ export async function getTypeAttributesBatch(
   if (typeIds.length === 0) return result;
   for (const id of typeIds) result.set(id, {});
   const rows = await db
-    .select({
-      typeId: dgmTypeAttributes.typeId,
-      attributeId: dgmTypeAttributes.attributeId,
-      value: dgmTypeAttributes.value,
-    })
-    .from(dgmTypeAttributes)
-    .where(inArray(dgmTypeAttributes.typeId, typeIds));
+    .select({ typeId: typeDogma.typeId, attributes: typeDogma.attributes })
+    .from(typeDogma)
+    .where(inArray(typeDogma.typeId, typeIds));
   for (const r of rows) {
-    const map = result.get(r.typeId);
-    if (map) map[r.attributeId] = r.value;
+    // `attributes` is the CCP dogma map { [attributeId]: value }; that IS the
+    // AttrMap shape callers expect (object keys are strings at runtime either
+    // way), so it replaces the pre-seeded empty map directly.
+    result.set(r.typeId, r.attributes as AttrMap);
   }
   return result;
 }
@@ -159,21 +156,23 @@ export async function getActivityByBlueprint(
   const out = new Map<number, number>();
   if (blueprintTypeIds.length === 0) return out;
   const rows = await db
-    .selectDistinct({
-      blueprintTypeId: industryActivityProducts.blueprintTypeId,
-      activityId: industryActivityProducts.activityId,
+    .select({
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
     })
-    .from(industryActivityProducts)
-    .where(
-      and(
-        inArray(industryActivityProducts.blueprintTypeId, blueprintTypeIds),
-        inArray(industryActivityProducts.activityId, [...INDUSTRY_ACTIVITY_IDS]),
-      ),
-    );
+    .from(industryBlueprints)
+    .where(inArray(industryBlueprints.blueprintTypeId, blueprintTypeIds));
   for (const r of rows) {
-    const existing = out.get(r.blueprintTypeId);
-    if (existing === undefined || r.activityId < existing) {
-      out.set(r.blueprintTypeId, r.activityId);
+    const activities = (r.activities ?? {}) as BlueprintActivities;
+    // The activity (1 or 11) that actually yields a product; prefer
+    // manufacturing (the lower id) — INDUSTRY_ACTIVITY_NAMES is ordered
+    // manufacturing-first.
+    for (const name of INDUSTRY_ACTIVITY_NAMES) {
+      const act = activities[name];
+      if (act?.products && act.products.length > 0) {
+        out.set(r.blueprintTypeId, ACTIVITY_NAME_TO_ID[name]);
+        break;
+      }
     }
   }
   return out;
@@ -186,22 +185,112 @@ export async function getActivityByBlueprint(
 // intact and the ~6,000 new types arrive with NULL prices + epoch
 // staleness for the next cron tick to fill.
 export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
-  const activityIds = [...INDUSTRY_ACTIVITY_IDS];
-
-  const materialRows = await db
-    .selectDistinct({ id: industryActivityMaterials.materialTypeId })
-    .from(industryActivityMaterials)
-    .where(inArray(industryActivityMaterials.activityId, activityIds));
-
-  const productRows = await db
-    .selectDistinct({ id: industryActivityProducts.productTypeId })
-    .from(industryActivityProducts)
-    .where(inArray(industryActivityProducts.activityId, activityIds));
+  const rows = await db
+    .select({
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
+    })
+    .from(industryBlueprints);
 
   const set = new Set<number>();
-  for (const r of materialRows) set.add(r.id);
-  for (const r of productRows) set.add(r.id);
+  for (const r of rows) {
+    const { mats, prods } = activitiesToRows(
+      r.blueprintTypeId,
+      (r.activities ?? {}) as BlueprintActivities,
+    );
+    for (const m of mats) set.add(m.materialTypeId);
+    for (const p of prods) set.add(p.productTypeId);
+  }
   return [...set];
+}
+
+// The item a blueprint produces and how many per run, for the chosen industry
+// activity (manufacturing 1 preferred over reaction 11). `null` when the
+// blueprint produces nothing under either — i.e. not a planner-buildable. Reads
+// the blueprint `activities` JSONB so the Industry Planner never touches the raw
+// table directly.
+export type BlueprintOutput = {
+  productTypeId: number;
+  quantity: number;
+  activityId: number;
+};
+
+export async function getBlueprintOutput(
+  blueprintId: number,
+): Promise<BlueprintOutput | null> {
+  const [row] = await db
+    .select({ activities: industryBlueprints.activities })
+    .from(industryBlueprints)
+    .where(eq(industryBlueprints.blueprintTypeId, blueprintId))
+    .limit(1);
+  if (!row) return null;
+  const activities = (row.activities ?? {}) as BlueprintActivities;
+  for (const name of INDUSTRY_ACTIVITY_NAMES) {
+    const product = activities[name]?.products?.[0];
+    if (product) {
+      return {
+        productTypeId: product.typeID,
+        quantity: product.quantity,
+        activityId: ACTIVITY_NAME_TO_ID[name],
+      };
+    }
+  }
+  return null;
+}
+
+// One row per (blueprint, manufacturing/reaction product) whose product is a
+// published type, for the Industry Planner's blueprint search index. Filtering to
+// published products drops the degenerate self-recipe junk (those produce
+// unpublished types), matching the old published inner-join.
+export type BlueprintSearchRow = {
+  blueprintTypeId: number;
+  activityId: number;
+  name: string;
+};
+
+export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
+  const rows = await db
+    .select({
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
+    })
+    .from(industryBlueprints);
+
+  const pending: Array<{
+    blueprintTypeId: number;
+    activityId: number;
+    productTypeId: number;
+  }> = [];
+  const productIds = new Set<number>();
+  for (const r of rows) {
+    const activities = (r.activities ?? {}) as BlueprintActivities;
+    for (const name of INDUSTRY_ACTIVITY_NAMES) {
+      for (const p of activities[name]?.products ?? []) {
+        pending.push({
+          blueprintTypeId: r.blueprintTypeId,
+          activityId: ACTIVITY_NAME_TO_ID[name],
+          productTypeId: p.typeID,
+        });
+        productIds.add(p.typeID);
+      }
+    }
+  }
+  if (productIds.size === 0) return [];
+
+  const nameRows = await db
+    .select({ id: eveTypes.id, name: eveTypes.name })
+    .from(eveTypes)
+    .where(and(inArray(eveTypes.id, [...productIds]), eq(eveTypes.published, true)));
+  const nameById = new Map<number, string>();
+  for (const r of nameRows) nameById.set(r.id, r.name);
+
+  const out: BlueprintSearchRow[] = [];
+  for (const p of pending) {
+    const name = nameById.get(p.productTypeId);
+    if (name === undefined) continue; // unpublished product → drop
+    out.push({ blueprintTypeId: p.blueprintTypeId, activityId: p.activityId, name });
+  }
+  return out;
 }
 
 // ----- SDE meta key/value -------------------------------------------

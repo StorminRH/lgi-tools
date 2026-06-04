@@ -59,9 +59,9 @@ const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 async function main() {
   const db = drizzle(client);
 
-  // Migration order means the dgm_type_attributes table always exists
-  // when this runs — kept the existence check for the case where this
-  // ever runs against a pre-migration DB.
+  // Migration order means the eve-data tables always exist when this runs —
+  // kept the existence check for the case where this ever runs against a
+  // pre-migration DB.
   const [{ exists }] = await db.execute<{ exists: boolean }>(sql`
     SELECT EXISTS (
       SELECT 1 FROM information_schema.tables
@@ -86,7 +86,7 @@ async function main() {
     lockHeld = true;
 
     const [{ rowCount }] = await db.execute<{ rowCount: string }>(sql`
-      SELECT COUNT(*)::text AS "rowCount" FROM dgm_type_attributes
+      SELECT COUNT(*)::text AS "rowCount" FROM type_dogma
     `);
     const hasRows = Number(rowCount) > 0;
 
