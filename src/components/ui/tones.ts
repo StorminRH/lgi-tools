@@ -28,6 +28,23 @@ export type ChipTone = Extract<Tone, 'blue' | 'red' | 'purple' | 'green' | 'oran
 // cool / warm split today.
 export type DotTone = Extract<Tone, 'orange' | 'blue'>;
 
+// Tone → hex, for SVG fills/strokes where colour is a presentation attribute,
+// not a class (charts, the build-flow graph). Mirrors the Pill text colours.
+export const toneHex: Record<Tone, string> = {
+  neutral: '#6a7a8a',
+  green: '#3dd68c',
+  'green-strong': '#44dd99',
+  orange: '#d68c3d',
+  'orange-soft': '#cc7733',
+  red: '#dd4444',
+  'red-soft': '#cc5555',
+  magenta: '#cc55cc',
+  purple: '#aa55ff',
+  yellow: '#ccaa33',
+  teal: '#33cc88',
+  blue: '#3399cc',
+};
+
 // Text-only tone for inline values like DPS tier labels. Returns a Tailwind
 // className that sets text color from the shared palette tokens defined in
 // globals.css. Use for primitives that render bare text (not Pill / Chip).

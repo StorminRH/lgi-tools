@@ -12,6 +12,7 @@ import { TypeIcon } from '@/components/ui/type-icon';
 import { useCascadePath } from '@/components/ui/use-cascade-path';
 import { formatQuantity } from '@/lib/format';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from '../types';
+import { BuildFlow } from './BuildFlow';
 import { ConsolidatedBuild } from './ConsolidatedBuild';
 import { CostLedger } from './CostLedger';
 
@@ -265,14 +266,15 @@ function ToggleButton({
   );
 }
 
-// The build plan, in three interchangeable views. Consolidated (default) sums
-// the whole tree into a by-stage view; "By branch" is the original drill-down
-// cascade; "Raw ledger" is the raw-materials cost breakdown gridded by source
-// category. Switching views animates the old one out and the new one in.
-type BuildView = 'consolidated' | 'branch' | 'raw';
+// The build plan, in interchangeable views. "Flow" (default) is the hybrid
+// tier-columns ↔ zoomable flow graph; "Consolidated" sums the whole tree into a
+// by-stage grid with per-row price confidence; "By branch" is the drill-down
+// cascade; "Raw ledger" is the raw-materials cost breakdown by source category.
+// Switching views animates the old one out and the new one in.
+type BuildView = 'flow' | 'consolidated' | 'branch' | 'raw';
 
 export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
-  const [mode, setMode] = useState<BuildView>('consolidated');
+  const [mode, setMode] = useState<BuildView>('flow');
   const [viewRef] = useAutoAnimate<HTMLDivElement>();
 
   if (structure.buildTree.length === 0) {
@@ -287,6 +289,9 @@ export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
   return (
     <div className="mb-4">
       <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+        <ToggleButton active={mode === 'flow'} onClick={() => setMode('flow')}>
+          Flow
+        </ToggleButton>
         <ToggleButton active={mode === 'consolidated'} onClick={() => setMode('consolidated')}>
           Consolidated
         </ToggleButton>
@@ -298,6 +303,11 @@ export function BuildCascade({ structure }: { structure: BlueprintStructure }) {
         </ToggleButton>
       </div>
       <div ref={viewRef}>
+        {mode === 'flow' && (
+          <div key="flow">
+            <BuildFlow structure={structure} />
+          </div>
+        )}
         {mode === 'consolidated' && (
           <div key="consolidated">
             <ConsolidatedBuild structure={structure} />
