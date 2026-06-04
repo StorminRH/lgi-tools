@@ -246,14 +246,16 @@ export async function getRemoteSdeVersion(): Promise<string | null> {
 }
 
 // ===========================================================================
-// LEGACY Fuzzwork CSV source — PARKED.
+// LEGACY Fuzzwork CSV source — PARKED (no longer wired into the pipeline).
 //
-// Fuzzwork re-packages CCP's SDE into per-table `.csv.bz2` dumps. These
-// functions still back the CSV ingest (`ingest.ts`) until 3.3.2b swaps the
-// parser over to the JSONL files above; remove this whole block once ingest
-// reads JSONL. The drift probe was migrated to CCP's manifest above — the old
-// Fuzzwork HEAD/Last-Modified probe is preserved as a commented fallback at the
-// very bottom in case the CCP probe ever needs to be backed out.
+// Fuzzwork re-packages CCP's SDE into per-table `.csv.bz2` dumps. As of 3.3.2b
+// the ingest reads CCP's JSONL (above) and no longer calls these — they're kept
+// only as a quick-revert fallback. NOTE: the CSV *parser* and its `csv-parse` /
+// `unbzip2-stream` deps were removed with that swap, so re-enabling a Fuzzwork
+// CSV ingest means restoring those too, not just calling downloadDumps(). The
+// drift probe was migrated to CCP's manifest above — the old Fuzzwork
+// HEAD/Last-Modified probe is preserved as a commented fallback at the very
+// bottom in case the CCP probe ever needs to be backed out.
 // ===========================================================================
 
 const FUZZWORK_BASE = 'https://www.fuzzwork.co.uk/dump/latest';
