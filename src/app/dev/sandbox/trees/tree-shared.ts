@@ -124,21 +124,6 @@ export function layoutHorizontal(
   return { nodes, height };
 }
 
-// Group nodes by depth, for the radial-rings view.
-export function groupByDepth(tree: BuildNode[], display: Display): BuildNode[][] {
-  const levels: BuildNode[][] = [];
-  const walk = (nodes: BuildNode[], depth: number) => {
-    if (!levels[depth]) levels[depth] = [];
-    const sorted = sortInputs(nodes, display);
-    for (const node of sorted) {
-      levels[depth].push(node);
-      if (node.inputs.length > 0) walk(node.inputs, depth + 1);
-    }
-  };
-  walk(tree, 0);
-  return levels;
-}
-
 // A short marginal quantity reads "< 1" rather than "0" (matches the live view).
 export function formatNodeQty(quantity: number): string {
   if (quantity > 0 && quantity < 0.5) return '< 1';

@@ -5,15 +5,15 @@ import { useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { TypeIcon } from '@/components/ui/type-icon';
+import { BuildFlow } from '@/features/industry-planner/components/BuildFlow';
 import { activityLabel, marginToneClass } from '@/features/industry-planner/industry-styles';
 import type { BlueprintStructure } from '@/features/industry-planner/types';
 import { formatIsk, formatPct, formatQuantity } from '@/lib/format';
-import { FlowConnectors } from '../trees/FlowConnectors';
 
 // A mockup of the real /industry/[id] planner page, so the hybrid build view can
 // be seen in context (hero + page chrome). The hero mirrors BlueprintHero but
 // takes static summary numbers instead of the streaming pricing store; the build
-// plan is the hybrid FlowConnectors, drawn natively (no viewport box).
+// plan is the hybrid BuildFlow, drawn natively (no viewport box).
 
 export interface MockSummary {
   inputCost: number;
@@ -123,7 +123,7 @@ export function PlannerMock({ blueprints }: { blueprints: MockBlueprint[] }) {
         </span>
         <span className="text-[10px] text-muted">consolidated tiers · click a part for its flow</span>
       </div>
-      <FlowConnectors key={bp.id} structure={structure} />
+      <BuildFlow key={bp.id} structure={structure} />
     </div>
   );
 }

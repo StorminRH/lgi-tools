@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { cn } from '@/components/ui/cn';
+import { BuildFlow } from '@/features/industry-planner/components/BuildFlow';
 import type { BlueprintStructure } from '@/features/industry-planner/types';
-import { FlowConnectors } from '../FlowConnectors';
 
 export interface FlowBlueprint {
   id: string;
@@ -69,7 +69,7 @@ export function FlowExplorer({ blueprints }: { blueprints: FlowBlueprint[] }) {
         <span className="ml-auto text-[10px] text-muted">click a node to zoom into its build</span>
       </div>
 
-      <FlowConnectors key={blueprint.id} structure={blueprint.structure} />
+      <BuildFlow key={blueprint.id} structure={blueprint.structure} />
     </div>
   );
 }

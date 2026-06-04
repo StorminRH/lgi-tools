@@ -700,6 +700,59 @@ details[data-collapsible][open] > summary [data-chevron] {
 /* The column fan-in/out is driven by auto-animate on the .cascade container
  * (see cascading-panels.tsx), so there's no CSS keyframe here. */
 
+/* ── Build flow graph (industry-planner BuildFlow) ───────────────────────
+ * The hybrid tier-columns ↔ flow view. Drilling cross-fades the outgoing level
+ * (scaling past) while the new one grows in — class-driven keyframes on the SVG
+ * <g> with transform-box: fill-box (scales around the layer's own centre).
+ * CSP-safe: no inline styles. */
+.flow-layer {
+  transform-box: fill-box;
+}
+.flow-grow {
+  animation: flow-grow 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.flow-recede {
+  animation: flow-recede 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.flow-shrink-in {
+  animation: flow-shrink-in 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.flow-shrink-out {
+  animation: flow-shrink-out 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes flow-grow {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes flow-recede {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.6); }
+}
+@keyframes flow-shrink-in {
+  from { opacity: 0; transform: scale(1.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes flow-shrink-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.6); }
+}
+.flow-node {
+  cursor: pointer;
+}
+.flow-node rect:first-of-type {
+  transition: fill 140ms ease, stroke 140ms ease;
+}
+.flow-node:hover rect:first-of-type {
+  fill: #11151c;
+  stroke: var(--color-isk-sub);
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-grow,
+  .flow-recede,
+  .flow-shrink-in,
+  .flow-shrink-out { animation: none; }
+}
+
 /* Print-only content (e.g. report header) is hidden on screen and shown
  * when printing. Pair with the .no-print class below for the inverse. */
 .print-only {

@@ -1,8 +1,8 @@
 import Link from 'next/link';
+import { BuildFlow } from '@/features/industry-planner/components/BuildFlow';
 import { MOCK_STRUCTURE } from '../_shared/mock-build';
 import { SandboxHeader, VariantFrame } from '../_shared/sandbox-ui';
 import { DensityTable } from './DensityTable';
-import { FlowConnectors } from './FlowConnectors';
 import { IndentedOutline } from './IndentedOutline';
 import { NestedCards } from './NestedCards';
 import { RadialDepth } from './RadialDepth';
@@ -46,7 +46,7 @@ export default function TreesPage() {
           >
             Open explorer — real Rifter · Loki · Archon builds, click to zoom ▸
           </Link>
-          <FlowConnectors structure={MOCK_STRUCTURE} />
+          <BuildFlow structure={MOCK_STRUCTURE} />
         </VariantFrame>
 
         <VariantFrame
