@@ -1,0 +1,320 @@
+/* ════════════════════════════════════════════════════════════════════════
+ * UX exploration sandbox — animation + depth styles (DEV ONLY)
+ * Imported once by src/app/dev/sandbox/layout.tsx, so it loads only under the
+ * /dev/sandbox/* routes and never bloats production globals.css. Everything
+ * here is CSP-clean: class-driven keyframes + custom properties set via
+ * ref.style.setProperty (never inline style= attributes). Reads the @theme
+ * palette tokens (--color-isk, --color-name, --color-muted, …) defined in
+ * globals.css.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* ── Price anim 1 — Shimmer Wave (the seed effect) ───────────────────────
+ * A copy of the production .isk-fx so the sandbox is self-contained: a light
+ * wave sweeps across the glyphs while pending, then a brightness pulse settles. */
+.sbx-shimmer-pending {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-muted) 0%,
+    var(--color-muted) 40%,
+    var(--color-name) 50%,
+    var(--color-muted) 60%,
+    var(--color-muted) 100%
+  );
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sbx-shimmer-wave 1.7s ease-in-out infinite;
+}
+@keyframes sbx-shimmer-wave {
+  0% { background-position: 130% 0; }
+  100% { background-position: -130% 0; }
+}
+
+/* Shared settle pulse — a brief brightness flash used by several variants. */
+.sbx-settle-pulse {
+  animation: sbx-settle-pulse 0.7s ease-out;
+}
+@keyframes sbx-settle-pulse {
+  0% { filter: brightness(1.8); }
+  40% { filter: brightness(1.3); }
+  100% { filter: brightness(1); }
+}
+
+/* ── Price anim 3 — Odometer Digit Slide ─────────────────────────────────
+ * Each digit column is a 0–9 strip translated by a per-column CSS var the
+ * component sets via ref.style.setProperty('--digit', n). The transform lives
+ * in the stylesheet (not an inline attr); only the variable is JS-driven. */
+.sbx-odo-col {
+  display: inline-block;
+  height: 1em;
+  line-height: 1;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.sbx-odo-strip {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(var(--digit, 0) * -1em));
+  transition: transform 600ms cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+
+/* ── Price anim 4 — Blur-to-Sharp Resolve ────────────────────────────────*/
+.sbx-blur-pending {
+  filter: blur(5px);
+  opacity: 0.55;
+}
+.sbx-blur-settle {
+  animation: sbx-blur-resolve 0.6s ease-out;
+}
+@keyframes sbx-blur-resolve {
+  0% { filter: blur(6px); opacity: 0.4; }
+  100% { filter: blur(0); opacity: 1; }
+}
+
+/* ── Price anim 5 — Crossfade Swap ───────────────────────────────────────
+ * Old + new values are stacked in one grid cell and cross-faded. */
+.sbx-fade-stack {
+  display: grid;
+}
+.sbx-fade-stack > * {
+  grid-area: 1 / 1;
+}
+.sbx-fade-out {
+  animation: sbx-fade-out 0.5s ease forwards;
+}
+.sbx-fade-in {
+  animation: sbx-fade-in 0.5s ease forwards;
+}
+@keyframes sbx-fade-out {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes sbx-fade-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Price anim 6 — Scramble / Decrypt: dim while scrambling ──────────────*/
+.sbx-scramble-pending {
+  color: var(--color-muted);
+  letter-spacing: 0.04em;
+}
+
+/* ── Price anim 7 — Tick-Up / Tick-Down Flash ────────────────────────────*/
+.sbx-tick-up {
+  animation: sbx-tick-up 0.7s ease-out;
+}
+.sbx-tick-down {
+  animation: sbx-tick-down 0.7s ease-out;
+}
+@keyframes sbx-tick-up {
+  0% { color: var(--color-isk); filter: brightness(1.7); }
+  100% { color: inherit; filter: brightness(1); }
+}
+@keyframes sbx-tick-down {
+  0% { color: var(--color-dps-high); filter: brightness(1.7); }
+  100% { color: inherit; filter: brightness(1); }
+}
+
+/* ── Price anim 8 — Underline Sweep Confirm ──────────────────────────────
+ * A bar under the figure scales L→R while pending, then locks on settle. */
+.sbx-underline {
+  position: relative;
+  display: inline-block;
+}
+.sbx-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  height: 2px;
+  width: 100%;
+  background: var(--color-isk);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+.sbx-underline-pending::after {
+  animation: sbx-underline-sweep 1.1s ease-in-out infinite;
+}
+.sbx-underline-settle::after {
+  transform: scaleX(1);
+  animation: sbx-underline-lock 0.5s ease-out;
+}
+@keyframes sbx-underline-sweep {
+  0% { transform: scaleX(0); transform-origin: left center; }
+  50% { transform: scaleX(1); transform-origin: left center; }
+  51% { transform: scaleX(1); transform-origin: right center; }
+  100% { transform: scaleX(0); transform-origin: right center; }
+}
+@keyframes sbx-underline-lock {
+  0% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+/* ── Price anim 9 — Pulse-Ring Settle ────────────────────────────────────
+ * A ring blooms once out from behind the figure when the value lands. */
+.sbx-ring {
+  position: relative;
+  display: inline-block;
+}
+.sbx-ring-settle::before {
+  content: '';
+  position: absolute;
+  inset: -8px -16px;
+  border-radius: 8px;
+  border: 1.5px solid var(--color-isk);
+  opacity: 0;
+  animation: sbx-ring-bloom 0.7s ease-out;
+  pointer-events: none;
+}
+@keyframes sbx-ring-bloom {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+/* ── Price anim 10 — Particle Lift (SVG) ─────────────────────────────────
+ * On settle a few SVG dots rise + fade. Per-dot stagger via a --d index set
+ * with ref.style.setProperty; the motion is a stylesheet keyframe on the
+ * SVG <circle> (CSS transform/opacity, CSP-clean). */
+.sbx-particle {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sbx-particle-go {
+  animation: sbx-particle-rise 0.9s ease-out forwards;
+  animation-delay: calc(var(--d, 0) * 70ms);
+}
+@keyframes sbx-particle-rise {
+  0% { opacity: 0; transform: translateY(2px) scale(0.7); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-16px) scale(1); }
+}
+
+/* ── Trees: Flow Connectors draw-in (SVG) ────────────────────────────────*/
+.sbx-connector {
+  stroke-dasharray: var(--len, 400);
+  stroke-dashoffset: var(--len, 400);
+  animation: sbx-connector-draw 0.7s ease-out forwards;
+  animation-delay: calc(var(--d, 0) * 60ms);
+}
+@keyframes sbx-connector-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Tree node hover affordance — a slight lift + glow, shared by node-based
+ * tree views (nested cards, density rows). */
+.sbx-node {
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+.sbx-node:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-isk-sub);
+  box-shadow: 0 4px 14px -8px rgba(61, 214, 140, 0.35);
+}
+
+/* Radial-depth ring fade-in. */
+.sbx-radial-node {
+  transition: opacity 160ms ease;
+}
+.sbx-radial-fade {
+  animation: sbx-radial-in 0.5s ease-out both;
+  animation-delay: calc(var(--d, 0) * 40ms);
+}
+@keyframes sbx-radial-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Card depth + polish variants
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* C2 — Soft Elevation: layered shadow + lift on hover. */
+.sbx-card-elev {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px -10px rgba(0, 0, 0, 0.6);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.sbx-card-elev:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45), 0 16px 34px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* C3 — Inset Bevel: engraved panel, top highlight + bottom inset shadow. */
+.sbx-card-bevel {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -10px 22px -14px rgba(0, 0, 0, 0.8);
+}
+
+/* C4 — Hover Glow Ring: resting flat, ISK-green bloom on hover. */
+.sbx-card-glow {
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.sbx-card-glow:hover {
+  border-color: rgba(61, 214, 140, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(61, 214, 140, 0.18),
+    0 8px 26px -10px rgba(61, 214, 140, 0.4);
+}
+
+/* C5 — Gradient Sheen: a diagonal highlight sweeps across on hover. */
+.sbx-card-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.sbx-card-sheen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -70%;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(180, 220, 255, 0.07), transparent);
+  transform: skewX(-18deg);
+  transition: left 650ms ease;
+  pointer-events: none;
+}
+.sbx-card-sheen:hover::after {
+  left: 130%;
+}
+
+/* C6 — Aurora Pointer Glow: a soft radial glow follows the cursor. The --mx/
+ * --my coordinates are set via ref.style.setProperty on pointermove. */
+.sbx-card-aurora {
+  position: relative;
+}
+.sbx-card-aurora::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    160px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(61, 214, 140, 0.14),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+.sbx-card-aurora:hover::before {
+  opacity: 1;
+}
+
+/* ── Reduced motion: hold the heavier/looping animations static. The small
+ * settle pulses are localized text flashes (kept, mirroring the production
+ * .isk-fx call), but anything sweeping/looping/translating is stilled. */
+@media (prefers-reduced-motion: reduce) {
+  .sbx-shimmer-pending { animation: none; color: var(--color-muted); -webkit-text-fill-color: currentColor; }
+  .sbx-underline-pending::after { animation: none; transform: scaleX(0.5); }
+  .sbx-particle-go,
+  .sbx-connector,
+  .sbx-radial-fade,
+  .sbx-ring-settle::before { animation: none; }
+  .sbx-particle-go { opacity: 0; }
+  .sbx-connector { stroke-dashoffset: 0; }
+  .sbx-radial-fade { opacity: 1; }
+  .sbx-card-sheen::after { transition: none; }
+}
