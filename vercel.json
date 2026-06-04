@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/refresh-sde",
       "schedule": "0 5 * * 1"
+    },
+    {
+      "path": "/api/cron/refresh-gsc",
+      "schedule": "0 9 * * *"
     }
   ]
 }

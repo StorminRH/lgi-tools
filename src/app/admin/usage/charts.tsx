@@ -23,6 +23,7 @@ export const BarChart = dynamic(
 // A day-indexed trend line. `points` carry numeric x (the ordinal day index)
 // and y; `labels[x]` is the day string shown in the tooltip. `unit` picks the
 // y formatter so no function prop has to be serialized from the server.
+// `position` is for search-result rank (one decimal, no suffix; lower is better).
 export function TrendChart({
   points,
   labels,
@@ -34,7 +35,7 @@ export function TrendChart({
 }: {
   points: { x: number; y: number }[];
   labels: string[];
-  unit: 'percent' | 'count';
+  unit: 'percent' | 'count' | 'position';
   tone?: SparklineTone;
   width?: number;
   height?: number;
@@ -42,7 +43,11 @@ export function TrendChart({
 }) {
   const formatX = (x: number) => labels[Math.round(x)] ?? '';
   const formatY =
-    unit === 'percent' ? (y: number) => `${y}%` : (y: number) => y.toLocaleString();
+    unit === 'percent'
+      ? (y: number) => `${y}%`
+      : unit === 'position'
+        ? (y: number) => y.toFixed(1)
+        : (y: number) => y.toLocaleString();
   return (
     <Sparkline
       data={points}
