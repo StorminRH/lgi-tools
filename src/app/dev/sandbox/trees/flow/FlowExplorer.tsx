@@ -2,22 +2,15 @@
 
 import { useState } from 'react';
 import { cn } from '@/components/ui/cn';
-import { SAMPLE_BLUEPRINTS } from '../../_shared/build-spec';
-import { MOCK_STRUCTURE } from '../../_shared/mock-build';
-import { FlowConnectors, type FlowAnim } from '../FlowConnectors';
+import type { BlueprintStructure } from '@/features/industry-planner/types';
+import { FlowConnectors } from '../FlowConnectors';
 
-// The blueprints to compare, smallest → largest, with the Wolf gallery sample
-// kept on the end as the mid-size reference.
-const BLUEPRINTS = [
-  ...SAMPLE_BLUEPRINTS,
-  { id: 'wolf', label: 'Wolf', sub: 'Assault frigate', structure: MOCK_STRUCTURE },
-];
-
-const ANIMS: { id: FlowAnim; label: string }[] = [
-  { id: 'zoom', label: 'Zoom' },
-  { id: 'fade', label: 'Fade' },
-  { id: 'slide', label: 'Slide' },
-];
+export interface FlowBlueprint {
+  id: string;
+  label: string;
+  sub: string;
+  structure: BlueprintStructure;
+}
 
 function Toggle({
   active,
@@ -45,33 +38,28 @@ function Toggle({
   );
 }
 
-export function FlowExplorer() {
-  const [blueprintId, setBlueprintId] = useState('rifter');
-  const [anim, setAnim] = useState<FlowAnim>('zoom');
-  const blueprint = BLUEPRINTS.find((b) => b.id === blueprintId) ?? BLUEPRINTS[0];
+export function FlowExplorer({ blueprints }: { blueprints: FlowBlueprint[] }) {
+  const [id, setId] = useState(blueprints[0]?.id);
+  const blueprint = blueprints.find((b) => b.id === id) ?? blueprints[0];
+
+  if (!blueprint) {
+    return (
+      <p className="w-full max-w-[1100px] text-[11px] text-muted">
+        No blueprint data available (the SDE tables may not be populated in this environment).
+      </p>
+    );
+  }
 
   return (
     <div className="w-full max-w-[1100px]">
-      <div className="flex flex-wrap items-end justify-between gap-4 mb-5">
-        <div className="flex flex-col gap-2">
-          <span className="text-[9px] tracking-[0.14em] uppercase text-muted">Blueprint</span>
-          <div className="flex flex-wrap gap-1.5">
-            {BLUEPRINTS.map((b) => (
-              <Toggle key={b.id} active={b.id === blueprintId} onClick={() => setBlueprintId(b.id)}>
-                {b.label}
-              </Toggle>
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className="text-[9px] tracking-[0.14em] uppercase text-muted">Drill animation</span>
-          <div className="flex gap-1.5">
-            {ANIMS.map((a) => (
-              <Toggle key={a.id} active={a.id === anim} onClick={() => setAnim(a.id)}>
-                {a.label}
-              </Toggle>
-            ))}
-          </div>
+      <div className="flex flex-col gap-2 mb-5">
+        <span className="text-[9px] tracking-[0.14em] uppercase text-muted">Blueprint · real SDE data</span>
+        <div className="flex flex-wrap gap-1.5">
+          {blueprints.map((b) => (
+            <Toggle key={b.id} active={b.id === blueprint.id} onClick={() => setId(b.id)}>
+              {b.label}
+            </Toggle>
+          ))}
         </div>
       </div>
 
@@ -82,7 +70,7 @@ export function FlowExplorer() {
       </div>
 
       <div className="border border-border-soft bg-section rounded-[4px] p-5">
-        <FlowConnectors key={blueprintId} structure={blueprint.structure} anim={anim} />
+        <FlowConnectors key={blueprint.id} structure={blueprint.structure} />
       </div>
     </div>
   );

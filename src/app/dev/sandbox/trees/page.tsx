@@ -44,7 +44,7 @@ export default function TreesPage() {
             href="/dev/sandbox/trees/flow"
             className="inline-flex mb-3 text-[10px] tracking-[0.12em] uppercase text-isk hover:underline"
           >
-            Open explorer — Rifter · Loki · Archon + animation options ▸
+            Open explorer — real Rifter · Loki · Archon builds, click to zoom ▸
           </Link>
           <FlowConnectors structure={MOCK_STRUCTURE} />
         </VariantFrame>

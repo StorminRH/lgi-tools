@@ -204,55 +204,43 @@
   to { stroke-dashoffset: 0; }
 }
 
-/* ── Flow connectors: drill-down zoom transition ─────────────────────────
- * When you click a node to re-root the graph on it, the whole content group
- * replays one of these entry animations. CSP-safe (CSS keyframes on the SVG
- * <g>; the zoom origin is a custom property set via ref.style.setProperty so
- * the zoom emanates from the node you clicked). transform-box: fill-box makes
- * transform-origin percentages resolve against the group's own bounding box. */
-.sbx-flow-content {
+/* ── Flow connectors: drill-down crossfade-zoom ──────────────────────────
+ * The graph shows one focus level at a time (a node + its connections). Drilling
+ * cross-fades the outgoing level out (scaling past the camera) while the new
+ * level grows in — a continuous zoom, not a delete-and-snap. Both layers share a
+ * fixed-height viewport so nothing jumps. CSP-safe: class-driven keyframes on the
+ * SVG <g>; transform-box: fill-box scales around each layer's own centre. */
+.sbx-flow-layer {
   transform-box: fill-box;
 }
-.sbx-flow-in-zoom {
-  animation: sbx-flow-zoom-in 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  transform-origin: var(--ox, 50%) var(--oy, 50%);
+.sbx-flow-grow {
+  animation: sbx-flow-grow 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-.sbx-flow-out-zoom {
-  animation: sbx-flow-zoom-out 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  transform-origin: 50% 50%;
+.sbx-flow-recede {
+  animation: sbx-flow-recede 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-@keyframes sbx-flow-zoom-in {
-  0% { opacity: 0; transform: scale(1.28); }
-  55% { opacity: 1; }
-  100% { opacity: 1; transform: scale(1); }
+.sbx-flow-shrink-in {
+  animation: sbx-flow-shrink-in 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-@keyframes sbx-flow-zoom-out {
-  0% { opacity: 0; transform: scale(0.74); }
-  100% { opacity: 1; transform: scale(1); }
+.sbx-flow-shrink-out {
+  animation: sbx-flow-shrink-out 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-.sbx-flow-in-fade,
-.sbx-flow-out-fade {
-  animation: sbx-flow-fade 340ms ease both;
+@keyframes sbx-flow-grow {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
 }
-@keyframes sbx-flow-fade {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+@keyframes sbx-flow-recede {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.6); }
 }
-.sbx-flow-in-slide {
-  animation: sbx-flow-slide-in 420ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+@keyframes sbx-flow-shrink-in {
+  from { opacity: 0; transform: scale(1.6); }
+  to { opacity: 1; transform: scale(1); }
 }
-.sbx-flow-out-slide {
-  animation: sbx-flow-slide-out 420ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+@keyframes sbx-flow-shrink-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.6); }
 }
-@keyframes sbx-flow-slide-in {
-  0% { opacity: 0; transform: translateX(38px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-@keyframes sbx-flow-slide-out {
-  0% { opacity: 0; transform: translateX(-38px); }
-  100% { opacity: 1; transform: translateX(0); }
-}
-/* Clickable (buildable) flow node: cursor + a gentle highlight on hover. */
 .sbx-flow-node {
   cursor: pointer;
 }
@@ -377,10 +365,8 @@
   .sbx-connector { stroke-dashoffset: 0; }
   .sbx-radial-fade { opacity: 1; }
   .sbx-card-sheen::after { transition: none; }
-  .sbx-flow-in-zoom,
-  .sbx-flow-out-zoom,
-  .sbx-flow-in-fade,
-  .sbx-flow-out-fade,
-  .sbx-flow-in-slide,
-  .sbx-flow-out-slide { animation: none; }
+  .sbx-flow-grow,
+  .sbx-flow-recede,
+  .sbx-flow-shrink-in,
+  .sbx-flow-shrink-out { animation: none; }
 }
