@@ -1,0 +1,722 @@
+{
+  "30188": {
+    "turret": {
+      "dps": {
+        "em": 56,
+        "therm": 0,
+        "kin": 0,
+        "exp": 56,
+        "total": 112
+      },
+      "alpha": {
+        "em": 280,
+        "therm": 0,
+        "kin": 0,
+        "exp": 280,
+        "total": 560
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 73.11111111111111,
+        "kin": 73.11111111111111,
+        "exp": 0,
+        "total": 146.22222222222223
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 1316,
+        "kin": 1316,
+        "exp": 0,
+        "total": 2632
+      }
+    },
+    "total": {
+      "dps": 258.22222222222223,
+      "alpha": 3192
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 20000,
+      "structure": 10000,
+      "ehp": 90000,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 75,
+        "exp": 75,
+        "kin": 75,
+        "therm": 75
+      }
+    },
+    "ewar": {
+      "scram": 0,
+      "web": 0,
+      "neutAmount": 0,
+      "neutDuration": 0,
+      "neutCount": 0,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 735,
+      "orbitDistance": 19000,
+      "orbitVelocity": 105
+    }
+  },
+  "30189": {
+    "turret": {
+      "dps": {
+        "em": 136,
+        "therm": 0,
+        "kin": 0,
+        "exp": 136,
+        "total": 272
+      },
+      "alpha": {
+        "em": 680,
+        "therm": 0,
+        "kin": 0,
+        "exp": 680,
+        "total": 1360
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 20.88888888888889,
+        "kin": 20.88888888888889,
+        "exp": 0,
+        "total": 41.77777777777778
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 376,
+        "kin": 376,
+        "exp": 0,
+        "total": 752
+      }
+    },
+    "total": {
+      "dps": 313.77777777777777,
+      "alpha": 2112
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 12000,
+      "structure": 6000,
+      "ehp": 40285.71428571429,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 65,
+        "exp": 65,
+        "kin": 65,
+        "therm": 65
+      }
+    },
+    "ewar": {
+      "scram": 0,
+      "web": 0,
+      "neutAmount": 0,
+      "neutDuration": 0,
+      "neutCount": 0,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 630,
+      "orbitDistance": 65000,
+      "orbitVelocity": 90
+    }
+  },
+  "30190": {
+    "turret": {
+      "dps": {
+        "em": 16,
+        "therm": 0,
+        "kin": 0,
+        "exp": 16,
+        "total": 32
+      },
+      "alpha": {
+        "em": 80,
+        "therm": 0,
+        "kin": 0,
+        "exp": 80,
+        "total": 160
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 94,
+        "kin": 94,
+        "exp": 0,
+        "total": 188
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 1692,
+        "kin": 1692,
+        "exp": 0,
+        "total": 3384
+      }
+    },
+    "total": {
+      "dps": 220,
+      "alpha": 3544
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 16000,
+      "structure": 8000,
+      "ehp": 61333.333333333336,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 70,
+        "exp": 70,
+        "kin": 70,
+        "therm": 70
+      }
+    },
+    "ewar": {
+      "scram": 0,
+      "web": 0,
+      "neutAmount": 0,
+      "neutDuration": 0,
+      "neutCount": 0,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 875,
+      "orbitDistance": 55000,
+      "orbitVelocity": 125
+    }
+  },
+  "30191": {
+    "turret": {
+      "dps": {
+        "em": 88,
+        "therm": 0,
+        "kin": 0,
+        "exp": 88,
+        "total": 176
+      },
+      "alpha": {
+        "em": 440,
+        "therm": 0,
+        "kin": 0,
+        "exp": 440,
+        "total": 880
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 104.44444444444444,
+        "kin": 104.44444444444444,
+        "exp": 0,
+        "total": 208.88888888888889
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 1880,
+        "kin": 1880,
+        "exp": 0,
+        "total": 3760
+      }
+    },
+    "total": {
+      "dps": 384.8888888888889,
+      "alpha": 4640
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 25000,
+      "structure": 12500,
+      "ehp": 117763.15789473684,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 75,
+        "exp": 75,
+        "kin": 75,
+        "therm": 80
+      }
+    },
+    "ewar": {
+      "scram": 0,
+      "web": 0,
+      "neutAmount": 100,
+      "neutDuration": 25000,
+      "neutCount": 10,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 1050,
+      "orbitDistance": 15000,
+      "orbitVelocity": 150
+    }
+  },
+  "30192": {
+    "turret": {
+      "dps": {
+        "em": 78.4,
+        "therm": 0,
+        "kin": 0,
+        "exp": 78.4,
+        "total": 156.8
+      },
+      "alpha": {
+        "em": 392,
+        "therm": 0,
+        "kin": 0,
+        "exp": 392,
+        "total": 784
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 102.35555555555555,
+        "kin": 102.35555555555555,
+        "exp": 0,
+        "total": 204.7111111111111
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 1842.4,
+        "kin": 1842.4,
+        "exp": 0,
+        "total": 3684.8
+      }
+    },
+    "total": {
+      "dps": 361.5111111111111,
+      "alpha": 4468.8
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 28000,
+      "structure": 14000,
+      "ehp": 94000,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 65,
+        "exp": 65,
+        "kin": 65,
+        "therm": 65
+      }
+    },
+    "ewar": {
+      "scram": 0,
+      "web": -60,
+      "neutAmount": 0,
+      "neutDuration": 0,
+      "neutCount": 0,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 920,
+      "orbitDistance": 19000,
+      "orbitVelocity": 115
+    }
+  },
+  "30193": {
+    "turret": {
+      "dps": {
+        "em": 190.4,
+        "therm": 0,
+        "kin": 0,
+        "exp": 190.4,
+        "total": 380.8
+      },
+      "alpha": {
+        "em": 952,
+        "therm": 0,
+        "kin": 0,
+        "exp": 952,
+        "total": 1904
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 29.244444444444444,
+        "kin": 29.244444444444444,
+        "exp": 0,
+        "total": 58.48888888888889
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 526.4,
+        "kin": 526.4,
+        "exp": 0,
+        "total": 1052.8
+      }
+    },
+    "total": {
+      "dps": 439.2888888888889,
+      "alpha": 2956.8
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 16800,
+      "structure": 8400,
+      "ehp": 56400,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 65,
+        "exp": 65,
+        "kin": 65,
+        "therm": 65
+      }
+    },
+    "ewar": {
+      "scram": 0,
+      "web": 0,
+      "neutAmount": 100,
+      "neutDuration": 70000,
+      "neutCount": 10,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 800,
+      "orbitDistance": 65000,
+      "orbitVelocity": 100
+    }
+  },
+  "30194": {
+    "turret": {
+      "dps": {
+        "em": 22.4,
+        "therm": 0,
+        "kin": 0,
+        "exp": 22.4,
+        "total": 44.8
+      },
+      "alpha": {
+        "em": 112,
+        "therm": 0,
+        "kin": 0,
+        "exp": 112,
+        "total": 224
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 131.6,
+        "kin": 131.6,
+        "exp": 0,
+        "total": 263.2
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 2368.7999999999997,
+        "kin": 2368.7999999999997,
+        "exp": 0,
+        "total": 4737.599999999999
+      }
+    },
+    "total": {
+      "dps": 308,
+      "alpha": 4961.599999999999
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 22400,
+      "structure": 11200,
+      "ehp": 85866.66666666667,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 70,
+        "exp": 70,
+        "kin": 70,
+        "therm": 70
+      }
+    },
+    "ewar": {
+      "scram": 0,
+      "web": 0,
+      "neutAmount": 0,
+      "neutDuration": 0,
+      "neutCount": 0,
+      "rrepAmount": 650,
+      "rrepDuration": 10000,
+      "rrepCount": 65
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 1080,
+      "orbitDistance": 55000,
+      "orbitVelocity": 135
+    }
+  },
+  "30195": {
+    "turret": {
+      "dps": {
+        "em": 123.2,
+        "therm": 0,
+        "kin": 0,
+        "exp": 123.2,
+        "total": 246.4
+      },
+      "alpha": {
+        "em": 616,
+        "therm": 0,
+        "kin": 0,
+        "exp": 616,
+        "total": 1232
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 146.22222222222223,
+        "kin": 146.22222222222223,
+        "exp": 0,
+        "total": 292.44444444444446
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 2632,
+        "kin": 2632,
+        "exp": 0,
+        "total": 5264
+      }
+    },
+    "total": {
+      "dps": 538.8444444444444,
+      "alpha": 6496
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 35000,
+      "structure": 17500,
+      "ehp": 164868.42105263157,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 75,
+        "exp": 75,
+        "kin": 75,
+        "therm": 80
+      }
+    },
+    "ewar": {
+      "scram": 1,
+      "web": -60,
+      "neutAmount": 200,
+      "neutDuration": 25000,
+      "neutCount": 20,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 1320,
+      "orbitDistance": 15000,
+      "orbitVelocity": 165
+    }
+  },
+  "30196": {
+    "turret": {
+      "dps": {
+        "em": 100.8,
+        "therm": 0,
+        "kin": 0,
+        "exp": 100.8,
+        "total": 201.6
+      },
+      "alpha": {
+        "em": 504,
+        "therm": 0,
+        "kin": 0,
+        "exp": 504,
+        "total": 1008
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 131.6,
+        "kin": 131.6,
+        "exp": 0,
+        "total": 263.2
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 2368.7999999999997,
+        "kin": 2368.7999999999997,
+        "exp": 0,
+        "total": 4737.599999999999
+      }
+    },
+    "total": {
+      "dps": 464.79999999999995,
+      "alpha": 5745.599999999999
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 44000,
+      "structure": 22000,
+      "ehp": 147714.28571428574,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 65,
+        "exp": 65,
+        "kin": 65,
+        "therm": 65
+      }
+    },
+    "ewar": {
+      "scram": 1,
+      "web": -60,
+      "neutAmount": 180,
+      "neutDuration": 25000,
+      "neutCount": 18,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 1125,
+      "orbitDistance": 19000,
+      "orbitVelocity": 125
+    }
+  },
+  "30197": {
+    "turret": {
+      "dps": {
+        "em": 244.8,
+        "therm": 0,
+        "kin": 0,
+        "exp": 244.8,
+        "total": 489.6
+      },
+      "alpha": {
+        "em": 1224,
+        "therm": 0,
+        "kin": 0,
+        "exp": 1224,
+        "total": 2448
+      }
+    },
+    "missile": {
+      "dps": {
+        "em": 0,
+        "therm": 37.6,
+        "kin": 37.6,
+        "exp": 0,
+        "total": 75.2
+      },
+      "alpha": {
+        "em": 0,
+        "therm": 676.8000000000001,
+        "kin": 676.8000000000001,
+        "exp": 0,
+        "total": 1353.6000000000001
+      }
+    },
+    "total": {
+      "dps": 564.8000000000001,
+      "alpha": 3801.6000000000004
+    },
+    "hp": {
+      "shield": 0,
+      "armor": 26400,
+      "structure": 13200,
+      "ehp": 88628.57142857143,
+      "shieldRes": {
+        "em": 0,
+        "exp": 0,
+        "kin": 0,
+        "therm": 0
+      },
+      "armorRes": {
+        "em": 65,
+        "exp": 65,
+        "kin": 65,
+        "therm": 65
+      }
+    },
+    "ewar": {
+      "scram": 0,
+      "web": 0,
+      "neutAmount": 120,
+      "neutDuration": 70000,
+      "neutCount": 12,
+      "rrepAmount": 0,
+      "rrepDuration": 0,
+      "rrepCount": 0
+    },
+    "movement": {
+      "sigRadius": 400,
+      "maxVelocity": 945,
+      "orbitDistance": 65000,
+      "orbitVelocity": 105
+    }
+  }
+}

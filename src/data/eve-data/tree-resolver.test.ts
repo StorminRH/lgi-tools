@@ -232,8 +232,10 @@ describe('TreeResolver — reference-blueprint fixture is well-formed', () => {
     expect(Object.keys(archon.materials).length).toBe(76);
     // Sanity check the mineral totals — Archon at ME 0 still needs
     // multi-million Tritanium/Pyerite from the recursive walk (marginal basis).
-    expect(archon.materials['34']).toBeGreaterThan(3_000_000);
-    expect(archon.materials['35']).toBeGreaterThan(12_000_000);
+    // Totals dropped with CCP's 3.3.2 recipe rebalance (fewer capital components)
+    // but stay multi-million; the exact values are pinned in the fixture.
+    expect(archon.materials['34']).toBeGreaterThan(2_000_000);
+    expect(archon.materials['35']).toBeGreaterThan(7_000_000);
   });
 
   it('Legion (T3) flattens on the marginal basis, not whole-run overbuild', () => {

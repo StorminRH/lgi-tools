@@ -1,5 +1,6 @@
-// Public query API for npc-stats. Pulls raw SDE attribute rows out of the
-// `dgmTypeAttributes` table and runs the formulas in math.ts. Mission /
+// Public query API for npc-stats. Pulls raw SDE attributes out of the
+// `type_dogma` table (via getTypeAttributesBatch) and runs the formulas in
+// math.ts. Mission /
 // incursion / abyssal NPC features can call this with their typeIds the same
 // way wormhole-sites does.
 

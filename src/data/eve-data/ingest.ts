@@ -1,33 +1,30 @@
 import { createReadStream } from 'node:fs';
-import { parse as parseCsv } from 'csv-parse';
+import { createInterface } from 'node:readline';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
-import unbzip2Stream from 'unbzip2-stream';
 import {
   blueprintFlatMaterials,
   blueprintTrees,
   dgmAttributeTypes,
-  dgmTypeAttributes,
   eveCategories,
   eveGroups,
   eveTypes,
-  industryActivities,
-  industryActivityMaterials,
-  industryActivityProducts,
   industryBlueprints,
+  typeDogma,
 } from './schema';
-import { downloadDumps, cleanupDumps, type SdeDumpPaths } from './source';
+import {
+  downloadSdeJsonl,
+  cleanupSdeJsonl,
+  type SdeJsonlPaths,
+} from './source';
 
 export type IngestSummary = {
   categoriesWritten: number;
   groupsWritten: number;
   typesWritten: number;
   attributeTypesWritten: number;
-  typeAttributesWritten: number;
+  typeDogmaWritten: number;
   blueprintsWritten: number;
-  activitiesWritten: number;
-  activityMaterialsWritten: number;
-  activityProductsWritten: number;
   durationMs: number;
 };
 
@@ -37,45 +34,62 @@ export type IngestOptions = {
 
 const BATCH_SIZE = 500;
 
-// Fuzzwork stores empty / missing values as the literal string "None".
-function nullable(v: string | undefined): string | null {
-  if (v === undefined || v === '' || v === 'None') return null;
-  return v;
+// CCP's JSONL carries real JSON types (numbers, booleans, null, nested objects),
+// so the CSV-era "None"-string coercion is gone. These helpers just narrow a
+// parsed field to the column's type, defaulting to null when absent/mistyped.
+
+// For integer / bigint columns. CCP ships some nominally-integer fields as
+// fractional numbers (e.g. a type's `basePrice` of 16873.5); a Postgres integer/
+// bigint column rejects those, so truncate toward zero — matching the old CSV
+// ingest's parseInt behavior.
+function intOrNull(v: unknown): number | null {
+  return typeof v === 'number' ? Math.trunc(v) : null;
 }
 
-function toInt(v: string | undefined): number | null {
-  const s = nullable(v);
-  if (s === null) return null;
-  const n = Number.parseInt(s, 10);
-  return Number.isFinite(n) ? n : null;
+// For doublePrecision columns and JSONB numeric values, where the fractional part
+// is meaningful (mass/volume, attribute defaults, every dogma attribute value).
+function numOrNull(v: unknown): number | null {
+  return typeof v === 'number' ? v : null;
 }
 
-function toFloat(v: string | undefined): number | null {
-  const s = nullable(v);
-  if (s === null) return null;
-  const n = Number.parseFloat(s);
-  return Number.isFinite(n) ? n : null;
+function strOrNull(v: unknown): string | null {
+  return typeof v === 'string' ? v : null;
 }
 
-function toBool(v: string | undefined): boolean {
-  return v === '1' || v === 'true';
+function boolOf(v: unknown): boolean {
+  return v === true;
 }
 
-// Generic streaming pipeline: bz2 file → CSV records → batched insert.
+// CCP localizes `name` / `description` / `displayName` as `{ en, de, … }`. We
+// store the English string; returns null when the object or its `en` key is
+// missing (verified present on every sampled record, but fail soft).
+function localizedEn(v: unknown): string | null {
+  if (v && typeof v === 'object' && typeof (v as { en?: unknown }).en === 'string') {
+    return (v as { en: string }).en;
+  }
+  return null;
+}
+
+// Generic streaming pipeline: JSONL file → one parsed object per line → batched
+// insert. `types.jsonl` is ~149 MB / 52k lines, so we read line-by-line via
+// readline and never buffer the whole file.
 async function streamInsert<T extends Record<string, unknown>>(
   path: string,
-  mapRow: (row: Record<string, string>) => T | null,
+  mapRow: (row: Record<string, unknown>) => T | null,
   flush: (batch: T[]) => Promise<void>,
 ): Promise<number> {
-  const parser = createReadStream(path)
-    .pipe(unbzip2Stream())
-    .pipe(parseCsv({ columns: true, skip_empty_lines: true, relax_quotes: true }));
+  const rl = createInterface({
+    input: createReadStream(path),
+    crlfDelay: Infinity,
+  });
 
   let batch: T[] = [];
   let total = 0;
 
-  for await (const row of parser as AsyncIterable<Record<string, string>>) {
-    const mapped = mapRow(row);
+  for await (const line of rl) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const mapped = mapRow(JSON.parse(trimmed) as Record<string, unknown>);
     if (!mapped) continue;
     batch.push(mapped);
     if (batch.length >= BATCH_SIZE) {
@@ -96,44 +110,39 @@ export async function runIngest(
   opts: IngestOptions = {},
 ): Promise<IngestSummary> {
   const start = Date.now();
-  const paths: SdeDumpPaths = await downloadDumps();
+  const paths: SdeJsonlPaths = await downloadSdeJsonl();
 
   const summary: IngestSummary = {
     categoriesWritten: 0,
     groupsWritten: 0,
     typesWritten: 0,
     attributeTypesWritten: 0,
-    typeAttributesWritten: 0,
+    typeDogmaWritten: 0,
     blueprintsWritten: 0,
-    activitiesWritten: 0,
-    activityMaterialsWritten: 0,
-    activityProductsWritten: 0,
     durationMs: 0,
   };
 
   try {
     await db.transaction(async (tx) => {
       // FK-safe wipe: types → groups → categories, then refill in reverse.
-      // Attribute tables stand alone and are wiped here too. Industry
-      // tables (blueprints/activities/materials/products) and the
-      // resolver-computed tables (trees/flat_materials) all cascade off
-      // the same wipe — they reference industry_blueprints which
-      // references eve_types.
+      // typeDogma + attribute types stand alone. industry_blueprints and the
+      // resolver-computed tables (trees/flat_materials) cascade off the same
+      // wipe — trees/flat_materials reference industry_blueprints.
       await tx.execute(
-        sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}, ${industryActivityProducts}, ${industryActivityMaterials}, ${industryActivities}, ${industryBlueprints}, ${dgmTypeAttributes}, ${dgmAttributeTypes}, ${eveTypes}, ${eveGroups}, ${eveCategories} RESTART IDENTITY CASCADE`,
+        sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}, ${industryBlueprints}, ${typeDogma}, ${dgmAttributeTypes}, ${eveTypes}, ${eveGroups}, ${eveCategories} RESTART IDENTITY CASCADE`,
       );
 
       summary.categoriesWritten = await streamInsert(
-        paths.invCategories,
+        paths.categories,
         (r) => {
-          const id = toInt(r.categoryID);
-          const name = nullable(r.categoryName);
+          const id = intOrNull(r._key);
+          const name = localizedEn(r.name);
           if (id === null || name === null) return null;
           return {
             id,
             name,
-            iconId: toInt(r.iconID),
-            published: toBool(r.published),
+            iconId: intOrNull(r.iconID),
+            published: boolOf(r.published),
           };
         },
         async (batch) => {
@@ -142,22 +151,22 @@ export async function runIngest(
       );
 
       summary.groupsWritten = await streamInsert(
-        paths.invGroups,
+        paths.groups,
         (r) => {
-          const id = toInt(r.groupID);
-          const categoryId = toInt(r.categoryID);
-          const name = nullable(r.groupName);
+          const id = intOrNull(r._key);
+          const categoryId = intOrNull(r.categoryID);
+          const name = localizedEn(r.name);
           if (id === null || categoryId === null || name === null) return null;
           return {
             id,
             categoryId,
             name,
-            iconId: toInt(r.iconID),
-            useBasePrice: toBool(r.useBasePrice),
-            anchored: toBool(r.anchored),
-            anchorable: toBool(r.anchorable),
-            fittableNonSingleton: toBool(r.fittableNonSingleton),
-            published: toBool(r.published),
+            iconId: intOrNull(r.iconID),
+            useBasePrice: boolOf(r.useBasePrice),
+            anchored: boolOf(r.anchored),
+            anchorable: boolOf(r.anchorable),
+            fittableNonSingleton: boolOf(r.fittableNonSingleton),
+            published: boolOf(r.published),
           };
         },
         async (batch) => {
@@ -166,28 +175,28 @@ export async function runIngest(
       );
 
       summary.typesWritten = await streamInsert(
-        paths.invTypes,
+        paths.types,
         (r) => {
-          const id = toInt(r.typeID);
-          const groupId = toInt(r.groupID);
-          const name = nullable(r.typeName);
+          const id = intOrNull(r._key);
+          const groupId = intOrNull(r.groupID);
+          const name = localizedEn(r.name);
           if (id === null || groupId === null || name === null) return null;
           return {
             id,
             groupId,
             name,
-            description: nullable(r.description),
-            mass: toFloat(r.mass),
-            volume: toFloat(r.volume),
-            capacity: toFloat(r.capacity),
-            portionSize: toInt(r.portionSize),
-            raceId: toInt(r.raceID),
-            basePrice: toInt(r.basePrice),
-            published: toBool(r.published),
-            marketGroupId: toInt(r.marketGroupID),
-            iconId: toInt(r.iconID),
-            soundId: toInt(r.soundID),
-            graphicId: toInt(r.graphicID),
+            description: localizedEn(r.description),
+            mass: numOrNull(r.mass),
+            volume: numOrNull(r.volume),
+            capacity: numOrNull(r.capacity),
+            portionSize: intOrNull(r.portionSize),
+            raceId: intOrNull(r.raceID),
+            basePrice: intOrNull(r.basePrice),
+            published: boolOf(r.published),
+            marketGroupId: intOrNull(r.marketGroupID),
+            iconId: intOrNull(r.iconID),
+            soundId: intOrNull(r.soundID),
+            graphicId: intOrNull(r.graphicID),
           };
         },
         async (batch) => {
@@ -196,23 +205,23 @@ export async function runIngest(
       );
 
       summary.attributeTypesWritten = await streamInsert(
-        paths.dgmAttributeTypes,
+        paths.dogmaAttributes,
         (r) => {
-          const id = toInt(r.attributeID);
-          const name = nullable(r.attributeName);
+          const id = intOrNull(r._key);
+          const name = strOrNull(r.name);
           if (id === null || name === null) return null;
           return {
             id,
             name,
-            description: nullable(r.description),
-            iconId: toInt(r.iconID),
-            defaultValue: toFloat(r.defaultValue),
-            published: toBool(r.published),
-            displayName: nullable(r.displayName),
-            unitId: toInt(r.unitID),
-            stackable: toBool(r.stackable),
-            highIsGood: toBool(r.highIsGood),
-            categoryId: toInt(r.categoryID),
+            description: strOrNull(r.description),
+            iconId: intOrNull(r.iconID),
+            defaultValue: numOrNull(r.defaultValue),
+            published: boolOf(r.published),
+            displayName: localizedEn(r.displayName),
+            unitId: intOrNull(r.unitID),
+            stackable: boolOf(r.stackable),
+            highIsGood: boolOf(r.highIsGood),
+            categoryId: intOrNull(r.attributeCategoryID),
           };
         },
         async (batch) => {
@@ -220,102 +229,48 @@ export async function runIngest(
         },
       );
 
-      summary.typeAttributesWritten = await streamInsert(
-        paths.dgmTypeAttributes,
+      summary.typeDogmaWritten = await streamInsert(
+        paths.typeDogma,
         (r) => {
-          const typeId = toInt(r.typeID);
-          const attributeId = toInt(r.attributeID);
-          // Fuzzwork stores every value in valueFloat; valueInt is always "None"
-          // in current dumps. Defensive: accept either source.
-          const value = toFloat(r.valueFloat) ?? toFloat(r.valueInt);
-          if (typeId === null || attributeId === null || value === null) return null;
-          return { typeId, attributeId, value };
+          const typeId = intOrNull(r._key);
+          const list = r.dogmaAttributes;
+          if (typeId === null || !Array.isArray(list)) return null;
+          // Fold CCP's `[{attributeID, value}]` into `{ [attributeId]: value }`,
+          // the shape getTypeAttributesBatch reads back.
+          const attributes: Record<string, number> = {};
+          for (const a of list) {
+            const attrId = intOrNull((a as Record<string, unknown>).attributeID);
+            const value = numOrNull((a as Record<string, unknown>).value);
+            if (attrId === null || value === null) continue;
+            attributes[String(attrId)] = value;
+          }
+          return { typeId, attributes };
         },
         async (batch) => {
-          await tx.insert(dgmTypeAttributes).values(batch);
+          await tx.insert(typeDogma).values(batch);
         },
       );
 
-      // Industry tables. FK order matters: blueprints → activities →
-      // (materials, products). The CSVs are guaranteed-consistent
-      // because Fuzzwork rebuilds them from one SDE source, so a row
-      // in `industryActivityMaterials` with (bpId, activityId) always
-      // has a matching row in `industryActivity`.
-
+      // Blueprints: CCP's whole nested `activities` object is stored verbatim as
+      // JSONB. The resolver/planner read just the manufacturing + reaction keys
+      // out of it (see ACTIVITY_NAME_TO_ID); invention/copying/research ride
+      // along untouched.
       summary.blueprintsWritten = await streamInsert(
-        paths.industryBlueprints,
+        paths.blueprints,
         (r) => {
-          const id = toInt(r.typeID);
-          const max = toInt(r.maxProductionLimit);
-          if (id === null || max === null) return null;
-          return { blueprintTypeId: id, maxProductionLimit: max };
+          const id = intOrNull(r.blueprintTypeID) ?? intOrNull(r._key);
+          const max = intOrNull(r.maxProductionLimit);
+          const activities = r.activities;
+          if (id === null || max === null || activities === undefined) return null;
+          return { blueprintTypeId: id, maxProductionLimit: max, activities };
         },
         async (batch) => {
           await tx.insert(industryBlueprints).values(batch);
         },
       );
-
-      summary.activitiesWritten = await streamInsert(
-        paths.industryActivity,
-        (r) => {
-          const bpId = toInt(r.typeID);
-          const activityId = toInt(r.activityID);
-          const time = toInt(r.time);
-          if (bpId === null || activityId === null || time === null) return null;
-          return { blueprintTypeId: bpId, activityId, timeSeconds: time };
-        },
-        async (batch) => {
-          await tx.insert(industryActivities).values(batch);
-        },
-      );
-
-      summary.activityMaterialsWritten = await streamInsert(
-        paths.industryActivityMaterials,
-        (r) => {
-          const bpId = toInt(r.typeID);
-          const activityId = toInt(r.activityID);
-          const matId = toInt(r.materialTypeID);
-          const qty = toInt(r.quantity);
-          if (bpId === null || activityId === null || matId === null || qty === null) {
-            return null;
-          }
-          return {
-            blueprintTypeId: bpId,
-            activityId,
-            materialTypeId: matId,
-            quantity: qty,
-          };
-        },
-        async (batch) => {
-          await tx.insert(industryActivityMaterials).values(batch);
-        },
-      );
-
-      summary.activityProductsWritten = await streamInsert(
-        paths.industryActivityProducts,
-        (r) => {
-          const bpId = toInt(r.typeID);
-          const activityId = toInt(r.activityID);
-          const prodId = toInt(r.productTypeID);
-          const qty = toInt(r.quantity);
-          if (bpId === null || activityId === null || prodId === null || qty === null) {
-            return null;
-          }
-          return {
-            blueprintTypeId: bpId,
-            activityId,
-            productTypeId: prodId,
-            quantity: qty,
-            probability: toFloat(r.probability),
-          };
-        },
-        async (batch) => {
-          await tx.insert(industryActivityProducts).values(batch);
-        },
-      );
     });
   } finally {
-    if (!opts.keepCache) await cleanupDumps(paths);
+    if (!opts.keepCache) await cleanupSdeJsonl(paths);
   }
 
   summary.durationMs = Date.now() - start;

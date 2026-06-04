@@ -28,13 +28,13 @@ async function logSdeCronEvent(metadata: Record<string, unknown>): Promise<void>
 // 05:00 UTC — well clear of the 11:00 daily prices cron). Vercel
 // dispatches GET with `Authorization: Bearer ${CRON_SECRET}`.
 //
-// On drift (stored sde_version != Fuzzwork's current Last-Modified),
+// On drift (stored sde_version != CCP's current build number),
 // acquires the SDE advisory lock and runs the full pipeline inline:
-// CSV ingest → tree resolver → tracked-types seeding. Vercel Pro
+// JSONL ingest → tree resolver → tracked-types seeding. Vercel Pro
 // allows up to 300s per invocation; the full run typically completes
 // in ~120s (30s download + 30s ingest + 60s resolver + <5s seeding).
 //
-// No-drift path returns in <2s — just a HEAD request to Fuzzwork and
+// No-drift path returns in <2s — just a GET of CCP's SDE manifest and
 // a meta lookup.
 export const maxDuration = 300;
 
@@ -73,7 +73,7 @@ export async function GET(req: Request): Promise<Response> {
     });
   }
 
-  // Fuzzwork-unreachable path: nothing actionable. Falling through to
+  // CCP-manifest-unreachable path: nothing actionable. Falling through to
   // runSdePipeline would burn ~30s on doomed downloads and emit a noisy
   // 500. Next Monday's tick (or any sooner manual run) retries. Same
   // guard as src/db/ingest-sde-if-empty.ts.

@@ -3,7 +3,6 @@ import {
   bigint,
   boolean,
   doublePrecision,
-  foreignKey,
   index,
   integer,
   jsonb,
@@ -13,9 +12,13 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 
-// Eve Static Data Export (SDE) tables. Sourced from Fuzzwork's CSV dumps:
-//   https://www.fuzzwork.co.uk/dump/latest/
-// Primary keys are CCP's stable, externally-meaningful IDs — not `serial`.
+// Eve Static Data Export (SDE) tables. Sourced from CCP's first-party SDE,
+// published straight from the Tranquility build pipeline as one zip of `.jsonl`
+// files (https://developers.eveonline.com/static-data). The tables are shaped to
+// CCP's native records rather than a flat per-table remap: a blueprint's whole
+// nested `activities` object and a type's whole dogma-attribute list each land in
+// one JSONB column. Primary keys are CCP's stable, externally-meaningful IDs
+// (the JSONL `_key`) — not `serial`.
 
 export const eveCategories = pgTable('eve_categories', {
   id: integer('id').primaryKey(),
@@ -80,110 +83,39 @@ export const dgmAttributeTypes = pgTable('dgm_attribute_types', {
   categoryId: integer('category_id'),
 });
 
-// dgmTypeAttributes — every (typeId, attributeId) → value the SDE knows.
-// ~600k rows. No FK to eveTypes: Fuzzwork ships rows for unpublished types too.
-// `value` is doublePrecision because Fuzzwork stores everything in valueFloat
-// (valueInt is always "None" in the dump), and some attrs are fractional
-// (e.g. attr 70 = 0.0001444980038).
-export const dgmTypeAttributes = pgTable(
-  'dgm_type_attributes',
-  {
-    typeId: integer('type_id').notNull(),
-    attributeId: integer('attribute_id').notNull(),
-    value: doublePrecision('value').notNull(),
-  },
-  (t) => ({
-    pk: primaryKey({ columns: [t.typeId, t.attributeId] }),
-    typeIdIdx: index('dgm_type_attributes_type_id_idx').on(t.typeId),
-  }),
-);
+// typeDogma — every type's dogma attributes, one JSONB row per type, mirroring
+// CCP's `typeDogma.jsonl` record (`{ _key: typeID, dogmaAttributes: [...] }`).
+// The `attributes` object is `{ [attributeId]: value }` — CCP's array folded to a
+// map at ingest, which is exactly the shape getTypeAttributesBatch returns. No FK
+// to eveTypes: CCP ships dogma for unpublished types too. Values are JSON numbers
+// (some attrs are fractional, e.g. attr 70 = 0.0001444980038).
+export const typeDogma = pgTable('type_dogma', {
+  typeId: integer('type_id').primaryKey(),
+  attributes: jsonb('attributes').notNull(),
+});
 
-// Industry tables. Source: Fuzzwork's `industryBlueprints.csv.bz2`,
-// `industryActivity.csv.bz2`, `industryActivityMaterials.csv.bz2`,
-// `industryActivityProducts.csv.bz2`. Truncate+refill on every SDE
+// Industry blueprints — one JSONB document per blueprint, mirroring CCP's
+// `blueprints.jsonl` record. `activities` holds CCP's whole nested object verbatim
+// (string-keyed: `manufacturing`, `reaction`, `invention`, `copying`,
+// `research_material`, `research_time`), each activity carrying a subset of
+// `materials[]`, `products[]`, `skills[]`, `time`. Truncate+refill on every SDE
 // ingest; the SDE version stamp lives in `eveDataMeta` below.
 //
-// Activity IDs used downstream: 1 = manufacturing, 11 = reactions.
-// Invention (8), copying (5), research (3, 4) are ingested verbatim
-// but ignored by the tree resolver per design-doc non-goals.
+// Activity IDs used downstream: 1 = manufacturing, 11 = reactions (the resolver +
+// planner read those two; ACTIVITY_NAME_TO_ID in constants.ts maps CCP's string
+// keys to the numeric IDs). Invention/copying/research are stored verbatim inside
+// the JSON but ignored by the resolver per design-doc non-goals.
 //
-// No FKs to `eve_types` from the industry tables — same gotcha as
-// dgm_type_attributes: Fuzzwork's industry CSVs reference type IDs
-// that aren't in the published invTypes dump (rare unpublished /
-// retired-but-referenced items). The application invariant is that
-// the ingest is internally consistent (always streams ALL four CSVs
-// in one transaction from the same Fuzzwork dump), so dangling type
-// IDs cause `getTypesByIds` to return short maps, not orphaned rows.
-
+// No FK from the JSON's type IDs to `eve_types` — CCP's blueprints reference type
+// IDs that aren't in the published types set (rare unpublished / retired-but-
+// referenced items). The ingest is internally consistent (one transaction from
+// one CCP dump), so dangling type IDs cause `getTypesByIds` to return short maps,
+// not orphaned rows.
 export const industryBlueprints = pgTable('industry_blueprints', {
   blueprintTypeId: integer('blueprint_type_id').primaryKey(),
   maxProductionLimit: integer('max_production_limit').notNull(),
+  activities: jsonb('activities').notNull(),
 });
-
-export const industryActivities = pgTable(
-  'industry_activities',
-  {
-    blueprintTypeId: integer('blueprint_type_id')
-      .notNull()
-      .references(() => industryBlueprints.blueprintTypeId, {
-        onDelete: 'cascade',
-      }),
-    activityId: integer('activity_id').notNull(),
-    timeSeconds: integer('time_seconds').notNull(),
-  },
-  (t) => ({
-    pk: primaryKey({ columns: [t.blueprintTypeId, t.activityId] }),
-  }),
-);
-
-export const industryActivityMaterials = pgTable(
-  'industry_activity_materials',
-  {
-    blueprintTypeId: integer('blueprint_type_id').notNull(),
-    activityId: integer('activity_id').notNull(),
-    materialTypeId: integer('material_type_id').notNull(),
-    quantity: integer('quantity').notNull(),
-  },
-  (t) => ({
-    pk: primaryKey({
-      columns: [t.blueprintTypeId, t.activityId, t.materialTypeId],
-    }),
-    activityFk: foreignKey({
-      columns: [t.blueprintTypeId, t.activityId],
-      foreignColumns: [
-        industryActivities.blueprintTypeId,
-        industryActivities.activityId,
-      ],
-    }).onDelete('cascade'),
-    materialIdx: index('industry_activity_materials_material_idx').on(
-      t.materialTypeId,
-    ),
-  }),
-);
-
-export const industryActivityProducts = pgTable(
-  'industry_activity_products',
-  {
-    blueprintTypeId: integer('blueprint_type_id').notNull(),
-    activityId: integer('activity_id').notNull(),
-    productTypeId: integer('product_type_id').notNull(),
-    quantity: integer('quantity').notNull(),
-    probability: doublePrecision('probability'),
-  },
-  (t) => ({
-    pk: primaryKey({
-      columns: [t.blueprintTypeId, t.activityId, t.productTypeId],
-    }),
-    activityFk: foreignKey({
-      columns: [t.blueprintTypeId, t.activityId],
-      foreignColumns: [
-        industryActivities.blueprintTypeId,
-        industryActivities.activityId,
-      ],
-    }).onDelete('cascade'),
-    productIdx: index('industry_activity_products_product_idx').on(t.productTypeId),
-  }),
-);
 
 // Computed by the tree resolver after each successful SDE ingest. Both
 // tables are wiped + repopulated together; idempotency is gated on the

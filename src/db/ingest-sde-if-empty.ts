@@ -1,8 +1,7 @@
 // Deploy-time SDE gate. Runs on every `pnpm vercel-build`. Skips the
 // full pipeline when:
 //   (a) the eve-data tables are populated AND
-//   (b) the stored `sde_version` matches Fuzzwork's current
-//       Last-Modified on invTypes.csv.bz2
+//   (b) the stored `sde_version` matches CCP's current SDE build number
 //
 // On a brand-new branch (e.g. a fresh preview Neon), case (a) fails
 // and we ingest. On a steady-state redeploy with no SDE patch, both
@@ -59,9 +58,9 @@ const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 async function main() {
   const db = drizzle(client);
 
-  // Migration order means the dgm_type_attributes table always exists
-  // when this runs — kept the existence check for the case where this
-  // ever runs against a pre-migration DB.
+  // Migration order means the eve-data tables always exist when this runs —
+  // kept the existence check for the case where this ever runs against a
+  // pre-migration DB.
   const [{ exists }] = await db.execute<{ exists: boolean }>(sql`
     SELECT EXISTS (
       SELECT 1 FROM information_schema.tables
@@ -86,7 +85,7 @@ async function main() {
     lockHeld = true;
 
     const [{ rowCount }] = await db.execute<{ rowCount: string }>(sql`
-      SELECT COUNT(*)::text AS "rowCount" FROM dgm_type_attributes
+      SELECT COUNT(*)::text AS "rowCount" FROM type_dogma
     `);
     const hasRows = Number(rowCount) > 0;
 
@@ -101,7 +100,7 @@ async function main() {
     if (sdeCurrent) {
       console.log(
         remoteVersion === null
-          ? `SDE ingest skipped (Fuzzwork unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`
+          ? `SDE ingest skipped (CCP SDE manifest unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`
           : `SDE ingest skipped (already at SDE version "${storedVersion}", ${rowCount} attribute rows present).`,
       );
       // The SDE *data* is current, but the resolver's algorithm may have
