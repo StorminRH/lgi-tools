@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-06-03
+
+- The blueprint build plan now opens in a new flow view. It lays the build out as a row of tier columns — every component and material grouped by how many steps it sits below the final product — and clicking any buildable part smoothly zooms into a connected diagram of just that part's build, with a trail along the top to step back out. The view centers itself on the page and re-centers as you drill in. The earlier consolidated, by-branch, and raw-ledger views are still a click away.
+
 ### 2026-06-02
 
 - The Industry Planner now works on a phone. The dashboard and every blueprint page reflow to fit narrow screens — the build plan stacks instead of forcing a sideways scroll, the cost ledger drops to a single column, the profit summary wraps cleanly, and buttons and rows are sized for tapping.
