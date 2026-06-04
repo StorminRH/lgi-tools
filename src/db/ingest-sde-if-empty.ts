@@ -1,8 +1,7 @@
 // Deploy-time SDE gate. Runs on every `pnpm vercel-build`. Skips the
 // full pipeline when:
 //   (a) the eve-data tables are populated AND
-//   (b) the stored `sde_version` matches Fuzzwork's current
-//       Last-Modified on invTypes.csv.bz2
+//   (b) the stored `sde_version` matches CCP's current SDE build number
 //
 // On a brand-new branch (e.g. a fresh preview Neon), case (a) fails
 // and we ingest. On a steady-state redeploy with no SDE patch, both
@@ -101,7 +100,7 @@ async function main() {
     if (sdeCurrent) {
       console.log(
         remoteVersion === null
-          ? `SDE ingest skipped (Fuzzwork unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`
+          ? `SDE ingest skipped (CCP SDE manifest unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`
           : `SDE ingest skipped (already at SDE version "${storedVersion}", ${rowCount} attribute rows present).`,
       );
       // The SDE *data* is current, but the resolver's algorithm may have
