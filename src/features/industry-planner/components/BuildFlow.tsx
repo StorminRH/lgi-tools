@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useLayoutEffect } from 'react';
+import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { cn } from '@/components/ui/cn';
 import { toneHex } from '@/components/ui/tones';
 import { formatQuantity } from '@/lib/format';
@@ -271,6 +271,11 @@ export function BuildFlow({ structure }: { structure: BlueprintStructure }) {
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  // Cancel a pending transition timer if the component unmounts mid-animation.
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
   }, []);
 
   const go = (next: number[], dir: 'in' | 'out') => {

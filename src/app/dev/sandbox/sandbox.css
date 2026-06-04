@@ -204,53 +204,9 @@
   to { stroke-dashoffset: 0; }
 }
 
-/* ── Flow connectors: drill-down crossfade-zoom ──────────────────────────
- * The graph shows one focus level at a time (a node + its connections). Drilling
- * cross-fades the outgoing level out (scaling past the camera) while the new
- * level grows in — a continuous zoom, not a delete-and-snap. Both layers share a
- * fixed-height viewport so nothing jumps. CSP-safe: class-driven keyframes on the
- * SVG <g>; transform-box: fill-box scales around each layer's own centre. */
-.sbx-flow-layer {
-  transform-box: fill-box;
-}
-.sbx-flow-grow {
-  animation: sbx-flow-grow 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-.sbx-flow-recede {
-  animation: sbx-flow-recede 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-.sbx-flow-shrink-in {
-  animation: sbx-flow-shrink-in 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-.sbx-flow-shrink-out {
-  animation: sbx-flow-shrink-out 440ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-@keyframes sbx-flow-grow {
-  from { opacity: 0; transform: scale(0.6); }
-  to { opacity: 1; transform: scale(1); }
-}
-@keyframes sbx-flow-recede {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(1.6); }
-}
-@keyframes sbx-flow-shrink-in {
-  from { opacity: 0; transform: scale(1.6); }
-  to { opacity: 1; transform: scale(1); }
-}
-@keyframes sbx-flow-shrink-out {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.6); }
-}
-.sbx-flow-node {
-  cursor: pointer;
-}
-.sbx-flow-node rect:first-of-type {
-  transition: fill 140ms ease, stroke 140ms ease;
-}
-.sbx-flow-node:hover rect:first-of-type {
-  fill: #11151c;
-  stroke: var(--color-isk-sub);
-}
+/* (The flow build view lives in the industry-planner feature now — its
+ * `flow-*` classes are in globals.css. The sandbox's flow explorer + mockup
+ * planner reuse that shared component, so no flow CSS lives here.) */
 
 /* Tree node hover affordance — a slight lift + glow, shared by node-based
  * tree views (nested cards, density rows). */
@@ -365,8 +321,4 @@
   .sbx-connector { stroke-dashoffset: 0; }
   .sbx-radial-fade { opacity: 1; }
   .sbx-card-sheen::after { transition: none; }
-  .sbx-flow-grow,
-  .sbx-flow-recede,
-  .sbx-flow-shrink-in,
-  .sbx-flow-shrink-out { animation: none; }
 }
