@@ -58,6 +58,24 @@ async function SandboxIndex() {
         ))}
       </div>
 
+      <Link
+        href="/dev/sandbox/industry"
+        className="sbx-card-glow no-underline w-full max-w-[1100px] mt-4 border border-border bg-section rounded-[4px] p-5 flex items-baseline justify-between gap-3"
+      >
+        <span className="flex flex-col gap-1.5">
+          <span className="font-display font-bold text-[15px] text-name tracking-[0.04em]">
+            Mockup planner page
+          </span>
+          <span className="font-mono text-[11px] leading-[1.6] text-muted">
+            The hybrid build view (consolidated tier columns → click a part to zoom into its flow) shown in
+            a full planner-page layout on real Rifter / Loki / Archon builds.
+          </span>
+        </span>
+        <span className="font-mono text-[9px] tracking-[0.14em] uppercase text-isk whitespace-nowrap">
+          In context ▸
+        </span>
+      </Link>
+
       <p className="w-full max-w-[1100px] mt-8 text-[10px] leading-[1.6] text-muted">
         Every variant is fed the same sample data (a Wolf assault-frigate build).
         These are evaluation mockups — some would need accessibility and

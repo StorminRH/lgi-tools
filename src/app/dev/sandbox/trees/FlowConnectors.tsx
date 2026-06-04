@@ -20,9 +20,7 @@ const NODE_W = 184;
 const NODE_H = 32;
 const ROW = 46;
 const PAD = 22;
-const VIEW_H = 500;
 const MAX_NODES = 46; // budget per level view; deeper/wider trees show fewer levels
-const MAX_ZOOM = 1.35;
 const TRANS_MS = 440;
 
 interface Laid {
@@ -112,16 +110,16 @@ function Level({
   width: number;
   onDrill: (chain: number[], node: Laid) => void;
 }) {
-  const { nodes, contentW, contentH } = useMemo(
+  const { nodes, contentW } = useMemo(
     () => buildLevel(root, display, pickDepth(root)),
     [root, display],
   );
-  const s = Math.min((width - 12) / contentW, (VIEW_H - 12) / contentH, MAX_ZOOM);
-  const tx = (width - s * contentW) / 2;
-  const ty = (VIEW_H - s * contentH) / 2;
+  // Fit to width (never upscale), draw at natural height from the top-left — no
+  // fixed viewport box, so the graph sits in the page like the live columns do.
+  const s = Math.min(width / contentW, 1);
 
   return (
-    <g transform={`translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(4)})`}>
+    <g transform={`translate(0 0) scale(${s.toFixed(4)})`}>
       {nodes.map((n, i) => {
         if (!n.parent) return null;
         const sx = n.parent.x + NODE_W;
@@ -247,16 +245,12 @@ function ColumnsView({
   width: number;
   onPick?: (typeId: number) => void;
 }) {
-  const maxItems = Math.max(1, ...tiers.map((t) => t.items.length));
   const contentW = Math.max(1, tiers.length) * COL_W;
-  const contentH = HEADER_H + maxItems * ROW + PAD;
-  const s = Math.min((width - 12) / contentW, (VIEW_H - 12) / contentH, MAX_ZOOM);
-  const tx = (width - s * contentW) / 2;
-  const ty = (VIEW_H - s * contentH) / 2;
+  const s = Math.min(width / contentW, 1);
   const maxChars = Math.max(6, Math.floor((NODE_W - 26) / 6.2));
 
   return (
-    <g transform={`translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(4)})`}>
+    <g transform={`translate(0 0) scale(${s.toFixed(4)})`}>
       {tiers.map((tier, c) => (
         <g key={tier.depth} transform={`translate(${c * COL_W}, 0)`}>
           <text x={3} y={11} fill="#6a7a8a" fontSize={9} letterSpacing={1.2}>
@@ -326,6 +320,27 @@ export function FlowConnectors({ structure }: { structure: BlueprintStructure })
   };
 
   const tiers = useMemo(() => consolidate(buildTree, display), [buildTree, display]);
+
+  // Natural (fit-to-width) height of a given view, so the SVG sizes to its
+  // content instead of a fixed viewport box. During a transition the panel takes
+  // the taller of the two so neither layer clips mid-crossfade.
+  const naturalHeight = (p: number[]): number => {
+    if (!width) return 0;
+    let cw: number;
+    let ch: number;
+    if (p.length === 0) {
+      const maxItems = Math.max(1, ...tiers.map((t) => t.items.length));
+      cw = Math.max(1, tiers.length) * COL_W;
+      ch = HEADER_H + maxItems * ROW + PAD;
+    } else {
+      const f = focusOf(buildTree, display, p);
+      const lvl = buildLevel(f, display, pickDepth(f));
+      cw = lvl.contentW;
+      ch = lvl.contentH;
+    }
+    return Math.round(ch * Math.min(width / cw, 1)) + 6;
+  };
+  const viewH = trans ? Math.max(naturalHeight(path), naturalHeight(trans.prevPath)) : naturalHeight(path);
 
   // Path empty → the consolidated tier columns (overview, no lines/root). Path
   // set → the flow graph of the focused part (with connector lines).
@@ -400,8 +415,8 @@ export function FlowConnectors({ structure }: { structure: BlueprintStructure })
         {width && (
           <svg
             width={width}
-            height={VIEW_H}
-            viewBox={`0 0 ${width} ${VIEW_H}`}
+            height={viewH}
+            viewBox={`0 0 ${width} ${viewH}`}
             className="font-mono block"
             role="img"
             aria-label="Blueprint build tree as a flow graph"

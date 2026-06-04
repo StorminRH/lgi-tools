@@ -69,9 +69,7 @@ export function FlowExplorer({ blueprints }: { blueprints: FlowBlueprint[] }) {
         <span className="ml-auto text-[10px] text-muted">click a node to zoom into its build</span>
       </div>
 
-      <div className="border border-border-soft bg-section rounded-[4px] p-5">
-        <FlowConnectors key={blueprint.id} structure={blueprint.structure} />
-      </div>
+      <FlowConnectors key={blueprint.id} structure={blueprint.structure} />
     </div>
   );
 }
