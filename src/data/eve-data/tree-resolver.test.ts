@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   TreeResolver,
-  buildIndexesFromRows,
+  buildIndexesFromActivities,
   computeHeights,
   type Indexes,
-  type MaterialRow,
-  type ProductRow,
   type TreeNode,
 } from './tree-resolver';
 import flatMaterialsFixture from './__fixtures__/blueprint-flat-materials.json';
@@ -259,31 +257,43 @@ describe('TreeResolver — reference-blueprint fixture is well-formed', () => {
 
 // Regression: ~51 deprecated SDE blueprints (e.g. Biochemical Reactor
 // Array BP 2790) ship a degenerate "1 of X makes 1 of X" recipe where
-// the sole material equals the product. buildIndexesFromRows must drop
+// the sole material equals the product. buildIndexesFromActivities must drop
 // that self-referential edge so the walker never reads it as a cycle.
 describe('TreeResolver — self-referential SDE recipes', () => {
   it('drops a blueprint whose sole material is its own product (no cycle)', () => {
-    const matRows: MaterialRow[] = [
-      { blueprintTypeId: 900, materialTypeId: 24684, quantity: 1 },
+    const rows = [
+      {
+        blueprintTypeId: 900,
+        activities: {
+          manufacturing: {
+            materials: [{ typeID: 24684, quantity: 1 }],
+            products: [{ typeID: 24684, quantity: 1 }],
+          },
+        },
+      },
     ];
-    const prodRows: ProductRow[] = [
-      { blueprintTypeId: 900, productTypeId: 24684, quantity: 1 },
-    ];
-    const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
+    const resolver = new TreeResolver(buildIndexesFromActivities(rows));
     const flat = resolver.flatForOneRun(900);
     expect(flat.size).toBe(0); // non-recipe → empty flat materials
     expect(resolver.stats().cycleWarnings).toHaveLength(0);
   });
 
   it('keeps real materials when a self-edge sits alongside them', () => {
-    const matRows: MaterialRow[] = [
-      { blueprintTypeId: 900, materialTypeId: 24684, quantity: 1 }, // self
-      { blueprintTypeId: 900, materialTypeId: 34, quantity: 500 }, // real leaf
+    const rows = [
+      {
+        blueprintTypeId: 900,
+        activities: {
+          manufacturing: {
+            materials: [
+              { typeID: 24684, quantity: 1 }, // self
+              { typeID: 34, quantity: 500 }, // real leaf
+            ],
+            products: [{ typeID: 24684, quantity: 1 }],
+          },
+        },
+      },
     ];
-    const prodRows: ProductRow[] = [
-      { blueprintTypeId: 900, productTypeId: 24684, quantity: 1 },
-    ];
-    const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
+    const resolver = new TreeResolver(buildIndexesFromActivities(rows));
     const flat = resolver.flatForOneRun(900);
     expect(Object.fromEntries(flat)).toEqual({ 34: 500 });
     expect(resolver.stats().cycleWarnings).toHaveLength(0);
@@ -293,15 +303,27 @@ describe('TreeResolver — self-referential SDE recipes', () => {
     // BP 900 consumes 3 of type 70; BP 901 (a different blueprint)
     // produces type 70 from a leaf. The cross-blueprint edge must
     // survive — only self-edges are filtered.
-    const matRows: MaterialRow[] = [
-      { blueprintTypeId: 900, materialTypeId: 70, quantity: 3 },
-      { blueprintTypeId: 901, materialTypeId: 34, quantity: 10 },
+    const rows = [
+      {
+        blueprintTypeId: 900,
+        activities: {
+          manufacturing: {
+            materials: [{ typeID: 70, quantity: 3 }],
+            products: [{ typeID: 800, quantity: 1 }],
+          },
+        },
+      },
+      {
+        blueprintTypeId: 901,
+        activities: {
+          manufacturing: {
+            materials: [{ typeID: 34, quantity: 10 }],
+            products: [{ typeID: 70, quantity: 1 }],
+          },
+        },
+      },
     ];
-    const prodRows: ProductRow[] = [
-      { blueprintTypeId: 900, productTypeId: 800, quantity: 1 },
-      { blueprintTypeId: 901, productTypeId: 70, quantity: 1 },
-    ];
-    const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
+    const resolver = new TreeResolver(buildIndexesFromActivities(rows));
     const flat = resolver.flatForOneRun(900);
     expect(Object.fromEntries(flat)).toEqual({ 34: 30 }); // 3 of type 70 (1/run) × 10
     expect(resolver.stats().cycleWarnings).toHaveLength(0);
@@ -312,15 +334,27 @@ describe('TreeResolver — self-referential SDE recipes', () => {
     // future SDE adds BP 901 that consumes 24684, that type must surface as
     // a raw leaf in 901's flat materials — not silently vanish into the
     // now-empty BP 900 (which would pass the cycle guardrail cleanly).
-    const matRows: MaterialRow[] = [
-      { blueprintTypeId: 900, materialTypeId: 24684, quantity: 1 }, // self → filtered
-      { blueprintTypeId: 901, materialTypeId: 24684, quantity: 7 }, // consumes the degenerate product
+    const rows = [
+      {
+        blueprintTypeId: 900,
+        activities: {
+          manufacturing: {
+            materials: [{ typeID: 24684, quantity: 1 }], // self → filtered
+            products: [{ typeID: 24684, quantity: 1 }],
+          },
+        },
+      },
+      {
+        blueprintTypeId: 901,
+        activities: {
+          manufacturing: {
+            materials: [{ typeID: 24684, quantity: 7 }], // consumes the degenerate product
+            products: [{ typeID: 800, quantity: 1 }],
+          },
+        },
+      },
     ];
-    const prodRows: ProductRow[] = [
-      { blueprintTypeId: 900, productTypeId: 24684, quantity: 1 },
-      { blueprintTypeId: 901, productTypeId: 800, quantity: 1 },
-    ];
-    const resolver = new TreeResolver(buildIndexesFromRows(matRows, prodRows));
+    const resolver = new TreeResolver(buildIndexesFromActivities(rows));
     const flat = resolver.flatForOneRun(901);
     expect(Object.fromEntries(flat)).toEqual({ 24684: 7 });
     expect(resolver.stats().cycleWarnings).toHaveLength(0);

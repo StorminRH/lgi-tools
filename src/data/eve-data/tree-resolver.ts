@@ -93,73 +93,6 @@ export type ProductRow = {
   quantity: number;
 };
 
-// Builds the resolver indexes from raw material/product rows, correcting
-// for a degenerate shape in the SDE: ~51 deprecated, non-manufacturable
-// items (old POS assembly arrays, silos, reactor arrays, outpost
-// platforms, orbital ammo, a couple of hulls) ship a "1 of X makes 1 of
-// X" recipe whose sole material is the product itself. EVE manufacturing
-// is a strict DAG, so these are non-recipes, not real cycles.
-//
-// Two corrections, both keyed on the same self-referential shape:
-//   1. Drop the self-referential material edge so the walker never reads
-//      it as a self-loop.
-//   2. A blueprint whose entire material list was self-referential can't
-//      actually produce anything, so it is not registered as a producer.
-//      Its product then resolves as a leaf (raw input) wherever consumed,
-//      instead of routing into an empty blueprint and silently
-//      contributing nothing. Today none of these products are consumed
-//      elsewhere, but this keeps us correct if a future SDE starts
-//      consuming one of these deprecated types.
-export function buildIndexesFromRows(
-  matRows: MaterialRow[],
-  prodRows: ProductRow[],
-): Indexes {
-  // What each blueprint produces — drives both the self-edge filter and
-  // the degenerate-producer demotion below.
-  const blueprintProducts = new Map<number, Set<number>>();
-  for (const r of prodRows) {
-    const products = blueprintProducts.get(r.blueprintTypeId);
-    if (products) products.add(r.productTypeId);
-    else blueprintProducts.set(r.blueprintTypeId, new Set([r.productTypeId]));
-  }
-
-  // Direct materials, self-referential edges dropped. Track which
-  // blueprints had any material row so we can tell a genuine "no recipe"
-  // blueprint apart from one whose entire recipe was self-referential.
-  const blueprintMaterials = new Map<number, Material[]>();
-  const hadMaterialRow = new Set<number>();
-  for (const r of matRows) {
-    hadMaterialRow.add(r.blueprintTypeId);
-    if (blueprintProducts.get(r.blueprintTypeId)?.has(r.materialTypeId)) {
-      continue; // self-referential edge — see fn comment
-    }
-    const list = blueprintMaterials.get(r.blueprintTypeId);
-    const entry: Material = { typeId: r.materialTypeId, quantity: r.quantity };
-    if (list) list.push(entry);
-    else blueprintMaterials.set(r.blueprintTypeId, [entry]);
-  }
-
-  // outputType -> producer. Skip blueprints whose entire material list was
-  // self-referential (had rows, none survived) — see correction 2 above.
-  const productToBlueprint = new Map<
-    number,
-    { blueprintTypeId: number; quantityPerRun: number }
-  >();
-  for (const r of prodRows) {
-    const degenerate =
-      hadMaterialRow.has(r.blueprintTypeId) &&
-      !blueprintMaterials.has(r.blueprintTypeId);
-    if (degenerate) continue;
-    if (productToBlueprint.has(r.productTypeId)) continue; // first writer wins
-    productToBlueprint.set(r.productTypeId, {
-      blueprintTypeId: r.blueprintTypeId,
-      quantityPerRun: r.quantity,
-    });
-  }
-
-  return { blueprintMaterials, productToBlueprint };
-}
-
 // CCP blueprint `activities` JSON — the subset the resolver reads. Each activity
 // (keyed by CCP's string name: `manufacturing`, `reaction`, …) carries optional
 // `materials` / `products` lists of `{ typeID, quantity }`.
@@ -169,10 +102,11 @@ type ActivityIO = {
 };
 export type BlueprintActivities = Record<string, ActivityIO | undefined>;
 
-// Flatten a blueprint's manufacturing + reaction activities into the flat
-// material/product rows buildIndexesFromRows consumes. The two activities are
-// collapsed per blueprint (see Indexes — a blueprint has one or the other), so
-// the activity id itself isn't carried.
+// Flatten a blueprint's manufacturing + reaction activities into flat
+// material/product rows — the shared currency consumed by the index builder
+// (buildIndexesFromActivities), the resolver hash (computeTreeResolverHash) and
+// the tracked-types query. The two activities are collapsed per blueprint (see
+// Indexes — a blueprint has one or the other), so the activity id isn't carried.
 export function activitiesToRows(
   blueprintTypeId: number,
   activities: BlueprintActivities,
@@ -192,6 +126,56 @@ export function activitiesToRows(
   return { mats, prods };
 }
 
+// Builds the resolver indexes directly from CCP's per-blueprint `activities`,
+// correcting for a degenerate shape in the SDE: ~51 deprecated, non-manufacturable
+// items (old POS assembly arrays, silos, reactor arrays, outpost platforms,
+// orbital ammo, a couple of hulls) ship a "1 of X makes 1 of X" recipe whose sole
+// material is the product itself. EVE manufacturing is a strict DAG, so these are
+// non-recipes, not real cycles.
+//
+// Two corrections, both keyed on the same self-referential shape:
+//   1. Drop the self-referential material edge so the walker never reads it as a
+//      self-loop. A blueprint's own products sit right beside its materials, so
+//      this is a local check per blueprint.
+//   2. A blueprint whose entire material list was self-referential can't actually
+//      produce anything, so it is not registered as a producer. Its product then
+//      resolves as a leaf (raw input) wherever consumed, instead of routing into
+//      an empty blueprint and silently contributing nothing. Today none of these
+//      products are consumed elsewhere, but this keeps us correct if a future SDE
+//      starts consuming one of these deprecated types.
+export function buildIndexesFromActivities(
+  rows: { blueprintTypeId: number; activities: BlueprintActivities }[],
+): Indexes {
+  const blueprintMaterials = new Map<number, Material[]>();
+  const productToBlueprint = new Map<
+    number,
+    { blueprintTypeId: number; quantityPerRun: number }
+  >();
+
+  for (const { blueprintTypeId, activities } of rows) {
+    const { mats, prods } = activitiesToRows(blueprintTypeId, activities);
+    const ownProducts = new Set(prods.map((p) => p.productTypeId));
+    const realMaterials = mats
+      .filter((m) => !ownProducts.has(m.materialTypeId)) // correction 1
+      .map((m) => ({ typeId: m.materialTypeId, quantity: m.quantity }));
+    if (realMaterials.length > 0) {
+      blueprintMaterials.set(blueprintTypeId, realMaterials);
+    }
+    // correction 2: had materials, none survived — don't register as a producer
+    const degenerate = mats.length > 0 && realMaterials.length === 0;
+    if (degenerate) continue;
+    for (const p of prods) {
+      if (productToBlueprint.has(p.productTypeId)) continue; // first writer wins
+      productToBlueprint.set(p.productTypeId, {
+        blueprintTypeId,
+        quantityPerRun: p.quantity,
+      });
+    }
+  }
+
+  return { blueprintMaterials, productToBlueprint };
+}
+
 async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
   const rows = await db
     .select({
@@ -199,19 +183,9 @@ async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
       activities: industryBlueprints.activities,
     })
     .from(industryBlueprints);
-
-  const matRows: MaterialRow[] = [];
-  const prodRows: ProductRow[] = [];
-  for (const r of rows) {
-    const { mats, prods } = activitiesToRows(
-      r.blueprintTypeId,
-      r.activities as BlueprintActivities,
-    );
-    matRows.push(...mats);
-    prodRows.push(...prods);
-  }
-
-  return buildIndexesFromRows(matRows, prodRows);
+  return buildIndexesFromActivities(
+    rows as { blueprintTypeId: number; activities: BlueprintActivities }[],
+  );
 }
 
 // How many runs of a producing blueprint a parent's need represents, as a
@@ -549,7 +523,7 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
       treeWritten += treeBatch.length;
     }
 
-    // EVE manufacturing is a strict DAG, and buildIndexesFromRows drops
+    // EVE manufacturing is a strict DAG, and buildIndexesFromActivities drops
     // the known degenerate self-recipes. Any remaining cycle is a novel
     // SDE shape the filter doesn't cover — fail loudly (rolling back the
     // TRUNCATE + writes) rather than silently persisting empty flat
