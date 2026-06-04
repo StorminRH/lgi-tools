@@ -179,15 +179,19 @@ export async function syncGsc(client: Sql): Promise<GscSyncSummary> {
   let urlsInspected = 0;
 
   try {
-    const records: SearchAnalyticsRecord[] = [];
-    for (const pull of SEARCH_PULLS) {
-      const apiRows = await querySearchAnalytics({
-        startDate,
-        endDate,
-        dimensions: pull.apiDimensions,
-      });
-      records.push(...searchRowsToRecords(apiRows, pull.storage, syncedAt));
-    }
+    // The three pulls are independent (same window, different dimensions), so
+    // fetch them concurrently — three queries are trivially within the per-site
+    // QPM budget, and this cuts the search-analytics leg's latency ~3x.
+    const perPull = await Promise.all(
+      SEARCH_PULLS.map(async (pull) =>
+        searchRowsToRecords(
+          await querySearchAnalytics({ startDate, endDate, dimensions: pull.apiDimensions }),
+          pull.storage,
+          syncedAt,
+        ),
+      ),
+    );
+    const records = perPull.flat();
     await upsertSearchAnalytics(db, records);
     searchRows = records.length;
   } catch (err) {

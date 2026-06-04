@@ -632,7 +632,19 @@ async function SeoTab({ range }: { range: DateRange }) {
 
   return (
     <div className="w-full max-w-[1100px] flex flex-col gap-6">
-      <GscSearchConsoleSection range={range} />
+      {/* Own Suspense hole so the external GSC reads stream independently and
+          don't gate the app-owned telemetry cards below (CLAUDE.md: isolate
+          per-request data into <Suspense> holes). */}
+      <Suspense
+        fallback={
+          <Card>
+            <SectionHeader label="Google Search Console" hint="search visibility" />
+            <div className="px-3.5 py-6 text-[11px] font-mono text-muted">Loading…</div>
+          </Card>
+        }
+      >
+        <GscSearchConsoleSection range={range} />
+      </Suspense>
       <Card>
         <SectionHeader label="Traffic source" hint="referred vs direct" />
         <SummaryLine>{searchVsDirectSummary(searchVsDirect)}</SummaryLine>
