@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { MOCK_STRUCTURE } from '../_shared/mock-build';
 import { SandboxHeader, VariantFrame } from '../_shared/sandbox-ui';
 import { DensityTable } from './DensityTable';
@@ -37,8 +38,14 @@ export default function TreesPage() {
         <VariantFrame
           tag="Tree v3"
           title="Flow connectors"
-          notes="SVG node graph, connectors draw themselves in. Most spatial/diagrammatic; needs horizontal scroll and would need a fit-to-width pass for large trees."
+          notes="SVG node graph; click any buildable node to zoom into its build, the breadcrumb zooms back out. Fits the page width and grows downward (no horizontal scroll), so deep capital trees get tall instead of wide."
         >
+          <Link
+            href="/dev/sandbox/trees/flow"
+            className="inline-flex mb-3 text-[10px] tracking-[0.12em] uppercase text-isk hover:underline"
+          >
+            Open explorer — Rifter · Loki · Archon + animation options ▸
+          </Link>
           <FlowConnectors structure={MOCK_STRUCTURE} />
         </VariantFrame>
 
