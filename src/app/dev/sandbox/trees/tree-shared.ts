@@ -3,27 +3,14 @@
 // that nested shape into the flat / laid-out forms each view needs. No React,
 // no DOM — pure data.
 
-import type { Tone } from '@/components/ui/tones';
+import { toneHex } from '@/components/ui/tones';
 import type { BuildNode, BuildNodeDisplay } from '@/features/industry-planner/types';
 
 export type Display = Record<number, BuildNodeDisplay>;
 
-// Tone → hex for the SVG views (flow connectors, radial depth), where colour is
-// a presentation attribute, not a class. Mirrors the Pill text colours.
-export const TONE_HEX: Record<Tone, string> = {
-  neutral: '#6a7a8a',
-  green: '#3dd68c',
-  'green-strong': '#44dd99',
-  orange: '#d68c3d',
-  'orange-soft': '#cc7733',
-  red: '#dd4444',
-  'red-soft': '#cc5555',
-  magenta: '#cc55cc',
-  purple: '#aa55ff',
-  yellow: '#ccaa33',
-  teal: '#33cc88',
-  blue: '#3399cc',
-};
+// The SVG tree views (radial depth, density rows) colour nodes by tone via this
+// shared map — single source of truth in tones.ts.
+export const TONE_HEX = toneHex;
 
 // Buildable items first, then by component-type label, then alphabetical —
 // matching the live BuildCascade ordering so the sandbox reads like the real tool.
