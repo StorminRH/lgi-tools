@@ -411,6 +411,16 @@ async function writeMeta(db: AnyPgDb, key: string, value: string): Promise<void>
     });
 }
 
+// True when blueprint_trees holds at least one row. runIngest truncates the
+// derived tables before the deploy/cron pipeline reaches the resolver, so the
+// hash gate alone is not enough to decide a skip is safe — see resolveAllTrees.
+async function hasResolvedTrees(db: AnyPgDb): Promise<boolean> {
+  const [{ exists }] = await db.execute<{ exists: boolean }>(
+    sql`SELECT EXISTS (SELECT 1 FROM ${blueprintTrees}) AS exists`,
+  );
+  return exists;
+}
+
 // Top-level entry: rebuilds blueprint_trees + blueprint_flat_materials
 // for every row in industry_blueprints. Idempotent — short-circuits
 // when the stored tree-resolver hash matches the current SDE shape.
@@ -422,7 +432,19 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
 
   const hashBefore = await readMeta(db, SDE_META_KEY_TREE_HASH);
   const hashAfter = await computeTreeResolverHash(db);
-  if (!forceRebuild && hashBefore !== null && hashBefore === hashAfter) {
+  // Only honour the skip when the resolved trees are actually still present.
+  // runIngest TRUNCATEs blueprint_trees/blueprint_flat_materials, so on a
+  // re-ingest whose sample-blueprint hash is unchanged (e.g. an SDE
+  // version-marker change with no recipe change) the hash would match while
+  // the tables sit empty — skipping then would leave them empty until the next
+  // forced rebuild. Re-checking presence keeps the no-op deploy path (no
+  // re-ingest, trees intact) fast while never persisting an empty result.
+  if (
+    !forceRebuild &&
+    hashBefore !== null &&
+    hashBefore === hashAfter &&
+    (await hasResolvedTrees(db))
+  ) {
     return {
       blueprintsResolved: 0,
       flatMaterialsWritten: 0,
