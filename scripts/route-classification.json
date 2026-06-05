@@ -44,7 +44,6 @@
     "/api/auth/login": "dynamic",
     "/api/auth/logout": "dynamic",
     "/api/auth/me": "dynamic",
-    "/api/auth/preferences": "dynamic",
     "/api/contact": "dynamic",
     "/api/cron/refresh-gsc": "dynamic",
     "/api/cron/refresh-prices": "dynamic",
