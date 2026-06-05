@@ -197,14 +197,25 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
 
   // One entry per blueprint; prefer the manufacturing product (lower activity
   // id) if a blueprint somehow carries both.
-  const byBlueprint = new Map<number, { name: string; activityId: number }>();
+  const byBlueprint = new Map<
+    number,
+    { name: string; activityId: number; productTypeId: number }
+  >();
   for (const r of rows) {
     const existing = byBlueprint.get(r.blueprintTypeId);
     if (!existing || r.activityId < existing.activityId) {
-      byBlueprint.set(r.blueprintTypeId, { name: r.name, activityId: r.activityId });
+      byBlueprint.set(r.blueprintTypeId, {
+        name: r.name,
+        activityId: r.activityId,
+        productTypeId: r.productTypeId,
+      });
     }
   }
   return [...byBlueprint.entries()]
-    .map(([blueprintTypeId, v]) => ({ blueprintTypeId, name: v.name }))
+    .map(([blueprintTypeId, v]) => ({
+      blueprintTypeId,
+      productTypeId: v.productTypeId,
+      name: v.name,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

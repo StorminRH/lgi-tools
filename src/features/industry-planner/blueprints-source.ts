@@ -56,6 +56,7 @@ export const blueprintsSource: SearchSource = {
       label: entry.name,
       sub: 'Blueprint',
       href: `/industry/${entry.blueprintTypeId}`,
+      typeId: entry.productTypeId,
       iconText: 'BP',
       iconTone: 'tool',
       matchIndices: match.matchIndices,

@@ -11,10 +11,12 @@ const MAX_RECENTS = 10;
 // the dropdown verbatim when the user refocuses an empty input. Storing
 // `kind` lets the dropdown re-tone the icon, while `originKind` records
 // which source produced the row so future cleanup logic can target one
-// kind specifically without parsing strings.
+// kind specifically without parsing strings. `typeId` is kept so a recent
+// row that maps to an EVE type still renders its icon (else it would fall
+// back to the `iconText` glyph it was stored with).
 type StoredRecent = Pick<
   SearchResult,
-  'kind' | 'id' | 'label' | 'sub' | 'href' | 'iconText' | 'iconTone'
+  'kind' | 'id' | 'label' | 'sub' | 'href' | 'iconText' | 'iconTone' | 'typeId'
 >;
 
 function safeStorage(): Storage | null {
@@ -63,6 +65,7 @@ export function pushRecent(result: SearchResult): void {
       href: result.href,
       iconText: result.iconText,
       iconTone: result.iconTone,
+      typeId: result.typeId,
     },
     ...without,
   ].slice(0, MAX_RECENTS);
@@ -96,7 +99,8 @@ function isStoredRecent(value: unknown): value is StoredRecent {
     typeof r.kind === 'string' &&
     typeof r.id === 'string' &&
     typeof r.label === 'string' &&
-    typeof r.href === 'string'
+    typeof r.href === 'string' &&
+    (r.typeId === undefined || typeof r.typeId === 'number')
   );
 }
 

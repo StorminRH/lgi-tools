@@ -2,10 +2,12 @@ import type { Tone } from '@/components/ui/tones';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import type { PriceSource } from '@/data/market-prices/types';
 
-// One searchable blueprint: its type ID and the name of the item it builds.
-// Feeds the lazy Blueprints search source.
+// One searchable blueprint: its own type ID, plus the type ID and name of the
+// item it builds (the product, so the search dropdown can show the product's
+// icon). Feeds the lazy Blueprints search source.
 export interface BlueprintIndexEntry {
   blueprintTypeId: number;
+  productTypeId: number;
   name: string;
 }
 

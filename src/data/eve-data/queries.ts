@@ -245,6 +245,7 @@ export async function getBlueprintOutput(
 export type BlueprintSearchRow = {
   blueprintTypeId: number;
   activityId: number;
+  productTypeId: number;
   name: string;
 };
 
@@ -288,7 +289,12 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
   for (const p of pending) {
     const name = nameById.get(p.productTypeId);
     if (name === undefined) continue; // unpublished product → drop
-    out.push({ blueprintTypeId: p.blueprintTypeId, activityId: p.activityId, name });
+    out.push({
+      blueprintTypeId: p.blueprintTypeId,
+      activityId: p.activityId,
+      productTypeId: p.productTypeId,
+      name,
+    });
   }
   return out;
 }
