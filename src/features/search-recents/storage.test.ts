@@ -141,6 +141,7 @@ describe('search-recents storage', () => {
         { kind: 'site', id: 2, label: 'bad-id-type', href: '/sites/2' },
         null,
         { kind: 'site', label: 'missing-id', href: '/x' },
+        { kind: 'blueprint', id: '3', label: 'bad-typeId', href: '/industry/3', typeId: '587' },
       ]),
     );
     const out = readRecents();

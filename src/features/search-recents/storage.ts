@@ -99,7 +99,8 @@ function isStoredRecent(value: unknown): value is StoredRecent {
     typeof r.kind === 'string' &&
     typeof r.id === 'string' &&
     typeof r.label === 'string' &&
-    typeof r.href === 'string'
+    typeof r.href === 'string' &&
+    (r.typeId === undefined || typeof r.typeId === 'number')
   );
 }
 
