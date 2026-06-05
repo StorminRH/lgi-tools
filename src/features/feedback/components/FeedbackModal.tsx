@@ -67,11 +67,18 @@ export function FeedbackModal({
         body: JSON.stringify({ message, path }),
       });
       if (!response.ok) {
-        const text = await response.text();
-        setState({
-          kind: 'error',
-          message: text || 'Something went wrong sending your feedback. Try again.',
-        });
+        // Gate on status so users never see a raw error body. 400 carries a
+        // human-readable validation detail; 429/5xx get a friendly line each
+        // (the rate-limit/server bodies are JSON, not display copy).
+        let message: string;
+        if (response.status === 400) {
+          message = (await response.text()) || 'Please check your message and try again.';
+        } else if (response.status === 429) {
+          message = 'Too much feedback too fast — please wait a minute and try again.';
+        } else {
+          message = 'Something went wrong sending your feedback. Try again.';
+        }
+        setState({ kind: 'error', message });
         return;
       }
       setState({ kind: 'success' });
