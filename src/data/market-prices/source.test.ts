@@ -379,6 +379,41 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith(ids);
   });
 
+  it('keeps streaming when a later page carries a malformed UNTRACKED order', async () => {
+    // The pre-Zod skim drops untracked orders before validation, so a
+    // malformed order for a type we don't track no longer aborts the whole
+    // bulk attempt — only tracked types stay contract-checked. Page 1 is the
+    // full shape probe; the garbage rides page 2.
+    vi.mocked(esiFetch).mockImplementation(async (url) => {
+      const page = Number(/page=(\d+)/.exec(url)?.[1] ?? '1');
+      if (page === 1) {
+        return ordersResponse(
+          [{ type_id: 1000, is_buy_order: true, price: 50, volume_remain: 10 }],
+          '2',
+        );
+      }
+      // Page 2: a valid tracked order plus a malformed untracked one (price is
+      // a string — it would trip Zod if the skim ever let it reach the parser).
+      return new Response(
+        JSON.stringify([
+          { type_id: 1001, is_buy_order: false, price: 200, volume_remain: 5 },
+          { type_id: 9999, is_buy_order: true, price: 'not-a-number', volume_remain: 1 },
+        ]),
+        { status: 200, headers: { 'X-Pages': '2' } },
+      );
+    });
+
+    const { prices: result } = await fetchPricesFromSource(bulkTypeIds());
+
+    // Bulk succeeded (no Fuzzwork fallback) and both tracked types aggregated;
+    // the malformed untracked type produced no row.
+    expect(result.every((r) => r.source === 'esi')).toBe(true);
+    expect(result.find((r) => r.typeId === 1000)!.bestBuy).toBe(50);
+    expect(result.find((r) => r.typeId === 1001)!.bestSell).toBe(200);
+    expect(result.find((r) => r.typeId === 9999)).toBeUndefined();
+    expect(vi.mocked(fetchPricesFromFuzzwork)).not.toHaveBeenCalled();
+  });
+
   it('falls back to Fuzzwork when ESI bulk returns a 4xx (non-array body)', async () => {
     // `esiFetch` passes 4xx through as a non-ok Response whose JSON body
     // is an error object, not an array. Without the explicit res.ok
