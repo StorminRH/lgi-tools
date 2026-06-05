@@ -81,7 +81,7 @@ export function SiteCard({
                     'est. loot'
                   ) : killingWaveIsk ? (
                     <>
-                      +<span className="text-[#4a7860]">{formatIskHeader(killingWaveIsk).replace(' ISK', '')}</span> blue loot
+                      +<span className="text-isk-sub">{formatIskHeader(killingWaveIsk).replace(' ISK', '')}</span> blue loot
                     </>
                   ) : (
                     'no blue loot'
