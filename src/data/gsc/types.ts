@@ -114,9 +114,3 @@ export interface GscUrlStatus {
   coverageState: string | null;
   lastCrawlTime: Date | null;
 }
-
-// Drives the "data as of" caption / "not connected" empty state.
-export interface GscStatus {
-  configured: boolean;
-  lastSyncedAt: Date | null;
-}

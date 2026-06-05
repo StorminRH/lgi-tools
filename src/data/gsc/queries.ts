@@ -1,12 +1,10 @@
 import { and, between, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { isGscConfigured } from './constants';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
   GscDailyPoint,
   GscRange,
   GscSitemapStatus,
-  GscStatus,
   GscTermStat,
   GscTotals,
   GscUrlStatus,
@@ -155,11 +153,12 @@ export async function getUrlInspection(): Promise<GscUrlStatus[]> {
   }));
 }
 
-// Drives the "data as of" caption / "not connected" empty state.
-export async function getGscStatus(): Promise<GscStatus> {
-  if (!isGscConfigured()) return { configured: false, lastSyncedAt: null };
+// Latest sync time across the stored rows — the "data as of" caption (null when
+// nothing has synced yet). The dashboard gates the GSC cards on isGscConfigured()
+// (env-only) before calling this, so it fans this out alongside the data reads.
+export async function getLastSyncedAt(): Promise<Date | null> {
   const [row] = await db
     .select({ lastSyncedAt: sql<Date | null>`max(${gscSearchAnalytics.syncedAt})` })
     .from(gscSearchAnalytics);
-  return { configured: true, lastSyncedAt: row?.lastSyncedAt ?? null };
+  return row?.lastSyncedAt ?? null;
 }

@@ -5,8 +5,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
+import { isGscConfigured } from '@/data/gsc/constants';
 import {
-  getGscStatus,
+  getLastSyncedAt,
   getSearchTotals,
   getSearchTrend,
   getSitemapStatus,
@@ -463,8 +464,8 @@ function GscUrlRow({ url }: { url: GscUrlStatus }) {
 // The search-visibility half of the SEO tab. Reads only the stored GSC
 // snapshot; renders a "not connected" note when the sync isn't configured.
 async function GscSearchConsoleSection({ range }: { range: DateRange }) {
-  const status = await getGscStatus();
-  if (!status.configured) {
+  // Env-only gate — no DB work when the sync isn't configured.
+  if (!isGscConfigured()) {
     return (
       <Card>
         <SectionHeader label="Google Search Console" hint="search visibility" />
@@ -476,7 +477,9 @@ async function GscSearchConsoleSection({ range }: { range: DateRange }) {
     );
   }
 
-  const [totals, trend, topQueries, topPages, sitemaps, urls] = await Promise.all([
+  // lastSyncedAt is independent of the data reads, so fan all seven out together.
+  const [lastSyncedAt, totals, trend, topQueries, topPages, sitemaps, urls] = await Promise.all([
+    getLastSyncedAt(),
     getSearchTotals(range),
     getSearchTrend(range),
     getTopQueries(range, 10),
@@ -499,7 +502,7 @@ async function GscSearchConsoleSection({ range }: { range: DateRange }) {
   );
   const topQueriesMax = topQueries.reduce((m, q) => Math.max(m, q.clicks), 0);
   const topPagesMax = topPages.reduce((m, p) => Math.max(m, p.clicks), 0);
-  const asOf = status.lastSyncedAt ? `${formatDateTime(status.lastSyncedAt)} UTC` : 'never';
+  const asOf = lastSyncedAt ? `${formatDateTime(lastSyncedAt)} UTC` : 'never';
 
   return (
     <>
