@@ -148,7 +148,11 @@ export async function getBlueprintPricing(
 ): Promise<BlueprintPricing | null> {
   'use cache';
   cacheLife('hours');
-  cacheTag(PRICES_FRESHNESS_TAG);
+  // Tagged with BOTH freshness signals: this snapshot embeds the blueprint
+  // structure (via getBlueprintStructure), so a no-deploy SDE re-ingest that
+  // busts the structure tag must invalidate this seed too, or its embedded
+  // structure would go stale until the prices tag next fires.
+  cacheTag(PRICES_FRESHNESS_TAG, BLUEPRINT_STRUCTURE_TAG);
 
   const structure = await getBlueprintStructure(blueprintId); // cache hit — no extra DB
   if (!structure) return null;
