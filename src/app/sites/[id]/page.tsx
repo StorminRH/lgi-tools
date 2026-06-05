@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
+import { cache, Suspense } from 'react';
 import { JsonLd } from '@/components/JsonLd';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';
@@ -12,6 +12,11 @@ import {
   getSiteSearchIndex,
 } from '@/features/wormhole-sites/queries';
 import type { SiteDetail } from '@/features/wormhole-sites/types';
+
+// generateMetadata and the page body both need the priced site; React cache()
+// collapses them to one lookup per request (the underlying read is already
+// 'use cache'-backed, so this only dedupes within the render pass).
+const loadSite = cache(getPricedSiteDetail);
 
 const SITE_TYPE_LABEL: Record<string, string> = {
   combat: 'Combat',
@@ -75,7 +80,7 @@ export async function generateMetadata({
   // Use the priced read (same hourly-tagged cache the page body uses) so the
   // ISK in the description matches the page and its "live Jita prices" claim,
   // rather than freezing at the deploy-time structural snapshot.
-  const site = await getPricedSiteDetail(id);
+  const site = await loadSite(id);
   if (!site) return {};
 
   const typeLabel = SITE_TYPE_LABEL[site.siteType] ?? site.siteType;
@@ -176,7 +181,7 @@ export default async function SiteDetailPage({
   const id = Number.parseInt(rawId, 10);
   if (!Number.isFinite(id)) notFound();
 
-  const site = await getPricedSiteDetail(id);
+  const site = await loadSite(id);
   if (!site) notFound();
 
   const breadcrumbJsonLd = {
