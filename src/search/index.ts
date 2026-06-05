@@ -22,9 +22,9 @@
 //  - Side-effects: rows that need to do something other than navigate
 //    expose an `onSelect(router)` callback. The component calls it
 //    instead of `router.push(href)`.
-//  - Lazy loading: large indexes (e.g. the future Blueprints source) can
-//    register via `registerLazySearchSource`, which memoizes the dynamic
-//    import so the cost only lands on the user's first matching keystroke.
+//  - Lazy loading: large indexes (e.g. the Blueprints source) are registered
+//    via `registerLazySearchSource`, which memoizes the dynamic import so the
+//    cost only lands on the user's first matching keystroke.
 
 import type { useRouter } from 'next/navigation';
 import type { Session } from '@/features/auth/types';
@@ -106,13 +106,19 @@ export function registerSearchSource(source: SearchSource): void {
 // keystrokes reuse the resolved SearchSource without re-importing the
 // underlying module.
 //
-// Example consumer (lands in 3.0.5 with the Blueprints source):
+// Example consumer (see src/features/industry-planner/search.ts): the feature
+// slice exports a LazySearchSource descriptor and the wiring manifest registers
+// it from above —
 //
-//   registerLazySearchSource({
+//   // in the slice:
+//   export const blueprintsSearchSource: LazySearchSource = {
 //     name: 'Blueprints',
 //     limit: 6,
 //     load: () => import('./blueprints-source').then((m) => m.blueprintsSource),
-//   });
+//   };
+//
+//   // in src/search/register-all.ts:
+//   registerLazySearchSource(blueprintsSearchSource);
 //
 // The wrapper presents the same SearchSource shape as a static source
 // to the dispatcher, so `searchAll` doesn't need to know lazy sources
