@@ -51,6 +51,36 @@ describe('search-recents storage', () => {
     expect(out[0].originKind).toBe('site');
   });
 
+  it('preserves a typeId so a recent EVE-type row keeps its icon', () => {
+    pushRecent({
+      kind: 'blueprint',
+      id: 'blueprint:691',
+      label: 'Rifter',
+      sub: 'Blueprint',
+      href: '/industry/691',
+      typeId: 587,
+      iconText: 'BP',
+      iconTone: 'tool',
+    });
+    const out = readRecents();
+    expect(out).toHaveLength(1);
+    expect(out[0].typeId).toBe(587);
+    expect(out[0].originKind).toBe('blueprint');
+  });
+
+  it('reads pre-typeId stored entries without inventing a typeId', () => {
+    window.localStorage.setItem(
+      __TEST_ONLY__.STORAGE_KEY,
+      JSON.stringify([
+        { kind: 'blueprint', id: 'blueprint:1', label: 'old', href: '/industry/1', iconText: 'BP' },
+      ]),
+    );
+    const out = readRecents();
+    expect(out).toHaveLength(1);
+    expect(out[0].typeId).toBeUndefined();
+    expect(out[0].iconText).toBe('BP');
+  });
+
   it('floats the most recently pushed entry to the top', () => {
     pushRecent(row('1', 'one'));
     pushRecent(row('2', 'two'));

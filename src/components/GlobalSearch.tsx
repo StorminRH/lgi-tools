@@ -23,6 +23,7 @@ import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { readRecents, pushRecent } from '@/features/search-recents/storage';
 import { useAuth } from '@/features/auth/components/AuthProvider';
+import { TypeIcon } from '@/components/ui/type-icon';
 
 type Props = {
   active: boolean;
@@ -222,7 +223,15 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
                           fireResult(row);
                         }}
                       >
-                        <span className={`dd-icon ${row.iconTone ?? ''}`}>{row.iconText}</span>
+                        {row.typeId ? (
+                          <TypeIcon
+                            typeId={row.typeId}
+                            size={22}
+                            mono={row.iconText ?? row.label.slice(0, 2)}
+                          />
+                        ) : (
+                          <span className={`dd-icon ${row.iconTone ?? ''}`}>{row.iconText}</span>
+                        )}
                         <span className="dd-name">
                           {renderLabel(row.label, row.matchIndices)}
                         </span>

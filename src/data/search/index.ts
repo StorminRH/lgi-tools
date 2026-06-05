@@ -36,6 +36,12 @@ export type SearchResult = {
   href: string;
   iconText?: string;
   iconTone?: string;
+  // EVE type ID of the item this row represents. When present, the dropdown
+  // renders the type's icon via <TypeIcon> (falling back to the `iconText`
+  // glyph on a 404); when absent, it shows the `iconText` glyph. Only sources
+  // whose rows map to a real EVE type set this (blueprints → the product they
+  // build) — tools, commands, and sites leave it unset.
+  typeId?: number;
   // Only set on rows produced by `readRecents()` — preserves the source
   // `kind` from before the row was relabeled to `kind: 'recent'`, so the
   // dropdown can re-tone or future cleanup can filter by origin.

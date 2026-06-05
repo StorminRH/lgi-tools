@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-06-04
 
+- Search results now show the real in-game item icon for blueprints — the icon of the item each blueprint builds — instead of a flat "BP" label, matching the icons used across the planner. Recently-searched blueprints keep their icon too.
 - Blueprint costs and material lists in the Industry Planner now come straight from CCP's official game data, refreshed to the current build. Most visibly, capital ship recipes reflect recent rebalances — carriers and other capitals need fewer components than before, lowering their material totals.
 
 ### 2026-06-03
