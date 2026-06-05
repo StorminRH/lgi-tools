@@ -128,7 +128,12 @@ async function AdminContent({
   ]);
 
   const adminIds = new Set(adminRows.map(r => r.character.characterId));
-  const nonAdminMatches = searchResults.filter(c => !adminIds.has(c.characterId));
+  // searchCharactersByName fetches one row past the cap as a truncation probe;
+  // a full extra row means the match set was cut off (not naturally cap-sized).
+  const searchTruncated = searchResults.length > CHARACTER_SEARCH_LIMIT;
+  const nonAdminMatches = searchResults
+    .slice(0, CHARACTER_SEARCH_LIMIT)
+    .filter(c => !adminIds.has(c.characterId));
 
   return (
     <>
@@ -197,7 +202,7 @@ async function AdminContent({
               label="Search results"
               hint={
                 `${nonAdminMatches.length} match${nonAdminMatches.length === 1 ? '' : 'es'}` +
-                (searchResults.length === CHARACTER_SEARCH_LIMIT
+                (searchTruncated
                   ? ` · showing first ${CHARACTER_SEARCH_LIMIT}, narrow your search`
                   : '')
               }

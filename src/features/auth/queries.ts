@@ -56,13 +56,17 @@ export async function listAdminCharacters(): Promise<Character[]> {
   return rows as Character[];
 }
 
-// Cap on rows the admin name search returns. A 1-char query matches a large
-// fraction of the table, which only grows; bound it and let the dashboard hint
-// when the cap is hit. Exported so the UI can show "showing first N".
+// Cap on rows the admin name search displays. A 1-char query matches a large
+// fraction of the table, which only grows; bound the display and let the
+// dashboard hint when there's more. Exported so the UI can show "showing first N".
 export const CHARACTER_SEARCH_LIMIT = 50;
 
 // Substring ILIKE search by name. Empty/whitespace-only queries short-circuit
-// to [] so the dashboard's empty-q view doesn't fetch the world.
+// to [] so the dashboard's empty-q view doesn't fetch the world. Fetches ONE
+// row past the display cap as a truncation probe: a caller that gets back
+// CHARACTER_SEARCH_LIMIT + 1 rows knows the result was cut off (vs a result
+// that just happens to be exactly the cap), so the "showing first N" hint
+// can't false-positive on a naturally cap-sized match set.
 export async function searchCharactersByName(query: string): Promise<Character[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
@@ -72,7 +76,7 @@ export async function searchCharactersByName(query: string): Promise<Character[]
     .from(characters)
     .where(ilike(characters.name, `%${trimmed}%`))
     .orderBy(asc(characters.name))
-    .limit(CHARACTER_SEARCH_LIMIT);
+    .limit(CHARACTER_SEARCH_LIMIT + 1);
 
   return rows as Character[];
 }
