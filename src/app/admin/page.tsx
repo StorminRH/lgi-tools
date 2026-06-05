@@ -16,17 +16,16 @@ import {
 } from '@/features/auth/queries';
 import { getSession, isAdmin } from '@/features/auth/session';
 import type { Character } from '@/features/auth/types';
+import { sanitiseUserText } from '@/lib/sanitise';
 
 const MAX_QUERY_LENGTH = 200;
-const CONTROL_CHARS = /\p{C}/gu;
 
 // Strip control chars + truncate. Returns undefined for empty / clearly
 // malformed input so the page falls back to the empty-q view.
 function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   if (typeof raw !== 'string') return undefined;
-  const cleaned = raw.replace(CONTROL_CHARS, '').trim();
-  if (cleaned.length === 0) return undefined;
-  return cleaned.slice(0, MAX_QUERY_LENGTH);
+  const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
+  return cleaned.length === 0 ? undefined : cleaned;
 }
 
 // Build the Admins list shown above the search results. Includes the env
