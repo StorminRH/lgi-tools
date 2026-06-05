@@ -4,8 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Pill } from '@/components/ui/pill';
 import type { Session } from '@/features/auth/types';
-
-const MAX_MESSAGE_LENGTH = 2000;
+import { FEEDBACK_MESSAGE_MAX_LENGTH } from '../constants';
 
 type SubmitState =
   | { kind: 'idle' }
@@ -84,7 +83,7 @@ export function FeedbackModal({
     }
   }
 
-  const charsLeft = MAX_MESSAGE_LENGTH - message.length;
+  const charsLeft = FEEDBACK_MESSAGE_MAX_LENGTH - message.length;
   const disabled = state.kind === 'submitting';
 
   return (
@@ -138,7 +137,7 @@ export function FeedbackModal({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 disabled={disabled}
-                maxLength={MAX_MESSAGE_LENGTH}
+                maxLength={FEEDBACK_MESSAGE_MAX_LENGTH}
                 placeholder="What's broken, missing, or weird? The more specific the better."
                 rows={6}
                 className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 resize-none focus:outline-none focus:border-[#2a3550] disabled:opacity-50"
