@@ -1,7 +1,7 @@
 'use client';
 
 // The in-nav global search component. Spotlight-style cross-source navigator
-// that consumes the registry in `src/data/search/`. Owns:
+// that consumes the registry in `src/search/`. Owns:
 //
 //   - the 280px → 440px width animation on focus
 //   - the categorized dropdown (Sites / Tools / Commands / Recent)
@@ -18,7 +18,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchAll, type SearchResult, type SearchSection } from '@/data/search';
+import { searchAll, type SearchResult, type SearchSection } from '@/search';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { readRecents, pushRecent } from '@/features/search-recents/storage';

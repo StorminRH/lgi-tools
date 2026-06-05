@@ -9,9 +9,8 @@
 // hard-navigates to the OAuth endpoint (router.push can't reach the SSO
 // redirect chain).
 
-import { registerSearchSource } from '@/data/search';
-import type { AppRouterInstance, SearchContext, SearchResult } from '@/data/search';
-import { fuzzyMatch } from '@/data/search/match';
+import type { AppRouterInstance, SearchContext, SearchResult, SearchSource } from '@/search';
+import { fuzzyMatch } from '@/search/match';
 
 type CommandEntry = {
   id: string;
@@ -84,7 +83,7 @@ const COMMANDS: CommandEntry[] = [
   },
 ];
 
-registerSearchSource({
+export const commandsSearchSource: SearchSource = {
   name: 'Commands',
   limit: 5,
   async search(query, ctx) {
@@ -107,4 +106,4 @@ registerSearchSource({
       onSelect: cmd.onSelect,
     }));
   },
-});
+};

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { SearchResult } from '@/data/search';
+import type { SearchResult } from '@/search';
 
 // vitest runs in node by default — shim a minimal in-memory localStorage so
 // the storage helpers (which guard on `typeof window`) operate. Imports of

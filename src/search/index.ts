@@ -1,8 +1,11 @@
-// Cross-source search registry. Slice-agnostic primitive that the in-nav
-// GlobalSearch component consumes. Feature slices register their searchable
-// surface (sites, tools, commands, future blueprints, etc.) by importing
-// `registerSearchSource` and calling it at module load. The registry then
-// dispatches a single user query across every registered source in parallel.
+// Cross-source search registry. Slice-agnostic engine that the in-nav
+// GlobalSearch component consumes. Each searchable surface (sites, tools,
+// commands, blueprints, recents) exports a SearchSource value from its own
+// slice; the wiring manifest in ./register-all PULLS those values and
+// registers them here — composition above the slices (the src/db/sde-pipeline.ts
+// pattern), so no slice has to reach across a boundary to register itself. The
+// registry then dispatches a single user query across every registered source
+// in parallel.
 //
 // Design contract:
 //  - Sources are async even when their work is sync, so future large/lazy
@@ -81,6 +84,17 @@ export type SearchSource = {
   showOnEmpty?: boolean;
 };
 
+// Descriptor for a lazily-loaded source. Same metadata as a SearchSource
+// minus the matcher, which arrives via the memoized `load()` import. The
+// industry-planner Blueprints source exports one of these for the manifest
+// to hand to `registerLazySearchSource`.
+export type LazySearchSource = {
+  name: string;
+  limit?: number;
+  showOnEmpty?: boolean;
+  load: () => Promise<SearchSource>;
+};
+
 const sources: SearchSource[] = [];
 
 export function registerSearchSource(source: SearchSource): void {
@@ -105,12 +119,7 @@ export function registerSearchSource(source: SearchSource): void {
 // exist. The signal check between `await load()` and `await
 // resolved.search(...)` means a cancelled query doesn't waste a freshly-
 // loaded module's first call.
-export function registerLazySearchSource(meta: {
-  name: string;
-  limit?: number;
-  showOnEmpty?: boolean;
-  load: () => Promise<SearchSource>;
-}): void {
+export function registerLazySearchSource(meta: LazySearchSource): void {
   let loadPromise: Promise<SearchSource> | null = null;
 
   registerSearchSource({

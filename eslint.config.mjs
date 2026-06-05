@@ -74,7 +74,7 @@ const eslintConfig = defineConfig([
         {
           default: "disallow",
           message:
-            "Architectural boundary violation. Allowed import directions: feature → {ui, data, auth shared surface}; data → {auth shared surface, the search registry hub}; ui → nothing cross-layer. Features never import each other; data slices never import features; eve-data and market-prices stay isolated (compose from above, e.g. src/db/sde-pipeline.ts). See CLAUDE.md > Architecture Invariants.",
+            "Architectural boundary violation. Allowed import directions: feature → {ui, data, auth shared surface}; data → {auth shared surface}; ui → nothing cross-layer. Features never import each other; data slices never import features; eve-data and market-prices stay isolated (compose from above, e.g. src/db/sde-pipeline.ts). See CLAUDE.md > Architecture Invariants.",
           rules: [
             // The shared surface's type file references its own schema file.
             { from: { type: "shared-auth-surface" }, allow: [{ to: { type: "shared-auth-surface" } }] },
@@ -90,15 +90,16 @@ const eslintConfig = defineConfig([
                 { to: { type: "shared-auth-surface" } },
               ],
             },
-            // Data slices may use auth's shared surface and the slice-agnostic
-            // `search` registry hub (tools/commands register sources into it).
+            // Data slices may use auth's shared surface — nothing else cross-layer.
             // No `feature` in the allow-list ⇒ data ↛ features. No general
-            // data → data ⇒ eve-data ⊥ market-prices holds automatically.
+            // data → data ⇒ eve-data ⊥ market-prices holds automatically. (The
+            // search engine lives in the unclassified src/search/ layer, so data
+            // sources importing its types/matcher trip no rule and need no
+            // exception — the wiring manifest composes them from above.)
             {
               from: { type: "data" },
               allow: [
                 { to: { type: "shared-auth-surface" } },
-                { to: { type: "data", captured: { sliceName: "search" } } },
               ],
             },
             // npc-stats reads SDE attributes from eve-data — directed layering,

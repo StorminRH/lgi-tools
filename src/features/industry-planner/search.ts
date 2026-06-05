@@ -1,12 +1,13 @@
-// Registers the Blueprints search source. Lazy: the registry memoizes the
+// The Blueprints search source descriptor. Lazy: the registry memoizes the
 // dynamic import of ./blueprints-source so its matcher + fetched index only load
-// on the user's first matching keystroke, never in the initial bundle. This is
-// the first consumer of registerLazySearchSource (added in 3.0.1).
+// on the user's first matching keystroke, never in the initial bundle. The
+// wiring manifest (src/search/register-all) passes this to
+// registerLazySearchSource.
 
-import { registerLazySearchSource } from '@/data/search';
+import type { LazySearchSource } from '@/search';
 
-registerLazySearchSource({
+export const blueprintsSearchSource: LazySearchSource = {
   name: 'Blueprints',
   limit: 6,
   load: () => import('./blueprints-source').then((m) => m.blueprintsSource),
-});
+};

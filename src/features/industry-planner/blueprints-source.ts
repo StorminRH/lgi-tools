@@ -4,8 +4,8 @@
 // blueprint keystroke. The index is fetched once from /api/industry/blueprints
 // and memoized for the session.
 
-import type { SearchResult, SearchSource } from '@/data/search';
-import { fuzzyMatch, type FuzzyMatch } from '@/data/search/match';
+import type { SearchResult, SearchSource } from '@/search';
+import { fuzzyMatch, type FuzzyMatch } from '@/search/match';
 import type { BlueprintIndexEntry } from './types';
 
 // Cap the rows handed back per keystroke; the registry caps again at the
