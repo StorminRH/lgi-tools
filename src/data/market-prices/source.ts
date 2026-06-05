@@ -12,6 +12,7 @@ import {
   EsiServerError,
   esiFetch,
 } from './esi-budget';
+import { dedupe } from '@/lib/array';
 import { fetchPricesFromFuzzwork } from './source-fallback';
 import type { RawMarketPrice } from './types';
 
@@ -66,10 +67,6 @@ interface OrderEntry {
 interface OrderBucket {
   buyOrders: OrderEntry[];
   sellOrders: OrderEntry[];
-}
-
-function dedupe(ids: number[]): number[] {
-  return Array.from(new Set(ids));
 }
 
 // Bounded-concurrency worker pool. Workers pull from a shared index until

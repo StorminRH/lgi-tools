@@ -11,6 +11,7 @@ import {
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getPrices } from '@/data/market-prices/queries';
+import { dedupe } from '@/lib/array';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
@@ -28,10 +29,6 @@ import type {
 // eve-data, market-prices, and industry-math data slices — the one place
 // allowed to join them (feature → data is permitted; data ⊥ data is not). The
 // pure margin math lives in industry-math; everything here is glue + caching.
-
-function uniq(ids: number[]): number[] {
-  return [...new Set(ids)];
-}
 
 // Every type ID referenced anywhere in the nested tree (for labelling nodes).
 function collectTreeTypeIds(nodes: TreeNode[], acc: number[] = []): number[] {
@@ -77,7 +74,7 @@ export async function getBlueprintStructure(
   ]);
   const tree = treeResult?.treeJson ?? [];
 
-  const labelIds = uniq([
+  const labelIds = dedupe([
     chosen.productTypeId,
     ...flat.map((f) => f.rawMaterialTypeId),
     ...collectTreeTypeIds(tree),
@@ -161,7 +158,7 @@ export async function getBlueprintPricing(
   // shown in the cascade. Intermediates are priced only to badge confidence on
   // their rows (build-vs-buy hint) — they're never summed into cost. Still ONE
   // batched query across the whole set.
-  const priceIds = uniq([
+  const priceIds = dedupe([
     ...structure.flatMaterials.map((m) => m.typeId),
     structure.product.typeId,
     ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
