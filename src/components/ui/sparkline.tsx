@@ -6,7 +6,7 @@ import { scaleLinear } from '@visx/scale';
 import { useTooltip } from '@visx/tooltip';
 import { localPoint } from '@visx/event';
 import { cn } from './cn';
-import type { Tone } from './tones';
+import { toneHex, type Tone } from './tones';
 
 /**
  * Compact line chart ("sparkline") for a small ordered series — a price
@@ -27,22 +27,12 @@ import type { Tone } from './tones';
 
 // The viz tones this primitive blesses. A curated subset of the shared
 // vocabulary — saturated families that read as a single line on the dark
-// surface. Stroke hexes mirror the text colors in pill.tsx so the palette
-// stays consistent.
+// surface. The hexes come from the canonical `toneHex` map (tones.ts); this
+// only narrows which tones a chart accepts.
 export type SparklineTone = Extract<
   Tone,
   'green' | 'orange' | 'red' | 'blue' | 'purple' | 'teal'
 >;
-
-// Shared with bar-chart.tsx so the two viz primitives draw from one palette.
-export const TONE_STROKE: Record<SparklineTone, string> = {
-  green: '#3dd68c',
-  orange: '#d68c3d',
-  red: '#dd4444',
-  blue: '#3399cc',
-  purple: '#aa55ff',
-  teal: '#33cc88',
-};
 
 export type SparklinePoint = { x: number; y: number };
 
@@ -133,7 +123,7 @@ export function Sparkline({
     tooltipRef.current?.style.setProperty('--tt-y', `${tooltipTop}px`);
   }, [tooltipLeft, tooltipTop, tooltipOpen]);
 
-  const stroke = TONE_STROKE[tone];
+  const stroke = toneHex[tone];
 
   if (data.length === 0) return null;
 
