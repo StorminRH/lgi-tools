@@ -2,9 +2,20 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Pill } from '@/components/ui/pill';
+import { Pill, type PillTone } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
+import { isGscConfigured } from '@/data/gsc/constants';
+import {
+  getLastSyncedAt,
+  getSearchTotals,
+  getSearchTrend,
+  getSitemapStatus,
+  getTopPages as getGscTopPages,
+  getTopQueries,
+  getUrlInspection,
+} from '@/data/gsc/queries';
+import type { GscSitemapStatus, GscTermStat, GscUrlStatus } from '@/data/gsc/types';
 import {
   budgetSummary,
   cronHealthSummary,
@@ -375,6 +386,218 @@ async function HealthTab({ range }: { range: DateRange }) {
   );
 }
 
+// ── Google Search Console (3.3.3) ───────────────────────────────────────
+// Search-visibility data Google owns, pulled by the daily cron into our own
+// tables and read here from the stored snapshot only (zero Google calls on
+// load). Tone leans blue/teal/purple to set it apart from the app-owned
+// green/orange telemetry.
+
+function verdictTone(verdict: string | null): PillTone {
+  switch (verdict) {
+    case 'PASS':
+      return 'green';
+    case 'PARTIAL':
+      return 'orange';
+    case 'FAIL':
+      return 'red';
+    default:
+      return 'neutral';
+  }
+}
+
+// A top query or page: term + clicks bar + a secondary impressions/CTR/pos line.
+function GscTermRow({ term, max }: { term: GscTermStat; max: number }) {
+  const pct = max === 0 ? 0 : Math.max(2, Math.round((term.clicks / max) * 100));
+  return (
+    <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
+      <div className="flex items-center justify-between mb-1">
+        <span className="font-mono text-[11px] text-text break-all">{term.key}</span>
+        <span className="font-mono text-[10px] text-muted tabular-nums shrink-0 ml-3">
+          {term.clicks.toLocaleString()} clk
+        </span>
+      </div>
+      <ProgressBar pct={pct} />
+      <div className="mt-1 font-mono text-[10px] text-muted tabular-nums">
+        {term.impressions.toLocaleString()} impr · {(term.ctr * 100).toFixed(1)}% CTR · pos{' '}
+        {term.position.toFixed(1)}
+      </div>
+    </div>
+  );
+}
+
+function GscSitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
+  return (
+    <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
+      <div className="flex items-center justify-between mb-1">
+        <span className="font-mono text-[11px] text-text break-all">{sitemap.path}</span>
+        <span className="font-mono text-[10px] text-muted tabular-nums shrink-0 ml-3">
+          {sitemap.indexed.toLocaleString()} / {sitemap.submitted.toLocaleString()} indexed
+        </span>
+      </div>
+      <div className="font-mono text-[10px] text-muted">
+        {sitemap.submitted === 0
+          ? 'no URLs submitted'
+          : `${pctLabel(sitemap.indexed, sitemap.submitted)} coverage`}{' '}
+        · {sitemap.errors} errors · {sitemap.warnings} warnings
+        {sitemap.lastDownloaded ? ` · crawled ${formatDate(sitemap.lastDownloaded)}` : ''}
+        {sitemap.isPending ? ' · pending' : ''}
+      </div>
+    </div>
+  );
+}
+
+function GscUrlRow({ url }: { url: GscUrlStatus }) {
+  return (
+    <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <span className="font-mono text-[11px] text-text break-all">{url.url}</span>
+        {url.verdict ? <Pill tone={verdictTone(url.verdict)}>{url.verdict}</Pill> : null}
+      </div>
+      <div className="font-mono text-[10px] text-muted">
+        {url.coverageState ?? 'unknown'}
+        {url.lastCrawlTime ? ` · crawled ${formatDate(url.lastCrawlTime)}` : ''}
+      </div>
+    </div>
+  );
+}
+
+// The search-visibility half of the SEO tab. Reads only the stored GSC
+// snapshot; renders a "not connected" note when the sync isn't configured.
+async function GscSearchConsoleSection({ range }: { range: DateRange }) {
+  // Env-only gate — no DB work when the sync isn't configured.
+  if (!isGscConfigured()) {
+    return (
+      <Card>
+        <SectionHeader label="Google Search Console" hint="search visibility" />
+        <EmptyState>
+          Google Search Console not connected — set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync
+          search-visibility data.
+        </EmptyState>
+      </Card>
+    );
+  }
+
+  // lastSyncedAt is independent of the data reads, so fan all seven out together.
+  const [lastSyncedAt, totals, trend, topQueries, topPages, sitemaps, urls] = await Promise.all([
+    getLastSyncedAt(),
+    getSearchTotals(range),
+    getSearchTrend(range),
+    getTopQueries(range, 10),
+    getGscTopPages(range, 10),
+    getSitemapStatus(),
+    getUrlInspection(),
+  ]);
+
+  const impressionsTrend = trendSeries(
+    trend.map((d) => d.day),
+    trend.map((d) => d.impressions),
+  );
+  const clicksTrend = trendSeries(
+    trend.map((d) => d.day),
+    trend.map((d) => d.clicks),
+  );
+  const positionTrend = trendSeries(
+    trend.map((d) => d.day),
+    trend.map((d) => Math.round(d.position * 10) / 10),
+  );
+  const topQueriesMax = topQueries.reduce((m, q) => Math.max(m, q.clicks), 0);
+  const topPagesMax = topPages.reduce((m, p) => Math.max(m, p.clicks), 0);
+  const asOf = lastSyncedAt ? `${formatDateTime(lastSyncedAt)} UTC` : 'never';
+
+  return (
+    <>
+      <Card>
+        <SectionHeader label="Search performance" hint="Google Search Console" />
+        <SummaryLine>Google data lags ~2–3 days · last synced {asOf}</SummaryLine>
+        {trend.length === 0 ? (
+          <EmptyState>No Search Console data synced yet for this range.</EmptyState>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border-soft">
+              <MetricHeadline label="Impressions" value={totals.impressions.toLocaleString()} />
+              <MetricHeadline label="Clicks" value={totals.clicks.toLocaleString()} />
+              <MetricHeadline label="CTR" value={`${(totals.ctr * 100).toFixed(1)}%`} />
+              <MetricHeadline label="Avg position" value={totals.position.toFixed(1)} />
+            </div>
+            <div className="px-3.5 py-3">
+              <div className="text-[9px] tracking-[0.16em] uppercase text-muted mb-2">
+                Impressions / day
+              </div>
+              <TrendChart
+                points={impressionsTrend.points}
+                labels={impressionsTrend.labels}
+                unit="count"
+                tone="blue"
+                ariaLabel="Search impressions by day"
+              />
+            </div>
+            <div className="px-3.5 py-3">
+              <div className="text-[9px] tracking-[0.16em] uppercase text-muted mb-2">
+                Clicks / day
+              </div>
+              <TrendChart
+                points={clicksTrend.points}
+                labels={clicksTrend.labels}
+                unit="count"
+                tone="teal"
+                ariaLabel="Search clicks by day"
+              />
+            </div>
+            <div className="px-3.5 py-3">
+              <div className="text-[9px] tracking-[0.16em] uppercase text-muted mb-2">
+                Avg position / day (lower is better)
+              </div>
+              <TrendChart
+                points={positionTrend.points}
+                labels={positionTrend.labels}
+                unit="position"
+                tone="purple"
+                ariaLabel="Average search position by day"
+              />
+            </div>
+          </>
+        )}
+      </Card>
+
+      <Card>
+        <SectionHeader label="Top search queries" hint={`${topQueries.length} queries`} />
+        {topQueries.length === 0 ? (
+          <EmptyState>No search queries in this range.</EmptyState>
+        ) : (
+          topQueries.map((q) => <GscTermRow key={q.key} term={q} max={topQueriesMax} />)
+        )}
+      </Card>
+
+      <Card>
+        <SectionHeader label="Top pages in search" hint={`${topPages.length} pages`} />
+        {topPages.length === 0 ? (
+          <EmptyState>No search-landing pages in this range.</EmptyState>
+        ) : (
+          topPages.map((p) => <GscTermRow key={p.key} term={p} max={topPagesMax} />)
+        )}
+      </Card>
+
+      <Card>
+        <SectionHeader label="Indexing & sitemap" hint="coverage" />
+        {sitemaps.length === 0 ? (
+          <EmptyState>No sitemap data synced yet.</EmptyState>
+        ) : (
+          sitemaps.map((s) => <GscSitemapRow key={s.path} sitemap={s} />)
+        )}
+      </Card>
+
+      {urls.length > 0 && (
+        <Card>
+          <SectionHeader label="Page index status" hint={`${urls.length} pages`} />
+          {urls.map((u) => (
+            <GscUrlRow key={u.url} url={u} />
+          ))}
+        </Card>
+      )}
+    </>
+  );
+}
+
 // ── SEO tab ─────────────────────────────────────────────────────────────
 
 async function SeoTab({ range }: { range: DateRange }) {
@@ -412,6 +635,19 @@ async function SeoTab({ range }: { range: DateRange }) {
 
   return (
     <div className="w-full max-w-[1100px] flex flex-col gap-6">
+      {/* Own Suspense hole so the external GSC reads stream independently and
+          don't gate the app-owned telemetry cards below (CLAUDE.md: isolate
+          per-request data into <Suspense> holes). */}
+      <Suspense
+        fallback={
+          <Card>
+            <SectionHeader label="Google Search Console" hint="search visibility" />
+            <div className="px-3.5 py-6 text-[11px] font-mono text-muted">Loading…</div>
+          </Card>
+        }
+      >
+        <GscSearchConsoleSection range={range} />
+      </Suspense>
       <Card>
         <SectionHeader label="Traffic source" hint="referred vs direct" />
         <SummaryLine>{searchVsDirectSummary(searchVsDirect)}</SummaryLine>
@@ -429,10 +665,6 @@ async function SeoTab({ range }: { range: DateRange }) {
         ) : (
           <EmptyState>No page views in this range.</EmptyState>
         )}
-        <div className="px-3.5 py-2 text-[10px] font-mono text-muted border-t border-border-soft">
-          Search-engine impressions, clicks, and indexing status live in Google Search Console —
-          deferred to a later session (3.3.1). This tab covers the acquisition data the app owns.
-        </div>
       </Card>
 
       <Card>

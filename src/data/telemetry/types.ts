@@ -17,6 +17,7 @@ export const SERVER_USAGE_ACTIONS = [
   'price_source_degraded', // ESI→Fuzzwork degradation / budget exhaustion (O-1, S-2)
   'cron_prices', // hourly price-cron outcome — refreshed / skipped (O-2, O-3)
   'cron_sde', // weekly SDE-cron outcome (O-2, O-3)
+  'cron_gsc', // daily Google-Search-Console sync outcome — synced / skipped / failed (3.3.3)
 ] as const;
 
 // Closed enumeration of recognised actions. Extending: add to the client or

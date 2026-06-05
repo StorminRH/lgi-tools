@@ -46,6 +46,7 @@
     "/api/auth/me": "dynamic",
     "/api/auth/preferences": "dynamic",
     "/api/contact": "dynamic",
+    "/api/cron/refresh-gsc": "dynamic",
     "/api/cron/refresh-prices": "dynamic",
     "/api/cron/refresh-sde": "dynamic",
     "/api/feedback": "dynamic",
