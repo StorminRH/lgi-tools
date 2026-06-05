@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classRangeIncludes, classRangeToList, formatClassRange, gasClassRange } from './gas-classes';
+import { classRangeIncludes, formatClassRange, gasClassRange } from './gas-classes';
 
 describe('gasClassRange', () => {
   it('maps Perimeter gas sites to C1–C6', () => {
@@ -43,14 +43,5 @@ describe('classRangeIncludes', () => {
     const r = { min: 'C3', max: 'C6' } as const;
     expect(classRangeIncludes(r, 'C1')).toBe(false);
     expect(classRangeIncludes(r, 'C2')).toBe(false);
-  });
-});
-
-describe('classRangeToList', () => {
-  it('expands a Perimeter-style range to all six classes', () => {
-    expect(classRangeToList({ min: 'C1', max: 'C6' })).toEqual(['C1', 'C2', 'C3', 'C4', 'C5', 'C6']);
-  });
-  it('expands a Core-style range to just C5/C6', () => {
-    expect(classRangeToList({ min: 'C5', max: 'C6' })).toEqual(['C5', 'C6']);
   });
 });

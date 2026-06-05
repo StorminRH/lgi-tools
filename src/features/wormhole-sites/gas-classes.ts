@@ -21,8 +21,6 @@ const CLASS_ORDER: Record<WormholeClass, number> = {
   C1: 1, C2: 2, C3: 3, C4: 4, C5: 5, C6: 6,
 };
 
-const ALL_CLASSES: WormholeClass[] = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
-
 export function gasClassRange(name: string): ClassRange | null {
   // Order matters — "Core" appears before "Frontier" alphabetically but the
   // ranges don't overlap, so the order of the three branches is purely a
@@ -40,10 +38,4 @@ export function formatClassRange(range: ClassRange): string {
 
 export function classRangeIncludes(range: ClassRange, cls: WormholeClass): boolean {
   return CLASS_ORDER[cls] >= CLASS_ORDER[range.min] && CLASS_ORDER[cls] <= CLASS_ORDER[range.max];
-}
-
-// Expand a range to the array of classes it covers. Useful when a caller
-// wants to drop the range and treat each class as a discrete possibility.
-export function classRangeToList(range: ClassRange): WormholeClass[] {
-  return ALL_CLASSES.filter((c) => classRangeIncludes(range, c));
 }
