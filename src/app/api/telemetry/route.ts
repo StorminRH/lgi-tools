@@ -1,8 +1,10 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { CLIENT_USAGE_ACTIONS } from '@/data/telemetry/types';
-import { getSession } from '@/features/auth/session';
+import { getSessionCharacterId } from '@/features/auth/session';
+import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
 
 // Hard cap on serialised metadata to keep one bad payload from filling the
 // table. 2KB is generous for page-view + search shapes; rejecting larger
@@ -17,11 +19,14 @@ const telemetrySchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
-// Silent first-party tracker. Accepts JSON { action, metadata? }, reads the
-// session for characterId (null when logged out — anonymous reach matters
-// for partner-program reporting), and returns 204 on success. Validation
-// failures return 400 so a misconfigured client surfaces in the network
-// tab instead of polluting the table.
+// Silent first-party tracker. Accepts JSON { action, metadata? } and returns
+// 204. Shape is validated synchronously (400 before any write) so a
+// misconfigured client surfaces in the network tab. A per-IP rate limit (the
+// only public write path that was missing one) bounds a scripted flood that
+// would skew the analytics this table feeds. The characterId comes straight
+// from the decrypted cookie (no DB read), and the row is written
+// fire-and-forget — the beacon's caller ignores the response, so we never
+// block the 204 on the insert, matching every other logUsageEvent caller.
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   let body: unknown;
@@ -49,23 +54,33 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   }
 
-  try {
-    // Both the session read (getSession → getCharacterById hits the DB) and the
-    // insert run inside this guard. Telemetry must never break a user flow, so
-    // if either throws the event is skipped entirely and we still return 204.
-    const session = await getSession();
-    await logUsageEvent({
-      action: parsed.data.action,
-      characterId: session?.characterId ?? null,
-      metadata: safeMetadata,
-    });
-  } catch (err) {
-    // Swallow so the tracker can't break a page — but log it, so a genuine
-    // bug here stays visible. Under the HTTP driver a cold DB no longer
-    // errors, so a failure on this path is now actually exceptional.
-    console.error('[telemetry] failed to record usage event', err);
-    return new Response(null, { status: 204 });
+  const limit = await rateLimit(clientIdentifier(request.headers), {
+    name: 'telemetry',
+    perMinute: TELEMETRY_LIMIT_PER_MINUTE,
+  });
+  if (!limit.ok) {
+    return Response.json(
+      { error: 'rate_limited', retryAfter: limit.retryAfter },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(limit.retryAfter) },
+      },
+    );
   }
+
+  // Fire-and-forget: read the id from the cookie and write the row without
+  // blocking the response. Telemetry must never break a user flow, so any
+  // failure is swallowed (logged so a genuine bug stays visible) and the 204
+  // returns immediately regardless.
+  void getSessionCharacterId()
+    .then((characterId) =>
+      logUsageEvent({
+        action: parsed.data.action,
+        characterId,
+        metadata: safeMetadata,
+      }),
+    )
+    .catch((err) => console.error('[telemetry] failed to record usage event', err));
 
   return new Response(null, { status: 204 });
 }

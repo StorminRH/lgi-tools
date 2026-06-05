@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { chunk, dedupe } from '@/lib/array';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import type { RawMarketPrice } from './types';
 
@@ -46,16 +47,6 @@ const fuzzworkResponseSchema = z.record(z.string(), fuzzworkPairSchema);
 export type FuzzworkSide = z.infer<typeof fuzzworkSideSchema>;
 export type FuzzworkPair = z.infer<typeof fuzzworkPairSchema>;
 type FuzzworkResponse = z.infer<typeof fuzzworkResponseSchema>;
-
-function dedupe(ids: number[]): number[] {
-  return Array.from(new Set(ids));
-}
-
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
 
 // Fuzzwork volumes are decimal strings (e.g. "1234567.0"); truncate before
 // BigInt() so we don't blow up on the fractional part. Floor (not round)

@@ -2,6 +2,7 @@ import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
 import { UrlSync } from '@/components/ui/url-sync';
+import { formatIskShort } from '@/lib/format';
 import { formatClassRange, gasClassRange } from '../gas-classes';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
 import { displayableResources } from '../resource-display';
@@ -9,13 +10,6 @@ import type { SiteDetail } from '../types';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteLiveProvider } from './SiteResourcesLive';
 import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
-
-function formatIskShort(isk: number | null): string {
-  if (isk == null) return '—';
-  if (isk >= 1_000_000_000) return `${(isk / 1_000_000_000).toFixed(1)}B`;
-  if (isk >= 1_000_000) return `${(isk / 1_000_000).toFixed(1)}M`;
-  return `${(isk / 1_000).toFixed(0)}K`;
-}
 
 function isWaveDriven(s: SiteDetail): boolean {
   return s.siteType === 'combat' || s.siteType === 'relic' || s.siteType === 'data';

@@ -7,9 +7,9 @@ import {
 import { CHARACTER_ROLES } from '@/features/auth/schema';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { sanitiseUserText } from '@/lib/sanitise';
 
 const MAX_QUERY_LENGTH = 200;
-const CONTROL_CHARS = /\p{C}/gu;
 
 // Form payload from <RoleToggleForm>. characterId arrives as a numeric
 // string in the FormData; transform-to-Number gates on the regex first so
@@ -28,9 +28,8 @@ const roleFormSchema = z.object({
 
 function sanitiseQuery(raw: string | undefined): string | undefined {
   if (raw === undefined) return undefined;
-  const cleaned = raw.replace(CONTROL_CHARS, '').trim();
-  if (cleaned.length === 0) return undefined;
-  return cleaned.slice(0, MAX_QUERY_LENGTH);
+  const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
+  return cleaned.length === 0 ? undefined : cleaned;
 }
 
 function buildRedirect(request: NextRequest, query: string | undefined): URL {

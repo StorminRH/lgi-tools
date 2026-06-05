@@ -1,16 +1,11 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Session } from '@/features/auth/types';
 
-const USER_SESSION: Session = {
-  characterId: 1000000000,
-  name: 'Test Pilot',
-  portraitUrl: 'https://images.evetech.net/characters/1000000000/portrait?size=128',
-  role: 'USER',
-};
+const CHARACTER_ID = 1000000000;
 
-const getSessionMock = vi.fn();
+const getSessionCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
+const rateLimitMock = vi.fn();
 
 vi.mock('@/features/auth/session', async () => {
   const actual = await vi.importActual<typeof import('@/features/auth/session')>(
@@ -18,12 +13,17 @@ vi.mock('@/features/auth/session', async () => {
   );
   return {
     ...actual,
-    getSession: () => getSessionMock(),
+    getSessionCharacterId: () => getSessionCharacterIdMock(),
   };
 });
 
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
+}));
+
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: (...args: unknown[]) => rateLimitMock(...args),
+  clientIdentifier: () => 'test-ip',
 }));
 
 async function importRoute() {
@@ -41,9 +41,12 @@ function buildRequest(body: unknown): NextRequest {
 describe('POST /api/telemetry', () => {
   beforeEach(() => {
     vi.resetModules();
-    getSessionMock.mockReset();
+    getSessionCharacterIdMock.mockReset();
+    getSessionCharacterIdMock.mockResolvedValue(null);
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
+    rateLimitMock.mockReset();
+    rateLimitMock.mockResolvedValue({ ok: true, remaining: Number.POSITIVE_INFINITY });
   });
 
   afterEach(() => {
@@ -51,45 +54,60 @@ describe('POST /api/telemetry', () => {
   });
 
   it('returns 204 and records the event for a logged-in caller', async () => {
-    getSessionMock.mockResolvedValue(USER_SESSION);
+    getSessionCharacterIdMock.mockResolvedValue(CHARACTER_ID);
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/sites' } }));
     expect(res.status).toBe(204);
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'page_view',
-      characterId: USER_SESSION.characterId,
-      metadata: { path: '/sites' },
-    });
+    // The write is fire-and-forget — the 204 returns before it lands, so wait
+    // for the scheduled insert rather than asserting synchronously.
+    await vi.waitFor(() =>
+      expect(logUsageEventMock).toHaveBeenCalledWith({
+        action: 'page_view',
+        characterId: CHARACTER_ID,
+        metadata: { path: '/sites' },
+      }),
+    );
   });
 
   it('records anonymous events with a null characterId', async () => {
-    getSessionMock.mockResolvedValue(null);
+    getSessionCharacterIdMock.mockResolvedValue(null);
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
     expect(res.status).toBe(204);
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'page_view',
-      characterId: null,
-      metadata: { path: '/' },
-    });
+    await vi.waitFor(() =>
+      expect(logUsageEventMock).toHaveBeenCalledWith({
+        action: 'page_view',
+        characterId: null,
+        metadata: { path: '/' },
+      }),
+    );
   });
 
-  it('returns 204 and logs when the session read fails (fail-soft)', async () => {
-    // getSession() re-queries the characters row; that DB read can fail. The
-    // tracker must never break a user flow, so a thrown session read still 204s
-    // — but the failure is logged so a genuine bug stays visible.
-    getSessionMock.mockRejectedValue(new Error('Failed query: connection error'));
+  it('returns 204 and stays up when the write fails (fail-soft)', async () => {
+    // The insert can fail; the tracker must never break a user flow, so the
+    // 204 has already returned and the rejection is swallowed — logged so a
+    // genuine bug stays visible.
+    getSessionCharacterIdMock.mockResolvedValue(CHARACTER_ID);
+    logUsageEventMock.mockRejectedValue(new Error('Failed query: connection error'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
     expect(res.status).toBe(204);
-    expect(logUsageEventMock).not.toHaveBeenCalled();
-    expect(errorSpy).toHaveBeenCalled();
+    await vi.waitFor(() => expect(errorSpy).toHaveBeenCalled());
     errorSpy.mockRestore();
   });
 
+  it('rate-limits a flooding caller with 429 + Retry-After and skips the write', async () => {
+    rateLimitMock.mockResolvedValue({ ok: false, retryAfter: 42 });
+    const { POST } = await importRoute();
+    const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('42');
+    expect(getSessionCharacterIdMock).not.toHaveBeenCalled();
+    expect(logUsageEventMock).not.toHaveBeenCalled();
+  });
+
   it('rejects unknown actions with 400', async () => {
-    getSessionMock.mockResolvedValue(USER_SESSION);
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'malicious_action' }));
     expect(res.status).toBe(400);
@@ -97,7 +115,6 @@ describe('POST /api/telemetry', () => {
   });
 
   it('rejects server-only actions a client must not forge with 400', async () => {
-    getSessionMock.mockResolvedValue(USER_SESSION);
     const { POST } = await importRoute();
     // cron_prices is server-only (written by the price cron) — a client POST
     // of it would pollute the health signal, so the public route must reject it.
@@ -107,7 +124,6 @@ describe('POST /api/telemetry', () => {
   });
 
   it('rejects non-object metadata with 400', async () => {
-    getSessionMock.mockResolvedValue(USER_SESSION);
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'page_view', metadata: 'not-an-object' }));
     expect(res.status).toBe(400);
@@ -115,7 +131,6 @@ describe('POST /api/telemetry', () => {
   });
 
   it('rejects oversized metadata with 400', async () => {
-    getSessionMock.mockResolvedValue(USER_SESSION);
     const { POST } = await importRoute();
     const big = { blob: 'x'.repeat(3000) };
     const res = await POST(buildRequest({ action: 'page_view', metadata: big }));
@@ -124,7 +139,6 @@ describe('POST /api/telemetry', () => {
   });
 
   it('returns 400 on malformed JSON body', async () => {
-    getSessionMock.mockResolvedValue(USER_SESSION);
     const { POST } = await importRoute();
     const req = new NextRequest('http://localhost:3000/api/telemetry', {
       method: 'POST',

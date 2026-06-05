@@ -12,6 +12,7 @@ import {
   EsiServerError,
   esiFetch,
 } from './esi-budget';
+import { dedupe } from '@/lib/array';
 import { fetchPricesFromFuzzwork } from './source-fallback';
 import type { RawMarketPrice } from './types';
 
@@ -43,6 +44,21 @@ function parseEsiOrders(body: unknown): EsiOrder[] {
   return result.data;
 }
 
+// Cheap pre-filter for the bulk region dump: skim a raw page down to the
+// wanted type set BEFORE Zod runs, so we validate only the handful of orders
+// we'll actually keep rather than every order on a ~400-600 page book (most of
+// which we discard anyway). A non-array body still throws EsiContractError, the
+// same routing-to-Fuzzwork signal parseEsiOrders gives. Page 1 keeps the full
+// parse as the boundary shape probe; tracked types are still fully validated
+// here (a malformed order for a wanted type survives the skim and trips Zod).
+function filterRawByWantedType(body: unknown, wanted: Set<number>): unknown[] {
+  if (!Array.isArray(body)) throw new EsiContractError();
+  return body.filter((o) => {
+    const typeId = (o as { type_id?: unknown } | null)?.type_id;
+    return typeof typeId === 'number' && wanted.has(typeId);
+  });
+}
+
 interface OrderEntry {
   price: number;
   volume: bigint;
@@ -51,10 +67,6 @@ interface OrderEntry {
 interface OrderBucket {
   buyOrders: OrderEntry[];
   sellOrders: OrderEntry[];
-}
-
-function dedupe(ids: number[]): number[] {
-  return Array.from(new Set(ids));
 }
 
 // Bounded-concurrency worker pool. Workers pull from a shared index until
@@ -238,7 +250,7 @@ async function fetchViaEsiRegionDump(
     await runConcurrent(pages, PAGE_CONCURRENCY, async (page) => {
       const res = await esiFetch(regionDumpPageUrl(page));
       if (!res.ok) throw new EsiServerError(res.status);
-      const orders = parseEsiOrders(await res.json());
+      const orders = parseEsiOrders(filterRawByWantedType(await res.json(), wanted));
       absorbOrders(orders, wanted, buckets);
     });
   }

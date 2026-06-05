@@ -6,6 +6,7 @@
 import { registerSearchSource } from '@/data/search';
 import type { SearchResult } from '@/data/search';
 import { fuzzyMatch, type FuzzyMatch } from '@/data/search/match';
+import { formatIskCompact } from '@/lib/format';
 import type { SiteSearchEntry } from './queries';
 import { SITE_TYPE_LABEL } from './components/wormhole-styles';
 
@@ -13,12 +14,6 @@ let SITE_INDEX: SiteSearchEntry[] = [];
 
 export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
-}
-
-function formatIsk(isk: number | null): string {
-  if (isk == null) return '—';
-  if (isk >= 1_000_000_000) return `${(isk / 1_000_000_000).toFixed(1)}B`;
-  return `${(isk / 1_000_000).toFixed(0)}M`;
 }
 
 function iconTone(entry: SiteSearchEntry): string {
@@ -62,7 +57,7 @@ registerSearchSource({
       kind: 'site',
       id: `site:${entry.id}`,
       label: entry.name,
-      sub: `${SITE_TYPE_LABEL[entry.siteType]} · ${formatIsk(primaryIsk(entry))}`,
+      sub: `${SITE_TYPE_LABEL[entry.siteType]} · ${formatIskCompact(primaryIsk(entry))}`,
       href: `/sites/${entry.id}`,
       iconText: entry.wormholeClass ?? '—',
       iconTone: iconTone(entry),

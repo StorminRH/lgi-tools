@@ -7,6 +7,7 @@ import { getSession } from '@/features/auth/session';
 import { CONTACT_MESSAGE_MAX_LENGTH } from '@/features/contact/constants';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
+import { sanitiseUserText } from '@/lib/sanitise';
 
 // RFC 5321 caps an email address at 254 chars.
 const MAX_EMAIL_LENGTH = 254;
@@ -23,21 +24,15 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 // verified in Resend, set CONTACT_FROM_EMAIL to a `Name <addr@lgi.tools>`.
 const DEFAULT_FROM = 'LGI.tools Contact <onboarding@resend.dev>';
 
-const CONTROL_CHARS = /\p{C}/gu;
-
 // `website` is a honeypot: hidden from real users, irresistible to bots. A
 // non-empty value means a bot — we accept (204) without sending so the trap
 // stays unrevealed. The *4 multiplier on message rejects runaway bodies
-// before we spend cycles cleaning them; sanitiseText() enforces the real cap.
+// before we spend cycles cleaning them; sanitiseUserText() enforces the real cap.
 const contactSchema = z.object({
   email: z.email().max(MAX_EMAIL_LENGTH),
   message: z.string().min(1).max(CONTACT_MESSAGE_MAX_LENGTH * 4),
   website: z.string().max(200).optional(),
 });
-
-function sanitiseText(raw: string, max: number): string {
-  return raw.replace(CONTROL_CHARS, '').trim().slice(0, max);
-}
 
 // POST-only. Accepts JSON `{ email, message, website? }`. Sends the message to
 // the maintainer's inbox (CONTACT_EMAIL — server-side only, never shipped to
@@ -84,7 +79,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  const message = sanitiseText(parsed.data.message, CONTACT_MESSAGE_MAX_LENGTH);
+  const message = sanitiseUserText(parsed.data.message, CONTACT_MESSAGE_MAX_LENGTH);
   if (message.length === 0) {
     return new Response('message must not be empty', { status: 400 });
   }

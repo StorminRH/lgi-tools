@@ -84,6 +84,20 @@ export async function getSession(): Promise<Session | null> {
   };
 }
 
+// Lightweight identity for hot paths that only need "who is calling?" by id and
+// can tolerate a stale grant/role — reads the cookie and decrypts it, with no
+// DB round-trip (unlike getSession, which re-queries the characters row). Used
+// by the high-volume telemetry beacon, where the characterId already lives in
+// the decrypted JWT and a fresh row read would be wasted work on every view.
+export async function getSessionCharacterId(): Promise<number | null> {
+  const jar = await cookies();
+  const cookie = jar.get(SESSION_COOKIE);
+  if (!cookie) return null;
+
+  const payload = await decryptSession(cookie.value);
+  return payload?.characterId ?? null;
+}
+
 // THE authz primitive — paired with getSession() as identity. Every "can this
 // user touch X?" gate routes through here. Pure: takes a session + env, no DB
 // or next/headers. Two paths grant admin: env-driven superadmin (Number()

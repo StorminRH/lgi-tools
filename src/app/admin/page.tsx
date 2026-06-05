@@ -9,23 +9,23 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { AdminActivitySummary } from './AdminActivitySummary';
 import { RoleToggleForm } from '@/features/auth/components/RoleToggleForm';
 import {
+  CHARACTER_SEARCH_LIMIT,
   getCharacterById,
   listAdminCharacters,
   searchCharactersByName,
 } from '@/features/auth/queries';
 import { getSession, isAdmin } from '@/features/auth/session';
 import type { Character } from '@/features/auth/types';
+import { sanitiseUserText } from '@/lib/sanitise';
 
 const MAX_QUERY_LENGTH = 200;
-const CONTROL_CHARS = /\p{C}/gu;
 
 // Strip control chars + truncate. Returns undefined for empty / clearly
 // malformed input so the page falls back to the empty-q view.
 function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   if (typeof raw !== 'string') return undefined;
-  const cleaned = raw.replace(CONTROL_CHARS, '').trim();
-  if (cleaned.length === 0) return undefined;
-  return cleaned.slice(0, MAX_QUERY_LENGTH);
+  const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
+  return cleaned.length === 0 ? undefined : cleaned;
 }
 
 // Build the Admins list shown above the search results. Includes the env
@@ -128,7 +128,12 @@ async function AdminContent({
   ]);
 
   const adminIds = new Set(adminRows.map(r => r.character.characterId));
-  const nonAdminMatches = searchResults.filter(c => !adminIds.has(c.characterId));
+  // searchCharactersByName fetches one row past the cap as a truncation probe;
+  // a full extra row means the match set was cut off (not naturally cap-sized).
+  const searchTruncated = searchResults.length > CHARACTER_SEARCH_LIMIT;
+  const nonAdminMatches = searchResults
+    .slice(0, CHARACTER_SEARCH_LIMIT)
+    .filter(c => !adminIds.has(c.characterId));
 
   return (
     <>
@@ -195,7 +200,12 @@ async function AdminContent({
           <Card>
             <SectionHeader
               label="Search results"
-              hint={`${nonAdminMatches.length} match${nonAdminMatches.length === 1 ? '' : 'es'}`}
+              hint={
+                `${nonAdminMatches.length} match${nonAdminMatches.length === 1 ? '' : 'es'}` +
+                (searchTruncated
+                  ? ` · showing first ${CHARACTER_SEARCH_LIMIT}, narrow your search`
+                  : '')
+              }
             />
             {nonAdminMatches.length === 0 ? (
               <EmptyState>

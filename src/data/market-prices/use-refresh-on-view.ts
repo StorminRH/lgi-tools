@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { chunk } from '@/lib/array';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
 import type { PriceSource } from './types';
 
@@ -44,11 +45,6 @@ interface WirePrice {
   staleAfter: string;
 }
 
-function chunk<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
-}
 
 export interface RefreshOnViewResult {
   // Freshest confirmed value per type, accumulated across batches. Empty until

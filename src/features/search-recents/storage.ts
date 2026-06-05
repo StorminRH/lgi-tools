@@ -2,6 +2,7 @@
 // no React. Cap at MAX entries; newer entries replace older duplicates so
 // the most recently-clicked row floats to the top.
 
+import { z } from 'zod';
 import type { SearchResult } from '@/data/search';
 
 const STORAGE_KEY = 'lgi:search:recents';
@@ -18,6 +19,21 @@ type StoredRecent = Pick<
   SearchResult,
   'kind' | 'id' | 'label' | 'sub' | 'href' | 'iconText' | 'iconTone' | 'typeId'
 >;
+
+// localStorage is an untrusted boundary (another tab, an old build, a user
+// poking at devtools), so validate every stored row with Zod rather than a
+// hand-rolled typeof guard — it also type-checks the optional display fields
+// the old guard skipped.
+const storedRecentSchema = z.object({
+  kind: z.string(),
+  id: z.string(),
+  label: z.string(),
+  sub: z.string().optional(),
+  href: z.string(),
+  iconText: z.string().optional(),
+  iconTone: z.string().optional(),
+  typeId: z.number().optional(),
+});
 
 function safeStorage(): Storage | null {
   if (typeof window === 'undefined') return null;
@@ -93,15 +109,7 @@ function readStored(): StoredRecent[] {
 }
 
 function isStoredRecent(value: unknown): value is StoredRecent {
-  if (typeof value !== 'object' || value === null) return false;
-  const r = value as Record<string, unknown>;
-  return (
-    typeof r.kind === 'string' &&
-    typeof r.id === 'string' &&
-    typeof r.label === 'string' &&
-    typeof r.href === 'string' &&
-    (r.typeId === undefined || typeof r.typeId === 'number')
-  );
+  return storedRecentSchema.safeParse(value).success;
 }
 
 export const __TEST_ONLY__ = {

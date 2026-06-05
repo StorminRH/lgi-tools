@@ -6,7 +6,7 @@ import { priceFx } from '@/components/ui/price-fx';
 import { ResourceRow as ResourceRowPrimitive } from '@/components/ui/row';
 import { formatIsk } from '../format';
 import type { SiteResource, SiteType } from '../types';
-import { HACK_DOT_TONE } from './wormhole-styles';
+import { HACKING_DOT_TONE } from './wormhole-styles';
 import { resourceLiveIsk, useSiteLive } from './site-live-context';
 
 function formatM3(m3: number | null): string {
@@ -52,7 +52,7 @@ export function ResourceRow({
         colsClass="grid-cols-[1fr_auto]"
         name={
           <>
-            <Dot tone={HACK_DOT_TONE[siteType]} />
+            <Dot tone={HACKING_DOT_TONE[siteType]} />
             {resource.resourceName}
           </>
         }

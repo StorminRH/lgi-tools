@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { toneHex } from '@/components/ui/tones';
 import { formatQuantity } from '@/lib/format';
@@ -262,7 +262,11 @@ export function BuildFlow({ structure }: { structure: BlueprintStructure }) {
   const [path, setPath] = useState<number[]>([]);
   const [trans, setTrans] = useState<{ prevPath: number[]; dir: 'in' | 'out' } | null>(null);
 
-  useLayoutEffect(() => {
+  // Plain effect: the SVG is gated on `width &&`, so it never paints before
+  // the first measure — there's no pre-paint synchronous read that would
+  // justify useLayoutEffect (which also warns when this streams from a server
+  // component).
+  useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {

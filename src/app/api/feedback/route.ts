@@ -4,14 +4,10 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
 import { APP_VERSION } from '@/config/app-version';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import { FEEDBACK_MESSAGE_MAX_LENGTH } from '@/features/feedback/constants';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
-
-// Discord's webhook content limit is 2000 chars; embed description is 4096.
-// We cap at 2000 on input so a single feedback report always fits in one
-// Discord message even if we ever move it from embed description to top-level
-// `content`.
-const MAX_MESSAGE_LENGTH = 2000;
+import { sanitiseUserText } from '@/lib/sanitise';
 
 // Sanity cap on the captured page URL. Real-world paths on this site stay
 // well under 200 chars; 512 leaves room for stacked filter params without
@@ -23,13 +19,11 @@ const MAX_PATH_LENGTH = 512;
 // real user typing thoughtfully but cuts a scripted flood off fast.
 const FEEDBACK_LIMIT_PER_MINUTE = 5;
 
-const CONTROL_CHARS = /\p{C}/gu;
-
-// Bounded loose — the post-parse sanitiseText() trims and slices to the real
-// caps below; the *4 multiplier here just rejects runaway 100KB bodies before
-// we spend cycles cleaning them up. Same intent as the pre-Zod check.
+// Bounded loose — the post-parse sanitiseUserText() trims and slices to the
+// real caps below; the *4 multiplier here just rejects runaway 100KB bodies
+// before we spend cycles cleaning them up. Same intent as the pre-Zod check.
 const feedbackSchema = z.object({
-  message: z.string().min(1).max(MAX_MESSAGE_LENGTH * 4),
+  message: z.string().min(1).max(FEEDBACK_MESSAGE_MAX_LENGTH * 4),
   path: z.string().regex(/^\//, 'path must start with /').max(MAX_PATH_LENGTH * 4),
 });
 
@@ -39,10 +33,6 @@ function requireEnv(name: string): string {
     throw new Error(`${name} is not set`);
   }
   return value;
-}
-
-function sanitiseText(raw: string, max: number): string {
-  return raw.replace(CONTROL_CHARS, '').trim().slice(0, max);
 }
 
 interface DiscordEmbed {
@@ -109,12 +99,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  const message = sanitiseText(parsed.data.message, MAX_MESSAGE_LENGTH);
+  const message = sanitiseUserText(parsed.data.message, FEEDBACK_MESSAGE_MAX_LENGTH);
   if (message.length === 0) {
     return new Response('message must not be empty', { status: 400 });
   }
 
-  const path = sanitiseText(parsed.data.path, MAX_PATH_LENGTH);
+  const path = sanitiseUserText(parsed.data.path, MAX_PATH_LENGTH);
   if (path.length === 0 || !path.startsWith('/')) {
     return new Response('path must start with /', { status: 400 });
   }

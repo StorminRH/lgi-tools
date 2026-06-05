@@ -56,8 +56,17 @@ export async function listAdminCharacters(): Promise<Character[]> {
   return rows as Character[];
 }
 
+// Cap on rows the admin name search displays. A 1-char query matches a large
+// fraction of the table, which only grows; bound the display and let the
+// dashboard hint when there's more. Exported so the UI can show "showing first N".
+export const CHARACTER_SEARCH_LIMIT = 50;
+
 // Substring ILIKE search by name. Empty/whitespace-only queries short-circuit
-// to [] so the dashboard's empty-q view doesn't fetch the world.
+// to [] so the dashboard's empty-q view doesn't fetch the world. Fetches ONE
+// row past the display cap as a truncation probe: a caller that gets back
+// CHARACTER_SEARCH_LIMIT + 1 rows knows the result was cut off (vs a result
+// that just happens to be exactly the cap), so the "showing first N" hint
+// can't false-positive on a naturally cap-sized match set.
 export async function searchCharactersByName(query: string): Promise<Character[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
@@ -66,7 +75,8 @@ export async function searchCharactersByName(query: string): Promise<Character[]
     .select()
     .from(characters)
     .where(ilike(characters.name, `%${trimmed}%`))
-    .orderBy(asc(characters.name));
+    .orderBy(asc(characters.name))
+    .limit(CHARACTER_SEARCH_LIMIT + 1);
 
   return rows as Character[];
 }
@@ -84,37 +94,4 @@ export async function setCharacterRole(
     .returning();
 
   return (row as Character | undefined) ?? null;
-}
-
-// Top-level merge into the preferences JSONB. Setting key `b` does not
-// clobber key `a`. Nested objects merge only at the top level — value
-// for an existing key is replaced wholesale.
-export async function setCharacterPreference(
-  characterId: number,
-  key: string,
-  value: unknown,
-): Promise<Record<string, unknown> | null> {
-  const patch = JSON.stringify({ [key]: value });
-  const [row] = await db
-    .update(characters)
-    .set({
-      preferences: sql`${characters.preferences} || ${patch}::jsonb`,
-      updatedAt: sql`now()`,
-    })
-    .where(eq(characters.characterId, characterId))
-    .returning({ preferences: characters.preferences });
-
-  return (row?.preferences as Record<string, unknown> | undefined) ?? null;
-}
-
-export async function getCharacterPreferences(
-  characterId: number,
-): Promise<Record<string, unknown> | null> {
-  const [row] = await db
-    .select({ preferences: characters.preferences })
-    .from(characters)
-    .where(eq(characters.characterId, characterId))
-    .limit(1);
-
-  return (row?.preferences as Record<string, unknown> | undefined) ?? null;
 }

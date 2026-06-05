@@ -4,8 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Pill } from '@/components/ui/pill';
 import type { Session } from '@/features/auth/types';
-
-const MAX_MESSAGE_LENGTH = 2000;
+import { FEEDBACK_MESSAGE_MAX_LENGTH } from '../constants';
 
 type SubmitState =
   | { kind: 'idle' }
@@ -68,11 +67,18 @@ export function FeedbackModal({
         body: JSON.stringify({ message, path }),
       });
       if (!response.ok) {
-        const text = await response.text();
-        setState({
-          kind: 'error',
-          message: text || 'Something went wrong sending your feedback. Try again.',
-        });
+        // Gate on status so users never see a raw error body. 400 carries a
+        // human-readable validation detail; 429/5xx get a friendly line each
+        // (the rate-limit/server bodies are JSON, not display copy).
+        let message: string;
+        if (response.status === 400) {
+          message = (await response.text()) || 'Please check your message and try again.';
+        } else if (response.status === 429) {
+          message = 'Too much feedback too fast — please wait a minute and try again.';
+        } else {
+          message = 'Something went wrong sending your feedback. Try again.';
+        }
+        setState({ kind: 'error', message });
         return;
       }
       setState({ kind: 'success' });
@@ -84,7 +90,7 @@ export function FeedbackModal({
     }
   }
 
-  const charsLeft = MAX_MESSAGE_LENGTH - message.length;
+  const charsLeft = FEEDBACK_MESSAGE_MAX_LENGTH - message.length;
   const disabled = state.kind === 'submitting';
 
   return (
@@ -138,7 +144,7 @@ export function FeedbackModal({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 disabled={disabled}
-                maxLength={MAX_MESSAGE_LENGTH}
+                maxLength={FEEDBACK_MESSAGE_MAX_LENGTH}
                 placeholder="What's broken, missing, or weird? The more specific the better."
                 rows={6}
                 className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 resize-none focus:outline-none focus:border-[#2a3550] disabled:opacity-50"

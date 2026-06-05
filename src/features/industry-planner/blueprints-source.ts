@@ -14,11 +14,15 @@ const MAX_RESULTS = 20;
 
 let indexPromise: Promise<BlueprintIndexEntry[]> | null = null;
 
-function loadIndex(signal?: AbortSignal): Promise<BlueprintIndexEntry[]> {
+function loadIndex(): Promise<BlueprintIndexEntry[]> {
   if (!indexPromise) {
-    // Cache the in-flight fetch; clear it on failure so a later keystroke
+    // No AbortSignal on this shared fetch: the promise is memoized for the
+    // session, so binding it to the first caller's signal would let a later
+    // keystroke aborting the prior one reject the index for everyone. Per-
+    // keystroke cancellation is handled by the post-await `ctx.signal?.aborted`
+    // check in search(). Clear the cache on failure so a later keystroke
     // retries rather than caching a rejected promise for the whole session.
-    indexPromise = fetch('/api/industry/blueprints', { signal })
+    indexPromise = fetch('/api/industry/blueprints')
       .then((res) => {
         if (!res.ok) throw new Error(`blueprint index ${res.status}`);
         return res.json() as Promise<{ blueprints: BlueprintIndexEntry[] }>;
@@ -40,7 +44,7 @@ export const blueprintsSource: SearchSource = {
     // user has typed something to match.
     if (query.length === 0) return [];
 
-    const index = await loadIndex(ctx.signal);
+    const index = await loadIndex();
     if (ctx.signal?.aborted) return [];
 
     const matches: { entry: BlueprintIndexEntry; match: FuzzyMatch }[] = [];

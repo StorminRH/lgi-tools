@@ -6,7 +6,8 @@ import { scaleBand, scaleLinear } from '@visx/scale';
 import { useTooltip } from '@visx/tooltip';
 import { localPoint } from '@visx/event';
 import { cn } from './cn';
-import { TONE_STROKE, type SparklineTone } from './sparkline';
+import { type SparklineTone } from './sparkline';
+import { toneHex } from './tones';
 
 /**
  * Compact categorical bar chart — outcome distributions, a login-frequency
@@ -19,8 +20,8 @@ import { TONE_STROKE, type SparklineTone } from './sparkline';
  *    position via inline `style`); its position is set as `--tt-x` / `--tt-y`
  *    custom properties through the CSSOM and read by the shared
  *    `.sparkline-tooltip` rule in globals.css.
- *  - Shares the tone palette ({@link TONE_STROKE}) and tooltip CSS with
- *    Sparkline rather than forking them.
+ *  - Draws from the canonical `toneHex` palette (tones.ts) and shares the
+ *    tooltip CSS with Sparkline rather than forking them.
  * `scaleBand` has no `.invert()`, so hover is captured per-bar rather than by
  * inverting an x probe.
  */
@@ -66,7 +67,7 @@ export function BarChart({
     tooltipRef.current?.style.setProperty('--tt-y', `${tooltipTop}px`);
   }, [tooltipLeft, tooltipTop, tooltipOpen]);
 
-  const fill = TONE_STROKE[tone];
+  const fill = toneHex[tone];
 
   if (data.length === 0) return null;
 

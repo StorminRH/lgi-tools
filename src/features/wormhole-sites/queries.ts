@@ -194,6 +194,13 @@ export async function listSiteDetails(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
 }): Promise<SiteDetail[]> {
+  // The catalogue is deploy-static, so cache this whole 4-round-trip structural
+  // read into the prerender shell keyed by the filter args — same pattern as
+  // getSiteDetail. Live prices are layered on separately by the /sites page
+  // (overlayLivePrices) so they keep their own freshness; this returns the raw
+  // pre-overlay shape.
+  'use cache';
+  cacheLife('max');
   // Class filtering applied in JS post-fetch (see matchesClass) so gas
   // sites can match by their name-derived class range rather than the
   // always-NULL `wormhole_class` column.
