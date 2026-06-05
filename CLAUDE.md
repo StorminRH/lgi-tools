@@ -27,7 +27,8 @@ Next.js (current — see warning above) · TypeScript (strict) · Drizzle ORM ·
 
 - `src/features/<name>/` — self-contained feature slices (`schema.ts`, `queries.ts`, `types.ts`, `components/`). Two features never import from each other.
 - `src/components/ui/` — domain-agnostic UI primitives.
-- `src/data/` — shared data layers (SDE, market prices, search, telemetry). Own ingest/schema/queries, no UI.
+- `src/data/` — shared data layers (SDE, market prices, telemetry). Own ingest/schema/queries, no UI.
+- `src/search/` — the slice-agnostic cross-source search engine plus the wiring manifest that composes feature/data sources into it (the `src/db/sde-pipeline.ts` composition-layer pattern; unclassified by the boundary rules). Each source still lives in its own slice — e.g. `src/data/tools/search.ts`, `src/data/commands/search.ts` — and exports a source value the manifest pulls.
 - `src/app/api/` — route handlers.
 - `CHANGELOG.md` (repo root) — user-facing changelog, parsed by `src/features/changelog/parse.ts`.
 - `docs/SCRATCHPAD.md` — cross-session working memory. The whole `docs/` folder is gitignored.
@@ -48,7 +49,7 @@ Raise a conflict before proceeding if a task seems to violate one.
 
 Load-bearing constraints. Don't regress these without raising a conflict.
 
-- **`src/data/` slices never import from `src/features/`.** Features import from data layers, never the reverse. Two data slices never import each other (e.g. `eve-data` ⊥ `market-prices`). Cross-slice composition lives in a layer *above* both (see `src/db/sde-pipeline.ts` for the template). *Lint-enforced* (`boundaries/dependencies` in `eslint.config.mjs`), with three documented exceptions encoded there: auth's shared surface (`auth/types`, `auth/schema`) is importable anywhere as platform infra; the `search` registry hub is importable by any data slice; and `npc-stats → eve-data` is allowed as directed layering. Features also never import each other (same rule) — *also lint-enforced*.
+- **`src/data/` slices never import from `src/features/`.** Features import from data layers, never the reverse. Two data slices never import each other (e.g. `eve-data` ⊥ `market-prices`). Cross-slice composition lives in a layer *above* both (see `src/db/sde-pipeline.ts` for the template). *Lint-enforced* (`boundaries/dependencies` in `eslint.config.mjs`), with two documented exceptions encoded there: auth's shared surface (`auth/types`, `auth/schema`) is importable anywhere as platform infra; and `npc-stats → eve-data` is allowed as directed layering. (Search composition was lifted into the unclassified `src/search/` layer in 3.3.7 — the `sde-pipeline.ts` pattern — so it no longer needs an exception: data sources import the engine's types/matcher with no rule firing, and the manifest pulls each source from above.) Features also never import each other (same rule) — *also lint-enforced*.
 - **UI primitives accept abstract `tone` props** (`green`, `red`, …). The only files that know "C5 is red" are the feature-level `*-styles.ts` mappings. The *import edge* — `src/components/ui/**` may not import features or data — is lint-enforced; whether a component is a *good* primitive stays a review judgment.
 - **Postgres enums are driven from TS `as const` arrays** — one source of truth.
 - **`Collapsible` is a pure `<details>`/`<summary>`** — the element owns open/closed state; no React state wrapper. `UrlSync` syncs the URL via a native `toggle` listener.

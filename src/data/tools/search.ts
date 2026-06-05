@@ -2,12 +2,11 @@
 // (including SOON entries — they render dimmed so users learn the
 // platform's full surface area even before each tool is live).
 
-import { registerSearchSource } from '@/data/search';
-import type { SearchResult } from '@/data/search';
-import { fuzzyMatch } from '@/data/search/match';
+import type { SearchResult, SearchSource } from '@/search';
+import { fuzzyMatch } from '@/search/match';
 import { TOOLS } from './registry';
 
-registerSearchSource({
+export const toolsSearchSource: SearchSource = {
   name: 'Tools',
   limit: 5,
   async search(query) {
@@ -29,4 +28,4 @@ registerSearchSource({
       disabled: tool.href === null,
     }));
   },
-});
+};

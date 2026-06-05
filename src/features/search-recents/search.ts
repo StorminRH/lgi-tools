@@ -5,11 +5,10 @@
 // the SearchContext's `recents` array (populated by GlobalSearch on mount
 // via `readRecents()`).
 
-import { registerSearchSource } from '@/data/search';
-import type { SearchResult } from '@/data/search';
-import { fuzzyMatch } from '@/data/search/match';
+import type { SearchResult, SearchSource } from '@/search';
+import { fuzzyMatch } from '@/search/match';
 
-registerSearchSource({
+export const recentsSearchSource: SearchSource = {
   name: 'Recent',
   limit: 5,
   showOnEmpty: true,
@@ -30,4 +29,4 @@ registerSearchSource({
       matchIndices: match.matchIndices,
     }));
   },
-});
+};

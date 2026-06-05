@@ -1,16 +1,19 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
+  registerSearchSource,
   listRegisteredSources,
   __resetSearchSources,
   type SearchContext,
-} from '@/data/search';
+} from '@/search';
+import { commandsSearchSource } from './search';
 import type { Session } from '@/features/auth/types';
 
 // Each vitest file gets its own module graph, so we start with a clean
-// registry. Import the Commands source for its side-effect registration.
-beforeAll(async () => {
+// registry, then register the Commands source the way the wiring manifest
+// does — by pulling its exported value.
+beforeAll(() => {
   __resetSearchSources();
-  await import('./search');
+  registerSearchSource(commandsSearchSource);
 });
 
 function mockSession(): Session {

@@ -3,7 +3,7 @@
 // the most recently-clicked row floats to the top.
 
 import { z } from 'zod';
-import type { SearchResult } from '@/data/search';
+import type { SearchResult } from '@/search';
 
 const STORAGE_KEY = 'lgi:search:recents';
 const MAX_RECENTS = 10;

@@ -3,9 +3,8 @@
 // the per-keystroke matcher synchronous and zero-RPC, while the data
 // itself is server-rendered from `getSiteSearchIndex()`.
 
-import { registerSearchSource } from '@/data/search';
-import type { SearchResult } from '@/data/search';
-import { fuzzyMatch, type FuzzyMatch } from '@/data/search/match';
+import type { SearchResult, SearchSource } from '@/search';
+import { fuzzyMatch, type FuzzyMatch } from '@/search/match';
 import { formatIskCompact } from '@/lib/format';
 import type { SiteSearchEntry } from './queries';
 import { SITE_TYPE_LABEL } from './components/wormhole-styles';
@@ -32,7 +31,7 @@ const CLASS_ORDER: Record<string, number> = {
   C1: 0, C2: 1, C3: 2, C4: 3, C5: 4, C6: 5,
 };
 
-registerSearchSource({
+export const sitesSearchSource: SearchSource = {
   name: 'Sites',
   limit: 6,
   async search(query) {
@@ -64,4 +63,4 @@ registerSearchSource({
       matchIndices: match.matchIndices,
     }));
   },
-});
+};
