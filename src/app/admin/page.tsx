@@ -9,6 +9,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { AdminActivitySummary } from './AdminActivitySummary';
 import { RoleToggleForm } from '@/features/auth/components/RoleToggleForm';
 import {
+  CHARACTER_SEARCH_LIMIT,
   getCharacterById,
   listAdminCharacters,
   searchCharactersByName,
@@ -195,7 +196,12 @@ async function AdminContent({
           <Card>
             <SectionHeader
               label="Search results"
-              hint={`${nonAdminMatches.length} match${nonAdminMatches.length === 1 ? '' : 'es'}`}
+              hint={
+                `${nonAdminMatches.length} match${nonAdminMatches.length === 1 ? '' : 'es'}` +
+                (searchResults.length === CHARACTER_SEARCH_LIMIT
+                  ? ` · showing first ${CHARACTER_SEARCH_LIMIT}, narrow your search`
+                  : '')
+              }
             />
             {nonAdminMatches.length === 0 ? (
               <EmptyState>
