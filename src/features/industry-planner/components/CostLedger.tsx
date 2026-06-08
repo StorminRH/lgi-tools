@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
@@ -53,6 +54,21 @@ function CostRow({ name, quantity, extendedCost, typeId, pending }: LedgerRow) {
 export function CostLedger({ structure }: { structure: BlueprintStructure }) {
   const { pricing, refreshing, isPending } = usePricing();
 
+  // Pre-seed rows (before any price lands): the whole-run batch quantities with
+  // no cost yet. Memoised so the brief pre-price window doesn't re-walk the tree
+  // on every render.
+  const preSeedRows = useMemo<LedgerRow[]>(
+    () =>
+      computeBatchMaterials(structure.tree).map((m) => ({
+        typeId: m.typeId,
+        name: structure.materialNames[m.typeId] ?? `Type ${m.typeId}`,
+        quantity: m.quantity,
+        extendedCost: null,
+        pending: false,
+      })),
+    [structure.tree, structure.materialNames],
+  );
+
   // Unify the priced and pre-seed states into one ledger shape, then bucket by
   // source category so the grid renders one card per present category.
   const rows: LedgerRow[] =
@@ -64,13 +80,7 @@ export function CostLedger({ structure }: { structure: BlueprintStructure }) {
           extendedCost: r.extendedCost,
           pending: isPending(r.typeId),
         }))
-      : computeBatchMaterials(structure.tree).map((m) => ({
-          typeId: m.typeId,
-          name: structure.materialNames[m.typeId] ?? `Type ${m.typeId}`,
-          quantity: m.quantity,
-          extendedCost: null,
-          pending: false,
-        }));
+      : preSeedRows;
 
   const byCategory = new Map<string, LedgerRow[]>();
   for (const r of rows) {

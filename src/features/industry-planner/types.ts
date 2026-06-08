@@ -12,11 +12,10 @@ export interface BlueprintIndexEntry {
 }
 
 // View-model types for the Industry Planner. The page composes two reads:
-//  - `BlueprintStructure` — deploy-static structure (tree + flat materials +
-//    names), cached `'max'`. Has no price dependency, so it renders in the
-//    static shell.
-//  - `BlueprintPricing` — the priced cost panel (flat materials × live prices +
-//    margin), cached `'hours'`. Streams into a `<Suspense>` hole.
+//  - `BlueprintStructure` — deploy-static structure (tree + names), cached
+//    `'max'`. Has no price dependency, so it renders in the static shell.
+//  - `BlueprintPricing` — the priced cost panel (whole-run batch materials ×
+//    live prices + margin), cached `'hours'`. Streams into a `<Suspense>` hole.
 
 export interface BlueprintProduct {
   typeId: number;
