@@ -10,7 +10,7 @@ export function PrintButton() {
     <button
       type="button"
       onClick={() => window.print()}
-      className="no-print font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-[#1e2c3a] hover:border-[#2a3550] text-isk transition-colors"
+      className="no-print font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-isk transition-colors"
     >
       Print report
     </button>

@@ -93,7 +93,7 @@ export function ContactForm() {
           maxLength={254}
           autoComplete="email"
           placeholder="you@example.com"
-          className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 focus:outline-none focus:border-[#2a3550] disabled:opacity-50"
+          className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 focus:outline-none focus:border-border-active disabled:opacity-50"
         />
         <p className="text-[10px] leading-relaxed text-muted">
           Used only to reply — your email isn&apos;t stored or shared.
@@ -116,10 +116,10 @@ export function ContactForm() {
           maxLength={CONTACT_MESSAGE_MAX_LENGTH}
           rows={8}
           placeholder="Your message"
-          className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 resize-none focus:outline-none focus:border-[#2a3550] disabled:opacity-50"
+          className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 resize-none focus:outline-none focus:border-border-active disabled:opacity-50"
         />
         {state.kind === 'error' && (
-          <span className="text-[10px] text-[#dd4444]">{state.message}</span>
+          <span className="text-[10px] text-tone-red">{state.message}</span>
         )}
       </div>
 

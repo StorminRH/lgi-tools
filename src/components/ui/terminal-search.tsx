@@ -133,14 +133,14 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"
-          className="w-full font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-[#2a3550]"
+          className="w-full font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
         />
       </form>
 
       {showDropdown && (
         <ul
           role="listbox"
-          className="absolute z-20 left-0 right-0 mt-1 max-h-[240px] overflow-y-auto bg-bg border border-[#1e2c3a] shadow-lg"
+          className="absolute z-20 left-0 right-0 mt-1 max-h-[240px] overflow-y-auto bg-bg border border-border-idle shadow-lg"
         >
           {suggestions.map((s) => (
             <li key={s}>
@@ -153,7 +153,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
                   e.preventDefault();
                   handleSuggestionClick(s);
                 }}
-                className="w-full text-left font-mono text-[12px] px-3 py-1.5 text-text hover:bg-[#161e28] focus:bg-[#161e28] focus:outline-none transition-colors"
+                className="w-full text-left font-mono text-[12px] px-3 py-1.5 text-text hover:bg-surface-raised focus:bg-surface-raised focus:outline-none transition-colors"
               >
                 {s}
               </button>

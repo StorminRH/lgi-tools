@@ -89,8 +89,8 @@ function formatDateTime(d: Date): string {
 function ControlBar({ tab, range }: { tab: TabKey; range: RangeKey }) {
   const linkBase =
     'font-mono text-[10px] uppercase tracking-[0.12em] px-3 py-1.5 border transition-colors';
-  const active = 'border-[#2a3550] text-isk bg-[#0a101a]';
-  const idle = 'border-[#1e2c3a] text-muted hover:text-text hover:border-[#2a3550]';
+  const active = 'border-border-active text-isk bg-surface-sunk';
+  const idle = 'border-border-idle text-muted hover:text-text hover:border-border-active';
   return (
     <div className="no-print flex flex-col items-end gap-2">
       <div className="flex items-center gap-2">

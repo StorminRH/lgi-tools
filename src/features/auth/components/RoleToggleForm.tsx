@@ -28,7 +28,7 @@ export function RoleToggleForm({
         type="submit"
         disabled={isSelf}
         title={isSelf ? "You can't change your own role" : undefined}
-        className="font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 border border-[#1e2c3a] hover:border-[#2a3550] text-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[#1e2c3a]"
+        className="font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border-idle"
       >
         {label}
       </button>

@@ -70,7 +70,7 @@ export function PriceFreshness({
         label="Market price status"
         trigger={
           <span className="price-chip flex items-center gap-2 px-3 h-full font-mono text-[10px] uppercase tracking-[0.08em] text-muted whitespace-nowrap">
-            <span aria-hidden className="w-[5px] h-[5px] rounded-full bg-[#d68c3d]" />
+            <span aria-hidden className="w-[5px] h-[5px] rounded-full bg-tone-orange" />
             no price data
           </span>
         }
