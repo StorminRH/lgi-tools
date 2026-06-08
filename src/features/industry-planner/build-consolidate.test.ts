@@ -34,10 +34,6 @@ function makeStructure(): BlueprintStructure {
         ],
       },
     ],
-    flatMaterials: [
-      { typeId: 9, quantity: 12 },
-      { typeId: 8, quantity: 2 },
-    ],
     materialNames: { 1: 'Product', 2: 'Comp A', 3: 'Comp B', 8: 'Raw Q', 9: 'Raw R' },
   } as unknown as BlueprintStructure;
 }

@@ -189,15 +189,20 @@ async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
 }
 
 // How many runs of a producing blueprint a parent's need represents, as a
-// FRACTION — `quantity / quantityPerRun`. We deliberately do NOT round up to
-// whole runs: a build is charged only the fraction of a batch it actually
-// consumes, with the remainder treated as reusable inventory. Whole-run
-// rounding (the old `ceilDiv`) massively overstated deep builds where an
-// intermediate is produced in large batches — e.g. one Fullerene Intercalated
-// Sheets needs 33 Fulleroferrocene but the reaction makes 1000/run, so rounding
-// up pulled a full 1000-unit batch's raw gas to satisfy 33 (~30× overbuild),
-// which compounded across a T3/capital tree. Marginal (fractional) runs are the
-// standard basis for a build-cost estimate.
+// FRACTION — `quantity / quantityPerRun`, deliberately NOT rounded up. This
+// keeps the resolver's stored tree + flat materials a MARGINAL structural
+// artifact: each intermediate is charged only the fraction of a batch a single
+// build consumes. That output is pinned by `pnpm validate:resolver`.
+//
+// This is NOT the planner's displayed cost basis. The planner re-derives
+// whole-run "batched" totals at request time from these same per-run quantities
+// (runs = ceil(demand ÷ batch yield)) in the feature layer — industry-planner's
+// build-batch.ts — which is what a builder actually buys from an empty hangar.
+// That aggregate-then-ceil is distinct from the old PER-EDGE `ceilDiv` removed
+// here: per-edge rounding ceil'd every occurrence independently and compounded
+// (~30× on deep T3/capital trees — one Fullerene Intercalated Sheets needs 33
+// Fulleroferrocene against a 1000/run reaction); summing all demand for a type
+// before a single ceil does not.
 function runsFor(quantity: number, quantityPerRun: number): number {
   if (quantityPerRun === 0) throw new Error('runsFor: quantityPerRun is zero');
   return quantity / quantityPerRun;

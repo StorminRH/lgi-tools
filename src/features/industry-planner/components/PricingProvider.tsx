@@ -16,6 +16,7 @@ import {
   useRefreshOnView,
   type RefreshedPrice,
 } from '@/data/market-prices/use-refresh-on-view';
+import { collectRawTypeIds } from '../build-batch';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
@@ -160,7 +161,7 @@ export function PricingProvider({
   const toRefresh = useMemo(
     () => [
       ...new Set<number>([
-        ...structure.flatMaterials.map((m) => m.typeId),
+        ...collectRawTypeIds(structure.tree),
         structure.product.typeId,
         ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
       ]),

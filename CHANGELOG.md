@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-06-08
+
+- Build cost now reflects whole production runs. The planner sizes each intermediate to the full batch you actually have to run — you can't run a fraction of a reaction or job — so the material total and cost match what you'd spend building from an empty hangar. Totals are higher than before because the earlier figure assumed you could buy partial runs.
+
 ### 2026-06-04
 
 - Search results now show the real in-game item icon for blueprints — the icon of the item each blueprint builds — instead of a flat "BP" label, matching the icons used across the planner. Recently-searched blueprints keep their icon too.

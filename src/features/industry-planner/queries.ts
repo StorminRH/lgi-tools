@@ -5,13 +5,13 @@ import {
   getBlueprintOutput,
   getBlueprintSearchRows,
   getBlueprintTree,
-  getFlatMaterials,
   getTypeLabels,
 } from '@/data/eve-data/queries';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
+import { collectRawTypeIds } from './build-batch';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
@@ -68,17 +68,13 @@ export async function getBlueprintStructure(
   const chosen = await getBlueprintOutput(blueprintId);
   if (!chosen) return null;
 
-  const [treeResult, flat] = await Promise.all([
-    getBlueprintTree(blueprintId),
-    getFlatMaterials(blueprintId),
-  ]);
+  const treeResult = await getBlueprintTree(blueprintId);
   const tree = treeResult?.treeJson ?? [];
+  // Raw leaves (materials with no recipe) — the priced cost basis's type set,
+  // taken from the tree so it's independent of the marginal flat-material list.
+  const rawTypeIds = collectRawTypeIds(tree);
 
-  const labelIds = dedupe([
-    chosen.productTypeId,
-    ...flat.map((f) => f.rawMaterialTypeId),
-    ...collectTreeTypeIds(tree),
-  ]);
+  const labelIds = dedupe([chosen.productTypeId, ...collectTreeTypeIds(tree)]);
   const [labels, activityByBlueprint] = await Promise.all([
     getTypeLabels(labelIds),
     getActivityByBlueprint([...collectBlueprintIds(tree)]),
@@ -90,10 +86,10 @@ export async function getBlueprintStructure(
   // display order + colour so the priced ledger can render ordered sections.
   const materialCategory: Record<number, string> = {};
   const seenCategory = new Map<string, { tone: BlueprintStructure['materialCategories'][number]['tone']; order: number }>();
-  for (const f of flat) {
-    const l = labels.get(f.rawMaterialTypeId);
+  for (const rawTypeId of rawTypeIds) {
+    const l = labels.get(rawTypeId);
     const cat = classifyRaw(l?.groupName ?? '', l?.categoryName ?? '');
-    materialCategory[f.rawMaterialTypeId] = cat.label;
+    materialCategory[rawTypeId] = cat.label;
     seenCategory.set(cat.label, { tone: cat.tone, order: cat.order });
   }
   const materialCategories = [...seenCategory.entries()]
@@ -124,10 +120,6 @@ export async function getBlueprintStructure(
     buildTree,
     buildNodeDisplay,
     rootHeight,
-    flatMaterials: flat.map((f) => ({
-      typeId: f.rawMaterialTypeId,
-      quantity: Number(f.totalQuantity),
-    })),
     materialCategory,
     materialCategories,
     materialNames,
@@ -159,7 +151,7 @@ export async function getBlueprintPricing(
   // their rows (build-vs-buy hint) — they're never summed into cost. Still ONE
   // batched query across the whole set.
   const priceIds = dedupe([
-    ...structure.flatMaterials.map((m) => m.typeId),
+    ...collectRawTypeIds(structure.tree),
     structure.product.typeId,
     ...collectIntermediateTypeIds(structure.buildTree, structure.buildNodeDisplay),
   ]);
