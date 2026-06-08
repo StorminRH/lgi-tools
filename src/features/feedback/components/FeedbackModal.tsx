@@ -147,12 +147,12 @@ export function FeedbackModal({
                 maxLength={FEEDBACK_MESSAGE_MAX_LENGTH}
                 placeholder="What's broken, missing, or weird? The more specific the better."
                 rows={6}
-                className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 resize-none focus:outline-none focus:border-[#2a3550] disabled:opacity-50"
+                className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 resize-none focus:outline-none focus:border-border-active disabled:opacity-50"
               />
               <div className="flex items-center justify-between text-[9px] tracking-[0.08em] uppercase text-muted">
                 <span>{charsLeft} chars left</span>
                 {state.kind === 'error' && (
-                  <span className="text-[#dd4444] normal-case tracking-normal">
+                  <span className="text-tone-red normal-case tracking-normal">
                     {state.message}
                   </span>
                 )}

@@ -12,8 +12,8 @@ export function LoginButton() {
   if (loading) {
     return (
       <div className="flex items-center gap-3" aria-hidden="true">
-        <div className="w-7 h-7 rounded-[2px] border border-[#1e2c3a]" />
-        <div className="w-16 h-3 rounded-[2px] bg-[#1e2c3a]" />
+        <div className="w-7 h-7 rounded-[2px] border border-border-idle" />
+        <div className="w-16 h-3 rounded-[2px] bg-border-idle" />
       </div>
     );
   }
@@ -22,7 +22,7 @@ export function LoginButton() {
     return (
       <a
         href="/api/auth/login"
-        className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-1.5 border border-[#1e2c3a] hover:border-[#2a3550] text-isk transition-colors"
+        className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-1.5 border border-border-idle hover:border-border-active text-isk transition-colors"
       >
         Log in with EVE
       </a>
@@ -43,7 +43,7 @@ export function LoginButton() {
         height={28}
         loading="eager"
         decoding="async"
-        className="rounded-[2px] border border-[#1e2c3a]"
+        className="rounded-[2px] border border-border-idle"
       />
       <span className="font-mono text-[11px] text-text">{session.name}</span>
       <form method="POST" action="/api/auth/logout">

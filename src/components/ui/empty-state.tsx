@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="px-3.5 pt-2 pb-[9px] text-[11px] text-[#223040] border-b border-border-soft">
+    <div className="px-3.5 pt-2 pb-[9px] text-[11px] text-empty border-b border-border-soft">
       {children}
     </div>
   );

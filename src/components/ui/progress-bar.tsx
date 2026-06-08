@@ -16,8 +16,8 @@ export function ProgressBar({ pct }: { pct: number }) {
     ref.current?.style.setProperty('--pct', `${pct}%`);
   }, [pct]);
   return (
-    <div className="h-[4px] bg-[#0a1018] border border-[#101820]">
-      <div ref={ref} className="progress-fill h-full bg-[#10283a]" aria-hidden />
+    <div className="h-[4px] bg-progress-track border border-progress-track-border">
+      <div ref={ref} className="progress-fill h-full bg-progress-fill" aria-hidden />
     </div>
   );
 }

@@ -79,7 +79,7 @@ function CharacterRow({
           height={28}
           loading="lazy"
           decoding="async"
-          className="rounded-[2px] border border-[#1e2c3a]"
+          className="rounded-[2px] border border-border-idle"
         />
       }
       name={character.name}
@@ -157,11 +157,11 @@ async function AdminContent({
             defaultValue={query ?? ''}
             placeholder="Search by character name"
             maxLength={MAX_QUERY_LENGTH}
-            className="flex-1 font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-[#2a3550]"
+            className="flex-1 font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
           />
           <button
             type="submit"
-            className="font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-[#1e2c3a] hover:border-[#2a3550] text-isk transition-colors"
+            className="font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-isk transition-colors"
           >
             Search
           </button>

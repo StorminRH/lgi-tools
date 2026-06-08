@@ -10,11 +10,11 @@ const chipVariants = cva(
   {
     variants: {
       tone: {
-        blue:   'bg-[rgba(40,90,255,0.16)]  text-[#6688ff] border-[rgba(40,90,255,0.32)]',
-        red:    'bg-[rgba(255,50,50,0.14)]  text-[#ff6666] border-[rgba(255,50,50,0.30)]',
-        purple: 'bg-[rgba(170,70,255,0.14)] text-[#cc77ff] border-[rgba(170,70,255,0.30)]',
-        green:  'bg-[rgba(0,200,120,0.13)]  text-[#33dd88] border-[rgba(0,200,120,0.28)]',
-        orange: 'bg-[rgba(255,140,0,0.13)]  text-[#ffaa22] border-[rgba(255,140,0,0.32)]',
+        blue:   'bg-chip-blue-bg text-chip-blue border-chip-blue-border',
+        red:    'bg-chip-red-bg text-chip-red border-chip-red-border',
+        purple: 'bg-chip-purple-bg text-chip-purple border-chip-purple-border',
+        green:  'bg-chip-green-bg text-chip-green border-chip-green-border',
+        orange: 'bg-chip-orange-bg text-dps-mid border-chip-orange-border',
       } satisfies Record<ChipTone, string>,
     },
   },

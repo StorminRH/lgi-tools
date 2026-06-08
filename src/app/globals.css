@@ -23,6 +23,89 @@
   --color-dps-mid:  #ffaa22;
   --color-dps-high: #ff5555;
 
+  /* ── Call-site color tokens (3.3.9) ──
+   * Homes for colors that used to be hardcoded as raw hex / rgba in component
+   * className strings and SVG attributes. Each token holds the EXACT prior
+   * value — this routing is visually identical (the palette pass is 3.3.10).
+   * The no-raw-hex lint rule (eslint.config.mjs) keeps call sites pointed here.
+   */
+
+  /* Shared chrome — borders and surfaces reused across many components. */
+  --color-border-idle:     #1e2c3a; /* idle/at-rest border (login, admin, pills, dropdown) */
+  --color-border-active:   #2a3550; /* hover/focus/active border */
+  --color-surface-raised:  #161e28; /* raised neutral surface (pill neutral, search hover) */
+  --color-surface-sunk:    #0a101a; /* sunk dark surface (pill blue bg, active tab bg) */
+  --color-row-active:      #0d1218; /* table row hover/open background */
+
+  /* Pill tone surfaces — per-tone dim bg + border (text colors use --color-tone-*).
+   * neutral bg→surface-raised, neutral border→border-idle, green/green-strong
+   * bg→pill-green-bg + border→isk-dim, blue bg→surface-sunk. */
+  --color-pill-green-bg:        #0f2218;
+  --color-pill-orange-bg:       #1f1508;
+  --color-pill-orange-soft-bg:  #1a0f0a;
+  --color-pill-red-bg:          #1a0a0a;
+  --color-pill-red-soft-bg:     #1a1010;
+  --color-pill-magenta-bg:      #1a0a1a;
+  --color-pill-purple-bg:       #100a1a;
+  --color-pill-yellow-bg:       #1a1a0a;
+  --color-pill-teal-bg:         #0a1a14;
+  --color-pill-orange-border:       #3a2510;
+  --color-pill-orange-soft-border:  #3a2010;
+  --color-pill-red-border:          #3a1010;
+  --color-pill-red-soft-border:     #3a1515;
+  --color-pill-magenta-border:      #3a103a;
+  --color-pill-purple-border:       #2a1040;
+  --color-pill-yellow-border:       #332e10;
+  --color-pill-teal-border:         #104a2a;
+  --color-pill-blue-border:         #10283a;
+
+  /* Tone hues — pill/dot text + feature error text. Mirror toneHex (tones.ts,
+   * the JS/SVG source); green→isk and neutral→muted reuse existing vars. */
+  --color-tone-green-strong: #44dd99;
+  --color-tone-orange:       #d68c3d;
+  --color-tone-orange-soft:  #cc7733;
+  --color-tone-red:          #dd4444;
+  --color-tone-red-soft:     #cc5555;
+  --color-tone-magenta:      #cc55cc;
+  --color-tone-purple:       #aa55ff;
+  --color-tone-yellow:       #ccaa33;
+  --color-tone-teal:         #33cc88;
+  --color-tone-blue:         #3399cc;
+
+  /* Chip — saturated EWAR/status chips. Text differs from toneHex (brighter);
+   * orange text reuses --color-dps-mid. bg/border are translucent. */
+  --color-chip-blue:          #6688ff;
+  --color-chip-red:           #ff6666;
+  --color-chip-purple:        #cc77ff;
+  --color-chip-green:         #33dd88;
+  --color-chip-blue-bg:       rgba(40,90,255,0.16);
+  --color-chip-blue-border:   rgba(40,90,255,0.32);
+  --color-chip-red-bg:        rgba(255,50,50,0.14);
+  --color-chip-red-border:    rgba(255,50,50,0.30);
+  --color-chip-purple-bg:     rgba(170,70,255,0.14);
+  --color-chip-purple-border: rgba(170,70,255,0.30);
+  --color-chip-green-bg:      rgba(0,200,120,0.13);
+  --color-chip-green-border:  rgba(0,200,120,0.28);
+  --color-chip-orange-bg:     rgba(255,140,0,0.13);
+  --color-chip-orange-border: rgba(255,140,0,0.32);
+
+  /* Dot indicator glows (translucent box-shadow color). */
+  --color-dot-orange-glow: rgba(204,119,51,0.4);
+  --color-dot-blue-glow:   rgba(51,153,204,0.4);
+
+  /* Callout — body text reuses --color-dps-mid; label + tints are own tokens. */
+  --color-callout-label:  #cc8800;
+  --color-callout-bg:     rgba(255,140,0,0.06);
+  --color-callout-border: rgba(255,140,0,0.18);
+  --color-callout-rule:   rgba(255,140,0,0.45);
+
+  /* Misc chrome. (--color-progress-fill equals --color-pill-blue-border's
+   * value; kept separate — a fill is not a border. 3.3.10 may merge.) */
+  --color-progress-track:        #0a1018;
+  --color-progress-track-border: #101820;
+  --color-progress-fill:         #10283a;
+  --color-empty:                 #223040;
+
   /* ── Typography scale ──
    * Named sizes for the canonical type ladder. Existing ad-hoc `text-[Npx]`
    * usages stay valid; new code references the named scale via Tailwind's
@@ -560,7 +643,9 @@ a:hover {
   min-width: 0;
 }
 .sites-table-row[open] > summary {
-  background: #0d1218;
+  /* Pinned to the same token as the hover state (SitesTable hover:bg-row-active)
+   * so the two row states can't drift apart in the 3.3.10 palette pass. */
+  background: var(--color-row-active);
 }
 .sites-table-expanded {
   border-top: 1px solid var(--color-border-soft);

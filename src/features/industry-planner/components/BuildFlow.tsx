@@ -177,15 +177,15 @@ function FlowLevel({
             className={drillable ? 'flow-node' : undefined}
             onClick={drillable ? () => onDrill(chainTo(n)) : undefined}
           >
-            <rect width={NODE_W} height={NODE_H} rx={3} fill="#0d0f14" stroke="#1e2535" />
+            <rect width={NODE_W} height={NODE_H} rx={3} className="fill-bg stroke-border" />
             <rect width={3} height={NODE_H} rx={1.5} fill={tone} />
-            <text x={12} y={13} fill="#dce8f0" fontSize={11}>
+            <text x={12} y={13} className="fill-name" fontSize={11}>
               {trunc(d.name)}
             </text>
             <text x={12} y={24} fill={tone} fontSize={8} letterSpacing={0.4}>
               {d.label.toUpperCase()}
             </text>
-            <text x={NODE_W - 9} y={19} fill="#6a7a8a" fontSize={10} textAnchor="end">
+            <text x={NODE_W - 9} y={19} className="fill-muted" fontSize={10} textAnchor="end">
               ×{formatNodeQty(n.node.quantity)}
             </text>
             {drillable && (
@@ -215,7 +215,7 @@ function FlowColumns({
     <g transform={`translate(${tx.toFixed(2)} 0) scale(${s.toFixed(4)})`}>
       {tiers.map((tier, c) => (
         <g key={tier.depth} transform={`translate(${c * COL_W}, 0)`}>
-          <text x={3} y={11} fill="#6a7a8a" fontSize={9} letterSpacing={1.2}>
+          <text x={3} y={11} className="fill-muted" fontSize={9} letterSpacing={1.2}>
             TIER {tier.depth}
           </text>
           {tier.items.map((it, j) => {
@@ -228,15 +228,15 @@ function FlowColumns({
                 className={drillable ? 'flow-node' : undefined}
                 onClick={drillable && onPick ? () => onPick(it.typeId) : undefined}
               >
-                <rect width={NODE_W} height={NODE_H} rx={3} fill="#0d0f14" stroke="#1e2535" />
+                <rect width={NODE_W} height={NODE_H} rx={3} className="fill-bg stroke-border" />
                 <rect width={3} height={NODE_H} rx={1.5} fill={tone} />
-                <text x={12} y={13} fill="#dce8f0" fontSize={11}>
+                <text x={12} y={13} className="fill-name" fontSize={11}>
                   {trunc(it.name)}
                 </text>
                 <text x={12} y={24} fill={tone} fontSize={8} letterSpacing={0.4}>
                   {it.label.toUpperCase()}
                 </text>
-                <text x={NODE_W - 9} y={19} fill="#6a7a8a" fontSize={10} textAnchor="end">
+                <text x={NODE_W - 9} y={19} className="fill-muted" fontSize={10} textAnchor="end">
                   ×{formatNodeQty(it.quantity)}
                 </text>
                 {drillable && (

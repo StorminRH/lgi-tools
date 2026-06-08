@@ -3,6 +3,58 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import boundaries from "eslint-plugin-boundaries";
 
+// Shared `no-restricted-syntax` selector sets. Factored out because flat config
+// REPLACES (does not merge) a rule's options for each matching file — so a
+// per-file exemption that lifts one ban must re-list every ban it still wants.
+// Keeping the CSP selectors in one const lets the tones.ts / sandbox exemptions
+// re-state them verbatim with no drift.
+const cspSelectors = [
+  {
+    selector: "JSXAttribute[name.name='style']",
+    message:
+      "No inline `style` attributes — the production CSP's `style-src 'self'` drops them. Use Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones. See CLAUDE.md > CSP.",
+  },
+  {
+    selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+    message:
+      "No `dangerouslySetInnerHTML` — the production CSP allows `'unsafe-inline'` scripts, so an unescaped HTML sink becomes an XSS vector. Render text through JSX (auto-escaped) instead. See CLAUDE.md > CSP.",
+  },
+  {
+    selector:
+      "AssignmentExpression[left.property.name=/^(inner|outer)HTML$/]",
+    message:
+      "No raw `innerHTML`/`outerHTML` writes — same XSS risk as dangerouslySetInnerHTML under the `'unsafe-inline'` CSP. Use safe DOM APIs (textContent, createElement) instead. See CLAUDE.md > CSP.",
+  },
+];
+
+// Raw color literals belong in the token layer (the `@theme` block in
+// globals.css and tones.ts), not hardcoded at call sites. Two shapes: a hex
+// anywhere inside a Tailwind arbitrary value — `bg-[#1e2c3a]`, but also one
+// embedded mid-value like `shadow-[0_0_4px_#dd4444]` (`\[[^\]]*#…` matches the
+// hex wherever it sits in the `[…]` chunk, in a className or cva/clsx string —
+// a TemplateElement when interpolated); and a whole-string hex constant like an
+// SVG `fill="#0d0f14"`. tones.ts (the JS source for SVG fills) and the
+// dev/preview sandboxes are exempted below. 3.3.9 routed every call-site color
+// into a `--color-*` token; this keeps them there. (rgba is intentionally out
+// of scope — the rule bans hex only.)
+const hexColorSelectors = [
+  {
+    selector: "Literal[value=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
+    message:
+      "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts. See CLAUDE.md > color tokens.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
+    message:
+      "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts. See CLAUDE.md > color tokens.",
+  },
+  {
+    selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
+    message:
+      "No raw hex color constants — SVG fills/strokes read from tones.ts (toneHex) or a Tailwind `fill-…`/`stroke-…` utility backed by a `--color-*` token. See CLAUDE.md > color tokens.",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -120,39 +172,39 @@ const eslintConfig = defineConfig([
     },
   },
 
-  // CSP: the production policy is `style-src 'self'` (no nonce, no
-  // unsafe-inline), which covers the external stylesheet but NOT inline
-  // `style="…"` attributes — any JSX `style={{}}` renders as such an attribute
-  // and is silently dropped on first paint. Forbid it; runtime-dynamic values
-  // use a CSS class reading a custom property set via ref.style.setProperty in
-  // an effect. The dangerouslySetInnerHTML / raw-innerHTML bans (3.0.4.6) keep
-  // the "no raw-HTML sinks" property that makes `script-src 'self'
-  // 'unsafe-inline'` safe — with inline scripts allowed, an unescaped HTML sink
-  // is an XSS vector. The `.ts`/`.tsx` glob is deliberate: it also catches a
-  // direct `el.innerHTML = …` write in a plain `.ts` helper, not just the JSX
-  // escape hatch. See CLAUDE.md > CSP.
+  // CSP + color tokens: two families of `no-restricted-syntax` bans share one
+  // block (the rule's options REPLACE across matching files, so they can't be
+  // split into two `**/*.{ts,tsx}` objects without one wiping the other).
+  //   • CSP — `style-src 'self'` (no nonce) drops inline `style="…"`, so any JSX
+  //     `style={{}}` is forbidden; the dangerouslySetInnerHTML / raw-innerHTML
+  //     bans (3.0.4.6) keep the "no raw-HTML sinks" property that makes
+  //     `script-src 'self' 'unsafe-inline'` safe. The `.ts`/`.tsx` glob also
+  //     catches a direct `el.innerHTML = …` in a plain helper.
+  //   • Color tokens (3.3.9) — raw hex must live in the token layer, not at call
+  //     sites. tones.ts and the dev/preview sandboxes are exempted just below.
+  // See CLAUDE.md > CSP / color tokens.
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "JSXAttribute[name.name='style']",
-          message:
-            "No inline `style` attributes — the production CSP's `style-src 'self'` drops them. Use Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones. See CLAUDE.md > CSP.",
-        },
-        {
-          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
-          message:
-            "No `dangerouslySetInnerHTML` — the production CSP allows `'unsafe-inline'` scripts, so an unescaped HTML sink becomes an XSS vector. Render text through JSX (auto-escaped) instead. See CLAUDE.md > CSP.",
-        },
-        {
-          selector:
-            "AssignmentExpression[left.property.name=/^(inner|outer)HTML$/]",
-          message:
-            "No raw `innerHTML`/`outerHTML` writes — same XSS risk as dangerouslySetInnerHTML under the `'unsafe-inline'` CSP. Use safe DOM APIs (textContent, createElement) instead. See CLAUDE.md > CSP.",
-        },
-      ],
+      "no-restricted-syntax": ["error", ...cspSelectors, ...hexColorSelectors],
+    },
+  },
+  // tones.ts is the sanctioned home for raw color literals — `toneHex` is the
+  // JS source for SVG fills. Re-state the CSP bans without the hex selectors so
+  // only the color rule is lifted here (replace semantics).
+  {
+    files: ["src/components/ui/tones.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...cspSelectors],
+    },
+  },
+  // Dev/preview sandboxes are design scratchpads that intentionally try
+  // off-palette one-offs; exempt them from the hex-color ban (the 3.3.10
+  // sandbox port will tokenize them), but keep the CSP bans.
+  {
+    files: ["src/app/dev/**/*.{ts,tsx}", "src/app/preview/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...cspSelectors],
     },
   },
 
