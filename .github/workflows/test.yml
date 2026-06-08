@@ -28,4 +28,11 @@ jobs:
 
       - run: pnpm test
 
+      # knip imports drizzle.config.ts to discover the schema as an entry point;
+      # that config throws when DATABASE_URL is unset, which makes knip miss the
+      # entry and spuriously report schema exports as unused. knip never connects
+      # to a database — this placeholder just lets the config module load (the
+      # test job has no DB).
       - run: pnpm knip
+        env:
+          DATABASE_URL: postgres://user:pass@localhost:5432/placeholder
