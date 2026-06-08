@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Slices intentionally export types/consts from their public surface
+  // (types.ts, queries.ts) and for co-located tests even when a symbol is
+  // only referenced within its own file. Suppress that class; the gate still
+  // catches genuinely-dead exports, unused files, and unused dependencies.
+  "ignoreExportsUsedInFile": true
+}

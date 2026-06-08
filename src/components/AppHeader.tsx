@@ -11,8 +11,8 @@ import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
 // Application-shell header. Four-slot layout per the 2.9.1 wireframe:
 // bracket-stamp wordmark · global search · cross-tool nav strip · login
-// cluster. Renders the <header> element directly rather than wrapping
-// PageHeader because the four slots are unique to this surface.
+// cluster. Renders the <header> element directly rather than wrapping a
+// shared header primitive because the four slots are unique to this surface.
 //
 // Right-slot `shrink-0` on the login cluster is load-bearing — never let
 // search expansion or tool growth push it.

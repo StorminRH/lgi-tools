@@ -136,17 +136,6 @@ export interface AggregateConfidence {
   summary: string;
 }
 
-const CONFIDENCE_HEADLINE: Record<ConfidenceLevel, string> = {
-  high: 'High confidence',
-  medium: 'Medium confidence',
-  low: 'Low confidence',
-  unknown: 'Unknown confidence',
-};
-
-export function confidenceHeadline(level: ConfidenceLevel): string {
-  return CONFIDENCE_HEADLINE[level];
-}
-
 // One material's price-confidence verdict at time `nowMs`. high = fresh ESI
 // price with real depth; low = priced row but no usable price; unknown = no
 // price row yet; medium = any single shortfall (stale / fallback source /

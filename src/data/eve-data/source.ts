@@ -335,12 +335,6 @@ export async function downloadDumps(): Promise<SdeDumpPaths> {
   return Object.fromEntries(entries) as SdeDumpPaths;
 }
 
-export async function cleanupDumps(paths: SdeDumpPaths): Promise<void> {
-  await Promise.all(
-    Object.values(paths).map((p) => unlink(p).catch(() => undefined)),
-  );
-}
-
 // Legacy Fuzzwork drift probe, superseded by getRemoteSdeVersion() above.
 // `invTypes.csv.bz2`'s Last-Modified was the "did CCP patch the SDE?" marker
 // (all Fuzzwork dumps share a rebuild timestamp). Kept as a fallback reference
