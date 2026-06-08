@@ -36,9 +36,6 @@ const pillVariants = cva(
   },
 );
 
-// Inferred from the cva — never a separately hand-maintained union.
-export type PillSize = NonNullable<VariantProps<typeof pillVariants>['size']>;
-
 export function Pill({
   tone,
   size,

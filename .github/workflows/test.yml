@@ -22,6 +22,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm typecheck
+
       - run: pnpm lint
 
       - run: pnpm test
+
+      # knip imports drizzle.config.ts (which throws if DATABASE_URL is unset) to
+      # find the schema entry point. The `knip` script self-supplies a placeholder
+      # when DATABASE_URL is absent, so this works the same in CI and in a local
+      # `pnpm verify`. knip never connects to a database.
+      - run: pnpm knip

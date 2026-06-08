@@ -29,14 +29,6 @@ export const USAGE_ACTIONS = [
 
 export type UsageAction = (typeof USAGE_ACTIONS)[number];
 
-export interface UsageLog {
-  id: number;
-  timestamp: Date;
-  characterId: number | null;
-  action: UsageAction;
-  metadata: Record<string, unknown>;
-}
-
 export interface DateRange {
   from: Date;
   to: Date;

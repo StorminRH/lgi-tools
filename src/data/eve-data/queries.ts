@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db } from '@/db';
 import {
@@ -64,24 +64,6 @@ export async function getTypeLabels(ids: number[]): Promise<Map<number, TypeLabe
     .where(inArray(eveTypes.id, ids));
   for (const r of rows) {
     out.set(r.id, { name: r.name, groupName: r.groupName, categoryName: r.categoryName });
-  }
-  return out;
-}
-
-// Returns a lowercase-name-keyed map. If two types share a name (rare but
-// happens for retired/republished items), the published one wins.
-export async function getTypesByNames(names: string[]): Promise<Map<string, EveType>> {
-  if (names.length === 0) return new Map();
-  const lowered = names.map((n) => n.toLowerCase());
-  const rows = await db
-    .select(TYPE_COLUMNS)
-    .from(eveTypes)
-    .where(inArray(sql`lower(${eveTypes.name})`, lowered))
-    .orderBy(desc(eveTypes.published));
-  const out = new Map<string, EveType>();
-  for (const r of rows) {
-    const key = r.name.toLowerCase();
-    if (!out.has(key)) out.set(key, r);
   }
   return out;
 }
