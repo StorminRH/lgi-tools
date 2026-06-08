@@ -86,6 +86,16 @@ export function OdometerValue({
     return () => clearTimeout(t);
   }, []);
 
+  // Key each cell by a structural signature (every digit collapsed to '#') plus
+  // its index. While the format is unchanged the keys are stable, so a digit
+  // cell persists across an update and slides to its new value. When the shape
+  // shifts — a magnitude boundary like "999.9M" → "1.0B", or a digit-count
+  // change — every key changes, so the cells remount and jump to the new value
+  // instead of rolling a stale digit across shifted place values. (Keying on the
+  // digit's value itself would defeat the slide entirely — every change would
+  // remount.)
+  const shape = value.replace(/[0-9]/g, '#');
+
   return (
     <span className={cn(pending && 'opacity-60', className)}>
       <span className="sr-only">{value}</span>
@@ -93,9 +103,9 @@ export function OdometerValue({
         {animate
           ? toOdometerCells(value).map((cell, i) =>
               cell.digit === null ? (
-                <span key={i}>{cell.char}</span>
+                <span key={`${shape}-${i}`}>{cell.char}</span>
               ) : (
-                <OdoDigit key={i} digit={cell.digit} />
+                <OdoDigit key={`${shape}-${i}`} digit={cell.digit} />
               ),
             )
           : value}
