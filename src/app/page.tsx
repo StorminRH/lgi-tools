@@ -121,7 +121,7 @@ export default function Home({
          * small-viewport view) until client-side hydration / navigation
          * re-applied the styles via JS. */}
         <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(270px,1fr))]">
-          <Link href="/sites" className="tool-tile tool-tile-live no-underline">
+          <Link href="/sites" className="tool-tile tool-tile-live hover-bob no-underline">
             <div className="flex items-start justify-between gap-2">
               <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
                 Wormhole Sites
@@ -140,7 +140,7 @@ export default function Home({
             </div>
           </Link>
 
-          <Link href="/industry" className="tool-tile tool-tile-live no-underline">
+          <Link href="/industry" className="tool-tile tool-tile-live hover-bob no-underline">
             <div className="flex items-start justify-between gap-2">
               <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
                 Industry Planner
@@ -160,7 +160,7 @@ export default function Home({
           </Link>
 
           {flags.wormholeRollCalc ? (
-            <Link href="/wormhole-roll" className="tool-tile tool-tile-live no-underline">
+            <Link href="/wormhole-roll" className="tool-tile tool-tile-live hover-bob no-underline">
               <div className="flex items-start justify-between gap-2">
                 <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
                   Wormhole Roll Calculator

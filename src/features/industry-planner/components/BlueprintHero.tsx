@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
+import { OdometerValue } from '@/components/ui/odometer-value';
 import { Pill } from '@/components/ui/pill';
-import { priceFx } from '@/components/ui/price-fx';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { activityLabel, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
@@ -17,12 +16,12 @@ import { usePricing } from './PricingProvider';
 // arrive it shows "Calculating…" and withholds the aggregate badge, mirroring
 // the 3.1.1 cost panel's loading state.
 
-function HeroStat({ label, value, fxClass }: { label: string; value: string; fxClass: string }) {
+function HeroStat({ label, value, pending }: { label: string; value: string; pending: boolean }) {
   return (
     <div className="text-right">
       <div className="text-[9px] uppercase tracking-[0.12em] text-muted">{label}</div>
-      <div className={cn('text-[13px] font-semibold text-isk whitespace-nowrap', fxClass)}>
-        {value}
+      <div className="text-[13px] font-semibold text-isk whitespace-nowrap">
+        <OdometerValue value={value} pending={pending} />
       </div>
     </div>
   );
@@ -30,17 +29,6 @@ function HeroStat({ label, value, fxClass }: { label: string; value: string; fxC
 
 export function BlueprintHero({ structure }: { structure: BlueprintStructure }) {
   const { pricing, seeded, aggregatePending } = usePricing();
-  // Latches once the first confirmation cycle starts, so the settle pulse only
-  // plays after a real shimmer — not on the initial paint.
-  const [everPending, setEverPending] = useState(false);
-  useEffect(() => {
-    if (!aggregatePending) return;
-    // Deferred set (0ms) to satisfy the set-state-in-effect lint, the same
-    // escape the pricing clock used.
-    const t = setTimeout(() => setEverPending(true), 0);
-    return () => clearTimeout(t);
-  }, [aggregatePending]);
-  const fx = priceFx(aggregatePending, everPending);
   const summary = pricing?.summary ?? null;
   const margin = summary?.margin ?? null;
   const marginPct = summary?.marginPct ?? null;
@@ -77,14 +65,9 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
         ) : (
           <>
             <div
-              className={cn(
-                'text-[22px] font-semibold leading-[1.15]',
-                marginToneClass(marginPct),
-                fx,
-              )}
+              className={cn('text-[22px] font-semibold leading-[1.15]', marginToneClass(marginPct))}
             >
-              {sign}
-              {formatIsk(margin)}
+              <OdometerValue value={`${sign}${formatIsk(margin)}`} pending={aggregatePending} />
               {marginPct !== null && <span className="text-[14px] ml-2">({formatPct(marginPct)})</span>}
             </div>
             {summary.incomplete && (
@@ -97,8 +80,16 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
       </div>
 
       <div className="flex gap-5 flex-wrap">
-        <HeroStat label="Input cost" value={summary ? formatIsk(summary.inputCost) : '—'} fxClass={fx} />
-        <HeroStat label="Sell (Jita)" value={summary ? formatIsk(summary.revenue) : '—'} fxClass={fx} />
+        <HeroStat
+          label="Input cost"
+          value={summary ? formatIsk(summary.inputCost) : '—'}
+          pending={aggregatePending}
+        />
+        <HeroStat
+          label="Sell (Jita)"
+          value={summary ? formatIsk(summary.revenue) : '—'}
+          pending={aggregatePending}
+        />
       </div>
     </div>
   );

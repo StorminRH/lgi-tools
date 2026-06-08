@@ -56,9 +56,6 @@ export interface RefreshOnViewResult {
   isPending: (typeId: number) => boolean;
   // True for the duration of the refresh loop.
   refreshing: boolean;
-  // Latches true once a real pending cycle has started, so the settle pulse only
-  // plays after a genuine shimmer — never on an already-fresh first paint.
-  everPending: boolean;
 }
 
 export function useRefreshOnView(
@@ -68,7 +65,6 @@ export function useRefreshOnView(
   const [prices, setPrices] = useState<Map<number, RefreshedPrice>>(() => new Map());
   const [pending, setPending] = useState<Set<number>>(() => new Set());
   const [refreshing, setRefreshing] = useState(false);
-  const [everPending, setEverPending] = useState(false);
 
   // Read the latest type IDs / callback from inside the trigger effect without
   // making them its dependencies — the loop is keyed on `enabled` alone (see
@@ -112,7 +108,6 @@ export function useRefreshOnView(
 
     (async () => {
       setPending(new Set(toRefresh));
-      setEverPending(true);
       setRefreshing(true);
       try {
         for (const batch of batches) {
@@ -166,5 +161,5 @@ export function useRefreshOnView(
 
   const isPending = useCallback((typeId: number) => pending.has(typeId), [pending]);
 
-  return { prices, isPending, refreshing, everPending };
+  return { prices, isPending, refreshing };
 }

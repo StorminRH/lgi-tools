@@ -106,6 +106,16 @@
   --color-progress-fill:         #10283a;
   --color-empty:                 #223040;
 
+  /* Card hover glow (3.3.10) — the ISK-green ring + soft bloom the home tool
+   * tiles (and future cards) show on hover. Alpha variants of --color-isk. */
+  --color-card-glow-border: rgba(61,214,140,0.5);
+  --color-card-glow-ring:   rgba(61,214,140,0.18);
+  --color-card-glow-shadow: rgba(61,214,140,0.4);
+  /* Flow-graph node hover fill (industry-planner BuildFlow). */
+  --color-flow-node-hover:  #11151c;
+  /* Resource-card hover border (/sites density cards). */
+  --color-card-resource-border: #2a3d50;
+
   /* ── Typography scale ──
    * Named sizes for the canonical type ladder. Existing ad-hoc `text-[Npx]`
    * usages stay valid; new code references the named scale via Tailwind's
@@ -187,11 +197,10 @@ a:hover {
 }
 
 /* Landing-grid tool tiles. Two variants: `.tool-tile-live` (interactive,
- * green-tinged hover with top-border accent) and `.tool-tile-soon`
+ * ISK-green ring-glow hover + a slow `.hover-bob` float) and `.tool-tile-soon`
  * (decorative, no hover transitions, dimmed description copy). The hover
- * vocabulary (top-border pseudo + multi-layer green-tinged glow) is rich
- * enough that utility classes would be unreadable — scoped CSS is the
- * right home. */
+ * vocabulary (multi-layer green ring glow) is rich enough that utility classes
+ * would be unreadable — scoped CSS is the right home. */
 .tool-tile {
   position: relative;
   display: flex;
@@ -209,35 +218,47 @@ a:hover {
   cursor: pointer;
   text-decoration: none;
 }
+/* Hover: an ISK-green ring + soft bloom (the sandbox "hover-glow ring" the
+ * operator picked in 3.3.10). The earlier flat green top-border accent and the
+ * background darken were dropped in favor of the cleaner ring. */
 .tool-tile-live:hover {
-  border-color: #1a3a28;
-  background: #090e0c;
+  border-color: var(--color-card-glow-border);
   box-shadow:
-    0 0 0 1px rgba(61, 214, 140, 0.15),
-    0 8px 24px -8px rgba(61, 214, 140, 0.2);
+    0 0 0 1px var(--color-card-glow-ring),
+    0 8px 26px -10px var(--color-card-glow-shadow);
 }
-.tool-tile-live::before {
-  content: '';
-  position: absolute;
-  top: -1px;
-  left: -1px;
-  right: -1px;
-  height: 2px;
-  background: var(--color-isk);
-  opacity: 0;
-  transition: opacity 0.15s;
-  border-radius: 4px 4px 0 0;
-}
-.tool-tile-live:hover::before { opacity: 1; }
 /* The universal `a:hover { color: var(--color-isk) }` rule turns the title
  * text green when hovering an anchor; the tile already telegraphs interactivity
- * via border + glow, so keep the inner text in its at-rest palette. */
+ * via the ring glow, so keep the inner text in its at-rest palette. */
 .tool-tile-live:hover,
 .tool-tile-live:hover * { color: inherit; }
 
 .tool-tile-soon { cursor: default; }
 .tool-tile-soon .tile-desc { opacity: 0.6; }
 /* end tool-tile block */
+
+/* ── Hover bob (reusable) ────────────────────────────────────────────────
+ * A slow, slight float applied while an element is hovered, paused on press
+ * (so it stills the moment you click). A standalone utility so any surface can
+ * opt in — the home tool tiles are the first consumer. Uses the `translate`
+ * property (not `transform`) so it never clobbers a transform, and is purely a
+ * stylesheet keyframe (CSP-clean). Gated off under reduced motion. */
+.hover-bob:hover {
+  animation: hover-bob 6s ease-in-out infinite;
+}
+.hover-bob:active {
+  animation-play-state: paused;
+}
+@keyframes hover-bob {
+  0%   { translate: 0 0; }
+  25%  { translate: 1px -2px; }
+  50%  { translate: -1px -1px; }
+  75%  { translate: 1px 1px; }
+  100% { translate: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hover-bob:hover { animation: none; }
+}
 
 /* ── progress bar fill (CSP-safe dynamic width) ─────────────────────────
  * The fill width is a runtime value (a telemetry percentage), so it can't be
@@ -288,7 +309,7 @@ a:hover {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .card.resource:hover {
-  border-color: #2a3d50;
+  border-color: var(--color-card-resource-border);
   box-shadow: 0 0 0 1px rgba(61, 214, 140, 0.08);
 }
 .card.wave-driven {
@@ -720,43 +741,34 @@ details[data-collapsible][open] > summary [data-chevron] {
   .price-confidence--loading::after { animation: none; opacity: 0.6; }
 }
 
-/* ── Hero ISK figure refresh effect ──────────────────────────────────
- * While a hero price is being confirmed live, the figure fades and a soft
- * light wave sweeps across it (a gradient clipped to the glyphs). When the
- * live value lands it pulses a touch brighter, then holds solid in its tone.
- * CSP-safe: class-driven keyframes, no inline style. */
-.isk-fx-pending {
-  background-image: linear-gradient(
-    100deg,
-    var(--color-muted) 0%,
-    var(--color-muted) 40%,
-    var(--color-name) 50%,
-    var(--color-muted) 60%,
-    var(--color-muted) 100%
-  );
-  background-size: 250% 100%;
-  background-repeat: no-repeat;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: isk-fx-wave 1.7s ease-in-out infinite;
+/* ── Live ISK figure odometer (OdometerValue) ────────────────────────
+ * Live prices render as a mechanical odometer: each numeral is a 0–9 strip
+ * translated by a per-column `--digit` custom property the component sets via
+ * ref.style.setProperty (CSP-clean — never an inline style attribute). The
+ * slide is this stylesheet transition; `.odo-strip--init` disables it for the
+ * first commit so figures don't roll up from zero on load. Under reduced
+ * motion the digits snap to value instead of sliding. */
+.odo-col {
+  display: inline-block;
+  height: 1em;
+  line-height: 1;
+  overflow: hidden;
+  vertical-align: bottom;
 }
-@keyframes isk-fx-wave {
-  0% { background-position: 130% 0; }
-  100% { background-position: -130% 0; }
+.odo-strip {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(var(--digit, 0) * -1em));
+  transition: transform 600ms cubic-bezier(0.2, 0.85, 0.25, 1);
 }
-.isk-fx-settle {
-  animation: isk-fx-pulse 0.7s ease-out;
+.odo-strip--init {
+  transition: none;
 }
-@keyframes isk-fx-pulse {
-  0% { filter: brightness(1.7); }
-  40% { filter: brightness(1.35); }
-  100% { filter: brightness(1); }
+@media (prefers-reduced-motion: reduce) {
+  .odo-strip {
+    transition: none;
+  }
 }
-/* This price effect intentionally plays regardless of prefers-reduced-motion
- * (operator call): it's a small, localized text shimmer, not large/vestibular
- * motion. The cascade column motion stays gated — auto-animate respects the
- * preference on its own. */
 
 /* ── CascadingPanels (src/components/ui/cascading-panels.tsx) ─────────
  * Floating, gapped, horizontally-scrolling Miller-column container. These
@@ -828,7 +840,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   transition: fill 140ms ease, stroke 140ms ease;
 }
 .flow-node:hover rect:first-of-type {
-  fill: #11151c;
+  fill: var(--color-flow-node-hover);
   stroke: var(--color-isk-sub);
 }
 @media (prefers-reduced-motion: reduce) {
