@@ -6,6 +6,9 @@ for the full forensic record.
 
 ### 2026-06-08
 
+- Live Jita prices now land on a rolling odometer. When fresh market data arrives, each ISK figure — the sites' resource values and totals, and the planner's cost and margin — rolls digit by digit to its new value instead of fading in.
+- The blueprint flow view now shows each item's in-game icon, and groups every tier column into labelled sections by item type — minerals, reactions, fuel blocks, commodities, and so on — so a column reads as tidy sub-blocks rather than one long list. To step back out of a part you've zoomed into, click it again.
+- Tool cards on the home page now glow green and drift gently while you hover over them.
 - Build cost now reflects whole production runs. The planner sizes each intermediate to the full batch you actually have to run — you can't run a fraction of a reaction or job — so the material total and cost match what you'd spend building from an empty hangar. Totals are higher than before because the earlier figure assumed you could buy partial runs.
 
 ### 2026-06-04

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRefreshOnView } from '@/data/market-prices/use-refresh-on-view';
-import { priceFx } from '@/components/ui/price-fx';
+import { OdometerValue } from '@/components/ui/odometer-value';
 import { SectionFooter } from '@/components/ui/section-footer';
 import type { SiteResource, SiteType } from '../types';
 import { formatIskHeader } from '../format';
@@ -47,11 +47,11 @@ export function SiteLiveProvider({
   const [enabled, setEnabled] = useState(false);
   const requestEnable = useCallback(() => setEnabled(true), []);
 
-  const { prices, isPending, everPending } = useRefreshOnView(eligibleTypeIds, { enabled });
+  const { prices, isPending } = useRefreshOnView(eligibleTypeIds, { enabled });
 
   const value = useMemo<SiteLiveValue>(
-    () => ({ priceOf: (typeId) => prices.get(typeId), isPending, everPending, requestEnable }),
-    [prices, isPending, everPending, requestEnable],
+    () => ({ priceOf: (typeId) => prices.get(typeId), isPending, requestEnable }),
+    [prices, isPending, requestEnable],
   );
 
   return <SiteLiveContext.Provider value={value}>{children}</SiteLiveContext.Provider>;
@@ -87,8 +87,7 @@ export function SiteHeaderTotal({ resources }: { resources: SiteResource[] }) {
   const anyPending = resources.some(
     (r) => r.liveEligible && r.typeId != null && live.isPending(r.typeId),
   );
-  const fx = priceFx(anyPending, live.everPending);
-  return <span className={fx}>{formatIskHeader(total)}</span>;
+  return <OdometerValue value={formatIskHeader(total)} pending={anyPending} />;
 }
 
 // The expanded body's resource rows + footer. Renders the view sentinel that
@@ -127,6 +126,10 @@ function LiveResourceFooter({
   const anyPending = resources.some(
     (r) => r.liveEligible && r.typeId != null && live.isPending(r.typeId),
   );
-  const fx = priceFx(anyPending, live.everPending);
-  return <SectionFooter label={label} value={<span className={fx}>{formatIskHeader(total)}</span>} />;
+  return (
+    <SectionFooter
+      label={label}
+      value={<OdometerValue value={formatIskHeader(total)} pending={anyPending} />}
+    />
+  );
 }

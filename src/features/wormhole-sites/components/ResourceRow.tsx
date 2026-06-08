@@ -1,8 +1,8 @@
 'use client';
 
 import { Dot } from '@/components/ui/dot';
+import { OdometerValue } from '@/components/ui/odometer-value';
 import { PriceConfidence } from '@/components/ui/price-confidence';
-import { priceFx } from '@/components/ui/price-fx';
 import { ResourceRow as ResourceRowPrimitive } from '@/components/ui/row';
 import { formatIsk } from '../format';
 import type { SiteResource, SiteType } from '../types';
@@ -16,25 +16,26 @@ function formatM3(m3: number | null): string {
 
 // The value cell. For a live-eligible resource it reads the shared site price
 // context: while its live confirmation is in flight the seed dims behind a
-// spinning badge, and when the value lands it flashes to the confirmed figure.
-// Ineligible rows (no typeId / no unit count / unpriceable) render their static
-// seed exactly as before.
+// spinning badge, and when the value lands the odometer digits slide to the
+// confirmed figure. One persistent OdometerValue spans the pending→live
+// transition so the slide actually fires. Ineligible rows (no typeId / no unit
+// count / unpriceable) render their static seed as plain text.
 function ResourceValue({ resource }: { resource: SiteResource }) {
   const live = useSiteLive();
   const eligible = resource.liveEligible && resource.typeId != null;
-  const pending = eligible && live.isPending(resource.typeId as number);
 
-  if (pending) {
-    return (
-      <span className="inline-flex items-center gap-1.5 opacity-40">
-        <PriceConfidence level="unknown" loading />
-        {formatIsk(resource.effectiveIsk)}
-      </span>
-    );
+  if (!eligible) {
+    return <span>{formatIsk(resourceLiveIsk(resource, live))}</span>;
   }
 
-  const fx = eligible ? priceFx(false, live.everPending) : '';
-  return <span className={fx}>{formatIsk(resourceLiveIsk(resource, live))}</span>;
+  const pending = live.isPending(resource.typeId as number);
+  const figure = formatIsk(pending ? resource.effectiveIsk : resourceLiveIsk(resource, live));
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {pending && <PriceConfidence level="unknown" loading />}
+      <OdometerValue value={figure} pending={pending} />
+    </span>
+  );
 }
 
 export function ResourceRow({

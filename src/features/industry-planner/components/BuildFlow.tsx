@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { toneHex } from '@/components/ui/tones';
 import { formatQuantity } from '@/lib/format';
-import { consolidateBuild, type ConsolidatedTier } from '../build-consolidate';
+import { consolidateBuild, type ConsolidatedItem, type ConsolidatedTier } from '../build-consolidate';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from '../types';
 
 // The build plan as a hybrid graph. The overview is the consolidated build tiers
@@ -28,6 +28,11 @@ const COL_W = 212;
 const HEADER_H = 28;
 const MAX_NODES = 46; // per-level node budget; deeper/wider trees show fewer levels
 const TRANS_MS = 440;
+const MAX_SCALE = 1.75; // scale columns UP to fill the width, but not past this
+const ICON = 20; // type-icon square inside a node box
+const TEXT_X = 32; // node text x-offset, leaving room for the icon
+const GROUP_H = 22; // category sub-header band (label + rule) in the overview columns
+const GROUP_GAP = 8; // gap below a category group before the next one
 
 function formatNodeQty(quantity: number): string {
   if (quantity > 0 && quantity < 0.5) return '< 1';
@@ -126,14 +131,134 @@ function findPath(tree: BuildNode[], typeId: number): number[] | null {
 }
 
 function trunc(name: string): string {
-  const maxChars = Math.max(6, Math.floor((NODE_W - 26) / 6.2));
+  const maxChars = Math.max(6, Math.floor((NODE_W - TEXT_X - 36) / 6.2));
   return name.length > maxChars ? `${name.slice(0, maxChars - 1)}…` : name;
 }
 
-// Centre `contentW` (scaled to fit, never upscaled) within the measured width.
+// Truncate a category label to a char budget (SVG text has no auto-ellipsis).
+function truncTo(text: string, maxChars: number): string {
+  return text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text;
+}
+
+// Contiguous category groups within a tier column. Items arrive pre-sorted by
+// label (see consolidateBuild), so a single pass yields one block per category.
+function tierGroups(items: ConsolidatedItem[]): { label: string; tone: string; items: ConsolidatedItem[] }[] {
+  const groups: { label: string; tone: string; items: ConsolidatedItem[] }[] = [];
+  for (const it of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.label === it.label) last.items.push(it);
+    else groups.push({ label: it.label, tone: toneHex[it.tone], items: [it] });
+  }
+  return groups;
+}
+
+interface ColRow {
+  kind: 'header' | 'item';
+  y: number;
+  label?: string;
+  tone?: string;
+  item?: ConsolidatedItem;
+}
+
+// Lay a tier column out as stacked category sub-blocks: a header band (label +
+// rule) followed by its item rows, then a gap before the next category. Returns
+// the positioned rows and the total column height (shared with naturalHeight).
+function layoutTier(items: ConsolidatedItem[]): { rows: ColRow[]; height: number } {
+  const rows: ColRow[] = [];
+  let y = HEADER_H;
+  for (const g of tierGroups(items)) {
+    rows.push({ kind: 'header', y, label: g.label, tone: g.tone });
+    y += GROUP_H;
+    for (const item of g.items) {
+      rows.push({ kind: 'item', y, item });
+      y += ROW;
+    }
+    y += GROUP_GAP;
+  }
+  return { rows, height: y - GROUP_GAP + PAD };
+}
+
+// Scale `contentW` to fill the measured width (up to MAX_SCALE) and centre it,
+// so the columns fill the space under the hero header; with more columns than
+// fit, the scale drops below 1 and they shrink to fit instead.
 function fit(width: number, contentW: number): { s: number; tx: number } {
-  const s = Math.min(width / contentW, 1);
+  const s = Math.min(width / contentW, MAX_SCALE);
   return { s, tx: (width - s * contentW) / 2 };
+}
+
+// A category sub-header inside an overview column: the group label over a
+// tone-coloured rule spanning the box width. Items below it drop their inline
+// label, so the long category name no longer clips inside each box.
+function GroupHeader({ y, label, tone }: { y: number; label: string; tone: string }) {
+  return (
+    <g transform={`translate(0, ${y})`}>
+      <text x={2} y={9} fill={tone} fontSize={9} fontWeight={600} letterSpacing={0.8}>
+        {truncTo(label.toUpperCase(), 34)}
+      </text>
+      <line x1={0} y1={15} x2={NODE_W} y2={15} stroke={tone} strokeOpacity={0.35} strokeWidth={1} />
+    </g>
+  );
+}
+
+// One node box: tone stripe, type icon, name, quantity, and an optional
+// right-edge indicator (▸ to drill in, ‹ back to step out of a drilled level).
+// `label` (the SDE category) is shown as a second line in the drilled graph,
+// where there's no grouping; the overview omits it (the GroupHeader carries it)
+// and centres the single line. Pure SVG presentation attributes + an <image>
+// from the EVE image server (allowed by img-src) — no inline styles, CSP-safe.
+function FlowNodeBox({
+  typeId,
+  name,
+  label,
+  tone,
+  quantity,
+  indicator,
+}: {
+  typeId: number;
+  name: string;
+  label?: string;
+  tone: string;
+  quantity: number;
+  indicator?: 'drill' | 'back';
+}) {
+  const hasLabel = !!label;
+  const nameY = hasLabel ? 13 : 20;
+  const qtyY = hasLabel ? 19 : 20;
+  return (
+    <>
+      <rect width={NODE_W} height={NODE_H} rx={3} className="fill-bg stroke-border" />
+      <rect width={3} height={NODE_H} rx={1.5} fill={tone} />
+      <image
+        href={`https://images.evetech.net/types/${typeId}/icon?size=64`}
+        x={7}
+        y={(NODE_H - ICON) / 2}
+        width={ICON}
+        height={ICON}
+        preserveAspectRatio="xMidYMid meet"
+      />
+      <text x={TEXT_X} y={nameY} className="fill-name" fontSize={11}>
+        {trunc(name)}
+      </text>
+      {hasLabel && (
+        <text x={TEXT_X} y={24} fill={tone} fontSize={8} letterSpacing={0.4}>
+          {truncTo(label.toUpperCase(), 26)}
+        </text>
+      )}
+      <text x={NODE_W - 9} y={qtyY} className="fill-muted" fontSize={10} textAnchor="end">
+        ×{formatNodeQty(quantity)}
+      </text>
+      {indicator === 'drill' && (
+        <text x={NODE_W - 9} y={NODE_H - 3} fill={tone} fontSize={8} textAnchor="end">
+          ▸
+        </text>
+      )}
+      {indicator === 'back' && (
+        <text x={NODE_W - 9} y={NODE_H - 3} className="fill-muted" fontSize={8} textAnchor="end">
+          ‹ back
+        </text>
+      )}
+    </>
+  );
 }
 
 function FlowLevel({
@@ -141,11 +266,14 @@ function FlowLevel({
   display,
   width,
   onDrill,
+  onBackOut,
 }: {
   root: BuildNode;
   display: Display;
   width: number;
   onDrill: (chain: number[]) => void;
+  // Set when this level is drilled in: clicking the focused root box steps back.
+  onBackOut?: () => void;
 }) {
   const { nodes, contentW } = useMemo(() => buildLevel(root, display, pickDepth(root)), [root, display]);
   const { s, tx } = fit(width, contentW);
@@ -169,30 +297,25 @@ function FlowLevel({
       {nodes.map((n, i) => {
         const d = display[n.node.typeId];
         const tone = toneHex[d.tone];
+        const isRoot = !n.parent;
+        const canBack = isRoot && !!onBackOut;
         const drillable = n.depth > 0 && n.node.inputs.length > 0;
+        const clickable = canBack || drillable;
         return (
           <g
             key={`n-${i}`}
             transform={`translate(${n.x}, ${n.y - NODE_H / 2})`}
-            className={drillable ? 'flow-node' : undefined}
-            onClick={drillable ? () => onDrill(chainTo(n)) : undefined}
+            className={clickable ? 'flow-node' : undefined}
+            onClick={canBack ? onBackOut : drillable ? () => onDrill(chainTo(n)) : undefined}
           >
-            <rect width={NODE_W} height={NODE_H} rx={3} className="fill-bg stroke-border" />
-            <rect width={3} height={NODE_H} rx={1.5} fill={tone} />
-            <text x={12} y={13} className="fill-name" fontSize={11}>
-              {trunc(d.name)}
-            </text>
-            <text x={12} y={24} fill={tone} fontSize={8} letterSpacing={0.4}>
-              {d.label.toUpperCase()}
-            </text>
-            <text x={NODE_W - 9} y={19} className="fill-muted" fontSize={10} textAnchor="end">
-              ×{formatNodeQty(n.node.quantity)}
-            </text>
-            {drillable && (
-              <text x={NODE_W - 9} y={NODE_H - 3} fill={tone} fontSize={8} textAnchor="end">
-                ▸
-              </text>
-            )}
+            <FlowNodeBox
+              typeId={n.node.typeId}
+              name={d.name}
+              label={d.label}
+              tone={tone}
+              quantity={n.node.quantity}
+              indicator={canBack ? 'back' : drillable ? 'drill' : undefined}
+            />
           </g>
         );
       })}
@@ -218,32 +341,26 @@ function FlowColumns({
           <text x={3} y={11} className="fill-muted" fontSize={9} letterSpacing={1.2}>
             TIER {tier.depth}
           </text>
-          {tier.items.map((it, j) => {
-            const tone = toneHex[it.tone];
+          {layoutTier(tier.items).rows.map((r, i) => {
+            if (r.kind === 'header') {
+              return <GroupHeader key={`h-${i}`} y={r.y} label={r.label!} tone={r.tone!} />;
+            }
+            const it = r.item!;
             const drillable = it.hasChildren;
             return (
               <g
                 key={it.typeId}
-                transform={`translate(0, ${HEADER_H + j * ROW})`}
+                transform={`translate(0, ${r.y})`}
                 className={drillable ? 'flow-node' : undefined}
                 onClick={drillable && onPick ? () => onPick(it.typeId) : undefined}
               >
-                <rect width={NODE_W} height={NODE_H} rx={3} className="fill-bg stroke-border" />
-                <rect width={3} height={NODE_H} rx={1.5} fill={tone} />
-                <text x={12} y={13} className="fill-name" fontSize={11}>
-                  {trunc(it.name)}
-                </text>
-                <text x={12} y={24} fill={tone} fontSize={8} letterSpacing={0.4}>
-                  {it.label.toUpperCase()}
-                </text>
-                <text x={NODE_W - 9} y={19} className="fill-muted" fontSize={10} textAnchor="end">
-                  ×{formatNodeQty(it.quantity)}
-                </text>
-                {drillable && (
-                  <text x={NODE_W - 9} y={NODE_H - 3} fill={tone} fontSize={8} textAnchor="end">
-                    ▸
-                  </text>
-                )}
+                <FlowNodeBox
+                  typeId={it.typeId}
+                  name={it.name}
+                  tone={toneHex[it.tone]}
+                  quantity={it.quantity}
+                  indicator={drillable ? 'drill' : undefined}
+                />
               </g>
             );
           })}
@@ -294,16 +411,15 @@ export function BuildFlow({ structure }: { structure: BlueprintStructure }) {
     let cw: number;
     let ch: number;
     if (p.length === 0) {
-      const maxItems = Math.max(1, ...tiers.map((t) => t.items.length));
       cw = Math.max(1, tiers.length) * COL_W;
-      ch = HEADER_H + maxItems * ROW + PAD;
+      ch = Math.max(1, ...tiers.map((t) => layoutTier(t.items).height));
     } else {
       const f = focusOf(buildTree, display, p);
       const lvl = buildLevel(f, display, pickDepth(f));
       cw = lvl.contentW;
       ch = lvl.contentH;
     }
-    return Math.round(ch * Math.min(width / cw, 1)) + 6;
+    return Math.round(ch * Math.min(width / cw, MAX_SCALE)) + 6;
   };
   const viewH = trans ? Math.max(naturalHeight(path), naturalHeight(trans.prevPath)) : naturalHeight(path);
 
@@ -324,46 +440,17 @@ export function BuildFlow({ structure }: { structure: BlueprintStructure }) {
         display={display}
         width={width}
         onDrill={interactive ? (chain) => go([...p, ...chain], 'in') : () => {}}
+        onBackOut={interactive ? () => go(p.slice(0, -1), 'out') : undefined}
       />
     );
   };
 
-  const crumbs = [{ id: buildTree[0].typeId, name: display[buildTree[0].typeId].name }];
-  {
-    let node = buildTree[0];
-    for (const id of path) {
-      const next = node.inputs.find((n) => n.typeId === id);
-      if (!next) break;
-      crumbs.push({ id, name: display[id].name });
-      node = next;
-    }
-  }
-
   return (
     <div>
-      <div className="mb-2.5 flex items-center gap-1.5 text-[10px] flex-wrap min-h-[18px]">
-        {crumbs.map((c, i) => {
-          const last = i === crumbs.length - 1;
-          return (
-            <span key={`${c.id}-${i}`} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-muted">›</span>}
-              {last ? (
-                <span className="text-name">{c.name}</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => go(path.slice(0, i), 'out')}
-                  className="text-muted hover:text-name cursor-pointer"
-                >
-                  {c.name}
-                </button>
-              )}
-            </span>
-          );
-        })}
-        <span className="ml-1 text-[9px] tracking-[0.1em] uppercase text-muted">
-          {path.length > 0 ? 'zoomed · click a crumb to back out' : 'tiers · click a part for its flow'}
-        </span>
+      <div className="mb-2.5 text-[9px] tracking-[0.1em] uppercase text-muted min-h-[18px]">
+        {path.length > 0
+          ? 'click ‹ back to step out · click a part for its flow'
+          : 'tiers · click a part for its flow'}
       </div>
 
       <div ref={wrapRef} className="w-full">
