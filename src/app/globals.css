@@ -643,7 +643,9 @@ a:hover {
   min-width: 0;
 }
 .sites-table-row[open] > summary {
-  background: #0d1218;
+  /* Pinned to the same token as the hover state (SitesTable hover:bg-row-active)
+   * so the two row states can't drift apart in the 3.3.10 palette pass. */
+  background: var(--color-row-active);
 }
 .sites-table-expanded {
   border-top: 1px solid var(--color-border-soft);

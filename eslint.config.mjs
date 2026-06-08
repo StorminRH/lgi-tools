@@ -28,21 +28,23 @@ const cspSelectors = [
 ];
 
 // Raw color literals belong in the token layer (the `@theme` block in
-// globals.css and tones.ts), not hardcoded at call sites. Two shapes: a
-// Tailwind arbitrary value like `bg-[#1e2c3a]` (a `[#…]` chunk inside a
-// className or cva/clsx string — a TemplateElement when interpolated), and a
-// whole-string hex constant like an SVG `fill="#0d0f14"`. tones.ts (the JS
-// source for SVG fills) and the dev/preview sandboxes are exempted below.
-// 3.3.9 routed every call-site color into a `--color-*` token; this keeps them
-// there. (rgba is intentionally out of scope — the rule bans hex only.)
+// globals.css and tones.ts), not hardcoded at call sites. Two shapes: a hex
+// anywhere inside a Tailwind arbitrary value — `bg-[#1e2c3a]`, but also one
+// embedded mid-value like `shadow-[0_0_4px_#dd4444]` (`\[[^\]]*#…` matches the
+// hex wherever it sits in the `[…]` chunk, in a className or cva/clsx string —
+// a TemplateElement when interpolated); and a whole-string hex constant like an
+// SVG `fill="#0d0f14"`. tones.ts (the JS source for SVG fills) and the
+// dev/preview sandboxes are exempted below. 3.3.9 routed every call-site color
+// into a `--color-*` token; this keeps them there. (rgba is intentionally out
+// of scope — the rule bans hex only.)
 const hexColorSelectors = [
   {
-    selector: "Literal[value=/\\[#[0-9a-fA-F]{3,8}\\]/]",
+    selector: "Literal[value=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
     message:
       "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts. See CLAUDE.md > color tokens.",
   },
   {
-    selector: "TemplateElement[value.raw=/\\[#[0-9a-fA-F]{3,8}\\]/]",
+    selector: "TemplateElement[value.raw=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
     message:
       "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts. See CLAUDE.md > color tokens.",
   },
