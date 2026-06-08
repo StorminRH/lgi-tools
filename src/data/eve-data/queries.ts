@@ -2,7 +2,6 @@ import { and, eq, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db } from '@/db';
 import {
-  blueprintFlatMaterials,
   blueprintTrees,
   eveCategories,
   eveDataMeta,
@@ -91,23 +90,6 @@ export async function getTypeAttributesBatch(
 }
 
 // ----- Industry-side helpers ------------------------------------------
-
-export type FlatMaterial = { rawMaterialTypeId: number; totalQuantity: bigint };
-
-// Pre-computed flat materials for one blueprint. Returns [] when the
-// resolver hasn't seen this blueprint yet (e.g. a brand-new SDE patch
-// added a blueprint but the tree resolver hasn't been re-run). UI must
-// handle the empty case gracefully (banner: "blueprint pending
-// resolution"); the next cron tick fills it.
-export async function getFlatMaterials(blueprintId: number): Promise<FlatMaterial[]> {
-  return db
-    .select({
-      rawMaterialTypeId: blueprintFlatMaterials.rawMaterialTypeId,
-      totalQuantity: blueprintFlatMaterials.totalQuantity,
-    })
-    .from(blueprintFlatMaterials)
-    .where(eq(blueprintFlatMaterials.blueprintTypeId, blueprintId));
-}
 
 // Nested tree-shape JSON for one blueprint, for the Industry Planner
 // UI's expandable material breakdown. `null` when the blueprint hasn't

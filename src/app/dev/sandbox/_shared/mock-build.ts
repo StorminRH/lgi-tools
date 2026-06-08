@@ -119,18 +119,6 @@ const MATERIAL_NAMES: Record<number, string> = Object.fromEntries(
   Object.entries(BUILD_NODE_DISPLAY).map(([id, v]) => [Number(id), v.name]),
 );
 
-// Recursed raw totals (the cost basis the live resolver would produce).
-const FLAT_MATERIALS: { typeId: number; quantity: number }[] = [
-  { typeId: TRITANIUM, quantity: 29_200 },
-  { typeId: PYERITE, quantity: 27_200 },
-  { typeId: MEXALLON, quantity: 3_040 },
-  { typeId: ISOGEN, quantity: 500 },
-  { typeId: NOCXIUM, quantity: 120 },
-  { typeId: CAESIUM, quantity: 920 },
-  { typeId: CADMIUM, quantity: 640 },
-  { typeId: PLATINUM, quantity: 360 },
-];
-
 const MATERIAL_CATEGORY: Record<number, string> = {
   [TRITANIUM]: 'Minerals',
   [PYERITE]: 'Minerals',
@@ -150,7 +138,6 @@ export const MOCK_STRUCTURE: BlueprintStructure = {
   buildTree: BUILD_TREE,
   buildNodeDisplay: BUILD_NODE_DISPLAY,
   rootHeight: 3,
-  flatMaterials: FLAT_MATERIALS,
   materialCategory: MATERIAL_CATEGORY,
   materialCategories: [
     { label: 'Minerals', tone: 'neutral' },

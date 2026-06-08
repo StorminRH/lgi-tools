@@ -9,19 +9,21 @@ import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from './types';
 
 // A minimal two-material structure — enough to exercise the select+carry of
 // source + volume onto each MaterialCostRow (the math itself is covered by
-// industry-math/profitability.test.ts).
+// industry-math/profitability.test.ts). The cost basis is now the batch walk
+// over `tree`; two raw leaves flatten to the same totals (no intermediate, so
+// whole-run == the quantities themselves — batch rounding is covered in
+// build-batch.test.ts).
 const STRUCTURE: BlueprintStructure = {
   blueprintTypeId: 1,
   activityId: 1,
   product: { typeId: 999, name: 'Widget', quantityPerRun: 1 },
-  tree: [],
+  tree: [
+    { typeId: 34, quantity: 100, inputs: [] },
+    { typeId: 35, quantity: 50, inputs: [] },
+  ],
   buildTree: [],
   buildNodeDisplay: {},
   rootHeight: 1,
-  flatMaterials: [
-    { typeId: 34, quantity: 100 },
-    { typeId: 35, quantity: 50 },
-  ],
   materialCategory: {},
   materialCategories: [],
   materialNames: { 34: 'Tritanium', 35: 'Pyerite', 999: 'Widget' },

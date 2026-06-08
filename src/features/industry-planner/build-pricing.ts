@@ -4,6 +4,7 @@ import {
   type PriceOf,
 } from '@/data/industry-math/profitability';
 import type { PriceSource } from '@/data/market-prices/types';
+import { computeBatchMaterials } from './build-batch';
 import type { ConfidenceInput } from './industry-styles';
 import type {
   BlueprintPricing,
@@ -93,7 +94,10 @@ export function assemblePricing(
     return p ? { bestBuy: p.bestBuy, bestSell: p.bestSell } : undefined;
   };
 
-  const buildCost = computeBuildCost(structure.flatMaterials, buyOf);
+  // Cost basis is the whole-run batch total — what you must buy from an empty
+  // hangar — not the resolver's marginal flat list. Re-derived per request from
+  // the tree so a future requested-quantity input can scale it.
+  const buildCost = computeBuildCost(computeBatchMaterials(structure.tree), buyOf);
   const productPrice = priceOf(structure.product.typeId);
   const margin = computeMargin({
     buildCost: buildCost.total,

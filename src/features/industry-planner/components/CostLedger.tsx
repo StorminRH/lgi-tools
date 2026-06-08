@@ -8,6 +8,7 @@ import { SectionFooter } from '@/components/ui/section-footer';
 import { SectionHeader } from '@/components/ui/section-header';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { formatIsk, formatQuantity } from '@/lib/format';
+import { computeBatchMaterials } from '../build-batch';
 import type { BlueprintStructure } from '../types';
 import { usePricing } from './PricingProvider';
 
@@ -63,7 +64,7 @@ export function CostLedger({ structure }: { structure: BlueprintStructure }) {
           extendedCost: r.extendedCost,
           pending: isPending(r.typeId),
         }))
-      : structure.flatMaterials.map((m) => ({
+      : computeBatchMaterials(structure.tree).map((m) => ({
           typeId: m.typeId,
           name: structure.materialNames[m.typeId] ?? `Type ${m.typeId}`,
           quantity: m.quantity,

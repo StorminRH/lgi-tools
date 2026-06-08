@@ -73,11 +73,6 @@ export interface BlueprintStructure {
   buildTree: BuildNode[];
   buildNodeDisplay: Record<number, BuildNodeDisplay>;
   rootHeight: number;
-  // Flattened raw materials — the authoritative cost basis (already fully
-  // recursed by the 3.0.4 resolver). Quantities are plain numbers (the DB
-  // stores bigint; the largest real total — a capital's ~12M minerals — is far
-  // under 2^53, so the narrowing is lossless).
-  flatMaterials: { typeId: number; quantity: number }[];
   // typeId → raw-material source category label, for grouping the priced
   // ledger. `materialCategories` lists the present categories in display order
   // with their colours.
