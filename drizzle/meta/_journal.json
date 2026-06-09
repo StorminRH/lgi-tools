@@ -127,6 +127,13 @@
       "when": 1781037209150,
       "tag": "0017_strong_loki",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781038828146,
+      "tag": "0018_pale_wildside",
+      "breakpoints": true
     }
   ]
 }

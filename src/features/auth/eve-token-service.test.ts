@@ -35,7 +35,6 @@ vi.mock('./eve-sso', async (importOriginal) => {
 // Real crypto with a deterministic key, so we can assert ciphertext shape.
 const VALID_KEY = Buffer.alloc(32, 9).toString('base64');
 
-import { EVE_SCOPES } from './eve-sso';
 import { getFreshAccessTokenForCharacter } from './eve-token-service';
 import { decryptToken, encryptToken } from './token-crypto';
 
@@ -83,7 +82,8 @@ describe('getFreshAccessTokenForCharacter', () => {
       },
     ];
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
-    expect(result).toMatchObject({ kind: 'ok', accessToken: 'cached-access', scopes: [...EVE_SCOPES] });
+    // scope was null on the row → honest empty list, not the assumed full set.
+    expect(result).toMatchObject({ kind: 'ok', accessToken: 'cached-access', scopes: [] });
     expect(h.refreshEveTokenMock).not.toHaveBeenCalled();
     expect(h.updateSpy).not.toHaveBeenCalled();
   });

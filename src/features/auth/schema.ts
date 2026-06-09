@@ -7,6 +7,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 export const CHARACTER_ROLES = ['USER', 'ADMIN'] as const;
@@ -96,8 +97,11 @@ export const account = pgTable(
   (table) => [
     index('account_user_id_idx').on(table.userId),
     // Sign-in and the session shim both look an account up by (provider, account
-    // id); the user↔character resolution rides this index.
-    index('account_provider_account_idx').on(table.providerId, table.accountId),
+    // id); the user↔character resolution rides this index. UNIQUE: there is at
+    // most one row per (provider, character), so the constraint is a DB-level
+    // backstop against a concurrent first-sign-in race creating duplicate links
+    // (which would make the token vend's single-row read pick arbitrarily).
+    uniqueIndex('account_provider_account_idx').on(table.providerId, table.accountId),
   ],
 );
 

@@ -10,7 +10,7 @@
 
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { EVE_PROVIDER_ID, EVE_SCOPES, refreshEveToken } from './eve-sso';
+import { EVE_PROVIDER_ID, refreshEveToken } from './eve-sso';
 import { account } from './schema';
 import { decryptToken, encryptToken } from './token-crypto';
 
@@ -30,9 +30,12 @@ export type FreshTokenResult =
   | { kind: 'reauth_required' }
   | { kind: 'upstream_error' };
 
+// Reflect ONLY the scopes actually recorded on the account. A null/empty scope
+// means "unknown" — return an empty list rather than assuming the full requested
+// set, so a caller can't read unproven grants off the vended response.
 function parseScopes(scope: string | null): string[] {
   const trimmed = scope?.trim();
-  return trimmed ? trimmed.split(/\s+/) : [...EVE_SCOPES];
+  return trimmed ? trimmed.split(/\s+/) : [];
 }
 
 export async function getFreshAccessTokenForCharacter(
