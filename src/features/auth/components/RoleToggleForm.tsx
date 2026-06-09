@@ -2,24 +2,25 @@ import type { CharacterRole } from '../types';
 
 // Per-row toggle. Pure HTML form posting to /api/admin/role — no client JS.
 // The disabled self-row is UI decoration; the route handler is the real guard.
+// Admin is per-user, so the toggle targets a userId (not a character id).
 export function RoleToggleForm({
-  targetCharacterId,
+  targetUserId,
   currentRole,
-  viewerCharacterId,
+  viewerUserId,
   currentQuery,
 }: {
-  targetCharacterId: number;
+  targetUserId: string;
   currentRole: CharacterRole;
-  viewerCharacterId: number;
+  viewerUserId: string;
   currentQuery: string | undefined;
 }) {
   const nextRole: CharacterRole = currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
-  const isSelf = targetCharacterId === viewerCharacterId;
+  const isSelf = targetUserId === viewerUserId;
   const label = currentRole === 'ADMIN' ? 'Revoke ADMIN' : 'Grant ADMIN';
 
   return (
     <form method="POST" action="/api/admin/role">
-      <input type="hidden" name="characterId" value={targetCharacterId} />
+      <input type="hidden" name="userId" value={targetUserId} />
       <input type="hidden" name="nextRole" value={nextRole} />
       {currentQuery ? (
         <input type="hidden" name="q" value={currentQuery} />

@@ -1,0 +1,2 @@
+DROP INDEX "account_provider_account_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "account_provider_account_idx" ON "account" USING btree ("provider_id","account_id");

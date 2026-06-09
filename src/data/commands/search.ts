@@ -4,10 +4,15 @@
 // logged-in users see "Log out", and admins additionally see "Open admin".
 //
 // Rows with side effects use `onSelect(router)` instead of `href`-driven
-// navigation. Log out fires a fetch then a hard reload (drops cached
-// server-component output that referenced the now-gone session); Log in
-// hard-navigates to the OAuth endpoint (router.push can't reach the SSO
-// redirect chain).
+// navigation. Log out POSTs Better Auth's sign-out then hard-reloads (drops
+// cached server-component output that referenced the now-gone session); Log in
+// POSTs Better Auth's OAuth sign-in for the SSO redirect URL and hard-navigates
+// to it (router.push can't reach the cross-origin SSO chain).
+//
+// This is a data slice, so it can't import the auth feature's client — it talks
+// to Better Auth's REST endpoints by URL. Those request/response shapes
+// (/api/auth/sign-in/oauth2 → { url }; /api/auth/sign-out POST) are the contract
+// here; they're pinned by the better-auth version in package.json.
 
 import type { AppRouterInstance, SearchContext, SearchResult, SearchSource } from '@/search';
 import { fuzzyMatch } from '@/search/match';
@@ -51,15 +56,19 @@ const COMMANDS: CommandEntry[] = [
     id: 'cmd:logout',
     label: 'Log out',
     sub: 'End the current EVE session',
-    href: '/api/auth/logout',
+    href: '/',
     iconText: '⏏',
     onSelect: () => {
       // Only redirect on success — if the POST fails (network drop, 4xx,
-      // or 5xx) the server never cleared the session cookie, so landing
-      // on / would silently look "logged out" while the session is still
-      // active. fetch() only rejects on network errors, so `res.ok` is
-      // the load-bearing check for HTTP-level failures.
-      void fetch('/api/auth/logout', { method: 'POST' })
+      // or 5xx) the server never cleared the session, so landing on / would
+      // silently look "logged out" while the session is still active. fetch()
+      // only rejects on network errors, so `res.ok` is the load-bearing check
+      // for HTTP-level failures.
+      void fetch('/api/auth/sign-out', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      })
         .then((res) => {
           if (res.ok) window.location.href = '/';
           // else: server returned an error; stay put so the user can retry.
@@ -74,10 +83,23 @@ const COMMANDS: CommandEntry[] = [
     id: 'cmd:login',
     label: 'Log in with EVE',
     sub: 'Sign in via EVE SSO',
-    href: '/api/auth/login',
+    href: '/',
     iconText: '↪',
     onSelect: () => {
-      window.location.href = '/api/auth/login';
+      // Better Auth's OAuth sign-in is a POST returning the SSO redirect URL;
+      // hard-navigate the browser to it. On any failure, stay put.
+      void fetch('/api/auth/sign-in/oauth2', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ providerId: 'eve', callbackURL: '/' }),
+      })
+        .then((res) => (res.ok ? (res.json() as Promise<{ url?: string }>) : null))
+        .then((data) => {
+          if (data?.url) window.location.href = data.url;
+        })
+        .catch(() => {
+          // Network error; stay put.
+        });
     },
     visible: (ctx) => ctx.session === null,
   },

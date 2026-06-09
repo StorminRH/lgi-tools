@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
-  buildAuthorizeUrl,
   claimsToCharacter,
-  EVE_AUTHORIZE_URL,
   exchangeCodeForToken,
   portraitUrl,
+  refreshEveToken,
 } from './eve-sso';
 
 describe('claimsToCharacter', () => {
@@ -56,28 +55,6 @@ describe('portraitUrl', () => {
     expect(portraitUrl(42, 64)).toBe(
       'https://images.evetech.net/characters/42/portrait?size=64',
     );
-  });
-});
-
-describe('buildAuthorizeUrl', () => {
-  it('encodes all required OAuth2 + PKCE parameters', () => {
-    const url = buildAuthorizeUrl({
-      clientId: 'abc123',
-      callbackUrl: 'http://localhost:3000/api/auth/callback',
-      state: 'state-token',
-      codeChallenge: 'challenge-token',
-    });
-    expect(url.startsWith(`${EVE_AUTHORIZE_URL}?`)).toBe(true);
-    const params = new URL(url).searchParams;
-    expect(params.get('response_type')).toBe('code');
-    expect(params.get('client_id')).toBe('abc123');
-    expect(params.get('redirect_uri')).toBe(
-      'http://localhost:3000/api/auth/callback',
-    );
-    expect(params.get('scope')).toBe('publicData');
-    expect(params.get('state')).toBe('state-token');
-    expect(params.get('code_challenge')).toBe('challenge-token');
-    expect(params.get('code_challenge_method')).toBe('S256');
   });
 });
 
@@ -150,5 +127,85 @@ describe('exchangeCodeForToken outbound headers', () => {
         clientSecret: 'client-secret',
       }),
     ).rejects.toThrow(/boundary validation/);
+  });
+});
+
+describe('refreshEveToken', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  const input = {
+    refreshToken: 'a+b/c',
+    clientId: 'client-id',
+    clientSecret: 'client-secret',
+  };
+
+  it('returns ok with the rotated refresh token, and sends a refresh grant with the outbound UA + timeout', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          access_token: 'fresh-access',
+          token_type: 'Bearer',
+          expires_in: 1199,
+          refresh_token: 'rotated-refresh',
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await refreshEveToken(input);
+    expect(result).toEqual({
+      kind: 'ok',
+      access_token: 'fresh-access',
+      refresh_token: 'rotated-refresh',
+      expires_in: 1199,
+    });
+
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(new Headers(init?.headers).get('User-Agent')).toBe(OUTBOUND_USER_AGENT);
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    // grant + url-encoded refresh token both ride the body.
+    expect(init?.body).toContain('grant_type=refresh_token');
+    expect(init?.body).toContain('refresh_token=a%2Bb%2Fc');
+  });
+
+  it('falls back to the submitted refresh token when the response omits one', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ access_token: 'fresh', expires_in: 1200 }), {
+        status: 200,
+      }),
+    );
+
+    const result = await refreshEveToken(input);
+    expect(result).toEqual({
+      kind: 'ok',
+      access_token: 'fresh',
+      refresh_token: 'a+b/c',
+      expires_in: 1200,
+    });
+  });
+
+  it('treats a 400 as a dead refresh token', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 }),
+    );
+    expect(await refreshEveToken(input)).toEqual({ kind: 'dead' });
+  });
+
+  it('treats a 5xx as retryable', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('upstream', { status: 503 }));
+    expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
+  });
+
+  it('treats a network/timeout error as retryable', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('aborted'));
+    expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
   });
 });

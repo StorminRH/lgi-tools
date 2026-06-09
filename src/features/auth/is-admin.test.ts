@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// isAdmin() is pure; stub the auth instance so importing it through session.ts
+// doesn't construct the real Better Auth client (DB/env it doesn't need).
+vi.mock('./auth', () => ({ auth: { api: { getSession: vi.fn() } } }));
+
 import { isAdmin } from './session';
 import type { Session } from './types';
 
