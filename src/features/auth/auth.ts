@@ -12,7 +12,7 @@
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { customSession, genericOAuth } from 'better-auth/plugins';
+import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import {
@@ -25,14 +25,50 @@ import {
   verifyEveJwt,
 } from './eve-sso';
 import { upsertCharacterOnLogin } from './queries';
-import { account, session, user, verification } from './schema';
+import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
+import { TOKEN_CRYPTO_VERSION, encryptToken } from './token-crypto';
 import type { CharacterRole } from './types';
 
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is not set`);
   return value;
+}
+
+const CIPHERTEXT_PREFIX = `${TOKEN_CRYPTO_VERSION}:`;
+
+// Encrypt the EVE access/refresh tokens on an account write before it reaches
+// the DB. The create hook receives the full account; the update hook (re-login)
+// receives only the changed fields — so this only touches tokens that are
+// actually present, and skips a value that's already ciphertext (idempotent: it
+// must never double-encrypt). The dedicated key lives in token-crypto.ts.
+function encryptAccountTokens<
+  T extends {
+    providerId?: string;
+    accessToken?: string | null;
+    refreshToken?: string | null;
+  },
+>(data: T): T {
+  // Only EVE accounts carry ESI tokens. The update path may omit providerId, so
+  // encrypt unless we positively know it's some other provider.
+  if (data.providerId != null && data.providerId !== EVE_PROVIDER_ID) return data;
+  const out: T = { ...data };
+  if (
+    typeof out.accessToken === 'string' &&
+    out.accessToken.length > 0 &&
+    !out.accessToken.startsWith(CIPHERTEXT_PREFIX)
+  ) {
+    out.accessToken = encryptToken(out.accessToken);
+  }
+  if (
+    typeof out.refreshToken === 'string' &&
+    out.refreshToken.length > 0 &&
+    !out.refreshToken.startsWith(CIPHERTEXT_PREFIX)
+  ) {
+    out.refreshToken = encryptToken(out.refreshToken);
+  }
+  return out;
 }
 
 // Resolve a user's active EVE character id. In 3.4.1a a user has exactly one
@@ -60,12 +96,23 @@ function computeIsAdmin(characterId: number | null, role: CharacterRole): boolea
 const options = {
   database: drizzleAdapter(db, {
     provider: 'pg',
-    schema: { user, session, account, verification },
+    schema: { user, session, account, verification, jwks },
   }),
   // Reuse the existing 32-byte key as the Better Auth secret when a dedicated
   // BETTER_AUTH_SECRET isn't set, so a local .env.local keeps working.
   secret: process.env.BETTER_AUTH_SECRET ?? process.env.SESSION_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
+  // Encrypt EVE tokens at rest (3.4.1b). They arrive PLAINTEXT here:
+  // `account.encryptOAuthTokens` is intentionally NOT set — enabling it would
+  // AES-encrypt the tokens under the Better Auth secret *before* this hook runs,
+  // which would defeat decryption with our dedicated EVE_TOKEN_ENCRYPTION_KEY.
+  // Do not turn it on.
+  databaseHooks: {
+    account: {
+      create: { before: async (acct) => ({ data: encryptAccountTokens(acct) }) },
+      update: { before: async (acct) => ({ data: encryptAccountTokens(acct) }) },
+    },
+  },
   user: {
     additionalFields: {
       // Per-user admin role; the actual column is the character_role enum with a
@@ -139,6 +186,25 @@ const options = {
           },
         },
       ],
+    }),
+    // Convex-facing JWT (3.4.1b → consumed in 3.4.3). Signed with ES256 — NOT the
+    // EdDSA default — because Convex's custom-JWT validation accepts only
+    // RS256/ES256. The keypair is generated once and persisted in the `jwks`
+    // table (static JWKS served at /api/auth/jwks), private key encrypted at rest
+    // under the app secret. The subject defaults to the Better Auth user id so
+    // Convex scopes to the user; the payload carries only the role — never any
+    // EVE token material. `aud`/`iss` are the recorded contract for 3.4.3's
+    // auth.config.ts (applicationID = 'convex', issuer = BETTER_AUTH_URL).
+    jwt({
+      jwks: { keyPairConfig: { alg: 'ES256' } },
+      jwt: {
+        issuer: process.env.BETTER_AUTH_URL,
+        audience: 'convex',
+        definePayload: ({ user: u }) => ({ role: (u.role as CharacterRole | undefined) ?? 'USER' }),
+      },
+      // Don't attach a signed JWT to every session response — Convex pulls one
+      // deliberately from /api/auth/token. Recommended with OAuth provider plugins.
+      disableSettingJwtHeader: true,
     }),
   ],
 } satisfies BetterAuthOptions;

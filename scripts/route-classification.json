@@ -47,6 +47,7 @@
     "/api/cron/refresh-sde": "dynamic",
     "/api/feedback": "dynamic",
     "/api/industry/blueprints": "static",
+    "/api/internal/eve-token": "dynamic",
     "/api/market-prices/refresh": "dynamic",
     "/api/sites": "dynamic",
     "/api/sites/[id]": "dynamic",

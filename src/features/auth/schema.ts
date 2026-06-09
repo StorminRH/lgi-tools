@@ -113,3 +113,17 @@ export const verification = pgTable(
   },
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 );
+
+// Better Auth JWT plugin (3.4.1b) — the signing keypair for the Convex-facing
+// JWT. Keys are generated once and persisted here (static JWKS served at
+// /api/auth/jwks), not regenerated per request; the private key is itself
+// encrypted at rest by Better Auth under the app secret. `expiresAt` is nullable
+// and only written if key rotation is ever enabled. Matches Better Auth's
+// expected model field-for-field.
+export const jwks = pgTable('jwks', {
+  id: text('id').primaryKey(),
+  publicKey: text('public_key').notNull(),
+  privateKey: text('private_key').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at'),
+});

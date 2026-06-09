@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-06-09
+
+- Signing in with EVE now prompts you to re-authorize once, granting the additional character access — skills, skill queue, and industry jobs — that upcoming tools build on.
+
 ### 2026-06-08
 
 - Live Jita prices now land on a rolling odometer. When fresh market data arrives, each ISK figure — the sites' resource values and totals, and the planner's cost and margin — rolls digit by digit to its new value instead of fading in.

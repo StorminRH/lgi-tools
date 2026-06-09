@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 // Mechanical authorization-classification guard. Every route handler under
 // src/app/api must self-declare its authorization class on its own comment line:
 //
-//   // authz: public | auth | admin | cron
+//   // authz: public | auth | admin | cron | service
 //
 // This asserts ONLY that the marker is present, unique, and well-formed — it does
 // NOT verify the route's actual auth logic, and there is deliberately no central
@@ -18,7 +18,10 @@ const API_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(API_DIR, '..', '..', '..');
 
 const MARKER_RE = /^[ \t]*\/\/[ \t]*authz:[ \t]*([a-z]+)[ \t]*$/gm;
-const VALID_CLASSES = new Set(['public', 'auth', 'admin', 'cron']);
+// 'service' = a machine-to-machine caller authenticated by a shared bearer
+// secret (e.g. the Convex backend hitting /api/internal/eve-token) — distinct
+// from 'cron' (Vercel's cron invoker), which it would otherwise be mislabelled as.
+const VALID_CLASSES = new Set(['public', 'auth', 'admin', 'cron', 'service']);
 
 // Recursive walk using withFileTypes only — `fs.globSync` and the `recursive`
 // readdir option are absent from the pinned @types/node@20 and would break
@@ -52,7 +55,7 @@ describe('authz classification markers', () => {
       matches.length,
       `${label(file)} has no "// authz:" marker. Every src/app/api/**/route.* file must ` +
         `declare its authorization class on its own comment line, e.g.  // authz: public  ` +
-        `(one of: public | auth | admin | cron), directly above the exported handler. ` +
+        `(one of: public | auth | admin | cron | service), directly above the exported handler. ` +
         `This is a mechanical presence check — it does not inspect the route's auth logic.`,
     ).toBeGreaterThan(0);
 
@@ -66,7 +69,7 @@ describe('authz classification markers', () => {
     expect(
       VALID_CLASSES.has(cls),
       `${label(file)} has an invalid authz class "${cls}". ` +
-        `Use exactly one of: public | auth | admin | cron.`,
+        `Use exactly one of: public | auth | admin | cron | service.`,
     ).toBe(true);
   });
 });

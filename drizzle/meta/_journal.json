@@ -120,6 +120,13 @@
       "when": 1780969871839,
       "tag": "0016_right_bloodstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1781037209150,
+      "tag": "0017_strong_loki",
+      "breakpoints": true
     }
   ]
 }
