@@ -63,13 +63,6 @@ Load-bearing constraints. Don't regress these without raising a conflict.
 - **Every deploy migrates its own branch.** Production migrates production; each preview deploy migrates its per-PR Neon branch. Preview branches auto-delete on PR close.
 - **The visual identity is the existing terminal/EVE aesthetic defined by `tones.ts` and the established styles.** Build within it. Do not introduce a default design palette or typeface (warm cream backgrounds, serif display fonts, terracotta accents, etc.) — a new tone or font needs explicit written justification, the same bar as a new `tones.ts` entry.
 
-## Working with the agent
-
-These reflect how the current model behaves; they shape how sessions should be written and read.
-
-- **Instructions are followed literally and are not silently generalized.** If a rule should apply to every item (every query batched, every row using a primitive, every section formatted a certain way), the prompt must say "every" — the agent applies an instruction to what was named, not to siblings it wasn't told about. Session prompts already state scope explicitly; keep doing so.
-- **Prefer goals over prescribed steps.** State the destination, success criteria, and constraints; let the agent plan the "how" in plan mode. Hand-written step-by-step procedures usually underperform the agent's own planning. (Diagnosis-first framing for bug/uncertain work is the exception worth keeping — "verify the claim before fixing" is a constraint, not a procedure.)
-
 ## Session Maintenance
 
 **SCRATCHPAD.md** — after every session, update `docs/SCRATCHPAD.md` (gitignored). It's the agent's session-to-session memory: discoveries made *during* a session, cross-cutting bugs, and gotchas — not forward plans (those live in the version docs and prompts). The file documents its own upkeep rules at the bottom; follow them so it stays skimmable.
