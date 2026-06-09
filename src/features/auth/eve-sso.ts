@@ -24,7 +24,7 @@ export const EVE_AUDIENCE = 'EVE Online';
 export const EVE_SCOPES = [
   'publicData',
   'esi-skills.read_skills.v1',
-  'esi-skillqueue.read_skillqueue.v1',
+  'esi-skills.read_skillqueue.v1',
   'esi-industry.read_character_jobs.v1',
 ] as const;
 

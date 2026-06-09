@@ -1,11 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
+  EVE_SCOPES,
   claimsToCharacter,
   exchangeCodeForToken,
   portraitUrl,
   refreshEveToken,
 } from './eve-sso';
+
+describe('EVE_SCOPES', () => {
+  // Pins the exact ESI scope strings. EVE rejects an unknown scope with
+  // `invalid_scope`, and the skill-queue read scope lives under the `esi-skills`
+  // namespace — NOT a separate `esi-skillqueue` one (a wrong name shipped in
+  // 3.4.1a and broke sign-in). Verified against the live ESI swagger.
+  it('matches the verified EVE scope names', () => {
+    expect([...EVE_SCOPES]).toEqual([
+      'publicData',
+      'esi-skills.read_skills.v1',
+      'esi-skills.read_skillqueue.v1',
+      'esi-industry.read_character_jobs.v1',
+    ]);
+  });
+});
 
 describe('claimsToCharacter', () => {
   it('parses sub "CHARACTER:EVE:<id>" into characterId + portrait URL', () => {
