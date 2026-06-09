@@ -34,17 +34,6 @@ export interface DateRange {
   to: Date;
 }
 
-export interface AggregateSummary {
-  totalEvents: number;
-  uniqueCharacters: number;
-  anonymousEvents: number;
-}
-
-export interface ActionCount {
-  action: UsageAction;
-  count: number;
-}
-
 export interface DailyCount {
   day: string;
   totalEvents: number;
@@ -62,18 +51,8 @@ export interface SearchCount {
   count: number;
 }
 
-export interface SitesViewSplit {
-  cards: number;
-  table: number;
-}
-
 export interface ReferrerCount {
   host: string;
-  count: number;
-}
-
-export interface UtmSourceCount {
-  source: string;
   count: number;
 }
 
@@ -111,6 +90,14 @@ export interface CronOutcomeCount {
   outcome: string;
   count: number;
   avgDurationMs: number;
+}
+
+// Latest recorded run per cron action, regardless of the dashboard's selected
+// range — the status strip's staleness anchor ("last run 2h ago").
+export interface CronLastRun {
+  action: UsageAction;
+  timestamp: Date;
+  outcome: string | null;
 }
 
 // Per-caller degradation-event counts. `caller` exists only on

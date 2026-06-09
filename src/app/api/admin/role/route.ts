@@ -26,7 +26,7 @@ function sanitiseQuery(raw: string | undefined): string | undefined {
 }
 
 function buildRedirect(request: NextRequest, query: string | undefined): URL {
-  const url = new URL('/admin', request.url);
+  const url = new URL('/admin/access', request.url);
   if (query) url.searchParams.set('q', query);
   return url;
 }

@@ -41,8 +41,12 @@ type BarChartProps = {
   ariaLabel?: string;
 };
 
-// Extra bottom room for the category labels under each bar.
-const MARGIN = { top: 8, right: 6, bottom: 20, left: 6 };
+// Extra bottom room for the category labels under each bar; left room for the
+// value-axis tick labels.
+const MARGIN = { top: 8, right: 6, bottom: 20, left: 40 };
+
+// Value-axis tick count hint (d3 picks nearby round values).
+const Y_TICKS = 3;
 
 export function BarChart({
   data,
@@ -80,10 +84,16 @@ export function BarChart({
     padding: 0.3,
   });
   const yScale = scaleLinear<number>({
-    // Bars grow from 0; a flat all-zero series still gets a sane axis.
+    // Bars grow from 0; a flat all-zero series still gets a sane axis. `nice`
+    // snaps the top tick to a round value so the axis labels read cleanly.
     domain: [0, yMax === 0 ? 1 : yMax],
     range: [innerBottom, MARGIN.top],
+    nice: true,
   });
+
+  // Integer ticks only — every series this renders is a count, and a small
+  // domain would otherwise produce fractional ticks like 0.5.
+  const yTickValues = yScale.ticks(Y_TICKS).filter((t) => Number.isInteger(t));
 
   const handleMove = (event: React.MouseEvent<SVGRectElement>, datum: BarDatum) => {
     const point = localPoint(svgRef.current as Element, event.nativeEvent);
@@ -106,6 +116,28 @@ export function BarChart({
         aria-label={ariaLabel}
         className="block overflow-visible"
       >
+        {yTickValues.map((t) => (
+          <g key={t}>
+            <line
+              x1={MARGIN.left}
+              x2={width - MARGIN.right}
+              y1={yScale(t)}
+              y2={yScale(t)}
+              className="stroke-[var(--color-border-soft)]"
+              strokeWidth={1}
+            />
+            <text
+              x={MARGIN.left - 6}
+              y={yScale(t)}
+              textAnchor="end"
+              dominantBaseline="central"
+              className="fill-[var(--color-muted)] font-mono text-[10px]"
+            >
+              {formatValue(t)}
+            </text>
+          </g>
+        ))}
+
         {data.map((d) => {
           const bandX = xScale(d.label) ?? 0;
           const barW = xScale.bandwidth();
@@ -118,7 +150,7 @@ export function BarChart({
                 x={bandX + barW / 2}
                 y={height - 6}
                 textAnchor="middle"
-                className="fill-[var(--color-muted)] font-mono text-[9px]"
+                className="fill-[var(--color-muted)] font-mono text-[10px]"
               >
                 {formatLabel(d.label)}
               </text>

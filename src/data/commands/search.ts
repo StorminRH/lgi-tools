@@ -47,8 +47,16 @@ const COMMANDS: CommandEntry[] = [
   {
     id: 'cmd:open-admin',
     label: 'Open admin',
-    sub: 'Manage admins · view usage report',
+    sub: 'Dashboard · traffic, health, users',
     href: '/admin',
+    iconText: '→',
+    visible: (ctx) => ctx.isAdmin,
+  },
+  {
+    id: 'cmd:open-access',
+    label: 'Open admin access',
+    sub: 'Manage admins · role change audit',
+    href: '/admin/access',
     iconText: '→',
     visible: (ctx) => ctx.isAdmin,
   },

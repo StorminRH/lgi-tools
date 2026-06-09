@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   budgetSummary,
-  cronHealthSummary,
   degradationCallerSummary,
+  deriveCronStatus,
+  deriveEsiSourceStatus,
+  deriveGscStatus,
   fallbackSummary,
+  formatAgo,
   formatPct,
   loginFrequencyBuckets,
+  PRICES_HEALTHY_OUTCOMES,
   ratio,
   refreshVolumeSummary,
-  returningVsNewSummary,
-  searchVsDirectSummary,
-  summarizeCronHealth,
+  SDE_HEALTHY_OUTCOMES,
+  SDE_NEUTRAL_OUTCOMES,
 } from './health-metrics';
 import type { CronOutcomeCount } from './types';
 
@@ -23,84 +26,6 @@ describe('ratio + formatPct', () => {
   it('renders a real 0% distinctly from an empty window', () => {
     expect(formatPct(ratio(0, 10))).toBe('0%');
     expect(formatPct(ratio(10, 10))).toBe('100%');
-  });
-});
-
-describe('summarizeCronHealth', () => {
-  const prices = (refreshed: number, skipped: number): CronOutcomeCount[] => [
-    { outcome: 'refreshed', count: refreshed, avgDurationMs: 1000 },
-    { outcome: 'skipped', count: skipped, avgDurationMs: 50 },
-  ];
-
-  it('treats refreshed + skipped as healthy and busy as neutral', () => {
-    const h = summarizeCronHealth(prices(3, 2), [
-      { outcome: 'up-to-date', count: 1, avgDurationMs: 20 },
-      { outcome: 'busy', count: 4, avgDurationMs: 10 },
-    ]);
-    expect(h.healthy).toBe(6);
-    expect(h.neutral).toBe(4);
-    expect(h.unhealthy).toBe(0);
-    expect(h.total).toBe(6);
-    expect(h.ratio).toBe(1);
-  });
-
-  it('counts remote-unreachable against health', () => {
-    const h = summarizeCronHealth([], [
-      { outcome: 'up-to-date', count: 3, avgDurationMs: 20 },
-      { outcome: 'remote-unreachable', count: 1, avgDurationMs: 30 },
-    ]);
-    expect(h.total).toBe(4);
-    expect(h.ratio).toBe(0.75);
-  });
-
-  it('ratio is null when only neutral runs exist', () => {
-    const h = summarizeCronHealth([], [{ outcome: 'busy', count: 2, avgDurationMs: 10 }]);
-    expect(h.total).toBe(0);
-    expect(h.neutral).toBe(2);
-    expect(h.ratio).toBeNull();
-  });
-
-  it('ratio is null on an empty window', () => {
-    expect(summarizeCronHealth([], []).ratio).toBeNull();
-  });
-});
-
-describe('cronHealthSummary edges', () => {
-  it('empty window', () => {
-    expect(cronHealthSummary(summarizeCronHealth([], []))).toBe(
-      'No cron runs recorded this period.',
-    );
-  });
-
-  it('only neutral (lock-held) runs', () => {
-    const h = summarizeCronHealth([], [{ outcome: 'busy', count: 1, avgDurationMs: 5 }]);
-    expect(cronHealthSummary(h)).toBe(
-      '1 run skipped while another ingest held the lock; none failed.',
-    );
-  });
-
-  it('all healthy', () => {
-    const h = summarizeCronHealth(
-      [{ outcome: 'refreshed', count: 5, avgDurationMs: 100 }],
-      [],
-    );
-    expect(cronHealthSummary(h)).toBe('Every recorded cron run completed healthy.');
-  });
-
-  it('some unhealthy', () => {
-    const h = summarizeCronHealth(
-      [{ outcome: 'refreshed', count: 3, avgDurationMs: 100 }],
-      [{ outcome: 'remote-unreachable', count: 1, avgDurationMs: 30 }],
-    );
-    expect(cronHealthSummary(h)).toBe('3 of 4 cron runs completed healthy; 1 needs attention.');
-  });
-
-  it('pluralizes when more than one is unhealthy', () => {
-    const h = summarizeCronHealth(
-      [{ outcome: 'refreshed', count: 3, avgDurationMs: 100 }],
-      [{ outcome: 'remote-unreachable', count: 2, avgDurationMs: 30 }],
-    );
-    expect(cronHealthSummary(h)).toBe('3 of 5 cron runs completed healthy; 2 need attention.');
   });
 });
 
@@ -164,47 +89,6 @@ describe('refreshVolumeSummary', () => {
   });
 });
 
-describe('returningVsNewSummary edges', () => {
-  it('empty', () => {
-    expect(returningVsNewSummary({ newUsers: 0, returning: 0 })).toBe(
-      'No sign-ins recorded this period.',
-    );
-  });
-  it('all new (e.g. range=all)', () => {
-    expect(returningVsNewSummary({ newUsers: 4, returning: 0 })).toBe(
-      '4 new sign-ins; no returning users this period.',
-    );
-  });
-  it('all returning', () => {
-    expect(returningVsNewSummary({ newUsers: 0, returning: 2 })).toBe(
-      '2 returning users; no new sign-ins this period.',
-    );
-  });
-  it('mixed', () => {
-    expect(returningVsNewSummary({ newUsers: 1, returning: 3 })).toBe(
-      '3 returning and 1 new this period.',
-    );
-  });
-});
-
-describe('searchVsDirectSummary edges', () => {
-  it('empty', () => {
-    expect(searchVsDirectSummary({ referred: 0, direct: 0 })).toBe(
-      'No page views recorded this period.',
-    );
-  });
-  it('all direct', () => {
-    expect(searchVsDirectSummary({ referred: 0, direct: 50 })).toBe(
-      'All page views were direct or same-site this period.',
-    );
-  });
-  it('partial referred', () => {
-    expect(searchVsDirectSummary({ referred: 30, direct: 70 })).toBe(
-      '30% of page views arrived with an external referrer.',
-    );
-  });
-});
-
 describe('loginFrequencyBuckets', () => {
   it('buckets by login count', () => {
     const buckets = loginFrequencyBuckets([1, 1, 2, 3, 5, 9, 10, 25]);
@@ -218,5 +102,214 @@ describe('loginFrequencyBuckets', () => {
 
   it('empty input gives all-zero buckets', () => {
     expect(loginFrequencyBuckets([]).every((b) => b.users === 0)).toBe(true);
+  });
+});
+
+describe('formatAgo', () => {
+  const now = new Date('2026-06-09T12:00:00Z');
+  const ago = (ms: number) => new Date(now.getTime() - ms);
+
+  it('boundaries between units', () => {
+    expect(formatAgo(ago(30_000), now)).toBe('just now');
+    expect(formatAgo(ago(60_000), now)).toBe('1m ago');
+    expect(formatAgo(ago(59 * 60_000), now)).toBe('59m ago');
+    expect(formatAgo(ago(60 * 60_000), now)).toBe('1h ago');
+    expect(formatAgo(ago(23 * 3_600_000), now)).toBe('23h ago');
+    expect(formatAgo(ago(24 * 3_600_000), now)).toBe('1d ago');
+    expect(formatAgo(ago(15 * 24 * 3_600_000), now)).toBe('15d ago');
+  });
+});
+
+describe('deriveCronStatus', () => {
+  const now = new Date('2026-06-09T12:00:00Z');
+  const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
+  const daily = {
+    outcomes: [] as CronOutcomeCount[],
+    healthy: PRICES_HEALTHY_OUTCOMES,
+    expectedEveryHours: 24,
+    now,
+  };
+
+  it('red when the cron never ran', () => {
+    expect(deriveCronStatus({ ...daily, lastRun: null })).toEqual({
+      level: 'red',
+      headline: 'never ran',
+    });
+  });
+
+  it('green when fresh and the latest outcome is healthy', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      lastRun: { timestamp: hoursAgo(2), outcome: 'refreshed' },
+    });
+    expect(s).toEqual({ level: 'green', headline: 'healthy · last run 2h ago' });
+  });
+
+  it('red when the latest outcome is unhealthy, even if fresh', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      healthy: SDE_HEALTHY_OUTCOMES,
+      neutral: SDE_NEUTRAL_OUTCOMES,
+      lastRun: { timestamp: hoursAgo(5), outcome: 'remote-unreachable' },
+    });
+    expect(s).toEqual({ level: 'red', headline: 'failing · remote-unreachable 5h ago' });
+  });
+
+  it('red when the run never recorded an outcome', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      lastRun: { timestamp: hoursAgo(1), outcome: null },
+    });
+    expect(s.level).toBe('red');
+    expect(s.headline).toContain('unknown outcome');
+  });
+
+  it('amber when late (between 1.25× and 2× the interval)', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      lastRun: { timestamp: hoursAgo(36), outcome: 'refreshed' },
+    });
+    expect(s).toEqual({ level: 'amber', headline: 'late · last run 1d ago' });
+  });
+
+  it('red when stale (past 2× the interval)', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      lastRun: { timestamp: hoursAgo(72), outcome: 'refreshed' },
+    });
+    expect(s).toEqual({ level: 'red', headline: 'stale · last run 3d ago' });
+  });
+
+  it('weekly interval keeps a 3-day-old SDE run green', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      healthy: SDE_HEALTHY_OUTCOMES,
+      neutral: SDE_NEUTRAL_OUTCOMES,
+      expectedEveryHours: 168,
+      lastRun: { timestamp: hoursAgo(72), outcome: 'up-to-date' },
+    });
+    expect(s).toEqual({ level: 'green', headline: 'healthy · last run 3d ago' });
+  });
+
+  it('neutral latest outcome (lock-skip) does not read as failing', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      healthy: SDE_HEALTHY_OUTCOMES,
+      neutral: SDE_NEUTRAL_OUTCOMES,
+      expectedEveryHours: 168,
+      lastRun: { timestamp: hoursAgo(24), outcome: 'busy' },
+    });
+    expect(s.level).toBe('green');
+  });
+
+  it('amber when the latest run is healthy but the period saw failures', () => {
+    const s = deriveCronStatus({
+      ...daily,
+      healthy: SDE_HEALTHY_OUTCOMES,
+      neutral: SDE_NEUTRAL_OUTCOMES,
+      expectedEveryHours: 168,
+      lastRun: { timestamp: hoursAgo(24), outcome: 'up-to-date' },
+      outcomes: [
+        { outcome: 'up-to-date', count: 3, avgDurationMs: 20 },
+        { outcome: 'remote-unreachable', count: 2, avgDurationMs: 30 },
+      ],
+    });
+    expect(s).toEqual({
+      level: 'amber',
+      headline: 'recovered · 2 failed runs this period, latest healthy 1d ago',
+    });
+  });
+});
+
+describe('deriveGscStatus', () => {
+  const now = new Date('2026-06-09T12:00:00Z');
+  const hoursAgo = (h: number) => new Date(now.getTime() - h * 3_600_000);
+  const base = { configured: true, outcomes: [], lastSyncedAt: null, now };
+
+  it('neutral when not configured', () => {
+    const s = deriveGscStatus({ ...base, configured: false, lastRun: null });
+    expect(s.level).toBe('neutral');
+    expect(s.headline).toContain('not connected');
+  });
+
+  it('green with a data-through date when synced', () => {
+    const s = deriveGscStatus({
+      ...base,
+      lastRun: { timestamp: hoursAgo(3), outcome: 'synced' },
+      lastSyncedAt: new Date('2026-06-09T09:00:00Z'),
+    });
+    expect(s).toEqual({
+      level: 'green',
+      headline: 'healthy · last run 3h ago · data through 2026-06-09',
+    });
+  });
+
+  it('amber when the latest sync was partial', () => {
+    const s = deriveGscStatus({
+      ...base,
+      lastRun: { timestamp: hoursAgo(3), outcome: 'partial' },
+    });
+    expect(s).toEqual({ level: 'amber', headline: 'degraded · partial 3h ago' });
+  });
+
+  it('red when the latest sync failed', () => {
+    const s = deriveGscStatus({
+      ...base,
+      lastRun: { timestamp: hoursAgo(3), outcome: 'failed' },
+    });
+    expect(s).toEqual({ level: 'red', headline: 'failing · failed 3h ago' });
+  });
+});
+
+describe('deriveEsiSourceStatus', () => {
+  it('neutral on an empty window', () => {
+    const s = deriveEsiSourceStatus({
+      fallback: { esi: 0, fallback: 0, perDay: [] },
+      budgetExhaustions: 0,
+    });
+    expect(s).toEqual({ level: 'neutral', headline: 'no price refreshes this period' });
+  });
+
+  it('green when ESI served everything', () => {
+    const s = deriveEsiSourceStatus({
+      fallback: { esi: 500, fallback: 0, perDay: [] },
+      budgetExhaustions: 0,
+    });
+    expect(s).toEqual({ level: 'green', headline: 'ESI served every priced item this period' });
+  });
+
+  it('amber on a minority fallback share', () => {
+    const s = deriveEsiSourceStatus({
+      fallback: { esi: 75, fallback: 25, perDay: [] },
+      budgetExhaustions: 0,
+    });
+    expect(s).toEqual({ level: 'amber', headline: 'partial · 25% fallback' });
+  });
+
+  it('amber on budget exhaustion even with zero fallback rows', () => {
+    const s = deriveEsiSourceStatus({
+      fallback: { esi: 100, fallback: 0, perDay: [] },
+      budgetExhaustions: 2,
+    });
+    expect(s).toEqual({ level: 'amber', headline: 'partial · 2 budget exhaustions' });
+  });
+
+  it('a tiny non-zero rate reads as <1%, not 0%', () => {
+    const s = deriveEsiSourceStatus({
+      fallback: { esi: 10_000, fallback: 3, perDay: [] },
+      budgetExhaustions: 0,
+    });
+    expect(s.headline).toBe('partial · <1% fallback');
+  });
+
+  it('red when fallback covers the majority', () => {
+    const s = deriveEsiSourceStatus({
+      fallback: { esi: 20, fallback: 80, perDay: [] },
+      budgetExhaustions: 0,
+    });
+    expect(s).toEqual({
+      level: 'red',
+      headline: 'degraded · Fuzzwork covered 80% of priced items',
+    });
   });
 });

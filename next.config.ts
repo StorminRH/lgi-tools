@@ -49,6 +49,18 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // 3.4.2 consolidated the tabbed usage report into the /admin dashboard.
+      // Non-permanent so browsers don't cache the hop forever; query params
+      // (?range=) forward automatically, so old bookmarks keep their range.
+      {
+        source: "/admin/usage",
+        destination: "/admin",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
