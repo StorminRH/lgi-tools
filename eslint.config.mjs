@@ -67,7 +67,7 @@ const eslintConfig = defineConfig([
       // EVE images (character portraits, type icons) render via plain <img>,
       // not next/image: next/image injects an inline `style="color:transparent"`
       // attribute that the production CSP's `style-src 'self'` (no nonce, no
-      // unsafe-inline) silently drops. See docs/VERSION_3.0.4.3_CSP_DECISION.md.
+      // unsafe-inline) silently drops. See CLAUDE.md > CSP.
       "@next/next/no-img-element": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
