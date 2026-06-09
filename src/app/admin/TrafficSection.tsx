@@ -7,7 +7,6 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { isGscConfigured } from '@/data/gsc/constants';
 import {
-  getLastSyncedAt,
   getSearchTrend,
   getSitemapStatus,
   getTopPages as getGscTopPages,
@@ -24,6 +23,7 @@ import {
 } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { AdminTrendChart } from './charts';
+import { getLastSyncedAtShared } from './last-synced';
 import { trendSeries } from './period';
 
 // Traffic & SEO: a two-column card grid. The left column is app-owned
@@ -172,7 +172,7 @@ async function GscPerformanceCard({ range }: { range: DateRange }) {
   if (!isGscConfigured()) return <GscNotConnectedCard label="Search performance" />;
 
   const [lastSyncedAt, trend, topPages, sitemaps, urls] = await Promise.all([
-    getLastSyncedAt(),
+    getLastSyncedAtShared(),
     getSearchTrend(range),
     getGscTopPages(range, 10),
     getSitemapStatus(),

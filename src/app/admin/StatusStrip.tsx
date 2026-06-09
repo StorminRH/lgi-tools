@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { isGscConfigured } from '@/data/gsc/constants';
-import { getLastSyncedAt } from '@/data/gsc/queries';
 import {
   budgetSummary,
   degradationCallerSummary,
@@ -27,6 +26,7 @@ import {
 } from '@/data/telemetry/queries';
 import type { CronOutcomeCount, DateRange, UsageAction } from '@/data/telemetry/types';
 import { AdminBarChart, AdminTrendChart } from './charts';
+import { getLastSyncedAtShared } from './last-synced';
 import { trendSeries } from './period';
 import { StatusRow } from './StatusRow';
 
@@ -95,7 +95,7 @@ export async function StatusStrip({ range }: { range: DateRange }) {
     getBudgetExhaustionCount(range),
     getDegradationByCaller(range),
     getRefreshVolume(range),
-    gscConfigured ? getLastSyncedAt() : Promise.resolve(null),
+    gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
   ]);
 
   const now = new Date();
