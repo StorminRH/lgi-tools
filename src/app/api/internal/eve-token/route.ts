@@ -6,6 +6,7 @@
 // ownership of the character is enforced by Convex (which holds the user JWT)
 // before it calls here; this endpoint trusts the bearer-authenticated service.
 // authz: service
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { connection } from 'next/server';
 import { z } from 'zod';
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
@@ -13,6 +14,15 @@ import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-servi
 const bodySchema = z.object({
   characterId: z.number().int().positive(),
 });
+
+// Constant-time bearer check. Comparing SHA-256 digests (always 32 bytes) keeps
+// timingSafeEqual's equal-length requirement satisfied and leaks no length, so a
+// timing side-channel can't reveal CONVEX_SERVICE_SECRET character by character.
+function bearerMatches(authorization: string | null, secret: string): boolean {
+  const provided = createHash('sha256').update(authorization ?? '').digest();
+  const expected = createHash('sha256').update(`Bearer ${secret}`).digest();
+  return timingSafeEqual(provided, expected);
+}
 
 export async function POST(req: Request): Promise<Response> {
   // Reads a secret + the DB per request — defer past prerender (Cache Components).
@@ -22,7 +32,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!secret) {
     return new Response('CONVEX_SERVICE_SECRET not configured', { status: 500 });
   }
-  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!bearerMatches(req.headers.get('authorization'), secret)) {
     return new Response('Unauthorized', { status: 401 });
   }
 

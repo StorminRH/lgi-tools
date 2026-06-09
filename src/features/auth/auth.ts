@@ -50,8 +50,15 @@ function encryptAccountTokens<
     refreshToken?: string | null;
   },
 >(data: T): T {
-  // Only EVE accounts carry ESI tokens. The update path may omit providerId, so
-  // encrypt unless we positively know it's some other provider.
+  // EVE is the ONLY provider today, so every account token reaching this hook is
+  // an EVE token encrypted under EVE_TOKEN_ENCRYPTION_KEY. We skip only a write
+  // that positively declares a non-EVE provider. The update path (re-login) often
+  // omits providerId — for an EVE-only app that correctly still encrypts, which is
+  // required (a re-login token refresh must not land plaintext). FORWARD-COMPAT: if
+  // a second OAuth provider is ever wired in, revisit this — its tokens would
+  // otherwise be encrypted under the EVE key and become unreadable. The fix then is
+  // a per-provider key (or a positive-EVE-only guard that still covers the
+  // providerId-absent EVE update path), not flipping this guard naively.
   if (data.providerId != null && data.providerId !== EVE_PROVIDER_ID) return data;
   const out: T = { ...data };
   if (
