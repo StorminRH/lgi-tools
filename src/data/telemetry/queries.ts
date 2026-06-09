@@ -14,8 +14,7 @@ import { db } from '@/db';
 import { characters } from '@/features/auth/schema';
 import { usageLogs } from './schema';
 import type {
-  ActionCount,
-  AggregateSummary,
+  CronLastRun,
   CronOutcomeCount,
   DailyCount,
   DateRange,
@@ -29,9 +28,7 @@ import type {
   RoleChangeAuditEntry,
   SearchCount,
   SearchVsDirect,
-  SitesViewSplit,
   UsageAction,
-  UtmSourceCount,
 } from './types';
 
 interface LogEventInput {
@@ -52,46 +49,6 @@ export async function logUsageEvent(input: LogEventInput): Promise<void> {
 
 function inRange(range: DateRange) {
   return between(usageLogs.timestamp, range.from, range.to);
-}
-
-export async function getAggregateSummary(range: DateRange): Promise<AggregateSummary> {
-  const [row] = await db
-    .select({
-      totalEvents: count(),
-      uniqueCharacters: countDistinct(usageLogs.characterId),
-      anonymousEvents: sql<number>`count(*) filter (where ${usageLogs.characterId} is null)`.mapWith(
-        Number,
-      ),
-    })
-    .from(usageLogs)
-    .where(inRange(range));
-
-  return {
-    totalEvents: Number(row?.totalEvents ?? 0),
-    uniqueCharacters: Number(row?.uniqueCharacters ?? 0),
-    anonymousEvents: Number(row?.anonymousEvents ?? 0),
-  };
-}
-
-export async function getTopActions(
-  range: DateRange,
-  limit = 10,
-): Promise<ActionCount[]> {
-  const rows = await db
-    .select({
-      action: usageLogs.action,
-      count: count(),
-    })
-    .from(usageLogs)
-    .where(inRange(range))
-    .groupBy(usageLogs.action)
-    .orderBy(desc(count()))
-    .limit(limit);
-
-  return rows.map((r) => ({
-    action: r.action as UsageAction,
-    count: Number(r.count),
-  }));
 }
 
 export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
@@ -156,27 +113,6 @@ export async function getTopReferrers(
   return rows
     .filter((r) => r.host !== null)
     .map((r) => ({ host: r.host as string, count: Number(r.count) }));
-}
-
-// Top utm_source values. metadata.utm is a nested JSON object so we extract
-// via `metadata -> 'utm' ->> 'source'`. Future-medium/campaign panels can
-// follow the same shape; one query per dimension keeps the SQL flat.
-export async function getTopUtmSources(
-  range: DateRange,
-  limit = 10,
-): Promise<UtmSourceCount[]> {
-  const source = sql<string>`${usageLogs.metadata} -> 'utm' ->> 'source'`;
-  const rows = await db
-    .select({ source, count: count() })
-    .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, 'page_view'), isNotNull(source)))
-    .groupBy(source)
-    .orderBy(desc(count()))
-    .limit(limit);
-
-  return rows
-    .filter((r) => r.source !== null)
-    .map((r) => ({ source: r.source as string, count: Number(r.count) }));
 }
 
 // Top entry pages — paths where metadata.is_entry is true. Tracks the first
@@ -268,34 +204,6 @@ export async function getRoleChangeAudit(
     from: r.from,
     to: r.to,
   }));
-}
-
-// Aggregates /sites page views by which view they used. `metadata.search`
-// stores the raw query string (e.g., "view=table&type=ore"). The match
-// anchors on a parameter boundary (either start-of-string or after `&`)
-// so a future param whose value happens to include the substring
-// `view=table` doesn't accidentally count. Filters on `path = '/sites'`
-// exactly so /sites/[id] detail-page hits are excluded.
-export async function getSitesViewSplit(range: DateRange): Promise<SitesViewSplit> {
-  const search = sql<string>`(${usageLogs.metadata} ->> 'search')`;
-  const isTable = sql<boolean>`(${search} LIKE 'view=table%' OR ${search} LIKE '%&view=table%')`;
-  const rows = await db
-    .select({ isTable, count: count() })
-    .from(usageLogs)
-    .where(and(
-      inRange(range),
-      eq(usageLogs.action, 'page_view'),
-      eq(sql`${usageLogs.metadata} ->> 'path'`, '/sites'),
-    ))
-    .groupBy(isTable);
-
-  let cards = 0;
-  let table = 0;
-  for (const r of rows) {
-    if (r.isTable) table += Number(r.count);
-    else cards += Number(r.count);
-  }
-  return { cards, table };
 }
 
 // ── Health dashboard aggregates (3.2.13) ────────────────────────────────
@@ -415,6 +323,32 @@ export function getPriceCronOutcomes(range: DateRange): Promise<CronOutcomeCount
 
 export function getSdeCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
   return getCronOutcomes(range, 'cron_sde');
+}
+
+export function getGscCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
+  return getCronOutcomes(range, 'cron_gsc');
+}
+
+// Latest run per cron action regardless of range — the status strip needs a
+// "now"-anchored staleness check, not a range-scoped one (a 7d window with no
+// SDE run is normal for a weekly cron; a 15-day-old last run is not).
+export async function getLastCronRuns(): Promise<CronLastRun[]> {
+  const outcome = sql<string | null>`${usageLogs.metadata} ->> 'outcome'`;
+  const rows = await db
+    .selectDistinctOn([usageLogs.action], {
+      action: usageLogs.action,
+      timestamp: usageLogs.timestamp,
+      outcome,
+    })
+    .from(usageLogs)
+    .where(inArray(usageLogs.action, ['cron_prices', 'cron_sde', 'cron_gsc']))
+    .orderBy(usageLogs.action, desc(usageLogs.timestamp));
+
+  return rows.map((r) => ({
+    action: r.action as UsageAction,
+    timestamp: r.timestamp,
+    outcome: r.outcome,
+  }));
 }
 
 // Per-day fetched/written totals from `cron_prices` refreshed rows.

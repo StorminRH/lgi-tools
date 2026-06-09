@@ -1,16 +1,26 @@
 import type { ReactNode } from 'react';
 
+// `size` widens the header for dense dashboard cards: 'sm' is the sitewide
+// default; 'md' reads at 11px for pages (admin) whose primary content is the
+// card headers themselves.
 export function SectionHeader({
   label,
   hint,
+  size = 'sm',
 }: {
   label: ReactNode;
   hint?: ReactNode;
+  size?: 'sm' | 'md';
 }) {
+  const sizing =
+    size === 'md' ? 'px-3.5 py-2 text-[11px]' : 'px-3.5 py-[5px] text-[9px]';
+  const hintSizing = size === 'md' ? 'text-[10px]' : 'text-[9px]';
   return (
-    <div className="flex items-center justify-between px-3.5 py-[5px] bg-section border-b border-border-soft border-t border-t-border text-[9px] font-semibold tracking-[0.16em] uppercase text-muted">
+    <div
+      className={`flex items-center justify-between bg-section border-b border-border-soft border-t border-t-border font-semibold tracking-[0.16em] uppercase text-muted ${sizing}`}
+    >
       <span>{label}</span>
-      {hint && <span className="text-[9px] font-normal text-muted">{hint}</span>}
+      {hint && <span className={`${hintSizing} font-normal text-muted`}>{hint}</span>}
     </div>
   );
 }

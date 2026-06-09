@@ -8,69 +8,17 @@ import type {
   DegradationCallerCount,
   FallbackRateData,
   RefreshVolumePoint,
-  ReturningVsNew,
-  SearchVsDirect,
 } from './types';
 
-// ── Cron health classification ──────────────────────────────────────────
+// ── Cron outcome vocabulary ─────────────────────────────────────────────
 // The healthy/neutral outcome sets are the single source of truth for the
-// "Cron health — X%" headline. `cron_prices` never writes a failure row (a
+// status strip's classification. `cron_prices` never writes a failure row (a
 // crash writes nothing), so its only outcomes are healthy. `cron_sde` busy is
-// a benign lock-contention skip — excluded from the denominator rather than
-// counted against health; remote-unreachable is genuinely unhealthy.
+// a benign lock-contention skip — not counted against health;
+// remote-unreachable is genuinely unhealthy.
 export const PRICES_HEALTHY_OUTCOMES = ['refreshed', 'skipped'] as const;
 export const SDE_HEALTHY_OUTCOMES = ['up-to-date', 'reingested'] as const;
 export const SDE_NEUTRAL_OUTCOMES = ['busy'] as const;
-
-type Health = 'healthy' | 'neutral' | 'unhealthy';
-
-function classify(
-  outcome: string,
-  healthy: readonly string[],
-  neutral: readonly string[],
-): Health {
-  if (healthy.includes(outcome)) return 'healthy';
-  if (neutral.includes(outcome)) return 'neutral';
-  return 'unhealthy';
-}
-
-export interface CronHealth {
-  healthy: number;
-  unhealthy: number;
-  neutral: number;
-  /** Runs counted toward the ratio (healthy + unhealthy; neutral excluded). */
-  total: number;
-  /** healthy / total, or null when no run counts toward the ratio. */
-  ratio: number | null;
-}
-
-export function summarizeCronHealth(
-  prices: CronOutcomeCount[],
-  sde: CronOutcomeCount[],
-): CronHealth {
-  let healthy = 0;
-  let unhealthy = 0;
-  let neutral = 0;
-
-  const tally = (
-    rows: CronOutcomeCount[],
-    healthySet: readonly string[],
-    neutralSet: readonly string[],
-  ) => {
-    for (const r of rows) {
-      const kind = classify(r.outcome, healthySet, neutralSet);
-      if (kind === 'healthy') healthy += r.count;
-      else if (kind === 'neutral') neutral += r.count;
-      else unhealthy += r.count;
-    }
-  };
-
-  tally(prices, PRICES_HEALTHY_OUTCOMES, []);
-  tally(sde, SDE_HEALTHY_OUTCOMES, SDE_NEUTRAL_OUTCOMES);
-
-  const total = healthy + unhealthy;
-  return { healthy, unhealthy, neutral, total, ratio: total === 0 ? null : healthy / total };
-}
 
 // ── Login-frequency histogram ───────────────────────────────────────────
 // Bucket edges are presentation, so bucketing happens here, not in SQL. Input
@@ -137,31 +85,162 @@ export function refreshVolumeSummary(points: RefreshVolumePoint[]): string {
   return `Refreshed on ${points.length} day${points.length === 1 ? '' : 's'}, writing ${written.toLocaleString()} of ${fetched.toLocaleString()} fetched rows.`;
 }
 
-export function cronHealthSummary(h: CronHealth): string {
-  if (h.total === 0 && h.neutral === 0) return 'No cron runs recorded this period.';
-  if (h.total === 0) {
-    return `${h.neutral} run${h.neutral === 1 ? '' : 's'} skipped while another ingest held the lock; none failed.`;
-  }
-  if (h.ratio === 1) return 'Every recorded cron run completed healthy.';
-  return `${h.healthy} of ${h.total} cron runs completed healthy; ${h.unhealthy} ${h.unhealthy === 1 ? 'needs' : 'need'} attention.`;
+// ── Subsystem status derivation (3.4.2) ─────────────────────────────────
+// The dashboard's status strip reduces each subsystem to one of four levels
+// plus a plain-English headline. Levels are presentation-agnostic (the route
+// maps them to dot colors); thresholds are pinned by tests.
+
+export type StatusLevel = 'green' | 'amber' | 'red' | 'neutral';
+
+export interface SubsystemStatus {
+  level: StatusLevel;
+  headline: string;
 }
 
-export function returningVsNewSummary({ newUsers, returning }: ReturningVsNew): string {
-  const total = newUsers + returning;
-  if (total === 0) return 'No sign-ins recorded this period.';
-  if (returning === 0) {
-    return `${newUsers} new sign-in${newUsers === 1 ? '' : 's'}; no returning users this period.`;
-  }
-  if (newUsers === 0) {
-    return `${returning} returning user${returning === 1 ? '' : 's'}; no new sign-ins this period.`;
-  }
-  return `${returning} returning and ${newUsers} new this period.`;
+// GSC sync outcomes (`summary.status` from the daily cron): `synced` is clean,
+// `skipped` is a benign no-op, `partial` completed with errors, `failed` failed.
+export const GSC_HEALTHY_OUTCOMES = ['synced'] as const;
+export const GSC_NEUTRAL_OUTCOMES = ['skipped'] as const;
+export const GSC_DEGRADED_OUTCOMES = ['partial'] as const;
+
+// Staleness slack over the schedule interval before a cron reads as late
+// (amber) or down (red). Crons drift by minutes run-to-run, so 1.25× absorbs
+// jitter; past 2× a whole cycle has been missed.
+const STALE_AMBER_FACTOR = 1.25;
+const STALE_RED_FACTOR = 2;
+
+/** Compact "2h ago"-style age for status headlines. */
+export function formatAgo(then: Date, now: Date): string {
+  const ms = now.getTime() - then.getTime();
+  if (ms < 60_000) return 'just now';
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function searchVsDirectSummary({ referred, direct }: SearchVsDirect): string {
-  const total = referred + direct;
-  if (total === 0) return 'No page views recorded this period.';
-  if (referred === 0) return 'All page views were direct or same-site this period.';
-  const pct = Math.round((referred / total) * 100);
-  return `${pct}% of page views arrived with an external referrer.`;
+export interface CronStatusInput {
+  /** Latest recorded run, regardless of the dashboard range. Null = never ran. */
+  lastRun: { timestamp: Date; outcome: string | null } | null;
+  /** Range-scoped outcome rollup, for "N failed runs this period" context. */
+  outcomes: CronOutcomeCount[];
+  healthy: readonly string[];
+  neutral?: readonly string[];
+  /** Outcomes that completed but not cleanly (e.g. GSC `partial`) — amber. */
+  degraded?: readonly string[];
+  /** Schedule interval — 24 for the daily crons, 168 for the weekly SDE. */
+  expectedEveryHours: number;
+  now: Date;
+}
+
+type OutcomeKind = 'healthy' | 'neutral' | 'degraded' | 'unhealthy';
+
+function classifyOutcome(
+  outcome: string | null,
+  { healthy, neutral = [], degraded = [] }: Pick<CronStatusInput, 'healthy' | 'neutral' | 'degraded'>,
+): OutcomeKind {
+  if (outcome === null) return 'unhealthy';
+  if (healthy.includes(outcome)) return 'healthy';
+  if (neutral.includes(outcome)) return 'neutral';
+  if (degraded.includes(outcome)) return 'degraded';
+  return 'unhealthy';
+}
+
+export function deriveCronStatus(input: CronStatusInput): SubsystemStatus {
+  const { lastRun, outcomes, expectedEveryHours, now } = input;
+  if (!lastRun) return { level: 'red', headline: 'never ran' };
+
+  const ago = formatAgo(lastRun.timestamp, now);
+  const ageHours = (now.getTime() - lastRun.timestamp.getTime()) / 3_600_000;
+  const lastKind = classifyOutcome(lastRun.outcome, input);
+
+  if (lastKind === 'unhealthy') {
+    return { level: 'red', headline: `failing · ${lastRun.outcome ?? 'unknown outcome'} ${ago}` };
+  }
+  if (ageHours > expectedEveryHours * STALE_RED_FACTOR) {
+    return { level: 'red', headline: `stale · last run ${ago}` };
+  }
+  if (lastKind === 'degraded') {
+    return { level: 'amber', headline: `degraded · ${lastRun.outcome} ${ago}` };
+  }
+  if (ageHours > expectedEveryHours * STALE_AMBER_FACTOR) {
+    return { level: 'amber', headline: `late · last run ${ago}` };
+  }
+
+  const failures = outcomes
+    .filter((o) => classifyOutcome(o.outcome, input) === 'unhealthy')
+    .reduce((s, o) => s + o.count, 0);
+  if (failures > 0) {
+    return {
+      level: 'amber',
+      headline: `recovered · ${failures} failed run${failures === 1 ? '' : 's'} this period, latest healthy ${ago}`,
+    };
+  }
+  return { level: 'green', headline: `healthy · last run ${ago}` };
+}
+
+export interface GscStatusInput {
+  configured: boolean;
+  lastRun: { timestamp: Date; outcome: string | null } | null;
+  outcomes: CronOutcomeCount[];
+  /** Newest syncedAt across the GSC tables — what the data is current through. */
+  lastSyncedAt: Date | null;
+  now: Date;
+}
+
+// Takes lastSyncedAt as a plain Date so this slice never imports gsc —
+// cross-slice composition stays at the route level.
+export function deriveGscStatus(input: GscStatusInput): SubsystemStatus {
+  if (!input.configured) {
+    return { level: 'neutral', headline: 'not connected · set GSC env vars to sync search data' };
+  }
+  const base = deriveCronStatus({
+    lastRun: input.lastRun,
+    outcomes: input.outcomes,
+    healthy: GSC_HEALTHY_OUTCOMES,
+    neutral: GSC_NEUTRAL_OUTCOMES,
+    degraded: GSC_DEGRADED_OUTCOMES,
+    expectedEveryHours: 24,
+    now: input.now,
+  });
+  if (base.level === 'green' && input.lastSyncedAt) {
+    return {
+      level: 'green',
+      headline: `${base.headline} · data through ${input.lastSyncedAt.toISOString().slice(0, 10)}`,
+    };
+  }
+  return base;
+}
+
+export interface EsiSourceStatusInput {
+  fallback: FallbackRateData;
+  budgetExhaustions: number;
+}
+
+// Above this share of priced items served by the Fuzzwork fallback, the ESI
+// source reads as down rather than flaky.
+const FALLBACK_RED_RATE = 0.5;
+
+export function deriveEsiSourceStatus({
+  fallback,
+  budgetExhaustions,
+}: EsiSourceStatusInput): SubsystemStatus {
+  const denom = fallback.esi + fallback.fallback;
+  if (denom === 0) return { level: 'neutral', headline: 'no price refreshes this period' };
+
+  const rate = fallback.fallback / denom;
+  const ratePct = rate * 100 < 1 && rate > 0 ? '<1%' : `${Math.round(rate * 100)}%`;
+  if (rate > FALLBACK_RED_RATE) {
+    return { level: 'red', headline: `degraded · Fuzzwork covered ${ratePct} of priced items` };
+  }
+  if (fallback.fallback > 0 || budgetExhaustions > 0) {
+    const parts: string[] = [];
+    if (fallback.fallback > 0) parts.push(`${ratePct} fallback`);
+    if (budgetExhaustions > 0) {
+      parts.push(`${budgetExhaustions} budget exhaustion${budgetExhaustions === 1 ? '' : 's'}`);
+    }
+    return { level: 'amber', headline: `partial · ${parts.join(' · ')}` };
+  }
+  return { level: 'green', headline: 'ESI served every priced item this period' };
 }
