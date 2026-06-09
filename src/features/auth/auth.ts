@@ -14,6 +14,7 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
 import { and, eq } from 'drizzle-orm';
+import { logUsageEvent } from '@/data/telemetry/queries';
 import { db } from '@/db';
 import {
   EVE_AUTHORIZE_URL,
@@ -183,6 +184,14 @@ const options = {
             const claims = await verifyEveJwt(tokens.accessToken);
             const character = claimsToCharacter(claims);
             await upsertCharacterOnLogin(character);
+            // Best-effort login telemetry — parity with the retired callback route
+            // (the admin dashboard's "Logins" metric reads `auth_login`). Fire-and-
+            // forget so it never blocks or fails sign-in.
+            void logUsageEvent({
+              action: 'auth_login',
+              characterId: character.characterId,
+              metadata: {},
+            }).catch((err) => console.error('[auth] login telemetry write failed', err));
             return {
               id: String(character.characterId),
               name: character.name,
