@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
@@ -8,14 +9,14 @@ import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { AdminActivitySummary } from './AdminActivitySummary';
 import { RoleToggleForm } from '@/features/auth/components/RoleToggleForm';
+import { auth } from '@/features/auth/auth';
 import {
   CHARACTER_SEARCH_LIMIT,
-  getCharacterById,
-  listAdminCharacters,
-  searchCharactersByName,
+  getUserByCharacterId,
+  listAdminUsers,
+  searchUsersByLinkedCharacterName,
+  type AdminUser,
 } from '@/features/auth/queries';
-import { getSession, isAdmin } from '@/features/auth/session';
-import type { Character } from '@/features/auth/types';
 import { sanitiseUserText } from '@/lib/sanitise';
 
 const MAX_QUERY_LENGTH = 200;
@@ -28,41 +29,42 @@ function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   return cleaned.length === 0 ? undefined : cleaned;
 }
 
-// Build the Admins list shown above the search results. Includes the env
-// superadmin synthetically when their DB role isn't already ADMIN — otherwise
-// they'd be invisible on the page they have authority over.
+// Build the Admins list shown above the search results. Admin is per-user;
+// includes the env superadmin synthetically (resolved from their character id to
+// the owning user) when their DB role isn't already ADMIN — otherwise they'd be
+// invisible on the page they have authority over.
 async function buildAdminList(): Promise<
-  Array<{ character: Character; isSuperadmin: boolean }>
+  Array<{ user: AdminUser; isSuperadmin: boolean }>
 > {
-  const dbAdmins = await listAdminCharacters();
+  const dbAdmins = await listAdminUsers();
   const superId = Number(process.env.SUPERADMIN_CHARACTER_ID);
   const haveSuperId = Number.isFinite(superId) && superId > 0;
   const alreadyListed = dbAdmins.some(a => a.characterId === superId);
 
-  const rows = dbAdmins.map(c => ({ character: c, isSuperadmin: c.characterId === superId }));
+  const rows = dbAdmins.map(u => ({ user: u, isSuperadmin: u.characterId === superId }));
   if (haveSuperId && !alreadyListed) {
-    const superChar = await getCharacterById(superId);
-    if (superChar) rows.unshift({ character: superChar, isSuperadmin: true });
+    const superUser = await getUserByCharacterId(superId);
+    if (superUser) rows.unshift({ user: superUser, isSuperadmin: true });
   }
   return rows;
 }
 
-function CharacterRow({
-  character,
+function AdminUserRow({
+  user,
   isSuperadmin,
-  viewerCharacterId,
+  viewerUserId,
   currentQuery,
   showToggle,
 }: {
-  character: Character;
+  user: AdminUser;
   isSuperadmin: boolean;
-  viewerCharacterId: number;
+  viewerUserId: string;
   currentQuery: string | undefined;
   showToggle: boolean;
 }) {
   const roleChip = isSuperadmin ? (
     <Chip tone="purple">Superadmin</Chip>
-  ) : character.role === 'ADMIN' ? (
+  ) : user.role === 'ADMIN' ? (
     <Chip tone="purple">Admin</Chip>
   ) : (
     <Chip tone="blue">User</Chip>
@@ -73,8 +75,8 @@ function CharacterRow({
       colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto_auto]"
       leading={
         <img
-          src={character.portraitUrl}
-          alt={character.name}
+          src={user.portraitUrl}
+          alt={user.name}
           width={28}
           height={28}
           loading="lazy"
@@ -82,19 +84,19 @@ function CharacterRow({
           className="rounded-[2px] border border-border-idle"
         />
       }
-      name={character.name}
+      name={user.name}
       chips={
         <span className="flex items-center gap-[6px]">
-          <Pill tone="neutral">ID {character.characterId}</Pill>
+          <Pill tone="neutral">ID {user.characterId ?? '—'}</Pill>
           {roleChip}
         </span>
       }
       trailing={
         showToggle ? (
           <RoleToggleForm
-            targetCharacterId={character.characterId}
-            currentRole={character.role}
-            viewerCharacterId={viewerCharacterId}
+            targetUserId={user.userId}
+            currentRole={user.role}
+            viewerUserId={viewerUserId}
             currentQuery={currentQuery}
           />
         ) : (
@@ -112,28 +114,30 @@ async function AdminContent({
 }: {
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
-  const session = await getSession();
-  if (!isAdmin(session)) {
+  // Admin gate + viewer id come straight from the Better Auth session: isAdmin
+  // is computed server-side (its superadmin branch reads an env var), and the
+  // viewer's userId isn't carried on the shared Session type.
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.isAdmin) {
     redirect('/?auth_error=admin_required');
   }
-  // Non-null after the guard above.
-  const viewer = session!;
+  const viewerUserId = session.user.id;
 
   const raw = await searchParams;
   const query = sanitiseQuery(raw.q);
 
   const [adminRows, searchResults] = await Promise.all([
     buildAdminList(),
-    query ? searchCharactersByName(query) : Promise.resolve([] as Character[]),
+    query ? searchUsersByLinkedCharacterName(query) : Promise.resolve([] as AdminUser[]),
   ]);
 
-  const adminIds = new Set(adminRows.map(r => r.character.characterId));
-  // searchCharactersByName fetches one row past the cap as a truncation probe;
-  // a full extra row means the match set was cut off (not naturally cap-sized).
+  const adminUserIds = new Set(adminRows.map(r => r.user.userId));
+  // searchUsersByLinkedCharacterName fetches one row past the cap as a truncation
+  // probe; a full extra row means the match set was cut off (not naturally cap-sized).
   const searchTruncated = searchResults.length > CHARACTER_SEARCH_LIMIT;
   const nonAdminMatches = searchResults
     .slice(0, CHARACTER_SEARCH_LIMIT)
-    .filter(c => !adminIds.has(c.characterId));
+    .filter(u => !adminUserIds.has(u.userId));
 
   return (
     <>
@@ -183,12 +187,12 @@ async function AdminContent({
           {adminRows.length === 0 ? (
             <EmptyState>No admins currently configured.</EmptyState>
           ) : (
-            adminRows.map(({ character, isSuperadmin }) => (
-              <CharacterRow
-                key={character.characterId}
-                character={character}
+            adminRows.map(({ user, isSuperadmin }) => (
+              <AdminUserRow
+                key={user.userId}
+                user={user}
                 isSuperadmin={isSuperadmin}
-                viewerCharacterId={viewer.characterId}
+                viewerUserId={viewerUserId}
                 currentQuery={query}
                 showToggle={!isSuperadmin}
               />
@@ -212,12 +216,12 @@ async function AdminContent({
                 No non-admin characters match &ldquo;{query}&rdquo;. Any matching admins are listed above.
               </EmptyState>
             ) : (
-              nonAdminMatches.map(character => (
-                <CharacterRow
-                  key={character.characterId}
-                  character={character}
+              nonAdminMatches.map(user => (
+                <AdminUserRow
+                  key={user.userId}
+                  user={user}
                   isSuperadmin={false}
-                  viewerCharacterId={viewer.characterId}
+                  viewerUserId={viewerUserId}
                   currentQuery={query}
                   showToggle={true}
                 />

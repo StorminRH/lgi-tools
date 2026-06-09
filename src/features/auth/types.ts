@@ -46,9 +46,3 @@ export interface EveJwtClaims {
   aud?: string | string[];
   exp?: number;
 }
-
-// Encrypted-cookie payload. Kept minimal — `getSession()` re-reads the DB
-// row each call so role/preferences changes take effect without re-login.
-export interface SessionPayload {
-  characterId: number;
-}

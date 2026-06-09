@@ -1,47 +1,63 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { base64UrlToBytes } from './session';
 
-// `base64UrlToBytes` is the Buffer-free decode that turns SESSION_SECRET into
-// the 32-byte JWE key — the Edge-readiness swap for `Buffer.from(s,
-// 'base64url')`. Validate it against Node's reference encoder and prove the
-// decoded key still drives a jose encrypt/decrypt round trip.
+// session.ts is a thin shim over Better Auth: getSession()/getSessionCharacterId()
+// read auth.api.getSession() and reshape the customSession enrichment into the
+// legacy Session contract. Mock the auth instance + next/headers so these tests
+// exercise the reshaping logic without a DB or the real Better Auth construction.
+// (The full isAdmin() matrix lives in is-admin.test.ts.)
 
-describe('base64UrlToBytes', () => {
-  it('round-trips arbitrary bytes against Node base64url', () => {
-    const bytes = new Uint8Array(32).map((_, i) => (i * 37 + 11) % 256);
-    const b64url = Buffer.from(bytes).toString('base64url');
-    expect(base64UrlToBytes(b64url)).toEqual(bytes);
+const getSessionApiMock = vi.fn();
+vi.mock('./auth', () => ({
+  auth: { api: { getSession: (...args: unknown[]) => getSessionApiMock(...args) } },
+}));
+vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+
+import { getSession, getSessionCharacterId } from './session';
+
+const ENRICHED = {
+  user: { id: 'u1' },
+  session: {},
+  characterId: 90000001,
+  name: 'Test Pilot',
+  portraitUrl: 'https://images.evetech.net/characters/90000001/portrait?size=128',
+  role: 'ADMIN' as const,
+  isAdmin: true,
+};
+
+afterEach(() => {
+  getSessionApiMock.mockReset();
+});
+
+describe('getSession', () => {
+  it('returns null when there is no Better Auth session', async () => {
+    getSessionApiMock.mockResolvedValue(null);
+    await expect(getSession()).resolves.toBeNull();
   });
 
-  it('decodes the base64url-specific `-` and `_` alphabet', () => {
-    // 0xfb,0xff,0xbf encode to base64 `+/+/` → base64url `-_-_` (no padding).
-    const bytes = new Uint8Array([0xfb, 0xff, 0xbf]);
-    const b64url = Buffer.from(bytes).toString('base64url');
-    expect(b64url).toContain('-');
-    expect(b64url).toContain('_');
-    expect(base64UrlToBytes(b64url)).toEqual(bytes);
+  it('maps the enriched session to the legacy Session shape', async () => {
+    getSessionApiMock.mockResolvedValue(ENRICHED);
+    await expect(getSession()).resolves.toEqual({
+      characterId: 90000001,
+      name: 'Test Pilot',
+      portraitUrl: 'https://images.evetech.net/characters/90000001/portrait?size=128',
+      role: 'ADMIN',
+    });
+  });
+
+  it('returns null when the user has no linked character', async () => {
+    getSessionApiMock.mockResolvedValue({ ...ENRICHED, characterId: null });
+    await expect(getSession()).resolves.toBeNull();
   });
 });
 
-describe('sessionKey via encrypt/decrypt', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.resetModules(); // sessionKey caches the decoded key at module scope
+describe('getSessionCharacterId', () => {
+  it('returns the active character id', async () => {
+    getSessionApiMock.mockResolvedValue(ENRICHED);
+    await expect(getSessionCharacterId()).resolves.toBe(90000001);
   });
 
-  it('encrypts then decrypts with a valid 32-byte base64url secret', async () => {
-    const secret = Buffer.from(new Uint8Array(32).fill(7)).toString('base64url');
-    vi.stubEnv('SESSION_SECRET', secret);
-    const { encryptSession, decryptSession } = await import('./session');
-    const jwe = await encryptSession({ characterId: 90000001 });
-    expect(typeof jwe).toBe('string');
-    await expect(decryptSession(jwe)).resolves.toEqual({ characterId: 90000001 });
-  });
-
-  it('rejects a secret that decodes to the wrong length', async () => {
-    const tooShort = Buffer.from(new Uint8Array(16).fill(1)).toString('base64url');
-    vi.stubEnv('SESSION_SECRET', tooShort);
-    const { encryptSession } = await import('./session');
-    await expect(encryptSession({ characterId: 1 })).rejects.toThrow(/32 bytes/);
+  it('returns null when logged out', async () => {
+    getSessionApiMock.mockResolvedValue(null);
+    await expect(getSessionCharacterId()).resolves.toBeNull();
   });
 });

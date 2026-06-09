@@ -7,14 +7,26 @@ import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import type { EveJwtClaims, EveTokenResponse } from './types';
 
+// Better Auth provider id for EVE SSO. Lives here (the pure, DB-free module) so
+// both the auth instance and the query layer can reference it without an import
+// cycle.
+export const EVE_PROVIDER_ID = 'eve';
+
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
 export const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
 export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
 export const EVE_ISSUER = 'https://login.eveonline.com';
 export const EVE_AUDIENCE = 'EVE Online';
 
-// Extending scopes is a config change, not a code change.
-export const EVE_SCOPES = ['publicData'] as const;
+// Extending scopes is a config change, not a code change. Beyond publicData the
+// trackers (3.4.x) need character skills + industry jobs; requesting them here
+// means existing pilots re-consent on their next sign-in.
+export const EVE_SCOPES = [
+  'publicData',
+  'esi-skills.read_skills.v1',
+  'esi-skillqueue.read_skillqueue.v1',
+  'esi-industry.read_character_jobs.v1',
+] as const;
 
 // Boundary schema for the token-exchange envelope. The JWT *claims* are
 // cryptographically verified by jose; this wrapping envelope is not, so it
@@ -44,31 +56,6 @@ function jwks() {
     });
   }
   return jwksCache;
-}
-
-interface BuildAuthorizeUrlInput {
-  clientId: string;
-  callbackUrl: string;
-  state: string;
-  codeChallenge: string;
-}
-
-export function buildAuthorizeUrl({
-  clientId,
-  callbackUrl,
-  state,
-  codeChallenge,
-}: BuildAuthorizeUrlInput): string {
-  const params = new URLSearchParams({
-    response_type: 'code',
-    client_id: clientId,
-    redirect_uri: callbackUrl,
-    scope: EVE_SCOPES.join(' '),
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256',
-  });
-  return `${EVE_AUTHORIZE_URL}?${params.toString()}`;
 }
 
 interface ExchangeCodeInput {

@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
-  buildAuthorizeUrl,
   claimsToCharacter,
-  EVE_AUTHORIZE_URL,
   exchangeCodeForToken,
   portraitUrl,
 } from './eve-sso';
@@ -56,28 +54,6 @@ describe('portraitUrl', () => {
     expect(portraitUrl(42, 64)).toBe(
       'https://images.evetech.net/characters/42/portrait?size=64',
     );
-  });
-});
-
-describe('buildAuthorizeUrl', () => {
-  it('encodes all required OAuth2 + PKCE parameters', () => {
-    const url = buildAuthorizeUrl({
-      clientId: 'abc123',
-      callbackUrl: 'http://localhost:3000/api/auth/callback',
-      state: 'state-token',
-      codeChallenge: 'challenge-token',
-    });
-    expect(url.startsWith(`${EVE_AUTHORIZE_URL}?`)).toBe(true);
-    const params = new URL(url).searchParams;
-    expect(params.get('response_type')).toBe('code');
-    expect(params.get('client_id')).toBe('abc123');
-    expect(params.get('redirect_uri')).toBe(
-      'http://localhost:3000/api/auth/callback',
-    );
-    expect(params.get('scope')).toBe('publicData');
-    expect(params.get('state')).toBe('state-token');
-    expect(params.get('code_challenge')).toBe('challenge-token');
-    expect(params.get('code_challenge_method')).toBe('S256');
   });
 });
 

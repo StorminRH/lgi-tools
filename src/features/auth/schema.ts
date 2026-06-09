@@ -1,4 +1,13 @@
-import { bigint, jsonb, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  index,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 
 export const CHARACTER_ROLES = ['USER', 'ADMIN'] as const;
 export type CharacterRole = (typeof CHARACTER_ROLES)[number];
@@ -18,3 +27,89 @@ export const characters = pgTable('characters', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   lastLoginAt: timestamp('last_login_at').defaultNow().notNull(),
 });
+
+// ---------------------------------------------------------------------------
+// Better Auth core tables (3.4.1a). Better Auth owns identity/sessions; these
+// match its expected model. The JS keys are camelCase (the Drizzle adapter maps
+// Better Auth's field names to these), the DB columns are snake_case.
+//
+// `user` is the human/main-account row (one per pilot today; alts attach in a
+// later version). `account` is the EVE link — providerId 'eve', accountId = the
+// character id — and is the canonical user↔character join. `characters` above
+// stays the per-character profile + the telemetry FK target; its `role` column
+// is superseded by `user.role` (admin is per-user) and left in place only until
+// a later cleanup once parity is proven.
+//
+// `user` is a Postgres reserved word; Drizzle always quotes identifiers, so the
+// `"user"` table name is safe (raw SQL elsewhere must quote it too).
+// ---------------------------------------------------------------------------
+
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').default(false).notNull(),
+  image: text('image'),
+  // Per-user admin role. Reuses the existing character_role enum so there's one
+  // source of truth for the role values.
+  role: characterRoleEnum('role').default('USER').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const session = pgTable(
+  'session',
+  {
+    id: text('id').primaryKey(),
+    expiresAt: timestamp('expires_at').notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+  },
+  (table) => [index('session_user_id_idx').on(table.userId)],
+);
+
+export const account = pgTable(
+  'account',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at'),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('account_user_id_idx').on(table.userId),
+    // Sign-in and the session shim both look an account up by (provider, account
+    // id); the user↔character resolution rides this index.
+    index('account_provider_account_idx').on(table.providerId, table.accountId),
+  ],
+);
+
+export const verification = pgTable(
+  'verification',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [index('verification_identifier_idx').on(table.identifier)],
+);

@@ -1,22 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
-import { searchCharactersByName } from './queries';
+import { searchUsersByLinkedCharacterName } from './queries';
 
 vi.mock('@/db', () => ({
   db: {
     select: () => {
       throw new Error(
-        'searchCharactersByName must short-circuit and never hit the DB for empty/whitespace input',
+        'searchUsersByLinkedCharacterName must short-circuit and never hit the DB for empty/whitespace input',
       );
     },
   },
 }));
 
-describe('searchCharactersByName', () => {
+describe('searchUsersByLinkedCharacterName', () => {
   it('returns [] for an empty string without touching the DB', async () => {
-    await expect(searchCharactersByName('')).resolves.toEqual([]);
+    await expect(searchUsersByLinkedCharacterName('')).resolves.toEqual([]);
   });
 
   it('returns [] for a whitespace-only string', async () => {
-    await expect(searchCharactersByName('   \t\n')).resolves.toEqual([]);
+    await expect(searchUsersByLinkedCharacterName('   \t\n')).resolves.toEqual([]);
   });
 });

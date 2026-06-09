@@ -1,27 +1,20 @@
+import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-import {
-  getCharacterById,
-  setCharacterRole,
-} from '@/features/auth/queries';
+import { auth } from '@/features/auth/auth';
+import { getUserById, setUserRole } from '@/features/auth/queries';
 import { CHARACTER_ROLES } from '@/features/auth/schema';
-import { getSession, isAdmin } from '@/features/auth/session';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { sanitiseUserText } from '@/lib/sanitise';
 
 const MAX_QUERY_LENGTH = 200;
 
-// Form payload from <RoleToggleForm>. characterId arrives as a numeric
-// string in the FormData; transform-to-Number gates on the regex first so
-// junk like "12abc" never reaches parseInt's silent truncation. `q`
-// (optional search-state preserver) is loosely validated here — the
-// post-parse sanitiseQuery() does the real cleaning.
+// Form payload from <RoleToggleForm>. `userId` is a Better Auth id (opaque
+// string — nanoid for new logins, `eve-user-<id>` for backfilled pilots); the
+// charset gate keeps junk out. `q` (optional search-state preserver) is loosely
+// validated here — the post-parse sanitiseQuery() does the real cleaning.
 const roleFormSchema = z.object({
-  characterId: z
-    .string()
-    .regex(/^[1-9]\d{0,18}$/)
-    .transform(Number)
-    .pipe(z.number().int().positive().refine(Number.isSafeInteger)),
+  userId: z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/),
   nextRole: z.enum(CHARACTER_ROLES),
   q: z.string().max(MAX_QUERY_LENGTH * 4).optional(),
 });
@@ -39,19 +32,23 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
 }
 
 // POST-only. The dashboard's <RoleToggleForm> submits hidden inputs:
-//   characterId, nextRole, q (optional).
-// Independent isAdmin() gate — never trust a UI-level disable; the handler
-// is the source of truth for who can mutate roles.
+//   userId, nextRole, q (optional).
+// Admin is per-user; the gate + the viewer's own id come from the Better Auth
+// session directly (the shared Session type deliberately doesn't carry userId).
+// Independent gate — never trust a UI-level disable; the handler is the source
+// of truth for who can mutate roles.
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const session = await getSession();
-  if (!isAdmin(session)) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.isAdmin) {
     return new Response('Forbidden', { status: 403 });
   }
+  const viewerUserId = session.user.id;
+  const actorCharacterId = session.characterId;
 
   const form = await request.formData();
   const parsed = roleFormSchema.safeParse({
-    characterId: form.get('characterId'),
+    userId: form.get('userId'),
     nextRole: form.get('nextRole'),
     q: form.get('q') ?? undefined,
   });
@@ -60,28 +57,29 @@ export async function POST(request: NextRequest): Promise<Response> {
     const detail = issue ? `Invalid ${issue.path.join('.') || 'field'}` : 'Invalid form';
     return new Response(detail, { status: 400 });
   }
-  const { characterId, nextRole } = parsed.data;
+  const { userId, nextRole } = parsed.data;
 
   // Self-toggle guard. The UI disables this button on the viewer's own row,
   // but a crafted POST would still arrive here — this is the real defense.
-  if (characterId === session!.characterId) {
+  if (userId === viewerUserId) {
     return new Response('Cannot toggle your own role', { status: 400 });
   }
 
-  const target = await getCharacterById(characterId);
+  const target = await getUserById(userId);
   if (!target) {
-    return new Response('Character not found', { status: 404 });
+    return new Response('User not found', { status: 404 });
   }
 
   const previousRole = target.role;
-  await setCharacterRole(characterId, nextRole);
+  await setUserRole(userId, nextRole);
 
   void logUsageEvent({
     action: 'role_change',
-    characterId: session!.characterId,
+    characterId: actorCharacterId,
     metadata: {
-      actorCharacterId: session!.characterId,
-      targetCharacterId: characterId,
+      actorUserId: viewerUserId,
+      targetUserId: userId,
+      targetCharacterId: target.characterId,
       from: previousRole,
       to: nextRole,
     },

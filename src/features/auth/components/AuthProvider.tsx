@@ -1,16 +1,20 @@
 'use client';
 
-// Client-side identity provider. The root layout no longer reads the session
-// cookie at render time (3.0.4.7) — instead this provider fetches the viewer's
-// identity from /api/auth/me once on mount and shares it via context, so the
-// header and feedback modal can fill in login state after the static shell
-// paints. `loading` is true until the first fetch resolves; consumers render a
-// neutral state during that window rather than flashing logged-out.
+// Client-side identity provider. The root layout doesn't read the session at
+// render time (3.0.4.7) — this provider subscribes to Better Auth's session via
+// useSession() and shares it through context, so the header and feedback modal
+// fill in login state after the static shell paints. `loading` is true until the
+// first fetch resolves; consumers render a neutral state during that window
+// rather than flashing logged-out.
 //
-// Pure client: imports only React + the shared Session type. It must never pull
-// in getSession()/the DB — those are server-only.
+// The AuthState shape (session/isAdmin/loading) is unchanged from the pre-3.4.1
+// /api/auth/me version, so every consumer (LoginButton, GlobalSearch,
+// FeedbackButton) is untouched. isAdmin is computed server-side by the
+// customSession plugin (its superadmin branch reads an env var) and arrives via
+// useSession().
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext } from 'react';
+import { authClient } from '../auth-client';
 import type { Session } from '../types';
 
 export interface AuthState {
@@ -22,32 +26,22 @@ export interface AuthState {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    session: null,
-    isAdmin: false,
-    loading: true,
-  });
+  const { data, isPending } = authClient.useSession();
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/auth/me', { cache: 'no-store' })
-      .then((res) => {
-        if (!res.ok) throw new Error(`/api/auth/me returned ${res.status}`);
-        return res.json() as Promise<{ session: Session | null; isAdmin: boolean }>;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setState({ session: data.session, isAdmin: data.isAdmin, loading: false });
-      })
-      .catch(() => {
-        // Network/HTTP/parse failure → treat the viewer as logged out, stop loading.
-        if (cancelled) return;
-        setState({ session: null, isAdmin: false, loading: false });
-      });
-    return () => {
-      cancelled = true;
+  // A real session always carries an active character (one per user in 3.4.1a).
+  let session: Session | null = null;
+  let isAdmin = false;
+  if (data != null && data.characterId != null) {
+    session = {
+      characterId: data.characterId,
+      name: data.name,
+      portraitUrl: data.portraitUrl,
+      role: data.role,
     };
-  }, []);
+    isAdmin = data.isAdmin;
+  }
+
+  const state: AuthState = { session, isAdmin, loading: isPending };
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
 }
