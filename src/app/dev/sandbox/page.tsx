@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
+import { getSession, isAdmin } from '@/features/auth/session';
 import { SandboxHeader } from './_shared/sandbox-ui';
 
 const GALLERIES = [
@@ -28,7 +31,17 @@ const GALLERIES = [
   },
 ];
 
-function SandboxIndex() {
+async function SandboxIndex() {
+  // Read the session unconditionally so the route keeps a request-time dynamic
+  // hole in BOTH the production and preview builds — the build asserts one
+  // render-mode classification (`partial`) for both targets, so the read must
+  // happen the same way in each. The gate only *acts* on production: previews
+  // stay open so the mockups are viewable where EVE login isn't available.
+  const session = await getSession();
+  if (process.env.VERCEL_ENV === 'production' && !isAdmin(session)) {
+    redirect('/?auth_error=admin_required');
+  }
+
   return (
     <>
       <SandboxHeader
@@ -84,13 +97,20 @@ function SandboxIndex() {
   );
 }
 
-// Ungated like the gallery leaf pages (the admin gate kept the index from
-// being viewable on preview deploys, where EVE login isn't available) —
-// unlinked, noindexed via the layout, and fully static.
+function SandboxLoading() {
+  return <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>;
+}
+
+// Admin-gated on production only: the session read is a request-time dynamic
+// hole, so the page container prerenders as a static shell (route classified
+// `partial`). On preview/dev the gate stays open — EVE login isn't available
+// there, so the mockups remain viewable. The gallery leaf pages carry no gate.
 export default function SandboxIndexPage() {
   return (
     <div className="flex flex-col items-center px-6 pt-12 pb-20">
-      <SandboxIndex />
+      <Suspense fallback={<SandboxLoading />}>
+        <SandboxIndex />
+      </Suspense>
     </div>
   );
 }
