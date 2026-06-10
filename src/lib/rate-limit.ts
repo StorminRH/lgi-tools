@@ -22,6 +22,13 @@ export interface RateLimitDenied {
 
 export type RateLimitResult = RateLimitOk | RateLimitDenied;
 
+// Wire shape of the 429 body every rate-limited route constructs itself —
+// pinned with `satisfies` at those call sites (3.4.T contract pattern).
+export interface RateLimitedBody {
+  error: "rate_limited";
+  retryAfter: number;
+}
+
 interface RateLimitOptions {
   perMinute: number;
   name: string;
