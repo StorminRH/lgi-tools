@@ -6,6 +6,12 @@ import { SandboxHeader } from './_shared/sandbox-ui';
 
 const GALLERIES = [
   {
+    href: '/dev/sandbox/redesign',
+    title: 'Site redesign mockups',
+    count: '2 themes × 2 pages',
+    blurb: 'Two complete candidate themes (Phosphor terminal, EVE holo console) applied to the home page and the industry landing — new fonts, colors, depth, and nav patterns (hamburger panel, expanding side rail).',
+  },
+  {
     href: '/dev/sandbox/trees',
     title: 'Build-tree displays',
     count: '5 variants',
