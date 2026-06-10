@@ -40,6 +40,7 @@ vi.mock('@/db', () => ({
 
 import {
   accountBelongsToUser,
+  getStoredActiveCharacterId,
   listLinkedCharacters,
   repointActiveToOldest,
   resolveActiveCharacter,
@@ -117,6 +118,20 @@ describe('repointActiveToOldest', () => {
     h.selectRows = [];
     expect(await repointActiveToOldest('u1')).toBeNull();
     expect(h.updateSpy.mock.calls[0][0]).toMatchObject({ activeCharacterId: null });
+  });
+});
+
+describe('getStoredActiveCharacterId', () => {
+  it('returns the stored active id when set', async () => {
+    h.selectRows = [{ activeCharacterId: 100 }];
+    expect(await getStoredActiveCharacterId('u1')).toBe(100);
+  });
+
+  it('returns null when unset or the user is missing', async () => {
+    h.selectRows = [{ activeCharacterId: null }];
+    expect(await getStoredActiveCharacterId('u1')).toBeNull();
+    h.selectRows = [];
+    expect(await getStoredActiveCharacterId('u1')).toBeNull();
   });
 });
 

@@ -1,4 +1,5 @@
-import { and, asc, eq, ilike, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, lt, notExists, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
 import { account, characters, user } from './schema';
@@ -73,16 +74,41 @@ function toAdminUser(row: {
   };
 }
 
-const eveAccountJoin = and(
-  eq(account.userId, user.id),
-  eq(account.providerId, EVE_PROVIDER_ID),
-);
+// Join the user to exactly ONE linked EVE account — their OLDEST — so a user who
+// has linked multiple characters (3.4.2) yields a single admin-list row instead
+// of one row per character. The NOT EXISTS keeps only the account with no earlier
+// sibling for the same user (created_at, id as the tiebreak). This also makes
+// getUserById's single-account pick deterministic. Oldest-first matches the
+// session resolver's fallback. getUserByCharacterId is unaffected — it queries
+// one specific character, not the fan-out join.
+function oldestEveAccountJoin() {
+  const older = alias(account, 'older_eve_account');
+  return and(
+    eq(account.userId, user.id),
+    eq(account.providerId, EVE_PROVIDER_ID),
+    notExists(
+      db
+        .select({ one: sql`1` })
+        .from(older)
+        .where(
+          and(
+            eq(older.userId, user.id),
+            eq(older.providerId, EVE_PROVIDER_ID),
+            or(
+              lt(older.createdAt, account.createdAt),
+              and(eq(older.createdAt, account.createdAt), lt(older.id, account.id)),
+            ),
+          ),
+        ),
+    ),
+  );
+}
 
 export async function listAdminUsers(): Promise<AdminUser[]> {
   const rows = await db
     .select(adminUserColumns)
     .from(user)
-    .leftJoin(account, eveAccountJoin)
+    .leftJoin(account, oldestEveAccountJoin())
     .where(eq(user.role, 'ADMIN'))
     .orderBy(asc(user.name));
 
@@ -93,7 +119,7 @@ export async function getUserById(userId: string): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)
     .from(user)
-    .leftJoin(account, eveAccountJoin)
+    .leftJoin(account, oldestEveAccountJoin())
     .where(eq(user.id, userId))
     .limit(1);
 
@@ -132,7 +158,7 @@ export async function searchUsersByLinkedCharacterName(query: string): Promise<A
   const rows = await db
     .select(adminUserColumns)
     .from(user)
-    .leftJoin(account, eveAccountJoin)
+    .leftJoin(account, oldestEveAccountJoin())
     .where(ilike(user.name, `%${trimmed}%`))
     .orderBy(asc(user.name))
     .limit(CHARACTER_SEARCH_LIMIT + 1);
@@ -315,4 +341,17 @@ export async function repointActiveToOldest(userId: string): Promise<number | nu
     .set({ activeCharacterId: next, updatedAt: new Date() })
     .where(eq(user.id, userId));
   return next;
+}
+
+// The user's CURRENTLY-stored active character id (NULL if none). Read fresh
+// from the row — used by unlink to decide whether to re-point, rather than
+// trusting the session snapshot captured at the top of the request (which a
+// concurrent switch could have made stale).
+export async function getStoredActiveCharacterId(userId: string): Promise<number | null> {
+  const [row] = await db
+    .select({ activeCharacterId: user.activeCharacterId })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  return row?.activeCharacterId ?? null;
 }

@@ -19,6 +19,7 @@ const getSessionMock = vi.fn();
 const unlinkAccountMock = vi.fn();
 const listLinkedCharactersMock = vi.fn();
 const repointActiveToOldestMock = vi.fn();
+const getStoredActiveCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
 vi.mock('@/features/auth/auth', () => ({
@@ -33,6 +34,7 @@ vi.mock('@/features/auth/auth', () => ({
 vi.mock('@/features/auth/queries', () => ({
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
   repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
+  getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({
@@ -66,6 +68,7 @@ describe('POST /api/account/characters/unlink', () => {
     unlinkAccountMock.mockReset();
     listLinkedCharactersMock.mockReset();
     repointActiveToOldestMock.mockReset();
+    getStoredActiveCharacterIdMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
   });
@@ -95,8 +98,9 @@ describe('POST /api/account/characters/unlink', () => {
   });
 
   it('unlinks and re-points the active character to the oldest remaining one', async () => {
-    getSessionMock.mockResolvedValue(SESSION); // active = 100
+    getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
+    getStoredActiveCharacterIdMock.mockResolvedValue(100); // active = the char being unlinked
     unlinkAccountMock.mockResolvedValue({ status: true });
     const res = await POST(buildRequest({ characterId: '100' }));
     expect(res.status).toBe(303);
@@ -110,8 +114,9 @@ describe('POST /api/account/characters/unlink', () => {
   });
 
   it('does not re-point when unlinking a non-active character', async () => {
-    getSessionMock.mockResolvedValue(SESSION); // active = 100
+    getSessionMock.mockResolvedValue(SESSION);
     listLinkedCharactersMock.mockResolvedValue(TWO_CHARS);
+    getStoredActiveCharacterIdMock.mockResolvedValue(100); // active = 100, unlinking 200
     unlinkAccountMock.mockResolvedValue({ status: true });
     const res = await POST(buildRequest({ characterId: '200' }));
     expect(res.status).toBe(303);

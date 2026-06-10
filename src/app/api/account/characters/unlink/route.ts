@@ -4,7 +4,11 @@ import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { auth } from '@/features/auth/auth';
 import { EVE_PROVIDER_ID } from '@/features/auth/eve-sso';
-import { listLinkedCharacters, repointActiveToOldest } from '@/features/auth/queries';
+import {
+  getStoredActiveCharacterId,
+  listLinkedCharacters,
+  repointActiveToOldest,
+} from '@/features/auth/queries';
 
 // Form payload from <UnlinkCharacterForm>: the character to remove.
 const unlinkFormSchema = z.object({
@@ -58,9 +62,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   // Re-point the active character if we just removed it (the oldest remaining one
-  // becomes active). Safe because the last-character guard above guarantees at
-  // least one account remains.
-  if (session.characterId === characterId) {
+  // becomes active). Read the stored active id FRESH rather than trusting the
+  // session snapshot, which a concurrent switch could have made stale. Safe
+  // because the last-character guard above guarantees at least one account remains.
+  const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
+  if (activeCharacterId === characterId) {
     await repointActiveToOldest(session.user.id);
   }
 
