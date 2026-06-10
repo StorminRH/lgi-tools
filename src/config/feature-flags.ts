@@ -4,12 +4,14 @@
 // Components so flipping a Vercel env var takes effect on next request
 // without a rebuild. Missing/unset flags must always preserve the
 // existing "Coming Soon" state — the flags are additive only.
+import { readEnv } from '@/lib/env';
+
 export interface FeatureFlags {
   wormholeRollCalc: boolean;
 }
 
 export function getFeatureFlags(): FeatureFlags {
   return {
-    wormholeRollCalc: process.env.FF_WORMHOLE_ROLL_CALC === 'true',
+    wormholeRollCalc: readEnv('FF_WORMHOLE_ROLL_CALC') === 'true',
   };
 }

@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { adminUnlinkFormSchema } from '@/features/auth/api-contract';
 import { auth } from '@/features/auth/auth';
 import {
   accountBelongsToUser,
@@ -10,13 +10,6 @@ import {
   listLinkedCharacters,
   repointActiveToOldest,
 } from '@/features/auth/queries';
-
-// Form payload from <AdminUnlinkCharacterForm>. `userId` is a Better Auth id
-// (opaque string — nanoid or `eve-user-<id>`); the charset gate keeps junk out.
-const unlinkFormSchema = z.object({
-  userId: z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/),
-  characterId: z.coerce.number().int().positive(),
-});
 
 function redirectTo(request: NextRequest, userId: string, error?: string): Response {
   const url = new URL(`/admin/access/${userId}`, request.url);
@@ -40,7 +33,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const form = await request.formData();
-  const parsed = unlinkFormSchema.safeParse({
+  const parsed = adminUnlinkFormSchema.safeParse({
     userId: form.get('userId'),
     characterId: form.get('characterId'),
   });

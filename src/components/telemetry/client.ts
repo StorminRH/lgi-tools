@@ -4,26 +4,20 @@
 // in one place. Server-side callers go through logUsageEvent() directly
 // in queries.ts.
 
-import type { UsageAction } from '@/data/telemetry/types';
+import { z } from 'zod';
+import { telemetryEndpoint, telemetryRequestSchema } from '@/data/telemetry/api-contract';
+import { apiFetch } from '@/lib/api-client';
 
-interface PostInput {
-  action: UsageAction;
-  metadata?: Record<string, unknown>;
-}
+type PostInput = z.input<typeof telemetryRequestSchema>;
 
 export function postTelemetry({ action, metadata }: PostInput): void {
-  const body = JSON.stringify({ action, metadata: metadata ?? {} });
+  const payload = { action, metadata: metadata ?? {} };
 
   if (typeof navigator !== 'undefined' && 'sendBeacon' in navigator) {
-    const blob = new Blob([body], { type: 'application/json' });
-    const ok = navigator.sendBeacon('/api/telemetry', blob);
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const ok = navigator.sendBeacon(telemetryEndpoint.path, blob);
     if (ok) return;
   }
 
-  void fetch('/api/telemetry', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-    keepalive: true,
-  }).catch(() => {});
+  void apiFetch(telemetryEndpoint, { body: payload, keepalive: true }).catch(() => {});
 }

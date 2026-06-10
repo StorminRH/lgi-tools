@@ -18,6 +18,7 @@ import {
   searchUsersByLinkedCharacterName,
   type AdminUser,
 } from '@/features/auth/queries';
+import { readEnv } from '@/lib/env';
 import { sanitiseUserText } from '@/lib/sanitise';
 
 const MAX_QUERY_LENGTH = 200;
@@ -46,7 +47,7 @@ async function buildAdminList(): Promise<
   Array<{ user: AdminUser; isSuperadmin: boolean }>
 > {
   const dbAdmins = await listAdminUsers();
-  const superId = Number(process.env.SUPERADMIN_CHARACTER_ID);
+  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
   const haveSuperId = Number.isFinite(superId) && superId > 0;
   // Identify the superadmin by the USER that owns the env character id, not by a
   // displayed character id: a pilot can now link several characters (3.4.2), so

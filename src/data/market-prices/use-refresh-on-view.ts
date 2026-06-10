@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { chunk } from '@/lib/array';
+import { refreshPricesEndpoint } from './api-contract';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
 import type { PriceSource } from './types';
 
@@ -31,20 +33,6 @@ export interface RefreshedPrice {
   source: PriceSource;
   staleAfterMs: number;
 }
-
-// The raw `prices` array shape returned by POST /api/market-prices/refresh.
-interface WirePrice {
-  typeId: number;
-  bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: string | null;
-  sellVolume: string | null;
-  source: PriceSource;
-  staleAfter: string;
-}
-
 
 export interface RefreshOnViewResult {
   // Freshest confirmed value per type, accumulated across batches. Empty until
@@ -112,16 +100,13 @@ export function useRefreshOnView(
       try {
         for (const batch of batches) {
           try {
-            const res = await fetch('/api/market-prices/refresh', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ typeIds: batch }),
+            const result = await apiFetch(refreshPricesEndpoint, {
+              body: { typeIds: batch },
               cache: 'no-store',
               signal: controller.signal,
             });
-            if (!res.ok) continue; // rate-limited / error → keep what we have
-            const data = (await res.json()) as { prices: WirePrice[] };
-            for (const p of data.prices) {
+            if (!result.ok) continue; // rate-limited / error → keep what we have
+            for (const p of result.data.prices) {
               map.set(p.typeId, {
                 typeId: p.typeId,
                 bestBuy: p.bestBuy,

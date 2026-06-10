@@ -1,4 +1,5 @@
 import { JWT } from 'google-auth-library';
+import { requireEnv } from '@/lib/env';
 import {
   GSC_INSPECT_PATHS,
   GSC_SCOPE,
@@ -34,17 +35,14 @@ function parseServiceAccount(raw: string): { client_email: string; private_key: 
 
 function getJwt(): JWT {
   if (_jwt) return _jwt;
-  const raw = process.env.GSC_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error('GSC_SERVICE_ACCOUNT_JSON is not set');
+  const raw = requireEnv('GSC_SERVICE_ACCOUNT_JSON');
   const { client_email, private_key } = parseServiceAccount(raw);
   _jwt = new JWT({ email: client_email, key: private_key, scopes: [GSC_SCOPE] });
   return _jwt;
 }
 
 function siteUrl(): string {
-  const url = process.env.GSC_SITE_URL;
-  if (!url) throw new Error('GSC_SITE_URL is not set');
-  return url;
+  return requireEnv('GSC_SITE_URL');
 }
 
 // The https origin of the verified property, for building inspection URLs:

@@ -11,6 +11,7 @@
 // side-effect-free, mirroring the lazy `db` Proxy.
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { requireEnv } from '@/lib/env';
 
 // Ciphertext envelope version. Bump only alongside a decrypt path for the old
 // format; `decryptToken` rejects any other prefix.
@@ -24,8 +25,7 @@ let cachedKey: Buffer | undefined;
 
 function key(): Buffer {
   if (cachedKey) return cachedKey;
-  const raw = process.env.EVE_TOKEN_ENCRYPTION_KEY;
-  if (!raw) throw new Error('EVE_TOKEN_ENCRYPTION_KEY is not set');
+  const raw = requireEnv('EVE_TOKEN_ENCRYPTION_KEY');
   const decoded = Buffer.from(raw, 'base64');
   if (decoded.length !== KEY_BYTES) {
     throw new Error(

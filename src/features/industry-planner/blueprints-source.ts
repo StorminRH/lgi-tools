@@ -4,8 +4,10 @@
 // blueprint keystroke. The index is fetched once from /api/industry/blueprints
 // and memoized for the session.
 
+import { apiFetch } from '@/lib/api-client';
 import type { SearchResult, SearchSource } from '@/search';
 import { fuzzyMatch, type FuzzyMatch } from '@/search/match';
+import { blueprintsEndpoint } from './api-contract';
 import type { BlueprintIndexEntry } from './types';
 
 // Cap the rows handed back per keystroke; the registry caps again at the
@@ -22,12 +24,11 @@ function loadIndex(): Promise<BlueprintIndexEntry[]> {
     // keystroke cancellation is handled by the post-await `ctx.signal?.aborted`
     // check in search(). Clear the cache on failure so a later keystroke
     // retries rather than caching a rejected promise for the whole session.
-    indexPromise = fetch('/api/industry/blueprints')
-      .then((res) => {
-        if (!res.ok) throw new Error(`blueprint index ${res.status}`);
-        return res.json() as Promise<{ blueprints: BlueprintIndexEntry[] }>;
+    indexPromise = apiFetch(blueprintsEndpoint)
+      .then((result) => {
+        if (!result.ok) throw new Error(`blueprint index ${result.status}`);
+        return result.data.blueprints;
       })
-      .then((data) => data.blueprints)
       .catch((err) => {
         indexPromise = null;
         throw err;

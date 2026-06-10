@@ -1,39 +1,22 @@
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
 import { APP_VERSION } from '@/config/app-version';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+import {
+  FEEDBACK_PATH_MAX_LENGTH,
+  feedbackRequestSchema,
+} from '@/features/feedback/api-contract';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from '@/features/feedback/constants';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
+import { readEnv } from '@/lib/env';
+import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
 import { sanitiseUserText } from '@/lib/sanitise';
-
-// Sanity cap on the captured page URL. Real-world paths on this site stay
-// well under 200 chars; 512 leaves room for stacked filter params without
-// admitting outright abuse.
-const MAX_PATH_LENGTH = 512;
 
 // Per-IP rate limit. Feedback POSTs fan out to a Discord webhook, so an
 // unthrottled endpoint is a webhook-spam vector. 5/min is generous for a
 // real user typing thoughtfully but cuts a scripted flood off fast.
 const FEEDBACK_LIMIT_PER_MINUTE = 5;
-
-// Bounded loose — the post-parse sanitiseUserText() trims and slices to the
-// real caps below; the *4 multiplier here just rejects runaway 100KB bodies
-// before we spend cycles cleaning them up. Same intent as the pre-Zod check.
-const feedbackSchema = z.object({
-  message: z.string().min(1).max(FEEDBACK_MESSAGE_MAX_LENGTH * 4),
-  path: z.string().regex(/^\//, 'path must start with /').max(MAX_PATH_LENGTH * 4),
-});
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is not set`);
-  }
-  return value;
-}
 
 interface DiscordEmbed {
   title: string;
@@ -78,7 +61,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const parsed = feedbackSchema.safeParse(body);
+  const parsed = feedbackRequestSchema.safeParse(body);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     const detail = firstIssue ? `${firstIssue.path.join('.') || 'body'}: ${firstIssue.message}` : 'invalid body';
@@ -91,7 +74,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
   if (!limit.ok) {
     return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter },
+      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
       {
         status: 429,
         headers: { 'Retry-After': String(limit.retryAfter) },
@@ -104,7 +87,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('message must not be empty', { status: 400 });
   }
 
-  const path = sanitiseUserText(parsed.data.path, MAX_PATH_LENGTH);
+  const path = sanitiseUserText(parsed.data.path, FEEDBACK_PATH_MAX_LENGTH);
   if (path.length === 0 || !path.startsWith('/')) {
     return new Response('path must start with /', { status: 400 });
   }
@@ -114,10 +97,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     ? `${session.name} (#${session.characterId})`
     : 'Anonymous';
 
-  let webhookUrl: string;
-  try {
-    webhookUrl = requireEnv('DISCORD_WEBHOOK_URL');
-  } catch {
+  const webhookUrl = readEnv('DISCORD_WEBHOOK_URL');
+  if (!webhookUrl) {
     return new Response('Feedback channel is not configured', { status: 503 });
   }
 

@@ -8,12 +8,13 @@
 // authz: service
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { connection } from 'next/server';
-import { z } from 'zod';
+import {
+  eveTokenRequestSchema,
+  type EveTokenErrorResponse,
+  type EveTokenOkResponse,
+} from '@/features/auth/api-contract';
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
-
-const bodySchema = z.object({
-  characterId: z.number().int().positive(),
-});
+import { readEnv } from '@/lib/env';
 
 // Constant-time bearer check. Comparing SHA-256 digests (always 32 bytes) keeps
 // timingSafeEqual's equal-length requirement satisfied and leaks no length, so a
@@ -28,7 +29,7 @@ export async function POST(req: Request): Promise<Response> {
   // Reads a secret + the DB per request — defer past prerender (Cache Components).
   await connection();
 
-  const secret = process.env.CONVEX_SERVICE_SECRET;
+  const secret = readEnv('CONVEX_SERVICE_SECRET');
   if (!secret) {
     return new Response('CONVEX_SERVICE_SECRET not configured', { status: 500 });
   }
@@ -43,7 +44,7 @@ export async function POST(req: Request): Promise<Response> {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const parsed = bodySchema.safeParse(body);
+  const parsed = eveTokenRequestSchema.safeParse(body);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
@@ -58,12 +59,12 @@ export async function POST(req: Request): Promise<Response> {
         expiresAt: result.expiresAt.toISOString(),
         characterId: result.characterId,
         scopes: result.scopes,
-      });
+      } satisfies EveTokenOkResponse);
     case 'not_found':
-      return Response.json({ error: 'not_found' }, { status: 404 });
+      return Response.json({ error: 'not_found' } satisfies EveTokenErrorResponse, { status: 404 });
     case 'reauth_required':
-      return Response.json({ error: 'reauth_required' }, { status: 409 });
+      return Response.json({ error: 'reauth_required' } satisfies EveTokenErrorResponse, { status: 409 });
     case 'upstream_error':
-      return Response.json({ error: 'upstream_error' }, { status: 502 });
+      return Response.json({ error: 'upstream_error' } satisfies EveTokenErrorResponse, { status: 502 });
   }
 }

@@ -1,5 +1,6 @@
 import { APP_VERSION } from '@/config/app-version';
 import { postDiscordWebhook } from '@/lib/discord';
+import { readEnv } from '@/lib/env';
 
 export interface PriceSourceDegradation {
   fetched: number;
@@ -18,7 +19,7 @@ export interface PriceSourceDegradation {
 export async function alertPriceSourceDegradation(
   info: PriceSourceDegradation,
 ): Promise<void> {
-  const url = process.env.DISCORD_ALERT_WEBHOOK_URL;
+  const url = readEnv('DISCORD_ALERT_WEBHOOK_URL');
   if (!url) return;
 
   const fallbackPct =

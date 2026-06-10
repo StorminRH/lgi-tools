@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { readEnv } from '@/lib/env';
 import {
   INDUSTRY_ACTIVITY_NAMES,
   REFERENCE_BLUEPRINT_TYPE_IDS,
@@ -414,7 +415,7 @@ async function hasResolvedTrees(db: AnyPgDb): Promise<boolean> {
 // own code changes).
 export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
   const start = Date.now();
-  const forceRebuild = process.env.LGI_FORCE_TREE_REBUILD === '1';
+  const forceRebuild = readEnv('LGI_FORCE_TREE_REBUILD') === '1';
 
   const hashBefore = await readMeta(db, SDE_META_KEY_TREE_HASH);
   const hashAfter = await computeTreeResolverHash(db);

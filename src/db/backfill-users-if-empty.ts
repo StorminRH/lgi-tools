@@ -14,13 +14,14 @@
 // Failures are SOFT — the build continues. (Same posture as ingest-sde-if-empty.)
 
 import { config } from 'dotenv';
-config({ path: process.env.DOTENV_PATH ?? '.env.local' });
+import { readEnv } from '@/lib/env';
+config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 import postgres from 'postgres';
 import { syntheticEmail } from '../features/auth/synthetic-email';
 import { resolveLockConnectionUrl } from './index';
 
-if (!process.env.DATABASE_URL) {
+if (!readEnv('DATABASE_URL')) {
   console.log('Skipping auth backfill (DATABASE_URL is not set).');
   process.exit(0);
 }

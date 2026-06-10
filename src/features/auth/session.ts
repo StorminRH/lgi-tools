@@ -7,6 +7,7 @@
 // still carries the active characterId and the (now per-user) role.
 
 import { headers } from 'next/headers';
+import { readEnv } from '@/lib/env';
 import { auth } from './auth';
 import type { Session } from './types';
 
@@ -42,6 +43,6 @@ export async function getSessionCharacterId(): Promise<number | null> {
 // or DB-driven ADMIN role (now per-user, mutated via the /admin dashboard).
 export function isAdmin(session: Session | null): boolean {
   if (!session) return false;
-  const superId = Number(process.env.SUPERADMIN_CHARACTER_ID);
+  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
   return session.characterId === superId || session.role === 'ADMIN';
 }

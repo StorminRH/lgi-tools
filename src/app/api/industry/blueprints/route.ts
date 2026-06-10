@@ -1,3 +1,4 @@
+import type { BlueprintsResponse } from '@/features/industry-planner/api-contract';
 import { getBlueprintSearchIndex } from '@/features/industry-planner/queries';
 
 // GET /api/industry/blueprints
@@ -6,5 +7,5 @@ import { getBlueprintSearchIndex } from '@/features/industry-planner/queries';
 // authz: public
 export async function GET(): Promise<Response> {
   const blueprints = await getBlueprintSearchIndex();
-  return Response.json({ blueprints });
+  return Response.json({ blueprints } satisfies BlueprintsResponse);
 }

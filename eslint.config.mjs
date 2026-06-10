@@ -55,6 +55,44 @@ const hexColorSelectors = [
   },
 ];
 
+// Typed-API-call enforcement (3.4.T): a literal fetch('/api/…') bypasses the
+// shared contracts, so client code must go through apiFetch with the owning
+// slice's endpoint object instead. The selectors match only a string/template
+// literal as fetch's FIRST argument — api-client.ts itself fetches a variable
+// (`endpoint.path`) and sendBeacon isn't `fetch`, so no exemptions are needed.
+// Known gaps (an /api path held in a variable; a `${base}/api/…` template) are
+// accepted: the route-side convention test (api-contracts.test.ts) still
+// guarantees a contract exists, and review covers the call site.
+const apiFetchSelectors = [
+  {
+    selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.value=/^\/api\//]`,
+    message:
+      "Raw fetch('/api/…') bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CLAUDE.md > Architecture Invariants.",
+  },
+  {
+    selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.quasis.0.value.raw=/^\/api\//]`,
+    message:
+      "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CLAUDE.md > Architecture Invariants.",
+  },
+];
+
+// Typed-env enforcement (3.4.T): server code reads env through the validated
+// registry in src/lib/env.ts, never process.env directly. Exempted by the
+// selector itself: NODE_ENV (bundler-inlined, must stay a direct read) and
+// NEXT_PUBLIC_* (client env — Next's build-time inlining needs the literal
+// static read). A bare `process.env` pass-through (an injectable test
+// parameter like `env = process.env`) is not a per-variable read and doesn't
+// match. env.ts itself is file-exempted below; test files are excluded (they
+// stub env directly).
+const processEnvSelectors = [
+  {
+    selector:
+      "MemberExpression[object.object.name='process'][object.property.name='env'][property.name!='NODE_ENV']:not([property.name=/^NEXT_PUBLIC_/])",
+    message:
+      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. NODE_ENV and NEXT_PUBLIC_* stay direct reads. See CLAUDE.md > Architecture Invariants.",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -95,15 +133,21 @@ const eslintConfig = defineConfig([
         typescript: { alwaysTryTypes: true, project: "./tsconfig.json" },
       },
       // Order matters: most-specific first. auth's *shared surface* (the
-      // Session type + the characters table) is de-facto platform infra,
-      // imported by other features and by data slices (incl. a real FK from
-      // telemetry). It is classified apart from the rest of the auth feature,
-      // whose UI/session/query surface stays feature-local and non-importable.
+      // Session type + the characters table + the API wire contracts) is
+      // de-facto platform infra, imported by other features and by data slices
+      // (incl. a real FK from telemetry, and the command palette's pinned
+      // Better Auth endpoints). It is classified apart from the rest of the
+      // auth feature, whose UI/session/query surface stays feature-local and
+      // non-importable.
       "boundaries/elements": [
         {
           type: "shared-auth-surface",
           mode: "full",
-          pattern: ["src/features/auth/types.ts", "src/features/auth/schema.ts"],
+          pattern: [
+            "src/features/auth/types.ts",
+            "src/features/auth/schema.ts",
+            "src/features/auth/api-contract.ts",
+          ],
         },
         { type: "ui", mode: "folder", pattern: "src/components/ui" },
         {
@@ -186,25 +230,56 @@ const eslintConfig = defineConfig([
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...cspSelectors, ...hexColorSelectors],
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...apiFetchSelectors,
+      ],
+    },
+  },
+  // Typed env applies to production src code only: test files stub process.env
+  // directly (vi.stubEnv and friends), and env.ts is the one module that reads
+  // process.env by design. Both keep every other ban via the base block above.
+  {
+    files: ["src/**/*.{ts,tsx,mts}"],
+    ignores: ["**/*.test.{ts,tsx}", "src/lib/env.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+      ],
     },
   },
   // tones.ts is the sanctioned home for raw color literals — `toneHex` is the
-  // JS source for SVG fills. Re-state the CSP bans without the hex selectors so
-  // only the color rule is lifted here (replace semantics).
+  // JS source for SVG fills. Re-state every other ban without the hex selectors
+  // so only the color rule is lifted here (replace semantics).
   {
     files: ["src/components/ui/tones.ts"],
     rules: {
-      "no-restricted-syntax": ["error", ...cspSelectors],
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+      ],
     },
   },
   // Dev/preview sandboxes are design scratchpads that intentionally try
   // off-palette one-offs; exempt them from the hex-color ban (the 3.3.10
-  // sandbox port will tokenize them), but keep the CSP bans.
+  // sandbox port will tokenize them), but keep every other ban.
   {
     files: ["src/app/dev/**/*.{ts,tsx}", "src/app/preview/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...cspSelectors],
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+      ],
     },
   },
 

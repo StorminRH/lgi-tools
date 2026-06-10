@@ -1,5 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { readEnv } from "@/lib/env";
 
 // Shared sliding-window rate limiter backed by Upstash Redis. Stateless
 // across Vercel serverless invocations (in-process counters don't survive
@@ -22,6 +23,13 @@ export interface RateLimitDenied {
 
 export type RateLimitResult = RateLimitOk | RateLimitDenied;
 
+// Wire shape of the 429 body every rate-limited route constructs itself —
+// pinned with `satisfies` at those call sites (3.4.T contract pattern).
+export interface RateLimitedBody {
+  error: "rate_limited";
+  retryAfter: number;
+}
+
 interface RateLimitOptions {
   perMinute: number;
   name: string;
@@ -37,11 +45,11 @@ let warnedAboutMissingEnv = false;
 // We accept either so the code works on both provisioning paths
 // without an env-var alias being a hidden requirement.
 function redisUrl(): string | undefined {
-  return process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+  return readEnv("KV_REST_API_URL") ?? readEnv("UPSTASH_REDIS_REST_URL");
 }
 
 function redisToken(): string | undefined {
-  return process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+  return readEnv("KV_REST_API_TOKEN") ?? readEnv("UPSTASH_REDIS_REST_TOKEN");
 }
 
 function isConfigured(): boolean {

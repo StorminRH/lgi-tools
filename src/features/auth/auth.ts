@@ -15,6 +15,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { db } from '@/db';
+import { readEnv, requireEnv } from '@/lib/env';
 import {
   EVE_AUTHORIZE_URL,
   EVE_PROVIDER_ID,
@@ -29,12 +30,6 @@ import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import { TOKEN_CRYPTO_VERSION, encryptToken } from './token-crypto';
 import type { CharacterRole } from './types';
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not set`);
-  return value;
-}
 
 const CIPHERTEXT_PREFIX = `${TOKEN_CRYPTO_VERSION}:`;
 
@@ -82,7 +77,7 @@ function encryptAccountTokens<
 // active character id) OR the DB-driven per-user ADMIN role.
 function computeIsAdmin(characterId: number | null, role: CharacterRole): boolean {
   if (role === 'ADMIN') return true;
-  const superId = Number(process.env.SUPERADMIN_CHARACTER_ID);
+  const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
   return characterId !== null && characterId === superId;
 }
 
@@ -93,8 +88,8 @@ const options = {
   }),
   // Reuse the existing 32-byte key as the Better Auth secret when a dedicated
   // BETTER_AUTH_SECRET isn't set, so a local .env.local keeps working.
-  secret: process.env.BETTER_AUTH_SECRET ?? process.env.SESSION_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL,
+  secret: readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET'),
+  baseURL: readEnv('BETTER_AUTH_URL'),
   // Encrypt EVE tokens at rest (3.4.1b). They arrive PLAINTEXT here:
   // `account.encryptOAuthTokens` is intentionally NOT set — enabling it would
   // AES-encrypt the tokens under the Better Auth secret *before* this hook runs,
@@ -147,8 +142,8 @@ const options = {
       config: [
         {
           providerId: EVE_PROVIDER_ID,
-          clientId: process.env.EVE_CLIENT_ID ?? '',
-          clientSecret: process.env.EVE_CLIENT_SECRET ?? '',
+          clientId: readEnv('EVE_CLIENT_ID') ?? '',
+          clientSecret: readEnv('EVE_CLIENT_SECRET') ?? '',
           authorizationUrl: EVE_AUTHORIZE_URL,
           tokenUrl: EVE_TOKEN_URL,
           scopes: [...EVE_SCOPES],
@@ -221,7 +216,7 @@ const options = {
     jwt({
       jwks: { keyPairConfig: { alg: 'ES256' } },
       jwt: {
-        issuer: process.env.BETTER_AUTH_URL,
+        issuer: readEnv('BETTER_AUTH_URL'),
         audience: 'convex',
         definePayload: ({ user: u }) => ({ role: (u.role as CharacterRole | undefined) ?? 'USER' }),
       },

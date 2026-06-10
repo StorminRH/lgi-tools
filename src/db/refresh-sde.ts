@@ -11,7 +11,8 @@
 //   pnpm db:refresh-sde:prod       (against .env.production.local)
 
 import { config } from 'dotenv';
-config({ path: process.env.DOTENV_PATH ?? '.env.local' });
+import { readEnv } from '@/lib/env';
+config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';

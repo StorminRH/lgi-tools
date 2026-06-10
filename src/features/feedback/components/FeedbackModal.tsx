@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Pill } from '@/components/ui/pill';
 import type { Session } from '@/features/auth/types';
+import { apiFetch } from '@/lib/api-client';
+import { feedbackEndpoint } from '../api-contract';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from '../constants';
 
 type SubmitState =
@@ -61,19 +63,15 @@ export function FeedbackModal({
 
     setState({ kind: 'submitting' });
     try {
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, path }),
-      });
-      if (!response.ok) {
+      const result = await apiFetch(feedbackEndpoint, { body: { message, path } });
+      if (!result.ok) {
         // Gate on status so users never see a raw error body. 400 carries a
         // human-readable validation detail; 429/5xx get a friendly line each
         // (the rate-limit/server bodies are JSON, not display copy).
         let message: string;
-        if (response.status === 400) {
-          message = (await response.text()) || 'Please check your message and try again.';
-        } else if (response.status === 429) {
+        if (result.status === 400) {
+          message = (await result.response.text()) || 'Please check your message and try again.';
+        } else if (result.status === 429) {
           message = 'Too much feedback too fast — please wait a minute and try again.';
         } else {
           message = 'Something went wrong sending your feedback. Try again.';

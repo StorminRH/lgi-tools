@@ -1,14 +1,9 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { adminRevokeSessionsFormSchema } from '@/features/auth/api-contract';
 import { auth } from '@/features/auth/auth';
 import { getUserById, revokeUserSessions } from '@/features/auth/queries';
-
-// Form payload from <AdminForceLogoutForm>: the user whose sessions to revoke.
-const revokeFormSchema = z.object({
-  userId: z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/),
-});
 
 // POST-only. Admin force-logout: deletes every session row for the target user,
 // pushing them to re-authenticate. With the session cookie cache on this isn't
@@ -23,7 +18,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const form = await request.formData();
-  const parsed = revokeFormSchema.safeParse({ userId: form.get('userId') });
+  const parsed = adminRevokeSessionsFormSchema.safeParse({ userId: form.get('userId') });
   if (!parsed.success) {
     return new Response('Invalid form', { status: 400 });
   }

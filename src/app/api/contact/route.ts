@@ -1,16 +1,14 @@
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { APP_VERSION } from '@/config/app-version';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
+import { contactRequestSchema } from '@/features/contact/api-contract';
 import { CONTACT_MESSAGE_MAX_LENGTH } from '@/features/contact/constants';
+import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
+import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
 import { sanitiseUserText } from '@/lib/sanitise';
-
-// RFC 5321 caps an email address at 254 chars.
-const MAX_EMAIL_LENGTH = 254;
 
 // Per-IP rate limit. Each accepted submission sends an email, so an
 // unthrottled endpoint is a mail-spam vector. 3/min is plenty for a human
@@ -23,16 +21,6 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 // only to the Resend account's own address). Once the lgi.tools domain is
 // verified in Resend, set CONTACT_FROM_EMAIL to a `Name <addr@lgi.tools>`.
 const DEFAULT_FROM = 'LGI.tools Contact <onboarding@resend.dev>';
-
-// `website` is a honeypot: hidden from real users, irresistible to bots. A
-// non-empty value means a bot — we accept (204) without sending so the trap
-// stays unrevealed. The *4 multiplier on message rejects runaway bodies
-// before we spend cycles cleaning them; sanitiseUserText() enforces the real cap.
-const contactSchema = z.object({
-  email: z.email().max(MAX_EMAIL_LENGTH),
-  message: z.string().min(1).max(CONTACT_MESSAGE_MAX_LENGTH * 4),
-  website: z.string().max(200).optional(),
-});
 
 // POST-only. Accepts JSON `{ email, message, website? }`. Sends the message to
 // the maintainer's inbox (CONTACT_EMAIL — server-side only, never shipped to
@@ -50,7 +38,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const parsed = contactSchema.safeParse(body);
+  const parsed = contactRequestSchema.safeParse(body);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     const detail = firstIssue
@@ -71,7 +59,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
   if (!limit.ok) {
     return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter },
+      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
       {
         status: 429,
         headers: { 'Retry-After': String(limit.retryAfter) },
@@ -85,12 +73,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
   const email = parsed.data.email.trim();
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.CONTACT_EMAIL;
+  const apiKey = readEnv('RESEND_API_KEY');
+  const to = readEnv('CONTACT_EMAIL');
   if (!apiKey || !to) {
     return new Response('Contact form is not configured', { status: 503 });
   }
-  const from = process.env.CONTACT_FROM_EMAIL || DEFAULT_FROM;
+  const from = readEnv('CONTACT_FROM_EMAIL') ?? DEFAULT_FROM;
 
   const session = await getSession();
   const sender = session

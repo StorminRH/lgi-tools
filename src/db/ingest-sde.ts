@@ -1,17 +1,12 @@
 import { config } from 'dotenv';
-config({ path: process.env.DOTENV_PATH ?? '.env.local' });
+import { readEnv, requireEnv } from '@/lib/env';
+config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { runIngest } from '../data/eve-data/ingest';
 
-function requiredEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`${name} is not set`);
-  return v;
-}
-
-const databaseUrl = requiredEnv('DATABASE_URL');
+const databaseUrl = requireEnv('DATABASE_URL');
 const keepCache = process.argv.includes('--keep-cache');
 
 const client = postgres(databaseUrl, { max: 1 });

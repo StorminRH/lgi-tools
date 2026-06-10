@@ -1,27 +1,17 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
+import {
+  ADMIN_ACCESS_QUERY_MAX_LENGTH,
+  adminRoleFormSchema,
+} from '@/features/auth/api-contract';
 import { auth } from '@/features/auth/auth';
 import { getUserById, setUserRole } from '@/features/auth/queries';
-import { CHARACTER_ROLES } from '@/features/auth/schema';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { sanitiseUserText } from '@/lib/sanitise';
 
-const MAX_QUERY_LENGTH = 200;
-
-// Form payload from <RoleToggleForm>. `userId` is a Better Auth id (opaque
-// string — nanoid for new logins, `eve-user-<id>` for backfilled pilots); the
-// charset gate keeps junk out. `q` (optional search-state preserver) is loosely
-// validated here — the post-parse sanitiseQuery() does the real cleaning.
-const roleFormSchema = z.object({
-  userId: z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/),
-  nextRole: z.enum(CHARACTER_ROLES),
-  q: z.string().max(MAX_QUERY_LENGTH * 4).optional(),
-});
-
 function sanitiseQuery(raw: string | undefined): string | undefined {
   if (raw === undefined) return undefined;
-  const cleaned = sanitiseUserText(raw, MAX_QUERY_LENGTH);
+  const cleaned = sanitiseUserText(raw, ADMIN_ACCESS_QUERY_MAX_LENGTH);
   return cleaned.length === 0 ? undefined : cleaned;
 }
 
@@ -47,7 +37,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const actorCharacterId = session.characterId;
 
   const form = await request.formData();
-  const parsed = roleFormSchema.safeParse({
+  const parsed = adminRoleFormSchema.safeParse({
     userId: form.get('userId'),
     nextRole: form.get('nextRole'),
     q: form.get('q') ?? undefined,

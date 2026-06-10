@@ -2,6 +2,8 @@
 
 import { useId, useState } from 'react';
 import { Pill } from '@/components/ui/pill';
+import { apiFetch } from '@/lib/api-client';
+import { contactEndpoint } from '../api-contract';
 import { CONTACT_MESSAGE_MAX_LENGTH } from '../constants';
 
 type SubmitState =
@@ -32,19 +34,17 @@ export function ContactForm() {
 
     setState({ kind: 'submitting' });
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, message, website }),
+      const result = await apiFetch(contactEndpoint, {
+        body: { email, message, website },
       });
-      if (!response.ok) {
+      if (!result.ok) {
         // Only 400s carry a visitor-readable validation message; everything
         // else (429 / 5xx) is infrastructure-facing, so show a friendly line
         // instead of the raw server text.
         let message: string;
-        if (response.status === 400) {
-          message = (await response.text()) || 'Please check your email and message.';
-        } else if (response.status === 429) {
+        if (result.status === 400) {
+          message = (await result.response.text()) || 'Please check your email and message.';
+        } else if (result.status === 429) {
           message = 'Too many messages — please wait a minute and try again.';
         } else {
           message = 'Something went wrong sending your message. Please try again.';

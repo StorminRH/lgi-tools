@@ -1,10 +1,12 @@
 import { revalidateTag } from 'next/cache';
 import { connection } from 'next/server';
+import type { CronRefreshPricesResponse } from '@/data/market-prices/api-contract';
 import { PRICES_FRESHNESS_TAG, refreshStalePrices } from '@/data/market-prices/cache';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
 import { directClient } from '@/db';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
+import { readEnv } from '@/lib/env';
 
 // Awaits a fire-and-forget side effect, swallowing failures so observability
 // can never break the cron, and awaiting so the write/alert lands before the
@@ -43,7 +45,7 @@ export async function GET(req: Request): Promise<Response> {
   // Cache Components doesn't try to prerender it.
   const start = Date.now();
   await connection();
-  const secret = process.env.CRON_SECRET;
+  const secret = readEnv('CRON_SECRET');
   if (!secret) {
     return new Response('CRON_SECRET not configured', { status: 500 });
   }
@@ -63,7 +65,7 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({
       cached: true,
       lastUpdatedAt: result.lastUpdatedAt?.toISOString() ?? null,
-    });
+    } satisfies CronRefreshPricesResponse);
   }
 
   // The header's freshness chip reads a `use cache` snapshot of the latest
@@ -124,5 +126,5 @@ export async function GET(req: Request): Promise<Response> {
     lastUpdatedAt: result.lastUpdatedAt.toISOString(),
     fetched: summary.fetched,
     written: summary.written,
-  });
+  } satisfies CronRefreshPricesResponse);
 }
