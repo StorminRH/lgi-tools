@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
@@ -95,7 +96,14 @@ function AdminUserRow({
           className="rounded-[2px] border border-border-idle"
         />
       }
-      name={user.name}
+      name={
+        <Link
+          href={`/admin/access/${user.userId}`}
+          className="hover:text-text hover:underline underline-offset-2 transition-colors"
+        >
+          {user.name}
+        </Link>
+      }
       chips={
         <span className="flex items-center gap-[6px]">
           <Pill tone="neutral">ID {user.characterId ?? '—'}</Pill>
@@ -247,12 +255,12 @@ async function AccessContent({
             Search
           </button>
           {query ? (
-            <a
+            <Link
               href="/admin/access"
               className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted px-2 py-1"
             >
               Clear
-            </a>
+            </Link>
           ) : null}
         </form>
 

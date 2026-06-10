@@ -13,6 +13,9 @@ export const SERVER_USAGE_ACTIONS = [
   'role_change',
   'character_switch', // active-character switch on the /characters page (3.4.2)
   'character_unlink', // a linked EVE character removed on the /characters page (3.4.2)
+  'admin_character_unlink', // admin force-unlinked a character from any user
+  'admin_force_logout', // admin revoked all of a user's sessions
+  'admin_character_reassign', // admin moved a character onto their own account
   'feedback_submitted',
   'contact_submitted',
   // 3.0.10 observability:
