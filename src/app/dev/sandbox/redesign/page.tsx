@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SandboxHeader } from '../_shared/sandbox-ui';
+
+export const metadata: Metadata = { title: 'Site Redesign Mockups (dev)' };
 
 // Index for the site-redesign exploration: two complete candidate themes,
 // each applied to the home page and the industry-planner landing page.
