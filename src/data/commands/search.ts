@@ -10,10 +10,12 @@
 // to it (router.push can't reach the cross-origin SSO chain).
 //
 // This is a data slice, so it can't import the auth feature's client — it talks
-// to Better Auth's REST endpoints by URL. Those request/response shapes
-// (/api/auth/sign-in/oauth2 → { url }; /api/auth/sign-out POST) are the contract
-// here; they're pinned by the better-auth version in package.json.
+// to Better Auth's REST endpoints through the typed contracts on auth's shared
+// surface (features/auth/api-contract.ts), whose shapes are pinned by the
+// better-auth version in package.json.
 
+import { signInOauth2Endpoint, signOutEndpoint } from '@/features/auth/api-contract';
+import { apiFetch } from '@/lib/api-client';
 import type { AppRouterInstance, SearchContext, SearchResult, SearchSource } from '@/search';
 import { fuzzyMatch } from '@/search/match';
 
@@ -69,16 +71,12 @@ const COMMANDS: CommandEntry[] = [
     onSelect: () => {
       // Only redirect on success — if the POST fails (network drop, 4xx,
       // or 5xx) the server never cleared the session, so landing on / would
-      // silently look "logged out" while the session is still active. fetch()
-      // only rejects on network errors, so `res.ok` is the load-bearing check
-      // for HTTP-level failures.
-      void fetch('/api/auth/sign-out', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: '{}',
-      })
-        .then((res) => {
-          if (res.ok) window.location.href = '/';
+      // silently look "logged out" while the session is still active. apiFetch
+      // only rejects on network errors, so `result.ok` is the load-bearing
+      // check for HTTP-level failures.
+      void apiFetch(signOutEndpoint, { body: {} })
+        .then((result) => {
+          if (result.ok) window.location.href = '/';
           // else: server returned an error; stay put so the user can retry.
         })
         .catch(() => {
@@ -96,14 +94,9 @@ const COMMANDS: CommandEntry[] = [
     onSelect: () => {
       // Better Auth's OAuth sign-in is a POST returning the SSO redirect URL;
       // hard-navigate the browser to it. On any failure, stay put.
-      void fetch('/api/auth/sign-in/oauth2', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ providerId: 'eve', callbackURL: '/' }),
-      })
-        .then((res) => (res.ok ? (res.json() as Promise<{ url?: string }>) : null))
-        .then((data) => {
-          if (data?.url) window.location.href = data.url;
+      void apiFetch(signInOauth2Endpoint, { body: { providerId: 'eve', callbackURL: '/' } })
+        .then((result) => {
+          if (result.ok && result.data.url) window.location.href = result.data.url;
         })
         .catch(() => {
           // Network error; stay put.

@@ -3,6 +3,7 @@ import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
 import { syncGsc } from '@/data/gsc/ingest';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { directClient } from '@/db';
+import { readEnv } from '@/lib/env';
 
 // Awaits a fire-and-forget side effect, swallowing failures so observability
 // can never break the cron, and awaiting so the write lands before the
@@ -32,7 +33,7 @@ export async function GET(req: Request): Promise<Response> {
   // Cron endpoint: runs per-invocation and writes. Defer to request time so
   // Cache Components doesn't try to prerender it.
   await connection();
-  const secret = process.env.CRON_SECRET;
+  const secret = readEnv('CRON_SECRET');
   if (!secret) {
     return new Response('CRON_SECRET not configured', { status: 500 });
   }

@@ -9,6 +9,7 @@ import { FeedbackButton } from "@/components/FeedbackButton";
 import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { SITE_URL } from "@/config/site-url";
+import { readEnv } from "@/lib/env";
 
 const plexMono = IBM_Plex_Mono({
   variable: "--font-plex-mono",
@@ -32,7 +33,7 @@ const DEFAULT_DESCRIPTION =
   "Lo-Gang Industries — first-party Eve Online tools for wormhole pilots. " +
   "Browse all 69 wormhole sites with live Jita prices on ore and gas resources.";
 
-const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
+const googleVerification = readEnv("GOOGLE_SITE_VERIFICATION");
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

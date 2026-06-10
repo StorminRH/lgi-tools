@@ -6,6 +6,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
 import { directClient } from '@/db';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
+import { readEnv } from '@/lib/env';
 
 // Awaits a fire-and-forget side effect, swallowing failures so observability
 // can never break the cron, and awaiting so the write/alert lands before the
@@ -44,7 +45,7 @@ export async function GET(req: Request): Promise<Response> {
   // Cache Components doesn't try to prerender it.
   const start = Date.now();
   await connection();
-  const secret = process.env.CRON_SECRET;
+  const secret = readEnv('CRON_SECRET');
   if (!secret) {
     return new Response('CRON_SECRET not configured', { status: 500 });
   }

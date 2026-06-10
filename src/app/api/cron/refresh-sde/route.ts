@@ -12,6 +12,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { connection } from 'next/server';
 import { directClient } from '@/db';
 import { runSdePipeline, summarizeMarketPricesRowCount } from '@/db/sde-pipeline';
+import { readEnv } from '@/lib/env';
 
 // Awaited fire-and-forget telemetry: failures swallowed so observability never
 // breaks the cron, awaited so the row lands before the serverless function
@@ -48,7 +49,7 @@ export async function GET(req: Request): Promise<Response> {
   // Cache Components doesn't try to prerender it.
   const start = Date.now();
   await connection();
-  const secret = process.env.CRON_SECRET;
+  const secret = readEnv('CRON_SECRET');
   if (!secret) {
     return new Response('CRON_SECRET not configured', { status: 500 });
   }

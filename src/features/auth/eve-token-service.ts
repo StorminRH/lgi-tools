@@ -10,15 +10,10 @@
 
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
+import { requireEnv } from '@/lib/env';
 import { EVE_PROVIDER_ID, refreshEveToken } from './eve-sso';
 import { account } from './schema';
 import { decryptToken, encryptToken } from './token-crypto';
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not set`);
-  return value;
-}
 
 // Refresh proactively when the stored access token has under a minute of life
 // left, so a vended token always carries usable headroom for the caller's call.

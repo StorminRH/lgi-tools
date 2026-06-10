@@ -2,6 +2,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
 import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { readEnv, requireEnv } from '@/lib/env';
 
 type Db = ReturnType<typeof drizzleHttp>;
 type HttpClient = ReturnType<typeof neon>;
@@ -13,8 +14,7 @@ let _directClient: Sql | undefined;
 
 function getClient(): HttpClient {
   if (_client) return _client;
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL is not set');
+  const url = requireEnv('DATABASE_URL');
   // Neon HTTP driver: one `fetch` per query, no TCP connection held. A Neon
   // compute that has scaled to zero slows the first query instead of erroring
   // it on a dead socket — that's the production-outage fix.
@@ -31,9 +31,8 @@ function getDb(): Db {
   // TCP postgres-js instead — the pre-3.2.1 behaviour, fully compatible since
   // the request path uses no `db.batch`. Production never sets this var, so it
   // always takes the neon-http path below.
-  if (process.env.LOCAL_DB_DRIVER === 'postgres-js') {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error('DATABASE_URL is not set');
+  if (readEnv('LOCAL_DB_DRIVER') === 'postgres-js') {
+    const url = requireEnv('DATABASE_URL');
     _db = drizzlePg(postgres(url)) as unknown as Db;
     return _db;
   }

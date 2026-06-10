@@ -5,6 +5,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
 import { contactRequestSchema } from '@/features/contact/api-contract';
 import { CONTACT_MESSAGE_MAX_LENGTH } from '@/features/contact/constants';
+import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
 import { sanitiseUserText } from '@/lib/sanitise';
@@ -72,12 +73,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
   const email = parsed.data.email.trim();
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.CONTACT_EMAIL;
+  const apiKey = readEnv('RESEND_API_KEY');
+  const to = readEnv('CONTACT_EMAIL');
   if (!apiKey || !to) {
     return new Response('Contact form is not configured', { status: 503 });
   }
-  const from = process.env.CONTACT_FROM_EMAIL || DEFAULT_FROM;
+  const from = readEnv('CONTACT_FROM_EMAIL') ?? DEFAULT_FROM;
 
   const session = await getSession();
   const sender = session

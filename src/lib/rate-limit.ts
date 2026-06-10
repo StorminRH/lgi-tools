@@ -1,5 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { readEnv } from "@/lib/env";
 
 // Shared sliding-window rate limiter backed by Upstash Redis. Stateless
 // across Vercel serverless invocations (in-process counters don't survive
@@ -44,11 +45,11 @@ let warnedAboutMissingEnv = false;
 // We accept either so the code works on both provisioning paths
 // without an env-var alias being a hidden requirement.
 function redisUrl(): string | undefined {
-  return process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+  return readEnv("KV_REST_API_URL") ?? readEnv("UPSTASH_REDIS_REST_URL");
 }
 
 function redisToken(): string | undefined {
-  return process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+  return readEnv("KV_REST_API_TOKEN") ?? readEnv("UPSTASH_REDIS_REST_TOKEN");
 }
 
 function isConfigured(): boolean {

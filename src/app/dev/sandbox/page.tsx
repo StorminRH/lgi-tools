@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { getSession, isAdmin } from '@/features/auth/session';
+import { readEnv } from '@/lib/env';
 import { SandboxHeader } from './_shared/sandbox-ui';
 
 const GALLERIES = [
@@ -38,7 +39,7 @@ async function SandboxIndex() {
   // happen the same way in each. The gate only *acts* on production: previews
   // stay open so the mockups are viewable where EVE login isn't available.
   const session = await getSession();
-  if (process.env.VERCEL_ENV === 'production' && !isAdmin(session)) {
+  if (readEnv('VERCEL_ENV') === 'production' && !isAdmin(session)) {
     redirect('/?auth_error=admin_required');
   }
 

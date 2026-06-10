@@ -15,7 +15,8 @@
 // run; the rest of the app keeps working.
 
 import { config } from 'dotenv';
-config({ path: process.env.DOTENV_PATH ?? '.env.local' });
+import { readEnv } from '@/lib/env';
+config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -33,7 +34,7 @@ import { resolveAllTrees } from '../data/eve-data/tree-resolver';
 import { resolveLockConnectionUrl } from './index';
 import { runSdePipeline } from './sde-pipeline';
 
-if (!process.env.DATABASE_URL) {
+if (!readEnv('DATABASE_URL')) {
   console.log('Skipping SDE auto-ingest (DATABASE_URL is not set).');
   process.exit(0);
 }
