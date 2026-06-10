@@ -33,7 +33,6 @@ export const wirePriceSchema = z.object({
   staleAfter: z.string(),
   source: z.enum(['esi', 'fuzzwork-fallback', 'fuzzwork']) satisfies z.ZodType<PriceSource>,
 });
-export type WirePrice = z.infer<typeof wirePriceSchema>;
 
 export const refreshPricesResponseSchema = z.object({ prices: z.array(wirePriceSchema) });
 export type RefreshPricesResponse = z.infer<typeof refreshPricesResponseSchema>;
