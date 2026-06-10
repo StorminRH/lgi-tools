@@ -1,16 +1,9 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { adminReassignFormSchema } from '@/features/auth/api-contract';
 import { auth } from '@/features/auth/auth';
 import { accountBelongsToUser, reassignCharacter } from '@/features/auth/queries';
-
-// Form payload from <AdminReassignCharacterForm>: the character to move and the
-// account it currently sits on. The destination is always the acting admin.
-const reassignFormSchema = z.object({
-  characterId: z.coerce.number().int().positive(),
-  fromUserId: z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/),
-});
 
 // POST-only. Admin reassign — move a character from a standalone/other account
 // onto the acting admin's own account in one click (no OAuth re-login). Used to
@@ -27,7 +20,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const toUserId = session.user.id;
 
   const form = await request.formData();
-  const parsed = reassignFormSchema.safeParse({
+  const parsed = adminReassignFormSchema.safeParse({
     characterId: form.get('characterId'),
     fromUserId: form.get('fromUserId'),
   });

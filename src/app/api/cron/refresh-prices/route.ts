@@ -1,5 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { connection } from 'next/server';
+import type { CronRefreshPricesResponse } from '@/data/market-prices/api-contract';
 import { PRICES_FRESHNESS_TAG, refreshStalePrices } from '@/data/market-prices/cache';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
@@ -63,7 +64,7 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({
       cached: true,
       lastUpdatedAt: result.lastUpdatedAt?.toISOString() ?? null,
-    });
+    } satisfies CronRefreshPricesResponse);
   }
 
   // The header's freshness chip reads a `use cache` snapshot of the latest
@@ -124,5 +125,5 @@ export async function GET(req: Request): Promise<Response> {
     lastUpdatedAt: result.lastUpdatedAt.toISOString(),
     fetched: summary.fetched,
     written: summary.written,
-  });
+  } satisfies CronRefreshPricesResponse);
 }

@@ -95,15 +95,21 @@ const eslintConfig = defineConfig([
         typescript: { alwaysTryTypes: true, project: "./tsconfig.json" },
       },
       // Order matters: most-specific first. auth's *shared surface* (the
-      // Session type + the characters table) is de-facto platform infra,
-      // imported by other features and by data slices (incl. a real FK from
-      // telemetry). It is classified apart from the rest of the auth feature,
-      // whose UI/session/query surface stays feature-local and non-importable.
+      // Session type + the characters table + the API wire contracts) is
+      // de-facto platform infra, imported by other features and by data slices
+      // (incl. a real FK from telemetry, and the command palette's pinned
+      // Better Auth endpoints). It is classified apart from the rest of the
+      // auth feature, whose UI/session/query surface stays feature-local and
+      // non-importable.
       "boundaries/elements": [
         {
           type: "shared-auth-surface",
           mode: "full",
-          pattern: ["src/features/auth/types.ts", "src/features/auth/schema.ts"],
+          pattern: [
+            "src/features/auth/types.ts",
+            "src/features/auth/schema.ts",
+            "src/features/auth/api-contract.ts",
+          ],
         },
         { type: "ui", mode: "folder", pattern: "src/components/ui" },
         {

@@ -1,24 +1,13 @@
 import type { NextRequest } from "next/server";
-import { z } from "zod";
 import {
-  ON_DEMAND_REFRESH_LIMIT_PER_MINUTE,
-  ON_DEMAND_REFRESH_MAX_TYPE_IDS,
-} from "@/data/market-prices/constants";
+  refreshPricesRequestSchema,
+  type RefreshPricesBadRequest,
+  type RefreshPricesResponse,
+} from "@/data/market-prices/api-contract";
+import { ON_DEMAND_REFRESH_LIMIT_PER_MINUTE } from "@/data/market-prices/constants";
 import { getLivePrices } from "@/data/market-prices/refresh-on-view";
 import { logUsageEvent } from "@/data/telemetry/queries";
-import { clientIdentifier, rateLimit } from "@/lib/rate-limit";
-
-// Postgres 32-bit `integer` ceiling. Matches the equivalent guard in
-// /api/sites/[id]/route.ts — defined locally on each route because both
-// owners cap at the column type, not at a shared platform-wide constant.
-const PG_INT4_MAX = 2_147_483_647;
-
-const refreshSchema = z.object({
-  typeIds: z
-    .array(z.number().int().positive().max(PG_INT4_MAX))
-    .min(1)
-    .max(ON_DEMAND_REFRESH_MAX_TYPE_IDS),
-});
+import { clientIdentifier, rateLimit, type RateLimitedBody } from "@/lib/rate-limit";
 
 // POST /api/market-prices/refresh
 // Body: { typeIds: number[] }
@@ -40,13 +29,15 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return Response.json({ error: "invalid_json" }, { status: 400 });
+    return Response.json({ error: "invalid_json" } satisfies RefreshPricesBadRequest, {
+      status: 400,
+    });
   }
 
-  const parsed = refreshSchema.safeParse(body);
+  const parsed = refreshPricesRequestSchema.safeParse(body);
   if (!parsed.success) {
     return Response.json(
-      { error: "invalid_request", issues: parsed.error.issues },
+      { error: "invalid_request", issues: parsed.error.issues } satisfies RefreshPricesBadRequest,
       { status: 400 },
     );
   }
@@ -57,7 +48,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
   if (!limit.ok) {
     return Response.json(
-      { error: "rate_limited", retryAfter: limit.retryAfter },
+      { error: "rate_limited", retryAfter: limit.retryAfter } satisfies RateLimitedBody,
       {
         status: 429,
         headers: { "Retry-After": String(limit.retryAfter) },
@@ -103,5 +94,5 @@ export async function POST(request: NextRequest): Promise<Response> {
         staleAfter: row.staleAfter.toISOString(),
         source: row.source,
       })),
-  });
+  } satisfies RefreshPricesResponse);
 }

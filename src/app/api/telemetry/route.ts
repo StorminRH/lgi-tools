@@ -1,23 +1,14 @@
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { telemetryRequestSchema } from '@/data/telemetry/api-contract';
 import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { CLIENT_USAGE_ACTIONS } from '@/data/telemetry/types';
 import { getSessionCharacterId } from '@/features/auth/session';
-import { clientIdentifier, rateLimit } from '@/lib/rate-limit';
+import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
 
 // Hard cap on serialised metadata to keep one bad payload from filling the
 // table. 2KB is generous for page-view + search shapes; rejecting larger
 // payloads keeps a misbehaving client from running away.
 const MAX_METADATA_BYTES = 2048;
-
-// Validates against CLIENT_USAGE_ACTIONS, not the full set: server-only
-// actions (cron health signals, auth/admin audit) must not be forgeable by a
-// client POST, or the health/audit rows they write could be polluted.
-const telemetrySchema = z.object({
-  action: z.enum(CLIENT_USAGE_ACTIONS),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
 
 // Silent first-party tracker. Accepts JSON { action, metadata? } and returns
 // 204. Shape is validated synchronously (400 before any write) so a
@@ -36,7 +27,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('Invalid JSON', { status: 400 });
   }
 
-  const parsed = telemetrySchema.safeParse(body);
+  const parsed = telemetryRequestSchema.safeParse(body);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
@@ -60,7 +51,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
   if (!limit.ok) {
     return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter },
+      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
       {
         status: 429,
         headers: { 'Retry-After': String(limit.retryAfter) },

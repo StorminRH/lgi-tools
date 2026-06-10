@@ -1,14 +1,9 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { switchCharacterFormSchema } from '@/features/auth/api-contract';
 import { auth } from '@/features/auth/auth';
 import { accountBelongsToUser, setActiveCharacter } from '@/features/auth/queries';
-
-// Form payload from <SwitchCharacterForm>: the character to make active.
-const switchFormSchema = z.object({
-  characterId: z.coerce.number().int().positive(),
-});
 
 // POST-only. Sets the signed-in pilot's active character. Any authenticated user
 // may switch among THEIR OWN linked characters — the ownership check is the real
@@ -22,7 +17,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const form = await request.formData();
-  const parsed = switchFormSchema.safeParse({ characterId: form.get('characterId') });
+  const parsed = switchCharacterFormSchema.safeParse({ characterId: form.get('characterId') });
   if (!parsed.success) {
     return new Response('Invalid character', { status: 400 });
   }

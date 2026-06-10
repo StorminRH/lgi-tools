@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { revalidateTag } from 'next/cache';
+import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
 import {
   ADVISORY_LOCK_SDE_INGEST,
   BLUEPRINT_STRUCTURE_TAG,
@@ -70,7 +71,7 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({
       status: 'up-to-date',
       sdeVersion: storedVersion,
-    });
+    } satisfies CronRefreshSdeResponse);
   }
 
   // CCP-manifest-unreachable path: nothing actionable. Falling through to
@@ -86,7 +87,7 @@ export async function GET(req: Request): Promise<Response> {
     return Response.json({
       status: 'remote-unreachable',
       sdeVersion: storedVersion,
-    });
+    } satisfies CronRefreshSdeResponse);
   }
 
   const reserved = await directClient.reserve();
@@ -102,7 +103,7 @@ export async function GET(req: Request): Promise<Response> {
       return Response.json({
         status: 'busy',
         message: 'Another SDE ingest in flight',
-      });
+      } satisfies CronRefreshSdeResponse);
     }
     lockHeld = true;
 
@@ -133,7 +134,7 @@ export async function GET(req: Request): Promise<Response> {
       sdeVersionAfter: remoteVersion,
       summary,
       marketPrices,
-    });
+    } satisfies CronRefreshSdeResponse);
   } finally {
     if (lockHeld) {
       await reserved`SELECT pg_advisory_unlock(${LOCK_KEY_NUM})`;

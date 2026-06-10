@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { unlinkCharacterFormSchema } from '@/features/auth/api-contract';
 import { auth } from '@/features/auth/auth';
 import { EVE_PROVIDER_ID } from '@/features/auth/eve-sso';
 import {
@@ -9,11 +9,6 @@ import {
   listLinkedCharacters,
   repointActiveToOldest,
 } from '@/features/auth/queries';
-
-// Form payload from <UnlinkCharacterForm>: the character to remove.
-const unlinkFormSchema = z.object({
-  characterId: z.coerce.number().int().positive(),
-});
 
 function redirectWithError(request: NextRequest, code: string): Response {
   const url = new URL('/characters', request.url);
@@ -36,7 +31,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const form = await request.formData();
-  const parsed = unlinkFormSchema.safeParse({ characterId: form.get('characterId') });
+  const parsed = unlinkCharacterFormSchema.safeParse({ characterId: form.get('characterId') });
   if (!parsed.success) {
     return new Response('Invalid character', { status: 400 });
   }

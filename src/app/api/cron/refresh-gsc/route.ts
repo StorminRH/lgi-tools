@@ -1,4 +1,5 @@
 import { connection } from 'next/server';
+import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
 import { syncGsc } from '@/data/gsc/ingest';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { directClient } from '@/db';
@@ -70,5 +71,5 @@ export async function GET(req: Request): Promise<Response> {
     }),
   );
 
-  return Response.json(summary);
+  return Response.json(summary satisfies CronRefreshGscResponse);
 }
