@@ -11,6 +11,8 @@ export const SERVER_USAGE_ACTIONS = [
   'auth_login',
   'auth_logout',
   'role_change',
+  'character_switch', // active-character switch on the /characters page (3.4.2)
+  'character_unlink', // a linked EVE character removed on the /characters page (3.4.2)
   'feedback_submitted',
   'contact_submitted',
   // 3.0.10 observability:

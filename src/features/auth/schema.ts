@@ -54,6 +54,13 @@ export const user = pgTable('user', {
   // Per-user admin role. Reuses the existing character_role enum so there's one
   // source of truth for the role values.
   role: characterRoleEnum('role').default('USER').notNull(),
+  // The character this user is currently acting as — the "active" / current
+  // pilot (3.4.2). Points at a linked `account.accountId` (= character id). NULL
+  // means "not yet chosen": the session resolver falls back to the oldest linked
+  // account. Deliberately NOT a foreign key — a `characters` profile row can lag
+  // a freshly linked account, and resolution tolerates a dangling id by falling
+  // back, so an FK would only add a write-ordering hazard.
+  activeCharacterId: bigint('active_character_id', { mode: 'number' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
