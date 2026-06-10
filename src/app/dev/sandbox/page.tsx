@@ -1,10 +1,13 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { Suspense } from 'react';
-import { getSession, isAdmin } from '@/features/auth/session';
 import { SandboxHeader } from './_shared/sandbox-ui';
 
 const GALLERIES = [
+  {
+    href: '/dev/sandbox/redesign',
+    title: 'Site redesign mockups',
+    count: '2 themes × 2 pages',
+    blurb: 'Two complete candidate themes (Phosphor terminal, EVE holo console) applied to the home page and the industry landing — new fonts, colors, depth, and nav patterns (hamburger panel, expanding side rail).',
+  },
   {
     href: '/dev/sandbox/trees',
     title: 'Build-tree displays',
@@ -25,12 +28,7 @@ const GALLERIES = [
   },
 ];
 
-async function SandboxIndex() {
-  const session = await getSession();
-  if (!isAdmin(session)) {
-    redirect('/?auth_error=admin_required');
-  }
-
+function SandboxIndex() {
   return (
     <>
       <SandboxHeader
@@ -86,19 +84,13 @@ async function SandboxIndex() {
   );
 }
 
-function SandboxLoading() {
-  return <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>;
-}
-
-// Admin-gated: the session read + redirect is a request-time dynamic hole, so
-// only the page container prerenders (route classified `partial`). The three
-// gallery leaf pages carry no gate and stay fully static.
+// Ungated like the gallery leaf pages (the admin gate kept the index from
+// being viewable on preview deploys, where EVE login isn't available) —
+// unlinked, noindexed via the layout, and fully static.
 export default function SandboxIndexPage() {
   return (
     <div className="flex flex-col items-center px-6 pt-12 pb-20">
-      <Suspense fallback={<SandboxLoading />}>
-        <SandboxIndex />
-      </Suspense>
+      <SandboxIndex />
     </div>
   );
 }
