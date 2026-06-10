@@ -47,12 +47,15 @@ async function buildAdminList(): Promise<
   const dbAdmins = await listAdminUsers();
   const superId = Number(process.env.SUPERADMIN_CHARACTER_ID);
   const haveSuperId = Number.isFinite(superId) && superId > 0;
-  const alreadyListed = dbAdmins.some(a => a.characterId === superId);
+  // Identify the superadmin by the USER that owns the env character id, not by a
+  // displayed character id: a pilot can now link several characters (3.4.2), so
+  // the row's shown character isn't necessarily the superadmin one.
+  const superUser = haveSuperId ? await getUserByCharacterId(superId) : null;
+  const superUserId = superUser?.userId ?? null;
 
-  const rows = dbAdmins.map(u => ({ user: u, isSuperadmin: u.characterId === superId }));
-  if (haveSuperId && !alreadyListed) {
-    const superUser = await getUserByCharacterId(superId);
-    if (superUser) rows.unshift({ user: superUser, isSuperadmin: true });
+  const rows = dbAdmins.map(u => ({ user: u, isSuperadmin: u.userId === superUserId }));
+  if (superUser && !dbAdmins.some(a => a.userId === superUserId)) {
+    rows.unshift({ user: superUser, isSuperadmin: true });
   }
   return rows;
 }

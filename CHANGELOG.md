@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-06-09
 
+- You can now link more than one EVE character to your account. Open your portrait in the top bar to see all your characters, choose which one the site treats as active, reconnect a character that needs fresh access, or unlink one you no longer use.
 - Signing in with EVE now prompts you to re-authorize once, granting the additional character access — skills, skill queue, and industry jobs — that upcoming tools build on.
 
 ### 2026-06-08

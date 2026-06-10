@@ -13,7 +13,6 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { customSession, genericOAuth, jwt } from 'better-auth/plugins';
-import { and, eq } from 'drizzle-orm';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { db } from '@/db';
 import {
@@ -25,7 +24,7 @@ import {
   exchangeCodeForToken,
   verifyEveJwt,
 } from './eve-sso';
-import { upsertCharacterOnLogin } from './queries';
+import { resolveActiveCharacter, upsertCharacterOnLogin } from './queries';
 import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import { TOKEN_CRYPTO_VERSION, encryptToken } from './token-crypto';
@@ -79,20 +78,6 @@ function encryptAccountTokens<
   return out;
 }
 
-// Resolve a user's active EVE character id. In 3.4.1a a user has exactly one
-// linked character; alt selection arrives in 3.4.2. One indexed lookup on
-// account(provider, user).
-async function getActiveCharacterId(userId: string): Promise<number | null> {
-  const [row] = await db
-    .select({ accountId: account.accountId })
-    .from(account)
-    .where(and(eq(account.userId, userId), eq(account.providerId, EVE_PROVIDER_ID)))
-    .limit(1);
-  if (!row) return null;
-  const id = Number(row.accountId);
-  return Number.isFinite(id) ? id : null;
-}
-
 // Same authz rule as the legacy isAdmin(): env-driven superadmin (keyed on the
 // active character id) OR the DB-driven per-user ADMIN role.
 function computeIsAdmin(characterId: number | null, role: CharacterRole): boolean {
@@ -121,15 +106,37 @@ const options = {
       update: { before: async (acct) => ({ data: encryptAccountTokens(acct) }) },
     },
   },
+  // Account-linking policy (3.4.2). Each EVE character is its own `account` row
+  // under the same user. EVE issues no email, so every character carries a
+  // DISTINCT synthetic address (`<id>@eve.invalid`) — which means a linked
+  // character's email never matches the session user's. allowDifferentEmails is
+  // therefore mandatory: without it Better Auth's link callback refuses every
+  // link with `email_doesn't_match`. We do NOT set updateUserInfoOnLink, so
+  // linking an alt never overwrites the main user row's name/image.
+  account: {
+    accountLinking: { allowDifferentEmails: true },
+  },
   user: {
     additionalFields: {
       // Per-user admin role; the actual column is the character_role enum with a
       // 'USER' default. input:false keeps it admin-controlled, never client-set.
       role: { type: 'string', required: false, defaultValue: 'USER', input: false },
+      // The active/current character (3.4.2) — a linked character id. Better Auth
+      // has no 'bigint' field TYPE, so it's typed 'number' with the separate
+      // `bigint` storage flag (the real column is our Drizzle bigint); EVE ids sit
+      // far below MAX_SAFE_INTEGER. input:false keeps it server-controlled — only
+      // the switch/unlink routes and the session resolver's backfill write it.
+      activeCharacterId: { type: 'number', bigint: true, required: false, input: false },
     },
   },
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days — matches the retired JWE cookie lifetime
+    // Disable the session-freshness gate (3.4.2). unlink-account runs behind
+    // freshSessionMiddleware, which 403s once a session is older than freshAge
+    // (default 1 day) — but our sessions live 7 days, so unlinking a character a
+    // day after sign-in would fail. We have no other fresh-gated flow (no
+    // delete-user / change-password), so 0 disables it cleanly.
+    freshAge: 0,
     // Sign the base session into the cookie so getSession validates it without a
     // DB read for the cache window. (customSession's enrichment is never cached,
     // so the active-character lookup still runs each call — see session.ts.)
@@ -234,13 +241,20 @@ export const auth = betterAuth({
     // the server shim (session.ts) and the client (useSession) read these.
     customSession(async ({ user: u, session: s }) => {
       const role = (u.role as CharacterRole) ?? 'USER';
-      const characterId = await getActiveCharacterId(u.id);
+      // Resolve the ACTIVE character (the one named by user.activeCharacterId, or
+      // the oldest linked account as a fallback) and derive identity from it, so
+      // the header portrait/name always match the active selection — independent
+      // of the `overrideUserInfo` churn that rewrites u.name/u.image to whichever
+      // character last signed in. One indexed lookup; name/portrait fall back to
+      // the user row only if the character's profile hasn't been written yet.
+      const active = await resolveActiveCharacter(u.id, u.activeCharacterId ?? null);
+      const characterId = active?.characterId ?? null;
       return {
         user: u,
         session: s,
         characterId,
-        name: u.name,
-        portraitUrl: u.image ?? '',
+        name: active?.name ?? u.name,
+        portraitUrl: active?.portraitUrl ?? u.image ?? '',
         role,
         isAdmin: computeIsAdmin(characterId, role),
       };

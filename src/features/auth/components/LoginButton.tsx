@@ -42,16 +42,22 @@ export function LoginButton() {
           <Chip tone="purple">Admin</Chip>
         </a>
       ) : null}
-      <img
-        src={session.portraitUrl}
-        alt={session.name}
-        width={28}
-        height={28}
-        loading="eager"
-        decoding="async"
-        className="rounded-[2px] border border-border-idle"
-      />
-      <span className="font-mono text-[11px] text-text">{session.name}</span>
+      <a
+        href="/characters"
+        title="Manage your characters"
+        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+      >
+        <img
+          src={session.portraitUrl}
+          alt={session.name}
+          width={28}
+          height={28}
+          loading="eager"
+          decoding="async"
+          className="rounded-[2px] border border-border-idle"
+        />
+        <span className="font-mono text-[11px] text-text">{session.name}</span>
+      </a>
       <button
         type="button"
         onClick={() => {
