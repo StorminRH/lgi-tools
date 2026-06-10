@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -36,9 +37,9 @@ export async function UsersSection({ range }: { range: DateRange }) {
       )}
       <div className="px-3.5 py-2 border-t border-border-soft font-mono text-[11px] text-muted">
         Admin roles and the role-change audit live on{' '}
-        <a href="/admin/access" className="text-isk hover:text-name transition-colors">
+        <Link href="/admin/access" className="text-isk hover:text-name transition-colors">
           Access →
-        </a>
+        </Link>
       </div>
     </Card>
   );

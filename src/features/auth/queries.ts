@@ -1,8 +1,8 @@
-import { and, asc, eq, ilike, lt, notExists, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
-import { account, characters, user } from './schema';
+import { account, characters, session, user } from './schema';
 import type { Character, CharacterRole } from './types';
 
 interface UpsertInput {
@@ -354,4 +354,98 @@ export async function getStoredActiveCharacterId(userId: string): Promise<number
     .where(eq(user.id, userId))
     .limit(1);
   return row?.activeCharacterId ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Admin character management. These act on an ARBITRARY user (not the caller),
+// so they're direct DB writes rather than Better Auth API calls — auth.api
+// .unlinkAccount only ever targets the session's own user. Admin gating +
+// ownership checks live in the /api/admin/* route handlers; these helpers
+// assume already-validated inputs. The encrypted EVE tokens are columns on the
+// `account` row, so deleting/moving the row carries them with it.
+// ---------------------------------------------------------------------------
+
+// Remove one linked EVE character from a user (admin force-unlink). Returns
+// whether a row was actually deleted. Caller re-points the user's active
+// character if this was it (mirrors the self-service unlink route).
+export async function deleteLinkedCharacter(
+  userId: string,
+  characterId: number,
+): Promise<boolean> {
+  const deleted = await db
+    .delete(account)
+    .where(and(eveAccountsForUser(userId), eq(account.accountId, String(characterId))))
+    .returning({ id: account.id });
+  return deleted.length > 0;
+}
+
+// Force-logout: delete every session row for a user. Returns the count removed.
+// Note: with the session cookie cache on, an already-issued cookie can keep a
+// user "signed in" until it expires (cookieCache.maxAge) and getSession next
+// revalidates against the now-missing row — so revocation isn't instantaneous.
+export async function revokeUserSessions(userId: string): Promise<number> {
+  const deleted = await db
+    .delete(session)
+    .where(eq(session.userId, userId))
+    .returning({ id: session.id });
+  return deleted.length;
+}
+
+// Count of a user's currently-valid (non-expired) sessions — context for the
+// admin force-logout control. Expired rows are pruned lazily by Better Auth, so
+// filter them out here rather than counting stale rows.
+export async function getActiveSessionCount(userId: string): Promise<number> {
+  const rows = await db
+    .select({ id: session.id })
+    .from(session)
+    .where(and(eq(session.userId, userId), gt(session.expiresAt, new Date())));
+  return rows.length;
+}
+
+// Move a single linked character from one user onto another (admin reassign —
+// the one-click merge). The unique key is (providerId, accountId), so changing
+// only userId never conflicts. If the source user is left with no EVE accounts
+// the source `user` row is deleted (its sessions cascade) — an account-less
+// user can never be signed into again, so this is the natural completion of a
+// merge, not a separate destructive delete. If the source keeps other
+// characters, its active pointer is re-aimed when we moved the active one.
+// Writes are sequential (the request-path neon-http client is transaction-free);
+// the operation is admin-only and low-rate, so the brief non-atomic window is
+// acceptable — same trade-off the self-service unlink route already makes.
+export async function reassignCharacter({
+  characterId,
+  fromUserId,
+  toUserId,
+}: {
+  characterId: number;
+  fromUserId: string;
+  toUserId: string;
+}): Promise<{ sourceDeleted: boolean }> {
+  await db
+    .update(account)
+    .set({ userId: toUserId, updatedAt: new Date() })
+    .where(
+      and(
+        eq(account.providerId, EVE_PROVIDER_ID),
+        eq(account.accountId, String(characterId)),
+        eq(account.userId, fromUserId),
+      ),
+    );
+
+  const [remaining] = await db
+    .select({ id: account.id })
+    .from(account)
+    .where(eveAccountsForUser(fromUserId))
+    .limit(1);
+
+  if (!remaining) {
+    await db.delete(user).where(eq(user.id, fromUserId));
+    return { sourceDeleted: true };
+  }
+
+  const active = await getStoredActiveCharacterId(fromUserId);
+  if (active === characterId) {
+    await repointActiveToOldest(fromUserId);
+  }
+  return { sourceDeleted: false };
 }

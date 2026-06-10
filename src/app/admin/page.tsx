@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
@@ -86,12 +87,12 @@ async function AdminContent({
           </div>
           <div className="flex items-center gap-3">
             <RangeSelector range={rangeKey} />
-            <a
+            <Link
               href="/admin/access"
               className="no-print font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
             >
               Access →
-            </a>
+            </Link>
             <PrintButton />
           </div>
         </div>
