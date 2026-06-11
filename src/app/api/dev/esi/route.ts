@@ -55,9 +55,13 @@ export async function POST(req: Request): Promise<Response> {
     } satisfies DevEsiReadResponse);
   }
 
-  const path = DEV_ESI_ENDPOINTS[endpoint].pathTemplate
-    .replace('{characterId}', String(characterId))
-    .replace('{planetId}', String(planetId));
+  let path = DEV_ESI_ENDPOINTS[endpoint].pathTemplate.replace(
+    '{characterId}',
+    String(characterId),
+  );
+  if (planetId !== undefined) {
+    path = path.replace('{planetId}', String(planetId));
+  }
 
   const outboundHeaders: Record<string, string> = {
     Authorization: `Bearer ${token.accessToken}`,

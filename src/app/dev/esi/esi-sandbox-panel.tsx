@@ -6,7 +6,7 @@
 // A repeat read replays the held ETag as If-None-Match so the 304 path is
 // visible. State is per-character component state; nothing persists.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
@@ -147,6 +147,9 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
   );
   // Keyed by endpoint id, or `planet_detail:<planetId>` for drill-ins.
   const [reads, setReads] = useState<Record<string, ReadState>>({});
+  // Bumped on character switch so an in-flight read for the previous
+  // character can't land its result under the new one.
+  const readGeneration = useRef(0);
 
   const selected = characters.find((c) => c.characterId === selectedId) ?? null;
 
@@ -159,6 +162,7 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
     ifNoneMatch?: string;
   }) {
     if (!selected) return;
+    const generation = readGeneration.current;
     setRead(key, { phase: 'loading' });
     try {
       const result = await apiFetch(devEsiReadEndpoint, {
@@ -169,6 +173,7 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
           ...(options?.ifNoneMatch ? { ifNoneMatch: options.ifNoneMatch } : {}),
         },
       });
+      if (readGeneration.current !== generation) return;
       if (!result.ok) {
         setRead(key, {
           phase: 'failed',
@@ -178,6 +183,7 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
       }
       setRead(key, { phase: 'done', result: result.data });
     } catch {
+      if (readGeneration.current !== generation) return;
       setRead(key, { phase: 'failed', message: 'Network error — the read did not complete.' });
     }
   }
@@ -226,6 +232,7 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
               key={c.characterId}
               type="button"
               onClick={() => {
+                readGeneration.current += 1;
                 setSelectedId(c.characterId);
                 setReads({});
               }}
