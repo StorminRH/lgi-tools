@@ -10,6 +10,20 @@ import { SITE_URL } from "@/config/site-url";
 // guarantee that they can never be indexed even if protection is turned off.
 const CANONICAL_HOST = new URL(SITE_URL).host;
 
+// The Convex backend origin for connect-src (3.4.3). A literal NEXT_PUBLIC_*
+// read is inlined into this bundle at BUILD time (define-env covers the
+// node/edge server targets, verified in next@16.2.6) — which is required: on
+// Vercel the value exists ONLY in the build env, injected per deployment by
+// `npx convex deploy --cmd-url-env-var-name`, so prod and every preview get
+// their exact backend origin (https for the initial handshake, wss for the
+// reactive websocket). Deliberately NOT a `*.convex.cloud` wildcard — that
+// would admit every Convex customer's backend as a connect target. Unset
+// (a Convex-less local build) leaves the policy byte-identical to before.
+const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+const CONVEX_CONNECT_SRC = CONVEX_URL
+  ? ` https://${new URL(CONVEX_URL).host} wss://${new URL(CONVEX_URL).host}`
+  : "";
+
 // Per-request Content-Security-Policy. Through 3.0.4.5 this used a fresh
 // per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which
 // forced every route to dynamic rendering. 3.0.4.6 retired the nonce — the
@@ -43,7 +57,7 @@ export function proxy(request: NextRequest): NextResponse {
     style-src 'self'${isDev ? " 'unsafe-inline'" : ""};
     img-src 'self' blob: data: https://images.evetech.net;
     font-src 'self';
-    connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com;
+    connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com${CONVEX_CONNECT_SRC};
     frame-src 'none';
     frame-ancestors 'none';
     form-action 'self';

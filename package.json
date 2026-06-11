@@ -15,7 +15,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "tsx src/db/migrate.ts && tsx src/db/backfill-users-if-empty.ts && tsx src/db/ingest-sde-if-empty.ts && next build && node scripts/assert-route-classification.mjs",
+    "vercel-build": "npx convex deploy --cmd 'pnpm build:vercel' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL",
+    "build:vercel": "tsx src/db/migrate.ts && tsx src/db/backfill-users-if-empty.ts && tsx src/db/ingest-sde-if-empty.ts && next build && node scripts/assert-route-classification.mjs",
     "start": "next start",
     "assert:routes": "node scripts/assert-route-classification.mjs",
     "lint": "eslint",
@@ -51,6 +52,7 @@
     "better-auth": "^1.6.15",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "convex": "^1.41.0",
     "drizzle-orm": "^0.45.2",
     "fuzzysort": "^3.1.0",
     "google-auth-library": "^10.7.0",
