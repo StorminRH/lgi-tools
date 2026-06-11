@@ -1,7 +1,6 @@
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
-import { ESI_BUDGET_FLOOR } from './constants';
 
 // Wrapper around `fetch` that enforces ESI's error-limit budget. Every ESI
 // response carries X-ESI-Error-Limit-Remain (a count, not a percentage)
@@ -10,13 +9,25 @@ import { ESI_BUDGET_FLOOR } from './constants';
 // on the window boundary. At zero, ESI returns 420 and starts banning the
 // caller's IP for ~24h.
 //
+// The limit is per-IP and shared across every ESI call the app makes, so
+// this gate is the single door: all ESI consumers route through esiFetch
+// (a second wrapper with its own budget state would under-count the shared
+// limit). The gate is OAuth-agnostic — headers passed via `init` (e.g. a
+// per-call Authorization token) go through untouched.
+//
 // Strategy: track the latest remaining count in module-level state, and
-// refuse to dispatch new calls when it dips below ESI_BUDGET_FLOOR. The
-// dispatcher in source.ts catches the refusal and falls back to Fuzzwork
-// for the affected batch.
+// refuse to dispatch new calls when it dips below ESI_BUDGET_FLOOR. Callers
+// catch the refusal and degrade their own way (market-prices falls back to
+// its Fuzzwork mirror for the affected batch).
+
+// Refuse to dispatch new ESI calls when X-ESI-Error-Limit-Remain falls
+// below this floor. ESI's actual ceiling is 100 errors per rolling
+// window; a 20-error pre-ban margin gives us enough slack to log and
+// degrade before the next request would trip the ban.
+export const ESI_BUDGET_FLOOR = 20;
 
 // Thrown when the budget remaining drops below ESI_BUDGET_FLOOR. Caller
-// should stop dispatching ESI calls and fall back to Fuzzwork.
+// should stop dispatching ESI calls and degrade.
 export class EsiBudgetExhaustedError extends Error {
   constructor(public readonly remaining: number) {
     super(`ESI error budget exhausted: ${remaining} remaining (floor ${ESI_BUDGET_FLOOR})`);
@@ -24,9 +35,10 @@ export class EsiBudgetExhaustedError extends Error {
   }
 }
 
-// Thrown when ESI returns a 5xx. Caller may retry or fall back. Treated
-// as a transient single-call failure, not a global outage — the bulk path
-// upgrades repeated 5xx to a Fuzzwork-fallback escalation.
+// Thrown when ESI returns a 5xx. Caller may retry or degrade. Treated
+// as a transient single-call failure, not a global outage — e.g. the
+// market-prices bulk path upgrades repeated 5xx to a Fuzzwork-fallback
+// escalation.
 export class EsiServerError extends Error {
   constructor(public readonly status: number) {
     super(`ESI server error: ${status}`);
@@ -35,8 +47,8 @@ export class EsiServerError extends Error {
 }
 
 // Thrown when an ESI response body fails its boundary schema (a shape change
-// or an unexpected error body). Routed to Fuzzwork the same way an HTTP error
-// is — a malformed body is no more usable than a 5xx.
+// or an unexpected error body). Callers route it the same way they route an
+// HTTP error — a malformed body is no more usable than a 5xx.
 export class EsiContractError extends Error {
   constructor() {
     super('ESI response failed boundary validation');
@@ -48,7 +60,12 @@ export class EsiContractError extends Error {
 // Infinity so the first call always dispatches (no info → assume healthy).
 // Module-level, so per-Lambda: each cold Vercel instance starts fresh at
 // Infinity and concurrent invocations don't share this knowledge. Fine given
-// the hourly cron cadence and ESI's ~60s reset window — not shared global state.
+// pricing's hourly cron cadence and ESI's ~60s reset window — not shared
+// global state. CARRY-FORWARD: per-user character syncs (3.4.6+) break that
+// cadence assumption — many short-lived invocations each start blind at
+// Infinity and can collectively overshoot the shared per-IP budget. Resolved
+// by Decision Record 11: the budget moves to a shared atomic scoreboard
+// (Upstash Redis) in 3.4.5, which upgrades this gate in place.
 let latestRemaining = Number.POSITIVE_INFINITY;
 
 // Read the budget remaining; intended for diagnostics + tests, not for

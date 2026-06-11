@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
-import { ESI_BUDGET_FLOOR } from './constants';
 import {
   __resetBudgetForTests,
+  ESI_BUDGET_FLOOR,
   EsiBudgetExhaustedError,
   EsiServerError,
   esiFetch,
   getBudgetRemaining,
-} from './esi-budget';
+} from './index';
 
 function mockResponse(
   status: number,
