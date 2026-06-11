@@ -137,6 +137,9 @@ import {
 const TEST_URL = 'https://esi.evetech.net/markets/10000002/orders/?type_id=34';
 const BLOCK_KEY = 'lgi:esi:rl:block:/markets/{n}/orders';
 const ECHO_KEY = 'lgi:esi:err:echo';
+// ETag keys carry path + query only — the host is invariant.
+const ETAG_META_KEY = 'lgi:esi:etag:meta:/markets/10000002/orders/?type_id=34';
+const ETAG_BODY_KEY = 'lgi:esi:etag:body:/markets/10000002/orders/?type_id=34';
 
 function makeReport(overrides: Partial<EsiReport>): EsiReport {
   return {
@@ -234,17 +237,23 @@ describe('RedisScoreboard', () => {
     });
   });
 
-  it('surfaces an active Retry-After block for the normalized route', async () => {
+  it('surfaces the seconds remaining on an active Retry-After block', async () => {
     const sb = redisScoreboard();
-    seed(BLOCK_KEY, '30');
+    // Block values are stored as their expiry in epoch seconds.
+    seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) + 30));
     const state = await sb.preDispatch(TEST_URL, false);
     expect(state.blockedRetryAfter).toBe(30);
+
+    // An already-expired value reads as no block.
+    seed(BLOCK_KEY, String(Math.floor(Date.now() / 1000) - 5));
+    const expired = await sb.preDispatch(TEST_URL, false);
+    expect(expired.blockedRetryAfter).toBeNull();
   });
 
   it('returns stored ETag meta only when asked', async () => {
     const sb = redisScoreboard();
     seed(
-      `lgi:esi:etag:meta:${TEST_URL}`,
+      ETAG_META_KEY,
       JSON.stringify({ etag: '"abc"', expires: 'E', contentType: 'ct' }),
     );
 
@@ -321,16 +330,17 @@ describe('RedisScoreboard', () => {
 
   it('writes a Retry-After block on 429, defaulting and clamping the duration', async () => {
     const sb = redisScoreboard();
+    const nowSec = Math.floor(Date.now() / 1000);
 
     await sb.report(makeReport({ status: 429 }));
-    expect(h.store.get(BLOCK_KEY)?.value).toBe('60');
+    expect(h.store.get(BLOCK_KEY)?.value).toBe(String(nowSec + 60));
     expect(h.store.get(BLOCK_KEY)?.expiresAt).toBe(Date.now() + 60_000);
 
     await sb.report(makeReport({ status: 429, retryAfter: 7200 }));
-    expect(h.store.get(BLOCK_KEY)?.value).toBe('3600');
+    expect(h.store.get(BLOCK_KEY)?.value).toBe(String(nowSec + 3600));
 
     await sb.report(makeReport({ status: 429, retryAfter: 30 }));
-    expect(h.store.get(BLOCK_KEY)?.value).toBe('30');
+    expect(h.store.get(BLOCK_KEY)?.value).toBe(String(nowSec + 30));
   });
 
   it('stores per-group token-bucket state for the sync engine to read', async () => {
@@ -370,13 +380,13 @@ describe('RedisScoreboard', () => {
       }),
     );
 
-    expect(JSON.parse(h.store.get(`lgi:esi:etag:meta:${TEST_URL}`)!.value)).toEqual({
+    expect(JSON.parse(h.store.get(ETAG_META_KEY)!.value)).toEqual({
       etag: '"abc"',
       expires: 'E',
       contentType: 'application/json',
     });
-    expect(h.store.get(`lgi:esi:etag:body:${TEST_URL}`)?.value).toBe('{"a":1}');
-    expect(h.store.get(`lgi:esi:etag:body:${TEST_URL}`)?.expiresAt).toBe(
+    expect(h.store.get(ETAG_BODY_KEY)?.value).toBe('{"a":1}');
+    expect(h.store.get(ETAG_BODY_KEY)?.expiresAt).toBe(
       Date.now() + 172_800_000,
     );
     await expect(sb.getCachedBody(TEST_URL)).resolves.toBe('{"a":1}');
@@ -398,8 +408,8 @@ describe('RedisScoreboard', () => {
       }),
     );
 
-    expect(JSON.parse(h.store.get(`lgi:esi:etag:meta:${TEST_URL}`)!.value).expires).toBe('E2');
-    expect(h.store.get(`lgi:esi:etag:body:${TEST_URL}`)?.expiresAt).toBe(
+    expect(JSON.parse(h.store.get(ETAG_META_KEY)!.value).expires).toBe('E2');
+    expect(h.store.get(ETAG_BODY_KEY)?.expiresAt).toBe(
       Date.now() + 172_800_000,
     );
   });

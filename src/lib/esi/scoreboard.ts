@@ -62,7 +62,9 @@ export interface PreDispatchState {
   // min(echo ?? ceiling, ceiling − selfCount) — the pessimistic combination
   // of both error-limit mirrors.
   effectiveRemaining: number;
-  // Seconds from an active Retry-After block on this route, or null.
+  // Seconds REMAINING on an active Retry-After block for this route, or null
+  // when there is none. Remaining (not the original Retry-After duration) so
+  // a scheduler can compute the retry deadline as `now + blockedRetryAfter`.
   blockedRetryAfter: number | null;
   // Stored ETag meta for this URL (only populated when the gate asked).
   etag: CachedEtagMeta | null;
@@ -126,11 +128,19 @@ function keyBlock(path: string): string {
 function keyGroup(group: string): string {
   return `${KEY_PREFIX}:rl:group:${group}`;
 }
+// ETag keys carry the path + query only — every ESI URL shares one host (the
+// lint rail guarantees it), so embedding it would just bloat thousands of
+// per-type keys. Unlike normalizeEsiPath, no segment collapsing: the cache
+// entry is per exact resource.
+function urlPathAndQuery(url: string): string {
+  const parsed = new URL(url);
+  return `${parsed.pathname}${parsed.search}`;
+}
 function keyEtagMeta(url: string): string {
-  return `${KEY_PREFIX}:etag:meta:${url}`;
+  return `${KEY_PREFIX}:etag:meta:${urlPathAndQuery(url)}`;
 }
 function keyEtagBody(url: string): string {
-  return `${KEY_PREFIX}:etag:body:${url}`;
+  return `${KEY_PREFIX}:etag:body:${urlPathAndQuery(url)}`;
 }
 
 // The one atomic piece: never let a stale higher Remain reopen the gate.
@@ -200,12 +210,17 @@ class RedisScoreboard implements EsiScoreboard {
     const selfCount =
       (parseStoredInt(rows[0]) ?? 0) + (parseStoredInt(rows[1]) ?? 0);
     const echo = parseStoredInt(rows[2]);
+    // The block value is its expiry as epoch seconds; surface time remaining.
+    const blockExpiry = parseStoredInt(rows[3]);
+    const blockRemaining =
+      blockExpiry !== null ? blockExpiry - Math.floor(Date.now() / 1000) : null;
     return {
       effectiveRemaining: Math.min(
         echo ?? ESI_ERROR_CEILING,
         ESI_ERROR_CEILING - selfCount,
       ),
-      blockedRetryAfter: parseStoredInt(rows[3]),
+      blockedRetryAfter:
+        blockRemaining !== null && blockRemaining > 0 ? blockRemaining : null,
       etag: wantEtag ? parseStoredMeta(rows[4] ?? null) : null,
     };
   }
@@ -260,9 +275,11 @@ class RedisScoreboard implements EsiScoreboard {
         1,
         RETRY_AFTER_MAX_SECONDS,
       );
-      pipeline.set(keyBlock(normalizeEsiPath(report.url)), String(retryAfter), {
-        ex: retryAfter,
-      });
+      pipeline.set(
+        keyBlock(normalizeEsiPath(report.url)),
+        String(Math.floor(Date.now() / 1000) + retryAfter),
+        { ex: retryAfter },
+      );
       queued = true;
     }
 
@@ -296,7 +313,7 @@ class RedisScoreboard implements EsiScoreboard {
 class MemoryScoreboard implements EsiScoreboard {
   private errorCounts = new Map<number, number>();
   private echo: { value: number; expiresAt: number } | null = null;
-  private blocks = new Map<string, { retryAfter: number; expiresAt: number }>();
+  private blocks = new Map<string, { expiresAt: number }>();
   private metas = new Map<string, { meta: CachedEtagMeta; expiresAt: number }>();
   private bodies = new Map<string, { body: string; expiresAt: number }>();
 
@@ -323,7 +340,9 @@ class MemoryScoreboard implements EsiScoreboard {
         ESI_ERROR_CEILING - selfCount,
       ),
       blockedRetryAfter:
-        block !== undefined && block.expiresAt > now ? block.retryAfter : null,
+        block !== undefined && block.expiresAt > now
+          ? Math.ceil((block.expiresAt - now) / 1000)
+          : null,
       etag: meta !== undefined && meta.expiresAt > now ? meta.meta : null,
     };
   }
@@ -356,7 +375,6 @@ class MemoryScoreboard implements EsiScoreboard {
         RETRY_AFTER_MAX_SECONDS,
       );
       this.blocks.set(normalizeEsiPath(report.url), {
-        retryAfter,
         expiresAt: now + retryAfter * 1000,
       });
     }
