@@ -23,8 +23,14 @@ function useAuthForConvex() {
   const isAuthenticated = session !== null;
 
   const fetchAccessToken = useCallback(async () => {
-    const result = await apiFetch(tokenEndpoint);
-    return result.ok ? result.data.token : null;
+    // Convex's contract wants null on failure — a thrown network error (DNS,
+    // connection reset) would wedge its auth state machine until reload.
+    try {
+      const result = await apiFetch(tokenEndpoint);
+      return result.ok ? result.data.token : null;
+    } catch {
+      return null;
+    }
   }, []);
 
   return useMemo(
