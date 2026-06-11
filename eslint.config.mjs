@@ -290,6 +290,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Convex generated code (committed for CI typecheck, regenerated on deploy).
+    "convex/_generated/**",
   ]),
 ]);
 

@@ -8,6 +8,7 @@ import { Footer } from "@/components/Footer";
 import { FeedbackButton } from "@/components/FeedbackButton";
 import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
+import { ConvexClientProvider } from "@/features/auth/components/ConvexClientProvider";
 import { SITE_URL } from "@/config/site-url";
 import { readEnv } from "@/lib/env";
 
@@ -72,10 +73,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <AppHeader />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <FeedbackButton />
+          <ConvexClientProvider>
+            <AppHeader />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <FeedbackButton />
+          </ConvexClientProvider>
         </AuthProvider>
         <Suspense fallback={null}>
           <TelemetryReporter />

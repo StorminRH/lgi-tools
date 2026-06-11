@@ -105,3 +105,14 @@ export const signInOauth2Endpoint: ApiEndpoint<
   request: signInOauth2RequestSchema,
   response: signInOauth2ResponseSchema,
 };
+
+// GET /api/auth/token — the jwt plugin's mint endpoint (session-gated; 401
+// when anonymous). The Convex client bridge (3.4.3) pulls the ES256 JWT here
+// on (re)connect; each call mints fresh, so there's no client-side caching.
+const tokenResponseSchema = z.object({ token: z.string() });
+export const tokenEndpoint: ApiEndpoint<null, z.infer<typeof tokenResponseSchema>> = {
+  method: 'GET',
+  path: '/api/auth/token',
+  request: null, // GET — no body
+  response: tokenResponseSchema,
+};
