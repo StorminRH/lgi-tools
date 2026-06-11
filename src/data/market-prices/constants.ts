@@ -41,12 +41,6 @@ export const PAGE_CONCURRENCY = 8;
 // at 10-wide and finishes in ~6 batches.
 export const PER_TYPE_CONCURRENCY = 10;
 
-// Refuse to dispatch new ESI calls when X-ESI-Error-Limit-Remain falls
-// below this floor. ESI's actual ceiling is 100 errors per rolling
-// window; a 20-error pre-ban margin gives us enough slack to log and
-// fall back to Fuzzwork before the next request would trip the ban.
-export const ESI_BUDGET_FLOOR = 20;
-
 // IP-keyed rate limit on the public on-demand refresh trigger
 // (/api/market-prices/refresh). 20 requests per minute is generous for the
 // real consumer (3.0.5's Industry Planner client refreshes one blueprint's

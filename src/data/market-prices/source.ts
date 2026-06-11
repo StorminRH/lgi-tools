@@ -11,7 +11,7 @@ import {
   EsiContractError,
   EsiServerError,
   esiFetch,
-} from './esi-budget';
+} from '@/lib/esi';
 import { dedupe } from '@/lib/array';
 import { fetchPricesFromFuzzwork } from './source-fallback';
 import type { RawMarketPrice } from './types';

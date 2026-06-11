@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BULK_THRESHOLD } from './constants';
-import { EsiBudgetExhaustedError, EsiServerError } from './esi-budget';
+import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
 import { computeSide, fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
 
-vi.mock('./esi-budget', async () => {
+vi.mock('@/lib/esi', async () => {
   const actual =
-    await vi.importActual<typeof import('./esi-budget')>('./esi-budget');
+    await vi.importActual<typeof import('@/lib/esi')>('@/lib/esi');
   return {
     ...actual,
     esiFetch: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock('./source-fallback', () => ({
   fetchPricesFromFuzzwork: vi.fn(),
 }));
 
-import { esiFetch } from './esi-budget';
+import { esiFetch } from '@/lib/esi';
 import { fetchPricesFromFuzzwork } from './source-fallback';
 
 interface SyntheticOrder {
