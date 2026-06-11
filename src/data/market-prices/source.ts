@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   BULK_THRESHOLD,
-  ESI_BASE_URL,
   ESI_REGION_ID_FORGE,
   PAGE_CONCURRENCY,
   PER_TYPE_CONCURRENCY,
@@ -11,6 +10,7 @@ import {
   EsiContractError,
   EsiServerError,
   esiFetch,
+  esiUrl,
 } from '@/lib/esi';
 import { dedupe } from '@/lib/array';
 import { fetchPricesFromFuzzwork } from './source-fallback';
@@ -216,11 +216,11 @@ function bucketsToRawPrices(
 }
 
 function regionDumpPageUrl(page: number): string {
-  return `${ESI_BASE_URL}/markets/${ESI_REGION_ID_FORGE}/orders/?order_type=all&page=${page}`;
+  return esiUrl(`/markets/${ESI_REGION_ID_FORGE}/orders/?order_type=all&page=${page}`);
 }
 
 function perTypeUrl(typeId: number): string {
-  return `${ESI_BASE_URL}/markets/${ESI_REGION_ID_FORGE}/orders/?type_id=${typeId}&order_type=all`;
+  return esiUrl(`/markets/${ESI_REGION_ID_FORGE}/orders/?type_id=${typeId}&order_type=all`);
 }
 
 // Bulk path: stream every order page in The Forge, filter to the requested
