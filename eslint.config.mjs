@@ -76,6 +76,28 @@ const apiFetchSelectors = [
   },
 ];
 
+// ESI gate enforcement (3.4.5): CCP's error limit is per-IP and shared across
+// every ESI call the app makes — one un-gated call burns budget the shared
+// scoreboard can't see, and overrunning the limit is a permanent IP-wide ban.
+// Banning the host literal outside src/lib/esi means the only way to target
+// ESI is the gate's own exports (esiUrl + esiFetch). Scoped to the API host
+// exactly: images.evetech.net (the EVE image server) stays legitimately used
+// across the UI. Test files are exempt (they mock with host URLs); the gate
+// slice itself is exempted below. A hand-assembled host string would slip
+// through — accepted, same altitude as the other syntactic bans here.
+const esiHostSelectors = [
+  {
+    selector: String.raw`Literal[value=/esi\.evetech\.net/]`,
+    message:
+      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/lib/esi): the gate owns CCP's shared per-IP error budget. See CLAUDE.md > Architecture Invariants.",
+  },
+  {
+    selector: String.raw`TemplateElement[value.raw=/esi\.evetech\.net/]`,
+    message:
+      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/lib/esi): the gate owns CCP's shared per-IP error budget. See CLAUDE.md > Architecture Invariants.",
+  },
+];
+
 // Typed-env enforcement (3.4.T): server code reads env through the validated
 // registry in src/lib/env.ts, never process.env directly. Exempted by the
 // selector itself: NODE_ENV (bundler-inlined, must stay a direct read) and
@@ -241,9 +263,28 @@ const eslintConfig = defineConfig([
   // Typed env applies to production src code only: test files stub process.env
   // directly (vi.stubEnv and friends), and env.ts is the one module that reads
   // process.env by design. Both keep every other ban via the base block above.
+  // The ESI host ban rides along here for the same reason: production src
+  // only, tests mock with host URLs.
   {
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}", "src/lib/env.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+        ...esiHostSelectors,
+      ],
+    },
+  },
+  // The ESI gate slice is the sanctioned home for the ESI host literal — the
+  // whole point of the ban is to funnel consumers here. Re-state every other
+  // ban without the host selectors (replace semantics).
+  {
+    files: ["src/lib/esi/**/*.{ts,tsx,mts}"],
+    ignores: ["**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -265,6 +306,7 @@ const eslintConfig = defineConfig([
         ...cspSelectors,
         ...apiFetchSelectors,
         ...processEnvSelectors,
+        ...esiHostSelectors,
       ],
     },
   },
@@ -279,6 +321,7 @@ const eslintConfig = defineConfig([
         ...cspSelectors,
         ...apiFetchSelectors,
         ...processEnvSelectors,
+        ...esiHostSelectors,
       ],
     },
   },
