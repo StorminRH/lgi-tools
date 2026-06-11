@@ -18,14 +18,27 @@ export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
 export const EVE_ISSUER = 'https://login.eveonline.com';
 export const EVE_AUDIENCE = 'EVE Online';
 
-// Extending scopes is a config change, not a code change. Beyond publicData the
-// trackers (3.4.x) need character skills + industry jobs; requesting them here
-// means existing pilots re-consent on their next sign-in.
+// Extending scopes is a config change, not a code change — but every addition
+// forces all pilots to re-consent, so 3.4.6 expanded this ONCE to the full
+// tracker superset (Decision Record 13) and it should not grow again without
+// that same weight of decision. Decision Record 13 listed 12 strings, but
+// `esi-skills.read_attributes.v1` no longer exists in the live ESI scope list
+// (verified 2026-06-11 against both the current OpenAPI spec and the legacy
+// swagger) — /characters/{id}/attributes is gated by read_skills. Requesting a
+// nonexistent scope breaks ALL sign-in with `invalid_scope`, so the superset
+// is these 11. Killmail scopes are deliberately excluded (operator decision).
 export const EVE_SCOPES = [
   'publicData',
   'esi-skills.read_skills.v1',
   'esi-skills.read_skillqueue.v1',
   'esi-industry.read_character_jobs.v1',
+  'esi-planets.manage_planets.v1',
+  'esi-characters.read_standings.v1',
+  'esi-clones.read_implants.v1',
+  'esi-clones.read_clones.v1',
+  'esi-location.read_location.v1',
+  'esi-location.read_online.v1',
+  'esi-location.read_ship_type.v1',
 ] as const;
 
 // Boundary schema for the token-exchange envelope. The JWT *claims* are
