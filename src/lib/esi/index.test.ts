@@ -90,6 +90,22 @@ describe('esiFetch', () => {
     );
   });
 
+  it('passes the caller Authorization header through untouched alongside the default User-Agent', async () => {
+    // The OAuth seam (3.4.4 carry-forward, landed with its first consumer in
+    // 3.4.6): authenticated character reads hand the gate a bearer token via
+    // init.headers and rely on it reaching ESI verbatim, while the gate still
+    // applies its set-if-absent User-Agent default to the same request.
+    fetchSpy.mockResolvedValueOnce(mockResponse(200));
+
+    await esiFetch(TEST_URL, {
+      headers: { Authorization: 'Bearer caller-token' },
+    });
+
+    const headers = requestHeaders(fetchSpy, 0);
+    expect(headers.get('Authorization')).toBe('Bearer caller-token');
+    expect(headers.get('User-Agent')).toBe(OUTBOUND_USER_AGENT);
+  });
+
   it('sends the X-Compatibility-Date header to pin the ESI contract', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(200));
 

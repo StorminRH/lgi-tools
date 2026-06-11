@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-06-11
+
+- Signing in with EVE now asks you to re-authorize one more time, granting the full set of character permissions — planetary colonies, standings, implants, clones, location, and current ship, alongside the existing skills and industry access — that the upcoming character tools build on. This is intended to be the last re-authorization.
+
 ### 2026-06-09
 
 - You can now link more than one EVE character to your account. Open your portrait in the top bar to see all your characters, choose which one the site treats as active, reconnect a character that needs fresh access, or unlink one you no longer use.

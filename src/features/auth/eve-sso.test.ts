@@ -10,15 +10,29 @@ import {
 
 describe('EVE_SCOPES', () => {
   // Pins the exact ESI scope strings. EVE rejects an unknown scope with
-  // `invalid_scope`, and the skill-queue read scope lives under the `esi-skills`
-  // namespace — NOT a separate `esi-skillqueue` one (a wrong name shipped in
-  // 3.4.1a and broke sign-in). Verified against the live ESI swagger.
+  // `invalid_scope`, which breaks ALL sign-in (a wrong name shipped in 3.4.1a
+  // and did exactly that). The naming traps, each verified against the live
+  // ESI scope list (2026-06-11):
+  //  - the skill-queue read lives under `esi-skills`, NOT `esi-skillqueue`;
+  //  - character-PI reads are gated by `manage_planets` — no `read_planets`;
+  //  - implants live under `esi-clones`, not `esi-characters`;
+  //  - the location/online/ship reads are three distinct scopes;
+  //  - `esi-skills.read_attributes.v1` DOES NOT EXIST — /attributes is gated
+  //    by `read_skills`, so this set is 11 strings, not Decision Record 13's
+  //    12. Do not "fix" it back.
   it('matches the verified EVE scope names', () => {
     expect([...EVE_SCOPES]).toEqual([
       'publicData',
       'esi-skills.read_skills.v1',
       'esi-skills.read_skillqueue.v1',
       'esi-industry.read_character_jobs.v1',
+      'esi-planets.manage_planets.v1',
+      'esi-characters.read_standings.v1',
+      'esi-clones.read_implants.v1',
+      'esi-clones.read_clones.v1',
+      'esi-location.read_location.v1',
+      'esi-location.read_online.v1',
+      'esi-location.read_ship_type.v1',
     ]);
   });
 });
