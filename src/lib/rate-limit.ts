@@ -121,18 +121,22 @@ export async function rateLimit(
   return { ok: false, retryAfter };
 }
 
-// Extracts the originating IP for rate-limit keying. Vercel sets
-// `x-forwarded-for` with a comma-separated list; the leftmost entry is
-// the client (subsequent entries are proxy hops). Falls back to a fixed
-// bucket so callers without an IP header are still subject to the limit
-// (one shared bucket; in practice only seen for unusual clients).
+// Extracts the originating IP for rate-limit keying. `x-real-ip` is
+// platform-set on Vercel (the connecting client's address; a client can't
+// supply it) and must win: the leftmost `x-forwarded-for` entry is
+// attacker-controlled there — Vercel appends to a client-supplied list
+// rather than replacing it, so keying on it hands every spoofer a fresh
+// bucket (verified live against a preview deployment). The forwarded-for
+// path stays as a fallback for local dev, where `x-real-ip` isn't set;
+// no header at all falls to one fixed shared bucket so such callers are
+// still subject to the limit.
 export function clientIdentifier(headers: Headers): string {
+  const realIp = headers.get("x-real-ip");
+  if (realIp) return realIp;
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
     const first = forwarded.split(",")[0]?.trim();
     if (first) return first;
   }
-  const realIp = headers.get("x-real-ip");
-  if (realIp) return realIp;
   return "unknown";
 }
