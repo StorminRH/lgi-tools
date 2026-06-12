@@ -22,6 +22,7 @@ import {
 } from '@/features/skill-queue/esi-projection';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 import { EsiBudgetExhaustedError, esiFetch, esiUrl } from '@/lib/esi';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { internal } from './_generated/api';
 import { internalAction } from './_generated/server';
 
@@ -68,7 +69,10 @@ export const syncUser = internalAction({
     const held = await ctx.runQuery(internal.skills.heldState, { userId });
     const heldByCharacter = new Map(held.map((h) => [h.characterId, h]));
 
-    const charactersRes = await fetch(`${siteUrl}/api/internal/eve-characters`, {
+    // fetchWithTimeout (not bare fetch): a hung Next.js endpoint must fail
+    // fast into the Action Retrier rather than holding the action open until
+    // the platform kills it.
+    const charactersRes = await fetchWithTimeout(`${siteUrl}/api/internal/eve-characters`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
       body: JSON.stringify({ userId }),
@@ -96,7 +100,7 @@ export const syncUser = internalAction({
         continue;
       }
 
-      const tokenRes = await fetch(`${siteUrl}/api/internal/eve-token`, {
+      const tokenRes = await fetchWithTimeout(`${siteUrl}/api/internal/eve-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
         body: JSON.stringify({ characterId: character.characterId }),
