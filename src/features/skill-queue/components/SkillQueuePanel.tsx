@@ -261,7 +261,7 @@ function CharacterQueueCard({
       ) : (
         data.entries.map((entry) => (
           <QueueEntryRow
-            key={`${entry.skill_id}-${entry.finished_level}`}
+            key={entry.queue_position}
             entry={entry}
             name={names[String(entry.skill_id)]}
             now={now}
