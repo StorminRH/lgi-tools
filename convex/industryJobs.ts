@@ -29,6 +29,11 @@ const retrier = new ActionRetrier(components.actionRetrier);
 // without it one wedged run would block the user's syncs forever.
 const STALE_RUNNING_MS = 3 * 60_000;
 
+// Convex's scheduler rejects a timestamp more than five years out; 5×365 days
+// stays safely under that ceiling. A flip scheduled past it is skipped (a
+// real EVE job never ends that far out — it would be contract drift).
+const SCHEDULE_HORIZON_MS = 5 * 365 * 24 * 60 * 60_000;
+
 // The calling user's synced job boards + run state, grouped client-side by
 // character. ETags and userId are custody/keying details — not on the wire.
 export const forViewer = query({
@@ -220,7 +225,12 @@ export const applySyncResults = internalMutation({
         for (const job of jobs) {
           if (job.status !== 'active') continue;
           const end = Date.parse(job.end_date);
-          if (!Number.isFinite(end)) continue;
+          // Skip an unparseable or absurd end_date instead of letting it throw:
+          // runAt rejects a timestamp more than five years out, and a throw
+          // here would roll back the whole batch and storm the retrier. Real
+          // EVE jobs end in hours-to-weeks, so a far-future date is contract
+          // drift; a future resync schedules it once it's within the horizon.
+          if (!Number.isFinite(end) || end - now > SCHEDULE_HORIZON_MS) continue;
           await ctx.scheduler.runAt(end, internal.industryJobs.markJobReady, {
             userId: args.userId,
             characterId: result.characterId,
@@ -282,12 +292,16 @@ export const markJobReady = internalMutation({
     endDate: v.string(),
   },
   handler: async (ctx, { userId, characterId, jobId, endDate }) => {
+    // .first(), not .unique(): a scheduled mutation that throws is terminal
+    // (not retried), so a duplicate doc must never wedge the flip. The pair
+    // is keyed unique by the apply path; flipping the first is correct either
+    // way.
     const doc = await ctx.db
       .query('industryJobsSync')
       .withIndex('by_user_character', (q) =>
         q.eq('userId', userId).eq('characterId', characterId),
       )
-      .unique();
+      .first();
     if (doc === null || doc.data === null) return;
     const index = findFlipTarget(doc.data.jobs, jobId, endDate);
     if (index === null) return;
