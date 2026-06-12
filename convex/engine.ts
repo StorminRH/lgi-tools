@@ -29,6 +29,24 @@
 // Dedup is the subject row itself: one running guard, one workId, one
 // generation token, all serialized by Convex OCC. Cold-stop is simply the
 // scan skipping the subject — nothing to cancel or tear down.
+//
+// ── Cost model (Convex billing, 3.4.10 audit; every function execution
+// bills as one call, component internals and reactive re-runs included;
+// plan caps Free 1M / Pro 25M calls/mo) ──
+// Idle floor ≈ 94k calls/mo with zero traffic: this 30s scan (86.4k), the
+// 15-min Vercel sweep chain (HTTP action + sweep mutation, 5.8k), and the
+// Workpool's own 30-min healthcheck cron (1.4k).
+// Per visible tab: 3 heartbeats/min, and every beat's lastSeenAt patch
+// re-runs forViewer per subscriber ≈ 360 calls/hr. Per dispatched run:
+// ~11 marginal calls (limit + enqueue + wrapper + action + heldState +
+// apply + complete + onComplete + ~3 forViewer echoes) plus ~34 Workpool
+// main-loop calls (its 200ms cooldown polling; amortizes across a burst).
+// Watched-hour ≈ 3k calls skills (60-run floor), ~0.9k jobs (12) → both-
+// tracker hours ≈ 230/mo on Free, ~6,300 on Pro (~200 daily 1h users, 27×).
+// Calls do NOT scale with characters-per-user — characters multiply ESI
+// reads inside ONE action (action compute + bandwidth scale, calls don't).
+// Calls bind first (action compute converges only near the Pro ceiling);
+// if bandwidth ever binds: move the presence write off the subject row (3.5).
 import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
