@@ -77,26 +77,44 @@ export default defineSchema({
     lastSyncedAt: v.union(v.number(), v.null()),
     // When this doc's ESI cache window ends, read off the response's Expires
     // header (60s observed for skills — but always read, never assumed).
-    // requestSync skips scheduling while every doc is still fresh.
+    // The engine schedules the next run off the per-user minimum.
     expiresAt: v.union(v.number(), v.null()),
     syncError: v.union(v.string(), v.null()),
   })
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
-  // One doc per user: sync-run lifecycle + the latest observed ESI
-  // rate-limit-group numbers (the `char-detail` bucket the 3.4.9 engine will
-  // schedule against).
-  syncStates: defineTable({
+  // One doc per watched subject (dataset × user): presence plus the run
+  // lifecycle the 3.4.9 engine absorbed from the trackers. Replaces the
+  // 3.4.7/3.4.8 twin per-tracker state tables — the dataset is part of the
+  // row key, so the trackers' lifecycles stay isolated (the recorded clobber
+  // rationale) without duplicating the machinery.
+  syncSubjects: defineTable({
+    // Must enumerate the same datasets as SYNC_DATASETS in
+    // src/lib/sync-engine.ts (the engine's registry).
+    dataset: v.union(v.literal('skills'), v.literal('industryJobs')),
     userId: v.string(),
+    // Presence: last heartbeat from a visible tab. The scan stops
+    // dispatching once this is older than COLD_AFTER_MS.
+    lastSeenAt: v.number(),
     status: v.union(v.literal('idle'), v.literal('running')),
-    // The Action Retrier run currently owning this user's sync — the
-    // onComplete callback matches on it, so a superseded run's completion
-    // can't clear a newer run's status.
-    runId: v.union(v.string(), v.null()),
-    // Doubles as the run's generation token: a late applySyncResults from a
-    // taken-over run no-ops unless its generation still matches.
+    // Doubles as the run's generation token (shipped name kept): a late
+    // applySyncResults from a taken-over run no-ops unless it matches.
     lastRequestedAt: v.number(),
+    // The workpool item currently owning this subject — onSyncComplete
+    // matches on it, so a superseded run's completion can't clear a newer
+    // run's status.
+    workId: v.union(v.string(), v.null()),
+    // When the scan should next dispatch this subject; null retires it from
+    // the scan set (cold, or nothing to sync) until a heartbeat revives it.
+    nextDueAt: v.union(v.number(), v.null()),
+    // min(expiresAt) across the user's synced docs after the last run — the
+    // cache-window input to the next due time. null = stale now (first
+    // sync, or an errored character cleared its window — the #95 meaning).
+    minExpiresAt: v.union(v.number(), v.null()),
+    // The characters the last run enumerated, so a heartbeat's hint can
+    // detect a newly linked character without a per-dataset table read.
+    syncedCharacterIds: v.array(v.number()),
     lastFinishedAt: v.union(v.number(), v.null()),
     lastError: v.union(v.string(), v.null()),
     rlGroup: v.union(v.string(), v.null()),
@@ -104,8 +122,8 @@ export default defineSchema({
     rlRemaining: v.union(v.number(), v.null()),
     rlUsed: v.union(v.number(), v.null()),
   })
-    .index('by_user', ['userId'])
-    .index('by_run', ['runId']),
+    .index('by_user_dataset', ['userId', 'dataset'])
+    .index('by_next_due', ['nextDueAt']),
 
   // One doc per (user, character): the synced industry-jobs projection plus
   // this tracker's conditional-request custody — the characterSync twin for
@@ -127,23 +145,4 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
-  // One doc per user: the industry-jobs run lifecycle — a field-for-field
-  // twin of syncStates above. Deliberately a separate table, not a shared
-  // one with a tracker discriminator: each tracker's in-flight guard,
-  // generation token, and runId matching must not clobber the other's.
-  // Unifying the run-lifecycle machinery is the 3.4.9 sync engine's job.
-  industryJobsSyncStates: defineTable({
-    userId: v.string(),
-    status: v.union(v.literal('idle'), v.literal('running')),
-    runId: v.union(v.string(), v.null()),
-    lastRequestedAt: v.number(),
-    lastFinishedAt: v.union(v.number(), v.null()),
-    lastError: v.union(v.string(), v.null()),
-    rlGroup: v.union(v.string(), v.null()),
-    rlLimit: v.union(v.number(), v.null()),
-    rlRemaining: v.union(v.number(), v.null()),
-    rlUsed: v.union(v.number(), v.null()),
-  })
-    .index('by_user', ['userId'])
-    .index('by_run', ['runId']),
 });

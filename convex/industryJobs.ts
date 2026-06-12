@@ -1,38 +1,30 @@
 // Industry-jobs tracker — the Convex half of the 3.4.8 sync flow, mirroring
-// the 3.4.7 skills tracker (convex/skills.ts) by design.
+// the 3.4.7 skills tracker (convex/skills.ts) by design; run-lifecycle
+// machinery absorbed by the 3.4.9 engine (convex/engine.ts).
 //
-// Canonical shape: client → requestSync (mutation, records intent) →
-// Action Retrier → industryJobsSync.syncUser (action, talks to Neon + ESI) →
-// applySyncResults (ONE batched mutation) → forViewer (reactive query).
-// The client never calls the action directly, and no client-posted character
-// id carries authority — the action re-enumerates the user's characters
-// server-side on every run.
+// Canonical shape: client heartbeat (engine, presence + on-view dispatch) →
+// engine scan on the dataset's cadence while watched → Workpool →
+// industryJobsSync.syncUser (action, talks to Neon + ESI) → applySyncResults
+// (ONE batched mutation, generation-guarded against the engine's subject
+// row) → forViewer (reactive query). The client never calls the action
+// directly, and no client-posted character id carries authority — the action
+// re-enumerates the user's characters server-side on every run.
 //
-// New in this tracker: the scheduled completion transition. applySyncResults
-// derives 'ready' for any job whose end_date already passed and schedules a
-// markJobReady mutation at end_date for every still-running job — so an open
-// page sees the flip the moment the job completes, with no polling. The flip
-// is identity-guarded (job_id + verbatim end_date) and idempotent, so a
-// re-sync that changed or removed a job makes a stale flip a no-op; the next
-// fresh body always re-derives, so a missed flip can never wedge a job.
-import { ActionRetrier, onCompleteValidator } from '@convex-dev/action-retrier';
+// This tracker's own machinery: the scheduled completion transition.
+// applySyncResults derives 'ready' for any job whose end_date already passed
+// and schedules a markJobReady mutation at end_date for still-running jobs —
+// so an open page sees the flip the moment the job completes, with no
+// polling. The flip is identity-guarded (job_id + verbatim end_date) and
+// idempotent; since 3.4.9 the arming is content-deduped (flipsToSchedule):
+// a job's flip is scheduled when its (job_id, end_date) first appears, not
+// on every fresh body — the #96 resolution.
 import { v } from 'convex/values';
-import { deriveJobStatus, findFlipTarget } from '@/features/industry-jobs/job-state';
-import { components, internal } from './_generated/api';
-import { internalMutation, internalQuery, mutation, query } from './_generated/server';
+import { deriveJobStatus, findFlipTarget, flipsToSchedule } from '@/features/industry-jobs/job-state';
+import { minCacheWindow } from '@/lib/sync-engine';
+import { internal } from './_generated/api';
+import { internalMutation, internalQuery, query } from './_generated/server';
+import { getSyncSubject } from './lib/subjects';
 import { industryJobValidator } from './schema';
-
-const retrier = new ActionRetrier(components.actionRetrier);
-
-// A 'running' status older than this is treated as stuck (e.g. the
-// onComplete callback itself failed) and taken over by the next request —
-// without it one wedged run would block the user's syncs forever.
-const STALE_RUNNING_MS = 3 * 60_000;
-
-// Convex's scheduler rejects a timestamp more than five years out; 5×365 days
-// stays safely under that ceiling. A flip scheduled past it is skipped (a
-// real EVE job never ends that far out — it would be contract drift).
-const SCHEDULE_HORIZON_MS = 5 * 365 * 24 * 60 * 60_000;
 
 // The calling user's synced job boards + run state, grouped client-side by
 // character. ETags and userId are custody/keying details — not on the wire.
@@ -46,10 +38,7 @@ export const forViewer = query({
       .query('industryJobsSync')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
-    const state = await ctx.db
-      .query('industryJobsSyncStates')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .unique();
+    const state = await getSyncSubject(ctx.db, 'industryJobs', userId);
     return {
       characters: docs.map((doc) => ({
         characterId: doc.characterId,
@@ -67,64 +56,6 @@ export const forViewer = query({
               lastError: state.lastError,
             },
     };
-  },
-});
-
-// Records sync intent and schedules the action — IF a sync is warranted.
-// `characterIdsHint` is a freshness hint only (the viewer's characters as the
-// page server-rendered them): a hinted id with no doc means "new character,
-// sync now". It never grants access — the action enumerates the user's real
-// characters from Neon and ignores the hint entirely.
-export const requestSync = mutation({
-  args: { characterIdsHint: v.array(v.number()) },
-  handler: async (ctx, { characterIdsHint }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) return;
-    const userId = identity.subject;
-    const now = Date.now();
-
-    const state = await ctx.db
-      .query('industryJobsSyncStates')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .unique();
-    if (state !== null && state.status === 'running' && now - state.lastRequestedAt < STALE_RUNNING_MS) {
-      return;
-    }
-
-    const docs = await ctx.db
-      .query('industryJobsSync')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    if (characterIdsHint.length === 0 && docs.length === 0) return;
-    const syncedIds = new Set(docs.map((doc) => doc.characterId));
-    const allHintedKnown = characterIdsHint.every((id) => syncedIds.has(id));
-    const allFresh = docs.every((doc) => doc.expiresAt !== null && now < doc.expiresAt);
-    if (allHintedKnown && allFresh) return;
-
-    let stateId = state?._id;
-    if (stateId === undefined) {
-      stateId = await ctx.db.insert('industryJobsSyncStates', {
-        userId,
-        status: 'running',
-        runId: null,
-        lastRequestedAt: now,
-        lastFinishedAt: null,
-        lastError: null,
-        rlGroup: null,
-        rlLimit: null,
-        rlRemaining: null,
-        rlUsed: null,
-      });
-    } else {
-      await ctx.db.patch(stateId, { status: 'running', lastRequestedAt: now });
-    }
-    const runId = await retrier.run(
-      ctx,
-      internal.industryJobsSync.syncUser,
-      { userId, generation: now },
-      { onComplete: internal.industryJobs.syncComplete },
-    );
-    await ctx.db.patch(stateId, { runId });
   },
 });
 
@@ -159,11 +90,11 @@ const characterResultValidator = v.object({
 });
 
 // The run's single batched write. Idempotent (upserts keyed by
-// userId+characterId), so an Action Retrier retry that re-runs the action
-// cannot double-write; the generation guard makes a superseded run's late
-// apply a no-op instead of an overwrite — and, because the completion flips
-// are scheduled HERE (transactionally with the write), a discarded apply
-// also arms no flips.
+// userId+characterId), so a Workpool retry that re-runs the action cannot
+// double-write; the generation guard (against the engine's subject row)
+// makes a superseded run's late apply a no-op instead of an overwrite — and,
+// because the completion flips are scheduled HERE (transactionally with the
+// write), a discarded apply also arms no flips.
 export const applySyncResults = internalMutation({
   args: {
     userId: v.string(),
@@ -177,11 +108,8 @@ export const applySyncResults = internalMutation({
     rlUsed: v.union(v.number(), v.null()),
   },
   handler: async (ctx, args) => {
-    const state = await ctx.db
-      .query('industryJobsSyncStates')
-      .withIndex('by_user', (q) => q.eq('userId', args.userId))
-      .unique();
-    if (state === null || state.lastRequestedAt !== args.generation) return;
+    const subject = await getSyncSubject(ctx.db, 'industryJobs', args.userId);
+    if (subject === null || subject.lastRequestedAt !== args.generation) return;
 
     const docs = await ctx.db
       .query('industryJobsSync')
@@ -216,28 +144,19 @@ export const applySyncResults = internalMutation({
           ...job,
           status: deriveJobStatus(job.status, job.end_date, now),
         }));
-        data = { jobs };
-        // Schedule the completion flip for every still-running job. Always
-        // scheduled, never deduped: the identity-guarded flip absorbs
-        // duplicates, and 304s schedule nothing, so pending rows scale with
-        // bodies that actually changed — a few hundred a day at the busiest,
-        // far below any scheduler concern.
-        for (const job of jobs) {
-          if (job.status !== 'active') continue;
-          const end = Date.parse(job.end_date);
-          // Skip an unparseable or absurd end_date instead of letting it throw:
-          // runAt rejects a timestamp more than five years out, and a throw
-          // here would roll back the whole batch and storm the retrier. Real
-          // EVE jobs end in hours-to-weeks, so a far-future date is contract
-          // drift; a future resync schedules it once it's within the horizon.
-          if (!Number.isFinite(end) || end - now > SCHEDULE_HORIZON_MS) continue;
-          await ctx.scheduler.runAt(end, internal.industryJobs.markJobReady, {
+        // Arm the completion flip for each job whose (job_id, end_date) is
+        // new to this doc — content-deduped against the previous payload
+        // (the #96 resolution; see flipsToSchedule for the guards and the
+        // one accepted corner).
+        for (const job of flipsToSchedule(existing?.data?.jobs ?? null, jobs, now)) {
+          await ctx.scheduler.runAt(Date.parse(job.end_date), internal.industryJobs.markJobReady, {
             userId: args.userId,
             characterId: result.characterId,
             jobId: job.job_id,
             endDate: job.end_date,
           });
         }
+        data = { jobs };
       }
 
       const fields = {
@@ -263,7 +182,16 @@ export const applySyncResults = internalMutation({
       }
     }
 
-    await ctx.db.patch(state._id, {
+    // Stamp the run's results onto the engine's subject row: the cache
+    // window the next due time is computed from, the enumeration the
+    // heartbeat hint checks against, and the rl* observability.
+    const after = await ctx.db
+      .query('industryJobsSync')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect();
+    await ctx.db.patch(subject._id, {
+      minExpiresAt: minCacheWindow(after.map((doc) => doc.expiresAt)),
+      syncedCharacterIds: args.enumeratedCharacterIds,
       lastFinishedAt: now,
       lastError: args.lastError,
       rlGroup: args.rlGroup,
@@ -271,7 +199,7 @@ export const applySyncResults = internalMutation({
       rlRemaining: args.rlRemaining,
       rlUsed: args.rlUsed,
     });
-    // status stays 'running' here — the retrier's onComplete owns the
+    // status stays 'running' here — the workpool's onComplete owns the
     // lifecycle and clears it exactly once.
   },
 });
@@ -283,7 +211,10 @@ export const applySyncResults = internalMutation({
 // decided purely on stored state (see findFlipTarget). Deliberately NOT
 // time-guarded: the scheduler fires at end_date by construction, and a
 // hair-early no-op would orphan the job as 'active' forever. The flip does
-// not touch expiresAt — freshness policy stays the sync gate's job.
+// not touch expiresAt — freshness policy stays the engine's job (recorded
+// 3.4.9 policy: a flip triggers no resync; ESI's lazy status means an
+// instant re-read shows nothing new, and the next scheduled run picks up
+// real state).
 export const markJobReady = internalMutation({
   args: {
     userId: v.string(),
@@ -311,28 +242,6 @@ export const markJobReady = internalMutation({
           i === index ? { ...job, status: 'ready' as const } : job,
         ),
       },
-    });
-  },
-});
-
-// Exactly-once run epilogue from the Action Retrier: clear 'running' and
-// surface a terminal failure. Looks the run up by its runId — a taken-over
-// run's state row already carries a newer runId, so the lookup misses and
-// this no-ops rather than clearing the new run's status.
-export const syncComplete = internalMutation({
-  args: onCompleteValidator,
-  handler: async (ctx, { runId, result }) => {
-    const state = await ctx.db
-      .query('industryJobsSyncStates')
-      .withIndex('by_run', (q) => q.eq('runId', runId))
-      .unique();
-    if (state === null) return;
-    await ctx.db.patch(state._id, {
-      status: 'idle',
-      runId: null,
-      ...(result.type === 'failed'
-        ? { lastError: `sync_failed: ${result.error.slice(0, 500)}` }
-        : {}),
     });
   },
 });

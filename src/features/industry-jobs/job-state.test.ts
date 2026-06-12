@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { IndustryJob } from './esi-projection';
-import { deriveJobStatus, findFlipTarget, jobProgress, summarizeJobs } from './job-state';
+import {
+  deriveJobStatus,
+  findFlipTarget,
+  flipsToSchedule,
+  jobProgress,
+  SCHEDULE_HORIZON_MS,
+  summarizeJobs,
+} from './job-state';
 
 const NOW = Date.parse('2026-06-12T12:00:00Z');
 
@@ -75,6 +82,47 @@ describe('findFlipTarget', () => {
     // Pause/unpause between syncs re-prices the end; the apply that wrote
     // the new end_date scheduled a new flip for it.
     expect(findFlipTarget(jobs, 10, '2026-06-12T11:00:00Z')).toBeNull();
+  });
+});
+
+describe('flipsToSchedule', () => {
+  it('arms every active in-horizon job on a first sync (no existing payload)', () => {
+    const fresh = [job({ job_id: 1 }), job({ job_id: 2, status: 'paused' })];
+    expect(flipsToSchedule(null, fresh, NOW).map((j) => j.job_id)).toEqual([1]);
+  });
+
+  it('skips a job whose (job_id, end_date) was already active — its flip is armed', () => {
+    const existing = [job({ job_id: 1 })];
+    const fresh = [job({ job_id: 1 }), job({ job_id: 2 })];
+    expect(flipsToSchedule(existing, fresh, NOW).map((j) => j.job_id)).toEqual([2]);
+  });
+
+  it('re-arms a re-priced job (new end_date) — the old flip no-ops on identity', () => {
+    const existing = [job({ job_id: 1, end_date: '2026-06-13T00:00:00Z' })];
+    const fresh = [job({ job_id: 1, end_date: '2026-06-14T00:00:00Z' })];
+    expect(flipsToSchedule(existing, fresh, NOW)).toHaveLength(1);
+  });
+
+  it('re-arms a job that was paused in the existing payload and is active again', () => {
+    const existing = [job({ job_id: 1, status: 'paused' })];
+    const fresh = [job({ job_id: 1 })];
+    expect(flipsToSchedule(existing, fresh, NOW)).toHaveLength(1);
+  });
+
+  it('never arms a job already derived ready (past end_date is not active)', () => {
+    // The apply derives before scheduling, so a past-end job arrives here
+    // as 'ready' — the at-write derivation, not a flip, owns that case.
+    const fresh = [job({ job_id: 1, status: 'ready', end_date: '2026-06-12T11:00:00Z' })];
+    expect(flipsToSchedule(null, fresh, NOW)).toHaveLength(0);
+  });
+
+  it('skips unparseable and beyond-horizon end dates instead of throwing', () => {
+    const fresh = [
+      job({ job_id: 1, end_date: 'not-a-date' }),
+      job({ job_id: 2, end_date: new Date(NOW + SCHEDULE_HORIZON_MS + 60_000).toISOString() }),
+      job({ job_id: 3 }),
+    ];
+    expect(flipsToSchedule(null, fresh, NOW).map((j) => j.job_id)).toEqual([3]);
   });
 });
 

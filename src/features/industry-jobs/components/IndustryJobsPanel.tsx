@@ -5,16 +5,11 @@
 // render time) and joins them with the live Convex projection: useQuery
 // streams every sync write over the websocket — including the scheduled
 // flip-to-ready at a job's end_date — so the board updates with no reload
-// and no client polling. Mounting (and the manual button) records sync
-// intent via the requestSync mutation — the client never calls the action,
-// and the ids it sends are a freshness hint only.
-import {
-  Authenticated,
-  AuthLoading,
-  Unauthenticated,
-  useMutation,
-  useQuery,
-} from 'convex/react';
+// and no client polling. Liveness comes from the presence-gated engine
+// (3.4.9): the visibility-gated heartbeat keeps this subject hot while the
+// tab is watched, and the engine refreshes it on the dataset's cadence —
+// the ids it sends are a freshness hint only, never authority.
+import { Authenticated, AuthLoading, Unauthenticated, useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { useEffect, useMemo, useState } from 'react';
 import { Callout } from '@/components/ui/callout';
@@ -25,6 +20,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { api } from '@/data/convex/api';
 import { convexClient } from '@/data/convex/client';
+import { useSyncSubject } from '@/data/convex/use-sync-subject';
 import { typeNamesEndpoint, TYPE_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
 import { apiFetch } from '@/lib/api-client';
 import { formatRemaining } from '@/lib/format';
@@ -77,24 +73,20 @@ const TICK_MS = 30_000;
 
 function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
   const live = useQuery(api.industryJobs.forViewer);
-  const requestSync = useMutation(api.industryJobs.requestSync);
+  // Presence + on-view sync: rendered only inside <Authenticated>, so Convex
+  // auth is established before the first heartbeat. The engine decides
+  // whether a run is actually warranted (freshness gate, in-flight dedupe)
+  // and keeps the subject refreshing while this tab stays visible.
+  const syncNow = useSyncSubject(
+    'industryJobs',
+    characters.map((c) => c.characterId),
+  );
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), TICK_MS);
     return () => clearInterval(timer);
   }, []);
-
-  // On-view sync: rendered only inside <Authenticated>, so Convex auth is
-  // established before this fires. The mutation itself decides whether a run
-  // is actually warranted (freshness gate, in-flight dedupe).
-  const characterIdsKey = characters.map((c) => c.characterId).join(',');
-  useEffect(() => {
-    if (characterIdsKey === '') return;
-    void requestSync({
-      characterIdsHint: characterIdsKey.split(',').map(Number),
-    });
-  }, [characterIdsKey, requestSync]);
 
   // SDE name enrichment, client-side: resolve the blueprint/product type ids
   // present in the live docs against Neon. Names never live in Convex.
@@ -137,9 +129,7 @@ function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
         </span>
         <button
           type="button"
-          onClick={() =>
-            void requestSync({ characterIdsHint: characters.map((c) => c.characterId) })
-          }
+          onClick={syncNow}
           disabled={syncing}
           className="font-mono text-[10px] tracking-[0.1em] uppercase border border-border rounded-[2px] px-3 py-1.5 text-name hover:bg-surface-raised cursor-pointer disabled:opacity-50 disabled:cursor-default"
         >

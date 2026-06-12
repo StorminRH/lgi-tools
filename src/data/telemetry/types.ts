@@ -23,6 +23,7 @@ export const SERVER_USAGE_ACTIONS = [
   'cron_prices', // hourly price-cron outcome — refreshed / skipped (O-2, O-3)
   'cron_sde', // weekly SDE-cron outcome (O-2, O-3)
   'cron_gsc', // daily Google-Search-Console sync outcome — synced / skipped / failed (3.3.3)
+  'cron_sync_sweeper', // 15-min sync-engine watchdog — dispatched>0 means the Convex scan lagged (3.4.9)
 ] as const;
 
 // Closed enumeration of recognised actions. Extending: add to the client or

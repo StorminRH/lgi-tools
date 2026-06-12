@@ -1,23 +1,18 @@
-// Skill-queue tracker — the Convex half of the 3.4.7 sync flow.
+// Skill-queue tracker — the Convex half of the 3.4.7 sync flow, run-lifecycle
+// machinery absorbed by the 3.4.9 engine (convex/engine.ts).
 //
-// Canonical shape: client → requestSync (mutation, records intent) →
-// Action Retrier → skillsSync.syncUser (action, talks to Neon + ESI) →
-// applySyncResults (ONE batched mutation) → forViewer (reactive query).
-// The client never calls the action directly, and no client-posted character
-// id carries authority — the action re-enumerates the user's characters
-// server-side on every run.
-import { ActionRetrier, onCompleteValidator } from '@convex-dev/action-retrier';
+// Canonical shape: client heartbeat (engine, presence + on-view dispatch) →
+// engine scan on the dataset's cadence while watched → Workpool →
+// skillsSync.syncUser (action, talks to Neon + ESI) → applySyncResults (ONE
+// batched mutation, generation-guarded against the engine's subject row) →
+// forViewer (reactive query). The client never calls the action directly,
+// and no client-posted character id carries authority — the action
+// re-enumerates the user's characters server-side on every run.
 import { v, type Infer } from 'convex/values';
-import { components, internal } from './_generated/api';
-import { internalMutation, internalQuery, mutation, query } from './_generated/server';
+import { minCacheWindow } from '@/lib/sync-engine';
+import { internalMutation, internalQuery, query } from './_generated/server';
+import { getSyncSubject } from './lib/subjects';
 import { skillQueueEntryValidator } from './schema';
-
-const retrier = new ActionRetrier(components.actionRetrier);
-
-// A 'running' status older than this is treated as stuck (e.g. the
-// onComplete callback itself failed) and taken over by the next request —
-// without it one wedged run would block the user's syncs forever.
-const STALE_RUNNING_MS = 3 * 60_000;
 
 // The calling user's synced characters + run state, grouped client-side by
 // character. ETags and userId are custody/keying details — not on the wire.
@@ -31,10 +26,7 @@ export const forViewer = query({
       .query('characterSync')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
-    const state = await ctx.db
-      .query('syncStates')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .unique();
+    const state = await getSyncSubject(ctx.db, 'skills', userId);
     return {
       characters: docs.map((doc) => ({
         characterId: doc.characterId,
@@ -52,64 +44,6 @@ export const forViewer = query({
               lastError: state.lastError,
             },
     };
-  },
-});
-
-// Records sync intent and schedules the action — IF a sync is warranted.
-// `characterIdsHint` is a freshness hint only (the viewer's characters as the
-// page server-rendered them): a hinted id with no doc means "new character,
-// sync now". It never grants access — the action enumerates the user's real
-// characters from Neon and ignores the hint entirely.
-export const requestSync = mutation({
-  args: { characterIdsHint: v.array(v.number()) },
-  handler: async (ctx, { characterIdsHint }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) return;
-    const userId = identity.subject;
-    const now = Date.now();
-
-    const state = await ctx.db
-      .query('syncStates')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .unique();
-    if (state !== null && state.status === 'running' && now - state.lastRequestedAt < STALE_RUNNING_MS) {
-      return;
-    }
-
-    const docs = await ctx.db
-      .query('characterSync')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect();
-    if (characterIdsHint.length === 0 && docs.length === 0) return;
-    const syncedIds = new Set(docs.map((doc) => doc.characterId));
-    const allHintedKnown = characterIdsHint.every((id) => syncedIds.has(id));
-    const allFresh = docs.every((doc) => doc.expiresAt !== null && now < doc.expiresAt);
-    if (allHintedKnown && allFresh) return;
-
-    let stateId = state?._id;
-    if (stateId === undefined) {
-      stateId = await ctx.db.insert('syncStates', {
-        userId,
-        status: 'running',
-        runId: null,
-        lastRequestedAt: now,
-        lastFinishedAt: null,
-        lastError: null,
-        rlGroup: null,
-        rlLimit: null,
-        rlRemaining: null,
-        rlUsed: null,
-      });
-    } else {
-      await ctx.db.patch(stateId, { status: 'running', lastRequestedAt: now });
-    }
-    const runId = await retrier.run(
-      ctx,
-      internal.skillsSync.syncUser,
-      { userId, generation: now },
-      { onComplete: internal.skills.syncComplete },
-    );
-    await ctx.db.patch(stateId, { runId });
   },
 });
 
@@ -149,9 +83,9 @@ const characterResultValidator = v.object({
 });
 
 // The run's single batched write. Idempotent (upserts keyed by
-// userId+characterId), so an Action Retrier retry that re-runs the action
-// cannot double-write; the generation guard makes a superseded run's late
-// apply a no-op instead of an overwrite.
+// userId+characterId), so a Workpool retry that re-runs the action cannot
+// double-write; the generation guard (against the engine's subject row)
+// makes a superseded run's late apply a no-op instead of an overwrite.
 export const applySyncResults = internalMutation({
   args: {
     userId: v.string(),
@@ -165,11 +99,8 @@ export const applySyncResults = internalMutation({
     rlUsed: v.union(v.number(), v.null()),
   },
   handler: async (ctx, args) => {
-    const state = await ctx.db
-      .query('syncStates')
-      .withIndex('by_user', (q) => q.eq('userId', args.userId))
-      .unique();
-    if (state === null || state.lastRequestedAt !== args.generation) return;
+    const subject = await getSyncSubject(ctx.db, 'skills', args.userId);
+    if (subject === null || subject.lastRequestedAt !== args.generation) return;
 
     const docs = await ctx.db
       .query('characterSync')
@@ -216,7 +147,16 @@ export const applySyncResults = internalMutation({
       }
     }
 
-    await ctx.db.patch(state._id, {
+    // Stamp the run's results onto the engine's subject row: the cache
+    // window the next due time is computed from, the enumeration the
+    // heartbeat hint checks against, and the rl* observability.
+    const after = await ctx.db
+      .query('characterSync')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect();
+    await ctx.db.patch(subject._id, {
+      minExpiresAt: minCacheWindow(after.map((doc) => doc.expiresAt)),
+      syncedCharacterIds: args.enumeratedCharacterIds,
       lastFinishedAt: now,
       lastError: args.lastError,
       rlGroup: args.rlGroup,
@@ -224,7 +164,7 @@ export const applySyncResults = internalMutation({
       rlRemaining: args.rlRemaining,
       rlUsed: args.rlUsed,
     });
-    // status stays 'running' here — the retrier's onComplete owns the
+    // status stays 'running' here — the workpool's onComplete owns the
     // lifecycle and clears it exactly once.
   },
 });
@@ -248,25 +188,3 @@ function mergeData(existing: SyncedData | null, result: CharacterResult): Synced
     result.skills !== null ? result.skills.unallocatedSp : existing?.unallocatedSp;
   return unallocatedSp !== undefined ? { entries, totalSp, unallocatedSp } : { entries, totalSp };
 }
-
-// Exactly-once run epilogue from the Action Retrier: clear 'running' and
-// surface a terminal failure. Looks the run up by its runId — a taken-over
-// run's state row already carries a newer runId, so the lookup misses and
-// this no-ops rather than clearing the new run's status.
-export const syncComplete = internalMutation({
-  args: onCompleteValidator,
-  handler: async (ctx, { runId, result }) => {
-    const state = await ctx.db
-      .query('syncStates')
-      .withIndex('by_run', (q) => q.eq('runId', runId))
-      .unique();
-    if (state === null) return;
-    await ctx.db.patch(state._id, {
-      status: 'idle',
-      runId: null,
-      ...(result.type === 'failed'
-        ? { lastError: `sync_failed: ${result.error.slice(0, 500)}` }
-        : {}),
-    });
-  },
-});

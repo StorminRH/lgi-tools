@@ -8,9 +8,13 @@
  * @module
  */
 
+import type * as crons from "../crons.js";
+import type * as engine from "../engine.js";
+import type * as http from "../http.js";
 import type * as industryJobs from "../industryJobs.js";
 import type * as industryJobsSync from "../industryJobsSync.js";
 import type * as lib_esiRead from "../lib/esiRead.js";
+import type * as lib_subjects from "../lib/subjects.js";
 import type * as skills from "../skills.js";
 import type * as skillsSync from "../skillsSync.js";
 
@@ -21,9 +25,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  crons: typeof crons;
+  engine: typeof engine;
+  http: typeof http;
   industryJobs: typeof industryJobs;
   industryJobsSync: typeof industryJobsSync;
   "lib/esiRead": typeof lib_esiRead;
+  "lib/subjects": typeof lib_subjects;
   skills: typeof skills;
   skillsSync: typeof skillsSync;
 }>;
@@ -55,5 +63,6 @@ export declare const internal: FilterApi<
 >;
 
 export declare const components: {
-  actionRetrier: import("@convex-dev/action-retrier/_generated/component.js").ComponentApi<"actionRetrier">;
+  workpool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"workpool">;
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
 };
