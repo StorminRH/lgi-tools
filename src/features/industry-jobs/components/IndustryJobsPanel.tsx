@@ -45,6 +45,19 @@ export function IndustryJobsPanel({ characters }: { characters: PanelCharacter[]
       </Card>
     );
   }
+  if (characters.length === 0) {
+    return (
+      <Card>
+        <EmptyState>
+          No characters linked to this account —{' '}
+          <a href="/characters" className="underline text-name">
+            link one on the Characters page
+          </a>{' '}
+          to see live industry jobs.
+        </EmptyState>
+      </Card>
+    );
+  }
   return (
     <>
       <AuthLoading>
