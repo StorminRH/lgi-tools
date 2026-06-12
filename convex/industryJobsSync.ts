@@ -1,0 +1,168 @@
+// The 3.4.8 industry-jobs sync action — runs on the DEFAULT Convex runtime
+// (no "use node"; the shared ESI gate is runtime-portable per Decision
+// Record 11, proven live by the 3.4.7 skills sync). One run refreshes every
+// linked character for one user:
+//
+//   heldState (etag) → eve-characters (Neon enumeration — the ownership
+//   boundary) → per character: eve-token vend + ONE industry-jobs read
+//   through the shared gate → ONE applySyncResults mutation.
+//
+// The refresh token never reaches Convex: the vend endpoint returns only a
+// short-lived access token. Throw = "transient, let the Action Retrier
+// retry" (network, ESI 5xx, Neon-side 5xx); everything else — token 4xx,
+// ESI 4xx, contract drift, budget refusal — becomes a recorded per-character
+// or run-level error so a hopeless run is never retried and partial results
+// are never lost.
+import { v } from 'convex/values';
+import type { EveCharactersResponse, EveTokenOkResponse } from '@/features/auth/api-contract';
+import { parseIndustryJobsBody, type IndustryJob } from '@/features/industry-jobs/esi-projection';
+import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
+import { EsiBudgetExhaustedError } from '@/lib/esi';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { internal } from './_generated/api';
+import { internalAction } from './_generated/server';
+import { readEsi, type RlSnapshot } from './lib/esiRead';
+
+// Fallback freshness window when a response carries no parseable Expires
+// header. Matches the spec's industry-jobs cache (x-cache-age 300) but is a
+// last resort — the header is the truth and is preferred whenever present.
+const FALLBACK_TTL_MS = 300_000;
+
+interface CharacterResult {
+  characterId: number;
+  jobs: IndustryJob[] | null;
+  jobsEtag: string | null;
+  expiresAt: number | null;
+  error: string | null;
+}
+
+export const syncUser = internalAction({
+  args: { userId: v.string(), generation: v.number() },
+  handler: async (ctx, { userId, generation }) => {
+    // Deployment-level config (set via `npx convex env set`) — the app's
+    // NEXT_PUBLIC_* inlines don't exist in a Convex bundle.
+    const siteUrl = process.env.SITE_URL;
+    const secret = process.env.CONVEX_SERVICE_SECRET;
+    if (siteUrl === undefined || secret === undefined) {
+      throw new Error('SITE_URL and CONVEX_SERVICE_SECRET must be set on this Convex deployment');
+    }
+
+    const held = await ctx.runQuery(internal.industryJobs.heldState, { userId });
+    const heldByCharacter = new Map(held.map((h) => [h.characterId, h.jobsEtag]));
+
+    // fetchWithTimeout (not bare fetch): a hung Next.js endpoint must fail
+    // fast into the Action Retrier rather than holding the action open until
+    // the platform kills it.
+    const charactersRes = await fetchWithTimeout(`${siteUrl}/api/internal/eve-characters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ userId }),
+    });
+    if (!charactersRes.ok) {
+      // Neon-side trouble — transient by assumption; the retrier retries.
+      throw new Error(`eve-characters returned ${charactersRes.status}`);
+    }
+    const { characters } = (await charactersRes.json()) as EveCharactersResponse;
+
+    const results: CharacterResult[] = [];
+    const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
+    let runError: string | null = null;
+
+    // Sequential by design — gentle on the shared per-group token bucket
+    // (the spec puts industry jobs in `char-industry`, 600/15m; the observed
+    // group lands on the state doc each run — read, never assumed).
+    for (const character of characters) {
+      const heldEtag = heldByCharacter.get(character.characterId) ?? null;
+
+      if (!canSyncIndustryJobs(character)) {
+        results.push(errorResult(character.characterId, 'reauth_required', heldEtag));
+        continue;
+      }
+
+      const tokenRes = await fetchWithTimeout(`${siteUrl}/api/internal/eve-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+        body: JSON.stringify({ characterId: character.characterId }),
+      });
+      if (tokenRes.status === 404) {
+        // Unlinked between enumeration and vend; the next run's enumeration
+        // pass deletes the doc.
+        continue;
+      }
+      if (tokenRes.status === 409) {
+        results.push(errorResult(character.characterId, 'reauth_required', heldEtag));
+        continue;
+      }
+      if (!tokenRes.ok) {
+        results.push(errorResult(character.characterId, 'token_unavailable', heldEtag));
+        continue;
+      }
+      const token = (await tokenRes.json()) as EveTokenOkResponse;
+
+      try {
+        const read = await readEsi(
+          `/characters/${character.characterId}/industry/jobs`,
+          token.accessToken,
+          heldEtag,
+          rl,
+        );
+        if (read.kind === 'error') {
+          results.push(errorResult(character.characterId, read.code, heldEtag));
+          continue;
+        }
+
+        let jobs: IndustryJob[] | null = null;
+        let jobsEtag = heldEtag;
+        if (read.kind === 'fresh') {
+          jobs = parseIndustryJobsBody(read.body);
+          if (jobs === null) {
+            results.push(errorResult(character.characterId, 'contract_error', heldEtag));
+            continue;
+          }
+          jobsEtag = read.etag;
+        }
+
+        results.push({
+          characterId: character.characterId,
+          jobs,
+          jobsEtag,
+          expiresAt: read.expiresAt ?? Date.now() + FALLBACK_TTL_MS,
+          error: null,
+        });
+      } catch (error) {
+        if (error instanceof EsiBudgetExhaustedError) {
+          // The shared budget is spent — recording it and stopping beats
+          // burning the remaining characters (and a retry would refuse too).
+          runError = `budget_exhausted:${error.reason}`;
+          results.push(errorResult(character.characterId, 'budget_exhausted', heldEtag));
+          break;
+        }
+        // EsiServerError / network failure — genuinely transient; rethrow so
+        // the Action Retrier retries the run (idempotent: held etags are
+        // re-read and the apply is a keyed upsert).
+        throw error;
+      }
+    }
+
+    await ctx.runMutation(internal.industryJobs.applySyncResults, {
+      userId,
+      generation,
+      enumeratedCharacterIds: characters.map((c) => c.characterId),
+      results,
+      lastError: runError,
+      ...rl,
+    });
+  },
+});
+
+function errorResult(characterId: number, code: string, heldEtag: string | null): CharacterResult {
+  return {
+    characterId,
+    jobs: null,
+    // Echo the held etag — ESI's 304 never repeats an ETag, and an errored
+    // read must not discard custody either.
+    jobsEtag: heldEtag,
+    expiresAt: null,
+    error: code,
+  };
+}
