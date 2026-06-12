@@ -30,15 +30,41 @@ export interface EveTokenErrorResponse {
   error: EveTokenErrorCode;
 }
 
+// ── POST /api/internal/eve-characters (authz: service) ──────────────────
+// The Convex action → character-enumeration boundary (3.4.7). Convex asserts
+// the userId it authenticated via the spine's JWT; Neon owns the character
+// data. Ownership is enforced by construction: the action only ever acts on
+// the characters this endpoint returns for that userId — no client-posted
+// character id carries authority anywhere in the sync flow.
+
+// Better Auth ids are opaque strings — nanoid for new logins, `eve-user-<id>`
+// for backfilled pilots; the charset gate keeps junk out.
+const userIdField = z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/);
+
+export const eveCharactersRequestSchema = z.object({
+  userId: userIdField,
+});
+
+// 200 — pinned with `satisfies` in the route; type-imported by convex/.
+// `hasRefreshToken` + `missingScopes` (from the shipped scope-health
+// derivation) let a consumer decide eligibility against ITS OWN scope needs —
+// the skill tracker only requires the two skill scopes, not the full
+// superset — and skip token vends that would only 409. No token material.
+export interface EveCharacterEntry {
+  characterId: number;
+  name: string;
+  hasRefreshToken: boolean;
+  missingScopes: string[];
+}
+export interface EveCharactersResponse {
+  characters: EveCharacterEntry[];
+}
+
 // ── Form-post routes (303 redirects — request schemas only) ─────────────
 // These routes stay HTML form-posts; their input schemas live here so the
 // contract file is the slice's one validation surface. Zod 4 note: z.coerce
 // fields have input type `unknown` — the routes pass form.get() values to
 // safeParse exactly as before.
-
-// Better Auth ids are opaque strings — nanoid for new logins, `eve-user-<id>`
-// for backfilled pilots; the charset gate keeps junk out.
-const userIdField = z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/);
 
 // /api/account/active-character — the character to make active.
 export const switchCharacterFormSchema = z.object({

@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-06-11
 
+- New Skill Queues tool: signed-in pilots can now see the live training queue for every linked character in one place, with per-skill progress, completion times, and total skill points. Queues refresh from EVE when you open the page and update live without reloading.
 - Signing in with EVE now asks you to re-authorize one more time, granting the full set of character permissions — planetary colonies, standings, implants, clones, location, and current ship, alongside the existing skills and industry access — that the upcoming character tools build on. This is intended to be the last re-authorization.
 
 ### 2026-06-09

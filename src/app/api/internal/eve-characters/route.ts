@@ -1,0 +1,62 @@
+// POST /api/internal/eve-characters
+// Internal service endpoint (3.4.7). A Convex action authenticates with the
+// shared CONVEX_SERVICE_SECRET bearer and asks which EVE characters are linked
+// to one user, plus each character's scope health. This is the sync flow's
+// ownership boundary: the action only ever acts on the characters returned
+// here for the userId it authenticated via the spine's JWT — no client-posted
+// character id carries authority. The response holds no token material.
+// authz: service
+import { connection } from 'next/server';
+import {
+  eveCharactersRequestSchema,
+  type EveCharactersResponse,
+} from '@/features/auth/api-contract';
+import { listLinkedCharacters } from '@/features/auth/queries';
+import { deriveCharacterHealth } from '@/features/auth/scope-health';
+import { bearerMatches } from '@/features/auth/service-auth';
+import { readEnv } from '@/lib/env';
+
+export async function POST(req: Request): Promise<Response> {
+  // Reads a secret + the DB per request — defer past prerender (Cache Components).
+  await connection();
+
+  const secret = readEnv('CONVEX_SERVICE_SECRET');
+  if (!secret) {
+    return new Response('CONVEX_SERVICE_SECRET not configured', { status: 500 });
+  }
+  if (!bearerMatches(req.headers.get('authorization'), secret)) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response('Invalid JSON', { status: 400 });
+  }
+
+  const parsed = eveCharactersRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
+    return new Response(detail, { status: 400 });
+  }
+
+  // An unknown userId simply has no linked characters — same response shape,
+  // empty list; the caller's sync writes nothing.
+  const linked = await listLinkedCharacters(parsed.data.userId);
+  return Response.json({
+    characters: linked.map((character) => {
+      const health = deriveCharacterHealth({
+        scope: character.scope,
+        hasRefreshToken: character.hasRefreshToken,
+      });
+      return {
+        characterId: character.characterId,
+        name: character.name,
+        hasRefreshToken: character.hasRefreshToken,
+        missingScopes: health.missingScopes,
+      };
+    }),
+  } satisfies EveCharactersResponse);
+}

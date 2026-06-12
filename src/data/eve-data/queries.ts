@@ -42,6 +42,19 @@ export async function getTypesByIds(ids: number[]): Promise<EveType[]> {
   return db.select(TYPE_COLUMNS).from(eveTypes).where(inArray(eveTypes.id, ids));
 }
 
+// Names only — the bulk type-name resolution behind POST /api/types/names.
+// Ids the SDE doesn't know are simply absent from the map.
+export async function getTypeNames(ids: number[]): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  if (ids.length === 0) return out;
+  const rows = await db
+    .select({ id: eveTypes.id, name: eveTypes.name })
+    .from(eveTypes)
+    .where(inArray(eveTypes.id, ids));
+  for (const r of rows) out.set(r.id, r.name);
+  return out;
+}
+
 export type TypeLabel = { name: string; groupName: string; categoryName: string };
 
 // Name + SDE group/category for a set of types, in one join. The Industry

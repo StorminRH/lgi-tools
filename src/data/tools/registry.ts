@@ -30,6 +30,13 @@ export const TOOLS: Tool[] = [
     description: 'Live · /industry',
   },
   {
+    label: 'Skill Queues',
+    abbr: 'SQ',
+    href: '/skills',
+    matchPrefix: '/skills',
+    description: 'Live · /skills',
+  },
+  {
     label: 'Wormhole Roll Calc',
     abbr: 'WR',
     href: null,

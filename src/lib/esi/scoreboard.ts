@@ -190,7 +190,19 @@ class RedisScoreboard implements EsiScoreboard {
       // Stored values are raw strings (JSON we encode ourselves, body text);
       // the SDK's default JSON round-trip would corrupt them.
       automaticDeserialization: false,
-      signal: () => AbortSignal.timeout(REDIS_TIMEOUT_MS),
+      // Portable timeout (no AbortSignal.timeout — absent from Convex's
+      // default runtime, and this slice must stay runtime-portable per
+      // Decision Record 11). The factory has no settle hook to clear the
+      // timer, so it fires regardless; aborting an already-settled request
+      // is a no-op.
+      signal: () => {
+        const controller = new AbortController();
+        setTimeout(
+          () => controller.abort(new DOMException('signal timed out', 'TimeoutError')),
+          REDIS_TIMEOUT_MS,
+        );
+        return controller.signal;
+      },
       retry: { retries: 0 },
     });
   }
