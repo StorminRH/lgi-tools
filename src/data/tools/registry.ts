@@ -12,6 +12,8 @@ export type Tool = {
   description?: string; // surfaced in the search dropdown's sub-text
   navDisabled?: boolean; // true = show in the header nav strip but don't link
                          // it; still reachable via search and direct URL
+  navHidden?: boolean;   // true = omit from the header nav strip entirely;
+                         // still reachable via search and direct URL
 };
 
 export const TOOLS: Tool[] = [
@@ -28,6 +30,16 @@ export const TOOLS: Tool[] = [
     href: '/industry',
     matchPrefix: '/industry',
     description: 'Live · /industry',
+  },
+  {
+    label: 'Skill Queues',
+    abbr: 'SQ',
+    href: '/skills',
+    matchPrefix: '/skills',
+    description: 'Live · /skills',
+    // Out of the header strip until the sitewide UX pass decides nav
+    // placement; live via search and direct URL.
+    navHidden: true,
   },
   {
     label: 'Wormhole Roll Calc',

@@ -26,7 +26,7 @@ function NavStrip({ shrunk, pathname }: { shrunk: boolean; pathname: string | nu
         shrunk && 'shrunk',
       )}
     >
-      {TOOLS.map((tool) => {
+      {TOOLS.filter((tool) => !tool.navHidden).map((tool) => {
         if (tool.href === null || tool.navDisabled) {
           const title = tool.href === null ? `${tool.label} — coming soon` : tool.label;
           return (

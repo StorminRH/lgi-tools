@@ -4,15 +4,20 @@ import {
   OUTBOUND_FETCH_TIMEOUT_MS,
 } from './fetch-with-timeout';
 
-// A fetch mock that never settles on its own, only when its abort signal
-// fires — so the only way the promise rejects is the timeout aborting it.
+// A fetch mock that never settles on its own, only via its abort signal —
+// so the only way the promise rejects is an abort. Mirrors real fetch by
+// rejecting up front when the signal arrives already aborted.
 function abortAwareFetch() {
   return vi.fn(
     (_input: unknown, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () => {
-          reject((init.signal as AbortSignal).reason);
-        });
+        const signal = init?.signal;
+        if (signal == null) return;
+        if (signal.aborted) {
+          reject(signal.reason);
+          return;
+        }
+        signal.addEventListener('abort', () => reject(signal.reason));
       }),
   );
 }
@@ -38,8 +43,8 @@ describe('fetchWithTimeout', () => {
   });
 
   it('rejects with a TimeoutError once the timeout elapses', async () => {
-    // Real (tiny) timeout: AbortSignal.timeout is internal and does not honor
-    // fake timers, so a short real delay is the robust way to prove it fires.
+    // Real (tiny) timeout: a short real delay proves the timer actually fires
+    // end to end, with no fake-timer plumbing to drift from the real thing.
     fetchSpy.mockImplementation(abortAwareFetch());
 
     await expect(fetchWithTimeout('https://example.test/', undefined, 5)).rejects.toMatchObject({
@@ -68,6 +73,16 @@ describe('fetchWithTimeout', () => {
     controller.abort(new Error('caller cancelled'));
 
     await expect(pending).rejects.toThrow('caller cancelled');
+  });
+
+  it('aborts immediately when the caller signal is already aborted', async () => {
+    fetchSpy.mockImplementation(abortAwareFetch());
+    const controller = new AbortController();
+    controller.abort(new Error('cancelled before dispatch'));
+
+    await expect(
+      fetchWithTimeout('https://example.test/', { signal: controller.signal }, 5_000),
+    ).rejects.toThrow('cancelled before dispatch');
   });
 
   it('defaults to OUTBOUND_FETCH_TIMEOUT_MS when no timeout is given', async () => {

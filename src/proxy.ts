@@ -19,10 +19,16 @@ const CANONICAL_HOST = new URL(SITE_URL).host;
 // reactive websocket). Deliberately NOT a `*.convex.cloud` wildcard — that
 // would admit every Convex customer's backend as a connect target. Unset
 // (a Convex-less local build) leaves the policy byte-identical to before.
+// Scheme-aware (3.4.7): a deployed https backend yields the same https+wss
+// pair as before, while a LOCAL Convex dev deployment (http://127.0.0.1:3210)
+// needs http+ws or the dev websocket is CSP-blocked.
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
-const CONVEX_CONNECT_SRC = CONVEX_URL
-  ? ` https://${new URL(CONVEX_URL).host} wss://${new URL(CONVEX_URL).host}`
-  : "";
+const CONVEX_CONNECT_SRC = (() => {
+  if (!CONVEX_URL) return "";
+  const url = new URL(CONVEX_URL);
+  const wsScheme = url.protocol === "http:" ? "ws:" : "wss:";
+  return ` ${url.origin} ${wsScheme}//${url.host}`;
+})();
 
 // Per-request Content-Security-Policy. Through 3.0.4.5 this used a fresh
 // per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which

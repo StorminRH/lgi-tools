@@ -12,6 +12,9 @@ importers:
 
   .:
     dependencies:
+      '@convex-dev/action-retrier':
+        specifier: ^0.3.0
+        version: 0.3.0(convex@1.41.0(react@19.2.4))
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0
@@ -289,6 +292,11 @@ packages:
   '@boundaries/elements@2.0.1':
     resolution: {integrity: sha512-sAWO3D8PFP6pBXdxxW93SQi/KQqqhE2AAHo3AgWfdtJXwO6bfK6/wUN81XnOZk0qRC6vHzUEKhjwVD9dtDWvxg==}
     engines: {node: '>=18.18'}
+
+  '@convex-dev/action-retrier@0.3.0':
+    resolution: {integrity: sha512-opBNsgOPSuVY3qSARNub98XqPzSpSS7Jga0oGeWFhO+DcWBMt2gD3ssUeEA1Gi7wTNiZBX+T6OBfBnqMfv6Tuw==}
+    peerDependencies:
+      convex: ^1.24.8
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
@@ -3756,6 +3764,10 @@ snapshots:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
       - supports-color
+
+  '@convex-dev/action-retrier@0.3.0(convex@1.41.0(react@19.2.4))':
+    dependencies:
+      convex: 1.41.0(react@19.2.4)
 
   '@drizzle-team/brocli@0.10.2': {}
 

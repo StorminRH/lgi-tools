@@ -3,10 +3,11 @@
 // CONVEX_SERVICE_SECRET bearer and asks for a fresh short-lived EVE access token
 // for one character. The response carries ONLY the access token — the refresh
 // token is never read into this file, so it cannot leak to the caller. Per-user
-// ownership of the character is enforced by Convex (which holds the user JWT)
-// before it calls here; this endpoint trusts the bearer-authenticated service.
+// ownership of the character is enforced upstream by construction: the Convex
+// action only requests tokens for characters /api/internal/eve-characters
+// returned for the userId it authenticated. This endpoint trusts the
+// bearer-authenticated service.
 // authz: service
-import { createHash, timingSafeEqual } from 'node:crypto';
 import { connection } from 'next/server';
 import {
   eveTokenRequestSchema,
@@ -14,16 +15,8 @@ import {
   type EveTokenOkResponse,
 } from '@/features/auth/api-contract';
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
+import { bearerMatches } from '@/features/auth/service-auth';
 import { readEnv } from '@/lib/env';
-
-// Constant-time bearer check. Comparing SHA-256 digests (always 32 bytes) keeps
-// timingSafeEqual's equal-length requirement satisfied and leaks no length, so a
-// timing side-channel can't reveal CONVEX_SERVICE_SECRET character by character.
-function bearerMatches(authorization: string | null, secret: string): boolean {
-  const provided = createHash('sha256').update(authorization ?? '').digest();
-  const expected = createHash('sha256').update(`Bearer ${secret}`).digest();
-  return timingSafeEqual(provided, expected);
-}
 
 export async function POST(req: Request): Promise<Response> {
   // Reads a secret + the DB per request — defer past prerender (Cache Components).

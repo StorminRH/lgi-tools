@@ -8,7 +8,8 @@
  * @module
  */
 
-import type * as smoke from "../smoke.js";
+import type * as skills from "../skills.js";
+import type * as skillsSync from "../skillsSync.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +18,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  smoke: typeof smoke;
+  skills: typeof skills;
+  skillsSync: typeof skillsSync;
 }>;
 
 /**
@@ -46,4 +48,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  actionRetrier: import("@convex-dev/action-retrier/_generated/component.js").ComponentApi<"actionRetrier">;
+};
