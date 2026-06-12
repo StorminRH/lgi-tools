@@ -68,6 +68,7 @@
     "/api/dev/esi": "dynamic",
     "/api/cron/refresh-prices": "dynamic",
     "/api/cron/refresh-sde": "dynamic",
+    "/api/cron/sync-sweeper": "dynamic",
     "/api/feedback": "dynamic",
     "/api/industry/blueprints": "static",
     "/api/internal/eve-characters": "dynamic",

@@ -2,8 +2,9 @@
 // skills sync in 3.4.8 — the held-ETag conditional read and the rate-limit
 // header harvest are identical-by-need across trackers). Pure helpers only:
 // no Convex function exports, so nothing here lands on the deployed API
-// surface. Run-lifecycle machinery (requestSync/syncStates/syncComplete)
-// stays deliberately per-tracker until the 3.4.9 sync engine unifies it.
+// surface. Run-lifecycle machinery lives in the 3.4.9 engine
+// (convex/engine.ts); only the per-dataset reads and applies stay
+// per-tracker.
 import { esiFetch, esiUrl } from '@/lib/esi';
 
 // Latest X-Ratelimit-* numbers seen this run — the token-bucket group usage

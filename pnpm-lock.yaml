@@ -12,9 +12,12 @@ importers:
 
   .:
     dependencies:
-      '@convex-dev/action-retrier':
-        specifier: ^0.3.0
-        version: 0.3.0(convex@1.41.0(react@19.2.4))
+      '@convex-dev/rate-limiter':
+        specifier: ^0.3.2
+        version: 0.3.2(convex@1.41.0(react@19.2.4))(react@19.2.4)
+      '@convex-dev/workpool':
+        specifier: ^0.4.7
+        version: 0.4.7(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.41.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@19.2.4))
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0
@@ -293,10 +296,20 @@ packages:
     resolution: {integrity: sha512-sAWO3D8PFP6pBXdxxW93SQi/KQqqhE2AAHo3AgWfdtJXwO6bfK6/wUN81XnOZk0qRC6vHzUEKhjwVD9dtDWvxg==}
     engines: {node: '>=18.18'}
 
-  '@convex-dev/action-retrier@0.3.0':
-    resolution: {integrity: sha512-opBNsgOPSuVY3qSARNub98XqPzSpSS7Jga0oGeWFhO+DcWBMt2gD3ssUeEA1Gi7wTNiZBX+T6OBfBnqMfv6Tuw==}
+  '@convex-dev/rate-limiter@0.3.2':
+    resolution: {integrity: sha512-+oBPsBfFbzdxiF/9XaaTQmVnvDlvEfg/c69/v8LxTbw4VLuiflIKlfnPQL8OS0azXQQ11hcPWHmU8ytFmHKDXA==}
     peerDependencies:
       convex: ^1.24.8
+      react: ^18.2.0 || ^19.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+
+  '@convex-dev/workpool@0.4.7':
+    resolution: {integrity: sha512-4O3VKcJXqYZ9icDgKdVPxjDGUAFK3oG0hbUwLcyYMYgsvVKlZDhvZRmczqSBZHLyrCGPpf925byh0dBigCfAGA==}
+    peerDependencies:
+      convex: ^1.31.7
+      convex-helpers: ^0.1.94
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
@@ -1939,6 +1952,28 @@ packages:
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
+
+  convex-helpers@0.1.119:
+    resolution: {integrity: sha512-fGNK9KAlBLk8Un729ZXBqD9S5jy910nxSrH6PloIL/Gl6TalFJvjN8+xCCwahlox8Ft+bb54SSg9MbcrsQb98w==}
+    hasBin: true
+    peerDependencies:
+      '@standard-schema/spec': ^1.0.0
+      convex: ^1.32.0
+      hono: ^4.0.5
+      react: ^17.0.2 || ^18.0.0 || ^19.0.0
+      typescript: ^5.5 || ^6.0.0
+      zod: ^3.25.0 || ^4.0.0
+    peerDependenciesMeta:
+      '@standard-schema/spec':
+        optional: true
+      hono:
+        optional: true
+      react:
+        optional: true
+      typescript:
+        optional: true
+      zod:
+        optional: true
 
   convex@1.41.0:
     resolution: {integrity: sha512-euxVf6yfpB7/VGKOobkLgjpbJidsUgW+b0ezonEyCUPqlpHFwR4/yIiI1hjjErzraiw91GxrtxpXQClMLNqU+w==}
@@ -3765,9 +3800,16 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  '@convex-dev/action-retrier@0.3.0(convex@1.41.0(react@19.2.4))':
+  '@convex-dev/rate-limiter@0.3.2(convex@1.41.0(react@19.2.4))(react@19.2.4)':
     dependencies:
       convex: 1.41.0(react@19.2.4)
+    optionalDependencies:
+      react: 19.2.4
+
+  '@convex-dev/workpool@0.4.7(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.41.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@19.2.4))':
+    dependencies:
+      convex: 1.41.0(react@19.2.4)
+      convex-helpers: 0.1.119(@standard-schema/spec@1.1.0)(convex@1.41.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3)
 
   '@drizzle-team/brocli@0.10.2': {}
 
@@ -5045,6 +5087,15 @@ snapshots:
   concat-map@0.0.1: {}
 
   convert-source-map@2.0.0: {}
+
+  convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.41.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3):
+    dependencies:
+      convex: 1.41.0(react@19.2.4)
+    optionalDependencies:
+      '@standard-schema/spec': 1.1.0
+      react: 19.2.4
+      typescript: 5.9.3
+      zod: 4.4.3
 
   convex@1.41.0(react@19.2.4):
     dependencies:
