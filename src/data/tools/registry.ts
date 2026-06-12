@@ -42,6 +42,16 @@ export const TOOLS: Tool[] = [
     navHidden: true,
   },
   {
+    label: 'Industry Jobs',
+    abbr: 'IJ',
+    href: '/jobs',
+    matchPrefix: '/jobs',
+    description: 'Live · /jobs',
+    // Out of the header strip until the sitewide UX pass decides nav
+    // placement; live via search and direct URL.
+    navHidden: true,
+  },
+  {
     label: 'Wormhole Roll Calc',
     abbr: 'WR',
     href: null,
