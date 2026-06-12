@@ -31,6 +31,7 @@ async function swallow(label: string, p: Promise<unknown>): Promise<void> {
 // never rides Vercel crons — this is one coarse global reconciler.
 // No user input — bearer-auth only, body and query params ignored.
 // authz: cron
+// rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 export async function GET(req: Request): Promise<Response> {
   // Cron endpoint: runs per-invocation and writes. Defer to request time so
   // Cache Components doesn't try to prerender it.

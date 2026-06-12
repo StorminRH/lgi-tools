@@ -184,6 +184,10 @@ const eslintConfig = defineConfig([
           pattern: "src/data/*",
           capture: ["sliceName"],
         },
+        // src/lib (incl. src/lib/esi) is one element: the cross-cutting
+        // helpers importable from anywhere. Same-element imports (lib → lib)
+        // are internal to the plugin, so no rule needs to grant them.
+        { type: "lib", mode: "folder", pattern: "src/lib" },
       ],
     },
     rules: {
@@ -192,31 +196,42 @@ const eslintConfig = defineConfig([
         {
           default: "disallow",
           message:
-            "Architectural boundary violation. Allowed import directions: feature → {ui, data, auth shared surface}; data → {auth shared surface}; ui → nothing cross-layer. Features never import each other; data slices never import features; eve-data and market-prices stay isolated (compose from above, e.g. src/db/sde-pipeline.ts). See CLAUDE.md > Architecture Invariants.",
+            "Architectural boundary violation. Allowed import directions: feature → {ui, data, lib, auth shared surface}; data → {lib, auth shared surface}; ui → {lib}; lib → {lib} only — lib never imports a slice. Features never import each other; data slices never import features; eve-data and market-prices stay isolated (compose from above, e.g. src/db/sde-pipeline.ts). See CLAUDE.md > Architecture Invariants.",
           rules: [
-            // The shared surface's type file references its own schema file.
-            { from: { type: "shared-auth-surface" }, allow: [{ to: { type: "shared-auth-surface" } }] },
-            // Feature slices may use UI primitives, data layers, and auth's
-            // shared surface — never another feature. Cross-feature imports
-            // fall through to the default `disallow`; same-feature imports are
-            // internal and ignored.
+            // The shared surface's type file references its own schema file,
+            // and the API wire contracts type-import the lib fetch client
+            // (the plugin checks type-only imports too).
+            {
+              from: { type: "shared-auth-surface" },
+              allow: [
+                { to: { type: "shared-auth-surface" } },
+                { to: { type: "lib" } },
+              ],
+            },
+            // Feature slices may use UI primitives, data layers, lib helpers,
+            // and auth's shared surface — never another feature. Cross-feature
+            // imports fall through to the default `disallow`; same-feature
+            // imports are internal and ignored.
             {
               from: { type: "feature" },
               allow: [
                 { to: { type: "ui" } },
                 { to: { type: "data" } },
+                { to: { type: "lib" } },
                 { to: { type: "shared-auth-surface" } },
               ],
             },
-            // Data slices may use auth's shared surface — nothing else cross-layer.
-            // No `feature` in the allow-list ⇒ data ↛ features. No general
-            // data → data ⇒ eve-data ⊥ market-prices holds automatically. (The
-            // search engine lives in the unclassified src/search/ layer, so data
-            // sources importing its types/matcher trip no rule and need no
-            // exception — the wiring manifest composes them from above.)
+            // Data slices may use lib helpers and auth's shared surface —
+            // nothing else cross-layer. No `feature` in the allow-list ⇒ data
+            // ↛ features. No general data → data ⇒ eve-data ⊥ market-prices
+            // holds automatically. (The search engine lives in the unclassified
+            // src/search/ layer, so data sources importing its types/matcher
+            // trip no rule and need no exception — the wiring manifest composes
+            // them from above.)
             {
               from: { type: "data" },
               allow: [
+                { to: { type: "lib" } },
                 { to: { type: "shared-auth-surface" } },
               ],
             },
@@ -229,9 +244,17 @@ const eslintConfig = defineConfig([
                 { to: { type: "data", captured: { sliceName: "eve-data" } } },
               ],
             },
-            // UI primitives are domain-agnostic: no rule grants them feature /
-            // data / auth-surface imports, so the default `disallow` forbids
-            // them.
+            // UI primitives are domain-agnostic: lib's cross-cutting helpers
+            // are the only cross-layer import they get; no rule grants them
+            // feature / data / auth-surface imports, so the default `disallow`
+            // forbids those.
+            {
+              from: { type: "ui" },
+              allow: [{ to: { type: "lib" } }],
+            },
+            // No rule has `from: lib` — src/lib never imports a feature, data,
+            // or ui module (a helper that needs slice knowledge belongs in the
+            // slice). lib → lib is same-element, internal, never checked.
           ],
         },
       ],

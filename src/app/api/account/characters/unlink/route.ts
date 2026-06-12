@@ -9,6 +9,7 @@ import {
   listLinkedCharacters,
   repointActiveToOldest,
 } from '@/features/auth/queries';
+import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
 
 function redirectWithError(request: NextRequest, code: string): Response {
   const url = new URL('/characters', request.url);
@@ -24,6 +25,23 @@ function redirectWithError(request: NextRequest, code: string): Response {
 // references a deleted account.
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
+  // Per-IP rate limit, checked before the session read so a flood is rejected
+  // at the cheapest point. Unlinking is rare and deliberate — 10/min is plenty
+  // for a human and stops scripted hammering of the unlink + token deletion.
+  const limit = await rateLimit(clientIdentifier(request.headers), {
+    name: 'account-unlink',
+    perMinute: 10,
+  });
+  if (!limit.ok) {
+    return Response.json(
+      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
+      {
+        status: 429,
+        headers: { 'Retry-After': String(limit.retryAfter) },
+      },
+    );
+  }
+
   const h = await headers();
   const session = await auth.api.getSession({ headers: h });
   if (!session) {
