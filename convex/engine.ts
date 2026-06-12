@@ -239,8 +239,15 @@ export const onSyncComplete = internalMutation({
       nextDueAt:
         subject.syncedCharacterIds.length === 0
           ? null
-          : computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
-      ...(failed ? { lastError: `sync_failed: ${result.error.slice(0, 500)}` } : {}),
+          : computeNextDueAt(failed ? null : subject.minExpiresAt, cadenceFloorMs, now),
+      // A terminal failure means the apply never ran, so the old cache
+      // window is unverified — clear it (the #95 "errored, re-syncable now"
+      // meaning) so the next mount/visible/manual heartbeat dispatches
+      // immediately instead of treating the stale window as fresh. The scan
+      // still paces retries at the cadence floor.
+      ...(failed
+        ? { lastError: `sync_failed: ${result.error.slice(0, 500)}`, minExpiresAt: null }
+        : {}),
     });
   },
 });
