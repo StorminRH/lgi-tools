@@ -26,14 +26,9 @@ import { api } from '@/data/convex/api';
 import { convexClient } from '@/data/convex/client';
 import { typeNamesEndpoint, TYPE_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
 import { apiFetch } from '@/lib/api-client';
-import { formatQuantity } from '@/lib/format';
+import { formatQuantity, formatRemaining } from '@/lib/format';
 import type { SkillQueueEntry } from '../esi-projection';
-import {
-  entryProgress,
-  formatRemaining,
-  romanLevel,
-  summarizeQueue,
-} from '../progress';
+import { entryProgress, romanLevel, summarizeQueue } from '../progress';
 import { STATUS_META, syncErrorMeta } from '../skill-queue-styles';
 
 export interface PanelCharacter {

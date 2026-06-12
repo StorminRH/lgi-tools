@@ -14,6 +14,19 @@ export const ACTIVITY_NAME_TO_ID: Record<string, number> = {
   reaction: 11,
 };
 
+// Display labels for CCP's numeric activity IDs — the user-facing names for
+// the same six activities mapped above. Shared by every surface that shows an
+// activity (planner blueprint views, the industry-jobs tracker), so a label
+// edit lands everywhere at once.
+export const ACTIVITY_ID_LABEL: Record<number, string> = {
+  1: 'Manufacturing',
+  3: 'TE Research',
+  4: 'ME Research',
+  5: 'Copying',
+  8: 'Invention',
+  11: 'Reaction',
+};
+
 // The only activities the resolver + planner walk: 1 = manufacturing,
 // 11 = reactions, as CCP string keys. Invention (8), copying (5), and research
 // (3, 4) are deliberately EXCLUDED — invention has a probability dimension we

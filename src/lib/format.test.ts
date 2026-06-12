@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatIsk, formatIskCompact, formatIskShort } from './format';
+import { formatIsk, formatIskCompact, formatIskShort, formatRemaining } from './format';
 
 describe('formatIsk', () => {
   it('uses two decimals at B/M and one at K', () => {
@@ -25,6 +25,15 @@ describe('formatIskShort', () => {
   it('returns an em dash for null / non-finite', () => {
     expect(formatIskShort(null)).toBe('—');
     expect(formatIskShort(Number.NaN)).toBe('—');
+  });
+});
+
+describe('formatRemaining', () => {
+  it('formats the largest two units', () => {
+    expect(formatRemaining(30_000)).toBe('<1m');
+    expect(formatRemaining(5 * 60_000)).toBe('5m');
+    expect(formatRemaining(3 * 3_600_000 + 20 * 60_000)).toBe('3h 20m');
+    expect(formatRemaining(2 * 86_400_000 + 5 * 3_600_000)).toBe('2d 5h');
   });
 });
 
