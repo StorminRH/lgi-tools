@@ -8,6 +8,9 @@
  * @module
  */
 
+import type * as industryJobs from "../industryJobs.js";
+import type * as industryJobsSync from "../industryJobsSync.js";
+import type * as lib_esiRead from "../lib/esiRead.js";
 import type * as skills from "../skills.js";
 import type * as skillsSync from "../skillsSync.js";
 
@@ -18,6 +21,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  industryJobs: typeof industryJobs;
+  industryJobsSync: typeof industryJobsSync;
+  "lib/esiRead": typeof lib_esiRead;
   skills: typeof skills;
   skillsSync: typeof skillsSync;
 }>;

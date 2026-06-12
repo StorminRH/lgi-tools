@@ -1,9 +1,10 @@
-// The 3.4.7 sync action — runs on the DEFAULT Convex runtime (no "use node";
-// the shared ESI gate is runtime-portable per Decision Record 11, proven by
-// this very consumer). One run refreshes every linked character for one user:
+// The 3.4.8 industry-jobs sync action — runs on the DEFAULT Convex runtime
+// (no "use node"; the shared ESI gate is runtime-portable per Decision
+// Record 11, proven live by the 3.4.7 skills sync). One run refreshes every
+// linked character for one user:
 //
-//   heldState (etags) → eve-characters (Neon enumeration — the ownership
-//   boundary) → per character: eve-token vend + skillqueue/skills reads
+//   heldState (etag) → eve-characters (Neon enumeration — the ownership
+//   boundary) → per character: eve-token vend + ONE industry-jobs read
 //   through the shared gate → ONE applySyncResults mutation.
 //
 // The refresh token never reaches Convex: the vend endpoint returns only a
@@ -14,13 +15,8 @@
 // are never lost.
 import { v } from 'convex/values';
 import type { EveCharactersResponse, EveTokenOkResponse } from '@/features/auth/api-contract';
-import {
-  parseSkillQueueBody,
-  parseSkillsBody,
-  type SkillQueueEntry,
-  type SkillTotals,
-} from '@/features/skill-queue/esi-projection';
-import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
+import { parseIndustryJobsBody, type IndustryJob } from '@/features/industry-jobs/esi-projection';
+import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
 import { EsiBudgetExhaustedError } from '@/lib/esi';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { internal } from './_generated/api';
@@ -28,21 +24,14 @@ import { internalAction } from './_generated/server';
 import { readEsi, type RlSnapshot } from './lib/esiRead';
 
 // Fallback freshness window when a response carries no parseable Expires
-// header. Matches the live-observed skills cache (max-age=60) but is a
+// header. Matches the spec's industry-jobs cache (x-cache-age 300) but is a
 // last resort — the header is the truth and is preferred whenever present.
-const FALLBACK_TTL_MS = 60_000;
-
-interface HeldEtags {
-  queueEtag: string | null;
-  skillsEtag: string | null;
-}
+const FALLBACK_TTL_MS = 300_000;
 
 interface CharacterResult {
   characterId: number;
-  queueEntries: SkillQueueEntry[] | null;
-  skills: SkillTotals | null;
-  queueEtag: string | null;
-  skillsEtag: string | null;
+  jobs: IndustryJob[] | null;
+  jobsEtag: string | null;
   expiresAt: number | null;
   error: string | null;
 }
@@ -58,8 +47,8 @@ export const syncUser = internalAction({
       throw new Error('SITE_URL and CONVEX_SERVICE_SECRET must be set on this Convex deployment');
     }
 
-    const held = await ctx.runQuery(internal.skills.heldState, { userId });
-    const heldByCharacter = new Map(held.map((h) => [h.characterId, h]));
+    const held = await ctx.runQuery(internal.industryJobs.heldState, { userId });
+    const heldByCharacter = new Map(held.map((h) => [h.characterId, h.jobsEtag]));
 
     // fetchWithTimeout (not bare fetch): a hung Next.js endpoint must fail
     // fast into the Action Retrier rather than holding the action open until
@@ -79,16 +68,14 @@ export const syncUser = internalAction({
     const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
     let runError: string | null = null;
 
-    // Sequential by design — gentle on the shared `char-detail` token bucket
-    // (600/15m across EVERY character endpoint this user's features read).
+    // Sequential by design — gentle on the shared per-group token bucket
+    // (the spec puts industry jobs in `char-industry`, 600/15m; the observed
+    // group lands on the state doc each run — read, never assumed).
     for (const character of characters) {
-      const etags = heldByCharacter.get(character.characterId) ?? {
-        queueEtag: null,
-        skillsEtag: null,
-      };
+      const heldEtag = heldByCharacter.get(character.characterId) ?? null;
 
-      if (!canSyncSkillQueue(character)) {
-        results.push(errorResult(character.characterId, 'reauth_required', etags));
+      if (!canSyncIndustryJobs(character)) {
+        results.push(errorResult(character.characterId, 'reauth_required', heldEtag));
         continue;
       }
 
@@ -103,72 +90,43 @@ export const syncUser = internalAction({
         continue;
       }
       if (tokenRes.status === 409) {
-        results.push(errorResult(character.characterId, 'reauth_required', etags));
+        results.push(errorResult(character.characterId, 'reauth_required', heldEtag));
         continue;
       }
       if (!tokenRes.ok) {
-        results.push(errorResult(character.characterId, 'token_unavailable', etags));
+        results.push(errorResult(character.characterId, 'token_unavailable', heldEtag));
         continue;
       }
       const token = (await tokenRes.json()) as EveTokenOkResponse;
 
       try {
-        const queueRead = await readEsi(
-          `/characters/${character.characterId}/skillqueue`,
+        const read = await readEsi(
+          `/characters/${character.characterId}/industry/jobs`,
           token.accessToken,
-          etags.queueEtag,
+          heldEtag,
           rl,
         );
-        if (queueRead.kind === 'error') {
-          results.push(errorResult(character.characterId, queueRead.code, etags));
-          continue;
-        }
-        const skillsRead = await readEsi(
-          `/characters/${character.characterId}/skills`,
-          token.accessToken,
-          etags.skillsEtag,
-          rl,
-        );
-        if (skillsRead.kind === 'error') {
-          results.push(errorResult(character.characterId, skillsRead.code, etags));
+        if (read.kind === 'error') {
+          results.push(errorResult(character.characterId, read.code, heldEtag));
           continue;
         }
 
-        let queueEntries: SkillQueueEntry[] | null = null;
-        let queueEtag = etags.queueEtag;
-        if (queueRead.kind === 'fresh') {
-          queueEntries = parseSkillQueueBody(queueRead.body);
-          if (queueEntries === null) {
-            results.push(errorResult(character.characterId, 'contract_error', etags));
+        let jobs: IndustryJob[] | null = null;
+        let jobsEtag = heldEtag;
+        if (read.kind === 'fresh') {
+          jobs = parseIndustryJobsBody(read.body);
+          if (jobs === null) {
+            results.push(errorResult(character.characterId, 'contract_error', heldEtag));
             continue;
           }
-          queueEtag = queueRead.etag;
+          jobsEtag = read.etag;
         }
-
-        let skills: SkillTotals | null = null;
-        let skillsEtag = etags.skillsEtag;
-        if (skillsRead.kind === 'fresh') {
-          skills = parseSkillsBody(skillsRead.body);
-          if (skills === null) {
-            results.push(errorResult(character.characterId, 'contract_error', etags));
-            continue;
-          }
-          skillsEtag = skillsRead.etag;
-        }
-
-        // The next window ends when the FIRST of the two caches expires.
-        const expiries = [queueRead.expiresAt, skillsRead.expiresAt].filter(
-          (e): e is number => e !== null,
-        );
-        const expiresAt = expiries.length > 0 ? Math.min(...expiries) : Date.now() + FALLBACK_TTL_MS;
 
         results.push({
           characterId: character.characterId,
-          queueEntries,
-          skills,
-          queueEtag,
-          skillsEtag,
-          expiresAt,
+          jobs,
+          jobsEtag,
+          expiresAt: read.expiresAt ?? Date.now() + FALLBACK_TTL_MS,
           error: null,
         });
       } catch (error) {
@@ -176,7 +134,7 @@ export const syncUser = internalAction({
           // The shared budget is spent — recording it and stopping beats
           // burning the remaining characters (and a retry would refuse too).
           runError = `budget_exhausted:${error.reason}`;
-          results.push(errorResult(character.characterId, 'budget_exhausted', etags));
+          results.push(errorResult(character.characterId, 'budget_exhausted', heldEtag));
           break;
         }
         // EsiServerError / network failure — genuinely transient; rethrow so
@@ -186,7 +144,7 @@ export const syncUser = internalAction({
       }
     }
 
-    await ctx.runMutation(internal.skills.applySyncResults, {
+    await ctx.runMutation(internal.industryJobs.applySyncResults, {
       userId,
       generation,
       enumeratedCharacterIds: characters.map((c) => c.characterId),
@@ -197,17 +155,14 @@ export const syncUser = internalAction({
   },
 });
 
-function errorResult(characterId: number, code: string, etags: HeldEtags): CharacterResult {
+function errorResult(characterId: number, code: string, heldEtag: string | null): CharacterResult {
   return {
     characterId,
-    queueEntries: null,
-    skills: null,
-    // Echo the held etags — ESI's 304 never repeats an ETag, and an errored
+    jobs: null,
+    // Echo the held etag — ESI's 304 never repeats an ETag, and an errored
     // read must not discard custody either.
-    queueEtag: etags.queueEtag,
-    skillsEtag: etags.skillsEtag,
+    jobsEtag: heldEtag,
     expiresAt: null,
     error: code,
   };
 }
-

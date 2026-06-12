@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkillQueueEntry } from './esi-projection';
-import { entryProgress, formatRemaining, romanLevel, summarizeQueue } from './progress';
+import { entryProgress, romanLevel, summarizeQueue } from './progress';
 
 const NOW = Date.parse('2026-06-11T12:00:00Z');
 
@@ -89,15 +89,6 @@ describe('summarizeQueue', () => {
     const summary = summarizeQueue([active, later], NOW);
     expect(summary.kind).toBe('active');
     expect(summary.finishesAt).toBe(Date.parse('2026-06-14T00:00:00Z'));
-  });
-});
-
-describe('formatRemaining', () => {
-  it('formats the largest two units', () => {
-    expect(formatRemaining(30_000)).toBe('<1m');
-    expect(formatRemaining(5 * 60_000)).toBe('5m');
-    expect(formatRemaining(3 * 3_600_000 + 20 * 60_000)).toBe('3h 20m');
-    expect(formatRemaining(2 * 86_400_000 + 5 * 3_600_000)).toBe('2d 5h');
   });
 });
 

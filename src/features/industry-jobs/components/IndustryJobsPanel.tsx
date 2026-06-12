@@ -1,10 +1,11 @@
 'use client';
 
-// The skill-queue island (3.4.7). Receives the signed-in pilot's linked
+// The industry-jobs island (3.4.8). Receives the signed-in pilot's linked
 // characters as server props (names, portraits, scope health — Neon truth at
 // render time) and joins them with the live Convex projection: useQuery
-// streams every sync write over the websocket, so a queue updates with no
-// reload and no client polling. Mounting (and the manual button) records sync
+// streams every sync write over the websocket — including the scheduled
+// flip-to-ready at a job's end_date — so the board updates with no reload
+// and no client polling. Mounting (and the manual button) records sync
 // intent via the requestSync mutation — the client never calls the action,
 // and the ids it sends are a freshness hint only.
 import {
@@ -26,10 +27,10 @@ import { api } from '@/data/convex/api';
 import { convexClient } from '@/data/convex/client';
 import { typeNamesEndpoint, TYPE_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
 import { apiFetch } from '@/lib/api-client';
-import { formatQuantity, formatRemaining } from '@/lib/format';
-import type { SkillQueueEntry } from '../esi-projection';
-import { entryProgress, romanLevel, summarizeQueue } from '../progress';
-import { STATUS_META, syncErrorMeta } from '../skill-queue-styles';
+import { formatRemaining } from '@/lib/format';
+import type { IndustryJob } from '../esi-projection';
+import { jobProgress, summarizeJobs } from '../job-state';
+import { JOB_STATUS_META, jobActivityLabel, syncErrorMeta } from '../industry-jobs-styles';
 
 export interface PanelCharacter {
   characterId: number;
@@ -38,7 +39,7 @@ export interface PanelCharacter {
   needsReconnect: boolean;
 }
 
-export function SkillQueuePanel({ characters }: { characters: PanelCharacter[] }) {
+export function IndustryJobsPanel({ characters }: { characters: PanelCharacter[] }) {
   if (convexClient === null) {
     return (
       <Card>
@@ -63,19 +64,20 @@ export function SkillQueuePanel({ characters }: { characters: PanelCharacter[] }
         </Card>
       </Unauthenticated>
       <Authenticated>
-        <LiveQueues characters={characters} />
+        <LiveJobs characters={characters} />
       </Authenticated>
     </>
   );
 }
 
 // Re-render cadence for the client-side timestamp math — progress bars and
-// "finishes in" labels stay honest without any data traffic.
+// "done in" labels stay honest without any data traffic. (The ready flip
+// itself arrives over the websocket, not from this tick.)
 const TICK_MS = 30_000;
 
-function LiveQueues({ characters }: { characters: PanelCharacter[] }) {
-  const live = useQuery(api.skills.forViewer);
-  const requestSync = useMutation(api.skills.requestSync);
+function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
+  const live = useQuery(api.industryJobs.forViewer);
+  const requestSync = useMutation(api.industryJobs.requestSync);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -94,29 +96,32 @@ function LiveQueues({ characters }: { characters: PanelCharacter[] }) {
     });
   }, [characterIdsKey, requestSync]);
 
-  // SDE name enrichment, client-side: resolve the skill ids present in the
-  // live docs against Neon. Names never live in Convex.
-  const skillIds = useMemo(() => {
+  // SDE name enrichment, client-side: resolve the blueprint/product type ids
+  // present in the live docs against Neon. Names never live in Convex.
+  const typeIds = useMemo(() => {
     const ids = new Set<number>();
     for (const character of live?.characters ?? []) {
-      for (const entry of character.data?.entries ?? []) ids.add(entry.skill_id);
+      for (const job of character.data?.jobs ?? []) {
+        ids.add(job.blueprint_type_id);
+        if (job.product_type_id !== undefined) ids.add(job.product_type_id);
+      }
     }
     return [...ids].sort((a, b) => a - b).slice(0, TYPE_NAMES_MAX_IDS);
   }, [live]);
   const [names, setNames] = useState<Record<string, string>>({});
-  const skillIdsKey = skillIds.join(',');
+  const typeIdsKey = typeIds.join(',');
   useEffect(() => {
-    if (skillIdsKey === '') return;
+    if (typeIdsKey === '') return;
     let cancelled = false;
     void apiFetch(typeNamesEndpoint, {
-      body: { typeIds: skillIdsKey.split(',').map(Number) },
+      body: { typeIds: typeIdsKey.split(',').map(Number) },
     }).then((result) => {
       if (!cancelled && result.ok) setNames((prev) => ({ ...prev, ...result.data.names }));
     });
     return () => {
       cancelled = true;
     };
-  }, [skillIdsKey]);
+  }, [typeIdsKey]);
 
   const liveByCharacter = new Map(
     (live?.characters ?? []).map((character) => [character.characterId, character]),
@@ -128,7 +133,7 @@ function LiveQueues({ characters }: { characters: PanelCharacter[] }) {
     <div className="w-full max-w-[760px] flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
-          {syncing ? 'Syncing from ESI…' : 'Live · updates as syncs land'}
+          {syncing ? 'Syncing from ESI…' : 'Live · jobs flip to ready on schedule'}
         </span>
         <button
           type="button"
@@ -152,7 +157,7 @@ function LiveQueues({ characters }: { characters: PanelCharacter[] }) {
       )}
 
       {characters.map((character) => (
-        <CharacterQueueCard
+        <CharacterJobsCard
           key={character.characterId}
           character={character}
           live={liveByCharacter.get(character.characterId)}
@@ -166,10 +171,10 @@ function LiveQueues({ characters }: { characters: PanelCharacter[] }) {
 }
 
 type LiveCharacter = NonNullable<
-  FunctionReturnType<typeof api.skills.forViewer>
+  FunctionReturnType<typeof api.industryJobs.forViewer>
 >['characters'][number];
 
-function CharacterQueueCard({
+function CharacterJobsCard({
   character,
   live,
   names,
@@ -183,7 +188,7 @@ function CharacterQueueCard({
   syncing: boolean;
 }) {
   const data = live?.data ?? null;
-  const summary = data !== null ? summarizeQueue(data.entries, now) : null;
+  const summary = data !== null ? summarizeJobs(data.jobs, now) : null;
 
   return (
     <Card>
@@ -199,30 +204,28 @@ function CharacterQueueCard({
           <div className="font-display font-bold text-[15px] text-name truncate">
             {character.name}
           </div>
-          {data !== null && (
+          {summary !== null && (
             <div className="text-[10px] text-muted tracking-[0.06em]">
-              {formatQuantity(data.totalSp)} SP
-              {data.unallocatedSp !== undefined && data.unallocatedSp > 0
-                ? ` · ${formatQuantity(data.unallocatedSp)} unallocated`
-                : ''}
+              {summary.total === 1 ? '1 job' : `${summary.total} jobs`}
+              {summary.readyCount > 0 ? ` · ${summary.readyCount} ready` : ''}
+              {summary.pausedCount > 0 ? ` · ${summary.pausedCount} paused` : ''}
             </div>
           )}
         </div>
-        {summary !== null && summary.kind === 'active' && summary.finishesAt !== null && (
+        {summary !== null && summary.nextEndAt !== null && (
           <span className="text-[10px] text-muted tracking-[0.06em] shrink-0">
-            queue ends in {formatRemaining(summary.finishesAt - now)}
+            next done in {formatRemaining(summary.nextEndAt - now)}
           </span>
         )}
-        {summary !== null && summary.kind === 'paused' && <Pill tone="orange">Paused</Pill>}
       </div>
 
       {character.needsReconnect && (
         <Callout label="Reconnect">
-          This character is missing the skill scopes —{' '}
+          This character is missing the industry scope —{' '}
           <a href="/characters" className="underline text-name">
             reconnect it on the Characters page
           </a>{' '}
-          to sync its queue.
+          to sync its jobs.
         </Callout>
       )}
 
@@ -230,12 +233,12 @@ function CharacterQueueCard({
         <Callout label={syncErrorMeta(live.syncError).label}>
           {data !== null && live.lastSyncedAt !== null
             ? `Couldn't refresh — showing data as of ${new Date(live.lastSyncedAt).toLocaleTimeString()}.`
-            : "Couldn't fetch this character's queue yet."}
+            : "Couldn't fetch this character's jobs yet."}
         </Callout>
       )}
 
       <SectionHeader
-        label="Skill queue"
+        label="Industry jobs"
         hint={
           data !== null && live?.lastSyncedAt != null
             ? `as of ${new Date(live.lastSyncedAt).toLocaleTimeString()}`
@@ -251,53 +254,51 @@ function CharacterQueueCard({
               ? 'Syncing…'
               : 'Awaiting first sync.'}
         </EmptyState>
-      ) : data.entries.length === 0 ? (
-        <EmptyState>No skills in the training queue.</EmptyState>
+      ) : data.jobs.length === 0 ? (
+        <EmptyState>No industry jobs running.</EmptyState>
       ) : (
-        data.entries.map((entry) => (
-          <QueueEntryRow
-            key={entry.queue_position}
-            entry={entry}
-            name={names[String(entry.skill_id)]}
-            now={now}
-          />
+        data.jobs.map((job) => (
+          <JobRow key={job.job_id} job={job} names={names} now={now} />
         ))
       )}
     </Card>
   );
 }
 
-function QueueEntryRow({
-  entry,
-  name,
+function JobRow({
+  job,
+  names,
   now,
 }: {
-  entry: SkillQueueEntry;
-  name: string | undefined;
+  job: IndustryJob;
+  names: Record<string, string>;
   now: number;
 }) {
-  const progress = entryProgress(entry, now);
-  const meta = STATUS_META[progress.status];
-  const finish = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : null;
+  const meta = JOB_STATUS_META[job.status];
+  // The product is the headline where one exists (manufacturing, invention,
+  // reactions); research/copy jobs are about the blueprint itself.
+  const headlineId = job.product_type_id ?? job.blueprint_type_id;
+  const end = Date.parse(job.end_date);
 
   return (
     <div className="border-t border-border-soft px-3.5 py-[6px]">
-      <div className="grid grid-cols-[26px_minmax(0,1fr)_auto_auto] items-center gap-[6px] text-[12px]">
-        <span className="text-[10px] text-muted">{entry.queue_position + 1}</span>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-[6px] text-[12px]">
         <span className="text-name truncate leading-[1.5]">
-          {name ?? `Skill #${entry.skill_id}`}{' '}
-          <span className="text-muted">{romanLevel(entry.finished_level)}</span>
+          {names[String(headlineId)] ?? `Type #${headlineId}`}{' '}
+          <span className="text-muted">
+            ×{job.runs} · {jobActivityLabel(job.activity_id)}
+          </span>
         </span>
         <span className="text-[10px] text-muted shrink-0">
-          {progress.status === 'training' && finish !== null
-            ? formatRemaining(finish - now)
+          {job.status === 'active' && Number.isFinite(end)
+            ? `done in ${formatRemaining(end - now)}`
             : ''}
         </span>
         <Pill tone={meta.tone}>{meta.label}</Pill>
       </div>
-      {progress.status === 'training' && (
+      {(job.status === 'active' || job.status === 'paused') && (
         <div className="mt-[4px]">
-          <ProgressBar pct={progress.pct} />
+          <ProgressBar pct={jobProgress(job, now)} />
         </div>
       )}
     </div>

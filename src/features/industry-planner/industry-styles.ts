@@ -5,6 +5,7 @@
 
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
+import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
 import type { PriceSource } from '@/data/market-prices/types';
 
 // Below this percentage a positive margin is "thin" (orange) rather than
@@ -20,15 +21,12 @@ export function marginToneClass(marginPct: number | null): string {
   return toneTextClass('green');
 }
 
-// Industry activity labels. Manufacturing (1) and reactions (11) are the only
-// activities the planner models (see eve-data INDUSTRY_ACTIVITY_NAMES).
-export const ACTIVITY_LABEL: Record<number, string> = {
-  1: 'Manufacturing',
-  11: 'Reaction',
-};
-
+// Industry activity label, from the shared id → label map (eve-data).
+// Manufacturing (1) and reactions (11) are the only activities the planner
+// models (see eve-data INDUSTRY_ACTIVITY_NAMES); the fallback covers any id
+// outside the map.
 export function activityLabel(activityId: number): string {
-  return ACTIVITY_LABEL[activityId] ?? 'Industry';
+  return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
 }
 
 // A material/build category: a display label, a palette tone, and a sort order.
