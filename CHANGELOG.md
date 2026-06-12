@@ -4,6 +4,10 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-06-12
+
+- New Industry Jobs tool: signed-in pilots can now watch the running industry jobs of every linked character in one place, with blueprint and product names, progress bars, and completion countdowns. Jobs refresh from EVE when you open the page, and a finished job flips to ready the moment its timer ends — live, without reloading.
+
 ### 2026-06-11
 
 - New Skill Queues tool: signed-in pilots can now see the live training queue for every linked character in one place, with per-skill progress, completion times, and total skill points. Queues refresh from EVE when you open the page and update live without reloading.
