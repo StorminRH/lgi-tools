@@ -77,7 +77,7 @@ function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
   // auth is established before the first heartbeat. The engine decides
   // whether a run is actually warranted (freshness gate, in-flight dedupe)
   // and keeps the subject refreshing while this tab stays visible.
-  const syncNow = useSyncSubject(
+  useSyncSubject(
     'industryJobs',
     characters.map((c) => c.characterId),
   );
@@ -123,18 +123,10 @@ function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
 
   return (
     <div className="w-full max-w-[760px] flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
           {syncing ? 'Syncing from ESI…' : 'Live · jobs flip to ready on schedule'}
         </span>
-        <button
-          type="button"
-          onClick={syncNow}
-          disabled={syncing}
-          className="font-mono text-[10px] tracking-[0.1em] uppercase border border-border rounded-[2px] px-3 py-1.5 text-name hover:bg-surface-raised cursor-pointer disabled:opacity-50 disabled:cursor-default"
-        >
-          {syncing ? 'Syncing…' : 'Sync now'}
-        </button>
       </div>
 
       {runError !== null && (

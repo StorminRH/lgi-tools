@@ -80,7 +80,7 @@ export function computeNextDueAt(
   return due + Math.floor(random() * SYNC_JITTER_MS);
 }
 
-// Should a mount/visible/manual heartbeat dispatch immediately, rather than
+// Should a mount/visible heartbeat dispatch immediately, rather than
 // wait for the scan? Yes when the data is stale (no window, or window past)
 // or the viewer brought a character the engine hasn't synced yet (the
 // freshness-only hint — it never grants access; the action re-enumerates).

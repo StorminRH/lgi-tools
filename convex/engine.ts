@@ -15,7 +15,7 @@
 //      syncedCharacterIds, rl*, lastError, lastFinishedAt).
 //   4. Its view mounts the useSyncSubject hook (src/data/convex/).
 // Trigger classes: 'while-watched' (this engine's scan), 'on-view' (a
-// mount/visible/manual heartbeat dispatching immediately when stale), and
+// mount/visible heartbeat dispatching immediately when stale), and
 // 'on-schedule' (feature-local scheduled transitions, e.g. the jobs
 // tracker's markJobReady flip — the engine schedules refreshes, never flips).
 //
@@ -77,21 +77,17 @@ const RETENTION_MS = 7 * 24 * 60 * 60_000;
 // The liveness signal and the on-view trigger. Every beat refreshes
 // presence; interval beats stop there (the scan owns the cadence — letting
 // them dispatch would turn an errored subject into a 20s retry hammer).
-// Mount/visible/manual beats also dispatch immediately when the data is
-// stale or the viewer brought an unsynced character, which is what makes
-// opening a tracker (or returning to it, or clicking "Sync now") land a
-// fresh sync at once. The hint never grants access — the action
-// re-enumerates the user's characters from Neon on every run.
+// Mount/visible beats also dispatch immediately when the data is stale or
+// the viewer brought an unsynced character, which is what makes opening a
+// tracker (or returning to it) land a fresh sync at once — and an errored
+// run clears the cache window, so the next such beat retries right away.
+// The hint never grants access — the action re-enumerates the user's
+// characters from Neon on every run.
 export const heartbeat = mutation({
   args: {
     dataset: syncDatasetValidator,
     characterIdsHint: v.array(v.number()),
-    reason: v.union(
-      v.literal('mount'),
-      v.literal('visible'),
-      v.literal('interval'),
-      v.literal('manual'),
-    ),
+    reason: v.union(v.literal('mount'), v.literal('visible'), v.literal('interval')),
   },
   handler: async (ctx, { dataset, characterIdsHint, reason }) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -211,8 +207,9 @@ async function dispatch(
 // terminal failure, and arm the next due time — off the cache window the
 // apply just stamped, floored at the dataset cadence, plus jitter (group
 // staggering). Matched by workId, so a taken-over run's late completion
-// no-ops rather than clearing the new run's status. A subject with nothing
-// synced and nothing hinted parks at null until a heartbeat brings targets.
+// no-ops rather than clearing the new run's status. A successful run that
+// synced nothing parks at null until a heartbeat brings targets; a failed
+// run always re-arms (rationale inline below).
 export const onSyncComplete = internalMutation({
   args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
   handler: async (ctx, { workId, context, result }) => {
@@ -236,15 +233,21 @@ export const onSyncComplete = internalMutation({
     await ctx.db.patch(subject._id, {
       status: 'idle',
       workId: null,
-      nextDueAt:
-        subject.syncedCharacterIds.length === 0
+      // A failed run re-arms at the cadence floor even when nothing is
+      // synced yet: a first-ever run failing terminally would otherwise park
+      // nextDueAt null and leave the scan set, so a viewer staying on the
+      // page would get no retry at all. The scan's cold-retire still cleans
+      // the row once the viewer leaves.
+      nextDueAt: failed
+        ? computeNextDueAt(null, cadenceFloorMs, now)
+        : subject.syncedCharacterIds.length === 0
           ? null
-          : computeNextDueAt(failed ? null : subject.minExpiresAt, cadenceFloorMs, now),
+          : computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
       // A terminal failure means the apply never ran, so the old cache
       // window is unverified — clear it (the #95 "errored, re-syncable now"
-      // meaning) so the next mount/visible/manual heartbeat dispatches
-      // immediately instead of treating the stale window as fresh. The scan
-      // still paces retries at the cadence floor.
+      // meaning) so the next mount/visible heartbeat dispatches immediately
+      // instead of treating the stale window as fresh. The scan still paces
+      // retries at the cadence floor.
       ...(failed
         ? { lastError: `sync_failed: ${result.error.slice(0, 500)}`, minExpiresAt: null }
         : {}),

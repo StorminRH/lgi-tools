@@ -165,9 +165,9 @@ export const applySyncResults = internalMutation({
         lastSyncedAt: refreshed ? now : (existing?.lastSyncedAt ?? null),
         // An errored character must stay immediately re-syncable: carrying
         // the old cache window past an error would make the freshness gate
-        // silently swallow "Sync now" until the stale window expired.
-        // Successful results always carry a window (the action falls back to
-        // now + 300s when ESI sends no Expires).
+        // silently swallow the next mount/visible heartbeat until the stale
+        // window expired. Successful results always carry a window (the
+        // action falls back to now + 300s when ESI sends no Expires).
         expiresAt: refreshed ? result.expiresAt : null,
         syncError: result.error,
       };
