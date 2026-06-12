@@ -128,6 +128,20 @@ export const heartbeat = mutation({
     if (!hasSyncTarget(subject.syncedCharacterIds, characterIdsHint)) return;
     if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
     if (!isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, characterIdsHint, now)) {
+      // Still fresh, but a return inside the cache window finds the subject
+      // retired from the scan set (the cold branch nulled nextDueAt) — re-arm
+      // the schedule off the held window so the cadence resumes without
+      // waiting for staleness or the sweeper.
+      if (subject.nextDueAt === null) {
+        const { cadenceFloorMs } = SYNC_DATASET_CONFIG[subject.dataset];
+        await ctx.db.patch(subject._id, {
+          nextDueAt: computeNextDueAt(
+            subject.minExpiresAt,
+            cadenceFloorMs,
+            subject.lastFinishedAt ?? now,
+          ),
+        });
+      }
       return;
     }
     await dispatch(ctx, subject, now);
