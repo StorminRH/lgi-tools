@@ -89,6 +89,7 @@ function pkgVersion(name) {
 const manifest = {
   capturedAt: new Date().toISOString(),
   commit: head,
+  branch: git(["rev-parse", "--abbrev-ref", "HEAD"]) || null,
   baseSha: base || null,
   changedFiles,
   changedFileCount: changedFiles.length,

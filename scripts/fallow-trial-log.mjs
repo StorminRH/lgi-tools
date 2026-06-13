@@ -17,7 +17,7 @@
 // judgment, not extraction. See docs/fallow-trial.md.
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, existsSync, mkdtempSync, readdirSync } from "node:fs";
+import { readFileSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
