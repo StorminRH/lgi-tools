@@ -35,6 +35,19 @@ jobs:
           # git-history baseline lookup (documented fallow foot-gun).
           fetch-depth: 0
 
+      # Install deps BEFORE the fallow step (same as the backstop job) so the
+      # pinned fallow (2.96.0) is in node_modules and the Action's version
+      # resolution is unambiguous — both jobs run the identical pinned binary, so
+      # their trial results stay comparable. The metrics step below reuses this.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
       - name: fallow audit
         # Belt-and-suspenders non-blocking guarantee: fail-on-issues:false stops
         # a `fail` verdict from exiting non-zero, and continue-on-error stops even
@@ -56,15 +69,6 @@ jobs:
       # --- same-diff metrics capture (M1–M7), kept OUT of the authoritative
       # test.yml steps. Runs fallow + knip + eslint on the identical diff and
       # uploads one JSON bundle so the trial scorecard is derivable later. ---
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
       - name: Capture parallel metrics (fallow + knip + eslint, same diff)
         if: always()
         env:
