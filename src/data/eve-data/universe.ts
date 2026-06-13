@@ -225,9 +225,10 @@ export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
   }
   const operationIds = new Set(operations.map((o) => o.id));
 
-  // NPC stations — dropped unless their system is an ingested K-space system
-  // (the 4 Thera/wormhole stations) and their operation exists. Capability
-  // booleans are stamped from the station's operation.
+  // NPC stations — kept only when their system is an ingested K-space system
+  // AND their operation exists. Dropped otherwise (e.g. the 4 Thera/wormhole
+  // stations, whose system isn't K-space). Capability booleans are stamped
+  // from the station's operation.
   const stations: UniverseNpcStation[] = [];
   for (const st of raw.stations) {
     const id = intOrNull(st._key);

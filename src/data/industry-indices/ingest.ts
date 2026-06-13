@@ -102,25 +102,23 @@ async function refreshDataset<T>(
   }
 }
 
-// Refresh both datasets from ESI in one pass. Each dataset is fetched and
-// upserted independently (one failing doesn't block the other); a single
-// batch-stamped `updatedAt` marks every row written this run. The ESI fetch
-// happens before any upsert and with no transaction open, so no DB connection
-// is pinned across the network round-trip (the upserts are single statements,
-// chunked to stay under Postgres's bind-param ceiling). Pure upsert, no
-// delete — last-write-wins and idempotent, since systems/types don't vanish.
+// Refresh both datasets from ESI in one pass. The two run concurrently — they
+// are independent ESI calls + upserts, and `refreshDataset` swallows its own
+// errors into a result (never rejects), so one failing doesn't block the other.
+// A single batch-stamped `updatedAt`, captured up front, marks every row written
+// this run. Each ESI fetch completes before that dataset's upsert and with no
+// transaction open, so no DB connection is pinned across the network round-trip
+// (the upserts are single statements, chunked to stay under Postgres's
+// bind-param ceiling). Pure upsert, no delete — last-write-wins and idempotent,
+// since systems/types don't vanish.
 export async function refreshIndustryIndices(db: AnyPgDb): Promise<RefreshIndicesSummary> {
   const start = Date.now();
   const updatedAt = new Date();
 
-  const costIndices = await refreshDataset(
-    fetchCostIndices,
-    (rows) => persistCostIndices(db, rows, updatedAt),
-  );
-  const adjustedPricesResult = await refreshDataset(
-    fetchAdjustedPrices,
-    (rows) => persistAdjustedPrices(db, rows, updatedAt),
-  );
+  const [costIndices, adjustedPricesResult] = await Promise.all([
+    refreshDataset(fetchCostIndices, (rows) => persistCostIndices(db, rows, updatedAt)),
+    refreshDataset(fetchAdjustedPrices, (rows) => persistAdjustedPrices(db, rows, updatedAt)),
+  ]);
 
   return {
     costIndices,
