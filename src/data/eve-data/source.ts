@@ -44,7 +44,16 @@ type SdeJsonlName =
   | 'types'
   | 'dogmaAttributes'
   | 'typeDogma'
-  | 'blueprints';
+  | 'blueprints'
+  // Universe (map + NPC station) files — 3.5.1a. Small (6.5KB–5MB); the huge
+  // mapMoons/mapPlanets are deliberately not requested. Each name maps directly
+  // to `<name>.jsonl` in the archive.
+  | 'mapRegions'
+  | 'mapConstellations'
+  | 'mapSolarSystems'
+  | 'npcStations'
+  | 'stationOperations'
+  | 'stationServices';
 
 const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
   'categories',
@@ -53,6 +62,12 @@ const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
   'dogmaAttributes',
   'typeDogma',
   'blueprints',
+  'mapRegions',
+  'mapConstellations',
+  'mapSolarSystems',
+  'npcStations',
+  'stationOperations',
+  'stationServices',
 ] as const;
 
 // The download interface 3.3.2b inherits: a map of name → on-disk path of the
