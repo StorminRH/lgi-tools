@@ -129,8 +129,8 @@ export default defineSchema({
   // this tracker's conditional-request custody — the characterSync twin for
   // tracker #2 (3.4.8). One ESI endpoint, so one held ETag. Same custody
   // rules: etag only ever stored beside the payload a future 304 would
-  // confirm; an errored result clears expiresAt so "Sync now" is never
-  // silently swallowed after an error.
+  // confirm; an errored result clears expiresAt so the next mount/visible
+  // heartbeat is never silently swallowed after an error.
   industryJobsSync: defineTable({
     userId: v.string(),
     characterId: v.number(),

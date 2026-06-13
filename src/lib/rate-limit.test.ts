@@ -201,16 +201,19 @@ describe('rateLimit', () => {
 });
 
 describe('clientIdentifier', () => {
-  it('returns the first IP from x-forwarded-for', async () => {
+  it('prefers the platform-set x-real-ip over a client-controllable x-forwarded-for', async () => {
+    const { clientIdentifier } = await importHelper();
+    const headers = new Headers({
+      'x-real-ip': '198.51.100.7',
+      'x-forwarded-for': '203.0.113.5, 10.0.0.1',
+    });
+    expect(clientIdentifier(headers)).toBe('198.51.100.7');
+  });
+
+  it('falls back to the first x-forwarded-for IP when x-real-ip is missing', async () => {
     const { clientIdentifier } = await importHelper();
     const headers = new Headers({ 'x-forwarded-for': '203.0.113.5, 10.0.0.1' });
     expect(clientIdentifier(headers)).toBe('203.0.113.5');
-  });
-
-  it('falls back to x-real-ip when x-forwarded-for is missing', async () => {
-    const { clientIdentifier } = await importHelper();
-    const headers = new Headers({ 'x-real-ip': '198.51.100.7' });
-    expect(clientIdentifier(headers)).toBe('198.51.100.7');
   });
 
   it('falls back to "unknown" when neither header is present', async () => {

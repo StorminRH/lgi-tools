@@ -6,6 +6,7 @@
 // here for the userId it authenticated via the spine's JWT — no client-posted
 // character id carries authority. The response holds no token material.
 // authz: service
+// rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 import { connection } from 'next/server';
 import {
   eveCharactersRequestSchema,

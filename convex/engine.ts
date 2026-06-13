@@ -15,7 +15,7 @@
 //      syncedCharacterIds, rl*, lastError, lastFinishedAt).
 //   4. Its view mounts the useSyncSubject hook (src/data/convex/).
 // Trigger classes: 'while-watched' (this engine's scan), 'on-view' (a
-// mount/visible/manual heartbeat dispatching immediately when stale), and
+// mount/visible heartbeat dispatching immediately when stale), and
 // 'on-schedule' (feature-local scheduled transitions, e.g. the jobs
 // tracker's markJobReady flip — the engine schedules refreshes, never flips).
 //
@@ -29,6 +29,24 @@
 // Dedup is the subject row itself: one running guard, one workId, one
 // generation token, all serialized by Convex OCC. Cold-stop is simply the
 // scan skipping the subject — nothing to cancel or tear down.
+//
+// ── Cost model (Convex billing, 3.4.10 audit; every function execution
+// bills as one call, component internals and reactive re-runs included;
+// plan caps Free 1M / Pro 25M calls/mo) ──
+// Idle floor ≈ 94k calls/mo with zero traffic: this 30s scan (86.4k), the
+// 15-min Vercel sweep chain (HTTP action + sweep mutation, 5.8k), and the
+// Workpool's own 30-min healthcheck cron (1.4k).
+// Per visible tab: 3 heartbeats/min, and every beat's lastSeenAt patch
+// re-runs forViewer per subscriber ≈ 360 calls/hr. Per dispatched run:
+// ~11 marginal calls (limit + enqueue + wrapper + action + heldState +
+// apply + complete + onComplete + ~3 forViewer echoes) plus ~34 Workpool
+// main-loop calls (its 200ms cooldown polling; amortizes across a burst).
+// Watched-hour ≈ 3k calls skills (60-run floor), ~0.9k jobs (12) → both-
+// tracker hours ≈ 230/mo on Free, ~6,300 on Pro (~200 daily 1h users, 27×).
+// Calls do NOT scale with characters-per-user — characters multiply ESI
+// reads inside ONE action (action compute + bandwidth scale, calls don't).
+// Calls bind first (action compute converges only near the Pro ceiling);
+// if bandwidth ever binds: move the presence write off the subject row (3.5).
 import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
@@ -77,21 +95,17 @@ const RETENTION_MS = 7 * 24 * 60 * 60_000;
 // The liveness signal and the on-view trigger. Every beat refreshes
 // presence; interval beats stop there (the scan owns the cadence — letting
 // them dispatch would turn an errored subject into a 20s retry hammer).
-// Mount/visible/manual beats also dispatch immediately when the data is
-// stale or the viewer brought an unsynced character, which is what makes
-// opening a tracker (or returning to it, or clicking "Sync now") land a
-// fresh sync at once. The hint never grants access — the action
-// re-enumerates the user's characters from Neon on every run.
+// Mount/visible beats also dispatch immediately when the data is stale or
+// the viewer brought an unsynced character, which is what makes opening a
+// tracker (or returning to it) land a fresh sync at once — and an errored
+// run clears the cache window, so the next such beat retries right away.
+// The hint never grants access — the action re-enumerates the user's
+// characters from Neon on every run.
 export const heartbeat = mutation({
   args: {
     dataset: syncDatasetValidator,
     characterIdsHint: v.array(v.number()),
-    reason: v.union(
-      v.literal('mount'),
-      v.literal('visible'),
-      v.literal('interval'),
-      v.literal('manual'),
-    ),
+    reason: v.union(v.literal('mount'), v.literal('visible'), v.literal('interval')),
   },
   handler: async (ctx, { dataset, characterIdsHint, reason }) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -211,8 +225,9 @@ async function dispatch(
 // terminal failure, and arm the next due time — off the cache window the
 // apply just stamped, floored at the dataset cadence, plus jitter (group
 // staggering). Matched by workId, so a taken-over run's late completion
-// no-ops rather than clearing the new run's status. A subject with nothing
-// synced and nothing hinted parks at null until a heartbeat brings targets.
+// no-ops rather than clearing the new run's status. A successful run that
+// synced nothing parks at null until a heartbeat brings targets; a failed
+// run always re-arms (rationale inline below).
 export const onSyncComplete = internalMutation({
   args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
   handler: async (ctx, { workId, context, result }) => {
@@ -236,15 +251,21 @@ export const onSyncComplete = internalMutation({
     await ctx.db.patch(subject._id, {
       status: 'idle',
       workId: null,
-      nextDueAt:
-        subject.syncedCharacterIds.length === 0
+      // A failed run re-arms at the cadence floor even when nothing is
+      // synced yet: a first-ever run failing terminally would otherwise park
+      // nextDueAt null and leave the scan set, so a viewer staying on the
+      // page would get no retry at all. The scan's cold-retire still cleans
+      // the row once the viewer leaves.
+      nextDueAt: failed
+        ? computeNextDueAt(null, cadenceFloorMs, now)
+        : subject.syncedCharacterIds.length === 0
           ? null
-          : computeNextDueAt(failed ? null : subject.minExpiresAt, cadenceFloorMs, now),
+          : computeNextDueAt(subject.minExpiresAt, cadenceFloorMs, now),
       // A terminal failure means the apply never ran, so the old cache
       // window is unverified — clear it (the #95 "errored, re-syncable now"
-      // meaning) so the next mount/visible/manual heartbeat dispatches
-      // immediately instead of treating the stale window as fresh. The scan
-      // still paces retries at the cadence floor.
+      // meaning) so the next mount/visible heartbeat dispatches immediately
+      // instead of treating the stale window as fresh. The scan still paces
+      // retries at the cadence floor.
       ...(failed
         ? { lastError: `sync_failed: ${result.error.slice(0, 500)}`, minExpiresAt: null }
         : {}),

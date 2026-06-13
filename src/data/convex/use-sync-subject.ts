@@ -8,7 +8,7 @@
 // subscription itself stays open throughout — only the syncing goes cold.
 // Rides the existing Convex websocket: no new origin, no CSP change.
 import { useMutation } from 'convex/react';
-import { useCallback, useEffect } from 'react';
+import { useEffect } from 'react';
 import { HEARTBEAT_MS, type SyncDataset } from '@/lib/sync-engine';
 import { api } from './api';
 
@@ -48,17 +48,5 @@ export function useSyncSubject(dataset: SyncDataset, characterIds: number[]) {
       stop();
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [dataset, characterIdsKey, heartbeat]);
-
-  // The "Sync now" affordance: a manual beat dispatches immediately when
-  // anything is stale (and after an error — an errored run clears the cache
-  // window, so the click is never silently swallowed).
-  return useCallback(() => {
-    if (characterIdsKey === '') return;
-    void heartbeat({
-      dataset,
-      characterIdsHint: characterIdsKey.split(',').map(Number),
-      reason: 'manual',
-    });
   }, [dataset, characterIdsKey, heartbeat]);
 }

@@ -8,6 +8,7 @@
 // returned for the userId it authenticated. This endpoint trusts the
 // bearer-authenticated service.
 // authz: service
+// rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 import { connection } from 'next/server';
 import {
   eveTokenRequestSchema,

@@ -8,6 +8,7 @@ for the full forensic record.
 
 - Skill queues and industry jobs now stay live while you watch them: with a tracker page open in a visible tab, its data refreshes automatically on EVE's own cache cadence, pauses when you switch away or background the tab, and refreshes immediately when you come back. Nothing syncs for characters nobody is watching.
 - New Industry Jobs tool: signed-in pilots can now watch the running industry jobs of every linked character in one place, with blueprint and product names, progress bars, and completion countdowns. Jobs refresh from EVE when you open the page, and a finished job flips to ready the moment its timer ends — live, without reloading.
+- The tracker pages dropped their Sync now button — data already refreshes itself when you open the page and while you watch — and now point pilots with no linked characters at the Characters page.
 
 ### 2026-06-11
 
