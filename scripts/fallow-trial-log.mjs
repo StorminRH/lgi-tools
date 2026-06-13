@@ -38,8 +38,15 @@ function sh(cmd, a) {
 }
 function readJson(path, fallback) {
   try {
-    const raw = readFileSync(path, "utf8").trim();
-    return raw ? JSON.parse(raw) : fallback; // knip prints nothing when clean
+    let raw = readFileSync(path, "utf8").trim();
+    if (!raw) return fallback; // knip prints nothing when clean
+    // Tolerate a leading non-JSON banner (e.g. a local dotenv "injected env" tip
+    // some tools print to stdout). The banner is its own line and can itself
+    // contain brackets (`[www.dotenvx.com]`), so anchor on a `{`/`[` that BEGINS
+    // a line — that's where the JSON document starts — not the first bracket.
+    const m = raw.match(/^[ \t]*[{[]/m);
+    if (m && m.index > 0) raw = raw.slice(m.index);
+    return JSON.parse(raw);
   } catch {
     return fallback;
   }
@@ -104,15 +111,22 @@ for (const arr of [dc.unused_exports, dc.unused_files, dc.unused_types, dc.unuse
   }
 }
 
-// knip dead-code finding count (json reporter shape varies; count leaf issues best-effort)
+// knip v6 `--reporter json` shape (verified against knip 6.14.x):
+//   { "issues": [ { "file": "...", "exports": [], "types": [], "files": [{name}],
+//                   "dependencies": [], "devDependencies": [], "unlisted": [],
+//                   "unresolved": [], "duplicates": [], "enumMembers": [], ... } ] }
+// i.e. an ARRAY of per-file objects, each with one array per finding category.
+// Count every leaf finding across all per-file entries and all categories.
 function knipCount(k) {
   if (!k) return 0;
-  if (Array.isArray(k)) return k.length;
-  // knip object reporter: { files: [...], issues: {...} } — sum what we can see
+  const perFile = Array.isArray(k) ? k : Array.isArray(k.issues) ? k.issues : [];
   let n = 0;
-  if (Array.isArray(k.files)) n += k.files.length;
-  if (k.issues && typeof k.issues === "object") {
-    for (const v of Object.values(k.issues)) n += Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
+  for (const entry of perFile) {
+    if (!entry || typeof entry !== "object") continue;
+    for (const [key, v] of Object.entries(entry)) {
+      if (key === "file" || key === "owners") continue; // metadata, not findings
+      if (Array.isArray(v)) n += v.length;
+    }
   }
   return n;
 }
