@@ -113,18 +113,4 @@ describe('fetch* — gate failure handling', () => {
       { typeId: 34, adjustedPrice: 2.9 },
     ]);
   });
-
-  // Locks in the Accept-Encoding: identity workaround for the gate's
-  // body-cache probe (see source.ts TODO). Dropping it reintroduces an
-  // intermittent "Body has already been read" on the large cost-indices body.
-  it('forces identity transfer encoding on both gate calls', async () => {
-    // Fresh Response per call — a body can only be read once.
-    vi.mocked(esiFetch).mockImplementation(async () => jsonResponse([]));
-    await fetchCostIndices();
-    await fetchAdjustedPrices();
-    for (const call of vi.mocked(esiFetch).mock.calls) {
-      const init = call[1] as RequestInit;
-      expect(new Headers(init.headers).get('Accept-Encoding')).toBe('identity');
-    }
-  });
 });

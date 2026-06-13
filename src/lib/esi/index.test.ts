@@ -241,6 +241,11 @@ describe('esiFetch', () => {
             ETag: '"abc"',
             'Content-Type': 'application/json',
             Expires: 'Wed, 11 Jun 2026 12:00:00 GMT',
+            // Only a fixed Content-Length makes a body cache-eligible now (real
+            // ESI sends one only on small fixed-length responses); '{"a":1}' is
+            // 7 bytes. Without it the chunked-no-CL guard would skip caching and
+            // there'd be no stored body for the 304 to revalidate against.
+            'Content-Length': '7',
           },
           { a: 1 },
         ),
@@ -268,8 +273,11 @@ describe('esiFetch', () => {
     });
 
     it('never attaches If-None-Match to requests carrying Authorization', async () => {
+      // Content-Length makes this 200 cache-eligible so an ETag is actually
+      // stored; without it the chunked-no-CL guard skips caching and the
+      // assertion below would pass vacuously (no stored ETag to attach).
       fetchSpy.mockResolvedValueOnce(
-        mockResponse(200, { ETag: '"abc"' }, { a: 1 }),
+        mockResponse(200, { ETag: '"abc"', 'Content-Length': '7' }, { a: 1 }),
       );
       await esiFetch(TEST_URL);
 
@@ -281,12 +289,45 @@ describe('esiFetch', () => {
       expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
     });
 
-    it('does not cache bodies over the size cap', async () => {
+    it('does not cache a fixed-length body over the size cap', async () => {
+      // A fixed Content-Length over the cap is excluded by the pre-check before
+      // any read. (new Response(string) carries no Content-Length, so set it
+      // explicitly to exercise the CL-present > cap exclusion specifically.)
       const big = 'x'.repeat(BODY_CACHE_MAX_BYTES + 1);
       fetchSpy.mockResolvedValueOnce(
-        new Response(big, { status: 200, headers: { ETag: '"big"' } }),
+        new Response(big, {
+          status: 200,
+          headers: {
+            ETag: '"big"',
+            'Content-Length': String(BODY_CACHE_MAX_BYTES + 1),
+          },
+        }),
       );
       await esiFetch(TEST_URL);
+
+      fetchSpy.mockResolvedValueOnce(mockResponse(200));
+      await esiFetch(TEST_URL);
+
+      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
+    });
+
+    it('does not cache a chunked (no Content-Length) 200, leaving the body for the caller', async () => {
+      // ESI streams nearly every 200 chunked with no Content-Length. The gate
+      // must NOT read such a body for the cache — reading it via res.clone() is
+      // what intermittently consumed the CALLER's body (the 3.5.1b "Body has
+      // already been read" bug). The undici consumption race itself is not
+      // reproducible against mocked Responses (verified live), so this asserts
+      // the structural guarantee: a no-CL 200 is left uncached (no conditional
+      // request next time) and its body stays readable here.
+      const body = { systems: [1, 2, 3] };
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { ETag: '"chunked"' },
+        }),
+      );
+      const first = await esiFetch(TEST_URL);
+      expect(await first.json()).toEqual(body);
 
       fetchSpy.mockResolvedValueOnce(mockResponse(200));
       await esiFetch(TEST_URL);
