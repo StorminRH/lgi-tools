@@ -32,7 +32,9 @@ if (!pr && !artifactDir) {
 }
 
 function sh(cmd, a) {
-  return spawnSync(cmd, a, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  // 5-min cap so a slow/auth-blocked `gh` can't hang the dev (matches the
+  // timeout in fallow-metrics.mjs).
+  return spawnSync(cmd, a, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, timeout: 5 * 60 * 1000 });
 }
 function readJson(path, fallback) {
   try {
