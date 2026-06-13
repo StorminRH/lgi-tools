@@ -141,6 +141,20 @@
       "when": 1781049217985,
       "tag": "0019_dapper_colleen_wing",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1781319721032,
+      "tag": "0020_luxuriant_proteus",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781377805792,
+      "tag": "0021_ambiguous_luminals",
+      "breakpoints": true
     }
   ]
 }

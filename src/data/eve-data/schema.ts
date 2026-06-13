@@ -150,6 +150,102 @@ export const blueprintFlatMaterials = pgTable(
   }),
 );
 
+// ===========================================================================
+// Universe (map + NPC station) data. Sourced from CCP's `map*` / `npcStations`
+// / `stationOperations` / `stationServices` JSONL files (3.5.1a). Scoped to
+// K-space (gated New Eden) only — wormhole/abyssal systems and the mapper-domain
+// fields (`wormholeClassID`, gate edges, 3-D positions) are deferred to v4.0.
+// Region/constellation aren't on a station's base record; they derive by joining
+// up through `solarSystemID` (a system row carries both). FKs follow the
+// category→group→type hierarchy convention above.
+// ===========================================================================
+
+export const eveRegions = pgTable('eve_regions', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+});
+
+export const eveConstellations = pgTable(
+  'eve_constellations',
+  {
+    id: integer('id').primaryKey(),
+    regionId: integer('region_id')
+      .notNull()
+      .references(() => eveRegions.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+  },
+  (t) => ({
+    regionIdx: index('eve_constellations_region_idx').on(t.regionId),
+  }),
+);
+
+// `region_id` is carried straight from CCP's `mapSolarSystems` record (it ships
+// both `constellationID` and `regionID`), so the common "systems in region"
+// query skips the constellation hop. `security_status` is a real number
+// (−1.0..1.0) — it MUST be doublePrecision; truncating it to an int would
+// collapse the hi/low/null-sec distinction.
+export const eveSolarSystems = pgTable(
+  'eve_solar_systems',
+  {
+    id: integer('id').primaryKey(),
+    constellationId: integer('constellation_id')
+      .notNull()
+      .references(() => eveConstellations.id, { onDelete: 'restrict' }),
+    regionId: integer('region_id')
+      .notNull()
+      .references(() => eveRegions.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    securityStatus: doublePrecision('security_status'),
+  },
+  (t) => ({
+    constellationIdx: index('eve_solar_systems_constellation_idx').on(
+      t.constellationId,
+    ),
+    regionIdx: index('eve_solar_systems_region_idx').on(t.regionId),
+  }),
+);
+
+// Station operations — the 68-row lookup naming each operation. The per-station
+// industry capability is derived from this operation's `services[]` at ingest
+// (see universe.ts) and denormalized onto the station rows below; this table
+// keeps only `id`/`name` (the source for a station's display label).
+export const eveStationOperations = pgTable('eve_station_operations', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+});
+
+// NPC stations. No `name` in CCP's record (it's derived from operation/type/
+// owner); no region/constellation (join up through `solar_system_id`). The
+// three capability booleans are resolved at ingest via the three-file join
+// npcStations.operationID → stationOperations.services[] → stationServices, so
+// "industry-capable stations in system X" is one indexed query with no join.
+// `type_id` (station hull) and `owner_id` (NPC corp) are plain ints, NOT FKs:
+// `type_id` follows the standing no-FK-to-eve_types note above, and
+// npcCorporations isn't ingested.
+export const eveNpcStations = pgTable(
+  'eve_npc_stations',
+  {
+    id: integer('id').primaryKey(),
+    solarSystemId: integer('solar_system_id')
+      .notNull()
+      .references(() => eveSolarSystems.id, { onDelete: 'restrict' }),
+    operationId: integer('operation_id')
+      .notNull()
+      .references(() => eveStationOperations.id, { onDelete: 'restrict' }),
+    typeId: integer('type_id').notNull(),
+    ownerId: integer('owner_id').notNull(),
+    manufacturingCapable: boolean('manufacturing_capable').notNull(),
+    researchCapable: boolean('research_capable').notNull(),
+    industryCapable: boolean('industry_capable').notNull(),
+  },
+  (t) => ({
+    solarSystemIdx: index('eve_npc_stations_solar_system_idx').on(
+      t.solarSystemId,
+    ),
+    operationIdx: index('eve_npc_stations_operation_idx').on(t.operationId),
+  }),
+);
+
 // Key/value metadata for the eve-data slice. Two keys live here today:
 //   `sde_version` — Fuzzwork's `Last-Modified` header on `invTypes.csv.bz2`,
 //                   used by the weekly drift cron to decide when CCP has

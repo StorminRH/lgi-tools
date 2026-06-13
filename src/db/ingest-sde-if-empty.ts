@@ -85,10 +85,22 @@ async function main() {
     }
     lockHeld = true;
 
-    const [{ rowCount }] = await db.execute<{ rowCount: string }>(sql`
-      SELECT COUNT(*)::text AS "rowCount" FROM type_dogma
+    // "Populated" means EVERY SDE dataset is present, not just the original
+    // type/blueprint set. `eve_npc_stations` is the sentinel for the universe
+    // tables (3.5.1a) — it's the last table the ingest writes, so its presence
+    // implies the whole universe emit completed. Without this, a DB that
+    // already has a current SDE (every existing branch, and prod at the merge
+    // that first ships these tables) would skip the ingest and leave the freshly
+    // migrated universe tables empty until the next CCP drift.
+    const [{ rowCount, universeRowCount }] = await db.execute<{
+      rowCount: string;
+      universeRowCount: string;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*) FROM type_dogma)::text AS "rowCount",
+        (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount"
     `);
-    const hasRows = Number(rowCount) > 0;
+    const hasRows = Number(rowCount) > 0 && Number(universeRowCount) > 0;
 
     const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
     const remoteVersion = await getRemoteSdeVersion();
@@ -118,7 +130,9 @@ async function main() {
     }
 
     if (!hasRows) {
-      console.log('Auto-ingesting SDE (eve-data tables empty on this branch)…');
+      console.log(
+        'Auto-ingesting SDE (eve-data tables empty or incomplete on this branch)…',
+      );
     } else if (storedVersion !== remoteVersion) {
       console.log(
         `Auto-ingesting SDE (drift detected: stored=${storedVersion ?? '<none>'} remote=${remoteVersion ?? '<unreachable>'}).`,

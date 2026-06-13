@@ -17,6 +17,8 @@ import {
   cleanupSdeJsonl,
   type SdeJsonlPaths,
 } from './source';
+import { boolOf, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
+import { emitUniverseNeon, parseUniverse } from './universe';
 
 export type IngestSummary = {
   categoriesWritten: number;
@@ -25,6 +27,11 @@ export type IngestSummary = {
   attributeTypesWritten: number;
   typeDogmaWritten: number;
   blueprintsWritten: number;
+  regionsWritten: number;
+  constellationsWritten: number;
+  systemsWritten: number;
+  stationOperationsWritten: number;
+  npcStationsWritten: number;
   durationMs: number;
 };
 
@@ -34,41 +41,9 @@ export type IngestOptions = {
 
 const BATCH_SIZE = 500;
 
-// CCP's JSONL carries real JSON types (numbers, booleans, null, nested objects),
-// so the CSV-era "None"-string coercion is gone. These helpers just narrow a
-// parsed field to the column's type, defaulting to null when absent/mistyped.
-
-// For integer / bigint columns. CCP ships some nominally-integer fields as
-// fractional numbers (e.g. a type's `basePrice` of 16873.5); a Postgres integer/
-// bigint column rejects those, so truncate toward zero — matching the old CSV
-// ingest's parseInt behavior.
-function intOrNull(v: unknown): number | null {
-  return typeof v === 'number' ? Math.trunc(v) : null;
-}
-
-// For doublePrecision columns and JSONB numeric values, where the fractional part
-// is meaningful (mass/volume, attribute defaults, every dogma attribute value).
-function numOrNull(v: unknown): number | null {
-  return typeof v === 'number' ? v : null;
-}
-
-function strOrNull(v: unknown): string | null {
-  return typeof v === 'string' ? v : null;
-}
-
-function boolOf(v: unknown): boolean {
-  return v === true;
-}
-
-// CCP localizes `name` / `description` / `displayName` as `{ en, de, … }`. We
-// store the English string; returns null when the object or its `en` key is
-// missing (verified present on every sampled record, but fail soft).
-function localizedEn(v: unknown): string | null {
-  if (v && typeof v === 'object' && typeof (v as { en?: unknown }).en === 'string') {
-    return (v as { en: string }).en;
-  }
-  return null;
-}
+// Field coercion helpers (intOrNull / numOrNull / strOrNull / boolOf /
+// localizedEn) live in ./coerce so the universe parser can share them without
+// either parser importing the other.
 
 // Generic streaming pipeline: JSONL file → one parsed object per line → batched
 // insert. `types.jsonl` is ~149 MB / 52k lines, so we read line-by-line via
@@ -112,6 +87,12 @@ export async function runIngest(
   const start = Date.now();
   const paths: SdeJsonlPaths = await downloadSdeJsonl();
 
+  // Parse the universe files into the in-memory dataset BEFORE opening the
+  // transaction: parsing is CPU-bound and touches no DB, so it must not hold a
+  // pinned connection / open transaction. (The download above already happened
+  // outside any transaction, per the no-network-in-tx invariant.)
+  const universe = await parseUniverse(paths);
+
   const summary: IngestSummary = {
     categoriesWritten: 0,
     groupsWritten: 0,
@@ -119,6 +100,11 @@ export async function runIngest(
     attributeTypesWritten: 0,
     typeDogmaWritten: 0,
     blueprintsWritten: 0,
+    regionsWritten: 0,
+    constellationsWritten: 0,
+    systemsWritten: 0,
+    stationOperationsWritten: 0,
+    npcStationsWritten: 0,
     durationMs: 0,
   };
 
@@ -268,6 +254,17 @@ export async function runIngest(
           await tx.insert(industryBlueprints).values(batch);
         },
       );
+
+      // Universe (regions/constellations/systems/stations) — wipe + refill its
+      // own five tables from the pre-parsed dataset, inside this same
+      // transaction. Self-contained: those tables are FK-independent of the
+      // type/blueprint tables wiped above.
+      const universeSummary = await emitUniverseNeon(tx, universe);
+      summary.regionsWritten = universeSummary.regionsWritten;
+      summary.constellationsWritten = universeSummary.constellationsWritten;
+      summary.systemsWritten = universeSummary.systemsWritten;
+      summary.stationOperationsWritten = universeSummary.stationOperationsWritten;
+      summary.npcStationsWritten = universeSummary.npcStationsWritten;
     });
   } finally {
     if (!opts.keepCache) await cleanupSdeJsonl(paths);
