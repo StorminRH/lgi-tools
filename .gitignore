@@ -51,3 +51,10 @@ next-env.d.ts
 
 # internal planning docs and working memory (kept private to maintainers)
 /docs/
+
+# fallow (codebase-intelligence eval). The regression-count floor lives embedded
+# in .fallowrc.json (regression.baseline), so nothing under .fallow/ needs to be
+# committed — ignore the whole local cache and the CI artifact dirs.
+/.fallow/
+/fallow-out/
+/fallow-backstop/
