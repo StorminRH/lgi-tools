@@ -19,6 +19,10 @@ import {
   type DevEsiReadResponse,
 } from '@/app/dev/esi/api-contract';
 
+// One gated ESI call per request (10s outbound timeout) plus the token vend;
+// 15 bounds it with margin against the 300s platform default.
+export const maxDuration = 15;
+
 export async function POST(req: Request): Promise<Response> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {

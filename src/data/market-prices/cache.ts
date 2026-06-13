@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
 import type postgres from 'postgres';
 import { db } from '@/db';
+import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { refreshPrices, type RefreshSummary } from './ingest';
 import { listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
@@ -54,7 +55,10 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
   'use cache';
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
-  return getPricesFreshness(db);
+  // Prerender-reachable (AppHeader) — retry the cold-start error class so a
+  // suspended Neon can't kill the build. The cron's postgres-js path calls the
+  // raw getPricesFreshness and is deliberately not wrapped.
+  return withColdStartRetry(() => getPricesFreshness(db));
 }
 
 // Nightly backstop sweep (vercel.json "30 11 * * *"). Refreshes only the

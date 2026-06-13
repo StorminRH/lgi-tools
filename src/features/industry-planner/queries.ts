@@ -11,6 +11,7 @@ import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
+import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { collectRawTypeIds } from './build-batch';
 import {
   assemblePricing,
@@ -60,70 +61,73 @@ export async function getBlueprintStructure(
   'use cache';
   cacheLife('max');
   cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  // One retry wrap around the whole multi-read body — re-running on a
+  // cold-start failure is safe (pure reads).
+  return withColdStartRetry(async () => {
+    // Which item does this blueprint produce, and how many per run? A blueprint
+    // has at most one of manufacturing (1) / reaction (11); prefer manufacturing
+    // if both somehow exist. No product ⇒ not a manufacturable/reaction blueprint
+    // ⇒ no planner page.
+    const chosen = await getBlueprintOutput(blueprintId);
+    if (!chosen) return null;
 
-  // Which item does this blueprint produce, and how many per run? A blueprint
-  // has at most one of manufacturing (1) / reaction (11); prefer manufacturing
-  // if both somehow exist. No product ⇒ not a manufacturable/reaction blueprint
-  // ⇒ no planner page.
-  const chosen = await getBlueprintOutput(blueprintId);
-  if (!chosen) return null;
+    const treeResult = await getBlueprintTree(blueprintId);
+    const tree = treeResult?.treeJson ?? [];
+    // Raw leaves (materials with no recipe) — the priced cost basis's type set,
+    // taken from the tree so it's independent of the marginal flat-material list.
+    const rawTypeIds = collectRawTypeIds(tree);
 
-  const treeResult = await getBlueprintTree(blueprintId);
-  const tree = treeResult?.treeJson ?? [];
-  // Raw leaves (materials with no recipe) — the priced cost basis's type set,
-  // taken from the tree so it's independent of the marginal flat-material list.
-  const rawTypeIds = collectRawTypeIds(tree);
+    const labelIds = dedupe([chosen.productTypeId, ...collectTreeTypeIds(tree)]);
+    const [labels, activityByBlueprint] = await Promise.all([
+      getTypeLabels(labelIds),
+      getActivityByBlueprint([...collectBlueprintIds(tree)]),
+    ]);
+    const materialNames: Record<number, string> = {};
+    for (const [id, l] of labels) materialNames[id] = l.name;
 
-  const labelIds = dedupe([chosen.productTypeId, ...collectTreeTypeIds(tree)]);
-  const [labels, activityByBlueprint] = await Promise.all([
-    getTypeLabels(labelIds),
-    getActivityByBlueprint([...collectBlueprintIds(tree)]),
-  ]);
-  const materialNames: Record<number, string> = {};
-  for (const [id, l] of labels) materialNames[id] = l.name;
+    // Bucket each raw leaf into its source category, and remember the categories'
+    // display order + colour so the priced ledger can render ordered sections.
+    const materialCategory: Record<number, string> = {};
+    const seenCategory = new Map<string, { tone: BlueprintStructure['materialCategories'][number]['tone']; order: number }>();
+    for (const rawTypeId of rawTypeIds) {
+      const l = labels.get(rawTypeId);
+      const cat = classifyRaw(l?.groupName ?? '', l?.categoryName ?? '');
+      materialCategory[rawTypeId] = cat.label;
+      seenCategory.set(cat.label, { tone: cat.tone, order: cat.order });
+    }
+    const materialCategories = [...seenCategory.entries()]
+      .sort((a, b) => a[1].order - b[1].order)
+      .map(([label, c]) => ({ label, tone: c.tone }));
 
-  // Bucket each raw leaf into its source category, and remember the categories'
-  // display order + colour so the priced ledger can render ordered sections.
-  const materialCategory: Record<number, string> = {};
-  const seenCategory = new Map<string, { tone: BlueprintStructure['materialCategories'][number]['tone']; order: number }>();
-  for (const rawTypeId of rawTypeIds) {
-    const l = labels.get(rawTypeId);
-    const cat = classifyRaw(l?.groupName ?? '', l?.categoryName ?? '');
-    materialCategory[rawTypeId] = cat.label;
-    seenCategory.set(cat.label, { tone: cat.tone, order: cat.order });
-  }
-  const materialCategories = [...seenCategory.entries()]
-    .sort((a, b) => a[1].order - b[1].order)
-    .map(([label, c]) => ({ label, tone: c.tone }));
+    const { buildTree, buildNodeDisplay, rootHeight } = toBuildTree({
+      tree,
+      labels,
+      heights: computeHeights(tree),
+      activityByBlueprint,
+      product: {
+        typeId: chosen.productTypeId,
+        quantityPerRun: chosen.quantity,
+        activityId: chosen.activityId,
+      },
+    });
 
-  const { buildTree, buildNodeDisplay, rootHeight } = toBuildTree({
-    tree,
-    labels,
-    heights: computeHeights(tree),
-    activityByBlueprint,
-    product: {
-      typeId: chosen.productTypeId,
-      quantityPerRun: chosen.quantity,
+    return {
+      blueprintTypeId: blueprintId,
       activityId: chosen.activityId,
-    },
+      product: {
+        typeId: chosen.productTypeId,
+        name: materialNames[chosen.productTypeId] ?? `Type ${chosen.productTypeId}`,
+        quantityPerRun: chosen.quantity,
+      },
+      tree,
+      buildTree,
+      buildNodeDisplay,
+      rootHeight,
+      materialCategory,
+      materialCategories,
+      materialNames,
+    };
   });
-
-  return {
-    blueprintTypeId: blueprintId,
-    activityId: chosen.activityId,
-    product: {
-      typeId: chosen.productTypeId,
-      name: materialNames[chosen.productTypeId] ?? `Type ${chosen.productTypeId}`,
-      quantityPerRun: chosen.quantity,
-    },
-    tree,
-    buildTree,
-    buildNodeDisplay,
-    rootHeight,
-    materialCategory,
-    materialCategories,
-    materialNames,
-  };
 }
 
 // Priced cost panel: flat materials × live prices + margin. One batched price
@@ -186,7 +190,9 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
   cacheLife('max');
   cacheTag(BLUEPRINT_STRUCTURE_TAG);
 
-  const rows = await getBlueprintSearchRows();
+  // Prerender-reachable (/api/industry/blueprints is a static route), so the
+  // read carries the cold-start retry; the assembly below is pure.
+  const rows = await withColdStartRetry(() => getBlueprintSearchRows());
 
   // One entry per blueprint; prefer the manufacturing product (lower activity
   // id) if a blueprint somehow carries both.
