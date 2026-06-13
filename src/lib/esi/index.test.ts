@@ -273,8 +273,11 @@ describe('esiFetch', () => {
     });
 
     it('never attaches If-None-Match to requests carrying Authorization', async () => {
+      // Content-Length makes this 200 cache-eligible so an ETag is actually
+      // stored; without it the chunked-no-CL guard skips caching and the
+      // assertion below would pass vacuously (no stored ETag to attach).
       fetchSpy.mockResolvedValueOnce(
-        mockResponse(200, { ETag: '"abc"' }, { a: 1 }),
+        mockResponse(200, { ETag: '"abc"', 'Content-Length': '7' }, { a: 1 }),
       );
       await esiFetch(TEST_URL);
 
