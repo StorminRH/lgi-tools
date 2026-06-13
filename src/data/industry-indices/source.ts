@@ -14,6 +14,17 @@ import type { RawAdjustedPrice, RawCostIndex } from './types';
 // Both bodies (~1.9 MB indices, ~1.1 MB prices) far exceed the gate's 128 KB
 // ETag-cache cap, so nothing is cached and there are no 304s to reason about.
 
+// TODO(esi-gate-fix): force identity (uncompressed) transfer so ESI returns a
+// Content-Length. The shared gate's body-cache probe (captureBodyForCache in
+// src/lib/esi) skips reading the body only when Content-Length says it's over
+// the cache cap; these two responses arrive gzip'd with the length stripped by
+// undici, so the probe instead does res.clone().text(), which intermittently
+// consumes the body and breaks our res.json(). Identity restores the length and
+// the probe bails before touching the body. Slice-scoped per operator decision
+// (2026-06-13); the root-cause gate fix is scheduled separately — see
+// docs/SCRATCHPAD.md "ESI gate body-cache bug". Drop this once the gate is fixed.
+const ESI_REQUEST_INIT: RequestInit = { headers: { 'Accept-Encoding': 'identity' } };
+
 const KNOWN_ACTIVITIES = new Set<string>(INDUSTRY_ACTIVITIES);
 
 function isIndustryActivity(s: string): s is IndustryActivity {
@@ -74,13 +85,13 @@ export function parseAdjustedPrices(body: unknown): RawAdjustedPrice[] {
 }
 
 export async function fetchCostIndices(): Promise<RawCostIndex[]> {
-  const res = await esiFetch(esiUrl('/industry/systems/'));
+  const res = await esiFetch(esiUrl('/industry/systems/'), ESI_REQUEST_INIT);
   if (!res.ok) throw new EsiServerError(res.status);
   return parseCostIndices(await res.json());
 }
 
 export async function fetchAdjustedPrices(): Promise<RawAdjustedPrice[]> {
-  const res = await esiFetch(esiUrl('/markets/prices/'));
+  const res = await esiFetch(esiUrl('/markets/prices/'), ESI_REQUEST_INIT);
   if (!res.ok) throw new EsiServerError(res.status);
   return parseAdjustedPrices(await res.json());
 }
