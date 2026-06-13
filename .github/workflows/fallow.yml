@@ -41,7 +41,10 @@ jobs:
         # a fallow crash / binary-verification failure from failing the job during
         # the trial. (Remove both to promote fallow to a gate after the scorecard.)
         continue-on-error: true
-        uses: fallow-rs/fallow@v2
+        # Pinned to a full commit SHA (== tag v2.96.0), not the mutable @v2 tag:
+        # this third-party action runs with security-events:write + pnpm install,
+        # so a repointed tag could exfiltrate job secrets. Bump deliberately.
+        uses: fallow-rs/fallow@24a30b1d266f477c30f6878fc9e4c34c00d04d75 # v2.96.0
         with:
           command: audit
           fail-on-issues: false
@@ -104,7 +107,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: fallow regression backstop
         continue-on-error: true   # trial: measure creep, don't enforce
-        uses: fallow-rs/fallow@v2
+        # Pinned to a full commit SHA (== tag v2.96.0), not the mutable @v2 tag:
+        # this third-party action runs with security-events:write + pnpm install,
+        # so a repointed tag could exfiltrate job secrets. Bump deliberately.
+        uses: fallow-rs/fallow@24a30b1d266f477c30f6878fc9e4c34c00d04d75 # v2.96.0
         with:
           command: ""
           fail-on-issues: false

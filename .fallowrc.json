@@ -86,6 +86,7 @@
       { "from": "features", "allow": ["ui", "data", "lib", "shared", "auth-surface"] },
       { "from": "data", "allow": ["lib", "auth-surface"] },
       { "from": "data/npc-stats", "allow": ["lib", "auth-surface", "data/eve-data"] },
+      { "from": "lib", "allow": ["lib"] },
       { "from": "ui", "allow": ["lib"] },
       { "from": "shared", "allow": ["ui", "lib", "data", "features", "auth-surface"] }
     ]
