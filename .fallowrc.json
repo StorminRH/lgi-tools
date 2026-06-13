@@ -1,0 +1,120 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+
+  "entry": [
+    "src/db/migrate.ts",
+    "src/db/backfill-users-if-empty.ts",
+    "src/db/ingest-sde-if-empty.ts",
+    "src/db/ingest-sde.ts",
+    "src/db/refresh-prices.ts",
+    "src/db/refresh-sde.ts",
+    "scripts/validate-resolver-output.ts",
+    "scripts/assert-route-classification.mjs",
+    "drizzle.config.ts"
+  ],
+
+  "ignorePatterns": [
+    "convex/_generated/**",
+    ".next/**",
+    "out/**",
+    "build/**",
+    "**/*.d.ts",
+    "next-env.d.ts",
+    "**/*.generated.ts",
+    "drizzle/**",
+    "docs/**"
+  ],
+
+  "rules": {
+    "unused-files": "warn",
+    "unused-exports": "warn",
+    "unused-types": "off",
+    "unused-dependencies": "warn",
+    "unlisted-dependencies": "warn",
+    "unused-enum-members": "warn",
+    "unused-class-members": "warn",
+    "unresolved-imports": "warn",
+    "duplicate-exports": "warn",
+    "circular-dependencies": "warn",
+    "re-export-cycle": "warn",
+    "boundary-violation": "warn",
+    "coverage-gaps": "off",
+    "stale-suppressions": "warn",
+    "feature-flags": "off"
+  },
+
+  "health": {
+    "maxCyclomatic": 20,
+    "maxCognitive": 15,
+    "maxCrap": 30.0
+  },
+
+  "duplicates": {
+    "mode": "mild",
+    "minTokens": 50,
+    "minLines": 5,
+    "minOccurrences": 2,
+    "threshold": 0,
+    "ignoreDefaults": true,
+    "ignore": [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "convex/_generated/**",
+      "drizzle/**"
+    ]
+  },
+
+  "boundaries": {
+    "zones": [
+      {
+        "// note": "First-match-wins: auth-surface is listed BEFORE the features autoDiscover zone so these 3 files classify here, not into features/auth. Verified via `fallow list --boundaries` (auth-surface=3 files, features/auth=30). Mirrors the ESLint shared-auth-surface element.",
+        "name": "auth-surface",
+        "patterns": [
+          "src/features/auth/types.ts",
+          "src/features/auth/schema.ts",
+          "src/features/auth/api-contract.ts"
+        ]
+      },
+      { "name": "ui", "patterns": ["src/components/ui/**"] },
+      { "name": "features", "autoDiscover": ["src/features"] },
+      { "name": "data", "autoDiscover": ["src/data"] },
+      { "name": "lib", "patterns": ["src/lib/**"] },
+      { "name": "shared", "patterns": ["src/components/*.tsx", "src/components/telemetry/**"] }
+    ],
+    "rules": [
+      { "from": "auth-surface", "allow": ["auth-surface", "lib"] },
+      { "from": "features", "allow": ["ui", "data", "lib", "shared", "auth-surface"] },
+      { "from": "data", "allow": ["lib", "auth-surface"] },
+      { "from": "data/npc-stats", "allow": ["lib", "auth-surface", "data/eve-data"] },
+      { "from": "lib", "allow": ["lib"] },
+      { "from": "ui", "allow": ["lib"] },
+      { "from": "shared", "allow": ["ui", "lib", "data", "features", "auth-surface"] }
+    ]
+  },
+
+  "audit": { "gate": "new-only" },
+  "regression": {
+    "baseline":     {
+      "totalIssues": 21,
+      "unusedFiles": 0,
+      "unusedExports": 19,
+      "unusedTypes": 0,
+      "unusedDependencies": 0,
+      "unusedDevDependencies": 0,
+      "unusedOptionalDependencies": 0,
+      "unusedEnumMembers": 0,
+      "unusedClassMembers": 0,
+      "unresolvedImports": 0,
+      "unlistedDependencies": 0,
+      "duplicateExports": 2,
+      "circularDependencies": 0,
+      "reExportCycles": 0,
+      "typeOnlyDependencies": 0,
+      "testOnlyDependencies": 0,
+      "boundaryViolations": 0,
+      "boundaryCoverageViolations": 0,
+      "boundaryCallViolations": 0,
+      "policyViolations": 0
+    }
+  }
+}

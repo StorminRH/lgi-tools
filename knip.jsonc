@@ -4,5 +4,11 @@
   // (types.ts, queries.ts) and for co-located tests even when a symbol is
   // only referenced within its own file. Suppress that class; the gate still
   // catches genuinely-dead exports, unused files, and unused dependencies.
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": true,
+  // `fallow` is a CLI-only devDependency (the codebase-intelligence eval gate).
+  // It's invoked as `pnpm exec fallow` inside scripts/fallow-metrics.mjs and by
+  // the fallow GitHub Action — never imported — so knip can't see its usage and
+  // would report it as unused. Scoped to that one binary; dependency analysis of
+  // everything else is unchanged.
+  "ignoreDependencies": ["fallow"]
 }
