@@ -7,6 +7,10 @@
       "schedule": "30 11 * * *"
     },
     {
+      "path": "/api/cron/refresh-industry-indices",
+      "schedule": "40 11 * * *"
+    },
+    {
       "path": "/api/cron/refresh-sde",
       "schedule": "0 5 * * 1"
     },

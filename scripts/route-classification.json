@@ -65,6 +65,7 @@
     "/api/auth/[...all]": "dynamic",
     "/api/contact": "dynamic",
     "/api/cron/refresh-gsc": "dynamic",
+    "/api/cron/refresh-industry-indices": "dynamic",
     "/api/dev/esi": "dynamic",
     "/api/cron/refresh-prices": "dynamic",
     "/api/cron/refresh-sde": "dynamic",
