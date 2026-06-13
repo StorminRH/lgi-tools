@@ -27,6 +27,7 @@ jobs:
   audit:
     name: fallow audit (PR diff, non-blocking)
     runs-on: ubuntu-latest
+    timeout-minutes: 15   # bound the job; the capture script also caps each tool
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,10 +86,22 @@ jobs:
     # the diff-scoped audit can miss. Main only; advisory during the trial.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # Install deps BEFORE the fallow step so the pinned fallow (2.96.0) is
+      # present in node_modules and the Action's version resolution from
+      # package.json is unambiguous — no chance of falling back to latest.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - name: fallow regression backstop
         continue-on-error: true   # trial: measure creep, don't enforce
         uses: fallow-rs/fallow@v2

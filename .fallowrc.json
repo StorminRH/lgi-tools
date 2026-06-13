@@ -67,6 +67,7 @@
   "boundaries": {
     "zones": [
       {
+        "// note": "First-match-wins: auth-surface is listed BEFORE the features autoDiscover zone so these 3 files classify here, not into features/auth. Verified via `fallow list --boundaries` (auth-surface=3 files, features/auth=30). Mirrors the ESLint shared-auth-surface element.",
         "name": "auth-surface",
         "patterns": [
           "src/features/auth/types.ts",

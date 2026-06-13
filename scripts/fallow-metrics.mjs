@@ -22,6 +22,9 @@ function capture(label, file, cmd, args, extraEnv = {}) {
   const res = spawnSync(cmd, args, {
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
+    // Bound a hung tool (unclosed handle, stray network wait) so a stuck capture
+    // can't run out the job's wall clock. spawnSync sets res.error on timeout.
+    timeout: 5 * 60 * 1000,
     env: { ...process.env, ...extraEnv },
   });
   const stdout = res.stdout ?? "";
@@ -68,7 +71,10 @@ results.eslint = capture(
   "eslint",
   "eslint-results.json",
   "pnpm",
-  ["exec", "eslint", "--format", "json"],
+  // Explicit `.` target: flat config governs which files are linted (same set as
+  // the `pnpm lint` gate), but the positional arg removes ESLint's version-
+  // sensitive "no args" behavior so the capture can never be silently empty.
+  ["exec", "eslint", "--format", "json", "."],
 );
 
 // --- Tool versions (from the installed lockfile state, for reproducibility). ---

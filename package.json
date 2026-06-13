@@ -38,7 +38,8 @@
     "test:watch": "vitest",
     "knip": "DATABASE_URL=${DATABASE_URL:-postgres://placeholder@localhost:5432/placeholder} knip",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm knip",
-    "metrics:capture": "node scripts/fallow-metrics.mjs"
+    "metrics:capture": "node scripts/fallow-metrics.mjs",
+    "trial:log": "node scripts/fallow-trial-log.mjs"
   },
   "dependencies": {
     "@convex-dev/rate-limiter": "^0.3.2",
