@@ -23,6 +23,7 @@
     "/dev/sandbox/redesign": "Unlinked dev gallery index for the site-redesign mockups — fully static, no request-time data.",
     "/dev/sandbox/redesign/*": "Four unlinked redesign mockups (home + industry landing in two candidate themes) — pure static JSX over hardcoded mock data; navs are CSS-only (details/summary + hover), no client islands.",
     "/api/industry/blueprints": "Blueprint search index is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input.",
+    "/api/industry/systems": "Build-system search index (systems with an industry-capable NPC station) is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input. Filtered client-side by the build-location selector.",
     "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic."
   },
   "routes": {
@@ -72,6 +73,8 @@
     "/api/cron/sync-sweeper": "dynamic",
     "/api/feedback": "dynamic",
     "/api/industry/blueprints": "static",
+    "/api/industry/systems": "static",
+    "/api/industry/build-location": "dynamic",
     "/api/internal/eve-characters": "dynamic",
     "/api/internal/eve-token": "dynamic",
     "/api/types/names": "dynamic",

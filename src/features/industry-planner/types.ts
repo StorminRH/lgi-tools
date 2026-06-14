@@ -119,6 +119,63 @@ export interface IntermediatePrice {
   staleAfterMs: number | null;
 }
 
+// --- Build-location selector + net margin (3.5.2b) -----------------------
+
+// One searchable build system: the systems that hold ≥1 industry-capable NPC
+// station (the only NPC build locations). `security` is the −1.0..1.0 status,
+// null when unknown. Mirrors eve-data's IndustrySolarSystem; the wire shape for
+// /api/industry/systems.
+export interface SystemSearchEntry {
+  id: number;
+  name: string;
+  security: number | null;
+}
+
+// One industry-capable NPC station in a system. NPC stations carry no name in
+// the SDE, so `operationName` (the station-operation label) is the display name.
+export interface IndustryStationView {
+  id: number;
+  operationName: string;
+  manufacturingCapable: boolean;
+  researchCapable: boolean;
+}
+
+// Everything the client needs to compute net margin once a build system is
+// picked: its industry stations, both relevant system cost indices (null when
+// the system has no stored index — the absent-vs-0.0 distinction), and the CCP
+// adjusted prices for the product's direct ME0 base materials (EIV basis). The
+// wire shape for /api/industry/build-location.
+export interface BuildLocationData {
+  stations: IndustryStationView[];
+  costIndices: { manufacturing: number | null; reaction: number | null };
+  // Carried as a list (not a Record) so the wire stays number-keyed and typed;
+  // the client builds a Map. Types with no usable adjusted price are simply
+  // absent (so `map.get(id) ?? null` keeps the leaf's missing-vs-0.0 honesty).
+  adjustedPrices: { typeId: number; adjustedPrice: number }[];
+}
+
+// The net-margin view derived client-side once a build location is picked
+// (manufacturing blueprints only). Null on the gross-only path. Mirrors the
+// pure leaf's NetMargin, minus the gross fields already in `summary`.
+export interface NetMarginView {
+  netMargin: number | null;
+  netMarginPct: number | null;
+  netCost: number | null;
+  // The system cost index actually used (for the "System cost (x%)" ledger
+  // label). Null when the system has no stored index.
+  systemCostIndex: number | null;
+  jobFee: {
+    estimatedItemValue: number;
+    jobGrossCost: number | null;
+    facilityTax: number;
+    sccSurcharge: number;
+    total: number | null;
+    missingSystemCostIndex: boolean;
+    missingAdjustedPriceTypeIds: number[];
+  };
+  sellSide: { salesTax: number | null; brokerFee: number | null; total: number | null };
+}
+
 export interface BlueprintPricing {
   rows: MaterialCostRow[];
   // Confidence-only side-channel for the buildable intermediates shown in the
@@ -140,4 +197,8 @@ export interface BlueprintPricing {
     // marks the figure as an incomplete estimate rather than a hard number.
     incomplete: boolean;
   };
+  // Net margin + itemized fees, present only on the client net path (a build
+  // location picked, manufacturing blueprint). Null on the server seed and the
+  // gross-only client path, so the gross payload shape is unchanged.
+  net: NetMarginView | null;
 }
