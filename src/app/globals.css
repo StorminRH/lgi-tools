@@ -457,11 +457,14 @@ a:hover {
   opacity: 0;
   transition: opacity 0.15s;
 }
-.nav-tool:hover {
+/* Hover is scoped away from .soon so the disabled "coming soon" cell stays
+ * inert (§2: "no hover") while keeping its title tooltip — pointer-events:none
+ * would suppress the hover but also drop the tooltip the other cells keep. */
+.nav-tool:not(.soon):hover {
   color: var(--color-name);
   background: var(--color-row-hover);
 }
-.nav-tool:hover::after { opacity: 0.8; }
+.nav-tool:not(.soon):hover::after { opacity: 0.8; }
 .nav-tool.active { color: var(--color-name); }
 .nav-tool.active::after { opacity: 1; }
 .nav-tool.soon { opacity: 0.4; cursor: default; }
