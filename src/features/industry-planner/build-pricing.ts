@@ -1,3 +1,4 @@
+import { computeNetMargin, type AdjustedPriceOf } from '@/data/industry-math/fees';
 import {
   computeBuildCost,
   computeMargin,
@@ -13,6 +14,7 @@ import type {
   BuildNodeDisplay,
   IntermediatePrice,
   MaterialCostRow,
+  NetMarginView,
 } from './types';
 
 // Assemble the priced cost-panel view from a blueprint's structure and a price
@@ -85,24 +87,86 @@ export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, Co
   return map;
 }
 
+// The manufacturing activity id — net margin is computed for manufacturing
+// blueprints only in v1 (reactions use a different SCC than the 4% default, so
+// their pages stay gross-only). The gate lives here so the math can never show a
+// manufacturing-rate net on a reaction, even if a caller passes fee inputs.
+// Exported so the hero gates the build-location selector on the same value.
+export const MANUFACTURING_ACTIVITY_ID = 1;
+
+export interface AssembleOptions {
+  // Whole runs of the top product to build. Scales the batch cost basis, the
+  // revenue (output units = quantityPerRun × runs), and the EIV base. Default 1.
+  runs?: number;
+  // Present once a build location is picked — the adapter feeds the net-margin
+  // leaf. `systemCostIndex` is the activity-matched index (null when the system
+  // has no stored index). Omitted on the gross-only path (server seed / no
+  // location), so `assemblePricing(structure, priceOf)` is byte-identical gross.
+  fee?: { adjustedPriceOf: AdjustedPriceOf; systemCostIndex: number | null };
+}
+
+// Net margin for the FINAL build job only (3.5.2b "top job"). Null unless a
+// build location was supplied AND this is a manufacturing blueprint. The fee
+// covers the top job's installation fee; intermediate component jobs are not yet
+// charged — surfaced as "(excl. sub-job fees)" in the UI. Null-honesty is the
+// leaf's: a null index nulls the install-fee total but keeps facility/SCC; a
+// missing adjusted price is flagged, never zeroed.
+function computeNet(
+  structure: BlueprintStructure,
+  fee: AssembleOptions['fee'],
+  runs: number,
+  buildCost: number,
+  productSell: number | null,
+  outputUnits: number,
+): NetMarginView | null {
+  if (!fee || structure.activityId !== MANUFACTURING_ACTIVITY_ID) return null;
+  // The top product's DIRECT ME0 inputs, scaled to `runs`. EIV scales linearly
+  // with runs, so a per-run base × runs is the correct top-job EIV basis.
+  const baseMaterials = (structure.buildTree[0]?.inputs ?? []).map((i) => ({
+    typeId: i.typeId,
+    quantity: i.quantity * runs,
+  }));
+  const result = computeNetMargin({
+    buildCost,
+    productSell,
+    productQty: outputUnits,
+    baseMaterials,
+    adjustedPriceOf: fee.adjustedPriceOf,
+    systemCostIndex: fee.systemCostIndex,
+  });
+  return {
+    netMargin: result.netMargin,
+    netMarginPct: result.netMarginPct,
+    netCost: result.netCost,
+    systemCostIndex: fee.systemCostIndex,
+    jobFee: result.jobFee,
+    sellSide: result.sellSide,
+  };
+}
+
 export function assemblePricing(
   structure: BlueprintStructure,
   priceOf: PriceLiteOf,
+  opts: AssembleOptions = {},
 ): BlueprintPricing {
+  const runs = opts.runs ?? 1;
   const buyOf: PriceOf = (typeId) => {
     const p = priceOf(typeId);
     return p ? { bestBuy: p.bestBuy, bestSell: p.bestSell } : undefined;
   };
 
-  // Cost basis is the whole-run batch total — what you must buy from an empty
-  // hangar — not the resolver's marginal flat list. Re-derived per request from
-  // the tree so a future requested-quantity input can scale it.
-  const buildCost = computeBuildCost(computeBatchMaterials(structure.tree), buyOf);
+  // Cost basis is the whole-run batch total scaled to `runs` — what you must buy
+  // from an empty hangar to build `runs` runs — not the resolver's marginal flat
+  // list. Re-derived per request from the tree.
+  const buildCost = computeBuildCost(computeBatchMaterials(structure.tree, runs), buyOf);
   const productPrice = priceOf(structure.product.typeId);
+  // Output units = per-run yield × runs. Revenue is per output unit, never per
+  // run — runs only drives the batch material walk above.
+  const outputUnits = structure.product.quantityPerRun * runs;
   const margin = computeMargin({
     buildCost: buildCost.total,
     productSell: productPrice?.bestSell ?? null,
-    productQty: structure.product.quantityPerRun,
+    productQty: outputUnits,
   });
 
   const rows: MaterialCostRow[] = buildCost.perMaterial.map((c) => {
@@ -160,5 +224,13 @@ export function assemblePricing(
         buildCost.missingTypeIds.length > 0 ||
         (productPrice?.bestSell ?? null) === null,
     },
+    net: computeNet(
+      structure,
+      opts.fee,
+      runs,
+      buildCost.total,
+      productPrice?.bestSell ?? null,
+      outputUnits,
+    ),
   };
 }

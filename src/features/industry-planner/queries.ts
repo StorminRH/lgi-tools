@@ -5,9 +5,12 @@ import {
   getBlueprintOutput,
   getBlueprintSearchRows,
   getBlueprintTree,
+  getIndustrySolarSystems,
+  getIndustryStationsForSystem,
   getTypeLabels,
 } from '@/data/eve-data/queries';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
+import { getAdjustedPrices, getSystemCostIndices } from '@/data/industry-indices/queries';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
@@ -24,6 +27,8 @@ import type {
   BlueprintIndexEntry,
   BlueprintPricing,
   BlueprintStructure,
+  BuildLocationData,
+  SystemSearchEntry,
 } from './types';
 
 // The industry-planner feature is the composition layer that sits ABOVE the
@@ -217,4 +222,55 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
       name: v.name,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Compact build-system search index: every solar system that can host an NPC
+// industry job (≥1 industry-capable NPC station), name-sorted. Cached `'max'`
+// (deploy-static SDE universe data, SDE-tagged). Fetched once by the lazy build-
+// location selector on the client and filtered client-side, so the ~2k-entry
+// index never rides the initial bundle — mirrors getBlueprintSearchIndex.
+export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+
+  const systems = await withColdStartRetry(() => getIndustrySolarSystems());
+  return systems
+    .map((s) => ({ id: s.id, name: s.name, security: s.security }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Per-pick build-location read: the system's industry stations + both relevant
+// cost indices + the CCP adjusted prices for THIS blueprint's direct ME0 base
+// materials (the EIV basis for the top job's installation fee). Composes the
+// eve-data and industry-indices slices — the join lives here, in the feature
+// layer, never inside a data slice. Not cached: it's the dynamic build-location
+// route's body, fetched only when the user picks a system (all indexed reads).
+export async function getBuildLocation(
+  systemId: number,
+  blueprintId: number,
+): Promise<BuildLocationData> {
+  const structure = await getBlueprintStructure(blueprintId); // warm cache hit
+  // EIV base = the top product's DIRECT inputs (not the recursed raw leaves).
+  const baseTypeIds = dedupe(
+    structure?.buildTree[0]?.inputs.map((i) => i.typeId) ?? [],
+  );
+
+  const [stations, costIndices, adjustedMap] = await Promise.all([
+    getIndustryStationsForSystem(systemId),
+    getSystemCostIndices(systemId),
+    getAdjustedPrices(baseTypeIds),
+  ]);
+
+  return {
+    stations,
+    costIndices: {
+      manufacturing: costIndices.get('manufacturing') ?? null,
+      reaction: costIndices.get('reaction') ?? null,
+    },
+    adjustedPrices: [...adjustedMap.entries()].map(([typeId, adjustedPrice]) => ({
+      typeId,
+      adjustedPrice,
+    })),
+  };
 }

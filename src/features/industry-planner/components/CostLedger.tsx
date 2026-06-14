@@ -1,14 +1,16 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { HoverPopover } from '@/components/ui/hover-popover';
 import { Pill } from '@/components/ui/pill';
 import { ResourceRow } from '@/components/ui/row';
 import { SectionFooter } from '@/components/ui/section-footer';
 import { SectionHeader } from '@/components/ui/section-header';
 import { TypeIcon } from '@/components/ui/type-icon';
-import { formatIsk, formatQuantity } from '@/lib/format';
+import { DEFAULT_FEE_RATES } from '@/data/industry-math/fees';
+import { formatIsk, formatPct, formatQuantity } from '@/lib/format';
 import { computeBatchMaterials } from '../build-batch';
 import type { BlueprintStructure } from '../types';
 import { usePricing } from './PricingProvider';
@@ -51,8 +53,22 @@ function CostRow({ name, quantity, extendedCost, typeId, pending }: LedgerRow) {
   );
 }
 
+const FEE_COLS = 'grid-cols-[minmax(0,1fr)_auto]';
+
+// A fraction as a clean percentage label ("0.0025" → "0.25%", "0.04" → "4%").
+function ratePct(fraction: number): string {
+  return `${parseFloat((fraction * 100).toFixed(4)).toString()}%`;
+}
+
+// One itemized fee line: label on the left, ISK on the right. Null values format
+// to an em dash, preserving the leaf's absent-vs-0.0 honesty in the display.
+function FeeRow({ label, value }: { label: ReactNode; value: ReactNode }) {
+  return <ResourceRow colsClass={FEE_COLS} name={label} value={value} />;
+}
+
 export function CostLedger({ structure }: { structure: BlueprintStructure }) {
   const { pricing, refreshing, isPending } = usePricing();
+  const net = pricing?.net ?? null;
 
   // Pre-seed rows (before any price lands): the whole-run batch quantities with
   // no cost yet. Memoised so the brief pre-price window doesn't re-walk the tree
@@ -136,6 +152,75 @@ export function CostLedger({ structure }: { structure: BlueprintStructure }) {
           />
         </Card>
       </div>
+
+      {net !== null && (
+        <div className="mt-[22px]">
+          <Card>
+            <SectionHeader
+              label="Build fees & net margin"
+              hint="top job · NPC station · ME 0"
+            />
+            <FeeRow
+              label="Estimated item value (EIV)"
+              value={formatIsk(net.jobFee.estimatedItemValue)}
+            />
+            <FeeRow
+              label={`System cost (${
+                net.systemCostIndex === null
+                  ? 'no index'
+                  : `${(net.systemCostIndex * 100).toFixed(2)}%`
+              })`}
+              value={
+                net.jobFee.missingSystemCostIndex
+                  ? 'no cost index'
+                  : formatIsk(net.jobFee.jobGrossCost)
+              }
+            />
+            <FeeRow
+              label={`Facility tax (${ratePct(DEFAULT_FEE_RATES.facilityTax)} of EIV)`}
+              value={formatIsk(net.jobFee.facilityTax)}
+            />
+            <FeeRow
+              label={`SCC surcharge (${ratePct(DEFAULT_FEE_RATES.sccSurcharge)} of EIV)`}
+              value={formatIsk(net.jobFee.sccSurcharge)}
+            />
+            <FeeRow
+              label={
+                <HoverPopover
+                  label="About the install fee"
+                  trigger={
+                    <span className="border-b border-dotted border-border-idle cursor-help">
+                      Install fee (top job)
+                    </span>
+                  }
+                >
+                  <span className="text-[10px] text-muted">
+                    EVE installation fee for the final build job only. Intermediate component
+                    jobs also incur their own fees — not yet included, so true total fees are
+                    higher and this net margin is a slight overestimate.
+                  </span>
+                </HoverPopover>
+              }
+              value={formatIsk(net.jobFee.total)}
+            />
+            <FeeRow
+              label={`Sales tax (${ratePct(DEFAULT_FEE_RATES.salesTax)})`}
+              value={formatIsk(net.sellSide.salesTax)}
+            />
+            <FeeRow
+              label={`Broker fee (${ratePct(DEFAULT_FEE_RATES.brokerFee)})`}
+              value={formatIsk(net.sellSide.brokerFee)}
+            />
+            <FeeRow label="Net cost" value={formatIsk(net.netCost)} />
+            <SectionFooter
+              label="Net margin (excl. sub-job fees)"
+              value={`${formatIsk(net.netMargin)}${
+                net.netMarginPct !== null ? ` (${formatPct(net.netMarginPct)})` : ''
+              }`}
+            />
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

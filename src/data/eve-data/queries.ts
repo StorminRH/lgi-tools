@@ -6,6 +6,9 @@ import {
   eveCategories,
   eveDataMeta,
   eveGroups,
+  eveNpcStations,
+  eveSolarSystems,
+  eveStationOperations,
   eveTypes,
   industryBlueprints,
   typeDogma,
@@ -274,6 +277,62 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
     });
   }
   return out;
+}
+
+// ----- Universe / industry build-location helpers --------------------
+
+// Solar systems that hold at least one industry-capable NPC station — the only
+// places an NPC manufacturing job can be installed, so the build-location
+// selector only ever suggests these. Distinct systems (a system has many
+// stations), with name + security for the picker label. Pochven systems ARE
+// included (they carry NPC stations, 3.5.1a); no security/region filter.
+export type IndustrySolarSystem = { id: number; name: string; security: number | null };
+
+export async function getIndustrySolarSystems(): Promise<IndustrySolarSystem[]> {
+  return db
+    .selectDistinct({
+      id: eveSolarSystems.id,
+      name: eveSolarSystems.name,
+      security: eveSolarSystems.securityStatus,
+    })
+    .from(eveSolarSystems)
+    .innerJoin(eveNpcStations, eq(eveNpcStations.solarSystemId, eveSolarSystems.id))
+    .where(eq(eveNpcStations.industryCapable, true));
+}
+
+// The industry-capable NPC stations in one system — the build-location picker's
+// per-system refinement, and the first consumer of the indexed
+// (solar_system_id, industry_capable) data model proven in 3.5.1a. NPC stations
+// carry no name in the SDE, so the label is the station operation's name
+// (joined). No region filter — Pochven stations are valid build locations.
+export type IndustryStation = {
+  id: number;
+  operationName: string;
+  manufacturingCapable: boolean;
+  researchCapable: boolean;
+};
+
+export async function getIndustryStationsForSystem(
+  systemId: number,
+): Promise<IndustryStation[]> {
+  return db
+    .select({
+      id: eveNpcStations.id,
+      operationName: eveStationOperations.name,
+      manufacturingCapable: eveNpcStations.manufacturingCapable,
+      researchCapable: eveNpcStations.researchCapable,
+    })
+    .from(eveNpcStations)
+    .innerJoin(
+      eveStationOperations,
+      eq(eveStationOperations.id, eveNpcStations.operationId),
+    )
+    .where(
+      and(
+        eq(eveNpcStations.solarSystemId, systemId),
+        eq(eveNpcStations.industryCapable, true),
+      ),
+    );
 }
 
 // ----- SDE meta key/value -------------------------------------------

@@ -22,7 +22,7 @@ import {
   collectIntermediateTypeIds,
   type PriceLite,
 } from '../build-pricing';
-import type { BlueprintPricing, BlueprintStructure } from '../types';
+import type { BlueprintPricing, BlueprintStructure, IndustryStationView } from '../types';
 
 // The planner's single live-pricing store. It owns what `CostPanel` used to:
 // the price snapshot seeded from the server, the client clock, and the
@@ -77,6 +77,31 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
   return map;
 }
 
+// A picked build SYSTEM, client-only state (carries a Map, so it never crosses
+// the wire). Built by the build-location selector from the chosen system + the
+// /api/industry/build-location read. The fee math reads only `adjustedPrices` +
+// `costIndices`, so this object changes only when the SYSTEM changes — the
+// per-station refinement lives in separate `station` state below, so picking a
+// station never churns this object (and never triggers a recompute).
+export interface SelectedLocation {
+  systemId: number;
+  systemName: string;
+  security: number | null;
+  // The system's industry-capable NPC stations, for the per-station refinement.
+  stations: IndustryStationView[];
+  costIndices: { manufacturing: number | null; reaction: number | null };
+  adjustedPrices: Map<number, number>;
+}
+
+// The optional per-station refinement — display + future-score only; the fee
+// math is system-driven (flat NPC facility tax, per-system cost index), so the
+// station choice never changes the numbers in v1. Separate from SelectedLocation
+// so a station pick doesn't re-derive the pricing.
+export interface SelectedStation {
+  id: number;
+  name: string;
+}
+
 interface PricingContextValue {
   pricing: BlueprintPricing | null;
   // True once the streamed price read has settled — distinguishes "still
@@ -90,6 +115,17 @@ interface PricingContextValue {
   isPending: (typeId: number) => boolean;
   // Pending over the cost-basis (raw) rows, for the hero's dimmed→flash margin.
   aggregatePending: boolean;
+  // Runs of the top product to build (default 1). Scales the cost basis, output
+  // units, and the EIV base. 3.5.3b's market score reads this from here.
+  runs: number;
+  setRuns: (runs: number) => void;
+  // The picked build system (null = gross-only). 3.5.3b reads this from here.
+  location: SelectedLocation | null;
+  // Setting a system clears any prior station selection.
+  setLocation: (location: SelectedLocation | null) => void;
+  // The optional per-station refinement (display/future-score only).
+  station: SelectedStation | null;
+  setStation: (stationId: number | null, stationName: string | null) => void;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -133,11 +169,47 @@ export function PricingProvider({
 }) {
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
+  const [runs, setRunsState] = useState(1);
+  const [location, setLocationState] = useState<SelectedLocation | null>(null);
+  const [station, setStationState] = useState<SelectedStation | null>(null);
   // The seed price map, captured when the snapshot first lands. Each refresh
   // batch merges over it (refreshed value wins; un-refreshed rows keep their
   // seed) before recomputing margin, so the assembly never drops back to nulls
   // mid-loop.
   const seedMapRef = useRef<Map<number, PriceLite>>(new Map());
+  // The latest live refresh batch, persisted past the one-shot refresh loop so a
+  // runs/location change AFTER the loop finishes still recomputes over live
+  // prices (not the stale seed). Empty until the first batch lands.
+  const liveRef = useRef<Map<number, RefreshedPrice>>(new Map());
+  // Refs mirror current runs/location/pricing so the single assemble() and the
+  // recompute effect read them without making the refresh loop or the effect
+  // restart on every change.
+  const runsRef = useRef(runs);
+  const locationRef = useRef(location);
+  const pricingRef = useRef(pricing);
+  useEffect(() => {
+    runsRef.current = runs;
+    locationRef.current = location;
+    pricingRef.current = pricing;
+  });
+
+  // THE one recompute, used by both the live-price path and the runs/location
+  // path, so the streamed figure and every re-derived figure are computed by the
+  // same assembler — no drift. Live batch wins over the seed per type; the fee
+  // inputs (adjusted prices + the manufacturing cost index) are supplied only
+  // when a location is picked, so with no location it's gross-only.
+  const assemble = useCallback(() => {
+    const lookup = (typeId: number): PriceLite | undefined =>
+      liveRef.current.get(typeId) ?? seedMapRef.current.get(typeId);
+    const loc = locationRef.current;
+    const fee = loc
+      ? {
+          adjustedPriceOf: (id: number) => loc.adjustedPrices.get(id) ?? null,
+          systemCostIndex: loc.costIndices.manufacturing ?? null,
+        }
+      : undefined;
+    setPricing(assemblePricing(structure, lookup, { runs: runsRef.current, fee }));
+  }, [structure]);
 
   // Settle the store from the streamed read. Mark it seeded either way (so a
   // null result reads as "unavailable", not "loading"); only adopt a non-null
@@ -150,6 +222,24 @@ export function PricingProvider({
       setPricing((prev) => prev ?? initial);
     }
   }, []);
+
+  const setRuns = useCallback((n: number) => {
+    setRunsState(Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1);
+  }, []);
+
+  const setLocation = useCallback((loc: SelectedLocation | null) => {
+    setLocationState(loc);
+    setStationState(null); // a new (or cleared) system invalidates the station pick
+  }, []);
+
+  const setStation = useCallback(
+    (stationId: number | null, stationName: string | null) => {
+      // Station refinement is its own state — not part of `location` — so this
+      // never changes the recompute effect's `location` dep.
+      setStationState(stationId === null ? null : { id: stationId, name: stationName ?? '' });
+    },
+    [],
+  );
 
   // Every viewed price re-confirmed live on view — across the raw cost basis,
   // the product, and the buildable intermediates. We refresh the whole set, not
@@ -170,15 +260,14 @@ export function PricingProvider({
   );
 
   // Recompute the whole snapshot after each batch so margin and every badge
-  // update as prices stream in. RefreshedPrice is structurally a PriceLite, so
-  // the merged lookup feeds assemblePricing directly.
+  // update as prices stream in. Persist the batch in liveRef first so a later
+  // runs/location change still recomputes over it.
   const onBatch = useCallback(
     (refreshed: Map<number, RefreshedPrice>) => {
-      setPricing(
-        assemblePricing(structure, (t) => refreshed.get(t) ?? seedMapRef.current.get(t)),
-      );
+      liveRef.current = refreshed;
+      assemble();
     },
-    [structure],
+    [assemble],
   );
 
   // The shared refresh loop. Gated on `seeded && !!pricing` (a one-shot
@@ -189,14 +278,51 @@ export function PricingProvider({
     onBatch,
   });
 
+  // Recompute when runs or location changes — independent of the one-shot
+  // refresh loop, which never fires onBatch again once it finishes. Reads the
+  // latest pricing via a ref (not a dep) so it fires only on a real runs/location
+  // change, never on its own setPricing (which would loop). Guarded on a settled
+  // non-null seed so it never overwrites the "unavailable" state, and deferred
+  // via a 0ms timer so setState isn't called synchronously from the effect body
+  // (the Cache-Components-safe shape used by PricingSeeder).
+  useEffect(() => {
+    if (!seeded || !pricingRef.current) return;
+    const t = setTimeout(() => assemble(), 0);
+    return () => clearTimeout(t);
+  }, [runs, location, seeded, assemble]);
+
   const aggregatePending = useMemo(
     () => (pricing ? pricing.rows.some((r) => isPending(r.typeId)) : refreshing),
     [pricing, isPending, refreshing],
   );
 
   const value = useMemo<PricingContextValue>(
-    () => ({ pricing, seeded, refreshing, isPending, aggregatePending }),
-    [pricing, seeded, refreshing, isPending, aggregatePending],
+    () => ({
+      pricing,
+      seeded,
+      refreshing,
+      isPending,
+      aggregatePending,
+      runs,
+      setRuns,
+      location,
+      setLocation,
+      station,
+      setStation,
+    }),
+    [
+      pricing,
+      seeded,
+      refreshing,
+      isPending,
+      aggregatePending,
+      runs,
+      setRuns,
+      location,
+      setLocation,
+      station,
+      setStation,
+    ],
   );
 
   return (

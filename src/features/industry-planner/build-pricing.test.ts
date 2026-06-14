@@ -143,6 +143,112 @@ describe('assemblePricing intermediate side-channel', () => {
   });
 });
 
+// A manufacturing structure whose top job's direct ME0 inputs (buildTree[0]) are
+// the two raws, so the EIV base = {34×100, 35×50}. Adjusted prices below are a
+// distinct series from the market PRICES above (EIV ≠ build cost in general; they
+// coincide here only because the test numbers are reused).
+const NET_STRUCTURE: BlueprintStructure = {
+  ...STRUCTURE,
+  activityId: 1,
+  buildTree: [
+    {
+      typeId: 999,
+      quantity: 1,
+      inputs: [
+        { typeId: 34, quantity: 100, inputs: [] },
+        { typeId: 35, quantity: 50, inputs: [] },
+      ],
+    },
+  ],
+  buildNodeDisplay: DISPLAY,
+};
+
+// PRICES + a sell price for the product, so revenue (and thus net margin) is
+// defined.
+const NET_PRICES: Record<number, PriceLite> = {
+  ...PRICES,
+  999: {
+    bestBuy: null,
+    bestSell: 1_000,
+    pct5Buy: null,
+    pct5Sell: null,
+    buyVolume: null,
+    sellVolume: null,
+    source: 'esi',
+    staleAfterMs: 1_700_000_000_000,
+  },
+};
+
+const ADJUSTED: Record<number, number> = { 34: 5, 35: 3 }; // EIV = 100·5 + 50·3 = 650
+const adjustedOf = (id: number): number | null => ADJUSTED[id] ?? null;
+
+describe('assemblePricing net margin', () => {
+  it('is null on the gross-only path (no fee inputs)', () => {
+    const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
+    expect(pricing.net).toBeNull();
+  });
+
+  it('computes itemized fees + net margin for a manufacturing blueprint with a location', () => {
+    const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], {
+      fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 },
+    });
+    expect(pricing.net).not.toBeNull();
+    const net = pricing.net!;
+    expect(net.systemCostIndex).toBe(0.04);
+    expect(net.jobFee.estimatedItemValue).toBe(650);
+    expect(net.jobFee.jobGrossCost).toBeCloseTo(26, 6); // 650 × 0.04
+    expect(net.jobFee.facilityTax).toBeCloseTo(1.625, 6); // 650 × 0.0025
+    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6); // 650 × 0.04
+    expect(net.jobFee.total).toBeCloseTo(53.625, 6);
+    expect(net.sellSide.total).toBeCloseTo(105, 6); // 1000 × (0.075 + 0.03)
+    expect(net.netCost).toBeCloseTo(703.625, 6); // 650 build + 53.625 fee
+    expect(net.netMargin).toBeCloseTo(191.375, 6); // 1000 − 105 − 703.625
+    expect(net.netMarginPct).toBeCloseTo(19.1375, 6);
+  });
+
+  it('returns null net for a reaction blueprint even when fee inputs are passed', () => {
+    const reaction: BlueprintStructure = { ...NET_STRUCTURE, activityId: 11 };
+    const pricing = assemblePricing(reaction, (t) => NET_PRICES[t], {
+      fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 },
+    });
+    expect(pricing.net).toBeNull();
+  });
+
+  it('scales the cost basis, revenue, EIV, and net margin linearly with runs', () => {
+    const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], {
+      runs: 2,
+      fee: { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 },
+    });
+    expect(pricing.summary.inputCost).toBe(1_300); // 650 × 2
+    expect(pricing.summary.revenue).toBe(2_000); // 1000 × 1/run × 2 runs
+    const net = pricing.net!;
+    expect(net.jobFee.estimatedItemValue).toBe(1_300); // EIV × 2
+    expect(net.netMargin).toBeCloseTo(382.75, 6); // 191.375 × 2
+  });
+
+  it('keeps facility + SCC but nulls the install-fee total and net when the index is absent', () => {
+    const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], {
+      fee: { adjustedPriceOf: adjustedOf, systemCostIndex: null },
+    });
+    const net = pricing.net!;
+    expect(net.jobFee.missingSystemCostIndex).toBe(true);
+    expect(net.jobFee.jobGrossCost).toBeNull();
+    expect(net.jobFee.total).toBeNull();
+    expect(net.jobFee.facilityTax).toBeCloseTo(1.625, 6); // EIV-only, still known
+    expect(net.jobFee.sccSurcharge).toBeCloseTo(26, 6);
+    expect(net.netMargin).toBeNull(); // can't complete without the index
+  });
+
+  it('flags a missing adjusted price with a partial EIV rather than zeroing it', () => {
+    const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], {
+      fee: { adjustedPriceOf: (id) => (id === 35 ? null : adjustedOf(id)), systemCostIndex: 0.04 },
+    });
+    const net = pricing.net!;
+    expect(net.jobFee.estimatedItemValue).toBe(500); // only 34 (100 × 5); 35 dropped
+    expect(net.jobFee.missingAdjustedPriceTypeIds).toEqual([35]);
+  });
+});
+
 describe('buildConfidenceInputs', () => {
   it('maps both priced raw rows and intermediates by typeId', () => {
     const structure: BlueprintStructure = {

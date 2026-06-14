@@ -4,6 +4,13 @@ User-facing changes to LGI.tools, grouped by ship date. Internal cleanup,
 CI, and infrastructure work is intentionally excluded — see the SCRATCHPAD
 for the full forensic record.
 
+### 2026-06-14
+
+- The industry planner now shows take-home profit, not just materials margin. By default it shows gross margin (materials only) with a clear note; pick a build system and it flips to net margin — subtracting the EVE job installation fee (system cost index, facility tax, and SCC surcharge) and the sell-side sales tax and broker fee.
+- New build-system picker on the planner: search any solar system that can host an industry job and, optionally, pin a specific NPC station. The cost ledger gains an itemized fee breakdown alongside the materials.
+- New runs input on the planner: set how many runs to build and every figure — materials, output units, fees, and margin — rescales live.
+- Net margin currently covers the final build job's fee for manufacturing blueprints; reaction blueprints stay on gross margin for now.
+
 ### 2026-06-12
 
 - Skill queues and industry jobs now stay live while you watch them: with a tracker page open in a visible tab, its data refreshes automatically on EVE's own cache cadence, pauses when you switch away or background the tab, and refreshes immediately when you come back. Nothing syncs for characters nobody is watching.
