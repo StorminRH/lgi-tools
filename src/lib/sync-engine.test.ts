@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  classifyDueSubject,
   COLD_AFTER_MS,
   computeNextDueAt,
   deriveConvexSiteUrl,
   hasSyncTarget,
   isCold,
+  isColdFromPresence,
   isRunningFresh,
   isStaleForImmediate,
   minCacheWindow,
+  RETENTION_MS,
   STALE_RUNNING_MS,
   SYNC_DATASET_CONFIG,
   SYNC_JITTER_MS,
@@ -40,6 +43,17 @@ describe('isCold', () => {
   });
 });
 
+describe('isColdFromPresence', () => {
+  it('treats an absent presence doc as cold', () => {
+    expect(isColdFromPresence(null, NOW)).toBe(true);
+  });
+  it('matches isCold at the window edge when a presence doc exists', () => {
+    expect(isColdFromPresence(NOW - COLD_AFTER_MS, NOW)).toBe(false);
+    expect(isColdFromPresence(NOW - COLD_AFTER_MS - 1, NOW)).toBe(true);
+    expect(isColdFromPresence(NOW, NOW)).toBe(false);
+  });
+});
+
 describe('isRunningFresh', () => {
   it('holds while a recent run owns the subject', () => {
     expect(isRunningFresh('running', NOW - 1_000, NOW)).toBe(true);
@@ -49,6 +63,36 @@ describe('isRunningFresh', () => {
   });
   it('never holds an idle subject', () => {
     expect(isRunningFresh('idle', NOW, NOW)).toBe(false);
+  });
+});
+
+describe('classifyDueSubject', () => {
+  // The sweep's Pass A decision for an overdue row, by presence liveness. These
+  // pin parity with the pre-3.5.e2 single-loop sweep's cold/retention/running
+  // branches.
+  it('deletes an abandoned row with no presence doc', () => {
+    expect(classifyDueSubject(null, 'idle', 0, NOW)).toBe('delete');
+  });
+  it('deletes a cold row past retention', () => {
+    expect(classifyDueSubject(NOW - RETENTION_MS - 1, 'idle', 0, NOW)).toBe('delete');
+  });
+  it('retires a cold row exactly at the retention edge (strict >, like the old sweep)', () => {
+    expect(classifyDueSubject(NOW - RETENTION_MS, 'idle', 0, NOW)).toBe('retire');
+  });
+  it('retires a cold row still within retention', () => {
+    expect(classifyDueSubject(NOW - COLD_AFTER_MS - 1, 'idle', 0, NOW)).toBe('retire');
+  });
+  it('skips a hot row a fresh run still owns', () => {
+    expect(classifyDueSubject(NOW, 'running', NOW - 1_000, NOW)).toBe('skip');
+  });
+  it('dispatches a hot idle row', () => {
+    expect(classifyDueSubject(NOW, 'idle', 0, NOW)).toBe('dispatch');
+  });
+  it('dispatches a hot row whose run is presumed wedged (takeover)', () => {
+    expect(classifyDueSubject(NOW, 'running', NOW - STALE_RUNNING_MS, NOW)).toBe('dispatch');
+  });
+  it('dispatches a hot row exactly at the cold edge (still warm)', () => {
+    expect(classifyDueSubject(NOW - COLD_AFTER_MS, 'idle', 0, NOW)).toBe('dispatch');
   });
 });
 
