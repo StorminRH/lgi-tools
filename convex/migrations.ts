@@ -73,21 +73,37 @@ export const stripAndReap = internalMutation({
 });
 
 // Authoritative drain gate: count remaining tombstone carriers and no-presence
-// orphans across the whole table. Two small collects (no per-row index reads) so
-// it stays well within budget. Require { carriers: 0, orphans: 0 } before the
-// field-declaration drop deploys.
+// orphans. Paginated with the same cursor/accumulator posture as stripAndReap so
+// the check never bumps a per-mutation read limit on a large table. For the
+// realistically small subjects table one call returns the totals (isDone:true,
+// cursor:null); on a bigger table, loop feeding back { cursor, carriersSoFar,
+// orphansSoFar, scannedSoFar } until isDone. The gate is met when
+// isDone && carriers === 0 && orphans === 0.
 export const verifyTombstoneDrain = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const subjects = await ctx.db.query('syncSubjects').collect();
-    const presence = await ctx.db.query('syncPresence').collect();
-    const present = new Set(presence.map((doc) => `${doc.userId}:${doc.dataset}`));
-    let carriers = 0;
-    let orphans = 0;
-    for (const subject of subjects) {
+  args: {
+    cursor: v.optional(v.union(v.string(), v.null())),
+    carriersSoFar: v.optional(v.number()),
+    orphansSoFar: v.optional(v.number()),
+    scannedSoFar: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { page, isDone, continueCursor } = await ctx.db
+      .query('syncSubjects')
+      .paginate({ numItems: BATCH, cursor: args.cursor ?? null });
+
+    let carriers = args.carriersSoFar ?? 0;
+    let orphans = args.orphansSoFar ?? 0;
+    for (const subject of page) {
       if (tombstone(subject) !== undefined) carriers += 1;
-      if (!present.has(`${subject.userId}:${subject.dataset}`)) orphans += 1;
+      const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+      if (presence === null) orphans += 1;
     }
-    return { carriers, orphans, total: subjects.length };
+    return {
+      carriers,
+      orphans,
+      scanned: (args.scannedSoFar ?? 0) + page.length,
+      isDone,
+      cursor: isDone ? null : continueCursor,
+    };
   },
 });
