@@ -37,6 +37,12 @@ export const STABILITY_CV_MAX = 0.3;
 // higher than price CV — a market that trades only a few days a month is very
 // spiky once the no-trade days are zero-filled — so the cap is higher.
 // PROVISIONAL.
+//
+// Confirmed intended (3.5.4a audit / Ryan, 2026-06-14): a volumeCv past this caps
+// consistency at exactly 0, and the weakest-link compose then floors the WHOLE
+// score to 0 (e.g. a barely-traded officer module). That hard 0 is the desired
+// "a thin market can't hide behind a healthy margin" read, not a miscalibration —
+// do not soften it to a low-but-nonzero floor without a fresh decision.
 export const CONSISTENCY_CV_MAX = 1.5;
 
 // Wording thresholds on the raw volume CV for the demand-consistency readout
@@ -109,6 +115,12 @@ function clamp01(x: number): number {
 // (ADV). ADV is required; with no demand history there is no clear-time to
 // estimate. An unknown wall is treated as a lower bound (your batch only) and
 // flagged via wallKnown, never fabricated as zero competition.
+//
+// Confirmed intended (3.5.4a audit / Ryan, 2026-06-14): time-to-clear is
+// batch-relative, so a thin-but-consistent item scores HIGH for a SMALL batch
+// (a few units genuinely clear fast even in a quiet market). That is the
+// designed read — the score answers "can I sell THIS quantity?", not "is this a
+// deep market?" — not a bug to be flattened by a market-depth penalty.
 function computeLiquidity(inputs: MarketScoreInputs): LiquiditySignal {
   const { outputUnits, adv, sellWallUnits, instantDumpUnits } = inputs;
   const wallKnown = sellWallUnits !== null;

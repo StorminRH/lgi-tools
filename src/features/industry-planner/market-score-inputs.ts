@@ -30,6 +30,31 @@ export const SELL_WALL_BAND_PCT = 5 satisfies (typeof DEPTH_BANDS_PCT)[number];
 // PROVISIONAL.
 export const INSTANT_DUMP_BAND_PCT = 2 satisfies (typeof DEPTH_BANDS_PCT)[number];
 
+// Staleness flag threshold (DISPLAY-ONLY, NOT a score input). When the product's
+// most-recent traded day is more than this many days before today, the panel
+// surfaces a caveat. The composite stays keyed to latestDate (asOf = the latest
+// row), so it scores the type's most recent active period regardless of how long
+// ago that was — honest degradation here is a FLAG, never a score change.
+// Tempering the composite by latestDate-vs-today is a separate deferred item
+// (backlog). 14d clears the normal daily/weekly trading cadence (fresh history
+// ends yesterday) while catching genuinely stale series well before the
+// egregious month+ case (PLEX scored 94 on ~11-month-old Forge history).
+// PROVISIONAL — tuned at the UX gate.
+export const STALENESS_FLAG_DAYS = 14;
+
+// Whole days between a "YYYY-MM-DD" history date and a client `now` (ms), or null
+// when the date is absent. UTC integer-day arithmetic (mirrors aggregate.ts
+// toDayNumber) avoids any timezone/DST drift. The clock is the CALLER's — a
+// client mount read — so this stays pure and testable and never touches the wall
+// clock itself (the aggregate layer is deliberately clock-free; the consumer
+// derives staleness-vs-today, per market-history/types.ts latestDate).
+export function daysSinceHistoryDate(latestDate: string | null, nowMs: number): number | null {
+  if (latestDate === null) return null;
+  const day = Math.floor(Date.parse(`${latestDate}T00:00:00Z`) / 86_400_000);
+  const today = Math.floor(nowMs / 86_400_000);
+  return today - day;
+}
+
 // Cumulative volume at a given near-touch band, or null when the ladder is
 // absent (no orders / Fuzzwork fallback) or that band isn't present.
 function depthAt(ladder: DepthBand[] | null, pct: number): number | null {

@@ -214,18 +214,30 @@ async function safeReport(sb: EsiScoreboard, report: EsiReport): Promise<void> {
 // Capture the body for the shared ETag cache when it's worth storing — but only
 // for a response that arrives with a fixed Content-Length at or under the cap.
 //
-// This leaves the body cache deliberately near-dormant: ESI streams nearly every
-// response with Transfer-Encoding: chunked and NO Content-Length — not only the
-// multi-MB region/indices dumps but the small per-type bodies too — so in
-// practice only tiny fixed-length endpoints (e.g. /universe/types/) are ever
-// cached. That is intended. A no-Content-Length body can't be size-bounded
-// without reading it, and reading it here via res.clone() is exactly what
-// intermittently consumes the CALLER's body (the 3.5.1b "Body has already been
-// read" bug); not reading it leaves the caller's body untouched. If a future
-// consumer genuinely needs 304/body reuse on a chunked endpoint (e.g. 3.5.3a
-// market history), that is an explicit re-evaluation of this trade — not a
-// silent gap. The post-read check still guards a CL-present body whose DECODED
-// size exceeds the cap (Content-Length is the compressed size).
+// This cache is CL-gated and ACTIVE, not dormant (verified 3.5.4a: a live scan
+// found 58 cached bodies — 56 per-type orders + 2 small per-type history). ESI
+// buffers small/medium per-type responses with a fixed Content-Length, and those
+// ARE ETag/body-cached: per-type orders (/markets/{region}/orders/?type_id=…,
+// the normal on-view price-refresh path) and SMALL per-type history. Only the
+// large dumps stream chunked with NO Content-Length and are skipped — the bulk
+// /markets/prices/ snapshot and LARGE per-type history (~400 rows ≈ 42 KB).
+// Caching is purely size-gated; there is no per-endpoint opt-out.
+//
+// A no-Content-Length body can't be size-bounded without reading it, and reading
+// it here via res.clone() is exactly what intermittently consumes the CALLER's
+// body (the 3.5.1b "Body has already been read" bug); not reading it leaves the
+// caller's body untouched. CL-bearing responses are the safe res.clone() path
+// (zero "body already read" in 3.5.4a logs), and a 304 only re-serves a cached
+// body when the data is unchanged — so the active cache is correct, not a hazard.
+// The post-read check still guards a CL-present body whose DECODED size exceeds
+// the cap (Content-Length is the compressed size).
+//
+// Decision (3.5.4a / Ryan, 2026-06-14): KEEP the body cache as-is. The 304/body
+// reuse on per-type orders is a free-ish bandwidth win on the normal refresh
+// path; an explicit history opt-out would be new mechanism for no measured
+// benefit (the market-history DB stale-gate already dedups history same-day, so
+// its body cache rarely pays off either way). Cost is ~4 extra Upstash ops
+// (≈2 SET + 2 GET) per CL-bearing per-type fetch — accounted, not free.
 async function captureBodyForCache(res: Response): Promise<string | null> {
   const contentLength = parseIntHeader(res.headers, 'Content-Length');
   if (contentLength === null || contentLength > BODY_CACHE_MAX_BYTES) {
