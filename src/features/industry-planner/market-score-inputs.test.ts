@@ -94,6 +94,11 @@ describe('daysSinceHistoryDate / STALENESS_FLAG_DAYS', () => {
     expect(daysSinceHistoryDate(null, NOW)).toBeNull();
   });
 
+  it('is null (never NaN) for a malformed date string — honours its number | null contract', () => {
+    expect(daysSinceHistoryDate('', NOW)).toBeNull();
+    expect(daysSinceHistoryDate('not-a-date', NOW)).toBeNull();
+  });
+
   it('is 0 for a trade earlier the same UTC day', () => {
     expect(daysSinceHistoryDate('2026-06-14', NOW)).toBe(0);
   });

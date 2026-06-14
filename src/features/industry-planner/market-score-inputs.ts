@@ -50,7 +50,9 @@ export const STALENESS_FLAG_DAYS = 14;
 // derives staleness-vs-today, per market-history/types.ts latestDate).
 export function daysSinceHistoryDate(latestDate: string | null, nowMs: number): number | null {
   if (latestDate === null) return null;
-  const day = Math.floor(Date.parse(`${latestDate}T00:00:00Z`) / 86_400_000);
+  const parsed = Date.parse(`${latestDate}T00:00:00Z`);
+  if (Number.isNaN(parsed)) return null; // a malformed date is "unknown", never NaN
+  const day = Math.floor(parsed / 86_400_000);
   const today = Math.floor(nowMs / 86_400_000);
   return today - day;
 }
