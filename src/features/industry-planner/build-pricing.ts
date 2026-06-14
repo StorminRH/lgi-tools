@@ -4,7 +4,7 @@ import {
   computeMargin,
   type PriceOf,
 } from '@/data/industry-math/profitability';
-import type { PriceSource } from '@/data/market-prices/types';
+import type { DepthBand, PriceSource } from '@/data/market-prices/types';
 import { computeBatchMaterials } from './build-batch';
 import type { ConfidenceInput } from './industry-styles';
 import type {
@@ -34,6 +34,13 @@ export interface PriceLite {
   // are far under 2^53).
   buyVolume: number | null;
   sellVolume: number | null;
+  // Near-touch depth ladders per side (3.5.3b), carried so the product's
+  // Market Score reads its liquidity from the same lookup the live refresh
+  // already populates (RefreshedPrice carries these). Optional because only the
+  // product consumes depth — material/intermediate lookups omit it. Null = no
+  // orders on that side / Fuzzwork fallback.
+  buyDepth?: DepthBand[] | null;
+  sellDepth?: DepthBand[] | null;
   source: PriceSource | null;
   // Epoch millis of the row's stale_after — the staleness signal the client
   // uses to decide what to refresh. Null when there is no price row at all.
@@ -214,6 +221,8 @@ export function assemblePricing(
       quantityPerRun: structure.product.quantityPerRun,
       bestSell: productPrice?.bestSell ?? null,
       staleAfterMs: productPrice?.staleAfterMs ?? null,
+      buyDepth: productPrice?.buyDepth ?? null,
+      sellDepth: productPrice?.sellDepth ?? null,
     },
     summary: {
       inputCost: buildCost.total,

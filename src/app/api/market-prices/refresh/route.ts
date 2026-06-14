@@ -97,6 +97,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         pct5Sell: row.pct5Sell,
         buyVolume: row.buyVolume?.toString() ?? null,
         sellVolume: row.sellVolume?.toString() ?? null,
+        buyDepth: row.buyDepth,
+        sellDepth: row.sellDepth,
         updatedAt: row.updatedAt.toISOString(),
         staleAfter: row.staleAfter.toISOString(),
         source: row.source,

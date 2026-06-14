@@ -18,6 +18,8 @@ function row(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
     pct5Sell: 2,
     buyVolume: BigInt(1),
     sellVolume: BigInt(1),
+    buyDepth: null,
+    sellDepth: null,
     source,
   };
 }

@@ -155,6 +155,13 @@
       "when": 1781377805792,
       "tag": "0021_ambiguous_luminals",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1781444439917,
+      "tag": "0022_easy_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }

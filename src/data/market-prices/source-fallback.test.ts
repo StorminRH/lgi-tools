@@ -76,6 +76,8 @@ describe('normalize', () => {
       pct5Sell: 5.8,
       buyVolume: BigInt(1_000_000),
       sellVolume: BigInt(500_000),
+      buyDepth: null,
+      sellDepth: null,
       source: 'fuzzwork',
     });
   });

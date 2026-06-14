@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   BULK_THRESHOLD,
+  DEPTH_BANDS_PCT,
   ESI_REGION_ID_FORGE,
   PAGE_CONCURRENCY,
   PER_TYPE_CONCURRENCY,
@@ -14,7 +15,7 @@ import {
 } from '@/lib/esi';
 import { dedupe } from '@/lib/array';
 import { fetchPricesFromFuzzwork } from './source-fallback';
-import type { RawMarketPrice } from './types';
+import type { DepthBand, RawMarketPrice } from './types';
 
 // ESI source dispatcher. Above BULK_THRESHOLD types stale at once, the
 // region-dump path streams every order in The Forge and filters in memory.
@@ -183,6 +184,41 @@ export function computeSide(
   return { best, pct5, volume: totalVolume };
 }
 
+// Near-touch depth ladder (3.5.3a): cumulative volume within each band of
+// DEPTH_BANDS_PCT measured from `best` on this side. One pass, no sort —
+// bands are nested, so an order within the tightest band it qualifies for is
+// counted in that band and every wider one. `best` comes from computeSide;
+// an empty side (best === null) has no depth.
+//
+// Anchored to `best`, not pct5 — see DEPTH_BANDS_PCT for the manipulation
+// argument. A buy order qualifies for band b when price ≥ best·(1−b/100); a
+// sell order when price ≤ best·(1+b/100). Volume accumulates as a Number, like
+// computeSide's weighted sum (realistic cumulative volumes stay under
+// MAX_SAFE_INTEGER).
+//
+// Exported for testing — the manipulation-resistance is delicate enough that
+// direct adversarial fixtures (a 0.01-ISK spoof, a far-out whale order) are
+// worth the surface.
+export function computeDepth(
+  orders: OrderEntry[],
+  direction: 'asc' | 'desc',
+  best: number | null,
+): DepthBand[] | null {
+  if (best === null || orders.length === 0) return null;
+  const sums = DEPTH_BANDS_PCT.map(() => 0);
+  for (const o of orders) {
+    for (let i = 0; i < DEPTH_BANDS_PCT.length; i++) {
+      const band = DEPTH_BANDS_PCT[i];
+      const within =
+        direction === 'desc'
+          ? o.price >= best * (1 - band / 100)
+          : o.price <= best * (1 + band / 100);
+      if (within) sums[i] += Number(o.volume);
+    }
+  }
+  return DEPTH_BANDS_PCT.map((pct, i) => ({ pct, cumVolume: sums[i] }));
+}
+
 function bucketToRawPrice(
   typeId: number,
   bucket: OrderBucket,
@@ -197,6 +233,8 @@ function bucketToRawPrice(
     pct5Sell: sell.pct5,
     buyVolume: buy.volume,
     sellVolume: sell.volume,
+    buyDepth: computeDepth(bucket.buyOrders, 'desc', buy.best),
+    sellDepth: computeDepth(bucket.sellOrders, 'asc', sell.best),
     source: 'esi',
   };
 }

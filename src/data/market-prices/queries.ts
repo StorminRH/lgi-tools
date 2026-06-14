@@ -20,6 +20,8 @@ const PRICE_COLUMNS = {
   pct5Sell: marketPrices.pct5Sell,
   buyVolume: marketPrices.buyVolume,
   sellVolume: marketPrices.sellVolume,
+  buyDepth: marketPrices.buyDepth,
+  sellDepth: marketPrices.sellDepth,
   source: marketPrices.source,
   updatedAt: marketPrices.updatedAt,
   staleAfter: marketPrices.staleAfter,

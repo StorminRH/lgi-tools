@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BULK_THRESHOLD } from './constants';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
-import { computeSide, fetchPricesFromSource } from './source';
+import { computeDepth, computeSide, fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
 
 vi.mock('@/lib/esi', async () => {
@@ -43,6 +43,8 @@ function fuzzworkRow(typeId: number): RawMarketPrice {
     pct5Sell: 1.9,
     buyVolume: BigInt(100),
     sellVolume: BigInt(100),
+    buyDepth: null,
+    sellDepth: null,
     source: 'fuzzwork',
   };
 }
@@ -118,6 +120,89 @@ describe('computeSide', () => {
     // matching Fuzzwork's ~2.93 for the real orderbook.
     expect(res.pct5).toBeGreaterThan(2.9);
     expect(res.pct5).toBeLessThan(2.95);
+  });
+});
+
+describe('computeDepth', () => {
+  // Bands are [0.5, 1, 2, 5, 10]% of best. cumVolume is monotonic non-decreasing.
+  const bandPct = (d: NonNullable<ReturnType<typeof computeDepth>>, pct: number) =>
+    d.find((b) => b.pct === pct)!.cumVolume;
+
+  it('returns null for an empty side or a null best', () => {
+    expect(computeDepth([], 'asc', null)).toBeNull();
+    expect(computeDepth([{ price: 5, volume: BigInt(1) }], 'asc', null)).toBeNull();
+  });
+
+  it('sell side: accumulates volume within each band above the best ask', () => {
+    // best ask = 100. Bands: ≤100.5, ≤101, ≤102, ≤105, ≤110.
+    const orders = [
+      { price: 100, volume: BigInt(10) }, // in all bands
+      { price: 100.4, volume: BigInt(5) }, // ≤100.5 → all bands
+      { price: 101.5, volume: BigInt(20) }, // first ≤102 band
+      { price: 104, volume: BigInt(30) }, // first ≤105 band
+      { price: 130, volume: BigInt(999) }, // outside 10% → no band
+    ];
+    const d = computeDepth(orders, 'asc', 100)!;
+    expect(bandPct(d, 0.5)).toBe(15); // 10 + 5
+    expect(bandPct(d, 1)).toBe(15);
+    expect(bandPct(d, 2)).toBe(35); // + 20
+    expect(bandPct(d, 5)).toBe(65); // + 30
+    expect(bandPct(d, 10)).toBe(65); // 130 excluded
+  });
+
+  it('buy side: accumulates volume within each band below the best bid', () => {
+    // best bid = 100. Bands: ≥99.5, ≥99, ≥98, ≥95, ≥90.
+    const orders = [
+      { price: 100, volume: BigInt(10) },
+      { price: 99.6, volume: BigInt(5) },
+      { price: 98.5, volume: BigInt(20) },
+      { price: 96, volume: BigInt(30) },
+      { price: 80, volume: BigInt(999) }, // outside 10% (≥90)
+    ];
+    const d = computeDepth(orders, 'desc', 100)!;
+    expect(bandPct(d, 0.5)).toBe(15);
+    expect(bandPct(d, 2)).toBe(35);
+    expect(bandPct(d, 5)).toBe(65);
+    expect(bandPct(d, 10)).toBe(65);
+  });
+
+  // Manipulation resistance — the reason depth anchors to best, not pct5.
+  it('is robust to a tiny 0.01-ISK top-of-book spoof (buy side)', () => {
+    // Real book: 500 @ 99.99 (best legit bid) + 500 @ 99.95.
+    const real = [
+      { price: 99.99, volume: BigInt(500) },
+      { price: 99.95, volume: BigInt(500) },
+    ];
+    const honest = computeDepth(real, 'desc', 99.99)!;
+
+    // Attacker places 1 unit at 100.00 to grab top-of-book — now the "best".
+    const spoofed = [{ price: 100, volume: BigInt(1) }, ...real];
+    const attacked = computeDepth(spoofed, 'desc', 100)!;
+
+    // The 0.5% band off 100 is ≥99.5, which still contains the full real book;
+    // the 1-unit spoof adds only 1 to the count. Depth is essentially unchanged.
+    expect(bandPct(attacked, 0.5)).toBe(1001); // 1 + 500 + 500
+    expect(bandPct(honest, 0.5)).toBe(1000);
+    // The real liquidity is NOT hidden by the spoof (the failure mode pct5 has).
+    expect(bandPct(attacked, 0.5)).toBeGreaterThan(900);
+  });
+
+  it('under-states (never over-states) depth under a far-out whale order', () => {
+    // Real near-touch book around 100.
+    const real = [
+      { price: 100, volume: BigInt(500) },
+      { price: 99.5, volume: BigInt(500) },
+    ];
+    // Attacker posts a huge bid far ABOVE the market (implausible escrow, but
+    // the adversarial case): if it becomes "best", bands window around the fake
+    // and EXCLUDE the real near-touch volume → depth reads shallower, not deeper.
+    const whale = [{ price: 200, volume: BigInt(10_000_000) }, ...real];
+    const d = computeDepth(whale, 'desc', 200)!;
+    // 10% band off 200 is ≥180 → only the whale qualifies; real book excluded.
+    expect(bandPct(d, 10)).toBe(10_000_000);
+    // The real 1000 units near 100 are NOT counted as near-touch depth — the
+    // safe (conservative) direction for a "can I dump this?" read.
+    expect(bandPct(d, 0.5)).toBe(10_000_000);
   });
 });
 

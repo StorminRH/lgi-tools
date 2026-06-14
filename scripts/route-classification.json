@@ -79,6 +79,7 @@
     "/api/internal/eve-token": "dynamic",
     "/api/types/names": "dynamic",
     "/api/market-prices/refresh": "dynamic",
+    "/api/market-history/refresh": "dynamic",
     "/api/sites": "dynamic",
     "/api/sites/[id]": "dynamic",
     "/api/telemetry": "dynamic"

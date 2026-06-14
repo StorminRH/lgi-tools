@@ -46,3 +46,16 @@ export const ON_DEMAND_REFRESH_LIMIT_PER_MINUTE = 20;
 // flattened-materials list (T2 hulls hit ~25; capital BPCs may approach
 // the cap — revisit if a real consumer exceeds it).
 export const ON_DEMAND_REFRESH_MAX_TYPE_IDS = 50;
+
+// Price-distance bands (percent from the BEST price on each side) for the
+// near-touch depth ladder (3.5.3a). Each band's cumulative volume answers
+// "how far would dumping Q walk the price" for the 3.5.3b Market Score.
+//
+// Anchored to the best (touch), NOT pct5: pct5 is volume-weighted over 5% of
+// total side volume, so a far-out huge-volume order inflates that total and
+// collapses pct5 to the fake price — any pct5-anchored band would move with
+// it. Banding from the best is robust: a tiny 0.01-ISK spoof shifts the band
+// window negligibly (≥0.5% ≫ 0.01 ISK) and contributes ~0 volume, and a
+// far-out fake falls outside the near-touch bands (only ever under-stating
+// depth — the safe direction for a "can I dump this?" read).
+export const DEPTH_BANDS_PCT = [0.5, 1, 2, 5, 10] as const;

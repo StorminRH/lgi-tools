@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-06-14
 
+- The industry planner now shows a Market Score from 0 to 100 next to the margin — an at-a-glance read on how readily a blueprint's output will actually sell at the quantity you're building. It weighs how long the batch would take to clear (your units plus the sell orders already listed ahead of you, measured against recent daily volume), how steady the price has been, and how consistent demand is, and leans on the weakest of those so a thin market can't hide behind a healthy margin. A hover breakdown spells out the reasoning and says plainly when market history or order data is missing, and the score updates live as you change the number of runs.
 - The industry planner now shows take-home profit, not just materials margin. By default it shows gross margin (materials only) with a clear note; pick a build system and it flips to net margin — subtracting the EVE job installation fee (system cost index, facility tax, and SCC surcharge) and the sell-side sales tax and broker fee.
 - New build-system picker on the planner: search any solar system that can host an industry job and, optionally, pin a specific NPC station. The cost ledger gains an itemized fee breakdown alongside the materials.
 - New runs input on the planner: set how many runs to build and every figure — materials, output units, fees, and margin — rescales live.

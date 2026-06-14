@@ -1,3 +1,13 @@
+// One rung of the near-touch depth ladder (3.5.3a): the cumulative order
+// volume available within `pct`% of the BEST price on a side. Bands are nested
+// (0.5% ⊂ 1% ⊂ …), so cumVolume is monotonic non-decreasing across the ladder.
+// cumVolume is a plain number — realistic Jita cumulative volumes stay well
+// under MAX_SAFE_INTEGER, matching computeSide's existing Number() math.
+export interface DepthBand {
+  pct: number;
+  cumVolume: number;
+}
+
 // Public-facing record returned by getPrices() and stored in the DB.
 // All four price columns are nullable: NULL means "no orders on that
 // side at the time of the last refresh."
@@ -12,6 +22,11 @@ export interface MarketPrice {
   // price (e.g. the planner's price-confidence badge).
   buyVolume: bigint | null;
   sellVolume: bigint | null;
+  // Near-touch depth ladder per side (null = no orders there at last refresh).
+  // Cumulative volume within DEPTH_BANDS_PCT of the best, for the 3.5.3b
+  // depth-absorption signal. See DEPTH_BANDS_PCT for why it's anchored to best.
+  buyDepth: DepthBand[] | null;
+  sellDepth: DepthBand[] | null;
   // Provenance of this row — ESI (happy path) vs the Fuzzwork fallback.
   source: PriceSource;
   updatedAt: Date;
@@ -40,5 +55,10 @@ export interface RawMarketPrice {
   pct5Sell: number | null;
   buyVolume: bigint | null;
   sellVolume: bigint | null;
+  // Near-touch depth ladder per side, computed from the order book the source
+  // already downloads (null = no orders on that side). The Fuzzwork fallback
+  // has no order-book, so it leaves these null.
+  buyDepth: DepthBand[] | null;
+  sellDepth: DepthBand[] | null;
   source: PriceSource;
 }
