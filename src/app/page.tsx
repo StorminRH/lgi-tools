@@ -102,7 +102,7 @@ export default function Home({
               <span className="text-isk">tools</span>
             </div>
           </div>
-          <p className="font-mono text-[12px] text-muted tracking-[0.04em] leading-[1.7] max-w-[420px]">
+          <p className="body-copy text-[12px] text-muted leading-[1.7] max-w-[420px]">
             A collection of tools for Eve Online.
           </p>
         </header>
@@ -127,7 +127,7 @@ export default function Home({
                 Wormhole Sites
               </div>
             </div>
-            <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
+            <p className="body-copy text-[11px] text-text leading-[1.65] flex-1">
               Browse all 69 wormhole anomalies and signatures by class, site
               type, and ISK value. Live Jita prices on ore and gas resources.
             </p>
@@ -146,7 +146,7 @@ export default function Home({
                 Industry Planner
               </div>
             </div>
-            <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
+            <p className="body-copy text-[11px] text-text leading-[1.65] flex-1">
               Manufacturing profitability for blueprints and reactions.
             </p>
             <div className="flex items-center justify-between pt-3 border-t border-border-soft">
@@ -166,7 +166,7 @@ export default function Home({
                   Wormhole Roll Calculator
                 </div>
               </div>
-              <p className="font-mono text-[11px] text-text leading-[1.65] flex-1">
+              <p className="body-copy text-[11px] text-text leading-[1.65] flex-1">
                 Plan hole rolls with live mass tracking.
               </p>
               <div className="flex items-center justify-between pt-3 border-t border-border-soft">
@@ -185,7 +185,7 @@ export default function Home({
                 </div>
                 <Pill tone="neutral">Coming Soon</Pill>
               </div>
-              <p className="tile-desc font-mono text-[11px] text-text leading-[1.65] flex-1">
+              <p className="tile-desc body-copy text-[11px] text-text leading-[1.65] flex-1">
                 Plan hole rolls with live mass tracking.
               </p>
               <div className="flex items-center justify-between pt-3 border-t border-border-soft">

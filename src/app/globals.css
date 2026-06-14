@@ -4,16 +4,17 @@
   /* ── A1 blue-gray surface palette ── */
   --color-bg-deep:     #070809;
   --color-bg:          #0d0f14;
-  --color-section:     #0a0c10;
+  --color-section:     #0b0d12;
   --color-ewar:        #0b0d11;
-  --color-border:      #1e2535;
-  --color-border-soft: #141a24;
+  --color-border:      #232c40;
+  --color-border-soft: #171e2b;
   --color-row-hover:   rgba(255,255,255,0.018);
 
   /* ── Text palette ── */
-  --color-text:  #9ab0c4;
-  --color-name:  #dce8f0;
-  --color-muted: #6a7a8a;
+  --color-text:  #a9bcce;
+  --color-name:  #e9f1f8;
+  --color-muted: #7e90a2;
+  --color-faint: #5d6a78; /* faintest text tier, below muted (reserved; consumed in later page redesigns) */
   --color-isk:   #3dd68c;
   --color-isk-sub: #4a7860;
   --color-isk-dim: #1a3a28;
@@ -31,8 +32,8 @@
    */
 
   /* Shared chrome — borders and surfaces reused across many components. */
-  --color-border-idle:     #1e2c3a; /* idle/at-rest border (login, admin, pills, dropdown) */
-  --color-border-active:   #2a3550; /* hover/focus/active border */
+  --color-border-idle:     #243444; /* idle/at-rest border (login, admin, pills, dropdown) */
+  --color-border-active:   #32405c; /* hover/focus/active border */
   --color-surface-raised:  #161e28; /* raised neutral surface (pill neutral, search hover) */
   --color-surface-sunk:    #0a101a; /* sunk dark surface (pill blue bg, active tab bg) */
   --color-row-active:      #0d1218; /* table row hover/open background */
@@ -58,6 +59,9 @@
   --color-pill-yellow-border:       #332e10;
   --color-pill-teal-border:         #104a2a;
   --color-pill-blue-border:         #10283a;
+  /* Pill red text — lifted from --color-tone-red (#dd4444), which stays put for
+   * its non-pill consumers (dots, SVG, KpiCard, StatusRow, ContactForm, …). */
+  --color-pill-red-text:            #e05c5c;
 
   /* Tone hues — pill/dot text + feature error text. Mirror toneHex (tones.ts,
    * the JS/SVG source); green→isk and neutral→muted reuse existing vars. */
@@ -116,6 +120,16 @@
   /* Resource-card hover border (/sites density cards). */
   --color-card-resource-border: #2a3d50;
 
+  /* ── EVE industry blue (3.6.2) ──
+   * Reserved EXCLUSIVELY for queue/progress chrome (job bars, slot counts);
+   * consumed in 3.6.6/3.6.9. Must NOT replace ISK-green as the brand/nav/link
+   * accent. Defined ahead of its consumers — inert until first referenced. */
+  --color-evb:        #3da0e8;
+  --color-evb-bright: #6cc3ff;
+  --color-evb-track:  #0b141d;
+  --color-evb-border: #17293a;
+  --color-evb-glow:   rgba(84, 182, 255, 0.45);
+
   /* ── Typography scale ──
    * Named sizes for the canonical type ladder. Existing ad-hoc `text-[Npx]`
    * usages stay valid; new code references the named scale via Tailwind's
@@ -123,17 +137,24 @@
    * a utility class on first reference, so adding a new size here is
    * inert until something actually uses it.
    */
-  --text-caption:  9px;   /* footers, freshness stamps, dense table chrome */
-  --text-micro:    10px;  /* pill labels, section meta, dense chip text */
-  --text-body:     11px;  /* primary body copy, page-header strip */
-  --text-title-sm: 18px;  /* card titles */
-  --text-title:    22px;  /* page titles */
-  --text-hero:     clamp(40px, 7vw, 72px); /* landing wordmark */
+  --text-caption:  10.5px; /* footers, freshness stamps, dense table chrome */
+  --text-micro:    11px;   /* pill labels, section meta, dense chip text */
+  --text-body:     13px;   /* primary body copy, page-header strip */
+  --text-title-sm: 20px;   /* card titles */
+  /* --text-title / --text-hero carry an interim ~9% zoom-compensation bump
+   * (3.6.2): the body `zoom: 1.10` was removed, and these two are the named
+   * ladder tokens the §1 diff left at their literal value, so without the bump
+   * their consumers (e.g. the landing wordmark) would shrink. Revisited when
+   * per-page redesigns migrate raw `text-[Npx]` usages onto the named ladder. */
+  --text-title:    24px;   /* page titles */
+  --text-hero:     clamp(44px, 7.7vw, 79px); /* landing wordmark */
 
   /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ── */
   --font-mono:    var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-display: var(--font-barlow), system-ui, sans-serif;
   --font-jb:      var(--font-jb), ui-monospace, monospace;
+  /* Geist (next/font, --font-geist) — descriptive body copy only; see .body-copy. */
+  --font-body:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 }
 
 html, body {
@@ -145,11 +166,11 @@ html, body {
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Slight global scale-up — most type in the codebase is hardcoded in
-   * pixels (text-[11px], text-caption: 9px, …), so a single zoom on body
-   * is the lightest-weight way to raise every size proportionally without
-   * touching every consumer. Tune up/down per visual review. */
-  zoom: 1.10;
+  /* The type ladder is explicit now (see the @theme --text-* scale) — the old
+   * global `zoom: 1.10` is gone. This line-height is the reading measure for
+   * descriptive copy; dense chrome that needs tighter stacking sets its own
+   * leading at the call site. */
+  line-height: 1.65;
 }
 
 /* Universal link hover vocabulary — every <a> transitions toward the green
@@ -161,6 +182,25 @@ a {
 }
 a:hover {
   color: var(--color-isk);
+}
+
+/* Descriptive body copy — the only surfaces in a sans face (Geist) rather than
+ * IBM Plex Mono: the tool-tile descriptions and the hero tagline (the /sites
+ * card descriptions adopt this in their own redesign). Bundles the approved
+ * 0.01em tracking so the descriptive surfaces share one treatment. Kept
+ * top-level (unlayered) so it wins over the `font-mono` / `tracking-*`
+ * utilities in Tailwind's @layer utilities by the cascade. */
+.body-copy {
+  font-family: var(--font-body);
+  letter-spacing: 0.01em;
+}
+
+/* Global keyboard-focus ring — a faint ISK-green outline shown on
+ * :focus-visible only, so it never appears on a mouse click. Lives in the
+ * external stylesheet (CSP-clean); rgba is permitted (the hex ban is hex-only). */
+:focus-visible {
+  outline: 2px solid rgba(61, 214, 140, 0.22);
+  outline-offset: 2px;
 }
 
 /* Landing hero + tools-grid background — subtle grey lift that elevates
