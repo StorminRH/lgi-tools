@@ -142,7 +142,14 @@ export default defineSchema({
     // Last heartbeat from a visible tab. The scan and sweep treat a presence
     // doc older than COLD_AFTER_MS — or a missing one — as cold.
     lastSeenAt: v.number(),
-  }).index('by_user_dataset', ['userId', 'dataset']),
+  })
+    .index('by_user_dataset', ['userId', 'dataset'])
+    // The sweep's two presence-driven passes range over this: hot rows
+    // (lastSeenAt >= now - COLD_AFTER_MS, the dropped-timer reconcile) and
+    // past-retention rows (lastSeenAt < now - RETENTION_MS, the abandoned-row
+    // GC). Ascending order makes the GC pass oldest-first, so a capped catch-up
+    // run drains the backlog deterministically.
+    .index('by_last_seen', ['lastSeenAt']),
 
   // One doc per (user, character): the synced industry-jobs projection plus
   // this tracker's conditional-request custody — the characterSync twin for

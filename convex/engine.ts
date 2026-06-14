@@ -38,7 +38,10 @@
 // Starter pay-as-you-go, not a Free→Pro cliff. ──
 // Idle floor ≈ 94k calls/mo with zero traffic: this 30s scan (86.4k), the
 // 15-min Vercel sweep chain (HTTP action + sweep mutation, 5.8k), and the
-// Workpool's own 30-min healthcheck cron (1.4k).
+// Workpool's own 30-min healthcheck cron (1.4k). The sweep mutation's DB I/O is
+// bounded by its live working sets — the overdue backlog, the concurrently-
+// watched set, and per-run retention crossings — not by the total retained-
+// subject count (3.5.e2 retired its full-table scan for three indexed ranges).
 // Per visible tab: 3 heartbeats/min ≈ 180 calls/hr. Since 3.5.e1 each beat
 // writes only the syncPresence row, so interval beats no longer re-run
 // forViewer and no longer re-read the heavy tracker payload — the per-beat DB
@@ -57,11 +60,14 @@ import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
 import {
+  classifyDueSubject,
+  COLD_AFTER_MS,
   computeNextDueAt,
   hasSyncTarget,
   isColdFromPresence,
   isRunningFresh,
   isStaleForImmediate,
+  RETENTION_MS,
   SYNC_DATASET_CONFIG,
   type SyncDataset,
 } from '@/lib/sync-engine';
@@ -94,9 +100,12 @@ const SYNC_REFS = {
   industryJobs: internal.industryJobsSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
-// Subjects older than this with no heartbeat are deleted by the sweep —
-// pure housekeeping; a returning viewer's first heartbeat recreates the row.
-const RETENTION_MS = 7 * 24 * 60 * 60_000;
+// Pass C (abandoned-row GC) deletes at most this many past-retention subjects
+// per sweep, oldest first, so a post-outage backlog can't blow the mutation's
+// ~4,096 db.get/query budget — the next 15-min run drains the rest. Far above
+// any healthy per-run retention-crossing count, and A+B's live working sets
+// leave the shared budget comfortable.
+const SWEEP_DELETE_BATCH = 512;
 
 // The liveness signal and the on-view trigger. Every beat refreshes presence
 // — written to the syncPresence row, a doc forViewer never reads, so an
@@ -303,47 +312,112 @@ export const onSyncComplete = internalMutation({
 // a non-zero count means the cron scan is dead or lagging. Also retires
 // cold due rows and deletes long-abandoned subjects (regenerable state: a
 // returning heartbeat recreates everything).
+//
+// Three bounded indexed passes, never a full-table scan (3.5.e2). Each reads
+// only the rows that can need action, so the work scales with live working
+// sets — not the total retained-subject count — and stays well under Convex's
+// per-mutation read/scan/call limits:
+//   A. overdue — by_next_due over (0, now], the 30s scan's own range: delete
+//      past-retention / retire cold-within-retention / dispatch hot. Bounded
+//      by the overdue backlog (≈0 on a healthy system).
+//   B. dropped — by_last_seen over hot presence (lastSeenAt ≥ now−COLD): a hot
+//      idle row with targets but no schedule (timer wiped mid-flight) is
+//      re-armed. Bounded by the concurrently-watched set.
+//   C. abandoned — by_last_seen over past-retention presence (lastSeenAt <
+//      now−RETENTION): delete subject + presence, oldest first, capped per run.
+//      Bounded by per-run retention crossings.
+// A runs first so its writes are visible (read-your-writes) to B/C: a row A
+// dispatched leaves the null-scheduled set B scans, and a row A deleted is gone
+// from C's presence range, so no row is acted on twice. The cold-but-within-
+// retention middle band is never scanned — it needs nothing until it comes due
+// (A) or ages out (C).
+// NOTE: a pre-e1 legacy subject with NO presence doc sits in none of these
+// ranges, so the sweep no longer deletes it (the e1 sweep did, treating a
+// missing presence as cold + abandoned). Steady state never produces such an
+// orphan — presence and subject are created together and only ever deleted
+// together, here — so this is a fixed, non-growing transition population,
+// reaped by the e3 tombstone migration alongside the lastSeenAt field drop.
 export const sweep = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
     const counts = { dispatched: 0, retired: 0, deleted: 0 };
-    // Presence lives in its own table now (3.5.e1). This pass already collects
-    // every subject, so join presence in one collect rather than a point read
-    // per row, keying by (userId, dataset). A subject with no presence doc is
-    // treated as cold — and as past retention, so an orphan can't linger.
-    const presenceByKey = new Map<string, Doc<'syncPresence'>>();
-    for (const presence of await ctx.db.query('syncPresence').collect()) {
-      presenceByKey.set(`${presence.userId}:${presence.dataset}`, presence);
-    }
-    const subjects = await ctx.db.query('syncSubjects').collect();
-    for (const subject of subjects) {
-      const presence = presenceByKey.get(`${subject.userId}:${subject.dataset}`) ?? null;
-      const lastSeenAt = presence?.lastSeenAt ?? null;
-      if (isColdFromPresence(lastSeenAt, now)) {
-        if (lastSeenAt === null || now - lastSeenAt > RETENTION_MS) {
+
+    // Pass A — overdue. The 30s scan's own range; one presence point read per
+    // due row, only over the hot, already-scheduled set.
+    const due = await ctx.db
+      .query('syncSubjects')
+      .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
+      .collect();
+    for (const subject of due) {
+      const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+      switch (
+        classifyDueSubject(presence?.lastSeenAt ?? null, subject.status, subject.lastRequestedAt, now)
+      ) {
+        case 'delete':
           await ctx.db.delete(subject._id);
           if (presence !== null) await ctx.db.delete(presence._id);
           counts.deleted += 1;
-        } else if (subject.nextDueAt !== null && subject.nextDueAt <= now) {
+          break;
+        case 'retire':
           await ctx.db.patch(subject._id, { nextDueAt: null });
           counts.retired += 1;
-        }
-        continue;
+          break;
+        case 'dispatch':
+          await dispatch(ctx, subject, now);
+          counts.dispatched += 1;
+          break;
+        case 'skip':
+          break;
       }
+    }
+
+    // Pass B — dropped timers: a hot, idle subject with targets but no schedule
+    // (e.g. state wiped mid-flight). Only the hot presence rows; Pass A already
+    // owns anything still scheduled, so a non-null nextDueAt is its province.
+    const hot = await ctx.db
+      .query('syncPresence')
+      .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - COLD_AFTER_MS))
+      .collect();
+    for (const presence of hot) {
+      const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
+      if (subject === null || subject.nextDueAt !== null) continue;
       if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
-      const overdue = subject.nextDueAt !== null && subject.nextDueAt <= now;
-      // A hot, idle subject with targets but no schedule is a dropped timer
-      // (e.g. state wiped mid-flight) — re-arm it alongside overdue rows.
-      const dropped =
-        subject.nextDueAt === null &&
+      if (
         hasSyncTarget(subject.syncedCharacterIds, []) &&
-        isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now);
-      if (overdue || dropped) {
+        isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
+      ) {
         await dispatch(ctx, subject, now);
         counts.dispatched += 1;
       }
     }
+
+    // Pass C — abandoned: past-retention presence (oldest first), deleted with
+    // its subject. Capped per run so a post-outage backlog can't blow the
+    // mutation's call budget; the next run takes the next oldest batch.
+    const abandoned = await ctx.db
+      .query('syncPresence')
+      .withIndex('by_last_seen', (q) => q.lt('lastSeenAt', now - RETENTION_MS))
+      .take(SWEEP_DELETE_BATCH);
+    for (const presence of abandoned) {
+      const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
+      if (subject !== null) {
+        await ctx.db.delete(subject._id);
+        counts.deleted += 1;
+      }
+      await ctx.db.delete(presence._id);
+    }
+    if (abandoned.length === SWEEP_DELETE_BATCH) {
+      // Not silent truncation: the next 15-min run drains the next oldest batch.
+      console.warn(
+        JSON.stringify({
+          scope: 'engine:sweep',
+          note: 'retention_batch_capped',
+          deletedThisRun: counts.deleted,
+        }),
+      );
+    }
+
     return counts;
   },
 });
