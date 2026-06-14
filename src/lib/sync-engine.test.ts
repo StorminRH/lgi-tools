@@ -5,6 +5,7 @@ import {
   deriveConvexSiteUrl,
   hasSyncTarget,
   isCold,
+  isColdFromPresence,
   isRunningFresh,
   isStaleForImmediate,
   minCacheWindow,
@@ -37,6 +38,17 @@ describe('isCold', () => {
     expect(isCold(NOW - COLD_AFTER_MS, NOW)).toBe(false);
     expect(isCold(NOW - COLD_AFTER_MS - 1, NOW)).toBe(true);
     expect(isCold(NOW, NOW)).toBe(false);
+  });
+});
+
+describe('isColdFromPresence', () => {
+  it('treats an absent presence doc as cold', () => {
+    expect(isColdFromPresence(null, NOW)).toBe(true);
+  });
+  it('matches isCold at the window edge when a presence doc exists', () => {
+    expect(isColdFromPresence(NOW - COLD_AFTER_MS, NOW)).toBe(false);
+    expect(isColdFromPresence(NOW - COLD_AFTER_MS - 1, NOW)).toBe(true);
+    expect(isColdFromPresence(NOW, NOW)).toBe(false);
   });
 });
 

@@ -94,9 +94,12 @@ export default defineSchema({
     // src/lib/sync-engine.ts (the engine's registry).
     dataset: v.union(v.literal('skills'), v.literal('industryJobs')),
     userId: v.string(),
-    // Presence: last heartbeat from a visible tab. The scan stops
-    // dispatching once this is older than COLD_AFTER_MS.
-    lastSeenAt: v.number(),
+    // Tombstone (3.5.e1): presence moved to the syncPresence table below so an
+    // interval heartbeat no longer invalidates forViewer's read of this row.
+    // Now unwritten and unread; kept optional only so existing prod docs still
+    // validate. The field drop + a one-shot strip is deferred to a later
+    // e-track session (Convex rejects removing a field live docs still carry).
+    lastSeenAt: v.optional(v.number()),
     status: v.union(v.literal('idle'), v.literal('running')),
     // Doubles as the run's generation token (shipped name kept): a late
     // applySyncResults from a taken-over run no-ops unless it matches.
@@ -124,6 +127,22 @@ export default defineSchema({
   })
     .index('by_user_dataset', ['userId', 'dataset'])
     .index('by_next_due', ['nextDueAt']),
+
+  // One ephemeral presence doc per watched subject (dataset × user): the
+  // liveness heartbeat, split off the syncSubjects row in 3.5.e1. forViewer
+  // reads syncSubjects but NEVER this table, so an interval beat's lastSeenAt
+  // write (3×/min per visible tab) can no longer invalidate the heavy tracker
+  // payload through Convex's document-granular reactivity. Pure ephemeral
+  // liveness — like every row here it is regenerable: a returning tab's first
+  // heartbeat recreates it, and the engine sweep reaps it alongside a
+  // long-abandoned subject.
+  syncPresence: defineTable({
+    dataset: v.union(v.literal('skills'), v.literal('industryJobs')),
+    userId: v.string(),
+    // Last heartbeat from a visible tab. The scan and sweep treat a presence
+    // doc older than COLD_AFTER_MS — or a missing one — as cold.
+    lastSeenAt: v.number(),
+  }).index('by_user_dataset', ['userId', 'dataset']),
 
   // One doc per (user, character): the synced industry-jobs projection plus
   // this tracker's conditional-request custody — the characterSync twin for

@@ -54,6 +54,15 @@ export function isCold(lastSeenAt: number, now: number): boolean {
   return now - lastSeenAt > COLD_AFTER_MS;
 }
 
+// Cold-detection over a subject's presence doc, which the engine reads
+// separately from the subject row (presence lives in its own ephemeral table
+// so an interval heartbeat never invalidates forViewer). An absent presence
+// doc means no live tab has ever beaten — or its presence was already reaped —
+// so it is cold by definition; otherwise defer to isCold.
+export function isColdFromPresence(lastSeenAt: number | null, now: number): boolean {
+  return lastSeenAt === null || isCold(lastSeenAt, now);
+}
+
 // True while a dispatched run still owns the subject — new dispatches must
 // wait. Past STALE_RUNNING_MS the run is presumed wedged and a new dispatch
 // takes over (the generation token makes the old run's late writes no-ops).
