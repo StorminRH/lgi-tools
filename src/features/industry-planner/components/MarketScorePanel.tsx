@@ -1,11 +1,16 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { HoverPopover } from '@/components/ui/hover-popover';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import type { MarketScore } from '@/data/industry-math/market-score';
 import { formatQuantity } from '@/lib/format';
 import { HISTORY_STABILITY_WINDOW_DAYS } from '@/data/market-history/constants';
-import { SCORE_ADV_WINDOW_DAYS } from '../market-score-inputs';
+import {
+  daysSinceHistoryDate,
+  SCORE_ADV_WINDOW_DAYS,
+  STALENESS_FLAG_DAYS,
+} from '../market-score-inputs';
 import type { BlueprintStructure } from '../types';
 import { usePricing } from './PricingProvider';
 
@@ -19,6 +24,14 @@ function days(n: number): string {
   if (n < 1) return '<1 day';
   const r = Math.round(n);
   return `${r} day${r === 1 ? '' : 's'}`;
+}
+
+// Compact age label for the staleness flag (the /sites meta-strip idiom):
+// days under a week, weeks under a month, months beyond.
+function ageLabel(days: number): string {
+  if (days < 7) return `${days}d`;
+  if (days < 30) return `${Math.floor(days / 7)}w`;
+  return `${Math.floor(days / 30)}mo`;
 }
 
 const BAND_WORD = { steady: 'steady', moderate: 'moderate', spiky: 'spiky' } as const;
@@ -112,6 +125,24 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
   const scoreText = marketScore.score === null ? '—' : String(marketScore.score);
   const ctx = contextLine(history);
 
+  // Staleness flag — a flag, never a score change (the composite stays keyed to
+  // latestDate). The clock starts null so the static prerender of this Client
+  // Component never reads the wall clock (Cache Components forbids Date.now() in
+  // a prerendered Client Component — same constraint PriceFreshness handles); the
+  // mount effect fills it in client-side, then a re-render reveals the flag.
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  useEffect(() => {
+    // The clock is read in a timer callback, never in the synchronous effect
+    // body, so the static prerender never touches the wall clock and setState
+    // stays out of the effect body (same posture as PriceFreshness). One read is
+    // enough — staleness is coarse day buckets, and a reload refreshes the data.
+    const id = setTimeout(() => setNowMs(Date.now()), 0);
+    return () => clearTimeout(id);
+  }, []);
+  const staleDays = nowMs === null ? null : daysSinceHistoryDate(history?.latestDate ?? null, nowMs);
+  const staleAge =
+    staleDays !== null && staleDays >= STALENESS_FLAG_DAYS ? ageLabel(staleDays) : null;
+
   const breakdown = (
     <div className="flex flex-col gap-1.5 max-w-[320px]">
       <div className="text-[9px] uppercase tracking-[0.14em] text-muted">
@@ -124,6 +155,11 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
           <li key={key}>{text}</li>
         ))}
       </ul>
+      {staleAge && history?.latestDate && (
+        <div className="text-[10px] text-tone-orange">
+          Latest trade {history.latestDate} ({staleAge} ago) — the score reflects that period, not today.
+        </div>
+      )}
       {ctx && <div className="text-[10px] text-muted">{ctx}</div>}
       <div className="text-[10px] text-muted">
         Weakest-link scored — the lowest signal caps the total.
@@ -146,6 +182,12 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
             <div className="text-[9px] text-muted mt-1 whitespace-nowrap">
               {glanceParts(marketScore).join(' · ')}
             </div>
+            {staleAge && (
+              <div className="flex items-center gap-1.5 text-[9px] text-muted mt-1 whitespace-nowrap">
+                <span aria-hidden className="w-[5px] h-[5px] rounded-full bg-tone-orange" />
+                history {staleAge} old
+              </div>
+            )}
           </div>
         }
       >
