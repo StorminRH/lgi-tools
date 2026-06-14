@@ -18,14 +18,14 @@ Next.js (current — see warning above) · TypeScript (strict) · Drizzle ORM ·
 
 - Install: `pnpm install`
 - Dev: `pnpm dev`
-- Build: `pnpm vercel-build` — migrates the active Neon branch and auto-populates SDE tables on first deploy
+- Build: `pnpm vercel-build` is the Vercel entry point — a thin wrapper that runs the Convex deploy, which in turn invokes the real build chain `pnpm build:vercel` (`migrate → backfill-users-if-empty → ingest-sde-if-empty → next build → assert-route-classification`). So the Neon-branch migration, the first-deploy SDE auto-populate, and the route-classification assert all live in `build:vercel`; `vercel-build` just wraps it in `npx convex deploy` so every deploy gets its matching Convex deployment.
 - Test: `pnpm test`
 - Typecheck: `pnpm typecheck`
 - Lint: `pnpm lint`
 - Dead code / unused deps: `pnpm knip`
 - Verify (definition-of-done bundle — run before a commit): `pnpm verify` (= typecheck + lint + test + knip)
 
-CI (`.github/workflows/test.yml`) gates **`typecheck`, `lint`, `test`, `knip`** on every PR. `assert:routes` (route render-mode classification) gates at build time inside `vercel-build`, not CI — it needs a full `next build`, so `pnpm verify` intentionally omits it.
+CI (`.github/workflows/test.yml`) gates **`typecheck`, `lint`, `test`, `knip`** on every PR. `assert:routes` (route render-mode classification) gates at build time inside `build:vercel` (the chain `vercel-build` invokes), not CI — it needs a full `next build`, so `pnpm verify` intentionally omits it.
 
 ## Project Structure
 
@@ -37,6 +37,7 @@ CI (`.github/workflows/test.yml`) gates **`typecheck`, `lint`, `test`, `knip`** 
 - `src/app/api/` — route handlers.
 - `CHANGELOG.md` (repo root) — user-facing changelog, parsed by `src/features/changelog/parse.ts`.
 - `docs/SCRATCHPAD.md` — cross-session working memory. The whole `docs/` folder is gitignored.
+- `docs/backlog.md` — deferred work with no version assigned (un-prioritized). See Session Maintenance for the one-home discipline vs SCRATCHPAD.
 - `../LGI Tools Document Archive/` — sibling folder for shipped plan docs.
 
 ## Core Principles
@@ -58,7 +59,7 @@ Load-bearing constraints. Don't regress these without raising a conflict.
 - **UI primitives accept abstract `tone` props** (`green`, `red`, …). The only files that know "C5 is red" are the feature-level `*-styles.ts` mappings. The *import edge* — `src/components/ui/**` may not import features or data — is lint-enforced; whether a component is a *good* primitive stays a review judgment.
 - **Postgres enums are driven from TS `as const` arrays** — one source of truth.
 - **`Collapsible` is a pure `<details>`/`<summary>`** — the element owns open/closed state; no React state wrapper. `UrlSync` syncs the URL via a native `toggle` listener.
-- **Lazy DB client** (`src/db/index.ts` Proxy) — connection deferred to first query, so module import stays side-effect-free. Note since 3.0.4.9: under Cache Components the static shell prerenders cached DB reads (the header's search index + price freshness) at **build** time, so `next build` now needs a reachable `DATABASE_URL` (Vercel provides it and `vercel-build` migrates first; for a local build, export it — `.env.local` alone isn't seen inside the `use cache` prerender environment).
+- **Lazy DB client** (`src/db/index.ts` Proxy) — connection deferred to first query, so module import stays side-effect-free. Note since 3.0.4.9: under Cache Components the static shell prerenders cached DB reads (the header's search index + price freshness) at **build** time, so `next build` now needs a reachable `DATABASE_URL` (Vercel provides it and `build:vercel` migrates first; for a local build, export it — `.env.local` alone isn't seen inside the `use cache` prerender environment).
 - **Validation lives in route handlers, not queries.** Queries accept already-typed values. Every input-accepting route validates with a Zod schema; routes with no user input carry a one-line marker comment so the invariant stays grep-auditable. Since 3.4.T the schema lives in the owning slice's **`api-contract.ts`** together with the route's response types: the route imports the schema (and still does the parsing) and pins its JSON payloads with `satisfies`; clients call **`apiFetch`** (`src/lib/api-client.ts`) with the slice's endpoint object, so both sides share one wire shape and a renamed field fails `tsc` on both. New JSON routes are born with a contract. *Test-enforced* (`src/app/api/api-contracts.test.ts` — every route imports its contract) and *lint-enforced* (raw `fetch('/api/…')` is banned).
 - **Server env reads go through `readEnv`/`requireEnv`** (`src/lib/env.ts`) — one validated registry, read lazily per call, never cached, never eager-at-import. Per-var schemas are equivalence-preserving (see the file header); tightening one is a behavior change needing its own review. `NODE_ENV` and `NEXT_PUBLIC_*` stay direct reads (bundler-inlined). *Lint-enforced* (`no-restricted-syntax` in `eslint.config.mjs`; test files exempt).
 - **Advisory locks are session-scoped on a reserved connection**, released in `finally`. Network calls (ESI, Fuzzwork) happen with no transaction open and no connection pinned. Lock IDs are constants in the owning slice.
@@ -91,7 +92,9 @@ The live per-character platform (3.4.3–3.4.10): Convex is the reactive store, 
 
 ## Session Maintenance
 
-**SCRATCHPAD.md** — after every session, update `docs/SCRATCHPAD.md` (gitignored). It's the agent's session-to-session memory: discoveries made *during* a session, cross-cutting bugs, and gotchas — not forward plans (those live in the version docs and prompts). The file documents its own upkeep rules at the bottom; follow them so it stays skimmable.
+**SCRATCHPAD.md** — after every session, update `docs/SCRATCHPAD.md` (gitignored). It's the agent's session-to-session memory: discoveries made *during* a session, cross-cutting bugs, gotchas, and ongoing tooling/status notes — not forward plans (those live in the version docs and prompts), and not deferred work (that goes to `backlog.md`, below). The file documents its own upkeep rules at the bottom; follow them so it stays skimmable.
+
+**backlog.md** — `docs/backlog.md` (gitignored) is the home for **deferred work**: scope cuts, declined or deferred audit findings, future sub-versions, and pending verifications. It is **un-prioritized — a backlog, not a plan**: no sequencing, no version numbers, no commitments. Each entry is *what / why-deferred / rough size / dependency-or-trigger*, grouped by area. The discipline that keeps it useful is **one home**: when work is deferred during a session, write it to `backlog.md` and **delete it from SCRATCHPAD** — never let the same item live in both. Pull an item into a real version when its trigger fires; delete it from `backlog.md` when it ships. (Deferred *work* migrates here; ongoing tooling/status notes stay in SCRATCHPAD or this file.)
 
 **CHANGELOG.md** — after every session, decide whether the work is user-facing. Only log features and significant platform changes; skip internal cleanup, CI, refactors, and intra-session iteration. The test: *would a wormhole pilot loading the site notice this?* If no, leave it out.
 
