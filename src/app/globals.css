@@ -195,11 +195,14 @@ a:hover {
   letter-spacing: 0.01em;
 }
 
-/* Global keyboard-focus ring — a faint ISK-green outline shown on
- * :focus-visible only, so it never appears on a mouse click. Lives in the
- * external stylesheet (CSP-clean); rgba is permitted (the hex ban is hex-only). */
+/* Global keyboard-focus ring — an ISK-green outline shown on :focus-visible
+ * only, so it never appears on a mouse click. Treated as an accessibility
+ * indicator, NOT a subtle-palette fill: the alpha is set for WCAG 2.2
+ * focus-appearance contrast on the dark surfaces, so it intentionally sits
+ * above the handoff's 0.22 "mid" tint. Lives in the external stylesheet
+ * (CSP-clean); rgba is permitted (the hex ban is hex-only). */
 :focus-visible {
-  outline: 2px solid rgba(61, 214, 140, 0.22);
+  outline: 2px solid rgba(61, 214, 140, 0.55);
   outline-offset: 2px;
 }
 
