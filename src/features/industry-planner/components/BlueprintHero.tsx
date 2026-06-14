@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { OdometerValue } from '@/components/ui/odometer-value';
 import { Pill } from '@/components/ui/pill';
@@ -32,6 +33,19 @@ function HeroStat({ label, value, pending }: { label: string; value: string; pen
 export function BlueprintHero({ structure }: { structure: BlueprintStructure }) {
   const { pricing, seeded, aggregatePending, runs, setRuns, location } = usePricing();
   const summary = pricing?.summary ?? null;
+
+  // The runs field is a controlled string so the user can clear it and retype
+  // mid-edit; runs only commits on a valid whole number ≥ 1, and the field
+  // snaps back to the committed value on blur. (Binding the input straight to
+  // `runs` snapped an emptied field back to 1 on the keystroke.) No sync effect
+  // is needed — runs only ever changes via this input, so the string stays
+  // consistent, and onBlur reconciles the empty/partial case.
+  const [runsInput, setRunsInput] = useState(String(runs));
+  const onRunsChange = (raw: string) => {
+    setRunsInput(raw);
+    const n = Number(raw);
+    if (raw !== '' && Number.isInteger(n) && n >= 1) setRuns(n);
+  };
 
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
   // Net is shown only for a manufacturing blueprint with a build location picked
@@ -137,8 +151,9 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
             type="number"
             min={1}
             step={1}
-            value={runs}
-            onChange={(e) => setRuns(e.target.valueAsNumber)}
+            value={runsInput}
+            onChange={(e) => onRunsChange(e.target.value)}
+            onBlur={() => setRunsInput(String(runs))}
             aria-label="Runs"
             className="w-[68px] font-mono text-[12px] px-2 py-1 bg-bg border border-border text-text focus:outline-none focus:border-border-active"
           />
