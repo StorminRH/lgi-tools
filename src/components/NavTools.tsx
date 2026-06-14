@@ -30,11 +30,7 @@ function NavStrip({ shrunk, pathname }: { shrunk: boolean; pathname: string | nu
         if (tool.href === null || tool.navDisabled) {
           const title = tool.href === null ? `${tool.label} — coming soon` : tool.label;
           return (
-            <span
-              key={tool.label}
-              title={title}
-              className="nav-tool flex items-center px-3.5 text-[11px] font-medium text-muted opacity-55 cursor-default whitespace-nowrap tracking-[0.03em]"
-            >
+            <span key={tool.label} title={title} className="nav-tool soon">
               <span className="full">{tool.label}</span>
               <span className="abbr">{tool.abbr}</span>
             </span>
@@ -49,12 +45,7 @@ function NavStrip({ shrunk, pathname }: { shrunk: boolean; pathname: string | nu
             key={tool.label}
             href={tool.href}
             title={tool.label}
-            className={cn(
-              'nav-tool flex items-center px-3.5 text-[11px] font-medium tracking-[0.03em] whitespace-nowrap border-b-2 transition-colors',
-              isActive
-                ? 'text-name border-isk'
-                : 'text-muted border-transparent',
-            )}
+            className={cn('nav-tool', isActive && 'active')}
           >
             <span className="full">{tool.label}</span>
             <span className="abbr">{tool.abbr}</span>
