@@ -36,6 +36,8 @@ function raw(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
     pct5Sell: 13,
     buyVolume: BigInt(100),
     sellVolume: BigInt(200),
+    buyDepth: [{ pct: 0.5, cumVolume: 100 }],
+    sellDepth: [{ pct: 0.5, cumVolume: 200 }],
     source,
   };
 }
@@ -49,6 +51,8 @@ function seed(typeId: number): MarketPrice {
     pct5Sell: 2,
     buyVolume: BigInt(1),
     sellVolume: BigInt(1),
+    buyDepth: null,
+    sellDepth: null,
     source: 'fuzzwork',
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     staleAfter: new Date('2026-01-01T01:00:00Z'),

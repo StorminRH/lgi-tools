@@ -5,7 +5,7 @@ import { apiFetch } from '@/lib/api-client';
 import { chunk } from '@/lib/array';
 import { refreshPricesEndpoint } from './api-contract';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
-import type { PriceSource } from './types';
+import type { DepthBand, PriceSource } from './types';
 
 // The client half of the refresh-on-view engine — the generic fetch loop every
 // live-price consumer shares. It knows nothing about blueprints or sites: hand
@@ -30,6 +30,10 @@ export interface RefreshedPrice {
   pct5Sell: number | null;
   buyVolume: number | null;
   sellVolume: number | null;
+  // Near-touch depth ladder per side (null = no orders / Fuzzwork fallback),
+  // for the 3.5.3b depth-absorption signal. Plain objects on the wire.
+  buyDepth: DepthBand[] | null;
+  sellDepth: DepthBand[] | null;
   source: PriceSource;
   staleAfterMs: number;
 }
@@ -115,6 +119,8 @@ export function useRefreshOnView(
                 pct5Sell: p.pct5Sell,
                 buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
                 sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
+                buyDepth: p.buyDepth,
+                sellDepth: p.sellDepth,
                 source: p.source,
                 staleAfterMs: Date.parse(p.staleAfter),
               });

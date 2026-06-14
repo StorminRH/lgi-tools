@@ -92,6 +92,9 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
     pct5Sell: sellOrderCount > 0 ? Number.parseFloat(sell.percentile) : null,
     buyVolume: buyOrderCount > 0 ? parseVolume(buy.volume) : null,
     sellVolume: sellOrderCount > 0 ? parseVolume(sell.volume) : null,
+    // Fuzzwork serves aggregates, not an order book — no near-touch depth.
+    buyDepth: null,
+    sellDepth: null,
     source: 'fuzzwork',
   };
 }

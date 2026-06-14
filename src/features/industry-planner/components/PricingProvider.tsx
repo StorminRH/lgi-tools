@@ -16,6 +16,8 @@ import {
   useRefreshOnView,
   type RefreshedPrice,
 } from '@/data/market-prices/use-refresh-on-view';
+import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-view';
+import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { collectRawTypeIds } from '../build-batch';
 import {
   assemblePricing,
@@ -126,6 +128,10 @@ interface PricingContextValue {
   // The optional per-station refinement (display/future-score only).
   station: SelectedStation | null;
   setStation: (stationId: number | null, stationName: string | null) => void;
+  // History-derived score inputs keyed by type ID (3.5.3a). Seeded from the
+  // server (warm) and refreshed on view; the product type is always present
+  // once it has stored history. 3.5.3b's Market Score reads this from here.
+  marketHistory: Map<number, MarketHistoryInputs>;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -158,17 +164,40 @@ function PricingSeeder({
   return null;
 }
 
+// Resolves the streamed history seed (warm score inputs) and hands it to the
+// store, then renders nothing — its own <Suspense fallback={null}> so the wait
+// never blocks the hero/cascade. Same deferred-setState shape as PricingSeeder.
+function HistorySeeder({
+  historyPromise,
+  onSeed,
+}: {
+  historyPromise: Promise<MarketHistoryInputs[]>;
+  onSeed: (inputs: MarketHistoryInputs[]) => void;
+}) {
+  const resolved = use(historyPromise);
+  useEffect(() => {
+    const t = setTimeout(() => onSeed(resolved), 0);
+    return () => clearTimeout(t);
+  }, [resolved, onSeed]);
+  return null;
+}
+
 export function PricingProvider({
   structure,
   pricingPromise,
+  historyPromise,
   children,
 }: {
   structure: BlueprintStructure;
   pricingPromise: Promise<BlueprintPricing | null>;
+  historyPromise: Promise<MarketHistoryInputs[]>;
   children: ReactNode;
 }) {
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
   const [seeded, setSeeded] = useState(false);
+  const [marketHistory, setMarketHistory] = useState<Map<number, MarketHistoryInputs>>(
+    () => new Map(),
+  );
   const [runs, setRunsState] = useState(1);
   const [location, setLocationState] = useState<SelectedLocation | null>(null);
   const [station, setStationState] = useState<SelectedStation | null>(null);
@@ -278,6 +307,27 @@ export function PricingProvider({
     onBatch,
   });
 
+  // History score inputs: merge the warm server seed and the on-view refresh
+  // into one store (newest per type wins). The product type's history is
+  // refreshed on view (stale-gated server-side); 3.5.3b's Market Score reads it.
+  const mergeHistory = useCallback((items: Iterable<MarketHistoryInputs>) => {
+    setMarketHistory((prev) => {
+      const next = new Map(prev);
+      for (const i of items) next.set(i.typeId, i);
+      return next;
+    });
+  }, []);
+  const onHistoryResult = useCallback(
+    (map: Map<number, MarketHistoryInputs>) => mergeHistory(map.values()),
+    [mergeHistory],
+  );
+  // On-view history refresh for the product type only — fires when the seed
+  // settles, parallel to the price loop and off the margin path.
+  useRefreshHistoryOnView([structure.product.typeId], {
+    enabled: seeded,
+    onResult: onHistoryResult,
+  });
+
   // Recompute when runs or location changes — independent of the one-shot
   // refresh loop, which never fires onBatch again once it finishes. Reads the
   // latest pricing via a ref (not a dep) so it fires only on a real runs/location
@@ -309,6 +359,7 @@ export function PricingProvider({
       setLocation,
       station,
       setStation,
+      marketHistory,
     }),
     [
       pricing,
@@ -322,6 +373,7 @@ export function PricingProvider({
       setLocation,
       station,
       setStation,
+      marketHistory,
     ],
   );
 
@@ -330,6 +382,9 @@ export function PricingProvider({
       {children}
       <Suspense fallback={null}>
         <PricingSeeder pricingPromise={pricingPromise} onSeed={seed} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <HistorySeeder historyPromise={historyPromise} onSeed={mergeHistory} />
       </Suspense>
     </PricingContext.Provider>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
 import { BlueprintHero } from '@/features/industry-planner/components/BlueprintHero';
 import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
@@ -65,6 +66,11 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   if (!structure) notFound();
 
   const pricingPromise = getBlueprintPricing(id);
+  // Warm seed of the product's history-derived score inputs (cached), started
+  // in parallel and NOT awaited — handed to PricingProvider, which resolves it
+  // in its own <Suspense> and refreshes it on view. Off the hero/margin path,
+  // so it never delays the cost figures.
+  const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
 
   return (
     <div className="w-full max-w-[1124px]">
@@ -84,7 +90,11 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         </Link>
       </div>
 
-      <PricingProvider structure={structure} pricingPromise={pricingPromise}>
+      <PricingProvider
+        structure={structure}
+        pricingPromise={pricingPromise}
+        historyPromise={historyPromise}
+      >
         <BlueprintHero structure={structure} />
         <BuildCascade structure={structure} />
       </PricingProvider>

@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import type { ApiEndpoint } from '@/lib/api-client';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
-import type { PriceSource } from './types';
+import type { DepthBand, PriceSource } from './types';
 
 // Postgres 32-bit `integer` ceiling. Matches the equivalent guard in
 // /api/sites/[id] — defined locally on each owner because both cap at the
@@ -18,6 +18,13 @@ export const refreshPricesRequestSchema = z.object({
     .max(ON_DEMAND_REFRESH_MAX_TYPE_IDS),
 });
 
+// One near-touch depth rung on the wire. cumVolume rides as a number (stays
+// under MAX_SAFE_INTEGER for realistic volumes), unlike the bigint side totals.
+export const wireDepthBandSchema = z.object({
+  pct: z.number(),
+  cumVolume: z.number(),
+}) satisfies z.ZodType<DepthBand>;
+
 // One priced row as it crosses the wire: DB bigint volumes serialized as
 // strings, timestamps as ISO-8601 strings. The `satisfies` pin keeps the
 // enum inside PriceSource; the contract test pins exact equality.
@@ -29,6 +36,8 @@ export const wirePriceSchema = z.object({
   pct5Sell: z.number().nullable(),
   buyVolume: z.string().nullable(),
   sellVolume: z.string().nullable(),
+  buyDepth: z.array(wireDepthBandSchema).nullable(),
+  sellDepth: z.array(wireDepthBandSchema).nullable(),
   updatedAt: z.string(),
   staleAfter: z.string(),
   source: z.enum(['esi', 'fuzzwork-fallback', 'fuzzwork']) satisfies z.ZodType<PriceSource>,
