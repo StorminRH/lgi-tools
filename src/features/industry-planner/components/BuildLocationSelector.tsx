@@ -177,11 +177,6 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
         >
           Clear
         </button>
-        {fetchError && (
-          <span className={cn('text-[10px]', toneTextClass('red'))}>
-            Couldn&apos;t load that system — try again.
-          </span>
-        )}
       </div>
     );
   }

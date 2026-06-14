@@ -74,9 +74,11 @@ export interface JobInstallationFee {
 }
 
 // Job installation fee from the blueprint's ME0 base materials and the system's
-// activity cost index. `baseMaterials` is the job's direct ME0 base list,
-// UN-run-scaled — same shape as computeBuildCost's input but a different
-// semantic basis (and priced with CCP adjusted prices, not market buy/sell).
+// activity cost index. `baseMaterials` is the job's direct ME0 base list at the
+// quantities being installed — the leaf is run/batch-agnostic, so the caller
+// owns scaling (it passes quantity × runs). Same shape as computeBuildCost's
+// input but a different semantic basis (priced with CCP adjusted prices, not
+// market buy/sell).
 export function computeJobInstallationFee(
   baseMaterials: MaterialQty[],
   adjustedPriceOf: AdjustedPriceOf,
