@@ -6,6 +6,7 @@ for the full forensic record.
 
 ### 2026-06-14
 
+- Cleaned up the top navigation: the tool links are now full-height cells separated by hairlines, quiet until you hover or land on their page — where the label brightens and a green underline lights up. The price indicator drops its "next refresh" countdown for a simpler pulsing "prices live" light.
 - Refreshed the site's look and readability: body text now reads with more contrast, descriptions use a cleaner sans-serif typeface, tags and borders were tightened up, and there's now a clear keyboard-focus outline for easier navigation.
 - The industry planner now shows a Market Score from 0 to 100 next to the margin — an at-a-glance read on how readily a blueprint's output will actually sell at the quantity you're building. It weighs how long the batch would take to clear (your units plus the sell orders already listed ahead of you, measured against recent daily volume), how steady the price has been, and how consistent demand is, and leans on the weakest of those so a thin market can't hide behind a healthy margin. A hover breakdown spells out the reasoning and says plainly when market history or order data is missing, and the score updates live as you change the number of runs.
 - The Market Score now flags when a blueprint's market history is stale: if the most recent recorded trade is more than two weeks old, it shows how old the data is, so a high score on something that hasn't actually traded in a while can't mislead you.
