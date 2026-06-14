@@ -249,6 +249,47 @@ describe('assemblePricing net margin', () => {
   });
 });
 
+// Near-touch depth ladders for the product (3.5.3b). Plain {pct, cumVolume}
+// objects, matching DepthBand.
+const BUY_LADDER = [
+  { pct: 0.5, cumVolume: 100 },
+  { pct: 2, cumVolume: 600 },
+];
+const SELL_LADDER = [
+  { pct: 0.5, cumVolume: 50 },
+  { pct: 5, cumVolume: 900 },
+];
+
+describe('assemblePricing product depth (3.5.3b)', () => {
+  it('carries the product depth ladders onto the product, null when absent', () => {
+    const noDepth = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
+    expect(noDepth.product.buyDepth).toBeNull();
+    expect(noDepth.product.sellDepth).toBeNull();
+
+    const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
+      t === 999 ? { ...NET_PRICES[999], buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
+    );
+    expect(withDepth.product.buyDepth).toEqual(BUY_LADDER);
+    expect(withDepth.product.sellDepth).toEqual(SELL_LADDER);
+  });
+
+  it('leaves the gross payload byte-identical whether or not depth is present', () => {
+    // The depth additions must not bust the cached gross seed: summary, rows,
+    // intermediates, and net are identical with and without product depth — only
+    // product.{buy,sell}Depth differs.
+    const base = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
+    const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
+      t === 999 ? { ...NET_PRICES[999], buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
+    );
+    expect(withDepth.summary).toEqual(base.summary);
+    expect(withDepth.rows).toEqual(base.rows);
+    expect(withDepth.intermediatePrices).toEqual(base.intermediatePrices);
+    expect(withDepth.net).toEqual(base.net);
+    // The product object differs ONLY in the two depth fields.
+    expect({ ...withDepth.product, buyDepth: null, sellDepth: null }).toEqual(base.product);
+  });
+});
+
 describe('buildConfidenceInputs', () => {
   it('maps both priced raw rows and intermediates by typeId', () => {
     const structure: BlueprintStructure = {

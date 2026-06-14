@@ -1,6 +1,6 @@
 import type { Tone } from '@/components/ui/tones';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
-import type { PriceSource } from '@/data/market-prices/types';
+import type { DepthBand, PriceSource } from '@/data/market-prices/types';
 
 // One searchable blueprint: its own type ID, plus the type ID and name of the
 // item it builds (the product, so the search dropdown can show the product's
@@ -187,6 +187,13 @@ export interface BlueprintPricing {
     quantityPerRun: number;
     bestSell: number | null;
     staleAfterMs: number | null;
+    // Near-touch order-book depth ladders (3.5.3b), carried so the client
+    // Market Score can read the product's liquidity without a second fetch.
+    // Null when there's no price row / no orders on that side / Fuzzwork
+    // fallback. Seeded global market data (system-agnostic), so adding it
+    // doesn't bust the gross seed for blueprints with no depth — both are null.
+    buyDepth: DepthBand[] | null;
+    sellDepth: DepthBand[] | null;
   };
   summary: {
     inputCost: number;

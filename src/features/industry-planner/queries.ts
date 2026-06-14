@@ -178,6 +178,8 @@ export async function getBlueprintPricing(
       pct5Sell: p.pct5Sell,
       buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
       sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
+      buyDepth: p.buyDepth,
+      sellDepth: p.sellDepth,
       source: p.source,
       staleAfterMs: p.staleAfter.getTime(),
     };

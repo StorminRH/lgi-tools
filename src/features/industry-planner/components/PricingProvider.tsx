@@ -18,7 +18,9 @@ import {
 } from '@/data/market-prices/use-refresh-on-view';
 import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-view';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
+import { computeMarketScore, type MarketScore } from '@/data/industry-math/market-score';
 import { collectRawTypeIds } from '../build-batch';
+import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
@@ -42,6 +44,9 @@ import type { BlueprintPricing, BlueprintStructure, IndustryStationView } from '
 // the client decides staleness and recomputes without re-reading the DB.
 function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
   const map = new Map<number, PriceLite>();
+  // Depth is product-only: the Market Score reads the product's ladders, so
+  // material/intermediate rows leave them null (the live refresh carries depth
+  // for every type, but only the product consumes it).
   for (const r of pricing.rows) {
     map.set(r.typeId, {
       bestBuy: r.unitBuy,
@@ -50,6 +55,8 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
       pct5Sell: r.pct5Sell,
       buyVolume: r.buyVolume,
       sellVolume: r.sellVolume,
+      buyDepth: null,
+      sellDepth: null,
       source: r.source,
       staleAfterMs: r.staleAfterMs,
     });
@@ -62,6 +69,8 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
       pct5Sell: ip.pct5Sell,
       buyVolume: ip.buyVolume,
       sellVolume: ip.sellVolume,
+      buyDepth: null,
+      sellDepth: null,
       source: ip.source,
       staleAfterMs: ip.staleAfterMs,
     });
@@ -73,6 +82,8 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
     pct5Sell: null,
     buyVolume: null,
     sellVolume: null,
+    buyDepth: pricing.product.buyDepth,
+    sellDepth: pricing.product.sellDepth,
     source: null,
     staleAfterMs: pricing.product.staleAfterMs,
   });
@@ -132,6 +143,11 @@ interface PricingContextValue {
   // server (warm) and refreshed on view; the product type is always present
   // once it has stored history. 3.5.3b's Market Score reads this from here.
   marketHistory: Map<number, MarketHistoryInputs>;
+  // The product's Market Score (3.5.3b) — the "how sure can I sell this?"
+  // liquidity axis beside net margin. Derived client-side from runs (→ output
+  // units), the product's history, and its near-touch depth, so it re-scores
+  // live as runs change. score === null when no signal is known.
+  marketScore: MarketScore;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -346,6 +362,24 @@ export function PricingProvider({
     [pricing, isPending, refreshing],
   );
 
+  // The product's Market Score — pure, no fetch. Re-derives when runs change
+  // (via output units), when the product's history lands, and when a price/depth
+  // refresh updates the product row. Reads depth from the reactive
+  // pricing.product (seeded global market data, advanced seed→live by
+  // assemble()), and history from the marketHistory store.
+  const marketScore = useMemo(
+    () =>
+      computeMarketScore(
+        toMarketScoreInputs({
+          outputUnits: structure.product.quantityPerRun * runs,
+          history: marketHistory.get(structure.product.typeId) ?? null,
+          buyDepth: pricing?.product.buyDepth ?? null,
+          sellDepth: pricing?.product.sellDepth ?? null,
+        }),
+      ),
+    [structure, runs, marketHistory, pricing],
+  );
+
   const value = useMemo<PricingContextValue>(
     () => ({
       pricing,
@@ -360,6 +394,7 @@ export function PricingProvider({
       station,
       setStation,
       marketHistory,
+      marketScore,
     }),
     [
       pricing,
@@ -374,6 +409,7 @@ export function PricingProvider({
       station,
       setStation,
       marketHistory,
+      marketScore,
     ],
   );
 

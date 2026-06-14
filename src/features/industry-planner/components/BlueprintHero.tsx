@@ -10,6 +10,7 @@ import { activityLabel, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { formatIsk, formatPct, formatQuantity } from '@/lib/format';
 import { BuildLocationSelector } from './BuildLocationSelector';
+import { MarketScorePanel } from './MarketScorePanel';
 import { usePricing } from './PricingProvider';
 
 // The sticky profitability hero — the "should I build this?" answer above the
@@ -133,6 +134,8 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
             </>
           )}
         </div>
+
+        <MarketScorePanel structure={structure} />
 
         <div className="flex gap-5 flex-wrap">
           <HeroStat
