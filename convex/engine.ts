@@ -30,39 +30,51 @@
 // generation token, all serialized by Convex OCC. Cold-stop is simply the
 // scan skipping the subject — nothing to cancel or tear down.
 //
-// ── Cost model (Convex billing, 3.4.10 audit; every function execution
-// bills as one call, component internals and reactive re-runs included;
-// plan caps Free 1M / Pro 25M calls/mo) ──
+// ── Cost model (Convex billing; every function execution bills as one call,
+// component internals and reactive re-runs included. Tiers verified 2026-06:
+// Free & Starter — $0 base, pay-as-you-go once the included caps are passed
+// (1M calls + 1 GB DB I/O + 20 GB-hr action compute / mo); Professional —
+// $25/dev/mo (25M calls + 50 GB DB I/O). Passing Free's caps drops you onto
+// Starter pay-as-you-go, not a Free→Pro cliff. ──
 // Idle floor ≈ 94k calls/mo with zero traffic: this 30s scan (86.4k), the
 // 15-min Vercel sweep chain (HTTP action + sweep mutation, 5.8k), and the
-// Workpool's own 30-min healthcheck cron (1.4k).
-// Per visible tab: 3 heartbeats/min, and every beat's lastSeenAt patch
-// re-runs forViewer per subscriber ≈ 360 calls/hr. Per dispatched run:
-// ~11 marginal calls (limit + enqueue + wrapper + action + heldState +
-// apply + complete + onComplete + ~3 forViewer echoes) plus ~34 Workpool
-// main-loop calls (its 200ms cooldown polling; amortizes across a burst).
-// Watched-hour ≈ 3k calls skills (60-run floor), ~0.9k jobs (12) → both-
-// tracker hours ≈ 230/mo on Free, ~6,300 on Pro (~200 daily 1h users, 27×).
-// Calls do NOT scale with characters-per-user — characters multiply ESI
-// reads inside ONE action (action compute + bandwidth scale, calls don't).
-// Calls bind first (action compute converges only near the Pro ceiling);
-// if bandwidth ever binds: move the presence write off the subject row (3.5).
+// Workpool's own 30-min healthcheck cron (1.4k). The sweep mutation's DB I/O is
+// bounded by its live working sets — the overdue backlog, the concurrently-
+// watched set, and per-run retention crossings — not by the total retained-
+// subject count (3.5.e2 retired its full-table scan for three indexed ranges).
+// Per visible tab: 3 heartbeats/min ≈ 180 calls/hr. Since 3.5.e1 each beat
+// writes only the syncPresence row, so interval beats no longer re-run
+// forViewer and no longer re-read the heavy tracker payload — the per-beat DB
+// I/O term that bound first on Free for multi-alt users (a 5-alt watcher
+// re-reading ~5 payloads 3×/min) is gone. Per dispatched run: ~11 marginal
+// calls (limit + enqueue + wrapper + action + heldState + apply + complete +
+// onComplete + ~3 forViewer echoes — a genuine status change still re-runs
+// forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
+// amortizes across a burst).
+// Watched-hour ≈ 2.9k calls skills (60-run floor), ~0.7k jobs (12) → both-
+// tracker hours ≈ 250/mo on Free, ~6,900 on Pro. Calls do NOT scale with
+// characters-per-user — characters multiply ESI reads inside ONE action
+// (action compute + bandwidth scale, calls don't) — and since 3.5.e1 DB I/O
+// no longer scales with the payload re-read on every beat either.
 import { MINUTE, RateLimiter } from '@convex-dev/rate-limiter';
 import { vOnCompleteArgs, Workpool } from '@convex-dev/workpool';
 import { v } from 'convex/values';
 import {
+  classifyDueSubject,
+  COLD_AFTER_MS,
   computeNextDueAt,
   hasSyncTarget,
-  isCold,
+  isColdFromPresence,
   isRunningFresh,
   isStaleForImmediate,
+  RETENTION_MS,
   SYNC_DATASET_CONFIG,
   type SyncDataset,
 } from '@/lib/sync-engine';
 import { components, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, mutation, type MutationCtx } from './_generated/server';
-import { getSyncSubject } from './lib/subjects';
+import { getPresence, getSyncSubject } from './lib/subjects';
 
 // Bounded fan-out across hot subjects. Retries ride the pool (exponential
 // backoff; the actions' error taxonomy already reserves throwing for
@@ -88,19 +100,24 @@ const SYNC_REFS = {
   industryJobs: internal.industryJobsSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
-// Subjects older than this with no heartbeat are deleted by the sweep —
-// pure housekeeping; a returning viewer's first heartbeat recreates the row.
-const RETENTION_MS = 7 * 24 * 60 * 60_000;
+// Pass C (abandoned-row GC) deletes at most this many past-retention subjects
+// per sweep, oldest first, so a post-outage backlog can't blow the mutation's
+// ~4,096 db.get/query budget — the next 15-min run drains the rest. Far above
+// any healthy per-run retention-crossing count, and A+B's live working sets
+// leave the shared budget comfortable.
+const SWEEP_DELETE_BATCH = 512;
 
-// The liveness signal and the on-view trigger. Every beat refreshes
-// presence; interval beats stop there (the scan owns the cadence — letting
-// them dispatch would turn an errored subject into a 20s retry hammer).
-// Mount/visible beats also dispatch immediately when the data is stale or
-// the viewer brought an unsynced character, which is what makes opening a
-// tracker (or returning to it) land a fresh sync at once — and an errored
-// run clears the cache window, so the next such beat retries right away.
-// The hint never grants access — the action re-enumerates the user's
-// characters from Neon on every run.
+// The liveness signal and the on-view trigger. Every beat refreshes presence
+// — written to the syncPresence row, a doc forViewer never reads, so an
+// interval beat no longer re-runs the heavy tracker payload (3.5.e1). Interval
+// beats stop at the presence write (the scan owns the cadence — letting them
+// dispatch would turn an errored subject into a 20s retry hammer) and so never
+// even touch the subject row. Mount/visible beats also dispatch immediately
+// when the data is stale or the viewer brought an unsynced character, which is
+// what makes opening a tracker (or returning to it) land a fresh sync at once
+// — and an errored run clears the cache window, so the next such beat retries
+// right away. The hint never grants access — the action re-enumerates the
+// user's characters from Neon on every run.
 export const heartbeat = mutation({
   args: {
     dataset: syncDatasetValidator,
@@ -113,12 +130,27 @@ export const heartbeat = mutation({
     const userId = identity.subject;
     const now = Date.now();
 
+    // Presence first, for every reason — into syncPresence, never the subject
+    // row. This is the decoupling: an interval beat writes only this doc and
+    // returns, so it cannot invalidate forViewer's read of syncSubjects.
+    const presence = await getPresence(ctx.db, dataset, userId);
+    if (presence === null) {
+      await ctx.db.insert('syncPresence', { dataset, userId, lastSeenAt: now });
+    } else {
+      await ctx.db.patch(presence._id, { lastSeenAt: now });
+    }
+
+    if (reason === 'interval') return;
+
+    // Mount/visible only: the on-view dispatch path. Reads — and on the first
+    // beat creates — the subject row. The client always fires a mount/visible
+    // beat before starting its interval timer, so the row exists before any
+    // interval beat arrives; intervals no longer create it.
     let subject = await getSyncSubject(ctx.db, dataset, userId);
     if (subject === null) {
       const id = await ctx.db.insert('syncSubjects', {
         dataset,
         userId,
-        lastSeenAt: now,
         status: 'idle',
         lastRequestedAt: 0,
         workId: null,
@@ -134,11 +166,8 @@ export const heartbeat = mutation({
       });
       subject = await ctx.db.get(id);
       if (subject === null) return;
-    } else {
-      await ctx.db.patch(subject._id, { lastSeenAt: now });
     }
 
-    if (reason === 'interval') return;
     if (!hasSyncTarget(subject.syncedCharacterIds, characterIdsHint)) return;
     if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) return;
     if (!isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, characterIdsHint, now)) {
@@ -176,7 +205,10 @@ export const scan = internalMutation({
       .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
       .collect();
     for (const subject of due) {
-      if (isCold(subject.lastSeenAt, now)) {
+      // Presence is its own doc now (3.5.e1) — one point read per due row,
+      // only over the hot, already-scheduled set. A missing doc reads as cold.
+      const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+      if (isColdFromPresence(presence?.lastSeenAt ?? null, now)) {
         await ctx.db.patch(subject._id, { nextDueAt: null });
         continue;
       }
@@ -192,6 +224,18 @@ export const scan = internalMutation({
 // pairs the run with its completion. nextDueAt is parked one cadence out so
 // the row stays in the scan set — a healthy completion overwrites it; a
 // wedged run gets taken over by the scan after STALE_RUNNING_MS.
+//
+// Why a millisecond timestamp is a sound generation token despite the
+// granularity (3.5.e3 verification): a SUPERSEDING dispatch overwrites
+// lastRequestedAt only after isRunningFresh is false, which for a still-'running'
+// row forces a ≥STALE_RUNNING_MS gap — so the new token can never equal the run
+// it supersedes, and the old run's late apply no-ops on the mismatch. Concurrent
+// same-subject dispatches are OCC-serialized on this row (the enqueue and the
+// patch below commit as ONE transaction), so exactly one run ever holds a given
+// token; the loser re-runs, re-reads the now-'running' row, and isRunningFresh
+// bails it. Load-bearing if refactoring: keep the enqueue transactional with —
+// and before — the patch; keep STALE_RUNNING_MS ≫ run duration; keep
+// isRunningFresh inside the handler so it's re-checked on each OCC retry.
 async function dispatch(
   ctx: MutationCtx,
   subject: Doc<'syncSubjects'>,
@@ -280,36 +324,112 @@ export const onSyncComplete = internalMutation({
 // a non-zero count means the cron scan is dead or lagging. Also retires
 // cold due rows and deletes long-abandoned subjects (regenerable state: a
 // returning heartbeat recreates everything).
+//
+// Three bounded indexed passes, never a full-table scan (3.5.e2). Each reads
+// only the rows that can need action, so the work scales with live working
+// sets — not the total retained-subject count — and stays well under Convex's
+// per-mutation read/scan/call limits:
+//   A. overdue — by_next_due over (0, now], the 30s scan's own range: delete
+//      past-retention / retire cold-within-retention / dispatch hot. Bounded
+//      by the overdue backlog (≈0 on a healthy system).
+//   B. dropped — by_last_seen over hot presence (lastSeenAt ≥ now−COLD): a hot
+//      idle row with targets but no schedule (timer wiped mid-flight) is
+//      re-armed. Bounded by the concurrently-watched set.
+//   C. abandoned — by_last_seen over past-retention presence (lastSeenAt <
+//      now−RETENTION): delete subject + presence, oldest first, capped per run.
+//      Bounded by per-run retention crossings.
+// A runs first so its writes are visible (read-your-writes) to B/C: a row A
+// dispatched leaves the null-scheduled set B scans, and a row A deleted is gone
+// from C's presence range, so no row is acted on twice. The cold-but-within-
+// retention middle band is never scanned — it needs nothing until it comes due
+// (A) or ages out (C).
+// NOTE: a subject with NO presence doc sits in none of these ranges, so the
+// sweep does not delete it. Correct in steady state — presence and subject are
+// created together (heartbeat) and only ever deleted together (here), so no such
+// orphan is ever produced. The fixed pre-e1 legacy orphan population that
+// predated this coupling was reaped, and the lastSeenAt tombstone dropped, by the
+// e3 one-shot migration.
 export const sweep = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
     const counts = { dispatched: 0, retired: 0, deleted: 0 };
-    const subjects = await ctx.db.query('syncSubjects').collect();
-    for (const subject of subjects) {
-      if (isCold(subject.lastSeenAt, now)) {
-        if (now - subject.lastSeenAt > RETENTION_MS) {
+
+    // Pass A — overdue. The 30s scan's own range; one presence point read per
+    // due row, only over the hot, already-scheduled set.
+    const due = await ctx.db
+      .query('syncSubjects')
+      .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
+      .collect();
+    for (const subject of due) {
+      const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+      switch (
+        classifyDueSubject(presence?.lastSeenAt ?? null, subject.status, subject.lastRequestedAt, now)
+      ) {
+        case 'delete':
           await ctx.db.delete(subject._id);
+          if (presence !== null) await ctx.db.delete(presence._id);
           counts.deleted += 1;
-        } else if (subject.nextDueAt !== null && subject.nextDueAt <= now) {
+          break;
+        case 'retire':
           await ctx.db.patch(subject._id, { nextDueAt: null });
           counts.retired += 1;
-        }
-        continue;
+          break;
+        case 'dispatch':
+          await dispatch(ctx, subject, now);
+          counts.dispatched += 1;
+          break;
+        case 'skip':
+          break;
       }
+    }
+
+    // Pass B — dropped timers: a hot, idle subject with targets but no schedule
+    // (e.g. state wiped mid-flight). Only the hot presence rows; Pass A already
+    // owns anything still scheduled, so a non-null nextDueAt is its province.
+    const hot = await ctx.db
+      .query('syncPresence')
+      .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - COLD_AFTER_MS))
+      .collect();
+    for (const presence of hot) {
+      const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
+      if (subject === null || subject.nextDueAt !== null) continue;
       if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
-      const overdue = subject.nextDueAt !== null && subject.nextDueAt <= now;
-      // A hot, idle subject with targets but no schedule is a dropped timer
-      // (e.g. state wiped mid-flight) — re-arm it alongside overdue rows.
-      const dropped =
-        subject.nextDueAt === null &&
+      if (
         hasSyncTarget(subject.syncedCharacterIds, []) &&
-        isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now);
-      if (overdue || dropped) {
+        isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
+      ) {
         await dispatch(ctx, subject, now);
         counts.dispatched += 1;
       }
     }
+
+    // Pass C — abandoned: past-retention presence (oldest first), deleted with
+    // its subject. Capped per run so a post-outage backlog can't blow the
+    // mutation's call budget; the next run takes the next oldest batch.
+    const abandoned = await ctx.db
+      .query('syncPresence')
+      .withIndex('by_last_seen', (q) => q.lt('lastSeenAt', now - RETENTION_MS))
+      .take(SWEEP_DELETE_BATCH);
+    for (const presence of abandoned) {
+      const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
+      if (subject !== null) {
+        await ctx.db.delete(subject._id);
+        counts.deleted += 1;
+      }
+      await ctx.db.delete(presence._id);
+    }
+    if (abandoned.length === SWEEP_DELETE_BATCH) {
+      // Not silent truncation: the next 15-min run drains the next oldest batch.
+      console.warn(
+        JSON.stringify({
+          scope: 'engine:sweep',
+          note: 'retention_batch_capped',
+          deletedThisRun: counts.deleted,
+        }),
+      );
+    }
+
     return counts;
   },
 });

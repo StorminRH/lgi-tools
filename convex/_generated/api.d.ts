@@ -15,6 +15,7 @@ import type * as industryJobs from "../industryJobs.js";
 import type * as industryJobsSync from "../industryJobsSync.js";
 import type * as lib_esiRead from "../lib/esiRead.js";
 import type * as lib_subjects from "../lib/subjects.js";
+import type * as migrations from "../migrations.js";
 import type * as skills from "../skills.js";
 import type * as skillsSync from "../skillsSync.js";
 
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   industryJobsSync: typeof industryJobsSync;
   "lib/esiRead": typeof lib_esiRead;
   "lib/subjects": typeof lib_subjects;
+  migrations: typeof migrations;
   skills: typeof skills;
   skillsSync: typeof skillsSync;
 }>;

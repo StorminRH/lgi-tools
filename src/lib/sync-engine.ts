@@ -39,6 +39,12 @@ export const HEARTBEAT_MS = 20_000;
 // dispatching for it (three missed beats of margin over HEARTBEAT_MS).
 export const COLD_AFTER_MS = 60_000;
 
+// A subject this long without a heartbeat is deleted by the sweep — pure
+// housekeeping; a returning viewer's first heartbeat recreates the row. Lives
+// here (beside COLD_AFTER_MS) so the pure sweep classifier and the engine's
+// abandoned-row index range share one constant.
+export const RETENTION_MS = 7 * 24 * 60 * 60_000;
+
 // A 'running' status older than this is treated as stuck (e.g. the workpool
 // onComplete itself failed) and taken over by the next dispatch — without it
 // one wedged run would block the subject's syncs forever. Sized above the
@@ -54,6 +60,15 @@ export function isCold(lastSeenAt: number, now: number): boolean {
   return now - lastSeenAt > COLD_AFTER_MS;
 }
 
+// Cold-detection over a subject's presence doc, which the engine reads
+// separately from the subject row (presence lives in its own ephemeral table
+// so an interval heartbeat never invalidates forViewer). An absent presence
+// doc means no live tab has ever beaten — or its presence was already reaped —
+// so it is cold by definition; otherwise defer to isCold.
+export function isColdFromPresence(lastSeenAt: number | null, now: number): boolean {
+  return lastSeenAt === null || isCold(lastSeenAt, now);
+}
+
 // True while a dispatched run still owns the subject — new dispatches must
 // wait. Past STALE_RUNNING_MS the run is presumed wedged and a new dispatch
 // takes over (the generation token makes the old run's late writes no-ops).
@@ -63,6 +78,32 @@ export function isRunningFresh(
   now: number,
 ): boolean {
   return status === 'running' && now - lastRequestedAt < STALE_RUNNING_MS;
+}
+
+// What the sweep should do with an OVERDUE subject (one its by_next_due range
+// surfaced, i.e. nextDueAt in (0, now]), given its presence liveness. Pure half
+// of the sweep's Pass A so the cold/retention/running branches are unit-tested
+// without a Convex runtime:
+//   - cold & past retention (or never seen) → 'delete' the abandoned row
+//   - cold but still within retention       → 'retire' it from the scan set
+//   - a fresh run still owns it              → 'skip'
+//   - otherwise (hot, idle)                  → 'dispatch'
+// Mirrors the inline cold/running branches the 30s scan uses, plus the sweep's
+// retention housekeeping. The retire branch needs no separate "is it overdue?"
+// test: every row in Pass A's range is already overdue.
+export type DueSubjectAction = 'delete' | 'retire' | 'skip' | 'dispatch';
+
+export function classifyDueSubject(
+  lastSeenAt: number | null,
+  status: 'idle' | 'running',
+  lastRequestedAt: number,
+  now: number,
+): DueSubjectAction {
+  if (isColdFromPresence(lastSeenAt, now)) {
+    return lastSeenAt === null || now - lastSeenAt > RETENTION_MS ? 'delete' : 'retire';
+  }
+  if (isRunningFresh(status, lastRequestedAt, now)) return 'skip';
+  return 'dispatch';
 }
 
 // Next scheduled run: when the earliest per-character cache window ends, but
