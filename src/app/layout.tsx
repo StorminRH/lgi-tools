@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Barlow_Condensed, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Mono, Barlow_Condensed, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -28,6 +28,13 @@ const jetBrainsMono = JetBrains_Mono({
   variable: "--font-jb",
   subsets: ["latin"],
   weight: ["400", "700", "800"],
+});
+
+// Geist (variable font) — descriptive body copy only, via the .body-copy class
+// (see globals.css). Everything else stays IBM Plex Mono / Barlow / JetBrains.
+const geist = Geist({
+  variable: "--font-geist",
+  subsets: ["latin"],
 });
 
 const DEFAULT_DESCRIPTION =
@@ -69,7 +76,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plexMono.variable} ${barlow.variable} ${jetBrainsMono.variable} h-full`}
+      className={`${plexMono.variable} ${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
