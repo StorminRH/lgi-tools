@@ -91,7 +91,8 @@ export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, Co
 // blueprints only in v1 (reactions use a different SCC than the 4% default, so
 // their pages stay gross-only). The gate lives here so the math can never show a
 // manufacturing-rate net on a reaction, even if a caller passes fee inputs.
-const MANUFACTURING_ACTIVITY_ID = 1;
+// Exported so the hero gates the build-location selector on the same value.
+export const MANUFACTURING_ACTIVITY_ID = 1;
 
 export interface AssembleOptions {
   // Whole runs of the top product to build. Scales the batch cost basis, the

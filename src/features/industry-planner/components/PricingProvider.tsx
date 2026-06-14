@@ -77,22 +77,29 @@ function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
   return map;
 }
 
-// A picked build location, client-only state (carries a Map, so it never crosses
+// A picked build SYSTEM, client-only state (carries a Map, so it never crosses
 // the wire). Built by the build-location selector from the chosen system + the
-// /api/industry/build-location read. `stationId`/`stationName` are the optional
-// per-station refinement — display + future-score only; the fee math is
-// system-driven (flat NPC facility tax, per-system cost index), so the station
-// choice never changes the numbers in v1.
+// /api/industry/build-location read. The fee math reads only `adjustedPrices` +
+// `costIndices`, so this object changes only when the SYSTEM changes — the
+// per-station refinement lives in separate `station` state below, so picking a
+// station never churns this object (and never triggers a recompute).
 export interface SelectedLocation {
   systemId: number;
   systemName: string;
   security: number | null;
   // The system's industry-capable NPC stations, for the per-station refinement.
   stations: IndustryStationView[];
-  stationId: number | null;
-  stationName: string | null;
   costIndices: { manufacturing: number | null; reaction: number | null };
   adjustedPrices: Map<number, number>;
+}
+
+// The optional per-station refinement — display + future-score only; the fee
+// math is system-driven (flat NPC facility tax, per-system cost index), so the
+// station choice never changes the numbers in v1. Separate from SelectedLocation
+// so a station pick doesn't re-derive the pricing.
+export interface SelectedStation {
+  id: number;
+  name: string;
 }
 
 interface PricingContextValue {
@@ -112,10 +119,12 @@ interface PricingContextValue {
   // units, and the EIV base. 3.5.3b's market score reads this from here.
   runs: number;
   setRuns: (runs: number) => void;
-  // The picked build location (null = gross-only). 3.5.3b reads this from here.
+  // The picked build system (null = gross-only). 3.5.3b reads this from here.
   location: SelectedLocation | null;
+  // Setting a system clears any prior station selection.
   setLocation: (location: SelectedLocation | null) => void;
-  // Patch the per-station refinement without a refetch.
+  // The optional per-station refinement (display/future-score only).
+  station: SelectedStation | null;
   setStation: (stationId: number | null, stationName: string | null) => void;
 }
 
@@ -162,6 +171,7 @@ export function PricingProvider({
   const [seeded, setSeeded] = useState(false);
   const [runs, setRunsState] = useState(1);
   const [location, setLocationState] = useState<SelectedLocation | null>(null);
+  const [station, setStationState] = useState<SelectedStation | null>(null);
   // The seed price map, captured when the snapshot first lands. Each refresh
   // batch merges over it (refreshed value wins; un-refreshed rows keep their
   // seed) before recomputing margin, so the assembly never drops back to nulls
@@ -219,11 +229,14 @@ export function PricingProvider({
 
   const setLocation = useCallback((loc: SelectedLocation | null) => {
     setLocationState(loc);
+    setStationState(null); // a new (or cleared) system invalidates the station pick
   }, []);
 
   const setStation = useCallback(
     (stationId: number | null, stationName: string | null) => {
-      setLocationState((prev) => (prev ? { ...prev, stationId, stationName } : prev));
+      // Station refinement is its own state — not part of `location` — so this
+      // never changes the recompute effect's `location` dep.
+      setStationState(stationId === null ? null : { id: stationId, name: stationName ?? '' });
     },
     [],
   );
@@ -294,6 +307,7 @@ export function PricingProvider({
       setRuns,
       location,
       setLocation,
+      station,
       setStation,
     }),
     [
@@ -306,6 +320,7 @@ export function PricingProvider({
       setRuns,
       location,
       setLocation,
+      station,
       setStation,
     ],
   );

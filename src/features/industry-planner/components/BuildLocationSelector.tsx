@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { TerminalSearch } from '@/components/ui/terminal-search';
+import { toneTextClass } from '@/components/ui/tones';
 import { apiFetch } from '@/lib/api-client';
 import { buildLocationEndpoint, systemsEndpoint } from '../api-contract';
 import type { SystemSearchEntry } from '../types';
@@ -44,8 +46,12 @@ type SystemParams = { system: SystemSearchEntry };
 type SystemErr = { kind: 'not_found' };
 
 export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) {
-  const { location, setLocation, setStation } = usePricing();
+  const { location, setLocation, station, setStation } = usePricing();
   const [systems, setSystems] = useState<SystemSearchEntry[]>([]);
+  // Surfaced when a build-location fetch fails (non-OK or network) so a pick that
+  // can't load doesn't silently leave the picker empty. Aborted (superseded)
+  // fetches stay silent.
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -101,6 +107,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
       ctrlRef.current?.abort();
       const ctrl = new AbortController();
       ctrlRef.current = ctrl;
+      setFetchError(false);
       void (async () => {
         try {
           const res = await apiFetch(buildLocationEndpoint, {
@@ -108,21 +115,25 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
             cache: 'no-store',
             signal: ctrl.signal,
           });
-          if (gen !== genRef.current || !res.ok) return; // superseded / errored
+          if (gen !== genRef.current) return; // superseded by a later pick
+          if (!res.ok) {
+            setFetchError(true);
+            return;
+          }
           setLocation({
             systemId: system.id,
             systemName: system.name,
             security: system.security,
             stations: res.data.stations,
-            stationId: null,
-            stationName: null,
             costIndices: res.data.costIndices,
             adjustedPrices: new Map(
               res.data.adjustedPrices.map((a) => [a.typeId, a.adjustedPrice]),
             ),
           });
         } catch {
-          // aborted (superseded) or network error — keep the prior state
+          // A superseding pick aborts this controller — stay silent then; a real
+          // network failure surfaces the error.
+          if (!ctrl.signal.aborted) setFetchError(true);
         }
       })();
     },
@@ -137,7 +148,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
         </Pill>
         {location.stations.length > 0 && (
           <select
-            value={location.stationId ?? ''}
+            value={station?.id ?? ''}
             onChange={(e) => {
               const v = e.target.value;
               if (v === '') {
@@ -166,6 +177,11 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
         >
           Clear
         </button>
+        {fetchError && (
+          <span className={cn('text-[10px]', toneTextClass('red'))}>
+            Couldn&apos;t load that system — try again.
+          </span>
+        )}
       </div>
     );
   }
@@ -183,6 +199,11 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
         errorLabel="System"
         hint="Pick a system for net margin"
       />
+      {fetchError && (
+        <div className={cn('mt-1 text-[10px]', toneTextClass('red'))}>
+          Couldn&apos;t load that system — try again.
+        </div>
+      )}
     </div>
   );
 }

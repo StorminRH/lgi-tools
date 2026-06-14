@@ -4,6 +4,7 @@ import { cn } from '@/components/ui/cn';
 import { OdometerValue } from '@/components/ui/odometer-value';
 import { Pill } from '@/components/ui/pill';
 import { TypeIcon } from '@/components/ui/type-icon';
+import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
 import { activityLabel, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { formatIsk, formatPct, formatQuantity } from '@/lib/format';
@@ -16,8 +17,6 @@ import { usePricing } from './PricingProvider';
 // stream in from the pricing store. Margin shows GROSS by default (materials
 // only); once a build system is picked it flips to NET (after job install + sell
 // fees) for manufacturing blueprints. Reactions stay gross-only for now.
-
-const MANUFACTURING_ACTIVITY_ID = 1;
 
 function HeroStat({ label, value, pending }: { label: string; value: string; pending: boolean }) {
   return (
