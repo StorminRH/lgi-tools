@@ -104,6 +104,10 @@ export function BlueprintHero({ structure }: { structure: BlueprintStructure }) 
                   <div className="text-[9px] text-muted mt-1">
                     No cost index for {location?.systemName ?? 'this system'} — install fee incomplete.
                   </div>
+                ) : net.jobFee.missingAdjustedPriceTypeIds.length > 0 ? (
+                  <div className="text-[9px] text-muted mt-1">
+                    Some inputs lack a reference price — job fee underestimated, net margin optimistic.
+                  </div>
                 ) : (
                   <div className="text-[9px] text-muted mt-1">
                     Net of job install + sell fees · NPC station · ME 0.
