@@ -224,6 +224,18 @@ export const scan = internalMutation({
 // pairs the run with its completion. nextDueAt is parked one cadence out so
 // the row stays in the scan set — a healthy completion overwrites it; a
 // wedged run gets taken over by the scan after STALE_RUNNING_MS.
+//
+// Why a millisecond timestamp is a sound generation token despite the
+// granularity (3.5.e3 verification): a SUPERSEDING dispatch overwrites
+// lastRequestedAt only after isRunningFresh is false, which for a still-'running'
+// row forces a ≥STALE_RUNNING_MS gap — so the new token can never equal the run
+// it supersedes, and the old run's late apply no-ops on the mismatch. Concurrent
+// same-subject dispatches are OCC-serialized on this row (the enqueue and the
+// patch below commit as ONE transaction), so exactly one run ever holds a given
+// token; the loser re-runs, re-reads the now-'running' row, and isRunningFresh
+// bails it. Load-bearing if refactoring: keep the enqueue transactional with —
+// and before — the patch; keep STALE_RUNNING_MS ≫ run duration; keep
+// isRunningFresh inside the handler so it's re-checked on each OCC retry.
 async function dispatch(
   ctx: MutationCtx,
   subject: Doc<'syncSubjects'>,
