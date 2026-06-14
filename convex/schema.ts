@@ -94,12 +94,6 @@ export default defineSchema({
     // src/lib/sync-engine.ts (the engine's registry).
     dataset: v.union(v.literal('skills'), v.literal('industryJobs')),
     userId: v.string(),
-    // Tombstone (3.5.e1): presence moved to the syncPresence table below so an
-    // interval heartbeat no longer invalidates forViewer's read of this row.
-    // Now unwritten and unread; kept optional only so existing prod docs still
-    // validate. The field drop + a one-shot strip is deferred to a later
-    // e-track session (Convex rejects removing a field live docs still carry).
-    lastSeenAt: v.optional(v.number()),
     status: v.union(v.literal('idle'), v.literal('running')),
     // Doubles as the run's generation token (shipped name kept): a late
     // applySyncResults from a taken-over run no-ops unless it matches.

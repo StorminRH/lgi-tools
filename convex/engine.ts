@@ -343,12 +343,12 @@ export const onSyncComplete = internalMutation({
 // from C's presence range, so no row is acted on twice. The cold-but-within-
 // retention middle band is never scanned — it needs nothing until it comes due
 // (A) or ages out (C).
-// NOTE: a pre-e1 legacy subject with NO presence doc sits in none of these
-// ranges, so the sweep no longer deletes it (the e1 sweep did, treating a
-// missing presence as cold + abandoned). Steady state never produces such an
-// orphan — presence and subject are created together and only ever deleted
-// together, here — so this is a fixed, non-growing transition population,
-// reaped by the e3 tombstone migration alongside the lastSeenAt field drop.
+// NOTE: a subject with NO presence doc sits in none of these ranges, so the
+// sweep does not delete it. Correct in steady state — presence and subject are
+// created together (heartbeat) and only ever deleted together (here), so no such
+// orphan is ever produced. The fixed pre-e1 legacy orphan population that
+// predated this coupling was reaped, and the lastSeenAt tombstone dropped, by the
+// e3 one-shot migration.
 export const sweep = internalMutation({
   args: {},
   handler: async (ctx) => {
