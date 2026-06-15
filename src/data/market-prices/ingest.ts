@@ -105,8 +105,16 @@ export async function persistPrices(
   // single multi-row insert past Postgres's 65,535 bind-parameter ceiling — the
   // two depth columns added in migration 0022 are what crossed it (10 cols used
   // to fit). Batch like seedTrackedTypes (sde-pipeline.ts): 1,000 rows × 12 cols
-  // = 12k params per call. The upsert is idempotent, so splitting it changes
-  // nothing observable; a ≤1,000-row refresh (the on-view path) stays one insert.
+  // = 12k params per call. A ≤1,000-row refresh (the on-view path) stays one insert.
+  //
+  // Splitting the insert trades whole-batch atomicity for staying under the wire
+  // limit, which is safe here: each row is an independent, idempotent price with
+  // its own staleness, so a mid-loop failure that persists earlier batches just
+  // leaves some rows fresher than others (the normal steady state) and self-heals
+  // on the next refresh. A surrounding transaction is NOT an option — the same
+  // upsert runs on the neon-http request path (on-view refresh), and that driver
+  // has no interactive-transaction support. On failure the await rejects and this
+  // function throws before `summary.written` is set, so no caller reads a partial count.
   const BATCH = 1000;
   for (let i = 0; i < rows.length; i += BATCH) {
     await db
