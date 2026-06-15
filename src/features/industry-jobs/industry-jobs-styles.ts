@@ -21,6 +21,31 @@ export function jobActivityLabel(activityId: number): string {
   return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
 }
 
+// Compact activity pill for the dense Active-jobs table (handoff §5): the three
+// in-game families — manufacturing (blue), the research/copy/invention group
+// (science, purple), and reactions (green). Unknown ids fall back to neutral.
+export function jobActivityPill(activityId: number): { label: string; tone: Tone } {
+  if (activityId === 1) return { label: 'MFG', tone: 'blue' };
+  if (activityId === 11) return { label: 'RX', tone: 'green' };
+  if (activityId === 3 || activityId === 4 || activityId === 5 || activityId === 8) {
+    return { label: 'SCI', tone: 'purple' };
+  }
+  return { label: 'IND', tone: 'neutral' };
+}
+
+export type JobCategory = 'manufacturing' | 'science' | 'reactions';
+
+// Which slot family a job's activity occupies, for the header's used-slot
+// counts. Returns null for activities that don't map to a tracked family.
+export function jobCategory(activityId: number): JobCategory | null {
+  if (activityId === 1) return 'manufacturing';
+  if (activityId === 11) return 'reactions';
+  if (activityId === 3 || activityId === 4 || activityId === 5 || activityId === 8) {
+    return 'science';
+  }
+  return null;
+}
+
 // Sync-error codes the action records on an industryJobsSync doc. Same code
 // vocabulary as the skills tracker (a shared home is the 3.4.9 engine's
 // call — duplicating ten lines beats a feature → feature edge today).

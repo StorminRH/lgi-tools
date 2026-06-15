@@ -42,7 +42,7 @@ export function AppHeaderShell({
         siteIndex={siteIndex}
       />
       <NavTools shrunk={searchActive} />
-      <div className="price-freshness-slot ml-auto flex items-stretch shrink-0 border-l border-border">
+      <div className="price-freshness-slot flex items-stretch shrink-0 border-l border-border">
         <PriceFreshness initialLastUpdatedAt={initialLastUpdatedAt} />
       </div>
       <div className="login-cluster flex items-center shrink-0 px-3 border-l border-border">

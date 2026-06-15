@@ -18,6 +18,15 @@
   --color-isk:   #3dd68c;
   --color-isk-sub: #4a7860;
   --color-isk-dim: #1a3a28;
+  /* Dark-green "ink" for text sitting on a solid ISK-green fill (feedback
+   * button hover). Justified like a tones.ts entry: a one-off accent ink that
+   * has no existing token — the near-black green keeps contrast on the bright
+   * fill without reading as pure black. */
+  --color-isk-ink: #04130b;
+  /* Feedback button rest background — a very dark green-tinted surface that
+   * reads as "green affordance, dimmed" before hover fills it solid. No
+   * existing surface token sits at this hue/value. */
+  --color-feedback-bg: #0d1812;
 
   /* ── DPS-tier accents (referenced from primitive callsites, not tone maps) ── */
   --color-dps-low:  #3dd68c;
@@ -206,20 +215,51 @@ a:hover {
   outline-offset: 2px;
 }
 
-/* Landing hero + tools-grid background — subtle grey lift that elevates
- * the whole upper portion of the landing off the page-deep black. The
- * gradient covers both the hero and the tools grid so the tiles sit on a
- * raised surface; it fades to transparent at the bottom so the footer
- * returns to the normal page background. */
+/* Landing hero + tools-grid background — the approved "dots" treatment
+ * (handoff §3). Three stacked layers cover both the hero and the tools grid:
+ * a top-down fade so the footer returns to page-deep, a grey-blue radial wash
+ * (an echo of the old radial lift), and a fine grey-blue dot lattice. rgba is
+ * permitted in the stylesheet (the hex ban is hex-only); the final solid stop
+ * reuses the deep-bg token. */
 .home-hero-bg {
-  background:
-    radial-gradient(
-      ellipse 95% 70% at 50% 25%,
-      rgba(45, 55, 70, 0.55) 0%,
-      rgba(30, 38, 52, 0.30) 45%,
-      rgba(20, 26, 36, 0.12) 75%,
-      transparent 100%
-    );
+  background-image:
+    linear-gradient(180deg, rgba(7, 8, 9, 0) 0%, rgba(7, 8, 9, 0.72) 74%, var(--color-bg-deep) 100%),
+    radial-gradient(ellipse 80% 36% at 50% 0%, rgba(45, 55, 70, 0.32), transparent 72%),
+    radial-gradient(rgba(154, 176, 196, 0.085) 1px, transparent 1px);
+  background-size: auto, auto, 26px 26px;
+}
+
+/* Landing wordmark glow (handoff §3) — a soft ISK-green bloom behind the
+ * hero mark. A scoped rule (not an inline style) so it ships under the strict
+ * CSP, which drops `style="..."` attributes. */
+.hero-wordmark {
+  text-shadow: 0 0 36px rgba(61, 214, 140, 0.12);
+}
+
+/* Floating feedback button (handoff §3) — a green-accented affordance fixed
+ * bottom-right (positioning stays on the element). A dim green surface with a
+ * multi-layer green glow at rest; hover fills solid ISK-green with dark-green
+ * ink. Rich enough that scoped CSS is the right home (the .tool-tile / .nav-tool
+ * precedent); rgba glows are permitted (the hex ban is hex-only). */
+.feedback-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-isk);
+  background: var(--color-feedback-bg);
+  border: 1px solid var(--color-isk-dim);
+  border-radius: 3px;
+  padding: 8px 14px;
+  box-shadow: 0 0 0 1px rgba(61, 214, 140, 0.07), 0 4px 18px -6px rgba(61, 214, 140, 0.4);
+  transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.feedback-btn:hover {
+  background: var(--color-isk);
+  color: var(--color-isk-ink);
+  border-color: var(--color-isk);
+  box-shadow: 0 6px 22px -6px rgba(61, 214, 140, 0.4);
 }
 
 /* Long-page lift used on /sites (and reusable on any tall content page).
@@ -249,10 +289,10 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 22px 20px 18px;
+  padding: 24px 22px 20px;
   background: var(--color-section);
   border: 1px solid var(--color-border);
-  border-radius: 4px;
+  border-radius: 5px;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   color: inherit;
 }
@@ -343,22 +383,445 @@ a:hover {
     0 6px 20px -8px rgba(0, 0, 0, 0.6);
 }
 
-/* ── /sites density vocabulary (v2.9.4) ─────────────────────────────────
- * Site cards are tagged `.card.resource` or `.card.wave-driven` by
- * SiteCard.tsx based on the `isWaveDriven` flag. Resource cards (ore + gas)
- * get a subtle hover glow; wave-driven cards stay completely flat. Spec
- * lives in docs/wireframes/sites-density.html. */
-.card.resource {
+/* ── /sites filter rail + cards (handoff §4) ────────────────────────────
+ * A persistent left filter rail (Class chips + Type rows) beside a 2-col card
+ * grid. Filtering is client-side multi-select (SitesFilterLayout); these are
+ * the resting + selected styles. The class-chip selected palette mirrors the
+ * search dropdown's `.dd-icon.cls-*` identity colors; the type-row dot tones
+ * follow the handoff. Literal hex / rgba are permitted in the stylesheet (the
+ * lint ban is hex-in-TS/TSX only). */
+.sites-rail-layout {
+  display: grid;
+  grid-template-columns: 224px 1fr;
+  gap: 22px;
+  align-items: start;
+}
+.sites-rail-pane {
+  position: sticky;
+  top: 110px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-section);
+  padding: 16px;
+}
+.sites-rail-groups { display: flex; flex-direction: column; gap: 20px; }
+.sites-fl {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 8px;
+}
+
+/* Class chips — 3×2 grid */
+.sites-cls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.sites-chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 10px;
+  text-align: center;
+  background: #0c1018;
+  border: 1px solid var(--color-border-idle);
+  border-radius: 3px;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: color 0.13s, border-color 0.13s, background 0.13s;
+  white-space: nowrap;
+}
+.sites-chip:hover { color: var(--color-name); border-color: var(--color-border-active); }
+.sites-chip.on { color: var(--color-isk); border-color: var(--color-isk-dim); background: #0f1a14; }
+.sites-chip.c1.on { color: #3dd68c; }
+.sites-chip.c2.on { color: #44dd99; }
+.sites-chip.c3.on { color: #d68c3d; border-color: #3a2510; background: #1f1508; }
+.sites-chip.c4.on { color: #cc55cc; border-color: #3a103a; background: #1a0a1a; }
+.sites-chip.c5.on { color: #cc6666; border-color: #3a1010; background: #1a0a0a; }
+.sites-chip.c6.on { color: #aa55ff; border-color: #2a1040; background: #100a1a; }
+
+/* Type rows — vertical list with a tone dot + live count */
+.sites-types { display: flex; flex-direction: column; gap: 2px; }
+.sites-type {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.13s, color 0.13s;
+}
+.sites-type:hover { background: rgba(255, 255, 255, 0.025); color: var(--color-text); }
+.sites-type.on { color: var(--color-name); background: rgba(255, 255, 255, 0.035); }
+.sites-type .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; opacity: 0.45; transition: opacity 0.13s; }
+.sites-type.on .dot { opacity: 1; }
+.sites-type.combat .dot { background: var(--color-tone-red); }
+.sites-type.ore    .dot { background: var(--color-tone-orange); }
+.sites-type.gas    .dot { background: var(--color-tone-teal); }
+.sites-type.relic  .dot { background: var(--color-tone-purple); }
+.sites-type.data   .dot { background: var(--color-tone-blue); }
+.sites-type .tl { flex: 1; }
+.sites-type .count { font-size: 10px; color: var(--color-faint); }
+
+.sites-reset {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--color-faint);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.sites-reset:hover { color: var(--color-isk); }
+
+/* Site card — restyled collapsed summary (the expanded SiteDetailsBody stays
+ * below, full-bleed). All site cards get the standard ISK-green ring-glow on
+ * hover (the .tool-tile-live vocabulary). */
+.sites-card {
+  background: var(--color-section);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.card.resource:hover {
-  border-color: var(--color-card-resource-border);
-  box-shadow: 0 0 0 1px rgba(61, 214, 140, 0.08);
+.sites-card:hover {
+  border-color: var(--color-card-glow-border);
+  box-shadow:
+    0 0 0 1px var(--color-card-glow-ring),
+    0 8px 26px -10px var(--color-card-glow-shadow);
 }
-.card.wave-driven {
-  /* no :hover rule — combat/relic/data cards stay static. */
+.sites-card-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 15px 17px 13px;
 }
-/* end /sites density block */
+.sites-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sites-card-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16.5px;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  color: var(--color-name);
+  min-width: 0;
+}
+.sites-card-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-isk);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sites-card-val i { font-style: normal; font-size: 9px; color: var(--color-muted); margin-left: 2px; }
+.sites-card-sub { font-size: 10.5px; color: var(--color-muted); letter-spacing: 0.04em; }
+.sites-card-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+
+@media (max-width: 900px) {
+  .sites-rail-layout { grid-template-columns: 1fr; }
+  .sites-rail-pane { position: static; }
+}
+
+/* ── /industry landing (handoff §5) ─────────────────────────────────────
+ * The typed terminal hint, recents/favorites monograms, and the live
+ * Active-jobs table with EVE-industry-blue progress bars. The evb-* family is
+ * reserved for this queue/progress chrome — ISK-green stays the brand accent.
+ * Literal hex / rgba are permitted in the stylesheet (the lint ban is
+ * hex-in-TS/TSX only). */
+
+/* Typed search hint — a bare terminal line (not an input). The text types in
+ * and a green block cursor idles; clicking focuses the nav search. */
+.industry-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-align: left;
+}
+.industry-hint .pr { color: var(--color-isk); font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.industry-hint .txt { color: var(--color-text); transition: color 0.15s; white-space: nowrap; }
+.industry-hint:hover .txt { color: var(--color-name); }
+.industry-hint .cur {
+  width: 7px;
+  height: 14px;
+  background: var(--color-isk);
+  flex-shrink: 0;
+  animation: industry-cur 1.1s step-end infinite;
+}
+@keyframes industry-cur { 50% { opacity: 0; } }
+.industry-hint kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 3px;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.industry-hint kbd.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .industry-hint .cur { animation: none; } }
+@media (max-width: 640px) { .industry-hint .txt { white-space: normal; } }
+
+/* Typographic monogram icons — green for recents/favorites, EVE-blue for the
+ * blueprint cell in the jobs table. */
+.industry-mono,
+.industry-mono-bp {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-jb);
+  font-weight: 800;
+  font-size: 10px;
+  border-radius: 3px;
+}
+.industry-mono { color: var(--color-isk); background: #0f1a14; border: 1px solid var(--color-isk-dim); }
+.industry-mono-bp { color: var(--color-evb-bright); background: #0d1622; border: 1px solid var(--color-evb-border); }
+
+/* Active jobs table */
+.industry-jobs {
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-section);
+  overflow: hidden;
+}
+.industry-jobs-head,
+.industry-job-row {
+  display: grid;
+  grid-template-columns: 150px 48px minmax(0, 1.25fr) 70px 132px;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 16px;
+}
+.industry-jobs-head {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.012);
+  padding: 10px 16px;
+}
+.industry-job-row { border-bottom: 1px solid var(--color-border-soft); }
+.industry-job-row:last-child { border-bottom: none; }
+.industry-job-row:hover { background: rgba(255, 255, 255, 0.014); }
+.industry-job-time { font-size: 11px; color: var(--color-name); font-variant-numeric: tabular-nums; margin-bottom: 6px; }
+.industry-job-time.complete { color: var(--color-isk); font-weight: 600; letter-spacing: 0.04em; }
+.industry-job-runs { font-size: 11.5px; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.industry-job-bp { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.industry-job-bp .name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-name);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.industry-job-end { font-size: 11px; color: var(--color-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* EVE-industry-blue progress bar (CSP-safe width via the --pct custom prop). */
+.industry-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-evb-track);
+  border: 1px solid var(--color-evb-border);
+  overflow: hidden;
+}
+.industry-bar-fill {
+  display: block;
+  height: 100%;
+  width: var(--pct, 0%);
+  background: linear-gradient(90deg, #2b7fc4, var(--color-evb-bright));
+  box-shadow: 0 0 8px var(--color-evb-glow);
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 760px) {
+  .industry-jobs-head,
+  .industry-job-row { grid-template-columns: 130px 40px minmax(0, 1fr) 56px; }
+  .industry-jobs-head span:last-child,
+  .industry-job-row .industry-job-end { display: none; }
+}
+
+/* ── Static pages — /legal, /contact, /changelog (handoff §6) ────────────
+ * The three footer pages share the .OGP page-head scaffold (PageHead) plus
+ * these blocks. Descriptive prose is Geist (--font-body); labels, values, and
+ * version tags stay mono. No new tokens. */
+
+/* Legal — Geist prose at a reading measure, ISK-green dash bullets, and the
+ * closing IP notice in a green-left-rule note block. */
+.legal-prose { max-width: 760px; }
+.legal-prose p {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.72;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  margin: 0 0 12px;
+  text-wrap: pretty;
+}
+.legal-prose p:last-child { margin-bottom: 0; }
+.legal-prose strong { color: var(--color-name); font-weight: 600; }
+.legal-prose a {
+  color: var(--color-isk);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-isk-dim);
+  transition: border-color 0.15s;
+}
+.legal-prose a:hover { border-bottom-color: var(--color-isk); }
+.legal-prose ul {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.legal-prose li {
+  position: relative;
+  padding-left: 18px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  text-wrap: pretty;
+}
+.legal-prose li::before { content: '–'; position: absolute; left: 2px; color: var(--color-isk); }
+.legal-note {
+  margin-top: 34px;
+  border: 1px solid var(--color-border);
+  border-left: 2px solid var(--color-isk-dim);
+  border-radius: 5px;
+  background: var(--color-section);
+  padding: 16px 18px;
+}
+.legal-note p {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+  margin: 0;
+}
+.legal-note p + p { margin-top: 9px; }
+.legal-note b { color: var(--color-text); font-weight: 600; }
+
+/* Contact — two hairline panels of mono label → value rows. */
+.contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.contact-intro {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.72;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  max-width: 640px;
+  margin: 0 0 26px;
+  text-wrap: pretty;
+}
+.contact-intro b { color: var(--color-name); font-weight: 600; }
+.contact-panel {
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-section);
+  padding: 18px 20px 20px;
+}
+.contact-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border-soft);
+}
+.contact-row:first-of-type { border-top: none; }
+.contact-row .k {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.contact-row .v { font-family: var(--font-mono); font-size: 12.5px; color: var(--color-text); min-width: 0; }
+.contact-row .v a {
+  color: var(--color-isk);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.contact-row .v a:hover { border-bottom-color: var(--color-isk); }
+.contact-row .v .sub { display: block; font-size: 10.5px; color: var(--color-muted); margin-top: 4px; letter-spacing: 0.02em; }
+
+/* Changelog — a version timeline: version + date in a left rail, an ISK-green
+ * node dot on the connecting line, and change-type-tagged groups. */
+.changelog { max-width: 860px; }
+.changelog-entry { display: grid; grid-template-columns: 128px 1fr; gap: 0; }
+.changelog-rail { text-align: right; padding: 2px 26px 0 0; }
+.changelog-ver { font-family: var(--font-jb); font-weight: 800; font-size: 14px; letter-spacing: 0.01em; color: var(--color-name); }
+.changelog-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-top: 6px;
+}
+.changelog-changes { position: relative; border-left: 1px solid var(--color-border); padding: 0 0 34px 28px; }
+.changelog-entry:last-child .changelog-changes { padding-bottom: 0; }
+.changelog-changes::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-isk);
+  box-shadow: 0 0 0 3px var(--color-bg-deep), 0 0 10px rgba(61, 214, 140, 0.4);
+}
+.changelog-group { display: grid; grid-template-columns: 86px 1fr; gap: 16px; align-items: start; margin-bottom: 14px; }
+.changelog-group:last-child { margin-bottom: 0; }
+.changelog-tag { align-self: start; justify-self: start; }
+.changelog-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.changelog-list li {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  text-wrap: pretty;
+}
+
+@media (max-width: 760px) {
+  .contact-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .changelog-entry { grid-template-columns: 1fr; }
+  .changelog-rail { text-align: left; padding: 0 0 12px; }
+  .changelog-changes { border-left: none; padding-left: 0; }
+  .changelog-changes::before { display: none; }
+  .changelog-group { grid-template-columns: 1fr; gap: 7px; }
+}
 
 /* ── Global in-nav search + dropdown (v2.9.4) ──────────────────────────
  * Lives in AppHeader between the wordmark and NavTools. At rest the input
@@ -427,10 +890,10 @@ a:hover {
  * separated by vertical hairlines that touch the header's top/bottom edges.
  * Quiet uppercase mono at rest; hover brightens the text, adds a faint tint,
  * and lights a 1px ISK-green rule along the bottom edge; the active page shows
- * that rule at full opacity. The group's LEFT hairline is the adjacent search
- * cell's own border-right, so the group adds no border-left (a second line
- * there would double up); the last cell drops its border-right because the
- * price-freshness slot's border-l already draws that seam. */
+ * that rule at full opacity. The strip is `ml-auto` so it sits right-aligned
+ * with a gap after the search bar, and carries its own `border-l` hairline
+ * (set in NavTools' className) to close that gap; the last cell drops its
+ * border-right because the price-freshness slot's border-l draws that seam. */
 .nav-tool {
   position: relative;
   display: inline-flex;
@@ -491,10 +954,13 @@ a:hover {
  * post-Phase-3 version. Breakpoints (1500 / 1024 / 900 / 700 / 640) match
  * the VERSION_2.9_PLAN.md spec. */
 
-/* Below 1500px the global search bar leaves no room for full tool labels.
- * Mirror the .nav-tools.shrunk rules above so the strip pre-emptively flips
- * to its 2-letter abbreviations regardless of search-focus state. */
-@media (max-width: 1500px) {
+/* Below this floor the wordmark + search + right-aligned strip leave no room
+ * for full tool labels, so flip to the 2-letter abbreviations pre-emptively
+ * (same rules as .nav-tools.shrunk) regardless of search-focus state. Set just
+ * above the point where the full labels stop fitting (~1370px) so they're only
+ * shown when they actually fit — the strip no longer clips (no overflow-hidden),
+ * so this floor, not a clip, is what prevents overflow. */
+@media (max-width: 1380px) {
   .nav-tool { padding: 0 10px; font-size: 10px; letter-spacing: 0.08em; }
   .nav-tool .full { display: none; }
   .nav-tool .abbr { display: inline; }
@@ -611,16 +1077,15 @@ a:hover {
   .app-header .nav-search { width: 100% !important; border-right: none; }
 }
 
-/* /sites card grid: 2-column at rest, single column under 700px. Replaces
- * the inline `gridTemplateColumns: 'repeat(2, 1fr)'` that used to live on
- * the section div in sites/page.tsx. */
+/* /sites card grid: 2-column at rest, single column under 900px (matching the
+ * point at which the filter rail stacks above the grid). */
 .sites-grid {
   display: grid;
   align-items: start;
   gap: 1rem;
   grid-template-columns: repeat(2, 1fr);
 }
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   .sites-grid { grid-template-columns: 1fr; }
 }
 

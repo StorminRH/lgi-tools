@@ -98,16 +98,27 @@ The live per-character platform (3.4.3–3.4.10): Convex is the reactive store, 
 
 **CHANGELOG.md** — after every session, decide whether the work is user-facing. Only log features and significant platform changes; skip internal cleanup, CI, refactors, and intra-session iteration. The test: *would a wormhole pilot loading the site notice this?* If no, leave it out.
 
-Format is strict (the parser is intentionally narrow):
+Format is strict (the parser, `src/features/changelog/parse.ts`, is intentionally narrow). Since 3.7.0 the changelog is a **version timeline**: one entry per release, each tagging its changes by type.
 
 ```
-### YYYY-MM-DD
+### v<version> — YYYY-MM-DD
+
+#### Added
 - One user-facing change per bullet, written for someone who doesn't know the codebase.
+
+#### Changed
+- …
+
+#### Fixed
+- …
+
+#### Removed
+- …
 ```
 
-Group same-day entries under one date heading. Newest at top. No bold, links, or rich markdown — grow the parser first if a future entry needs it.
+One entry per shipped version (newest at top); the heading is `v<version>` + an em-dash (or hyphen) + the ISO ship date. Under it, only the `#### Added | Changed | Fixed | Removed` groups that apply, each with `- ` bullets. Within a bullet, **bold** and `inline code` are passed through as raw markdown text (the renderer shows them literally) — keep prose plain. Grow the parser first if a future entry needs anything beyond version/date headings, the four change-type groups, and flat bullets.
 
-Update the version link at the footer of the website to match what's shipped.
+Bump `APP_VERSION` (`src/config/app-version.ts`) to match — the footer surfaces it as a link to /changelog, and the changelog header reads it as the current version.
 
 **Archive completed plan docs.** When a version ships, move its plan doc to `../LGI Tools Document Archive/` and `git rm` the in-repo copy. Replace markdown links with prose mentions. The active repo holds only in-progress or upcoming plan docs.
 

@@ -1,8 +1,8 @@
-// Tiny client-side helper for POSTing to /api/telemetry. Two consumers so
-// far — <TelemetryReporter> for page_view, <SitesTerminalSearch> for
-// terminal_search — share this so the beacon/fetch fallback logic lives
-// in one place. Server-side callers go through logUsageEvent() directly
-// in queries.ts.
+// Tiny client-side helper for POSTing to /api/telemetry. <TelemetryReporter>
+// (page_view) is the live consumer; the historical terminal_search action is
+// still read by the admin telemetry queries. The beacon/fetch fallback logic
+// lives here in one place. Server-side callers go through logUsageEvent()
+// directly in queries.ts.
 
 import { z } from 'zod';
 import { telemetryEndpoint, telemetryRequestSchema } from '@/data/telemetry/api-contract';

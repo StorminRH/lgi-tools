@@ -3,12 +3,14 @@ import { join } from 'node:path';
 import { cacheLife } from 'next/cache';
 import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageHead } from '@/components/ui/page-head';
+import { APP_VERSION } from '@/config/app-version';
 import { EntryCard } from '@/features/changelog/components/EntryCard';
 import { parseChangelog } from '@/features/changelog/parse';
 
 export const metadata = {
   title: 'Changelog',
-  description: 'User-facing changes to LGI.tools, grouped by ship date.',
+  description: 'User-facing changes to LGI.tools, grouped by release and tagged by change type.',
   alternates: { canonical: '/changelog' },
 };
 
@@ -26,35 +28,36 @@ export default async function ChangelogPage() {
   const entries = await loadChangelog();
 
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
-      <div className="w-full max-w-[800px] mb-4">
-        <Callout label="Beta">
-          LGI.tools is in public beta. Expect rough edges and rapid iteration; some
-          tools are incomplete and data may shift. Hit the Feedback button (bottom-right)
-          to flag anything broken or missing.
-        </Callout>
-      </div>
+    <div className="w-full">
+      <PageHead
+        crumb="changelog"
+        title="Changelog"
+        meta={
+          <span>
+            Current <b className="text-isk font-semibold">v{APP_VERSION}</b>
+          </span>
+        }
+      />
 
-      <header className="w-full max-w-[800px] mb-6 pb-4 border-b border-border-soft">
-        <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-          Changelog
+      <div className="w-full max-w-[1080px] mx-auto px-7 pb-16">
+        <div className="max-w-[860px] mb-7">
+          <Callout label="Beta">
+            LGI.tools is in public beta. Expect rough edges and rapid iteration; some tools are
+            incomplete and data may shift. Hit the Feedback button (bottom-right) to flag anything
+            broken or missing.
+          </Callout>
         </div>
-        <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
-          {entries.length} update{entries.length === 1 ? '' : 's'}
-        </div>
-      </header>
 
-      {entries.length === 0 ? (
-        <div className="w-full max-w-[800px]">
+        {entries.length === 0 ? (
           <EmptyState>No changelog entries yet.</EmptyState>
-        </div>
-      ) : (
-        <div className="w-full max-w-[800px] flex flex-col gap-4">
-          {entries.map((entry) => (
-            <EntryCard key={entry.date} entry={entry} />
-          ))}
-        </div>
-      )}
+        ) : (
+          <div className="changelog">
+            {entries.map((entry) => (
+              <EntryCard key={`${entry.version}-${entry.date}`} entry={entry} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

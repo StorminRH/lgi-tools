@@ -79,17 +79,3 @@ export const DPS_TIER_CLASS: Record<DpsTier, string> = {
   high: toneTextClass('red'),
 };
 
-/** Scan-class pill ("Cosmic Anomaly" vs "Cosmic Signature"). */
-export const SCAN_PILL_LABEL: Record<'anomaly' | 'signature', string> = {
-  anomaly:   'Cosmic Anomaly',
-  signature: 'Cosmic Signature',
-};
-
-/** Site type → which scan-class pill it uses. */
-export const SITE_TYPE_SCAN: Record<SiteType, 'anomaly' | 'signature'> = {
-  combat: 'anomaly',
-  ore:    'signature',
-  gas:    'signature',
-  relic:  'signature',
-  data:   'signature',
-};
