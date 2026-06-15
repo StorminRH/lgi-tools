@@ -22,7 +22,7 @@ function NavStrip({ shrunk, pathname }: { shrunk: boolean; pathname: string | nu
   return (
     <nav
       className={cn(
-        'nav-tools flex items-stretch min-w-0 overflow-hidden',
+        'nav-tools ml-auto border-l border-border-soft flex items-stretch',
         shrunk && 'shrunk',
       )}
     >

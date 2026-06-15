@@ -28,7 +28,7 @@ export function LoginButton() {
           // to EVE SSO, then back through the provider callback).
           void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: '/' });
         }}
-        className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-1.5 border border-border-idle hover:border-border-active text-isk transition-colors"
+        className="inline-flex items-center gap-2 font-mono text-[12px] px-[13px] py-1.5 rounded-[3px] border border-border-idle bg-surface-sunk text-text whitespace-nowrap hover:border-border-active hover:text-name transition-colors"
       >
         Log in with EVE
       </button>

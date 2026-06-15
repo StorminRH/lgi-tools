@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { readRecentBlueprints, type RecentBlueprint } from '../recent-blueprints';
-import { BlueprintRow } from './BlueprintRow';
+import { IndustryRow } from './IndustryRow';
 
 // Reads the localStorage "recently viewed" list after mount and renders it as
 // dashboard rows. `null` means "not read yet" (the server render + first paint),
@@ -32,12 +32,7 @@ export function RecentlyViewed() {
   return (
     <>
       {recent.map((r) => (
-        <BlueprintRow
-          key={r.typeId}
-          typeId={r.productTypeId}
-          name={r.name}
-          href={`/industry/${r.typeId}`}
-        />
+        <IndustryRow key={r.typeId} name={r.name} href={`/industry/${r.typeId}`} />
       ))}
     </>
   );

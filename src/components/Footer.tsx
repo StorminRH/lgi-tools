@@ -11,30 +11,29 @@ import { APP_VERSION } from '@/config/app-version';
 export function Footer() {
   return (
     <PageFooter
+      // Extra right padding keeps the links clear of the fixed Feedback button
+      // anchored in the bottom-right corner (handoff §3).
+      className="pr-[150px]"
       left={
-        <span className="font-mono text-muted tracking-[0.12em] uppercase">
-          <span className="font-jb font-bold text-[11px] text-name normal-case tracking-normal">
-            Lo-Gang Industries
-          </span>
-          {' · '}
-          EVE Online and the EVE logo are the registered trademarks of Fenris Creations. All rights reserved.
-          {' · '}
-          <Link href="/legal">
-            Legal
-          </Link>
-          {' · '}
-          <Link href="/contact">
-            Contact
-          </Link>
+        <span className="block max-w-[720px] font-mono text-faint tracking-[0.03em] leading-[1.7]">
+          Lo-Gang Industries — EVE Online and all related marks are property of Fenris Creations.
+          LGI.tools is an independent third-party tool, not affiliated with or endorsed by Fenris
+          Creations.
         </span>
       }
-      center={
-        <Link
-          href="/changelog"
-          className="font-mono text-muted uppercase tracking-[0.12em]"
-        >
-          v{APP_VERSION}
-        </Link>
+      right={
+        <span className="inline-flex items-center gap-4 font-mono tracking-[0.03em]">
+          <Link href="/legal" className="text-muted">
+            Legal
+          </Link>
+          <Link href="/contact" className="text-muted">
+            Contact
+          </Link>
+          <Link href="/changelog" className="text-muted">
+            Changelog
+          </Link>
+          <span className="text-faint">v{APP_VERSION}</span>
+        </span>
       }
     />
   );

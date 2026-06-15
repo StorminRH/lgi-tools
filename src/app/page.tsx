@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { JsonLd } from '@/components/JsonLd';
 import { Callout } from '@/components/ui/callout';
 import { Pill } from '@/components/ui/pill';
+import { SectionLabel } from '@/components/ui/section-label';
 import { getFeatureFlags } from '@/config/feature-flags';
 import { SITE_URL } from '@/config/site-url';
 
@@ -91,7 +92,7 @@ export default function Home({
       <div className="home-hero-bg w-full flex flex-col items-center">
         <header className="flex flex-col items-center text-center gap-5 max-w-[680px] px-6 pt-20 pb-16">
           <div className="flex flex-col items-center gap-1.5">
-            <h1 className="font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
+            <h1 className="hero-wordmark font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
               <span className="text-isk">[ </span>
               Lo-Gang
               <span className="text-isk"> ]</span>
@@ -102,16 +103,13 @@ export default function Home({
               <span className="text-isk">tools</span>
             </div>
           </div>
-          <p className="body-copy text-[12px] text-muted leading-[1.7] max-w-[420px]">
+          <p className="body-copy text-[13.5px] text-text leading-[1.7] max-w-[420px]">
             A collection of tools for Eve Online.
           </p>
         </header>
 
-        <section className="w-full max-w-[960px] px-6 pt-4 pb-20">
-        <div className="flex items-center gap-2.5 mb-5 text-[10px] font-semibold text-muted tracking-[0.14em] uppercase">
-          <span>Tools</span>
-          <span className="flex-1 h-px bg-border-soft" />
-        </div>
+        <section className="w-full max-w-[1080px] px-6 pt-4 pb-20">
+        <SectionLabel className="mb-4">Tools</SectionLabel>
 
         {/* Tailwind arbitrary-value class, not an inline `style` prop —
          * production CSP is `style-src 'self'` (no nonce, no unsafe-inline),
@@ -120,79 +118,87 @@ export default function Home({
          * grid with no column template (so cards stack like a 1-column
          * small-viewport view) until client-side hydration / navigation
          * re-applied the styles via JS. */}
-        <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(270px,1fr))]">
-          <Link href="/sites" className="tool-tile tool-tile-live hover-bob no-underline">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(290px,1fr))]">
+          <Link href="/sites" className="tool-tile tool-tile-live hover-bob no-underline group">
             <div className="flex items-start justify-between gap-2">
-              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+              <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
                 Wormhole Sites
               </div>
             </div>
-            <p className="body-copy text-[11px] text-text leading-[1.65] flex-1">
+            <p className="body-copy text-[13px] text-text leading-[1.65] flex-1">
               Browse all 69 wormhole anomalies and signatures by class, site
               type, and ISK value. Live Jita prices on ore and gas resources.
             </p>
-            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+            <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
               <div className="flex items-center gap-1">
                 <Pill tone="red-soft">Combat</Pill>
                 <Pill tone="teal">Gas</Pill>
                 <Pill tone="yellow">Ore</Pill>
               </div>
+              <span className="font-mono text-caption tracking-[0.06em] text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
+                open →
+              </span>
             </div>
           </Link>
 
-          <Link href="/industry" className="tool-tile tool-tile-live hover-bob no-underline">
+          <Link href="/industry" className="tool-tile tool-tile-live hover-bob no-underline group">
             <div className="flex items-start justify-between gap-2">
-              <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+              <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
                 Industry Planner
               </div>
             </div>
-            <p className="body-copy text-[11px] text-text leading-[1.65] flex-1">
-              Manufacturing profitability for blueprints and reactions.
+            <p className="body-copy text-[13px] text-text leading-[1.65] flex-1">
+              Manufacturing profitability for blueprints and reactions — build cost,
+              margin, and price confidence at live Jita rates.
             </p>
-            <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+            <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
               <div className="flex items-center gap-1">
                 <Pill tone="neutral">T1</Pill>
                 <Pill tone="blue">T2</Pill>
                 <Pill tone="purple">T3</Pill>
                 <Pill tone="teal">Reactions</Pill>
               </div>
+              <span className="font-mono text-caption tracking-[0.06em] text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
+                open →
+              </span>
             </div>
           </Link>
 
           {flags.wormholeRollCalc ? (
-            <Link href="/wormhole-roll" className="tool-tile tool-tile-live hover-bob no-underline">
+            <Link href="/wormhole-roll" className="tool-tile tool-tile-live hover-bob no-underline group">
               <div className="flex items-start justify-between gap-2">
-                <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
                   Wormhole Roll Calculator
                 </div>
               </div>
-              <p className="body-copy text-[11px] text-text leading-[1.65] flex-1">
-                Plan hole rolls with live mass tracking.
+              <p className="body-copy text-[13px] text-text leading-[1.65] flex-1">
+                Plan hole rolls with live mass tracking — know which pass collapses
+                the hole before you commit the battleship.
               </p>
-              <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
                 <div className="flex items-center gap-1">
-                  <Pill tone="green">C1</Pill>
-                  <Pill tone="orange">C3</Pill>
-                  <Pill tone="red">C5</Pill>
+                  <Pill tone="orange">In development</Pill>
                 </div>
+                <span className="font-mono text-caption tracking-[0.06em] text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
+                  open →
+                </span>
               </div>
             </Link>
           ) : (
             <div className="tool-tile tool-tile-soon">
               <div className="flex items-start justify-between gap-2">
-                <div className="font-display font-bold text-[15px] tracking-[-0.01em] leading-[1.2] text-name">
+                <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
                   Wormhole Roll Calculator
                 </div>
-                <Pill tone="neutral">Coming Soon</Pill>
+                <Pill tone="orange">Coming soon</Pill>
               </div>
-              <p className="tile-desc body-copy text-[11px] text-text leading-[1.65] flex-1">
-                Plan hole rolls with live mass tracking.
+              <p className="tile-desc body-copy text-[13px] text-text leading-[1.65] flex-1">
+                Plan hole rolls with live mass tracking — know which pass collapses
+                the hole before you commit the battleship.
               </p>
-              <div className="flex items-center justify-between pt-3 border-t border-border-soft">
+              <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
                 <div className="flex items-center gap-1">
-                  <Pill tone="green">C1</Pill>
-                  <Pill tone="orange">C3</Pill>
-                  <Pill tone="red">C5</Pill>
+                  <Pill tone="orange">In development</Pill>
                 </div>
                 <span className="text-[10px] text-muted tracking-[0.04em]">v5.0</span>
               </div>

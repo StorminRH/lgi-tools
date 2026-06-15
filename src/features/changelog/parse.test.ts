@@ -6,51 +6,73 @@ describe('parseChangelog', () => {
     expect(parseChangelog('')).toEqual([]);
   });
 
-  it('parses a single entry with a single bullet', () => {
-    const md = `### 2026-05-25\n- Added a thing.`;
-    expect(parseChangelog(md)).toEqual([{ date: '2026-05-25', items: ['Added a thing.'] }]);
+  it('parses a single entry with one group and bullet', () => {
+    const md = ['### v3.7.0 — 2026-05-25', '', '#### Added', '- Added a thing.'].join('\n');
+    expect(parseChangelog(md)).toEqual([
+      { version: '3.7.0', date: '2026-05-25', groups: [{ type: 'Added', items: ['Added a thing.'] }] },
+    ]);
+  });
+
+  it('parses multiple groups within an entry', () => {
+    const md = [
+      '### v3.7.0 — 2026-05-25',
+      '#### Added',
+      '- new A',
+      '- new B',
+      '#### Removed',
+      '- gone C',
+    ].join('\n');
+    expect(parseChangelog(md)).toEqual([
+      {
+        version: '3.7.0',
+        date: '2026-05-25',
+        groups: [
+          { type: 'Added', items: ['new A', 'new B'] },
+          { type: 'Removed', items: ['gone C'] },
+        ],
+      },
+    ]);
   });
 
   it('parses multiple entries in source order', () => {
     const md = [
-      '### 2026-05-25',
-      '- newer A',
-      '- newer B',
+      '### v3.7.0 — 2026-05-25',
+      '#### Changed',
+      '- newer',
       '',
-      '### 2026-05-23',
-      '- older C',
+      '### v3.6.0 — 2026-05-23',
+      '#### Fixed',
+      '- older',
     ].join('\n');
     expect(parseChangelog(md)).toEqual([
-      { date: '2026-05-25', items: ['newer A', 'newer B'] },
-      { date: '2026-05-23', items: ['older C'] },
+      { version: '3.7.0', date: '2026-05-25', groups: [{ type: 'Changed', items: ['newer'] }] },
+      { version: '3.6.0', date: '2026-05-23', groups: [{ type: 'Fixed', items: ['older'] }] },
     ]);
   });
 
-  it('ignores blank lines and prose between entries', () => {
+  it('accepts multi-segment versions and a hyphen separator', () => {
+    const md = ['### v3.0.3.1 - 2026-05-27', '#### Added', '- thing'].join('\n');
+    expect(parseChangelog(md)).toEqual([
+      { version: '3.0.3.1', date: '2026-05-27', groups: [{ type: 'Added', items: ['thing'] }] },
+    ]);
+  });
+
+  it('ignores prose and bullets that appear before any group', () => {
     const md = [
       '# Changelog',
-      '',
-      'Some prose here that should be ignored.',
-      '',
-      '### 2026-05-25',
-      '- One',
-      '',
-      'More prose.',
-      '- Two',
+      'Some prose to ignore.',
+      '- orphan bullet before any entry',
+      '### v3.7.0 — 2026-05-25',
+      '- orphan bullet before any group',
+      '#### Added',
+      '- real one',
     ].join('\n');
     expect(parseChangelog(md)).toEqual([
-      { date: '2026-05-25', items: ['One', 'Two'] },
+      { version: '3.7.0', date: '2026-05-25', groups: [{ type: 'Added', items: ['real one'] }] },
     ]);
   });
 
-  it('ignores bullets that appear before any date heading', () => {
-    const md = ['- orphan bullet', '- another orphan', '### 2026-05-25', '- real one'].join('\n');
-    expect(parseChangelog(md)).toEqual([
-      { date: '2026-05-25', items: ['real one'] },
-    ]);
-  });
-
-  it('returns [] for input that has no date headings', () => {
+  it('returns [] for input that has no entry headings', () => {
     expect(parseChangelog('# Just a title\n\nSome words.\n- a stray bullet')).toEqual([]);
   });
 });

@@ -1,18 +1,25 @@
 import type { Metadata } from 'next';
-import type { ReactNode } from 'react';
-import { Card } from '@/components/ui/card';
+import { headers } from 'next/headers';
+import { Suspense } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
-import { SectionHeader } from '@/components/ui/section-header';
+import { PageHead } from '@/components/ui/page-head';
+import { SectionLabel } from '@/components/ui/section-label';
 import { SITE_URL } from '@/config/site-url';
-import { BlueprintRow } from '@/features/industry-planner/components/BlueprintRow';
+import { auth } from '@/features/auth/auth';
+import { listLinkedCharacters } from '@/features/auth/queries';
+import { deriveCharacterHealth } from '@/features/auth/scope-health';
+import { IndustryRow } from '@/features/industry-planner/components/IndustryRow';
+import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
 import { RecentlyViewed } from '@/features/industry-planner/components/RecentlyViewed';
-import { SearchHero } from '@/features/industry-planner/components/SearchHero';
 import { getBlueprintStructure } from '@/features/industry-planner/queries';
+import { IndustryActiveJobs } from '@/features/industry-jobs/components/IndustryActiveJobs';
+import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
+import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
 
 export const metadata: Metadata = {
   title: 'Industry Planner',
   description:
-    'Your Eve Online manufacturing dashboard — search any blueprint to see its build cost, profit margin, and price confidence at live Jita rates, and jump back to the builds you recently viewed.',
+    'Your Eve Online manufacturing dashboard — search any blueprint to see its build cost, profit margin, and price confidence at live Jita rates, jump back to builds you recently viewed, and watch your live industry jobs.',
   alternates: { canonical: '/industry' },
   openGraph: {
     title: 'Industry Planner — LGI.tools',
@@ -24,85 +31,109 @@ export const metadata: Metadata = {
   },
 };
 
+const PANEL = 'border border-border rounded-[5px] bg-section overflow-hidden';
+
 // A frigate, a battlecruiser, and a capital — a quick spread of build depth,
 // shown as sample "favorites" until per-user favorites land. These are the
-// resolver's reference blueprints (REFERENCE_BLUEPRINT_TYPE_IDS).
+// resolver's reference blueprints.
 const SAMPLE_FAVORITE_IDS = [691, 24699, 23758];
 
-// A dashboard panel: a titled card with an optional header hint.
-function DashboardSection({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <Card className="w-full max-w-[1100px] mb-5">
-      <SectionHeader label={label} hint={hint} />
-      {children}
-    </Card>
-  );
-}
-
-// Sample favorites — real reference blueprints rendered dimmed, as a preview of
-// the per-user favorites feature. Cached structure reads (no price dependency),
-// so this prerenders into the static shell.
-async function FavoritesSection() {
+// Sample favorites — real reference blueprints, shown as a preview of the
+// per-user favorites feature. Cached structure reads (no price dependency), so
+// this prerenders into the static shell.
+async function FavoritesList() {
   const structures = (
     await Promise.all(SAMPLE_FAVORITE_IDS.map((id) => getBlueprintStructure(id)))
   ).filter((s) => s !== null);
 
+  if (structures.length === 0) return <EmptyState>No favorites yet.</EmptyState>;
+
   return (
-    <DashboardSection label="Favorites" hint="Sign in to save — coming soon">
-      {structures.length === 0 ? (
-        <EmptyState>No favorites yet.</EmptyState>
-      ) : (
-        structures.map((s) => (
-          <BlueprintRow
-            key={s.blueprintTypeId}
-            typeId={s.product.typeId}
-            name={s.product.name}
-            href={`/industry/${s.blueprintTypeId}`}
-            trailing="sample"
-            dimmed
-          />
-        ))
-      )}
-    </DashboardSection>
+    <>
+      {structures.map((s) => (
+        <IndustryRow
+          key={s.blueprintTypeId}
+          name={s.product.name}
+          href={`/industry/${s.blueprintTypeId}`}
+          fav
+        />
+      ))}
+    </>
   );
 }
 
-// Static shell — title + the dashboard panels. No searchParams or cookies are
-// read, and every server read here is cached, so the page prerenders fully
-// static; the recently-viewed panel hydrates client-side from localStorage.
+// Request-time region: reads the session + linked characters so the live
+// Active-jobs island knows which characters to keep synced. Signed-out renders
+// with no ids; the client island then shows the sign-in prompt.
+async function ActiveJobsSection() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return <IndustryActiveJobs characterIds={[]} />;
+
+  const characters = await listLinkedCharacters(session.user.id);
+  const characterIds = characters
+    .filter((character) =>
+      canSyncIndustryJobs({
+        hasRefreshToken: character.hasRefreshToken,
+        missingScopes: deriveCharacterHealth({
+          scope: character.scope,
+          hasRefreshToken: character.hasRefreshToken,
+        }).missingScopes,
+      }),
+    )
+    .map((character) => character.characterId);
+
+  return <IndustryActiveJobs characterIds={characterIds} />;
+}
+
+// Static shell — header, typed hint, and the recents/favorites scaffold
+// prerender; the recently-viewed list hydrates from localStorage, the slot
+// counts + active jobs stream over Convex, and the active-jobs character list
+// is the one request-time read (a <Suspense> hole).
 export default function IndustryDashboardPage() {
   return (
-    <div className="flex flex-col items-center px-4 pt-12 pb-20 sm:px-6">
-      <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
-        <h1 className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-          Industry Planner
-        </h1>
-        <p className="text-[10px] text-muted tracking-[0.12em] uppercase">
-          Your manufacturing dashboard
-        </p>
-      </header>
+    <div className="w-full">
+      <PageHead crumb="industry" title="Industry" meta={<IndustrySlotMeta />} />
 
-      <SearchHero />
+      <div className="w-full max-w-[1080px] mx-auto px-7 pb-16 flex flex-col gap-9">
+        <IndustryTypedHint />
 
-      <FavoritesSection />
+        <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4">
+          <section>
+            <SectionLabel className="mb-3">Recents</SectionLabel>
+            <div className={PANEL}>
+              <RecentlyViewed />
+            </div>
+          </section>
+          <section>
+            <SectionLabel
+              className="mb-3"
+              meta={
+                <span className="font-mono text-[10px] tracking-[0.04em] text-muted">
+                  sign in to save — soon
+                </span>
+              }
+            >
+              Favorites
+            </SectionLabel>
+            <div className={PANEL}>
+              <Suspense fallback={<EmptyState>{' '}</EmptyState>}>
+                <FavoritesList />
+              </Suspense>
+            </div>
+          </section>
+        </div>
 
-      <DashboardSection label="Recently viewed">
-        <RecentlyViewed />
-      </DashboardSection>
-
-      <DashboardSection label="Active builds" hint="Coming soon">
-        <EmptyState>
-          No active builds — start one from any blueprint to track it here.
-        </EmptyState>
-      </DashboardSection>
+        <Suspense
+          fallback={
+            <section>
+              <SectionLabel className="mb-3">Active jobs</SectionLabel>
+              <p className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</p>
+            </section>
+          }
+        >
+          <ActiveJobsSection />
+        </Suspense>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Pill } from '@/components/ui/pill';
 import { FeedbackModal } from '@/features/feedback/components/FeedbackModal';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 
@@ -22,9 +21,9 @@ export function FeedbackButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-30 inline-flex shadow-lg hover:opacity-90 transition-opacity"
+        className="feedback-btn fixed bottom-4 right-4 z-30 cursor-pointer"
       >
-        <Pill tone="green">Feedback</Pill>
+        Feedback
       </button>
       <FeedbackModal
         open={open}

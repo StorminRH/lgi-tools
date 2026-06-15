@@ -6,6 +6,7 @@ import { formatIskShort } from '@/lib/format';
 import { formatClassRange, gasClassRange } from '../gas-classes';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
 import { displayableResources } from '../resource-display';
+import { siteClassSet } from '../site-filter';
 import type { SiteDetail } from '../types';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteLiveProvider } from './SiteResourcesLive';
@@ -111,7 +112,11 @@ export function SitesTable({
           entityId={row.id}
           className="border-b border-border-soft last:border-b-0"
         >
-          <details className="sites-table-row">
+          <details
+            className="sites-table-row"
+            data-site-type={row.siteType}
+            data-site-cls={siteClassSet(row).join(',')}
+          >
             <summary
               className={cn(
                 'list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none grid items-center gap-4 px-3 py-2 transition-colors hover:bg-row-active',
