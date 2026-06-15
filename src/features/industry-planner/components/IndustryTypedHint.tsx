@@ -28,7 +28,17 @@ export function IndustryTypedHint() {
   const [shown, setShown] = useState(reduced ? HINT.length : 0);
 
   useEffect(() => {
-    if (reduced) return;
+    // `reduced` is read from matchMedia, which is false during SSR — so the
+    // server (and the hydration render, which keeps the server-initialized
+    // state) shows nothing. For a reduced-motion client we must materialise the
+    // full text after mount; the useState initialiser can't (it's ignored on
+    // hydration). Deferred via setTimeout(0) so it isn't a synchronous setState
+    // in the effect body (the `react-hooks/set-state-in-effect` escape used
+    // elsewhere, e.g. RecentlyViewed).
+    if (reduced) {
+      const t = setTimeout(() => setShown(HINT.length), 0);
+      return () => clearTimeout(t);
+    }
     let i = 0;
     const timer = setInterval(() => {
       i += 1;
