@@ -120,7 +120,7 @@ The live per-character platform (3.4.3–3.4.10): Convex is the reactive store, 
 
 **CHANGELOG.md** — after every session, decide whether the work is user-facing. Only log features and significant platform changes; skip internal cleanup, CI, refactors, and intra-session iteration. The test: *would a wormhole pilot loading the site notice this?* If no, leave it out.
 
-Format is strict (the parser, `src/features/changelog/parse.ts`, is intentionally narrow). Since 3.7.0 the changelog is a **version timeline**: one entry per release, each tagging its changes by type.
+Format is strict (the parser, `src/features/changelog/parse.ts`, is intentionally narrow). Since 3.6.4 the changelog is a **version timeline**: one entry per release, each tagging its changes by type.
 
 ```
 ### v<version> — YYYY-MM-DD
