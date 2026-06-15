@@ -1,20 +1,16 @@
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
 import { Suspense } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
 import { SectionLabel } from '@/components/ui/section-label';
 import { SITE_URL } from '@/config/site-url';
-import { auth } from '@/features/auth/auth';
-import { listLinkedCharacters } from '@/features/auth/queries';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { IndustryRow } from '@/features/industry-planner/components/IndustryRow';
 import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
 import { RecentlyViewed } from '@/features/industry-planner/components/RecentlyViewed';
 import { getBlueprintStructure } from '@/features/industry-planner/queries';
 import { IndustryActiveJobs } from '@/features/industry-jobs/components/IndustryActiveJobs';
 import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
-import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
+import { activeJobCharacterIds } from './active-job-character-ids';
 
 export const metadata: Metadata = {
   title: 'Industry Planner',
@@ -67,33 +63,6 @@ async function FavoritesList() {
 // with no ids; the client island then shows the sign-in prompt.
 async function ActiveJobsSection() {
   return <IndustryActiveJobs characterIds={await activeJobCharacterIds()} />;
-}
-
-// The signed-in pilot's industry-job-eligible character ids, for the live sync.
-// Returns [] for signed-out viewers — and ALSO if the session read throws.
-// /industry is a PUBLIC page, but the EVE auth env (BETTER_AUTH_SECRET et al.)
-// is production-only, so `getSession` raises a BetterAuthError on Vercel preview
-// deployments (unlike the auth-gated /jobs and /skills, which redirect). Degrade
-// to the signed-out jobs state there rather than crashing the page.
-async function activeJobCharacterIds(): Promise<number[]> {
-  try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return [];
-    const characters = await listLinkedCharacters(session.user.id);
-    return characters
-      .filter((character) =>
-        canSyncIndustryJobs({
-          hasRefreshToken: character.hasRefreshToken,
-          missingScopes: deriveCharacterHealth({
-            scope: character.scope,
-            hasRefreshToken: character.hasRefreshToken,
-          }).missingScopes,
-        }),
-      )
-      .map((character) => character.characterId);
-  } catch {
-    return [];
-  }
 }
 
 // Static shell — header, typed hint, and the recents/favorites scaffold

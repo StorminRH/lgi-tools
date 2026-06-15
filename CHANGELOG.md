@@ -4,6 +4,14 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.7 — 2026-06-15
+
+#### Fixed
+- Wormhole Sites filtering is now accessible to screen readers: each class, type, and view toggle reports whether it's selected, and the "N of M sites" count is announced as the list narrows.
+
+#### Known limitations
+- The Active jobs table doesn't yet show each job's facility, and the header slot counts show the slots currently in use (not in-use/total). Both are planned for a later update.
+
 ### v3.6.4 — 2026-06-14
 
 #### Added
