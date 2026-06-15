@@ -36,6 +36,7 @@ describe('activeJobCharacterIds', () => {
 
   afterEach(() => {
     errorSpy.mockRestore();
+    vi.unstubAllEnvs();
   });
 
   it('returns [] for a signed-out viewer, without touching the DB', async () => {
@@ -45,10 +46,19 @@ describe('activeJobCharacterIds', () => {
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
-  it('degrades silently when the auth env is absent (BetterAuthError)', async () => {
+  it('degrades silently for a BetterAuthError only when the auth env is absent', async () => {
+    vi.stubEnv('BETTER_AUTH_SECRET', undefined);
+    vi.stubEnv('SESSION_SECRET', undefined);
     getSessionMock.mockRejectedValue(new BetterAuthError('BETTER_AUTH_SECRET is missing'));
     expect(await activeJobCharacterIds()).toEqual([]);
     expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('logs a BetterAuthError when the auth env IS configured (prod misconfig)', async () => {
+    vi.stubEnv('BETTER_AUTH_SECRET', 'a-real-prod-secret');
+    getSessionMock.mockRejectedValue(new BetterAuthError('something else went wrong'));
+    expect(await activeJobCharacterIds()).toEqual([]);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 
   it('logs and degrades on an unexpected error (e.g. a DB failure)', async () => {
