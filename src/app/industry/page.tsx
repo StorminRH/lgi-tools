@@ -66,23 +66,34 @@ async function FavoritesList() {
 // Active-jobs island knows which characters to keep synced. Signed-out renders
 // with no ids; the client island then shows the sign-in prompt.
 async function ActiveJobsSection() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return <IndustryActiveJobs characterIds={[]} />;
+  return <IndustryActiveJobs characterIds={await activeJobCharacterIds()} />;
+}
 
-  const characters = await listLinkedCharacters(session.user.id);
-  const characterIds = characters
-    .filter((character) =>
-      canSyncIndustryJobs({
-        hasRefreshToken: character.hasRefreshToken,
-        missingScopes: deriveCharacterHealth({
-          scope: character.scope,
+// The signed-in pilot's industry-job-eligible character ids, for the live sync.
+// Returns [] for signed-out viewers — and ALSO if the session read throws.
+// /industry is a PUBLIC page, but the EVE auth env (BETTER_AUTH_SECRET et al.)
+// is production-only, so `getSession` raises a BetterAuthError on Vercel preview
+// deployments (unlike the auth-gated /jobs and /skills, which redirect). Degrade
+// to the signed-out jobs state there rather than crashing the page.
+async function activeJobCharacterIds(): Promise<number[]> {
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session) return [];
+    const characters = await listLinkedCharacters(session.user.id);
+    return characters
+      .filter((character) =>
+        canSyncIndustryJobs({
           hasRefreshToken: character.hasRefreshToken,
-        }).missingScopes,
-      }),
-    )
-    .map((character) => character.characterId);
-
-  return <IndustryActiveJobs characterIds={characterIds} />;
+          missingScopes: deriveCharacterHealth({
+            scope: character.scope,
+            hasRefreshToken: character.hasRefreshToken,
+          }).missingScopes,
+        }),
+      )
+      .map((character) => character.characterId);
+  } catch {
+    return [];
+  }
 }
 
 // Static shell — header, typed hint, and the recents/favorites scaffold
