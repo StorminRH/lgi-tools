@@ -2,201 +2,208 @@
 
 User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
-infrastructure work is intentionally excluded — see the SCRATCHPAD for the full
-forensic record.
+infrastructure work is intentionally excluded.
+
+### v3.6.7 — 2026-06-15
+
+#### Fixed
+- Wormhole Sites filtering is now accessible to screen readers: each class, type, and view toggle reports whether it's selected, and the "N of M sites" count is announced as the list narrows.
+
+#### Known limitations
+- The Active jobs table doesn't yet show each job's facility, and the header slot counts show the slots currently in use (not in-use/total). Both are planned for a later update.
 
 ### v3.6.4 — 2026-06-14
 
 #### Added
-- The Industry Planner landing was rebuilt: a typed search prompt, your recent and favorite blueprints side by side, and a live table of your active industry jobs with EVE-blue progress bars and completion times.
+- Rebuilt the Industry Planner landing: a search prompt, your recent and favorite blueprints side by side, and a live table of your active industry jobs with progress bars and completion times.
 
 #### Changed
-- The home page got a visual refresh — a soft dot-lattice backdrop behind the hero and tools, a larger tagline, and a brighter, accented Feedback button.
-- Wormhole Sites filtering moved to a persistent left rail: toggle any combination of classes and site types and the list narrows instantly, with a live count of how many sites match. The card layout and the Cards / Table toggle are unchanged.
-- The Legal, Contact, and Changelog pages were brought into the same look as the rest of the site, with a consistent `lgi://` page header — and the Changelog is now a version timeline with each release's changes grouped as Added, Changed, Fixed, or Removed.
+- Refreshed the home page with a soft dot-lattice backdrop, a larger tagline, and a brighter Feedback button.
+- Wormhole Sites filtering moved to a left rail — toggle any mix of classes and site types and the list narrows instantly, with a live match count.
+- The Legal, Contact, and Changelog pages now match the rest of the site, and the Changelog is a version timeline grouped by change type.
 
 #### Removed
-- The wormhole sites page dropped its separate terminal-search box — use the new filter rail, or the global search (⌘K), instead.
+- The Wormhole Sites page dropped its separate search box — use the new filter rail or global search (⌘K) instead.
 
 ### v3.6.3 — 2026-06-14
 
 #### Added
-- The industry planner now shows a Market Score from 0 to 100 next to the margin — an at-a-glance read on how readily a blueprint's output will actually sell at the quantity you're building. It weighs how long the batch would take to clear (your units plus the sell orders already listed ahead of you, measured against recent daily volume), how steady the price has been, and how consistent demand is, and leans on the weakest of those so a thin market can't hide behind a healthy margin. A hover breakdown spells out the reasoning and says plainly when market history or order data is missing, and the score updates live as you change the number of runs.
-- New build-system picker on the planner: search any solar system that can host an industry job and, optionally, pin a specific NPC station. The cost ledger gains an itemized fee breakdown alongside the materials.
-- New runs input on the planner: set how many runs to build and every figure — materials, output units, fees, and margin — rescales live.
+- The planner now shows a Market Score (0–100) next to the margin — an at-a-glance read on how easily a blueprint's output will actually sell at the quantity you're building. Hover it for the full breakdown; it updates live as you change runs.
+- New build-system picker: search any system that can host an industry job and optionally pin an NPC station, with an itemized fee breakdown in the cost ledger.
+- New runs input: set how many runs to build and every figure — materials, output, fees, and margin — rescales live.
 
 #### Changed
-- Cleaned up the top navigation: the tool links are now full-height cells separated by hairlines, quiet until you hover or land on their page — where the label brightens and a green underline lights up. The price indicator drops its "next refresh" countdown for a simpler pulsing "prices live" light.
-- Refreshed the site's look and readability: body text now reads with more contrast, descriptions use a cleaner sans-serif typeface, tags and borders were tightened up, and there's now a clear keyboard-focus outline for easier navigation.
-- The Market Score now flags when a blueprint's market history is stale: if the most recent recorded trade is more than two weeks old, it shows how old the data is, so a high score on something that hasn't actually traded in a while can't mislead you.
-- The industry planner now shows take-home profit, not just materials margin. By default it shows gross margin (materials only) with a clear note; pick a build system and it flips to net margin — subtracting the EVE job installation fee (system cost index, facility tax, and SCC surcharge) and the sell-side sales tax and broker fee.
-- Net margin currently covers the final build job's fee for manufacturing blueprints; reaction blueprints stay on gross margin for now.
+- Cleaned up the top navigation, and the price indicator is now a simple pulsing "prices live" light.
+- Refreshed the site's look and readability: more contrast, a cleaner typeface, tighter tags and borders, and a clear keyboard-focus outline.
+- The Market Score now flags stale data — if the most recent trade is over two weeks old, it shows how old the data is.
+- The planner now shows take-home profit: pick a build system and the margin switches from gross (materials only) to net, subtracting EVE job fees and sell-side taxes.
+- Net margin currently covers the final build job on manufacturing blueprints; reaction blueprints stay on gross margin for now.
 
 ### v3.4.10 — 2026-06-12
 
 #### Added
-- New Industry Jobs tool: signed-in pilots can now watch the running industry jobs of every linked character in one place, with blueprint and product names, progress bars, and completion countdowns. Jobs refresh from EVE when you open the page, and a finished job flips to ready the moment its timer ends — live, without reloading.
+- New Industry Jobs tool: signed-in pilots can watch the running jobs of every linked character in one place, with progress bars and completion countdowns that update live.
 
 #### Changed
-- Skill queues and industry jobs now stay live while you watch them: with a tracker page open in a visible tab, its data refreshes automatically on EVE's own cache cadence, pauses when you switch away or background the tab, and refreshes immediately when you come back. Nothing syncs for characters nobody is watching.
+- Skill queues and industry jobs now stay live while a tracker page is open, refreshing on EVE's cache cadence and pausing when you switch away. Nothing syncs for characters nobody is watching.
 
 #### Removed
-- The tracker pages dropped their Sync now button — data already refreshes itself when you open the page and while you watch — and now point pilots with no linked characters at the Characters page.
+- The tracker pages dropped their Sync now button — data refreshes itself — and now point pilots with no linked characters at the Characters page.
 
 ### v3.4.7 — 2026-06-11
 
 #### Added
-- New Skill Queues tool: signed-in pilots can now see the live training queue for every linked character in one place, with per-skill progress, completion times, and total skill points. Queues refresh from EVE when you open the page and update live without reloading.
+- New Skill Queues tool: signed-in pilots can see the live training queue for every linked character, with per-skill progress, completion times, and total skill points.
 
 #### Changed
-- Signing in with EVE now asks you to re-authorize one more time, granting the full set of character permissions — planetary colonies, standings, implants, clones, location, and current ship, alongside the existing skills and industry access — that the upcoming character tools build on. This is intended to be the last re-authorization.
+- Signing in with EVE asks you to re-authorize once more for the full set of character permissions the upcoming tools need. This is intended to be the last re-authorization.
 
 ### v3.4.2 — 2026-06-09
 
 #### Added
-- You can now link more than one EVE character to your account. Open your portrait in the top bar to see all your characters, choose which one the site treats as active, reconnect a character that needs fresh access, or unlink one you no longer use.
+- You can now link more than one EVE character. Open your portrait in the top bar to switch the active character, reconnect one that needs fresh access, or unlink one you no longer use.
 
 #### Changed
-- Signing in with EVE now prompts you to re-authorize once, granting the additional character access — skills, skill queue, and industry jobs — that upcoming tools build on.
+- Signing in with EVE prompts you to re-authorize once for the extra character access — skills, skill queue, and industry jobs — that upcoming tools need.
 
 ### v3.3.10 — 2026-06-08
 
 #### Changed
-- Live Jita prices now land on a rolling odometer. When fresh market data arrives, each ISK figure — the sites' resource values and totals, and the planner's cost and margin — rolls digit by digit to its new value instead of fading in.
-- The blueprint flow view now shows each item's in-game icon, and groups every tier column into labelled sections by item type — minerals, reactions, fuel blocks, commodities, and so on — so a column reads as tidy sub-blocks rather than one long list. To step back out of a part you've zoomed into, click it again.
-- Tool cards on the home page now glow green and drift gently while you hover over them.
+- Live Jita prices now roll digit by digit on an odometer when fresh data arrives, instead of fading in.
+- The blueprint flow view now shows each item's in-game icon and groups tier columns into labelled sections by item type. Click a part again to step back out.
+- Tool cards on the home page now glow green and drift gently on hover.
 
 #### Fixed
-- Build cost now reflects whole production runs. The planner sizes each intermediate to the full batch you actually have to run — you can't run a fraction of a reaction or job — so the material total and cost match what you'd spend building from an empty hangar. Totals are higher than before because the earlier figure assumed you could buy partial runs.
+- Build cost now reflects whole production runs — you can't run a fraction of a job — so totals match building from an empty hangar. Figures are higher than before, which had assumed partial runs were possible.
 
 ### v3.3.4 — 2026-06-04
 
 #### Changed
-- Search results now show the real in-game item icon for blueprints — the icon of the item each blueprint builds — instead of a flat "BP" label, matching the icons used across the planner. Recently-searched blueprints keep their icon too.
-- Blueprint costs and material lists in the Industry Planner now come straight from CCP's official game data, refreshed to the current build. Most visibly, capital ship recipes reflect recent rebalances — carriers and other capitals need fewer components than before, lowering their material totals.
+- Search results now show the real in-game icon of the item each blueprint builds, instead of a flat "BP" label.
+- Blueprint costs and material lists now come straight from CCP's current game data — most visibly, recent capital ship rebalances lower their material totals.
 
 ### v3.3.1 — 2026-06-03
 
 #### Added
-- The blueprint build plan now opens in a new flow view. It lays the build out as a row of tier columns — every component and material grouped by how many steps it sits below the final product — and clicking any buildable part smoothly zooms into a connected diagram of just that part's build, with a trail along the top to step back out. The view centers itself on the page and re-centers as you drill in. The earlier consolidated, by-branch, and raw-ledger views are still a click away.
+- The blueprint build plan now opens in a flow view: a row of tier columns grouped by build step, where clicking any buildable part zooms into just that part's chain. The earlier views are still a click away.
 
 ### v3.2.8 — 2026-06-02
 
 #### Changed
-- The Industry Planner now works on a phone. The dashboard and every blueprint page reflow to fit narrow screens — the build plan stacks instead of forcing a sideways scroll, the cost ledger drops to a single column, the profit summary wraps cleanly, and buttons and rows are sized for tapping.
-- The consolidated build view now shows every build stage at once in a grid that wraps to fit the screen, and clicking any component highlights its whole production chain through the stages beneath it — so you can trace exactly what one part pulls in, all the way down to raw materials.
+- The Industry Planner now works on a phone — the build plan stacks instead of scrolling sideways, the cost ledger drops to one column, and rows and buttons are sized for tapping.
+- The consolidated build view now shows every stage at once in a wrapping grid, and clicking a component highlights its whole production chain down to raw materials.
 
 ### v3.2.5 — 2026-06-01
 
 #### Changed
-- Wormhole ore and gas site values now refresh live the moment you open a site: each resource fades and shimmers while its price updates, then settles to the confirmed figure, so the ISK estimate is never shown stale as if it were fresh. The blueprint planner already worked this way — sites now use the same engine and the same feel.
-- Opening a blueprint now refreshes its market prices live, right then: the profit figures at the top fade and shimmer while they update, then settle the moment the live price lands, so a stale number is never shown as if it were confirmed.
-- The build plan can now be viewed three ways. "Consolidated" sums the whole build by stage, showing every component and raw material once with its total quantity — click any component to trace just its chain through the stages beneath it. "By branch" keeps the original click-to-drill column view. "Raw ledger" lays out the raw materials by source category with a grand total.
-- The Industry Planner home is now a dashboard. Search any blueprint or reaction to plan its build, and jump straight back to the ones you recently viewed. Saved favorites and active-build tracking are previewed here and coming soon. The old profit-margin browse catalog has been retired.
+- Wormhole ore and gas site values now refresh live the moment you open a site, shimmering while they update so a stale figure is never shown as fresh.
+- Opening a blueprint now refreshes its market prices live, so the profit figures at the top are never stale.
+- The build plan can now be viewed three ways: Consolidated (totals by stage), By branch (click-to-drill columns), and Raw ledger (raw materials by source).
+- The Industry Planner home is now a dashboard — search any blueprint to plan its build and jump back to ones you recently viewed. The old profit-margin browse catalog was retired.
 
 #### Fixed
-- Pages no longer error on the first load after a quiet period. When the site had been idle for a while, the very first visit could fail with a database error while the database was waking up; it now waits for the wake-up and loads normally instead.
+- Pages no longer error on the first visit after the site has been idle — it now waits for the database to wake up and loads normally.
 
 ### v3.1.3 — 2026-05-31
 
 #### Added
-- The Industry Planner now opens on a browsable catalog instead of a near-empty landing: arrive with no blueprint in mind and see buildable items ranked by profit margin, filter by category or down to just-profitable, and sort by margin, cost, or name. Click any product and its production inputs fan out as a floating column beside the catalog — keep clicking to walk the build chain sideways, one level at a time, without leaving the page. The open path lives in the address bar, so a drilled view is shareable and the back button steps the columns out. Browsing reads the latest stored Jita prices and never kicks off a refresh, so it stays fast across thousands of blueprints.
-- The blueprint planner page now leads with a profitability summary pinned to the top: a product shot, the margin and percentage colour-coded by health, the input cost and Jita sell price, and an at-a-glance confidence read over the whole build — so "is this worth building?" is answerable the moment the page loads, without scrolling.
-- Every row in the build chain now carries its own price-confidence indicator, including the buildable components — hover any of them to see why a price is trusted or shaky (stale, thin, or from the backup source). The detailed cost breakdown, grouped by material source with subtotals, remains below the chain.
-- Every priced material now carries a confidence indicator: filled green when the price is fresh, live, and liquid; half-filled amber when it's stale, from the backup source, or thinly traded; a hollow ring when there's no live price. A summary over the whole build rolls these up ("High confidence — 1 stale · 1 missing") so you can judge how far to trust the cost.
-- The build plan is now an interactive column view: start from the item you're making and click any component to fan its own inputs out as a floating column beside it, walking the production chain as deep as it goes. The drill path is kept in the page address, so a specific breakdown is shareable and bookmarkable and the browser back button steps you back out.
+- The Industry Planner now opens on a browsable catalog: buildable items ranked by profit margin, with filters, sorting, and click-to-fan input columns. The open path lives in the address bar, so a drilled view is shareable.
+- The blueprint page now leads with a profitability summary pinned to the top — product shot, margin and percentage, input cost, and Jita sell price — so "is this worth building?" is answerable the moment it loads.
+- Every row in the build chain now carries its own price-confidence indicator; hover any of them to see why a price is trusted or shaky.
+- Every priced material now shows a confidence indicator (fresh, stale, or missing), with a summary over the whole build so you can judge how far to trust the cost.
+- The build plan is now an interactive column view: click any component to fan its inputs out beside it and walk the chain as deep as it goes. The drill path lives in the address bar, so a breakdown is shareable.
 
 #### Changed
-- The Industry Planner is now linked from the home page and the top navigation — it was previously reachable only by direct link or search.
-- Blueprints and materials in the planner now show their real in-game item icons, so you can recognise what you're looking at at a glance.
-- The market-price pipeline is now monitored end to end. When the main price source has trouble and the site falls back to its backup, or a scheduled refresh is skipped, that now gets recorded and flagged instead of passing silently — so price-data problems get noticed and fixed faster, keeping Jita prices across the site fresher and more dependable.
+- The Industry Planner is now linked from the home page and top navigation, not just by direct link or search.
+- Blueprints and materials in the planner now show their real in-game icons.
+- The market-price pipeline is now monitored end to end, so fallbacks to the backup source and skipped refreshes get flagged and fixed faster.
 
 ### v3.0.10 — 2026-05-30
 
 #### Added
-- The Industry Planner is live: search any blueprint and open it to see its full material tree next to a live Jita build cost and profit margin. The tree renders instantly while prices stream in beside it and refresh on demand, so the cost breakdown is never blank while it loads.
+- The Industry Planner is live: search any blueprint to see its full material tree next to a live Jita build cost and profit margin, with prices streaming in as the tree renders.
 
 #### Changed
-- The planner's build plan now reads top-down as a build sequence: it starts from the item you're making and nests the components and reactions that feed it, down to the raw materials, with the first couple of layers open and deeper steps a tap away. Each step is labelled by its real in-game role — reactions read as reactions, manufactured parts by their actual component group — instead of hand-picked category names.
-- The planner's material breakdown is now a build plan: each thing you manufacture is listed once at the total amount the whole build needs, grouped by construction step — reactions, advanced components, fuel, then the final hull — with a colour for each. Tap any step to expand exactly what it is made from, so a reaction's gas and fuel blocks sit underneath it.
-- Raw materials in the planner are grouped by source — minerals, ice, gas, moon materials, salvage, and planetary — each with its own running subtotal.
-- The wormhole sites page now shows its title, search box, and filters right away while the site list loads in, instead of holding the whole page behind a "Loading sites…" message until everything is ready.
+- The build plan now reads top-down from the item you're making down to raw materials, with each step labelled by its real in-game role.
+- The material breakdown now lists each manufactured item once at the total the build needs, grouped by construction step. Tap any step to see what it's made from.
+- Raw materials in the planner are now grouped by source — minerals, ice, gas, moon materials, salvage, and planetary — each with a subtotal.
+- The wormhole sites page now shows its title, search, and filters right away while the list loads in.
 
 #### Fixed
-- The Industry Planner's build cost is now correct for deep, multi-tier builds like Tech III cruisers. It had been overcounting by building each intermediate in whole production runs — pulling an entire reaction batch to use a fraction of it — which inflated the total several times over. A Legion hull now comes out around 180M ISK instead of 650M.
+- The build cost is now correct for deep, multi-tier builds like Tech III cruisers, which had been badly overcounted. A Legion hull now comes out around 180M ISK instead of 650M.
 
 #### Removed
-- The pop-up resource preview that appeared when hovering an ore or gas site card has been removed; the same resource breakdown is still available by expanding the card.
+- The pop-up resource preview on ore and gas site cards was removed; the same breakdown is still available by expanding the card.
 
 ### v3.0.4 — 2026-05-29
 
 #### Added
-- Added a Contact page, linked in the footer, with a simple form for bug reports, feature ideas, and data corrections. Messages go straight to the developer by email; the address you enter is used only to reply and is never stored or shown publicly.
+- Added a Contact page (linked in the footer) with a form for bug reports, feature ideas, and data corrections. Your email is used only to reply and is never stored or shown publicly.
 
 ### v3.0.3.1 — 2026-05-27
 
 #### Added
-- Sharing a wormhole site link in Discord, Reddit, or a forum now produces a rich preview card showing the site name, wormhole class, total ISK value, wave count, and scram count — instead of a blank embed.
-- The site catalogue is now discoverable through Google. A sitemap and robots file are published so search engines can crawl every public page; the admin dashboard and internal API routes remain hidden from indexing.
-- Real-user page-performance metrics (load time, layout shift, and the other Core Web Vitals) are now collected anonymously by Vercel Speed Insights so we can spot and fix slow pages. No behavioural tracking — performance only. See the Legal page for the full disclosure.
+- Sharing a wormhole site link in Discord, Reddit, or a forum now produces a rich preview card with the site name, class, ISK value, and wave and scram counts.
+- The site catalogue is now discoverable on Google via a published sitemap and robots file; admin and internal routes stay hidden from indexing.
+- Anonymous page-performance metrics (Core Web Vitals) are now collected by Vercel Speed Insights to spot slow pages. Performance only — no behavioural tracking.
 
 #### Changed
-- Tightened the platform's security posture and added abuse protection ahead of upcoming features.
-- The Legal page now lists two new things we record: the hostname of the site that referred you to us (so we can see whether visitors come from Discord, Reddit, search engines, etc.), and a random visitor ID kept in your browser storage that helps us distinguish first-time landers from page-hops. As before, no IPs, no user-agent, no third-party trackers.
-- New tools can now be flipped from "Coming Soon" to live without a code change, paving the way for Industry Planner and the Wormhole Roll Calculator to come online incrementally.
+- Tightened the platform's security and added abuse protection ahead of upcoming features.
+- The Legal page now lists two new things we record: the referring site's hostname and a random visitor ID in your browser. Still no IPs, user-agents, or third-party trackers.
+- New tools can now be switched from "Coming Soon" to live without a code change.
 
 ### v2.9.7 — 2026-05-26
 
 #### Added
-- The wormhole sites page now has a table view alongside the card grid. Use the Cards / Table pill at the top of the page to switch. The table is sortable by name, type, ISK, blue loot, scram count, and class — click any header to sort. Click a row to expand it inline and see the same wave, NPC, and resource detail the card shows. All existing filters (type, class) are preserved when toggling.
-- LGI.tools is now open-source under the MIT License. The full source lives at https://github.com/StorminRH/lgi-tools — issues, feature requests, and pull requests welcome. See the new "Open-source licensing" section on the Legal page for details.
+- The wormhole sites page now has a sortable table view alongside the card grid — use the Cards / Table pill to switch, and click a row to expand it inline. Existing filters carry over.
+- LGI.tools is now open-source under the MIT License, with the full source at github.com/StorminRH/lgi-tools. See the Legal page for details.
 
 #### Changed
-- The site search now matches initials and partial typos — typing "ffrd" finds "Forgotten Frontier Recursive Depot", with the matched letters highlighted in green so you can see exactly why a row was returned.
-- Gas sites now show the wormhole class range they actually spawn in (Perimeter sites in C1–C6, Frontier sites in C3–C6, Core sites in C5–C6) and the class filter respects those ranges — picking "C3" includes Frontier and Perimeter gas, not just wave-driven C3 sites.
-- The "killing wave" callout on combat-adjacent site cards now reads "blue loot" — the actual EVE-Online term for the loot dropped by Sleeper killing waves.
-- The site now scales down cleanly on smaller windows. The navigation bar collapses progressively, the wormhole sites grid drops to a single column on narrow screens, and the hover preview on ore and gas cards no longer pushes the page sideways when the card sits on the right edge of the grid.
-- Market prices now refresh automatically once a day in the background. The price status chip in the header has become a passive indicator — no click needed. Hover the chip to see how long until the next refresh.
+- Site search now matches initials and partial typos — "ffrd" finds "Forgotten Frontier Recursive Depot" — with the matched letters highlighted in green.
+- Gas sites now show the wormhole class range they actually spawn in, and the class filter respects those ranges.
+- The "killing wave" callout on combat sites now reads "blue loot," the actual EVE term for Sleeper killing-wave loot.
+- The site now scales down cleanly on smaller windows: the navigation collapses progressively and the sites grid drops to a single column on narrow screens.
+- Market prices now refresh automatically once a day in the background, and the header price chip is a passive indicator — hover it to see time until the next refresh.
 
 ### v2.9.5 — 2026-05-25
 
 #### Added
-- Added a global search bar in the header. Press ⌘K (or Ctrl-K) from any page to focus it, then type to navigate across sites, tools, and commands. Sites by name jump straight to the deep-link page; commands cover refreshing prices, opening the changelog, logging out, and more.
-- Recently-viewed sites now surface in the search dropdown when you focus the empty input — find what you were just looking at without retyping its name.
-- Hovering an ore or gas site card on the wormhole sites page now reveals a quick preview showing the top three resources by ISK and the site's total. Combat, relic, and data cards stay static — their header value already answers the question.
+- Added a global search bar — press ⌘K (or Ctrl-K) from any page to navigate across sites, tools, and commands.
+- Recently-viewed sites now appear in the search dropdown when you focus the empty input.
+- Hovering an ore or gas site card now previews its top three resources by ISK and the site total. Combat, relic, and data cards stay static.
 - A persistent tool strip now sits in the header, so you can jump between tools without going through the landing page.
-- The Feedback button now actually works. Click it on any page, type your message, and it goes straight to the developer. Logged-in submissions include your character name; logged-out submissions land anonymously.
-- Added a Legal page describing what the site records about your visits and the EVE Online third-party developer notice. Linked from the footer.
-- Added a BETA banner at the top of the changelog so first-time visitors know what kind of polish to expect.
-- Missing pages and unexpected crashes now render polite EVE-themed pages instead of bare stack traces.
-- Added a terminal-style search to the wormhole sites browser. Type filters like `c5/relic` or just `ore` to jump straight to a slice of the catalogue. Suggestions populate below the input as you type.
+- The Feedback button now works on any page — your message goes straight to the developer, with your character name included if you're logged in.
+- Added a Legal page (linked in the footer) describing what the site records and the EVE Online third-party developer notice.
+- Added a BETA banner at the top of the changelog so first-time visitors know what to expect.
+- Missing pages and crashes now render polite EVE-themed pages instead of bare stack traces.
+- Added a terminal-style search to the wormhole sites browser — type filters like `c5/relic` or `ore` to jump to a slice of the catalogue.
 - Added a global footer with the current version, a changelog link, and a feedback affordance.
 - Added this changelog page.
-- Added EVE SSO sign-in. Click "Log in with EVE" in the header to authenticate via the Fenris Creations (formerly CCP) servers.
-- Admins can now see at-a-glance usage metrics on the admin dashboard and open a full printable usage report with date-range controls.
+- Added EVE SSO sign-in — click "Log in with EVE" in the header to authenticate.
+- Admins can now see usage metrics on the dashboard and open a printable usage report with date-range controls.
 
 #### Changed
-- The market-price freshness indicator now lives in the top navigation bar instead of at the bottom of the wormhole sites page. Click it to refresh prices from any page once the 24h cache window has elapsed.
-- Type sizes across the site have been bumped slightly for readability.
+- The market-price freshness indicator moved to the top navigation bar; click it to refresh prices from any page once the 24h cache has elapsed.
+- Type sizes across the site were bumped slightly for readability.
 - The wormhole sites page now uses a two-column card layout with more breathing room per site.
-- The wormhole site detail page now shows the originating source tab and the last market-price refresh time above the card, and uses the full page width for a feature-single-site feel.
-- The landing page now shows the full LGI.tools lineup — Wormhole Sites is live; Industry Planner and Wormhole Roll Calculator are stubbed as Coming Soon.
+- The site detail page now shows the source tab and last price-refresh time above the card and uses the full page width.
+- The landing page now shows the full LGI.tools lineup — Wormhole Sites live, Industry Planner and Wormhole Roll Calculator marked Coming Soon.
 - The landing hero now reads "Lo-Gang Industries.tools" in a sharper typeface that pairs with the LGI.tools wordmark.
-- Improved readability across the site by brightening secondary text in footers, captions, and chrome elements.
-- Every link now glows green on hover for a more consistent interactive feel.
-- The LGI.tools wordmark now sits in the top-left of every page and clicks back to the landing.
+- Brightened secondary text in footers, captions, and chrome for readability.
+- Every link now glows green on hover.
+- The LGI.tools wordmark now sits top-left on every page and clicks back to the landing.
 
 ### v2.9.3 — 2026-05-24
 
 #### Changed
-- Wormhole site combat numbers (DPS, EHP, EWAR) are now computed live from EVE SDE data instead of from baked snapshots — silent upstream drift is caught immediately.
+- Wormhole site combat numbers (DPS, EHP, EWAR) are now computed live from EVE SDE data instead of baked snapshots, so upstream changes are caught immediately.
 
 ### v2.9.1 — 2026-05-23
 
 #### Added
-- Added the wormhole sites browser. Browse every wormhole site with filters by class and type; expand any site for waves, NPCs, EWAR, and resource values.
+- Added the wormhole sites browser: browse every site with filters by class and type, and expand any site for waves, NPCs, EWAR, and resource values.
 - Site detail URLs are now shareable — click any site card and the URL updates to `/sites/<id>`.
 
 #### Changed
-- Wormhole site resource values now overlay live Jita prices. The refresh button at the bottom of the sites page pulls fresh prices (24h cache).
+- Wormhole site resource values now overlay live Jita prices, refreshed from the button at the bottom of the page (24h cache).
 - Combat and hack sites now show killing-wave ISK as their primary value.

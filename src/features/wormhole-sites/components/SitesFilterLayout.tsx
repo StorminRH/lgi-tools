@@ -90,7 +90,7 @@ export function SitesFilterLayout({
         title="Wormhole Sites"
         meta={
           <>
-            <span>
+            <span aria-live="polite">
               <b className="text-name font-semibold">{filteredCount}</b> of {total} sites
             </span>
             <span>
@@ -104,13 +104,14 @@ export function SitesFilterLayout({
         <div className="sites-rail-layout">
           <aside className="sites-rail-pane">
             <div className="sites-rail-groups">
-              <div>
+              <div role="group" aria-label="Filter by class">
                 <span className="sites-fl">Class</span>
                 <div className="sites-cls">
                   {CLASS_CHIPS.map((c) => (
                     <button
                       key={c}
                       type="button"
+                      aria-pressed={cls.includes(c)}
                       className={`sites-chip ${c.toLowerCase()}${cls.includes(c) ? ' on' : ''}`}
                       onClick={() => setCls(toggle(cls, c))}
                     >
@@ -120,13 +121,14 @@ export function SitesFilterLayout({
                 </div>
               </div>
 
-              <div>
+              <div role="group" aria-label="Filter by site type">
                 <span className="sites-fl">Type</span>
                 <div className="sites-types">
                   {TYPE_ROWS.map((t) => (
                     <button
                       key={t}
                       type="button"
+                      aria-pressed={types.includes(t)}
                       className={`sites-type ${t}${types.includes(t) ? ' on' : ''}`}
                       onClick={() => setTypes(toggle(types, t))}
                     >
@@ -151,6 +153,7 @@ export function SitesFilterLayout({
                   <button
                     key={v}
                     type="button"
+                    aria-pressed={view === v}
                     onClick={() => setView(v)}
                     className={`font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ${
                       view === v ? 'text-isk bg-pill-green-bg' : 'text-muted hover:text-name'
