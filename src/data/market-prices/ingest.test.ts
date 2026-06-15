@@ -88,4 +88,26 @@ describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', 
     expect(db.insert).not.toHaveBeenCalled();
     expect(summary).toMatchObject({ requested: 0, fetched: 0, written: 0, budgetExhausted: false });
   });
+
+  // Regression guard: a full-set refresh (~6k types × 12 cols) once sent a
+  // single insert over Postgres's 65,535 bind-parameter limit. persistPrices
+  // now chunks at 1,000 rows; verify a large batch splits into ≤1,000-row
+  // inserts and still reports every row written.
+  it('chunks a large batch into ≤1,000-row inserts', async () => {
+    const db = fakeDb();
+    const rows = Array.from({ length: 2500 }, (_, i) => row(i + 1, 'esi'));
+    const summary = await persistPrices(db as never, rows);
+    expect(db.insert).toHaveBeenCalledTimes(3); // 1000 + 1000 + 500
+    expect(summary.written).toBe(2500);
+  });
+
+  it('writes a ≤1,000-row batch in a single insert', async () => {
+    const db = fakeDb();
+    const summary = await persistPrices(
+      db as never,
+      Array.from({ length: 1000 }, (_, i) => row(i + 1, 'esi')),
+    );
+    expect(db.insert).toHaveBeenCalledTimes(1);
+    expect(summary.written).toBe(1000);
+  });
 });
