@@ -24,7 +24,7 @@ export type ChangelogEntry = {
   groups: ChangelogGroup[];
 };
 
-// `### v3.7.0 — 2026-06-14` — the version (with an optional leading `v`) and an
+// `### v3.6.4 — 2026-06-14` — the version (with an optional leading `v`) and an
 // ISO date, separated by an em-dash or hyphen.
 const ENTRY_HEADING = /^###\s+v?([\d.]+)\s+[—-]\s+(\d{4}-\d{2}-\d{2})\s*$/;
 const GROUP_HEADING = /^####\s+(Added|Changed|Fixed|Removed)\s*$/;

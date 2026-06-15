@@ -5,7 +5,7 @@ changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded — see the SCRATCHPAD for the full
 forensic record.
 
-### v3.7.0 — 2026-06-14
+### v3.6.4 — 2026-06-14
 
 #### Added
 - The Industry Planner landing was rebuilt: a typed search prompt, your recent and favorite blueprints side by side, and a live table of your active industry jobs with EVE-blue progress bars and completion times.

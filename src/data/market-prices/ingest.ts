@@ -101,25 +101,42 @@ export async function persistPrices(
     source: r.source,
   }));
 
-  await db
-    .insert(marketPrices)
-    .values(rows)
-    .onConflictDoUpdate({
-      target: marketPrices.typeId,
-      set: {
-        bestBuy: excluded('best_buy'),
-        bestSell: excluded('best_sell'),
-        pct5Buy: excluded('pct5_buy'),
-        pct5Sell: excluded('pct5_sell'),
-        buyVolume: excluded('buy_volume'),
-        sellVolume: excluded('sell_volume'),
-        buyDepth: excluded('buy_depth'),
-        sellDepth: excluded('sell_depth'),
-        updatedAt: excluded('updated_at'),
-        staleAfter: excluded('stale_after'),
-        source: excluded('source'),
-      },
-    });
+  // Chunked upsert: 12 columns × the full ~6,000-type tracked set would push a
+  // single multi-row insert past Postgres's 65,535 bind-parameter ceiling — the
+  // two depth columns added in migration 0022 are what crossed it (10 cols used
+  // to fit). Batch like seedTrackedTypes (sde-pipeline.ts): 1,000 rows × 12 cols
+  // = 12k params per call. A ≤1,000-row refresh (the on-view path) stays one insert.
+  //
+  // Splitting the insert trades whole-batch atomicity for staying under the wire
+  // limit, which is safe here: each row is an independent, idempotent price with
+  // its own staleness, so a mid-loop failure that persists earlier batches just
+  // leaves some rows fresher than others (the normal steady state) and self-heals
+  // on the next refresh. A surrounding transaction is NOT an option — the same
+  // upsert runs on the neon-http request path (on-view refresh), and that driver
+  // has no interactive-transaction support. On failure the await rejects and this
+  // function throws before `summary.written` is set, so no caller reads a partial count.
+  const BATCH = 1000;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    await db
+      .insert(marketPrices)
+      .values(rows.slice(i, i + BATCH))
+      .onConflictDoUpdate({
+        target: marketPrices.typeId,
+        set: {
+          bestBuy: excluded('best_buy'),
+          bestSell: excluded('best_sell'),
+          pct5Buy: excluded('pct5_buy'),
+          pct5Sell: excluded('pct5_sell'),
+          buyVolume: excluded('buy_volume'),
+          sellVolume: excluded('sell_volume'),
+          buyDepth: excluded('buy_depth'),
+          sellDepth: excluded('sell_depth'),
+          updatedAt: excluded('updated_at'),
+          staleAfter: excluded('stale_after'),
+          source: excluded('source'),
+        },
+      });
+  }
 
   summary.written = rows.length;
   summary.durationMs = Date.now() - start;

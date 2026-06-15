@@ -27,6 +27,28 @@ Next.js (current — see warning above) · TypeScript (strict) · Drizzle ORM ·
 
 CI (`.github/workflows/test.yml`) gates **`typecheck`, `lint`, `test`, `knip`** on every PR. `assert:routes` (route render-mode classification) gates at build time inside `build:vercel` (the chain `vercel-build` invokes), not CI — it needs a full `next build`, so `pnpm verify` intentionally omits it.
 
+## Local development database
+
+`next dev` runs against a **local Docker Postgres**, not Neon — the request path switches from the neon-http driver to TCP `postgres-js` when `LOCAL_DB_DRIVER=postgres-js` is set (`src/db/index.ts`; neon-http can't reach a plain local Postgres). Required `.env.local` lines:
+
+- `LOCAL_DB_DRIVER=postgres-js`
+- `DATABASE_URL=postgres://lgi:lgi@localhost:5433/lgi_tools`
+
+Setup from a fresh clone — and **re-run `db:migrate` after pulling any branch that adds a migration**:
+
+```bash
+docker compose up -d        # starts lgi-tools-postgres on :5433
+pnpm db:migrate             # apply all drizzle migrations to the local DB
+pnpm db:refresh-sde         # full SDE pipeline: ingest + RESOLVE trees + seed tracked types
+pnpm db:refresh-prices      # market_prices incl. buy_depth/sell_depth, fetched from ESI
+```
+
+Use **`db:refresh-sde`**, not `db:ingest:sde`. The latter runs only the raw ingest, whose `TRUNCATE … CASCADE` clears `blueprint_trees` + `blueprint_flat_materials` but does **not** rebuild them — leaving the planner cascade empty ("no resolved inputs"). `db:refresh-sde` runs the whole pipeline (ingest → tree resolver → tracked-type price seed), the same `runSdePipeline` the deploy gate uses. The truncate touches only SDE tables (nothing FK-references `market_prices` or the wormhole-sites tables), so prices and the site catalogue survive a re-run.
+
+A stale local schema makes request-path reads throw `column/relation … does not exist`, which the page surfaces as a **500** — the failure this flow fixes (e.g. `/sites`, `/sites/[id]`, and the planner all 500 when the `market_prices` depth columns or `market_history` table are missing). **Re-run `db:migrate` after pulling any branch that adds a migration.**
+
+ESI works locally: the rate limiter and ESI budget gate **disable in dev** when Upstash env vars are absent (`src/lib/rate-limit.ts`), so `db:refresh-prices` populates real prices + order-book depth, and the planner's on-view refresh populates `market_history` the first time you open a blueprint (its Market Score then computes on the next load). The only tables that stay empty locally are `industry_cost_indices` / `adjusted_prices` (written solely by the daily industry-indices cron), so the build-location picker shows **gross**, not net, margin — which renders without error. (A local `next build`, distinct from `next dev`, additionally needs `DATABASE_URL` **exported** in the shell — see the Lazy DB client invariant.)
+
 ## Project Structure
 
 - `src/features/<name>/` — self-contained feature slices: `components/` plus `schema.ts`/`queries.ts`/`types.ts` as the slice needs (not every slice has all four). Two features never import from each other.
@@ -98,7 +120,7 @@ The live per-character platform (3.4.3–3.4.10): Convex is the reactive store, 
 
 **CHANGELOG.md** — after every session, decide whether the work is user-facing. Only log features and significant platform changes; skip internal cleanup, CI, refactors, and intra-session iteration. The test: *would a wormhole pilot loading the site notice this?* If no, leave it out.
 
-Format is strict (the parser, `src/features/changelog/parse.ts`, is intentionally narrow). Since 3.7.0 the changelog is a **version timeline**: one entry per release, each tagging its changes by type.
+Format is strict (the parser, `src/features/changelog/parse.ts`, is intentionally narrow). Since 3.6.4 the changelog is a **version timeline**: one entry per release, each tagging its changes by type.
 
 ```
 ### v<version> — YYYY-MM-DD
