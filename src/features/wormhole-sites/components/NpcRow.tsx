@@ -1,16 +1,15 @@
+import { cn } from '@/components/ui/cn';
 import { Chip } from '@/components/ui/chip';
 import { EntityRow, Stat } from '@/components/ui/row';
+import { toneTextClass } from '@/components/ui/tones';
 import type { Npc } from '../types';
 import {
-  DPS_TIER_CLASS,
   EWAR_LABEL,
+  EWAR_ORDER,
   EWAR_TONE,
   TRIGGER_CHIP_TONE,
-  dpsTier,
   type EwarKey,
 } from './wormhole-styles';
-
-const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
 
 function npcEwarKeys(npc: Npc): EwarKey[] {
   const m: Record<EwarKey, number | null> = {
@@ -22,9 +21,8 @@ function npcEwarKeys(npc: Npc): EwarKey[] {
   return EWAR_ORDER.filter((k) => (m[k] ?? 0) !== 0);
 }
 
-export function NpcRow({ npc }: { npc: Npc }) {
+export function NpcRow({ npc, emphasizeDps = false }: { npc: Npc; emphasizeDps?: boolean }) {
   const ewars = npcEwarKeys(npc);
-  const tier = dpsTier(npc.dps);
   const chipNodes =
     ewars.length > 0 || npc.triggerLabel ? (
       <>
@@ -42,10 +40,13 @@ export function NpcRow({ npc }: { npc: Npc }) {
       leading={<>{npc.quantity}×</>}
       name={npc.sleeperName}
       chips={chipNodes}
+      inlineChips
       trailing={
         <>
           {npc.dps != null && (
-            <Stat className={DPS_TIER_CLASS[tier]}>{npc.dps} DPS</Stat>
+            <Stat className={cn(toneTextClass('red'), emphasizeDps && 'text-[12px] font-semibold')}>
+              {npc.dps} DPS
+            </Stat>
           )}
         </>
       }

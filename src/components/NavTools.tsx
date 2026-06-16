@@ -8,9 +8,8 @@ import { cn } from '@/components/ui/cn';
 
 // The cross-tool navigation strip. Lives between the global search input
 // and the right-side login cluster in `AppHeader`. SOON tools render as
-// inert spans. When `shrunk` is true (the parent's global search is
-// focused), every label collapses to its 2-letter abbreviation so the
-// expanded search bar can claim the room.
+// inert spans. Below ~1380px each label collapses to its 2-letter
+// abbreviation via a CSS-only media query so the strip still fits.
 //
 // The active-tab highlight depends on the current pathname, which is
 // request-time data under Cache Components (it can't be known when the header
@@ -18,14 +17,9 @@ import { cn } from '@/components/ui/cn';
 // itself is in the static shell (the Suspense fallback renders it with nothing
 // highlighted) and the active highlight streams in at request time.
 
-function NavStrip({ shrunk, pathname }: { shrunk: boolean; pathname: string | null }) {
+function NavStrip({ pathname }: { pathname: string | null }) {
   return (
-    <nav
-      className={cn(
-        'nav-tools ml-auto border-l border-border-soft flex items-stretch',
-        shrunk && 'shrunk',
-      )}
-    >
+    <nav className="nav-tools ml-auto border-l border-border-soft flex items-stretch">
       {TOOLS.filter((tool) => !tool.navHidden).map((tool) => {
         if (tool.href === null || tool.navDisabled) {
           const title = tool.href === null ? `${tool.label} — coming soon` : tool.label;
@@ -56,15 +50,15 @@ function NavStrip({ shrunk, pathname }: { shrunk: boolean; pathname: string | nu
   );
 }
 
-function ActiveNavStrip({ shrunk }: { shrunk: boolean }) {
+function ActiveNavStrip() {
   const pathname = usePathname();
-  return <NavStrip shrunk={shrunk} pathname={pathname} />;
+  return <NavStrip pathname={pathname} />;
 }
 
-export function NavTools({ shrunk = false }: { shrunk?: boolean }) {
+export function NavTools() {
   return (
-    <Suspense fallback={<NavStrip shrunk={shrunk} pathname={null} />}>
-      <ActiveNavStrip shrunk={shrunk} />
+    <Suspense fallback={<NavStrip pathname={null} />}>
+      <ActiveNavStrip />
     </Suspense>
   );
 }

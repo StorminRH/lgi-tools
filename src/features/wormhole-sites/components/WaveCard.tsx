@@ -20,6 +20,7 @@ export function WaveCard({
 }) {
   const tier = dpsTier(wave.dpsTotal);
   const displayLabel = label ?? wave.waveLabel;
+  const topNpcDps = Math.max(0, ...wave.npcs.map((n) => n.dps ?? 0));
   return (
     <Collapsible
       defaultOpen={defaultOpen}
@@ -44,7 +45,11 @@ export function WaveCard({
         />
       )}
       {wave.npcs.map((npc) => (
-        <NpcRow key={npc.id} npc={npc} />
+        <NpcRow
+          key={npc.id}
+          npc={npc}
+          emphasizeDps={npc.dps != null && npc.dps === topNpcDps && topNpcDps > 0}
+        />
       ))}
     </Collapsible>
   );

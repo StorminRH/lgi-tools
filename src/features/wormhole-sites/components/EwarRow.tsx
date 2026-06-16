@@ -1,13 +1,11 @@
 import { Chip } from '@/components/ui/chip';
 import { LabeledChipRow } from '@/components/ui/row';
-import { EWAR_LABEL, EWAR_TONE, type EwarKey } from './wormhole-styles';
+import { EWAR_LABEL, EWAR_ORDER, EWAR_TONE, type EwarKey } from './wormhole-styles';
 
 /**
- * The four ewar fields on a Wave row are nullable integers (count of
- * NPCs with that ewar). Treat anything > 0 as "present" and render a
- * chip for it. Order matches the prototype: WEB, SCRAM, NEUT, RR.
+ * The four ewar fields on a Wave row are nullable integer NPC-counts; treat
+ * anything > 0 as "present" and render a chip for it.
  */
-const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
 
 export function EwarRow({
   web,

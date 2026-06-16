@@ -1,10 +1,10 @@
 'use client';
 
-// Client-side coordinator for the header's interactive slots. Owns the
-// cross-cutting state that both GlobalSearch and NavTools care about:
-// whether the search input is currently focused. When `searchActive` is
-// true, NavTools collapses to its 2-letter abbreviations to make room
-// for the expanded 440px search bar.
+// Client-side coordinator for the header's interactive slots. Owns one piece
+// of cross-cutting state: whether the global search is active (focused with
+// its results dropdown open). GlobalSearch reads it to show the dropdown and
+// its active styling — the search bar is a fixed width, so nothing else
+// depends on it.
 //
 // AppHeader (the Server Component) renders the wordmark and the
 // async-derived site index inside the <header> element; this shell owns the
@@ -41,7 +41,7 @@ export function AppHeaderShell({
         onActiveChange={setSearchActive}
         siteIndex={siteIndex}
       />
-      <NavTools shrunk={searchActive} />
+      <NavTools />
       <div className="price-freshness-slot flex items-stretch shrink-0 border-l border-border">
         <PriceFreshness initialLastUpdatedAt={initialLastUpdatedAt} />
       </div>
