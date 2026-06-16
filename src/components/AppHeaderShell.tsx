@@ -41,7 +41,7 @@ export function AppHeaderShell({
         onActiveChange={setSearchActive}
         siteIndex={siteIndex}
       />
-      <NavTools shrunk={searchActive} />
+      <NavTools />
       <div className="price-freshness-slot flex items-stretch shrink-0 border-l border-border">
         <PriceFreshness initialLastUpdatedAt={initialLastUpdatedAt} />
       </div>

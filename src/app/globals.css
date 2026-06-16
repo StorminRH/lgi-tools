@@ -488,6 +488,7 @@ a:hover {
   background: var(--color-section);
   border: 1px solid var(--color-border);
   border-radius: 5px;
+  font-family: var(--font-body);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .sites-card:hover {
@@ -504,7 +505,7 @@ a:hover {
 }
 .sites-card-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .sites-card-name {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 700;
   font-size: 16.5px;
   line-height: 1.15;
@@ -521,7 +522,7 @@ a:hover {
 }
 .sites-card-val i { font-style: normal; font-size: 9px; color: var(--color-muted); margin-left: 2px; }
 .sites-card-sub { font-size: 10.5px; color: var(--color-muted); letter-spacing: 0.04em; }
-.sites-card-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+.sites-card-pills { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
 
 @media (max-width: 900px) {
   .sites-rail-layout { grid-template-columns: 1fr; }
@@ -832,6 +833,11 @@ a:hover {
 .nav-host {
   display: flex;
   align-items: stretch;
+  /* Inset the search unit from the bar's edges so it reads as a contained
+   * input box rather than a full-bleed cell. The margin lives here (not on
+   * .nav-search) so the absolutely-positioned dropdown, which anchors to
+   * .nav-host, stays attached to the inset box. */
+  margin: 8px 0 8px 12px;
 }
 
 .nav-search {
@@ -840,13 +846,13 @@ a:hover {
   gap: 8px;
   padding: 0 14px;
   background: #0c1018;
-  border-right: 1px solid var(--color-border-soft);
-  transition: width 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-  width: 420px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+  width: 480px;
   flex-shrink: 0;
 }
 .nav-search.active {
-  width: 660px;
   background: #0e1320;
   box-shadow:
     inset 0 0 0 1px var(--color-isk-dim),
@@ -1073,8 +1079,9 @@ a:hover {
     order: 99;
     flex-basis: 100%;
     border-top: 1px solid var(--color-border);
+    margin: 0;
   }
-  .app-header .nav-search { width: 100% !important; border-right: none; }
+  .app-header .nav-search { width: 100% !important; border: none; border-radius: 0; }
 }
 
 /* /sites card grid: 2-column at rest, single column under 900px (matching the
@@ -1094,9 +1101,9 @@ a:hover {
   position: absolute;
   top: 100%;
   left: 0;
-  /* Match the expanded .nav-search width — the dropdown only appears when
-   * the search is active, so the parent .nav-host's intrinsic width is
-   * always the active search width. */
+  /* Track the .nav-search width — the dropdown only appears when the search
+   * is active, so the parent .nav-host's intrinsic width is the search-box
+   * width (fixed; the box no longer expands on focus). */
   width: 100%;
   margin-top: 1px;
   background: var(--color-bg);
@@ -1129,7 +1136,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 16px;
+  padding: 9px 16px;
   width: 100%;
   background: transparent;
   border: none;
@@ -1185,7 +1192,7 @@ a:hover {
 
 .dd-name {
   flex: 1;
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   font-weight: 600;
   font-size: 13px;
   color: var(--color-name);

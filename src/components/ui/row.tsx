@@ -15,6 +15,7 @@ export function EntityRow({
   trailing,
   className,
   colsClass,
+  inlineChips = false,
 }: {
   leading?: ReactNode;
   name: ReactNode;
@@ -22,11 +23,14 @@ export function EntityRow({
   trailing?: ReactNode;
   className?: string;
   colsClass?: string;
+  /** Render chips beside the name instead of in their own trailing column, so
+   *  the trailing stats keep a consistent right-aligned column across rows. */
+  inlineChips?: boolean;
 }) {
-  const defaultColsClass =
-    chips !== undefined
-      ? 'grid-cols-[26px_minmax(0,1fr)_auto_auto]'
-      : 'grid-cols-[26px_minmax(0,1fr)_auto]';
+  const hasChipColumn = chips !== undefined && !inlineChips;
+  const defaultColsClass = hasChipColumn
+    ? 'grid-cols-[26px_minmax(0,1fr)_auto_auto]'
+    : 'grid-cols-[26px_minmax(0,1fr)_auto]';
   return (
     <div
       className={cn(
@@ -36,11 +40,18 @@ export function EntityRow({
       )}
     >
       {leading !== undefined && <span className="text-[10px] text-muted">{leading}</span>}
-      <span className="text-name truncate leading-[1.5]">{name}</span>
+      {inlineChips && chips !== undefined ? (
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="text-name truncate leading-[1.5]">{name}</span>
+          <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
+        </span>
+      ) : (
+        <span className="text-name truncate leading-[1.5]">{name}</span>
+      )}
       {trailing !== undefined && (
         <span className="flex items-center gap-2 shrink-0 justify-end">{trailing}</span>
       )}
-      {chips !== undefined && (
+      {hasChipColumn && (
         <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
       )}
     </div>

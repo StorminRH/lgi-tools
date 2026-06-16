@@ -3,7 +3,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
 import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
-import { EwarRow } from './EwarRow';
 import { SiteResourcesLive } from './SiteResourcesLive';
 import { WaveCard } from './WaveCard';
 
@@ -20,17 +19,8 @@ export function SiteDetailsBody({ site }: { site: SiteDetail }) {
   const isGas = site.siteType === 'gas';
   const isWaveDriven = isCombat || isHackSite;
 
-  const siteEwar = {
-    web:   site.waves.reduce((n, w) => n + (w.ewWeb   ?? 0), 0),
-    scram: site.waves.reduce((n, w) => n + (w.ewScram ?? 0), 0),
-    neut:  site.waves.reduce((n, w) => n + (w.ewNeut  ?? 0), 0),
-    rr:    site.waves.reduce((n, w) => n + (w.ewRrep  ?? 0), 0),
-  };
-
   return (
     <>
-      <EwarRow web={siteEwar.web} scram={siteEwar.scram} neut={siteEwar.neut} rr={siteEwar.rr} />
-
       {isWaveDriven &&
         site.waves.map((wave) => (
           <WaveCard key={wave.id} wave={wave} defaultOpen={true} />

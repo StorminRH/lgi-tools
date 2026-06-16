@@ -5,7 +5,14 @@ import { displayableResources } from '../resource-display';
 import type { SiteDetail, SiteResource } from '../types';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteHeaderTotal, SiteLiveProvider } from './SiteResourcesLive';
-import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
+import {
+  CLASS_TONE,
+  EWAR_LABEL,
+  EWAR_TONE,
+  SITE_TYPE_LABEL,
+  SITE_TYPE_TONE,
+  type EwarKey,
+} from './wormhole-styles';
 
 // Peak incoming DPS (the hardest single wave) and the total EHP to clear the
 // whole site — the at-a-glance combat read for the card sub-line. Both derive
@@ -13,13 +20,28 @@ import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
 function combatSubLine(site: SiteDetail): string {
   const peakDps = site.waves.reduce((m, w) => Math.max(m, w.dpsTotal), 0);
   const totalEhp = site.waves.reduce((n, w) => n + w.ehpTotal, 0);
-  return `DPS ${peakDps.toLocaleString('en-US')} · EHP ${Math.round(totalEhp / 1000).toLocaleString('en-US')}k — SDE-computed`;
+  return `DPS ${peakDps.toLocaleString('en-US')} · EHP ${Math.round(totalEhp / 1000).toLocaleString('en-US')}k`;
 }
 
 // Ore / gas / hackable-container names, for non-combat sites.
 function resourceSubLine(resources: SiteResource[]): string | null {
   const names = resources.map((r) => r.resourceName).filter(Boolean);
   return names.length > 0 ? names.join(' · ') : null;
+}
+
+// EWAR fielded anywhere across the site's waves → the chips shown in the
+// collapsed card preview alongside the class + type pills. Summed across
+// waves; a type appears if any wave fields it. Order: WEB, SCRAM, NEUT, RR.
+const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
+
+function activeSiteEwar(site: SiteDetail): EwarKey[] {
+  const counts: Record<EwarKey, number> = {
+    web:   site.waves.reduce((n, w) => n + (w.ewWeb   ?? 0), 0),
+    scram: site.waves.reduce((n, w) => n + (w.ewScram ?? 0), 0),
+    neut:  site.waves.reduce((n, w) => n + (w.ewNeut  ?? 0), 0),
+    rr:    site.waves.reduce((n, w) => n + (w.ewRrep  ?? 0), 0),
+  };
+  return EWAR_ORDER.filter((k) => counts[k] !== 0);
 }
 
 /**
@@ -43,6 +65,7 @@ export function SiteCard({
 
   const subLine = isCombat ? combatSubLine(site) : resourceSubLine(liveResources);
   const waveValue = formatIsk(site.blueLootIsk);
+  const ewarKeys = activeSiteEwar(site);
 
   const classPill = site.wormholeClass ? (
     <Pill tone={CLASS_TONE[site.wormholeClass]}>{site.wormholeClass}</Pill>
@@ -75,6 +98,11 @@ export function SiteCard({
             <div className="sites-card-pills">
               {classPill}
               <Pill tone={SITE_TYPE_TONE[site.siteType]}>{SITE_TYPE_LABEL[site.siteType]}</Pill>
+              {ewarKeys.map((k) => (
+                <Pill key={k} tone={EWAR_TONE[k]}>
+                  {EWAR_LABEL[k]}
+                </Pill>
+              ))}
             </div>
           </summary>
 

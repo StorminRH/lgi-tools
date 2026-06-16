@@ -93,9 +93,9 @@ export default function Home({
         <header className="flex flex-col items-center text-center gap-5 max-w-[680px] px-6 pt-20 pb-16">
           <div className="flex flex-col items-center gap-1.5">
             <h1 className="hero-wordmark font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
-              <span className="text-isk">[ </span>
+              <span className="text-isk mr-[0.2em]">[</span>
               Lo-Gang
-              <span className="text-isk"> ]</span>
+              <span className="text-isk ml-[0.2em]">]</span>
             </h1>
             <div className="font-jb font-normal text-[clamp(14px,2.4vw,24px)] tracking-[0.28em] uppercase leading-none">
               <span className="text-muted">Industries</span>
