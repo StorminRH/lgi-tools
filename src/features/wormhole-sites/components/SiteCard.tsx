@@ -3,6 +3,7 @@ import { formatClassRange, gasClassRange } from '../gas-classes';
 import { formatIsk } from '../format';
 import { displayableResources } from '../resource-display';
 import type { SiteDetail, SiteResource } from '../types';
+import { LazySiteDetails } from './LazySiteDetails';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteHeaderTotal, SiteLiveProvider } from './SiteResourcesLive';
 import {
@@ -105,7 +106,11 @@ export function SiteCard({
             </div>
           </summary>
 
-          <SiteDetailsBody site={site} />
+          {defaultOpen ? (
+            <SiteDetailsBody site={site} />
+          ) : (
+            <LazySiteDetails site={site} />
+          )}
         </details>
       </SiteLiveProvider>
     </div>
