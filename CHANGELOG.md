@@ -4,6 +4,13 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.8 — 2026-06-15
+
+#### Changed
+- Refined the global search bar: it now sits as an inset box and drops its results straight down at a fixed width instead of widening on focus, with a cleaner monospace, terminal-style results list.
+- Wormhole Sites cards are easier to read at a glance — each card now shows its electronic-warfare types (web, scram, neut, remote-rep) next to its class and type, and the cards use a more readable font.
+- Site combat breakdowns now show each enemy's damage in red, with the highest-damage enemy in every wave emphasized.
+
 ### v3.6.7 — 2026-06-15
 
 #### Fixed
