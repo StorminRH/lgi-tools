@@ -3,8 +3,8 @@
 // source/queries (and their drizzle/postgres deps) into the client bundle.
 
 // The Forge region — Jita. Re-declared locally rather than imported from
-// market-prices: data slices never import each other (eslint
-// boundaries/dependencies). The shared value is CCP's region ID, not app state.
+// market-prices: data slices never import each other (fallow boundary rules,
+// .fallowrc.json). The shared value is CCP's region ID, not app state.
 export const THE_FORGE_REGION_ID = 10000002;
 
 // How many trailing days of daily history to retain per type. ESI serves a

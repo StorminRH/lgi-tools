@@ -1,7 +1,6 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
-import boundaries from "eslint-plugin-boundaries";
 
 // Shared `no-restricted-syntax` selector sets. Factored out because flat config
 // REPLACES (does not merge) a rule's options for each matching file — so a
@@ -139,128 +138,6 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Architectural boundary enforcement — turns the import-graph invariants in
-  // CLAUDE.md ("Architecture Invariants") into lint errors. Mechanical edges
-  // only; the design judgment of "is this a good primitive" stays a review
-  // concern. See docs / SCRATCHPAD for the encoded exceptions.
-  {
-    files: ["src/**/*.{ts,tsx,mts}"],
-    plugins: { boundaries },
-    settings: {
-      // boundaries resolves imported modules through its own copy of
-      // eslint-module-utils, so it needs the TS resolver pointed at tsconfig
-      // to follow the `@/*` path alias. Without this every aliased import is
-      // "unresolved" and the rules silently pass on everything.
-      "import/resolver": {
-        typescript: { alwaysTryTypes: true, project: "./tsconfig.json" },
-      },
-      // Order matters: most-specific first. auth's *shared surface* (the
-      // Session type + the characters table + the API wire contracts) is
-      // de-facto platform infra, imported by other features and by data slices
-      // (incl. a real FK from telemetry, and the command palette's pinned
-      // Better Auth endpoints). It is classified apart from the rest of the
-      // auth feature, whose UI/session/query surface stays feature-local and
-      // non-importable.
-      "boundaries/elements": [
-        {
-          type: "shared-auth-surface",
-          mode: "full",
-          pattern: [
-            "src/features/auth/types.ts",
-            "src/features/auth/schema.ts",
-            "src/features/auth/api-contract.ts",
-          ],
-        },
-        { type: "ui", mode: "folder", pattern: "src/components/ui" },
-        {
-          type: "feature",
-          mode: "folder",
-          pattern: "src/features/*",
-          capture: ["featureName"],
-        },
-        {
-          type: "data",
-          mode: "folder",
-          pattern: "src/data/*",
-          capture: ["sliceName"],
-        },
-        // src/lib (incl. src/lib/esi) is one element: the cross-cutting
-        // helpers importable from anywhere. Same-element imports (lib → lib)
-        // are internal to the plugin, so no rule needs to grant them.
-        { type: "lib", mode: "folder", pattern: "src/lib" },
-      ],
-    },
-    rules: {
-      "boundaries/dependencies": [
-        "error",
-        {
-          default: "disallow",
-          message:
-            "Architectural boundary violation. Allowed import directions: feature → {ui, data, lib, auth shared surface}; data → {lib, auth shared surface}; ui → {lib}; lib → {lib} only — lib never imports a slice. Features never import each other; data slices never import features; eve-data and market-prices stay isolated (compose from above, e.g. src/db/sde-pipeline.ts). See CLAUDE.md > Architecture Invariants.",
-          rules: [
-            // The shared surface's type file references its own schema file,
-            // and the API wire contracts type-import the lib fetch client
-            // (the plugin checks type-only imports too).
-            {
-              from: { type: "shared-auth-surface" },
-              allow: [
-                { to: { type: "shared-auth-surface" } },
-                { to: { type: "lib" } },
-              ],
-            },
-            // Feature slices may use UI primitives, data layers, lib helpers,
-            // and auth's shared surface — never another feature. Cross-feature
-            // imports fall through to the default `disallow`; same-feature
-            // imports are internal and ignored.
-            {
-              from: { type: "feature" },
-              allow: [
-                { to: { type: "ui" } },
-                { to: { type: "data" } },
-                { to: { type: "lib" } },
-                { to: { type: "shared-auth-surface" } },
-              ],
-            },
-            // Data slices may use lib helpers and auth's shared surface —
-            // nothing else cross-layer. No `feature` in the allow-list ⇒ data
-            // ↛ features. No general data → data ⇒ eve-data ⊥ market-prices
-            // holds automatically. (The search engine lives in the unclassified
-            // src/search/ layer, so data sources importing its types/matcher
-            // trip no rule and need no exception — the wiring manifest composes
-            // them from above.)
-            {
-              from: { type: "data" },
-              allow: [
-                { to: { type: "lib" } },
-                { to: { type: "shared-auth-surface" } },
-              ],
-            },
-            // npc-stats reads SDE attributes from eve-data — directed layering,
-            // not the forbidden eve-data ⊥ market-prices sibling pair. Listed
-            // last so it grants the eve-data edge on top of the general data rule.
-            {
-              from: { type: "data", captured: { sliceName: "npc-stats" } },
-              allow: [
-                { to: { type: "data", captured: { sliceName: "eve-data" } } },
-              ],
-            },
-            // UI primitives are domain-agnostic: lib's cross-cutting helpers
-            // are the only cross-layer import they get; no rule grants them
-            // feature / data / auth-surface imports, so the default `disallow`
-            // forbids those.
-            {
-              from: { type: "ui" },
-              allow: [{ to: { type: "lib" } }],
-            },
-            // No rule has `from: lib` — src/lib never imports a feature, data,
-            // or ui module (a helper that needs slice knowledge belongs in the
-            // slice). lib → lib is same-element, internal, never checked.
-          ],
-        },
-      ],
-    },
-  },
-
   // CSP + color tokens: two families of `no-restricted-syntax` bans share one
   // block (the rule's options REPLACE across matching files, so they can't be
   // split into two `**/*.{ts,tsx}` objects without one wiping the other).
