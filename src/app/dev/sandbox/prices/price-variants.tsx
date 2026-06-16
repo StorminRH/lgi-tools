@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
-import { formatIsk } from '@/lib/format';
+import { formatIsk } from '@/lib/format/isk';
 import { MOCK_PRICE } from '../_shared/mock-build';
 import { usePriceCycle, useRafProgress } from '../_shared/use-price-cycle';
 

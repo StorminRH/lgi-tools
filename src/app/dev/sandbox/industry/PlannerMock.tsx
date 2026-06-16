@@ -8,7 +8,8 @@ import { TypeIcon } from '@/components/ui/type-icon';
 import { BuildFlow } from '@/features/industry-planner/components/BuildFlow';
 import { activityLabel, marginToneClass } from '@/features/industry-planner/industry-styles';
 import type { BlueprintStructure } from '@/features/industry-planner/types';
-import { formatIsk, formatPct, formatQuantity } from '@/lib/format';
+import { formatIsk } from '@/lib/format/isk';
+import { formatPct, formatQuantity } from '@/lib/format/number';
 
 // A mockup of the real /industry/[id] planner page, so the hybrid build view can
 // be seen in context (hero + page chrome). The hero mirrors BlueprintHero but

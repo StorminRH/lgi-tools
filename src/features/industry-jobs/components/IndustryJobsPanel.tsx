@@ -23,7 +23,7 @@ import { convexClient } from '@/data/convex/client';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
 import { typeNamesEndpoint, TYPE_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
 import { apiFetch } from '@/lib/api-client';
-import { formatRemaining } from '@/lib/format';
+import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { jobProgress, summarizeJobs } from '../job-state';
 import { JOB_STATUS_META, jobActivityLabel, syncErrorMeta } from '../industry-jobs-styles';

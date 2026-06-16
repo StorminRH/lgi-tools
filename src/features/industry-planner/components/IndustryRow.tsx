@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { initials } from '@/lib/format';
+import { initials } from '@/lib/format/names';
 
 // A recents/favorites row for the industry dashboard (handoff §5): a typographic
 // monogram (or a ★ for favorites) beside the name over an optional group

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { toneHex } from '@/components/ui/tones';
-import { formatQuantity } from '@/lib/format';
+import { formatQuantity } from '@/lib/format/number';
 import { consolidateBuild, type ConsolidatedItem, type ConsolidatedTier } from '../build-consolidate';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from '../types';
 
