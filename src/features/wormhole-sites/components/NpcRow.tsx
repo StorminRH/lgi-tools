@@ -5,12 +5,11 @@ import { toneTextClass } from '@/components/ui/tones';
 import type { Npc } from '../types';
 import {
   EWAR_LABEL,
+  EWAR_ORDER,
   EWAR_TONE,
   TRIGGER_CHIP_TONE,
   type EwarKey,
 } from './wormhole-styles';
-
-const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
 
 function npcEwarKeys(npc: Npc): EwarKey[] {
   const m: Record<EwarKey, number | null> = {

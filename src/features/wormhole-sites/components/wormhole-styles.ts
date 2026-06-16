@@ -51,6 +51,9 @@ export const EWAR_LABEL: Record<EwarKey, string> = {
   rr:    'RR',
 };
 
+/** Display order for EWAR chips/pills, matching the prototype: WEB, SCRAM, NEUT, RR. */
+export const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
+
 /** Trigger labels (free-text in DB) → trigger chip is always orange. */
 export const TRIGGER_CHIP_TONE: ChipTone = 'orange';
 

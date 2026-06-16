@@ -8,6 +8,7 @@ import { SiteHeaderTotal, SiteLiveProvider } from './SiteResourcesLive';
 import {
   CLASS_TONE,
   EWAR_LABEL,
+  EWAR_ORDER,
   EWAR_TONE,
   SITE_TYPE_LABEL,
   SITE_TYPE_TONE,
@@ -29,11 +30,9 @@ function resourceSubLine(resources: SiteResource[]): string | null {
   return names.length > 0 ? names.join(' · ') : null;
 }
 
-// EWAR fielded anywhere across the site's waves → the chips shown in the
+// EWAR fielded anywhere across the site's waves → the pills shown in the
 // collapsed card preview alongside the class + type pills. Summed across
-// waves; a type appears if any wave fields it. Order: WEB, SCRAM, NEUT, RR.
-const EWAR_ORDER: EwarKey[] = ['web', 'scram', 'neut', 'rr'];
-
+// waves; a type appears if any wave fields it.
 function activeSiteEwar(site: SiteDetail): EwarKey[] {
   const counts: Record<EwarKey, number> = {
     web:   site.waves.reduce((n, w) => n + (w.ewWeb   ?? 0), 0),
