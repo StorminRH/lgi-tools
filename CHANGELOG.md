@@ -4,6 +4,11 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.9 — 2026-06-15
+
+#### Changed
+- The Wormhole Sites page loads faster and lighter: each site's full enemy-wave breakdown now builds the moment you open that site (in either card or table view) rather than rendering all 69 sites' details up front. Expanding a site is still instant, and individual site pages are unchanged.
+
 ### v3.6.8 — 2026-06-15
 
 #### Changed

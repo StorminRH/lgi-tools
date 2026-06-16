@@ -8,7 +8,7 @@ import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type So
 import { displayableResources } from '../resource-display';
 import { siteClassSet } from '../site-filter';
 import type { SiteDetail } from '../types';
-import { SiteDetailsBody } from './SiteDetailsBody';
+import { LazySiteDetails } from './LazySiteDetails';
 import { SiteLiveProvider } from './SiteResourcesLive';
 import { CLASS_TONE, SITE_TYPE_LABEL, SITE_TYPE_TONE } from './wormhole-styles';
 
@@ -127,7 +127,7 @@ export function SitesTable({
             </summary>
             <SiteLiveProvider resources={displayableResources(row.resources)}>
               <div className="sites-table-expanded">
-                <SiteDetailsBody site={row} />
+                <LazySiteDetails site={row} />
               </div>
             </SiteLiveProvider>
           </details>
