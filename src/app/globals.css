@@ -943,15 +943,10 @@ a:hover {
 .nav-tool.soon { opacity: 0.4; cursor: default; }
 .nav-tool:last-child { border-right: none; }
 
-/* Abbreviation collapse when the global search is focused (.shrunk) — and the
- * 1500px floor below — tighten the cells and flip each .nav-tool's visible
- * span from its full label to its 2-letter abbreviation so the expanded
- * search bar gets room. The hairlines stay. */
+/* Full label by default; the ≤1380px floor below flips each .nav-tool's
+ * visible span to its 2-letter abbreviation so the strip still fits. */
 .nav-tool .full { display: inline; }
 .nav-tool .abbr { display: none; }
-.nav-tools.shrunk .nav-tool { padding: 0 10px; font-size: 10px; letter-spacing: 0.08em; }
-.nav-tools.shrunk .nav-tool .full { display: none; }
-.nav-tools.shrunk .nav-tool .abbr { display: inline; }
 
 /* ── Responsive defensive layer (v2.9.6) ───────────────────────────────
  * LGI.tools is desktop-first; this block is the Level-1 floor that keeps
@@ -961,11 +956,10 @@ a:hover {
  * the VERSION_2.9_PLAN.md spec. */
 
 /* Below this floor the wordmark + search + right-aligned strip leave no room
- * for full tool labels, so flip to the 2-letter abbreviations pre-emptively
- * (same rules as .nav-tools.shrunk) regardless of search-focus state. Set just
- * above the point where the full labels stop fitting (~1370px) so they're only
- * shown when they actually fit — the strip no longer clips (no overflow-hidden),
- * so this floor, not a clip, is what prevents overflow. */
+ * for full tool labels, so tighten the cells and flip to the 2-letter
+ * abbreviations. Set just above the point where the full labels stop fitting
+ * (~1370px) so they're only shown when they actually fit — the strip no longer
+ * clips (no overflow-hidden), so this floor, not a clip, is what prevents overflow. */
 @media (max-width: 1380px) {
   .nav-tool { padding: 0 10px; font-size: 10px; letter-spacing: 0.08em; }
   .nav-tool .full { display: none; }

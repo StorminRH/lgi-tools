@@ -6,7 +6,7 @@
 
 export type Tool = {
   label: string;
-  abbr: string;        // 2-letter shrunk-state label (when search expands)
+  abbr: string;        // 2-letter label shown when the strip narrows (≤1380px)
   href: string | null; // null = SOON, not yet navigable
   matchPrefix?: string;
   description?: string; // surfaced in the search dropdown's sub-text
