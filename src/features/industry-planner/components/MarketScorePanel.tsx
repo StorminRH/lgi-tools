@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { HoverPopover } from '@/components/ui/hover-popover';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import type { MarketScore } from '@/data/industry-math/market-score';
-import { formatQuantity } from '@/lib/format';
+import { formatQuantity } from '@/lib/format/number';
 import { HISTORY_STABILITY_WINDOW_DAYS } from '@/data/market-history/constants';
 import {
   daysSinceHistoryDate,

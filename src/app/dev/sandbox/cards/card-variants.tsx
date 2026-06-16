@@ -4,7 +4,7 @@ import type { PointerEvent } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { TypeIcon } from '@/components/ui/type-icon';
-import { formatIsk } from '@/lib/format';
+import { formatIsk } from '@/lib/format/isk';
 import type { CardSample } from '../_shared/mock-build';
 
 // The home/sites card explored for depth + polish. All six share one body; only

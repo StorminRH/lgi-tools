@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/ui/type-icon';
-import { formatQuantity } from '@/lib/format';
+import { formatQuantity } from '@/lib/format/number';
 import { consolidateBuild, type ConsolidatedItem } from '../build-consolidate';
 import type { BlueprintStructure } from '../types';
 

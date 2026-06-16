@@ -2,7 +2,7 @@ import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { SortableTable, type SortableColumn } from '@/components/ui/sortable-table';
 import { UrlSync } from '@/components/ui/url-sync';
-import { formatIskShort } from '@/lib/format';
+import { formatIskShort } from '@/lib/format/isk';
 import { formatClassRange, gasClassRange } from '../gas-classes';
 import { defaultDirFor, siteScramTotal, sortSitesForTable, type SortDir, type SortableKey } from '../sort';
 import { displayableResources } from '../resource-display';

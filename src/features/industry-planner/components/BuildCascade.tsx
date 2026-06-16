@@ -10,7 +10,7 @@ import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { useCascadePath } from '@/components/ui/use-cascade-path';
-import { formatQuantity } from '@/lib/format';
+import { formatQuantity } from '@/lib/format/number';
 import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from '../types';
 import { BuildFlow } from './BuildFlow';
 import { ConsolidatedBuild } from './ConsolidatedBuild';

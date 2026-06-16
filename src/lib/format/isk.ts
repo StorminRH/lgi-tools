@@ -1,4 +1,4 @@
-// Small number/ISK formatters shared across surfaces. Co-located in the shared
+// Abbreviated ISK formatters shared across surfaces. Co-located in the shared
 // lib (not a feature) so server and client code can both use them, and so the
 // several precision variants different surfaces want live in one place rather
 // than drifting as per-component reimplementations.
@@ -31,37 +31,4 @@ export function formatIskCompact(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '—';
   if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
   return `${(value / 1_000_000).toFixed(0)}M`;
-}
-
-// Whole-unit counts (material quantities) with thousands separators.
-export function formatQuantity(value: number): string {
-  return Math.round(value).toLocaleString('en-US');
-}
-
-// Percentage with one decimal. Null or non-finite → an em dash.
-export function formatPct(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '—';
-  return `${value.toFixed(1)}%`;
-}
-
-// Two-letter typographic monogram for a name — the initials of the first two
-// words, else the first two characters. Used by the industry recents/favorites
-// rows and job table, where the icons are typographic rather than images.
-export function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-  return name.trim().slice(0, 2).toUpperCase();
-}
-
-// Compact remaining-time for "finishes in …" labels: largest two units of
-// d/h/m, sub-minute floors to "<1m".
-export function formatRemaining(ms: number): string {
-  if (ms < 60_000) return '<1m';
-  const minutes = Math.floor(ms / 60_000);
-  const days = Math.floor(minutes / (60 * 24));
-  const hours = Math.floor((minutes % (60 * 24)) / 60);
-  const mins = minutes % 60;
-  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
-  if (hours > 0) return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  return `${mins}m`;
 }

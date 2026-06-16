@@ -5,7 +5,7 @@
 
 import type { SearchResult, SearchSource } from '@/search';
 import { fuzzyMatch, type FuzzyMatch } from '@/search/match';
-import { formatIskCompact } from '@/lib/format';
+import { formatIskCompact } from '@/lib/format/isk';
 import type { SiteSearchEntry } from './queries';
 import { SITE_TYPE_LABEL } from './components/wormhole-styles';
 
