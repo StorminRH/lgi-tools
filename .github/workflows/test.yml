@@ -31,13 +31,23 @@ jobs:
 
       - run: pnpm lint
 
-      - run: pnpm test
+      # Run the suite WITH coverage so the fallow audit below reads real
+      # per-function coverage (coverage/coverage-final.json, which fallow
+      # auto-detects). Without it the audit falls back to a static estimate
+      # whose new-only attribution can misflag PRE-EXISTING complexity and
+      # cross-file duplication as "introduced" the moment a PR pulls an already-
+      # complex/duplicated file into its diff — which a cross-cutting refactor
+      # (e.g. repointing a shared util's imports across many feature files)
+      # inevitably does. Real coverage makes the inherited-vs-introduced call
+      # accurate, matching what `pnpm test:coverage && pnpm fallow` does locally.
+      - run: pnpm test:coverage
 
       # fallow audit is the static gate of record (dead code, duplication,
       # complexity, architecture boundaries), scoped to the PR diff with
       # new-only attribution. FALLOW_AUDIT_BASE pins the base so detection is
       # robust on the merge-commit checkout; a main push falls back to the
-      # commit before the push. fallow is a static analyzer — no DB needed.
+      # commit before the push. fallow is a static analyzer (no DB needed); it
+      # consumes the coverage emitted by the step above.
       - run: pnpm fallow
         env:
           FALLOW_AUDIT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
