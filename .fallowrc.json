@@ -1,6 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
 
+  "ignoreExportsUsedInFile": true,
+
   "entry": [
     "src/db/migrate.ts",
     "src/db/backfill-users-if-empty.ts",
@@ -26,18 +28,18 @@
   ],
 
   "rules": {
-    "unused-files": "warn",
-    "unused-exports": "warn",
+    "unused-files": "error",
+    "unused-exports": "error",
     "unused-types": "off",
-    "unused-dependencies": "warn",
-    "unlisted-dependencies": "warn",
+    "unused-dependencies": "error",
+    "unlisted-dependencies": "error",
     "unused-enum-members": "warn",
     "unused-class-members": "warn",
     "unresolved-imports": "warn",
     "duplicate-exports": "warn",
     "circular-dependencies": "warn",
     "re-export-cycle": "warn",
-    "boundary-violation": "warn",
+    "boundary-violation": "error",
     "coverage-gaps": "off",
     "stale-suppressions": "warn",
     "feature-flags": "off"
@@ -92,29 +94,5 @@
     ]
   },
 
-  "audit": { "gate": "new-only" },
-  "regression": {
-    "baseline":     {
-      "totalIssues": 21,
-      "unusedFiles": 0,
-      "unusedExports": 19,
-      "unusedTypes": 0,
-      "unusedDependencies": 0,
-      "unusedDevDependencies": 0,
-      "unusedOptionalDependencies": 0,
-      "unusedEnumMembers": 0,
-      "unusedClassMembers": 0,
-      "unresolvedImports": 0,
-      "unlistedDependencies": 0,
-      "duplicateExports": 2,
-      "circularDependencies": 0,
-      "reExportCycles": 0,
-      "typeOnlyDependencies": 0,
-      "testOnlyDependencies": 0,
-      "boundaryViolations": 0,
-      "boundaryCoverageViolations": 0,
-      "boundaryCallViolations": 0,
-      "policyViolations": 0
-    }
-  }
+  "audit": { "gate": "new-only" }
 }

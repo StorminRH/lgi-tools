@@ -271,28 +271,33 @@ function synthesizeRevalidated(
   return new Response(body, { status: 200, statusText: 'OK', headers });
 }
 
-export async function esiFetch(
+// Consult the shared scoreboard, skipping while the outage memo is open. A
+// pre-dispatch failure opens the memo (so a Redis outage doesn't add a timeout
+// to every call) and reports as "no shared state" — null, which fails closed.
+async function consultPreDispatch(
+  sb: EsiScoreboard | null,
   url: string,
-  init?: RequestInit,
-  opts?: EsiFetchOptions,
-): Promise<Response> {
-  const sb = getScoreboard();
-  const wantEtag = isEtagEligible(init);
-
-  // Consult the shared scoreboard (skipping while the outage memo is open).
-  let pre: PreDispatchState | null = null;
-  if (sb !== null && Date.now() >= redisDownUntil) {
-    try {
-      pre = await sb.preDispatch(url, wantEtag);
-    } catch (err) {
-      redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
-      console.warn('[esi] scoreboard pre-dispatch failed', err);
-    }
+  wantEtag: boolean,
+): Promise<PreDispatchState | null> {
+  if (sb === null || Date.now() < redisDownUntil) return null;
+  try {
+    return await sb.preDispatch(url, wantEtag);
+  } catch (err) {
+    redisDownUntil = Date.now() + REDIS_RETRY_AFTER_MS;
+    console.warn('[esi] scoreboard pre-dispatch failed', err);
+    return null;
   }
+}
 
+// Refuse the call when the budget is spent. Without the shared mirror (pre ===
+// null) we cannot know what other instances have spent, so fail closed:
+// interactive callers get a hard-capped per-instance trickle, everything else
+// throws. With it, honor a 429 Retry-After block and the error-budget floor.
+function enforceBudget(
+  pre: PreDispatchState | null,
+  opts?: EsiFetchOptions,
+): void {
   if (pre === null) {
-    // Fail closed: without the shared mirror we cannot know what the other
-    // instances have spent. Interactive callers get a hard-capped trickle.
     if (opts?.interactive !== true) {
       throw new EsiBudgetExhaustedError(0, 'scoreboard_unavailable');
     }
@@ -305,93 +310,137 @@ export async function esiFetch(
       throw new EsiBudgetExhaustedError(0, 'trickle_capped');
     }
     trickleCount += 1;
-  } else {
-    if (pre.blockedRetryAfter !== null) {
-      throw new EsiBudgetExhaustedError(pre.effectiveRemaining, 'rate_limited');
-    }
-    if (pre.effectiveRemaining < ESI_BUDGET_FLOOR) {
-      throw new EsiBudgetExhaustedError(pre.effectiveRemaining, 'error_budget');
+    return;
+  }
+  if (pre.blockedRetryAfter !== null) {
+    throw new EsiBudgetExhaustedError(pre.effectiveRemaining, 'rate_limited');
+  }
+  if (pre.effectiveRemaining < ESI_BUDGET_FLOOR) {
+    throw new EsiBudgetExhaustedError(pre.effectiveRemaining, 'error_budget');
+  }
+}
+
+// Re-serve a 304 from the shared body cache as the 200 the caller expected, or
+// null when the cached body was evicted (the caller refetches once,
+// unconditionally). Either way the 304's headers still feed the mirror.
+async function reuseOrRevalidate(
+  url: string,
+  res304: Response,
+  etagMeta: CachedEtagMeta,
+  liveSb: EsiScoreboard | null,
+): Promise<Response | null> {
+  const freshMeta: CachedEtagMeta = {
+    etag: res304.headers.get('ETag') ?? etagMeta.etag,
+    expires: res304.headers.get('Expires') ?? etagMeta.expires,
+    contentType: etagMeta.contentType,
+  };
+  let body: string | null = null;
+  if (liveSb !== null) {
+    try {
+      body = await liveSb.getCachedBody(url);
+    } catch {
+      body = null;
     }
   }
+  if (body !== null) {
+    if (liveSb !== null) {
+      await safeReport(
+        liveSb,
+        buildReport(url, res304, { etagToStore: null, refreshEtag: freshMeta }),
+      );
+    }
+    return synthesizeRevalidated(res304, body, freshMeta);
+  }
+  if (liveSb !== null) {
+    await safeReport(
+      liveSb,
+      buildReport(url, res304, { etagToStore: null, refreshEtag: null }),
+    );
+  }
+  return null;
+}
 
-  // Non-null only when this call's pre-dispatch actually consulted the
-  // shared scoreboard — a report never goes where a check didn't come from.
-  const liveSb = pre !== null ? sb : null;
-  let etagMeta = pre !== null && wantEtag ? pre.etag : null;
+// Capture the body for the shared ETag cache when this 200 is cache-eligible
+// (live scoreboard, an ETag-eligible request, a stored ETag, a CL-bounded
+// body). Returns the payload to store, or null to skip caching.
+async function captureEtagToStore(
+  res: Response,
+  liveSb: EsiScoreboard | null,
+  wantEtag: boolean,
+): Promise<EsiReport['etagToStore']> {
+  if (liveSb === null || !wantEtag || res.status !== 200) return null;
+  const etag = res.headers.get('ETag');
+  if (etag === null) return null;
+  const body = await captureBodyForCache(res);
+  if (body === null) return null;
+  return {
+    etag,
+    expires: res.headers.get('Expires'),
+    contentType: res.headers.get('Content-Type'),
+    body,
+  };
+}
 
-  // At most two dispatches: the conditional attempt, plus one unconditional
-  // retry if a 304 arrives but the cached body has been evicted.
+// 420 ("you hit the limit, back off now") and 5xx abort the call — the report
+// has already fed the mirror by the time we reach here. 2xx/3xx/4xx (incl. 429,
+// whose Retry-After block gates the NEXT call) fall through to the caller.
+function throwIfErrorStatus(res: Response): void {
+  if (res.status === 420) {
+    throw new EsiBudgetExhaustedError(0, 'esi_420');
+  }
+  if (res.status >= 500) {
+    throw new EsiServerError(res.status);
+  }
+}
+
+// At most two dispatches: the conditional attempt, plus one unconditional
+// retry if a 304 arrives but the cached body has been evicted.
+async function dispatch(
+  url: string,
+  init: RequestInit | undefined,
+  wantEtag: boolean,
+  liveSb: EsiScoreboard | null,
+  etagMeta: CachedEtagMeta | null,
+): Promise<Response> {
   for (;;) {
     const headers = buildHeaders(init, etagMeta?.etag ?? null);
     const res = await fetchWithTimeout(url, { ...init, headers });
 
     if (res.status === 304 && etagMeta !== null) {
-      const freshMeta: CachedEtagMeta = {
-        etag: res.headers.get('ETag') ?? etagMeta.etag,
-        expires: res.headers.get('Expires') ?? etagMeta.expires,
-        contentType: etagMeta.contentType,
-      };
-      let body: string | null = null;
-      if (liveSb !== null) {
-        try {
-          body = await liveSb.getCachedBody(url);
-        } catch {
-          body = null;
-        }
-      }
-      if (body !== null) {
-        if (liveSb !== null) {
-          await safeReport(
-            liveSb,
-            buildReport(url, res, { etagToStore: null, refreshEtag: freshMeta }),
-          );
-        }
-        return synthesizeRevalidated(res, body, freshMeta);
-      }
-      // Cached body evicted under the meta: report the 304 (its headers still
-      // feed the mirror) and refetch once, unconditionally.
-      if (liveSb !== null) {
-        await safeReport(
-          liveSb,
-          buildReport(url, res, { etagToStore: null, refreshEtag: null }),
-        );
-      }
+      const served = await reuseOrRevalidate(url, res, etagMeta, liveSb);
+      if (served !== null) return served;
       etagMeta = null;
       continue;
     }
 
-    let etagToStore: EsiReport['etagToStore'] = null;
-    if (liveSb !== null && wantEtag && res.status === 200) {
-      const etag = res.headers.get('ETag');
-      if (etag !== null) {
-        const body = await captureBodyForCache(res);
-        if (body !== null) {
-          etagToStore = {
-            etag,
-            expires: res.headers.get('Expires'),
-            contentType: res.headers.get('Content-Type'),
-            body,
-          };
-        }
-      }
-    }
-
+    const etagToStore = await captureEtagToStore(res, liveSb, wantEtag);
     if (liveSb !== null) {
-      await safeReport(liveSb, buildReport(url, res, { etagToStore, refreshEtag: null }));
+      await safeReport(
+        liveSb,
+        buildReport(url, res, { etagToStore, refreshEtag: null }),
+      );
     }
 
-    // 420 is ESI's "you hit the limit, back off now" sentinel. The scoreboard
-    // echo was forced to zero in the report; refuse this call too.
-    if (res.status === 420) {
-      throw new EsiBudgetExhaustedError(0, 'esi_420');
-    }
-
-    if (res.status >= 500) {
-      throw new EsiServerError(res.status);
-    }
-
-    // 2xx/3xx/4xx (including 429 — its Retry-After block gates the NEXT call)
-    // pass through to the caller.
+    throwIfErrorStatus(res);
     return res;
   }
+}
+
+export async function esiFetch(
+  url: string,
+  init?: RequestInit,
+  opts?: EsiFetchOptions,
+): Promise<Response> {
+  const sb = getScoreboard();
+  const wantEtag = isEtagEligible(init);
+
+  const pre = await consultPreDispatch(sb, url, wantEtag);
+  enforceBudget(pre, opts);
+
+  // Non-null only when this call's pre-dispatch actually consulted the shared
+  // scoreboard — a report never goes where a check didn't come from.
+  const liveSb = pre !== null ? sb : null;
+  const etagMeta = pre !== null && wantEtag ? pre.etag : null;
+
+  return dispatch(url, init, wantEtag, liveSb, etagMeta);
 }
