@@ -1,6 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["iad1"],
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "*": false,
+      "*/*": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/refresh-prices",
