@@ -10,7 +10,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Tech Stack
 
-Next.js (current — see warning above) · React 19 · TypeScript (strict) · Tailwind v4 · visx (dataviz) · Drizzle ORM · Neon (Postgres) · Convex (live reactive store) · Upstash Redis (ESI-gate rate-limit budget) · Better Auth (EVE SSO via Generic OAuth) · Vercel (hosting + preview/prod deploys) · GitHub Actions (PR test gates) · pnpm · Vitest.
+Next.js (current — see warning above) · React 19 · TypeScript (strict) · Tailwind v4 · visx (dataviz) · Drizzle ORM · Neon (Postgres) · Convex (live reactive store) · Upstash Redis (ESI-gate rate-limit budget) · Better Auth (EVE SSO via Generic OAuth) · Vercel (hosting + prod deploys; previews are manual-on-demand only) · GitHub Actions (PR test gates) · pnpm · Vitest.
 
 ## Commands
 
@@ -54,7 +54,7 @@ ESI works locally: the rate limiter and ESI budget gate disable in dev when Upst
 - `src/features/<name>/` — self-contained feature slices: `components/` plus `schema.ts`/`queries.ts`/`types.ts` as the slice needs (not every slice has all four). Two features never import from each other.
 - `src/components/ui/` — domain-agnostic UI primitives.
 - `src/data/` — shared data layers (SDE, market prices, telemetry). Own ingest/schema/queries, no UI.
-- `src/search/` — the slice-agnostic cross-source search engine plus the wiring manifest that composes feature/data sources into it (the `src/db/sde-pipeline.ts` composition-layer pattern; unclassified by the boundary rules). Each source still lives in its own slice — e.g. `src/data/tools/search.ts`, `src/data/commands/search.ts` — and exports a source value the manifest pulls.
+- `src/search/` — the slice-agnostic cross-source search engine plus the wiring manifest that composes feature/data sources into it (the `src/db/sde-pipeline.ts` composition-layer pattern). It has no dedicated fallow zone, so it inherits the `src/**` boundary defaults — data sources import the engine's types/matcher from above with no cross-slice rule firing. Each source still lives in its own slice — e.g. `src/data/tools/search.ts`, `src/data/commands/search.ts` — and exports a source value the manifest pulls.
 - `src/lib/` — cross-cutting helpers importable from anywhere; lib itself imports only lib — never a feature, data, or ui module (*fallow-enforced*: the `lib` zone in the `.fallowrc.json` boundaries). Home of the typed env accessor (`env.ts`), the typed fetch client (`api-client.ts`), `rate-limit.ts`, and `alerts.ts`.
 - `src/app/api/` — route handlers.
 - `CHANGELOG.md` (repo root) — user-facing changelog, parsed by `src/features/changelog/parse.ts`.
@@ -77,7 +77,7 @@ Raise a conflict before proceeding if a task seems to violate one.
 
 Load-bearing constraints. Don't regress these without raising a conflict.
 
-- **`src/data/` slices never import from `src/features/`.** Features import from data layers, never the reverse. Two data slices never import each other (e.g. `eve-data` ⊥ `market-prices`). Cross-slice composition lives in a layer *above* both (see `src/db/sde-pipeline.ts` for the template). *fallow-enforced* (the `boundaries` zones/rules in `.fallowrc.json`, with `boundary-violation` at `error` — the config encodes the full direction map: feature → {ui, data, lib, auth shared surface}; data → {lib, auth shared surface}; ui → {lib}; lib → lib only), with two documented exceptions encoded there: auth's shared surface (`auth/types`, `auth/schema`, `auth/api-contract`) is importable by features and data slices as platform infra; and `npc-stats → eve-data` is allowed as directed layering. (Search composition lives in the unclassified `src/search/` layer — the `sde-pipeline.ts` pattern — so it needs no exception: data sources import the engine's types/matcher with no rule firing, and the manifest pulls each source from above.) Features also never import each other (same rules) — *also fallow-enforced*.
+- **`src/data/` slices never import from `src/features/`.** Features import from data layers, never the reverse. Two data slices never import each other (e.g. `eve-data` ⊥ `market-prices`). Cross-slice composition lives in a layer *above* both (see `src/db/sde-pipeline.ts` for the template). *fallow-enforced* (the `boundaries` zones/rules in `.fallowrc.json`, with `boundary-violation` at `error` — the config encodes the full direction map: feature → {ui, data, lib, auth shared surface}; data → {lib, auth shared surface}; ui → {lib}; lib → lib only), with two documented exceptions encoded there: auth's shared surface (`auth/types`, `auth/schema`, `auth/api-contract`) is importable by features and data slices as platform infra; and `npc-stats → eve-data` is allowed as directed layering. (Search composition lives in the `src/search/` layer — the `sde-pipeline.ts` pattern — so it needs no boundary exception: data sources import the engine's types/matcher with no cross-slice rule firing, and the manifest pulls each source from above.) Features also never import each other (same rules) — *also fallow-enforced*.
 - **UI primitives accept abstract `tone` props** (`green`, `red`, …). The only files that know "C5 is red" are the feature-level `*-styles.ts` mappings. The *import edge* — `src/components/ui/**` may not import features or data — is fallow-enforced; whether a component is a *good* primitive stays a review judgment.
 - **Postgres enums are driven from TS `as const` arrays** — one source of truth.
 - **`Collapsible` is a pure `<details>`/`<summary>`** — the element owns open/closed state; no React state wrapper. `UrlSync` syncs the URL via a native `toggle` listener.
@@ -85,7 +85,7 @@ Load-bearing constraints. Don't regress these without raising a conflict.
 - **Validation lives in route handlers, not queries.** Queries accept already-typed values. Every input-accepting route validates with a Zod schema; routes with no user input carry a one-line marker comment so the invariant stays grep-auditable. The schema lives in the owning slice's **`api-contract.ts`** together with the route's response types: the route imports the schema (and still does the parsing) and pins its JSON payloads with `satisfies`; clients call **`apiFetch`** (`src/lib/api-client.ts`) with the slice's endpoint object, so both sides share one wire shape and a renamed field fails `tsc` on both. New JSON routes are born with a contract. *Test-enforced* (`src/app/api/api-contracts.test.ts` — every route imports its contract) and *lint-enforced* (raw `fetch('/api/…')` is banned).
 - **Server env reads go through `readEnv`/`requireEnv`** (`src/lib/env.ts`) — one validated registry, read lazily per call, never cached, never eager-at-import. Per-var schemas are equivalence-preserving (see the file header); tightening one is a behavior change needing its own review. `NODE_ENV` and `NEXT_PUBLIC_*` stay direct reads (bundler-inlined). *Lint-enforced* (`no-restricted-syntax` in `eslint.config.mjs`; test files exempt).
 - **Advisory locks are session-scoped on a reserved connection**, released in `finally`. Network calls (ESI, Fuzzwork) happen with no transaction open and no connection pinned. Lock IDs are constants in the owning slice.
-- **Every deploy migrates its own branch.** Production migrates production; each preview deploy migrates its per-PR Neon branch. Preview branches auto-delete on PR close.
+- **Every deploy migrates its own branch.** Production migrates production on merge. Previews are manual-on-demand only — no preview is built per push; when one is spun up deliberately it migrates its own per-PR Neon branch, which is cleaned up when the preview is torn down.
 - **The visual identity is the existing terminal/EVE aesthetic defined by `tones.ts` and the established styles.** Build within it. Do not introduce a default design palette or typeface (warm cream backgrounds, serif display fonts, terracotta accents, etc.) — a new tone or font needs explicit written justification, the same bar as a new `tones.ts` entry.
 
 ## Identity & accounts
@@ -105,7 +105,7 @@ the deploy form).
 
 - **Neon is authoritative; Convex is derived and regenerable.** Strictly one-directional — no Convex → Neon write, ever; a full teardown + resync must reproduce Convex state.
 - **Placement-by-temperature.** Per-character / live / watched data → Convex; global / slow / shared data → Neon + static prerender.
-- **One ESI gate.** EVERY ESI call (pricing, character, and future consumers like killmails) routes through the single `esiFetch` in `src/lib/esi/` and its shared Upstash Redis budget — never a second wrapper or budget. A bypassing consumer silently burns the shared per-IP budget for everyone. *Lint-enforced.*
+- **One ESI gate.** EVERY ESI call (pricing, character, and future consumers like killmails) routes through the single `esiFetch` in `src/lib/esi/` and its shared Upstash Redis budget — never a second wrapper or budget. A bypassing consumer silently burns the shared per-IP budget for everyone. *Enforced two ways: `no-restricted-syntax` bans the `esi.evetech.net` host literal outside the gate slice (lint), and the `lib` zone keeps the gate from importing features/data (fallow boundaries).*
 - **Secrets stay Neon-side.** The refresh token never leaves Neon (Convex gets only short-lived access tokens); EVE credentials never go in Convex env.
 - **A new ESI scope is a deliberate, batched decision — never an incremental add.**
 - **Live-data surfaces ship NO manual refresh controls** — load → auto-refresh → cadence timers while watched. `/dev/*` pages are exempt.
@@ -139,16 +139,24 @@ Vitest. CI runs the suite on every PR; a red suite blocks merge.
 
 ## Workflow
 
-All changes go through PRs; `main` is the only deploy target. Branch per
-sub-version, not per session — multiple sessions build one sub-version on a
-long-lived branch, most sessions end with a commit + preview check (not a PR),
-and fixes land in-branch (defer only genuinely cross-sub-version work to
-`docs/backlog.md`).
+All changes go through PRs; `main` is the only deploy target. Workflow is
+dev-to-prod: develop, review, and run CI on the **local dev server**, then a PR —
+there are no Vercel preview deploys at PR (previews are manual-on-demand only).
+Branch per sub-version, not per session — multiple sessions build one sub-version
+on a long-lived branch, most sessions end with a commit + a local dev-server check
++ local `pnpm verify` (not a PR), and fixes land in-branch (defer only genuinely
+cross-sub-version work to `docs/backlog.md`).
+
+**Merge model.** A non-UX session self-finishes — commit → PR → the agent merges
+via the `close-out` skill once the Greptile loop is clean, with no pause for Ryan.
+A **UX or user-facing** session pauses for Ryan's review on the local dev server
+(or a manual preview if one was spun up) **before** the PR opens, then finishes the
+same way. There is no separate hold-for-Ryan-to-merge step beyond that review.
 
 **At the end of every session, read `docs/SESSION_END.md`** — it owns close-out:
-commit-vs-PR, preview verification, and session-memory updates. The PR open +
-Greptile loop, the merge rule, the CHANGELOG format, and plan-doc archiving live
-in **`docs/PR_REVIEW.md`** (read when opening a sub-version's PR).
+commit-vs-PR, local-dev verification, and session-memory updates. The PR open +
+Greptile loop, the merge mechanics, the CHANGELOG format, and plan-doc archiving
+live in **`docs/PR_REVIEW.md`** (read when opening a sub-version's PR).
 
 These hold during the autonomous run, between plan approval and close-out:
 - **Diagnose before fixing.** For a bug or any uncertain behavior, find the root
