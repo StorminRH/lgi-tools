@@ -9,8 +9,9 @@
 // and no client-posted character id carries authority — the action
 // re-enumerates the user's characters server-side on every run.
 import { v, type Infer } from 'convex/values';
-import { minCacheWindow } from '@/lib/sync-engine';
-import { internalMutation, internalQuery, query } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { internalMutation, internalQuery, type MutationCtx, query } from './_generated/server';
+import { stampSyncSubject } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
 import { skillQueueEntryValidator } from './schema';
 
@@ -120,31 +121,7 @@ export const applySyncResults = internalMutation({
 
     for (const result of args.results) {
       if (!enumerated.has(result.characterId)) continue;
-      const existing = byCharacter.get(result.characterId);
-      const data = mergeData(existing?.data ?? null, result);
-      const refreshed = result.error === null;
-      const fields = {
-        data,
-        queueEtag: result.queueEtag,
-        skillsEtag: result.skillsEtag,
-        lastSyncedAt: refreshed ? now : (existing?.lastSyncedAt ?? null),
-        // An errored character must stay immediately re-syncable: carrying
-        // the old cache window past an error would make the freshness gate
-        // silently swallow the next mount/visible heartbeat until the stale
-        // window expired. Successful results always carry a window (the
-        // action falls back to now + 60s when ESI sends no Expires).
-        expiresAt: refreshed ? result.expiresAt : null,
-        syncError: result.error,
-      };
-      if (existing !== undefined) {
-        await ctx.db.patch(existing._id, fields);
-      } else {
-        await ctx.db.insert('characterSync', {
-          userId: args.userId,
-          characterId: result.characterId,
-          ...fields,
-        });
-      }
+      await applySkillResult(ctx, args.userId, result, byCharacter.get(result.characterId), now);
     }
 
     // Stamp the run's results onto the engine's subject row: the cache
@@ -154,20 +131,40 @@ export const applySyncResults = internalMutation({
       .query('characterSync')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .collect();
-    await ctx.db.patch(subject._id, {
-      minExpiresAt: minCacheWindow(after.map((doc) => doc.expiresAt)),
-      syncedCharacterIds: args.enumeratedCharacterIds,
-      lastFinishedAt: now,
-      lastError: args.lastError,
-      rlGroup: args.rlGroup,
-      rlLimit: args.rlLimit,
-      rlRemaining: args.rlRemaining,
-      rlUsed: args.rlUsed,
-    });
+    await stampSyncSubject(ctx, subject._id, after.map((doc) => doc.expiresAt), args, now);
     // status stays 'running' here — the workpool's onComplete owns the
     // lifecycle and clears it exactly once.
   },
 });
+
+// Upsert one character's skills payload. A 304 keeps the existing halves
+// (mergeData); an errored read keeps the payload but clears the cache window so
+// the next mount/visible heartbeat re-syncs immediately rather than treating
+// the stale window as fresh. A successful result always carries a window (the
+// action falls back to now + 60s when ESI sends no Expires).
+async function applySkillResult(
+  ctx: MutationCtx,
+  userId: string,
+  result: CharacterResult,
+  existing: Doc<'characterSync'> | undefined,
+  now: number,
+): Promise<void> {
+  const data = mergeData(existing?.data ?? null, result);
+  const refreshed = result.error === null;
+  const fields = {
+    data,
+    queueEtag: result.queueEtag,
+    skillsEtag: result.skillsEtag,
+    lastSyncedAt: refreshed ? now : (existing?.lastSyncedAt ?? null),
+    expiresAt: refreshed ? result.expiresAt : null,
+    syncError: result.error,
+  };
+  if (existing !== undefined) {
+    await ctx.db.patch(existing._id, fields);
+  } else {
+    await ctx.db.insert('characterSync', { userId, characterId: result.characterId, ...fields });
+  }
+}
 
 type SyncedData = {
   entries: Array<Infer<typeof skillQueueEntryValidator>>;

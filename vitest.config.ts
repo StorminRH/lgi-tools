@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { coverageConfigDefaults, defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
@@ -8,7 +8,10 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/*.test.ts'],
+    // Convex tests (convex/**/*.test.ts) run under the edge-runtime environment
+    // via a per-file `// @vitest-environment edge-runtime` directive (convex-test
+    // needs it); the default node environment stays in force for the src suite.
+    include: ['src/**/*.test.ts', 'convex/**/*.test.ts'],
     coverage: {
       // fallow's `--coverage` ingests an Istanbul coverage map
       // (coverage-final.json) for exact per-function CRAP scoring and rejects
@@ -16,6 +19,10 @@ export default defineConfig({
       provider: 'istanbul',
       reporter: ['text', 'json'],
       reportsDirectory: './coverage',
+      // Generated Convex bindings carry no hand-written logic — keep them out of
+      // the coverage map so they don't dilute per-function CRAP scoring. Spread
+      // the defaults (node_modules, test files, …) since `exclude` replaces them.
+      exclude: [...coverageConfigDefaults.exclude, 'convex/_generated/**'],
     },
   },
 });
