@@ -14,7 +14,7 @@ const CANONICAL_HOST = new URL(SITE_URL).host;
 // read is inlined into this bundle at BUILD time (define-env covers the
 // node/edge server targets, verified in next@16.2.6) — which is required: on
 // Vercel the value exists ONLY in the build env, injected per deployment by
-// `npx convex deploy --cmd-url-env-var-name`, so prod and every preview get
+// `pnpm exec convex deploy --cmd-url-env-var-name`, so prod and every preview get
 // their exact backend origin (https for the initial handshake, wss for the
 // reactive websocket). Deliberately NOT a `*.convex.cloud` wildcard — that
 // would admit every Convex customer's backend as a connect target. Unset
