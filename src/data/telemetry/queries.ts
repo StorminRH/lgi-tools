@@ -77,6 +77,26 @@ export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
 // Shared shape behind the metadata-keyed "top N" panels: pull a JSONB metadata
 // value, keep its non-null rows for one action, group, and rank by frequency.
 // Each public query renames the neutral `value` column to its domain field.
+function topByMetadataKeyQuery(
+  metaKey: string,
+  action: UsageAction,
+  range: DateRange,
+  limit: number,
+  extraWhere?: ReturnType<typeof eq>,
+) {
+  const col = sql<string>`${usageLogs.metadata} ->> ${metaKey}`;
+  return db
+    .select({ value: col, count: count() })
+    .from(usageLogs)
+    .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(col), extraWhere))
+    // Group by the SELECT output ordinal, not `col`: the JSON key is a bind param
+    // Drizzle re-numbers per clause, so reusing `col` here makes GROUP BY reference
+    // a different placeholder than SELECT and Postgres raises 42803.
+    .groupBy(sql`1`)
+    .orderBy(desc(count()))
+    .limit(limit);
+}
+
 async function topByMetadataKey(
   metaKey: string,
   action: UsageAction,
@@ -84,18 +104,23 @@ async function topByMetadataKey(
   limit: number,
   extraWhere?: ReturnType<typeof eq>,
 ): Promise<{ value: string; count: number }[]> {
-  const col = sql<string>`${usageLogs.metadata} ->> ${metaKey}`;
-  const rows = await db
-    .select({ value: col, count: count() })
-    .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(col), extraWhere))
-    .groupBy(col)
-    .orderBy(desc(count()))
-    .limit(limit);
-
+  const rows = await topByMetadataKeyQuery(metaKey, action, range, limit, extraWhere);
   return rows
     .filter((r) => r.value !== null)
     .map((r) => ({ value: r.value as string, count: Number(r.count) }));
+}
+
+// Exported only so the regression test can pin the SQL shape — building the query
+// never opens a connection, so the test needs no live DB. (Mirrors db/index.ts's
+// `isPooledHost`, exported for the connection unit test.)
+export function topByMetadataKeyToSQL(
+  metaKey: string,
+  action: UsageAction,
+  range: DateRange,
+  limit: number,
+  extraWhere?: ReturnType<typeof eq>,
+) {
+  return topByMetadataKeyQuery(metaKey, action, range, limit, extraWhere).toSQL();
 }
 
 export async function getTopPages(range: DateRange, limit = 10): Promise<PathCount[]> {
