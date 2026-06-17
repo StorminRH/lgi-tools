@@ -153,6 +153,17 @@ A **UX or user-facing** session pauses for Ryan's review on the local dev server
 (or a manual preview if one was spun up) **before** the PR opens, then finishes the
 same way. There is no separate hold-for-Ryan-to-merge step beyond that review.
 
+**Manual preview (on-demand).** Automatic per-push previews are off — `vercel.json`'s
+`git.deploymentEnabled` enables only `main`, so a branch push builds nothing. When a change
+needs live Neon/Convex data the local Docker DB can't provide, spin one up deliberately:
+run `vercel deploy` from the branch (a manual CLI deploy is not a git-push trigger, so the
+disabled auto-rule doesn't block it). That one deployment cascades as before — the Vercel↔Neon
+integration provisions and migrates a `preview/<branch>` Neon branch, and `npx convex deploy`
+creates the branch's isolated Convex preview backend. **Tear it down promptly when done:** a
+manual preview runs the 30s sync-engine scan (~120 scans/hour) until it's removed. The
+`preview/<branch>` Neon branch is cleaned up automatically when the PR closes (delete sooner
+with `neonctl branches delete preview/<branch>`).
+
 **At the end of every session, read `docs/SESSION_END.md`** — it owns close-out:
 commit-vs-PR, local-dev verification, and session-memory updates. The PR open +
 Greptile loop, the merge mechanics, the CHANGELOG format, and plan-doc archiving

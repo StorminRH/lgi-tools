@@ -1,9 +1,11 @@
 name: Delete Neon Branch
 
-# Vercel ↔ Neon creates `preview/<branch-name>` for each PR's preview
-# deployment but never deletes it when the PR closes. This workflow does.
-# Runs on both merged and closed-without-merging PRs so abandoned branches
-# also get cleaned up.
+# Previews are manual-on-demand only (automatic per-push previews are retired
+# via `git.deploymentEnabled` in vercel.json). When someone spins up a manual
+# preview, the Vercel ↔ Neon integration creates `preview/<branch-name>` but
+# never deletes it on PR close — this workflow does. Most PRs now have no
+# preview branch, so the delete step is allowed to fail without reddening the
+# run (continue-on-error). Runs on both merged and closed-without-merging PRs.
 
 on:
   pull_request:
@@ -13,7 +15,15 @@ jobs:
   delete-branch:
     runs-on: ubuntu-latest
     steps:
+      # continue-on-error covers the now-common "no preview branch to delete"
+      # case (most PRs never spin up a manual preview). Trade-off: it ALSO
+      # swallows genuine failures (bad NEON_API_KEY / NEON_PROJECT_ID, Neon API
+      # outage) — so a green run does NOT prove the delete actually ran. This is
+      # acceptable because cleanup is best-effort for rare, ephemeral manual-
+      # preview branches; an orphaned one is cheap to remove by hand
+      # (`neonctl branches delete preview/<branch>`).
       - name: Delete preview/<branch> in Neon
+        continue-on-error: true
         uses: neondatabase/delete-branch-action@v3
         with:
           project_id: ${{ secrets.NEON_PROJECT_ID }}
