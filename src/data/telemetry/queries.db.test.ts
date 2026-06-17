@@ -221,11 +221,13 @@ describe.skipIf(!reachable)('admin telemetry analytics queries execute against P
 
   afterAll(async () => {
     // Close the proxy's pool (built lazily on the first query through `db`), drop
-    // the throwaway schema, then close the admin connection.
+    // the throwaway schema, then close the admin connection. `.catch` on each
+    // `end` so a connection blip never skips `dropDisposableSchema` and leaves the
+    // schema behind (which would make the next run's `beforeAll` fail at CREATE TABLE).
     const proxyClient = (db as unknown as { $client: ReturnType<typeof postgres> }).$client;
-    await proxyClient.end({ timeout: 5 });
+    await proxyClient.end({ timeout: 5 }).catch(() => {});
     await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 });
+    await adminClient.end({ timeout: 5 }).catch(() => {});
     vi.unstubAllEnvs();
   });
 

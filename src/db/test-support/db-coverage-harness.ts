@@ -55,7 +55,11 @@ export async function setupDisposableSchema(
   schema: string,
   tableNames: readonly string[],
 ): Promise<void> {
-  await adminClient.unsafe(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+  // Drop first so a schema left over from an interrupted prior run (e.g. a hard
+  // crash that skipped afterAll) self-heals — otherwise the CREATE TABLE below
+  // would fail "already exists" and wedge the suite until a manual drop.
+  await adminClient.unsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+  await adminClient.unsafe(`CREATE SCHEMA "${schema}"`);
   for (const t of tableNames) {
     await adminClient.unsafe(
       `CREATE TABLE "${schema}"."${t}" (LIKE public."${t}" INCLUDING ALL)`,

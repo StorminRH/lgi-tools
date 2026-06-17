@@ -113,10 +113,12 @@ describe.skipIf(!reachable)('admin GSC analytics queries execute against Postgre
   });
 
   afterAll(async () => {
+    // `.catch` on each `end` so a connection blip never skips `dropDisposableSchema`
+    // and leaves the schema behind (which would wedge the next run's `beforeAll`).
     const proxyClient = (db as unknown as { $client: ReturnType<typeof postgres> }).$client;
-    await proxyClient.end({ timeout: 5 });
+    await proxyClient.end({ timeout: 5 }).catch(() => {});
     await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 });
+    await adminClient.end({ timeout: 5 }).catch(() => {});
     vi.unstubAllEnvs();
   });
 
