@@ -18,7 +18,7 @@ Next.js (current — see warning above) · React 19 · TypeScript (strict) · Ta
 
 - Install: `pnpm install`
 - Dev: `pnpm dev`
-- Build: `pnpm vercel-build` (the Vercel entry point) wraps `npx convex deploy` around the real build chain `pnpm build:vercel`: `migrate → backfill-users-if-empty → ingest-sde-if-empty → next build → assert-route-classification`. Every deploy gets its matching Convex deployment, its Neon-branch migration, the first-deploy SDE populate, and the route-classification assert.
+- Build: `pnpm vercel-build` (the Vercel entry point) wraps `pnpm exec convex deploy` around the real build chain `pnpm build:vercel`: `migrate → backfill-users-if-empty → ingest-sde-if-empty → next build → assert-route-classification`. Every deploy gets its matching Convex deployment, its Neon-branch migration, the first-deploy SDE populate, and the route-classification assert.
 - Test: `pnpm test`
 - Typecheck: `pnpm typecheck`
 - Lint: `pnpm lint`
@@ -158,7 +158,7 @@ same way. There is no separate hold-for-Ryan-to-merge step beyond that review.
 needs live Neon/Convex data the local Docker DB can't provide, spin one up deliberately:
 run `vercel deploy` from the branch (a manual CLI deploy is not a git-push trigger, so the
 disabled auto-rule doesn't block it). That one deployment cascades as before — the Vercel↔Neon
-integration provisions and migrates a `preview/<branch>` Neon branch, and `npx convex deploy`
+integration provisions and migrates a `preview/<branch>` Neon branch, and `pnpm exec convex deploy`
 creates the branch's isolated Convex preview backend. **Tear it down promptly when done:** a
 manual preview runs the 30s sync-engine scan (~120 scans/hour) until it's removed. The
 `preview/<branch>` Neon branch is cleaned up automatically when the PR closes (delete sooner
