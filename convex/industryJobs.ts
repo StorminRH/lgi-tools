@@ -18,11 +18,12 @@
 // idempotent; since 3.4.9 the arming is content-deduped (flipsToSchedule):
 // a job's flip is scheduled when its (job_id, end_date) first appears, not
 // on every fresh body — the #96 resolution.
-import { v } from 'convex/values';
+import { v, type Infer } from 'convex/values';
 import { deriveJobStatus, findFlipTarget, flipsToSchedule } from '@/features/industry-jobs/job-state';
-import { minCacheWindow } from '@/lib/sync-engine';
 import { internal } from './_generated/api';
-import { internalMutation, internalQuery, query } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { internalMutation, internalQuery, type MutationCtx, query } from './_generated/server';
+import { stampSyncSubject } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
 import { industryJobValidator } from './schema';
 
@@ -88,6 +89,7 @@ const characterResultValidator = v.object({
   expiresAt: v.union(v.number(), v.null()),
   error: v.union(v.string(), v.null()),
 });
+type CharacterResult = Infer<typeof characterResultValidator>;
 
 // The run's single batched write. Idempotent (upserts keyed by
 // userId+characterId), so a Workpool retry that re-runs the action cannot
@@ -130,56 +132,7 @@ export const applySyncResults = internalMutation({
 
     for (const result of args.results) {
       if (!enumerated.has(result.characterId)) continue;
-      const existing = byCharacter.get(result.characterId);
-      const refreshed = result.error === null;
-
-      // A fresh body replaces the board wholesale (one endpoint — no merge);
-      // a 304 or an errored read keeps the existing payload.
-      let data = existing?.data ?? null;
-      if (result.jobs !== null) {
-        // The at-write derivation: ESI reports status lazily, so a job whose
-        // end_date already passed lands as 'ready' here — a fresh body can
-        // never regress a previously flipped job.
-        const jobs = result.jobs.map((job) => ({
-          ...job,
-          status: deriveJobStatus(job.status, job.end_date, now),
-        }));
-        // Arm the completion flip for each job whose (job_id, end_date) is
-        // new to this doc — content-deduped against the previous payload
-        // (the #96 resolution; see flipsToSchedule for the guards and the
-        // one accepted corner).
-        for (const job of flipsToSchedule(existing?.data?.jobs ?? null, jobs, now)) {
-          await ctx.scheduler.runAt(Date.parse(job.end_date), internal.industryJobs.markJobReady, {
-            userId: args.userId,
-            characterId: result.characterId,
-            jobId: job.job_id,
-            endDate: job.end_date,
-          });
-        }
-        data = { jobs };
-      }
-
-      const fields = {
-        data,
-        jobsEtag: result.jobsEtag,
-        lastSyncedAt: refreshed ? now : (existing?.lastSyncedAt ?? null),
-        // An errored character must stay immediately re-syncable: carrying
-        // the old cache window past an error would make the freshness gate
-        // silently swallow the next mount/visible heartbeat until the stale
-        // window expired. Successful results always carry a window (the
-        // action falls back to now + 300s when ESI sends no Expires).
-        expiresAt: refreshed ? result.expiresAt : null,
-        syncError: result.error,
-      };
-      if (existing !== undefined) {
-        await ctx.db.patch(existing._id, fields);
-      } else {
-        await ctx.db.insert('industryJobsSync', {
-          userId: args.userId,
-          characterId: result.characterId,
-          ...fields,
-        });
-      }
+      await applyJobResult(ctx, args.userId, result, byCharacter.get(result.characterId), now);
     }
 
     // Stamp the run's results onto the engine's subject row: the cache
@@ -189,20 +142,58 @@ export const applySyncResults = internalMutation({
       .query('industryJobsSync')
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .collect();
-    await ctx.db.patch(subject._id, {
-      minExpiresAt: minCacheWindow(after.map((doc) => doc.expiresAt)),
-      syncedCharacterIds: args.enumeratedCharacterIds,
-      lastFinishedAt: now,
-      lastError: args.lastError,
-      rlGroup: args.rlGroup,
-      rlLimit: args.rlLimit,
-      rlRemaining: args.rlRemaining,
-      rlUsed: args.rlUsed,
-    });
+    await stampSyncSubject(ctx, subject._id, after.map((doc) => doc.expiresAt), args, now);
     // status stays 'running' here — the workpool's onComplete owns the
     // lifecycle and clears it exactly once.
   },
 });
+
+// Upsert one character's job board. A fresh body replaces the board wholesale
+// (one endpoint — no merge) and derives each job's at-write status (ESI reports
+// status lazily, so a job past its end_date lands 'ready' here, and a fresh
+// body can never regress a previously flipped job), arming a completion flip
+// for each (job_id, end_date) new to this doc — content-deduped against the
+// previous payload (the #96 resolution; see flipsToSchedule). A 304 or an
+// errored read keeps the existing payload; an errored read clears the cache
+// window so the next heartbeat re-syncs immediately.
+async function applyJobResult(
+  ctx: MutationCtx,
+  userId: string,
+  result: CharacterResult,
+  existing: Doc<'industryJobsSync'> | undefined,
+  now: number,
+): Promise<void> {
+  let data = existing?.data ?? null;
+  if (result.jobs !== null) {
+    const jobs = result.jobs.map((job) => ({
+      ...job,
+      status: deriveJobStatus(job.status, job.end_date, now),
+    }));
+    for (const job of flipsToSchedule(existing?.data?.jobs ?? null, jobs, now)) {
+      await ctx.scheduler.runAt(Date.parse(job.end_date), internal.industryJobs.markJobReady, {
+        userId,
+        characterId: result.characterId,
+        jobId: job.job_id,
+        endDate: job.end_date,
+      });
+    }
+    data = { jobs };
+  }
+
+  const refreshed = result.error === null;
+  const fields = {
+    data,
+    jobsEtag: result.jobsEtag,
+    lastSyncedAt: refreshed ? now : (existing?.lastSyncedAt ?? null),
+    expiresAt: refreshed ? result.expiresAt : null,
+    syncError: result.error,
+  };
+  if (existing !== undefined) {
+    await ctx.db.patch(existing._id, fields);
+  } else {
+    await ctx.db.insert('industryJobsSync', { userId, characterId: result.characterId, ...fields });
+  }
+}
 
 // The scheduled completion transition: fires at a job's end_date and flips
 // it to 'ready' so the open page updates live. Identity-guarded and

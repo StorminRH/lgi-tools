@@ -24,8 +24,11 @@
     "next-env.d.ts",
     "**/*.generated.ts",
     "drizzle/**",
-    "docs/**"
+    "docs/**",
+    "convex/**/*.test.ts"
   ],
+
+  "ignoreDependencies": ["convex-test", "@edge-runtime/vm"],
 
   "rules": {
     "unused-files": "error",

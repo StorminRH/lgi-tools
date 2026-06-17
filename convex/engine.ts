@@ -353,83 +353,101 @@ export const sweep = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const counts = { dispatched: 0, retired: 0, deleted: 0 };
-
-    // Pass A — overdue. The 30s scan's own range; one presence point read per
-    // due row, only over the hot, already-scheduled set.
-    const due = await ctx.db
-      .query('syncSubjects')
-      .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
-      .collect();
-    for (const subject of due) {
-      const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
-      switch (
-        classifyDueSubject(presence?.lastSeenAt ?? null, subject.status, subject.lastRequestedAt, now)
-      ) {
-        case 'delete':
-          await ctx.db.delete(subject._id);
-          if (presence !== null) await ctx.db.delete(presence._id);
-          counts.deleted += 1;
-          break;
-        case 'retire':
-          await ctx.db.patch(subject._id, { nextDueAt: null });
-          counts.retired += 1;
-          break;
-        case 'dispatch':
-          await dispatch(ctx, subject, now);
-          counts.dispatched += 1;
-          break;
-        case 'skip':
-          break;
-      }
-    }
-
-    // Pass B — dropped timers: a hot, idle subject with targets but no schedule
-    // (e.g. state wiped mid-flight). Only the hot presence rows; Pass A already
-    // owns anything still scheduled, so a non-null nextDueAt is its province.
-    const hot = await ctx.db
-      .query('syncPresence')
-      .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - COLD_AFTER_MS))
-      .collect();
-    for (const presence of hot) {
-      const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
-      if (subject === null || subject.nextDueAt !== null) continue;
-      if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
-      if (
-        hasSyncTarget(subject.syncedCharacterIds, []) &&
-        isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
-      ) {
-        await dispatch(ctx, subject, now);
-        counts.dispatched += 1;
-      }
-    }
-
-    // Pass C — abandoned: past-retention presence (oldest first), deleted with
-    // its subject. Capped per run so a post-outage backlog can't blow the
-    // mutation's call budget; the next run takes the next oldest batch.
-    const abandoned = await ctx.db
-      .query('syncPresence')
-      .withIndex('by_last_seen', (q) => q.lt('lastSeenAt', now - RETENTION_MS))
-      .take(SWEEP_DELETE_BATCH);
-    for (const presence of abandoned) {
-      const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
-      if (subject !== null) {
-        await ctx.db.delete(subject._id);
-        counts.deleted += 1;
-      }
-      await ctx.db.delete(presence._id);
-    }
-    if (abandoned.length === SWEEP_DELETE_BATCH) {
-      // Not silent truncation: the next 15-min run drains the next oldest batch.
-      console.warn(
-        JSON.stringify({
-          scope: 'engine:sweep',
-          note: 'retention_batch_capped',
-          deletedThisRun: counts.deleted,
-        }),
-      );
-    }
-
+    const counts: SweepCounts = { dispatched: 0, retired: 0, deleted: 0 };
+    // A runs first so its writes are visible (read-your-writes) to B/C: a row A
+    // dispatched leaves the null-scheduled set B scans, and a row A deleted is
+    // gone from C's presence range, so no row is acted on twice.
+    await sweepOverdue(ctx, now, counts);
+    await sweepDropped(ctx, now, counts);
+    await sweepAbandoned(ctx, now, counts);
     return counts;
   },
 });
+
+interface SweepCounts {
+  dispatched: number;
+  retired: number;
+  deleted: number;
+}
+
+// Pass A — overdue. The 30s scan's own range; one presence point read per due
+// row, only over the hot, already-scheduled set. Delete past-retention /
+// never-seen rows, retire cold-within-retention, dispatch hot.
+async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts): Promise<void> {
+  const due = await ctx.db
+    .query('syncSubjects')
+    .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
+    .collect();
+  for (const subject of due) {
+    const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
+    switch (
+      classifyDueSubject(presence?.lastSeenAt ?? null, subject.status, subject.lastRequestedAt, now)
+    ) {
+      case 'delete':
+        await ctx.db.delete(subject._id);
+        if (presence !== null) await ctx.db.delete(presence._id);
+        counts.deleted += 1;
+        break;
+      case 'retire':
+        await ctx.db.patch(subject._id, { nextDueAt: null });
+        counts.retired += 1;
+        break;
+      case 'dispatch':
+        await dispatch(ctx, subject, now);
+        counts.dispatched += 1;
+        break;
+      case 'skip':
+        break;
+    }
+  }
+}
+
+// Pass B — dropped timers: a hot, idle subject with targets but no schedule
+// (e.g. state wiped mid-flight). Only the hot presence rows; Pass A already
+// owns anything still scheduled, so a non-null nextDueAt is its province.
+async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts): Promise<void> {
+  const hot = await ctx.db
+    .query('syncPresence')
+    .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - COLD_AFTER_MS))
+    .collect();
+  for (const presence of hot) {
+    const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
+    if (subject === null || subject.nextDueAt !== null) continue;
+    if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
+    if (
+      hasSyncTarget(subject.syncedCharacterIds, []) &&
+      isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
+    ) {
+      await dispatch(ctx, subject, now);
+      counts.dispatched += 1;
+    }
+  }
+}
+
+// Pass C — abandoned: past-retention presence (oldest first), deleted with its
+// subject. Capped per run so a post-outage backlog can't blow the mutation's
+// call budget; the next run takes the next oldest batch.
+async function sweepAbandoned(ctx: MutationCtx, now: number, counts: SweepCounts): Promise<void> {
+  const abandoned = await ctx.db
+    .query('syncPresence')
+    .withIndex('by_last_seen', (q) => q.lt('lastSeenAt', now - RETENTION_MS))
+    .take(SWEEP_DELETE_BATCH);
+  for (const presence of abandoned) {
+    const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
+    if (subject !== null) {
+      await ctx.db.delete(subject._id);
+      counts.deleted += 1;
+    }
+    await ctx.db.delete(presence._id);
+  }
+  if (abandoned.length === SWEEP_DELETE_BATCH) {
+    // Not silent truncation: the next 15-min run drains the next oldest batch.
+    console.warn(
+      JSON.stringify({
+        scope: 'engine:sweep',
+        note: 'retention_batch_capped',
+        deletedThisRun: counts.deleted,
+      }),
+    );
+  }
+}
