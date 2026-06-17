@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { readEnv } from '@/lib/env';
 import {
@@ -8,12 +8,8 @@ import {
   SDE_META_KEY_TREE_HASH,
   TREE_RESOLVER_ALGO_VERSION,
 } from './constants';
-import {
-  blueprintFlatMaterials,
-  blueprintTrees,
-  eveDataMeta,
-  industryBlueprints,
-} from './schema';
+import { getSdeMetaValue, setSdeMetaValue } from './meta';
+import { blueprintFlatMaterials, blueprintTrees, industryBlueprints } from './schema';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPgDb = PostgresJsDatabase<any>;
@@ -379,25 +375,6 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     .digest('hex');
 }
 
-async function readMeta(db: AnyPgDb, key: string): Promise<string | null> {
-  const [row] = await db
-    .select({ value: eveDataMeta.value })
-    .from(eveDataMeta)
-    .where(eq(eveDataMeta.key, key))
-    .limit(1);
-  return row?.value ?? null;
-}
-
-async function writeMeta(db: AnyPgDb, key: string, value: string): Promise<void> {
-  await db
-    .insert(eveDataMeta)
-    .values({ key, value, updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: eveDataMeta.key,
-      set: { value, updatedAt: new Date() },
-    });
-}
-
 // True when blueprint_trees holds at least one row. runIngest truncates the
 // derived tables before the deploy/cron pipeline reaches the resolver, so the
 // hash gate alone is not enough to decide a skip is safe — see resolveAllTrees.
@@ -417,7 +394,7 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
   const start = Date.now();
   const forceRebuild = readEnv('LGI_FORCE_TREE_REBUILD') === '1';
 
-  const hashBefore = await readMeta(db, SDE_META_KEY_TREE_HASH);
+  const hashBefore = await getSdeMetaValue(db, SDE_META_KEY_TREE_HASH);
   const hashAfter = await computeTreeResolverHash(db);
   // Only honour the skip when the resolved trees are actually still present.
   // runIngest TRUNCATEs blueprint_trees/blueprint_flat_materials, so on a
@@ -542,7 +519,7 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
       );
     }
 
-    await writeMeta(tx, SDE_META_KEY_TREE_HASH, hashAfter);
+    await setSdeMetaValue(tx, SDE_META_KEY_TREE_HASH, hashAfter);
   });
 
   const stats = resolver.stats();

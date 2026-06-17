@@ -6,7 +6,7 @@ import { OdometerValue } from '@/components/ui/odometer-value';
 import { SectionFooter } from '@/components/ui/section-footer';
 import type { SiteResource, SiteType } from '../types';
 import { formatIskHeader } from '../format';
-import { ResourceRow } from './ResourceRow';
+import { SiteResourceRow } from './ResourceRow';
 import {
   resourceLiveIsk,
   SiteLiveContext,
@@ -106,7 +106,7 @@ export function SiteResourcesLive({
     <>
       <ViewSentinel />
       {resources.map((resource) => (
-        <ResourceRow key={resource.id} resource={resource} siteType={siteType} />
+        <SiteResourceRow key={resource.id} resource={resource} siteType={siteType} />
       ))}
       <LiveResourceFooter resources={resources} label={footerLabel} />
     </>

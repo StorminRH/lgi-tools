@@ -58,6 +58,65 @@ export function computeDelta(current: number, previous: number | null): Delta | 
   return { pct: Math.round(pct), direction: pct > 0 ? 'up' : 'down' };
 }
 
+export interface KpiCardModel {
+  label: string;
+  value: string;
+  sub: string;
+  delta: Delta | null;
+}
+
+// The dashboard's four headline cards as plain view-models: each runs its query
+// twice (current + previous equal-length window) so the delta needs no new SQL.
+// GSC cards degrade to a "not connected" placeholder when GSC is unconfigured;
+// the previous-window totals are null on the `all` range (no window to compare).
+export function buildKpiCards(args: {
+  pageViews: { referred: number; direct: number };
+  users: { newUsers: number; returning: number };
+  gscTotals: { clicks: number; impressions: number; ctr: number; position: number } | null;
+  prevPageViews: { referred: number; direct: number } | null;
+  prevUsers: { newUsers: number; returning: number } | null;
+  prevGscTotals: { clicks: number; impressions: number } | null;
+}): KpiCardModel[] {
+  const { pageViews, users, gscTotals, prevPageViews, prevUsers, prevGscTotals } = args;
+  const viewsTotal = pageViews.referred + pageViews.direct;
+  const referredPct = viewsTotal === 0 ? null : Math.round((pageViews.referred / viewsTotal) * 100);
+  const usersTotal = users.newUsers + users.returning;
+  return [
+    {
+      label: 'Page views',
+      value: viewsTotal.toLocaleString(),
+      sub:
+        referredPct === null
+          ? 'no page views this period'
+          : `${referredPct}% via external referrers`,
+      delta: computeDelta(
+        viewsTotal,
+        prevPageViews ? prevPageViews.referred + prevPageViews.direct : null,
+      ),
+    },
+    {
+      label: 'Signed-in users',
+      value: usersTotal.toLocaleString(),
+      sub: `${users.newUsers} new · ${users.returning} returning`,
+      delta: computeDelta(usersTotal, prevUsers ? prevUsers.newUsers + prevUsers.returning : null),
+    },
+    {
+      label: 'Search clicks',
+      value: gscTotals ? gscTotals.clicks.toLocaleString() : '—',
+      sub: gscTotals ? `${(gscTotals.ctr * 100).toFixed(1)}% CTR` : 'GSC not connected',
+      delta: gscTotals ? computeDelta(gscTotals.clicks, prevGscTotals?.clicks ?? null) : null,
+    },
+    {
+      label: 'Search impressions',
+      value: gscTotals ? gscTotals.impressions.toLocaleString() : '—',
+      sub: gscTotals ? `avg position ${gscTotals.position.toFixed(1)}` : 'GSC not connected',
+      delta: gscTotals
+        ? computeDelta(gscTotals.impressions, prevGscTotals?.impressions ?? null)
+        : null,
+    },
+  ];
+}
+
 // A day-indexed series → serializable trend props (x = ordinal index; the day
 // strings, in ascending query order, label each point). The formatters live in
 // the client chart wrappers, so only these plain arrays cross the boundary.

@@ -4,7 +4,6 @@ import { db } from '@/db';
 import {
   blueprintTrees,
   eveCategories,
-  eveDataMeta,
   eveGroups,
   eveNpcStations,
   eveSolarSystems,
@@ -333,29 +332,4 @@ export async function getIndustryStationsForSystem(
         eq(eveNpcStations.industryCapable, true),
       ),
     );
-}
-
-// ----- SDE meta key/value -------------------------------------------
-
-export async function getSdeMetaValue(db: AnyPgDb, key: string): Promise<string | null> {
-  const [row] = await db
-    .select({ value: eveDataMeta.value })
-    .from(eveDataMeta)
-    .where(eq(eveDataMeta.key, key))
-    .limit(1);
-  return row?.value ?? null;
-}
-
-export async function setSdeMetaValue(
-  db: AnyPgDb,
-  key: string,
-  value: string,
-): Promise<void> {
-  await db
-    .insert(eveDataMeta)
-    .values({ key, value, updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: eveDataMeta.key,
-      set: { value, updatedAt: new Date() },
-    });
 }

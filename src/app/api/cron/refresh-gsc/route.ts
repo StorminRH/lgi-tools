@@ -1,20 +1,8 @@
-import { connection } from 'next/server';
 import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
 import { syncGsc } from '@/data/gsc/ingest';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { directClient } from '@/db';
-import { readEnv } from '@/lib/env';
-
-// Awaits a fire-and-forget side effect, swallowing failures so observability
-// can never break the cron, and awaiting so the write lands before the
-// serverless function freezes on return.
-async function swallow(label: string, p: Promise<unknown>): Promise<void> {
-  try {
-    await p;
-  } catch (err) {
-    console.error(label, err);
-  }
-}
+import { requireCronAuth, swallow } from '@/lib/cron';
 
 // Vercel-cron endpoint, scheduled in vercel.json ("0 9 * * *" — daily, clear of
 // the 11:30 prices sweep and the Monday SDE run). Vercel's cron invoker sends
@@ -30,16 +18,8 @@ async function swallow(label: string, p: Promise<unknown>): Promise<void> {
 // No user input — bearer-auth only, body and query params ignored.
 // authz: cron
 export async function GET(req: Request): Promise<Response> {
-  // Cron endpoint: runs per-invocation and writes. Defer to request time so
-  // Cache Components doesn't try to prerender it.
-  await connection();
-  const secret = readEnv('CRON_SECRET');
-  if (!secret) {
-    return new Response('CRON_SECRET not configured', { status: 500 });
-  }
-  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const denied = await requireCronAuth(req);
+  if (denied) return denied;
 
   const summary = await syncGsc(directClient);
 

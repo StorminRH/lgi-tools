@@ -20,10 +20,7 @@ import {
   ADVISORY_LOCK_SDE_INGEST,
   SDE_META_KEY_VERSION,
 } from '../data/eve-data/constants';
-import {
-  getSdeMetaValue,
-  setSdeMetaValue,
-} from '../data/eve-data/queries';
+import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import { resolveLockConnectionUrl } from './index';
 import { runSdePipeline, summarizeMarketPricesRowCount } from './sde-pipeline';

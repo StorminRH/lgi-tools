@@ -151,37 +151,25 @@ async function upsertSearchAnalytics(
   }
 }
 
-// Pull-and-store. Each surface is isolated in a try/catch: a failure records
-// the error and leaves the prior snapshot intact (degrade-to-last-known, like
-// the price path) rather than breaking the dashboard. Returns a summary the
-// cron threads into observability.
-export async function syncGsc(client: Sql): Promise<GscSyncSummary> {
-  const start = Date.now();
-  if (!isGscConfigured()) {
-    return {
-      status: 'skipped',
-      reason: 'not_configured',
-      searchRows: 0,
-      sitemaps: 0,
-      urlsInspected: 0,
-      errors: [],
-      durationMs: Date.now() - start,
-    };
-  }
+// One pull-and-store surface's outcome: rows landed plus an optional error
+// string. Surfaces are isolated so a failure records the error and leaves the
+// prior snapshot intact (degrade-to-last-known, like the price path).
+type SurfaceResult = { count: number; error: string | null };
 
-  const db = drizzle(client);
-  const syncedAt = new Date();
-  const endDate = dateStr(syncedAt);
-  const startDate = dateStr(new Date(syncedAt.getTime() - GSC_WINDOW_DAYS * 24 * 60 * 60 * 1000));
-  const errors: string[] = [];
-  let searchRows = 0;
-  let sitemaps = 0;
-  let urlsInspected = 0;
+function errText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
+async function syncSearchAnalytics(
+  db: AnyPgDb,
+  startDate: string,
+  endDate: string,
+  syncedAt: Date,
+): Promise<SurfaceResult> {
   try {
-    // The three pulls are independent (same window, different dimensions), so
-    // fetch them concurrently — three queries are trivially within the per-site
-    // QPM budget, and this cuts the search-analytics leg's latency ~3x.
+    // The pulls are independent (same window, different dimensions), so fetch
+    // them concurrently — trivially within the per-site QPM budget, and it cuts
+    // the search-analytics leg's latency ~3x.
     const perPull = await Promise.all(
       SEARCH_PULLS.map(async (pull) =>
         searchRowsToRecords(
@@ -193,40 +181,48 @@ export async function syncGsc(client: Sql): Promise<GscSyncSummary> {
     );
     const records = perPull.flat();
     await upsertSearchAnalytics(db, records);
-    searchRows = records.length;
+    return { count: records.length, error: null };
   } catch (err) {
-    errors.push(`search-analytics: ${err instanceof Error ? err.message : String(err)}`);
+    return { count: 0, error: `search-analytics: ${errText(err)}` };
   }
+}
 
+async function syncSitemaps(db: AnyPgDb, syncedAt: Date): Promise<SurfaceResult> {
   try {
     const entries = await listSitemaps();
-    if (entries.length > 0) {
-      const rows = entries.map((e) => sitemapToRecord(e, syncedAt));
-      await db
-        .insert(gscSitemaps)
-        .values(rows)
-        .onConflictDoUpdate({
-          target: gscSitemaps.path,
-          set: {
-            lastSubmitted: excluded('last_submitted'),
-            lastDownloaded: excluded('last_downloaded'),
-            isPending: excluded('is_pending'),
-            isSitemapsIndex: excluded('is_sitemaps_index'),
-            type: excluded('type'),
-            warnings: excluded('warnings'),
-            errors: excluded('errors'),
-            submitted: excluded('submitted'),
-            indexed: excluded('indexed'),
-            syncedAt: excluded('synced_at'),
-          },
-        });
-      sitemaps = rows.length;
-    }
+    if (entries.length === 0) return { count: 0, error: null };
+    const rows = entries.map((e) => sitemapToRecord(e, syncedAt));
+    await db
+      .insert(gscSitemaps)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: gscSitemaps.path,
+        set: {
+          lastSubmitted: excluded('last_submitted'),
+          lastDownloaded: excluded('last_downloaded'),
+          isPending: excluded('is_pending'),
+          isSitemapsIndex: excluded('is_sitemaps_index'),
+          type: excluded('type'),
+          warnings: excluded('warnings'),
+          errors: excluded('errors'),
+          submitted: excluded('submitted'),
+          indexed: excluded('indexed'),
+          syncedAt: excluded('synced_at'),
+        },
+      });
+    return { count: rows.length, error: null };
   } catch (err) {
-    errors.push(`sitemaps: ${err instanceof Error ? err.message : String(err)}`);
+    return { count: 0, error: `sitemaps: ${errText(err)}` };
   }
+}
 
-  // Per-URL, so one bad URL can't sink the batch.
+// Per-URL, so one bad URL can't sink the batch — each gets its own try/catch.
+async function syncUrlInspections(
+  db: AnyPgDb,
+  syncedAt: Date,
+): Promise<{ count: number; errors: string[] }> {
+  let count = 0;
+  const errors: string[] = [];
   for (const url of inspectionUrls()) {
     try {
       const status = await inspectUrl(url);
@@ -249,11 +245,46 @@ export async function syncGsc(client: Sql): Promise<GscSyncSummary> {
             syncedAt: excluded('synced_at'),
           },
         });
-      urlsInspected++;
+      count++;
     } catch (err) {
-      errors.push(`url-inspection ${url}: ${err instanceof Error ? err.message : String(err)}`);
+      errors.push(`url-inspection ${url}: ${errText(err)}`);
     }
   }
+  return { count, errors };
+}
+
+// Pull-and-store across all three Search Console surfaces. Each surface degrades
+// to its last-known snapshot on failure; the summary threads into cron
+// observability.
+export async function syncGsc(client: Sql): Promise<GscSyncSummary> {
+  const start = Date.now();
+  if (!isGscConfigured()) {
+    return {
+      status: 'skipped',
+      reason: 'not_configured',
+      searchRows: 0,
+      sitemaps: 0,
+      urlsInspected: 0,
+      errors: [],
+      durationMs: Date.now() - start,
+    };
+  }
+
+  const db = drizzle(client);
+  const syncedAt = new Date();
+  const endDate = dateStr(syncedAt);
+  const startDate = dateStr(new Date(syncedAt.getTime() - GSC_WINDOW_DAYS * 24 * 60 * 60 * 1000));
+
+  const search = await syncSearchAnalytics(db, startDate, endDate, syncedAt);
+  const sitemap = await syncSitemaps(db, syncedAt);
+  const urls = await syncUrlInspections(db, syncedAt);
+
+  const errors = [search.error, sitemap.error, ...urls.errors].filter(
+    (e): e is string => e !== null,
+  );
+  const searchRows = search.count;
+  const sitemaps = sitemap.count;
+  const urlsInspected = urls.count;
 
   const anyLanded = searchRows + sitemaps + urlsInspected > 0;
   const status: GscSyncSummary['status'] =

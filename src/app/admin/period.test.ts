@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_TIME_FROM, computeDelta, parseRange, previousRange, rangeFor } from './period';
+import {
+  ALL_TIME_FROM,
+  buildKpiCards,
+  computeDelta,
+  parseRange,
+  previousRange,
+  rangeFor,
+} from './period';
 
 const NOW = new Date('2026-06-09T12:00:00Z');
 
@@ -66,5 +73,70 @@ describe('computeDelta', () => {
 
   it('a drop to zero is -100%', () => {
     expect(computeDelta(0, 40)).toEqual({ pct: -100, direction: 'down' });
+  });
+});
+
+describe('buildKpiCards', () => {
+  const pageViews = { referred: 30, direct: 70 };
+  const users = { newUsers: 4, returning: 6 };
+  const gscTotals = { clicks: 200, impressions: 5000, ctr: 0.04, position: 12.3 };
+
+  it('derives the page-view and user cards with deltas vs the previous window', () => {
+    const cards = buildKpiCards({
+      pageViews,
+      users,
+      gscTotals: null,
+      prevPageViews: { referred: 10, direct: 40 },
+      prevUsers: { newUsers: 2, returning: 3 },
+      prevGscTotals: null,
+    });
+    expect(cards[0]).toEqual({
+      label: 'Page views',
+      value: '100',
+      sub: '30% via external referrers',
+      delta: { pct: 100, direction: 'up' },
+    });
+    expect(cards[1].value).toBe('10');
+    expect(cards[1].sub).toBe('4 new · 6 returning');
+  });
+
+  it('shows the no-views placeholder when the page-view total is zero', () => {
+    const cards = buildKpiCards({
+      pageViews: { referred: 0, direct: 0 },
+      users,
+      gscTotals: null,
+      prevPageViews: null,
+      prevUsers: null,
+      prevGscTotals: null,
+    });
+    expect(cards[0].sub).toBe('no page views this period');
+    expect(cards[0].delta).toBeNull();
+  });
+
+  it('degrades the GSC cards to a not-connected placeholder when GSC is off', () => {
+    const cards = buildKpiCards({
+      pageViews,
+      users,
+      gscTotals: null,
+      prevPageViews: null,
+      prevUsers: null,
+      prevGscTotals: null,
+    });
+    expect(cards[2]).toMatchObject({ value: '—', sub: 'GSC not connected', delta: null });
+    expect(cards[3]).toMatchObject({ value: '—', sub: 'GSC not connected', delta: null });
+  });
+
+  it('renders the GSC cards with CTR/position subs when connected', () => {
+    const cards = buildKpiCards({
+      pageViews,
+      users,
+      gscTotals,
+      prevPageViews: null,
+      prevUsers: null,
+      prevGscTotals: { clicks: 100, impressions: 2500 },
+    });
+    expect(cards[2]).toMatchObject({ value: '200', sub: '4.0% CTR' });
+    expect(cards[3]).toMatchObject({ value: '5,000', sub: 'avg position 12.3' });
+    expect(cards[2].delta).toEqual({ pct: 100, direction: 'up' });
   });
 });

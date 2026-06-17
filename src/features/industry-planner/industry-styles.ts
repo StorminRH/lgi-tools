@@ -21,6 +21,65 @@ export function marginToneClass(marginPct: number | null): string {
   return toneTextClass('green');
 }
 
+export type MarginCaption =
+  | 'missing-cost-index'
+  | 'missing-adjusted-prices'
+  | 'net-clean'
+  | 'gross-manufacturing'
+  | 'gross-reaction';
+
+// Which disclaimer sits under the margin figure. Net captions explain the job-
+// fee caveat (incomplete cost index / missing reference prices) or that it's
+// clean; gross captions explain that materials-only isn't take-home —
+// manufacturing can flip to net once a system is picked, reactions can't yet.
+export function selectMarginCaption(opts: {
+  showNet: boolean;
+  isManufacturing: boolean;
+  missingSystemCostIndex: boolean;
+  missingAdjustedPriceCount: number;
+}): MarginCaption {
+  if (opts.showNet) {
+    if (opts.missingSystemCostIndex) return 'missing-cost-index';
+    if (opts.missingAdjustedPriceCount > 0) return 'missing-adjusted-prices';
+    return 'net-clean';
+  }
+  return opts.isManufacturing ? 'gross-manufacturing' : 'gross-reaction';
+}
+
+export interface MarginFigures {
+  showNet: boolean;
+  margin: number | null;
+  marginPct: number | null;
+  sign: string;
+  missingSystemCostIndex: boolean;
+  missingAdjustedPriceCount: number;
+}
+
+// The hero's headline figures: net wins whenever a net estimate exists (a
+// manufacturing blueprint with a build location picked → `net` non-null),
+// otherwise gross from the materials-only summary. `sign` is the leading '+'
+// for a positive margin; the missing-fee flags feed selectMarginCaption.
+export function deriveMarginFigures(
+  summary: { margin: number | null; marginPct: number | null } | null,
+  net: {
+    netMargin: number | null;
+    netMarginPct: number | null;
+    jobFee: { missingSystemCostIndex: boolean; missingAdjustedPriceTypeIds: readonly unknown[] };
+  } | null,
+): MarginFigures {
+  const showNet = net !== null;
+  const margin = net !== null ? net.netMargin : (summary?.margin ?? null);
+  const marginPct = net !== null ? net.netMarginPct : (summary?.marginPct ?? null);
+  return {
+    showNet,
+    margin,
+    marginPct,
+    sign: margin !== null && margin > 0 ? '+' : '',
+    missingSystemCostIndex: net !== null ? net.jobFee.missingSystemCostIndex : false,
+    missingAdjustedPriceCount: net !== null ? net.jobFee.missingAdjustedPriceTypeIds.length : 0,
+  };
+}
+
 // Industry activity label, from the shared id → label map (eve-data).
 // Manufacturing (1) and reactions (11) are the only activities the planner
 // models (see eve-data INDUSTRY_ACTIVITY_NAMES); the fallback covers any id
@@ -190,6 +249,24 @@ export function aggregateConfidenceFromCounts(c: ConfidenceCounts): AggregateCon
   return { level, summary: parts.length ? parts.join(' · ') : 'all live · liquid' };
 }
 
+// One row's contribution to the aggregate: a high/missing verdict plus, for
+// priced rows, the specific shortfalls (stale / fallback-source / illiquid).
+// `total` is added once by the caller, so a single row tallies everything else.
+type RowCounts = Omit<ConfidenceCounts, 'total'>;
+
+function classifyInput(input: ConfidenceInput, nowMs: number): RowCounts {
+  const { level } = priceConfidence(input, nowMs);
+  const counts: RowCounts = { high: 0, stale: 0, fallback: 0, thin: 0, missing: 0 };
+  if (level === 'high') counts.high = 1;
+  if (level === 'low' || level === 'unknown') counts.missing = 1;
+  if (input.staleAfterMs !== null && input.unitBuy !== null) {
+    if (input.staleAfterMs <= nowMs) counts.stale = 1;
+    if (input.source !== null && input.source !== 'esi') counts.fallback = 1;
+    if (input.buyVolume !== null && input.buyVolume < THIN_LIQUIDITY_UNITS) counts.thin = 1;
+  }
+  return counts;
+}
+
 // Roll the per-row verdicts into one headline level + a breakdown string for
 // the cost panel's aggregate line ("High confidence — 1 stale · 1 missing").
 // The headline is share-based (mostly-trustworthy rows still read "high", with
@@ -198,21 +275,15 @@ export function aggregateConfidence(
   inputs: ConfidenceInput[],
   nowMs: number,
 ): AggregateConfidence {
-  let high = 0;
-  let stale = 0;
-  let fallback = 0;
-  let thin = 0;
-  let missing = 0;
+  const totals: RowCounts = { high: 0, stale: 0, fallback: 0, thin: 0, missing: 0 };
   for (const input of inputs) {
-    const { level } = priceConfidence(input, nowMs);
-    if (level === 'high') high += 1;
-    if (level === 'low' || level === 'unknown') missing += 1;
-    if (input.staleAfterMs !== null && input.unitBuy !== null) {
-      if (input.staleAfterMs <= nowMs) stale += 1;
-      if (input.source !== null && input.source !== 'esi') fallback += 1;
-      if (input.buyVolume !== null && input.buyVolume < THIN_LIQUIDITY_UNITS) thin += 1;
-    }
+    const counts = classifyInput(input, nowMs);
+    totals.high += counts.high;
+    totals.stale += counts.stale;
+    totals.fallback += counts.fallback;
+    totals.thin += counts.thin;
+    totals.missing += counts.missing;
   }
 
-  return aggregateConfidenceFromCounts({ high, total: inputs.length, stale, fallback, thin, missing });
+  return aggregateConfidenceFromCounts({ ...totals, total: inputs.length });
 }

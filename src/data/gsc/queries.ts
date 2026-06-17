@@ -105,7 +105,7 @@ export function getTopQueries(range: GscRange, limit = 10): Promise<GscTermStat[
   return getTopTerms(range, 'query', limit);
 }
 
-export function getTopPages(range: GscRange, limit = 10): Promise<GscTermStat[]> {
+export function getTopGscPages(range: GscRange, limit = 10): Promise<GscTermStat[]> {
   return getTopTerms(range, 'page', limit);
 }
 

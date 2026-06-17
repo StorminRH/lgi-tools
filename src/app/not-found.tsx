@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { Pill } from '@/components/ui/pill';
 
+// Next.js reads `metadata` from not-found.tsx the same way it does from page/layout
+// (framework convention); the nextjs plugin just doesn't recognize it on this special file.
+// fallow-ignore-next-line unused-export
 export const metadata = {
   title: 'Not found',
 };

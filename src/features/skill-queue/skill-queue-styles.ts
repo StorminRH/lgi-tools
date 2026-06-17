@@ -10,15 +10,5 @@ export const STATUS_META: Record<EntryStatus, { label: string; tone: Tone }> = {
   paused: { label: 'Paused', tone: 'orange' },
 };
 
-// Sync-error codes the action records on a characterSync doc. Anything
-// unrecognized (e.g. a raw `esi_403`) falls back to the generic entry.
-const SYNC_ERROR_META: Record<string, { label: string; tone: Tone }> = {
-  reauth_required: { label: 'Reconnect needed', tone: 'red' },
-  budget_exhausted: { label: 'ESI budget exhausted', tone: 'orange' },
-  token_unavailable: { label: 'Token unavailable', tone: 'orange' },
-  contract_error: { label: 'Unexpected ESI response', tone: 'red' },
-};
-
-export function syncErrorMeta(code: string): { label: string; tone: Tone } {
-  return SYNC_ERROR_META[code] ?? { label: `Sync failed (${code})`, tone: 'orange' };
-}
+// `syncErrorMeta` now lives in src/components/live-character-sync (shared with
+// the industry-jobs tracker).
