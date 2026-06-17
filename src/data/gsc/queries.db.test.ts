@@ -67,13 +67,12 @@ const cases: QueryCase[] = [
     name: 'getLastSyncedAt',
     run: () => getLastSyncedAt(),
     check: (r) => {
-      // Typed Date | null, but drizzle returns raw timestamp strings for bare
-      // sql<> expressions (both drivers disable the timestamp parser and only
-      // typed columns get re-mapped), so assert a non-null, timestamp-coercible
-      // value rather than a strict Date. (The string-vs-Date mismatch and its
-      // consumer impact is a separate finding, out of this test-only session.)
-      expect(r).not.toBeNull();
-      expect(Number.isNaN(new Date(r as string).getTime())).toBe(false);
+      // Coerced to a real Date at the query (bare sql<> aggregates return raw
+      // timestamp strings under both drivers — strings lack .toISOString(), the
+      // latent /admin 500). The populated case must be an actual Date equal to the
+      // seeded syncedAt, not merely a timestamp-coercible string.
+      expect(r).toBeInstanceOf(Date);
+      expect((r as Date).getTime()).toBe(SYNCED_AT.getTime());
     },
   },
 ];
@@ -124,5 +123,13 @@ describe.skipIf(!reachable)('admin GSC analytics queries execute against Postgre
 
   it.each(cases)('$name executes and returns a plausible shape', async ({ run, check }) => {
     check(await run());
+  });
+
+  it('getLastSyncedAt returns null when nothing has synced', async () => {
+    // Runs after the seeded it.each cases; clear the analytics rows so max() over
+    // an empty set is null — the contract's no-sync branch, which must stay null and
+    // never coerce to the epoch (new Date(null)).
+    await drizzlePg(adminClient).delete(gscSearchAnalytics);
+    expect(await getLastSyncedAt()).toBeNull();
   });
 });

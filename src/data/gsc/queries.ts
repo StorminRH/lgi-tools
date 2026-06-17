@@ -160,5 +160,10 @@ export async function getLastSyncedAt(): Promise<Date | null> {
   const [row] = await db
     .select({ lastSyncedAt: sql<Date | null>`max(${gscSearchAnalytics.syncedAt})` })
     .from(gscSearchAnalytics);
-  return row?.lastSyncedAt ?? null;
+  // drizzle returns a raw timestamp string for a bare sql<> aggregate (both drivers
+  // disable the timestamp parser; only typed columns are re-mapped), so coerce to a
+  // real Date here — consumers call .toISOString() on it. A null max (nothing synced)
+  // stays null, never the epoch.
+  const raw = row?.lastSyncedAt ?? null;
+  return raw === null ? null : new Date(raw as unknown as string);
 }
