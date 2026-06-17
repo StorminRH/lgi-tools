@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregateConfidence,
   aggregateConfidenceFromCounts,
+  deriveMarginFigures,
   priceConfidence,
+  selectMarginCaption,
   type ConfidenceInput,
 } from './industry-styles';
 
@@ -157,5 +159,92 @@ describe('aggregateConfidenceFromCounts', () => {
       missing: 1,
     });
     expect(viaCounts).toEqual(viaRows);
+  });
+});
+
+describe('selectMarginCaption', () => {
+  it('picks the job-fee caveat captions when showing net', () => {
+    const base = { showNet: true, isManufacturing: true };
+    expect(
+      selectMarginCaption({ ...base, missingSystemCostIndex: true, missingAdjustedPriceCount: 0 }),
+    ).toBe('missing-cost-index');
+    expect(
+      selectMarginCaption({ ...base, missingSystemCostIndex: false, missingAdjustedPriceCount: 3 }),
+    ).toBe('missing-adjusted-prices');
+    expect(
+      selectMarginCaption({ ...base, missingSystemCostIndex: false, missingAdjustedPriceCount: 0 }),
+    ).toBe('net-clean');
+  });
+
+  it('cost-index caveat wins over the missing-price caveat', () => {
+    expect(
+      selectMarginCaption({
+        showNet: true,
+        isManufacturing: true,
+        missingSystemCostIndex: true,
+        missingAdjustedPriceCount: 5,
+      }),
+    ).toBe('missing-cost-index');
+  });
+
+  it('splits gross captions by activity (reactions cannot flip to net yet)', () => {
+    expect(
+      selectMarginCaption({
+        showNet: false,
+        isManufacturing: true,
+        missingSystemCostIndex: false,
+        missingAdjustedPriceCount: 0,
+      }),
+    ).toBe('gross-manufacturing');
+    expect(
+      selectMarginCaption({
+        showNet: false,
+        isManufacturing: false,
+        missingSystemCostIndex: false,
+        missingAdjustedPriceCount: 0,
+      }),
+    ).toBe('gross-reaction');
+  });
+});
+
+describe('deriveMarginFigures', () => {
+  const summary = { margin: 100, marginPct: 0.1 };
+
+  it('uses gross from the summary when there is no net estimate', () => {
+    expect(deriveMarginFigures(summary, null)).toEqual({
+      showNet: false,
+      margin: 100,
+      marginPct: 0.1,
+      sign: '+',
+      missingSystemCostIndex: false,
+      missingAdjustedPriceCount: 0,
+    });
+  });
+
+  it('prefers net (and surfaces the missing-fee flags) when a net estimate exists', () => {
+    const net = {
+      netMargin: -50,
+      netMarginPct: -0.05,
+      jobFee: { missingSystemCostIndex: true, missingAdjustedPriceTypeIds: [1, 2] },
+    };
+    expect(deriveMarginFigures(summary, net)).toEqual({
+      showNet: true,
+      margin: -50,
+      marginPct: -0.05,
+      sign: '',
+      missingSystemCostIndex: true,
+      missingAdjustedPriceCount: 2,
+    });
+  });
+
+  it('handles an absent summary without a net estimate', () => {
+    expect(deriveMarginFigures(null, null)).toEqual({
+      showNet: false,
+      margin: null,
+      marginPct: null,
+      sign: '',
+      missingSystemCostIndex: false,
+      missingAdjustedPriceCount: 0,
+    });
   });
 });

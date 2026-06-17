@@ -135,6 +135,7 @@ Vitest. CI runs the suite on every PR; a red suite blocks merge.
 - **Add tests organically.** New testable code (pure functions, query helpers, math, `src/data/` with assertable output) gets tests in the same PR, co-located (`foo.test.ts` next to `foo.ts`).
 - **Don't backfill for coverage's sake.** Untested code stays untested until something touches it.
 - **Skip what doesn't earn it.** Presentational components are covered by visual review. Route handlers get tests when they hold non-trivial logic.
+- **Test logic, not layout.** The line isn't `.tsx` vs `.ts` — it's behavior-that-branches (state machines, derived values, error/empty/loading transitions, interactions) vs static markup. When logic is tangled inside a component, extract it into a pure function and test that (the Humble Component pattern — see `progress.ts`/`sort.ts`, or the `LiveCharacterCard` extraction whose decision logic lives in tested helpers); leave the residual JSX shell to visual/preview review. Test a component directly only when a user-observable branch can't be tested more cheaply as a function, and assert on visible text/role — never DOM structure. A few Playwright/preview journeys beat many shallow component tests. Never add a test solely to move a coverage/CRAP number — that's backfilling.
 
 ## Workflow
 

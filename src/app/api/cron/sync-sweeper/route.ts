@@ -1,20 +1,9 @@
-import { connection } from 'next/server';
 import type { CronSyncSweeperResponse } from '@/data/convex/api-contract';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { requireCronAuth, swallow } from '@/lib/cron';
 import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
-
-// Awaits a fire-and-forget side effect, swallowing failures so observability
-// can never break the cron, and awaiting so the write lands before the
-// serverless function freezes on return.
-async function swallow(label: string, p: Promise<unknown>): Promise<void> {
-  try {
-    await p;
-  } catch (err) {
-    console.error(label, err);
-  }
-}
 
 // Vercel-cron endpoint, scheduled in vercel.json ("*/15 * * * *"). Vercel's
 // cron invoker sends GET with `Authorization: Bearer ${CRON_SECRET}`; reject
@@ -33,16 +22,8 @@ async function swallow(label: string, p: Promise<unknown>): Promise<void> {
 // authz: cron
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 export async function GET(req: Request): Promise<Response> {
-  // Cron endpoint: runs per-invocation and writes. Defer to request time so
-  // Cache Components doesn't try to prerender it.
-  await connection();
-  const secret = readEnv('CRON_SECRET');
-  if (!secret) {
-    return new Response('CRON_SECRET not configured', { status: 500 });
-  }
-  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const denied = await requireCronAuth(req);
+  if (denied) return denied;
 
   const started = Date.now();
   const summary = await runSweep(started);

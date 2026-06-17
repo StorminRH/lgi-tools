@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { Bar } from '@visx/shape';
 import { scaleBand, scaleLinear } from '@visx/scale';
 import { useTooltip } from '@visx/tooltip';
@@ -8,6 +8,7 @@ import { localPoint } from '@visx/event';
 import { cn } from './cn';
 import { type SparklineTone } from './sparkline';
 import { toneHex } from './tones';
+import { useCssomTooltip } from './use-cssom-tooltip';
 
 /**
  * Compact categorical bar chart — outcome distributions, a login-frequency
@@ -59,17 +60,9 @@ export function BarChart({
   ariaLabel = 'Bar chart',
 }: BarChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
   const { tooltipOpen, tooltipLeft, tooltipTop, tooltipData, showTooltip, hideTooltip } =
     useTooltip<BarDatum>();
-
-  // Position the self-rendered tooltip via CSS custom properties through the
-  // CSSOM — never an inline `style` attribute. Mirrors Sparkline/ProgressBar.
-  useLayoutEffect(() => {
-    if (tooltipLeft == null || tooltipTop == null) return;
-    tooltipRef.current?.style.setProperty('--tt-x', `${tooltipLeft}px`);
-    tooltipRef.current?.style.setProperty('--tt-y', `${tooltipTop}px`);
-  }, [tooltipLeft, tooltipTop, tooltipOpen]);
+  const tooltipRef = useCssomTooltip(tooltipLeft, tooltipTop, tooltipOpen);
 
   const fill = toneHex[tone];
 

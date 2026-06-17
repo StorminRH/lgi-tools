@@ -6,13 +6,12 @@ import {
   BLUEPRINT_STRUCTURE_TAG,
   SDE_META_KEY_VERSION,
 } from '@/data/eve-data/constants';
-import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/queries';
+import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { connection } from 'next/server';
 import { directClient } from '@/db';
 import { runSdePipeline, summarizeMarketPricesRowCount } from '@/db/sde-pipeline';
-import { readEnv } from '@/lib/env';
+import { requireCronAuth } from '@/lib/cron';
 
 // Awaited fire-and-forget telemetry: failures swallowed so observability never
 // breaks the cron, awaited so the row lands before the serverless function
@@ -45,17 +44,10 @@ const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 // No user input — bearer-auth only, no body or query params consumed.
 // authz: cron
 export async function GET(req: Request): Promise<Response> {
-  // Cron endpoint: runs per-invocation and writes. Defer to request time so
-  // Cache Components doesn't try to prerender it.
+  const denied = await requireCronAuth(req);
+  if (denied) return denied;
+
   const start = Date.now();
-  await connection();
-  const secret = readEnv('CRON_SECRET');
-  if (!secret) {
-    return new Response('CRON_SECRET not configured', { status: 500 });
-  }
-  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
 
   const db = drizzle(directClient);
   const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);

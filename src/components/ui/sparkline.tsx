@@ -1,12 +1,13 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { LinePath, AreaClosed } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
 import { useTooltip } from '@visx/tooltip';
 import { localPoint } from '@visx/event';
 import { cn } from './cn';
 import { toneHex, type Tone } from './tones';
+import { useCssomTooltip } from './use-cssom-tooltip';
 
 /**
  * Compact line chart ("sparkline") for a small ordered series — a price
@@ -102,7 +103,6 @@ export function Sparkline({
   ariaLabel = 'Trend sparkline',
 }: SparklineProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
   const {
     tooltipOpen,
     tooltipLeft,
@@ -111,17 +111,7 @@ export function Sparkline({
     showTooltip,
     hideTooltip,
   } = useTooltip<SparklinePoint>();
-
-  // Position the (self-rendered) tooltip via CSS custom properties set through
-  // the CSSOM — never an inline `style` attribute. Mirrors ProgressBar, but
-  // runs in a layout effect: the tooltip mounts conditionally on hover, so the
-  // position must land before paint or the first frame flashes at the
-  // `translate(0,0)` fallback. (Client-only via `ssr: false`, so no SSR warning.)
-  useLayoutEffect(() => {
-    if (tooltipLeft == null || tooltipTop == null) return;
-    tooltipRef.current?.style.setProperty('--tt-x', `${tooltipLeft}px`);
-    tooltipRef.current?.style.setProperty('--tt-y', `${tooltipTop}px`);
-  }, [tooltipLeft, tooltipTop, tooltipOpen]);
+  const tooltipRef = useCssomTooltip(tooltipLeft, tooltipTop, tooltipOpen);
 
   const stroke = toneHex[tone];
 

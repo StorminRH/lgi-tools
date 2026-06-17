@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { LinePath, AreaClosed } from '@visx/shape';
 import { scaleLinear } from '@visx/scale';
 import { useTooltip } from '@visx/tooltip';
@@ -13,6 +13,7 @@ import {
   type SparklineTone,
 } from './sparkline';
 import { toneHex } from './tones';
+import { useCssomTooltip } from './use-cssom-tooltip';
 
 /**
  * Axis-equipped trend chart — the full-size sibling of {@link Sparkline} for
@@ -79,17 +80,9 @@ export function TrendChart({
   ariaLabel = 'Trend chart',
 }: TrendChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
   const { tooltipOpen, tooltipLeft, tooltipTop, tooltipData, showTooltip, hideTooltip } =
     useTooltip<SparklinePoint>();
-
-  // Tooltip position via CSS custom properties through the CSSOM — never an
-  // inline `style` attribute. Mirrors Sparkline/ProgressBar.
-  useLayoutEffect(() => {
-    if (tooltipLeft == null || tooltipTop == null) return;
-    tooltipRef.current?.style.setProperty('--tt-x', `${tooltipLeft}px`);
-    tooltipRef.current?.style.setProperty('--tt-y', `${tooltipTop}px`);
-  }, [tooltipLeft, tooltipTop, tooltipOpen]);
+  const tooltipRef = useCssomTooltip(tooltipLeft, tooltipTop, tooltipOpen);
 
   const stroke = toneHex[tone];
 

@@ -1,11 +1,10 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { connection } from 'next/server';
 import type { CronRefreshIndustryIndicesResponse } from '@/data/industry-indices/api-contract';
 import { ADVISORY_LOCK_INDUSTRY_INDICES } from '@/data/industry-indices/constants';
 import { refreshIndustryIndices } from '@/data/industry-indices/ingest';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { directClient } from '@/db';
-import { readEnv } from '@/lib/env';
+import { requireCronAuth } from '@/lib/cron';
 
 // Awaited fire-and-forget telemetry: the structured boundary line surfaces in
 // Vercel runtime logs; the usage row is swallowed so observability never breaks
@@ -36,17 +35,10 @@ const LOCK_KEY_NUM = Number(ADVISORY_LOCK_INDUSTRY_INDICES);
 // No user input — bearer-auth only, no body or query params consumed.
 // authz: cron
 export async function GET(req: Request): Promise<Response> {
-  // Cron endpoint: runs per-invocation and writes. Defer to request time so
-  // Cache Components doesn't try to prerender it.
+  const denied = await requireCronAuth(req);
+  if (denied) return denied;
+
   const start = Date.now();
-  await connection();
-  const secret = readEnv('CRON_SECRET');
-  if (!secret) {
-    return new Response('CRON_SECRET not configured', { status: 500 });
-  }
-  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
 
   const reserved = await directClient.reserve();
   let lockHeld = false;

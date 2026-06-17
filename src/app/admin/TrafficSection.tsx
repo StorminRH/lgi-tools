@@ -9,7 +9,7 @@ import { isGscConfigured } from '@/data/gsc/constants';
 import {
   getSearchTrend,
   getSitemapStatus,
-  getTopPages as getGscTopPages,
+  getTopGscPages,
   getTopQueries,
   getUrlInspection,
 } from '@/data/gsc/queries';
@@ -174,7 +174,7 @@ async function GscPerformanceCard({ range }: { range: DateRange }) {
   const [lastSyncedAt, trend, topPages, sitemaps, urls] = await Promise.all([
     getLastSyncedAtShared(),
     getSearchTrend(range),
-    getGscTopPages(range, 10),
+    getTopGscPages(range, 10),
     getSitemapStatus(),
     getUrlInspection(),
   ]);

@@ -74,22 +74,33 @@ export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
   }));
 }
 
-export async function getTopPages(range: DateRange, limit = 10): Promise<PathCount[]> {
-  const path = sql<string>`${usageLogs.metadata} ->> 'path'`;
+// Shared shape behind the metadata-keyed "top N" panels: pull a JSONB metadata
+// value, keep its non-null rows for one action, group, and rank by frequency.
+// Each public query renames the neutral `value` column to its domain field.
+async function topByMetadataKey(
+  metaKey: string,
+  action: UsageAction,
+  range: DateRange,
+  limit: number,
+  extraWhere?: ReturnType<typeof eq>,
+): Promise<{ value: string; count: number }[]> {
+  const col = sql<string>`${usageLogs.metadata} ->> ${metaKey}`;
   const rows = await db
-    .select({
-      path,
-      count: count(),
-    })
+    .select({ value: col, count: count() })
     .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, 'page_view'), isNotNull(path)))
-    .groupBy(path)
+    .where(and(inRange(range), eq(usageLogs.action, action), isNotNull(col), extraWhere))
+    .groupBy(col)
     .orderBy(desc(count()))
     .limit(limit);
 
   return rows
-    .filter((r) => r.path !== null)
-    .map((r) => ({ path: r.path as string, count: Number(r.count) }));
+    .filter((r) => r.value !== null)
+    .map((r) => ({ value: r.value as string, count: Number(r.count) }));
+}
+
+export async function getTopPages(range: DateRange, limit = 10): Promise<PathCount[]> {
+  const rows = await topByMetadataKey('path', 'page_view', range, limit);
+  return rows.map((r) => ({ path: r.value, count: r.count }));
 }
 
 // Top referrer hostnames among page_view events. TelemetryReporter only
@@ -97,70 +108,23 @@ export async function getTopPages(range: DateRange, limit = 10): Promise<PathCou
 // current host, so same-origin page-hops never appear here. Joining on
 // `path = '/sites'` would over-narrow it — we want acquisition across the
 // whole platform.
-export async function getTopReferrers(
-  range: DateRange,
-  limit = 10,
-): Promise<ReferrerCount[]> {
-  const host = sql<string>`${usageLogs.metadata} ->> 'referrer'`;
-  const rows = await db
-    .select({ host, count: count() })
-    .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, 'page_view'), isNotNull(host)))
-    .groupBy(host)
-    .orderBy(desc(count()))
-    .limit(limit);
-
-  return rows
-    .filter((r) => r.host !== null)
-    .map((r) => ({ host: r.host as string, count: Number(r.count) }));
+export async function getTopReferrers(range: DateRange, limit = 10): Promise<ReferrerCount[]> {
+  const rows = await topByMetadataKey('referrer', 'page_view', range, limit);
+  return rows.map((r) => ({ host: r.value, count: r.count }));
 }
 
 // Top entry pages — paths where metadata.is_entry is true. Tracks the first
 // page-view per browser session, so this aggregates landing pages rather
 // than every page a user opens after they're already on the site.
-export async function getTopEntryPages(
-  range: DateRange,
-  limit = 10,
-): Promise<EntryPageCount[]> {
-  const path = sql<string>`${usageLogs.metadata} ->> 'path'`;
+export async function getTopEntryPages(range: DateRange, limit = 10): Promise<EntryPageCount[]> {
   const isEntry = sql<string>`${usageLogs.metadata} ->> 'is_entry'`;
-  const rows = await db
-    .select({ path, count: count() })
-    .from(usageLogs)
-    .where(and(
-      inRange(range),
-      eq(usageLogs.action, 'page_view'),
-      isNotNull(path),
-      eq(isEntry, 'true'),
-    ))
-    .groupBy(path)
-    .orderBy(desc(count()))
-    .limit(limit);
-
-  return rows
-    .filter((r) => r.path !== null)
-    .map((r) => ({ path: r.path as string, count: Number(r.count) }));
+  const rows = await topByMetadataKey('path', 'page_view', range, limit, eq(isEntry, 'true'));
+  return rows.map((r) => ({ path: r.value, count: r.count }));
 }
 
-export async function getTopSearches(
-  range: DateRange,
-  limit = 10,
-): Promise<SearchCount[]> {
-  const query = sql<string>`${usageLogs.metadata} ->> 'query'`;
-  const rows = await db
-    .select({
-      query,
-      count: count(),
-    })
-    .from(usageLogs)
-    .where(and(inRange(range), eq(usageLogs.action, 'terminal_search'), isNotNull(query)))
-    .groupBy(query)
-    .orderBy(desc(count()))
-    .limit(limit);
-
-  return rows
-    .filter((r) => r.query !== null)
-    .map((r) => ({ query: r.query as string, count: Number(r.count) }));
+export async function getTopSearches(range: DateRange, limit = 10): Promise<SearchCount[]> {
+  const rows = await topByMetadataKey('query', 'terminal_search', range, limit);
+  return rows.map((r) => ({ query: r.value, count: r.count }));
 }
 
 export async function getRoleChangeAudit(

@@ -158,9 +158,23 @@ function findServiceIdByName(
 // ----- The pure core --------------------------------------------------------
 
 // Pure: raw records in, projected/filtered/joined dataset out. No file IO, no
-// DB, no logging — so it's fully unit-testable from in-memory fixtures.
+// DB, no logging — so it's fully unit-testable from in-memory fixtures. Each
+// pass below filters/joins one entity, threading the surviving id-sets into the
+// next; this orchestrator just wires them together.
 export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
-  // Regions — K-space only.
+  const { regions, regionIds } = projectRegions(raw);
+  const { constellations, constellationIds } = projectConstellations(raw, regionIds);
+  const { systems, systemIds } = projectSystems(raw, regionIds, constellationIds);
+  const { operations, operationIds, operationCapability } = projectOperations(raw);
+  const stations = projectStations(raw, systemIds, operationIds, operationCapability);
+  return { regions, constellations, systems, operations, stations };
+}
+
+// Regions — K-space only.
+function projectRegions(raw: RawUniverseFiles): {
+  regions: UniverseRegion[];
+  regionIds: Set<number>;
+} {
   const regions: UniverseRegion[] = [];
   const regionIds = new Set<number>();
   for (const r of raw.regions) {
@@ -169,23 +183,31 @@ export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
     regions.push({ id, name: requireName(r.name, 'region', id) });
     regionIds.add(id);
   }
+  return { regions, regionIds };
+}
 
-  // Constellations — those whose region survived.
+// Constellations — those whose region survived.
+function projectConstellations(
+  raw: RawUniverseFiles,
+  regionIds: Set<number>,
+): { constellations: UniverseConstellation[]; constellationIds: Set<number> } {
   const constellations: UniverseConstellation[] = [];
   for (const c of raw.constellations) {
     const id = intOrNull(c._key);
     const regionId = intOrNull(c.regionID);
     if (id === null || regionId === null || !regionIds.has(regionId)) continue;
-    constellations.push({
-      id,
-      regionId,
-      name: requireName(c.name, 'constellation', id),
-    });
+    constellations.push({ id, regionId, name: requireName(c.name, 'constellation', id) });
   }
-  const constellationIds = new Set(constellations.map((c) => c.id));
+  return { constellations, constellationIds: new Set(constellations.map((c) => c.id)) };
+}
 
-  // Solar systems — those whose region survived (CCP ships both regionID and
-  // constellationID on the system row, so no constellation hop is needed).
+// Solar systems — those whose region survived (CCP ships both regionID and
+// constellationID on the system row, so no constellation hop is needed).
+function projectSystems(
+  raw: RawUniverseFiles,
+  regionIds: Set<number>,
+  constellationIds: Set<number>,
+): { systems: UniverseSolarSystem[]; systemIds: Set<number> } {
   const systems: UniverseSolarSystem[] = [];
   const systemIds = new Set<number>();
   for (const s of raw.systems) {
@@ -203,14 +225,20 @@ export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
     });
     systemIds.add(id);
   }
+  return { systems, systemIds };
+}
 
-  // Station operations (all kept) + the resolved industry-capability join.
+type OperationCapability = Map<number, { manufacturing: boolean; research: boolean }>;
+
+// Station operations (all kept) + the resolved industry-capability join.
+function projectOperations(raw: RawUniverseFiles): {
+  operations: UniverseStationOperation[];
+  operationIds: Set<number>;
+  operationCapability: OperationCapability;
+} {
   const { factoryId, laboratoryId } = resolveIndustryServiceIds(raw.services);
   const operations: UniverseStationOperation[] = [];
-  const operationCapability = new Map<
-    number,
-    { manufacturing: boolean; research: boolean }
-  >();
+  const operationCapability: OperationCapability = new Map();
   for (const o of raw.operations) {
     const id = intOrNull(o._key);
     if (id === null) continue;
@@ -223,12 +251,19 @@ export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
       research: serviceIds.includes(laboratoryId),
     });
   }
-  const operationIds = new Set(operations.map((o) => o.id));
+  return { operations, operationIds: new Set(operations.map((o) => o.id)), operationCapability };
+}
 
-  // NPC stations — kept only when their system is an ingested K-space system
-  // AND their operation exists. Dropped otherwise (e.g. the 4 Thera/wormhole
-  // stations, whose system isn't K-space). Capability booleans are stamped
-  // from the station's operation.
+// NPC stations — kept only when their system is an ingested K-space system AND
+// their operation exists. Dropped otherwise (e.g. the 4 Thera/wormhole stations,
+// whose system isn't K-space). Capability booleans are stamped from the
+// station's operation.
+function projectStations(
+  raw: RawUniverseFiles,
+  systemIds: Set<number>,
+  operationIds: Set<number>,
+  operationCapability: OperationCapability,
+): UniverseNpcStation[] {
   const stations: UniverseNpcStation[] = [];
   for (const st of raw.stations) {
     const id = intOrNull(st._key);
@@ -261,8 +296,7 @@ export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
       industryCapable: cap.manufacturing || cap.research,
     });
   }
-
-  return { regions, constellations, systems, operations, stations };
+  return stations;
 }
 
 // A K-space parent (region/constellation/system) with no English name signals

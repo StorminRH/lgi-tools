@@ -16,7 +16,7 @@ const reservedTag = vi.fn(() => Promise.resolve([{ got: lockGot }]));
 (reservedTag as any).release = vi.fn();
 const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
 
-vi.mock('@/data/eve-data/queries', () => ({
+vi.mock('@/data/eve-data/meta', () => ({
   getSdeMetaValue: (...args: unknown[]) => getSdeMetaValueMock(...args),
   setSdeMetaValue: (...args: unknown[]) => setSdeMetaValueMock(...args),
 }));

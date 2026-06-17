@@ -38,7 +38,7 @@ function ResourceValue({ resource }: { resource: SiteResource }) {
   );
 }
 
-export function ResourceRow({
+export function SiteResourceRow({
   resource,
   siteType,
 }: {

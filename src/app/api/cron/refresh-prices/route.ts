@@ -1,23 +1,11 @@
 import { revalidateTag } from 'next/cache';
-import { connection } from 'next/server';
 import type { CronRefreshPricesResponse } from '@/data/market-prices/api-contract';
 import { PRICES_FRESHNESS_TAG, refreshStalePrices } from '@/data/market-prices/cache';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
 import { directClient } from '@/db';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
-import { readEnv } from '@/lib/env';
-
-// Awaits a fire-and-forget side effect, swallowing failures so observability
-// can never break the cron, and awaiting so the write/alert lands before the
-// serverless function freezes on return (3.0.10).
-async function swallow(label: string, p: Promise<unknown>): Promise<void> {
-  try {
-    await p;
-  } catch (err) {
-    console.error(label, err);
-  }
-}
+import { requireCronAuth, swallow } from '@/lib/cron';
 
 async function logCronEvent(
   action: UsageAction,
@@ -47,17 +35,10 @@ async function logCronEvent(
 export const maxDuration = 120;
 
 export async function GET(req: Request): Promise<Response> {
-  // Cron endpoint: runs per-invocation and writes. Defer to request time so
-  // Cache Components doesn't try to prerender it.
+  const denied = await requireCronAuth(req);
+  if (denied) return denied;
+
   const start = Date.now();
-  await connection();
-  const secret = readEnv('CRON_SECRET');
-  if (!secret) {
-    return new Response('CRON_SECRET not configured', { status: 500 });
-  }
-  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
 
   const result = await refreshStalePrices(directClient);
   const durationMs = Date.now() - start;

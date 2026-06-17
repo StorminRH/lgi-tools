@@ -46,18 +46,5 @@ export function jobCategory(activityId: number): JobCategory | null {
   return null;
 }
 
-// Sync-error codes the action records on an industryJobsSync doc. Same code
-// vocabulary as the skills tracker (a shared home is the 3.4.9 engine's
-// call — duplicating ten lines beats a feature → feature edge today).
-// Anything unrecognized (e.g. a raw `esi_403`) falls back to the generic
-// entry.
-const SYNC_ERROR_META: Record<string, { label: string; tone: Tone }> = {
-  reauth_required: { label: 'Reconnect needed', tone: 'red' },
-  budget_exhausted: { label: 'ESI budget exhausted', tone: 'orange' },
-  token_unavailable: { label: 'Token unavailable', tone: 'orange' },
-  contract_error: { label: 'Unexpected ESI response', tone: 'red' },
-};
-
-export function syncErrorMeta(code: string): { label: string; tone: Tone } {
-  return SYNC_ERROR_META[code] ?? { label: `Sync failed (${code})`, tone: 'orange' };
-}
+// `syncErrorMeta` now lives in src/components/live-character-sync (shared with
+// the skill-queue tracker — the cross-feature home this comment used to defer).

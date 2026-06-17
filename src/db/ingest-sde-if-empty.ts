@@ -25,10 +25,7 @@ import {
   ADVISORY_LOCK_SDE_INGEST,
   SDE_META_KEY_VERSION,
 } from '../data/eve-data/constants';
-import {
-  getSdeMetaValue,
-  setSdeMetaValue,
-} from '../data/eve-data/queries';
+import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import { resolveAllTrees } from '../data/eve-data/tree-resolver';
 import { resolveLockConnectionUrl } from './index';
