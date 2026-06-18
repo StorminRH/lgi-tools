@@ -23,13 +23,23 @@ import { usePricing } from './PricingProvider';
 // a buildable lights its downstream chain across the columns — a state-driven
 // highlight, never an expand. Replaces the legacy multi-view build plan.
 
-// Desktop tier columns, capped at 3 (the handoff layout); a 4th+ tier wraps to a
-// new row. Static classes so Tailwind's JIT emits them.
-const TIER_GRID = [
+// All build tiers share ONE horizontal row on desktop — the columns scale down to
+// fit however many build depths a blueprint has (up to 7 for the deepest
+// capitals). Static class maps (indexed by tier count) so Tailwind's JIT emits
+// them: a 2-column layout on tablets, a single column on mobile. The breakpoints
+// are arbitrary `min-[…]` consistently — mixing a named `sm:` with `min-[1080px]:`
+// flips Tailwind's cascade order so the wider one loses.
+const COLS_TABLET = ['', 'min-[640px]:grid-cols-1', 'min-[640px]:grid-cols-2'];
+const COLS_DESKTOP = [
   '',
-  'min-[760px]:grid-cols-1',
-  'min-[760px]:grid-cols-2',
-  'min-[760px]:grid-cols-3',
+  'min-[1080px]:grid-cols-1',
+  'min-[1080px]:grid-cols-2',
+  'min-[1080px]:grid-cols-3',
+  'min-[1080px]:grid-cols-4',
+  'min-[1080px]:grid-cols-5',
+  'min-[1080px]:grid-cols-6',
+  'min-[1080px]:grid-cols-7',
+  'min-[1080px]:grid-cols-8',
 ];
 
 const ROW =
@@ -238,7 +248,11 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
       </SectionLabel>
 
       <div
-        className={cn('grid grid-cols-1 items-start gap-5', TIER_GRID[Math.min(tiers.length, 3)])}
+        className={cn(
+          'grid grid-cols-1 items-start gap-4',
+          COLS_TABLET[Math.min(tiers.length, 2)],
+          COLS_DESKTOP[Math.min(tiers.length, 8)],
+        )}
       >
         {tiers.map((tier) => (
           <TierColumn

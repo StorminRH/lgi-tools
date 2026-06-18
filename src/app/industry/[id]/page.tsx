@@ -71,7 +71,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
 
   return (
-    <div className="w-full max-w-[1124px]">
+    <div className="w-full max-w-[1280px]">
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
       <RecordRecentBlueprint
         typeId={id}
@@ -92,7 +92,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
 function PlannerSkeleton() {
   return (
-    <div className="w-full max-w-[1124px] text-[11px] text-muted">Loading blueprint…</div>
+    <div className="w-full max-w-[1280px] text-[11px] text-muted">Loading blueprint…</div>
   );
 }
 
