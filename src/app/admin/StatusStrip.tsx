@@ -27,7 +27,9 @@ import {
 import type { CronOutcomeCount, DateRange, UsageAction } from '@/data/telemetry/types';
 import { AdminBarChart, AdminTrendChart } from './charts';
 import { getLastSyncedAtShared } from './last-synced';
+import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { trendSeries } from './period';
+import { SectionUnavailable } from './SectionUnavailable';
 import { StatusRow } from './StatusRow';
 
 // The is-anything-broken strip: one row per subsystem, reduced to a colored
@@ -76,6 +78,21 @@ function DurationTable({ rows }: { rows: CronOutcomeCount[] }) {
 
 export async function StatusStrip({ range }: { range: DateRange }) {
   const gscConfigured = isGscConfigured();
+  const fetched = await loadSection('system-health', () =>
+    Promise.all([
+      getLastCronRuns(),
+      getPriceCronOutcomes(range),
+      getSdeCronOutcomes(range),
+      getGscCronOutcomes(range),
+      getFallbackRate(range),
+      getBudgetExhaustionCount(range),
+      getDegradationByCaller(range),
+      getRefreshVolume(range),
+      gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
+    ]),
+  );
+  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="System health" />;
+
   const [
     lastRuns,
     priceOutcomes,
@@ -86,17 +103,7 @@ export async function StatusStrip({ range }: { range: DateRange }) {
     degradationByCaller,
     refreshVolume,
     lastSyncedAt,
-  ] = await Promise.all([
-    getLastCronRuns(),
-    getPriceCronOutcomes(range),
-    getSdeCronOutcomes(range),
-    getGscCronOutcomes(range),
-    getFallbackRate(range),
-    getBudgetExhaustionCount(range),
-    getDegradationByCaller(range),
-    getRefreshVolume(range),
-    gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
-  ]);
+  ] = fetched;
 
   const now = new Date();
   const lastFor = (action: UsageAction) => lastRuns.find((r) => r.action === action) ?? null;

@@ -24,7 +24,9 @@ import {
 import type { DateRange } from '@/data/telemetry/types';
 import { AdminTrendChart } from './charts';
 import { getLastSyncedAtShared } from './last-synced';
+import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { trendSeries } from './period';
+import { SectionUnavailable } from './SectionUnavailable';
 
 // Traffic & SEO: a two-column card grid. The left column is app-owned
 // telemetry; the right is the stored Google Search Console snapshot, streaming
@@ -171,14 +173,18 @@ function GscCardFallback({ label }: { label: string }) {
 async function GscPerformanceCard({ range }: { range: DateRange }) {
   if (!isGscConfigured()) return <GscNotConnectedCard label="Search performance" />;
 
-  const [lastSyncedAt, trend, topPages, sitemaps, urls] = await Promise.all([
-    getLastSyncedAtShared(),
-    getSearchTrend(range),
-    getTopGscPages(range, 10),
-    getSitemapStatus(),
-    getUrlInspection(),
-  ]);
+  const fetched = await loadSection('search-performance', () =>
+    Promise.all([
+      getLastSyncedAtShared(),
+      getSearchTrend(range),
+      getTopGscPages(range, 10),
+      getSitemapStatus(),
+      getUrlInspection(),
+    ]),
+  );
+  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Search performance" />;
 
+  const [lastSyncedAt, trend, topPages, sitemaps, urls] = fetched;
   const clicksTrend = trendSeries(
     trend.map((d) => d.day),
     trend.map((d) => d.clicks),
@@ -278,7 +284,9 @@ async function GscPerformanceCard({ range }: { range: DateRange }) {
 async function GscTopQueriesCard({ range }: { range: DateRange }) {
   if (!isGscConfigured()) return <GscNotConnectedCard label="Top search queries" />;
 
-  const topQueries = await getTopQueries(range, 10);
+  const topQueries = await loadSection('top-search-queries', () => getTopQueries(range, 10));
+  if (topQueries === SECTION_LOAD_FAILED) return <SectionUnavailable label="Top search queries" />;
+
   const max = topQueries.reduce((m, q) => Math.max(m, q.clicks), 0);
 
   return (
@@ -296,14 +304,18 @@ async function GscTopQueriesCard({ range }: { range: DateRange }) {
 // ── The section ─────────────────────────────────────────────────────────
 
 export async function TrafficSection({ range }: { range: DateRange }) {
-  const [dailyCounts, topPages, topReferrers, topEntryPages, topSearches] = await Promise.all([
-    getDailyCounts(range),
-    getTopPages(range, 10),
-    getTopReferrers(range, 10),
-    getTopEntryPages(range, 10),
-    getTopSearches(range, 10),
-  ]);
+  const fetched = await loadSection('traffic', () =>
+    Promise.all([
+      getDailyCounts(range),
+      getTopPages(range, 10),
+      getTopReferrers(range, 10),
+      getTopEntryPages(range, 10),
+      getTopSearches(range, 10),
+    ]),
+  );
+  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Traffic & SEO" />;
 
+  const [dailyCounts, topPages, topReferrers, topEntryPages, topSearches] = fetched;
   const dailyTrend = trendSeries(
     dailyCounts.map((d) => d.day),
     dailyCounts.map((d) => d.totalEvents),
