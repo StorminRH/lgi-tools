@@ -11,6 +11,7 @@ import { activityLabel } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
 import { CockpitKpis, type MarginMode } from './CockpitKpis';
+import { CockpitLedger } from './CockpitLedger';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
@@ -143,6 +144,7 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
       </div>
 
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
+      <CockpitLedger structure={structure} marginMode={marginMode} />
     </>
   );
 }

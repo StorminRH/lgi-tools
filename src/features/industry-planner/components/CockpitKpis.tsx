@@ -5,6 +5,7 @@ import { OdometerValue } from '@/components/ui/odometer-value';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
 import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
+import { selectNet, type MarginMode } from '../cockpit-margin';
 import {
   deriveMarginFigures,
   marginToneClass,
@@ -16,7 +17,7 @@ import { KpiHead, KpiTile, KPI_FIG, KPI_SUB, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
 import { usePricing } from './PricingProvider';
 
-export type MarginMode = 'gross' | 'net';
+export type { MarginMode };
 
 // The Build-time figures are sourced by a follow-up data branch (reads the
 // per-activity `time` from each blueprint's `activities` JSONB and models the
@@ -98,8 +99,12 @@ export function CockpitKpis({
   const summary = pricing?.summary ?? null;
 
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
-  const netAvailable = isManufacturing && location !== null;
-  const net = netAvailable && marginMode === 'net' ? (pricing?.net ?? null) : null;
+  const { net, netAvailable } = selectNet(
+    pricing,
+    structure.activityId,
+    location !== null,
+    marginMode,
+  );
   const { showNet, margin, marginPct, sign, missingSystemCostIndex, missingAdjustedPriceCount } =
     deriveMarginFigures(summary, net);
   const caption = selectMarginCaption({
