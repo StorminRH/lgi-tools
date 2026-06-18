@@ -61,9 +61,10 @@ export const blueprintsSource: SearchSource = {
       label: entry.name,
       sub: 'Blueprint',
       href: `/industry/${entry.blueprintTypeId}`,
+      // A blueprint always maps to a real product, so the row always renders that
+      // product's icon (TypeIcon). No generic 'BP' glyph — if the image ever 404s
+      // the fallback derives the monogram from the item name, never a flat "BP".
       typeId: entry.productTypeId,
-      iconText: 'BP',
-      iconTone: 'tool',
       matchIndices: match.matchIndices,
     }));
   },
