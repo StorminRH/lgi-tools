@@ -68,17 +68,26 @@ describe('search-recents storage', () => {
     expect(out[0].originKind).toBe('blueprint');
   });
 
-  it('reads pre-typeId stored entries without inventing a typeId', () => {
+  it('drops stale item recents that predate the typeId (so they never render "BP")', () => {
     window.localStorage.setItem(
       __TEST_ONLY__.STORAGE_KEY,
       JSON.stringify([
         { kind: 'blueprint', id: 'blueprint:1', label: 'old', href: '/industry/1', iconText: 'BP' },
       ]),
     );
+    expect(readRecents()).toEqual([]);
+  });
+
+  it('keeps non-item recents without a typeId (sites/tools render their own glyph)', () => {
+    window.localStorage.setItem(
+      __TEST_ONLY__.STORAGE_KEY,
+      JSON.stringify([
+        { kind: 'site', id: 's1', label: 'A Site', href: '/sites/1', iconText: 'C3', iconTone: 'cls-c3' },
+      ]),
+    );
     const out = readRecents();
     expect(out).toHaveLength(1);
-    expect(out[0].typeId).toBeUndefined();
-    expect(out[0].iconText).toBe('BP');
+    expect(out[0].label).toBe('A Site');
   });
 
   it('floats the most recently pushed entry to the top', () => {

@@ -1,11 +1,9 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
-import { BlueprintHero } from '@/features/industry-planner/components/BlueprintHero';
-import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
+import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
 import {
@@ -73,7 +71,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
 
   return (
-    <div className="w-full max-w-[1124px]">
+    <div className="w-full max-w-[1280px]">
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
       <RecordRecentBlueprint
         typeId={id}
@@ -81,22 +79,12 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         name={structure.product.name}
       />
 
-      <div className="mb-4">
-        <Link
-          href="/industry"
-          className="inline-flex items-center min-h-[40px] text-[10px] tracking-[0.12em] uppercase text-muted"
-        >
-          ← Industry Planner
-        </Link>
-      </div>
-
       <PricingProvider
         structure={structure}
         pricingPromise={pricingPromise}
         historyPromise={historyPromise}
       >
-        <BlueprintHero structure={structure} />
-        <BuildCascade structure={structure} />
+        <CockpitPlanner structure={structure} />
       </PricingProvider>
     </div>
   );
@@ -104,7 +92,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
 function PlannerSkeleton() {
   return (
-    <div className="w-full max-w-[1124px] text-[11px] text-muted">Loading blueprint…</div>
+    <div className="w-full max-w-[1280px] text-[11px] text-muted">Loading blueprint…</div>
   );
 }
 

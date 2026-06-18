@@ -204,42 +204,44 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
                       </span>
                     )}
                   </div>
-                  {section.results.map((row, rIdx) => {
-                    const flatIdx = before + rIdx;
-                    const isActiveRow = flatIdx === activeIndex;
-                    return (
-                      <button
-                        key={row.id}
-                        type="button"
-                        role="option"
-                        aria-selected={isActiveRow}
-                        disabled={row.disabled}
-                        className={`dd-row ${isActiveRow ? 'active' : ''} ${row.disabled ? 'disabled' : ''}`}
-                        onMouseEnter={() => setActiveIndex(flatIdx)}
-                        onMouseDown={(e) => {
-                          // Use onMouseDown so blur doesn't fire first and
-                          // close the dropdown before the click registers.
-                          e.preventDefault();
-                          fireResult(row);
-                        }}
-                      >
-                        {row.typeId ? (
-                          <TypeIcon
-                            typeId={row.typeId}
-                            size={22}
-                            mono={row.iconText ?? row.label.slice(0, 2)}
-                          />
-                        ) : (
-                          <span className={`dd-icon ${row.iconTone ?? ''}`}>{row.iconText}</span>
-                        )}
-                        <span className="dd-name">
-                          {renderLabel(row.label, row.matchIndices)}
-                        </span>
-                        {row.sub && <span className="dd-sub">{row.sub}</span>}
-                        <span className="dd-return">↵</span>
-                      </button>
-                    );
-                  })}
+                  <div className="dd-grid">
+                    {section.results.map((row, rIdx) => {
+                      const flatIdx = before + rIdx;
+                      const isActiveRow = flatIdx === activeIndex;
+                      return (
+                        <button
+                          key={row.id}
+                          type="button"
+                          role="option"
+                          aria-selected={isActiveRow}
+                          disabled={row.disabled}
+                          className={`dd-row ${isActiveRow ? 'active' : ''} ${row.disabled ? 'disabled' : ''}`}
+                          onMouseEnter={() => setActiveIndex(flatIdx)}
+                          onMouseDown={(e) => {
+                            // Use onMouseDown so blur doesn't fire first and
+                            // close the dropdown before the click registers.
+                            e.preventDefault();
+                            fireResult(row);
+                          }}
+                        >
+                          {row.typeId ? (
+                            <TypeIcon
+                              typeId={row.typeId}
+                              size={22}
+                              mono={row.iconText ?? row.label.slice(0, 2)}
+                            />
+                          ) : (
+                            <span className={`dd-icon ${row.iconTone ?? ''}`}>{row.iconText}</span>
+                          )}
+                          <span className="dd-main">
+                            <span className="dd-name">{renderLabel(row.label, row.matchIndices)}</span>
+                            {row.sub && <span className="dd-sub">{row.sub}</span>}
+                          </span>
+                          <span className="dd-return">↵</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </Fragment>
             );

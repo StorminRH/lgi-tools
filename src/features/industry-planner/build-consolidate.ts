@@ -115,3 +115,27 @@ export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBui
 
   return { tiers, descendants, childrenOf };
 }
+
+// The focused item's downstream chain, indexed by depth RELATIVE to the focus
+// (0 = the focused item, 1 = its direct inputs, 2 = theirs, …). Walking
+// `childrenOf` from the focus keeps each level to the types actually consumed at
+// that step of THIS item's subtree — unlike a flat descendant set, which would
+// also match a type that sits at this depth elsewhere in the build (e.g. a
+// mineral a sibling capital part consumes directly). Shared by the consolidated
+// tier views so a focused component lights its chain at the right tier.
+export function chainLevelsFrom(
+  rootTypeId: number,
+  childrenOf: Map<number, Set<number>>,
+): Map<number, Set<number>> {
+  const levels = new Map<number, Set<number>>();
+  levels.set(0, new Set([rootTypeId]));
+  for (let k = 1; ; k += 1) {
+    const next = new Set<number>();
+    for (const parentId of levels.get(k - 1)!) {
+      for (const child of childrenOf.get(parentId) ?? []) next.add(child);
+    }
+    if (next.size === 0) break;
+    levels.set(k, next);
+  }
+  return levels;
+}

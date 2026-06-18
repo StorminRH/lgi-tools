@@ -23,6 +23,17 @@ export interface BlueprintProduct {
   quantityPerRun: number;
 }
 
+// Estimated industry job time for the Build-time KPI tile (top job · whole-tree
+// "all jobs"). The figures are sourced by a follow-up data branch that reads the
+// per-activity `time` from each blueprint's `activities` JSONB and models the
+// all-jobs total + job sequencing; the tile renders an honest placeholder until
+// that lands, so this stays `null` for now. Pre-formatted strings keep the tile
+// agnostic to where/how the follow-up computes them.
+export interface BuildTimeView {
+  topJob: string; // top (product) job, e.g. "3h 28m"
+  allJobs: string; // whole-tree total incl. component/reaction jobs, e.g. "≈ 2d 06h"
+}
+
 // --- Build-sequence tree -------------------------------------------------
 // The "what do I make next" view: the dependency tree rooted at the product,
 // shown as a phased build sequence. Two separate axes:

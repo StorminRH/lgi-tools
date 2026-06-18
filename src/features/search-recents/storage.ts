@@ -44,25 +44,25 @@ function safeStorage(): Storage | null {
   }
 }
 
+// Recent kinds whose row maps to a real EVE type and therefore renders the item's
+// image (via TypeIcon). Blueprints are the only such kind today.
+const ITEM_KINDS = new Set(['blueprint']);
+
+// An item-bearing recent MUST carry a typeId to render its image. A stored row of
+// that kind without one is a stale entry from before the typeId was recorded —
+// drop it so it never falls back to a meaningless monogram instead of the icon.
+function rendersIcon(r: StoredRecent): boolean {
+  return !ITEM_KINDS.has(r.kind) || r.typeId != null;
+}
+
 export function readRecents(): SearchResult[] {
-  const store = safeStorage();
-  if (!store) return [];
-  const raw = store.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(isStoredRecent)
-      .slice(0, MAX_RECENTS)
-      .map((r) => ({
-        ...r,
-        kind: 'recent',
-        originKind: r.kind,
-      }));
-  } catch {
-    return [];
-  }
+  return readStored()
+    .slice(0, MAX_RECENTS)
+    .map((r) => ({
+      ...r,
+      kind: 'recent',
+      originKind: r.kind,
+    }));
 }
 
 export function pushRecent(result: SearchResult): void {
@@ -102,7 +102,9 @@ function readStored(): StoredRecent[] {
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isStoredRecent);
+    // Drop malformed rows AND stale item rows that predate the typeId — both via
+    // the same gate, so a later pushRecent rewrites a cleaned list (self-purging).
+    return parsed.filter(isStoredRecent).filter(rendersIcon);
   } catch {
     return [];
   }

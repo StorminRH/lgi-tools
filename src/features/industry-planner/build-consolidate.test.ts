@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { consolidateBuild } from './build-consolidate';
+import { chainLevelsFrom, consolidateBuild } from './build-consolidate';
 import type { BlueprintStructure } from './types';
 
 // Product (d0) ← Comp A (d1) ← Raw R (3) + Raw Q (2)
@@ -74,5 +74,28 @@ describe('consolidateBuild', () => {
     expect([...(childrenOf.get(3) ?? [])].sort()).toEqual([9]);
     // Raws have no inputs.
     expect([...(childrenOf.get(9) ?? [])]).toEqual([]);
+  });
+});
+
+describe('chainLevelsFrom', () => {
+  const { childrenOf } = consolidateBuild(makeStructure());
+
+  it('indexes a buildable’s chain by depth relative to the focus', () => {
+    const levels = chainLevelsFrom(2, childrenOf);
+    expect([...(levels.get(0) ?? [])]).toEqual([2]); // the focused item
+    expect([...(levels.get(1) ?? [])].sort()).toEqual([8, 9]); // its direct inputs
+    expect(levels.has(2)).toBe(false); // raws have no children → the chain stops
+  });
+
+  it('walks the product’s whole chain across depths', () => {
+    const levels = chainLevelsFrom(1, childrenOf);
+    expect([...(levels.get(1) ?? [])].sort()).toEqual([2, 3, 9]);
+    expect([...(levels.get(2) ?? [])].sort()).toEqual([8, 9]);
+  });
+
+  it('returns just the root for a raw (no chain)', () => {
+    const levels = chainLevelsFrom(9, childrenOf);
+    expect([...(levels.get(0) ?? [])]).toEqual([9]);
+    expect(levels.size).toBe(1);
   });
 });
