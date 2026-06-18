@@ -10,6 +10,7 @@ import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
 import { activityLabel } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
+import { CockpitKpis, type MarginMode } from './CockpitKpis';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
@@ -90,6 +91,9 @@ function PlannerHead({ name, group }: { name: string; group: string }) {
 
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
   const { runs, setRuns } = usePricing();
+  // Gross/Net is the user's preference, gated by an available net estimate. Lives
+  // here so the KPI margin tile and the profit ledger share one source of truth.
+  const [marginMode, setMarginMode] = useState<MarginMode>('net');
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
   const outputUnits = structure.product.quantityPerRun * runs;
@@ -137,6 +141,8 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
           )}
         </div>
       </div>
+
+      <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
     </>
   );
 }

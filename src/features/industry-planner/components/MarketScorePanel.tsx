@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { cn } from '@/components/ui/cn';
 import { HoverPopover } from '@/components/ui/hover-popover';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import type { MarketScore } from '@/data/industry-math/market-score';
@@ -12,13 +13,14 @@ import {
   STALENESS_FLAG_DAYS,
 } from '../market-score-inputs';
 import type { BlueprintStructure } from '../types';
+import { KpiHead, KpiTile, KPI_FIG, KPI_SUB } from './kpi-tile';
 import { usePricing } from './PricingProvider';
 
-// The Market Score readout for the hero — the "how sure can I sell this?"
+// The Market Score KPI tile for the Cockpit — the "how sure can I sell this?"
 // liquidity axis beside net margin's "how much?". Numbers are PLAIN and
 // UNCOLORED (no tones, no confidence badge — that's a different, freshness-only
-// system): a single 0–100 score up top, then the concrete "why" as raw reworded
-// values. The full per-input breakdown lives behind a hover affordance.
+// system): a single 0–100 score, a time-to-clear glance, and a "?" badge whose
+// hover reveals the full 3-signal breakdown.
 
 function days(n: number): string {
   if (n < 1) return '<1 day';
@@ -168,31 +170,38 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
   );
 
   return (
-    <div className="min-w-0">
-      <HoverPopover
-        label="Market Score breakdown"
-        trigger={
-          <div className="cursor-help">
-            <div className="text-[9px] uppercase tracking-[0.16em] text-muted border-b border-dotted border-border-idle inline-block">
-              Market Score
-            </div>
-            <div className="text-[22px] font-semibold leading-[1.15] text-name tabular-nums">
-              {seeded || marketScore.score !== null ? scoreText : '…'}
-            </div>
-            <div className="text-[9px] text-muted mt-1 whitespace-nowrap">
-              {glanceParts(marketScore).join(' · ')}
-            </div>
-            {staleAge && (
-              <div className="flex items-center gap-1.5 text-[9px] text-muted mt-1 whitespace-nowrap">
-                <span aria-hidden className="w-[5px] h-[5px] rounded-full bg-tone-orange" />
-                history {staleAge} old
-              </div>
-            )}
-          </div>
+    <KpiTile>
+      <KpiHead
+        label="Market Score"
+        right={
+          <HoverPopover
+            label="How the Market Score is calculated"
+            trigger={
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label="How the Market Score is calculated"
+                className="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg font-mono text-[9px] font-bold text-muted hover:border-isk-dim hover:text-isk"
+              >
+                ?
+              </span>
+            }
+          >
+            {breakdown}
+          </HoverPopover>
         }
-      >
-        {breakdown}
-      </HoverPopover>
-    </div>
+      />
+      <div className={cn(KPI_FIG, 'text-name')}>
+        {seeded || marketScore.score !== null ? scoreText : '…'}
+        <span className="ml-1 text-[13px] text-faint">/100</span>
+      </div>
+      <div className={KPI_SUB}>{glanceParts(marketScore)[0]}</div>
+      {staleAge && (
+        <div className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-[9px] text-muted">
+          <span aria-hidden className="h-[5px] w-[5px] rounded-full bg-tone-orange" />
+          history {staleAge} old
+        </div>
+      )}
+    </KpiTile>
   );
 }
