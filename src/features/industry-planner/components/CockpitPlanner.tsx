@@ -10,6 +10,7 @@ import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
 import { activityLabel } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
+import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitKpis, type MarginMode } from './CockpitKpis';
 import { CockpitLedger } from './CockpitLedger';
 import { usePricing } from './PricingProvider';
@@ -145,6 +146,7 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
 
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
       <CockpitLedger structure={structure} marginMode={marginMode} />
+      <CockpitBuildPlan structure={structure} />
     </>
   );
 }

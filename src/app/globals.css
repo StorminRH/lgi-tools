@@ -1379,33 +1379,6 @@ details[data-collapsible][open] > summary [data-chevron] {
   }
 }
 
-/* ── CascadingPanels (src/components/ui/cascading-panels.tsx) ─────────
- * Floating, gapped, horizontally-scrolling Miller-column container. These
- * rules own only the layout; panes supply their own content, and the
- * column fan-in/out is driven by auto-animate on the container. */
-.cascade {
-  display: flex;
-  align-items: flex-start;
-  gap: 22px;
-  overflow-x: auto;
-  padding-bottom: 14px;
-}
-.cascade-col {
-  flex-shrink: 0;
-}
-.cascade-col-label {
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-/* The column fan-in/out is driven by auto-animate on the .cascade container
- * (see cascading-panels.tsx), so there's no CSS keyframe here. */
-
 /* ── Build flow graph (industry-planner BuildFlow) ───────────────────────
  * The hybrid tier-columns ↔ flow view. Drilling cross-fades the outgoing level
  * (scaling past) while the new one grows in — class-driven keyframes on the SVG

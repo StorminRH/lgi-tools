@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
-import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
@@ -86,7 +85,6 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         historyPromise={historyPromise}
       >
         <CockpitPlanner structure={structure} />
-        <BuildCascade structure={structure} />
       </PricingProvider>
     </div>
   );
