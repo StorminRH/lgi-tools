@@ -4,6 +4,13 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.10 — 2026-06-18
+
+#### Changed
+- The Industry Planner (a blueprint's build page) has been redesigned into a dashboard: a row of at-a-glance tiles for input cost, Jita sell price, profit margin (with a gross/net switch once you pick a build location), and a market-liquidity score, plus a cost-versus-profit bar.
+- The build breakdown now lays every build stage out as side-by-side columns — one per tier, from finished components down to raw materials — each showing the quantity and market value of every input with a per-tier subtotal. Clicking a buildable component highlights its whole sub-tree across the columns.
+- The global search dropdown now shows results as a grid of cards, and every item result reliably renders its in-game icon.
+
 ### v3.6.9 — 2026-06-15
 
 #### Changed
