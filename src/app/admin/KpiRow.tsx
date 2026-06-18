@@ -3,7 +3,9 @@ import { getSearchTotals } from '@/data/gsc/queries';
 import { getReturningVsNew, getSearchVsDirect } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { KpiCard } from './KpiCard';
+import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { buildKpiCards, previousRange, type RangeKey } from './period';
+import { SectionUnavailable } from './SectionUnavailable';
 
 // The dashboard's headline numbers. Each KPI runs its query twice — current
 // window and the equal-length window before it — so the delta needs no new
@@ -19,16 +21,19 @@ export async function KpiRow({ rangeKey, range }: { rangeKey: RangeKey; range: D
   const prev = previousRange(rangeKey, range);
   const gsc = isGscConfigured();
 
-  const [pageViews, users, gscTotals, prevPageViews, prevUsers, prevGscTotals] =
-    await Promise.all([
+  const fetched = await loadSection('headline-metrics', () =>
+    Promise.all([
       getSearchVsDirect(range),
       getReturningVsNew(range),
       gsc ? getSearchTotals(range) : null,
       prev ? getSearchVsDirect(prev) : null,
       prev ? getReturningVsNew(prev) : null,
       gsc && prev ? getSearchTotals(prev) : null,
-    ]);
+    ]),
+  );
+  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Headline metrics" />;
 
+  const [pageViews, users, gscTotals, prevPageViews, prevUsers, prevGscTotals] = fetched;
   const cards = buildKpiCards({
     pageViews,
     users,

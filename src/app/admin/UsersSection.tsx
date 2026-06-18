@@ -6,13 +6,17 @@ import { loginFrequencyBuckets } from '@/data/telemetry/health-metrics';
 import { getLoginCountsPerUser } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
 import { AdminBarChart } from './charts';
+import { loadSection, SECTION_LOAD_FAILED } from './load-section';
+import { SectionUnavailable } from './SectionUnavailable';
 
 // Aggregate-only user engagement — counts, never identities. The new-vs-
 // returning split lives on the KPI row; this card answers "how often do the
 // people who sign in come back?". Role management + audit live on /admin/access.
 
 export async function UsersSection({ range }: { range: DateRange }) {
-  const loginCounts = await getLoginCountsPerUser(range);
+  const loginCounts = await loadSection('users', () => getLoginCountsPerUser(range));
+  if (loginCounts === SECTION_LOAD_FAILED) return <SectionUnavailable label="Visit frequency" />;
+
   const buckets = loginFrequencyBuckets(loginCounts);
 
   return (
