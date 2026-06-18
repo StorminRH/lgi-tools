@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
 import { BlueprintHero } from '@/features/industry-planner/components/BlueprintHero';
 import { BuildCascade } from '@/features/industry-planner/components/BuildCascade';
+import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
 import {
@@ -81,20 +81,12 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         name={structure.product.name}
       />
 
-      <div className="mb-4">
-        <Link
-          href="/industry"
-          className="inline-flex items-center min-h-[40px] text-[10px] tracking-[0.12em] uppercase text-muted"
-        >
-          ← Industry Planner
-        </Link>
-      </div>
-
       <PricingProvider
         structure={structure}
         pricingPromise={pricingPromise}
         historyPromise={historyPromise}
       >
+        <CockpitPlanner structure={structure} />
         <BlueprintHero structure={structure} />
         <BuildCascade structure={structure} />
       </PricingProvider>
