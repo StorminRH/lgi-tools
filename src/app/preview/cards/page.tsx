@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { PageShell } from '@/components/ui/page-shell';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-styles';
 import { MOCK_SITES } from '@/features/wormhole-sites/mock-data';
@@ -22,8 +23,9 @@ export default function PreviewCardsPage() {
   const groups = bySection(MOCK_SITES);
 
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
-      <header className="w-full max-w-[1100px] mb-10 pb-4 border-b border-[#1a2535]">
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+        <header className="w-full max-w-[1100px] mb-10 pb-4 border-b border-[#1a2535]">
         <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
           Site Card Reference
         </div>
@@ -51,6 +53,7 @@ export default function PreviewCardsPage() {
           </section>
         );
       })}
-    </div>
+      </div>
+    </PageShell>
   );
 }

@@ -4,6 +4,7 @@ import { cacheLife } from 'next/cache';
 import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
+import { PageShell } from '@/components/ui/page-shell';
 import { APP_VERSION } from '@/config/app-version';
 import { EntryCard } from '@/features/changelog/components/EntryCard';
 import { parseChangelog } from '@/features/changelog/parse';
@@ -28,7 +29,7 @@ export default async function ChangelogPage() {
   const entries = await loadChangelog();
 
   return (
-    <div className="w-full">
+    <PageShell>
       <PageHead
         crumb="changelog"
         title="Changelog"
@@ -39,8 +40,8 @@ export default async function ChangelogPage() {
         }
       />
 
-      <div className="w-full max-w-[1080px] mx-auto px-7 pb-16">
-        <div className="max-w-[860px] mb-7">
+      <div className="pb-16">
+        <div className="max-w-[860px] mx-auto mb-7">
           <Callout label="Beta">
             LGI.tools is in public beta. Expect rough edges and rapid iteration; some tools are
             incomplete and data may shift. Hit the Feedback button (bottom-right) to flag anything
@@ -58,6 +59,6 @@ export default async function ChangelogPage() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { PageHead } from '@/components/ui/page-head';
+import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { ContactForm } from '@/features/contact/components/ContactForm';
 
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <div className="w-full">
+    <PageShell>
       <PageHead
         crumb="contact"
         title="Contact"
@@ -22,7 +23,7 @@ export default function ContactPage() {
         }
       />
 
-      <div className="w-full max-w-[1080px] mx-auto px-7 pb-16">
+      <div className="pb-16 max-w-[760px] mx-auto">
         <p className="contact-intro">
           Found a bug, have data that looks wrong, or want a tool added? Send a message to{' '}
           <b>Lo-Gang Industries</b> below, or open an issue on GitHub for anything you&apos;d like
@@ -64,6 +65,6 @@ export default function ContactPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

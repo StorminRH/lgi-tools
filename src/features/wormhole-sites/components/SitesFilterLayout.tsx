@@ -100,7 +100,7 @@ export function SitesFilterLayout({
         }
       />
 
-      <div className="w-full max-w-[1080px] mx-auto px-7 pb-16">
+      <div className="pb-16">
         <div className="sites-rail-layout">
           <aside className="sites-rail-pane">
             <div className="sites-rail-groups">

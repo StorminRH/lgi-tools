@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { PageShell } from '@/components/ui/page-shell';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { readEnv } from '@/lib/env';
 import { SandboxHeader } from './_shared/sandbox-ui';
@@ -102,10 +103,12 @@ function SandboxLoading() {
 // there, so the mockups remain viewable. The gallery leaf pages carry no gate.
 export default function SandboxIndexPage() {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20">
-      <Suspense fallback={<SandboxLoading />}>
-        <SandboxIndex />
-      </Suspense>
-    </div>
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20">
+        <Suspense fallback={<SandboxLoading />}>
+          <SandboxIndex />
+        </Suspense>
+      </div>
+    </PageShell>
   );
 }

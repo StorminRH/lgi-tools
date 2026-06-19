@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { JsonLd } from '@/components/JsonLd';
 import { Callout } from '@/components/ui/callout';
+import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
 import { getFeatureFlags } from '@/config/feature-flags';
@@ -69,7 +70,7 @@ async function AuthErrorNotice({
     typeof rawError === 'string' && rawError in AUTH_ERROR_MESSAGES ? rawError : null;
   if (!errorKey) return null;
   return (
-    <div className="w-full max-w-[640px] px-6 pt-8">
+    <div className="w-full max-w-[640px] pt-8">
       <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
     </div>
   );
@@ -83,14 +84,13 @@ export default function Home({
   const flags = getFeatureFlags();
 
   return (
-    <div className="flex flex-col items-center">
+    <PageShell className="flex flex-col items-center">
       <JsonLd data={HOME_JSON_LD} />
       <Suspense fallback={null}>
         <AuthErrorNotice searchParams={searchParams} />
       </Suspense>
 
-      <div className="home-hero-bg w-full flex flex-col items-center">
-        <header className="flex flex-col items-center text-center gap-5 max-w-[680px] px-6 pt-20 pb-16">
+      <header className="flex flex-col items-center text-center gap-5 max-w-[680px] pt-20 pb-16">
           <div className="flex flex-col items-center gap-1.5">
             <h1 className="hero-wordmark font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
               <span className="text-isk mr-[0.2em]">[</span>
@@ -108,7 +108,7 @@ export default function Home({
           </p>
         </header>
 
-        <section className="w-full max-w-[1080px] px-6 pt-4 pb-20">
+        <section className="w-full pt-4 pb-20">
         <SectionLabel className="mb-4">Tools</SectionLabel>
 
         {/* Tailwind arbitrary-value class, not an inline `style` prop —
@@ -118,7 +118,7 @@ export default function Home({
          * grid with no column template (so cards stack like a 1-column
          * small-viewport view) until client-side hydration / navigation
          * re-applied the styles via JS. */}
-        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(290px,1fr))]">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(290px,1fr))]">
           <Link href="/sites" className="tool-tile tool-tile-live hover-bob no-underline group">
             <div className="flex items-start justify-between gap-2">
               <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
@@ -206,7 +206,6 @@ export default function Home({
           )}
         </div>
       </section>
-      </div>
-    </div>
+    </PageShell>
   );
 }

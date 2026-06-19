@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
+import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { SITE_URL } from '@/config/site-url';
 import { IndustryRow } from '@/features/industry-planner/components/IndustryRow';
@@ -71,10 +72,10 @@ async function ActiveJobsSection() {
 // is the one request-time read (a <Suspense> hole).
 export default function IndustryDashboardPage() {
   return (
-    <div className="w-full">
+    <PageShell>
       <PageHead crumb="industry" title="Industry" meta={<IndustrySlotMeta />} />
 
-      <div className="w-full max-w-[1080px] mx-auto px-7 pb-16 flex flex-col gap-9">
+      <div className="pb-16 flex flex-col gap-9">
         <IndustryTypedHint />
 
         <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4">
@@ -114,6 +115,6 @@ export default function IndustryDashboardPage() {
           <ActiveJobsSection />
         </Suspense>
       </div>
-    </div>
+    </PageShell>
   );
 }
