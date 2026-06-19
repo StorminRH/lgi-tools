@@ -4,6 +4,12 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.11 — 2026-06-18
+
+#### Changed
+- Every page now shares one consistent width and side margins, so the layout no longer shifts as you move between pages. Text and forms sit in a comfortable centred reading column, while dashboards and tables use the full width.
+- The soft dot-lattice backdrop now sits behind every page, not just the home page.
+
 ### v3.6.10 — 2026-06-18
 
 #### Changed
