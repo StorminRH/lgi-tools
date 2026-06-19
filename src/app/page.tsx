@@ -118,7 +118,7 @@ export default function Home({
          * grid with no column template (so cards stack like a 1-column
          * small-viewport view) until client-side hydration / navigation
          * re-applied the styles via JS. */}
-        <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(290px,1fr))]">
+        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(290px,1fr))]">
           <Link href="/sites" className="tool-tile tool-tile-live hover-bob no-underline group">
             <div className="flex items-start justify-between gap-2">
               <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">

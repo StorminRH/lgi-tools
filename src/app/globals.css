@@ -178,8 +178,15 @@
   --font-body:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 }
 
-html, body {
+/* The deep base lives on <html> so it propagates to the canvas BEHIND the fixed
+ * .page-backdrop (a z-index:-1 child of <body>). Keeping the fill on <body> too
+ * would paint over that backdrop — body's background is a block-level paint that
+ * sits above negative z-index — and hide the dots (3.6.11 F1). */
+html {
   background: var(--color-bg-deep);
+}
+
+html, body {
   color: var(--color-text);
   font-family: var(--font-mono);
 }
