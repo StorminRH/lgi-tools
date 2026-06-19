@@ -1484,6 +1484,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   body > header,
   body > footer,
   body > a[href="/feedback"],
+  .page-backdrop,
   .no-print,
   button {
     display: none !important;
