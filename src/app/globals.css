@@ -984,11 +984,6 @@ a:hover {
 .nav-tool.soon { opacity: 0.4; cursor: default; }
 .nav-tool:last-child { border-right: none; }
 
-/* Full label by default; the ≤1380px floor below flips each .nav-tool's
- * visible span to its 2-letter abbreviation so the strip still fits. */
-.nav-tool .full { display: inline; }
-.nav-tool .abbr { display: none; }
-
 /* ── Responsive defensive layer (v2.9.6) ───────────────────────────────
  * LGI.tools is desktop-first; this block is the Level-1 floor that keeps
  * the site usable on laptop (1366×768) and tablet (1024×768) viewports
@@ -996,15 +991,12 @@ a:hover {
  * post-Phase-3 version. Breakpoints (1500 / 1024 / 900 / 700 / 640) match
  * the VERSION_2.9_PLAN.md spec. */
 
-/* Below this floor the wordmark + search + right-aligned strip leave no room
- * for full tool labels, so tighten the cells and flip to the 2-letter
- * abbreviations. Set just above the point where the full labels stop fitting
- * (~1370px) so they're only shown when they actually fit — the strip no longer
- * clips (no overflow-hidden), so this floor, not a clip, is what prevents overflow. */
+/* Below this floor the wordmark + search + right-aligned strip leave less room,
+ * so tighten the tool cells (padding / size) to keep the two full labels and the
+ * search bar fitting without overflow. The strip no longer clips (no
+ * overflow-hidden), so this floor, not a clip, is what prevents overflow. */
 @media (max-width: 1380px) {
   .nav-tool { padding: 0 10px; font-size: 10px; letter-spacing: 0.08em; }
-  .nav-tool .full { display: none; }
-  .nav-tool .abbr { display: inline; }
 }
 
 /* PriceFreshness chip (3.6.3, handoff §2). A pure passive indicator now — just

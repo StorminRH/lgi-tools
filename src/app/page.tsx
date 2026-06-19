@@ -6,7 +6,6 @@ import { Callout } from '@/components/ui/callout';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
-import { getFeatureFlags } from '@/config/feature-flags';
 import { SITE_URL } from '@/config/site-url';
 
 export const metadata: Metadata = {
@@ -81,8 +80,6 @@ export default function Home({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const flags = getFeatureFlags();
-
   return (
     <PageShell className="flex flex-col items-center">
       <JsonLd data={HOME_JSON_LD} />
@@ -163,47 +160,6 @@ export default function Home({
               </span>
             </div>
           </Link>
-
-          {flags.wormholeRollCalc ? (
-            <Link href="/wormhole-roll" className="tool-tile tool-tile-live hover-bob no-underline group">
-              <div className="flex items-start justify-between gap-2">
-                <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
-                  Wormhole Roll Calculator
-                </div>
-              </div>
-              <p className="body-copy text-[13px] text-text leading-[1.65] flex-1">
-                Plan hole rolls with live mass tracking — know which pass collapses
-                the hole before you commit the battleship.
-              </p>
-              <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
-                <div className="flex items-center gap-1">
-                  <Pill tone="orange">In development</Pill>
-                </div>
-                <span className="font-mono text-caption tracking-[0.06em] text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
-                  open →
-                </span>
-              </div>
-            </Link>
-          ) : (
-            <div className="tool-tile tool-tile-soon">
-              <div className="flex items-start justify-between gap-2">
-                <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
-                  Wormhole Roll Calculator
-                </div>
-                <Pill tone="orange">Coming soon</Pill>
-              </div>
-              <p className="tile-desc body-copy text-[13px] text-text leading-[1.65] flex-1">
-                Plan hole rolls with live mass tracking — know which pass collapses
-                the hole before you commit the battleship.
-              </p>
-              <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
-                <div className="flex items-center gap-1">
-                  <Pill tone="orange">In development</Pill>
-                </div>
-                <span className="text-[10px] text-muted tracking-[0.04em]">v5.0</span>
-              </div>
-            </div>
-          )}
         </div>
       </section>
     </PageShell>

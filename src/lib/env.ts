@@ -61,7 +61,6 @@ const VERBATIM_ENV = {
   GOOGLE_SITE_VERIFICATION: verbatim,
   VERCEL_ENV: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,
-  FF_WORMHOLE_ROLL_CALC: verbatim,
 } as const;
 
 const SERVER_ENV = { ...REQUIRED_ENV, ...VERBATIM_ENV };

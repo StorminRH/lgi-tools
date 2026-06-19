@@ -6,7 +6,7 @@
 
 export type Tool = {
   label: string;
-  abbr: string;        // 2-letter label shown when the strip narrows (≤1380px)
+  abbr: string;        // 2-letter glyph for the search-dropdown result icon
   href: string | null; // null = SOON, not yet navigable
   matchPrefix?: string;
   description?: string; // surfaced in the search dropdown's sub-text
@@ -50,11 +50,5 @@ export const TOOLS: Tool[] = [
     // Out of the header strip until the sitewide UX pass decides nav
     // placement; live via search and direct URL.
     navHidden: true,
-  },
-  {
-    label: 'Wormhole Roll Calc',
-    abbr: 'WR',
-    href: null,
-    description: 'Soon · Backlog',
   },
 ];

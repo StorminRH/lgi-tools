@@ -4,6 +4,14 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.12 — 2026-06-19
+
+#### Changed
+- The top navigation is now a clean two-tab bar — Wormhole Sites and Industry Planner — and the logged-in corner shows just your character portrait (your name appears on hover).
+
+#### Removed
+- The "Wormhole Roll Calculator (coming soon)" placeholder has been removed from the navigation and home page while it's on hold; the two live tools are unchanged.
+
 ### v3.6.11 — 2026-06-18
 
 #### Changed
