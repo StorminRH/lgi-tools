@@ -72,9 +72,9 @@ async function SitesContent({
 
 function SitesLoading() {
   return (
-    <PageShell className="pt-[34px] text-[10px] tracking-[0.12em] uppercase text-muted">
+    <div className="pt-[34px] text-[10px] tracking-[0.12em] uppercase text-muted">
       Loading sites…
-    </PageShell>
+    </div>
   );
 }
 
@@ -87,10 +87,10 @@ export default function SitesPage({
   searchParams: Promise<SitesSearchParams>;
 }) {
   return (
-    <div className="w-full">
+    <PageShell>
       <Suspense fallback={<SitesLoading />}>
         <SitesContent searchParams={searchParams} />
       </Suspense>
-    </div>
+    </PageShell>
   );
 }

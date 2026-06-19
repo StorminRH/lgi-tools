@@ -13,7 +13,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
-import { PageShell } from '@/components/ui/page-shell';
 import type { SiteType, WormholeClass } from '../types';
 import { SITE_TYPE_LABEL } from './wormhole-styles';
 
@@ -85,7 +84,7 @@ export function SitesFilterLayout({
   };
 
   return (
-    <PageShell>
+    <>
       <PageHead
         crumb="sites"
         title="Wormhole Sites"
@@ -195,6 +194,6 @@ export function SitesFilterLayout({
           </div>
         </div>
       </div>
-    </PageShell>
+    </>
   );
 }
