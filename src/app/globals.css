@@ -174,7 +174,7 @@
    */
   --font-mono:    var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-display: var(--font-barlow), system-ui, sans-serif;
-  --font-jb:      var(--font-jb), ui-monospace, monospace;
+  --font-jb:      var(--font-jetbrains), ui-monospace, monospace;
   --font-body:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 }
 

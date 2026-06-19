@@ -25,7 +25,10 @@ const barlow = Barlow_Condensed({
 });
 
 const jetBrainsMono = JetBrains_Mono({
-  variable: "--font-jb",
+  // Distinct from the Tailwind `--font-jb` theme token (globals.css) so the token
+  // can reference this face instead of itself — the same next/font-var ≠
+  // theme-token split the other three families use.
+  variable: "--font-jetbrains",
   subsets: ["latin"],
   weight: ["400", "700", "800"],
 });
