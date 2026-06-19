@@ -6,6 +6,7 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -265,10 +266,12 @@ export default function UserDetailPage({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
-      <Suspense fallback={<DetailLoading />}>
-        <UserDetailContent params={params} searchParams={searchParams} />
-      </Suspense>
-    </div>
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+        <Suspense fallback={<DetailLoading />}>
+          <UserDetailContent params={params} searchParams={searchParams} />
+        </Suspense>
+      </div>
+    </PageShell>
   );
 }

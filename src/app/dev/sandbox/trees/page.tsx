@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PageShell } from '@/components/ui/page-shell';
 import { BuildFlow } from '@/features/industry-planner/components/BuildFlow';
 import { MOCK_STRUCTURE } from '../_shared/mock-build';
 import { SandboxHeader, VariantFrame } from '../_shared/sandbox-ui';
@@ -13,12 +14,13 @@ import { RadialDepth } from './RadialDepth';
 
 export default function TreesPage() {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20">
-      <SandboxHeader
-        title="Build-tree Displays"
-        subtitle="5 variants · same Wolf build · pick one to port to the planner"
-      />
-      <div className="w-full max-w-[1100px] flex flex-col gap-12">
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20">
+        <SandboxHeader
+          title="Build-tree Displays"
+          subtitle="5 variants · same Wolf build · pick one to port to the planner"
+        />
+        <div className="w-full max-w-[1100px] flex flex-col gap-12">
         <VariantFrame
           tag="Tree v1"
           title="Indented outline"
@@ -64,7 +66,8 @@ export default function TreesPage() {
         >
           <DensityTable structure={MOCK_STRUCTURE} />
         </VariantFrame>
+        </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

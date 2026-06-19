@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
@@ -56,20 +57,22 @@ function JobsLoading() {
 // Convex inside the client island.
 export default function JobsPage() {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20">
-      <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
-        <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-          Industry Jobs
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20">
+        <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
+          <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
+            Industry Jobs
+          </div>
+          <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
+            Live job board for every linked character · flips to ready on schedule
+          </div>
+        </header>
+        <div className="w-full max-w-[760px]">
+          <Suspense fallback={<JobsLoading />}>
+            <JobsContent />
+          </Suspense>
         </div>
-        <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
-          Live job board for every linked character · flips to ready on schedule
-        </div>
-      </header>
-      <div className="w-full max-w-[760px]">
-        <Suspense fallback={<JobsLoading />}>
-          <JobsContent />
-        </Suspense>
       </div>
-    </div>
+    </PageShell>
   );
 }

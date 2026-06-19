@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { PageShell } from '@/components/ui/page-shell';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { KpiRow } from './KpiRow';
 import { parseRange, RANGES, rangeFor, type RangeKey } from './period';
@@ -72,7 +73,7 @@ async function AdminContent({
 
   return (
     <>
-      <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
+      <header className="w-full mb-6 pb-4 border-b border-border-soft">
         <div className="print-only font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-1">
           Admin report — {formatDate(range.from)} to {formatDate(range.to)}
         </div>
@@ -98,7 +99,7 @@ async function AdminContent({
         </div>
       </header>
 
-      <div className="w-full max-w-[1100px] flex flex-col gap-8">
+      <div className="w-full flex flex-col gap-8">
         <Suspense fallback={<SectionFallback />}>
           <KpiRow rangeKey={rangeKey} range={range} />
         </Suspense>
@@ -142,10 +143,12 @@ export default function AdminPage({
   searchParams: Promise<{ range?: string | string[] }>;
 }) {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
-      <Suspense fallback={<AdminLoading />}>
-        <AdminContent searchParams={searchParams} />
-      </Suspense>
-    </div>
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+        <Suspense fallback={<AdminLoading />}>
+          <AdminContent searchParams={searchParams} />
+        </Suspense>
+      </div>
+    </PageShell>
   );
 }

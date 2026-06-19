@@ -14,8 +14,11 @@ export function PageHead({
   title: string;
   meta?: ReactNode;
 }) {
+  // Width-agnostic (3.6.11 F1): the shared PageShell owns the outer frame +
+  // gutters, so this header carries only its vertical rhythm and spans whatever
+  // frame wraps it. Always render PageHead inside a <PageShell>.
   return (
-    <header className="w-full max-w-[1080px] mx-auto px-7 pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap">
+    <header className="w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap">
       <div>
         <div className="font-mono text-caption tracking-[0.08em] text-muted mb-2">
           <span className="text-isk">lgi://</span>

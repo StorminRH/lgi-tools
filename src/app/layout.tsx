@@ -79,6 +79,10 @@ export default function RootLayout({
       className={`${plexMono.variable} ${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Sitewide dot-lattice backdrop (3.6.11 F1) — a fixed full-viewport
+         * layer behind every route. Reuses the approved landing recipe (see
+         * .page-backdrop in globals.css); purely decorative, reads nothing. */}
+        <div className="page-backdrop" aria-hidden="true" />
         <AuthProvider>
           <ConvexClientProvider>
             <AppHeader />

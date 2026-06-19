@@ -158,11 +158,23 @@
   --text-title:    24px;   /* page titles */
   --text-hero:     clamp(44px, 7.7vw, 79px); /* landing wordmark */
 
-  /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ── */
+  /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ──
+   * The canonical four-family roster and its role map — the single source of
+   * truth the "no stray family" check reads against (3.6.11 F1):
+   *   --font-body    (Geist)         → body / content prose
+   *   --font-display (Barlow Cond.)  → display: page titles / PageHead
+   *   --font-mono    (IBM Plex Mono) → UI + terminal chrome (breadcrumbs, nav
+   *                                    labels, readouts, toasts); the default face
+   *   --font-jb      (JetBrains Mono)→ the [Lo-Gang] wordmark + tabular numerals
+   *                                    that column-align in ISK/quantity tables
+   * JetBrains is the justified fourth family (same bar as a tones.ts entry): it
+   * is NOT a stray face — it carries the brand wordmark identity and the tabular
+   * figures that align numeric columns, a direct readability win. Folding it onto
+   * Plex would change the wordmark/nav look and lose that alignment, so it stays.
+   */
   --font-mono:    var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-display: var(--font-barlow), system-ui, sans-serif;
   --font-jb:      var(--font-jb), ui-monospace, monospace;
-  /* Geist (next/font, --font-geist) — descriptive body copy only; see .body-copy. */
   --font-body:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -215,13 +227,20 @@ a:hover {
   outline-offset: 2px;
 }
 
-/* Landing hero + tools-grid background — the approved "dots" treatment
- * (handoff §3). Three stacked layers cover both the hero and the tools grid:
- * a top-down fade so the footer returns to page-deep, a grey-blue radial wash
- * (an echo of the old radial lift), and a fine grey-blue dot lattice. rgba is
- * permitted in the stylesheet (the hex ban is hex-only); the final solid stop
- * reuses the deep-bg token. */
-.home-hero-bg {
+/* Sitewide fixed backdrop (3.6.11 F1) — the approved landing "dots" treatment
+ * (handoff §3), promoted from the homepage to a fixed full-viewport layer behind
+ * every route. Three stacked layers: a top-down fade so the bottom returns to
+ * page-deep, a grey-blue radial wash (an echo of the old radial lift), and a fine
+ * grey-blue dot lattice. rgba is permitted in the stylesheet (the hex ban is
+ * hex-only); the final solid stop reuses the deep-bg token. `background-image`
+ * (not the `background` shorthand) so the html/body deep base survives beneath.
+ * z-index -1 keeps it above the page canvas but below all content (cards/panels
+ * paint their own fill over it, so dots only show through framed gutters). */
+.page-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-image:
     linear-gradient(180deg, rgba(7, 8, 9, 0) 0%, rgba(7, 8, 9, 0.72) 74%, var(--color-bg-deep) 100%),
     radial-gradient(ellipse 80% 36% at 50% 0%, rgba(45, 55, 70, 0.32), transparent 72%),
@@ -260,23 +279,6 @@ a:hover {
   color: var(--color-isk-ink);
   border-color: var(--color-isk);
   box-shadow: 0 6px 22px -6px rgba(61, 214, 140, 0.4);
-}
-
-/* Long-page lift used on /sites (and reusable on any tall content page).
- * Same design language as .home-hero-bg — grey radial elevation that
- * separates content from the page-deep background — tuned for height:
- * the ellipse is wider + extends further down so cards across multiple
- * scrolls all sit on a raised surface, fading near the bottom so the
- * page footer returns to deep. */
-.sites-page-bg {
-  background:
-    radial-gradient(
-      ellipse 110% 95% at 50% 18%,
-      rgba(45, 55, 70, 0.45) 0%,
-      rgba(30, 38, 52, 0.25) 35%,
-      rgba(20, 26, 36, 0.12) 65%,
-      transparent 95%
-    );
 }
 
 /* Landing-grid tool tiles. Two variants: `.tool-tile-live` (interactive,
@@ -701,7 +703,8 @@ a:hover {
 
 /* Legal — Geist prose at a reading measure, ISK-green dash bullets, and the
  * closing IP notice in a green-left-rule note block. */
-.legal-prose { max-width: 760px; }
+/* Centered reading column inside the shared 1280 frame (3.6.11 F1). */
+.legal-prose { max-width: 760px; margin-inline: auto; }
 .legal-prose p {
   font-family: var(--font-body);
   font-size: 13.5px;
@@ -806,7 +809,7 @@ a:hover {
 
 /* Changelog — a version timeline: version + date in a left rail, an ISK-green
  * node dot on the connecting line, and change-type-tagged groups. */
-.changelog { max-width: 860px; }
+.changelog { max-width: 860px; margin-inline: auto; }
 .changelog-entry { display: grid; grid-template-columns: 128px 1fr; gap: 0; }
 .changelog-rail { text-align: right; padding: 2px 26px 0 0; }
 .changelog-ver { font-family: var(--font-jb); font-weight: 800; font-size: 14px; letter-spacing: 0.01em; color: var(--color-name); }

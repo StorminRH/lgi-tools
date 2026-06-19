@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
@@ -64,14 +65,16 @@ function EsiSandboxLoading() {
 // pattern as /dev/sandbox.
 export default function EsiSandboxPage() {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20">
-      <SandboxHeader
-        title="ESI Endpoint Sandbox"
-        subtitle="3.4.6 · raw authenticated reads through the gate · on-demand only, nothing stored"
-      />
-      <Suspense fallback={<EsiSandboxLoading />}>
-        <EsiSandbox />
-      </Suspense>
-    </div>
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20">
+        <SandboxHeader
+          title="ESI Endpoint Sandbox"
+          subtitle="3.4.6 · raw authenticated reads through the gate · on-demand only, nothing stored"
+        />
+        <Suspense fallback={<EsiSandboxLoading />}>
+          <EsiSandbox />
+        </Suspense>
+      </div>
+    </PageShell>
   );
 }

@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
+import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -219,7 +220,7 @@ async function AccessContent({
 
   return (
     <>
-      <header className="w-full max-w-[1100px] mb-6 pb-4 border-b border-border-soft">
+      <header className="w-full mb-6 pb-4 border-b border-border-soft">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
@@ -239,7 +240,7 @@ async function AccessContent({
         </div>
       </header>
 
-      <div className="w-full max-w-[1100px] flex flex-col gap-6">
+      <div className="w-full flex flex-col gap-6">
         <form method="GET" action="/admin/access" className="flex items-center gap-2">
           <input
             type="text"
@@ -338,10 +339,12 @@ export default function AccessPage({
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
-      <Suspense fallback={<AccessLoading />}>
-        <AccessContent searchParams={searchParams} />
-      </Suspense>
-    </div>
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+        <Suspense fallback={<AccessLoading />}>
+          <AccessContent searchParams={searchParams} />
+        </Suspense>
+      </div>
+    </PageShell>
   );
 }

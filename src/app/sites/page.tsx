@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { cache, Suspense } from 'react';
+import { PageShell } from '@/components/ui/page-shell';
 import { UrlSync } from '@/components/ui/url-sync';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import {
@@ -71,9 +72,9 @@ async function SitesContent({
 
 function SitesLoading() {
   return (
-    <div className="w-full max-w-[1080px] mx-auto px-7 pt-[34px] text-[10px] tracking-[0.12em] uppercase text-muted">
+    <PageShell className="pt-[34px] text-[10px] tracking-[0.12em] uppercase text-muted">
       Loading sites…
-    </div>
+    </PageShell>
   );
 }
 
@@ -86,7 +87,7 @@ export default function SitesPage({
   searchParams: Promise<SitesSearchParams>;
 }) {
   return (
-    <div className="sites-page-bg w-full">
+    <div className="w-full">
       <Suspense fallback={<SitesLoading />}>
         <SitesContent searchParams={searchParams} />
       </Suspense>

@@ -1,4 +1,5 @@
 import { PageHead } from '@/components/ui/page-head';
+import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 
 export const metadata = {
@@ -9,7 +10,7 @@ export const metadata = {
 
 export default function LegalPage() {
   return (
-    <div className="w-full">
+    <PageShell>
       <PageHead
         crumb="legal"
         title="Legal"
@@ -20,7 +21,7 @@ export default function LegalPage() {
         }
       />
 
-      <div className="w-full max-w-[1080px] mx-auto px-7 pb-16">
+      <div className="pb-16">
         <div className="legal-prose">
           <section className="mb-8">
             <SectionLabel className="mb-3">What we collect</SectionLabel>
@@ -122,6 +123,6 @@ export default function LegalPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

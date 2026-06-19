@@ -1,3 +1,4 @@
+import { PageShell } from '@/components/ui/page-shell';
 import { MOCK_CARDS } from '../_shared/mock-build';
 import { SandboxHeader, VariantFrame } from '../_shared/sandbox-ui';
 import {
@@ -17,12 +18,13 @@ const SAMPLE = MOCK_CARDS[0];
 
 export default function CardsPage() {
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20">
-      <SandboxHeader
-        title="Card Designs"
-        subtitle="6 variants · same card · hover to see depth + affordance"
-      />
-      <div className="w-full max-w-[1100px] grid gap-6 grid-cols-[repeat(auto-fill,minmax(320px,1fr))]">
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20">
+        <SandboxHeader
+          title="Card Designs"
+          subtitle="6 variants · same card · hover to see depth + affordance"
+        />
+        <div className="w-full max-w-[1100px] grid gap-6 grid-cols-[repeat(auto-fill,minmax(320px,1fr))]">
         <VariantFrame tag="Card v1" title="Flat baseline" notes="Today’s treatment — border + section fill, no elevation. The control.">
           <FlatBaseline sample={SAMPLE} />
         </VariantFrame>
@@ -41,7 +43,8 @@ export default function CardsPage() {
         <VariantFrame tag="Card v6" title="Aurora pointer glow" notes="A soft glow follows the cursor across the surface. Most interactive; cursor-only, so pair with v4’s ring for touch.">
           <AuroraPointer sample={SAMPLE} />
         </VariantFrame>
+        </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

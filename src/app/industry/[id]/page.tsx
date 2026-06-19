@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { PageShell } from '@/components/ui/page-shell';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
@@ -71,7 +72,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
 
   return (
-    <div className="w-full max-w-[1280px]">
+    <div className="w-full">
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
       <RecordRecentBlueprint
         typeId={id}
@@ -91,9 +92,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 }
 
 function PlannerSkeleton() {
-  return (
-    <div className="w-full max-w-[1280px] text-[11px] text-muted">Loading blueprint…</div>
-  );
+  return <div className="w-full text-[11px] text-muted">Loading blueprint…</div>;
 }
 
 export default function BlueprintPlannerPage({
@@ -102,10 +101,12 @@ export default function BlueprintPlannerPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <div className="flex flex-col items-center px-4 pt-12 pb-20 sm:px-6">
-      <Suspense fallback={<PlannerSkeleton />}>
-        <PlannerContent params={params} />
-      </Suspense>
-    </div>
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20">
+        <Suspense fallback={<PlannerSkeleton />}>
+          <PlannerContent params={params} />
+        </Suspense>
+      </div>
+    </PageShell>
   );
 }

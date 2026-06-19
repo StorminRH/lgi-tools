@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, Suspense } from 'react';
 import { JsonLd } from '@/components/JsonLd';
+import { PageShell } from '@/components/ui/page-shell';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
@@ -126,7 +127,7 @@ function DeepLinkMetaView({
 }) {
   return (
     <>
-      <div className="w-full max-w-[1400px] mb-4">
+      <div className="w-full mb-4">
         <Link
           href={backHref}
           className="text-[10px] tracking-[0.12em] uppercase text-muted"
@@ -134,7 +135,7 @@ function DeepLinkMetaView({
           ← Return to full list
         </Link>
       </div>
-      <div className="w-full max-w-[1400px] mb-4">
+      <div className="w-full mb-4">
         <SiteMetaStrip source={source} lastPriceUpdate={lastPriceUpdate} />
       </div>
     </>
@@ -195,19 +196,21 @@ export default async function SiteDetailPage({
   };
 
   return (
-    <div className="flex flex-col items-center px-6 pt-12 pb-20 gap-0">
-      <JsonLd data={breadcrumbJsonLd} />
-      <h1 className="sr-only">{site.name}</h1>
-      <Suspense
-        fallback={
-          <DeepLinkMetaView backHref="/sites" source={site.sourceTab} lastPriceUpdate={null} />
-        }
-      >
-        <SiteDeepLinkMeta source={site.sourceTab} searchParams={searchParams} />
-      </Suspense>
-      <div className="w-full max-w-[1400px]">
-        <SiteCard site={site} defaultOpen />
+    <PageShell>
+      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+        <JsonLd data={breadcrumbJsonLd} />
+        <h1 className="sr-only">{site.name}</h1>
+        <Suspense
+          fallback={
+            <DeepLinkMetaView backHref="/sites" source={site.sourceTab} lastPriceUpdate={null} />
+          }
+        >
+          <SiteDeepLinkMeta source={site.sourceTab} searchParams={searchParams} />
+        </Suspense>
+        <div className="w-full">
+          <SiteCard site={site} defaultOpen />
+        </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
