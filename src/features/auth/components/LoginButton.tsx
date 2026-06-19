@@ -8,13 +8,12 @@ export function LoginButton() {
   const { session, isAdmin: showAdminLink, loading } = useAuth();
 
   // Neutral placeholder until the session resolves — same footprint as the
-  // logged-in cluster (28px portrait + a short name run) so the right edge
-  // barely settles, and no "Log in" → username flash for logged-in viewers.
+  // logged-in cluster (a 32px portrait) so the right edge barely settles, and
+  // no "Log in" → portrait flash for logged-in viewers.
   if (loading) {
     return (
       <div className="flex items-center gap-3" aria-hidden="true">
-        <div className="w-7 h-7 rounded-[2px] border border-border-idle" />
-        <div className="w-16 h-3 rounded-[2px] bg-border-idle" />
+        <div className="w-8 h-8 rounded-[2px] border border-border-idle" />
       </div>
     );
   }
@@ -44,19 +43,19 @@ export function LoginButton() {
       ) : null}
       <a
         href="/characters"
-        title="Manage your characters"
-        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        title={session.name}
+        aria-label={`${session.name} — manage your characters`}
+        className="flex items-center hover:opacity-80 transition-opacity"
       >
         <img
           src={session.portraitUrl}
           alt={session.name}
-          width={28}
-          height={28}
+          width={32}
+          height={32}
           loading="eager"
           decoding="async"
           className="rounded-[2px] border border-border-idle"
         />
-        <span className="font-mono text-[11px] text-text">{session.name}</span>
       </a>
       <button
         type="button"

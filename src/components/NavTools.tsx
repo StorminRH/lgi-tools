@@ -7,9 +7,9 @@ import { TOOLS } from '@/data/tools/registry';
 import { cn } from '@/components/ui/cn';
 
 // The cross-tool navigation strip. Lives between the global search input
-// and the right-side login cluster in `AppHeader`. SOON tools render as
-// inert spans. Below ~1380px each label collapses to its 2-letter
-// abbreviation via a CSS-only media query so the strip still fits.
+// and the right-side login cluster in `AppHeader`. SOON / nav-disabled tools
+// render as inert spans (none in the current two-tab roster, but the contract
+// stays for future tools).
 //
 // The active-tab highlight depends on the current pathname, which is
 // request-time data under Cache Components (it can't be known when the header
@@ -25,8 +25,7 @@ function NavStrip({ pathname }: { pathname: string | null }) {
           const title = tool.href === null ? `${tool.label} — coming soon` : tool.label;
           return (
             <span key={tool.label} title={title} className="nav-tool soon">
-              <span className="full">{tool.label}</span>
-              <span className="abbr">{tool.abbr}</span>
+              {tool.label}
             </span>
           );
         }
@@ -41,8 +40,7 @@ function NavStrip({ pathname }: { pathname: string | null }) {
             title={tool.label}
             className={cn('nav-tool', isActive && 'active')}
           >
-            <span className="full">{tool.label}</span>
-            <span className="abbr">{tool.abbr}</span>
+            {tool.label}
           </Link>
         );
       })}
