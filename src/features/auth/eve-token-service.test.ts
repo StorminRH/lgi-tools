@@ -2,9 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Hoisted so the vi.mock factories below can close over them.
 const h = vi.hoisted(() => ({
+  // The first select returns selectRows; a SECOND select (the lost-race re-read)
+  // returns rereadRows when set — lets a single test drive read → write → re-read.
   selectRows: [] as Record<string, unknown>[],
+  rereadRows: null as Record<string, unknown>[] | null,
+  selectCount: 0,
+  // Controls whether a conditional UPDATE "won" (>=1 row) or "lost" (0 rows).
+  updateReturning: [{ id: 'acc1' }] as { id: string }[],
   updateSpy: vi.fn(),
   refreshEveTokenMock: vi.fn(),
+  logUsageEventMock: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('@/db', () => ({
@@ -12,7 +19,12 @@ vi.mock('@/db', () => ({
     select: () => ({
       from: () => ({
         where: () => ({
-          limit: () => Promise.resolve(h.selectRows),
+          limit: () => {
+            h.selectCount += 1;
+            const rows =
+              h.selectCount >= 2 && h.rereadRows !== null ? h.rereadRows : h.selectRows;
+            return Promise.resolve(rows);
+          },
         }),
       }),
     }),
@@ -20,12 +32,14 @@ vi.mock('@/db', () => ({
       set: (vals: Record<string, unknown>) => ({
         where: () => {
           h.updateSpy(vals);
-          return Promise.resolve([]);
+          return { returning: () => Promise.resolve(h.updateReturning) };
         },
       }),
     }),
   },
 }));
+
+vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: h.logUsageEventMock }));
 
 vi.mock('./eve-sso', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./eve-sso')>();
@@ -47,8 +61,12 @@ beforeEach(() => {
   vi.stubEnv('EVE_CLIENT_ID', 'client-id');
   vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
   h.selectRows = [];
+  h.rereadRows = null;
+  h.selectCount = 0;
+  h.updateReturning = [{ id: 'acc1' }];
   h.updateSpy.mockClear();
   h.refreshEveTokenMock.mockReset();
+  h.logUsageEventMock.mockClear();
 });
 
 afterEach(() => {
@@ -130,7 +148,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(decryptToken(persisted.accessToken)).toBe('new-access');
   });
 
-  it('nulls token custody and returns reauth_required on a dead refresh token', async () => {
+  it('nulls token custody and returns reauth_required on a genuinely dead refresh token (1 row)', async () => {
     h.selectRows = [
       {
         id: 'acc1',
@@ -141,12 +159,98 @@ describe('getFreshAccessTokenForCharacter', () => {
       },
     ];
     h.refreshEveTokenMock.mockResolvedValue({ kind: 'dead' });
+    h.updateReturning = [{ id: 'acc1' }]; // conditional NULL matched → we held the latest token
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
     const cleared = h.updateSpy.mock.calls[0][0] as Record<string, unknown>;
     expect(cleared.accessToken).toBeNull();
     expect(cleared.refreshToken).toBeNull();
     expect(cleared.accessTokenExpiresAt).toBeNull();
+    expect(h.logUsageEventMock).not.toHaveBeenCalled();
+  });
+
+  it('reflects the winner\'s token when the success write loses the race (0 rows)', async () => {
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        scope: 'publicData',
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'ok',
+      access_token: 'my-access',
+      refresh_token: 'my-refresh',
+      expires_in: 1200,
+    });
+    h.updateReturning = []; // 0 rows: a concurrent winner already wrote a different token
+    h.rereadRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('winner-access'),
+        refreshToken: encryptToken('winner-refresh'),
+        accessTokenExpiresAt: future(),
+        scope: 'publicData',
+      },
+    ];
+
+    const result = await getFreshAccessTokenForCharacter(CHAR_ID);
+    // Reflects the persisted (winner's) token, NOT our own minted one — and never nulls.
+    expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access', scopes: ['publicData'] });
+    expect(h.logUsageEventMock).not.toHaveBeenCalled();
+  });
+
+  it('on a dead refresh that lost the race (0 rows), logs the race signal and reflects the winner', async () => {
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        scope: null,
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({ kind: 'dead' });
+    h.updateReturning = []; // 0 rows: a concurrent winner rotated before our NULL landed
+    h.rereadRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('winner-access'),
+        refreshToken: encryptToken('winner-refresh'),
+        accessTokenExpiresAt: future(),
+        scope: null,
+      },
+    ];
+
+    const result = await getFreshAccessTokenForCharacter(CHAR_ID);
+    expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access' });
+    expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(h.logUsageEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'eve_token_refresh_race', characterId: CHAR_ID }),
+    );
+  });
+
+  it('returns reauth_required when a lost-race re-read finds the account genuinely tokenless', async () => {
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        scope: null,
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({ kind: 'dead' });
+    h.updateReturning = [];
+    h.rereadRows = [
+      { id: 'acc1', accessToken: null, refreshToken: null, accessTokenExpiresAt: null, scope: null },
+    ];
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
+    // Telemetry still fires (it was a 0-row dead); the re-read just found no token.
+    expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
   });
 
   it('preserves custody (no DB write) and returns upstream_error on a transient failure', async () => {
