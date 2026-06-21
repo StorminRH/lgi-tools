@@ -72,7 +72,7 @@ export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
 // Revalidation tag for cached blueprint *structure* reads (the Industry
 // Planner's `'use cache'` tree + flat-materials view, and the blueprint search
 // index). `cacheLife('max')` already drops these on deploy, which covers the
-// deploy-time SDE ingest; the weekly drift cron re-ingests WITHOUT a deploy, so
+// deploy-time SDE ingest; the daily drift cron re-ingests WITHOUT a deploy, so
 // it busts this tag after re-running the tree resolver to keep warm structure
 // reads honest. Lives in eve-data (not the feature) so the SDE pipeline — which
 // is not governed by the feature/data import boundaries — can revalidate it

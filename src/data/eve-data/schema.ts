@@ -248,7 +248,7 @@ export const eveNpcStations = pgTable(
 
 // Key/value metadata for the eve-data slice. Two keys live here today:
 //   `sde_version` — Fuzzwork's `Last-Modified` header on `invTypes.csv.bz2`,
-//                   used by the weekly drift cron to decide when CCP has
+//                   used by the daily drift cron to decide when CCP has
 //                   patched the SDE.
 //   `tree_resolver_hash` — content hash of the industry tables, used by
 //                   the resolver to skip its expensive pass when nothing

@@ -1,7 +1,7 @@
 // Manual recovery hook for the SDE drift cron. Same logic as
 // /api/cron/refresh-sde — checks the stored sde_version against
 // CCP's current SDE build number and re-ingests on drift. Useful
-// when the weekly cron didn't fire, when the operator wants to force
+// when the daily cron didn't fire, when the operator wants to force
 // a re-resolve after a resolver code change (use --force), or when
 // debugging the drift path locally.
 //

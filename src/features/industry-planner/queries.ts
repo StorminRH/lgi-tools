@@ -58,7 +58,7 @@ function collectBlueprintIds(nodes: TreeNode[], acc: Set<number> = new Set()): S
 // Deploy-static blueprint structure: the nested tree, the flattened raw
 // materials (cost basis), and names for everything. No price dependency, so it
 // renders in the static shell. Cached `'max'` (build ID drops it on deploy,
-// which covers deploy-time SDE ingest) and tagged so the weekly drift cron can
+// which covers deploy-time SDE ingest) and tagged so the daily drift cron can
 // bust it after a no-deploy re-ingest. Warm loads hit the cache → no DB query.
 export async function getBlueprintStructure(
   blueprintId: number,

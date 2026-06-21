@@ -25,7 +25,7 @@ async function logSdeCronEvent(metadata: Record<string, unknown>): Promise<void>
   }
 }
 
-// Vercel cron endpoint. Wired to "0 5 * * 1" in vercel.json (Mondays
+// Vercel cron endpoint. Wired to "0 5 * * *" in vercel.json (daily
 // 05:00 UTC — well clear of the 11:00 daily prices cron). Vercel
 // dispatches GET with `Authorization: Bearer ${CRON_SECRET}`.
 //
@@ -69,7 +69,7 @@ export async function GET(req: Request): Promise<Response> {
 
   // CCP-manifest-unreachable path: nothing actionable. Falling through to
   // runSdePipeline would burn ~30s on doomed downloads and emit a noisy
-  // 500. Next Monday's tick (or any sooner manual run) retries. Same
+  // 500. The next daily tick (or any sooner manual run) retries. Same
   // guard as src/db/ingest-sde-if-empty.ts.
   if (storedVersion !== null && remoteVersion === null) {
     await logSdeCronEvent({
@@ -107,11 +107,11 @@ export async function GET(req: Request): Promise<Response> {
     // A re-ingest rebuilds the blueprint trees + flat materials, so bust the
     // cached structure reads (planner trees + the blueprint search index).
     // Deploy-time ingest is covered by the build id; this is the no-deploy
-    // weekly-drift path that `cacheLife('max')` alone wouldn't refresh.
+    // daily-drift path that `cacheLife('max')` alone wouldn't refresh.
     revalidateTag(BLUEPRINT_STRUCTURE_TAG, 'max');
     const marketPrices = await summarizeMarketPricesRowCount(db);
 
-    // O-2: the weekly re-ingest outcome — counts, durations, version bump.
+    // O-2: the daily re-ingest outcome — counts, durations, version bump.
     await logSdeCronEvent({
       outcome: 'reingested',
       sdeVersionBefore: storedVersion,

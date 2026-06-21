@@ -7,7 +7,7 @@
 //
 // Callers: src/db/ingest-sde-if-empty.ts (vercel-build),
 //          src/db/refresh-sde.ts (CLI recovery hook),
-//          src/app/api/cron/refresh-sde/route.ts (weekly drift cron).
+//          src/app/api/cron/refresh-sde/route.ts (daily drift cron).
 
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
