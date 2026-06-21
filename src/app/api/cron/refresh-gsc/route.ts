@@ -5,7 +5,7 @@ import { directClient } from '@/db';
 import { requireCronAuth, swallow } from '@/lib/cron';
 
 // Vercel-cron endpoint, scheduled in vercel.json ("0 9 * * *" — daily, clear of
-// the 11:30 prices sweep and the Monday SDE run). Vercel's cron invoker sends
+// the 11:30 prices sweep and the daily SDE run). Vercel's cron invoker sends
 // GET with `Authorization: Bearer ${CRON_SECRET}`; reject anything else with 401
 // so the URL stays inert if scraped.
 //

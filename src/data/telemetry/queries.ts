@@ -319,8 +319,8 @@ export function getGscCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]
 }
 
 // Latest run per cron action regardless of range — the status strip needs a
-// "now"-anchored staleness check, not a range-scoped one (a 7d window with no
-// SDE run is normal for a weekly cron; a 15-day-old last run is not).
+// "now"-anchored staleness check, not a range-scoped one (a 1-day window with
+// no SDE run can still be normal for a daily cron; a multi-day-old last run is not).
 export async function getLastCronRuns(): Promise<CronLastRun[]> {
   const outcome = sql<string | null>`${usageLogs.metadata} ->> 'outcome'`;
   const rows = await db

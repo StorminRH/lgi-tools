@@ -180,15 +180,14 @@ describe('deriveCronStatus', () => {
     expect(s).toEqual({ level: 'red', headline: 'stale · last run 3d ago' });
   });
 
-  it('weekly interval keeps a 3-day-old SDE run green', () => {
+  it('daily interval keeps a fresh SDE run green', () => {
     const s = deriveCronStatus({
       ...daily,
       healthy: SDE_HEALTHY_OUTCOMES,
       neutral: SDE_NEUTRAL_OUTCOMES,
-      expectedEveryHours: 168,
-      lastRun: { timestamp: hoursAgo(72), outcome: 'up-to-date' },
+      lastRun: { timestamp: hoursAgo(20), outcome: 'up-to-date' },
     });
-    expect(s).toEqual({ level: 'green', headline: 'healthy · last run 3d ago' });
+    expect(s).toEqual({ level: 'green', headline: 'healthy · last run 20h ago' });
   });
 
   it('neutral latest outcome (lock-skip) does not read as failing', () => {
@@ -196,7 +195,6 @@ describe('deriveCronStatus', () => {
       ...daily,
       healthy: SDE_HEALTHY_OUTCOMES,
       neutral: SDE_NEUTRAL_OUTCOMES,
-      expectedEveryHours: 168,
       lastRun: { timestamp: hoursAgo(24), outcome: 'busy' },
     });
     expect(s.level).toBe('green');
@@ -207,7 +205,6 @@ describe('deriveCronStatus', () => {
       ...daily,
       healthy: SDE_HEALTHY_OUTCOMES,
       neutral: SDE_NEUTRAL_OUTCOMES,
-      expectedEveryHours: 168,
       lastRun: { timestamp: hoursAgo(24), outcome: 'up-to-date' },
       outcomes: [
         { outcome: 'up-to-date', count: 3, avgDurationMs: 20 },

@@ -493,7 +493,7 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
   // TRUNCATE + writes + hash update all live in one transaction so a
   // mid-flight timeout (Vercel function killed at 300s, transient DB
   // error, etc.) rolls back to the pre-resolve state instead of
-  // leaving the tables empty for up to a week until the next Monday
+  // leaving the tables empty for up to a day until the next daily
   // cron retries. Recovery becomes automatic: the hash isn't written
   // unless every batch committed, so the next invocation will see a
   // hash mismatch and re-run.

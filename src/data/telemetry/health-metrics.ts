@@ -129,7 +129,7 @@ export interface CronStatusInput {
   neutral?: readonly string[];
   /** Outcomes that completed but not cleanly (e.g. GSC `partial`) — amber. */
   degraded?: readonly string[];
-  /** Schedule interval — 24 for the daily crons, 168 for the weekly SDE. */
+  /** Schedule interval — 24 for the daily crons (including SDE). */
   expectedEveryHours: number;
   now: Date;
 }

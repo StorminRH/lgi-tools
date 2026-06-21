@@ -6,7 +6,7 @@
 // On a brand-new branch (e.g. a fresh preview Neon), case (a) fails
 // and we ingest. On a steady-state redeploy with no SDE patch, both
 // pass and we no-op in <1s. When CCP has patched the SDE between
-// deploys, case (b) fails and we re-ingest — the weekly drift cron
+// deploys, case (b) fails and we re-ingest — the daily drift cron
 // is the primary path for this, but the build-time check is the
 // belt-and-braces.
 //

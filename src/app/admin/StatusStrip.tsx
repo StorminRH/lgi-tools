@@ -120,7 +120,7 @@ export async function StatusStrip({ range }: { range: DateRange }) {
     outcomes: sdeOutcomes,
     healthy: SDE_HEALTHY_OUTCOMES,
     neutral: SDE_NEUTRAL_OUTCOMES,
-    expectedEveryHours: 168,
+    expectedEveryHours: 24,
     now,
   });
   const gscStatus = deriveGscStatus({
@@ -180,7 +180,7 @@ export async function StatusStrip({ range }: { range: DateRange }) {
         <DetailBody>
           {sdeOutcomes.length === 0 ? (
             <DetailCaption>
-              No SDE cron runs in this range (it runs weekly — widen the range to see history).
+              No SDE cron runs in this range (it runs daily — pick a wider range to see history).
             </DetailCaption>
           ) : (
             <>

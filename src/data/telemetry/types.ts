@@ -22,7 +22,7 @@ export const SERVER_USAGE_ACTIONS = [
   'price_source_degraded', // ESI→Fuzzwork degradation / budget exhaustion (O-1, S-2)
   'cron_prices', // hourly price-cron outcome — refreshed / skipped (O-2, O-3)
   'cron_industry_indices', // daily industry cost-index + adjusted-price cron outcome (3.5.1b)
-  'cron_sde', // weekly SDE-cron outcome (O-2, O-3)
+  'cron_sde', // daily SDE-cron outcome (O-2, O-3)
   'cron_gsc', // daily Google-Search-Console sync outcome — synced / skipped / failed (3.3.3)
   'cron_sync_sweeper', // 15-min sync-engine watchdog — dispatched>0 means the Convex scan lagged (3.4.9)
   'eve_token_refresh_race', // a vend hit invalid_grant on a token a concurrent vend had already rotated — the signal EVE has enabled invalidating refresh-token rotation (OOB-AUTH)

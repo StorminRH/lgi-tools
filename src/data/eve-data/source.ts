@@ -244,7 +244,7 @@ export function parseSdeBuildNumber(body: string): string | null {
 }
 
 // Drift probe: GET the 80-byte manifest and return CCP's current build number.
-// The weekly cron + the build-time gate compare this against the stored
+// The daily cron + the build-time gate compare this against the stored
 // `sde_version`. Returns null when the request fails or the body is malformed —
 // callers treat null as "version unknown, assume no drift" rather than as a hard
 // error, so a transient CCP outage never blocks a deploy.
