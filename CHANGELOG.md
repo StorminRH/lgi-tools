@@ -4,6 +4,14 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.13 — 2026-06-21
+
+#### Fixed
+- Corrected a major overstatement of Tech II ship build costs in the Industry Planner — affected hulls (such as the Curse and Devoter) were showing billions of ISK instead of their true cost of a few hundred million, because the planner was costing a material through a hidden internal recipe instead of the real one. The whole affected tier now shows correct costs and margins.
+
+#### Changed
+- Blueprint search and the Industry Planner now list only real, published blueprints — CCP's internal/test blueprints and ore-compression formulas (which can't be built in-game) no longer appear.
+
 ### v3.6.12 — 2026-06-19
 
 #### Changed

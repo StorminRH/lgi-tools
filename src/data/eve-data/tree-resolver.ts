@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { readEnv } from '@/lib/env';
 import {
@@ -9,7 +9,12 @@ import {
   TREE_RESOLVER_ALGO_VERSION,
 } from './constants';
 import { getSdeMetaValue, setSdeMetaValue } from './meta';
-import { blueprintFlatMaterials, blueprintTrees, industryBlueprints } from './schema';
+import {
+  blueprintFlatMaterials,
+  blueprintTrees,
+  eveTypes,
+  industryBlueprints,
+} from './schema';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPgDb = PostgresJsDatabase<any>;
@@ -141,7 +146,11 @@ export function activitiesToRows(
 //      products are consumed elsewhere, but this keeps us correct if a future SDE
 //      starts consuming one of these deprecated types.
 export function buildIndexesFromActivities(
-  rows: { blueprintTypeId: number; activities: BlueprintActivities }[],
+  rows: {
+    blueprintTypeId: number;
+    activities: BlueprintActivities;
+    published?: boolean | null;
+  }[],
 ): Indexes {
   const blueprintMaterials = new Map<number, Material[]>();
   const productToBlueprint = new Map<
@@ -149,7 +158,26 @@ export function buildIndexesFromActivities(
     { blueprintTypeId: number; quantityPerRun: number }
   >();
 
-  for (const { blueprintTypeId, activities } of rows) {
+  // Producer selection below is first-writer-wins, so ROW ORDER decides which
+  // blueprint wins a product made by more than one. Order published producers
+  // first (deterministic blueprintTypeId tie-break) so the real, in-game
+  // blueprint beats CCP's unpublished test/dev artifacts that share a product:
+  // e.g. the unpublished "Test Reaction Blueprint" (45732, 20 Tungsten Carbide
+  // per run) must never beat the published "Tungsten Carbide Reaction Formula"
+  // (46207, 10000/run) — picking the former inflates every downstream reaction
+  // ~500x. This mirrors the game client, which hides unpublished blueprints.
+  // Fallback-safe: a product whose only producer is unpublished still registers
+  // (it is the first — and only — row seen). `published` absent/null counts as
+  // published, so synthetic test rows and any blueprint type missing from
+  // eve_types stay selectable. The tie-break also removes the latent
+  // non-determinism of the unordered source query.
+  const ordered = [...rows].sort((a, b) => {
+    const au = a.published === false ? 1 : 0;
+    const bu = b.published === false ? 1 : 0;
+    return au - bu || a.blueprintTypeId - b.blueprintTypeId;
+  });
+
+  for (const { blueprintTypeId, activities } of ordered) {
     const { mats, prods } = activitiesToRows(blueprintTypeId, activities);
     const ownProducts = new Set(prods.map((p) => p.productTypeId));
     const realMaterials = mats
@@ -174,14 +202,26 @@ export function buildIndexesFromActivities(
 }
 
 async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
+  // Join eve_types for each blueprint's published flag so producer selection can
+  // prefer the real in-game blueprint over unpublished test/dev artifacts. The
+  // authoritative ordering happens in memory in buildIndexesFromActivities — no
+  // DB ORDER BY, whose DESC NULLS FIRST wouldn't match the in-memory null
+  // handling anyway. leftJoin: keep a blueprint even if its type row is somehow
+  // absent (published → null → treated as selectable).
   const rows = await db
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,
       activities: industryBlueprints.activities,
+      published: eveTypes.published,
     })
-    .from(industryBlueprints);
+    .from(industryBlueprints)
+    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
   return buildIndexesFromActivities(
-    rows as { blueprintTypeId: number; activities: BlueprintActivities }[],
+    rows as {
+      blueprintTypeId: number;
+      activities: BlueprintActivities;
+      published: boolean | null;
+    }[],
   );
 }
 
@@ -325,7 +365,10 @@ export class TreeResolver {
 // Rifter's Tritanium — or a yield change — flips the hash) by sampling their
 // manufacturing + reaction recipes fully, PLUS global edge counts so a blueprint
 // added/removed or re-recipe'd anywhere triggers a rebuild — without
-// canonicalising all ~5k blueprints' JSON on every check. Stored under
+// canonicalising all ~5k blueprints' JSON on every check. Also folds in every
+// blueprint's published flag, since producer selection now prefers published
+// blueprints — so a CCP publish/unpublish flip with no recipe change still
+// invalidates the trees on the cron re-resolve path. Stored under
 // SDE_META_KEY_TREE_HASH; the resolver short-circuits when the stored value
 // matches (and trees are still present — see resolveAllTrees).
 export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
@@ -333,17 +376,25 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,
       activities: industryBlueprints.activities,
+      published: eveTypes.published,
     })
-    .from(industryBlueprints);
+    .from(industryBlueprints)
+    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
 
   const refSet = new Set<number>(REFERENCE_BLUEPRINT_TYPE_IDS);
   let blueprintCount = 0;
   let matEdges = 0;
   let prodEdges = 0;
   const refSamples: string[] = [];
+  const publishedSamples: string[] = [];
 
   for (const r of all) {
     blueprintCount++;
+    // Fold each blueprint's published flag into the hash: producer selection
+    // depends on it, so a CCP publish/unpublish flip with no recipe edit must
+    // still invalidate the trees. null/undefined counts as published, matching
+    // the resolver's selection fallback.
+    publishedSamples.push(`${r.blueprintTypeId}:${r.published === false ? 0 : 1}`);
     const activities = (r.activities ?? {}) as BlueprintActivities;
     // Global edge counts across every activity key — matches the old row-count
     // sensitivity to any recipe edge appearing/disappearing.
@@ -365,6 +416,7 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   }
   // Deterministic ordering JS-side so the hash is stable across runs.
   refSamples.sort();
+  publishedSamples.sort();
 
   return createHash('sha256')
     .update(TREE_RESOLVER_ALGO_VERSION)
@@ -372,6 +424,8 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     .update(`${blueprintCount}:${matEdges}:${prodEdges}`)
     .update(':')
     .update(refSamples.join(','))
+    .update(':')
+    .update(publishedSamples.join(','))
     .digest('hex');
 }
 

@@ -185,9 +185,10 @@ export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
 
 // The item a blueprint produces and how many per run, for the chosen industry
 // activity (manufacturing 1 preferred over reaction 11). `null` when the
-// blueprint produces nothing under either — i.e. not a planner-buildable. Reads
-// the blueprint `activities` JSONB so the Industry Planner never touches the raw
-// table directly.
+// blueprint produces nothing under either — i.e. not a planner-buildable — OR
+// when the blueprint type is unpublished (a CCP test/dev artifact the in-game
+// client hides, e.g. the "Test Reaction Blueprint"). Reads the blueprint
+// `activities` JSONB so the Industry Planner never touches the raw table directly.
 export type BlueprintOutput = {
   productTypeId: number;
   quantity: number;
@@ -197,10 +198,20 @@ export type BlueprintOutput = {
 export async function getBlueprintOutput(
   blueprintId: number,
 ): Promise<BlueprintOutput | null> {
+  // innerJoin + published filter: an unpublished blueprint type is not in-game
+  // buildable, so it resolves to null here just like a non-manufacturable one —
+  // keeping it out of the planner detail page and everything downstream of
+  // getBlueprintStructure (build-location endpoint, homepage favorites).
   const [row] = await db
     .select({ activities: industryBlueprints.activities })
     .from(industryBlueprints)
-    .where(eq(industryBlueprints.blueprintTypeId, blueprintId))
+    .innerJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id))
+    .where(
+      and(
+        eq(industryBlueprints.blueprintTypeId, blueprintId),
+        eq(eveTypes.published, true),
+      ),
+    )
     .limit(1);
   if (!row) return null;
   const activities = (row.activities ?? {}) as BlueprintActivities;
@@ -217,10 +228,12 @@ export async function getBlueprintOutput(
   return null;
 }
 
-// One row per (blueprint, manufacturing/reaction product) whose product is a
-// published type, for the Industry Planner's blueprint search index. Filtering to
-// published products drops the degenerate self-recipe junk (those produce
-// unpublished types), matching the old published inner-join.
+// One row per (blueprint, manufacturing/reaction product) where BOTH the
+// blueprint and its product are published, for the Industry Planner's blueprint
+// search index. Filtering published products drops the degenerate self-recipe
+// junk (those produce unpublished types); filtering published blueprints drops
+// CCP test/dev artifacts (e.g. the unpublished "Test Reaction Blueprint") that
+// the in-game client also hides.
 export type BlueprintSearchRow = {
   blueprintTypeId: number;
   activityId: number;
@@ -234,7 +247,9 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
       blueprintTypeId: industryBlueprints.blueprintTypeId,
       activities: industryBlueprints.activities,
     })
-    .from(industryBlueprints);
+    .from(industryBlueprints)
+    .innerJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id))
+    .where(eq(eveTypes.published, true));
 
   const pending: Array<{
     blueprintTypeId: number;
