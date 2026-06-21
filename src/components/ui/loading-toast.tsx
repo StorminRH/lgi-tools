@@ -86,6 +86,7 @@ const SHOW_DELAY_MS = 120; // debounce: a sub-blip load never shows the toast
 const MIN_VISIBLE_MS = 800; // once shown, stay up long enough to read + close
 const OK_HOLD_MS = 520; // how long "> ok." shows before retracting
 const LINE_INTERVAL_MS = 1100; // cadence of the looping lines
+const SLIDE_MS = 260; // must match the .loading-toast-panel transform transition (globals.css)
 
 const LOOP_LINES = [
   '> fetching market orders…',
@@ -95,13 +96,17 @@ const LOOP_LINES = [
 const OK_LINE = '> ok.';
 const REDUCED_LINE = '> loading…';
 
-// 'hidden' → nothing rendered; 'looping' → rotating lines while a loader is
-// held; 'closing' → printing "ok." then retract.
+// 'hidden' → not mounted; 'looping' → mounted, rotating lines while a loader is
+// held; 'closing' → mounted, printing "> ok." then sliding out.
 type Phase = 'hidden' | 'looping' | 'closing';
 
 // Private view — the one toast instance. Driven solely by `active` (whether any
-// loader is registered); owns the anti-flicker timing so the provider only has
-// to publish raw truth.
+// loader is registered); owns the anti-flicker timing AND the enter/exit slide.
+// `phase` gates mount + content; a separate `open` boolean drives the [data-open]
+// slide, decoupled from mount so the transform transition can play in BOTH
+// directions — a CSS transition never fires on the frame an element is created,
+// and React can't delay an unmount for one. So the panel mounts closed then
+// flips open (slide in), and flips closed then unmounts after the slide (out).
 function LoadingToast({ active }: { active: boolean }) {
   const reduced = useMemo(
     () =>
@@ -111,6 +116,7 @@ function LoadingToast({ active }: { active: boolean }) {
   );
 
   const [phase, setPhase] = useState<Phase>('hidden');
+  const [open, setOpen] = useState(false);
   const [lineIndex, setLineIndex] = useState(0);
   const shownAt = useRef(0);
 
@@ -129,7 +135,10 @@ function LoadingToast({ active }: { active: boolean }) {
       }
       if (phase === 'closing') {
         // A new load arrived mid-retract → reopen instead of dismissing.
-        const t = setTimeout(() => setPhase('looping'), 0);
+        const t = setTimeout(() => {
+          setPhase('looping');
+          setOpen(true);
+        }, 0);
         return () => clearTimeout(t);
       }
       return;
@@ -144,6 +153,26 @@ function LoadingToast({ active }: { active: boolean }) {
     }
   }, [active, phase]);
 
+  // Enter slide: the panel mounts closed (translateY(-100%), clipped above the
+  // nav) then flips open on a later frame so the transform transition plays it
+  // down into view. The double rAF guarantees the closed state paints first;
+  // under reduced motion the slide is a no-op, so just open it.
+  useEffect(() => {
+    if (phase !== 'looping') return;
+    if (reduced) {
+      const t = setTimeout(() => setOpen(true), 0);
+      return () => clearTimeout(t);
+    }
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setOpen(true));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      if (inner) cancelAnimationFrame(inner);
+    };
+  }, [phase, reduced]);
+
   // Rotate the looping lines (skipped under reduced motion → static line).
   useEffect(() => {
     if (phase !== 'looping' || reduced) return;
@@ -154,11 +183,22 @@ function LoadingToast({ active }: { active: boolean }) {
     return () => clearInterval(id);
   }, [phase, reduced]);
 
-  // Hold "> ok." briefly, then retract (instant under reduced motion).
+  // Close sequence: hold "> ok." briefly, then flip closed (slide out), then
+  // unmount once the slide has played. Reduced motion collapses both delays.
   useEffect(() => {
     if (phase !== 'closing') return;
-    const t = setTimeout(() => setPhase('hidden'), reduced ? 0 : OK_HOLD_MS);
-    return () => clearTimeout(t);
+    let unmount: ReturnType<typeof setTimeout> | undefined;
+    const hold = setTimeout(
+      () => {
+        setOpen(false);
+        unmount = setTimeout(() => setPhase('hidden'), reduced ? 0 : SLIDE_MS);
+      },
+      reduced ? 0 : OK_HOLD_MS,
+    );
+    return () => {
+      clearTimeout(hold);
+      if (unmount) clearTimeout(unmount);
+    };
   }, [phase, reduced]);
 
   if (phase === 'hidden') return null;
@@ -178,7 +218,7 @@ function LoadingToast({ active }: { active: boolean }) {
       aria-hidden="true"
     >
       <div
-        data-open={phase === 'closing' || phase === 'looping' ? 'true' : 'false'}
+        data-open={open ? 'true' : 'false'}
         className="loading-toast-panel border-b border-border bg-bg-deep px-4 py-1.5 font-mono text-[11px] tracking-[0.04em] text-isk"
       >
         {line}
