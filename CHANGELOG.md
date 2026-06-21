@@ -4,6 +4,14 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.14 — 2026-06-21
+
+#### Added
+- While live data loads — syncing your characters, or pulling fresh market prices on the Industry Planner — a brief terminal-style status line now drops from under the top bar and clears itself once the data lands.
+
+#### Changed
+- Updated market prices now flash in with a quick highlight as they land, replacing the mechanical digit-roll — across the Industry Planner tiles and the Wormhole Sites resource values.
+
 ### v3.6.13 — 2026-06-21
 
 #### Fixed

@@ -1370,31 +1370,40 @@ details[data-collapsible][open] > summary [data-chevron] {
   .price-confidence--loading::after { animation: none; opacity: 0.6; }
 }
 
-/* ── Live ISK figure odometer (OdometerValue) ────────────────────────
- * Live prices render as a mechanical odometer: each numeral is a 0–9 strip
- * translated by a per-column `--digit` custom property the component sets via
- * ref.style.setProperty (CSP-clean — never an inline style attribute). The
- * slide is this stylesheet transition; `.odo-strip--init` disables it for the
- * first commit so figures don't roll up from zero on load. Under reduced
- * motion the digits snap to value instead of sliding. */
-.odo-col {
-  display: inline-block;
-  height: 1em;
-  line-height: 1;
-  overflow: hidden;
-  vertical-align: bottom;
+/* ── Live price flash (LivePrice) ────────────────────────────────────
+ * The quieter successor to the odometer dim + slide: when a live figure
+ * changes, a brief brightness pulse settles it in. Restarted per-change by
+ * the remove → reflow → re-add trick in live-price.tsx. CSP-clean: class
+ * only, never an inline style. brightness() is a filter multiplier, not a
+ * color literal, so the hex-color rule doesn't fire. */
+.price-flash {
+  animation: price-flash 0.7s ease-out;
 }
-.odo-strip {
-  display: flex;
-  flex-direction: column;
-  transform: translateY(calc(var(--digit, 0) * -1em));
-  transition: transform 600ms cubic-bezier(0.2, 0.85, 0.25, 1);
-}
-.odo-strip--init {
-  transition: none;
+@keyframes price-flash {
+  0% { filter: brightness(1.8); }
+  40% { filter: brightness(1.3); }
+  100% { filter: brightness(1); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .odo-strip {
+  .price-flash {
+    animation: none;
+  }
+}
+
+/* ── Sitewide loading toast (loading-toast.tsx) ──────────────────────
+ * Drops from under the 50px nav while any dynamic surface loads. The slide
+ * is a transform transition keyed by [data-open] (CSP-safe — a stylesheet
+ * rule, not an inline style); under reduced motion it appears instantly. */
+.loading-toast-panel {
+  transform: translateY(-100%);
+  transition: transform 260ms cubic-bezier(0.2, 0.85, 0.25, 1);
+  will-change: transform;
+}
+.loading-toast-panel[data-open='true'] {
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-toast-panel {
     transition: none;
   }
 }

@@ -9,6 +9,7 @@ import { FeedbackButton } from "@/components/FeedbackButton";
 import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ConvexClientProvider } from "@/features/auth/components/ConvexClientProvider";
+import { LoadingToastProvider } from "@/components/ui/loading-toast";
 import { SITE_URL } from "@/config/site-url";
 import { readEnv } from "@/lib/env";
 
@@ -88,10 +89,17 @@ export default function RootLayout({
         <div className="page-backdrop" aria-hidden="true" />
         <AuthProvider>
           <ConvexClientProvider>
-            <AppHeader />
-            <main className="flex-1">{children}</main>
-            <Footer />
-            <FeedbackButton />
+            {/* The shared loading toast lives here so any live surface can
+             * register via useLoadingToast; it renders one fixed strip that
+             * drops from under the nav (its top-[50px] tracks AppHeader's
+             * h-[50px]). Inside ConvexClientProvider so Convex-driven
+             * `syncing` consumers and the toast share a tree. */}
+            <LoadingToastProvider>
+              <AppHeader />
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <FeedbackButton />
+            </LoadingToastProvider>
           </ConvexClientProvider>
         </AuthProvider>
         <Suspense fallback={null}>

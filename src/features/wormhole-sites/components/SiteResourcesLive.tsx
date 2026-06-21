@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useRefreshOnView } from '@/data/market-prices/use-refresh-on-view';
-import { OdometerValue } from '@/components/ui/odometer-value';
+import { LivePrice } from '@/components/ui/live-price';
 import { SectionFooter } from '@/components/ui/section-footer';
 import type { SiteResource, SiteType } from '../types';
 import { formatIskHeader } from '../format';
@@ -78,16 +78,12 @@ function ViewSentinel() {
   return <div ref={ref} aria-hidden className="h-0" />;
 }
 
-// The card's headline total, summed live from the same map the rows read —
-// hero-style: it shimmers while any eligible row is pending, then settles to the
-// live sum. Shows the server seed until the refresh lands.
+// The card's headline total, summed live from the same map the rows read. Shows
+// the server seed until the refresh lands, then flashes in the live sum.
 export function SiteHeaderTotal({ resources }: { resources: SiteResource[] }) {
   const live = useSiteLive();
   const total = resources.reduce((sum, r) => sum + (resourceLiveIsk(r, live) ?? 0), 0);
-  const anyPending = resources.some(
-    (r) => r.liveEligible && r.typeId != null && live.isPending(r.typeId),
-  );
-  return <OdometerValue value={formatIskHeader(total)} pending={anyPending} />;
+  return <LivePrice value={formatIskHeader(total)} />;
 }
 
 // The expanded body's resource rows + footer. Renders the view sentinel that
@@ -123,13 +119,10 @@ function LiveResourceFooter({
 }) {
   const live = useSiteLive();
   const total = resources.reduce((sum, r) => sum + (resourceLiveIsk(r, live) ?? 0), 0);
-  const anyPending = resources.some(
-    (r) => r.liveEligible && r.typeId != null && live.isPending(r.typeId),
-  );
   return (
     <SectionFooter
       label={label}
-      value={<OdometerValue value={formatIskHeader(total)} pending={anyPending} />}
+      value={<LivePrice value={formatIskHeader(total)} />}
     />
   );
 }

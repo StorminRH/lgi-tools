@@ -22,6 +22,7 @@ import {
 import { syncErrorMeta } from '@/components/live-character-sync';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
+import { useLoadingToast } from '@/components/ui/loading-toast';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { api } from '@/data/convex/api';
@@ -74,6 +75,9 @@ function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
     characterIds: characters.map((c) => c.characterId),
     extractTypeIds: jobTypeIds,
   });
+
+  // Drop the sitewide loading toast while an ESI character sync is running.
+  useLoadingToast(syncing);
 
   return (
     <div className="w-full max-w-[760px] flex flex-col gap-6">
