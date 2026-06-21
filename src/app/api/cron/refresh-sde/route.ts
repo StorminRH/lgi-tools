@@ -25,8 +25,9 @@ async function logSdeCronEvent(metadata: Record<string, unknown>): Promise<void>
   }
 }
 
-// Vercel cron endpoint. Wired to "0 5 * * *" in vercel.json (daily
-// 05:00 UTC — well clear of the 11:00 daily prices cron). Vercel
+// Vercel cron endpoint. Wired to "50 11 * * *" in vercel.json (daily
+// 11:50 UTC — right after EVE's 11:00 downtime and the prices/indices
+// crons, so a same-day SDE patch is detected within the hour). Vercel
 // dispatches GET with `Authorization: Bearer ${CRON_SECRET}`.
 //
 // On drift (stored sde_version != CCP's current build number),

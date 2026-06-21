@@ -20,7 +20,7 @@
     },
     {
       "path": "/api/cron/refresh-sde",
-      "schedule": "0 5 * * *"
+      "schedule": "50 11 * * *"
     },
     {
       "path": "/api/cron/refresh-gsc",
