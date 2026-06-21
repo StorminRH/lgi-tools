@@ -24,7 +24,30 @@ function installLocalStorageShim() {
   globalThis.window = { localStorage: ls };
 }
 
+// Capture the last `document.cookie =` assignment so writePreferenceCookie can be
+// asserted without a DOM. `location` defaults to http (no Secure flag); a test
+// overrides it to exercise the https branch.
+let lastCookieWrite = '';
+function installDocumentShim() {
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: {
+      get cookie() {
+        return lastCookieWrite;
+      },
+      set cookie(v: string) {
+        lastCookieWrite = v;
+      },
+    },
+  });
+  Object.defineProperty(globalThis, 'location', {
+    configurable: true,
+    value: { protocol: 'http:' },
+  });
+}
+
 installLocalStorageShim();
+installDocumentShim();
 
 const {
   sitesView,
@@ -34,6 +57,7 @@ const {
   peekLocalPreference,
   writeLocalPreference,
   cookieNameFor,
+  writePreferenceCookie,
   readPreferenceCookieValue,
   reconcilePreferences,
   __TEST_ONLY__,
@@ -116,6 +140,36 @@ describe('cookie codec', () => {
   it('reads a valid (url-encoded) cookie value', () => {
     const raw = encodeURIComponent(JSON.stringify('table'));
     expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
+  });
+
+  it('writes an ssrReadable key as a Lax, path-/, url-encoded cookie', () => {
+    lastCookieWrite = '';
+    writePreferenceCookie(sitesView, 'table');
+    expect(lastCookieWrite).toContain('lgi_pref_sites_view=%22table%22');
+    expect(lastCookieWrite).toContain('Path=/');
+    expect(lastCookieWrite).toContain('SameSite=Lax');
+    expect(lastCookieWrite).not.toContain('Secure'); // http in the shim
+    // round-trips back through the reader
+    const raw = lastCookieWrite.split(';')[0].split('=')[1];
+    expect(readPreferenceCookieValue(raw, sitesView)).toBe('table');
+  });
+
+  it('does not write a cookie for a non-ssrReadable key', () => {
+    lastCookieWrite = '';
+    writePreferenceCookie(plannerBuildLocation, { systemId: 1, systemName: 'X', security: null });
+    expect(lastCookieWrite).toBe('');
+  });
+
+  it('marks the cookie Secure on https', () => {
+    const loc = globalThis.location as unknown as { protocol: string };
+    loc.protocol = 'https:';
+    try {
+      lastCookieWrite = '';
+      writePreferenceCookie(sitesView, 'cards');
+      expect(lastCookieWrite).toContain('; Secure');
+    } finally {
+      loc.protocol = 'http:';
+    }
   });
 
   it('falls back on a missing cookie', () => {
