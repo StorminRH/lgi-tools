@@ -4,6 +4,11 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.15 — 2026-06-21
+
+#### Added
+- The site now remembers how you set things up between visits. The Wormhole Sites cards-vs-table choice and the Industry Planner's build location are saved automatically and restored when you come back — no flicker on load. Signed-in pilots get these stored to their account and synced across devices; everyone else keeps them in their own browser.
+
 ### v3.6.14 — 2026-06-21
 
 #### Added

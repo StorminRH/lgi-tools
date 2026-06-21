@@ -11,7 +11,12 @@ import { SitesFilterLayout } from './SitesFilterLayout';
 // every control emits regardless of interaction. No DOM/testing-library needed.
 function markup() {
   return renderToStaticMarkup(
-    createElement(SitesFilterLayout, { cards: [], table: null, total: 0 }),
+    createElement(SitesFilterLayout, {
+      cards: [],
+      table: null,
+      total: 0,
+      initialView: 'cards',
+    }),
   );
 }
 

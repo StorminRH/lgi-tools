@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePreference, usePreferencesReady } from '@/components/PreferencesProvider';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { toneTextClass } from '@/components/ui/tones';
 import { apiFetch } from '@/lib/api-client';
+import { plannerBuildLocation } from '@/lib/preferences';
 import { buildLocationEndpoint, systemsEndpoint } from '../api-contract';
 import type { SystemSearchEntry } from '../types';
 import { usePricing } from './PricingProvider';
@@ -47,6 +49,11 @@ type SystemErr = { kind: 'not_found' };
 
 export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) {
   const { location, setLocation, station, setStation } = usePricing();
+  // The persisted build-system identifier (F4). Only the id/name/security is
+  // saved; the live stations/indices/prices are re-fetched on restore. NOT
+  // ssrReadable — there's no static value to render, so no cookie/flash concern.
+  const [savedLoc, setSavedLoc] = usePreference(plannerBuildLocation);
+  const ready = usePreferencesReady();
   const [systems, setSystems] = useState<SystemSearchEntry[]>([]);
   // Surfaced when a build-location fetch fails (non-OK or network) so a pick that
   // can't load doesn't silently leave the picker empty. Aborted (superseded)
@@ -101,8 +108,16 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
     [systems],
   );
 
-  const onSubmit = useCallback(
-    ({ system }: SystemParams) => {
+  // Load a system's live build data and seed the store. Shared by a manual pick
+  // (persist: true → save the identifier) and the on-mount restore (silent: a
+  // restore miss stays gross-only instead of flashing an error; persist: false to
+  // skip a redundant write-back). The generation/abort guard means a fast manual
+  // pick supersedes an in-flight restore.
+  const applySystem = useCallback(
+    (
+      sys: { id: number; name: string; security: number | null },
+      opts: { silent: boolean; persist: boolean },
+    ) => {
       const gen = ++genRef.current;
       ctrlRef.current?.abort();
       const ctrl = new AbortController();
@@ -111,34 +126,60 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
       void (async () => {
         try {
           const res = await apiFetch(buildLocationEndpoint, {
-            body: { systemId: system.id, blueprintId },
+            body: { systemId: sys.id, blueprintId },
             cache: 'no-store',
             signal: ctrl.signal,
           });
           if (gen !== genRef.current) return; // superseded by a later pick
           if (!res.ok) {
-            setFetchError(true);
+            if (!opts.silent) setFetchError(true);
             return;
           }
           setLocation({
-            systemId: system.id,
-            systemName: system.name,
-            security: system.security,
+            systemId: sys.id,
+            systemName: sys.name,
+            security: sys.security,
             stations: res.data.stations,
             costIndices: res.data.costIndices,
             adjustedPrices: new Map(
               res.data.adjustedPrices.map((a) => [a.typeId, a.adjustedPrice]),
             ),
           });
+          if (opts.persist) {
+            setSavedLoc({ systemId: sys.id, systemName: sys.name, security: sys.security });
+          }
         } catch {
           // A superseding pick aborts this controller — stay silent then; a real
-          // network failure surfaces the error.
-          if (!ctrl.signal.aborted) setFetchError(true);
+          // network failure surfaces the error (unless this is a silent restore).
+          if (!ctrl.signal.aborted && !opts.silent) setFetchError(true);
         }
       })();
     },
-    [blueprintId, setLocation],
+    [blueprintId, setLocation, setSavedLoc],
   );
+
+  const onSubmit = useCallback(
+    ({ system }: SystemParams) => {
+      applySystem(
+        { id: system.id, name: system.name, security: system.security },
+        { silent: false, persist: true },
+      );
+    },
+    [applySystem],
+  );
+
+  // Restore a previously-picked build system once the authoritative tier has
+  // settled (`ready`): re-fetch its live data for THIS blueprint and seed the
+  // store. Runs once; skipped if the user already picked (a manual pick wins).
+  const restored = useRef(false);
+  useEffect(() => {
+    if (!ready || restored.current || location || !savedLoc) return;
+    restored.current = true;
+    applySystem(
+      { id: savedLoc.systemId, name: savedLoc.systemName, security: savedLoc.security },
+      { silent: true, persist: false },
+    );
+  }, [ready, savedLoc, location, applySystem]);
 
   if (location) {
     return (
@@ -172,7 +213,10 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
         )}
         <button
           type="button"
-          onClick={() => setLocation(null)}
+          onClick={() => {
+            setLocation(null);
+            setSavedLoc(null);
+          }}
           className="text-[10px] tracking-[0.12em] uppercase text-muted hover:text-text"
         >
           Clear
@@ -190,7 +234,10 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
         suggest={suggest}
         errorMessage={() => 'No build system matches that name.'}
         onSubmit={onSubmit}
-        onClear={() => setLocation(null)}
+        onClear={() => {
+          setLocation(null);
+          setSavedLoc(null);
+        }}
         errorLabel="System"
         hint="Pick a system for net margin"
       />

@@ -36,6 +36,15 @@ export async function getSessionCharacterId(): Promise<number | null> {
   return result?.characterId ?? null;
 }
 
+// The Better Auth user id of the caller (the per-USER identity, distinct from the
+// active character id getSession() surfaces). Per-user durable data — saved
+// preferences, and future account-scoped settings — keys off this. Returns null
+// when logged out.
+export async function getCurrentUserId(): Promise<string | null> {
+  const result = await auth.api.getSession({ headers: await headers() });
+  return result?.user?.id ?? null;
+}
+
 // THE authz primitive — paired with getSession() as identity. Every "can this
 // user touch X?" gate routes through here. Pure: takes a session + env, no DB
 // or next/headers. Two paths grant admin: env-driven superadmin (Number()

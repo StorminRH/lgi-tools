@@ -10,6 +10,7 @@ import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ConvexClientProvider } from "@/features/auth/components/ConvexClientProvider";
 import { LoadingToastProvider } from "@/components/ui/loading-toast";
+import { PreferencesProvider } from "@/components/PreferencesProvider";
 import { SITE_URL } from "@/config/site-url";
 import { readEnv } from "@/lib/env";
 
@@ -88,19 +89,23 @@ export default function RootLayout({
          * .page-backdrop in globals.css); purely decorative, reads nothing. */}
         <div className="page-backdrop" aria-hidden="true" />
         <AuthProvider>
-          <ConvexClientProvider>
-            {/* The shared loading toast lives here so any live surface can
-             * register via useLoadingToast; it renders one fixed strip that
-             * drops from under the nav (its top-[50px] tracks AppHeader's
-             * h-[50px]). Inside ConvexClientProvider so Convex-driven
-             * `syncing` consumers and the toast share a tree. */}
-            <LoadingToastProvider>
-              <AppHeader />
-              <main className="flex-1">{children}</main>
-              <Footer />
-              <FeedbackButton />
-            </LoadingToastProvider>
-          </ConvexClientProvider>
+          {/* Autosave preferences (F4): reads the session to pick the localStorage
+           * (anon) vs Neon (logged-in) tier, so it sits inside AuthProvider. */}
+          <PreferencesProvider>
+            <ConvexClientProvider>
+              {/* The shared loading toast lives here so any live surface can
+               * register via useLoadingToast; it renders one fixed strip that
+               * drops from under the nav (its top-[50px] tracks AppHeader's
+               * h-[50px]). Inside ConvexClientProvider so Convex-driven
+               * `syncing` consumers and the toast share a tree. */}
+              <LoadingToastProvider>
+                <AppHeader />
+                <main className="flex-1">{children}</main>
+                <Footer />
+                <FeedbackButton />
+              </LoadingToastProvider>
+            </ConvexClientProvider>
+          </PreferencesProvider>
         </AuthProvider>
         <Suspense fallback={null}>
           <TelemetryReporter />
