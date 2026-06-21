@@ -53,6 +53,14 @@ const eveTokenResponseSchema = z.object({
   refresh_token: z.string().optional(),
 });
 
+// EVE returns an OAuth2 error envelope on a 400 — `{ error, error_description? }`.
+// We read it to tell a genuinely-dead token (`invalid_grant`) from a transient or
+// our-side 400, so only the former drops a pilot's custody.
+const eveTokenErrorSchema = z.object({
+  error: z.string(),
+  error_description: z.string().optional(),
+});
+
 // EVE's JWKS rotates rarely; `jose` caches the remote set per process.
 // jose v6 has no `timeoutDuration` option and the bare `{ headers }` arg is
 // legacy — the `[customFetch]` symbol is the supported extensibility hook, so
@@ -172,10 +180,18 @@ export async function refreshEveToken({
     return { kind: 'retryable' };
   }
 
-  // A revoked or expired refresh token is a 400 (invalid_grant): the token is
-  // dead and the pilot must re-authenticate. Any other non-2xx (5xx, rate
-  // limiting) is treated as transient.
-  if (res.status === 400) return { kind: 'dead' };
+  // A 400 carries an OAuth error body. ONLY `invalid_grant` means the refresh
+  // token is genuinely dead (revoked / expired / already rotated away) and the
+  // pilot must re-authenticate. Any other 400 (e.g. `invalid_request`) — and a
+  // missing or non-JSON body — is treated as transient: never destroy custody on
+  // an ambiguous or our-side error. Any other non-2xx (5xx, rate limiting) is
+  // likewise transient.
+  if (res.status === 400) {
+    const errBody = eveTokenErrorSchema.safeParse(await res.json().catch(() => null));
+    return errBody.success && errBody.data.error === 'invalid_grant'
+      ? { kind: 'dead' }
+      : { kind: 'retryable' };
+  }
   if (!res.ok) return { kind: 'retryable' };
 
   const parsed = eveTokenResponseSchema.safeParse(await res.json());

@@ -222,11 +222,23 @@ describe('refreshEveToken', () => {
     });
   });
 
-  it('treats a 400 as a dead refresh token', async () => {
+  it('treats a 400 invalid_grant as a dead refresh token', async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 }),
     );
     expect(await refreshEveToken(input)).toEqual({ kind: 'dead' });
+  });
+
+  it('treats a non-invalid_grant 400 as retryable (never destroys custody on our-side errors)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: 'invalid_request' }), { status: 400 }),
+    );
+    expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
+  });
+
+  it('treats a 400 with a missing/non-JSON body as retryable, not dead', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('not json', { status: 400 }));
+    expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
   });
 
   it('treats a 5xx as retryable', async () => {

@@ -1,0 +1,225 @@
+import { eq } from 'drizzle-orm';
+import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  canReachDb,
+  dropDisposableSchema,
+  LOCAL_DB_URL,
+  schemaUrl,
+  setupDisposableSchema,
+} from '@/db/test-support/db-coverage-harness';
+import { getFreshAccessTokenForCharacter } from './eve-token-service';
+import { account } from './schema';
+import { decryptToken, encryptToken } from './token-crypto';
+
+// Proves the token-vend compare-and-swap against the REAL local Docker Postgres
+// (postgres-js): the conditional `WHERE refresh_token = <ciphertext as read>` is
+// the load-bearing claim, and a mocked rowCount can't prove it actually matches
+// 0 rows under genuine concurrency. Covers the two orderings the design hinges on
+// — a raced loser's NULL committing before the winner's write (the winner's
+// IS NULL arm must repair it), and a re-auth replacing the token mid-vend (the
+// in-flight vend must not clobber it). Skips cleanly when no DB is reachable.
+
+const SCHEMA = 'test_token_vend_cov';
+const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
+const reachable = await canReachDb(baseUrl);
+
+const CHAR_ID = 90000007;
+const KEY = Buffer.alloc(32, 7).toString('base64');
+const future = () => new Date(Date.now() + 10 * 60 * 1000);
+const past = () => new Date(Date.now() - 1000);
+
+async function waitFor(pred: () => Promise<boolean>, timeoutMs = 3000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await pred()) return;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  throw new Error('waitFor: condition not met before timeout');
+}
+
+describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurrency)', () => {
+  let adminClient: ReturnType<typeof postgres>;
+  let seedDb: ReturnType<typeof drizzlePg>;
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeAll(async () => {
+    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
+    vi.stubEnv('EVE_TOKEN_ENCRYPTION_KEY', KEY);
+    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
+    vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
+
+    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 4, onnotice: () => {} });
+    await setupDisposableSchema(adminClient, SCHEMA, ['account', 'usage_logs']);
+    seedDb = drizzlePg(adminClient);
+  });
+
+  afterAll(async () => {
+    const proxyClient = (
+      (await import('@/db')).db as unknown as { $client: ReturnType<typeof postgres> }
+    ).$client;
+    await proxyClient.end({ timeout: 5 }).catch(() => {});
+    await dropDisposableSchema(adminClient, SCHEMA);
+    await adminClient.end({ timeout: 5 }).catch(() => {});
+    vi.unstubAllEnvs();
+  });
+
+  beforeEach(async () => {
+    await adminClient.unsafe('DELETE FROM account');
+    await adminClient.unsafe('DELETE FROM usage_logs');
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  async function seedAccount(refreshPlain: string, accessPlain: string, expiresAt: Date) {
+    await seedDb.insert(account).values({
+      id: 'acc1',
+      accountId: String(CHAR_ID),
+      providerId: 'eve',
+      userId: 'user-1',
+      accessToken: encryptToken(accessPlain),
+      refreshToken: encryptToken(refreshPlain),
+      accessTokenExpiresAt: expiresAt,
+      scope: 'publicData',
+    });
+  }
+
+  async function readAccount() {
+    const [row] = await seedDb.select().from(account).where(eq(account.id, 'acc1')).limit(1);
+    return row;
+  }
+
+  async function rawRefreshToken(): Promise<string | null> {
+    const rows = await adminClient<
+      { refresh_token: string | null }[]
+    >`SELECT refresh_token FROM account WHERE id = 'acc1'`;
+    return rows[0]?.refresh_token ?? null;
+  }
+
+  function refreshTokenIn(init: unknown): string | null {
+    const body = (init as RequestInit | undefined)?.body;
+    return typeof body === 'string' ? new URLSearchParams(body).get('refresh_token') : null;
+  }
+
+  it('two concurrent vends rotate the token exactly once and never destroy custody', async () => {
+    await seedAccount('RT0', 'old-access', past());
+
+    // First submission of a given token wins (200 + rotated); any later submission
+    // of the SAME token is rejected invalid_grant — the invalidating-rotation regime.
+    const consumed = new Set<string>();
+    fetchSpy.mockImplementation(async (_url: unknown, init?: unknown) => {
+      const token = refreshTokenIn(init);
+      if (token !== null && consumed.has(token)) {
+        return new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 });
+      }
+      if (token !== null) consumed.add(token);
+      return new Response(
+        JSON.stringify({ access_token: 'win-access', refresh_token: 'RT1', expires_in: 1200 }),
+        { status: 200 },
+      );
+    });
+
+    const [r1, r2] = await Promise.all([
+      getFreshAccessTokenForCharacter(CHAR_ID),
+      getFreshAccessTokenForCharacter(CHAR_ID),
+    ]);
+
+    const row = await readAccount();
+    // Custody survives and exactly one rotation persisted — never NULL, never double.
+    expect(row.refreshToken).not.toBeNull();
+    expect(decryptToken(row.refreshToken as string)).toBe('RT1');
+    // At least the winner got a usable token (the loser is ok-via-reflect or a
+    // transient reauth depending on which write committed first).
+    expect([r1.kind, r2.kind]).toContain('ok');
+  });
+
+  it("repairs a row a raced loser nulled: the winner's IS NULL arm restores the token", async () => {
+    await seedAccount('RT0', 'old-access', past());
+
+    let entered = 0;
+    let bothEntered!: () => void;
+    const both = new Promise<void>((r) => {
+      bothEntered = r;
+    });
+    let releaseWinner!: () => void;
+    const winnerGate = new Promise<void>((r) => {
+      releaseWinner = r;
+    });
+    let call = 0;
+    fetchSpy.mockImplementation(async () => {
+      const n = call++;
+      entered += 1;
+      if (entered === 2) bothEntered();
+      if (n === 0) {
+        // Loser: only return invalid_grant once BOTH vends have read RT0, so the
+        // winner is guaranteed to hold RT0 (not a post-null NULL) when it writes.
+        await both;
+        return new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 });
+      }
+      // Winner: held until the loser has committed its NULL.
+      await winnerGate;
+      return new Response(
+        JSON.stringify({ access_token: 'win-access', refresh_token: 'RT1', expires_in: 1200 }),
+        { status: 200 },
+      );
+    });
+
+    const race = Promise.all([
+      getFreshAccessTokenForCharacter(CHAR_ID),
+      getFreshAccessTokenForCharacter(CHAR_ID),
+    ]);
+    await waitFor(async () => (await rawRefreshToken()) === null);
+    releaseWinner();
+    const results = await race;
+
+    const row = await readAccount();
+    expect(row.refreshToken).not.toBeNull();
+    // The winner's IS NULL arm repaired the loser's premature null.
+    expect(decryptToken(row.refreshToken as string)).toBe('RT1');
+    expect(results.map((r) => r.kind).sort()).toEqual(['ok', 'reauth_required']);
+  });
+
+  it('does not clobber a fresh token a re-auth wrote mid-vend (success write finds 0 rows → reflects)', async () => {
+    await seedAccount('RT0', 'old-access', past());
+
+    let releaseVend!: () => void;
+    const gate = new Promise<void>((r) => {
+      releaseVend = r;
+    });
+    let signalEntered!: () => void;
+    const entered = new Promise<void>((r) => {
+      signalEntered = r;
+    });
+    fetchSpy.mockImplementation(async () => {
+      signalEntered(); // the vend has read RT0 and is now at the EVE call
+      await gate;
+      return new Response(
+        JSON.stringify({ access_token: 'vend-access', refresh_token: 'RT_vend', expires_in: 1200 }),
+        { status: 200 },
+      );
+    });
+
+    const vend = getFreshAccessTokenForCharacter(CHAR_ID);
+    await entered; // guarantee the vend read RT0 before the re-auth replaces it
+    await seedDb
+      .update(account)
+      .set({
+        refreshToken: encryptToken('RT_new'),
+        accessToken: encryptToken('reauth-access'),
+        accessTokenExpiresAt: future(),
+      })
+      .where(eq(account.id, 'acc1'));
+    releaseVend();
+    const result = await vend;
+
+    const row = await readAccount();
+    // The re-auth's token survives — the in-flight vend matched 0 rows and reflected.
+    expect(decryptToken(row.refreshToken as string)).toBe('RT_new');
+    expect(result).toMatchObject({ kind: 'ok', accessToken: 'reauth-access' });
+  });
+});
