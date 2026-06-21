@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/components/ui/cn';
-import { OdometerValue } from '@/components/ui/odometer-value';
+import { LivePrice } from '@/components/ui/live-price';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
 import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
@@ -85,7 +85,8 @@ function GrossNetToggle({
 
 // The Cockpit KPI tile row: input cost · sell · net margin (Gross/Net toggle) ·
 // market score (with "?" breakdown) · build time. All figures read the live
-// pricing store; the margin tile flips gross↔net and dims→flashes as prices land.
+// pricing store; the margin tile flips gross↔net and each figure flashes in as
+// prices land.
 export function CockpitKpis({
   structure,
   marginMode,
@@ -95,7 +96,7 @@ export function CockpitKpis({
   marginMode: MarginMode;
   setMarginMode: (m: MarginMode) => void;
 }) {
-  const { pricing, seeded, aggregatePending, location } = usePricing();
+  const { pricing, seeded, location } = usePricing();
   const summary = pricing?.summary ?? null;
 
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
@@ -119,24 +120,14 @@ export function CockpitKpis({
     <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
       <SimpleTile
         label="Input cost"
-        value={
-          <OdometerValue
-            value={summary ? formatIsk(summary.inputCost) : '—'}
-            pending={aggregatePending}
-          />
-        }
+        value={<LivePrice value={summary ? formatIsk(summary.inputCost) : '—'} />}
         valueClass="text-name"
         sub="raw @ Jita buy"
       />
       <SimpleTile
         label="Sell · Jita"
         accent="green"
-        value={
-          <OdometerValue
-            value={summary ? formatIsk(summary.revenue) : '—'}
-            pending={aggregatePending}
-          />
-        }
+        value={<LivePrice value={summary ? formatIsk(summary.revenue) : '—'} />}
         valueClass="text-isk"
         sub="best sell order"
       />
@@ -150,7 +141,7 @@ export function CockpitKpis({
         />
         {summary ? (
           <div className={cn(KPI_FIG, marginToneClass(marginPct))}>
-            <OdometerValue value={`${sign}${formatIsk(margin)}`} pending={aggregatePending} />
+            <LivePrice value={`${sign}${formatIsk(margin)}`} />
             {marginPct !== null && (
               <span className="ml-1.5 text-[13px]">({formatPct(marginPct)})</span>
             )}

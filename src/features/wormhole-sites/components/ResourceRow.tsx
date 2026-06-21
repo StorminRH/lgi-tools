@@ -1,7 +1,7 @@
 'use client';
 
 import { Dot } from '@/components/ui/dot';
-import { OdometerValue } from '@/components/ui/odometer-value';
+import { LivePrice } from '@/components/ui/live-price';
 import { PriceConfidence } from '@/components/ui/price-confidence';
 import { ResourceRow as ResourceRowPrimitive } from '@/components/ui/row';
 import { formatIsk } from '../format';
@@ -15,11 +15,11 @@ function formatM3(m3: number | null): string {
 }
 
 // The value cell. For a live-eligible resource it reads the shared site price
-// context: while its live confirmation is in flight the seed dims behind a
-// spinning badge, and when the value lands the odometer digits slide to the
-// confirmed figure. One persistent OdometerValue spans the pending→live
-// transition so the slide actually fires. Ineligible rows (no typeId / no unit
-// count / unpriceable) render their static seed as plain text.
+// context: while its live confirmation is in flight a spinning badge sits beside
+// the seed figure, and when the value lands it flashes in to the confirmed
+// figure. One persistent LivePrice spans the seed→live transition so the flash
+// actually fires. Ineligible rows (no typeId / no unit count / unpriceable)
+// render their static seed as plain text.
 function ResourceValue({ resource }: { resource: SiteResource }) {
   const live = useSiteLive();
   const eligible = resource.liveEligible && resource.typeId != null;
@@ -33,7 +33,7 @@ function ResourceValue({ resource }: { resource: SiteResource }) {
   return (
     <span className="inline-flex items-center gap-1.5">
       {pending && <PriceConfidence level="unknown" loading />}
-      <OdometerValue value={figure} pending={pending} />
+      <LivePrice value={figure} />
     </span>
   );
 }

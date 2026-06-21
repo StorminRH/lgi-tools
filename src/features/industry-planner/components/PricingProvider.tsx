@@ -19,6 +19,7 @@ import {
 import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-view';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore, type MarketScore } from '@/data/industry-math/market-score';
+import { useLoadingToast } from '@/components/ui/loading-toast';
 import { collectRawTypeIds } from '../build-batch';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
@@ -122,12 +123,6 @@ interface PricingContextValue {
   // pricing === null), so consumers don't show a perpetual loading state.
   seeded: boolean;
   refreshing: boolean;
-  // True while a type is awaiting its live confirmation — every viewed type is
-  // refreshed on view, so this is the dimmed→flash signal: dim the seed and show
-  // the loading badge while pending, then flash to the toned value when it lands.
-  isPending: (typeId: number) => boolean;
-  // Pending over the cost-basis (raw) rows, for the hero's dimmed→flash margin.
-  aggregatePending: boolean;
   // Runs of the top product to build (default 1). Scales the cost basis, output
   // units, and the EIV base. 3.5.3b's market score reads this from here.
   runs: number;
@@ -318,10 +313,14 @@ export function PricingProvider({
   // The shared refresh loop. Gated on `seeded && !!pricing` (a one-shot
   // false→true): it starts once the seed lands and never re-fires, so deep
   // builds (>1 batch) run to completion.
-  const { isPending, refreshing } = useRefreshOnView(toRefresh, {
+  const { refreshing } = useRefreshOnView(toRefresh, {
     enabled: seeded && !!pricing,
     onBatch,
   });
+
+  // Surface the planner's on-view price refresh in the sitewide loading toast —
+  // one coarse window per blueprint open (not per row).
+  useLoadingToast(refreshing);
 
   // History score inputs: merge the warm server seed and the on-view refresh
   // into one store (newest per type wins). The product type's history is
@@ -357,11 +356,6 @@ export function PricingProvider({
     return () => clearTimeout(t);
   }, [runs, location, seeded, assemble]);
 
-  const aggregatePending = useMemo(
-    () => (pricing ? pricing.rows.some((r) => isPending(r.typeId)) : refreshing),
-    [pricing, isPending, refreshing],
-  );
-
   // The product's Market Score — pure, no fetch. Re-derives when runs change
   // (via output units), when the product's history lands, and when a price/depth
   // refresh updates the product row. Reads depth from the reactive
@@ -385,8 +379,6 @@ export function PricingProvider({
       pricing,
       seeded,
       refreshing,
-      isPending,
-      aggregatePending,
       runs,
       setRuns,
       location,
@@ -400,8 +392,6 @@ export function PricingProvider({
       pricing,
       seeded,
       refreshing,
-      isPending,
-      aggregatePending,
       runs,
       setRuns,
       location,
