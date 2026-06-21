@@ -74,6 +74,13 @@ async function reflectStoredToken(characterId: number): Promise<FreshTokenResult
   }
   const access = decryptToken(row.accessToken);
   if (access === null) return { kind: 'reauth_required' };
+  // Mirror the main-path skew guard: a concurrent winner normally just wrote a
+  // ~20 min token, but never hand back one inside the refresh skew (clock skew /
+  // pathological delay) — the caller re-syncs next cadence rather than carrying a
+  // token ESI would reject.
+  if (row.accessTokenExpiresAt.getTime() - Date.now() <= ACCESS_TOKEN_REFRESH_SKEW_MS) {
+    return { kind: 'reauth_required' };
+  }
   return {
     kind: 'ok',
     accessToken: access,

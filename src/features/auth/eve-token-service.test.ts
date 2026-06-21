@@ -253,6 +253,38 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
   });
 
+  it('returns reauth_required when a lost-race re-read finds an expired token (mirrors the skew guard)', async () => {
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        scope: null,
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'ok',
+      access_token: 'my-access',
+      refresh_token: 'my-refresh',
+      expires_in: 1200,
+    });
+    h.updateReturning = []; // 0 rows: lost the success write
+    h.rereadRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('winner-access'),
+        refreshToken: encryptToken('winner-refresh'),
+        accessTokenExpiresAt: past(), // stored token is already expired
+        scope: null,
+      },
+    ];
+
+    // Reflecting a token inside the refresh skew would hand back one ESI rejects —
+    // fall through to reauth_required instead, consistent with the main vend path.
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
+  });
+
   it('preserves custody (no DB write) and returns upstream_error on a transient failure', async () => {
     h.selectRows = [
       {
