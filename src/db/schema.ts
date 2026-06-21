@@ -10,3 +10,4 @@ export * from '../data/industry-indices/schema';
 export * from '../features/auth/schema';
 export * from '../data/telemetry/schema';
 export * from '../data/gsc/schema';
+export * from '../data/preferences/schema';

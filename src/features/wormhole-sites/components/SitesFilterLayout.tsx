@@ -11,8 +11,10 @@
 // live as the selection changes. No URL/searchParams for the filters: the page
 // stays static and the selection survives the table's sort navigations.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { usePreference } from '@/components/PreferencesProvider';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
+import { sitesView } from '@/lib/preferences';
 import type { SiteType, WormholeClass } from '../types';
 import { SITE_TYPE_LABEL } from './wormhole-styles';
 
@@ -39,14 +41,19 @@ export function SitesFilterLayout({
   cards,
   table,
   total,
+  initialView,
 }: {
   cards: SiteCardItem[];
   table: ReactNode;
   total: number;
+  // The server-read view cookie (F4) — seeds the first render so the saved view
+  // is already correct in the streamed HTML (no cards↔table flip on reload). The
+  // Class/Type filters stay ephemeral (deliberately not persisted).
+  initialView: 'cards' | 'table';
 }) {
   const [cls, setCls] = useState<WormholeClass[]>([]);
   const [types, setTypes] = useState<SiteType[]>([]);
-  const [view, setView] = useState<'cards' | 'table'>('cards');
+  const [view, setView] = usePreference(sitesView, { serverValue: initialView });
   const tableRef = useRef<HTMLDivElement>(null);
 
   const clsMatch = (set: WormholeClass[]) => cls.length === 0 || cls.some((c) => set.includes(c));

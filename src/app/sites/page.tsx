@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { cache, Suspense } from 'react';
+import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
 import { PageShell } from '@/components/ui/page-shell';
 import { UrlSync } from '@/components/ui/url-sync';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
@@ -47,6 +49,12 @@ async function SitesContent({
   const raw = await searchParams;
   const sortKey = parseSortKey(raw.sort);
   const sortDir = parseSortDir(raw.dir);
+  // The saved cards/table view (F4) — read here, inside the request-time hole, so
+  // the streamed HTML already shows the right view (flash-free). Defaults to cards.
+  const initialView = readPreferenceCookieValue(
+    (await cookies()).get(cookieNameFor(sitesView))?.value,
+    sitesView,
+  );
   const sites = await loadAllSites();
 
   const cards: SiteCardItem[] = sites.map((site) => ({
@@ -67,7 +75,14 @@ async function SitesContent({
     />
   );
 
-  return <SitesFilterLayout cards={cards} table={table} total={sites.length} />;
+  return (
+    <SitesFilterLayout
+      cards={cards}
+      table={table}
+      total={sites.length}
+      initialView={initialView}
+    />
+  );
 }
 
 function SitesLoading() {
