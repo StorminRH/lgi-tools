@@ -360,3 +360,201 @@ describe('TreeResolver — self-referential SDE recipes', () => {
     expect(resolver.stats().cycleWarnings).toHaveLength(0);
   });
 });
+
+// Standing guards for the producer-resolution collision: a product made by more
+// than one blueprint must resolve to the PUBLISHED one. The bug was the
+// unpublished "Test Reaction Blueprint" (45732, 20 Tungsten Carbide/run) beating
+// the published "Tungsten Carbide Reaction Formula" (46207, 10000/run) under
+// first-writer-wins — inflating every downstream reaction (RTA, Sulfuric Acid,
+// Tungsten, Platinum, fuel) ~500x and blowing up T2 Amarr build cost.
+type ResolverRow = Parameters<typeof buildIndexesFromActivities>[0][number];
+
+// Real CCP typeIds for the affected chain.
+const TUNGSTEN_CARBIDE = 16672;
+const ROLLED_TUNGSTEN_ALLOY = 16657;
+const SULFURIC_ACID = 16661;
+const NITROGEN_FUEL_BLOCK = 4051;
+const TUNGSTEN = 16637;
+const PLATINUM = 16644;
+const SYLRAMIC_FIBERS = 16678;
+const TC_ARMOR_PLATE = 11543;
+const TC_ARMOR_PLATE_BP = 17350;
+const CURSE_BP = 20126;
+
+// The two producers of Tungsten Carbide in CCP's SDE.
+const TC_TEST_BP: ResolverRow = {
+  blueprintTypeId: 45732, // "Test Reaction Blueprint" — unpublished
+  published: false,
+  activities: {
+    reaction: {
+      materials: [
+        { typeID: ROLLED_TUNGSTEN_ALLOY, quantity: 100 },
+        { typeID: SULFURIC_ACID, quantity: 100 },
+      ],
+      products: [{ typeID: TUNGSTEN_CARBIDE, quantity: 20 }],
+    },
+  },
+};
+const TC_REAL_BP: ResolverRow = {
+  blueprintTypeId: 46207, // "Tungsten Carbide Reaction Formula" — published
+  published: true,
+  activities: {
+    reaction: {
+      materials: [
+        { typeID: ROLLED_TUNGSTEN_ALLOY, quantity: 100 },
+        { typeID: SULFURIC_ACID, quantity: 100 },
+        { typeID: NITROGEN_FUEL_BLOCK, quantity: 5 },
+      ],
+      products: [{ typeID: TUNGSTEN_CARBIDE, quantity: 10000 }],
+    },
+  },
+};
+
+describe('TreeResolver — prefers published producers (collision)', () => {
+  it('picks the published TC formula when the unpublished test BP is listed first', () => {
+    const { productToBlueprint } = buildIndexesFromActivities([TC_TEST_BP, TC_REAL_BP]);
+    expect(productToBlueprint.get(TUNGSTEN_CARBIDE)).toEqual({
+      blueprintTypeId: 46207,
+      quantityPerRun: 10000,
+    });
+  });
+
+  it('picks the published TC formula when it is listed first (order-independent)', () => {
+    const { productToBlueprint } = buildIndexesFromActivities([TC_REAL_BP, TC_TEST_BP]);
+    expect(productToBlueprint.get(TUNGSTEN_CARBIDE)).toEqual({
+      blueprintTypeId: 46207,
+      quantityPerRun: 10000,
+    });
+  });
+
+  it('breaks ties between two published producers deterministically (lowest id)', () => {
+    const a: ResolverRow = {
+      blueprintTypeId: 1002,
+      published: true,
+      activities: { manufacturing: { materials: [{ typeID: 34, quantity: 5 }], products: [{ typeID: 5001, quantity: 2 }] } },
+    };
+    const b: ResolverRow = {
+      blueprintTypeId: 1001,
+      published: true,
+      activities: { manufacturing: { materials: [{ typeID: 34, quantity: 5 }], products: [{ typeID: 5001, quantity: 9 }] } },
+    };
+    expect(buildIndexesFromActivities([a, b]).productToBlueprint.get(5001)?.blueprintTypeId).toBe(1001);
+    expect(buildIndexesFromActivities([b, a]).productToBlueprint.get(5001)?.blueprintTypeId).toBe(1001);
+  });
+
+  it('falls back to a lone unpublished producer (nothing dropped)', () => {
+    const only: ResolverRow = {
+      blueprintTypeId: 2002,
+      published: false,
+      activities: { manufacturing: { materials: [{ typeID: 34, quantity: 5 }], products: [{ typeID: 6002, quantity: 1 }] } },
+    };
+    expect(buildIndexesFromActivities([only]).productToBlueprint.get(6002)?.blueprintTypeId).toBe(2002);
+  });
+
+  it('INVARIANT: no product resolves to an unpublished producer when a published one exists', () => {
+    const rows: ResolverRow[] = [
+      TC_TEST_BP,
+      TC_REAL_BP,
+      { blueprintTypeId: 1001, published: true, activities: { manufacturing: { materials: [{ typeID: 34, quantity: 5 }], products: [{ typeID: 5001, quantity: 1 }] } } },
+      { blueprintTypeId: 1003, published: false, activities: { manufacturing: { materials: [{ typeID: 34, quantity: 5 }], products: [{ typeID: 5001, quantity: 1 }] } } },
+      { blueprintTypeId: 2002, published: false, activities: { manufacturing: { materials: [{ typeID: 34, quantity: 5 }], products: [{ typeID: 6002, quantity: 1 }] } } },
+    ];
+    const { productToBlueprint } = buildIndexesFromActivities(rows);
+
+    const productsWithPublished = new Set<number>();
+    const publishedProducers = new Set<number>();
+    for (const r of rows) {
+      for (const act of Object.values(r.activities)) {
+        for (const p of act?.products ?? []) {
+          if (r.published !== false) {
+            productsWithPublished.add(p.typeID);
+            publishedProducers.add(r.blueprintTypeId);
+          }
+        }
+      }
+    }
+    for (const productId of productsWithPublished) {
+      const chosen = productToBlueprint.get(productId);
+      expect(chosen).toBeDefined();
+      expect(publishedProducers.has(chosen!.blueprintTypeId)).toBe(true);
+    }
+  });
+});
+
+describe('TreeResolver — Curse chain corrected output (T2 regression)', () => {
+  // Slimmed Curse universe with the real recipe shape: Curse needs 3750 TC Armor
+  // Plate; each plate is 44 Tungsten Carbide + 11 Sylramic Fibers; TC is produced
+  // by BOTH the unpublished test BP and the published formula; RTA has its single
+  // formula; everything else is a raw leaf.
+  const RTA_FORMULA: ResolverRow = {
+    blueprintTypeId: 46178, // Rolled Tungsten Alloy Reaction Formula
+    published: true,
+    activities: {
+      reaction: {
+        materials: [
+          { typeID: TUNGSTEN, quantity: 100 },
+          { typeID: PLATINUM, quantity: 100 },
+          { typeID: NITROGEN_FUEL_BLOCK, quantity: 5 },
+        ],
+        products: [{ typeID: ROLLED_TUNGSTEN_ALLOY, quantity: 200 }],
+      },
+    },
+  };
+  const PLATE_BP: ResolverRow = {
+    blueprintTypeId: TC_ARMOR_PLATE_BP,
+    published: true,
+    activities: {
+      manufacturing: {
+        materials: [
+          { typeID: TUNGSTEN_CARBIDE, quantity: 44 },
+          { typeID: SYLRAMIC_FIBERS, quantity: 11 },
+        ],
+        products: [{ typeID: TC_ARMOR_PLATE, quantity: 1 }],
+      },
+    },
+  };
+  const CURSE: ResolverRow = {
+    blueprintTypeId: CURSE_BP,
+    published: true,
+    activities: {
+      manufacturing: {
+        materials: [{ typeID: TC_ARMOR_PLATE, quantity: 3750 }],
+        products: [{ typeID: 20125, quantity: 1 }],
+      },
+    },
+  };
+  const universe: ResolverRow[] = [CURSE, PLATE_BP, TC_TEST_BP, TC_REAL_BP, RTA_FORMULA];
+
+  it('resolves Tungsten Carbide via the published formula', () => {
+    const { productToBlueprint } = buildIndexesFromActivities(universe);
+    expect(productToBlueprint.get(TUNGSTEN_CARBIDE)?.blueprintTypeId).toBe(46207);
+  });
+
+  it('flattens Curse to the corrected (not 500x-inflated) raw totals', () => {
+    const fixed = new TreeResolver(buildIndexesFromActivities(universe));
+    const flat = fixed.flatForOneRun(CURSE_BP);
+    // 3750 plates × 44 TC ÷ 10000/run = 16.5 TC runs → 1650 RTA ÷ 200/run = 8.25
+    // RTA runs → 825 Tungsten + 825 Platinum. Sylramic is a direct leaf: 3750×11.
+    expect(flat.get(TUNGSTEN)).toBeCloseTo(825, 6);
+    expect(flat.get(PLATINUM)).toBeCloseTo(825, 6);
+    expect(flat.get(SYLRAMIC_FIBERS)).toBeCloseTo(41250, 6);
+
+    // Contrast: had the unpublished test BP (yield 20) won, the same chain would
+    // be 500x higher — the production bug this fix removes.
+    const buggy = new TreeResolver(
+      buildIndexesFromActivities(universe.filter((r) => r.blueprintTypeId !== 46207)),
+    );
+    const buggyFlat = buggy.flatForOneRun(CURSE_BP);
+    expect(buggyFlat.get(TUNGSTEN)).toBeCloseTo(412500, 4);
+    expect(buggyFlat.get(PLATINUM)).toBeCloseTo(412500, 4);
+  });
+
+  it('control: a single-published-producer chain (T3-like) is unaffected', () => {
+    const rows: ResolverRow[] = [
+      { blueprintTypeId: 29985, published: true, activities: { manufacturing: { materials: [{ typeID: 30474, quantity: 21 }], products: [{ typeID: 29984, quantity: 1 }] } } },
+      { blueprintTypeId: 90001, published: true, activities: { reaction: { materials: [{ typeID: 34, quantity: 100 }], products: [{ typeID: 30474, quantity: 200 }] } } },
+    ];
+    const flat = new TreeResolver(buildIndexesFromActivities(rows)).flatForOneRun(29985);
+    expect(flat.get(34)).toBeCloseTo(10.5, 6); // 21 Nanowire ÷ 200/run × 100 Trit
+  });
+});

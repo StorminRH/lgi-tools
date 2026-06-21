@@ -63,8 +63,11 @@ export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 // be skipped and stale flat materials would persist. Bump this whenever the
 // resolver's output for unchanged SDE data changes, so the next deploy/cron
 // rebuilds. History: 'v1' = whole-run rounding; 'v2-marginal' = fractional
-// (marginal) runs — 3.0.5.3.
-export const TREE_RESOLVER_ALGO_VERSION = 'v2-marginal';
+// (marginal) runs — 3.0.5.3; 'v3-published-producer' = producer selection
+// prefers published blueprints over unpublished test/dev artifacts (fixes the
+// Tungsten Carbide collision where the unpublished "Test Reaction Blueprint"
+// beat the real reaction formula and inflated T2 build cost ~500x).
+export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
 
 // Revalidation tag for cached blueprint *structure* reads (the Industry
 // Planner's `'use cache'` tree + flat-materials view, and the blueprint search

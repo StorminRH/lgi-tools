@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { readEnv } from '@/lib/env';
 import {
@@ -9,7 +9,12 @@ import {
   TREE_RESOLVER_ALGO_VERSION,
 } from './constants';
 import { getSdeMetaValue, setSdeMetaValue } from './meta';
-import { blueprintFlatMaterials, blueprintTrees, industryBlueprints } from './schema';
+import {
+  blueprintFlatMaterials,
+  blueprintTrees,
+  eveTypes,
+  industryBlueprints,
+} from './schema';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPgDb = PostgresJsDatabase<any>;
@@ -141,7 +146,11 @@ export function activitiesToRows(
 //      products are consumed elsewhere, but this keeps us correct if a future SDE
 //      starts consuming one of these deprecated types.
 export function buildIndexesFromActivities(
-  rows: { blueprintTypeId: number; activities: BlueprintActivities }[],
+  rows: {
+    blueprintTypeId: number;
+    activities: BlueprintActivities;
+    published?: boolean | null;
+  }[],
 ): Indexes {
   const blueprintMaterials = new Map<number, Material[]>();
   const productToBlueprint = new Map<
@@ -149,7 +158,26 @@ export function buildIndexesFromActivities(
     { blueprintTypeId: number; quantityPerRun: number }
   >();
 
-  for (const { blueprintTypeId, activities } of rows) {
+  // Producer selection below is first-writer-wins, so ROW ORDER decides which
+  // blueprint wins a product made by more than one. Order published producers
+  // first (deterministic blueprintTypeId tie-break) so the real, in-game
+  // blueprint beats CCP's unpublished test/dev artifacts that share a product:
+  // e.g. the unpublished "Test Reaction Blueprint" (45732, 20 Tungsten Carbide
+  // per run) must never beat the published "Tungsten Carbide Reaction Formula"
+  // (46207, 10000/run) — picking the former inflates every downstream reaction
+  // ~500x. This mirrors the game client, which hides unpublished blueprints.
+  // Fallback-safe: a product whose only producer is unpublished still registers
+  // (it is the first — and only — row seen). `published` absent/null counts as
+  // published, so synthetic test rows and any blueprint type missing from
+  // eve_types stay selectable. The tie-break also removes the latent
+  // non-determinism of the unordered source query.
+  const ordered = [...rows].sort((a, b) => {
+    const au = a.published === false ? 1 : 0;
+    const bu = b.published === false ? 1 : 0;
+    return au - bu || a.blueprintTypeId - b.blueprintTypeId;
+  });
+
+  for (const { blueprintTypeId, activities } of ordered) {
     const { mats, prods } = activitiesToRows(blueprintTypeId, activities);
     const ownProducts = new Set(prods.map((p) => p.productTypeId));
     const realMaterials = mats
@@ -174,14 +202,27 @@ export function buildIndexesFromActivities(
 }
 
 async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
+  // Join eve_types for each blueprint's published flag and order published
+  // producers first with a stable id tie-break, so producer selection is
+  // deterministic and prefers the real in-game blueprint over unpublished
+  // test/dev artifacts (see buildIndexesFromActivities). leftJoin: keep a
+  // blueprint even if its type row is somehow absent (published → null →
+  // treated as selectable).
   const rows = await db
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,
       activities: industryBlueprints.activities,
+      published: eveTypes.published,
     })
-    .from(industryBlueprints);
+    .from(industryBlueprints)
+    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id))
+    .orderBy(desc(eveTypes.published), industryBlueprints.blueprintTypeId);
   return buildIndexesFromActivities(
-    rows as { blueprintTypeId: number; activities: BlueprintActivities }[],
+    rows as {
+      blueprintTypeId: number;
+      activities: BlueprintActivities;
+      published: boolean | null;
+    }[],
   );
 }
 
