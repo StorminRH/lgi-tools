@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { desc, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { readEnv } from '@/lib/env';
 import {
@@ -202,12 +202,12 @@ export function buildIndexesFromActivities(
 }
 
 async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
-  // Join eve_types for each blueprint's published flag and order published
-  // producers first with a stable id tie-break, so producer selection is
-  // deterministic and prefers the real in-game blueprint over unpublished
-  // test/dev artifacts (see buildIndexesFromActivities). leftJoin: keep a
-  // blueprint even if its type row is somehow absent (published → null →
-  // treated as selectable).
+  // Join eve_types for each blueprint's published flag so producer selection can
+  // prefer the real in-game blueprint over unpublished test/dev artifacts. The
+  // authoritative ordering happens in memory in buildIndexesFromActivities — no
+  // DB ORDER BY, whose DESC NULLS FIRST wouldn't match the in-memory null
+  // handling anyway. leftJoin: keep a blueprint even if its type row is somehow
+  // absent (published → null → treated as selectable).
   const rows = await db
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,
@@ -215,8 +215,7 @@ async function buildIndexes(db: AnyPgDb): Promise<Indexes> {
       published: eveTypes.published,
     })
     .from(industryBlueprints)
-    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id))
-    .orderBy(desc(eveTypes.published), industryBlueprints.blueprintTypeId);
+    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
   return buildIndexesFromActivities(
     rows as {
       blueprintTypeId: number;
@@ -366,7 +365,10 @@ export class TreeResolver {
 // Rifter's Tritanium — or a yield change — flips the hash) by sampling their
 // manufacturing + reaction recipes fully, PLUS global edge counts so a blueprint
 // added/removed or re-recipe'd anywhere triggers a rebuild — without
-// canonicalising all ~5k blueprints' JSON on every check. Stored under
+// canonicalising all ~5k blueprints' JSON on every check. Also folds in every
+// blueprint's published flag, since producer selection now prefers published
+// blueprints — so a CCP publish/unpublish flip with no recipe change still
+// invalidates the trees on the cron re-resolve path. Stored under
 // SDE_META_KEY_TREE_HASH; the resolver short-circuits when the stored value
 // matches (and trees are still present — see resolveAllTrees).
 export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
@@ -374,17 +376,25 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     .select({
       blueprintTypeId: industryBlueprints.blueprintTypeId,
       activities: industryBlueprints.activities,
+      published: eveTypes.published,
     })
-    .from(industryBlueprints);
+    .from(industryBlueprints)
+    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
 
   const refSet = new Set<number>(REFERENCE_BLUEPRINT_TYPE_IDS);
   let blueprintCount = 0;
   let matEdges = 0;
   let prodEdges = 0;
   const refSamples: string[] = [];
+  const publishedSamples: string[] = [];
 
   for (const r of all) {
     blueprintCount++;
+    // Fold each blueprint's published flag into the hash: producer selection
+    // depends on it, so a CCP publish/unpublish flip with no recipe edit must
+    // still invalidate the trees. null/undefined counts as published, matching
+    // the resolver's selection fallback.
+    publishedSamples.push(`${r.blueprintTypeId}:${r.published === false ? 0 : 1}`);
     const activities = (r.activities ?? {}) as BlueprintActivities;
     // Global edge counts across every activity key — matches the old row-count
     // sensitivity to any recipe edge appearing/disappearing.
@@ -406,6 +416,7 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   }
   // Deterministic ordering JS-side so the hash is stable across runs.
   refSamples.sort();
+  publishedSamples.sort();
 
   return createHash('sha256')
     .update(TREE_RESOLVER_ALGO_VERSION)
@@ -413,6 +424,8 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     .update(`${blueprintCount}:${matEdges}:${prodEdges}`)
     .update(':')
     .update(refSamples.join(','))
+    .update(':')
+    .update(publishedSamples.join(','))
     .digest('hex');
 }
 
