@@ -1,4 +1,5 @@
 import type { Tone } from '@/components/ui/tones';
+import type { BatchLedger } from './build-batch';
 import type { BlueprintStructure, BuildNode } from './types';
 
 // Collapse the recursive build tree into a consolidated, by-depth view: each
@@ -138,4 +139,51 @@ export function chainLevelsFrom(
     levels.set(k, next);
   }
   return levels;
+}
+
+// Re-base the consolidated tiers from the resolver's MARGINAL (fractional-run)
+// quantities onto the WHOLE-RUN batch totals, so the columns read what a builder
+// actually makes/buys. Placement is untouched (a type stays in every tier it's
+// consumed at) — only the number changes. Each type's whole-run total is split
+// across the tiers it appears in IN PROPORTION to its marginal share there, so:
+//   • a type's per-tier cells still SUM to its whole-run total (shared
+//     sub-components counted once — the build-batch aggregate-then-ceil);
+//   • a type consumed at a single tier shows its full batch (e.g. a component
+//     needed 150 at a 100/run batch reads 200, two whole runs);
+//   • a type split across tiers keeps its split (possibly sub-unit, as before).
+// `runs` is already baked into the batch totals, so callers render the cell
+// quantity directly — no further × runs.
+//
+// Whole-run total per type: raws → the leaf total you buy; buildables → produced
+// (`runs × batch`). Pure — takes the consolidated tiers and a precomputed ledger
+// (`computeBatchLedger(structure.tree, runs)`), returns fresh tiers.
+export function scaleTiersToBatched(
+  tiers: ConsolidatedTier[],
+  ledger: BatchLedger,
+): ConsolidatedTier[] {
+  // A type's marginal demand summed across every tier it appears in (the
+  // denominator of its proportional split).
+  const marginalTotal = new Map<number, number>();
+  for (const tier of tiers) {
+    for (const item of tier.items) {
+      marginalTotal.set(item.typeId, (marginalTotal.get(item.typeId) ?? 0) + item.quantity);
+    }
+  }
+
+  const batchedTotalOf = (item: ConsolidatedItem): number => {
+    if (item.isRaw) return ledger.raws.get(item.typeId) ?? 0;
+    const b = ledger.builds.get(item.typeId);
+    return b ? b.runs * b.batch : 0;
+  };
+
+  return tiers.map((tier) => ({
+    depth: tier.depth,
+    items: tier.items.map((item) => {
+      const mt = marginalTotal.get(item.typeId) ?? 0;
+      // This tier's share of the type's marginal demand, applied to its whole-run
+      // total. Guard a zero marginal (no demand → no batched quantity).
+      const quantity = mt > 0 ? (item.quantity / mt) * batchedTotalOf(item) : 0;
+      return { ...item, quantity };
+    }),
+  }));
 }

@@ -7,21 +7,26 @@ import { SectionLabel } from '@/components/ui/section-label';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
+import { chainActualsFrom, computeBatchLedger } from '../build-batch';
 import {
   chainLevelsFrom,
   consolidateBuild,
+  scaleTiersToBatched,
   type ConsolidatedItem,
   type ConsolidatedTier,
 } from '../build-consolidate';
 import type { BlueprintStructure } from '../types';
+import { CockpitRawLedger } from './CockpitRawLedger';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit build plan: the consolidated material breakdown as a column per
-// depth tier. Each row shows quantity × runs over its market value; each tier
-// carries a dotted leader to its ISK subtotal; the footer shows the recursed raw
-// grand total (priced build-vs-buy, deliberately ≠ the sum of subtotals). Clicking
-// a buildable lights its downstream chain across the columns — a state-driven
-// highlight, never an expand. Replaces the legacy multi-view build plan.
+// depth tier. Each row shows the WHOLE-RUN BATCHED quantity (the build-batch
+// ceil, runs baked in) over its market value; each tier carries a dotted leader
+// to its ISK subtotal. A collapsible raw-materials ledger sits above the tiers
+// (CockpitRawLedger): collapsed it's the recursed build-vs-buy grand total,
+// expanding to the by-type bill. Clicking a buildable lights its downstream chain
+// across the columns — a state-driven highlight, never an expand. Replaces the
+// legacy multi-view build plan.
 
 // All build tiers share ONE horizontal row on desktop — the columns scale down to
 // fit however many build depths a blueprint has (up to 7 for the deepest
@@ -121,24 +126,40 @@ function TierRow({
 
 function TierColumn({
   tier,
-  runs,
   unitPriceOf,
   focus,
   inChain,
+  actualLevel,
   onToggle,
 }: {
   tier: ConsolidatedTier;
-  runs: number;
   unitPriceOf: Map<number, number | null>;
   focus: Focus | null;
   inChain: Set<number> | null;
+  actualLevel: Map<number, number> | null;
   onToggle: (depth: number, item: ConsolidatedItem) => void;
 }) {
-  const valueOf = (item: ConsolidatedItem): number | null => {
-    const unit = unitPriceOf.get(item.typeId) ?? null;
-    return unit !== null ? item.quantity * runs * unit : null;
+  // `tier` carries whole-run batched quantities (runs already baked in by
+  // scaleTiersToBatched). A focused drill-down swaps the lit downstream cells'
+  // displayed quantity for the ACTUAL consumed amount (chainActualsFrom). The
+  // subtotal sums each row's DISPLAYED value, so the column header always equals
+  // the sum of its visible rows — batched when unfocused, the same actual/batched
+  // mix the rows show when a drill-down is active.
+  const valueOf = (typeId: number, qty: number): number | null => {
+    const unit = unitPriceOf.get(typeId) ?? null;
+    return unit !== null ? qty * unit : null;
   };
-  const subtotal = tier.items.reduce((sum, item) => sum + (valueOf(item) ?? 0), 0);
+  // A lit downstream cell shows what the focused build actually consumes
+  // (marginal); every other cell shows the whole-run batch.
+  const displayQtyOf = (item: ConsolidatedItem): number => {
+    const selected = !!focus && focus.typeId === item.typeId && focus.depth === tier.depth;
+    const related = !selected && (inChain?.has(item.typeId) ?? false);
+    return (related ? actualLevel?.get(item.typeId) : undefined) ?? item.quantity;
+  };
+  const subtotal = tier.items.reduce(
+    (sum, item) => sum + (valueOf(item.typeId, displayQtyOf(item)) ?? 0),
+    0,
+  );
 
   return (
     <div className="min-w-0">
@@ -154,12 +175,13 @@ function TierColumn({
         {tier.items.map((item) => {
           const selected = !!focus && focus.typeId === item.typeId && focus.depth === tier.depth;
           const related = !selected && (inChain?.has(item.typeId) ?? false);
+          const qty = displayQtyOf(item);
           return (
             <TierRow
               key={item.typeId}
               item={item}
-              qty={item.quantity * runs}
-              value={valueOf(item)}
+              qty={qty}
+              value={valueOf(item.typeId, qty)}
               selected={selected}
               related={related}
               faded={!!focus && !selected && !related}
@@ -200,6 +222,20 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   const { pricing, runs } = usePricing();
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
+  // The whole-run batch ledger for `runs` runs (the build-batch ceil) — drives
+  // both the batched tier quantities and the focused-drill-down actuals.
+  const ledger = useMemo(() => computeBatchLedger(structure.tree, runs), [structure.tree, runs]);
+  // Re-base the tier quantities onto the whole-run batch totals — what a builder
+  // actually makes and buys. Placement and the trace graph (childrenOf) untouched.
+  const batchedTiers = useMemo(() => scaleTiersToBatched(tiers, ledger), [tiers, ledger]);
+  // When a buildable is focused, the ACTUAL (marginal) demand its build consumes
+  // at each relative depth — the lit downstream cells show this instead of the
+  // whole-run batch. Null when nothing is focused.
+  const chainActuals = useMemo(
+    () => (focus ? chainActualsFrom(structure.tree, focus.typeId, ledger) : null),
+    [focus, structure.tree, ledger],
+  );
 
   // Unit market price per type: raws at best buy (the cost basis), buildable
   // intermediates at best sell (the build-vs-buy acquisition price). A type is
@@ -240,41 +276,62 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
 
   return (
     <div className="mt-7">
-      <SectionLabel
-        className="mb-3.5"
-        meta={<TraceMeta focus={focus} onClear={() => setFocus(null)} />}
-      >
-        Build plan
-      </SectionLabel>
+      {/* Header: the section label + trace meta on the left; the raw-ledger
+          toggle (styled like the label) on the right, expanding the by-type
+          ledger below. */}
+      <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
+        <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
+          <SectionLabel>Build plan</SectionLabel>
+          <TraceMeta focus={focus} onClear={() => setFocus(null)} />
+        </div>
+        <button
+          type="button"
+          onClick={() => setLedgerOpen((o) => !o)}
+          aria-expanded={ledgerOpen}
+          className="group inline-flex cursor-pointer items-baseline gap-2"
+        >
+          <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+            <span className="tracking-normal text-isk">{'//'}</span>
+            Raw ledger
+          </span>
+          <span className="font-mono text-caption font-semibold tabular-nums text-isk">
+            {grandTotal !== null ? formatIsk(grandTotal) : '—'}
+          </span>
+          <span
+            className={cn(
+              'inline-block text-[10px] text-muted transition-transform',
+              ledgerOpen && 'rotate-180',
+            )}
+          >
+            ▾
+          </span>
+        </button>
+      </div>
+
+      {ledgerOpen && (
+        <div className="mb-5">
+          <CockpitRawLedger pricing={pricing} structure={structure} />
+        </div>
+      )}
 
       <div
         className={cn(
           'grid grid-cols-1 items-start gap-4',
-          COLS_TABLET[Math.min(tiers.length, 2)],
-          COLS_DESKTOP[Math.min(tiers.length, 8)],
+          COLS_TABLET[Math.min(batchedTiers.length, 2)],
+          COLS_DESKTOP[Math.min(batchedTiers.length, 8)],
         )}
       >
-        {tiers.map((tier) => (
+        {batchedTiers.map((tier) => (
           <TierColumn
             key={tier.depth}
             tier={tier}
-            runs={runs}
             unitPriceOf={unitPriceOf}
             focus={focus}
             inChain={focus && chainLevels ? (chainLevels.get(tier.depth - focus.depth) ?? null) : null}
+            actualLevel={focus && chainActuals ? (chainActuals.get(tier.depth - focus.depth) ?? null) : null}
             onToggle={toggleFocus}
           />
         ))}
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3.5 rounded-md border border-border bg-section px-4 py-3">
-        <span className="font-body text-[11px] text-muted">
-          Raw materials total — intermediates priced for{' '}
-          <span className="text-text">build-vs-buy</span>, not summed
-        </span>
-        <span className="text-[14px] font-semibold tabular-nums text-isk">
-          {grandTotal !== null ? formatIsk(grandTotal) : '—'}
-        </span>
       </div>
     </div>
   );

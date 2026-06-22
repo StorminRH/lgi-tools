@@ -12,15 +12,14 @@ import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitKpis, type MarginMode } from './CockpitKpis';
-import { CockpitLedger } from './CockpitLedger';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
 // replaces the legacy hero + multi-view build plan. It reads the live pricing
 // store (runs, location, margin, score, rows) and lays the product economics out
-// as: a page head + identity bar (here), a KPI tile row, a profit ledger, and a
-// consolidated tier build plan. Built section by section; this file owns the
-// page head and the identity bar.
+// as: a page head + identity bar (here), a KPI tile row, and a consolidated tier
+// build plan (with its collapsible raw-materials ledger). Built section by
+// section; this file owns the page head and the identity bar.
 
 // Runs stepper: minus / numeric input / plus. The input is a controlled string so
 // the field can be cleared and retyped mid-edit; it commits only on a whole
@@ -91,7 +90,7 @@ function PlannerHead({ name, group, activity }: { name: string; group: string; a
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
   const { runs, setRuns } = usePricing();
   // Gross/Net is the user's preference, gated by an available net estimate. Lives
-  // here so the KPI margin tile and the profit ledger share one source of truth.
+  // here so the KPI margin tile reads one source of truth.
   const [marginMode, setMarginMode] = useState<MarginMode>('net');
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
@@ -145,7 +144,6 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
       </div>
 
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
-      <CockpitLedger structure={structure} marginMode={marginMode} />
       <CockpitBuildPlan structure={structure} />
     </>
   );

@@ -4,6 +4,18 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.17 — 2026-06-22
+
+#### Added
+- A "Raw ledger" in the build plan header lists every raw input the build needs, grouped by source category (minerals, gas, salvage, and so on) with quantities and costs — click it to expand.
+
+#### Changed
+- The build plan's quantities now reflect whole production runs — the amount you actually build or buy at each step, rounded up to complete runs, instead of a fractional per-run share. For example, a component needed 150 times at a 100-per-run batch now reads 200, since you must run it twice.
+- Clicking a component in the build plan now shows what that component's own build truly consumes, rather than the rounded-up project-wide total — so a sub-step's real requirement is visible.
+
+#### Removed
+- The planner's separate cost / sell / profit bar was removed; those figures already appear in the tiles directly above it.
+
 ### v3.6.16 — 2026-06-21
 
 #### Added
