@@ -13,6 +13,7 @@ import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { runIngest, type IngestSummary } from '@/data/eve-data/ingest';
 import { listTrackedTypeIds } from '@/data/eve-data/queries';
+import { resolveNpcStationNames } from '@/data/eve-data/station-names';
 import {
   resolveAllTrees,
   type ResolveSummary,
@@ -33,6 +34,7 @@ export type SdePipelineSummary = {
   ingest: IngestSummary;
   resolve: ResolveSummary;
   seed: SeedSummary;
+  stationNames: { resolved: number };
   durationMs: number;
 };
 
@@ -95,7 +97,11 @@ export async function runSdePipeline(db: AnyPgDb): Promise<SdePipelineSummary> {
   const ingest = await runIngest(db);
   const resolve = await resolveAllTrees(db);
   const seed = await seedTrackedTypes(db);
-  return { ingest, resolve, seed, durationMs: Date.now() - start };
+  // Full station names come from ESI, so this runs after runIngest commits — its
+  // calls must not share a connection with an open ingest transaction. Best-
+  // effort: a failure leaves names null without failing the pipeline.
+  const stationNames = await resolveNpcStationNames(db);
+  return { ingest, resolve, seed, stationNames, durationMs: Date.now() - start };
 }
 
 // Convenience for callers that have a raw postgres-js client and want

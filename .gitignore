@@ -37,10 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
-# claude code (user-local settings only; .claude/launch.json is shared)
-.claude/settings.json
-.claude/settings.local.json
-.claude/scheduled_tasks.lock
+# claude code (kept local-only, not tracked in the repo)
+.claude/
+CLAUDE.md
+AGENTS.md
 
 # typescript
 *.tsbuildinfo

@@ -214,14 +214,19 @@ export const eveStationOperations = pgTable('eve_station_operations', {
   name: text('name').notNull(),
 });
 
-// NPC stations. No `name` in CCP's record (it's derived from operation/type/
-// owner); no region/constellation (join up through `solar_system_id`). The
-// three capability booleans are resolved at ingest via the three-file join
-// npcStations.operationID → stationOperations.services[] → stationServices, so
-// "industry-capable stations in system X" is one indexed query with no join.
-// `type_id` (station hull) and `owner_id` (NPC corp) are plain ints, NOT FKs:
-// `type_id` follows the standing no-FK-to-eve_types note above, and
-// npcCorporations isn't ingested.
+// NPC stations. CCP's SDE record has no name and no celestial reference (the
+// "Jita IV - Moon 4 - Caldari Navy Assembly Plant" string is composed in-client
+// from owner + operation + the station's planet/moon), and we ingest neither the
+// owner corporations nor the map celestials. So the full `name` is resolved
+// separately, post-ingest, from ESI's /universe/names/ (see station-names.ts) —
+// nullable because that step is best-effort: a flaky ESI leaves it null and the
+// planner falls back to the operation label. No region/constellation (join up
+// through `solar_system_id`). The three capability booleans are resolved at
+// ingest via the three-file join npcStations.operationID →
+// stationOperations.services[] → stationServices, so "industry-capable stations
+// in system X" is one indexed query with no join. `type_id` (station hull) and
+// `owner_id` (NPC corp) are plain ints, NOT FKs: `type_id` follows the standing
+// no-FK-to-eve_types note above, and npcCorporations isn't ingested.
 export const eveNpcStations = pgTable(
   'eve_npc_stations',
   {
@@ -234,6 +239,9 @@ export const eveNpcStations = pgTable(
       .references(() => eveStationOperations.id, { onDelete: 'restrict' }),
     typeId: integer('type_id').notNull(),
     ownerId: integer('owner_id').notNull(),
+    // Full in-game station name, resolved from ESI after ingest. Null until
+    // resolved (or if resolution failed) — display falls back to the operation.
+    name: text('name'),
     manufacturingCapable: boolean('manufacturing_capable').notNull(),
     researchCapable: boolean('research_capable').notNull(),
     industryCapable: boolean('industry_capable').notNull(),

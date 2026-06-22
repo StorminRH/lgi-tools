@@ -2,30 +2,25 @@
 
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
+import { TooltipPanel, TooltipRow } from '@/components/ui/tooltip-panel';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
 import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
+import { toBuildTimeView } from '../build-time';
 import { selectNet, type MarginMode } from '../cockpit-margin';
+import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import {
   deriveMarginFigures,
   marginToneClass,
   selectMarginCaption,
   type MarginCaption,
 } from '../industry-styles';
-import type { BlueprintStructure, BuildTimeView } from '../types';
-import { KpiHead, KpiTile, KPI_FIG, KPI_SUB, SimpleTile } from './kpi-tile';
+import type { BlueprintStructure, NetMarginView } from '../types';
+import { KpiHead, KpiHelp, KpiTile, KPI_FIG, KPI_SUB, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
 import { usePricing } from './PricingProvider';
 
 export type { MarginMode };
-
-// The Build-time figures are sourced by a follow-up data branch (reads the
-// per-activity `time` from each blueprint's `activities` JSONB and models the
-// all-jobs total); this returns null until then, so the tile renders an honest
-// placeholder. The follow-up fills the body (taking the structure it needs).
-function buildTimeFor(): BuildTimeView | null {
-  return null;
-}
 
 // The concise honest caption under the margin figure (the hero's
 // MarginCaptionLine copy, condensed to one line for the tile).
@@ -83,6 +78,43 @@ function GrossNetToggle({
   );
 }
 
+// The Net-margin tile's "?" hover: the itemized install + sell fee breakdown the
+// retired Raw-ledger view used to show, restored read-only from the net path's
+// own figures. Shown only on the net path (a location picked), where the fees are
+// real. Logic lives in the pure buildFeeBreakdown; this is the humble shell.
+function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string | undefined }) {
+  const fees = buildFeeBreakdown(net);
+  const isk = (v: number | null) => (v === null ? '—' : formatIsk(v));
+  const row = (line: FeeLine) => (
+    <div key={line.label} className="flex items-center justify-between gap-4">
+      <span className="text-muted">{line.label}</span>
+      <span className="tabular-nums text-text">{isk(line.value)}</span>
+    </div>
+  );
+  const subtotal = (label: string, value: number | null) => (
+    <div className="mt-0.5 flex items-center justify-between gap-4 border-t border-border-soft pt-0.5">
+      <span className="text-text">{label}</span>
+      <span className="tabular-nums text-name">{isk(value)}</span>
+    </div>
+  );
+  return (
+    <KpiHelp label="Fee breakdown">
+      <TooltipPanel header={`Fees${systemName ? ` · ${systemName}` : ''}`}>
+        <div className="flex flex-col gap-1 font-body text-[12px] leading-snug">
+          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Install</div>
+          {fees.install.map(row)}
+          {subtotal('Install fee', fees.installTotal)}
+        </div>
+        <div className="flex flex-col gap-1 font-body text-[12px] leading-snug">
+          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Sell</div>
+          {fees.sell.map(row)}
+          {subtotal('Sell fees', fees.sellTotal)}
+        </div>
+      </TooltipPanel>
+    </KpiHelp>
+  );
+}
+
 // The Cockpit KPI tile row: input cost · sell · net margin (Gross/Net toggle) ·
 // market score (with "?" breakdown) · build time. All figures read the live
 // pricing store; the margin tile flips gross↔net and each figure flashes in as
@@ -96,7 +128,7 @@ export function CockpitKpis({
   marginMode: MarginMode;
   setMarginMode: (m: MarginMode) => void;
 }) {
-  const { pricing, seeded, location } = usePricing();
+  const { pricing, seeded, location, runs } = usePricing();
   const summary = pricing?.summary ?? null;
 
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
@@ -114,7 +146,7 @@ export function CockpitKpis({
     missingSystemCostIndex,
     missingAdjustedPriceCount,
   });
-  const buildTime = buildTimeFor();
+  const buildTime = toBuildTimeView(structure.topJobSeconds, runs);
 
   return (
     <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
@@ -136,7 +168,10 @@ export function CockpitKpis({
         <KpiHead
           label={showNet ? 'Net margin' : 'Gross margin'}
           right={
-            <GrossNetToggle showNet={showNet} netAvailable={netAvailable} setMode={setMarginMode} />
+            <span className="flex items-center gap-2">
+              {net && <FeeHover net={net} systemName={location?.systemName} />}
+              <GrossNetToggle showNet={showNet} netAvailable={netAvailable} setMode={setMarginMode} />
+            </span>
           }
         />
         {summary ? (
@@ -156,13 +191,24 @@ export function CockpitKpis({
 
       <MarketScorePanel structure={structure} />
 
-      <SimpleTile
-        label="Build time"
-        accent="blue"
-        value={buildTime ? buildTime.topJob : '—'}
-        valueClass="text-evb-bright"
-        sub={buildTime ? `top job · ${buildTime.allJobs} all jobs` : 'estimate pending'}
-      />
+      <KpiTile accent="blue">
+        <KpiHead
+          label="Build time"
+          right={
+            <KpiHelp label="How build time is estimated">
+              <TooltipPanel header="Build time — final job">
+                <TooltipRow label="Runs">×{runs}</TooltipRow>
+                <TooltipRow label="Time efficiency">0% (unresearched)</TooltipRow>
+                <TooltipRow label="Skills &amp; structure">none applied</TooltipRow>
+              </TooltipPanel>
+            </KpiHelp>
+          }
+        />
+        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTime ? buildTime.topJob : '—'}</div>
+        <div className={KPI_SUB}>
+          {buildTime ? 'final job · ME 0, base skills' : 'estimate pending'}
+        </div>
+      </KpiTile>
     </div>
   );
 }

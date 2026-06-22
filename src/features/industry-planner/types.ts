@@ -23,15 +23,11 @@ export interface BlueprintProduct {
   quantityPerRun: number;
 }
 
-// Estimated industry job time for the Build-time KPI tile (top job · whole-tree
-// "all jobs"). The figures are sourced by a follow-up data branch that reads the
-// per-activity `time` from each blueprint's `activities` JSONB and models the
-// all-jobs total + job sequencing; the tile renders an honest placeholder until
-// that lands, so this stays `null` for now. Pre-formatted strings keep the tile
-// agnostic to where/how the follow-up computes them.
+// Industry job time for the Build-time KPI tile — the final assembly job only,
+// pre-formatted. The whole-tree "total build time" is deferred (see build-time.ts
+// / backlog), so the tile shows one honest figure: the top product's own job.
 export interface BuildTimeView {
-  topJob: string; // top (product) job, e.g. "3h 28m"
-  allJobs: string; // whole-tree total incl. component/reaction jobs, e.g. "≈ 2d 06h"
+  topJob: string; // the final (product) job, runs-scaled, e.g. "2d 18h"
 }
 
 // --- Build-sequence tree -------------------------------------------------
@@ -91,6 +87,10 @@ export interface BlueprintStructure {
   // typeId → name for every type that appears in the tree, the flat list, or
   // as the product. Lets the structural tree label nodes without re-querying.
   materialNames: Record<number, string>;
+  // The top product's base build time (CCP SDE seconds for one run, ME0/TE0, no
+  // skill/structure bonuses), or null when the blueprint has none. The Build-time
+  // tile scales it by runs. (Whole-tree "total build time" is deferred — backlog.)
+  topJobSeconds: number | null;
 }
 
 export interface MaterialCostRow {
@@ -142,10 +142,12 @@ export interface SystemSearchEntry {
   security: number | null;
 }
 
-// One industry-capable NPC station in a system. NPC stations carry no name in
-// the SDE, so `operationName` (the station-operation label) is the display name.
+// One industry-capable NPC station in a system. `name` is the full in-game
+// station name (ESI-resolved); null when unresolved, so the picker falls back to
+// `operationName` (the station-operation label).
 export interface IndustryStationView {
   id: number;
+  name: string | null;
   operationName: string;
   manufacturingCapable: boolean;
   researchCapable: boolean;

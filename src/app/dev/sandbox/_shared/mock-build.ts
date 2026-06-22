@@ -144,6 +144,7 @@ export const MOCK_STRUCTURE: BlueprintStructure = {
     { label: 'Moon Materials', tone: 'magenta' },
   ],
   materialNames: MATERIAL_NAMES,
+  topJobSeconds: 240_000,
 };
 
 // --- Price-animation sample figures --------------------------------------

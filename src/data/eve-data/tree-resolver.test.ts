@@ -3,6 +3,7 @@ import {
   TreeResolver,
   buildIndexesFromActivities,
   computeHeights,
+  pickBuildTimeSeconds,
   type Indexes,
   type TreeNode,
 } from './tree-resolver';
@@ -556,5 +557,35 @@ describe('TreeResolver — Curse chain corrected output (T2 regression)', () => 
     ];
     const flat = new TreeResolver(buildIndexesFromActivities(rows)).flatForOneRun(29985);
     expect(flat.get(34)).toBeCloseTo(10.5, 6); // 21 Nanowire ÷ 200/run × 100 Trit
+  });
+});
+
+describe('pickBuildTimeSeconds', () => {
+  it('returns the manufacturing time for a manufacturing blueprint', () => {
+    expect(pickBuildTimeSeconds({ manufacturing: { time: 6000 } })).toBe(6000);
+  });
+
+  it('returns the reaction time for a reaction blueprint', () => {
+    expect(pickBuildTimeSeconds({ reaction: { time: 3600 } })).toBe(3600);
+  });
+
+  it('prefers manufacturing when a row somehow carries both', () => {
+    expect(pickBuildTimeSeconds({ manufacturing: { time: 6000 }, reaction: { time: 3600 } })).toBe(
+      6000,
+    );
+  });
+
+  it('ignores non-build activities (copying/invention carry their own time)', () => {
+    expect(
+      pickBuildTimeSeconds({ copying: { time: 192000 }, manufacturing: { time: 240000 } }),
+    ).toBe(240000);
+    // No manufacturing/reaction → no honest build time, even with a copying time.
+    expect(pickBuildTimeSeconds({ copying: { time: 192000 } })).toBeNull();
+  });
+
+  it('treats a zero or missing time as no build time (degenerate self-recipes)', () => {
+    expect(pickBuildTimeSeconds({ manufacturing: { time: 0 } })).toBeNull();
+    expect(pickBuildTimeSeconds({ manufacturing: { products: [{ typeID: 1, quantity: 1 }] } })).toBeNull();
+    expect(pickBuildTimeSeconds({})).toBeNull();
   });
 });
