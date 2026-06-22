@@ -140,15 +140,24 @@ function TierColumn({
   onToggle: (depth: number, item: ConsolidatedItem) => void;
 }) {
   // `tier` carries whole-run batched quantities (runs already baked in by
-  // scaleTiersToBatched). The tier subtotal always reflects those batched figures;
-  // a focused drill-down only swaps the lit downstream cells' displayed quantity
-  // for the ACTUAL consumed amount (chainActualsFrom), never the subtotal.
+  // scaleTiersToBatched). A focused drill-down swaps the lit downstream cells'
+  // displayed quantity for the ACTUAL consumed amount (chainActualsFrom). The
+  // subtotal sums each row's DISPLAYED value, so the column header always equals
+  // the sum of its visible rows — batched when unfocused, the same actual/batched
+  // mix the rows show when a drill-down is active.
   const valueOf = (typeId: number, qty: number): number | null => {
     const unit = unitPriceOf.get(typeId) ?? null;
     return unit !== null ? qty * unit : null;
   };
+  // A lit downstream cell shows what the focused build actually consumes
+  // (marginal); every other cell shows the whole-run batch.
+  const displayQtyOf = (item: ConsolidatedItem): number => {
+    const selected = !!focus && focus.typeId === item.typeId && focus.depth === tier.depth;
+    const related = !selected && (inChain?.has(item.typeId) ?? false);
+    return (related ? actualLevel?.get(item.typeId) : undefined) ?? item.quantity;
+  };
   const subtotal = tier.items.reduce(
-    (sum, item) => sum + (valueOf(item.typeId, item.quantity) ?? 0),
+    (sum, item) => sum + (valueOf(item.typeId, displayQtyOf(item)) ?? 0),
     0,
   );
 
@@ -166,10 +175,7 @@ function TierColumn({
         {tier.items.map((item) => {
           const selected = !!focus && focus.typeId === item.typeId && focus.depth === tier.depth;
           const related = !selected && (inChain?.has(item.typeId) ?? false);
-          // A lit downstream cell shows what the focused build actually consumes
-          // (marginal), not the whole-run batch the unfocused column shows.
-          const actual = related ? actualLevel?.get(item.typeId) : undefined;
-          const qty = actual ?? item.quantity;
+          const qty = displayQtyOf(item);
           return (
             <TierRow
               key={item.typeId}
