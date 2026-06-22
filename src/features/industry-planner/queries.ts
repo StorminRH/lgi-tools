@@ -2,6 +2,7 @@ import { cacheLife, cacheTag } from 'next/cache';
 import { BLUEPRINT_STRUCTURE_TAG } from '@/data/eve-data/constants';
 import {
   getActivityByBlueprint,
+  getBlueprintActivityTimes,
   getBlueprintOutput,
   getBlueprintSearchRows,
   getBlueprintTree,
@@ -83,10 +84,14 @@ export async function getBlueprintStructure(
     const rawTypeIds = collectRawTypeIds(tree);
 
     const labelIds = dedupe([chosen.productTypeId, ...collectTreeTypeIds(tree)]);
-    const [labels, activityByBlueprint] = await Promise.all([
+    const [labels, activityByBlueprint, activityTimeMap] = await Promise.all([
       getTypeLabels(labelIds),
       getActivityByBlueprint([...collectBlueprintIds(tree)]),
+      // Only the top product's base build time — the Build-time tile shows the
+      // final assembly job; the whole-tree total is deferred (backlog).
+      getBlueprintActivityTimes([blueprintId]),
     ]);
+    const topJobSeconds = activityTimeMap.get(blueprintId) ?? null;
     const materialNames: Record<number, string> = {};
     for (const [id, l] of labels) materialNames[id] = l.name;
 
@@ -131,6 +136,7 @@ export async function getBlueprintStructure(
       materialCategory,
       materialCategories,
       materialNames,
+      topJobSeconds,
     };
   });
 }

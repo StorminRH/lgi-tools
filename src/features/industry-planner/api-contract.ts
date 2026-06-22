@@ -65,6 +65,7 @@ export const buildLocationRequestSchema = z.object({
 
 const industryStationViewSchema = z.object({
   id: z.number(),
+  name: z.string().nullable(),
   operationName: z.string(),
   manufacturingCapable: z.boolean(),
   researchCapable: z.boolean(),

@@ -4,6 +4,16 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.16 — 2026-06-21
+
+#### Added
+- The Industry Planner now shows a build-time estimate — the time for the blueprint's final assembly job — with a hover that lists what changes it.
+- A hover on the planner's profit figure breaks down the install and sell fees that go into it.
+
+#### Changed
+- The planner's build-location picker now lists each station's full in-game name (for example "Jita IV-4 — Caldari Navy Assembly Plant") instead of a generic facility label.
+- The planner's information tooltips were restyled into one cleaner, more readable layout.
+
 ### v3.6.15 — 2026-06-21
 
 #### Added

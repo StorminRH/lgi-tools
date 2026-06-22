@@ -1,0 +1,1 @@
+ALTER TABLE "eve_npc_stations" ADD COLUMN "name" text;

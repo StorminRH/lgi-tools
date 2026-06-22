@@ -9,8 +9,15 @@ import { toneTextClass } from '@/components/ui/tones';
 import { apiFetch } from '@/lib/api-client';
 import { plannerBuildLocation } from '@/lib/preferences';
 import { buildLocationEndpoint, systemsEndpoint } from '../api-contract';
-import type { SystemSearchEntry } from '../types';
+import { formatStationName } from '../format-station-name';
+import type { IndustryStationView, SystemSearchEntry } from '../types';
 import { usePricing } from './PricingProvider';
+
+// The station's display label: its full in-game name (compacted) when ESI has
+// resolved one, else the station-operation label as a fallback.
+function stationLabel(s: IndustryStationView): string {
+  return s.name ? formatStationName(s.name) : s.operationName;
+}
 
 // The build-system / station picker. Reuses the generic <TerminalSearch> for the
 // system search (the index is fetched once, client-side, and prefix-matched
@@ -198,7 +205,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
               }
               const id = Number(v);
               const st = location.stations.find((s) => s.id === id);
-              setStation(id, st?.operationName ?? null);
+              setStation(id, st ? stationLabel(st) : null);
             }}
             aria-label="Build station"
             className="font-mono text-[11px] px-2 py-1 bg-bg border border-border text-text focus:outline-none focus:border-border-active"
@@ -206,7 +213,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
             <option value="">Any NPC station ({location.stations.length})</option>
             {location.stations.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.operationName}
+                {stationLabel(s)}
               </option>
             ))}
           </select>

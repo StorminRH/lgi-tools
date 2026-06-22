@@ -13,7 +13,12 @@ import {
   typeDogma,
 } from '@/db/schema';
 import { ACTIVITY_NAME_TO_ID, INDUSTRY_ACTIVITY_NAMES } from './constants';
-import { activitiesToRows, type BlueprintActivities, type TreeNode } from './tree-resolver';
+import {
+  activitiesToRows,
+  pickBuildTimeSeconds,
+  type BlueprintActivities,
+  type TreeNode,
+} from './tree-resolver';
 import type { AttrMap, EveType } from './types';
 
 // Same wrinkle as market-prices queries — accept the lazy `@/db` proxy
@@ -153,6 +158,32 @@ export async function getActivityByBlueprint(
         break;
       }
     }
+  }
+  return out;
+}
+
+// The base build TIME (CCP SDE `time`, SECONDS for a single run — ME0/TE0, no
+// skill/structure/rig bonuses) of the manufacturing/reaction activity each given
+// blueprint produces under, in one batched query. Feeds the planner's Build-time
+// tile, which scales by runs and sums the tree client-side. A blueprint carries
+// at most one of {manufacturing, reaction}; prefer manufacturing (the lower id),
+// matching the structure read. Blueprints with no positive build time (the
+// degenerate self-recipes) are simply absent from the map.
+export async function getBlueprintActivityTimes(
+  blueprintTypeIds: number[],
+): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  if (blueprintTypeIds.length === 0) return out;
+  const rows = await db
+    .select({
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
+    })
+    .from(industryBlueprints)
+    .where(inArray(industryBlueprints.blueprintTypeId, blueprintTypeIds));
+  for (const r of rows) {
+    const time = pickBuildTimeSeconds((r.activities ?? {}) as BlueprintActivities);
+    if (time !== null) out.set(r.blueprintTypeId, time);
   }
   return out;
 }
@@ -321,6 +352,9 @@ export async function getIndustrySolarSystems(): Promise<IndustrySolarSystem[]> 
 // (joined). No region filter — Pochven stations are valid build locations.
 export type IndustryStation = {
   id: number;
+  // Full in-game station name (ESI-resolved), null until resolved — the picker
+  // shows it (compacted) and falls back to `operationName` when it's null.
+  name: string | null;
   operationName: string;
   manufacturingCapable: boolean;
   researchCapable: boolean;
@@ -332,6 +366,7 @@ export async function getIndustryStationsForSystem(
   return db
     .select({
       id: eveNpcStations.id,
+      name: eveNpcStations.name,
       operationName: eveStationOperations.name,
       manufacturingCapable: eveNpcStations.manufacturingCapable,
       researchCapable: eveNpcStations.researchCapable,

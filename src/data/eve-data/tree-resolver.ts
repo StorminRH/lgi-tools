@@ -97,10 +97,13 @@ export type ProductRow = {
 
 // CCP blueprint `activities` JSON — the subset the resolver reads. Each activity
 // (keyed by CCP's string name: `manufacturing`, `reaction`, …) carries optional
-// `materials` / `products` lists of `{ typeID, quantity }`.
+// `materials` / `products` lists of `{ typeID, quantity }`, plus `time` — the
+// base seconds for ONE run (ME0/TE0, no skill/structure bonuses), read by the
+// planner's Build-time tile.
 type ActivityIO = {
   materials?: { typeID: number; quantity: number }[];
   products?: { typeID: number; quantity: number }[];
+  time?: number;
 };
 export type BlueprintActivities = Record<string, ActivityIO | undefined>;
 
@@ -126,6 +129,19 @@ export function activitiesToRows(
     }
   }
   return { mats, prods };
+}
+
+// The base build time (SECONDS for one run) a blueprint produces under: the
+// `time` of its manufacturing or reaction activity, preferring manufacturing (a
+// blueprint carries at most one of the two). Returns null when neither carries a
+// positive numeric time — the degenerate self-recipes (and any malformed row)
+// have no honest build time, so the Build-time tile simply omits them.
+export function pickBuildTimeSeconds(activities: BlueprintActivities): number | null {
+  for (const name of INDUSTRY_ACTIVITY_NAMES) {
+    const time = activities?.[name]?.time;
+    if (typeof time === 'number' && time > 0) return time;
+  }
+  return null;
 }
 
 // Builds the resolver indexes directly from CCP's per-blueprint `activities`,

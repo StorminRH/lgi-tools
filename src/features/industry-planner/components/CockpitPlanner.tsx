@@ -67,8 +67,9 @@ function RunsStepper({ runs, setRuns }: { runs: number; setRuns: (n: number) => 
 
 // lgi://industry / <name> breadcrumb + a terse right-aligned stat strip. The
 // crumb's `industry` segment links back to the planner index (replacing the old
-// back link); the current product name is the bright tail.
-function PlannerHead({ name, group }: { name: string; group: string }) {
+// back link); the current product name is the bright tail. The right strip pairs
+// the product's category with the job-type chip (manufacturing / reaction).
+function PlannerHead({ name, group, activity }: { name: string; group: string; activity: string }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 pt-[26px] pb-1">
       <div className="font-mono text-caption tracking-[0.08em] text-muted">
@@ -79,14 +80,10 @@ function PlannerHead({ name, group }: { name: string; group: string }) {
         <span className="mx-1.5 text-border-active">/</span>
         <span className="text-name">{name.toLowerCase()}</span>
       </div>
-      {group && (
-        <div className="inline-flex items-baseline gap-[18px] pb-0.5 font-mono text-caption uppercase tracking-[0.08em] text-muted">
-          <span>{group}</span>
-          <span>
-            jita <span className="font-semibold text-isk">live</span>
-          </span>
-        </div>
-      )}
+      <div className="inline-flex items-center gap-[14px] pb-0.5 font-mono text-caption uppercase tracking-[0.08em] text-muted">
+        {group && <span>{group}</span>}
+        <Pill tone="blue">{activity}</Pill>
+      </div>
     </header>
   );
 }
@@ -102,7 +99,11 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
 
   return (
     <>
-      <PlannerHead name={structure.product.name} group={group} />
+      <PlannerHead
+        name={structure.product.name}
+        group={group}
+        activity={activityLabel(structure.activityId)}
+      />
 
       <div
         className={cn(
@@ -126,7 +127,6 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
             {outputUnits === 1 ? '' : 's'}
           </div>
         </div>
-        <Pill tone="blue">{activityLabel(structure.activityId)}</Pill>
 
         <div className="flex-1" />
 
