@@ -40,6 +40,7 @@ yarn-error.log*
 # claude code (kept local-only, not tracked in the repo)
 .claude/
 CLAUDE.md
+AGENTS.md
 
 # typescript
 *.tsbuildinfo
