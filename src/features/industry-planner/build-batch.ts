@@ -58,17 +58,26 @@ export function collectRawTypeIds(tree: TreeNode[]): number[] {
   return [...raws];
 }
 
-// Raw-material totals to build `requestedRuns` runs of the blueprint at the root
-// of `tree`, on the whole-run batch basis described above. `requestedRuns`
-// defaults to 1 — one run of the blueprint, today's per-run cost basis.
-export function computeBatchMaterials(
-  tree: TreeNode[],
-  requestedRuns = 1,
-): { typeId: number; quantity: number }[] {
+// The whole-run batch ledger for `requestedRuns` runs of the blueprint at the
+// root of `tree`: the raw (leaf) totals you buy from an empty hangar, PLUS, for
+// every buildable, the whole runs its aggregate demand needs and the blueprint's
+// per-run yield (`batch`). `runs × batch` is what a run-rounded build actually
+// produces — the figure the build-plan columns show. One walk feeds both: the
+// raws are the cost basis (`computeBatchMaterials`), the builds drive the tier
+// display, so the two can never disagree on runs.
+export interface BatchLedger {
+  // Raw-material typeId → whole-run total quantity.
+  raws: Map<number, number>;
+  // Buildable typeId → its whole run count and per-run yield. Produced = runs × batch.
+  builds: Map<number, { runs: number; batch: number }>;
+}
+
+// `requestedRuns` defaults to 1 — one run of the blueprint, today's per-run cost basis.
+export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLedger {
   const recipes = flattenRecipes(tree);
   // Per buildable type: cumulative demand and the whole runs that demand needs.
   const ledger = new Map<number, { required: number; runs: number }>();
-  const raw = new Map<number, number>();
+  const raws = new Map<number, number>();
 
   // Incremental walk: each visit tops up a type's cumulative demand, recomputes
   // its whole-run count, and recurses ONLY for the additional runs since the
@@ -78,7 +87,7 @@ export function computeBatchMaterials(
   const walk = (typeId: number, qtyNeeded: number) => {
     const recipe = recipes.get(typeId);
     if (!recipe) {
-      raw.set(typeId, (raw.get(typeId) ?? 0) + qtyNeeded);
+      raws.set(typeId, (raws.get(typeId) ?? 0) + qtyNeeded);
       return;
     }
     let entry = ledger.get(typeId);
@@ -97,5 +106,65 @@ export function computeBatchMaterials(
 
   for (const node of tree) walk(node.typeId, node.quantity * requestedRuns);
 
-  return [...raw.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
+  const builds = new Map<number, { runs: number; batch: number }>();
+  for (const [typeId, entry] of ledger) {
+    builds.set(typeId, { runs: entry.runs, batch: recipes.get(typeId)!.batch });
+  }
+
+  return { raws, builds };
+}
+
+// Raw-material totals to build `requestedRuns` runs of the blueprint at the root
+// of `tree`, on the whole-run batch basis described above — the cost-panel basis.
+// A thin projection of `computeBatchLedger`'s raws so the two share one walk.
+export function computeBatchMaterials(
+  tree: TreeNode[],
+  requestedRuns = 1,
+): { typeId: number; quantity: number }[] {
+  return [...computeBatchLedger(tree, requestedRuns).raws.entries()].map(
+    ([typeId, quantity]) => ({ typeId, quantity }),
+  );
+}
+
+// The ACTUAL (marginal) downstream demand when one buildable is focused: what
+// building its whole-run batch truly consumes at each descendant, with NO
+// per-component batch rounding — the build-plan drill-down view. The focused type
+// runs its whole-run count (from `ledger`, so it matches the column you clicked);
+// below it, runs cascade fractionally (demand ÷ yield), so each cell is the exact
+// quantity consumed, not rounded up to whole sub-runs. Example: a reaction's fuel
+// blocks read the amount the reaction actually burns, not the two whole fuel-block
+// runs the project's cost basis rounds up to.
+//
+// Keyed by depth RELATIVE to the focus (1 = the focus's direct inputs, 2 =
+// theirs, …) to line up with `chainLevelsFrom`, so the build plan reads each lit
+// tier's actuals by `relativeDepth = tier.depth − focus.depth`. The focus itself
+// (relative depth 0) is omitted — it keeps showing its whole-run batch.
+export function chainActualsFrom(
+  tree: TreeNode[],
+  focusTypeId: number,
+  ledger: BatchLedger,
+): Map<number, Map<number, number>> {
+  const recipes = flattenRecipes(tree);
+  const actuals = new Map<number, Map<number, number>>();
+  const rootRuns = ledger.builds.get(focusTypeId)?.runs ?? 0;
+
+  const walk = (typeId: number, runs: number, relativeDepth: number) => {
+    const recipe = recipes.get(typeId);
+    if (!recipe) return;
+    const depth = relativeDepth + 1;
+    let level = actuals.get(depth);
+    if (!level) {
+      level = new Map();
+      actuals.set(depth, level);
+    }
+    for (const input of recipe.inputs) {
+      const demand = runs * input.qty;
+      level.set(input.typeId, (level.get(input.typeId) ?? 0) + demand);
+      const childRecipe = recipes.get(input.typeId);
+      if (childRecipe && childRecipe.batch > 0) walk(input.typeId, demand / childRecipe.batch, depth);
+    }
+  };
+  walk(focusTypeId, rootRuns, 0);
+
+  return actuals;
 }
