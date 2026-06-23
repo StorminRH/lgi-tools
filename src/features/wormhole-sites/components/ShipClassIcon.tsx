@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
-import type { SleeperClassCode } from '../schema';
+import { isSleeperClassCode, type SleeperClassCode } from '../schema';
 
 // Chevron-rank glyphs for the Sleeper hull classes, following the EVE overview
 // convention: the frigate is a single down-chevron, the heavier hulls are stacked
@@ -25,10 +25,6 @@ const CLASS_GLYPH: Record<SleeperClassCode, ReactNode> = {
   T: <rect x="3.5" y="3.5" width="9" height="9" />,
 };
 
-function isKnownClass(code: string): code is SleeperClassCode {
-  return Object.prototype.hasOwnProperty.call(CLASS_GLYPH, code);
-}
-
 /**
  * A red chevron-rank glyph for a Sleeper hull class, keyed by the F/C/B/T code.
  * Decorative (the class label / NPC name always sits beside it). Renders nothing
@@ -44,7 +40,7 @@ export function ShipClassIcon({
   size?: number;
   className?: string;
 }) {
-  if (!isKnownClass(code)) return null;
+  if (!isSleeperClassCode(code)) return null;
   return (
     <svg
       className={cn('text-hostile shrink-0', className)}

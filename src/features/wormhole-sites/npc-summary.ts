@@ -1,15 +1,11 @@
-import type { SleeperClassCode } from './schema';
+import { isSleeperClassCode, type SleeperClassCode } from './schema';
+import { SLEEPER_CLASS_ORDER } from './sleeper-classes';
 import type { SiteDetail } from './types';
-import { SLEEPER_CLASS_LABEL, SLEEPER_CLASS_ORDER } from './components/wormhole-styles';
 
 export interface ShipClassSummary {
   code: SleeperClassCode;
   /** Total NPC count of this hull class across every wave in the site. */
   count: number;
-}
-
-function isKnownClass(code: string): code is SleeperClassCode {
-  return Object.prototype.hasOwnProperty.call(SLEEPER_CLASS_LABEL, code);
 }
 
 /**
@@ -24,7 +20,7 @@ export function summariseSiteShipClasses(site: SiteDetail): ShipClassSummary[] {
   for (const wave of site.waves) {
     for (const npc of wave.npcs) {
       const code = npc.sleeperClassCode;
-      if (!isKnownClass(code)) continue;
+      if (!isSleeperClassCode(code)) continue;
       counts.set(code, (counts.get(code) ?? 0) + npc.quantity);
     }
   }

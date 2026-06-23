@@ -1,5 +1,4 @@
 import type { PillTone, ChipTone, DotTone } from '@/components/ui/tones';
-import type { SleeperClassCode } from '../schema';
 import type { SiteType, WormholeClass } from '../types';
 
 /**
@@ -33,18 +32,6 @@ export const SITE_TYPE_LABEL: Record<SiteType, string> = {
   relic:  'Relic',
   data:   'Data',
 };
-
-/** Sleeper hull-class code (the F/C/B/T stored on each NPC) → display label.
- *  T is the Sentry tower/turret archetype, not a ship hull. */
-export const SLEEPER_CLASS_LABEL: Record<SleeperClassCode, string> = {
-  F: 'Frigate',
-  C: 'Cruiser',
-  B: 'Battleship',
-  T: 'Sentry',
-};
-
-/** Order the class mix reads on a card: ascending hull size, sentries last. */
-export const SLEEPER_CLASS_ORDER: SleeperClassCode[] = ['F', 'C', 'B', 'T'];
 
 /** EWAR keys on Wave / Npc rows → chip color. */
 export type EwarKey = 'web' | 'scram' | 'neut' | 'rr';

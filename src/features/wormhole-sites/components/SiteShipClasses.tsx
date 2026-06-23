@@ -1,7 +1,7 @@
 import { summariseSiteShipClasses } from '../npc-summary';
+import { SLEEPER_CLASS_LABEL } from '../sleeper-classes';
 import type { SiteDetail } from '../types';
 import { ShipClassIcon } from './ShipClassIcon';
-import { SLEEPER_CLASS_LABEL } from './wormhole-styles';
 
 /**
  * The collapsed card's at-a-glance NPC hull-class mix: the red overview glyph
