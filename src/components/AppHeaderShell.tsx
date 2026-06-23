@@ -14,8 +14,10 @@
 import { useState } from 'react';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { LoginButton } from '@/features/auth/components/LoginButton';
+import { NavMenu } from '@/components/NavMenu';
 import { NavTools } from '@/components/NavTools';
-import { PriceFreshness } from '@/components/PriceFreshness';
+import { ServerStatus } from '@/components/ServerStatus';
+import type { ServerStatus as ServerStatusValue } from '@/data/eve-status/types';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 
 // Side-effect import: registers every search source on the CLIENT instance
@@ -27,10 +29,10 @@ import '@/search/register-all';
 
 export function AppHeaderShell({
   siteIndex,
-  initialLastUpdatedAt,
+  serverStatus,
 }: {
   siteIndex: SiteSearchEntry[];
-  initialLastUpdatedAt: string | null;
+  serverStatus: ServerStatusValue;
 }) {
   const [searchActive, setSearchActive] = useState(false);
 
@@ -42,12 +44,13 @@ export function AppHeaderShell({
         siteIndex={siteIndex}
       />
       <NavTools />
-      <div className="price-freshness-slot flex items-stretch shrink-0 border-l border-border">
-        <PriceFreshness initialLastUpdatedAt={initialLastUpdatedAt} />
+      <div className="server-status-slot flex items-stretch shrink-0 border-l border-border">
+        <ServerStatus status={serverStatus} />
       </div>
       <div className="login-cluster flex items-center shrink-0 px-3 border-l border-border">
         <LoginButton />
       </div>
+      <NavMenu />
     </>
   );
 }

@@ -1,11 +1,9 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import Link from 'next/link';
+import { HomeDashboard } from '@/components/HomeDashboard';
 import { JsonLd } from '@/components/JsonLd';
 import { Callout } from '@/components/ui/callout';
 import { PageShell } from '@/components/ui/page-shell';
-import { Pill } from '@/components/ui/pill';
-import { SectionLabel } from '@/components/ui/section-label';
 import { SITE_URL } from '@/config/site-url';
 
 export const metadata: Metadata = {
@@ -69,7 +67,7 @@ async function AuthErrorNotice({
     typeof rawError === 'string' && rawError in AUTH_ERROR_MESSAGES ? rawError : null;
   if (!errorKey) return null;
   return (
-    <div className="w-full max-w-[640px] pt-8">
+    <div className="w-full max-w-[640px] mb-8">
       <Callout label="Auth">{AUTH_ERROR_MESSAGES[errorKey]}</Callout>
     </div>
   );
@@ -81,87 +79,12 @@ export default function Home({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   return (
-    <PageShell className="flex flex-col items-center">
+    <PageShell className="pt-10 pb-24">
       <JsonLd data={HOME_JSON_LD} />
       <Suspense fallback={null}>
         <AuthErrorNotice searchParams={searchParams} />
       </Suspense>
-
-      <header className="flex flex-col items-center text-center gap-5 max-w-[680px] pt-20 pb-16">
-          <div className="flex flex-col items-center gap-1.5">
-            <h1 className="hero-wordmark font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
-              <span className="text-isk mr-[0.2em]">[</span>
-              Lo-Gang
-              <span className="text-isk ml-[0.2em]">]</span>
-            </h1>
-            <div className="font-jb font-normal text-[clamp(14px,2.4vw,24px)] tracking-[0.28em] uppercase leading-none">
-              <span className="text-muted">Industries</span>
-              <span className="text-isk tracking-normal">.</span>
-              <span className="text-isk">tools</span>
-            </div>
-          </div>
-          <p className="body-copy text-[13.5px] text-text leading-[1.7] max-w-[420px]">
-            A collection of tools for Eve Online.
-          </p>
-        </header>
-
-        <section className="w-full pt-4 pb-20">
-        <SectionLabel className="mb-4">Tools</SectionLabel>
-
-        {/* Tailwind arbitrary-value class, not an inline `style` prop —
-         * production CSP is `style-src 'self'` (no nonce, no unsafe-inline),
-         * which covers the external stylesheet but NOT `style="..."`
-         * attributes. Inline-style attributes would be blocked, leaving this
-         * grid with no column template (so cards stack like a 1-column
-         * small-viewport view) until client-side hydration / navigation
-         * re-applied the styles via JS. */}
-        <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(290px,1fr))]">
-          <Link href="/sites" className="tool-tile tool-tile-live hover-bob no-underline group">
-            <div className="flex items-start justify-between gap-2">
-              <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
-                Wormhole Sites
-              </div>
-            </div>
-            <p className="body-copy text-[13px] text-text leading-[1.65] flex-1">
-              Browse all 69 wormhole anomalies and signatures by class, site
-              type, and ISK value. Live Jita prices on ore and gas resources.
-            </p>
-            <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
-              <div className="flex items-center gap-1">
-                <Pill tone="red-soft">Combat</Pill>
-                <Pill tone="teal">Gas</Pill>
-                <Pill tone="yellow">Ore</Pill>
-              </div>
-              <span className="font-mono text-caption tracking-[0.06em] text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
-                open →
-              </span>
-            </div>
-          </Link>
-
-          <Link href="/industry" className="tool-tile tool-tile-live hover-bob no-underline group">
-            <div className="flex items-start justify-between gap-2">
-              <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
-                Industry Planner
-              </div>
-            </div>
-            <p className="body-copy text-[13px] text-text leading-[1.65] flex-1">
-              Manufacturing profitability for blueprints and reactions — build cost,
-              margin, and price confidence at live Jita rates.
-            </p>
-            <div className="flex items-center justify-between pt-[13px] border-t border-border-soft">
-              <div className="flex items-center gap-1">
-                <Pill tone="neutral">T1</Pill>
-                <Pill tone="blue">T2</Pill>
-                <Pill tone="purple">T3</Pill>
-                <Pill tone="teal">Reactions</Pill>
-              </div>
-              <span className="font-mono text-caption tracking-[0.06em] text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
-                open →
-              </span>
-            </div>
-          </Link>
-        </div>
-      </section>
+      <HomeDashboard />
     </PageShell>
   );
 }

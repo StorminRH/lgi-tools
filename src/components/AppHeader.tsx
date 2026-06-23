@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { AppHeaderShell } from '@/components/AppHeaderShell';
-import { getCachedPricesFreshness } from '@/data/market-prices/cache';
+import { getNavServerStatus } from '@/data/eve-status/queries';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
 // Note: the search-source side-effect registration (`register-all`) is done
@@ -17,9 +17,9 @@ import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 // Right-slot `shrink-0` on the login cluster is load-bearing — never let
 // search expansion or tool growth push it.
 export async function AppHeader() {
-  const [siteIndex, { lastUpdatedAt }] = await Promise.all([
+  const [siteIndex, serverStatus] = await Promise.all([
     getSiteSearchIndex(),
-    getCachedPricesFreshness(),
+    getNavServerStatus(),
   ]);
 
   return (
@@ -35,10 +35,7 @@ export async function AppHeader() {
           <span className="text-muted font-normal">.tools</span>
         </Link>
       </div>
-      <AppHeaderShell
-        siteIndex={siteIndex}
-        initialLastUpdatedAt={lastUpdatedAt?.toISOString() ?? null}
-      />
+      <AppHeaderShell siteIndex={siteIndex} serverStatus={serverStatus} />
     </header>
   );
 }

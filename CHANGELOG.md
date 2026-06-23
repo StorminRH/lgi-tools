@@ -4,6 +4,15 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.20 — 2026-06-23
+
+#### Added
+- The top bar now shows live Tranquility server status and the current online player count — a pulsing green dot with the pilot count when the server is up, a quiet marker when it's in post-downtime VIP mode or offline.
+
+#### Changed
+- The home page is now a two-column dashboard: a live EVE Online news feed beside an at-a-glance status panel (SDE build, catalogue counts, market-price freshness).
+- The navigation is cleaner on phones and small screens — the tool links and the sign-in control tuck into a menu, while the server status and search stay to hand.
+
 ### v3.6.19 — 2026-06-22
 
 #### Added
