@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkillQueueEntry } from './esi-projection';
-import { entryProgress, romanLevel, summarizeQueue } from './progress';
+import { currentTraining, entryProgress, romanLevel, summarizeQueue } from './progress';
 
 const NOW = Date.parse('2026-06-11T12:00:00Z');
 
@@ -96,5 +96,58 @@ describe('romanLevel', () => {
   it('renders in-game roman numerals', () => {
     expect(romanLevel(5)).toBe('V');
     expect(romanLevel(1)).toBe('I');
+  });
+});
+
+describe('currentTraining', () => {
+  it('reports an empty queue', () => {
+    expect(currentTraining([], NOW)).toEqual({ kind: 'empty' });
+  });
+
+  it('surfaces the actively-training head with its finish time', () => {
+    const result = currentTraining([active], NOW);
+    expect(result).toMatchObject({
+      kind: 'training',
+      skillId: 3339,
+      level: 5,
+      finishesAt: Date.parse('2026-06-12T00:00:00Z'),
+    });
+    if (result.kind === 'training') expect(result.pct).toBeCloseTo(50);
+  });
+
+  it('skips a finished head ESI has not advanced and reports the next trainee', () => {
+    const done = entry({
+      start_date: '2026-06-01T00:00:00Z',
+      finish_date: '2026-06-10T00:00:00Z',
+    });
+    const next = entry({
+      skill_id: 1978,
+      queue_position: 1,
+      start_date: '2026-06-11T00:00:00Z',
+      finish_date: '2026-06-13T00:00:00Z',
+      level_start_sp: 0,
+      level_end_sp: 1000,
+      training_start_sp: 0,
+    });
+    const result = currentTraining([done, next], NOW);
+    expect(result).toMatchObject({ kind: 'training', skillId: 1978 });
+  });
+
+  it('reports a paused queue without a finish time', () => {
+    const paused = entry({ level_start_sp: 0, level_end_sp: 1000, training_start_sp: 250 });
+    expect(currentTraining([paused], NOW)).toEqual({
+      kind: 'paused',
+      skillId: 3339,
+      level: 5,
+      pct: 25,
+    });
+  });
+
+  it('reports an all-finished queue as complete', () => {
+    const done = entry({
+      start_date: '2026-06-01T00:00:00Z',
+      finish_date: '2026-06-10T00:00:00Z',
+    });
+    expect(currentTraining([done], NOW)).toEqual({ kind: 'complete' });
   });
 });

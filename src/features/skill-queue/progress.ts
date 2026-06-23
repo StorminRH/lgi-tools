@@ -81,3 +81,34 @@ const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'] as const;
 export function romanLevel(level: number): string {
   return ROMAN[level] ?? String(level);
 }
+
+// What the home roster shows on its single "training now" line, distilled from
+// the same per-entry math the full queue uses. Discriminated so the card branches
+// on `kind` alone — no date math in the JSX.
+export type CurrentTraining =
+  | { kind: 'empty' }
+  | { kind: 'complete' }
+  | { kind: 'paused'; skillId: number; level: number; pct: number }
+  | { kind: 'training'; skillId: number; level: number; pct: number; finishesAt: number };
+
+// The active entry is the lowest queue_position not already trained (ESI keeps a
+// finished level queued until the pilot next logs in, so the head can be 'done'
+// while the next entry trains). An all-paused queue carries no dates; an all-done
+// or missing queue collapses to complete/empty.
+export function currentTraining(entries: SkillQueueEntry[], now: number): CurrentTraining {
+  if (entries.length === 0) return { kind: 'empty' };
+  const ordered = [...entries].sort((a, b) => a.queue_position - b.queue_position);
+  for (const entry of ordered) {
+    const { status, pct } = entryProgress(entry, now);
+    if (status === 'done') continue;
+    if (status === 'paused') {
+      return { kind: 'paused', skillId: entry.skill_id, level: entry.finished_level, pct };
+    }
+    // 'training' or 'pending' (a queue scheduled to start shortly) — the head the
+    // pilot is waiting on; both carry a finish_date.
+    const finishesAt = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : NaN;
+    return { kind: 'training', skillId: entry.skill_id, level: entry.finished_level, pct, finishesAt };
+  }
+  // Every entry has already finished (ESI hasn't advanced the queue yet).
+  return { kind: 'complete' };
+}

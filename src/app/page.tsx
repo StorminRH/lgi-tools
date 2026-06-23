@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { HomeDashboard } from '@/components/HomeDashboard';
+import { HomeRosterPanel } from '@/components/HomeRosterPanel';
 import { JsonLd } from '@/components/JsonLd';
 import { Callout } from '@/components/ui/callout';
 import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
+import { buildDemoRoster } from '@/features/skill-queue/roster-demo-data';
+import { readEnv } from '@/lib/env';
 
 export const metadata: Metadata = {
   title: {
@@ -73,6 +76,29 @@ async function AuthErrorNotice({
   );
 }
 
+// Dev/preview-only roster preview. `?demo` (or `?demo=one` for the single-card
+// layout) renders the presentational roster with seeded sample data, so the
+// styling is reviewable on a preview deploy where EVE login is unavailable. Gated
+// OFF in production — `?demo` is a no-op there — and kept inside this request-time
+// Suspense hole (like the auth-error notice) so the home shell stays static.
+async function RosterDemo({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  if (params.demo === undefined || readEnv('VERCEL_ENV') === 'production') return null;
+  const roster = buildDemoRoster(params.demo === 'one');
+  return (
+    <div className="w-full max-w-[360px] mb-8 border border-border-soft p-3">
+      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted mb-3">
+        Demo · sample data
+      </p>
+      <HomeRosterPanel demo={roster} />
+    </div>
+  );
+}
+
 export default function Home({
   searchParams,
 }: {
@@ -83,6 +109,9 @@ export default function Home({
       <JsonLd data={HOME_JSON_LD} />
       <Suspense fallback={null}>
         <AuthErrorNotice searchParams={searchParams} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <RosterDemo searchParams={searchParams} />
       </Suspense>
       <HomeDashboard />
     </PageShell>

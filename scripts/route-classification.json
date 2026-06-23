@@ -51,6 +51,7 @@
     "/sites/[id]": "partial",
     "/characters": "partial",
     "/api/account/active-character": "dynamic",
+    "/api/account/characters": "dynamic",
     "/api/account/characters/unlink": "dynamic",
     "/api/admin/characters/reassign": "dynamic",
     "/api/admin/characters/unlink": "dynamic",
