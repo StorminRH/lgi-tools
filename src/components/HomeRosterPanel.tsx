@@ -70,26 +70,44 @@ function RosterList({ items }: { items: RosterViewModel[] }) {
 }
 
 function LiveRoster() {
-  const [characters, setCharacters] = useState<PanelCharacter[] | null>(null);
+  // 'loading' until the roster fetch resolves; 'error' on a network rejection or
+  // a non-OK response (otherwise the panel would sit on the spinner forever with
+  // no recovery — and an empty-list fallback would wrongly read as "no characters
+  // linked" to a pilot who has some).
+  const [state, setState] = useState<{ characters: PanelCharacter[] } | 'loading' | 'error'>(
+    'loading',
+  );
   useEffect(() => {
     let cancelled = false;
-    void apiFetch(accountCharactersEndpoint).then((result) => {
-      if (!cancelled && result.ok) setCharacters(result.data.characters);
-    });
+    void apiFetch(accountCharactersEndpoint)
+      .then((result) => {
+        if (cancelled) return;
+        setState(result.ok ? { characters: result.data.characters } : 'error');
+      })
+      .catch(() => {
+        if (!cancelled) setState('error');
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (characters === null) {
+  if (state === 'loading') {
     return <p className="text-[11px] text-muted">Loading characters…</p>;
+  }
+  if (state === 'error') {
+    return (
+      <p className="text-[11px] text-muted">
+        Could not load your characters — reload the page to try again.
+      </p>
+    );
   }
   return (
     <LiveSessionGate
-      characters={characters}
+      characters={state.characters}
       emptyText={<>No characters linked yet — add one below to see its skill queue here.</>}
     >
-      <LiveRosterCards characters={characters} />
+      <LiveRosterCards characters={state.characters} />
     </LiveSessionGate>
   );
 }
