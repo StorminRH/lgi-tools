@@ -4,6 +4,11 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.21 — 2026-06-23
+
+#### Added
+- When you're signed in, the home page now shows your characters down the left side — each with its portrait, total and free skill points, and a live look at what it's training right now: the current skill, a progress bar, and the time remaining, with a clear marker when training is paused. An "Add character" control lets you link another character without leaving the page.
+
 ### v3.6.20 — 2026-06-23
 
 #### Added
