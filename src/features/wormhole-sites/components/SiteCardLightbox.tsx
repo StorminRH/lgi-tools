@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Modal } from '@/components/ui/modal';
 import { sitesDetailMode } from '@/lib/preferences';
@@ -39,12 +39,20 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
   const [mode] = usePreference(sitesDetailMode);
   const nameId = useId();
 
-  const reduced = useMemo(
+  // Kept live (not snapshotted at mount) so toggling the OS setting mid-session
+  // takes effect on the next open/close without a remount.
+  const [reduced, setReduced] = useState(
     () =>
       typeof window !== 'undefined' &&
       !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
-    [],
   );
+  useEffect(() => {
+    const mql = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (!mql) return;
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   const anchorRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);

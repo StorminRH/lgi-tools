@@ -47,10 +47,16 @@ export function NpcNameColScope({ children }: { children: ReactNode }) {
       const nameCol = Math.max(MIN_NAME, Math.min(maxName + NAME_BUFFER, available));
       root.style.setProperty('--npc-name-col', `${Math.round(nameCol)}px`);
     };
-    measure();
+    // Defer the first measure to the next frame: when this lives inside the
+    // lightbox, this child effect runs BEFORE the Modal's effect calls
+    // showModal(), so the dialog is still display:none and every width is 0. A
+    // rAF runs after that parent effect (and before paint), so the dialog is
+    // shown and the first paint is already aligned — no visible snap.
+    const raf = requestAnimationFrame(measure);
     // Re-measure once webfonts swap in — names are wider in the real font than the
     // fallback, and a column locked to the fallback width would clip them.
     document.fonts?.ready.then(measure).catch(() => {});
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
