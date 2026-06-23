@@ -39,7 +39,10 @@ export async function getCachedSdeVersion(): Promise<{
       .from(eveDataMeta)
       .where(eq(eveDataMeta.key, SDE_META_KEY_VERSION))
       .limit(1);
-    return { version: row?.value ?? null, ingestedAt: row?.updatedAt ?? null };
+    // value/updatedAt are NOT NULL, so a present row needs no per-field
+    // coalescing — the only absent case is no row at all.
+    if (!row) return { version: null, ingestedAt: null };
+    return { version: row.value, ingestedAt: row.updatedAt };
   });
 }
 

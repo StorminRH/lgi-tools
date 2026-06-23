@@ -69,4 +69,15 @@ describe('parseEveRss', () => {
     expect(() => parseEveRss('<rss><channel></channel></rss>')).toThrow();
     expect(() => parseEveRss('garbage')).toThrow();
   });
+
+  it('skips items whose link is not an http(s) URL', () => {
+    const xml = `<rss><channel>
+      <item><title>Bad</title><link>javascript:alert(1)</link></item>
+      <item><title>Good</title><link>https://www.eveonline.com/news/view/ok</link></item>
+    </channel></rss>`;
+    const items = parseEveRss(xml);
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe('Good');
+    expect(items[0].url).toBe('https://www.eveonline.com/news/view/ok');
+  });
 });

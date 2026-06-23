@@ -65,10 +65,15 @@ export function parseEveRss(xml: string): EveNewsItem[] {
     const title = firstTag(block, 'title');
     const link = firstTag(block, 'link');
     if (!title || !link) continue;
+    const url = cleanText(link);
+    // Only surface http(s) links. These become anchor hrefs, and React does not
+    // block a `javascript:`/`data:` href in production, so a malformed or
+    // compromised feed entry must not be able to yield a script link.
+    if (!/^https?:\/\//i.test(url)) continue;
     const category = firstTag(block, 'category');
     items.push({
       title: cleanText(title),
-      url: cleanText(link),
+      url,
       publishedAt: toIso(firstTag(block, 'pubDate')),
       category: category ? cleanText(category) : null,
     });
