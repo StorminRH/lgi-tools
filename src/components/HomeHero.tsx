@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { HomeLoginCta } from '@/components/HomeLoginCta';
 
 // The anonymous landing pitch: the bracket-stamp wordmark, one factual line of
@@ -30,14 +29,8 @@ export function HomeHero() {
         wormhole site database with live Jita loot prices, and a manufacturing
         profitability planner.
       </p>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-1">
+      <div className="pt-1">
         <HomeLoginCta />
-        <Link
-          href="/sites"
-          className="font-mono text-[13px] tracking-[0.02em] text-muted hover:text-isk"
-        >
-          Browse sites →
-        </Link>
       </div>
     </div>
   );
