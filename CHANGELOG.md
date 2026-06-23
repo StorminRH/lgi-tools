@@ -4,6 +4,14 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.19 — 2026-06-22
+
+#### Added
+- Wormhole site cards can now open in a lightbox — clicking a card enlarges it and centres it over the dimmed catalogue for an easier read, with a toggle to switch back to the old in-place expansion. Your choice is remembered between visits, and on a phone the lightbox fills the screen.
+
+#### Changed
+- In a site's wave breakdown, the enemy electronic-warfare tags (web, scram, neut, RR) now line up in a single column across every wave instead of starting wherever each name ends, the per-NPC damage figures are bolder, and the whole breakdown reads a little larger.
+
 ### v3.6.18 — 2026-06-22
 
 #### Added

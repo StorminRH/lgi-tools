@@ -70,9 +70,22 @@ export const plannerBuildLocation = define<{
   null,
 );
 
+// /sites cards: the in-place downward expand vs the centred lightbox overlay.
+// NOT ssrReadable — it only changes post-click expand behaviour, never the
+// initial render, so there's no first-paint to keep in sync (no hydration flash).
+export const sitesDetailMode = define<'lightbox' | 'expand'>(
+  'sites.detailMode',
+  z.enum(['lightbox', 'expand']),
+  'lightbox',
+);
+
 // The registry, in declaration order. The provider iterates it to seed and
 // reconcile the tiers; a setting added above is included here automatically.
-export const PREFERENCES: readonly PreferenceDef<unknown>[] = [sitesView, plannerBuildLocation];
+export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
+  sitesView,
+  plannerBuildLocation,
+  sitesDetailMode,
+];
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
 
 // The known keys, for the API contract's enum and the server trust boundary.

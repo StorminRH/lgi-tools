@@ -22,7 +22,15 @@ import { SiteDetailsBody } from './SiteDetailsBody';
  * The wrapper is `display:contents` so the body lays out exactly as it did when
  * it was a direct child of `<details>` (card) or `.sites-table-expanded` (table).
  */
-export function LazySiteDetails({ site }: { site: SiteDetail }) {
+export function LazySiteDetails({
+  site,
+  zoom = false,
+}: {
+  site: SiteDetail;
+  /** Scale the detail up slightly for readability (the card expand uses this;
+   *  the denser table view doesn't). */
+  zoom?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
 
@@ -43,7 +51,7 @@ export function LazySiteDetails({ site }: { site: SiteDetail }) {
   }, [open]);
 
   return (
-    <div ref={ref} className="contents">
+    <div ref={ref} className={zoom ? 'sites-detail-zoom' : 'contents'}>
       {open ? <SiteDetailsBody site={site} /> : null}
     </div>
   );

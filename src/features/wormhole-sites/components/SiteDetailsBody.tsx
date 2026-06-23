@@ -3,6 +3,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
 import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
+import { NpcNameColScope } from './NpcNameColScope';
 import { SiteResourcesLive } from './SiteResourcesLive';
 import { WaveCard } from './WaveCard';
 
@@ -20,7 +21,7 @@ export function SiteDetailsBody({ site }: { site: SiteDetail }) {
   const isWaveDriven = isCombat || isHackSite;
 
   return (
-    <>
+    <NpcNameColScope>
       {isWaveDriven &&
         site.waves.map((wave) => (
           <WaveCard key={wave.id} wave={wave} defaultOpen={true} />
@@ -55,7 +56,7 @@ export function SiteDetailsBody({ site }: { site: SiteDetail }) {
           )}
         </>
       )}
-    </>
+    </NpcNameColScope>
   );
 }
 

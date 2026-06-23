@@ -1412,6 +1412,78 @@ details[data-collapsible][open] > summary [data-chevron] {
   }
 }
 
+/* ── Site card lightbox (SiteCardLightbox) ───────────────────────────────
+ * Centre-scale enter/exit for the wormhole-site detail overlay. The scale is a
+ * [data-open] stylesheet rule on the inner panel (CSP-safe — never an inline
+ * style); el.close() is deferred by LIGHTBOX_MS (200ms) so the exit plays before
+ * the dialog leaves the top layer. The dialog width override beats Modal's 560px
+ * default because un-layered rules outrank Tailwind's @layer utilities. */
+/* Card expand-in-place: nudge the detail up ~10% for readability. `width: 100%`
+ * already resolves in the zoomed coordinate, so it fills the card exactly (no
+ * empty gutter, no overflow); `zoom` reflows crisply, unlike transform. The
+ * lightbox uses its own larger scale, and the denser table view opts out. */
+.sites-detail-zoom {
+  zoom: 1.1;
+  width: 100%;
+}
+
+/* The dialog shrink-wraps the zoomed content (max-content), clamped to the
+ * viewport — so the box grows with the scaled-up card rather than being fixed. */
+.sites-lightbox-dialog {
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+}
+.sites-lightbox-panel {
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  transform: scale(0.92);
+  opacity: 0;
+  transition:
+    transform 200ms cubic-bezier(0.2, 0.85, 0.25, 1),
+    opacity 200ms cubic-bezier(0.2, 0.85, 0.25, 1);
+  will-change: transform, opacity;
+}
+.sites-lightbox-panel[data-open='true'] {
+  transform: scale(1);
+  opacity: 1;
+}
+/* Magnify the card content so the lightbox reads as an enlarged card, not a big
+ * box of card-sized text. `zoom` (not `transform: scale`) so it reflows and stays
+ * crisp; the card content fills a card-width base and the dialog sizes to the
+ * zoomed result. */
+.sites-lightbox-zoom {
+  zoom: 1.4;
+  width: 480px;
+}
+/* Phone: a full-bleed sheet at native scale — the narrow sheet is already as
+ * readable as it gets, and scaling a full-screen sheet reads oddly, so fade only
+ * (opacity still transitions; transform is pinned) and drop the zoom. */
+@media (max-width: 640px) {
+  .sites-lightbox-dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+  .sites-lightbox-panel,
+  .sites-lightbox-panel[data-open='true'] {
+    max-height: 100dvh;
+    transform: none;
+  }
+  .sites-lightbox-zoom {
+    zoom: 1;
+    width: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sites-lightbox-panel {
+    transition: none;
+  }
+}
+
 /* ── Build flow graph (industry-planner BuildFlow) ───────────────────────
  * The hybrid tier-columns ↔ flow view. Drilling cross-fades the outgoing level
  * (scaling past) while the new one grows in — class-driven keyframes on the SVG
