@@ -1,4 +1,4 @@
-import { desc } from 'drizzle-orm';
+import { count, desc } from 'drizzle-orm';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
@@ -59,6 +59,21 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
   // suspended Neon can't kill the build. The cron's postgres-js path calls the
   // raw getPricesFreshness and is deliberately not wrapped.
   return withColdStartRetry(() => getPricesFreshness(db));
+}
+
+// Cached count of priced market items, for the home dashboard's status card.
+// The tracked-type set changes only when the SDE is re-ingested (rare); the
+// `'max'` cacheLife scopes it to the build ID. (We can't tag it with the
+// SDE-structure tag — that constant lives in the eve-data slice, and two data
+// slices never import each other — so a re-ingest is reflected on the next
+// deploy rather than immediately. Acceptable for a catalogue count.)
+export async function getCachedTrackedTypeCount(): Promise<number> {
+  'use cache';
+  cacheLife('max');
+  return withColdStartRetry(async () => {
+    const [row] = await db.select({ n: count() }).from(marketPrices);
+    return Number(row?.n ?? 0);
+  });
 }
 
 // Nightly backstop sweep (vercel.json "30 11 * * *"). Refreshes only the

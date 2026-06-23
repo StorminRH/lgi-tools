@@ -1,5 +1,6 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import {
   blueprintTrees,
@@ -12,7 +13,12 @@ import {
   industryBlueprints,
   typeDogma,
 } from '@/db/schema';
-import { ACTIVITY_NAME_TO_ID, INDUSTRY_ACTIVITY_NAMES } from './constants';
+import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
+import {
+  ACTIVITY_NAME_TO_ID,
+  BLUEPRINT_STRUCTURE_TAG,
+  INDUSTRY_ACTIVITY_NAMES,
+} from './constants';
 import {
   activitiesToRows,
   pickBuildTimeSeconds,
@@ -47,6 +53,19 @@ const TYPE_COLUMNS = {
 export async function getTypesByIds(ids: number[]): Promise<EveType[]> {
   if (ids.length === 0) return [];
   return db.select(TYPE_COLUMNS).from(eveTypes).where(inArray(eveTypes.id, ids));
+}
+
+// Cached count of buildable blueprints + reactions, for the home dashboard's
+// status card. Deploy-static SDE data; the SDE refresh cron busts
+// BLUEPRINT_STRUCTURE_TAG so a re-ingest is reflected without a deploy.
+export async function getCachedBlueprintCount(): Promise<number> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  return withColdStartRetry(async () => {
+    const [row] = await db.select({ n: count() }).from(industryBlueprints);
+    return Number(row?.n ?? 0);
+  });
 }
 
 // Names only — the bulk type-name resolution behind POST /api/types/names.

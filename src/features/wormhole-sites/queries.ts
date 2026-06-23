@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { npcs, siteResources, sites, waves } from '@/db/schema';
@@ -336,6 +336,18 @@ export type SiteSearchEntry = {
   blueLootIsk: number | null;
   resourceValueIsk: number | null;
 };
+
+// Cached count of catalogued wormhole sites, for the home dashboard's status
+// card. Same deploy-static catalogue as getSiteSearchIndex — the build ID
+// invalidates it.
+export async function getCachedSiteCount(): Promise<number> {
+  'use cache';
+  cacheLife('max');
+  return withColdStartRetry(async () => {
+    const [row] = await db.select({ n: count() }).from(sites);
+    return Number(row?.n ?? 0);
+  });
+}
 
 export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   // The wormhole catalogue is deploy-static (seeded once by migration, untouched
