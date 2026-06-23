@@ -1,3 +1,4 @@
+import { cn } from '@/components/ui/cn';
 import { SectionLabel } from '@/components/ui/section-label';
 import { getCachedBlueprintCount } from '@/data/eve-data/queries';
 import { getCachedSdeVersion } from '@/data/eve-data/meta';
@@ -49,20 +50,26 @@ export async function HomeLiveStats() {
           {stats.map((stat, i) => (
             <div
               key={stat.label}
-              className={`flex flex-col gap-1.5 px-5 py-5 border-border-soft ${
-                i % 2 === 0 ? 'border-r' : ''
-              } ${i < 2 ? 'border-b' : ''}`}
+              className={cn(
+                'flex flex-col gap-1.5 px-5 py-5 border-border-soft',
+                i % 2 === 0 && 'border-r',
+                i < 2 && 'border-b',
+              )}
             >
+              {/* DOM order is <dt> then <dd> — valid <dl> semantics and natural
+                  reading order ("label, value"); `order` flips the visual so the
+                  value still sits on top. */}
+              <dt className="order-2 font-mono text-micro uppercase tracking-[0.1em] text-muted">
+                {stat.label}
+              </dt>
               <dd
-                className={`font-jb font-semibold text-name tabular-nums ${
-                  stat.compact ? 'text-[17px] leading-[26px]' : 'text-[26px] leading-none'
-                }`}
+                className={cn(
+                  'order-1 font-jb font-semibold text-name tabular-nums',
+                  stat.compact ? 'text-[17px] leading-[26px]' : 'text-[26px] leading-none',
+                )}
               >
                 {stat.value}
               </dd>
-              <dt className="font-mono text-micro uppercase tracking-[0.1em] text-muted">
-                {stat.label}
-              </dt>
             </div>
           ))}
         </dl>
