@@ -23,9 +23,10 @@ export function NpcNameColScope({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
+    let cancelled = false;
     const measure = () => {
+      const root = ref.current;
+      if (!root || cancelled) return; // bail if unmounted (e.g. fonts.ready resolves late)
       // Force full-width names just for the measurement so offsetWidth is the
       // real name width, not whatever a constrained column clamped it to.
       root.style.setProperty('--npc-name-col', 'max-content');
@@ -56,7 +57,10 @@ export function NpcNameColScope({ children }: { children: ReactNode }) {
     // Re-measure once webfonts swap in — names are wider in the real font than the
     // fallback, and a column locked to the fallback width would clip them.
     document.fonts?.ready.then(measure).catch(() => {});
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (

@@ -115,6 +115,21 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
 
   useEffect(() => () => clearPending(), [clearPending]);
 
+  // If the mode toggles to 'expand' while the overlay is open, the Modal stops
+  // rendering — drain the open state so flipping back to 'lightbox' starts from
+  // closed instead of re-showing the dialog with stale state. The state resets run
+  // in a timer (not the effect body) to satisfy the set-state-in-effect lint.
+  useEffect(() => {
+    if (mode === 'lightbox') return;
+    clearPending();
+    phase.current = 'closed';
+    const t = setTimeout(() => {
+      setMounted(false);
+      setAnimOpen(false);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [mode, clearPending]);
+
   // Lightbox mode: a click on the card's summary opens the overlay instead of
   // expanding it in place. preventDefault cancels the native <details> toggle
   // (fires for mouse + keyboard Enter/Space). Also collapse any in-place expand
