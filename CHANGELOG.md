@@ -4,6 +4,11 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.23 — 2026-06-23
+
+#### Changed
+- The legal page is shorter and easier to read. The privacy section is now broken into clear, plainly-worded parts — what the site records, what it never collects, how that data is used, and how to stay anonymous — and links out to where the data is stored.
+
 ### v3.6.22 — 2026-06-23
 
 #### Changed
