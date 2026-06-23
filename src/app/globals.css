@@ -367,6 +367,9 @@ a:hover {
   width: var(--pct, 0%);
   transition: width 0.3s ease;
 }
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill { transition: none; }
+}
 
 /* ── Sparkline tooltip (CSP-safe dynamic position) ──────────────────────
  * <Sparkline> (src/components/ui/sparkline.tsx) sets `--tt-x` / `--tt-y` via

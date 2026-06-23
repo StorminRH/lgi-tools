@@ -142,3 +142,26 @@ export const tokenEndpoint: ApiEndpoint<null, z.infer<typeof tokenResponseSchema
   request: null, // GET — no body
   response: tokenResponseSchema,
 };
+
+// ── GET /api/account/characters (authz: auth) ───────────────────────────
+// The signed-in user's linked EVE characters, the client-safe projection the
+// home roster (P3b) joins with the live skill sync. No token material, no raw
+// scope string. Anonymous callers get an empty list. `needsReconnect` is the
+// skill-sync eligibility (the same rule the /skills page applies server-side),
+// so the roster's reconnect affordance matches the data it shows.
+const accountCharacterSchema = z.object({
+  characterId: z.number().int().positive(),
+  name: z.string(),
+  portraitUrl: z.string(),
+  needsReconnect: z.boolean(),
+});
+const accountCharactersResponseSchema = z.object({
+  characters: z.array(accountCharacterSchema),
+});
+export type AccountCharactersResponse = z.infer<typeof accountCharactersResponseSchema>;
+export const accountCharactersEndpoint: ApiEndpoint<null, AccountCharactersResponse> = {
+  method: 'GET',
+  path: '/api/account/characters',
+  request: null, // GET — no body
+  response: accountCharactersResponseSchema,
+};

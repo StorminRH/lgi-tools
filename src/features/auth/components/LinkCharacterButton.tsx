@@ -10,9 +10,13 @@ import { authClient } from '../auth-client';
 export function LinkCharacterButton({
   label = 'Link another character',
   emphasis = 'primary',
+  callbackURL = '/characters',
 }: {
   label?: string;
   emphasis?: 'primary' | 'reconnect';
+  // Where the OAuth round-trip returns to (success + error). Defaults to the
+  // Characters page; the home roster points it back at `/`.
+  callbackURL?: string;
 }) {
   return (
     <button
@@ -20,8 +24,8 @@ export function LinkCharacterButton({
       onClick={() => {
         void authClient.oauth2.link({
           providerId: 'eve',
-          callbackURL: '/characters',
-          errorCallbackURL: '/characters',
+          callbackURL,
+          errorCallbackURL: callbackURL,
         });
       }}
       className={
