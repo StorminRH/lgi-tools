@@ -4,7 +4,6 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
 import type postgres from 'postgres';
 import { db } from '@/db';
-import { devDbFallback } from '@/lib/dev-db-fallback';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { refreshPrices, type RefreshSummary } from './ingest';
 import { listStaleTypeIds } from './queries';
@@ -56,8 +55,6 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
   'use cache';
   cacheLife('hours');
   cacheTag(PRICES_FRESHNESS_TAG);
-  const fallback = devDbFallback({ lastUpdatedAt: new Date('2026-06-23T05:30:00Z') });
-  if (fallback !== undefined) return fallback;
   // Prerender-reachable (AppHeader) — retry the cold-start error class so a
   // suspended Neon can't kill the build. The cron's postgres-js path calls the
   // raw getPricesFreshness and is deliberately not wrapped.
@@ -73,8 +70,6 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
 export async function getCachedTrackedTypeCount(): Promise<number> {
   'use cache';
   cacheLife('max');
-  const fallback = devDbFallback(14_820);
-  if (fallback !== undefined) return fallback;
   return withColdStartRetry(async () => {
     const [row] = await db.select({ n: count() }).from(marketPrices);
     return Number(row?.n ?? 0);

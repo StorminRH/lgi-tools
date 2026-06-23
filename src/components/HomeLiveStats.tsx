@@ -21,11 +21,13 @@ export async function HomeLiveStats() {
     getCachedPricesFreshness(),
   ]);
 
-  const stats: { label: string; value: string }[] = [
+  // `compact` marks a value that is text (a date) rather than a short tally, so
+  // it renders a step smaller — a 26px date overflows the half-width stat cell.
+  const stats: { label: string; value: string; compact?: boolean }[] = [
     { label: 'Wormhole sites', value: formatQuantity(sites) },
     { label: 'Blueprints & reactions', value: formatQuantity(blueprints) },
     { label: 'Market items priced', value: formatQuantity(trackedTypes) },
-    { label: 'Jita prices updated', value: formatUtcDate(prices.lastUpdatedAt) },
+    { label: 'Jita prices updated', value: formatUtcDate(prices.lastUpdatedAt), compact: true },
   ];
 
   return (
@@ -35,7 +37,7 @@ export async function HomeLiveStats() {
         meta={
           <span className="inline-flex items-center gap-2 font-mono text-caption uppercase tracking-[0.12em] text-muted">
             <span className="size-[6px] rounded-full bg-isk shadow-[0_0_8px_var(--color-card-glow-shadow)]" />
-            Updated hourly
+            Updated on demand
           </span>
         }
       >
@@ -51,7 +53,11 @@ export async function HomeLiveStats() {
                 i % 2 === 0 ? 'border-r' : ''
               } ${i < 2 ? 'border-b' : ''}`}
             >
-              <dd className="font-jb text-[26px] leading-none font-semibold text-name tabular-nums">
+              <dd
+                className={`font-jb font-semibold text-name tabular-nums ${
+                  stat.compact ? 'text-[17px] leading-[26px]' : 'text-[26px] leading-none'
+                }`}
+              >
                 {stat.value}
               </dd>
               <dt className="font-mono text-micro uppercase tracking-[0.1em] text-muted">
@@ -62,13 +68,13 @@ export async function HomeLiveStats() {
         </dl>
 
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-border-soft bg-bg-deep/40">
-          <span className="font-mono text-caption uppercase tracking-[0.12em] text-faint">
+          <span className="font-mono text-caption uppercase tracking-[0.12em] text-muted">
             EVE SDE
           </span>
           <span className="text-right font-mono text-caption text-muted">
             <span className="text-name">{sde.version ?? '—'}</span>
             {sde.ingestedAt ? (
-              <span className="text-faint"> · ingested {formatUtcDate(sde.ingestedAt)}</span>
+              <span className="text-muted"> · ingested {formatUtcDate(sde.ingestedAt)}</span>
             ) : null}
           </span>
         </div>
