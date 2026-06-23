@@ -13,6 +13,7 @@ import {
   industryBlueprints,
   typeDogma,
 } from '@/db/schema';
+import { devDbFallback } from '@/lib/dev-db-fallback';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
   ACTIVITY_NAME_TO_ID,
@@ -62,6 +63,8 @@ export async function getCachedBlueprintCount(): Promise<number> {
   'use cache';
   cacheLife('max');
   cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  const fallback = devDbFallback(7_640);
+  if (fallback !== undefined) return fallback;
   return withColdStartRetry(async () => {
     const [row] = await db.select({ n: count() }).from(industryBlueprints);
     return Number(row?.n ?? 0);

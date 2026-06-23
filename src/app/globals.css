@@ -1,21 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── A1 blue-gray surface palette ── */
-  --color-bg-deep:     #070809;
-  --color-bg:          #0d0f14;
-  --color-section:     #0b0d12;
-  --color-ewar:        #0b0d11;
-  --color-tooltip:     #19232f; /* raised slate for help-tooltip panels */
-  --color-border:      #232c40;
-  --color-border-soft: #171e2b;
+  /* ── Refined dark sci-fi surface palette (2026 redesign) ──
+   * Deeper, cleaner, near-neutral surfaces with just a hair of cool tint —
+   * the restrained "professional tool" mood (better-auth-like), away from the
+   * old saturated blue-gray. Cards (section) lift slightly ABOVE the deep
+   * backdrop so borders + elevation do the separating. Token NAMES are
+   * unchanged, so every route re-skins from these values alone. */
+  --color-bg-deep:     #060708;
+  --color-bg:          #0b0d10;
+  --color-section:     #0f1216;
+  --color-ewar:        #0c0e12;
+  --color-tooltip:     #161b22; /* raised slate for help-tooltip panels */
+  --color-border:      #1d232c;
+  --color-border-soft: #141821;
   --color-row-hover:   rgba(255,255,255,0.018);
 
-  /* ── Text palette ── */
-  --color-text:  #a9bcce;
-  --color-name:  #e9f1f8;
-  --color-muted: #7e90a2;
-  --color-faint: #5d6a78; /* faintest text tier, below muted (reserved; consumed in later page redesigns) */
+  /* ── Text palette ── higher-contrast, slightly de-saturated cool grays ── */
+  --color-text:  #aab4be;
+  --color-name:  #f1f5f9;
+  --color-muted: #7b8693;
+  --color-faint: #565f6a; /* faintest text tier, below muted */
   --color-isk:   #3dd68c;
   --color-isk-sub: #4a7860;
   --color-isk-dim: #1a3a28;
@@ -46,11 +51,11 @@
    */
 
   /* Shared chrome — borders and surfaces reused across many components. */
-  --color-border-idle:     #243444; /* idle/at-rest border (login, admin, pills, dropdown) */
-  --color-border-active:   #32405c; /* hover/focus/active border */
-  --color-surface-raised:  #161e28; /* raised neutral surface (pill neutral, search hover) */
-  --color-surface-sunk:    #0a101a; /* sunk dark surface (pill blue bg, active tab bg) */
-  --color-row-active:      #0d1218; /* table row hover/open background */
+  --color-border-idle:     #1f262f; /* idle/at-rest border (login, admin, pills, dropdown) */
+  --color-border-active:   #2c3642; /* hover/focus/active border */
+  --color-surface-raised:  #141922; /* raised neutral surface (pill neutral, search hover) */
+  --color-surface-sunk:    #080b10; /* sunk dark surface (pill blue bg, active tab bg) */
+  --color-row-active:      #0d1117; /* table row hover/open background */
 
   /* Pill tone surfaces — per-tone dim bg + border (text colors use --color-tone-*).
    * neutral bg→surface-raised, neutral border→border-idle, green/green-strong
@@ -132,7 +137,7 @@
   /* Flow-graph node hover fill (industry-planner BuildFlow). */
   --color-flow-node-hover:  #11151c;
   /* Resource-card hover border (/sites density cards). */
-  --color-card-resource-border: #2a3d50;
+  --color-card-resource-border: #283440;
 
   /* ── EVE industry blue (3.6.2) ──
    * Reserved EXCLUSIVELY for queue/progress chrome (job bars, slot counts);
@@ -254,10 +259,11 @@ a:hover {
   z-index: -1;
   pointer-events: none;
   background-image:
-    linear-gradient(180deg, rgba(7, 8, 9, 0) 0%, rgba(7, 8, 9, 0.72) 74%, var(--color-bg-deep) 100%),
-    radial-gradient(ellipse 80% 36% at 50% 0%, rgba(45, 55, 70, 0.32), transparent 72%),
-    radial-gradient(rgba(154, 176, 196, 0.085) 1px, transparent 1px);
-  background-size: auto, auto, 26px 26px;
+    linear-gradient(180deg, rgba(6, 7, 8, 0) 0%, rgba(6, 7, 8, 0.78) 72%, var(--color-bg-deep) 100%),
+    radial-gradient(ellipse 78% 42% at 50% -4%, rgba(61, 214, 140, 0.05), transparent 70%),
+    radial-gradient(ellipse 70% 34% at 50% 0%, rgba(38, 48, 62, 0.28), transparent 72%),
+    radial-gradient(rgba(150, 170, 190, 0.05) 1px, transparent 1px);
+  background-size: auto, auto, auto, 30px 30px;
 }
 
 /* Landing wordmark glow (handoff §3) — a soft ISK-green bloom behind the
@@ -306,7 +312,7 @@ a:hover {
   padding: 24px 22px 20px;
   background: var(--color-section);
   border: 1px solid var(--color-border);
-  border-radius: 5px;
+  border-radius: 6px;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   color: inherit;
 }
@@ -334,7 +340,7 @@ a:hover {
 .tool-tile-soon .tile-desc { opacity: 0.6; }
 /* end tool-tile block */
 
-/* ── Hover bob (reusable) ────────────────────────────────────────────────
+/* ── Hover bob (reusable) ──────��─────────────────────────────────────────
  * A slow, slight float applied while an element is hovered, paused on press
  * (so it stills the moment you click). A standalone utility so any surface can
  * opt in — the home tool tiles are the first consumer. Uses the `translate`
@@ -504,7 +510,7 @@ a:hover {
 .sites-card {
   background: var(--color-section);
   border: 1px solid var(--color-border);
-  border-radius: 5px;
+  border-radius: 6px;
   font-family: var(--font-body);
   transition: border-color 0.15s, box-shadow 0.15s;
 }

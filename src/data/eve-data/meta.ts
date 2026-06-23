@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
+import { devDbFallback } from '@/lib/dev-db-fallback';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { BLUEPRINT_STRUCTURE_TAG, SDE_META_KEY_VERSION } from './constants';
 import { eveDataMeta } from './schema';
@@ -33,6 +34,11 @@ export async function getCachedSdeVersion(): Promise<{
   'use cache';
   cacheLife('max');
   cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  const fallback = devDbFallback({
+    version: 'sde-2026.06.01',
+    ingestedAt: new Date('2026-06-18T09:12:00Z'),
+  });
+  if (fallback !== undefined) return fallback;
   return withColdStartRetry(async () => {
     const [row] = await db
       .select({ value: eveDataMeta.value, updatedAt: eveDataMeta.updatedAt })

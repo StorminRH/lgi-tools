@@ -6,6 +6,7 @@ import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';
 import type { CombatStats } from '@/data/npc-stats/types';
+import { devDbFallback } from '@/lib/dev-db-fallback';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { classRangeIncludes, gasClassRange } from './gas-classes';
 import { overlayLivePrices } from './live-prices';
@@ -337,12 +338,26 @@ export type SiteSearchEntry = {
   resourceValueIsk: number | null;
 };
 
+// Sample search entries used ONLY by the DB-less dev fallback (devDbFallback),
+// so the header search + home render in a local preview without a database.
+// Never reached in production or whenever DATABASE_URL is set.
+const DEV_SITE_SEARCH_INDEX: SiteSearchEntry[] = [
+  { id: 1, name: 'Core Garrison', siteType: 'combat', wormholeClass: 'C3', blueLootIsk: 38_000_000, resourceValueIsk: null },
+  { id: 2, name: 'Forgotten Frontier Recursive Depot', siteType: 'relic', wormholeClass: 'C4', blueLootIsk: null, resourceValueIsk: 62_000_000 },
+  { id: 3, name: 'Instrumental Core Reservoir', siteType: 'gas', wormholeClass: null, blueLootIsk: null, resourceValueIsk: 145_000_000 },
+  { id: 4, name: 'Ordinary Perimeter Reservoir', siteType: 'gas', wormholeClass: null, blueLootIsk: null, resourceValueIsk: 48_000_000 },
+  { id: 5, name: 'Vast Frontier Reservoir', siteType: 'ore', wormholeClass: 'C5', blueLootIsk: null, resourceValueIsk: 210_000_000 },
+  { id: 6, name: 'Outpost Frontier Stronghold', siteType: 'combat', wormholeClass: 'C5', blueLootIsk: 96_000_000, resourceValueIsk: null },
+];
+
 // Cached count of catalogued wormhole sites, for the home dashboard's status
 // card. Same deploy-static catalogue as getSiteSearchIndex — the build ID
 // invalidates it.
 export async function getCachedSiteCount(): Promise<number> {
   'use cache';
   cacheLife('max');
+  const fallback = devDbFallback(69);
+  if (fallback !== undefined) return fallback;
   return withColdStartRetry(async () => {
     const [row] = await db.select({ n: count() }).from(sites);
     return Number(row?.n ?? 0);
@@ -355,6 +370,8 @@ export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   // invalidate it on deploy. Consumed by AppHeader and the sitemap.
   'use cache';
   cacheLife('max');
+  const fallback = devDbFallback<SiteSearchEntry[]>(DEV_SITE_SEARCH_INDEX);
+  if (fallback !== undefined) return fallback;
   return withColdStartRetry(() =>
     db
       .select({

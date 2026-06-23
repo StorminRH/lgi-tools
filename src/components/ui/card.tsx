@@ -5,7 +5,7 @@ export function Card({ children, className }: { children: ReactNode; className?:
   return (
     <div
       className={cn(
-        'border-[1.5px] border-border bg-bg text-text font-mono',
+        'border border-border bg-section text-text font-mono rounded-[6px]',
         className,
       )}
     >
