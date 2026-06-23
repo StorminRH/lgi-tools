@@ -44,10 +44,10 @@ export function AppHeaderShell({
         siteIndex={siteIndex}
       />
       <NavTools />
-      <div className="server-status-slot flex items-stretch shrink-0 border-l border-border">
+      <div className="server-status-slot flex items-stretch shrink-0 border-l border-border-soft">
         <ServerStatus status={serverStatus} />
       </div>
-      <div className="login-cluster flex items-center shrink-0 px-3 border-l border-border">
+      <div className="login-cluster flex items-center shrink-0 px-3 border-l border-border-soft">
         <LoginButton />
       </div>
       <NavMenu />
