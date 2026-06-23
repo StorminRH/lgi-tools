@@ -4,6 +4,12 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.22 — 2026-06-23
+
+#### Changed
+- The site has a refreshed look — deeper, cleaner dark surfaces, higher-contrast text, and slightly rounder cards throughout.
+- The home page now leads with a bolder welcome and a compact live-data panel — wormhole-site, blueprint, and market-item counts plus when Jita prices last refreshed — in place of the status card that used to sit at the foot of the page.
+
 ### v3.6.21 — 2026-06-23
 
 #### Added
