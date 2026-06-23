@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { HomeLoginCta } from '@/components/HomeLoginCta';
 
 // The anonymous landing pitch: the bracket-stamp wordmark, one factual line of
@@ -31,12 +32,12 @@ export function HomeHero() {
       </p>
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-1">
         <HomeLoginCta />
-        <a
+        <Link
           href="/sites"
           className="font-mono text-[13px] tracking-[0.02em] text-muted hover:text-isk"
         >
           Browse sites →
-        </a>
+        </Link>
       </div>
     </div>
   );
