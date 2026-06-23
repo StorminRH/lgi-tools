@@ -14,6 +14,7 @@
 import { useState } from 'react';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { LoginButton } from '@/features/auth/components/LoginButton';
+import { NavMenu } from '@/components/NavMenu';
 import { NavTools } from '@/components/NavTools';
 import { ServerStatus } from '@/components/ServerStatus';
 import type { ServerStatus as ServerStatusValue } from '@/data/eve-status/types';
@@ -49,6 +50,7 @@ export function AppHeaderShell({
       <div className="login-cluster flex items-center shrink-0 px-3 border-l border-border">
         <LoginButton />
       </div>
+      <NavMenu />
     </>
   );
 }

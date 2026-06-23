@@ -1078,44 +1078,88 @@ a:hover {
   box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.55);
 }
 
-/* Below 1024px the Tranquility status chip is the first thing to push the
- * login cluster off-screen. Hide the whole slot (wrapper carries the
- * border-l, so dropping the slot leaves a clean seam). The `ml-auto`
- * that pushed the right side of the header outward lived on the
- * server-status-slot wrapper — once it's hidden, the login cluster
- * floats mid-row, so re-hang the auto margin on the login cluster
- * itself. Also let the search bar shrink instead of holding its 420px
- * fixed width — the 420 + wordmark + nav-tools + login-cluster sum
- * starts overflowing around ~850px otherwise. (Discovered in 2.9.6
- * verification; the input's min-width:0 lets the squeeze cascade in.) */
-@media (max-width: 1024px) {
-  .server-status-slot { display: none; }
-  .app-header .login-cluster { margin-left: auto; }
-  .nav-search { width: 280px; flex-shrink: 1; min-width: 0; }
-  .nav-search.active { width: 420px; }
+/* Hamburger menu (NavMenu) — the mobile counterpart to the inline tool strip +
+ * login cluster. Hidden by default; the <1024px block below reveals it on the
+ * bar. A pure <details> disclosure (no React state): the panel drops below the
+ * whole wrapped header, anchored to .app-header's relative positioning. The
+ * inline strip + login are hidden on mobile with a DIRECT-child combinator
+ * (`.app-header > …`) so the panel's reused copies, nested one level deeper,
+ * stay visible. */
+.nav-menu { display: none; align-items: stretch; }
+.nav-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-left: 1px solid var(--color-border);
+  color: var(--color-muted);
+  cursor: pointer;
+  list-style: none;
+  transition: color 0.15s, background 0.15s;
 }
-@media (max-width: 800px) {
-  .nav-search { width: 200px; }
-  .nav-search.active { width: 320px; }
+.nav-menu-toggle::-webkit-details-marker { display: none; }
+.nav-menu-toggle:hover,
+.nav-menu[open] .nav-menu-toggle {
+  color: var(--color-name);
+  background: var(--color-row-hover);
+}
+.nav-menu-icon { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; }
+.nav-menu-panel {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  min-width: 224px;
+  background: var(--color-section);
+  border: 1px solid var(--color-border);
+  border-top: none;
+  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.55);
+}
+.nav-menu[open] .nav-menu-panel { display: block; }
+/* the panel reuses NavTools, restacked vertically into full-width tap targets */
+.nav-menu-panel .nav-tools {
+  flex-direction: column;
+  align-items: stretch;
+  margin: 0;
+  border-left: none;
+}
+.nav-menu-panel .nav-tool {
+  padding: 12px 16px;
+  border-right: none;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.nav-menu-panel .nav-tool::after { display: none; }
+.nav-menu-login {
+  display: flex;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
 }
 
-/* Below 640px wrap the header into two rows: row 1 keeps wordmark +
- * nav-tools (abbreviated) + login cluster inline; the search input wraps
- * to a full-width row 2. The Tranquility status chip is already hidden by
- * the 1024px rule. Uses `flex-wrap: wrap` rather than `flex-direction: column` so
- * the three siblings on row 1 stay on the same row — column would put
- * each on its own line, producing four single-element rows. The search
- * bar gets `order: 99` to land last and `flex-basis: 100%` to force the
- * wrap point. */
-@media (max-width: 640px) {
-  .app-header { flex-wrap: wrap; height: auto; }
+/* Mobile nav (<1024px). Below here the inline tool strip + login cluster don't
+ * fit alongside the always-on Tranquility status chip, so they collapse into
+ * the hamburger above; the status chip stays glanceable on the bar and the
+ * search input wraps to a full-width second row. (Replaced the old 1024/800/640
+ * shrink-and-hide ladder, which hid the chip and squeezed the search box.) */
+@media (max-width: 1024px) {
+  .app-header { position: relative; flex-wrap: wrap; height: auto; }
   .app-header .nav-host {
     order: 99;
     flex-basis: 100%;
     border-top: 1px solid var(--color-border);
     margin: 0;
   }
-  .app-header .nav-search { width: 100% !important; border: none; border-radius: 0; }
+  .app-header .nav-search {
+    width: 100% !important;
+    border: none;
+    border-radius: 0;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .app-header > .nav-tools,
+  .app-header > .login-cluster { display: none; }
+  .server-status-slot { margin-left: auto; }
+  .nav-menu { display: flex; }
 }
 
 /* /sites card grid: 2-column at rest, single column under 900px (matching the
