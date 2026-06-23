@@ -14,7 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
-import { sitesView } from '@/lib/preferences';
+import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import type { SiteType, WormholeClass } from '../types';
 import { SITE_TYPE_LABEL } from './wormhole-styles';
 
@@ -54,6 +54,7 @@ export function SitesFilterLayout({
   const [cls, setCls] = useState<WormholeClass[]>([]);
   const [types, setTypes] = useState<SiteType[]>([]);
   const [view, setView] = usePreference(sitesView, { serverValue: initialView });
+  const [detailMode, setDetailMode] = usePreference(sitesDetailMode);
   const tableRef = useRef<HTMLDivElement>(null);
 
   const clsMatch = (set: WormholeClass[]) => cls.length === 0 || cls.some((c) => set.includes(c));
@@ -154,7 +155,24 @@ export function SitesFilterLayout({
           </aside>
 
           <div>
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-end items-center gap-3 mb-4">
+              {view === 'cards' && (
+                <div className="inline-flex border border-border-idle rounded-[3px] overflow-hidden">
+                  {(['lightbox', 'expand'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={detailMode === m}
+                      onClick={() => setDetailMode(m)}
+                      className={`font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ${
+                        detailMode === m ? 'text-isk bg-pill-green-bg' : 'text-muted hover:text-name'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="inline-flex border border-border-idle rounded-[3px] overflow-hidden">
                 {(['cards', 'table'] as const).map((v) => (
                   <button

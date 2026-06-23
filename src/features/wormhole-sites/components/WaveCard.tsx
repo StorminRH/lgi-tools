@@ -41,9 +41,18 @@ export function WaveCard({
           rr={wave.ewRrep}
         />
       )}
-      {wave.npcs.map((npc) => (
-        <NpcRow key={npc.id} npc={npc} />
-      ))}
+      {/* Subgrid so the EWAR chips line up in one column (DPS far right). The name
+       *  column width comes from `--npc-name-col` (set by NpcNameColScope to the
+       *  widest name across ALL waves, so the columns line up across the whole
+       *  expansion); it falls back to per-wave auto sizing before that runs. The
+       *  row's horizontal padding lives here on the parent, not on the subgrid rows
+       *  — padding on a subgrid offsets its inherited track lines and would collapse
+       *  the 44px lead column. */}
+      <div className="grid grid-cols-[44px_var(--npc-name-col,minmax(0,auto))_auto_1fr] px-3.5">
+        {wave.npcs.map((npc) => (
+          <NpcRow key={npc.id} npc={npc} />
+        ))}
+      </div>
     </Collapsible>
   );
 }

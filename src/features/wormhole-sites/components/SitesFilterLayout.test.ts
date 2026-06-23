@@ -21,9 +21,11 @@ function markup() {
 }
 
 describe('SitesFilterLayout a11y', () => {
-  it('puts aria-pressed on every toggle (6 class chips + 5 type rows + 2 view toggles)', () => {
+  it('puts aria-pressed on every toggle (6 class chips + 5 type rows + 2 view + 2 detail-mode toggles)', () => {
     const html = markup();
-    expect((html.match(/aria-pressed=/g) ?? []).length).toBe(13);
+    // The detail-mode toggle (lightbox/expand) only renders in the cards view,
+    // which markup() defaults to, so all four segmented buttons are present.
+    expect((html.match(/aria-pressed=/g) ?? []).length).toBe(15);
     // The default view ('cards') reports its pressed state; the rest are off.
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('aria-pressed="false"');
