@@ -992,33 +992,36 @@ a:hover {
   .nav-tool { padding: 0 10px; font-size: 10px; letter-spacing: 0.08em; }
 }
 
-/* PriceFreshness chip (3.6.3, handoff §2). A pure passive indicator now — just
- * the pulsing LED + label; the "next refresh" countdown/popover was removed, so
- * the chip is no longer an interactive trigger and carries no hover state (a
- * hover tint would falsely imply it can be clicked). */
-.price-chip {
+/* Tranquility status chip (NAV-TQ). A passive indicator: a coloured LED keyed
+ * to server state + a compact "TQ · <count>" label. Online pulses green; the
+ * VIP-only window after downtime shows a static amber dot; an unreachable
+ * ESI/TQ shows a static muted dot. No hover state — it isn't clickable. */
+.status-chip {
   transition: color 0.15s;
 }
-.price-led {
+.status-led {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-isk);
-  box-shadow: 0 0 8px var(--color-card-glow-shadow);
-  animation: price-led-pulse 2.4s ease-in-out infinite;
   flex-shrink: 0;
 }
-.price-led.warn {
-  background: var(--color-tone-orange);
-  box-shadow: none;
-  animation: none;
+.status-led.online {
+  background: var(--color-isk);
+  box-shadow: 0 0 8px var(--color-card-glow-shadow);
+  animation: status-led-pulse 2.4s ease-in-out infinite;
 }
-@keyframes price-led-pulse {
+.status-led.vip {
+  background: var(--color-tone-orange);
+}
+.status-led.offline {
+  background: var(--color-muted);
+}
+@keyframes status-led-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .price-led { animation: none; }
+  .status-led { animation: none; }
 }
 /* Reusable hover/focus popover primitive (src/components/ui/hover-popover.tsx).
  * One implementation for the price-freshness chip, the planner's material-price
@@ -1075,18 +1078,18 @@ a:hover {
   box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.55);
 }
 
-/* Below 1024px the PriceFreshness chip is the first thing to push the
+/* Below 1024px the Tranquility status chip is the first thing to push the
  * login cluster off-screen. Hide the whole slot (wrapper carries the
  * border-l, so dropping the slot leaves a clean seam). The `ml-auto`
  * that pushed the right side of the header outward lived on the
- * price-freshness-slot wrapper — once it's hidden, the login cluster
+ * server-status-slot wrapper — once it's hidden, the login cluster
  * floats mid-row, so re-hang the auto margin on the login cluster
  * itself. Also let the search bar shrink instead of holding its 420px
  * fixed width — the 420 + wordmark + nav-tools + login-cluster sum
  * starts overflowing around ~850px otherwise. (Discovered in 2.9.6
  * verification; the input's min-width:0 lets the squeeze cascade in.) */
 @media (max-width: 1024px) {
-  .price-freshness-slot { display: none; }
+  .server-status-slot { display: none; }
   .app-header .login-cluster { margin-left: auto; }
   .nav-search { width: 280px; flex-shrink: 1; min-width: 0; }
   .nav-search.active { width: 420px; }
@@ -1098,8 +1101,8 @@ a:hover {
 
 /* Below 640px wrap the header into two rows: row 1 keeps wordmark +
  * nav-tools (abbreviated) + login cluster inline; the search input wraps
- * to a full-width row 2. PriceFreshness is already hidden by the 1024px
- * rule. Uses `flex-wrap: wrap` rather than `flex-direction: column` so
+ * to a full-width row 2. The Tranquility status chip is already hidden by
+ * the 1024px rule. Uses `flex-wrap: wrap` rather than `flex-direction: column` so
  * the three siblings on row 1 stay on the same row — column would put
  * each on its own line, producing four single-element rows. The search
  * bar gets `order: 99` to land last and `flex-basis: 100%` to force the
