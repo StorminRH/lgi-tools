@@ -340,7 +340,7 @@ a:hover {
 .tool-tile-soon .tile-desc { opacity: 0.6; }
 /* end tool-tile block */
 
-/* ── Hover bob (reusable) ──────��─────────────────────────────────────────
+/* ── Hover bob (reusable) ─���────��─────────────────────────────────────────
  * A slow, slight float applied while an element is hovered, paused on press
  * (so it stills the moment you click). A standalone utility so any surface can
  * opt in — the home tool tiles are the first consumer. Uses the `translate`
@@ -423,7 +423,7 @@ a:hover {
   position: sticky;
   top: 110px;
   border: 1px solid var(--color-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--color-section);
   padding: 16px;
 }
@@ -445,7 +445,7 @@ a:hover {
   font-size: 11px;
   padding: 5px 10px;
   text-align: center;
-  background: #0c1018;
+  background: var(--color-surface-sunk);
   border: 1px solid var(--color-border-idle);
   border-radius: 3px;
   color: var(--color-muted);
@@ -642,7 +642,7 @@ a:hover {
 /* Active jobs table */
 .industry-jobs {
   border: 1px solid var(--color-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--color-section);
   overflow: hidden;
 }
@@ -755,7 +755,7 @@ a:hover {
   margin-top: 34px;
   border: 1px solid var(--color-border);
   border-left: 2px solid var(--color-isk-dim);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--color-section);
   padding: 16px 18px;
 }
@@ -785,7 +785,7 @@ a:hover {
 .contact-intro b { color: var(--color-name); font-weight: 600; }
 .contact-panel {
   border: 1px solid var(--color-border);
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--color-section);
   padding: 18px 20px 20px;
 }
@@ -888,7 +888,7 @@ a:hover {
   align-items: center;
   gap: 8px;
   padding: 0 14px;
-  background: #0c1018;
+  background: var(--color-surface-sunk);
   border: 1px solid var(--color-border);
   border-radius: 6px;
   transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -896,7 +896,7 @@ a:hover {
   flex-shrink: 0;
 }
 .nav-search.active {
-  background: #0e1320;
+  background: var(--color-surface-raised);
   box-shadow:
     inset 0 0 0 1px var(--color-isk-dim),
     inset 0 0 24px -8px rgba(61, 214, 140, 0.18);
@@ -928,7 +928,7 @@ a:hover {
   font-family: var(--font-mono);
   font-size: 9px;
   color: var(--color-muted);
-  background: #161e28;
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: 2px;
   padding: 1px 5px;
@@ -1260,7 +1260,7 @@ a:hover {
   width: 22px;
   height: 22px;
   border-radius: 3px;
-  background: #161e28;
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   display: flex;
   align-items: center;
@@ -1277,9 +1277,9 @@ a:hover {
 .dd-icon.cls-c4 { background: #1a0a1a; color: #cc55cc; border-color: #3a103a; }
 .dd-icon.cls-c5 { background: #1a0a0a; color: #cc6666; border-color: #3a1010; }
 .dd-icon.cls-c6 { background: #100a1a; color: #aa55ff; border-color: #2a1040; }
-.dd-icon.cls-none { background: #161e28; color: var(--color-muted); border-color: var(--color-border); }
-.dd-icon.cmd { background: #0c1018; color: var(--color-muted); border-color: var(--color-border); }
-.dd-icon.tool { background: #0c1018; color: var(--color-isk); border-color: var(--color-isk-dim); }
+.dd-icon.cls-none { background: var(--color-surface-raised); color: var(--color-muted); border-color: var(--color-border); }
+.dd-icon.cmd { background: var(--color-surface-sunk); color: var(--color-muted); border-color: var(--color-border); }
+.dd-icon.tool { background: var(--color-surface-sunk); color: var(--color-isk); border-color: var(--color-isk-dim); }
 
 /* Card body: name over sub (the value cluster the mock shows is omitted — the
  * search index carries no per-result sell/margin). */
@@ -1329,7 +1329,7 @@ a:hover {
   justify-content: space-between;
 }
 .kbd {
-  background: #161e28;
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: 2px;
   padding: 0 4px;
@@ -1373,7 +1373,7 @@ details[data-collapsible][open] > summary [data-chevron] {
  * these rules carry only the shared chrome + the monogram fallback. */
 .type-icon {
   border-radius: 3px;
-  background: #11161f;
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   flex-shrink: 0;
   object-fit: cover;
