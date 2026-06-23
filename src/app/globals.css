@@ -34,6 +34,10 @@
   --color-dps-mid:  #ffaa22;
   --color-dps-high: #ff5555;
 
+  /* Hostile entities — the red of the NPC ship-class chevrons, matching the
+   * EVE overview's red-for-hostiles convention. Surfaced as text-hostile. */
+  --color-hostile: #dd4444;
+
   /* ── Call-site color tokens (3.3.9) ──
    * Homes for colors that used to be hardcoded as raw hex / rgba in component
    * className strings and SVG attributes. Each token holds the EXACT prior
@@ -533,6 +537,25 @@ a:hover {
 .sites-card-val i { font-style: normal; font-size: 9px; color: var(--color-muted); margin-left: 2px; }
 .sites-card-sub { font-size: 10.5px; color: var(--color-muted); letter-spacing: 0.04em; }
 .sites-card-pills { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+/* NPC hull-class mix strip — one representative ship icon per class present,
+ * with the class label and total count. Sits below the pills in the summary. */
+.sites-card-ships {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-soft);
+}
+.sites-card-ship { display: inline-flex; align-items: center; gap: 6px; }
+.sites-card-ship-label { font-size: 11px; letter-spacing: 0.02em; color: var(--color-name); }
+.sites-card-ship-count {
+  font-family: var(--font-jb);
+  font-size: 11px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
 
 @media (max-width: 900px) {
   .sites-rail-layout { grid-template-columns: 1fr; }

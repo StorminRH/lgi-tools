@@ -72,7 +72,7 @@ function resourceSectionLabel(type: SiteDetail['siteType']): string {
 function resourceSectionHint(type: SiteDetail['siteType']): string {
   switch (type) {
     case 'ore':   return 'qty · m³ · est. ISK';
-    case 'gas':   return 'm³ · est. ISK';
+    case 'gas':   return 'units · m³ · est. ISK';
     case 'relic':
     case 'data':  return 'est. ISK per can';
     default:      return '';

@@ -32,6 +32,11 @@ export type TriggerLabel = typeof TRIGGER_LABELS[number];
 export const SLEEPER_CLASS_CODES = ['F', 'C', 'B', 'T'] as const;
 export type SleeperClassCode = typeof SLEEPER_CLASS_CODES[number];
 
+/** Narrow a raw class string (e.g. an NPC's stored code) to a known hull class. */
+export function isSleeperClassCode(code: string): code is SleeperClassCode {
+  return (SLEEPER_CLASS_CODES as readonly string[]).includes(code);
+}
+
 export const siteTypeEnum = pgEnum('site_type', SITE_TYPES);
 export const wormholeClassEnum = pgEnum('wormhole_class', WORMHOLE_CLASSES);
 

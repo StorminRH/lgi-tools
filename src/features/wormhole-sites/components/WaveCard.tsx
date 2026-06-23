@@ -2,7 +2,6 @@ import { Collapsible } from '@/components/ui/collapsible';
 import type { Wave } from '../types';
 import { EwarRow } from './EwarRow';
 import { NpcRow } from './NpcRow';
-import { DPS_TIER_CLASS, dpsTier } from './wormhole-styles';
 
 export function WaveCard({
   wave,
@@ -18,19 +17,17 @@ export function WaveCard({
    *  render the wave's own EWAR row inside the wave body. */
   showEwar?: boolean;
 }) {
-  const tier = dpsTier(wave.dpsTotal);
   const displayLabel = label ?? wave.waveLabel;
-  const topNpcDps = Math.max(0, ...wave.npcs.map((n) => n.dps ?? 0));
   return (
     <Collapsible
       defaultOpen={defaultOpen}
-      headerClassName="bg-section border-t border-border border-b border-border-soft"
+      headerClassName="bg-bg border-t border-border border-b border-border py-[10px]"
       header={
         <>
-          <span className="text-[9px] font-semibold tracking-[0.16em] uppercase text-muted shrink-0">
+          <span className="text-[9px] font-bold tracking-[0.16em] uppercase text-text shrink-0">
             {displayLabel}
           </span>
-          <span className={`ml-auto text-[9px] font-semibold tracking-[0.08em] ${DPS_TIER_CLASS[tier]}`}>
+          <span className="ml-auto text-[9px] font-semibold tracking-[0.08em] text-text">
             DPS {formatDps(wave.dpsTotal)}
           </span>
         </>
@@ -45,11 +42,7 @@ export function WaveCard({
         />
       )}
       {wave.npcs.map((npc) => (
-        <NpcRow
-          key={npc.id}
-          npc={npc}
-          emphasizeDps={npc.dps != null && npc.dps === topNpcDps && topNpcDps > 0}
-        />
+        <NpcRow key={npc.id} npc={npc} />
       ))}
     </Collapsible>
   );

@@ -6,6 +6,7 @@ import type { SiteDetail, SiteResource } from '../types';
 import { LazySiteDetails } from './LazySiteDetails';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteHeaderTotal, SiteLiveProvider } from './SiteResourcesLive';
+import { SiteShipClasses } from './SiteShipClasses';
 import {
   CLASS_TONE,
   EWAR_LABEL,
@@ -104,6 +105,7 @@ export function SiteCard({
                 </Pill>
               ))}
             </div>
+            <SiteShipClasses site={site} />
           </summary>
 
           {defaultOpen ? (

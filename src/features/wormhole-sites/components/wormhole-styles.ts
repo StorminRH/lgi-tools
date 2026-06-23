@@ -1,4 +1,3 @@
-import { toneTextClass } from '@/components/ui/tones';
 import type { PillTone, ChipTone, DotTone } from '@/components/ui/tones';
 import type { SiteType, WormholeClass } from '../types';
 
@@ -63,22 +62,5 @@ export const TRIGGER_CHIP_TONE: ChipTone = 'orange';
 export const HACKING_DOT_TONE: Record<'relic' | 'data', DotTone> = {
   relic: 'orange',
   data:  'blue',
-};
-
-/** DPS thresholds → text color class. Thresholds match the prototype's
- *  intuitive bands; tweak in one place if balancing changes. */
-export type DpsTier = 'low' | 'mid' | 'high';
-
-export function dpsTier(dps: number | null | undefined): DpsTier {
-  if (!dps) return 'low';
-  if (dps >= 200) return 'high';
-  if (dps >= 50) return 'mid';
-  return 'low';
-}
-
-export const DPS_TIER_CLASS: Record<DpsTier, string> = {
-  low:  toneTextClass('green'),
-  mid:  toneTextClass('orange'),
-  high: toneTextClass('red'),
 };
 

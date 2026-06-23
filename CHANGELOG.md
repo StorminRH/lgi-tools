@@ -4,6 +4,15 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.18 — 2026-06-22
+
+#### Added
+- Wormhole site cards now show the Sleeper ship classes present at a glance — Frigate, Cruiser, Battleship, and Sentry — each with a red rank icon and a count, and every NPC in a site's wave breakdown is marked with its class icon.
+
+#### Changed
+- Gas sites now show the harvestable unit count alongside the cloud volume, the way ore sites already read, so the volume figure is no longer mistaken for the unit count.
+- A site's wave breakdown is easier to scan: wave headers stand out more clearly from their contents, and the per-NPC damage figures share one consistent style.
+
 ### v3.6.17 — 2026-06-22
 
 #### Added
