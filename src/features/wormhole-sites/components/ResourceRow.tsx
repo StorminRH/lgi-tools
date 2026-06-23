@@ -76,11 +76,15 @@ export function SiteResourceRow({
   }
 
   // gas
+  const gasMeta =
+    resource.units != null
+      ? `${resource.units.toLocaleString()} units · ${formatM3(resource.volumeM3)}`
+      : formatM3(resource.volumeM3);
   return (
     <ResourceRowPrimitive
       colsClass="grid-cols-[1fr_auto_auto]"
       name={resource.resourceName}
-      meta={formatM3(resource.volumeM3)}
+      meta={gasMeta}
       value={value}
     />
   );

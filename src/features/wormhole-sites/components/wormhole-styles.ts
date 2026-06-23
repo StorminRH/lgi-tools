@@ -1,5 +1,5 @@
-import { toneTextClass } from '@/components/ui/tones';
 import type { PillTone, ChipTone, DotTone } from '@/components/ui/tones';
+import type { SleeperClassCode } from '../schema';
 import type { SiteType, WormholeClass } from '../types';
 
 /**
@@ -34,6 +34,18 @@ export const SITE_TYPE_LABEL: Record<SiteType, string> = {
   data:   'Data',
 };
 
+/** Sleeper hull-class code (the F/C/B/T stored on each NPC) → display label.
+ *  T is the Sentry tower/turret archetype, not a ship hull. */
+export const SLEEPER_CLASS_LABEL: Record<SleeperClassCode, string> = {
+  F: 'Frigate',
+  C: 'Cruiser',
+  B: 'Battleship',
+  T: 'Sentry',
+};
+
+/** Order the class mix reads on a card: ascending hull size, sentries last. */
+export const SLEEPER_CLASS_ORDER: SleeperClassCode[] = ['F', 'C', 'B', 'T'];
+
 /** EWAR keys on Wave / Npc rows → chip color. */
 export type EwarKey = 'web' | 'scram' | 'neut' | 'rr';
 
@@ -63,22 +75,5 @@ export const TRIGGER_CHIP_TONE: ChipTone = 'orange';
 export const HACKING_DOT_TONE: Record<'relic' | 'data', DotTone> = {
   relic: 'orange',
   data:  'blue',
-};
-
-/** DPS thresholds → text color class. Thresholds match the prototype's
- *  intuitive bands; tweak in one place if balancing changes. */
-export type DpsTier = 'low' | 'mid' | 'high';
-
-export function dpsTier(dps: number | null | undefined): DpsTier {
-  if (!dps) return 'low';
-  if (dps >= 200) return 'high';
-  if (dps >= 50) return 'mid';
-  return 'low';
-}
-
-export const DPS_TIER_CLASS: Record<DpsTier, string> = {
-  low:  toneTextClass('green'),
-  mid:  toneTextClass('orange'),
-  high: toneTextClass('red'),
 };
 

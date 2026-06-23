@@ -1,8 +1,7 @@
-import { cn } from '@/components/ui/cn';
 import { Chip } from '@/components/ui/chip';
 import { EntityRow, Stat } from '@/components/ui/row';
-import { toneTextClass } from '@/components/ui/tones';
 import type { Npc } from '../types';
+import { ShipClassIcon } from './ShipClassIcon';
 import {
   EWAR_LABEL,
   EWAR_ORDER,
@@ -21,7 +20,7 @@ function npcEwarKeys(npc: Npc): EwarKey[] {
   return EWAR_ORDER.filter((k) => (m[k] ?? 0) !== 0);
 }
 
-export function NpcRow({ npc, emphasizeDps = false }: { npc: Npc; emphasizeDps?: boolean }) {
+export function NpcRow({ npc }: { npc: Npc }) {
   const ewars = npcEwarKeys(npc);
   const chipNodes =
     ewars.length > 0 || npc.triggerLabel ? (
@@ -37,17 +36,19 @@ export function NpcRow({ npc, emphasizeDps = false }: { npc: Npc; emphasizeDps?:
 
   return (
     <EntityRow
-      leading={<>{npc.quantity}×</>}
+      colsClass="grid-cols-[44px_minmax(0,1fr)_auto]"
+      leading={
+        <span className="inline-flex items-center gap-1.5">
+          <ShipClassIcon code={npc.sleeperClassCode} size={18} />
+          {npc.quantity}×
+        </span>
+      }
       name={npc.sleeperName}
       chips={chipNodes}
       inlineChips
       trailing={
         <>
-          {npc.dps != null && (
-            <Stat className={cn(toneTextClass('red'), emphasizeDps && 'text-[12px] font-semibold')}>
-              {npc.dps} DPS
-            </Stat>
-          )}
+          {npc.dps != null && <Stat className="text-text">{npc.dps} DPS</Stat>}
         </>
       }
     />
