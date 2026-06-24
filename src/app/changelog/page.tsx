@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { cacheLife } from 'next/cache';
-import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
@@ -41,14 +40,6 @@ export default async function ChangelogPage() {
       />
 
       <div className="pb-16">
-        <div className="max-w-[860px] mx-auto mb-7">
-          <Callout label="Beta">
-            LGI.tools is in public beta. Expect rough edges and rapid iteration; some tools are
-            incomplete and data may shift. Hit the Feedback button (bottom-right) to flag anything
-            broken or missing.
-          </Callout>
-        </div>
-
         {entries.length === 0 ? (
           <EmptyState>No changelog entries yet.</EmptyState>
         ) : (
