@@ -6,8 +6,8 @@
 // No token material, no raw scope string. No user input to validate.
 // authz: auth
 import type { AccountCharactersResponse } from '@/features/auth/api-contract';
+import { toPanelCharacter } from '@/features/auth/panel-character';
 import { listLinkedCharacters } from '@/features/auth/queries';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { getCurrentUserId } from '@/features/auth/session';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 
@@ -19,20 +19,6 @@ export async function GET(): Promise<Response> {
 
   const linked = await listLinkedCharacters(userId);
   return Response.json({
-    characters: linked.map((character) => {
-      const health = deriveCharacterHealth({
-        scope: character.scope,
-        hasRefreshToken: character.hasRefreshToken,
-      });
-      return {
-        characterId: character.characterId,
-        name: character.name,
-        portraitUrl: character.portraitUrl,
-        needsReconnect: !canSyncSkillQueue({
-          hasRefreshToken: character.hasRefreshToken,
-          missingScopes: health.missingScopes,
-        }),
-      };
-    }),
+    characters: linked.map((character) => toPanelCharacter(character, canSyncSkillQueue)),
   } satisfies AccountCharactersResponse);
 }

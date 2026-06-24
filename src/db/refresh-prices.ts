@@ -70,7 +70,11 @@ async function main() {
     const map = await getPrices(mode.ids);
     const readback = mode.ids.map((id) => map.get(id) ?? { typeId: id, missing: true });
     console.log('Read-back via getPrices:');
-    console.log(JSON.stringify(readback, null, 2));
+    // Price rows carry bigint volume columns; JSON.stringify throws on a BigInt,
+    // so coerce them to number for the log (volumes stay well under MAX_SAFE_INTEGER).
+    console.log(
+      JSON.stringify(readback, (_key, value) => (typeof value === 'bigint' ? Number(value) : value), 2),
+    );
     return;
   }
 

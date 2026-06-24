@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
+import { toPanelCharacter } from '@/features/auth/panel-character';
 import { listLinkedCharacters } from '@/features/auth/queries';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { IndustryJobsPanel } from '@/features/industry-jobs/components/IndustryJobsPanel';
 import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
 
@@ -21,24 +21,7 @@ async function JobsContent() {
   const characters = await listLinkedCharacters(session.user.id);
   return (
     <IndustryJobsPanel
-      characters={characters.map((character) => {
-        const health = deriveCharacterHealth({
-          scope: character.scope,
-          hasRefreshToken: character.hasRefreshToken,
-        });
-        // Client-safe projection — the raw granted-scope string never leaves
-        // the server (queries.ts precedent). Eligibility is this tracker's
-        // own rule (the one industry scope), not the full-superset health.
-        return {
-          characterId: character.characterId,
-          name: character.name,
-          portraitUrl: character.portraitUrl,
-          needsReconnect: !canSyncIndustryJobs({
-            hasRefreshToken: character.hasRefreshToken,
-            missingScopes: health.missingScopes,
-          }),
-        };
-      })}
+      characters={characters.map((character) => toPanelCharacter(character, canSyncIndustryJobs))}
     />
   );
 }
