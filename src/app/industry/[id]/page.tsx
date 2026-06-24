@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
@@ -95,7 +96,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 }
 
 function PlannerSkeleton() {
-  return <div className="w-full text-[11px] text-muted">Loading blueprint…</div>;
+  return <LoadingLabel label="Loading blueprint…" className="block w-full" />;
 }
 
 export default function BlueprintPlannerPage({

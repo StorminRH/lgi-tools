@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { KpiRow } from './KpiRow';
@@ -131,7 +132,7 @@ async function AdminContent({
 
 function AdminLoading() {
   return (
-    <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>
+    <LoadingLabel />
   );
 }
 

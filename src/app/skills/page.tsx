@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
 import { toPanelCharacter } from '@/features/auth/panel-character';
@@ -28,7 +29,7 @@ async function SkillsContent() {
 
 function SkillsLoading() {
   return (
-    <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>
+    <LoadingLabel />
   );
 }
 

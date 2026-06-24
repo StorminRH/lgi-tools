@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
 import { listLinkedCharacters } from '@/features/auth/queries';
@@ -54,7 +55,7 @@ async function EsiSandbox() {
 }
 
 function EsiSandboxLoading() {
-  return <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>;
+  return <LoadingLabel />;
 }
 
 // The 3.4.6 scope-superset proving page: reads every newly-scoped ESI endpoint

@@ -6,6 +6,7 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
@@ -252,7 +253,7 @@ async function UserDetailContent({
 
 function DetailLoading() {
   return (
-    <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>
+    <LoadingLabel />
   );
 }
 
