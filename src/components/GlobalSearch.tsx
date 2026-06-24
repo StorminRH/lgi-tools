@@ -177,6 +177,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           autoCapitalize="off"
           autoComplete="off"
           role="combobox"
+          aria-haspopup="listbox"
           aria-expanded={showDropdown}
           aria-controls={showDropdown ? SEARCH_LISTBOX_ID : undefined}
           aria-autocomplete="list"
