@@ -879,7 +879,7 @@ a:hover {
   text-wrap: pretty;
 }
 .changelog-list li::before {
-  content: '-';
+  content: '-' / '';
   position: absolute;
   left: 1px;
   top: 0;
