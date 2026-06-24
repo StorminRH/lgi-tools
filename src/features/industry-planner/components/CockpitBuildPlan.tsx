@@ -107,8 +107,8 @@ function TierRow({
   const cls = cn(
     ROW,
     faded && 'opacity-25',
-    related && 'bg-[rgba(255,255,255,0.03)]',
-    selected && 'bg-[rgba(61,214,140,0.08)] shadow-[inset_2px_0_0_var(--color-isk)]',
+    related && 'bg-row-related',
+    selected && 'bg-isk-selected shadow-[inset_2px_0_0_var(--color-isk)]',
   );
 
   if (!onSelect) return <div className={cls}>{inner}</div>;
@@ -117,7 +117,7 @@ function TierRow({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={cn(cls, 'w-full cursor-pointer text-left hover:bg-[rgba(255,255,255,0.018)]')}
+      className={cn(cls, 'w-full cursor-pointer text-left hover:bg-row-hover')}
     >
       {inner}
     </button>

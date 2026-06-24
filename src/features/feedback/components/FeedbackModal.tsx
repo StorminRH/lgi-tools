@@ -132,7 +132,7 @@ export function FeedbackModal({
           </div>
 
           {state.kind === 'success' ? (
-            <div className="py-6 text-center text-[12px] text-isk">
+            <div role="status" aria-live="polite" className="py-6 text-center text-[12px] text-isk">
               Thanks — your feedback was sent.
             </div>
           ) : (
@@ -150,7 +150,7 @@ export function FeedbackModal({
               <div className="flex items-center justify-between text-[9px] tracking-[0.08em] uppercase text-muted">
                 <span>{charsLeft} chars left</span>
                 {state.kind === 'error' && (
-                  <span className="text-tone-red normal-case tracking-normal">
+                  <span role="alert" className="text-pill-red-text normal-case tracking-normal">
                     {state.message}
                   </span>
                 )}

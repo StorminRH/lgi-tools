@@ -109,29 +109,39 @@ export const applySyncResults = internalMutation({
       .collect();
     const byCharacter = new Map(docs.map((doc) => [doc.characterId, doc]));
     const now = Date.now();
-
-    // Orphan cleanup: a character no longer linked to this user (unlinked, or
-    // reassigned to another pilot) must not keep serving its old snapshot.
     const enumerated = new Set(args.enumeratedCharacterIds);
+
+    // The post-apply cache window per surviving character, accumulated as we go
+    // so we don't re-read the whole characterSync set just to re-derive it for
+    // the subject stamp. Seed from the enumerated docs that survive orphan
+    // cleanup; each applied result overwrites its character's window below.
+    const windowsByCharacter = new Map<number, number | null>();
     for (const doc of docs) {
-      if (!enumerated.has(doc.characterId)) {
+      if (enumerated.has(doc.characterId)) {
+        windowsByCharacter.set(doc.characterId, doc.expiresAt);
+      } else {
+        // Orphan cleanup: a character no longer linked to this user (unlinked,
+        // or reassigned to another pilot) must not keep serving its old snapshot.
         await ctx.db.delete(doc._id);
       }
     }
 
     for (const result of args.results) {
       if (!enumerated.has(result.characterId)) continue;
-      await applySkillResult(ctx, args.userId, result, byCharacter.get(result.characterId), now);
+      const expiresAt = await applySkillResult(
+        ctx,
+        args.userId,
+        result,
+        byCharacter.get(result.characterId),
+        now,
+      );
+      windowsByCharacter.set(result.characterId, expiresAt);
     }
 
     // Stamp the run's results onto the engine's subject row: the cache
     // window the next due time is computed from, the enumeration the
     // heartbeat hint checks against, and the rl* observability.
-    const after = await ctx.db
-      .query('characterSync')
-      .withIndex('by_user', (q) => q.eq('userId', args.userId))
-      .collect();
-    await stampSyncSubject(ctx, subject._id, after.map((doc) => doc.expiresAt), args, now);
+    await stampSyncSubject(ctx, subject._id, [...windowsByCharacter.values()], args, now);
     // status stays 'running' here — the workpool's onComplete owns the
     // lifecycle and clears it exactly once.
   },
@@ -148,7 +158,7 @@ async function applySkillResult(
   result: CharacterResult,
   existing: Doc<'characterSync'> | undefined,
   now: number,
-): Promise<void> {
+): Promise<number | null> {
   const data = mergeData(existing?.data ?? null, result);
   const refreshed = result.error === null;
   const fields = {
@@ -164,6 +174,9 @@ async function applySkillResult(
   } else {
     await ctx.db.insert('characterSync', { userId, characterId: result.characterId, ...fields });
   }
+  // The resulting cache window, returned so the caller can accumulate the
+  // post-apply set without re-reading the whole table.
+  return fields.expiresAt;
 }
 
 type SyncedData = {

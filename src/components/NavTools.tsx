@@ -38,6 +38,7 @@ function NavStrip({ pathname }: { pathname: string | null }) {
             key={tool.label}
             href={tool.href}
             title={tool.label}
+            aria-current={isActive ? 'page' : undefined}
             className={cn('nav-tool', isActive && 'active')}
           >
             {tool.label}

@@ -75,8 +75,10 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id: rawId } = await params;
+  // Require a bare digit string — Number.parseInt would otherwise accept
+  // "12abc" as 12 and resolve the wrong entity instead of 404-ing.
+  if (!/^\d+$/.test(rawId)) return {};
   const id = Number.parseInt(rawId, 10);
-  if (!Number.isFinite(id)) return {};
 
   // Use the priced read (same hourly-tagged cache the page body uses) so the
   // ISK in the description matches the page and its "live Jita prices" claim,
@@ -179,8 +181,9 @@ export default async function SiteDetailPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id: rawId } = await params;
+  // Require a bare digit string (see generateMetadata) — reject "12abc" → 404.
+  if (!/^\d+$/.test(rawId)) notFound();
   const id = Number.parseInt(rawId, 10);
-  if (!Number.isFinite(id)) notFound();
 
   const site = await loadSite(id);
   if (!site) notFound();

@@ -236,16 +236,20 @@ export const scan = internalMutation({
 // bails it. Load-bearing if refactoring: keep the enqueue transactional with —
 // and before — the patch; keep STALE_RUNNING_MS ≫ run duration; keep
 // isRunningFresh inside the handler so it's re-checked on each OCC retry.
+// Returns true iff a run was actually enqueued. A rate-limiter refusal parks
+// nextDueAt and returns false WITHOUT enqueuing — the sweep's `dispatched`
+// counter (the watchdog's "is the Convex scan alive?" signal) must not count
+// it, or a re-arm herd that the limiter smooths reads as a dead scan.
 async function dispatch(
   ctx: MutationCtx,
   subject: Doc<'syncSubjects'>,
   now: number,
-): Promise<void> {
+): Promise<boolean> {
   const { cadenceFloorMs, tokenGroup } = SYNC_DATASET_CONFIG[subject.dataset];
   const { ok, retryAfter } = await rateLimiter.limit(ctx, 'syncDispatch', { key: tokenGroup });
   if (!ok) {
     await ctx.db.patch(subject._id, { nextDueAt: now + retryAfter });
-    return;
+    return false;
   }
   const workId = await pool.enqueueAction(
     ctx,
@@ -263,6 +267,7 @@ async function dispatch(
     workId,
     nextDueAt: now + cadenceFloorMs,
   });
+  return true;
 }
 
 // Exactly-once run epilogue from the Workpool: clear 'running', surface a
@@ -393,8 +398,7 @@ async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts):
         counts.retired += 1;
         break;
       case 'dispatch':
-        await dispatch(ctx, subject, now);
-        counts.dispatched += 1;
+        if (await dispatch(ctx, subject, now)) counts.dispatched += 1;
         break;
       case 'skip':
         break;
@@ -418,8 +422,7 @@ async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts):
       hasSyncTarget(subject.syncedCharacterIds, []) &&
       isStaleForImmediate(subject.minExpiresAt, subject.syncedCharacterIds, [], now)
     ) {
-      await dispatch(ctx, subject, now);
-      counts.dispatched += 1;
+      if (await dispatch(ctx, subject, now)) counts.dispatched += 1;
     }
   }
 }

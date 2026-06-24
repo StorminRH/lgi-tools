@@ -10,17 +10,20 @@
   --color-bg-deep:     #060708;
   --color-bg:          #0b0d10;
   --color-section:     #0f1216;
-  --color-ewar:        #0c0e12;
   --color-tooltip:     #161b22; /* raised slate for help-tooltip panels */
   --color-border:      #1d232c;
   --color-border-soft: #141821;
   --color-row-hover:   rgba(255,255,255,0.018);
+  /* White-alpha row/selection tints (AUDIT-004) — routed off raw rgba() at the
+   * call sites, since the no-raw-hex lint doesn't see rgba(). Exact prior values. */
+  --color-row-related: rgba(255,255,255,0.03); /* CockpitBuildPlan related-tier tint */
+  --color-row-on:      rgba(255,255,255,0.05); /* CockpitKpis active-toggle bg */
 
   /* ── Text palette ── higher-contrast, slightly de-saturated cool grays ── */
   --color-text:  #aab4be;
   --color-name:  #f1f5f9;
   --color-muted: #7b8693;
-  --color-faint: #565f6a; /* faintest text tier, below muted */
+  --color-faint: #6c7682; /* faintest text tier, below muted (nudged from #565f6a to ~3.5:1 for legibility — C5) */
   --color-isk:   #3dd68c;
   --color-isk-sub: #4a7860;
   --color-isk-dim: #1a3a28;
@@ -35,7 +38,6 @@
   --color-feedback-bg: #0d1812;
 
   /* ── DPS-tier accents (referenced from primitive callsites, not tone maps) ── */
-  --color-dps-low:  #3dd68c;
   --color-dps-mid:  #ffaa22;
   --color-dps-high: #ff5555;
 
@@ -122,8 +124,9 @@
   --color-callout-border: rgba(255,140,0,0.18);
   --color-callout-rule:   rgba(255,140,0,0.45);
 
-  /* Misc chrome. (--color-progress-fill equals --color-pill-blue-border's
-   * value; kept separate — a fill is not a border. 3.3.10 may merge.) */
+  /* Misc chrome. (--color-progress-fill happens to equal --color-pill-blue-border's
+   * value today; kept separate by design — a fill and a border are distinct roles
+   * that may diverge, so they don't share a token.) */
   --color-progress-track:        #0a1018;
   --color-progress-track-border: #101820;
   --color-progress-fill:         #10283a;
@@ -134,6 +137,11 @@
   --color-card-glow-border: rgba(61,214,140,0.5);
   --color-card-glow-ring:   rgba(61,214,140,0.18);
   --color-card-glow-shadow: rgba(61,214,140,0.4);
+  /* ISK-green row/selection tints (AUDIT-004) — alpha variants of --color-isk,
+   * routed off raw rgba() at the call sites. Exact prior values. */
+  --color-isk-hover:        rgba(61,214,140,0.05); /* IndustryRow row hover */
+  --color-isk-hover-strong: rgba(61,214,140,0.06); /* CockpitPlanner stepper hover */
+  --color-isk-selected:     rgba(61,214,140,0.08); /* CockpitBuildPlan selected row */
   /* Flow-graph node hover fill (industry-planner BuildFlow). */
   --color-flow-node-hover:  #11151c;
   /* Resource-card hover border (/sites density cards). */
@@ -462,7 +470,7 @@ a:hover {
 .sites-chip.c2.on { color: #44dd99; }
 .sites-chip.c3.on { color: #d68c3d; border-color: #3a2510; background: #1f1508; }
 .sites-chip.c4.on { color: #cc55cc; border-color: #3a103a; background: #1a0a1a; }
-.sites-chip.c5.on { color: #cc6666; border-color: #3a1010; background: #1a0a0a; }
+.sites-chip.c5.on { color: var(--color-tone-red); border-color: #3a1010; background: #1a0a0a; }
 .sites-chip.c6.on { color: #aa55ff; border-color: #2a1040; background: #100a1a; }
 
 /* Type rows — vertical list with a tone dot + live count */
@@ -621,7 +629,10 @@ a:hover {
   transition: opacity 0.3s;
 }
 .industry-hint kbd.show { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .industry-hint .cur { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .industry-hint .cur { animation: none; }
+  .industry-hint kbd { transition: none; }
+}
 @media (max-width: 640px) { .industry-hint .txt { white-space: normal; } }
 
 /* Typographic monogram icons — green for recents/favorites, EVE-blue for the
@@ -699,6 +710,9 @@ a:hover {
   background: linear-gradient(90deg, #2b7fc4, var(--color-evb-bright));
   box-shadow: 0 0 8px var(--color-evb-glow);
   transition: width 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .industry-bar-fill { transition: none; }
 }
 
 @media (max-width: 760px) {
@@ -1308,7 +1322,7 @@ a:hover {
 .dd-icon.cls-c2 { background: #0f2218; color: #44dd99; border-color: #1a3a28; }
 .dd-icon.cls-c3 { background: #1f1508; color: #d68c3d; border-color: #3a2510; }
 .dd-icon.cls-c4 { background: #1a0a1a; color: #cc55cc; border-color: #3a103a; }
-.dd-icon.cls-c5 { background: #1a0a0a; color: #cc6666; border-color: #3a1010; }
+.dd-icon.cls-c5 { background: #1a0a0a; color: var(--color-tone-red); border-color: #3a1010; }
 .dd-icon.cls-c6 { background: #100a1a; color: #aa55ff; border-color: #2a1040; }
 .dd-icon.cls-none { background: var(--color-surface-raised); color: var(--color-muted); border-color: var(--color-border); }
 .dd-icon.cmd { background: var(--color-surface-sunk); color: var(--color-muted); border-color: var(--color-border); }

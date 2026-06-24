@@ -47,6 +47,16 @@ export async function logUsageEvent(input: LogEventInput): Promise<void> {
   });
 }
 
+// Bound the otherwise-unbounded usage_logs table (one row per page view plus
+// each ESI/degradation/cron event): drop rows past the retention window. Hosted
+// on the daily GSC cron. Idempotent — a re-run only deletes newly-aged rows — so
+// it needs no lock of its own. The cutoff is computed in JS (driver-agnostic,
+// matching the market-history prune) rather than via SQL now().
+export async function pruneUsageLogs(retentionDays: number, now: Date = new Date()): Promise<void> {
+  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+  await db.delete(usageLogs).where(lt(usageLogs.timestamp, cutoff));
+}
+
 function inRange(range: DateRange) {
   return between(usageLogs.timestamp, range.from, range.to);
 }

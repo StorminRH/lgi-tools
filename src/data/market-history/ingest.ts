@@ -11,7 +11,7 @@ import type { HistoryDailyRow, HistorySource } from './types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPgDb = PgDatabase<any, any, any>;
 
-// Postgres caps a statement at 65535 bind params; 6 cols/row → ~10k rows max.
+// Postgres caps a statement at 65535 bind params; 7 cols/row → ~9k rows max.
 // A type's series is ~409 rows, but chunk for safety/headroom.
 const UPSERT_CHUNK_SIZE = 1000;
 

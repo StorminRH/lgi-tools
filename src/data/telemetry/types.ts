@@ -17,7 +17,6 @@ export const SERVER_USAGE_ACTIONS = [
   'admin_force_logout', // admin revoked all of a user's sessions
   'admin_character_reassign', // admin moved a character onto their own account
   'feedback_submitted',
-  'contact_submitted',
   // 3.0.10 observability:
   'price_source_degraded', // ESI→Fuzzwork degradation / budget exhaustion (O-1, S-2)
   'cron_prices', // hourly price-cron outcome — refreshed / skipped (O-2, O-3)

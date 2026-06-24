@@ -1,4 +1,5 @@
 // @vitest-environment edge-runtime
+import { RateLimiter } from '@convex-dev/rate-limiter';
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COLD_AFTER_MS, RETENTION_MS } from '@/lib/sync-engine';
@@ -314,5 +315,38 @@ describe('engine.sweep', () => {
     );
     // u1 deleted (Pass A), u3 deleted (Pass C); u2 retired, u5 untouched remain.
     expect(remaining).toEqual(['u2', 'u5']);
+  });
+
+  it('does not count a rate-limited dispatch toward the watchdog signal', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    // A hot, overdue, idle subject classifies as 'dispatch' in Pass A.
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        'syncSubjects',
+        subjectRow({ userId: 'u1', nextDueAt: now - 1000, syncedCharacterIds: [101] }),
+      );
+      await ctx.db.insert('syncPresence', { dataset: 'skills', userId: 'u1', lastSeenAt: now });
+    });
+    // Force the per-token-group limiter to refuse: dispatch parks the row and
+    // returns without enqueuing (so this never touches the workpool).
+    vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: false, retryAfter: 1000 });
+
+    const counts = await t.mutation(internal.engine.sweep, {});
+
+    // The refused dispatch must NOT inflate `dispatched` — that count is the
+    // sync-sweeper cron's "is the 30s scan dead?" alarm.
+    expect(counts.dispatched).toBe(0);
+
+    // ...and the subject was re-parked retryAfter out (the mutation stamps its
+    // own Date.now() ≥ the test's, so assert against the retryAfter floor),
+    // proving the rate-limited branch ran rather than enqueuing.
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', 'u1').eq('dataset', 'skills'))
+        .unique(),
+    );
+    expect(subject?.nextDueAt).toBeGreaterThanOrEqual(now + 1000);
   });
 });

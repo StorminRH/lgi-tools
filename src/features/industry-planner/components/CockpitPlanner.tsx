@@ -38,7 +38,7 @@ function RunsStepper({ runs, setRuns }: { runs: number; setRuns: (n: number) => 
     setDraft(String(next));
   };
   const btn =
-    'w-[26px] h-7 text-[14px] leading-none text-muted hover:text-isk hover:bg-[rgba(61,214,140,0.06)] cursor-pointer';
+    'w-[26px] h-7 text-[14px] leading-none text-muted hover:text-isk hover:bg-isk-hover-strong cursor-pointer';
   return (
     <span className="inline-flex items-center overflow-hidden rounded-[3px] border border-border bg-bg">
       <button type="button" onClick={() => step(-1)} aria-label="Decrease runs" className={btn}>

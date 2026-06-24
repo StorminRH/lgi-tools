@@ -20,7 +20,7 @@ export function IndustryRow({
   return (
     <Link
       href={href}
-      className="grid grid-cols-[26px_minmax(0,1fr)] items-center gap-3 px-3.5 py-[11px] border-t border-border-soft first:border-t-0 border-l-2 border-l-transparent no-underline transition-colors hover:bg-[rgba(61,214,140,0.05)] hover:border-l-isk"
+      className="grid grid-cols-[26px_minmax(0,1fr)] items-center gap-3 px-3.5 py-[11px] border-t border-border-soft first:border-t-0 border-l-2 border-l-transparent no-underline transition-colors hover:bg-isk-hover hover:border-l-isk"
     >
       <span className="industry-mono">{fav ? '★' : initials(name)}</span>
       <span className="min-w-0">

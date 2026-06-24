@@ -14,10 +14,10 @@ importers:
     dependencies:
       '@convex-dev/rate-limiter':
         specifier: ^0.3.2
-        version: 0.3.2(convex@1.41.0(react@19.2.4))(react@19.2.4)
+        version: 0.3.2(convex@1.42.0(react@19.2.4))(react@19.2.4)
       '@convex-dev/workpool':
         specifier: ^0.4.7
-        version: 0.4.7(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.41.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@19.2.4))
+        version: 0.4.7(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.42.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3))(convex@1.42.0(react@19.2.4))
       '@neondatabase/serverless':
         specifier: ^1.1.0
         version: 1.1.0
@@ -52,8 +52,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       convex:
-        specifier: ^1.41.0
-        version: 1.41.0(react@19.2.4)
+        specifier: ^1.42.0
+        version: 1.42.0(react@19.2.4)
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@neondatabase/serverless@1.1.0)(@upstash/redis@1.38.0)(kysely@0.29.2)(postgres@3.4.9)
@@ -114,7 +114,7 @@ importers:
         version: 10.0.3
       convex-test:
         specifier: 0.0.53
-        version: 0.0.53(convex@1.41.0(react@19.2.4))
+        version: 0.0.53(convex@1.42.0(react@19.2.4))
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -1835,8 +1835,8 @@ packages:
     peerDependencies:
       convex: ^1.32.0
 
-  convex@1.41.0:
-    resolution: {integrity: sha512-euxVf6yfpB7/VGKOobkLgjpbJidsUgW+b0ezonEyCUPqlpHFwR4/yIiI1hjjErzraiw91GxrtxpXQClMLNqU+w==}
+  convex@1.42.0:
+    resolution: {integrity: sha512-KS1U+YkE7N7jDfucPW28iNehnb9/N5n9RJmdAFNdPIHTeNpbLKNqk1pJHp4ajHyMBAhGmri8Z4S1lc1LjliZWQ==}
     engines: {node: '>=18.0.0', npm: '>=7.0.0'}
     hasBin: true
     peerDependencies:
@@ -3447,8 +3447,8 @@ packages:
     resolution: {integrity: sha512-42AtmgqjV+X1VpdOfyTGOYRi0/zsoLqtXQckTmqTeybT+BDIbM/Guxo7x3pE2vtpr1ok6xRqM9OpBe+Jyoqyww==}
     engines: {node: '>=18'}
 
-  ws@8.20.1:
-    resolution: {integrity: sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==}
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -3653,16 +3653,16 @@ snapshots:
 
   '@better-fetch/fetch@1.1.21': {}
 
-  '@convex-dev/rate-limiter@0.3.2(convex@1.41.0(react@19.2.4))(react@19.2.4)':
+  '@convex-dev/rate-limiter@0.3.2(convex@1.42.0(react@19.2.4))(react@19.2.4)':
     dependencies:
-      convex: 1.41.0(react@19.2.4)
+      convex: 1.42.0(react@19.2.4)
     optionalDependencies:
       react: 19.2.4
 
-  '@convex-dev/workpool@0.4.7(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.41.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3))(convex@1.41.0(react@19.2.4))':
+  '@convex-dev/workpool@0.4.7(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.42.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3))(convex@1.42.0(react@19.2.4))':
     dependencies:
-      convex: 1.41.0(react@19.2.4)
-      convex-helpers: 0.1.119(@standard-schema/spec@1.1.0)(convex@1.41.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3)
+      convex: 1.42.0(react@19.2.4)
+      convex-helpers: 0.1.119(@standard-schema/spec@1.1.0)(convex@1.42.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3)
 
   '@drizzle-team/brocli@0.10.2': {}
 
@@ -4877,24 +4877,24 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.41.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3):
+  convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.42.0(react@19.2.4))(react@19.2.4)(typescript@5.9.3)(zod@4.4.3):
     dependencies:
-      convex: 1.41.0(react@19.2.4)
+      convex: 1.42.0(react@19.2.4)
     optionalDependencies:
       '@standard-schema/spec': 1.1.0
       react: 19.2.4
       typescript: 5.9.3
       zod: 4.4.3
 
-  convex-test@0.0.53(convex@1.41.0(react@19.2.4)):
+  convex-test@0.0.53(convex@1.42.0(react@19.2.4)):
     dependencies:
-      convex: 1.41.0(react@19.2.4)
+      convex: 1.42.0(react@19.2.4)
 
-  convex@1.41.0(react@19.2.4):
+  convex@1.42.0(react@19.2.4):
     dependencies:
       esbuild: 0.28.0
       prettier: 3.8.4
-      ws: 8.20.1
+      ws: 8.21.0
     optionalDependencies:
       react: 19.2.4
     transitivePeerDependencies:
@@ -6682,7 +6682,7 @@ snapshots:
       string-width: 7.2.0
       strip-ansi: 7.2.0
 
-  ws@8.20.1: {}
+  ws@8.21.0: {}
 
   y18n@5.0.8: {}
 

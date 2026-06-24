@@ -1,5 +1,6 @@
 import { connection } from 'next/server';
 import { readEnv } from '@/lib/env';
+import { bearerMatches } from '@/lib/service-auth';
 
 // Shared Vercel-cron entry guard. Every cron route defers to request time (so
 // Cache Components doesn't try to prerender it) and accepts only Vercel's cron
@@ -13,7 +14,7 @@ export async function requireCronAuth(req: Request): Promise<Response | null> {
   if (!secret) {
     return new Response('CRON_SECRET not configured', { status: 500 });
   }
-  if (req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!bearerMatches(req.headers.get('authorization'), secret)) {
     return new Response('Unauthorized', { status: 401 });
   }
   return null;

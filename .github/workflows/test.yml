@@ -31,6 +31,12 @@ jobs:
 
       - run: pnpm lint
 
+      # Lightweight presence gate (no build): every src/app route is classified
+      # in route-classification.json and vice-versa. The full render-MODE assert
+      # (assert:routes) needs `next build` and runs at deploy, so this catches a
+      # route added or removed without its classification entry here in plain CI.
+      - run: pnpm assert:routes-present
+
       # Run the suite WITH coverage so the fallow audit below reads real
       # per-function coverage (coverage/coverage-final.json, which fallow
       # auto-detects). Without it the audit falls back to a static estimate

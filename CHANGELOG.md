@@ -4,6 +4,14 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.27 — 2026-06-24
+
+#### Fixed
+- Screen readers get far more from the site: the global search now announces which result is highlighted as you arrow through it, the feedback box announces when your message was sent or failed, the active navigation tab is marked for assistive tech, and the footer's legal notice and other faint text now meet readable-contrast minimums.
+- The card and table views of the wormhole-site list can no longer disagree about which sites match a filter.
+- Site and blueprint links with a stray non-numeric suffix now show a proper not-found page instead of quietly loading the wrong entry.
+- Progress animations now hold still for visitors who've asked their system to reduce motion.
+
 ### v3.6.26 — 2026-06-24
 
 #### Changed

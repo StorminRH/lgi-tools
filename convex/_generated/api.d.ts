@@ -13,6 +13,7 @@ import type * as engine from "../engine.js";
 import type * as http from "../http.js";
 import type * as industryJobs from "../industryJobs.js";
 import type * as industryJobsSync from "../industryJobsSync.js";
+import type * as lib_characterSync from "../lib/characterSync.js";
 import type * as lib_esiRead from "../lib/esiRead.js";
 import type * as lib_subjects from "../lib/subjects.js";
 import type * as skills from "../skills.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   industryJobs: typeof industryJobs;
   industryJobsSync: typeof industryJobsSync;
+  "lib/characterSync": typeof lib_characterSync;
   "lib/esiRead": typeof lib_esiRead;
   "lib/subjects": typeof lib_subjects;
   skills: typeof skills;

@@ -24,6 +24,12 @@ import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { readRecents, pushRecent } from '@/features/search-recents/storage';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 import { TypeIcon } from '@/components/ui/type-icon';
+import {
+  SEARCH_LISTBOX_ID,
+  nextActiveIndex,
+  searchActiveDescendantId,
+  searchOptionId,
+} from '@/components/global-search-aria';
 
 type Props = {
   active: boolean;
@@ -139,14 +145,9 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
       onActiveChange(false);
       return;
     }
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIndex((i) => Math.min(i + 1, Math.max(flatRows.length - 1, 0)));
-      return;
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIndex((i) => Math.max(i - 1, 0));
+      setActiveIndex((i) => nextActiveIndex(i, e.key, flatRows.length));
       return;
     }
     if (e.key === 'Enter') {
@@ -175,6 +176,12 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           autoCorrect="off"
           autoCapitalize="off"
           autoComplete="off"
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-expanded={showDropdown}
+          aria-controls={showDropdown ? SEARCH_LISTBOX_ID : undefined}
+          aria-autocomplete="list"
+          aria-activedescendant={searchActiveDescendantId(activeIndex, flatRows.length, showDropdown)}
           className="ns-input"
           placeholder="Search tools, sites, resources…"
           onChange={(e) => setValue(e.target.value)}
@@ -186,7 +193,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
       </div>
 
       {showDropdown && (
-        <div className="dropdown" role="listbox">
+        <div id={SEARCH_LISTBOX_ID} className="dropdown" role="listbox">
           {sections.map((section, sIdx) => {
             // Compute the flat-index offset for this section so row-level
             // activeIndex math matches keyboard navigation.
@@ -211,6 +218,7 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
                       return (
                         <button
                           key={row.id}
+                          id={searchOptionId(flatIdx)}
                           type="button"
                           role="option"
                           aria-selected={isActiveRow}

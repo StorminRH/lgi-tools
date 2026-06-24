@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
+import { toPanelCharacter } from '@/features/auth/panel-character';
 import { listLinkedCharacters } from '@/features/auth/queries';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { SkillQueuePanel } from '@/features/skill-queue/components/SkillQueuePanel';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 
@@ -21,24 +21,7 @@ async function SkillsContent() {
   const characters = await listLinkedCharacters(session.user.id);
   return (
     <SkillQueuePanel
-      characters={characters.map((character) => {
-        const health = deriveCharacterHealth({
-          scope: character.scope,
-          hasRefreshToken: character.hasRefreshToken,
-        });
-        // Client-safe projection — the raw granted-scope string never leaves
-        // the server (queries.ts precedent). Eligibility is this tracker's
-        // own rule (the two skill scopes), not the full-superset health.
-        return {
-          characterId: character.characterId,
-          name: character.name,
-          portraitUrl: character.portraitUrl,
-          needsReconnect: !canSyncSkillQueue({
-            hasRefreshToken: character.hasRefreshToken,
-            missingScopes: health.missingScopes,
-          }),
-        };
-      })}
+      characters={characters.map((character) => toPanelCharacter(character, canSyncSkillQueue))}
     />
   );
 }

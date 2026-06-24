@@ -233,6 +233,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Gitignored working docs (SCRATCHPAD, plan/audit artifacts) — not source.
+    "docs/**",
     // Convex generated code (committed for CI typecheck, regenerated on deploy).
     "convex/_generated/**",
   ]),

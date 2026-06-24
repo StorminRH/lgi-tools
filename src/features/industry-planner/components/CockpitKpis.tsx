@@ -50,7 +50,7 @@ function GrossNetToggle({
 }) {
   const btn =
     'px-2 py-0.5 font-mono text-[8.5px] uppercase tracking-[0.1em] cursor-pointer transition-colors';
-  const on = 'text-name bg-[rgba(255,255,255,0.05)]';
+  const on = 'text-name bg-row-on';
   return (
     <span className="inline-flex overflow-hidden rounded-[3px] border border-border-soft">
       <button

@@ -33,7 +33,7 @@ export function NpcRow({ npc }: { npc: Npc }) {
   const ewars = npcEwarKeys(npc);
 
   return (
-    <div className="grid grid-cols-subgrid col-span-full items-center gap-[6px] py-[5px] border-t border-border-soft text-[12px] hover:bg-[rgba(255,255,255,0.018)]">
+    <div className="grid grid-cols-subgrid col-span-full items-center gap-[6px] py-[5px] border-t border-border-soft text-[12px] hover:bg-row-hover">
       <span className="inline-flex items-center gap-1.5 text-[10px] text-muted">
         <ShipClassIcon code={npc.sleeperClassCode} size={18} />
         {npc.quantity}×

@@ -3,6 +3,13 @@
 // so the dashboard read path (queries.ts) can import `isGscConfigured` without
 // dragging the Google client into the admin page's server bundle.
 
+// Advisory-lock id for the daily GSC sync cron — skips an overlapping run of
+// itself under Vercel's at-least-once cron delivery, so a duplicate dispatch
+// can't double-pull the quota'd GSC API. Distinct from the SDE (…013) and
+// industry-indices (…014) lock ids; the prices cron is deliberately lock-free
+// (last-write-wins), so it claims no id here.
+export const ADVISORY_LOCK_GSC_SYNC = BigInt(8273619015);
+
 // Read-only scope — covers Search Analytics, Sitemaps, AND URL Inspection.
 // (URL Inspection needs `webmasters.readonly` specifically, not the newer
 // `searchconsole` scope.) We never request write scope: no sitemap submit, no
