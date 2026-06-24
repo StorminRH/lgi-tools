@@ -49,7 +49,7 @@ export function HomeRosterPanel({ demo }: { demo?: RosterViewModel[] }) {
 
 function RosterFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-4 pt-2">
+    <div className="flex flex-col gap-3 pt-2">
       <SectionLabel>Your characters</SectionLabel>
       {children}
       <div>
@@ -60,8 +60,11 @@ function RosterFrame({ children }: { children: ReactNode }) {
 }
 
 function RosterList({ items }: { items: RosterViewModel[] }) {
+  // Mobile-width cards that tile rather than stretch: each card (and its skill
+  // bar) stays narrow, and up to three fit across the left column. The max-width
+  // caps it at ~3 columns on a wide desktop instead of sprawling further.
   return (
-    <div className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
+    <div className="grid max-w-[760px] grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-x-5 gap-y-4">
       {items.map((vm) => (
         <RosterCard key={vm.characterId} vm={vm} />
       ))}

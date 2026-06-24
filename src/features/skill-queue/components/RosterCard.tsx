@@ -1,8 +1,8 @@
-// One character row in the home roster: portrait + name, total/free SP, and a
-// single "training now" line (active skill + time-remaining + progress bar, a
-// paused pill, or an idle/unsynced note). Purely presentational — it branches on
-// the prebuilt view model only, so the ?demo seed renders the exact same tree.
-import { Card } from '@/components/ui/card';
+// One character row in the home roster: a round portrait + name, total/free SP,
+// and a single "training now" line (active skill + time-remaining + progress
+// bar, a paused pill, or an idle/unsynced note). Compact and background-less so
+// the rows float on the page like the hero. Purely presentational — it branches
+// on the prebuilt view model only, so the ?demo seed renders the exact same tree.
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatQuantity } from '@/lib/format/number';
@@ -28,40 +28,40 @@ function PauseGlyph() {
 
 export function RosterCard({ vm }: { vm: RosterViewModel }) {
   return (
-    <Card className="px-3.5 py-3">
-      <div className="flex items-center gap-3">
-        <img
-          src={vm.portraitUrl}
-          alt={vm.name}
-          width={40}
-          height={40}
-          loading="lazy"
-          decoding="async"
-          className="rounded-[2px] border border-border-idle shrink-0"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="font-display font-bold text-[15px] text-name truncate">{vm.name}</span>
-            {vm.needsReconnect && <Pill tone="orange">Reconnect</Pill>}
-          </div>
-          <SpLine vm={vm} />
+    <div className="flex items-center gap-2.5">
+      <img
+        src={vm.portraitUrl}
+        alt={vm.name}
+        width={38}
+        height={38}
+        loading="lazy"
+        decoding="async"
+        className="size-[38px] rounded-full border border-border-idle shrink-0"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-display font-bold text-[13px] leading-tight text-name truncate">
+            {vm.name}
+          </span>
+          {vm.needsReconnect && <Pill tone="orange">Reconnect</Pill>}
         </div>
+        <SpLine vm={vm} />
+        <TrainingLine vm={vm} />
       </div>
-      <TrainingLine vm={vm} />
-    </Card>
+    </div>
   );
 }
 
 function SpLine({ vm }: { vm: RosterViewModel }) {
   if (vm.totalSp === null) {
     return (
-      <div className="font-mono text-[11px] text-muted">
+      <div className="font-mono text-[10px] leading-tight text-muted">
         {vm.needsReconnect ? 'Reconnect to sync' : 'No data yet'}
       </div>
     );
   }
   return (
-    <div className="font-mono text-[11px] text-muted">
+    <div className="font-mono text-[10px] leading-tight text-muted">
       {formatQuantity(vm.totalSp)} SP
       {vm.unallocatedSp !== null && vm.unallocatedSp > 0 && (
         <span className="text-isk"> · {formatQuantity(vm.unallocatedSp)} free</span>
@@ -72,12 +72,12 @@ function SpLine({ vm }: { vm: RosterViewModel }) {
 
 function TrainingLine({ vm }: { vm: RosterViewModel }) {
   if (!vm.hasData) {
-    return <div className="mt-2.5 text-[11px] text-empty">No queue synced yet</div>;
+    return <div className="mt-1 text-[10px] text-empty">No queue synced yet</div>;
   }
   const t = vm.training;
-  if (t.kind === 'empty') return <div className="mt-2.5 text-[11px] text-muted">No skills queued</div>;
+  if (t.kind === 'empty') return <div className="mt-1 text-[10px] text-muted">No skills queued</div>;
   if (t.kind === 'complete') {
-    return <div className="mt-2.5 text-[11px] text-muted">Training complete</div>;
+    return <div className="mt-1 text-[10px] text-muted">Training complete</div>;
   }
 
   const skillLabel = (
@@ -89,7 +89,7 @@ function TrainingLine({ vm }: { vm: RosterViewModel }) {
 
   if (t.kind === 'paused') {
     return (
-      <div className="mt-2.5 flex items-center gap-2 text-[12px]">
+      <div className="mt-1 flex items-center gap-2 text-[11px]">
         <PauseGlyph />
         {skillLabel}
         <Pill tone="orange">Paused</Pill>
@@ -98,16 +98,16 @@ function TrainingLine({ vm }: { vm: RosterViewModel }) {
   }
 
   return (
-    <div className="mt-2.5">
-      <div className="flex items-center gap-2 text-[12px]">
+    <div className="mt-1">
+      <div className="flex items-center gap-2 text-[11px]">
         <PlayGlyph />
         {skillLabel}
         {vm.remainingLabel !== null && (
           <span className="font-mono text-[10px] text-muted shrink-0">{vm.remainingLabel}</span>
         )}
       </div>
-      <div className="mt-[5px]">
-        <ProgressBar pct={t.pct} />
+      <div className="mt-1">
+        <ProgressBar pct={t.pct} tone="evb" />
       </div>
     </div>
   );

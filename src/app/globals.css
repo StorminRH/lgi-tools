@@ -262,8 +262,11 @@ a:hover {
     linear-gradient(180deg, rgba(6, 7, 8, 0) 0%, rgba(6, 7, 8, 0.78) 72%, var(--color-bg-deep) 100%),
     radial-gradient(ellipse 78% 42% at 50% -4%, rgba(61, 214, 140, 0.05), transparent 70%),
     radial-gradient(ellipse 70% 34% at 50% 0%, rgba(38, 48, 62, 0.28), transparent 72%),
-    radial-gradient(rgba(150, 170, 190, 0.05) 1px, transparent 1px);
-  background-size: auto, auto, auto, 30px 30px;
+    linear-gradient(rgba(6, 7, 8, 0.5), rgba(6, 7, 8, 0.5)),
+    url('/backdrops/dark.avif');
+  background-size: auto, auto, auto, auto, cover;
+  background-position: center, center, center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
 /* Landing wordmark glow (handoff §3) — a soft ISK-green bloom behind the
@@ -340,7 +343,7 @@ a:hover {
 .tool-tile-soon .tile-desc { opacity: 0.6; }
 /* end tool-tile block */
 
-/* ── Hover bob (reusable) ─���──────────────────────────────────────────────
+/* ── Hover bob (reusable) ────────────────────────────────────────────────
  * A slow, slight float applied while an element is hovered, paused on press
  * (so it stills the moment you click). A standalone utility so any surface can
  * opt in — the home tool tiles are the first consumer. Uses the `translate`
@@ -883,27 +886,22 @@ a:hover {
   margin: 8px 0 8px 12px;
 }
 
-/* The search unit lifts to the card surface (--color-section) so it reads as a
- * contained input floating above the bar (--color-bg) — the same elevation step
- * the page's cards take above the deep backdrop. On focus it adopts the shared
- * ISK-green ring + soft bloom from the tool-tile / resource-card hover
- * vocabulary (--color-card-glow-*), replacing the old one-off inset bloom so the
- * search now matches every other interactive surface on the page. */
 .nav-search {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 14px;
-  background: var(--color-section);
+  background: var(--color-surface-sunk);
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   width: 480px;
   flex-shrink: 0;
 }
-.nav-search:hover {
-  border-color: var(--color-border-active);
-}
+/* On focus the search adopts the shared ISK-green ring + soft bloom from the
+ * tool-tile / resource-card hover vocabulary (--color-card-glow-*), so it lights
+ * up like every other interactive surface. The resting box keeps main's recessed
+ * (--color-surface-sunk) look — this glow is the only nav change kept. */
 .nav-search.active {
   border-color: var(--color-card-glow-border);
   box-shadow:
@@ -939,7 +937,7 @@ a:hover {
   color: var(--color-muted);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
-  border-radius: 3px;
+  border-radius: 2px;
   padding: 1px 5px;
   flex-shrink: 0;
 }
