@@ -1,18 +1,22 @@
-// Deploy-time SDE gate. Runs on every `pnpm vercel-build`. Skips the
-// full pipeline when:
-//   (a) the eve-data tables are populated AND
-//   (b) the stored `sde_version` matches CCP's current SDE build number
+// Deploy-time SDE BOOTSTRAP. Runs on every `pnpm vercel-build`, but only
+// ingests when the eve-data tables are empty or incomplete — a brand-new branch
+// (a fresh preview Neon) or the first prod deploy that ships these tables. That
+// bootstrap is load-bearing: `next build` prerenders SDE-backed static content
+// (the blueprint search index, etc.), which needs the data present.
 //
-// On a brand-new branch (e.g. a fresh preview Neon), case (a) fails
-// and we ingest. On a steady-state redeploy with no SDE patch, both
-// pass and we no-op in <1s. When CCP has patched the SDE between
-// deploys, case (b) fails and we re-ingest — the daily drift cron
-// is the primary path for this, but the build-time check is the
-// belt-and-braces.
+// It deliberately does NOT re-ingest on CCP version DRIFT. A full pipeline run
+// is a ~15s burst of DB writes, and running it immediately before prerender
+// loads the DB enough to stall the prerender's own reads (the 3.6.27
+// deploy-timeout root cause). Drift is the daily `refresh-sde` cron's job — it
+// re-ingests AND revalidates the SDE-tagged caches — so a deploy that coincides
+// with a new CCP SDE build simply ships the prior data, and the cron updates it
+// (and the cached static reads) within a day. The resolver-algorithm rebuild
+// below still runs at deploy time (it's lightweight and self-gates on the
+// resolver's code hash, not on the SDE data).
 //
-// Failures are SOFT — the build continues. Per-NPC combat stats and
-// industry tree data degrade to nulls until a successful subsequent
-// run; the rest of the app keeps working.
+// Failures are SOFT — the build continues. Per-NPC combat stats and industry
+// tree data degrade to nulls until a successful subsequent run; the rest of the
+// app keeps working.
 
 import { config } from 'dotenv';
 import { readEnv } from '@/lib/env';
@@ -102,46 +106,43 @@ async function main() {
     const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
     const remoteVersion = await getRemoteSdeVersion();
 
-    const sdeCurrent =
-      hasRows &&
-      storedVersion !== null &&
-      (remoteVersion === null || storedVersion === remoteVersion);
-
-    if (sdeCurrent) {
-      console.log(
-        remoteVersion === null
-          ? `SDE ingest skipped (CCP SDE manifest unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`
-          : `SDE ingest skipped (already at SDE version "${storedVersion}", ${rowCount} attribute rows present).`,
-      );
-      // The SDE *data* is current, but the resolver's algorithm may have
-      // changed — its hash is now versioned, so this self-gates to an instant
-      // no-op unless the math changed, in which case it rebuilds the flat
-      // materials + trees here at deploy time instead of waiting for the cron.
-      const resolve = await resolveAllTrees(db);
-      console.log(
-        resolve.skipped
-          ? 'Tree resolver: up to date (no rebuild).'
-          : `Tree resolver: rebuilt ${resolve.flatMaterialsWritten} flat-material rows across ${resolve.blueprintsResolved} blueprints.`,
-      );
+    // Empty/incomplete tables — a fresh preview Neon or the first prod deploy
+    // shipping these tables. Bootstrap the full pipeline so the build can
+    // prerender SDE-backed static content.
+    if (!hasRows) {
+      console.log('Auto-ingesting SDE (eve-data tables empty or incomplete on this branch)…');
+      const summary = await runSdePipeline(db);
+      if (remoteVersion) {
+        await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
+      }
+      console.log('SDE pipeline complete.');
+      console.log(JSON.stringify(summary, null, 2));
       return;
     }
 
-    if (!hasRows) {
-      console.log(
-        'Auto-ingesting SDE (eve-data tables empty or incomplete on this branch)…',
-      );
-    } else if (storedVersion !== remoteVersion) {
-      console.log(
-        `Auto-ingesting SDE (drift detected: stored=${storedVersion ?? '<none>'} remote=${remoteVersion ?? '<unreachable>'}).`,
-      );
-    }
+    // Tables are populated: never re-ingest at build time. If CCP has drifted,
+    // the daily refresh-sde cron owns the re-ingest + cache revalidation (a
+    // mid-build pipeline run would load the DB and stall the prerender — the
+    // 3.6.27 deploy-timeout cause), so just record why we're standing down.
+    const drifted = remoteVersion !== null && storedVersion !== remoteVersion;
+    console.log(
+      drifted
+        ? `SDE re-ingest deferred to the daily cron (drift: stored=${storedVersion ?? '<none>'} remote=${remoteVersion}; ${rowCount} attribute rows present).`
+        : remoteVersion === null
+          ? `SDE ingest skipped (CCP SDE manifest unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`
+          : `SDE ingest skipped (already at SDE version "${storedVersion}", ${rowCount} attribute rows present).`,
+    );
 
-    const summary = await runSdePipeline(db);
-    if (remoteVersion) {
-      await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
-    }
-    console.log('SDE pipeline complete.');
-    console.log(JSON.stringify(summary, null, 2));
+    // The SDE *data* is left as-is, but the resolver's ALGORITHM may have
+    // changed — its hash self-gates this to an instant no-op unless the math
+    // changed, in which case it rebuilds the flat materials + trees here at
+    // deploy time instead of waiting for the cron. (Lightweight; not a re-ingest.)
+    const resolve = await resolveAllTrees(db);
+    console.log(
+      resolve.skipped
+        ? 'Tree resolver: up to date (no rebuild).'
+        : `Tree resolver: rebuilt ${resolve.flatMaterialsWritten} flat-material rows across ${resolve.blueprintsResolved} blueprints.`,
+    );
   } finally {
     if (lockHeld) {
       await reserved`SELECT pg_advisory_unlock(${LOCK_KEY_NUM})`;
