@@ -15,6 +15,7 @@ import { usePreference } from '@/components/PreferencesProvider';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
+import { matchesClassFilter, matchesFilter } from '../site-filter';
 import type { SiteType, WormholeClass } from '../types';
 import { SITE_TYPE_LABEL } from './wormhole-styles';
 
@@ -57,15 +58,13 @@ export function SitesFilterLayout({
   const [detailMode, setDetailMode] = usePreference(sitesDetailMode);
   const tableRef = useRef<HTMLDivElement>(null);
 
-  const clsMatch = (set: WormholeClass[]) => cls.length === 0 || cls.some((c) => set.includes(c));
-  const typeMatch = (t: SiteType) => types.length === 0 || types.includes(t);
-  const matches = (m: SiteFilterMeta) => clsMatch(m.clsSet) && typeMatch(m.type);
+  const matches = (m: SiteFilterMeta) => matchesFilter(m, { cls, types });
 
   const filteredCount = cards.filter((c) => matches(c.meta)).length;
   // Type counts recompute against the class selection (not the type selection),
   // so each row shows how many sites that type would add at the current classes.
   const typeCount = (t: SiteType) =>
-    cards.filter((c) => c.meta.type === t && clsMatch(c.meta.clsSet)).length;
+    cards.filter((c) => c.meta.type === t && matchesClassFilter(c.meta.clsSet, cls)).length;
 
   // Apply the filter to the server-rendered table rows. No dep array: re-runs
   // after every render, so it re-applies after a sort navigation swaps the rows
@@ -78,9 +77,7 @@ export function SitesFilterLayout({
       const rowCls = (details.getAttribute('data-site-cls') ?? '')
         .split(',')
         .filter(Boolean) as WormholeClass[];
-      const ok =
-        (cls.length === 0 || cls.some((c) => rowCls.includes(c))) &&
-        (types.length === 0 || (rowType != null && types.includes(rowType)));
+      const ok = matchesFilter({ type: rowType, clsSet: rowCls }, { cls, types });
       const wrapper = details.parentElement;
       if (wrapper) wrapper.hidden = !ok;
     });
