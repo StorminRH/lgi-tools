@@ -76,7 +76,7 @@ export const plannerBuildLocation = define<{
 export const sitesDetailMode = define<'lightbox' | 'expand'>(
   'sites.detailMode',
   z.enum(['lightbox', 'expand']),
-  'lightbox',
+  'expand',
 );
 
 // The registry, in declaration order. The provider iterates it to seed and
