@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>UI Primitives — Sandbox (dev)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ════════════════════════════════════════════════════════════════════
+   * Standalone primitive sandbox — DEV ONLY, served from /public so it
+   * bypasses the app's DB-coupled root layout (no DATABASE_URL needed in
+   * the preview VM). Tokens + component styles are ported 1:1 from
+   * src/app/globals.css + the ui/* primitives, so this is a faithful mirror
+   * of the production look. Nothing here imports app code.
+   * ════════════════════════════════════════════════════════════════════ */
+
+  :root {
+    /* surfaces */
+    --bg-deep: #060708;
+    --bg: #0b0d10;
+    --section: #0f1216;
+    --border: #1d232c;
+    --border-soft: #141821;
+    --border-idle: #1f262f;
+    --border-active: #2c3642;
+    --surface-raised: #141922;
+    --surface-sunk: #080b10;
+
+    /* text */
+    --text: #aab4be;
+    --name: #f1f5f9;
+    --muted: #7b8693;
+    --faint: #565f6a;
+    --isk: #3dd68c;
+    --isk-dim: #1a3a28;
+    --empty: #223040;
+
+    /* dps */
+    --dps-mid: #ffaa22;
+    --dps-high: #ff5555;
+
+    /* pill tone fills */
+    --pill-green-bg: #0f2218;
+    --pill-orange-bg: #1f1508;
+    --pill-orange-soft-bg: #1a0f0a;
+    --pill-red-bg: #1a0a0a;
+    --pill-red-soft-bg: #1a1010;
+    --pill-magenta-bg: #1a0a1a;
+    --pill-purple-bg: #100a1a;
+    --pill-yellow-bg: #1a1a0a;
+    --pill-teal-bg: #0a1a14;
+    --pill-orange-border: #3a2510;
+    --pill-orange-soft-border: #3a2010;
+    --pill-red-border: #3a1010;
+    --pill-red-soft-border: #3a1515;
+    --pill-magenta-border: #3a103a;
+    --pill-purple-border: #2a1040;
+    --pill-yellow-border: #332e10;
+    --pill-teal-border: #104a2a;
+    --pill-blue-border: #10283a;
+    --pill-red-text: #e05c5c;
+
+    /* tone hues */
+    --tone-green-strong: #44dd99;
+    --tone-orange: #d68c3d;
+    --tone-orange-soft: #cc7733;
+    --tone-red: #dd4444;
+    --tone-red-soft: #cc5555;
+    --tone-magenta: #cc55cc;
+    --tone-purple: #aa55ff;
+    --tone-yellow: #ccaa33;
+    --tone-teal: #33cc88;
+    --tone-blue: #3399cc;
+
+    /* chip */
+    --chip-blue: #6688ff;
+    --chip-red: #ff6666;
+    --chip-purple: #cc77ff;
+    --chip-green: #33dd88;
+    --chip-blue-bg: rgba(40,90,255,0.16);
+    --chip-blue-border: rgba(40,90,255,0.32);
+    --chip-red-bg: rgba(255,50,50,0.14);
+    --chip-red-border: rgba(255,50,50,0.30);
+    --chip-purple-bg: rgba(170,70,255,0.14);
+    --chip-purple-border: rgba(170,70,255,0.30);
+    --chip-green-bg: rgba(0,200,120,0.13);
+    --chip-green-border: rgba(0,200,120,0.28);
+    --chip-orange-bg: rgba(255,140,0,0.13);
+    --chip-orange-border: rgba(255,140,0,0.32);
+
+    /* dot glow */
+    --dot-orange-glow: rgba(204,119,51,0.4);
+    --dot-blue-glow: rgba(51,153,204,0.4);
+
+    /* callout */
+    --callout-label: #cc8800;
+    --callout-bg: rgba(255,140,0,0.06);
+    --callout-border: rgba(255,140,0,0.18);
+    --callout-rule: rgba(255,140,0,0.45);
+
+    /* progress + evb */
+    --progress-track: #0a1018;
+    --progress-track-border: #101820;
+    --progress-fill: #10283a;
+    --evb: #3da0e8;
+    --evb-bright: #6cc3ff;
+    --evb-track: #0b141d;
+    --evb-border: #17293a;
+
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --font-display: 'Barlow Condensed', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--bg-deep); }
+  body {
+    margin: 0;
+    color: var(--text);
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.65;
+    background:
+      radial-gradient(ellipse 78% 42% at 50% -4%, rgba(61,214,140,0.05), transparent 70%),
+      radial-gradient(ellipse 70% 34% at 50% 0%, rgba(38,48,62,0.28), transparent 72%),
+      var(--bg-deep);
+    min-height: 100vh;
+  }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 48px 28px 80px; }
+
+  /* ── Sandbox chrome (mirrors _shared/sandbox-ui.tsx) ── */
+  .sbx-head { margin-bottom: 32px; padding-bottom: 16px; border-bottom: 1px solid var(--border-soft); }
+  .sbx-title { font-family: var(--font-display); font-weight: 700; font-size: 22px; color: var(--name); letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 4px; }
+  .sbx-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  section.block { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
+  .seclabel { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .seclabel .lhs { display: inline-flex; align-items: baseline; gap: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .seclabel .slash { color: var(--isk); letter-spacing: normal; }
+  .seclabel .meta { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--isk); }
+  .lede { font-size: 11px; line-height: 1.6; color: var(--muted); max-width: 760px; margin: 0; }
+  .lede code, .foot code { color: var(--name); }
+
+  .grid { display: grid; gap: 24px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+
+  .frame { display: flex; flex-direction: column; }
+  .frame-hd { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .frame-tag { font-size: 9px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--isk); white-space: nowrap; }
+  .frame-title { font-family: var(--font-display); font-size: 13px; color: var(--name); letter-spacing: 0.04em; }
+  .frame-body { border: 1px solid var(--border-soft); background: var(--section); border-radius: 4px; padding: 20px; flex: 1; }
+  .frame-notes { margin: 8px 0 0; font-size: 10px; line-height: 1.5; color: var(--muted); }
+
+  .strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .mini-lbl { margin-bottom: 8px; font-size: 9px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+
+  /* ════ Pill (production) — ported from ui/pill.tsx ════ */
+  .pill { font-family: var(--font-mono); font-weight: 600; border: 1px solid; display: inline-flex; align-items: center; }
+  .pill.sm { font-size: 10.5px; padding: 3px 8px; letter-spacing: 0.04em; border-radius: 3px; }
+  .pill.md { font-size: 11px; padding: 3px 9px; letter-spacing: 0.05em; border-radius: 2px; }
+
+  .t-neutral      { background: var(--surface-raised); color: var(--text); border-color: var(--border-idle); }
+  .t-green        { background: var(--pill-green-bg); color: var(--isk); border-color: var(--isk-dim); }
+  .t-green-strong { background: var(--pill-green-bg); color: var(--tone-green-strong); border-color: var(--isk-dim); }
+  .t-orange       { background: var(--pill-orange-bg); color: var(--tone-orange); border-color: var(--pill-orange-border); }
+  .t-orange-soft  { background: var(--pill-orange-soft-bg); color: var(--tone-orange-soft); border-color: var(--pill-orange-soft-border); }
+  .t-red          { background: var(--pill-red-bg); color: var(--pill-red-text); border-color: var(--pill-red-border); }
+  .t-red-soft     { background: var(--pill-red-soft-bg); color: var(--tone-red-soft); border-color: var(--pill-red-soft-border); }
+  .t-magenta      { background: var(--pill-magenta-bg); color: var(--tone-magenta); border-color: var(--pill-magenta-border); }
+  .t-purple       { background: var(--pill-purple-bg); color: var(--tone-purple); border-color: var(--pill-purple-border); }
+  .t-yellow       { background: var(--pill-yellow-bg); color: var(--tone-yellow); border-color: var(--pill-yellow-border); }
+  .t-teal         { background: var(--pill-teal-bg); color: var(--tone-teal); border-color: var(--pill-teal-border); }
+  .t-blue         { background: var(--surface-sunk); color: var(--tone-blue); border-color: var(--pill-blue-border); }
+
+  /* ════ GHOST PILLS — the explorations ════
+   * Same geometry as a sm pill; the fill/border treatment is what varies.
+   * Tone colour is supplied by a --gc (text) and --gb (border) custom prop so
+   * one rule covers every tone. */
+  .ghost { font-family: var(--font-mono); font-weight: 600; display: inline-flex; align-items: center;
+    font-size: 10.5px; padding: 3px 8px; letter-spacing: 0.04em; border-radius: 3px;
+    border: 1px solid transparent; background: transparent; color: var(--gc); transition: background .14s, border-color .14s, color .14s; }
+
+  /* G1 outline */
+  .ghost.outline { border-color: var(--gb); }
+  /* G2 hairline text */
+  .ghost.text { }
+  /* G3 hover-fill */
+  .ghost.hover-fill { cursor: pointer; }
+  .ghost.hover-fill:hover { background: var(--gf); border-color: var(--gb); }
+  /* G4 dashed */
+  .ghost.dashed { border-style: dashed; border-color: var(--gb); }
+  /* G5 tint */
+  .ghost.tint { background: var(--gf); }
+
+  /* tone custom props for ghosts (text / border / fill) */
+  .g-neutral { --gc: var(--text);              --gb: var(--border-idle);            --gf: var(--surface-raised); }
+  .g-green   { --gc: var(--isk);               --gb: var(--isk-dim);                --gf: var(--pill-green-bg); }
+  .g-orange  { --gc: var(--tone-orange);       --gb: var(--pill-orange-border);     --gf: var(--pill-orange-bg); }
+  .g-red     { --gc: var(--pill-red-text);     --gb: var(--pill-red-border);        --gf: var(--pill-red-bg); }
+  .g-blue    { --gc: var(--tone-blue);         --gb: var(--pill-blue-border);       --gf: var(--surface-sunk); }
+  .g-purple  { --gc: var(--tone-purple);       --gb: var(--pill-purple-border);     --gf: var(--pill-purple-bg); }
+
+  /* ════ Chip — ported from ui/chip.tsx ════ */
+  .chip { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+    padding: 1px 5px; border-radius: 2px; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid; line-height: 1.5; }
+  .chip.blue   { background: var(--chip-blue-bg);   color: var(--chip-blue);   border-color: var(--chip-blue-border); }
+  .chip.red    { background: var(--chip-red-bg);    color: var(--chip-red);    border-color: var(--chip-red-border); }
+  .chip.purple { background: var(--chip-purple-bg); color: var(--chip-purple); border-color: var(--chip-purple-border); }
+  .chip.green  { background: var(--chip-green-bg);  color: var(--chip-green);  border-color: var(--chip-green-border); }
+  .chip.orange { background: var(--chip-orange-bg); color: var(--dps-mid);     border-color: var(--chip-orange-border); }
+
+  /* ════ Dot — ported from ui/dot.tsx ════ */
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0; }
+  .dot.orange { background: var(--tone-orange-soft); box-shadow: 0 0 4px var(--dot-orange-glow); }
+  .dot.blue   { background: var(--tone-blue);        box-shadow: 0 0 4px var(--dot-blue-glow); }
+  .dot-row { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text); }
+
+  /* ════ Card / SectionHeader / EmptyState / Callout ════ */
+  .card { border: 1px solid var(--border); background: var(--section); color: var(--text); font-family: var(--font-mono); border-radius: 6px; overflow: hidden; }
+  .sec-hd { display: flex; align-items: center; justify-content: space-between; background: var(--section);
+    border-bottom: 1px solid var(--border-soft); border-top: 1px solid var(--border); font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .sec-hd.sm { padding: 5px 14px; font-size: 9px; }
+  .sec-hd.md { padding: 8px 14px; font-size: 11px; }
+  .sec-hd .hint { font-weight: 400; }
+  .card-body { padding: 12px 14px; font-size: 12px; color: var(--text); line-height: 1.6; }
+  .card-body code { color: var(--name); }
+  .empty { padding: 8px 14px 9px; font-size: 11px; color: var(--empty); border-bottom: 1px solid var(--border-soft); }
+
+  .callout { margin: 8px 14px; padding: 5px 10px; background: var(--callout-bg); border: 1px solid var(--callout-border);
+    border-left: 2px solid var(--callout-rule); font-size: 10px; color: var(--dps-mid); letter-spacing: 0.03em;
+    display: flex; align-items: center; gap: 8px; }
+  .callout .clabel { font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--callout-label); flex-shrink: 0; }
+
+  /* ════ ProgressBar — ported from ui/progress-bar.tsx ════ */
+  .pbar { height: 4px; background: var(--progress-track); border: 1px solid var(--progress-track-border); }
+  .pbar > i { display: block; height: 100%; background: var(--progress-fill); }
+  .pbar-evb { height: 6px; overflow: hidden; border-radius: 2px; border: 1px solid var(--evb-border); background: var(--evb-track); }
+  .pbar-evb > i { display: block; height: 100%; background: linear-gradient(90deg, var(--evb), var(--evb-bright)); box-shadow: 0 0 8px var(--evb); }
+
+  .foot { margin-top: 40px; font-size: 10px; line-height: 1.6; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { .ghost { transition: none; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="sbx-head">
+      <h1 class="sbx-title">UI Primitives</h1>
+      <div class="sbx-sub">Dev-only · standalone mirror · production primitives + ghost-pill explorations</div>
+    </header>
+
+    <!-- ══ Ghost pills — the headline ══ -->
+    <section class="block">
+      <div class="seclabel">
+        <span class="lhs"><span class="slash">//</span>Ghost pills</span>
+        <span class="meta">5 takes</span>
+      </div>
+      <p class="lede">
+        Low-emphasis takes on the solid <code>Pill</code>. The production pill carries a dim fill + border;
+        a ghost pill drops the fill so a dense strip of metadata reads quieter, or so an interactive filter
+        only inks in on hover. Same tone tokens, so the colour language is identical — only the weight changes.
+      </p>
+
+      <div class="grid">
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Pill v0</span><span class="frame-title">Solid (production)</span></div>
+          <div class="frame-body">
+            <div class="strip">
+              <span class="pill sm t-neutral">T2</span>
+              <span class="pill sm t-green">T2</span>
+              <span class="pill sm t-orange">T2</span>
+              <span class="pill sm t-red">T2</span>
+              <span class="pill sm t-blue">T2</span>
+              <span class="pill sm t-purple">T2</span>
+            </div>
+          </div>
+          <p class="frame-notes">Today’s pill — dim fill + border + mono caps. The control to ghost against.</p>
+        </div>
+
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Ghost v1</span><span class="frame-title">Outline</span></div>
+          <div class="frame-body">
+            <div class="strip">
+              <span class="ghost outline g-neutral">T2</span>
+              <span class="ghost outline g-green">T2</span>
+              <span class="ghost outline g-orange">T2</span>
+              <span class="ghost outline g-red">T2</span>
+              <span class="ghost outline g-blue">T2</span>
+              <span class="ghost outline g-purple">T2</span>
+            </div>
+          </div>
+          <p class="frame-notes">Toned border + toned text, transparent fill. Reads as a pill, weighs ~half. Safest swap-in.</p>
+        </div>
+
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Ghost v2</span><span class="frame-title">Hairline text</span></div>
+          <div class="frame-body">
+            <div class="strip">
+              <span class="ghost text g-neutral">T2</span>
+              <span class="ghost text g-green">T2</span>
+              <span class="ghost text g-orange">T2</span>
+              <span class="ghost text g-red">T2</span>
+              <span class="ghost text g-blue">T2</span>
+              <span class="ghost text g-purple">T2</span>
+            </div>
+          </div>
+          <p class="frame-notes">No border, no fill — colour + tracking only. Lightest possible; good for inline metadata runs.</p>
+        </div>
+
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Ghost v3</span><span class="frame-title">Hover-fill</span></div>
+          <div class="frame-body">
+            <div class="strip">
+              <span class="ghost hover-fill g-neutral">T2</span>
+              <span class="ghost hover-fill g-green">T2</span>
+              <span class="ghost hover-fill g-orange">T2</span>
+              <span class="ghost hover-fill g-red">T2</span>
+              <span class="ghost hover-fill g-blue">T2</span>
+              <span class="ghost hover-fill g-purple">T2</span>
+            </div>
+          </div>
+          <p class="frame-notes">Transparent at rest, inks to the solid dim fill on hover. The interactive-filter / toggle candidate — hover each.</p>
+        </div>
+
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Ghost v4</span><span class="frame-title">Dashed outline</span></div>
+          <div class="frame-body">
+            <div class="strip">
+              <span class="ghost dashed g-neutral">T2</span>
+              <span class="ghost dashed g-green">T2</span>
+              <span class="ghost dashed g-orange">T2</span>
+              <span class="ghost dashed g-red">T2</span>
+              <span class="ghost dashed g-blue">T2</span>
+              <span class="ghost dashed g-purple">T2</span>
+            </div>
+          </div>
+          <p class="frame-notes">Dashed toned border — reads as draft / optional / placeholder beside solid pills.</p>
+        </div>
+
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Ghost v5</span><span class="frame-title">Tinted</span></div>
+          <div class="frame-body">
+            <div class="strip">
+              <span class="ghost tint g-neutral">T2</span>
+              <span class="ghost tint g-green">T2</span>
+              <span class="ghost tint g-orange">T2</span>
+              <span class="ghost tint g-red">T2</span>
+              <span class="ghost tint g-blue">T2</span>
+              <span class="ghost tint g-purple">T2</span>
+            </div>
+          </div>
+          <p class="frame-notes">Faint dim wash, no border — softer than outline but keeps the chip silhouette.</p>
+        </div>
+      </div>
+
+      <!-- In-context comparison -->
+      <div class="frame">
+        <div class="frame-hd"><span class="frame-tag">In context</span><span class="frame-title">Metadata strip — solid vs ghost</span></div>
+        <div class="frame-body">
+          <div class="stack">
+            <div>
+              <div class="mini-lbl">Solid</div>
+              <div class="strip">
+                <span class="pill sm t-green">T2</span>
+                <span class="pill sm t-blue">FRIGATE</span>
+                <span class="pill sm t-orange">2 RUNS</span>
+                <span class="pill sm t-neutral">JITA 4-4</span>
+                <span class="pill sm t-red">&minus;4.2%</span>
+              </div>
+            </div>
+            <div>
+              <div class="mini-lbl">Ghost — outline</div>
+              <div class="strip">
+                <span class="ghost outline g-green">T2</span>
+                <span class="ghost outline g-blue">FRIGATE</span>
+                <span class="ghost outline g-orange">2 RUNS</span>
+                <span class="ghost outline g-neutral">JITA 4-4</span>
+                <span class="ghost outline g-red">&minus;4.2%</span>
+              </div>
+            </div>
+            <div>
+              <div class="mini-lbl">Ghost — hairline text</div>
+              <div class="strip">
+                <span class="ghost text g-green">T2</span>
+                <span class="ghost text g-blue">FRIGATE</span>
+                <span class="ghost text g-orange">2 RUNS</span>
+                <span class="ghost text g-neutral">JITA 4-4</span>
+                <span class="ghost text g-red">&minus;4.2%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="frame-notes">Same row of build metadata. Solid (top) competes for attention; ghost-outline (middle) lets the value text lead; hairline (bottom) is quietest.</p>
+      </div>
+    </section>
+
+    <!-- ══ Production Pill — full tone vocabulary + sizes ══ -->
+    <section class="block">
+      <div class="seclabel"><span class="lhs"><span class="slash">//</span>Pill · production</span></div>
+      <div class="frame">
+        <div class="frame-hd"><span class="frame-tag">Pill</span><span class="frame-title">All 12 tones · sm + md</span></div>
+        <div class="frame-body">
+          <div class="stack">
+            <div>
+              <div class="mini-lbl">size sm (default)</div>
+              <div class="strip" id="pill-sm"></div>
+            </div>
+            <div>
+              <div class="mini-lbl">size md (interactive)</div>
+              <div class="strip" id="pill-md"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ Chip + Dot ══ -->
+    <section class="block">
+      <div class="seclabel"><span class="lhs"><span class="slash">//</span>Chip · Dot</span></div>
+      <div class="grid">
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Chip</span><span class="frame-title">5 saturated tones</span></div>
+          <div class="frame-body">
+            <div class="strip">
+              <span class="chip blue">SCRAM</span>
+              <span class="chip red">WEB</span>
+              <span class="chip purple">NEUT</span>
+              <span class="chip green">REP</span>
+              <span class="chip orange">TD</span>
+            </div>
+          </div>
+          <p class="frame-notes">EWAR / status micro-chips — uppercase, translucent fill. A deliberate subset of the tone vocab.</p>
+        </div>
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Dot</span><span class="frame-title">Glow indicators</span></div>
+          <div class="frame-body">
+            <div class="strip" style="gap:20px">
+              <span class="dot-row"><span class="dot orange"></span> orange</span>
+              <span class="dot-row"><span class="dot blue"></span> blue</span>
+            </div>
+          </div>
+          <p class="frame-notes">6px status dot with a soft tone glow. Today: warm/cool split for hackable containers.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ Card + Callout ══ -->
+    <section class="block">
+      <div class="seclabel"><span class="lhs"><span class="slash">//</span>Card · Callout</span></div>
+      <div class="grid">
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Card</span><span class="frame-title">Section header + body</span></div>
+          <div class="frame-body">
+            <div class="card">
+              <div class="sec-hd sm"><span>Build summary</span><span class="hint">updated 2m ago</span></div>
+              <div class="card-body">A bordered <code>section</code> surface — the base container for every panel. Pairs with <code>SectionHeader</code> for the titled strip above its body.</div>
+              <div class="empty">No active jobs in this slot.</div>
+            </div>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">Callout</span><span class="frame-title">Labelled aside</span></div>
+          <div class="frame-body">
+            <div class="card" style="padding:6px 0">
+              <div class="callout"><span class="clabel">Note</span><span>Prices are last-known until ESI confirms live market data.</span></div>
+              <div class="callout"><span class="clabel">Tip</span><span>Click a part in the build tree to zoom into its sub-flow.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ ProgressBar + SectionHeader sizes ══ -->
+    <section class="block">
+      <div class="seclabel"><span class="lhs"><span class="slash">//</span>ProgressBar · SectionHeader</span></div>
+      <div class="grid">
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">ProgressBar</span><span class="frame-title">default + evb tones</span></div>
+          <div class="frame-body">
+            <div class="stack" style="padding-top:4px">
+              <div>
+                <div class="mini-lbl">default · 64%</div>
+                <div class="pbar"><i style="width:64%"></i></div>
+              </div>
+              <div>
+                <div class="mini-lbl">evb · 38%</div>
+                <div class="pbar-evb"><i style="width:38%"></i></div>
+              </div>
+            </div>
+          </div>
+          <p class="frame-notes">Thin value/max bar. The evb tone is the EVE-industry-blue job bar (gradient + glow).</p>
+        </div>
+        <div class="frame">
+          <div class="frame-hd"><span class="frame-tag">SectionHeader</span><span class="frame-title">sm + md sizes</span></div>
+          <div class="frame-body">
+            <div class="card">
+              <div class="sec-hd sm"><span>Header · sm (default)</span><span class="hint">hint</span></div>
+              <div style="height:12px"></div>
+              <div class="sec-hd md"><span>Header · md (pages)</span><span class="hint">hint</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="foot">
+      Standalone mirror of the production primitives — tokens + styles ported 1:1 from
+      <code>src/app/globals.css</code> and <code>src/components/ui/*</code>. Served from
+      <code>/public</code> so it bypasses the app’s DB-coupled root layout (no <code>DATABASE_URL</code>
+      needed to preview). The ghost pills are explorations only — none are wired into the real
+      <code>Pill</code> yet. Pick a direction and it can be folded in as a <code>variant</code> prop.
+    </p>
+  </div>
+
+  <script>
+    // Render the full 12-tone Pill rows from one tone list so the markup stays
+    // in sync. Pure DOM, no deps.
+    var TONES = ['neutral','green','green-strong','orange','orange-soft','red','red-soft','magenta','purple','yellow','teal','blue'];
+    function fill(id, size) {
+      var host = document.getElementById(id);
+      TONES.forEach(function (tone) {
+        var s = document.createElement('span');
+        s.className = 'pill ' + size + ' t-' + tone;
+        s.textContent = tone;
+        host.appendChild(s);
+      });
+    }
+    fill('pill-sm', 'sm');
+    fill('pill-md', 'md');
+  </script>
+</body>
+</html>
