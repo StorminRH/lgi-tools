@@ -14,6 +14,8 @@
   },
   "scripts": {
     "dev": "next dev",
+    "predev:all": "docker compose up -d",
+    "dev:all": "concurrently -k -n next,convex -c cyan,magenta \"next dev\" \"convex dev\"",
     "build": "next build",
     "vercel-build": "pnpm exec convex deploy --cmd 'pnpm build:vercel' --cmd-url-env-var-name NEXT_PUBLIC_CONVEX_URL",
     "build:vercel": "tsx src/db/migrate.ts && tsx src/db/backfill-users-if-empty.ts && tsx src/db/ingest-sde-if-empty.ts && next build && node scripts/assert-route-classification.mjs",
@@ -76,6 +78,7 @@
     "@types/react-dom": "^19",
     "@types/yauzl": "^2.10.3",
     "@vitest/coverage-istanbul": "^4.1.7",
+    "concurrently": "^10.0.3",
     "convex-test": "0.0.53",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
