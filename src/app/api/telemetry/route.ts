@@ -14,10 +14,10 @@ const MAX_METADATA_BYTES = 2048;
 // 204. Shape is validated synchronously (400 before any write) so a
 // misconfigured client surfaces in the network tab. A per-IP rate limit (the
 // only public write path that was missing one) bounds a scripted flood that
-// would skew the analytics this table feeds. The characterId comes straight
-// from the decrypted cookie (no DB read), and the row is written
-// fire-and-forget — the beacon's caller ignores the response, so we never
-// block the 204 on the insert, matching every other logUsageEvent caller.
+// would skew the analytics this table feeds. The characterId comes from the
+// Better Auth session lookup, and the row is written fire-and-forget — the
+// beacon's caller ignores the response, so we never block the 204 on the
+// insert, matching every other logUsageEvent caller.
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   let body: unknown;
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  // Fire-and-forget: read the id from the cookie and write the row without
+  // Fire-and-forget: read the id from the session and write the row without
   // blocking the response. Telemetry must never break a user flow, so any
   // failure is swallowed (logged so a genuine bug stays visible) and the 204
   // returns immediately regardless.

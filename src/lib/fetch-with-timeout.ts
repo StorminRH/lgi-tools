@@ -4,9 +4,9 @@
 // body) after a bounded wait so the caller can fail over or surface an error
 // fast. One mechanism for every external surface — no per-call ad hoc timers.
 
-// Snappy fail-fast for small JSON / HEAD responses (ESI, Fuzzwork, EVE SSO,
-// JWKS, Resend, Discord, the SDE version probe). If one of these hasn't
-// answered in 10s it is effectively dead — fall back rather than wait.
+// Snappy fail-fast for small JSON / HEAD responses (ESI, the Fuzzwork price
+// fallback, EVE SSO, JWKS, Discord, the SDE version probe). If one of these
+// hasn't answered in 10s it is effectively dead — fall back rather than wait.
 export const OUTBOUND_FETCH_TIMEOUT_MS = 10_000;
 
 // The SDE download streams a multi-MB .bz2 body. The abort signal caps the

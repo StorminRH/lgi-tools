@@ -1,6 +1,6 @@
 {
   "name": "lgi-tools",
-  "version": "0.1.0",
+  "version": "3.6.27",
   "private": true,
   "license": "MIT",
   "author": "Stormin (Lo-Gang Industries)",
@@ -21,6 +21,7 @@
     "build:vercel": "tsx src/db/migrate.ts && tsx src/db/backfill-users-if-empty.ts && tsx src/db/ingest-sde-if-empty.ts && next build && node scripts/assert-route-classification.mjs",
     "start": "next start",
     "assert:routes": "node scripts/assert-route-classification.mjs",
+    "assert:routes-present": "node scripts/assert-routes-present.mjs",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
