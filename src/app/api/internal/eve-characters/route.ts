@@ -14,8 +14,8 @@ import {
 } from '@/features/auth/api-contract';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
-import { bearerMatches } from '@/features/auth/service-auth';
 import { readEnv } from '@/lib/env';
+import { bearerMatches } from '@/lib/service-auth';
 
 export async function POST(req: Request): Promise<Response> {
   // Reads a secret + the DB per request — defer past prerender (Cache Components).

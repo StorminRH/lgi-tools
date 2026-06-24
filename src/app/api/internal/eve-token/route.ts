@@ -16,8 +16,8 @@ import {
   type EveTokenOkResponse,
 } from '@/features/auth/api-contract';
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
-import { bearerMatches } from '@/features/auth/service-auth';
 import { readEnv } from '@/lib/env';
+import { bearerMatches } from '@/lib/service-auth';
 
 export async function POST(req: Request): Promise<Response> {
   // Reads a secret + the DB per request — defer past prerender (Cache Components).
