@@ -30,7 +30,7 @@ project conventions.
 
 ## Local development
 
-You need Node 20+, pnpm, and Docker.
+You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
 
 1. **Install dependencies.**
    ```
