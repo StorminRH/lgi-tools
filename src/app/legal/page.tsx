@@ -16,7 +16,7 @@ export default function LegalPage() {
         title="Legal"
         meta={
           <span>
-            Last updated <b className="text-name font-semibold">14 Jun 2026</b>
+            Last updated <b className="text-name font-semibold">23 Jun 2026</b>
           </span>
         }
       />
@@ -26,60 +26,71 @@ export default function LegalPage() {
           <section className="mb-8">
             <SectionLabel className="mb-3">What we collect</SectionLabel>
             <p>
-              <strong>LGI.tools (Lo-Gang Industries)</strong> records its own usage so we can
-              understand what the site is being used for and report aggregated engagement to
-              CCP&apos;s EVE Partner Program. We do this without third-party trackers — no Google
-              Analytics, no Plausible, no PostHog.
+              <strong>LGI.tools (Lo-Gang Industries)</strong> records its own usage in our own{' '}
+              <a href="https://neon.com/security" target="_blank" rel="noopener noreferrer">
+                Neon Postgres
+              </a>{' '}
+              database — no third-party trackers, no <strong>Google Analytics</strong>,{' '}
+              <strong>Plausible</strong>, or <strong>PostHog</strong>. We record:
             </p>
-            <p>Specifically, we record:</p>
             <ul>
               <li>
-                The URL path you visit (for example, <strong>/sites</strong>).
+                The <strong>URL path</strong> you visit (e.g. <strong>/sites</strong>).
               </li>
               <li>
-                The hostname of the site that linked you to us (for example,{' '}
-                <strong>discord.com</strong>), and any <strong>utm_source</strong> /{' '}
-                <strong>utm_medium</strong> / <strong>utm_campaign</strong> tags present on the URL
-                you arrived through. We never record the full referring URL — only the hostname.
+                The <strong>site</strong> that linked you here (e.g. <strong>discord.com</strong>)
+                and any campaign tags (<strong>utm_source</strong>, <strong>utm_medium</strong>,{' '}
+                <strong>utm_campaign</strong>) on the link you arrived through — never the full web
+                address, just the site.
               </li>
               <li>
-                A randomly-generated visitor ID kept in your browser&apos;s{' '}
-                <strong>localStorage</strong>. It is used to distinguish a first-time lander from a
-                returning page-hopper — nothing more. Clearing your browser storage clears the ID.
+                A random ID stored in your browser, used only to tell a first-time visitor from a
+                returning one. Clearing your browser data removes it.
               </li>
               <li>
-                Your EVE character ID, but only if you are logged in via EVE SSO. If you are not
-                logged in, the same events are recorded anonymously.
+                Your <strong>EVE character ID</strong>, if you are logged in via EVE SSO.
               </li>
               <li>
-                When you send feedback through the in-app feedback button, the page you were on at
-                the time, and the length of your message. The message text itself is forwarded to a
-                private Discord channel for the developer to read — it is not stored in our database.
+                <strong>Feedback button:</strong>{' '}
+                the page you were on and your message&apos;s length. The text is forwarded to a
+                private Discord channel for the developer — not stored in our database.
               </li>
               <li>
-                When you send a message through the contact form, the length of your message. Your
-                email address and the message text are emailed directly to the developer so they can
-                reply — they are not stored in our database.
+                <strong>Contact form:</strong>{' '}
+                your message&apos;s length. Your email and the text are emailed straight to the
+                developer to reply — not stored in our database.
               </li>
             </ul>
+          </section>
+
+          <section className="mb-8">
+            <SectionLabel className="mb-3">What we don&apos;t collect</SectionLabel>
             <p>
-              We do <strong>not</strong> record your IP address, your browser user-agent, or any
-              session fingerprint. Data is stored in our own Neon Postgres database and used only for
-              product understanding and aggregated EVE Partner Program reporting.
+              We do <strong>not</strong>{' '}
+              record your IP address, the browser or device you&apos;re using, or any kind of device
+              fingerprint.
             </p>
+          </section>
+
+          <section className="mb-8">
+            <SectionLabel className="mb-3">How it&apos;s used &amp; opting out</SectionLabel>
             <p>
-              If you would prefer not to be attributed by character, log out via the header and
-              continue using the site — your visits will be recorded anonymously.
+              This data is used only to understand how the site is used so we can make it better. To
+              avoid being attributed by character, log out via the header and keep using the site —
+              your visits are then recorded anonymously.
             </p>
+          </section>
+
+          <section className="mb-8">
+            <SectionLabel className="mb-3">Performance telemetry</SectionLabel>
             <p>
-              Page performance metrics — load time, layout shift, and other{' '}
+              Load time, layout shift, and other{' '}
               <a href="https://web.dev/articles/vitals" target="_blank" rel="noopener noreferrer">
                 Core Web Vitals
               </a>{' '}
-              — are collected anonymously by Vercel Speed Insights, the analytics product built into
-              our hosting provider. This is performance telemetry only: no behavioural tracking, no
-              advertising profile, no cross-site identity. The data is aggregated by Vercel and used
-              to surface slow pages so we can fix them.
+              are collected anonymously by <strong>Vercel Speed Insights</strong>, aggregated to
+              surface slow pages we can fix. Performance only — no behavioural tracking, advertising
+              profile, or cross-site identity.
             </p>
           </section>
 
@@ -94,7 +105,7 @@ export default function LegalPage() {
               >
                 MIT License
               </a>
-              . The full source lives at{' '}
+              , with full source at{' '}
               <a
                 href="https://github.com/StorminRH/lgi-tools"
                 target="_blank"
@@ -108,16 +119,16 @@ export default function LegalPage() {
 
           <div className="legal-note">
             <p>
-              <b>EVE Online</b> and the EVE logo are the registered trademarks of Fenris Creations
+              <b>EVE Online</b> and the EVE logo are registered trademarks of Fenris Creations
               (formerly CCP hf, rebranded 2026-05-06). All artwork, screenshots, characters,
-              vehicles, storylines, world facts, or other recognizable features of the intellectual
+              vehicles, storylines, world facts, and other recognizable features of the intellectual
               property relating to these trademarks are likewise the intellectual property of Fenris
               Creations.
             </p>
             <p>
               LGI.tools is an independent third-party tool built by EVE Online players for EVE Online
               players. It is not affiliated with, endorsed by, or sponsored by Fenris Creations. All
-              EVE Online-related content on this site is used under Fenris Creations&apos; third-party
+              EVE Online-related content here is used under Fenris Creations&apos; third-party
               developer license.
             </p>
           </div>
