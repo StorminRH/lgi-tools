@@ -17,8 +17,8 @@ describe('readEnv', () => {
   });
 
   it("maps '' to undefined on a required (truthiness) variable", () => {
-    vi.stubEnv('RESEND_API_KEY', '');
-    expect(readEnv('RESEND_API_KEY')).toBeUndefined();
+    vi.stubEnv('DATABASE_URL', '');
+    expect(readEnv('DATABASE_URL')).toBeUndefined();
   });
 
   it("passes '' through on a verbatim (nullish/comparison) variable", () => {

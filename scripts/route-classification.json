@@ -58,7 +58,6 @@
     "/api/admin/role": "dynamic",
     "/api/admin/sessions/revoke": "dynamic",
     "/api/auth/[...all]": "dynamic",
-    "/api/contact": "dynamic",
     "/api/cron/refresh-gsc": "dynamic",
     "/api/cron/refresh-industry-indices": "dynamic",
     "/api/dev/esi": "dynamic",
