@@ -262,8 +262,11 @@ a:hover {
     linear-gradient(180deg, rgba(6, 7, 8, 0) 0%, rgba(6, 7, 8, 0.78) 72%, var(--color-bg-deep) 100%),
     radial-gradient(ellipse 78% 42% at 50% -4%, rgba(61, 214, 140, 0.05), transparent 70%),
     radial-gradient(ellipse 70% 34% at 50% 0%, rgba(38, 48, 62, 0.28), transparent 72%),
-    radial-gradient(rgba(150, 170, 190, 0.05) 1px, transparent 1px);
-  background-size: auto, auto, auto, 30px 30px;
+    linear-gradient(rgba(6, 7, 8, 0.5), rgba(6, 7, 8, 0.5)),
+    url('/backdrops/dark.avif');
+  background-size: auto, auto, auto, auto, cover;
+  background-position: center, center, center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
 /* Landing wordmark glow (handoff §3) — a soft ISK-green bloom behind the
@@ -891,15 +894,19 @@ a:hover {
   background: var(--color-surface-sunk);
   border: 1px solid var(--color-border);
   border-radius: 6px;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   width: 480px;
   flex-shrink: 0;
 }
+/* On focus the search adopts the shared ISK-green ring + soft bloom from the
+ * tool-tile / resource-card hover vocabulary (--color-card-glow-*), so it lights
+ * up like every other interactive surface. The resting box keeps main's recessed
+ * (--color-surface-sunk) look — this glow is the only nav change kept. */
 .nav-search.active {
-  background: var(--color-surface-raised);
+  border-color: var(--color-card-glow-border);
   box-shadow:
-    inset 0 0 0 1px var(--color-isk-dim),
-    inset 0 0 24px -8px rgba(61, 214, 140, 0.18);
+    0 0 0 1px var(--color-card-glow-ring),
+    0 8px 26px -10px var(--color-card-glow-shadow);
 }
 
 .ns-prompt {
