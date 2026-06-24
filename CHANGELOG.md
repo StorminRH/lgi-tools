@@ -4,6 +4,11 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.25 — 2026-06-23
+
+#### Changed
+- The contact page now shows direct ways to reach the developer — email, GitHub, and the developer's in-game character and corporations — in place of the old message form. A community Discord is in the works.
+
 ### v3.6.24 — 2026-06-23
 
 #### Changed

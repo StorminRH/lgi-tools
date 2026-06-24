@@ -2,13 +2,23 @@ import type { Metadata } from 'next';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
-import { ContactForm } from '@/features/contact/components/ContactForm';
 
 export const metadata: Metadata = {
   title: 'Contact',
   description: 'Reach the developer of LGI.tools — bug reports, ideas, and data corrections.',
   alternates: { canonical: '/contact' },
 };
+
+// The maintainer's public identity, shown in the "In-game" panel. The portrait
+// is served by the EVE image server (a CSP-allowed host); names link to EVE Who.
+// All fixed values, so the page stays fully static.
+const MAINTAINER_CHARACTER_ID = 2123732314;
+const MAINTAINER_CHARACTER_NAME = 'Stormin Jr';
+const MAINTAINER_CORPS = [
+  { id: 98825718, name: 'Lo-Gang' },
+  { id: 98834571, name: 'Lo-Gang Industries' },
+];
+const CONTACT_EMAIL = 'lgi.tools@pm.me';
 
 export default function ContactPage() {
   return (
@@ -23,21 +33,23 @@ export default function ContactPage() {
         }
       />
 
-      <div className="pb-16 max-w-[760px] mx-auto">
+      <div className="pb-16">
         <p className="contact-intro">
-          Found a bug, have data that looks wrong, or want a tool added? Send a message to{' '}
-          <b>Lo-Gang Industries</b> below, or open an issue on GitHub for anything you&apos;d like
+          Found a bug, have data that looks wrong, or want a tool added? Email{' '}
+          <b>Lo-Gang Industries</b>{' '}directly, or open a GitHub issue for anything you&apos;d like
           tracked.
         </p>
 
         <div className="contact-grid">
           <div className="contact-panel">
-            <SectionLabel className="mb-2">Send a message</SectionLabel>
-            <ContactForm />
-          </div>
-
-          <div className="contact-panel">
-            <SectionLabel className="mb-2">Elsewhere</SectionLabel>
+            <SectionLabel className="mb-2">Get in touch</SectionLabel>
+            <div className="contact-row">
+              <span className="k">Email</span>
+              <span className="v">
+                <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+                <span className="sub">Bug reports, ideas, and data corrections</span>
+              </span>
+            </div>
             <div className="contact-row">
               <span className="k">GitHub</span>
               <span className="v">
@@ -52,14 +64,68 @@ export default function ContactPage() {
               </span>
             </div>
             <div className="contact-row">
-              <span className="k">Corp</span>
-              <span className="v">Lo-Gang Industries</span>
-            </div>
-            <div className="contact-row">
               <span className="k">Discord</span>
               <span className="v">
                 Coming soon
                 <span className="sub">A community server is in the works</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="contact-panel">
+            <SectionLabel className="mb-2">In-game</SectionLabel>
+            <div className="contact-row is-id">
+              <span className="k">Character</span>
+              <span className="v">
+                <span className="contact-id">
+                  <img
+                    src={`https://images.evetech.net/characters/${MAINTAINER_CHARACTER_ID}/portrait?size=64`}
+                    alt={MAINTAINER_CHARACTER_NAME}
+                    width={38}
+                    height={38}
+                    loading="lazy"
+                    decoding="async"
+                    className="size-[38px] rounded-full border border-border-idle shrink-0"
+                  />
+                  <span className="contact-id-text">
+                    <a
+                      href={`https://evewho.com/character/${MAINTAINER_CHARACTER_ID}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="contact-id-name"
+                    >
+                      {MAINTAINER_CHARACTER_NAME}
+                    </a>
+                    <span className="sub">EVE mail welcome</span>
+                  </span>
+                </span>
+              </span>
+            </div>
+            <div className="contact-row">
+              <span className="k">Corps</span>
+              <span className="v">
+                {MAINTAINER_CORPS.map((corp, i) => (
+                  <span key={corp.id}>
+                    {i > 0 && ' / '}
+                    <a
+                      href={`https://evewho.com/corporation/${corp.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="contact-id-name"
+                    >
+                      {corp.name}
+                    </a>
+                  </span>
+                ))}
+              </span>
+            </div>
+            <div className="contact-row">
+              <span className="k">Support</span>
+              <span className="v">
+                ISK &amp; PLEX donations
+                <span className="sub">
+                  Keeps the lights on — send to the Lo-Gang corp wallet
+                </span>
               </span>
             </div>
           </div>

@@ -774,7 +774,7 @@ a:hover {
 .legal-note b { color: var(--color-text); font-weight: 600; }
 
 /* Contact — two hairline panels of mono label → value rows. */
-.contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
 .contact-intro {
   font-family: var(--font-body);
   font-size: 13.5px;
@@ -818,6 +818,23 @@ a:hover {
 }
 .contact-row .v a:hover { border-bottom-color: var(--color-isk); }
 .contact-row .v .sub { display: block; font-size: 10.5px; color: var(--color-muted); margin-top: 4px; letter-spacing: 0.02em; }
+
+/* In-game identity row: a round portrait beside the name (the home-roster look),
+   vertically centred against its label. Identity names are white links, not the
+   ISK-green action links used for email/GitHub above. */
+.contact-row.is-id { align-items: center; }
+.contact-id { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.contact-id-text { display: flex; flex-direction: column; min-width: 0; }
+.contact-row .v a.contact-id-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.15;
+  color: var(--color-name);
+  border-bottom: none;
+}
+.contact-row .v a.contact-id-name:hover { color: var(--color-isk); border-bottom: none; }
+.contact-id-text .sub { margin-top: 2px; }
 
 /* Changelog — a version timeline: version + date in a left rail, an ISK-green
  * node dot on the connecting line, and change-type-tagged groups. */
