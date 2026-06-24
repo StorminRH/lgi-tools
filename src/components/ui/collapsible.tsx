@@ -27,7 +27,7 @@ export function Collapsible({
     >
       <summary
         className={cn(
-          'w-full flex justify-between items-center gap-2 px-3.5 py-[7px] cursor-pointer select-none hover:bg-[rgba(255,255,255,0.018)] list-none [&::-webkit-details-marker]:hidden',
+          'w-full flex justify-between items-center gap-2 px-3.5 py-[7px] cursor-pointer select-none hover:bg-row-hover list-none [&::-webkit-details-marker]:hidden',
           headerClassName,
         )}
       >
