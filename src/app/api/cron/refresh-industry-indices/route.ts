@@ -76,9 +76,16 @@ export async function GET(req: Request): Promise<Response> {
       },
     } satisfies CronRefreshIndustryIndicesResponse);
   } finally {
-    if (lockHeld) {
-      await reserved`SELECT pg_advisory_unlock(${LOCK_KEY_NUM})`;
+    // Nest the unlock so reserved.release() is the OUTERMOST cleanup and always
+    // runs — if the unlock query itself threw (transient DB error), skipping
+    // release() would leak the connection AND leave the session-advisory lock
+    // held, wedging every later run at 'busy' until the pool recycled it.
+    try {
+      if (lockHeld) {
+        await reserved`SELECT pg_advisory_unlock(${LOCK_KEY_NUM})`;
+      }
+    } finally {
+      reserved.release();
     }
-    reserved.release();
   }
 }
