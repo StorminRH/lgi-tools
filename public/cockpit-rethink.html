@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Industry Planner · Cockpit rethink — sandbox</title>
+    <style>
+      :root {
+        --bg-deep: #060708;
+        --bg: #0b0d10;
+        --section: #0f1216;
+        --border: #1d232c;
+        --border-soft: #141821;
+        --border-idle: #1f262f;
+        --border-active: #2c3642;
+        --surface-sunk: #080b10;
+        --text: #aab4be;
+        --name: #f1f5f9;
+        --muted: #7b8693;
+        --faint: #565f6a;
+        --isk: #3dd68c;
+        --isk-sub: #4a7860;
+        --isk-dim: #1a3a28;
+        --tone-orange: #d68c3d;
+        --tone-red: #d6553d;
+        --tone-blue: #3399cc;
+        --evb-bright: #6cc3ff;
+        --evb-border: #17293a;
+        --pill-blue-bg: #080b10;
+        --pill-blue-border: #10283a;
+
+        --mono: "Geist Mono", "SFMono-Regular", ui-monospace, "JetBrains Mono", Menlo, monospace;
+        --display: "Geist", -apple-system, "Segoe UI", system-ui, sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+        -webkit-font-smoothing: antialiased;
+        padding: 0 0 96px;
+      }
+      a { color: inherit; text-decoration: none; }
+
+      .shell { max-width: 1124px; margin: 0 auto; padding: 0 24px; }
+
+      /* ───────────────── Sandbox bar ───────────────── */
+      .sandbox-bar {
+        position: sticky; top: 0; z-index: 20;
+        display: flex; align-items: center; flex-wrap: wrap; gap: 14px;
+        padding: 12px 24px;
+        background: rgba(8, 9, 11, 0.85);
+        backdrop-filter: blur(6px);
+        border-bottom: 1px solid var(--border-soft);
+      }
+      .sandbox-bar .tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--faint); }
+      .sandbox-bar .crumb { font-size: 11px; letter-spacing: 0.04em; color: var(--muted); }
+      .sandbox-bar .crumb b { color: var(--isk); font-weight: 500; }
+      .sandbox-bar .links { margin-left: auto; display: inline-flex; gap: 8px; }
+      .sandbox-bar .links a {
+        font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--faint);
+        border: 1px solid var(--border-idle); border-radius: 4px; padding: 6px 11px; transition: color .13s, border-color .13s;
+      }
+      .sandbox-bar .links a:hover { color: var(--name); border-color: var(--border-active); }
+
+      .note {
+        max-width: 1124px; margin: 22px auto 0; padding: 0 24px;
+        font-family: var(--display); font-size: 12.5px; line-height: 1.55; color: var(--muted);
+      }
+      .note b { color: var(--name); font-weight: 600; }
+
+      .util { color: var(--faint); }
+      .num { font-variant-numeric: tabular-nums; }
+
+      /* ───────────────── Masthead ───────────────── */
+      .masthead {
+        display: flex; align-items: flex-start; gap: 16px;
+        padding-top: 30px;
+        border-bottom: 1px solid var(--border-soft); padding-bottom: 22px;
+      }
+      .render {
+        width: 46px; height: 46px; flex-shrink: 0; border-radius: 4px;
+        background: linear-gradient(135deg, #16202b, #0c1219);
+        border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+        color: var(--evb-bright); font-size: 13px; letter-spacing: 0.06em;
+      }
+      .masthead .who { flex: 1; min-width: 0; }
+      .crumbline { font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+      .crumbline .scheme { color: var(--isk); }
+      .crumbline .sep { margin: 0 7px; color: var(--border-active); }
+      .masthead .title {
+        font-family: var(--display); font-size: 25px; font-weight: 700; letter-spacing: 0.01em;
+        text-transform: uppercase; color: var(--name); line-height: 1.05;
+      }
+      .masthead .sub { margin-top: 7px; display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+
+      .pill {
+        display: inline-flex; align-items: center; height: 18px; padding: 0 8px;
+        font-size: 11px; letter-spacing: 0.04em; border-radius: 3px; text-transform: uppercase;
+        background: var(--pill-blue-bg); border: 1px solid var(--pill-blue-border); color: var(--tone-blue);
+      }
+      .pill.t4 { color: var(--evb-bright); border-color: var(--evb-border); }
+      .pill.ghost { background: transparent; border-color: var(--border-active); color: var(--muted); }
+      .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--isk); display: inline-block; }
+
+      .masthead .actions { display: inline-flex; gap: 8px; align-self: flex-start; }
+      .btn {
+        font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em;
+        padding: 8px 13px; border-radius: 4px; border: 1px solid var(--border-idle);
+        background: transparent; color: var(--muted); cursor: pointer; transition: border-color .13s, color .13s;
+      }
+      .btn:hover { border-color: var(--border-active); color: var(--name); }
+      .btn.primary { border-color: var(--isk-dim); color: var(--isk); }
+      .btn.primary:hover { border-color: var(--isk-sub); }
+
+      /* ───────────────── Headline band (floating, no cards) ───────────────── */
+      .headline {
+        display: grid; grid-template-columns: minmax(0, 1.15fr) 1px minmax(0, 1.85fr);
+        gap: 0 34px; align-items: stretch;
+        padding: 30px 0 26px; border-bottom: 1px solid var(--border-soft);
+      }
+      .hero-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--faint); }
+      .hero-figure {
+        font-family: var(--display); font-weight: 700; font-variant-numeric: tabular-nums;
+        font-size: 56px; line-height: 1; letter-spacing: -0.01em; color: var(--isk); margin-top: 12px;
+      }
+      .hero-figure .unit { font-size: 19px; font-weight: 500; color: var(--isk-sub); margin-left: 8px; letter-spacing: 0; }
+      .hero-meta { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; font-size: 12px; }
+      .hero-meta .row { display: flex; justify-content: space-between; gap: 16px; }
+      .hero-meta .row .k { color: var(--muted); }
+      .hero-meta .row .v { color: var(--text); font-variant-numeric: tabular-nums; }
+      .hero-meta .row .v.pos { color: var(--isk); }
+
+      .vrule { background: var(--border-soft); width: 1px; }
+
+      /* right side of headline: inline economics, divided by hairlines, no boxes */
+      .econ {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-self: center;
+      }
+      .stat { padding: 6px 22px; position: relative; }
+      .stat + .stat::before {
+        content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 1px; background: var(--border-soft);
+      }
+      .econ .stat:nth-child(2n+1) { padding-left: 0; }
+      .econ .stat:nth-child(2n+1)::before { display: none; }
+      .econ .stat:nth-child(n+3) { margin-top: 18px; }
+      .stat .s-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--faint); }
+      .stat .s-value {
+        font-family: var(--display); font-weight: 600; font-variant-numeric: tabular-nums;
+        font-size: 25px; line-height: 1.1; color: var(--name); margin-top: 7px;
+      }
+      .stat .s-value.muted-val { color: var(--text); font-weight: 500; }
+      .stat .s-foot { font-size: 11px; color: var(--muted); margin-top: 4px; }
+      .stat .s-foot .up { color: var(--isk); }
+      .stat .s-foot .down { color: var(--tone-orange); }
+
+      /* ───────────────── Section heads ───────────────── */
+      .sec-head {
+        display: flex; align-items: baseline; gap: 12px;
+        margin: 30px 0 14px;
+      }
+      .sec-head h2 {
+        margin: 0; font-family: var(--display); font-size: 12px; font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.16em; color: var(--name);
+      }
+      .sec-head .count { font-size: 11px; color: var(--faint); letter-spacing: 0.04em; }
+      .sec-head .rule { flex: 1; height: 1px; background: var(--border-soft); }
+      .sec-head .aside { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+
+      /* ───────────────── Build plan: ledger, no card chrome ───────────────── */
+      .ledger { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+      .ledger thead th {
+        font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--faint);
+        font-weight: 500; text-align: right; padding: 0 0 9px;
+      }
+      .ledger thead th:first-child { text-align: left; }
+      .ledger tbody td {
+        padding: 11px 0; border-top: 1px solid var(--border-soft); font-size: 13px; text-align: right; color: var(--text);
+      }
+      .ledger tbody td:first-child { text-align: left; }
+      .ledger tbody tr:hover td { background: rgba(255,255,255,0.012); }
+      .l-name { display: flex; align-items: center; gap: 10px; }
+      .l-name .rail { width: 2px; height: 26px; border-radius: 2px; background: var(--border-active); flex-shrink: 0; }
+      .l-name .rail.make { background: var(--isk-sub); }
+      .l-name .rail.buy { background: var(--tone-orange); opacity: .55; }
+      .l-name .nm { color: var(--name); font-size: 13px; }
+      .l-name .meta { color: var(--faint); font-size: 11px; margin-top: 2px; }
+      .tag-make { color: var(--isk); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+      .tag-buy { color: var(--tone-orange); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+      .ledger .qty { color: var(--name); }
+      .ledger tfoot td {
+        padding: 12px 0 0; border-top: 1px solid var(--border); font-size: 13px; text-align: right; color: var(--name);
+        font-weight: 600;
+      }
+      .ledger tfoot td:first-child { text-align: left; color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.12em; }
+
+      /* ───────────────── Two-column body ───────────────── */
+      .body-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 40px; align-items: start; }
+
+      /* materials as floating chips, grouped */
+      .mat-group { margin-bottom: 20px; }
+      .mat-group .g-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--faint); margin-bottom: 10px; }
+      .mat-list { display: flex; flex-direction: column; gap: 0; }
+      .mat {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 8px 0; border-bottom: 1px solid var(--border-soft); font-size: 12.5px;
+      }
+      .mat:last-child { border-bottom: 0; }
+      .mat .m-name { color: var(--text); display: flex; align-items: center; gap: 9px; }
+      .mat .m-name .sq { width: 6px; height: 6px; border-radius: 1px; background: var(--isk-sub); }
+      .mat .m-name .sq.ext { background: var(--tone-orange); opacity: .6; }
+      .mat .m-right { display: flex; align-items: baseline; gap: 14px; font-variant-numeric: tabular-nums; }
+      .mat .m-qty { color: var(--name); }
+      .mat .m-isk { color: var(--muted); min-width: 78px; text-align: right; }
+
+      /* right rail readout */
+      .readout { position: sticky; top: 64px; display: flex; flex-direction: column; gap: 0; }
+      .readout .ro {
+        display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+        padding: 13px 0; border-bottom: 1px solid var(--border-soft);
+      }
+      .readout .ro:first-child { padding-top: 0; }
+      .readout .ro .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+      .readout .ro .v { font-family: var(--display); font-weight: 600; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--name); }
+      .readout .ro .v.pos { color: var(--isk); }
+      .readout .ro .v.neg { color: var(--tone-orange); }
+      .readout .bars { margin-top: 18px; }
+      .barrow { margin-bottom: 13px; }
+      .barrow .bl { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+      .barrow .bl .pct { color: var(--text); font-variant-numeric: tabular-nums; }
+      .track { height: 4px; border-radius: 2px; background: var(--surface-sunk); border: 1px solid var(--border-soft); overflow: hidden; }
+      .track .fill { height: 100%; background: var(--isk-sub); }
+      .track .fill.warn { background: var(--tone-orange); opacity: .7; }
+      .track .fill.blue { background: var(--tone-blue); }
+
+      .legend { display: flex; gap: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+      .legend span { display: inline-flex; align-items: center; gap: 6px; }
+      .legend .sq { width: 7px; height: 7px; border-radius: 1px; }
+      .legend .make { background: var(--isk-sub); }
+      .legend .buy { background: var(--tone-orange); opacity: .6; }
+
+      @media (max-width: 860px) {
+        .headline { grid-template-columns: 1fr; gap: 24px; }
+        .vrule { display: none; }
+        .body-grid { grid-template-columns: 1fr; gap: 26px; }
+        .readout { position: static; }
+        .hero-figure { font-size: 46px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sandbox-bar">
+      <span class="tag">sandbox</span>
+      <span class="crumb">industry planner / <b>cockpit rethink</b></span>
+      <span class="links">
+        <a href="/cockpit-sandbox.html">← cleanup pass</a>
+        <a href="/primitives-sandbox.html">primitives</a>
+      </span>
+    </div>
+
+    <p class="note">
+      <b>Concept B — cardless cockpit.</b> Same primaries (ISK green, EVE blue, tones, pills), but the boxes are mostly gone.
+      Information is grouped by meaning and separated with hairline rules and alignment instead of card edges:
+      a single <b>hero profit figure</b> anchors the page, economics float as a divided stat cluster, the build plan is a clean
+      <b>ledger</b>, and a sticky right rail carries the running readout. Denser, calmer, no stray green edges.
+    </p>
+
+    <div class="shell">
+      <!-- Masthead -->
+      <header class="masthead">
+        <div class="render">T2</div>
+        <div class="who">
+          <div class="crumbline">
+            <span class="scheme">Hauler Build</span><span class="sep">/</span>blueprint plan
+          </div>
+          <div class="title">Occator</div>
+          <div class="sub">
+            <span class="pill t4">Deep Space Transport</span>
+            <span class="pill ghost">ME 10 · TE 20</span>
+            <span class="pill ghost">runs ×8</span>
+            <span class="util"><span class="dot"></span> Jita 4-4 · 12m ago</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn">Edit inputs</button>
+          <button class="btn primary">Save plan</button>
+        </div>
+      </header>
+
+      <!-- Headline band: hero profit + floating economics -->
+      <section class="headline">
+        <div>
+          <div class="hero-label">Net profit / run</div>
+          <div class="hero-figure num">14.8<span class="unit">M ISK</span></div>
+          <div class="hero-meta">
+            <div class="row"><span class="k">Margin</span><span class="v pos num">+24.6%</span></div>
+            <div class="row"><span class="k">Total batch (×8)</span><span class="v num">118.4M</span></div>
+            <div class="row"><span class="k">ISK / hour</span><span class="v num">2.41M</span></div>
+          </div>
+        </div>
+
+        <div class="vrule" aria-hidden="true"></div>
+
+        <div class="econ">
+          <div class="stat">
+            <div class="s-label">Sell value</div>
+            <div class="s-value num">60.2M</div>
+            <div class="s-foot">per unit · <span class="up">sell orders</span></div>
+          </div>
+          <div class="stat">
+            <div class="s-label">Input cost</div>
+            <div class="s-value muted-val num">45.4M</div>
+            <div class="s-foot">materials + job fees</div>
+          </div>
+          <div class="stat">
+            <div class="s-label">Build time</div>
+            <div class="s-value muted-val num">6h 08m</div>
+            <div class="s-foot">per run · <span class="down">1 line</span></div>
+          </div>
+          <div class="stat">
+            <div class="s-label">Market depth</div>
+            <div class="s-value num">B+</div>
+            <div class="s-foot"><span class="up">healthy</span> · 38 sold/day</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Body: ledger + sticky readout -->
+      <div class="body-grid">
+        <div>
+          <div class="sec-head">
+            <h2>Build plan</h2>
+            <span class="count">5 components</span>
+            <span class="rule"></span>
+            <span class="aside">make vs buy</span>
+          </div>
+
+          <table class="ledger">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Source</th>
+                <th>Qty</th>
+                <th>Unit ISK</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="l-name">
+                    <span class="rail make"></span>
+                    <div><div class="nm">Fullerene Reactor</div><div class="meta">2 runs · 1h 20m</div></div>
+                  </div>
+                </td>
+                <td><span class="tag-make">make</span></td>
+                <td class="qty num">2</td>
+                <td class="num">8.10M</td>
+                <td class="num">16.20M</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="l-name">
+                    <span class="rail make"></span>
+                    <div><div class="nm">Morphite Alloy</div><div class="meta">1 run · 42m</div></div>
+                  </div>
+                </td>
+                <td><span class="tag-make">make</span></td>
+                <td class="qty num">1</td>
+                <td class="num">11.90M</td>
+                <td class="num">11.90M</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="l-name">
+                    <span class="rail buy"></span>
+                    <div><div class="nm">Construction Blocks</div><div class="meta">market · Jita</div></div>
+                  </div>
+                </td>
+                <td><span class="tag-buy">buy</span></td>
+                <td class="qty num">120</td>
+                <td class="num">61.0K</td>
+                <td class="num">7.32M</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="l-name">
+                    <span class="rail buy"></span>
+                    <div><div class="nm">R.A.M.- Robotics</div><div class="meta">market · Jita</div></div>
+                  </div>
+                </td>
+                <td><span class="tag-buy">buy</span></td>
+                <td class="qty num">8</td>
+                <td class="num">742K</td>
+                <td class="num">5.94M</td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="l-name">
+                    <span class="rail buy"></span>
+                    <div><div class="nm">Capacitor Console</div><div class="meta">market · Jita</div></div>
+                  </div>
+                </td>
+                <td><span class="tag-buy">buy</span></td>
+                <td class="qty num">4</td>
+                <td class="num">1.01M</td>
+                <td class="num">4.04M</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Input cost / run</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td class="num">45.40M</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="sec-head">
+            <h2>Raw materials</h2>
+            <span class="count">resolved to base</span>
+            <span class="rule"></span>
+          </div>
+
+          <div class="mat-group">
+            <div class="g-title">Reaction inputs</div>
+            <div class="mat-list">
+              <div class="mat">
+                <span class="m-name"><span class="sq"></span> Fullerite-C320</span>
+                <span class="m-right"><span class="m-qty num">9,200</span><span class="m-isk num">5.10M</span></span>
+              </div>
+              <div class="mat">
+                <span class="m-name"><span class="sq"></span> Fullerite-C540</span>
+                <span class="m-right"><span class="m-qty num">4,400</span><span class="m-isk num">6.80M</span></span>
+              </div>
+              <div class="mat">
+                <span class="m-name"><span class="sq"></span> Morphite</span>
+                <span class="m-right"><span class="m-qty num">820</span><span class="m-isk num">4.90M</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mat-group">
+            <div class="g-title">Market purchases</div>
+            <div class="mat-list">
+              <div class="mat">
+                <span class="m-name"><span class="sq ext"></span> Construction Blocks</span>
+                <span class="m-right"><span class="m-qty num">120</span><span class="m-isk num">7.32M</span></span>
+              </div>
+              <div class="mat">
+                <span class="m-name"><span class="sq ext"></span> R.A.M.- Robotics</span>
+                <span class="m-right"><span class="m-qty num">8</span><span class="m-isk num">5.94M</span></span>
+              </div>
+              <div class="mat">
+                <span class="m-name"><span class="sq ext"></span> Capacitor Console</span>
+                <span class="m-right"><span class="m-qty num">4</span><span class="m-isk num">4.04M</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sticky readout rail -->
+        <aside class="readout">
+          <div class="ro"><span class="k">Sell / unit</span><span class="v num">60.2M</span></div>
+          <div class="ro"><span class="k">Cost / unit</span><span class="v num">45.4M</span></div>
+          <div class="ro"><span class="k">Profit / unit</span><span class="v pos num">14.8M</span></div>
+          <div class="ro"><span class="k">Margin</span><span class="v pos num">24.6%</span></div>
+          <div class="ro"><span class="k">Job fees</span><span class="v num">1.20M</span></div>
+
+          <div class="bars">
+            <div class="barrow">
+              <div class="bl"><span>Make</span><span class="pct num">62%</span></div>
+              <div class="track"><div class="fill" style="width:62%"></div></div>
+            </div>
+            <div class="barrow">
+              <div class="bl"><span>Buy</span><span class="pct num">38%</span></div>
+              <div class="track"><div class="fill warn" style="width:38%"></div></div>
+            </div>
+            <div class="barrow">
+              <div class="bl"><span>Market depth</span><span class="pct num">B+</span></div>
+              <div class="track"><div class="fill blue" style="width:74%"></div></div>
+            </div>
+          </div>
+
+          <div class="legend">
+            <span><span class="sq make"></span> manufactured</span>
+            <span><span class="sq buy"></span> purchased</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>
