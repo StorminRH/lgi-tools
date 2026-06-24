@@ -54,8 +54,8 @@ You need Node 20+, pnpm, and Docker.
    - Register a dev app at
      [developers.eveonline.com/applications](https://developers.eveonline.com/applications)
      with scope `publicData` and callback
-     `http://localhost:3000/api/auth/callback`. Paste the resulting
-     client id/secret into `EVE_CLIENT_ID` / `EVE_CLIENT_SECRET`.
+     `http://localhost:3000/api/auth/oauth2/callback/eve`. Paste the
+     resulting client id/secret into `EVE_CLIENT_ID` / `EVE_CLIENT_SECRET`.
    - Generate a session secret: `openssl rand -base64 32`. Paste into
      `SESSION_SECRET`.
    - Optionally set `SUPERADMIN_CHARACTER_ID` to your EVE character id
@@ -75,10 +75,17 @@ You need Node 20+, pnpm, and Docker.
    pnpm db:ingest:sde
    ```
 
-6. **Start the dev server.**
+6. **Start the dev server.** `pnpm dev` runs only Next. Signed-in features
+   (the home character roster, skills, industry jobs) also need the local
+   Convex backend on `:3210`, so use the one-command startup:
    ```
-   pnpm dev
+   pnpm dev:all
    ```
+   This brings up Postgres, Next (`:3000`), and Convex (`:3210`) together
+   (plain `pnpm dev` is fine for the public/anonymous pages). For signed-in
+   login to work, the dev port must match in three places — `.env.local`'s
+   `BETTER_AUTH_URL`, the Convex deployment's `AUTH_ISSUER_URL`, and the EVE
+   app callback above — all on `http://localhost:3000`.
 
    Open [http://localhost:3000](http://localhost:3000).
 
@@ -87,6 +94,7 @@ You need Node 20+, pnpm, and Docker.
 | Command | What it does |
 | --- | --- |
 | `pnpm dev` | Start the Next.js dev server |
+| `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
 | `pnpm build` | Production build |
 | `pnpm test` | Run the Vitest suite once |
 | `pnpm test:watch` | Vitest in watch mode |
