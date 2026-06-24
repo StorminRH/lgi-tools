@@ -4,6 +4,14 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.26 — 2026-06-24
+
+#### Changed
+- The changelog now reads like clean release notes: a bigger version heading, with each change type (Added, Changed, Fixed, Removed) shown as its own labeled section above easier-to-scan bullets.
+
+#### Removed
+- The public-beta notice is gone — LGI.tools is out of beta.
+
 ### v3.6.25 — 2026-06-23
 
 #### Changed

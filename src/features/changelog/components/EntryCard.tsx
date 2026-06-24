@@ -32,9 +32,7 @@ export function EntryCard({ entry }: { entry: ChangelogEntry }) {
       <div className="changelog-changes">
         {entry.groups.map((group) => (
           <div key={group.type} className="changelog-group">
-            <Pill tone={TYPE_TONE[group.type]} className="changelog-tag">
-              {group.type}
-            </Pill>
+            <Pill tone={TYPE_TONE[group.type]}>{group.type}</Pill>
             <ul className="changelog-list">
               {group.items.map((item, i) => (
                 <li key={i}>{item}</li>
