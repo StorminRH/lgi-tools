@@ -15,7 +15,7 @@ export function Footer() {
       // anchored in the bottom-right corner (handoff §3).
       className="pr-[150px]"
       left={
-        <span className="block max-w-[720px] font-mono text-faint tracking-[0.03em] leading-[1.7]">
+        <span className="block max-w-[720px] font-mono text-muted tracking-[0.03em] leading-[1.7]">
           Lo-Gang Industries — EVE Online and all related marks are property of Fenris Creations.
           LGI.tools is an independent third-party tool, not affiliated with or endorsed by Fenris
           Creations.

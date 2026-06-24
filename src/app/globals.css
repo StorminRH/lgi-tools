@@ -23,7 +23,7 @@
   --color-text:  #aab4be;
   --color-name:  #f1f5f9;
   --color-muted: #7b8693;
-  --color-faint: #565f6a; /* faintest text tier, below muted */
+  --color-faint: #6c7682; /* faintest text tier, below muted (nudged from #565f6a to ~3.5:1 for legibility — C5) */
   --color-isk:   #3dd68c;
   --color-isk-sub: #4a7860;
   --color-isk-dim: #1a3a28;
@@ -629,7 +629,10 @@ a:hover {
   transition: opacity 0.3s;
 }
 .industry-hint kbd.show { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .industry-hint .cur { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .industry-hint .cur { animation: none; }
+  .industry-hint kbd { transition: none; }
+}
 @media (max-width: 640px) { .industry-hint .txt { white-space: normal; } }
 
 /* Typographic monogram icons — green for recents/favorites, EVE-blue for the
@@ -707,6 +710,9 @@ a:hover {
   background: linear-gradient(90deg, #2b7fc4, var(--color-evb-bright));
   box-shadow: 0 0 8px var(--color-evb-glow);
   transition: width 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .industry-bar-fill { transition: none; }
 }
 
 @media (max-width: 760px) {
