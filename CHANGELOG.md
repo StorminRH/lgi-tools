@@ -4,6 +4,12 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.24 — 2026-06-23
+
+#### Changed
+- The site now sits on a subtle dark space backdrop, with a cleaner top bar that shares the cards' surface and a search box that glows green when you focus it.
+- When you're signed in, the home page is tidier: your characters now show as small cards three-across beneath the banner, each with skill points, what's training, time remaining, and a clearer progress bar.
+
 ### v3.6.23 — 2026-06-23
 
 #### Changed
