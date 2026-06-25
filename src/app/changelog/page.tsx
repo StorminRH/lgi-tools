@@ -5,8 +5,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { APP_VERSION } from '@/config/app-version';
-import { EntryCard } from '@/features/changelog/components/EntryCard';
-import { parseChangelog } from '@/features/changelog/parse';
+import { MasterSection } from '@/features/changelog/components/MasterSection';
+import { parseChangelogMasters } from '@/features/changelog/parse';
 
 export const metadata = {
   title: 'Changelog',
@@ -21,11 +21,11 @@ async function loadChangelog() {
   'use cache';
   cacheLife('max');
   const md = await readFile(join(process.cwd(), 'CHANGELOG.md'), 'utf8');
-  return parseChangelog(md);
+  return parseChangelogMasters(md);
 }
 
 export default async function ChangelogPage() {
-  const entries = await loadChangelog();
+  const masters = await loadChangelog();
 
   return (
     <PageShell>
@@ -40,12 +40,12 @@ export default async function ChangelogPage() {
       />
 
       <div className="pb-16">
-        {entries.length === 0 ? (
+        {masters.length === 0 ? (
           <EmptyState>No changelog entries yet.</EmptyState>
         ) : (
           <div className="changelog">
-            {entries.map((entry) => (
-              <EntryCard key={`${entry.version}-${entry.date}`} entry={entry} />
+            {masters.map((master) => (
+              <MasterSection key={master.version} master={master} />
             ))}
           </div>
         )}
