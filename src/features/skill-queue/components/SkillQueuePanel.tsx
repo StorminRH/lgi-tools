@@ -7,21 +7,19 @@
 // reload and no client polling. Liveness comes from the presence-gated
 // engine (3.4.9): the visibility-gated heartbeat keeps this subject hot
 // while the tab is watched, and the engine refreshes it on the dataset's
-// cadence — the ids it sends are a freshness hint only, never authority.
-// The session gate, live-sync hook, and card shell are shared with the
-// industry-jobs panel (src/components/live-character-card).
+// cadence — the ids it sends are a freshness hint only, never authority. The
+// session gate and the whole live panel (sync hook, status line, per-character
+// card shell) are shared with the industry-jobs panel
+// (src/components/live-character-card); this slice supplies only its row,
+// summary, and id-extraction.
 import { useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import {
-  LiveCharacterCard,
+  type CharacterCardContent,
+  LiveCharacterPanel,
   LiveSessionGate,
   type PanelCharacter,
-  useLiveCharacterSync,
 } from '@/components/live-character-card';
-import { syncErrorMeta } from '@/components/live-character-sync';
-import { Callout } from '@/components/ui/callout';
-import { Card } from '@/components/ui/card';
-import { useLoadingToast } from '@/components/ui/loading-toast';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { api } from '@/data/convex/api';
@@ -66,60 +64,29 @@ function skillTypeIds(characters: LiveCharacter[]): number[] {
 
 function LiveQueues({ characters }: { characters: PanelCharacter[] }) {
   const live = useQuery(api.skills.forViewer);
-  const { liveByCharacter, names, now, syncing, runError } = useLiveCharacterSync({
-    live,
-    dataset: 'skills',
-    characterIds: characters.map((c) => c.characterId),
-    extractTypeIds: skillTypeIds,
-  });
-
-  // Drop the sitewide loading toast while an ESI character sync is running.
-  useLoadingToast(syncing);
-
   return (
-    <div className="w-full max-w-[760px] flex flex-col gap-6">
-      <div className="flex items-center">
-        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
-          {syncing ? 'Syncing from ESI…' : 'Live · updates as syncs land'}
-        </span>
-      </div>
-
-      {runError !== null && (
-        <Card>
-          <Callout label="Sync trouble">
-            {syncErrorMeta(runError.split(':')[0] ?? runError).label} — showing the last
-            synced data below.
-          </Callout>
-        </Card>
-      )}
-
-      {characters.map((character) => (
-        <CharacterQueueCard
-          key={character.characterId}
-          character={character}
-          live={liveByCharacter.get(character.characterId)}
-          names={names}
-          now={now}
-          syncing={syncing}
-        />
-      ))}
-    </div>
+    <LiveCharacterPanel
+      live={live}
+      characters={characters}
+      dataset="skills"
+      extractTypeIds={skillTypeIds}
+      liveLabel="Live · updates as syncs land"
+      sectionLabel="Skill queue"
+      scopePhrase="the skill scopes"
+      noun="queue"
+      emptyRowsText="No skills in the training queue."
+      renderCard={renderQueueCard}
+    />
   );
 }
 
-function CharacterQueueCard({
-  character,
-  live,
-  names,
-  now,
-  syncing,
-}: {
-  character: PanelCharacter;
-  live: LiveCharacter | undefined;
-  names: Record<string, string>;
-  now: number;
-  syncing: boolean;
-}) {
+// One character's queue-card content: the SP subtitle, the "queue ends in" /
+// paused header slot, and the per-entry rows. The panel owns the card shell.
+function renderQueueCard(
+  live: LiveCharacter | undefined,
+  names: Record<string, string>,
+  now: number,
+): CharacterCardContent {
   const data = live?.data ?? null;
   const summary = data !== null ? summarizeQueue(data.entries, now) : null;
 
@@ -143,32 +110,21 @@ function CharacterQueueCard({
     </>
   );
 
-  return (
-    <LiveCharacterCard
-      character={character}
-      syncError={live?.syncError}
-      lastSyncedAt={live?.lastSyncedAt}
-      hasData={data !== null}
-      isEmpty={data !== null && data.entries.length === 0}
-      syncing={syncing}
-      sectionLabel="Skill queue"
-      scopePhrase="the skill scopes"
-      noun="queue"
-      subtitle={subtitle}
-      headerRight={headerRight}
-      emptyRowsText="No skills in the training queue."
-    >
-      {data !== null &&
-        data.entries.map((entry) => (
-          <QueueEntryRow
-            key={entry.queue_position}
-            entry={entry}
-            name={names[String(entry.skill_id)]}
-            now={now}
-          />
-        ))}
-    </LiveCharacterCard>
-  );
+  return {
+    isEmpty: data !== null && data.entries.length === 0,
+    subtitle,
+    headerRight,
+    rows:
+      data !== null &&
+      data.entries.map((entry) => (
+        <QueueEntryRow
+          key={entry.queue_position}
+          entry={entry}
+          name={names[String(entry.skill_id)]}
+          now={now}
+        />
+      )),
+  };
 }
 
 function QueueEntryRow({

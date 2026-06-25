@@ -8,21 +8,18 @@
 // and no client polling. Liveness comes from the presence-gated engine
 // (3.4.9): the visibility-gated heartbeat keeps this subject hot while the
 // tab is watched, and the engine refreshes it on the dataset's cadence —
-// the ids it sends are a freshness hint only, never authority. The session
-// gate, live-sync hook, and card shell are shared with the skill-queue panel
-// (src/components/live-character-card).
+// the ids it sends are a freshness hint only, never authority. The session gate
+// and the whole live panel (sync hook, status line, per-character card shell)
+// are shared with the skill-queue panel (src/components/live-character-card);
+// this slice supplies only its row, summary, and id-extraction.
 import { useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import {
-  LiveCharacterCard,
+  type CharacterCardContent,
+  LiveCharacterPanel,
   LiveSessionGate,
   type PanelCharacter,
-  useLiveCharacterSync,
 } from '@/components/live-character-card';
-import { syncErrorMeta } from '@/components/live-character-sync';
-import { Callout } from '@/components/ui/callout';
-import { Card } from '@/components/ui/card';
-import { useLoadingToast } from '@/components/ui/loading-toast';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { api } from '@/data/convex/api';
@@ -54,9 +51,10 @@ type LiveCharacter = NonNullable<
   FunctionReturnType<typeof api.industryJobs.forViewer>
 >['characters'][number];
 
-// The one per-feature seam of useLiveCharacterSync: which type ids to resolve
-// to names. Module-stable so it can sit in the hook's dependency list.
-function jobTypeIds(characters: LiveCharacter[]): number[] {
+// The one per-feature seam of useLiveCharacterSync: which type ids to resolve to
+// names. Module-stable so it can sit in the hook's dependency list. Exported so
+// the /industry active-jobs board reuses the same extraction over the same query.
+export function jobTypeIds(characters: LiveCharacter[]): number[] {
   const ids: number[] = [];
   for (const character of characters) {
     for (const job of character.data?.jobs ?? []) {
@@ -69,60 +67,29 @@ function jobTypeIds(characters: LiveCharacter[]): number[] {
 
 function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
   const live = useQuery(api.industryJobs.forViewer);
-  const { liveByCharacter, names, now, syncing, runError } = useLiveCharacterSync({
-    live,
-    dataset: 'industryJobs',
-    characterIds: characters.map((c) => c.characterId),
-    extractTypeIds: jobTypeIds,
-  });
-
-  // Drop the sitewide loading toast while an ESI character sync is running.
-  useLoadingToast(syncing);
-
   return (
-    <div className="w-full max-w-[760px] flex flex-col gap-6">
-      <div className="flex items-center">
-        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
-          {syncing ? 'Syncing from ESI…' : 'Live · jobs flip to ready on schedule'}
-        </span>
-      </div>
-
-      {runError !== null && (
-        <Card>
-          <Callout label="Sync trouble">
-            {syncErrorMeta(runError.split(':')[0] ?? runError).label} — showing the last
-            synced data below.
-          </Callout>
-        </Card>
-      )}
-
-      {characters.map((character) => (
-        <CharacterJobsCard
-          key={character.characterId}
-          character={character}
-          live={liveByCharacter.get(character.characterId)}
-          names={names}
-          now={now}
-          syncing={syncing}
-        />
-      ))}
-    </div>
+    <LiveCharacterPanel
+      live={live}
+      characters={characters}
+      dataset="industryJobs"
+      extractTypeIds={jobTypeIds}
+      liveLabel="Live · jobs flip to ready on schedule"
+      sectionLabel="Industry jobs"
+      scopePhrase="the industry scope"
+      noun="jobs"
+      emptyRowsText="No industry jobs running."
+      renderCard={renderJobsCard}
+    />
   );
 }
 
-function CharacterJobsCard({
-  character,
-  live,
-  names,
-  now,
-  syncing,
-}: {
-  character: PanelCharacter;
-  live: LiveCharacter | undefined;
-  names: Record<string, string>;
-  now: number;
-  syncing: boolean;
-}) {
+// One character's jobs-card content: the jobs-count subtitle, the "next done in"
+// header slot, and the per-job rows. The panel owns the card shell.
+function renderJobsCard(
+  live: LiveCharacter | undefined,
+  names: Record<string, string>,
+  now: number,
+): CharacterCardContent {
   const data = live?.data ?? null;
   const summary = data !== null ? summarizeJobs(data.jobs, now) : null;
 
@@ -140,25 +107,14 @@ function CharacterJobsCard({
     </span>
   );
 
-  return (
-    <LiveCharacterCard
-      character={character}
-      syncError={live?.syncError}
-      lastSyncedAt={live?.lastSyncedAt}
-      hasData={data !== null}
-      isEmpty={data !== null && data.jobs.length === 0}
-      syncing={syncing}
-      sectionLabel="Industry jobs"
-      scopePhrase="the industry scope"
-      noun="jobs"
-      subtitle={subtitle}
-      headerRight={headerRight}
-      emptyRowsText="No industry jobs running."
-    >
-      {data !== null &&
-        data.jobs.map((job) => <JobRow key={job.job_id} job={job} names={names} now={now} />)}
-    </LiveCharacterCard>
-  );
+  return {
+    isEmpty: data !== null && data.jobs.length === 0,
+    subtitle,
+    headerRight,
+    rows:
+      data !== null &&
+      data.jobs.map((job) => <JobRow key={job.job_id} job={job} names={names} now={now} />),
+  };
 }
 
 function JobRow({
