@@ -4,6 +4,13 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+### v3.6.28 — 2026-06-24
+
+#### Changed
+- Every inner page now opens with the same header — a small breadcrumb over a large title and a one-line description — so the wormhole sites, industry planner, your characters, skill queues, jobs, and the admin screens all read like one site instead of two different title styles.
+- On narrow screens the wormhole-site table now scrolls sideways instead of overflowing the page, so no columns get cut off; the card view still stacks to a single column.
+- Opening a wormhole site now expands its details in place by default instead of in a centred pop-over — you can still switch back to the pop-over from the view controls.
+
 ### v3.6.27 — 2026-06-24
 
 #### Fixed
