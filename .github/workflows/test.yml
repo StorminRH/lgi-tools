@@ -54,6 +54,14 @@ jobs:
       # robust on the merge-commit checkout; a main push falls back to the
       # commit before the push. fallow is a static analyzer (no DB needed); it
       # consumes the coverage emitted by the step above.
+      #
+      # The `pnpm fallow` script carries `--fail-on-issues`, so the gate now
+      # fails on ANY finding the changeset INTRODUCES — duplication included
+      # (previously warn-only) alongside the warn-level rules (circular deps,
+      # unresolved imports, etc.). Inherited findings stay excluded by the
+      # new-only attribution, so a PR is only blocked by problems it adds, not
+      # by pre-existing ones it happens to touch. Sanctioned existing clones live
+      # in fallow-baselines/dupes.json.
       - run: pnpm fallow
         env:
           FALLOW_AUDIT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}

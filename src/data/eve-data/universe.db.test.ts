@@ -10,11 +10,7 @@ import {
   setupDisposableSchema,
 } from '@/db/test-support/db-coverage-harness';
 import { emitUniverseNeon, type UniverseDataset } from './universe';
-import {
-  eveNpcStations,
-  eveSolarSystems,
-  eveSystemJumps,
-} from './schema';
+import { eveNpcStations, eveSolarSystems } from './schema';
 
 // Proves the universe emit seam end-to-end against the local Docker Postgres: a
 // mixed K-space + J-space dataset emits, reads back with its wormhole class and

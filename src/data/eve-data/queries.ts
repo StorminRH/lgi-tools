@@ -152,15 +152,16 @@ export async function getBlueprintTree(
   return { treeJson: row.treeJson as TreeNode[], computedAt: row.computedAt };
 }
 
-// The industry activity (1 = manufacturing, 11 = reaction) that produces each
-// of the given blueprints, in one batched query — for labelling tree nodes by
-// how they're made without an N+1. A blueprint carries at most one of {1, 11}
-// (the resolver collapses the two on that basis); if one somehow carries both,
-// we prefer manufacturing (the lower id), matching the structure read.
-export async function getActivityByBlueprint(
+// Batch-read the stored `activities` JSONB for the given blueprints and fold
+// each row into a Map via `derive`. The per-activity reads below differ only in
+// that fold, so the shared scaffolding (the empty-input guard, the single
+// `inArray` select, the row loop) lives here once. `derive` returns null to omit
+// a blueprint from the result.
+async function mapBlueprintActivities<T>(
   blueprintTypeIds: number[],
-): Promise<Map<number, number>> {
-  const out = new Map<number, number>();
+  derive: (rawActivities: unknown) => T | null,
+): Promise<Map<number, T>> {
+  const out = new Map<number, T>();
   if (blueprintTypeIds.length === 0) return out;
   const rows = await db
     .select({
@@ -170,19 +171,33 @@ export async function getActivityByBlueprint(
     .from(industryBlueprints)
     .where(inArray(industryBlueprints.blueprintTypeId, blueprintTypeIds));
   for (const r of rows) {
-    const activities = (r.activities ?? {}) as BlueprintActivities;
+    const value = derive(r.activities);
+    if (value !== null) out.set(r.blueprintTypeId, value);
+  }
+  return out;
+}
+
+// The industry activity (1 = manufacturing, 11 = reaction) that produces each
+// of the given blueprints, in one batched query — for labelling tree nodes by
+// how they're made without an N+1. A blueprint carries at most one of {1, 11}
+// (the resolver collapses the two on that basis); if one somehow carries both,
+// we prefer manufacturing (the lower id), matching the structure read.
+export async function getActivityByBlueprint(
+  blueprintTypeIds: number[],
+): Promise<Map<number, number>> {
+  return mapBlueprintActivities(blueprintTypeIds, (raw) => {
+    const activities = (raw ?? {}) as BlueprintActivities;
     // The activity (1 or 11) that actually yields a product; prefer
     // manufacturing (the lower id) — INDUSTRY_ACTIVITY_NAMES is ordered
     // manufacturing-first.
     for (const name of INDUSTRY_ACTIVITY_NAMES) {
       const act = activities[name];
       if (act?.products && act.products.length > 0) {
-        out.set(r.blueprintTypeId, ACTIVITY_NAME_TO_ID[name]);
-        break;
+        return ACTIVITY_NAME_TO_ID[name];
       }
     }
-  }
-  return out;
+    return null;
+  });
 }
 
 // The base build TIME (CCP SDE `time`, SECONDS for a single run — ME0/TE0, no
@@ -195,20 +210,9 @@ export async function getActivityByBlueprint(
 export async function getBlueprintActivityTimes(
   blueprintTypeIds: number[],
 ): Promise<Map<number, number>> {
-  const out = new Map<number, number>();
-  if (blueprintTypeIds.length === 0) return out;
-  const rows = await db
-    .select({
-      blueprintTypeId: industryBlueprints.blueprintTypeId,
-      activities: industryBlueprints.activities,
-    })
-    .from(industryBlueprints)
-    .where(inArray(industryBlueprints.blueprintTypeId, blueprintTypeIds));
-  for (const r of rows) {
-    const time = pickBuildTimeSeconds((r.activities ?? {}) as BlueprintActivities);
-    if (time !== null) out.set(r.blueprintTypeId, time);
-  }
-  return out;
+  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
+    pickBuildTimeSeconds((raw ?? {}) as BlueprintActivities),
+  );
 }
 
 // The FULL set of activities each blueprint carries — manufacturing, reaction,
@@ -225,19 +229,9 @@ export async function getBlueprintActivityTimes(
 export async function getBlueprintActivities(
   blueprintTypeIds: number[],
 ): Promise<Map<number, BlueprintActivitySet>> {
-  const out = new Map<number, BlueprintActivitySet>();
-  if (blueprintTypeIds.length === 0) return out;
-  const rows = await db
-    .select({
-      blueprintTypeId: industryBlueprints.blueprintTypeId,
-      activities: industryBlueprints.activities,
-    })
-    .from(industryBlueprints)
-    .where(inArray(industryBlueprints.blueprintTypeId, blueprintTypeIds));
-  for (const r of rows) {
-    out.set(r.blueprintTypeId, parseBlueprintActivities(r.activities));
-  }
-  return out;
+  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
+    parseBlueprintActivities(raw),
+  );
 }
 
 // Union of all type IDs that appear as either a material input OR a
