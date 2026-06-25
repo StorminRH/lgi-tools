@@ -3,17 +3,19 @@
 // Shared chrome for the live per-character panels (skill queue, industry jobs,
 // and any future tracker). Each feature owns its row renderer, summary, and
 // id-extraction; everything that was byte-identical between the panels — the
-// session gate, the sync/clock/name-enrichment hook, and the card shell with
-// its reconnect/sync-error callouts and null/empty/rows tri-state — lives here.
-// This is the `shared` zone (`src/components/*.tsx`), the only layer permitted
-// to import features + data + ui + lib, so the two features compose it without
-// importing each other.
+// session gate, the sync/clock/name-enrichment hook, the per-character card
+// shell with its reconnect/sync-error callouts and null/empty/rows tri-state,
+// and the whole panel column (status line, sync-error callout, per-character
+// loop) — lives here. This is the `shared` zone (`src/components/*.tsx`), the
+// only layer permitted to import features + data + ui + lib, so the two features
+// compose it without importing each other.
 import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
+import { useLoadingToast } from '@/components/ui/loading-toast';
 import { SectionHeader } from '@/components/ui/section-header';
 import { convexClient } from '@/data/convex/client';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
@@ -31,9 +33,41 @@ export interface PanelCharacter {
   needsReconnect: boolean;
 }
 
+// The Convex session tri-state, content-agnostic. No deployment → `unavailable`;
+// an optional pre-auth `empty` slot (rendered before the tri-state so its order
+// matches a gate that short-circuits on "no characters"); otherwise the auth
+// tri-state — `loading` while the session resolves, `signedOut` with no session,
+// `children` once authenticated. Each consumer supplies its own chrome (the
+// Card-framed gate below, the `// Active jobs` section on /industry), so the
+// shell owns only the branch logic both share.
+export function LiveSessionShell({
+  unavailable,
+  empty,
+  loading,
+  signedOut,
+  children,
+}: {
+  unavailable: ReactNode;
+  empty?: ReactNode;
+  loading: ReactNode;
+  signedOut: ReactNode;
+  children: ReactNode;
+}) {
+  if (convexClient === null) return <>{unavailable}</>;
+  if (empty != null) return <>{empty}</>;
+  return (
+    <>
+      <AuthLoading>{loading}</AuthLoading>
+      <Unauthenticated>{signedOut}</Unauthenticated>
+      <Authenticated>{children}</Authenticated>
+    </>
+  );
+}
+
 // Gate the live island on build config, account state, and the Convex session:
 // no deployment → unavailable; no linked characters → empty; otherwise show the
-// children only once authenticated.
+// children only once authenticated. The per-character panels (skill queue,
+// industry jobs, home roster) share this Card-framed gate.
 export function LiveSessionGate({
   characters,
   emptyText,
@@ -43,36 +77,33 @@ export function LiveSessionGate({
   emptyText: ReactNode;
   children: ReactNode;
 }) {
-  if (convexClient === null) {
-    return (
-      <Card>
-        <Callout label="Unavailable">
-          Live data is not configured on this build (no Convex deployment).
-        </Callout>
-      </Card>
-    );
-  }
-  if (characters.length === 0) {
-    return (
-      <Card>
-        <EmptyState>{emptyText}</EmptyState>
-      </Card>
-    );
-  }
   return (
-    <>
-      <AuthLoading>
-        <LoadingLabel label="Connecting live session…" />
-      </AuthLoading>
-      <Unauthenticated>
+    <LiveSessionShell
+      unavailable={
+        <Card>
+          <Callout label="Unavailable">
+            Live data is not configured on this build (no Convex deployment).
+          </Callout>
+        </Card>
+      }
+      empty={
+        characters.length === 0 ? (
+          <Card>
+            <EmptyState>{emptyText}</EmptyState>
+          </Card>
+        ) : undefined
+      }
+      loading={<LoadingLabel label="Connecting live session…" />}
+      signedOut={
         <Card>
           <Callout label="Heads up">
             Live session unavailable — try reloading, or signing out and back in.
           </Callout>
         </Card>
-      </Unauthenticated>
-      <Authenticated>{children}</Authenticated>
-    </>
+      }
+    >
+      {children}
+    </LiveSessionShell>
   );
 }
 
@@ -236,5 +267,120 @@ export function LiveCharacterCard({
         children
       )}
     </Card>
+  );
+}
+
+// The minimum a panel reads off one character's live doc: `data` presence drives
+// the card's has-data/empty tri-state; the sync metadata feeds the reconnect /
+// sync-error callouts. The concrete `data` shape (a queue vs a job list) stays
+// with the feature — the panel only tests presence.
+interface LivePanelCharacter {
+  characterId: number;
+  data?: unknown;
+  syncError?: string | null;
+  lastSyncedAt?: number | null;
+}
+
+// What a feature renders for one character once its live doc is in hand. The
+// panel owns the LiveCharacterCard shell; the feature supplies only what differs
+// per character — the empty test, the two header slots, and the rows.
+export interface CharacterCardContent {
+  isEmpty: boolean;
+  subtitle?: ReactNode;
+  headerRight?: ReactNode;
+  rows: ReactNode;
+}
+
+// The full live-character panel: the column of per-character cards under a
+// "Live · …" status line, with the sitewide loading toast and the run-error
+// callout. Everything byte-identical between the skill-queue and industry-jobs
+// panels lives here — the sync wiring, the toast, the status line, the error
+// callout, and the LiveCharacterCard shell — so each feature is a thin config
+// plus one `renderCard` seam. The card chrome (labels/scope/noun/empty copy) is
+// static config; `renderCard` supplies the dynamic per-character content.
+export function LiveCharacterPanel<TChar extends LivePanelCharacter>({
+  live,
+  characters,
+  dataset,
+  extractTypeIds,
+  liveLabel,
+  sectionLabel,
+  scopePhrase,
+  noun,
+  emptyRowsText,
+  renderCard,
+}: {
+  live:
+    | {
+        characters: TChar[];
+        syncState?: { status?: string | null; lastError?: string | null } | null;
+      }
+    | null
+    | undefined;
+  characters: PanelCharacter[];
+  dataset: SyncDataset;
+  extractTypeIds: (characters: TChar[]) => number[];
+  liveLabel: string;
+  sectionLabel: string;
+  scopePhrase: string;
+  noun: string;
+  emptyRowsText: string;
+  renderCard: (
+    live: TChar | undefined,
+    names: Record<string, string>,
+    now: number,
+  ) => CharacterCardContent;
+}) {
+  const { liveByCharacter, names, now, syncing, runError } = useLiveCharacterSync({
+    live,
+    dataset,
+    characterIds: characters.map((c) => c.characterId),
+    extractTypeIds,
+  });
+
+  // Drop the sitewide loading toast while an ESI character sync is running.
+  useLoadingToast(syncing);
+
+  return (
+    <div className="w-full max-w-[760px] flex flex-col gap-6">
+      <div className="flex items-center">
+        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
+          {syncing ? 'Syncing from ESI…' : liveLabel}
+        </span>
+      </div>
+
+      {runError !== null && (
+        <Card>
+          <Callout label="Sync trouble">
+            {syncErrorMeta(runError.split(':')[0] ?? runError).label} — showing the last
+            synced data below.
+          </Callout>
+        </Card>
+      )}
+
+      {characters.map((character) => {
+        const liveChar = liveByCharacter.get(character.characterId);
+        const { isEmpty, subtitle, headerRight, rows } = renderCard(liveChar, names, now);
+        return (
+          <LiveCharacterCard
+            key={character.characterId}
+            character={character}
+            syncError={liveChar?.syncError}
+            lastSyncedAt={liveChar?.lastSyncedAt}
+            hasData={(liveChar?.data ?? null) !== null}
+            isEmpty={isEmpty}
+            syncing={syncing}
+            sectionLabel={sectionLabel}
+            scopePhrase={scopePhrase}
+            noun={noun}
+            subtitle={subtitle}
+            headerRight={headerRight}
+            emptyRowsText={emptyRowsText}
+          >
+            {rows}
+          </LiveCharacterCard>
+        );
+      })}
+    </div>
   );
 }

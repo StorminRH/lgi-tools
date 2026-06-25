@@ -1,34 +1,30 @@
 'use client';
 
 // The /industry landing's live Active-jobs table (handoff §5). Reuses the
-// industry-jobs Convex sync — the same `forViewer` query and presence-gated
-// `useSyncSubject` engine the /jobs tracker uses — but renders one unified
+// industry-jobs Convex sync — the same `forViewer` query, presence-gated
+// `useSyncSubject`, render clock, and type-name resolution the /jobs tracker
+// uses, all via the shared `useLiveCharacterSync` hook — but renders one unified
 // table across all of the viewer's characters with EVE-industry-blue progress
 // bars. The character ids that drive the sync come from the server (Neon truth);
-// the live job data, names, and progress are resolved client-side. No manual
-// refresh control (live-data policy): the board refreshes itself on view and
-// flips a job to ready on schedule.
-import { Authenticated, AuthLoading, Unauthenticated, useQuery } from 'convex/react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+// the live job data, names, and progress are resolved client-side. The Convex
+// session tri-state is the shared `LiveSessionShell`, wrapped in this board's own
+// `// Active jobs` section. No manual refresh control (live-data policy): the
+// board refreshes itself on view and flips a job to ready on schedule.
+import { useQuery } from 'convex/react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { LiveSessionShell, useLiveCharacterSync } from '@/components/live-character-card';
 import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
 import { api } from '@/data/convex/api';
-import { convexClient } from '@/data/convex/client';
-import { useSyncSubject } from '@/data/convex/use-sync-subject';
-import { typeNamesEndpoint, TYPE_NAMES_MAX_IDS } from '@/data/eve-data/api-contract';
-import { apiFetch } from '@/lib/api-client';
 import { initials } from '@/lib/format/names';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { jobActivityPill } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
-
-// Client-side re-render cadence for the progress + "done in" labels (the ready
-// flip itself arrives over the websocket, not from this tick).
-const TICK_MS = 30_000;
+import { jobTypeIds } from './IndustryJobsPanel';
 
 function JobsSection({ meta, children }: { meta?: ReactNode; children: ReactNode }) {
   return (
@@ -42,41 +38,41 @@ function JobsSection({ meta, children }: { meta?: ReactNode; children: ReactNode
 }
 
 export function IndustryActiveJobs({ characterIds }: { characterIds: number[] }) {
-  if (convexClient === null) {
-    return (
-      <JobsSection>
-        <Callout label="Unavailable">Live data is not configured on this build.</Callout>
-      </JobsSection>
-    );
-  }
   return (
-    <>
-      <AuthLoading>
+    <LiveSessionShell
+      unavailable={
+        <JobsSection>
+          <Callout label="Unavailable">Live data is not configured on this build.</Callout>
+        </JobsSection>
+      }
+      loading={
         <JobsSection>
           <LoadingLabel label="Connecting live session…" />
         </JobsSection>
-      </AuthLoading>
-      <Unauthenticated>
+      }
+      signedOut={
         <JobsSection>
           <EmptyState>Sign in with EVE (top right) to track your industry jobs here.</EmptyState>
         </JobsSection>
-      </Unauthenticated>
-      <Authenticated>
-        <LiveJobs characterIds={characterIds} />
-      </Authenticated>
-    </>
+      }
+    >
+      <LiveJobs characterIds={characterIds} />
+    </LiveSessionShell>
   );
 }
 
 function LiveJobs({ characterIds }: { characterIds: number[] }) {
   const live = useQuery(api.industryJobs.forViewer);
-  useSyncSubject('industryJobs', characterIds);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), TICK_MS);
-    return () => clearInterval(timer);
-  }, []);
+  // The shared live-character sync owns the presence heartbeat, the render clock,
+  // and the type-name resolution (names never live in Convex). This board
+  // resolves the same job blueprint/product ids as the /jobs panel — one shared
+  // `jobTypeIds` extraction — then flattens every character's jobs into one table.
+  const { names, now } = useLiveCharacterSync({
+    live,
+    dataset: 'industryJobs',
+    characterIds,
+    extractTypeIds: jobTypeIds,
+  });
 
   const jobs = useMemo<IndustryJob[]>(() => {
     const all: IndustryJob[] = [];
@@ -87,31 +83,6 @@ function LiveJobs({ characterIds }: { characterIds: number[] }) {
       (a, b) => Date.parse(a.end_date) - Date.parse(b.end_date) || a.job_id - b.job_id,
     );
   }, [live]);
-
-  // Resolve blueprint/product names client-side against Neon (names never live
-  // in Convex) — the /jobs panel precedent.
-  const typeIds = useMemo(() => {
-    const ids = new Set<number>();
-    for (const job of jobs) {
-      ids.add(job.blueprint_type_id);
-      if (job.product_type_id !== undefined) ids.add(job.product_type_id);
-    }
-    return [...ids].sort((a, b) => a - b).slice(0, TYPE_NAMES_MAX_IDS);
-  }, [jobs]);
-  const [names, setNames] = useState<Record<string, string>>({});
-  const typeIdsKey = typeIds.join(',');
-  useEffect(() => {
-    if (typeIdsKey === '') return;
-    let cancelled = false;
-    void apiFetch(typeNamesEndpoint, {
-      body: { typeIds: typeIdsKey.split(',').map(Number) },
-    }).then((result) => {
-      if (!cancelled && result.ok) setNames((prev) => ({ ...prev, ...result.data.names }));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [typeIdsKey]);
 
   const completeCount = jobs.filter((job) => job.status === 'ready').length;
   const inProgressCount = jobs.filter((job) => job.status === 'active').length;
