@@ -15,18 +15,21 @@ describe('EVE_SCOPES', () => {
   // in auth.ts). EVE rejects an unknown scope with `invalid_scope`, which breaks
   // ALL sign-in (a wrong name shipped in 3.4.1a and did exactly that).
   //
-  // 3.7.1.1 pruned this to STRICT LEAST-PRIVILEGE: exactly the four scopes a
-  // shipped feature consumes. Naming trap still worth pinning: the skill-queue
-  // read lives under `esi-skills`, NOT `esi-skillqueue`. (`read_attributes` does
-  // not exist; /attributes is gated by `read_skills`.) Adding a scope is a
-  // deliberate, batched decision — verify the exact live name before touching
-  // this list.
+  // 3.7.1.1 pruned this to STRICT LEAST-PRIVILEGE; 3.7.3.1 (the first corp
+  // feature) added the two corp reads, taking it to six. Naming trap still
+  // worth pinning: the skill-queue read lives under `esi-skills`, NOT
+  // `esi-skillqueue`. (`read_attributes` does not exist; /attributes is gated by
+  // `read_skills`.) The corp roles read lives under `esi-characters`, NOT
+  // `esi-corporations`. Adding a scope is a deliberate, batched decision —
+  // verify the exact live name before touching this list.
   it('matches the verified least-privilege EVE scope names', () => {
     expect([...EVE_SCOPES]).toEqual([
       'publicData',
       'esi-skills.read_skills.v1',
       'esi-skills.read_skillqueue.v1',
       'esi-industry.read_character_jobs.v1',
+      'esi-characters.read_corporation_roles.v1',
+      'esi-industry.read_corporation_jobs.v1',
     ]);
   });
 

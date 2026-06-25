@@ -14,7 +14,7 @@
 // The datasets registered with the engine — one entry per live tracker.
 // Adding a future consumer is a config change here plus a syncRef in
 // convex/engine.ts, not new machinery.
-export const SYNC_DATASETS = ['skills', 'industryJobs'] as const;
+export const SYNC_DATASETS = ['skills', 'industryJobs', 'corpIndustryJobs'] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
 
 // Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:
@@ -30,6 +30,11 @@ export const SYNC_DATASET_CONFIG: Record<
 > = {
   skills: { cadenceFloorMs: 60_000, tokenGroup: 'char-detail' },
   industryJobs: { cadenceFloorMs: 300_000, tokenGroup: 'char-industry' },
+  // Corp industry jobs share the 300s ESI cache floor with character jobs, but
+  // bill a DISTINCT ESI token bucket (the corp endpoint is a different route
+  // group), so they get their own dispatch-smoothing key — a corp re-arm herd
+  // must not burst the char-industry group's spend.
+  corpIndustryJobs: { cadenceFloorMs: 300_000, tokenGroup: 'corp-industry' },
 };
 
 // Client heartbeat interval while the tab is visible.

@@ -93,11 +93,16 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
 
 // Must enumerate the same datasets as SYNC_DATASETS (src/lib/sync-engine.ts)
 // and the schema's dataset union.
-const syncDatasetValidator = v.union(v.literal('skills'), v.literal('industryJobs'));
+const syncDatasetValidator = v.union(
+  v.literal('skills'),
+  v.literal('industryJobs'),
+  v.literal('corpIndustryJobs'),
+);
 
 const SYNC_REFS = {
   skills: internal.skillsSync.syncUser,
   industryJobs: internal.industryJobsSync.syncUser,
+  corpIndustryJobs: internal.corpIndustryJobsSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
 // Pass C (abandoned-row GC) deletes at most this many past-retention subjects

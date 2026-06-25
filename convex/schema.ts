@@ -92,7 +92,11 @@ export default defineSchema({
   syncSubjects: defineTable({
     // Must enumerate the same datasets as SYNC_DATASETS in
     // src/lib/sync-engine.ts (the engine's registry).
-    dataset: v.union(v.literal('skills'), v.literal('industryJobs')),
+    dataset: v.union(
+      v.literal('skills'),
+      v.literal('industryJobs'),
+      v.literal('corpIndustryJobs'),
+    ),
     userId: v.string(),
     status: v.union(v.literal('idle'), v.literal('running')),
     // Doubles as the run's generation token (shipped name kept): a late
@@ -131,7 +135,11 @@ export default defineSchema({
   // heartbeat recreates it, and the engine sweep reaps it alongside a
   // long-abandoned subject.
   syncPresence: defineTable({
-    dataset: v.union(v.literal('skills'), v.literal('industryJobs')),
+    dataset: v.union(
+      v.literal('skills'),
+      v.literal('industryJobs'),
+      v.literal('corpIndustryJobs'),
+    ),
     userId: v.string(),
     // Last heartbeat from a visible tab. The scan and sweep treat a presence
     // doc older than COLD_AFTER_MS — or a missing one — as cold.
@@ -164,5 +172,32 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
+
+  // One doc per (user, corporation): the synced CORP industry-jobs projection —
+  // the industryJobsSync twin keyed by corp instead of character (3.7.3.1, the
+  // first corp feature). A corp board is per-corp, fanned in from the user's
+  // role-holding characters: a run resolves the user's characters to the corps
+  // they can read, dedups to one subject per corp, and reads each corp's board
+  // ONCE. The job sub-shape is identical to the character endpoint (a superset
+  // on the wire; Zod strips the corp-only extras), so industryJobValidator is
+  // reused verbatim. One ESI endpoint per corp → ONE held ETag, same custody
+  // rules as industryJobsSync (etag only stored beside the payload a 304 would
+  // confirm; an errored/needs_role result clears expiresAt so the next
+  // heartbeat re-syncs). A corporation whose vending character lacks the in-game
+  // Factory_Manager role is a PRESENT doc with data:null + syncError:'needs_role'
+  // — a distinct, graceful state (not a scope/AccessGate prompt, and not absent),
+  // so a later UX slice can surface "needs corp role". Corp data is per-user and
+  // private here (no cross-user sharing — that's a later policy call).
+  corpIndustryJobsSync: defineTable({
+    userId: v.string(),
+    corporationId: v.number(),
+    data: v.union(v.null(), v.object({ jobs: v.array(industryJobValidator) })),
+    jobsEtag: v.union(v.string(), v.null()),
+    lastSyncedAt: v.union(v.number(), v.null()),
+    expiresAt: v.union(v.number(), v.null()),
+    syncError: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_corp', ['userId', 'corporationId']),
 
 });

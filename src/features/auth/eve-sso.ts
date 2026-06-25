@@ -32,13 +32,14 @@ export const EVE_AUTHORIZED_APPS_URL = 'https://developers.eveonline.com/authori
 // subset in its slice and is degraded per-feature, never globally (the
 // per-feature deriveScopeHealth in scope-health.ts).
 //
-// STRICT LEAST-PRIVILEGE (Decision Record, 3.7.1.1): exactly the four scopes a
-// shipped feature actually consumes — publicData, the two skill reads, and the
-// character-jobs read. ZERO write scope (no `manage_*`/`write_*`). The 3.4.6
-// superset's seven extra reads (manage_planets, standings, two clones, three
-// location) only ever proved an ESI sandbox; they were never wired to a feature
-// and are dropped here — the dev/esi explorer is re-scoped to these four, not
-// kept as a reason to retain them.
+// STRICT LEAST-PRIVILEGE (Decision Record, 3.7.1.1): exactly the scopes a
+// shipped feature actually consumes — publicData, the two skill reads, the
+// character-jobs read, and (added 3.7.3.1, the first corp feature) the corp
+// roles read and the corp industry-jobs read. ZERO write scope (no
+// `manage_*`/`write_*`). The 3.4.6 superset's seven extra reads (manage_planets,
+// standings, two clones, three location) only ever proved an ESI sandbox; they
+// were never wired to a feature and are dropped — the dev/esi explorer is
+// re-scoped to the consumed set, not kept as a reason to retain them.
 //
 // Two rules this set is held to (the eve-sso.test.ts pin enforces both):
 //  - Every string must EXIST in the live ESI scope list — a nonexistent scope
@@ -51,6 +52,12 @@ export const EVE_SCOPES = [
   'esi-skills.read_skills.v1',
   'esi-skills.read_skillqueue.v1',
   'esi-industry.read_character_jobs.v1',
+  // Corp industry jobs (3.7.3.1, the first corp feature). The roles read gates
+  // which linked character can vend the corp read; the corp-jobs read also
+  // needs the in-game Factory_Manager role (a 403 otherwise — surfaced as a
+  // 'needs_role' state in the sync layer, never a scope prompt). Both read-only.
+  'esi-characters.read_corporation_roles.v1',
+  'esi-industry.read_corporation_jobs.v1',
 ] as const;
 
 // Boundary schema for the token-exchange envelope. The JWT *claims* are
