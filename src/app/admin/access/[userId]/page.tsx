@@ -115,9 +115,9 @@ function NotFound() {
     <>
       <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
         <Breadcrumb crumb="access" />
-        <div className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase text-name">
+        <h1 className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase text-name">
           User not found
-        </div>
+        </h1>
       </header>
       <div className="w-full max-w-[760px]">
         <Card>
@@ -184,9 +184,9 @@ async function UserDetailContent({
               className="rounded-[2px] border border-border-idle shrink-0"
             />
             <div className="min-w-0">
-              <div className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
+              <h1 className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
                 {targetUser.name}
-              </div>
+              </h1>
               <span className="flex items-center gap-[6px]">
                 <Pill tone="neutral">ID {targetUser.characterId ?? '—'}</Pill>
                 {roleChip}
