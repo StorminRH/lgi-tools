@@ -24,7 +24,7 @@ export function Footer() {
       right={
         <span className="inline-flex items-center gap-4 font-mono tracking-[0.03em]">
           <Link href="/legal" className="text-muted">
-            Legal
+            Privacy
           </Link>
           <Link href="/contact" className="text-muted">
             Contact

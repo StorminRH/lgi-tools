@@ -18,6 +18,13 @@ export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
 export const EVE_ISSUER = 'https://login.eveonline.com';
 export const EVE_AUDIENCE = 'EVE Online';
 
+// EVE's account-level dashboard where a pilot reviews and revokes third-party
+// app access. One URL serves every character (CCP scopes it to the logged-in
+// pilot), so it's page-level, not per-character. Shared from this one module so
+// the /characters revoke link and the Privacy page (/legal) can't drift. The
+// legacy community.eveonline.com path is dead (301s to the developers root).
+export const EVE_AUTHORIZED_APPS_URL = 'https://developers.eveonline.com/authorized-apps';
+
 // The exact scope set the site requests, and the only set a sign-in or relink
 // re-consents to (Better Auth's genericOAuth forwards these on both the
 // authorize request and the token exchange — see the `getToken` site in

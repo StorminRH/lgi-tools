@@ -1,4 +1,5 @@
 import { headers } from 'next/headers';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Callout } from '@/components/ui/callout';
@@ -17,14 +18,9 @@ import { GrantedScopesList } from '@/features/auth/components/GrantedScopesList'
 import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
 import { SwitchCharacterForm } from '@/features/auth/components/SwitchCharacterForm';
 import { UnlinkCharacterForm } from '@/features/auth/components/UnlinkCharacterForm';
+import { EVE_AUTHORIZED_APPS_URL } from '@/features/auth/eve-sso';
 import { listLinkedCharacters, type LinkedCharacter } from '@/features/auth/queries';
 import { deriveCharacterHealth, listGrantedScopes } from '@/features/auth/scope-health';
-
-// EVE's account-level dashboard for reviewing and revoking third-party app
-// access. One URL serves every character (CCP scopes it to the logged-in pilot),
-// so the revoke link on this page is page-level, not per-character. The legacy
-// community.eveonline.com path is dead (301s to the developers root).
-const EVE_AUTHORIZED_APPS_URL = 'https://developers.eveonline.com/authorized-apps';
 
 // Friendly copy for the failure codes the link callback (Better Auth) and the
 // unlink route can redirect back with. Whitelisted — an unrecognised code falls
@@ -199,7 +195,11 @@ async function CharactersContent({
             >
               EVE authorized apps
             </a>{' '}
-            page.
+            page, or see{' '}
+            <Link href="/legal" className="text-tone-blue hover:underline">
+              how we handle your data
+            </Link>
+            .
           </div>
         </Card>
       </div>
