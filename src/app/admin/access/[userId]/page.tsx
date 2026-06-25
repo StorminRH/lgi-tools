@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
+import { Breadcrumb } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
@@ -113,7 +114,8 @@ function NotFound() {
   return (
     <>
       <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
-        <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
+        <Breadcrumb crumb="access" />
+        <div className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase text-name">
           User not found
         </div>
       </header>
@@ -169,6 +171,7 @@ async function UserDetailContent({
   return (
     <>
       <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
+        <Breadcrumb crumb="access" />
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <img
@@ -181,7 +184,7 @@ async function UserDetailContent({
               className="rounded-[2px] border border-border-idle shrink-0"
             />
             <div className="min-w-0">
-              <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1 truncate">
+              <div className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
                 {targetUser.name}
               </div>
               <span className="flex items-center gap-[6px]">

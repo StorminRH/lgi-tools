@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { LoadingLabel } from '@/components/ui/loading-label';
+import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { KpiRow } from './KpiRow';
@@ -74,19 +75,14 @@ async function AdminContent({
 
   return (
     <>
-      <header className="w-full mb-6 pb-4 border-b border-border-soft">
-        <div className="print-only font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-1">
-          Admin report — {formatDate(range.from)} to {formatDate(range.to)}
-        </div>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-              Admin
-            </div>
-            <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
-              {formatDate(range.from)} → {formatDate(range.to)}
-            </div>
-          </div>
+      <div className="print-only font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-1">
+        Admin report — {formatDate(range.from)} to {formatDate(range.to)}
+      </div>
+      <PageHead
+        crumb="admin"
+        title="Admin"
+        subtitle={`${formatDate(range.from)} → ${formatDate(range.to)}`}
+        meta={
           <div className="flex items-center gap-3">
             <RangeSelector range={rangeKey} />
             <Link
@@ -97,8 +93,8 @@ async function AdminContent({
             </Link>
             <PrintButton />
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className="w-full flex flex-col gap-8">
         <Suspense fallback={<SectionFallback />}>
@@ -145,7 +141,7 @@ export default function AdminPage({
 }) {
   return (
     <PageShell>
-      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+      <div className="flex flex-col items-center pb-20 gap-0">
         <Suspense fallback={<AdminLoading />}>
           <AdminContent searchParams={searchParams} />
         </Suspense>

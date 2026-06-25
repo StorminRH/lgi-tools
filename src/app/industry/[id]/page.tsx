@@ -77,6 +77,9 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="w-full">
+      {/* Entity-detail pages self-title: they open content-first (no visible
+          PageHead), so the page title lives in this sr-only <h1> for a11y/SEO.
+          PageHead is the list/section header; the detail is its own surface. */}
       <h1 className="sr-only">{structure.product.name} — Industry Planner</h1>
       <RecordRecentBlueprint
         typeId={id}

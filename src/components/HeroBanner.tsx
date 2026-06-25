@@ -11,7 +11,7 @@ export function HeroBanner() {
         First-party · independent
       </span>
       <div className="flex w-fit flex-col gap-2 text-center">
-        <h1 className="hero-wordmark font-jb font-extrabold text-[clamp(44px,6.5vw,68px)] leading-none tracking-[-0.02em] uppercase text-name">
+        <h1 className="hero-wordmark font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
           <span className="text-isk mr-[0.18em]">[</span>
           Lo-Gang
           <span className="text-isk ml-[0.18em]">]</span>

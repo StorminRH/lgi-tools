@@ -19,7 +19,7 @@ export function HomeFeatureCards() {
           className="tool-tile tool-tile-live hover-bob no-underline group"
         >
           <div className="flex items-start justify-between gap-2">
-            <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
+            <div className="font-display font-bold text-title-sm tracking-[0.01em] leading-[1.15] text-name">
               Wormhole Sites
             </div>
           </div>
@@ -44,7 +44,7 @@ export function HomeFeatureCards() {
           className="tool-tile tool-tile-live hover-bob no-underline group"
         >
           <div className="flex items-start justify-between gap-2">
-            <div className="font-display font-bold text-[20px] tracking-[0.01em] leading-[1.15] text-name">
+            <div className="font-display font-bold text-title-sm tracking-[0.01em] leading-[1.15] text-name">
               Industry Planner
             </div>
           </div>

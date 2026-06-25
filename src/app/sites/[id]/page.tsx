@@ -202,6 +202,9 @@ export default async function SiteDetailPage({
     <PageShell>
       <div className="flex flex-col items-center pt-12 pb-20 gap-0">
         <JsonLd data={breadcrumbJsonLd} />
+        {/* Entity-detail pages self-title: they open content-first (no visible
+            PageHead), so the page title lives in this sr-only <h1> for a11y/SEO.
+            PageHead is the list/section header; the detail is its own surface. */}
         <h1 className="sr-only">{site.name}</h1>
         <Suspense
           fallback={
