@@ -25,6 +25,10 @@ import {
   type BlueprintActivities,
   type TreeNode,
 } from './tree-resolver';
+import {
+  parseBlueprintActivities,
+  type BlueprintActivitySet,
+} from './activities';
 import type { AttrMap, EveType } from './types';
 
 // Same wrinkle as market-prices queries — accept the lazy `@/db` proxy
@@ -207,6 +211,35 @@ export async function getBlueprintActivityTimes(
   return out;
 }
 
+// The FULL set of activities each blueprint carries — manufacturing, reaction,
+// copying, research, and invention — with every activity's materials, products
+// (invention products include per-run probability), skills, and time, in one
+// batched read. Groundwork for the skills/fees and invention surfaces; the
+// resolver's narrow manufacturing/reaction path (above) is untouched.
+//
+// Deliberately NO published-type join (unlike getBlueprintOutput /
+// getBlueprintSearchRows): invention output BPCs and datacore materials are
+// routinely unpublished, so a `published = true` filter would silently drop the
+// very invention rows this read exists to expose. Pure number space — type IDs
+// pass through unresolved.
+export async function getBlueprintActivities(
+  blueprintTypeIds: number[],
+): Promise<Map<number, BlueprintActivitySet>> {
+  const out = new Map<number, BlueprintActivitySet>();
+  if (blueprintTypeIds.length === 0) return out;
+  const rows = await db
+    .select({
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
+    })
+    .from(industryBlueprints)
+    .where(inArray(industryBlueprints.blueprintTypeId, blueprintTypeIds));
+  for (const r of rows) {
+    out.set(r.blueprintTypeId, parseBlueprintActivities(r.activities));
+  }
+  return out;
+}
+
 // Union of all type IDs that appear as either a material input OR a
 // product output under manufacturing/reactions. This is the set we
 // upsert into `market_prices` after every SDE ingest; on conflict we
@@ -348,8 +381,10 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
 // Solar systems that hold at least one industry-capable NPC station — the only
 // places an NPC manufacturing job can be installed, so the build-location
 // selector only ever suggests these. Distinct systems (a system has many
-// stations), with name + security for the picker label. Pochven systems ARE
-// included (they carry NPC stations, 3.5.1a); no security/region filter.
+// stations), with name + security for the picker label. No security/region
+// filter: Pochven systems are included (3.5.1a), and since 3.7.2.2 widened the
+// universe to J-space, Thera (the one wormhole system with NPC stations) now
+// appears too — an additive new row; every prior K-space result is unchanged.
 export type IndustrySolarSystem = { id: number; name: string; security: number | null };
 
 export async function getIndustrySolarSystems(): Promise<IndustrySolarSystem[]> {

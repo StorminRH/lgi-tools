@@ -87,21 +87,29 @@ async function main() {
     lockHeld = true;
 
     // "Populated" means EVERY SDE dataset is present, not just the original
-    // type/blueprint set. `eve_npc_stations` is the sentinel for the universe
-    // tables (3.5.1a) — it's the last table the ingest writes, so its presence
-    // implies the whole universe emit completed. Without this, a DB that
-    // already has a current SDE (every existing branch, and prod at the merge
-    // that first ships these tables) would skip the ingest and leave the freshly
-    // migrated universe tables empty until the next CCP drift.
-    const [{ rowCount, universeRowCount }] = await db.execute<{
+    // type/blueprint set. Each new dataset gets a sentinel count ANDed in here so
+    // the first deploy that ships it force-runs a full ingest (the truncate+refill
+    // repopulates everything), instead of skipping because the older tables look
+    // current — otherwise the freshly migrated table ships empty until the next
+    // CCP drift. `eve_npc_stations` is the universe sentinel (3.5.1a);
+    // `eve_system_jumps` is the J-space/stargate sentinel (3.7.2.2) — its migration
+    // creates it empty, so the merge that first ships the widened universe sees a
+    // zero count and re-ingests, populating the wormhole systems, the per-system
+    // wormhole class, and the jump graph in one pass.
+    const [{ rowCount, universeRowCount, jumpsRowCount }] = await db.execute<{
       rowCount: string;
       universeRowCount: string;
+      jumpsRowCount: string;
     }>(sql`
       SELECT
         (SELECT COUNT(*) FROM type_dogma)::text AS "rowCount",
-        (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount"
+        (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount",
+        (SELECT COUNT(*) FROM eve_system_jumps)::text AS "jumpsRowCount"
     `);
-    const hasRows = Number(rowCount) > 0 && Number(universeRowCount) > 0;
+    const hasRows =
+      Number(rowCount) > 0 &&
+      Number(universeRowCount) > 0 &&
+      Number(jumpsRowCount) > 0;
 
     const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
     const remoteVersion = await getRemoteSdeVersion();

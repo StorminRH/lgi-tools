@@ -8,6 +8,7 @@ import {
   eveRegions,
   eveSolarSystems,
   eveStationOperations,
+  eveSystemJumps,
 } from './schema';
 import { intOrNull, localizedEn, numOrNull } from './coerce';
 import type { SdeJsonlPaths } from './source';
@@ -44,20 +45,23 @@ import type { SdeJsonlPaths } from './source';
 // `ingest-sde-if-empty` step — that step skips when Neon is already populated,
 // but the CDN artifact must be regenerated on every deploy.
 //
-// SCOPE: K-space (gated New Eden) only. Wormhole/abyssal systems, the
-// mapper-domain fields (`wormholeClassID`, gate edges, 3-D positions), and the
-// K/J-space CDN split are all v4.0.
+// SCOPE: every PERSISTENT New Eden system — K-space + Pochven + J-space
+// (wormhole) — plus the static stargate jump graph (3.7.2.2). The richer
+// per-WH mapper attributes (statics + environmental effects, sourced from
+// anoik.is) and 3-D positions / the K/J-space CDN split remain v4.0; only the
+// coarse first-party SDE class (on the system row) and adjacency are here.
 // ===========================================================================
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyPgDb = PostgresJsDatabase<any>;
 
-// K-space = gated New Eden. CCP region IDs: K-space 10000001–10000070 (incl.
-// Pochven), wormhole 11000001+, abyssal/special 12000000+. Filtering on
-// `regionID < 11000000` keeps exactly the gated systems (the 30M solarSystemID
-// range), excluding wormhole + abyssal. Pochven (region 10000070) is included —
-// it's K-space; it simply has no NPC stations.
-const KSPACE_REGION_MAX_EXCLUSIVE = 11_000_000;
+// CCP region-ID bands: K-space 10000001–10000070 (incl. Pochven 10000070),
+// wormhole/J-space 11000001–11000033, then abyssal deadspace (ADR, instanced)
+// and the special/non-standard "VR"/"GPMR" regions all live at 12000000+.
+// Filtering on `regionID < 12000000` keeps every persistent system (K-space +
+// Pochven + J-space) and excludes only the instanced/special tail — exactly the
+// ~2,600 wormhole systems are added over the prior K-space-only `< 11000000`.
+const PERSISTENT_REGION_MAX_EXCLUSIVE = 12_000_000;
 
 // Insert chunk size — keeps each statement's bind-param count well under
 // Postgres's 64k limit (stations are the widest at 8 cols, so 1000 rows ≈ 8k
@@ -83,6 +87,17 @@ export type UniverseSolarSystem = {
   regionId: number;
   name: string;
   securityStatus: number | null;
+  // CCP's coarse location class, derived most-specific (system → constellation →
+  // region). Null only for the handful of untagged hi-sec K-space systems. See
+  // the `wormhole_class_id` schema note for the value table.
+  wormholeClassId: number | null;
+};
+
+// A directed system→system jump (one CCP stargate). An undirected gate appears as
+// the two reciprocal edges (each physical gate is its own record).
+export type UniverseSystemJump = {
+  fromSystemId: number;
+  toSystemId: number;
 };
 
 export type UniverseStationOperation = {
@@ -105,15 +120,17 @@ export type UniverseDataset = {
   regions: UniverseRegion[];
   constellations: UniverseConstellation[];
   systems: UniverseSolarSystem[];
+  jumps: UniverseSystemJump[];
   operations: UniverseStationOperation[];
   stations: UniverseNpcStation[];
 };
 
-// The six raw record sets the core operates on (one array per universe file).
+// The raw record sets the core operates on (one array per universe file).
 export type RawUniverseFiles = {
   regions: Record<string, unknown>[];
   constellations: Record<string, unknown>[];
   systems: Record<string, unknown>[];
+  stargates: Record<string, unknown>[];
   stations: Record<string, unknown>[];
   operations: Record<string, unknown>[];
   services: Record<string, unknown>[];
@@ -162,51 +179,83 @@ function findServiceIdByName(
 // pass below filters/joins one entity, threading the surviving id-sets into the
 // next; this orchestrator just wires them together.
 export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
-  const { regions, regionIds } = projectRegions(raw);
-  const { constellations, constellationIds } = projectConstellations(raw, regionIds);
-  const { systems, systemIds } = projectSystems(raw, regionIds, constellationIds);
+  const { regions, regionIds, regionClass } = projectRegions(raw);
+  const { constellations, constellationIds, constellationClass } =
+    projectConstellations(raw, regionIds);
+  const { systems, systemIds } = projectSystems(
+    raw,
+    regionIds,
+    constellationIds,
+    regionClass,
+    constellationClass,
+  );
+  const jumps = projectStargates(raw, systemIds);
   const { operations, operationIds, operationCapability } = projectOperations(raw);
   const stations = projectStations(raw, systemIds, operationIds, operationCapability);
-  return { regions, constellations, systems, operations, stations };
+  return { regions, constellations, systems, jumps, operations, stations };
 }
 
-// Regions — K-space only.
+// Regions — every persistent region (K-space + Pochven + J-space), excluding the
+// instanced/special tail. Also captures each region's `wormholeClassID` so a
+// system can fall back to it when neither the system nor its constellation
+// carries one (the region is the least-specific class source).
 function projectRegions(raw: RawUniverseFiles): {
   regions: UniverseRegion[];
   regionIds: Set<number>;
+  regionClass: Map<number, number>;
 } {
   const regions: UniverseRegion[] = [];
   const regionIds = new Set<number>();
+  const regionClass = new Map<number, number>();
   for (const r of raw.regions) {
     const id = intOrNull(r._key);
-    if (id === null || id >= KSPACE_REGION_MAX_EXCLUSIVE) continue;
+    if (id === null || id >= PERSISTENT_REGION_MAX_EXCLUSIVE) continue;
     regions.push({ id, name: requireName(r.name, 'region', id) });
     regionIds.add(id);
+    const cls = intOrNull(r.wormholeClassID);
+    if (cls !== null) regionClass.set(id, cls);
   }
-  return { regions, regionIds };
+  return { regions, regionIds, regionClass };
 }
 
-// Constellations — those whose region survived.
+// Constellations — those whose region survived. Captures the constellation-level
+// `wormholeClassID` (the mid-specificity class source between system and region).
 function projectConstellations(
   raw: RawUniverseFiles,
   regionIds: Set<number>,
-): { constellations: UniverseConstellation[]; constellationIds: Set<number> } {
+): {
+  constellations: UniverseConstellation[];
+  constellationIds: Set<number>;
+  constellationClass: Map<number, number>;
+} {
   const constellations: UniverseConstellation[] = [];
+  const constellationClass = new Map<number, number>();
   for (const c of raw.constellations) {
     const id = intOrNull(c._key);
     const regionId = intOrNull(c.regionID);
     if (id === null || regionId === null || !regionIds.has(regionId)) continue;
     constellations.push({ id, regionId, name: requireName(c.name, 'constellation', id) });
+    const cls = intOrNull(c.wormholeClassID);
+    if (cls !== null) constellationClass.set(id, cls);
   }
-  return { constellations, constellationIds: new Set(constellations.map((c) => c.id)) };
+  return {
+    constellations,
+    constellationIds: new Set(constellations.map((c) => c.id)),
+    constellationClass,
+  };
 }
 
 // Solar systems — those whose region survived (CCP ships both regionID and
-// constellationID on the system row, so no constellation hop is needed).
+// constellationID on the system row, so no constellation hop is needed). The
+// class is taken most-specific: the system's own `wormholeClassID` (only the 5
+// Drifter systems carry one, overriding their region's), else the
+// constellation's, else the region's, else null.
 function projectSystems(
   raw: RawUniverseFiles,
   regionIds: Set<number>,
   constellationIds: Set<number>,
+  regionClass: Map<number, number>,
+  constellationClass: Map<number, number>,
 ): { systems: UniverseSolarSystem[]; systemIds: Set<number> } {
   const systems: UniverseSolarSystem[] = [];
   const systemIds = new Set<number>();
@@ -216,16 +265,48 @@ function projectSystems(
     const constellationId = intOrNull(s.constellationID);
     if (id === null || regionId === null || constellationId === null) continue;
     if (!regionIds.has(regionId) || !constellationIds.has(constellationId)) continue;
+    const wormholeClassId =
+      intOrNull(s.wormholeClassID) ??
+      constellationClass.get(constellationId) ??
+      regionClass.get(regionId) ??
+      null;
     systems.push({
       id,
       constellationId,
       regionId,
       name: requireName(s.name, 'solar system', id),
       securityStatus: numOrNull(s.securityStatus),
+      wormholeClassId,
     });
     systemIds.add(id);
   }
   return { systems, systemIds };
+}
+
+// Stargate topology → a derived system→system jump graph. Each CCP stargate
+// record carries both endpoints directly (`solarSystemID` and
+// `destination.solarSystemID`), so an edge is read off without resolving
+// gate→gate. Both endpoints must be ingested systems (defensive FK-safety: drops
+// any edge to an excluded system, though in practice every gate is K-space /
+// Pochven). Deduped on (from, to) to match the table's composite PK.
+function projectStargates(
+  raw: RawUniverseFiles,
+  systemIds: Set<number>,
+): UniverseSystemJump[] {
+  const jumps: UniverseSystemJump[] = [];
+  const seen = new Set<string>();
+  for (const g of raw.stargates) {
+    const fromSystemId = intOrNull(g.solarSystemID);
+    const dest = g.destination as { solarSystemID?: unknown } | undefined;
+    const toSystemId = intOrNull(dest?.solarSystemID);
+    if (fromSystemId === null || toSystemId === null) continue;
+    if (!systemIds.has(fromSystemId) || !systemIds.has(toSystemId)) continue;
+    const key = `${fromSystemId}:${toSystemId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    jumps.push({ fromSystemId, toSystemId });
+  }
+  return jumps;
 }
 
 type OperationCapability = Map<number, { manufacturing: boolean; research: boolean }>;
@@ -254,10 +335,13 @@ function projectOperations(raw: RawUniverseFiles): {
   return { operations, operationIds: new Set(operations.map((o) => o.id)), operationCapability };
 }
 
-// NPC stations — kept only when their system is an ingested K-space system AND
-// their operation exists. Dropped otherwise (e.g. the 4 Thera/wormhole stations,
-// whose system isn't K-space). Capability booleans are stamped from the
-// station's operation.
+// NPC stations — kept only when their system is an ingested system AND their
+// operation exists. With J-space now ingested this guard rarely fires (every NPC
+// station sits in a persistent system); it still defends against an unknown
+// operation or a station in an excluded region. Thera's 4 stations — formerly
+// dropped because Thera's wormhole system wasn't ingested — are now KEPT (they're
+// manufacturing+research capable, so Thera becomes a valid build location).
+// Capability booleans are stamped from the station's operation.
 function projectStations(
   raw: RawUniverseFiles,
   systemIds: Set<number>,
@@ -334,11 +418,12 @@ async function readJsonl(path: string): Promise<Record<string, unknown>[]> {
 // and the cross-file industry join can't be done streaming) and returns the
 // typed dataset. Pure logic lives in `buildUniverseDataset`.
 export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDataset> {
-  const [regions, constellations, systems, stations, operations, services] =
+  const [regions, constellations, systems, stargates, stations, operations, services] =
     await Promise.all([
       readJsonl(paths.mapRegions),
       readJsonl(paths.mapConstellations),
       readJsonl(paths.mapSolarSystems),
+      readJsonl(paths.mapStargates),
       readJsonl(paths.npcStations),
       readJsonl(paths.stationOperations),
       readJsonl(paths.stationServices),
@@ -348,6 +433,7 @@ export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDatas
     regions,
     constellations,
     systems,
+    stargates,
     stations,
     operations,
     services,
@@ -357,8 +443,9 @@ export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDatas
   console.log(
     `Universe parse: ${dataset.regions.length} regions, ` +
       `${dataset.constellations.length} constellations, ${dataset.systems.length} systems, ` +
-      `${dataset.operations.length} station operations, ${dataset.stations.length} NPC stations ` +
-      `(dropped ${droppedStations} non-K-space/unknown-operation stations).`,
+      `${dataset.jumps.length} stargate jumps, ${dataset.operations.length} station operations, ` +
+      `${dataset.stations.length} NPC stations ` +
+      `(dropped ${droppedStations} unknown-system/unknown-operation stations).`,
   );
   return dataset;
 }
@@ -369,25 +456,28 @@ export type UniverseEmitSummary = {
   regionsWritten: number;
   constellationsWritten: number;
   systemsWritten: number;
+  systemJumpsWritten: number;
   stationOperationsWritten: number;
   npcStationsWritten: number;
 };
 
-// Wipe + refill the five universe tables from the in-memory dataset, inside the
+// Wipe + refill the universe tables from the in-memory dataset, inside the
 // caller's transaction (`runIngest`'s). Children-first TRUNCATE (CASCADE),
-// parents-first insert. The universe tables are FK-independent of the
-// type/blueprint tables, so this is self-contained.
+// parents-first insert: jumps and stations both reference systems, so they're
+// truncated before / inserted after the systems table. The universe tables are
+// FK-independent of the type/blueprint tables, so this is self-contained.
 export async function emitUniverseNeon(
   tx: AnyPgDb,
   dataset: UniverseDataset,
 ): Promise<UniverseEmitSummary> {
   await tx.execute(
-    sql`TRUNCATE TABLE ${eveNpcStations}, ${eveStationOperations}, ${eveSolarSystems}, ${eveConstellations}, ${eveRegions} RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE TABLE ${eveSystemJumps}, ${eveNpcStations}, ${eveStationOperations}, ${eveSolarSystems}, ${eveConstellations}, ${eveRegions} RESTART IDENTITY CASCADE`,
   );
 
   await insertChunked(tx, eveRegions, dataset.regions);
   await insertChunked(tx, eveConstellations, dataset.constellations);
   await insertChunked(tx, eveSolarSystems, dataset.systems);
+  await insertChunked(tx, eveSystemJumps, dataset.jumps);
   await insertChunked(tx, eveStationOperations, dataset.operations);
   await insertChunked(tx, eveNpcStations, dataset.stations);
 
@@ -395,6 +485,7 @@ export async function emitUniverseNeon(
     regionsWritten: dataset.regions.length,
     constellationsWritten: dataset.constellations.length,
     systemsWritten: dataset.systems.length,
+    systemJumpsWritten: dataset.jumps.length,
     stationOperationsWritten: dataset.operations.length,
     npcStationsWritten: dataset.stations.length,
   };

@@ -19,7 +19,7 @@ import {
 //
 // CCP publishes the Static Data Export straight from the Tranquility build
 // pipeline as one zip of `.jsonl` files (one JSON object per line). This module
-// owns only "bytes → the six files we need on disk"; parsing those lines into
+// owns only "bytes → the files we need on disk"; parsing those lines into
 // rows is the ingest layer's job (3.3.2b). Swapping the data source means
 // touching this module only — nothing downstream knows where the bytes come
 // from. The legacy Fuzzwork CSV source is parked at the bottom of this file and
@@ -45,12 +45,14 @@ type SdeJsonlName =
   | 'dogmaAttributes'
   | 'typeDogma'
   | 'blueprints'
-  // Universe (map + NPC station) files — 3.5.1a. Small (6.5KB–5MB); the huge
-  // mapMoons/mapPlanets are deliberately not requested. Each name maps directly
-  // to `<name>.jsonl` in the archive.
+  // Universe (map + NPC station) files — 3.5.1a, plus `mapStargates` for the
+  // jump graph in 3.7.2.2. Small (6.5KB–5MB); the huge mapMoons/mapPlanets are
+  // deliberately not requested. Each name maps directly to `<name>.jsonl` in the
+  // archive.
   | 'mapRegions'
   | 'mapConstellations'
   | 'mapSolarSystems'
+  | 'mapStargates'
   | 'npcStations'
   | 'stationOperations'
   | 'stationServices';
@@ -65,6 +67,7 @@ const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
   'mapRegions',
   'mapConstellations',
   'mapSolarSystems',
+  'mapStargates',
   'npcStations',
   'stationOperations',
   'stationServices',
@@ -111,12 +114,12 @@ async function downloadZipTo(dest: string): Promise<void> {
   }
 }
 
-// Extract just the six files we need out of the zip on disk, streaming each
+// Extract just the files we need out of the zip on disk, streaming each
 // entry to its own atomically-renamed `.tmp`. yauzl reads the central directory
 // (so the zip must be on disk) and streams one entry at a time under
 // `lazyEntries`, so peak memory is the inflate buffers — never the 149 MB
-// uncompressed `types.jsonl`. Stops once all six are found rather than walking
-// the remaining ~54 entries.
+// uncompressed `types.jsonl`. Stops once all of them are found rather than
+// walking the remaining archive entries.
 async function extractEntries(
   zipPath: string,
   paths: SdeJsonlPaths,
@@ -187,9 +190,9 @@ async function extractEntries(
   });
 }
 
-// Download CCP's latest SDE JSONL zip and extract the six files the ingest
+// Download CCP's latest SDE JSONL zip and extract the files the ingest
 // layer needs, returning their on-disk paths. Idempotent within a run: if all
-// six are already cached (warm /tmp), reuses them; callers run cleanupSdeJsonl
+// are already cached (warm /tmp), reuses them; callers run cleanupSdeJsonl
 // after ingest so a later drift-triggered run re-downloads fresh.
 export async function downloadSdeJsonl(): Promise<SdeJsonlPaths> {
   await mkdir(JSONL_CACHE_DIR, { recursive: true });

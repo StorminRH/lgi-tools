@@ -183,6 +183,13 @@
       "when": 1782403267892,
       "tag": "0025_rare_shocker",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1782414463267,
+      "tag": "0026_bright_leper_queen",
+      "breakpoints": true
     }
   ]
 }

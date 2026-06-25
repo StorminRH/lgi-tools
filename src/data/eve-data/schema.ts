@@ -152,11 +152,15 @@ export const blueprintFlatMaterials = pgTable(
 
 // ===========================================================================
 // Universe (map + NPC station) data. Sourced from CCP's `map*` / `npcStations`
-// / `stationOperations` / `stationServices` JSONL files (3.5.1a). Scoped to
-// K-space (gated New Eden) only — wormhole/abyssal systems and the mapper-domain
-// fields (`wormholeClassID`, gate edges, 3-D positions) are deferred to v4.0.
-// Region/constellation aren't on a station's base record; they derive by joining
-// up through `solarSystemID` (a system row carries both). FKs follow the
+// / `stationOperations` / `stationServices` JSONL files (3.5.1a; widened to the
+// full persistent universe in 3.7.2.2). Covers every PERSISTENT New Eden system —
+// K-space + Pochven + J-space (wormhole) — plus the static stargate jump graph.
+// Instanced abyssal deadspace and the special/non-standard regions (regionID ≥
+// 12M) stay excluded. The richer mapper attribute layer (per-WH statics +
+// environmental effects, sourced from anoik.is) is NOT here — it attaches later
+// via a related table; only the coarse first-party SDE class lives on the system
+// row. Region/constellation aren't on a station's base record; they derive by
+// joining up through `solarSystemID` (a system row carries both). FKs follow the
 // category→group→type hierarchy convention above.
 // ===========================================================================
 
@@ -184,6 +188,14 @@ export const eveConstellations = pgTable(
 // query skips the constellation hop. `security_status` is a real number
 // (−1.0..1.0) — it MUST be doublePrecision; truncating it to an int would
 // collapse the hi/low/null-sec distinction.
+//
+// `wormhole_class_id` is CCP's first-party location class, derived most-specific
+// (system → constellation → region) at ingest: 1–6 = C1–C6 wormholes, 7/8/9 =
+// hi/low/null K-space, 12 = Thera, 13 = shattered, 14–18 = Drifter (Sentinel /
+// Barbican / Vidette / Conflux / Redoubt), 25 = Pochven. Nullable: a handful of
+// untagged hi-sec K-space systems carry no class in the SDE (their band is
+// sec-status-derivable anyway). For J-space it is always present. This is the
+// COARSE class only — anoik.is statics/effects are the separate v4.0 layer.
 export const eveSolarSystems = pgTable(
   'eve_solar_systems',
   {
@@ -196,6 +208,7 @@ export const eveSolarSystems = pgTable(
       .references(() => eveRegions.id, { onDelete: 'restrict' }),
     name: text('name').notNull(),
     securityStatus: doublePrecision('security_status'),
+    wormholeClassId: integer('wormhole_class_id'),
   },
   (t) => ({
     constellationIdx: index('eve_solar_systems_constellation_idx').on(
@@ -251,6 +264,30 @@ export const eveNpcStations = pgTable(
       t.solarSystemId,
     ),
     operationIdx: index('eve_npc_stations_operation_idx').on(t.operationId),
+  }),
+);
+
+// Static stargate topology as a derived system↔system jump graph (3.7.2.2). Each
+// CCP stargate record already carries both endpoints (its own `solarSystemID` and
+// `destination.solarSystemID`), so a gate becomes one directed edge with no
+// gate→gate resolution; an undirected jump is the two reciprocal edges. Only the
+// adjacency is stored — gate ids/positions aren't kept, because the one consumer
+// (route adjacency for the mapper) needs neighbours, not gate geometry. J-space
+// has no static gates, so every row connects K-space/Pochven systems. The
+// composite PK `(from, to)` also serves the from-prefix "neighbours of X" lookup,
+// so no separate index is needed.
+export const eveSystemJumps = pgTable(
+  'eve_system_jumps',
+  {
+    fromSystemId: integer('from_system_id')
+      .notNull()
+      .references(() => eveSolarSystems.id, { onDelete: 'restrict' }),
+    toSystemId: integer('to_system_id')
+      .notNull()
+      .references(() => eveSolarSystems.id, { onDelete: 'restrict' }),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.fromSystemId, t.toSystemId] }),
   }),
 );
 
