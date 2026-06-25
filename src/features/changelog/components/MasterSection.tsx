@@ -7,7 +7,7 @@ import { EntryCard } from './EntryCard';
 export function MasterSection({ master }: { master: ChangelogMaster }) {
   return (
     <section className="changelog-master">
-      <div className={`changelog-master-head${master.title ? ' is-themed' : ''}`}>
+      <div className="changelog-master-head">
         <span className="changelog-master-ver">v{master.version}</span>
         {master.title && (
           <>
