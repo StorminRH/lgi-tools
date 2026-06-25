@@ -1,8 +1,11 @@
 import { and, asc, eq, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
+import { purgeConvexCharacterProjections } from '@/data/convex/purge';
 import { db } from '@/db';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
+import { classifyOwnerReconcile } from './owner-reconcile';
 import { account, characters, session, user } from './schema';
+import { syntheticEmail } from './synthetic-email';
 import type { Character, CharacterRole } from './types';
 
 interface UpsertInput {
@@ -448,4 +451,124 @@ export async function reassignCharacter({
     await repointActiveToOldest(fromUserId);
   }
   return { sourceDeleted: false };
+}
+
+// ---------------------------------------------------------------------------
+// Owner-hash identity binding (3.7.1.3). EVE's JWT `owner` claim
+// (CharacterOwnerHash) is stable for one human across logins and changes only
+// when the character is transferred to a different EVE account. We store it on
+// the account row and reconcile it on every auth (from getUserInfo, BEFORE
+// Better Auth's own account lookup), so a transferred character can never sign
+// the new human into the prior owner's LGI account.
+//
+// The verdict (no-op / backfill / purge) is the pure classifyOwnerReconcile in
+// owner-reconcile.ts; these helpers act on it against the DB.
+// ---------------------------------------------------------------------------
+
+// Compare the JWT's owner hash against the stored one for a character and act on
+// the difference. Called once per sign-in/link. Cheap on the common paths: one
+// indexed read, plus a single backfill UPDATE the first time a legacy/fresh row
+// records its hash.
+export async function reconcileCharacterOwner(
+  characterId: number,
+  jwtOwnerHash: string | null | undefined,
+): Promise<void> {
+  if (!jwtOwnerHash) return; // no owner claim → no transfer proof, never act
+
+  const [row] = await db
+    .select({ userId: account.userId, ownerHash: account.ownerHash })
+    .from(account)
+    .where(and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId))))
+    .limit(1);
+  // No row yet = this character's first link this request; Better Auth creates
+  // the account row AFTER this callback, so there is nothing to compare. The
+  // fresh row starts with a NULL owner_hash and backfills on its next auth —
+  // identical to a legacy row, never a false purge.
+  if (!row) return;
+
+  const action = classifyOwnerReconcile(row.ownerHash, jwtOwnerHash);
+  if (action === 'noop') return;
+  if (action === 'backfill') {
+    await db
+      .update(account)
+      .set({ ownerHash: jwtOwnerHash, updatedAt: new Date() })
+      .where(
+        and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId))),
+      );
+    return;
+  }
+  // action === 'purge': a different human now controls this character.
+  await purgeTransferredCharacter(row.userId, characterId);
+}
+
+// Purge a transferred character's prior owner across the DEFINED purge surface,
+// then let Better Auth create a fresh user for the new owner (it finds no account
+// row, so its findOAuthUser email fallback no longer re-links to the prior owner).
+// Surface (keep in sync with the 3.7.14 hardening note when new per-character /
+// per-user owner-authored data lands):
+//   1. account row + encrypted tokens — the existing delete path, reused.
+//   2. per-character owner-authored profile fields on the shared `characters` row.
+//   3. Convex projections (skills + industry jobs) — prompt teardown.
+//   4. the prior owner's user row — only when it's left account-less.
+export async function purgeTransferredCharacter(
+  priorUserId: string,
+  characterId: number,
+): Promise<void> {
+  // 1. Account row + encrypted tokens (reuse the existing delete path).
+  await deleteLinkedCharacter(priorUserId, characterId);
+
+  // 2. Reset the per-character owner-authored fields on the shared `characters`
+  //    row. The row is kept (it's a telemetry FK target) and the
+  //    character-intrinsic name/portrait are refreshed by the new owner's login;
+  //    only preferences (owner-authored) are cleared. Defensive today — nothing
+  //    writes characters.preferences yet — but it pins the purge surface for the
+  //    per-character owner-authored data 3.7.10 will add.
+  await db
+    .update(characters)
+    .set({ preferences: {}, updatedAt: new Date() })
+    .where(eq(characters.characterId, characterId));
+
+  // 3. Prompt Convex projection teardown (best-effort — never throws; the lazy
+  //    orphan cleanup in applySyncResults is the safety net).
+  await purgeConvexCharacterProjections(priorUserId, characterId);
+
+  // 4. Reconcile the prior owner's user row. Better Auth's findOAuthUser falls
+  //    back to a user.email match when no account row is found, and
+  //    overrideUserInfo keeps that email tracking the last-signed-in character's
+  //    synthetic <id>@eve.invalid — so a surviving user.email == the freed
+  //    character's synthetic address would re-link it to the prior owner.
+  const remaining = await db
+    .select({ accountId: account.accountId })
+    .from(account)
+    .where(eveAccountsForUser(priorUserId))
+    .orderBy(asc(account.createdAt));
+
+  if (remaining.length === 0) {
+    // Account-less ⇒ permanently un-loginable (EVE SSO is the only login) ⇒
+    // delete it. Sessions + user_preferences cascade (onDelete:'cascade') — the
+    // deliberate completion of the purge, mirroring the admin reassignCharacter
+    // precedent. NB: steps 1–4 are sequential, non-atomic neon-http writes (no
+    // request-path transaction) — the same accepted trade-off as
+    // reassignCharacter; an actual transfer is rare and low-rate.
+    await db.delete(user).where(eq(user.id, priorUserId));
+    return;
+  }
+
+  // The prior owner keeps other characters. If the freed character was their
+  // identity email, rebind it to a surviving character so the freed synthetic
+  // address can't email-match this user on the new owner's sign-in.
+  const [u] = await db
+    .select({ email: user.email, activeCharacterId: user.activeCharacterId })
+    .from(user)
+    .where(eq(user.id, priorUserId))
+    .limit(1);
+  if (u?.email === syntheticEmail(characterId)) {
+    await db
+      .update(user)
+      .set({ email: syntheticEmail(Number(remaining[0].accountId)), updatedAt: new Date() })
+      .where(eq(user.id, priorUserId));
+  }
+  if (u?.activeCharacterId === characterId) {
+    await repointActiveToOldest(priorUserId);
+  }
 }

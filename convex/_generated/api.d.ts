@@ -17,6 +17,7 @@ import type * as lib_bearerAuth from "../lib/bearerAuth.js";
 import type * as lib_characterSync from "../lib/characterSync.js";
 import type * as lib_esiRead from "../lib/esiRead.js";
 import type * as lib_subjects from "../lib/subjects.js";
+import type * as purge from "../purge.js";
 import type * as skills from "../skills.js";
 import type * as skillsSync from "../skillsSync.js";
 
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   "lib/characterSync": typeof lib_characterSync;
   "lib/esiRead": typeof lib_esiRead;
   "lib/subjects": typeof lib_subjects;
+  purge: typeof purge;
   skills: typeof skills;
   skillsSync: typeof skillsSync;
 }>;

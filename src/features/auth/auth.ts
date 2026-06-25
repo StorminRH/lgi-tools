@@ -25,7 +25,7 @@ import {
   exchangeCodeForToken,
   verifyEveJwt,
 } from './eve-sso';
-import { resolveActiveCharacter, upsertCharacterOnLogin } from './queries';
+import { reconcileCharacterOwner, resolveActiveCharacter, upsertCharacterOnLogin } from './queries';
 import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import { TOKEN_CRYPTO_VERSION, encryptToken } from './token-crypto';
@@ -194,6 +194,13 @@ const options = {
             if (!tokens.accessToken) return null;
             const claims = await verifyEveJwt(tokens.accessToken);
             const character = claimsToCharacter(claims);
+            // Owner-hash identity gate (3.7.1.3): runs BEFORE Better Auth's own
+            // account lookup, so a transferred character (the JWT `owner` hash no
+            // longer matches the stored one) has the prior owner's footprint
+            // purged here — Better Auth then finds no account row and creates a
+            // fresh user for the new owner instead of signing them in as the old
+            // one. A matching or absent/legacy hash is a no-op/backfill.
+            await reconcileCharacterOwner(character.characterId, claims.owner);
             await upsertCharacterOnLogin(character);
             // Best-effort login telemetry — parity with the retired callback route
             // (the admin dashboard's "Logins" metric reads `auth_login`). Fire-and-
