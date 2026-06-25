@@ -47,7 +47,13 @@ export type BlueprintActivity = {
 export type BlueprintActivitySet = BlueprintActivity[];
 
 function asObject(raw: unknown): Record<string, unknown> | null {
-  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
+  // Exclude arrays: `typeof [] === 'object'`, but an array is never a CCP record
+  // here, and casting one to Record<string, unknown> is unsound. (Downstream
+  // parsers already yield empty results for an array, so this only tightens the
+  // contract — no behaviour change.)
+  return raw !== null && typeof raw === 'object' && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : null;
 }
 
 // Map each object entry of a CCP array field through `fn`, dropping non-object
