@@ -5,6 +5,7 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
+import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
 import { toPanelCharacter } from '@/features/auth/panel-character';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import { SkillQueuePanel } from '@/features/skill-queue/components/SkillQueuePanel';
@@ -21,9 +22,18 @@ async function SkillsContent() {
   }
 
   const characters = await listLinkedCharacters(session.user.id);
+  // Per-character scope gate: each card that can't sync its skill queue blocks
+  // itself behind an in-place grant, while granted characters still show. The
+  // scope health is derived per character at the app layer (toPanelCharacter →
+  // canSyncSkillQueue); the page composes the grant control + reason and passes
+  // them down, so the panel and gate primitive stay free of auth/scope imports.
   return (
     <SkillQueuePanel
       characters={characters.map((character) => toPanelCharacter(character, canSyncSkillQueue))}
+      reconnectAction={
+        <LinkCharacterButton label="Grant skill access" emphasis="reconnect" callbackURL="/skills" />
+      }
+      reconnectReason="Skill access lets the site read this character's training queue and skills."
     />
   );
 }

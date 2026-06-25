@@ -59,14 +59,20 @@ function RosterFrame({ children }: { children: ReactNode }) {
   );
 }
 
-function RosterList({ items }: { items: RosterViewModel[] }) {
+function RosterList({
+  items,
+  reconnectAction,
+}: {
+  items: RosterViewModel[];
+  reconnectAction?: ReactNode;
+}) {
   // Mobile-width cards that tile rather than stretch: each card (and its skill
   // bar) stays narrow, and up to three fit across the left column. The max-width
   // caps it at ~3 columns on a wide desktop instead of sprawling further.
   return (
     <div className="grid max-w-[760px] grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-x-5 gap-y-4">
       {items.map((vm) => (
-        <RosterCard key={vm.characterId} vm={vm} />
+        <RosterCard key={vm.characterId} vm={vm} reconnectAction={reconnectAction} />
       ))}
     </div>
   );
@@ -126,5 +132,12 @@ function LiveRosterCards({ characters }: { characters: PanelCharacter[] }) {
   const items = characters.map((character) =>
     buildRosterCard(character, liveByCharacter.get(character.characterId), names, now),
   );
-  return <RosterList items={items} />;
+  return (
+    <RosterList
+      items={items}
+      reconnectAction={
+        <LinkCharacterButton label="Reconnect" emphasis="reconnect" callbackURL="/" />
+      }
+    />
+  );
 }
