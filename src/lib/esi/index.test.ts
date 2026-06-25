@@ -361,6 +361,112 @@ describe('esiFetch', () => {
     });
   });
 
+  describe('within-window cache serve', () => {
+    // A 200 carrying ETag + Content-Length + a future Expires: cache-eligible
+    // AND inside ESI's own freshness window. '{"a":1}' is 7 bytes.
+    function primingResponse(): Response {
+      return mockResponse(
+        200,
+        {
+          ETag: '"abc"',
+          'Content-Type': 'application/json',
+          Expires: 'Thu, 25 Jun 2026 01:05:00 GMT',
+          'Content-Length': '7',
+        },
+        { a: 1 },
+      );
+    }
+
+    it('serves the stored body with no dispatch while the Expires window is open', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-25T01:00:00Z')); // 5 min before Expires
+      fetchSpy.mockResolvedValueOnce(primingResponse());
+
+      const first = await esiFetch(TEST_URL);
+      expect(await first.json()).toEqual({ a: 1 });
+      expect(fetchSpy).toHaveBeenCalledOnce();
+
+      // Second read, still inside the window: no outbound call, served from the
+      // cached body. Two within-window reads → exactly one ESI request.
+      const second = await esiFetch(TEST_URL);
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      expect(second.status).toBe(200);
+      expect(second.headers.get('x-lgi-esi-cache')).toBe('window');
+      expect(await second.json()).toEqual({ a: 1 });
+    });
+
+    it('dispatches a conditional request once the Expires window has passed', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
+      fetchSpy.mockResolvedValueOnce(primingResponse());
+      await esiFetch(TEST_URL);
+      expect(fetchSpy).toHaveBeenCalledOnce();
+
+      // Past the Expires (+ skew): the gate re-asks ESI, conditionally.
+      vi.setSystemTime(new Date('2026-06-25T01:10:00Z'));
+      fetchSpy.mockResolvedValueOnce(mockResponse(304, { ETag: '"abc"' }));
+      const second = await esiFetch(TEST_URL);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBe('"abc"');
+      expect(second.status).toBe(200);
+      // The 304-reuse path, distinct from the no-dispatch window serve.
+      expect(second.headers.get('x-lgi-esi-cache')).toBe('revalidated');
+    });
+
+    it('never serves an Authorization-carrying GET from the shared cache', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
+      // Prime the shared cache with an unauthenticated read inside the window.
+      fetchSpy.mockResolvedValueOnce(primingResponse());
+      await esiFetch(TEST_URL);
+      expect(fetchSpy).toHaveBeenCalledOnce();
+
+      // Same URL, still inside the window, but carrying a bearer token: must
+      // dispatch every time and get ESI's own body, never the cached one.
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, {}, { a: 2 }));
+      const authed = await esiFetch(TEST_URL, {
+        headers: { Authorization: 'Bearer token' },
+      });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(requestHeaders(fetchSpy, 1).get('If-None-Match')).toBeNull();
+      expect(authed.headers.get('x-lgi-esi-cache')).toBeNull();
+      expect(await authed.json()).toEqual({ a: 2 });
+    });
+
+    it('falls through to a normal dispatch when the body was evicted mid-window', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-06-25T01:00:00Z'));
+      // Future Expires (window open) but the body is gone from the scoreboard.
+      const getCachedBody = vi.fn().mockResolvedValue(null);
+      const fake: EsiScoreboard = {
+        preDispatch: vi.fn().mockResolvedValue({
+          effectiveRemaining: 100,
+          blockedRetryAfter: null,
+          etag: {
+            etag: '"abc"',
+            expires: 'Thu, 25 Jun 2026 01:05:00 GMT',
+            contentType: 'application/json',
+          },
+        }),
+        report: vi.fn().mockResolvedValue(undefined),
+        getCachedBody,
+      };
+      __setScoreboardForTests(fake);
+
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, { ETag: '"abc"' }, { a: 9 }));
+      const res = await esiFetch(TEST_URL);
+
+      expect(getCachedBody).toHaveBeenCalledTimes(1); // it tried the cache...
+      expect(fetchSpy).toHaveBeenCalledTimes(1); // ...then dispatched once
+      expect(requestHeaders(fetchSpy, 0).get('If-None-Match')).toBe('"abc"');
+      expect(res.status).toBe(200);
+      expect(res.headers.get('x-lgi-esi-cache')).toBeNull();
+      expect(await res.json()).toEqual({ a: 9 });
+    });
+  });
+
   describe('fail-closed when the scoreboard is unavailable', () => {
     it('refuses non-interactive dispatch without calling fetch', async () => {
       __setScoreboardForTests('unavailable');
