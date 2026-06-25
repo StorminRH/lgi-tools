@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { readEnv } from '@/lib/env';
@@ -94,7 +95,7 @@ async function SandboxIndex() {
 }
 
 function SandboxLoading() {
-  return <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>;
+  return <LoadingLabel />;
 }
 
 // Admin-gated on production only: the session read is a request-time dynamic

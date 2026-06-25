@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { cache, Suspense } from 'react';
 import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { UrlSync } from '@/components/ui/url-sync';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
@@ -87,8 +88,8 @@ async function SitesContent({
 
 function SitesLoading() {
   return (
-    <div className="pt-[34px] text-[10px] tracking-[0.12em] uppercase text-muted">
-      Loading sites…
+    <div className="pt-[34px]">
+      <LoadingLabel label="Loading sites…" />
     </div>
   );
 }

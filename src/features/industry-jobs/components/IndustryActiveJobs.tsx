@@ -12,6 +12,7 @@ import { Authenticated, AuthLoading, Unauthenticated, useQuery } from 'convex/re
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
 import { api } from '@/data/convex/api';
@@ -52,9 +53,7 @@ export function IndustryActiveJobs({ characterIds }: { characterIds: number[] })
     <>
       <AuthLoading>
         <JobsSection>
-          <p className="text-[10px] tracking-[0.12em] uppercase text-muted">
-            Connecting live session…
-          </p>
+          <LoadingLabel label="Connecting live session…" />
         </JobsSection>
       </AuthLoading>
       <Unauthenticated>

@@ -5,6 +5,8 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
+import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
@@ -111,14 +113,13 @@ async function CharactersContent({
 
   return (
     <>
-      <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
-        <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-          Characters
-        </div>
-        <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
-          {characters.length} linked · the active character is who the site acts as
-        </div>
-      </header>
+      <div className="w-full max-w-[760px]">
+        <PageHead
+          crumb="characters"
+          title="Characters"
+          subtitle={`${characters.length} linked · the active character is who the site acts as`}
+        />
+      </div>
 
       <div className="w-full max-w-[760px] flex flex-col gap-6">
         {error ? (
@@ -156,7 +157,7 @@ async function CharactersContent({
 
 function CharactersLoading() {
   return (
-    <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>
+    <LoadingLabel />
   );
 }
 
@@ -169,7 +170,7 @@ export default function CharactersPage({
 }) {
   return (
     <PageShell>
-      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+      <div className="flex flex-col items-center pb-20 gap-0">
         <Suspense fallback={<CharactersLoading />}>
           <CharactersContent searchParams={searchParams} />
         </Suspense>

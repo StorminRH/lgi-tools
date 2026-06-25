@@ -161,30 +161,37 @@ export function SortableTable<Row>({
   );
 
   return (
-    <div className="sortable-table border border-border bg-section">
-      {renderHeader()}
-      {rows.length === 0 ? (
-        <div className="px-3 py-6 text-center text-muted text-[11px]">{emptyState ?? 'No rows.'}</div>
-      ) : (
-        rows.map((row) => {
-          const key = getRowKey(row);
-          const cells = renderCells(row);
-          if (renderRow) {
-            return <Fragment key={key}>{renderRow({ row, cells, key, gridColsClass })}</Fragment>;
-          }
-          return (
-            <div
-              key={key}
-              className={cn(
-                'sortable-table-row grid items-center gap-4 px-3 py-2 border-b border-border-soft last:border-b-0',
-                gridColsClass,
-              )}
-            >
-              {cells}
-            </div>
-          );
-        })
-      )}
+    // Horizontal scroll on narrow viewports: the grid columns keep a min-width
+    // floor (so labels/values don't crush) and the wrapper scrolls them sideways
+    // instead of stacking. Vertical content (an expanded row) still grows the
+    // page — the wrapper has no height cap, so overflow-y never clips. Lives in
+    // the primitive, so every table inherits it.
+    <div className="overflow-x-auto">
+      <div className="sortable-table border border-border bg-section min-w-[640px]">
+        {renderHeader()}
+        {rows.length === 0 ? (
+          <div className="px-3 py-6 text-center text-muted text-[11px]">{emptyState ?? 'No rows.'}</div>
+        ) : (
+          rows.map((row) => {
+            const key = getRowKey(row);
+            const cells = renderCells(row);
+            if (renderRow) {
+              return <Fragment key={key}>{renderRow({ row, cells, key, gridColsClass })}</Fragment>;
+            }
+            return (
+              <div
+                key={key}
+                className={cn(
+                  'sortable-table-row grid items-center gap-4 px-3 py-2 border-b border-border-soft last:border-b-0',
+                  gridColsClass,
+                )}
+              >
+                {cells}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

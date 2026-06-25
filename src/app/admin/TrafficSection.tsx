@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { Collapsible } from '@/components/ui/collapsible';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -162,7 +163,7 @@ function GscCardFallback({ label }: { label: string }) {
   return (
     <Card>
       <SectionHeader size="md" label={label} hint="Google Search Console" />
-      <div className="px-3.5 py-6 text-[11px] font-mono text-muted">Loading…</div>
+      <LoadingLabel className="block px-3.5 py-6" />
     </Card>
   );
 }

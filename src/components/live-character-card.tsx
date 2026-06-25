@@ -13,6 +13,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionHeader } from '@/components/ui/section-header';
 import { convexClient } from '@/data/convex/client';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
@@ -61,9 +62,7 @@ export function LiveSessionGate({
   return (
     <>
       <AuthLoading>
-        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
-          Connecting live session…
-        </span>
+        <LoadingLabel label="Connecting live session…" />
       </AuthLoading>
       <Unauthenticated>
         <Card>

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -108,7 +109,7 @@ export default function IndustryDashboardPage() {
           fallback={
             <section>
               <SectionLabel className="mb-3">Active jobs</SectionLabel>
-              <p className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</p>
+              <LoadingLabel />
             </section>
           }
         >

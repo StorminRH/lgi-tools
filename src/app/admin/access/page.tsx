@@ -5,6 +5,8 @@ import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingLabel } from '@/components/ui/loading-label';
+import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
@@ -220,25 +222,24 @@ async function AccessContent({
 
   return (
     <>
-      <header className="w-full mb-6 pb-4 border-b border-border-soft">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="font-display font-bold text-[22px] text-name tracking-[0.06em] uppercase mb-1">
-              Access
-            </div>
-            <div className="text-[10px] text-muted tracking-[0.12em] uppercase">
-              {adminRows.length} admin{adminRows.length === 1 ? '' : 's'}
-              {query ? ` · search "${query}"` : ''}
-            </div>
-          </div>
+      <PageHead
+        crumb="access"
+        title="Access"
+        subtitle={
+          <>
+            {adminRows.length} admin{adminRows.length === 1 ? '' : 's'}
+            {query ? ` · search "${query}"` : ''}
+          </>
+        }
+        meta={
           <a
             href="/admin"
             className="font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
           >
             ← Dashboard
           </a>
-        </div>
-      </header>
+        }
+      />
 
       <div className="w-full flex flex-col gap-6">
         <form method="GET" action="/admin/access" className="flex items-center gap-2">
@@ -327,7 +328,7 @@ async function AccessContent({
 
 function AccessLoading() {
   return (
-    <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Loading…</span>
+    <LoadingLabel />
   );
 }
 
@@ -340,7 +341,7 @@ export default function AccessPage({
 }) {
   return (
     <PageShell>
-      <div className="flex flex-col items-center pt-12 pb-20 gap-0">
+      <div className="flex flex-col items-center pb-20 gap-0">
         <Suspense fallback={<AccessLoading />}>
           <AccessContent searchParams={searchParams} />
         </Suspense>
