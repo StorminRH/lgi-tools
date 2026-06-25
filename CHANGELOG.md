@@ -4,6 +4,13 @@ User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
 changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
 infrastructure work is intentionally excluded.
 
+## v3.7 — Security Improvements / Industry Planner Upgrade
+
+### v3.7.0.1 — 2026-06-24
+
+#### Changed
+- The changelog now groups its releases under a master version with a themed title, so related updates read as one chapter — each release still listed underneath with its own ship date.
+
 ### v3.6.28 — 2026-06-24
 
 #### Changed

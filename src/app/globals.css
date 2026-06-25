@@ -901,6 +901,44 @@ a:hover {
   top: 0;
   color: var(--color-isk);
 }
+/* A master version groups its sub-version nodes under one heading — a display-
+ * font version number (set apart from the rail's mono version), themed with an
+ * ISK-green title for new masters and left bare for historical ones. */
+.changelog-master { margin-bottom: 44px; }
+.changelog-master:last-child { margin-bottom: 0; }
+.changelog-master-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-bottom: 22px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.changelog-master-ver {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 25px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--color-name);
+}
+.changelog-master-dash {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.2;
+  color: var(--color-muted);
+}
+.changelog-master-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--color-isk);
+}
 
 @media (max-width: 760px) {
   .contact-grid { grid-template-columns: 1fr; }
@@ -910,6 +948,9 @@ a:hover {
   .changelog-rail { text-align: left; padding: 0 0 12px; }
   .changelog-changes { border-left: none; padding-left: 0; }
   .changelog-changes::before { display: none; }
+  .changelog-master-head { gap: 4px; }
+  .changelog-master-ver { font-size: 22px; }
+  .changelog-master-dash { display: none; }
 }
 
 /* ── Global in-nav search + dropdown (v2.9.4) ──────────────────────────
