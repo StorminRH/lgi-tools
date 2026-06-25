@@ -1,9 +1,11 @@
 import { headers } from 'next/headers';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { Collapsible } from '@/components/ui/collapsible';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
@@ -12,11 +14,13 @@ import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { auth } from '@/features/auth/auth';
+import { GrantedScopesList } from '@/features/auth/components/GrantedScopesList';
 import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
 import { SwitchCharacterForm } from '@/features/auth/components/SwitchCharacterForm';
 import { UnlinkCharacterForm } from '@/features/auth/components/UnlinkCharacterForm';
+import { EVE_AUTHORIZED_APPS_URL } from '@/features/auth/eve-sso';
 import { listLinkedCharacters, type LinkedCharacter } from '@/features/auth/queries';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
+import { deriveCharacterHealth, listGrantedScopes } from '@/features/auth/scope-health';
 
 // Friendly copy for the failure codes the link callback (Better Auth) and the
 // unlink route can redirect back with. Whitelisted — an unrecognised code falls
@@ -52,43 +56,75 @@ function CharacterRow({
     : character.hasRefreshToken
       ? 'Missing scopes'
       : 'Disconnected';
+  // Read-only: what this character has ACTUALLY granted, derived here in the app
+  // layer off the already-loaded grant string (no tokens, no new query).
+  const scopes = listGrantedScopes(character.scope);
 
   return (
-    <EntityRow
-      colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto]"
-      leading={
-        <img
-          src={character.portraitUrl}
-          alt={character.name}
-          width={28}
-          height={28}
-          loading="lazy"
-          decoding="async"
-          className="rounded-[2px] border border-border-idle"
-        />
-      }
-      name={character.name}
-      chips={
-        <span className="flex items-center gap-[6px]">
-          <Pill tone="neutral">ID {character.characterId}</Pill>
-          {isActive ? <Chip tone="green">Active</Chip> : null}
-          {healthLabel ? (
-            <Chip tone="orange" className="normal-case">
-              {healthLabel}
-            </Chip>
-          ) : null}
-        </span>
-      }
-      trailing={
-        <span className="flex items-center gap-2 justify-end">
-          {health.needsReconnect ? (
-            <LinkCharacterButton label="Reconnect" emphasis="reconnect" />
-          ) : null}
-          {isActive ? null : <SwitchCharacterForm characterId={character.characterId} />}
-          <UnlinkCharacterForm characterId={character.characterId} disabled={isOnlyCharacter} />
-        </span>
-      }
-    />
+    // The group owns the divider so the row and its granted-scope disclosure read
+    // as one unit: EntityRow drops its own top border (the group's serves), and
+    // the Collapsible drops its bottom border (the next group's top border, or the
+    // footer's, separates). `cn` is tailwind-merge, so the overrides win.
+    <div className="border-t border-border-soft">
+      <EntityRow
+        className="border-t-0"
+        colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto]"
+        leading={
+          <img
+            src={character.portraitUrl}
+            alt={character.name}
+            width={28}
+            height={28}
+            loading="lazy"
+            decoding="async"
+            className="rounded-[2px] border border-border-idle"
+          />
+        }
+        name={character.name}
+        chips={
+          <span className="flex items-center gap-[6px]">
+            <Pill tone="neutral">ID {character.characterId}</Pill>
+            {isActive ? <Chip tone="green">Active</Chip> : null}
+            {healthLabel ? (
+              <Chip tone="orange" className="normal-case">
+                {healthLabel}
+              </Chip>
+            ) : null}
+          </span>
+        }
+        trailing={
+          <span className="flex items-center gap-2 justify-end">
+            {health.needsReconnect ? (
+              <LinkCharacterButton label="Reconnect" emphasis="reconnect" />
+            ) : null}
+            {isActive ? null : <SwitchCharacterForm characterId={character.characterId} />}
+            <UnlinkCharacterForm characterId={character.characterId} disabled={isOnlyCharacter} />
+          </span>
+        }
+      />
+      {scopes.length > 0 ? (
+        <Collapsible
+          className="border-b-0"
+          headerClassName="px-3.5 py-[6px]"
+          header={
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="text-[10px] tracking-[0.08em] uppercase text-muted">
+                Granted access
+              </span>
+              <Pill tone="neutral">{scopes.length}</Pill>
+              <span
+                data-chevron
+                className="ml-auto text-[10px] text-muted transition-transform inline-block shrink-0"
+              >
+                ▾
+              </span>
+            </span>
+          }
+        >
+          <GrantedScopesList scopes={scopes} />
+        </Collapsible>
+      ) : null}
+    </div>
   );
 }
 
@@ -148,6 +184,22 @@ async function CharactersContent({
           )}
           <div className="px-3.5 py-3 border-t border-border-soft">
             <LinkCharacterButton label="Link another character" />
+          </div>
+          <div className="px-3.5 py-2.5 border-t border-border-soft text-[11px] text-muted leading-relaxed">
+            LGI.tools only reads the access shown above. To review or revoke it, visit your{' '}
+            <a
+              href={EVE_AUTHORIZED_APPS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-tone-blue hover:underline"
+            >
+              EVE authorized apps
+            </a>{' '}
+            page, or see{' '}
+            <Link href="/legal" className="text-tone-blue hover:underline">
+              how we handle your data
+            </Link>
+            .
           </div>
         </Card>
       </div>

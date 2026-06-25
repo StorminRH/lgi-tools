@@ -176,6 +176,13 @@
       "when": 1782091568642,
       "tag": "0024_clumsy_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1782403267892,
+      "tag": "0025_rare_shocker",
+      "breakpoints": true
     }
   ]
 }

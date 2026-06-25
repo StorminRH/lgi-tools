@@ -14,6 +14,7 @@
 // summary, and id-extraction.
 import { useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
+import type { ReactNode } from 'react';
 import {
   type CharacterCardContent,
   LiveCharacterPanel,
@@ -29,7 +30,17 @@ import type { SkillQueueEntry } from '../esi-projection';
 import { entryProgress, romanLevel, summarizeQueue } from '../progress';
 import { STATUS_META } from '../skill-queue-styles';
 
-export function SkillQueuePanel({ characters }: { characters: PanelCharacter[] }) {
+export function SkillQueuePanel({
+  characters,
+  reconnectAction,
+  reconnectReason,
+}: {
+  characters: PanelCharacter[];
+  // The in-place scope-grant control + its reason, composed by the page (app
+  // layer) and forwarded to each per-character card's gate.
+  reconnectAction?: ReactNode;
+  reconnectReason?: ReactNode;
+}) {
   return (
     <LiveSessionGate
       characters={characters}
@@ -43,7 +54,11 @@ export function SkillQueuePanel({ characters }: { characters: PanelCharacter[] }
         </>
       }
     >
-      <LiveQueues characters={characters} />
+      <LiveQueues
+        characters={characters}
+        reconnectAction={reconnectAction}
+        reconnectReason={reconnectReason}
+      />
     </LiveSessionGate>
   );
 }
@@ -62,7 +77,15 @@ function skillTypeIds(characters: LiveCharacter[]): number[] {
   return ids;
 }
 
-function LiveQueues({ characters }: { characters: PanelCharacter[] }) {
+function LiveQueues({
+  characters,
+  reconnectAction,
+  reconnectReason,
+}: {
+  characters: PanelCharacter[];
+  reconnectAction?: ReactNode;
+  reconnectReason?: ReactNode;
+}) {
   const live = useQuery(api.skills.forViewer);
   return (
     <LiveCharacterPanel
@@ -75,6 +98,8 @@ function LiveQueues({ characters }: { characters: PanelCharacter[] }) {
       scopePhrase="the skill scopes"
       noun="queue"
       emptyRowsText="No skills in the training queue."
+      reconnectAction={reconnectAction}
+      reconnectReason={reconnectReason}
       renderCard={renderQueueCard}
     />
   );

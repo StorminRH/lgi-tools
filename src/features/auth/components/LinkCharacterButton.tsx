@@ -7,6 +7,12 @@ import { authClient } from '../auth-client';
 // client follows the returned authorize URL automatically. The same flow doubles
 // as "Reconnect": re-linking an already-owned character refreshes its stored
 // tokens and granted scopes via the callback's update path.
+//
+// No `scopes` is passed here on purpose — the link request falls back to the
+// static provider config (EVE_SCOPES), so a relink always re-consents to the
+// CURRENT requested superset and the callback rewrites `account.scope` to match.
+// Narrowing/expanding what a relink grants is therefore a one-line change in
+// EVE_SCOPES (eve-sso.ts), guarded by its pin test — nothing to change here.
 export function LinkCharacterButton({
   label = 'Link another character',
   emphasis = 'primary',

@@ -97,6 +97,16 @@ export const account = pgTable(
     accessTokenExpiresAt: timestamp('access_token_expires_at'),
     refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
     scope: text('scope'),
+    // The EVE JWT `owner` claim (CharacterOwnerHash) for this character — stable
+    // for one human across logins, changes only when the character is transferred
+    // to a different EVE account (3.7.1.3). Stored + compared on every auth: a
+    // changed hash means a different human now controls the character, so the
+    // prior owner's footprint is purged and a fresh re-consent is forced. NULL on
+    // legacy rows (pre-3.7.1.3) and on a freshly-created row — both BACKFILL on the
+    // next auth, never purge. This is an identity check, NOT a secret (like
+    // `scope`, it's plaintext) — do NOT envelope-encrypt it. App-managed: written
+    // only by the reconcile path (queries.ts), never by Better Auth's account write.
+    ownerHash: text('owner_hash'),
     password: text('password'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

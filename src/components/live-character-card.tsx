@@ -11,6 +11,7 @@
 // compose it without importing each other.
 import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -197,6 +198,8 @@ export function LiveCharacterCard({
   subtitle,
   headerRight,
   emptyRowsText,
+  reconnectAction,
+  reconnectReason,
   children,
 }: {
   character: PanelCharacter;
@@ -211,37 +214,18 @@ export function LiveCharacterCard({
   subtitle?: ReactNode;
   headerRight?: ReactNode;
   emptyRowsText: string;
+  // Opt-in per-character scope gate: when a panel supplies an in-place grant
+  // control (and its reason), a character that needs reconnecting blocks its own
+  // card behind that grant instead of the "reconnect on the Characters page"
+  // link. Panels that pass neither keep the link affordance unchanged.
+  reconnectAction?: ReactNode;
+  reconnectReason?: ReactNode;
   children?: ReactNode;
 }) {
-  return (
-    <Card>
-      <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
-        <img
-          src={character.portraitUrl}
-          alt={character.name}
-          width={36}
-          height={36}
-          className="rounded-[2px] border border-border-idle"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="font-display font-bold text-[15px] text-name truncate">
-            {character.name}
-          </div>
-          {subtitle}
-        </div>
-        {headerRight}
-      </div>
-
-      {character.needsReconnect && (
-        <Callout label="Reconnect">
-          This character is missing {scopePhrase} —{' '}
-          <a href="/characters" className="underline text-name">
-            reconnect it on the Characters page
-          </a>{' '}
-          to sync its {noun}.
-        </Callout>
-      )}
-
+  // The card body once this character's access is granted: a sync-error notice
+  // (only when connected), the "as of" header, and the null/empty/rows tristate.
+  const grantedContent = (
+    <>
       {!character.needsReconnect && syncError != null && (
         <Callout label={syncErrorMeta(syncError).label}>
           {hasData && lastSyncedAt != null
@@ -265,6 +249,51 @@ export function LiveCharacterCard({
         <EmptyState>{emptyRowsText}</EmptyState>
       ) : (
         children
+      )}
+    </>
+  );
+
+  return (
+    <Card>
+      <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
+        <img
+          src={character.portraitUrl}
+          alt={character.name}
+          width={36}
+          height={36}
+          className="rounded-[2px] border border-border-idle"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="font-display font-bold text-[15px] text-name truncate">
+            {character.name}
+          </div>
+          {subtitle}
+        </div>
+        {headerRight}
+      </div>
+
+      {reconnectAction !== undefined ? (
+        <AccessGate
+          blocked={character.needsReconnect}
+          reason={reconnectReason}
+          action={reconnectAction}
+          className="m-3.5"
+        >
+          {grantedContent}
+        </AccessGate>
+      ) : (
+        <>
+          {character.needsReconnect && (
+            <Callout label="Reconnect">
+              This character is missing {scopePhrase} —{' '}
+              <a href="/characters" className="underline text-name">
+                reconnect it on the Characters page
+              </a>{' '}
+              to sync its {noun}.
+            </Callout>
+          )}
+          {grantedContent}
+        </>
       )}
     </Card>
   );
@@ -308,6 +337,8 @@ export function LiveCharacterPanel<TChar extends LivePanelCharacter>({
   scopePhrase,
   noun,
   emptyRowsText,
+  reconnectAction,
+  reconnectReason,
   renderCard,
 }: {
   live:
@@ -325,6 +356,10 @@ export function LiveCharacterPanel<TChar extends LivePanelCharacter>({
   scopePhrase: string;
   noun: string;
   emptyRowsText: string;
+  // Optional per-character scope gate, forwarded to each card (see
+  // LiveCharacterCard). Omitted by panels that keep the link affordance.
+  reconnectAction?: ReactNode;
+  reconnectReason?: ReactNode;
   renderCard: (
     live: TChar | undefined,
     names: Record<string, string>,
@@ -376,6 +411,8 @@ export function LiveCharacterPanel<TChar extends LivePanelCharacter>({
             subtitle={subtitle}
             headerRight={headerRight}
             emptyRowsText={emptyRowsText}
+            reconnectAction={reconnectAction}
+            reconnectReason={reconnectReason}
           >
             {rows}
           </LiveCharacterCard>

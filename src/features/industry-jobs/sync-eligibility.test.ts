@@ -17,13 +17,13 @@ describe('canSyncIndustryJobs', () => {
   });
 
   it('accepts a character missing only unrelated superset scopes', () => {
-    // The old-consent case: granted under a smaller scope set that still
-    // covers industry jobs — the sitewide health says reconnect, the sync
-    // works.
+    // The old-consent case: missing an unrelated scope (a skills read, ∉
+    // INDUSTRY_JOBS_SYNC_SCOPES) but still covering industry jobs — the sitewide
+    // health says reconnect, the industry-jobs sync works.
     expect(
       canSyncIndustryJobs({
         hasRefreshToken: true,
-        missingScopes: ['esi-clones.read_clones.v1', 'esi-location.read_location.v1'],
+        missingScopes: ['esi-skills.read_skills.v1'],
       }),
     ).toBe(true);
   });

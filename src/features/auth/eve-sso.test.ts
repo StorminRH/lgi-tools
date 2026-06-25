@@ -9,31 +9,35 @@ import {
 } from './eve-sso';
 
 describe('EVE_SCOPES', () => {
-  // Pins the exact ESI scope strings. EVE rejects an unknown scope with
-  // `invalid_scope`, which breaks ALL sign-in (a wrong name shipped in 3.4.1a
-  // and did exactly that). The naming traps, each verified against the live
-  // ESI scope list (2026-06-11):
-  //  - the skill-queue read lives under `esi-skills`, NOT `esi-skillqueue`;
-  //  - character-PI reads are gated by `manage_planets` — no `read_planets`;
-  //  - implants live under `esi-clones`, not `esi-characters`;
-  //  - the location/online/ship reads are three distinct scopes;
-  //  - `esi-skills.read_attributes.v1` DOES NOT EXIST — /attributes is gated
-  //    by `read_skills`, so this set is 11 strings, not Decision Record 13's
-  //    12. Do not "fix" it back.
-  it('matches the verified EVE scope names', () => {
+  // The regression guard for the requested-scope set — and, by extension, for
+  // what every sign-in/relink re-consents to and persists (Better Auth forwards
+  // these to the authorize request and the token exchange; see the getToken site
+  // in auth.ts). EVE rejects an unknown scope with `invalid_scope`, which breaks
+  // ALL sign-in (a wrong name shipped in 3.4.1a and did exactly that).
+  //
+  // 3.7.1.1 pruned this to STRICT LEAST-PRIVILEGE: exactly the four scopes a
+  // shipped feature consumes. Naming trap still worth pinning: the skill-queue
+  // read lives under `esi-skills`, NOT `esi-skillqueue`. (`read_attributes` does
+  // not exist; /attributes is gated by `read_skills`.) Adding a scope is a
+  // deliberate, batched decision — verify the exact live name before touching
+  // this list.
+  it('matches the verified least-privilege EVE scope names', () => {
     expect([...EVE_SCOPES]).toEqual([
       'publicData',
       'esi-skills.read_skills.v1',
       'esi-skills.read_skillqueue.v1',
       'esi-industry.read_character_jobs.v1',
-      'esi-planets.manage_planets.v1',
-      'esi-characters.read_standings.v1',
-      'esi-clones.read_implants.v1',
-      'esi-clones.read_clones.v1',
-      'esi-location.read_location.v1',
-      'esi-location.read_online.v1',
-      'esi-location.read_ship_type.v1',
     ]);
+  });
+
+  it('requests ZERO write scope (read-only by construction)', () => {
+    // Least-privilege: every scope is `publicData` or a `.read_` scope — never a
+    // `manage_`/`write_` capability. Catches a write scope slipping in (the kind
+    // that grants mutate-the-character access we never need).
+    for (const scope of EVE_SCOPES) {
+      const readOnly = scope === 'publicData' || /\.read_/.test(scope);
+      expect(readOnly, `${scope} is not a read-only scope`).toBe(true);
+    }
   });
 });
 

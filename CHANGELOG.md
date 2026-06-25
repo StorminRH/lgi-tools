@@ -6,6 +6,17 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.1 — 2026-06-25
+
+#### Changed
+- LGI.tools now asks for only the four read-only EVE permissions its live tools actually use — your public character info, skills, skill queue, and industry jobs — instead of the broader set it requested before. It still cannot write anything to your characters.
+- When a character is missing the access a tool needs, only that character's card now prompts you to reconnect — the rest of the page keeps working.
+- The Legal page is now the Privacy page, split into Personal Data (what the site records about your visit) and EVE SSO Data (what it reads from your characters and how it's protected).
+
+#### Added
+- Each linked character now lists exactly which EVE permissions it has granted, with a direct link to review or revoke them on EVE's own authorized-apps page.
+- If a character is sold or transferred to someone else, its synced data is now wiped automatically, so nothing carries over to the new owner.
+
 ### v3.7.0.1 — 2026-06-24
 
 #### Changed

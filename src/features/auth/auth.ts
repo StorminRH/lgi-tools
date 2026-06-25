@@ -25,7 +25,7 @@ import {
   exchangeCodeForToken,
   verifyEveJwt,
 } from './eve-sso';
-import { resolveActiveCharacter, upsertCharacterOnLogin } from './queries';
+import { reconcileCharacterOwner, resolveActiveCharacter, upsertCharacterOnLogin } from './queries';
 import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import { TOKEN_CRYPTO_VERSION, encryptToken } from './token-crypto';
@@ -149,8 +149,9 @@ const options = {
           scopes: [...EVE_SCOPES],
           pkce: true,
           responseType: 'code',
-          // Force EVE to re-prompt so existing publicData-only pilots consent to
-          // the expanded skills/industry scopes on their next sign-in.
+          // Force EVE to re-prompt so a pilot re-consents to the current
+          // EVE_SCOPES on their next sign-in — replacing an older, broader grant
+          // with the minimal read-only set (3.7.1.1 pruned the request to four).
           prompt: 'consent',
           // Refresh name/portrait from EVE on every sign-in (parity with the old
           // upsert-on-login behaviour).
@@ -174,6 +175,15 @@ const options = {
               accessTokenExpiresAt: token.expires_in
                 ? new Date(Date.now() + token.expires_in * 1000)
                 : undefined,
+              // The granted scopes Better Auth persists to `account.scope`
+              // (comma-joined). EVE returns none in the token body, so we report
+              // the exact set we requested. This is the seam that makes a relink
+              // refresh the stored scope: on re-consent Better Auth's callback
+              // writes `tokens.scopes.join(",")` to the existing account
+              // (verified, generic-oauth routes.mjs ~L237). So pruning EVE_SCOPES
+              // narrows what every relink re-consents to and stores — least
+              // privilege flows from one place. The eve-sso.test.ts pin is the
+              // regression guard; re-verify this callback on a Better Auth bump.
               scopes: [...EVE_SCOPES],
               raw: token as unknown as Record<string, unknown>,
             };
@@ -185,6 +195,13 @@ const options = {
             if (!tokens.accessToken) return null;
             const claims = await verifyEveJwt(tokens.accessToken);
             const character = claimsToCharacter(claims);
+            // Owner-hash identity gate (3.7.1.3): runs BEFORE Better Auth's own
+            // account lookup, so a transferred character (the JWT `owner` hash no
+            // longer matches the stored one) has the prior owner's footprint
+            // purged here — Better Auth then finds no account row and creates a
+            // fresh user for the new owner instead of signing them in as the old
+            // one. A matching or absent/legacy hash is a no-op/backfill.
+            await reconcileCharacterOwner(character.characterId, claims.owner);
             await upsertCharacterOnLogin(character);
             // Best-effort login telemetry — parity with the retired callback route
             // (the admin dashboard's "Logins" metric reads `auth_login`). Fire-and-
