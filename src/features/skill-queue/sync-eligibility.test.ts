@@ -20,12 +20,13 @@ describe('canSyncSkillQueue', () => {
   });
 
   it('accepts a character missing only NON-skill superset scopes', () => {
-    // The old-consent case: granted under a smaller scope set that still
-    // covers skills — the sitewide health says reconnect, the sync works.
+    // The old-consent case: missing an unrelated scope (the industry-jobs read,
+    // ∉ SKILL_SYNC_SCOPES) but still covering skills — the sitewide health says
+    // reconnect, the skill sync works.
     expect(
       canSyncSkillQueue({
         hasRefreshToken: true,
-        missingScopes: ['esi-clones.read_clones.v1', 'esi-location.read_location.v1'],
+        missingScopes: ['esi-industry.read_character_jobs.v1'],
       }),
     ).toBe(true);
   });

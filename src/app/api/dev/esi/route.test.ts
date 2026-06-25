@@ -116,11 +116,6 @@ describe('POST /api/dev/esi', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 400 for planet_detail without a planetId', async () => {
-    const res = await POST(makeRequest({ characterId: 1, endpoint: 'planet_detail' }));
-    expect(res.status).toBe(400);
-  });
-
   it('returns 403 when the character is not the caller\'s', async () => {
     h.accountBelongsToUserMock.mockResolvedValue(false);
     const res = await POST(makeRequest(READ_SKILLS));
@@ -150,15 +145,6 @@ describe('POST /api/dev/esi', () => {
     expect(new Headers(init.headers).get('Authorization')).toBe('Bearer fresh-access');
     expect(new Headers(init.headers).has('If-None-Match')).toBe(false);
     expect(opts).toEqual({ interactive: true });
-  });
-
-  it('fills the planetId into the planet_detail path', async () => {
-    await POST(
-      makeRequest({ characterId: 90000001, endpoint: 'planet_detail', planetId: 40000042 }),
-    );
-    expect(h.esiFetchMock.mock.calls[0][0]).toBe(
-      'https://esi.evetech.net/characters/90000001/planets/40000042',
-    );
   });
 
   it('forwards a supplied ETag as If-None-Match and reports a raw 304 with an empty body', async () => {

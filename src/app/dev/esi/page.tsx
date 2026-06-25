@@ -58,19 +58,19 @@ function EsiSandboxLoading() {
   return <LoadingLabel />;
 }
 
-// The 3.4.6 scope-superset proving page: reads every newly-scoped ESI endpoint
-// for one of the operator's own characters through the shared gate and shows
-// the raw response — body, status, and cache/rate headers — with zero
-// interpretation. The trackers (3.4.7+) are written against what this page
-// shows, not against guessed shapes. Admin-gated on production only, same
-// pattern as /dev/sandbox.
+// The ESI scope proving page: reads every requested-scope ESI endpoint for one
+// of the operator's own characters through the shared gate and shows the raw
+// response — body, status, and cache/rate headers — with zero interpretation.
+// The trackers are written against what this page shows, not against guessed
+// shapes. Re-scoped to the least-privilege EVE_SCOPES set in 3.7.1.1.
+// Admin-gated on production only, same pattern as /dev/sandbox.
 export default function EsiSandboxPage() {
   return (
     <PageShell>
       <div className="flex flex-col items-center pt-12 pb-20">
         <SandboxHeader
           title="ESI Endpoint Sandbox"
-          subtitle="3.4.6 · raw authenticated reads through the gate · on-demand only, nothing stored"
+          subtitle="raw authenticated reads through the gate · on-demand only, nothing stored"
         />
         <Suspense fallback={<EsiSandboxLoading />}>
           <EsiSandbox />

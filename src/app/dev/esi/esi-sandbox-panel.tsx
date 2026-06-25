@@ -1,6 +1,6 @@
 'use client';
 
-// The /dev/esi client island (3.4.6). One section per newly-scoped endpoint,
+// The /dev/esi client island (3.4.6). One section per requested-scope endpoint,
 // each reading on demand through POST /api/dev/esi and rendering the outcome
 // raw — pretty-printed body text plus the cache/rate headers as ESI sent them.
 // A repeat read replays the held ETag as If-None-Match so the 304 path is
@@ -37,9 +37,8 @@ type ReadState =
   | { phase: 'failed'; message: string }
   | { phase: 'done'; result: DevEsiReadResponse };
 
-// Sections render every endpoint except the planet drill-in, which lives
-// inside the Planets section keyed by planet id.
-const SECTION_IDS = DEV_ESI_ENDPOINT_IDS.filter((id) => id !== 'planet_detail');
+// One section per requested endpoint.
+const SECTION_IDS = DEV_ESI_ENDPOINT_IDS;
 
 const BUTTON_CLASS =
   'font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-text transition-colors whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none';
@@ -145,7 +144,7 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
   const [selectedId, setSelectedId] = useState<number | null>(
     characters[0]?.characterId ?? null,
   );
-  // Keyed by endpoint id, or `planet_detail:<planetId>` for drill-ins.
+  // Keyed by endpoint id.
   const [reads, setReads] = useState<Record<string, ReadState>>({});
   // Bumped on character switch so an in-flight read for the previous
   // character can't land its result under the new one.
@@ -157,61 +156,37 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
     setReads((prev) => ({ ...prev, [key]: state }));
   }
 
-  async function read(key: string, endpoint: DevEsiEndpointId, options?: {
-    planetId?: number;
-    ifNoneMatch?: string;
-  }) {
+  async function read(endpoint: DevEsiEndpointId, options?: { ifNoneMatch?: string }) {
     if (!selected) return;
     const generation = readGeneration.current;
-    setRead(key, { phase: 'loading' });
+    setRead(endpoint, { phase: 'loading' });
     try {
       const result = await apiFetch(devEsiReadEndpoint, {
         body: {
           characterId: selected.characterId,
           endpoint,
-          ...(options?.planetId !== undefined ? { planetId: options.planetId } : {}),
           ...(options?.ifNoneMatch ? { ifNoneMatch: options.ifNoneMatch } : {}),
         },
       });
       if (readGeneration.current !== generation) return;
       if (!result.ok) {
-        setRead(key, {
+        setRead(endpoint, {
           phase: 'failed',
           message: `HTTP ${result.status} from /api/dev/esi (${await result.response.text()})`,
         });
         return;
       }
-      setRead(key, { phase: 'done', result: result.data });
+      setRead(endpoint, { phase: 'done', result: result.data });
     } catch {
       if (readGeneration.current !== generation) return;
-      setRead(key, { phase: 'failed', message: 'Network error — the read did not complete.' });
+      setRead(endpoint, { phase: 'failed', message: 'Network error — the read did not complete.' });
     }
   }
 
-  function heldEtag(key: string): string | null {
-    const state = reads[key];
+  function heldEtag(endpoint: DevEsiEndpointId): string | null {
+    const state = reads[endpoint];
     if (state?.phase !== 'done' || state.result.kind !== 'esi') return null;
     return state.result.headers.etag;
-  }
-
-  // Planet ids parsed from the last successful planets-list read, for the
-  // drill-in controls. Raw parse of the raw body — deliberately no schema.
-  function planetIds(): number[] {
-    const state = reads['planets'];
-    if (state?.phase !== 'done' || state.result.kind !== 'esi' || state.result.status !== 200) {
-      return [];
-    }
-    try {
-      const parsed: unknown = JSON.parse(state.result.bodyText);
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .map((p: unknown) =>
-          typeof p === 'object' && p !== null && 'planet_id' in p ? Number(p.planet_id) : NaN,
-        )
-        .filter((id) => Number.isFinite(id));
-    } catch {
-      return [];
-    }
   }
 
   if (characters.length === 0) {
@@ -265,9 +240,9 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
         </div>
         {selected && selected.missingScopes.length > 0 ? (
           <Callout label="Heads up">
-            This character has not granted the 3.4.6 superset yet — scoped reads
-            will come back 403 from ESI until it re-links on /characters. That
-            raw 403 is itself a valid sandbox observation.
+            This character is missing one or more of the requested scopes — those
+            reads will come back 403 from ESI until it re-links on /characters.
+            That raw 403 is itself a valid sandbox observation.
           </Callout>
         ) : null}
       </Card>
@@ -291,7 +266,7 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
                   type="button"
                   className={BUTTON_CLASS}
                   disabled={!selected || reads[id]?.phase === 'loading'}
-                  onClick={() => void read(id, id)}
+                  onClick={() => void read(id)}
                 >
                   Read
                 </button>
@@ -299,51 +274,12 @@ export function EsiSandboxPanel({ characters }: { characters: SandboxCharacter[]
                   type="button"
                   className={BUTTON_CLASS}
                   disabled={!selected || etag === null || reads[id]?.phase === 'loading'}
-                  onClick={() => void read(id, id, { ifNoneMatch: etag ?? undefined })}
+                  onClick={() => void read(id, { ifNoneMatch: etag ?? undefined })}
                 >
                   Re-read (If-None-Match)
                 </button>
               </div>
               <ResultBlock state={reads[id] ?? { phase: 'idle' }} />
-
-              {id === 'planets'
-                ? planetIds().map((planetId) => {
-                    const key = `planet_detail:${planetId}`;
-                    const detailEtag = heldEtag(key);
-                    return (
-                      <div
-                        key={planetId}
-                        className="flex flex-col gap-2 border-l-2 border-border-soft pl-3"
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Pill tone="neutral" className="normal-case">{`planet ${planetId}`}</Pill>
-                          <button
-                            type="button"
-                            className={BUTTON_CLASS}
-                            disabled={reads[key]?.phase === 'loading'}
-                            onClick={() => void read(key, 'planet_detail', { planetId })}
-                          >
-                            Read detail
-                          </button>
-                          <button
-                            type="button"
-                            className={BUTTON_CLASS}
-                            disabled={detailEtag === null || reads[key]?.phase === 'loading'}
-                            onClick={() =>
-                              void read(key, 'planet_detail', {
-                                planetId,
-                                ifNoneMatch: detailEtag ?? undefined,
-                              })
-                            }
-                          >
-                            Re-read (If-None-Match)
-                          </button>
-                        </div>
-                        <ResultBlock state={reads[key] ?? { phase: 'idle' }} />
-                      </div>
-                    );
-                  })
-                : null}
             </div>
           </Card>
         );

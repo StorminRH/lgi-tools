@@ -174,6 +174,15 @@ const options = {
               accessTokenExpiresAt: token.expires_in
                 ? new Date(Date.now() + token.expires_in * 1000)
                 : undefined,
+              // The granted scopes Better Auth persists to `account.scope`
+              // (comma-joined). EVE returns none in the token body, so we report
+              // the exact set we requested. This is the seam that makes a relink
+              // refresh the stored scope: on re-consent Better Auth's callback
+              // writes `tokens.scopes.join(",")` to the existing account
+              // (verified, generic-oauth routes.mjs ~L237). So pruning EVE_SCOPES
+              // narrows what every relink re-consents to and stores — least
+              // privilege flows from one place. The eve-sso.test.ts pin is the
+              // regression guard; re-verify this callback on a Better Auth bump.
               scopes: [...EVE_SCOPES],
               raw: token as unknown as Record<string, unknown>,
             };

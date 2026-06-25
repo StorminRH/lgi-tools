@@ -1,5 +1,5 @@
 // POST /api/dev/esi
-// The /dev/esi sandbox's read endpoint (3.4.6): vends one authenticated ESI
+// The /dev/esi sandbox's read endpoint: vends one authenticated ESI
 // read for one of the caller's own linked characters, through the shared gate,
 // and reports the raw outcome — status, body text, and the cache/rate headers
 // — as data. ESI-level failures (304, 403, budget refusals, 5xx) are 200s with
@@ -45,7 +45,7 @@ export async function POST(req: Request): Promise<Response> {
     const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
     return new Response(detail, { status: 400 });
   }
-  const { characterId, endpoint, planetId, ifNoneMatch } = parsed.data;
+  const { characterId, endpoint, ifNoneMatch } = parsed.data;
 
   if (!(await accountBelongsToUser(session.user.id, characterId))) {
     return new Response('Forbidden', { status: 403 });
@@ -59,13 +59,10 @@ export async function POST(req: Request): Promise<Response> {
     } satisfies DevEsiReadResponse);
   }
 
-  let path = DEV_ESI_ENDPOINTS[endpoint].pathTemplate.replace(
+  const path = DEV_ESI_ENDPOINTS[endpoint].pathTemplate.replace(
     '{characterId}',
     String(characterId),
   );
-  if (planetId !== undefined) {
-    path = path.replace('{planetId}', String(planetId));
-  }
 
   const outboundHeaders: Record<string, string> = {
     Authorization: `Bearer ${token.accessToken}`,
