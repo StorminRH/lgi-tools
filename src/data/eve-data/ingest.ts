@@ -30,6 +30,7 @@ export type IngestSummary = {
   regionsWritten: number;
   constellationsWritten: number;
   systemsWritten: number;
+  systemJumpsWritten: number;
   stationOperationsWritten: number;
   npcStationsWritten: number;
   durationMs: number;
@@ -103,6 +104,7 @@ export async function runIngest(
     regionsWritten: 0,
     constellationsWritten: 0,
     systemsWritten: 0,
+    systemJumpsWritten: 0,
     stationOperationsWritten: 0,
     npcStationsWritten: 0,
     durationMs: 0,
@@ -255,14 +257,15 @@ export async function runIngest(
         },
       );
 
-      // Universe (regions/constellations/systems/stations) — wipe + refill its
-      // own five tables from the pre-parsed dataset, inside this same
+      // Universe (regions/constellations/systems/jumps/stations) — wipe + refill
+      // its own tables from the pre-parsed dataset, inside this same
       // transaction. Self-contained: those tables are FK-independent of the
       // type/blueprint tables wiped above.
       const universeSummary = await emitUniverseNeon(tx, universe);
       summary.regionsWritten = universeSummary.regionsWritten;
       summary.constellationsWritten = universeSummary.constellationsWritten;
       summary.systemsWritten = universeSummary.systemsWritten;
+      summary.systemJumpsWritten = universeSummary.systemJumpsWritten;
       summary.stationOperationsWritten = universeSummary.stationOperationsWritten;
       summary.npcStationsWritten = universeSummary.npcStationsWritten;
     });

@@ -6,6 +6,12 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.2 — 2026-06-25
+
+#### Added
+- Wormhole space is now mapped. Every J-space system — tagged with its class, from C1 to C6 plus Thera, shattered space, and Drifter space — joins known space and Pochven in the site's universe data. Thera, the one wormhole system with stations, can now be chosen as a build location.
+- The stargate connections between known-space systems are now recorded, laying the groundwork for jump-route and system-map tools.
+
 ### v3.7.1 — 2026-06-25
 
 #### Changed

@@ -381,8 +381,10 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
 // Solar systems that hold at least one industry-capable NPC station — the only
 // places an NPC manufacturing job can be installed, so the build-location
 // selector only ever suggests these. Distinct systems (a system has many
-// stations), with name + security for the picker label. Pochven systems ARE
-// included (they carry NPC stations, 3.5.1a); no security/region filter.
+// stations), with name + security for the picker label. No security/region
+// filter: Pochven systems are included (3.5.1a), and since 3.7.2.2 widened the
+// universe to J-space, Thera (the one wormhole system with NPC stations) now
+// appears too — an additive new row; every prior K-space result is unchanged.
 export type IndustrySolarSystem = { id: number; name: string; security: number | null };
 
 export async function getIndustrySolarSystems(): Promise<IndustrySolarSystem[]> {
