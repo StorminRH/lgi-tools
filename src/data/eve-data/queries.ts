@@ -25,6 +25,10 @@ import {
   type BlueprintActivities,
   type TreeNode,
 } from './tree-resolver';
+import {
+  parseBlueprintActivities,
+  type BlueprintActivitySet,
+} from './activities';
 import type { AttrMap, EveType } from './types';
 
 // Same wrinkle as market-prices queries — accept the lazy `@/db` proxy
@@ -203,6 +207,35 @@ export async function getBlueprintActivityTimes(
   for (const r of rows) {
     const time = pickBuildTimeSeconds((r.activities ?? {}) as BlueprintActivities);
     if (time !== null) out.set(r.blueprintTypeId, time);
+  }
+  return out;
+}
+
+// The FULL set of activities each blueprint carries — manufacturing, reaction,
+// copying, research, and invention — with every activity's materials, products
+// (invention products include per-run probability), skills, and time, in one
+// batched read. Groundwork for the skills/fees and invention surfaces; the
+// resolver's narrow manufacturing/reaction path (above) is untouched.
+//
+// Deliberately NO published-type join (unlike getBlueprintOutput /
+// getBlueprintSearchRows): invention output BPCs and datacore materials are
+// routinely unpublished, so a `published = true` filter would silently drop the
+// very invention rows this read exists to expose. Pure number space — type IDs
+// pass through unresolved.
+export async function getBlueprintActivities(
+  blueprintTypeIds: number[],
+): Promise<Map<number, BlueprintActivitySet>> {
+  const out = new Map<number, BlueprintActivitySet>();
+  if (blueprintTypeIds.length === 0) return out;
+  const rows = await db
+    .select({
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
+    })
+    .from(industryBlueprints)
+    .where(inArray(industryBlueprints.blueprintTypeId, blueprintTypeIds));
+  for (const r of rows) {
+    out.set(r.blueprintTypeId, parseBlueprintActivities(r.activities));
   }
   return out;
 }

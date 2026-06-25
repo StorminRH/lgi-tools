@@ -14,6 +14,23 @@ export const ACTIVITY_NAME_TO_ID: Record<string, number> = {
   reaction: 11,
 };
 
+// Every activity CCP keys under a blueprint's `activities`, as the canonical
+// name list. Single source for iterating/typing the full activity set (the
+// `getBlueprintActivities` read + its `ActivityName` type) — distinct from
+// INDUSTRY_ACTIVITY_NAMES below, which is the narrow subset the resolver walks.
+// A co-located test pins this against ACTIVITY_NAME_TO_ID so the two can't drift
+// (ACTIVITY_NAME_TO_ID is typed Record<string, number>, so a missing key here
+// wouldn't surface at compile time).
+export const ALL_ACTIVITY_NAMES = [
+  'manufacturing',
+  'research_time',
+  'research_material',
+  'copying',
+  'invention',
+  'reaction',
+] as const;
+export type ActivityName = (typeof ALL_ACTIVITY_NAMES)[number];
+
 // Display labels for CCP's numeric activity IDs — the user-facing names for
 // the same six activities mapped above. Shared by every surface that shows an
 // activity (planner blueprint views, the industry-jobs tracker), so a label
