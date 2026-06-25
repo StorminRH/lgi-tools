@@ -149,8 +149,9 @@ const options = {
           scopes: [...EVE_SCOPES],
           pkce: true,
           responseType: 'code',
-          // Force EVE to re-prompt so existing publicData-only pilots consent to
-          // the expanded skills/industry scopes on their next sign-in.
+          // Force EVE to re-prompt so a pilot re-consents to the current
+          // EVE_SCOPES on their next sign-in — replacing an older, broader grant
+          // with the minimal read-only set (3.7.1.1 pruned the request to four).
           prompt: 'consent',
           // Refresh name/portrait from EVE on every sign-in (parity with the old
           // upsert-on-login behaviour).
