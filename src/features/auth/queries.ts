@@ -1,8 +1,10 @@
-import { and, asc, eq, gt, ilike, lt, notExists, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, ilike, isNull, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { purgeConvexCharacterProjections } from '@/data/convex/purge';
 import { db } from '@/db';
+import type { AffiliationRow } from './affiliation-source';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
+import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
 import { classifyOwnerReconcile } from './owner-reconcile';
 import { account, characters, session, user } from './schema';
 import { syntheticEmail } from './synthetic-email';
@@ -218,6 +220,12 @@ export interface LinkedCharacter {
   // refresh path NULLs the token columns, so a missing token == "reconnect".
   hasRefreshToken: boolean;
   linkedAt: Date;
+  // Cached corp affiliation (3.7.3.2). corporationId feeds the Convex corp sync
+  // (resolveCorpSubjects reads it instead of an inline ESI call);
+  // affiliationRefreshedAt lets the enumeration route stale-gate its on-view
+  // refresh. NULL until the first affiliation refresh.
+  corporationId: number | null;
+  affiliationRefreshedAt: Date | null;
 }
 
 // Every EVE character linked to a user, oldest first. The page's data source —
@@ -232,6 +240,8 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
       createdAt: account.createdAt,
       name: characters.name,
       portraitUrl: characters.portraitUrl,
+      corporationId: characters.corporationId,
+      affiliationRefreshedAt: characters.affiliationRefreshedAt,
     })
     .from(account)
     .leftJoin(characters, characterProfileJoin)
@@ -248,9 +258,112 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
         scope: r.scope,
         hasRefreshToken: r.refreshToken != null && r.refreshToken.length > 0,
         linkedAt: r.createdAt,
+        corporationId: r.corporationId ?? null,
+        affiliationRefreshedAt: r.affiliationRefreshedAt ?? null,
       };
     })
     .filter((r) => Number.isFinite(r.characterId));
+}
+
+// ---------------------------------------------------------------------------
+// Corp-affiliation cache (3.7.3.2). The Neon read/write half of the membership
+// primitive — the pure verdicts live in membership.ts, the orchestration in
+// affiliation.ts. Affiliation is character-intrinsic public data on `characters`
+// (a sibling of name/portrait), so these reuse the same account→characters join
+// helpers as the linked-character readers above.
+// ---------------------------------------------------------------------------
+
+// A user's linked characters with their cached corp affiliation. The membership
+// helper (isUserCurrentMemberOfCorp) decides over this; an un-refreshed character
+// carries a null corp + null refreshedAt and reads fail-closed.
+export async function getUserAffiliations(userId: string): Promise<CachedAffiliation[]> {
+  const rows = await db
+    .select({
+      accountId: account.accountId,
+      corporationId: characters.corporationId,
+      allianceId: characters.allianceId,
+      factionId: characters.factionId,
+      refreshedAt: characters.affiliationRefreshedAt,
+    })
+    .from(account)
+    .leftJoin(characters, characterProfileJoin)
+    .where(eveAccountsForUser(userId));
+
+  return rows
+    .map((r) => ({
+      characterId: Number(r.accountId),
+      corporationId: r.corporationId ?? null,
+      allianceId: r.allianceId ?? null,
+      factionId: r.factionId ?? null,
+      refreshedAt: r.refreshedAt ?? null,
+    }))
+    .filter((r) => Number.isFinite(r.characterId));
+}
+
+// One character's cached affiliation (null when the profile row doesn't exist).
+export async function getCharacterAffiliation(
+  characterId: number,
+): Promise<CachedAffiliation | null> {
+  const [row] = await db
+    .select({
+      corporationId: characters.corporationId,
+      allianceId: characters.allianceId,
+      factionId: characters.factionId,
+      refreshedAt: characters.affiliationRefreshedAt,
+    })
+    .from(characters)
+    .where(eq(characters.characterId, characterId))
+    .limit(1);
+  if (!row) return null;
+  return {
+    characterId,
+    corporationId: row.corporationId ?? null,
+    allianceId: row.allianceId ?? null,
+    factionId: row.factionId ?? null,
+    refreshedAt: row.refreshedAt ?? null,
+  };
+}
+
+// Linked characters whose affiliation is missing or older than the TTL — the
+// nightly cron's work list. DISTINCT because the same character can be linked by
+// more than one user; one refresh covers them all (affiliation is per-character).
+export async function listStaleLinkedCharacterIds(): Promise<number[]> {
+  const cutoff = new Date(Date.now() - AFFILIATION_TTL_MS);
+  const rows = await db
+    .selectDistinct({ accountId: account.accountId })
+    .from(account)
+    .leftJoin(characters, characterProfileJoin)
+    .where(
+      and(
+        eq(account.providerId, EVE_PROVIDER_ID),
+        or(
+          isNull(characters.affiliationRefreshedAt),
+          lt(characters.affiliationRefreshedAt, cutoff),
+        ),
+      ),
+    );
+  return rows.map((r) => Number(r.accountId)).filter((id) => Number.isFinite(id));
+}
+
+// Write fetched affiliations onto the `characters` cache. UPDATE (not upsert) —
+// the row always exists for a linked/logged-in character (upsertCharacterOnLogin
+// created it). Per-row at this scale (one `characters` row per pilot); batch via
+// VALUES later if the table ever grows large.
+export async function upsertAffiliations(rows: AffiliationRow[]): Promise<void> {
+  if (rows.length === 0) return;
+  const now = new Date();
+  for (const r of rows) {
+    await db
+      .update(characters)
+      .set({
+        corporationId: r.corporationId,
+        allianceId: r.allianceId,
+        factionId: r.factionId,
+        affiliationRefreshedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(characters.characterId, r.characterId));
+  }
 }
 
 export interface ActiveCharacter {

@@ -55,10 +55,22 @@ export interface EveCharacterEntry {
   name: string;
   hasRefreshToken: boolean;
   missingScopes: string[];
+  // Cached corp affiliation (3.7.3.2). The Convex corp sync reads this instead of
+  // an inline public /characters/{id} ESI call (resolveCorpSubjects); null until
+  // the character's affiliation has been refreshed at least once.
+  corporationId: number | null;
 }
 export interface EveCharactersResponse {
   characters: EveCharacterEntry[];
 }
+
+// ── GET /api/cron/refresh-affiliations (authz: cron) ────────────────────
+// No programmatic consumer (Vercel cron reads logs only) — pinned with
+// `satisfies` in the route. `busy` means another run held the advisory lock;
+// `refreshed` carries the characters considered + rows actually written.
+export type CronRefreshAffiliationsResponse =
+  | { status: 'busy' }
+  | { status: 'refreshed'; stale: number; refreshed: number };
 
 // ── Form-post routes (303 redirects — request schemas only) ─────────────
 // These routes stay HTML form-posts; their input schemas live here so the

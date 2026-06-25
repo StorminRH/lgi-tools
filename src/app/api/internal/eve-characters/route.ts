@@ -7,11 +7,13 @@
 // character id carries authority. The response holds no token material.
 // authz: service
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
-import { connection } from 'next/server';
+import { after, connection } from 'next/server';
+import { refreshAffiliations } from '@/features/auth/affiliation';
 import {
   eveCharactersRequestSchema,
   type EveCharactersResponse,
 } from '@/features/auth/api-contract';
+import { isAffiliationStale } from '@/features/auth/membership';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { readEnv } from '@/lib/env';
@@ -46,6 +48,21 @@ export async function POST(req: Request): Promise<Response> {
   // An unknown userId simply has no linked characters — same response shape,
   // empty list; the caller's sync writes nothing.
   const linked = await listLinkedCharacters(parsed.data.userId);
+
+  // On-view affiliation refresh (3.7.3.2). This enumeration boundary runs whenever
+  // a live surface (incl. the corp sync) is active, so it doubles as the on-view
+  // trigger: refresh any character whose cached corp is stale, behind the response
+  // (write-behind, zero added latency) so the NEXT run reads fresh corp ids. The
+  // current response still carries the cached corp id (≤1h stale is accepted), and
+  // the stale gate makes this a no-op (no ESI) when affiliations are fresh.
+  const now = new Date();
+  const staleIds = linked
+    .filter((character) => isAffiliationStale(character.affiliationRefreshedAt, now))
+    .map((character) => character.characterId);
+  if (staleIds.length > 0) {
+    after(() => refreshAffiliations(staleIds));
+  }
+
   return Response.json({
     characters: linked.map((character) => {
       const health = deriveCharacterHealth({
@@ -57,6 +74,7 @@ export async function POST(req: Request): Promise<Response> {
         name: character.name,
         hasRefreshToken: character.hasRefreshToken,
         missingScopes: health.missingScopes,
+        corporationId: character.corporationId,
       };
     }),
   } satisfies EveCharactersResponse);

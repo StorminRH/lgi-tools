@@ -66,19 +66,23 @@ const RL = {
   'X-Ratelimit-Used': '1',
 };
 
-type Character = { characterId: number; hasRefreshToken: boolean; missingScopes: string[] };
+type Character = {
+  characterId: number;
+  corporationId: number | null;
+  hasRefreshToken: boolean;
+  missingScopes: string[];
+};
 
-function eligible(characterId = 101): Character {
-  return { characterId, hasRefreshToken: true, missingScopes: [] };
+function eligible(characterId = 101, corporationId: number | null = CORP_A): Character {
+  return { characterId, corporationId, hasRefreshToken: true, missingScopes: [] };
 }
 
-// Routes the three ESI reads a corp run makes (all versionless, matching the
-// codebase's esiUrl convention). Order matters: the more specific /roles and
-// /corporations/.../industry/jobs paths are matched before the bare
-// /characters/{id} public read.
+// Routes the two AUTHED ESI reads a corp run makes (versionless, matching the
+// codebase's esiUrl convention). The character's corp id is NO LONGER read from
+// ESI — it arrives on the enumeration input (the Neon affiliation cache, 3.7.3.2),
+// so there's no /characters/{id} public read to route.
 function esiRouter(
   over: {
-    public?: (characterId: number) => Response;
     roles?: (characterId: number) => Response;
     jobs?: (corporationId: number) => Response;
   } = {},
@@ -88,8 +92,6 @@ function esiRouter(
     if (m) return (over.roles ?? (() => jsonResponse({ roles: ['Factory_Manager'] })))(Number(m[1]));
     m = url.match(/\/corporations\/(\d+)\/industry\/jobs$/);
     if (m) return (over.jobs ?? (() => jsonResponse([CORP_JOB], RL)))(Number(m[1]));
-    m = url.match(/\/characters\/(\d+)$/);
-    if (m) return (over.public ?? (() => jsonResponse({ corporation_id: CORP_A })))(Number(m[1]));
     throw new Error(`unexpected esi url ${url}`);
   };
 }
@@ -269,6 +271,7 @@ describe('corpIndustryJobsSync.syncUser', () => {
       characters: [
         {
           characterId: 101,
+          corporationId: CORP_A,
           hasRefreshToken: true,
           missingScopes: ['esi-industry.read_corporation_jobs.v1'],
         },
@@ -283,16 +286,28 @@ describe('corpIndustryJobsSync.syncUser', () => {
     expect(corpJobsCalls(fn)).toBe(0);
   });
 
+  it('skips a character whose affiliation is not cached yet (null corp): no token vend, no doc', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    // A linked, scope-eligible character whose Neon affiliation cache is still
+    // null (brand-new link before any refresh ran) contributes no corp subject;
+    // the next run picks it up once the cache populates.
+    const fn = stubFetch({ characters: [eligible(101, null)], esi: esiRouter() });
+
+    await run(t);
+
+    expect(await readDoc(t)).toBeNull();
+    expect(fn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'))).toBe(false);
+    expect(corpJobsCalls(fn)).toBe(0);
+  });
+
   it('syncs multiple corps, one board read each', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
     const fn = stubFetch({
-      characters: [eligible(101), eligible(102)],
-      esi: esiRouter({
-        // 101 → CORP_A, 102 → CORP_B.
-        public: (characterId) =>
-          jsonResponse({ corporation_id: characterId === 101 ? CORP_A : CORP_B }),
-      }),
+      // 101 → CORP_A, 102 → CORP_B (corp id from the enumeration input).
+      characters: [eligible(101, CORP_A), eligible(102, CORP_B)],
+      esi: esiRouter(),
     });
 
     await run(t);

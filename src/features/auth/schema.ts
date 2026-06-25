@@ -24,6 +24,18 @@ export const characters = pgTable('characters', {
   portraitUrl: text('portrait_url').notNull(),
   role: characterRoleEnum('role').default('USER').notNull(),
   preferences: jsonb('preferences').$type<Record<string, unknown>>().default({}).notNull(),
+  // Corp affiliation cache (3.7.3.2). Character-INTRINSIC public data (the public
+  // /characters/affiliation/ bulk read needs no scope), so it lives here beside
+  // name/portrait — NOT a per-link custody fact like account.owner_hash. Refreshed
+  // on login + on-view + a nightly cron (TTL ≈ 1h, matching ESI's own
+  // x-cached-seconds:3600); the membership helper (membership.ts) reads it
+  // fail-closed (null/stale ⇒ not a member). NULL until the first refresh. Kept +
+  // refreshed (not purged) on character transfer — the new owner's login re-reads
+  // it — so it needs no entry on the owner-hash purge surface.
+  corporationId: bigint('corporation_id', { mode: 'number' }),
+  allianceId: bigint('alliance_id', { mode: 'number' }),
+  factionId: bigint('faction_id', { mode: 'number' }),
+  affiliationRefreshedAt: timestamp('affiliation_refreshed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   lastLoginAt: timestamp('last_login_at').defaultNow().notNull(),

@@ -25,6 +25,7 @@ import {
   exchangeCodeForToken,
   verifyEveJwt,
 } from './eve-sso';
+import { refreshAffiliations } from './affiliation';
 import { reconcileCharacterOwner, resolveActiveCharacter, upsertCharacterOnLogin } from './queries';
 import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
@@ -203,6 +204,14 @@ const options = {
             // one. A matching or absent/legacy hash is a no-op/backfill.
             await reconcileCharacterOwner(character.characterId, claims.owner);
             await upsertCharacterOnLogin(character);
+            // Refresh this character's cached corp affiliation (3.7.3.2). Runs
+            // AFTER upsertCharacterOnLogin so the `characters` row exists even on
+            // a first link. Best-effort, fire-and-forget — an ESI call must never
+            // block or fail sign-in (refreshAffiliations also swallows its own
+            // errors); on-view + the nightly cron heal anything cut off here.
+            void refreshAffiliations([character.characterId]).catch((err) =>
+              console.error('[auth] affiliation refresh failed', err),
+            );
             // Best-effort login telemetry — parity with the retired callback route
             // (the admin dashboard's "Logins" metric reads `auth_login`). Fire-and-
             // forget so it never blocks or fails sign-in.

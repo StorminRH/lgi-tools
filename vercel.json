@@ -11,6 +11,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/refresh-affiliations",
+      "schedule": "20 11 * * *"
+    },
+    {
       "path": "/api/cron/refresh-prices",
       "schedule": "30 11 * * *"
     },

@@ -5,12 +5,13 @@
 // corp datasets (corp blueprints 3.7.5, corp assets 3.7.7) reuse verbatim:
 //
 //   1. resolveCorpSubjects — fan the user's linked characters IN to a
-//      deduplicated set of corporations. For each scope-eligible character it
-//      vends ONE token, reads the character's corp id (public — the gate's
-//      7-day shared cache makes this nearly free) and its in-game roles, then
-//      groups by corp so a corp is synced ONCE per run regardless of how many of
-//      the user's characters are in it. The chosen vending character's token is
-//      carried on the subject and REUSED for the corp read (no second vend).
+//      deduplicated set of corporations. The character's corp id arrives on the
+//      enumeration input (the Neon affiliation cache, resolved Next-side in
+//      3.7.3.2 — no inline ESI read here), so for each scope-eligible character
+//      it vends ONE token and reads only its in-game roles, then groups by corp
+//      so a corp is synced ONCE per run regardless of how many of the user's
+//      characters are in it. The chosen vending character's token is carried on
+//      the subject and REUSED for the corp read (no second vend).
 //   2. applyCorpDataset — the corp-keyed apply skeleton (generation guard →
 //      corp-id orphan cleanup → upsert loop → subject stamp), parameterized by
 //      simple accessors so each corp dataset injects only its own doc shape.
@@ -24,7 +25,7 @@
 // call on a guaranteed 403.
 import { z } from 'zod';
 import type { EveCharactersResponse } from '@/features/auth/api-contract';
-import { EsiBudgetExhaustedError, esiFetch, esiUrl } from '@/lib/esi';
+import { EsiBudgetExhaustedError } from '@/lib/esi';
 import type { SyncDataset } from '@/lib/sync-engine';
 import type { MutationCtx } from '../_generated/server';
 import { stampSyncSubject, type SubjectStamp, type SyncEnv, vendCharacterToken } from './characterSync';
@@ -54,10 +55,6 @@ export interface CorpResolution {
   runError: string | null;
 }
 
-// Public character info — only corporation_id is needed (the membership resolver
-// in 3.7.3.2 will cache this; here it is read inline, minimally).
-const publicCharacterSchema = z.object({ corporation_id: z.number().int() });
-
 // Corp roles — only the top-level `roles` array gates endpoint access (the
 // at-base/hq/other variants are office-scoped and not relevant here).
 const corpRolesSchema = z.object({ roles: z.array(z.string()).optional() });
@@ -86,6 +83,13 @@ export async function resolveCorpSubjects(
     // reconnect, surfaced at the auth layer per character).
     if (!opts.canSync(character)) continue;
 
+    // Corp id comes from the Neon affiliation cache (3.7.3.2) on the enumeration
+    // input — no inline ESI read. A null means the character's affiliation hasn't
+    // been refreshed yet (a brand-new link before any trigger ran); skip it this
+    // run (no token vend wasted) and the next run picks it up once cached.
+    const { corporationId } = character;
+    if (corporationId === null) continue;
+
     const vend = await vendCharacterToken(env, character.characterId);
     // skip = unlinked between enumeration and vend; reauth/unavailable = this
     // character can't help resolve a corp right now (another character in the
@@ -93,8 +97,6 @@ export async function resolveCorpSubjects(
     if (vend.kind !== 'token') continue;
 
     try {
-      const corporationId = await readPublicCorpId(character.characterId);
-      if (corporationId === null) continue; // can't group a character with no corp id
       const hasRole = await readCharacterHasRole(
         character.characterId,
         vend.accessToken,
@@ -133,21 +135,10 @@ function mergeCorpSubject(byCorp: Map<number, CorpSubject>, candidate: CorpSubje
   }
 }
 
-// PUBLIC read — NO Authorization header, so the gate treats it as ETag-eligible
-// and serves it from the 7-day shared Expires-window cache with no dispatch
-// (corp membership barely moves). Must NOT use readEsi, which forces a Bearer
-// header and so always dispatches and never touches the shared cache.
-async function readPublicCorpId(characterId: number): Promise<number | null> {
-  const res = await esiFetch(esiUrl(`/characters/${characterId}`));
-  if (res.status !== 200) return null;
-  const parsed = publicCharacterSchema.safeParse(await res.json());
-  return parsed.success ? parsed.data.corporation_id : null;
-}
-
 // AUTHED read of the character's corp roles (no held ETag — roles are read fresh
-// each run; 3.7.3.2 caches membership/roles). A 403/error returns false
-// (graceful "no role"), never throws — the role gate is a soft, recordable
-// state, not a sync failure.
+// each run; the corp id is cached in Neon but roles stay live). A 403/error
+// returns false (graceful "no role"), never throws — the role gate is a soft,
+// recordable state, not a sync failure.
 async function readCharacterHasRole(
   characterId: number,
   accessToken: string,
