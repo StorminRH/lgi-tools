@@ -183,6 +183,55 @@ function synthesizeRevalidated(
   return new Response(body, { status: 200, statusText: 'OK', headers });
 }
 
+// Refetch this many ms BEFORE the stored Expires actually lapses — bias the
+// window check toward dispatching slightly early (the safe direction), so a
+// little clock skew can never make us hand back a just-expired body.
+const CACHE_SERVE_SKEW_MS = 5_000;
+
+// True only while the stored Expires is still comfortably ahead of now. A
+// missing or unparseable Expires reads as "not fresh" — fall through to a
+// normal conditional dispatch rather than guess.
+function isWithinExpiresWindow(expires: string | null): boolean {
+  if (expires === null) return false;
+  const expiresAt = Date.parse(expires);
+  if (Number.isNaN(expiresAt)) return false;
+  return Date.now() + CACHE_SERVE_SKEW_MS < expiresAt;
+}
+
+// Build the 200 the caller would have gotten, straight from the stored meta and
+// cached body — no ESI round-trip happened, so there is no live response to copy
+// headers from. The 'window' marker distinguishes this no-dispatch serve from
+// the 304-'revalidated' one.
+function synthesizeFromCache(body: string, meta: CachedEtagMeta): Response {
+  const headers = new Headers();
+  if (meta.contentType !== null) headers.set('Content-Type', meta.contentType);
+  if (meta.expires !== null) headers.set('Expires', meta.expires);
+  headers.set('ETag', meta.etag);
+  headers.set('x-lgi-esi-cache', 'window');
+  return new Response(body, { status: 200, statusText: 'OK', headers });
+}
+
+// Serve the stored body WITHOUT dispatching while ESI's own cache window (the
+// stored Expires) is still open and the body is still in the scoreboard. Returns
+// null — fall through to a normal conditional dispatch — when the window has
+// closed, the body was evicted, or the lookup errors. Makes no report: no ESI
+// call happened, so there are no fresh rate-limit numbers to record.
+export async function serveFromExpiresWindow(
+  url: string,
+  etagMeta: CachedEtagMeta,
+  liveSb: EsiScoreboard,
+): Promise<Response | null> {
+  if (!isWithinExpiresWindow(etagMeta.expires)) return null;
+  let body: string | null;
+  try {
+    body = await liveSb.getCachedBody(url);
+  } catch {
+    body = null;
+  }
+  if (body === null) return null;
+  return synthesizeFromCache(body, etagMeta);
+}
+
 // Consult the shared scoreboard, skipping while the outage memo is open. A
 // pre-dispatch failure opens the memo (so a Redis outage doesn't add a timeout
 // to every call) and reports as "no shared state" — null, which fails closed.

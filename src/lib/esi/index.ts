@@ -4,6 +4,7 @@ import {
   enforceBudget,
   getScoreboard,
   isEtagEligible,
+  serveFromExpiresWindow,
   type EsiFetchOptions,
 } from './dispatch';
 
@@ -36,7 +37,12 @@ import {
 // per-instance trickle. ETags are used aggressively: a stored ETag rides out
 // as If-None-Match, and a 304 is re-served from the cached body as a normal
 // 200 (cache circumvention is a documented bannable offense; conditional
-// requests are the documented good citizenship).
+// requests are the documented good citizenship). One step further: while ESI's
+// own cache window (the stored Expires) is still open and the body is in hand,
+// an unauthenticated ETag-eligible GET is served from that cached body with no
+// dispatch at all — the conditional round-trip would only return data we
+// already hold and already know is fresh. Authenticated calls never touch the
+// shared cache and dispatch every time.
 //
 // The `budgetExhausted` signal callers thread into telemetry now covers every
 // refusal reason (error budget, 420, a 429 Retry-After block, scoreboard
@@ -82,6 +88,14 @@ export async function esiFetch(
   // scoreboard — a report never goes where a check didn't come from.
   const liveSb = pre !== null ? sb : null;
   const etagMeta = pre !== null && wantEtag ? pre.etag : null;
+
+  // Still inside ESI's own cache window with the body in hand: hand back our
+  // copy, no conditional round-trip. Falls through to a normal dispatch when
+  // the window has closed or the body was evicted.
+  if (etagMeta !== null && liveSb !== null) {
+    const cached = await serveFromExpiresWindow(url, etagMeta, liveSb);
+    if (cached !== null) return cached;
+  }
 
   return dispatch(url, init, wantEtag, liveSb, etagMeta);
 }
