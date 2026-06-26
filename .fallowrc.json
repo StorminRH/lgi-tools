@@ -12,6 +12,7 @@
     "src/db/refresh-sde.ts",
     "scripts/validate-resolver-output.ts",
     "scripts/assert-route-classification.mjs",
+    "scripts/ux-capture.mjs",
     "drizzle.config.ts"
   ],
 
@@ -28,7 +29,7 @@
     "convex/**/*.test.ts"
   ],
 
-  "ignoreDependencies": ["convex-test", "@edge-runtime/vm"],
+  "ignoreDependencies": ["convex-test", "@edge-runtime/vm", "playwright"],
 
   "rules": {
     "unused-files": "error",
