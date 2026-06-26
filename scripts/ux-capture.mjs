@@ -20,7 +20,7 @@ const VIEWPORTS = {
   mobile: { width: 390, height: 844 },
 };
 
-const OUT_DIR = path.resolve(process.cwd(), '.ux-captures');
+const OUT_DIR = path.resolve(process.cwd(), 'docs/ux-check/captures');
 const rel = (p) => path.relative(process.cwd(), p);
 
 // --- args -------------------------------------------------------------------
