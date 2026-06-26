@@ -27,8 +27,10 @@ const rel = (p) => path.relative(process.cwd(), p);
 // Positionals are route paths; `--flag=value` are options. No args → smoke `/`.
 function applyFlag(opts, key, value) {
   if (key === 'base-url') opts.baseUrl = value;
-  else if (key === 'settle') opts.settle = Number(value) || opts.settle;
-  else if (key === 'viewport' || key === 'viewports') {
+  else if (key === 'settle') {
+    const n = Number(value);
+    if (!Number.isNaN(n)) opts.settle = n; // allow --settle=0 (0 is valid, not "unset")
+  } else if (key === 'viewport' || key === 'viewports') {
     opts.viewports = value
       .split(',')
       .map((v) => v.trim())
@@ -65,6 +67,22 @@ function parseArgs(argv) {
 function slugify(route) {
   const s = route.replace(/^\/+|\/+$/g, '').replace(/[^a-zA-Z0-9]+/g, '-');
   return s || 'home';
+}
+
+// Pair each route with a unique filename slug. slugify() collapses every
+// separator run to one `-`, so routes differing only in punctuation (`/a/b` vs
+// `/a-b`) would otherwise share a file and silently overwrite each other —
+// disambiguate collisions with a numeric suffix.
+function assignSlugs(routes) {
+  const used = new Set();
+  return routes.map((route) => {
+    const base = slugify(route);
+    let slug = base;
+    let n = 2;
+    while (used.has(slug)) slug = `${base}-${n++}`;
+    used.add(slug);
+    return { route, slug };
+  });
 }
 
 // Poll the base URL until the dev server answers (the skill may have just
@@ -115,7 +133,7 @@ async function captureNavOpen(page, slug, viewport) {
   }
 }
 
-async function captureRoute(context, baseUrl, route, viewport, settle) {
+async function captureRoute(context, baseUrl, route, slug, viewport, settle) {
   const page = await context.newPage();
   const diag = watchPage(page);
   const url = new URL(route, baseUrl).href;
@@ -130,15 +148,23 @@ async function captureRoute(context, baseUrl, route, viewport, settle) {
     loadError = err.message;
   }
 
-  const slug = slugify(route);
-  const shots = [path.join(OUT_DIR, `${slug}--${viewport}.png`)];
-  await page.screenshot({ path: shots[0], fullPage: true });
-  if (viewport === 'mobile') {
-    const navShot = await captureNavOpen(page, slug, viewport);
-    if (navShot) shots.push(navShot);
+  // Always close the page (finally), and don't let one route's screenshot
+  // failure abort the rest of the sweep — record it and move on.
+  const shots = [];
+  try {
+    const baseShot = path.join(OUT_DIR, `${slug}--${viewport}.png`);
+    await page.screenshot({ path: baseShot, fullPage: true });
+    shots.push(baseShot);
+    if (viewport === 'mobile') {
+      const navShot = await captureNavOpen(page, slug, viewport);
+      if (navShot) shots.push(navShot);
+    }
+  } catch (err) {
+    loadError = loadError ?? `screenshot failed: ${err.message}`;
+  } finally {
+    await page.close();
   }
 
-  await page.close();
   return { route, viewport, url, screenshots: shots.map(rel), loadError, ...diag };
 }
 
@@ -153,13 +179,13 @@ async function launchBrowser() {
   }
 }
 
-async function runSweep(browser, routes, opts) {
+async function runSweep(browser, routed, opts) {
   const results = [];
   try {
     for (const viewport of opts.viewports) {
       const context = await browser.newContext({ viewport: VIEWPORTS[viewport] });
-      for (const route of routes) {
-        const result = await captureRoute(context, opts.baseUrl, route, viewport, opts.settle);
+      for (const { route, slug } of routed) {
+        const result = await captureRoute(context, opts.baseUrl, route, slug, viewport, opts.settle);
         results.push(result);
         for (const shot of result.screenshots) console.log(`  ✓ ${shot}`);
       }
@@ -229,7 +255,7 @@ async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
   const browser = await launchBrowser();
-  const results = await runSweep(browser, routes, opts);
+  const results = await runSweep(browser, assignSlugs(routes), opts);
 
   const reportPath = path.join(OUT_DIR, 'report.json');
   await writeFile(reportPath, JSON.stringify(results, null, 2) + '\n');
