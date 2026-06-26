@@ -54,7 +54,7 @@ describe('api contract imports', () => {
       CONTRACT_IMPORT_RE.test(src),
       `${label(file)} does not import from an api-contract module. Every src/app/api/**/route.* ` +
         `file must take its request schema (and response types, pinned with \`satisfies\`) from ` +
-        `the owning slice's api-contract.ts — see CLAUDE.md > Architecture Invariants (validation ` +
+        `the owning slice's api-contract.ts — see CONTRIBUTING.md, Architecture invariants (validation ` +
         `lives in route handlers). Library-owned routes are allowlisted at the top of this test.`,
     ).toBe(true);
   });

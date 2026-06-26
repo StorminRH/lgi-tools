@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// Guards C-1 (docs/RESILIENCE_AUDIT.md): the lock-holder connection `directClient`
+// Guards C-1: the lock-holder connection `directClient`
 // must resolve its URL through resolveLockConnectionUrl, so it stays fail-closed off
 // a pooled (`-pooler`) endpoint even if the connection wiring is later refactored.
 // connection.test.ts guards the resolver in isolation; this guards that directClient

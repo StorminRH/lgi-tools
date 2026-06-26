@@ -8,25 +8,31 @@ The current tool catalogue:
 
 - **Wormhole Sites** — browse every wormhole site with live combat
   numbers (computed from EVE SDE) and live Jita resource pricing.
-- **Industry Planner** *(coming soon)* — manufacturing profitability
-  for blueprints and reactions.
+- **Industry Planner** — manufacturing profitability for blueprints and
+  reactions, with build-location and market scoring.
 - **Wormhole Roll Calculator** *(coming soon)* — plan hole rolls with
   live mass tracking.
 
 ## Tech stack
 
-- [Next.js](https://nextjs.org) (App Router) — see the warning in
-  `CLAUDE.md` about API drift from prior versions.
+- [Next.js](https://nextjs.org) (App Router, Cache Components) — see
+  [CONTRIBUTING.md](CONTRIBUTING.md#this-isnt-the-nextjs-you-know) about API
+  drift from prior versions.
 - TypeScript (strict)
+- [React 19](https://react.dev)
 - [Tailwind CSS v4](https://tailwindcss.com)
 - [Drizzle ORM](https://orm.drizzle.team) on Postgres
 - [Neon](https://neon.tech) (production) / Postgres 16 in Docker (local dev)
+- [Convex](https://convex.dev) — live reactive backend for per-character state
+  (runs on `:3210` in local dev)
+- [Better Auth](https://better-auth.com) — sessions and EVE Online SSO
+- [Upstash Redis](https://upstash.com) — rate limiting (production)
 - [Vercel](https://vercel.com) (hosting + cron)
 - pnpm + [Vitest](https://vitest.dev)
 
 The project is sliced by feature (`src/features/<feature>/`); two
-features never import from each other. See `CLAUDE.md` for the full
-project conventions.
+features never import from each other. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for the full project conventions.
 
 ## Local development
 
@@ -53,7 +59,8 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
    exercise the full surface:
    - Register a dev app at
      [developers.eveonline.com/applications](https://developers.eveonline.com/applications)
-     with scope `publicData` and callback
+     with the scopes listed in `.env.example` (`publicData` plus the
+     `esi-skills` / `esi-industry` read scopes) and callback
      `http://localhost:3000/api/auth/oauth2/callback/eve`. Paste the
      resulting client id/secret into `EVE_CLIENT_ID` / `EVE_CLIENT_SECRET`.
    - Generate a session secret: `openssl rand -base64 32`. Paste into
@@ -68,11 +75,12 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
    pnpm db:migrate
    ```
 
-5. **Ingest EVE SDE.** First run only, ~30 seconds. Downloads and
-   imports the EVE Static Data Export attribute tables that the
-   combat-stats compute depends on.
+5. **Ingest EVE SDE.** First run only. Runs the full SDE pipeline —
+   ingest, resolve blueprint trees, and seed tracked-type prices — that
+   the combat-stats and industry planner depend on. Use `db:refresh-sde`,
+   not `db:ingest:sde`: the bare ingest leaves the planner cascade empty.
    ```
-   pnpm db:ingest:sde
+   pnpm db:refresh-sde
    ```
 
 6. **Start the dev server.** `pnpm dev` runs only Next. Signed-in features
@@ -96,14 +104,18 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
 | `pnpm build` | Production build |
+| `pnpm verify` | Definition-of-done bundle: typecheck + lint + test + fallow |
+| `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Run the Vitest suite once |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm lint` | ESLint |
+| `pnpm fallow` | Static-analysis gate (dead code, duplication, complexity, boundaries) |
 | `pnpm db:migrate` | Apply Drizzle migrations against the local DB |
 | `pnpm db:generate` | Generate a new migration from schema changes |
 | `pnpm db:studio` | Open Drizzle Studio against the local DB |
-| `pnpm db:refresh-prices` | One-shot pull of Jita prices from Fuzzwork |
-| `pnpm db:ingest:sde` | Re-ingest the EVE SDE attribute tables |
+| `pnpm db:refresh-sde` | Full SDE pipeline: ingest + resolve trees + seed tracked prices |
+| `pnpm db:refresh-prices` | One-shot pull of Jita prices and order-book depth from ESI |
+| `pnpm ux-check` | Scripted Playwright UX capture of the given routes |
 
 See `package.json` for the full set.
 
@@ -117,11 +129,14 @@ See `package.json` for the full set.
   registry).
 - `src/app/api/` — Next.js route handlers (auth, telemetry, feedback,
   cron).
+- `convex/` — the live reactive backend: per-character state (skills,
+  industry jobs) the browser subscribes to, plus EVE SSO via a Better
+  Auth-issued JWT.
 - `drizzle/` — generated migrations. Schema sources live in each
   feature slice.
 
-Read `CLAUDE.md` for the working conventions (slice boundaries, commit
-style, testing policy, etc.).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the working conventions (slice
+boundaries, commit style, testing policy, etc.).
 
 ## Contributing
 
@@ -130,15 +145,17 @@ Contributions are welcome. Before opening a PR:
 1. Open an issue for anything non-trivial so we can agree on shape
    before code is written.
 2. Branch off `main` and open a PR back into `main`.
-3. Run `pnpm test`, `pnpm lint`, and `pnpm build` locally and confirm
-   they pass.
-4. Follow the commit-message style described in `CLAUDE.md` — plain
-   English in the subject line, no file paths or function names.
+3. Run `pnpm verify` locally and confirm it passes — this bundles
+   typecheck, lint, test, and the `fallow` static-analysis gate. (CI runs
+   the same gates plus a route-classification presence check.)
+4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —
+   plain English in the subject line, no file paths or function names.
 5. Be civil. Reviews are conversations.
 
-CI runs the Vitest suite on every PR; a red suite blocks merge. The
-Vercel ↔ Neon integration automatically provisions a preview database
-per branch, so your PR's preview deploy gets its own isolated DB.
+CI runs typecheck, lint, the Vitest suite, and the `fallow` static-analysis
+gate on every PR; a red check blocks merge. Branch deploys are off by
+default — preview deploys are spun up manually on demand when a change needs
+live data the local Docker database can't provide.
 
 ## License
 

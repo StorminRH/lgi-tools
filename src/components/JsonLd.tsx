@@ -6,7 +6,7 @@
  * to its JSON unicode form so no value can close the script tag early (the breadcrumb
  * data includes a DB-sourced site name, and the production CSP allows
  * `'unsafe-inline'`). JSX children would HTML-escape the JSON and break the
- * parser, which is why the inline-HTML route is required here. See CLAUDE.md > CSP. */
+ * parser, which is why the inline-HTML route is required here. */
 export function JsonLd({ data }: { data: Record<string, unknown> }) {
   return (
     <script

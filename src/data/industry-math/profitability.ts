@@ -4,10 +4,10 @@
 // market-prices slices. Callers (the industry-planner feature) adapt their
 // rows into these plain inputs. Keeping the math a self-contained leaf means a
 // future feature can reuse it without one data slice importing another
-// (CLAUDE.md > Architecture Invariants: eve-data ⊥ market-prices; cross-slice
+// (eve-data ⊥ market-prices; cross-slice
 // composition lives a layer above, in the feature).
 //
-// Pricing convention (from PRICE_SYSTEM_DESIGN.md): material cost basis is Jita
+// Pricing convention: material cost basis is Jita
 // best *buy* (you place buy orders for your inputs); output revenue basis is
 // Jita best *sell* (you place sell orders for your product). Margin is
 // before job/install fees — those land in 3.1.

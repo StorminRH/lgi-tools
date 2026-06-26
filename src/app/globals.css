@@ -957,8 +957,7 @@ a:hover {
  * Lives in AppHeader between the wordmark and NavTools. At rest the input
  * is 280px wide with a placeholder + ⌘K hint; on focus it grows to 440px
  * and the tool strip collapses to its 2-letter abbreviations. The dropdown
- * absolute-positions under the input. Verbatim port from
- * docs/wireframes/nav-search-inline-push.html. */
+ * absolute-positions under the input. */
 .nav-host {
   display: flex;
   align-items: stretch;
@@ -1080,8 +1079,7 @@ a:hover {
  * LGI.tools is desktop-first; this block is the Level-1 floor that keeps
  * the site usable on laptop (1366×768) and tablet (1024×768) viewports
  * without overlap or horizontal scroll. Full mobile UX defers to a
- * post-Phase-3 version. Breakpoints (1500 / 1024 / 900 / 700 / 640) match
- * the VERSION_2.9_PLAN.md spec. */
+ * post-Phase-3 version. Breakpoints: 1500 / 1024 / 900 / 700 / 640. */
 
 /* Below this floor the wordmark + search + right-aligned strip leave less room,
  * so tighten the tool cells (padding / size) to keep the two full labels and the

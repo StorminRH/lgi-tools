@@ -41,8 +41,7 @@ const CONVEX_CONNECT_SRC = (() => {
 // inline `self.__next_f.push(...)` scripts that `'self'` alone can't bless, and
 // the nonce that used to bless them is what we're removing. Subresource
 // Integrity doesn't help — it signs only external script files, never inline
-// content (re-confirmed empirically in 3.0.4.6; see
-// docs/VERSION_3.0.4.3_CSP_DECISION.md). This keeps origin-level XSS protection
+// content (re-confirmed empirically in 3.0.4.6). This keeps origin-level XSS protection
 // (no third-party script hosts, no object/base/frame vectors) while dropping the
 // per-request mechanism that fought the stack. The header is still emitted from
 // proxy.ts per request; relocating/caching it is a later conversion-track step.

@@ -14,7 +14,7 @@ import { useCssomTooltip } from './use-cssom-tooltip';
  * history, a volume trend, etc. The first reusable viz primitive built on
  * `visx`, and the proof that the library is safe under the production CSP.
  *
- * Why this is CSP-clean (CLAUDE.md: `style-src 'self'` drops inline `style=`):
+ * Why this is CSP-clean (`style-src 'self'` drops inline `style=`):
  *  - The chart geometry is pure SVG presentation attributes (`stroke`, `fill`,
  *    `d`, `x`, `y`) and `className` — never an inline `style` attribute.
  *  - The tooltip is rendered by THIS component (not `@visx/tooltip`'s
