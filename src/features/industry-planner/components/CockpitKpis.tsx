@@ -2,7 +2,7 @@
 
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
-import { TooltipPanel, TooltipRow } from '@/components/ui/tooltip-panel';
+import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
 import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
@@ -99,18 +99,17 @@ function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string 
   );
   return (
     <KpiHelp label="Fee breakdown">
-      <TooltipPanel header={`Fees${systemName ? ` · ${systemName}` : ''}`}>
-        <div className="flex flex-col gap-1 font-body text-[12px] leading-snug">
-          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Install</div>
-          {fees.install.map(row)}
-          {subtotal('Install fee', fees.installTotal)}
-        </div>
-        <div className="flex flex-col gap-1 font-body text-[12px] leading-snug">
-          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Sell</div>
-          {fees.sell.map(row)}
-          {subtotal('Sell fees', fees.sellTotal)}
-        </div>
-      </TooltipPanel>
+      <PopoverHeading>{`Fees${systemName ? ` · ${systemName}` : ''}`}</PopoverHeading>
+      <div className="flex flex-col gap-1 font-body text-[12px] leading-snug">
+        <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Install</div>
+        {fees.install.map(row)}
+        {subtotal('Install fee', fees.installTotal)}
+      </div>
+      <div className="flex flex-col gap-1 font-body text-[12px] leading-snug">
+        <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Sell</div>
+        {fees.sell.map(row)}
+        {subtotal('Sell fees', fees.sellTotal)}
+      </div>
     </KpiHelp>
   );
 }
@@ -196,11 +195,10 @@ export function CockpitKpis({
           label="Build time"
           right={
             <KpiHelp label="How build time is estimated">
-              <TooltipPanel header="Build time — final job">
-                <TooltipRow label="Runs">×{runs}</TooltipRow>
-                <TooltipRow label="Time efficiency">0% (unresearched)</TooltipRow>
-                <TooltipRow label="Skills &amp; structure">none applied</TooltipRow>
-              </TooltipPanel>
+              <PopoverHeading>Build time — final job</PopoverHeading>
+              <PopoverRow label="Runs">×{runs}</PopoverRow>
+              <PopoverRow label="Time efficiency">0% (unresearched)</PopoverRow>
+              <PopoverRow label="Skills &amp; structure">none applied</PopoverRow>
             </KpiHelp>
           }
         />

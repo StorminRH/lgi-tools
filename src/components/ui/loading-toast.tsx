@@ -211,7 +211,7 @@ function LoadingToast({ active }: { active: boolean }) {
   // toast is aria-hidden — no double-announce, no aria-live spam. The clip
   // wrapper sits flush under the 50px nav (AppHeader's h-[50px]); the panel
   // slides within it via [data-open]. z-40: above page + dropdown/feedback
-  // (z-30), below hover-popovers (z-50).
+  // (z-30), below the portaled popovers (z-50).
   return (
     <div
       className="fixed inset-x-0 top-[50px] z-40 overflow-hidden"

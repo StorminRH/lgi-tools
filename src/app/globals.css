@@ -1120,60 +1120,6 @@ a:hover {
 @media (prefers-reduced-motion: reduce) {
   .status-led { animation: none; }
 }
-/* Reusable hover/focus popover primitive (src/components/ui/hover-popover.tsx).
- * One implementation for the price-freshness chip, the planner's material-price
- * chips, and (future) the /sites resource preview. The panel is hidden until
- * [data-open], which the component toggles on hover + focus with a short close
- * delay — so the trigger→panel gap needs no invisible click-catching bridge. */
-.hover-popover {
-  position: relative;
-  display: inline-flex;
-}
-.hover-popover-trigger {
-  display: inline-flex;
-  align-items: center;
-  outline: none;
-}
-.hover-popover-panel {
-  display: none;
-  position: absolute;
-  z-index: 50;
-  width: 200px;
-  background: var(--color-section);
-  border: 1px solid var(--color-isk-dim);
-  border-radius: 4px;
-  padding: 12px 14px;
-  box-shadow:
-    0 0 0 1px rgba(61, 214, 140, 0.12),
-    0 8px 24px -8px rgba(61, 214, 140, 0.2);
-  text-transform: none;
-  letter-spacing: normal;
-  white-space: normal;
-  font-size: 11px;
-}
-.hover-popover-panel[data-open] {
-  display: block;
-}
-.hover-popover-panel[data-placement='bottom'] {
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-.hover-popover-panel[data-placement='right'] {
-  top: 0;
-  left: calc(100% + 14px);
-}
-
-/* Cockpit help tooltips (the TooltipPanel content + KpiHelp trigger): wider than
- * the default chip popover so the rows don't clip, and the raised-slate colour
- * from the design mock (no green glow). Scoped to this variant so the price /
- * material-price chips keep their existing chrome. */
-.hover-popover-panel.kpi-tooltip-panel {
-  width: 272px;
-  background: var(--color-tooltip);
-  border-color: var(--color-border);
-  box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.55);
-}
 
 /* Hamburger menu (NavMenu) — the mobile counterpart to the inline tool strip +
  * login cluster. Hidden by default; the <1024px block below reveals it on the
@@ -1481,8 +1427,8 @@ details[data-collapsible][open] > summary [data-chevron] {
 /* ── PriceConfidence (src/components/ui/price-confidence.tsx) ─────────
  * Abstract data-quality badge: an abstract level → glyph (● ◐ ○) + tone.
  * The glyph is a ::after pseudo-element (the half-circle uses clip-path),
- * neither expressible as an inline style. Tooltips are handled by
- * the HoverPopover primitive at the call site, not a CSS title tooltip. */
+ * neither expressible as an inline style. The "why" panel is handled by
+ * the shared Popover primitive at the call site, not a CSS title tooltip. */
 .price-confidence {
   width: 13px;
   height: 13px;
