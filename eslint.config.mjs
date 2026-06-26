@@ -127,8 +127,8 @@ const eslintConfig = defineConfig([
       // not next/image. The old CSP dropped next/image's injected inline
       // `style="color:transparent"` attribute; that no longer applies (OOB.1.1
       // added `'unsafe-inline'` to style-src), but the codebase still uses plain
-      // <img> — a next/image migration is deferred (see docs/backlog.md). See
-      // CONTRIBUTING.md (Security & CSP).
+      // <img> — a next/image migration is deferred. See CONTRIBUTING.md
+      // (Security & CSP).
       "@next/next/no-img-element": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
