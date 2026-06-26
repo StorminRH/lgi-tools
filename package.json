@@ -46,6 +46,7 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm fallow"
   },
   "dependencies": {
+    "@base-ui/react": "1.6.0",
     "@convex-dev/rate-limiter": "^0.3.2",
     "@convex-dev/workpool": "^0.4.7",
     "@neondatabase/serverless": "^1.1.0",
