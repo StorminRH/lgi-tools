@@ -4,6 +4,7 @@ import { requireCronAuth, swallow } from '@/lib/cron';
 import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
+import { isNoteworthySweep } from './noteworthy';
 
 // Vercel-cron endpoint, scheduled in vercel.json ("*/15 * * * *"). Vercel's
 // cron invoker sends GET with `Authorization: Bearer ${CRON_SECRET}`; reject
@@ -28,19 +29,27 @@ export async function GET(req: Request): Promise<Response> {
   const started = Date.now();
   const summary = await runSweep(started);
 
-  // Structured boundary line (runtime logs) + durable telemetry row, the
-  // cron_prices/cron_gsc pattern. A non-zero dispatched count gets its own
-  // loud line so `vercel logs` surfaces a lagging Convex scan.
+  // Structured boundary line on EVERY run (runtime logs) — the always-on "it
+  // fired" signal. A non-zero dispatched count also gets its own loud line so
+  // `vercel logs` surfaces a lagging Convex scan.
   console.log(JSON.stringify({ scope: 'cron:sync-sweeper', ...summary }));
   if ((summary.dispatched ?? 0) > 0) {
     console.error(
       `[cron:sync-sweeper] re-armed ${summary.dispatched} overdue subject(s) — the deployment's 30s scan is dead or lagging`,
     );
   }
-  await swallow(
-    '[cron:sync-sweeper] telemetry write failed',
-    logUsageEvent({ action: 'cron_sync_sweeper', metadata: { ...summary } }),
-  );
+  // Durable telemetry row (the cron_prices/cron_gsc pattern) ONLY when the run
+  // is noteworthy — a re-arm or a failure. A healthy 15-min no-op used to write
+  // here unconditionally, and on an idle system that INSERT was the sole thing
+  // waking Neon's compute (~$6/mo of kept-warm at zero users). Gating it lets
+  // Neon scale-to-zero between the daily crons; the console.log above keeps the
+  // "did it run" signal in the runtime logs.
+  if (isNoteworthySweep(summary)) {
+    await swallow(
+      '[cron:sync-sweeper] telemetry write failed',
+      logUsageEvent({ action: 'cron_sync_sweeper', metadata: { ...summary } }),
+    );
+  }
 
   return Response.json(summary satisfies CronSyncSweeperResponse);
 }
