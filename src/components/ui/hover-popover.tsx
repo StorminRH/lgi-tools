@@ -18,7 +18,7 @@ import { cn } from './cn';
 //    other old price-chip bug).
 //
 // Positioning + chrome are CSS (.hover-popover* in globals.css); no inline
-// styles, per the CSP.
+// styles, per house style.
 export function HoverPopover({
   trigger,
   children,

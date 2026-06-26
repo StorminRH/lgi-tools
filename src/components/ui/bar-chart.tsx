@@ -13,8 +13,8 @@ import { useCssomTooltip } from './use-cssom-tooltip';
 /**
  * Compact categorical bar chart — outcome distributions, a login-frequency
  * histogram, returning-vs-new, caller mix. The second viz primitive on `visx`,
- * built to the same CSP rules as {@link Sparkline} (`style-src 'self'` drops
- * inline `style=`):
+ * built to the same house style as {@link Sparkline} (geometry/positioning stay
+ * off inline `style` attributes):
  *  - Geometry is pure SVG presentation attributes + `className` — `Bar` renders
  *    a plain `<rect>`, never an inline `style`.
  *  - The tooltip is self-rendered (not `@visx/tooltip`'s components, which

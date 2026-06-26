@@ -29,7 +29,7 @@ interface Props<Row> {
   rows: Row[];
   // Tailwind `grid-cols-[…]` class shared by the header and every row so their
   // columns line up; must match the column count/order. Never an inline style —
-  // the production CSP's `style-src 'self'` drops inline `style="…"` attributes.
+  // house style keeps the column template in a class, not on the element.
   gridColsClass: string;
   // sortKey === null means "default order" (no ?sort param in the URL).
   sortKey: string | null;

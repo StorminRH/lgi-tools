@@ -5,9 +5,8 @@ import { useEffect, useRef } from 'react';
 /**
  * Thin horizontal bar for "value relative to max" displays (telemetry charts).
  * The fill width is set as a `--pct` custom property via the CSSOM after mount
- * rather than an inline `style` attribute — the production CSP's
- * `style-src 'self'` drops inline `style="…"` attributes, but JS-applied styles
- * aren't gated. The `.progress-fill` rule (globals.css) reads `--pct`, defaulting to
+ * rather than an inline `style` attribute (house style — keeps styling off the
+ * element). The `.progress-fill` rule (globals.css) reads `--pct`, defaulting to
  * 0% until the effect runs, so the bar grows in on hydration.
  */
 export function ProgressBar({ pct, tone = 'default' }: { pct: number; tone?: 'default' | 'evb' }) {

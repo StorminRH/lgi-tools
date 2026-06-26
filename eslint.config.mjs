@@ -11,7 +11,7 @@ const cspSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
     message:
-      "No inline `style` attributes — the production CSP's `style-src 'self'` drops them. Use Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones. See CONTRIBUTING.md (Security & CSP).",
+      "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones (inline styles are CSP-permitted but not the default). See CONTRIBUTING.md (Security & CSP).",
   },
   {
     selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
@@ -124,9 +124,11 @@ const eslintConfig = defineConfig([
   {
     rules: {
       // EVE images (character portraits, type icons) render via plain <img>,
-      // not next/image: next/image injects an inline `style="color:transparent"`
-      // attribute that the production CSP's `style-src 'self'` (no nonce, no
-      // unsafe-inline) silently drops. See CONTRIBUTING.md (Security & CSP).
+      // not next/image. The old CSP dropped next/image's injected inline
+      // `style="color:transparent"` attribute; that no longer applies (OOB.1.1
+      // added `'unsafe-inline'` to style-src), but the codebase still uses plain
+      // <img> — a next/image migration is deferred. See CONTRIBUTING.md
+      // (Security & CSP).
       "@next/next/no-img-element": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -141,9 +143,10 @@ const eslintConfig = defineConfig([
   // CSP + color tokens: two families of `no-restricted-syntax` bans share one
   // block (the rule's options REPLACE across matching files, so they can't be
   // split into two `**/*.{ts,tsx}` objects without one wiping the other).
-  //   • CSP — `style-src 'self'` (no nonce) drops inline `style="…"`, so any JSX
-  //     `style={{}}` is forbidden; the dangerouslySetInnerHTML / raw-innerHTML
-  //     bans (3.0.4.6) keep the "no raw-HTML sinks" property that makes
+  //   • CSP / house style — inline `style="…"` is lint-banned as house style
+  //     (Tailwind + CSSOM preferred); it is CSP-permitted since OOB.1.1, not a
+  //     CSP violation. The dangerouslySetInnerHTML / raw-innerHTML bans (3.0.4.6)
+  //     keep the "no raw-HTML sinks" property that makes
   //     `script-src 'self' 'unsafe-inline'` safe. The `.ts`/`.tsx` glob also
   //     catches a direct `el.innerHTML = …` in a plain helper.
   //   • Color tokens (3.3.9) — raw hex must live in the token layer, not at call
