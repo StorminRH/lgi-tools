@@ -144,9 +144,9 @@ export function cookieNameFor(def: PreferenceDef<unknown>): string {
   return COOKIE_PREFIX + def.key.replace(/\./g, '_');
 }
 
-// Client-side cookie write — bundled JS, NOT an inline script, so the strict CSP
-// (`style-src 'self'`, no inline-HTML sink) is untouched. No-op for keys that
-// aren't ssrReadable. Non-HttpOnly by necessity (the client owns the write); the
+// Client-side cookie write — bundled JS, NOT an inline script, so the CSP's
+// no-raw-HTML-sink property is untouched. No-op for keys that aren't
+// ssrReadable. Non-HttpOnly by necessity (the client owns the write); the
 // value is a non-sensitive functional preference.
 export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void {
   if (typeof document === 'undefined' || !def.ssrReadable) return;

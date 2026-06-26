@@ -58,13 +58,14 @@ Two things this means in practice:
 ## Security & CSP
 
 The production Content-Security-Policy is `script-src 'self' 'unsafe-inline';
-style-src 'self'` — no nonce. Two rules follow, both **lint-enforced**:
+style-src 'self' 'unsafe-inline'` — no nonce. Two rules follow, both
+**lint-enforced**:
 
-- **No inline `style="…"` attributes.** A JSX `style={{…}}` renders as an inline
-  `style` attribute, which `style-src 'self'` silently drops on first paint. Use
-  Tailwind classes for static values, or set a CSS custom property via
-  `ref.current.style.setProperty(...)` in an effect for runtime-dynamic ones
-  (JS-applied styles aren't CSP-gated).
+- **No inline `style="…"` attributes (house style).** Inline styles are
+  CSP-permitted, but Tailwind + CSSOM stay the default — styling lives in the
+  stylesheet/token layer, not on the element. Use Tailwind classes for static
+  values, or set a CSS custom property via `ref.current.style.setProperty(...)`
+  in an effect for runtime-dynamic ones.
 - **No raw-HTML sinks.** No `dangerouslySetInnerHTML` and no raw
   `innerHTML`/`outerHTML` writes — under `'unsafe-inline'` scripts, an unescaped
   HTML sink is an XSS vector. Render text through JSX (auto-escaped), or build DOM

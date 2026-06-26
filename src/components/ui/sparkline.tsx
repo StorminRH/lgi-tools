@@ -12,9 +12,10 @@ import { useCssomTooltip } from './use-cssom-tooltip';
 /**
  * Compact line chart ("sparkline") for a small ordered series — a price
  * history, a volume trend, etc. The first reusable viz primitive built on
- * `visx`, and the proof that the library is safe under the production CSP.
+ * `visx`.
  *
- * Why this is CSP-clean (`style-src 'self'` drops inline `style=`):
+ * Built to house style — geometry and positioning stay off inline `style`
+ * attributes (Tailwind + CSSOM preferred):
  *  - The chart geometry is pure SVG presentation attributes (`stroke`, `fill`,
  *    `d`, `x`, `y`) and `className` — never an inline `style` attribute.
  *  - The tooltip is rendered by THIS component (not `@visx/tooltip`'s
@@ -22,8 +23,7 @@ import { useCssomTooltip } from './use-cssom-tooltip';
  *    inline `style`). Only `useTooltip` — a state-only hook — is imported. The
  *    tooltip's runtime position is set as `--tt-x` / `--tt-y` custom properties
  *    via the CSSOM (`ref.style.setProperty`), exactly like `ProgressBar`; the
- *    `.sparkline-tooltip` rule in globals.css reads them. JS-applied styles
- *    aren't gated by the CSP, unlike a `style="…"` attribute.
+ *    `.sparkline-tooltip` rule in globals.css reads them.
  */
 
 // The viz tones this primitive blesses. A curated subset of the shared

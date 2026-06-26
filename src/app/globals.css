@@ -280,8 +280,8 @@ a:hover {
 }
 
 /* Landing wordmark glow (handoff §3) — a soft ISK-green bloom behind the
- * hero mark. A scoped rule (not an inline style) so it ships under the strict
- * CSP, which drops `style="..."` attributes. */
+ * hero mark. A scoped stylesheet rule (not an inline style) — house style:
+ * styling lives in the stylesheet/token layer rather than on the element. */
 .hero-wordmark {
   text-shadow: 0 0 36px rgba(61, 214, 140, 0.12);
 }
@@ -376,12 +376,12 @@ a:hover {
   .hover-bob:hover { animation: none; }
 }
 
-/* ── progress bar fill (CSP-safe dynamic width) ─────────────────────────
+/* ── progress bar fill (dynamic width via custom property) ───────────────
  * The fill width is a runtime value (a telemetry percentage), so it can't be
  * a build-time Tailwind class. <ProgressBar> sets `--pct` via
- * style.setProperty in an effect — JS-applied styles aren't gated by the
- * production CSP's `style-src`, unlike an inline `style="width:N%"` attribute
- * which the strict policy silently drops. Falls back to 0% pre-hydration. */
+ * style.setProperty in an effect, which this rule reads — the house-style
+ * alternative to an inline `style="width:N%"` attribute. Falls back to 0%
+ * pre-hydration. */
 .progress-fill {
   width: var(--pct, 0%);
   transition: width 0.3s ease;
@@ -390,12 +390,12 @@ a:hover {
   .progress-fill { transition: none; }
 }
 
-/* ── Sparkline tooltip (CSP-safe dynamic position) ──────────────────────
+/* ── Sparkline tooltip (dynamic position via custom property) ────────────
  * <Sparkline> (src/components/ui/sparkline.tsx) sets `--tt-x` / `--tt-y` via
- * style.setProperty on hover — the same CSSOM trick as .progress-fill, since
- * the production CSP's `style-src 'self'` drops an inline `style="left:…"`
- * attribute. The anchor element translates to the hovered point; the inner
- * box (static transform) floats centered just above it. */
+ * style.setProperty on hover — the same CSSOM trick as .progress-fill, the
+ * house-style alternative to an inline `style="left:…"` attribute. The anchor
+ * element translates to the hovered point; the inner box (static transform)
+ * floats centered just above it. */
 .sparkline-tooltip {
   position: absolute;
   top: 0;
@@ -1481,7 +1481,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 /* ── PriceConfidence (src/components/ui/price-confidence.tsx) ─────────
  * Abstract data-quality badge: an abstract level → glyph (● ◐ ○) + tone.
  * The glyph is a ::after pseudo-element (the half-circle uses clip-path),
- * neither expressible as a CSP-safe inline style. Tooltips are handled by
+ * neither expressible as an inline style. Tooltips are handled by
  * the HoverPopover primitive at the call site, not a CSS title tooltip. */
 .price-confidence {
   width: 13px;

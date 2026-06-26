@@ -18,8 +18,8 @@ import { useCssomTooltip } from './use-cssom-tooltip';
 /**
  * Axis-equipped trend chart — the full-size sibling of {@link Sparkline} for
  * dashboard use: horizontal gridlines, labeled value ticks, and date labels
- * along the baseline. Same CSP rules as Sparkline (`style-src 'self'` drops
- * inline `style=`): geometry is SVG presentation attributes +
+ * along the baseline. Same house style as Sparkline (geometry/positioning stay
+ * off inline `style` attributes): geometry is SVG presentation attributes +
  * `className`, the tooltip is self-rendered and positioned via `--tt-x` /
  * `--tt-y` custom properties through the CSSOM. Axes are hand-rolled on
  * `scaleLinear().ticks()` rather than pulling in `@visx/axis`/`@visx/grid`,

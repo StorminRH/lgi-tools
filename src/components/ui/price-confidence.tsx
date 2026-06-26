@@ -8,7 +8,7 @@ import { HoverPopover } from './hover-popover';
 // the shared HoverPopover (the same tooltip base the PriceFreshness chip uses)
 // so the "why" is reachable by pointer and keyboard. The glyph itself is a CSS
 // ::after pseudo-element (`.price-confidence--*` in globals.css), since neither
-// the half-circle clip-path nor the ring is expressible as a CSP-safe style.
+// the half-circle clip-path nor the ring is expressible as an inline style.
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'unknown';
 
