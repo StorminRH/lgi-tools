@@ -1,5 +1,6 @@
 import {
   bigint,
+  bigserial,
   boolean,
   index,
   jsonb,
@@ -160,3 +161,34 @@ export const jwks = pgTable('jwks', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   expiresAt: timestamp('expires_at'),
 });
+
+// Corp-access decision ledger (3.7.3.3) — one row per decision made by the audited
+// corp-access gate (corp-access.ts), allow AND deny. A security/authz audit trail,
+// NOT analytics telemetry: it lives on its own table so its retention is decoupled
+// from the 180-day usage_logs prune — denials (unauthorized-access attempts) must
+// outlive analytics. Append-only; deliberately NO foreign keys on user_id /
+// character_id so the trail survives the user or character row being deleted
+// (the ids are recorded provenance, the same FK-less posture as the role_change
+// audit's JSONB ids). `character_id` is the linked pilot whose fresh affiliation
+// granted access — NULL on a deny. `reason` is plain text (the gate owns the
+// vocabulary) so a new reason needs no migration, like usage_logs.action. Records
+// no tokens/secrets.
+export const corpAccessAudit = pgTable(
+  'corp_access_audit',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    decidedAt: timestamp('decided_at', { withTimezone: true }).defaultNow().notNull(),
+    userId: text('user_id').notNull(),
+    characterId: bigint('character_id', { mode: 'number' }),
+    corporationId: bigint('corporation_id', { mode: 'number' }).notNull(),
+    allowed: boolean('allowed').notNull(),
+    reason: text('reason').notNull(),
+  },
+  (t) => [
+    // Per-corp decision history ("who was decided for corp X, newest first").
+    index('corp_access_audit_corp_decided_idx').on(t.corporationId, t.decidedAt.desc()),
+    // The denials view ("recent denied attempts"): allowed as the leading equality
+    // column, then newest-first.
+    index('corp_access_audit_allowed_decided_idx').on(t.allowed, t.decidedAt.desc()),
+  ],
+);

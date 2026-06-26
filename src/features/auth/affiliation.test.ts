@@ -21,6 +21,7 @@ import {
   isCharacterCurrentMemberOfCorp,
   isUserCurrentMemberOfCorp,
   refreshAffiliations,
+  refreshStaleAffiliationsForUser,
 } from './affiliation';
 
 function freshRow(corporationId: number): CachedAffiliation {
@@ -71,6 +72,45 @@ describe('refreshAffiliations', () => {
     fetchAffiliationsMock.mockRejectedValue(new Error('boom'));
     expect(await refreshAffiliations([101])).toBe(0);
     expect(upsertAffiliationsMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('refreshStaleAffiliationsForUser', () => {
+  function rowFor(characterId: number, refreshedAt: Date | null): CachedAffiliation {
+    return { characterId, corporationId: 2000, allianceId: null, factionId: null, refreshedAt };
+  }
+  const FRESH_AT = new Date(Date.now() - 1_000);
+  const STALE_AT = new Date(Date.now() - AFFILIATION_TTL_MS - 1_000);
+
+  it('refreshes only the stale and never-refreshed characters, not the fresh ones', async () => {
+    getUserAffiliationsMock.mockResolvedValue([
+      rowFor(101, FRESH_AT),
+      rowFor(102, STALE_AT),
+      rowFor(103, null),
+    ]);
+    fetchAffiliationsMock.mockResolvedValue([]);
+    upsertAffiliationsMock.mockResolvedValue(undefined);
+
+    await refreshStaleAffiliationsForUser('u1');
+
+    expect(fetchAffiliationsMock).toHaveBeenCalledWith([102, 103]);
+  });
+
+  it('does not reach ESI when every affiliation is fresh', async () => {
+    getUserAffiliationsMock.mockResolvedValue([rowFor(101, FRESH_AT)]);
+
+    expect(await refreshStaleAffiliationsForUser('u1')).toBe(0);
+    expect(fetchAffiliationsMock).not.toHaveBeenCalled();
+  });
+
+  it('returns the number of rows refreshed', async () => {
+    getUserAffiliationsMock.mockResolvedValue([rowFor(102, STALE_AT)]);
+    fetchAffiliationsMock.mockResolvedValue([
+      { characterId: 102, corporationId: 2000, allianceId: null, factionId: null },
+    ]);
+    upsertAffiliationsMock.mockResolvedValue(undefined);
+
+    expect(await refreshStaleAffiliationsForUser('u1')).toBe(1);
   });
 });
 

@@ -6,7 +6,7 @@ import type { AffiliationRow } from './affiliation-source';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
 import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
 import { classifyOwnerReconcile } from './owner-reconcile';
-import { account, characters, session, user } from './schema';
+import { account, characters, corpAccessAudit, session, user } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import type { Character, CharacterRole } from './types';
 
@@ -364,6 +364,20 @@ export async function upsertAffiliations(rows: AffiliationRow[]): Promise<void> 
       })
       .where(eq(characters.characterId, r.characterId));
   }
+}
+
+// Append one corp-access decision to the audit ledger (allow AND deny). Accepts
+// already-typed values (the gate owns the reason vocabulary, so `reason` is a
+// plain string here) and writes only the decision + its subject/corp/provenance —
+// never a token or secret.
+export async function recordCorpAccessDecision(entry: {
+  userId: string;
+  corporationId: number;
+  characterId: number | null;
+  allowed: boolean;
+  reason: string;
+}): Promise<void> {
+  await db.insert(corpAccessAudit).values(entry);
 }
 
 export interface ActiveCharacter {

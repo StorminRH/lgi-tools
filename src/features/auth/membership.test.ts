@@ -5,6 +5,7 @@ import {
   characterIsInCorp,
   isAffiliationStale,
   isMemberOfCorp,
+  memberCharacterIdInCorp,
 } from './membership';
 
 const NOW = new Date('2026-06-25T12:00:00.000Z');
@@ -78,6 +79,42 @@ describe('isMemberOfCorp (allow/deny by corp)', () => {
 
   it('denies a null cached corp even with a fresh timestamp', () => {
     expect(isMemberOfCorp([aff({ corporationId: null })], 2000, NOW)).toBe(false);
+  });
+});
+
+describe('memberCharacterIdInCorp (the granting pilot, for the audit)', () => {
+  it('returns the id of a fresh matching character', () => {
+    expect(memberCharacterIdInCorp([aff({ characterId: 101, corporationId: 2000 })], 2000, NOW)).toBe(
+      101,
+    );
+  });
+
+  it('returns null for a corp none of the characters is in', () => {
+    expect(memberCharacterIdInCorp([aff({ corporationId: 2000 })], 3000, NOW)).toBeNull();
+  });
+
+  it('returns null when the only matching character is stale (fail closed)', () => {
+    expect(
+      memberCharacterIdInCorp([aff({ corporationId: 2000, refreshedAt: STALE })], 2000, NOW),
+    ).toBeNull();
+  });
+
+  it('returns null when the only matching character was never refreshed (fail closed)', () => {
+    expect(
+      memberCharacterIdInCorp([aff({ corporationId: 2000, refreshedAt: null })], 2000, NOW),
+    ).toBeNull();
+  });
+
+  it('returns the first fresh member, skipping a stale matching character', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000, refreshedAt: STALE }),
+      aff({ characterId: 102, corporationId: 2000 }),
+    ];
+    expect(memberCharacterIdInCorp(affiliations, 2000, NOW)).toBe(102);
+  });
+
+  it('returns null on an empty affiliation set', () => {
+    expect(memberCharacterIdInCorp([], 2000, NOW)).toBeNull();
   });
 });
 

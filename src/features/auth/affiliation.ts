@@ -4,7 +4,7 @@
 // pure predicates (membership.ts). The DB readers themselves live in queries.ts
 // (the slice's DB home); this module is the logic over them.
 import { fetchAffiliations } from './affiliation-source';
-import { characterIsInCorp, isMemberOfCorp } from './membership';
+import { characterIsInCorp, isAffiliationStale, isMemberOfCorp } from './membership';
 import { getCharacterAffiliation, getUserAffiliations, upsertAffiliations } from './queries';
 
 // Postgres advisory-lock key for the nightly affiliation refresh cron. Held only
@@ -29,6 +29,21 @@ export async function refreshAffiliations(characterIds: number[]): Promise<numbe
     console.error('[auth/affiliation] refresh failed', err);
     return 0;
   }
+}
+
+// Refresh every stale / never-refreshed affiliation among a user's linked
+// characters, so a membership decision taken straight after runs on ≤1h-fresh data
+// — the audited gate's refresh-then-decide step. Best-effort: delegates to
+// refreshAffiliations (which swallows ESI failures), so a refresh that can't reach
+// ESI leaves the cache stale and the following decision fails closed. Returns the
+// number of rows refreshed.
+export async function refreshStaleAffiliationsForUser(userId: string): Promise<number> {
+  const affiliations = await getUserAffiliations(userId);
+  const now = new Date();
+  const staleIds = affiliations
+    .filter((a) => isAffiliationStale(a.refreshedAt, now))
+    .map((a) => a.characterId);
+  return refreshAffiliations(staleIds);
 }
 
 // Is this user a current member of corporationId — i.e. does any of their linked

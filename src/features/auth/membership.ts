@@ -40,17 +40,30 @@ export function isAffiliationStale(refreshedAt: Date | null, now: Date): boolean
   return now.getTime() - refreshedAt.getTime() > AFFILIATION_TTL_MS;
 }
 
-// By corp, over a user's linked characters: is any of them a CURRENT member of
-// corporationId? Fail-closed — a matching corp whose affiliation is stale/null
-// does not count (the cache can't be trusted to still say so).
+// By corp, over a user's linked characters: the id of the FIRST character that is
+// a CURRENT member of corporationId, or null if none is. Fail-closed — a matching
+// corp whose affiliation is stale/null does not count (the cache can't be trusted
+// to still say so). The id is the access-decision provenance the audited gate
+// records (which pilot's affiliation granted access).
+export function memberCharacterIdInCorp(
+  affiliations: CachedAffiliation[],
+  corporationId: number,
+  now: Date,
+): number | null {
+  const match = affiliations.find(
+    (a) => a.corporationId === corporationId && !isAffiliationStale(a.refreshedAt, now),
+  );
+  return match ? match.characterId : null;
+}
+
+// Is any linked character a CURRENT member of corporationId? The boolean form of
+// memberCharacterIdInCorp — one source of truth for the fail-closed match rule.
 export function isMemberOfCorp(
   affiliations: CachedAffiliation[],
   corporationId: number,
   now: Date,
 ): boolean {
-  return affiliations.some(
-    (a) => a.corporationId === corporationId && !isAffiliationStale(a.refreshedAt, now),
-  );
+  return memberCharacterIdInCorp(affiliations, corporationId, now) !== null;
 }
 
 // By character: the single-row form, same fail-closed rule.
