@@ -1523,19 +1523,12 @@ details[data-collapsible][open] > summary [data-chevron] {
   width: max-content;
   max-width: calc(100vw - 2rem);
 }
+/* The scroll container inside the dialog box. The scale-in/out + dim now live on
+ * the shared Dialog primitive (the Base UI popup + backdrop), so this is just the
+ * height clamp + scroll. */
 .sites-lightbox-panel {
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
-  transform: scale(0.92);
-  opacity: 0;
-  transition:
-    transform 200ms cubic-bezier(0.2, 0.85, 0.25, 1),
-    opacity 200ms cubic-bezier(0.2, 0.85, 0.25, 1);
-  will-change: transform, opacity;
-}
-.sites-lightbox-panel[data-open='true'] {
-  transform: scale(1);
-  opacity: 1;
 }
 /* Magnify the card content so the lightbox reads as an enlarged card, not a big
  * box of card-sized text. `zoom` (not `transform: scale`) so it reflows and stays
@@ -1547,7 +1540,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 }
 /* Phone: a full-bleed sheet at native scale — the narrow sheet is already as
  * readable as it gets, and scaling a full-screen sheet reads oddly, so fade only
- * (opacity still transitions; transform is pinned) and drop the zoom. */
+ * (opacity still transitions; the scale is pinned) and drop the zoom. */
 @media (max-width: 640px) {
   .sites-lightbox-dialog {
     width: 100vw;
@@ -1557,20 +1550,17 @@ details[data-collapsible][open] > summary [data-chevron] {
     margin: 0;
     border: none;
     border-radius: 0;
+    /* The scale-in lives on this element now (the Base UI popup). Pin it so the
+     * full-bleed phone sheet fades only — scaling a full-screen sheet reads
+     * oddly. (Un-layered, so it outranks the primitive's data-state utilities.) */
+    scale: 1;
   }
-  .sites-lightbox-panel,
-  .sites-lightbox-panel[data-open='true'] {
+  .sites-lightbox-panel {
     max-height: 100dvh;
-    transform: none;
   }
   .sites-lightbox-zoom {
     zoom: 1;
     width: auto;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sites-lightbox-panel {
-    transition: none;
   }
 }
 
