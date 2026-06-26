@@ -11,18 +11,18 @@ const cspSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
     message:
-      "No inline `style` attributes — the production CSP's `style-src 'self'` drops them. Use Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones. See CLAUDE.md > CSP.",
+      "No inline `style` attributes — the production CSP's `style-src 'self'` drops them. Use Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones. See CONTRIBUTING.md (Security & CSP).",
   },
   {
     selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
     message:
-      "No `dangerouslySetInnerHTML` — the production CSP allows `'unsafe-inline'` scripts, so an unescaped HTML sink becomes an XSS vector. Render text through JSX (auto-escaped) instead. See CLAUDE.md > CSP.",
+      "No `dangerouslySetInnerHTML` — the production CSP allows `'unsafe-inline'` scripts, so an unescaped HTML sink becomes an XSS vector. Render text through JSX (auto-escaped) instead. See CONTRIBUTING.md (Security & CSP).",
   },
   {
     selector:
       "AssignmentExpression[left.property.name=/^(inner|outer)HTML$/]",
     message:
-      "No raw `innerHTML`/`outerHTML` writes — same XSS risk as dangerouslySetInnerHTML under the `'unsafe-inline'` CSP. Use safe DOM APIs (textContent, createElement) instead. See CLAUDE.md > CSP.",
+      "No raw `innerHTML`/`outerHTML` writes — same XSS risk as dangerouslySetInnerHTML under the `'unsafe-inline'` CSP. Use safe DOM APIs (textContent, createElement) instead. See CONTRIBUTING.md (Security & CSP).",
   },
 ];
 
@@ -40,17 +40,17 @@ const hexColorSelectors = [
   {
     selector: "Literal[value=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
     message:
-      "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts. See CLAUDE.md > color tokens.",
+      "No raw hex in Tailwind arbitrary values — route the color through a token (a `--color-*` in globals.css `@theme`, surfaced as `bg-…`/`text-…`/`border-…`/`fill-…`) or tones.ts. See CONTRIBUTING.md (Color tokens).",
   },
   {
     selector: "TemplateElement[value.raw=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
     message:
-      "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts. See CLAUDE.md > color tokens.",
+      "No raw hex in Tailwind arbitrary values (template literal) — route the color through a `--color-*` token (globals.css `@theme`) or tones.ts. See CONTRIBUTING.md (Color tokens).",
   },
   {
     selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
     message:
-      "No raw hex color constants — SVG fills/strokes read from tones.ts (toneHex) or a Tailwind `fill-…`/`stroke-…` utility backed by a `--color-*` token. See CLAUDE.md > color tokens.",
+      "No raw hex color constants — SVG fills/strokes read from tones.ts (toneHex) or a Tailwind `fill-…`/`stroke-…` utility backed by a `--color-*` token. See CONTRIBUTING.md (Color tokens).",
   },
 ];
 
@@ -66,12 +66,12 @@ const apiFetchSelectors = [
   {
     selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.value=/^\/api\//]`,
     message:
-      "Raw fetch('/api/…') bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CLAUDE.md > Architecture Invariants.",
+      "Raw fetch('/api/…') bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
   },
   {
     selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.quasis.0.value.raw=/^\/api\//]`,
     message:
-      "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CLAUDE.md > Architecture Invariants.",
+      "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
   },
 ];
 
@@ -88,12 +88,12 @@ const esiHostSelectors = [
   {
     selector: String.raw`Literal[value=/esi\.evetech\.net/]`,
     message:
-      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/lib/esi): the gate owns CCP's shared per-IP error budget. See CLAUDE.md > Architecture Invariants.",
+      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/lib/esi): the gate owns CCP's shared per-IP error budget. See CONTRIBUTING.md (Architecture invariants).",
   },
   {
     selector: String.raw`TemplateElement[value.raw=/esi\.evetech\.net/]`,
     message:
-      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/lib/esi): the gate owns CCP's shared per-IP error budget. See CLAUDE.md > Architecture Invariants.",
+      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/lib/esi): the gate owns CCP's shared per-IP error budget. See CONTRIBUTING.md (Architecture invariants).",
   },
 ];
 
@@ -110,7 +110,7 @@ const processEnvSelectors = [
     selector:
       "MemberExpression[object.object.name='process'][object.property.name='env'][property.name!='NODE_ENV']:not([property.name=/^NEXT_PUBLIC_/])",
     message:
-      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. NODE_ENV and NEXT_PUBLIC_* stay direct reads. See CLAUDE.md > Architecture Invariants.",
+      "Read server env through readEnv()/requireEnv() (src/lib/env.ts) — typed, lazy, and registry-documented. NODE_ENV and NEXT_PUBLIC_* stay direct reads. See CONTRIBUTING.md (Architecture invariants).",
   },
 ];
 
@@ -126,7 +126,7 @@ const eslintConfig = defineConfig([
       // EVE images (character portraits, type icons) render via plain <img>,
       // not next/image: next/image injects an inline `style="color:transparent"`
       // attribute that the production CSP's `style-src 'self'` (no nonce, no
-      // unsafe-inline) silently drops. See CLAUDE.md > CSP.
+      // unsafe-inline) silently drops. See CONTRIBUTING.md (Security & CSP).
       "@next/next/no-img-element": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -148,7 +148,7 @@ const eslintConfig = defineConfig([
   //     catches a direct `el.innerHTML = …` in a plain helper.
   //   • Color tokens (3.3.9) — raw hex must live in the token layer, not at call
   //     sites. tones.ts and the dev/preview sandboxes are exempted just below.
-  // See CLAUDE.md > CSP / color tokens.
+  // See CONTRIBUTING.md (Security & CSP / Color tokens).
   {
     files: ["**/*.{ts,tsx}"],
     rules: {

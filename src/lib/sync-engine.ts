@@ -20,7 +20,7 @@ export type SyncDataset = (typeof SYNC_DATASETS)[number];
 // Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:
 // the real schedule comes off each run's stored ESI Expires (minExpiresAt),
 // and the floor only guards against polling faster than the dataset's cache
-// (60s skills / ~300s jobs, both read live — see SCRATCHPAD 3.4.7/3.4.8).
+// (60s skills / ~300s jobs, both read live).
 // tokenGroup names the ESI token bucket the dataset bills (per-character
 // buckets, group-keyed) — the engine's rate limiter smooths dispatch per
 // group so a re-arm herd can't burst one group's spend.

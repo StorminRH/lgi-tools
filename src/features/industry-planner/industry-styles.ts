@@ -1,7 +1,7 @@
 // Feature-level domain → UI mapping for the Industry Planner. The only place
 // that knows "a thin margin is orange" or "activity 1 is Manufacturing". The
 // reusable primitives stay domain-agnostic; this file picks tones/labels from
-// the shared vocabulary (CLAUDE.md > Architecture Invariants).
+// the shared vocabulary.
 
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';

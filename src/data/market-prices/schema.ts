@@ -11,8 +11,7 @@ import {
 import type { DepthBand } from './types';
 
 // Live market prices keyed by Eve type ID. Region is fixed to Jita
-// (10000002) — set in phase 2 (archived — see LGI Tools Document
-// Archive/PHASE_2_PLAN.md). No FK to eve_types: this slice operates
+// (10000002) — set in phase 2. No FK to eve_types: this slice operates
 // in pure number space and must not depend on the eve-data slice's
 // schema being populated first.
 //

@@ -4,7 +4,7 @@
 // route at desktop + mobile, and records console errors, uncaught page errors,
 // failed requests, and 4xx/5xx responses to a gitignored report. The agent reads
 // that report; Ryan reviews visual + feel in his own browser. See the `ux-check`
-// skill and CLAUDE.md > UX verification.
+// skill.
 //
 // Routes are passed as args (the caller scopes them to what the session touched),
 // e.g.  `pnpm ux-check /sites /sites/30002 /`. Dynamic routes take a concrete id

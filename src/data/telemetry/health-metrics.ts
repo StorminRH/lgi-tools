@@ -56,7 +56,7 @@ export function formatPct(r: number | null, empty = '—'): string {
 
 // ── Edge-safe one-line summaries ────────────────────────────────────────
 // Each reads sensibly at an empty window, a real 0%, and 100%. They never
-// fabricate a denominator that doesn't exist (CLAUDE.md: trivially-true).
+// fabricate a denominator that doesn't exist (a trivially-true denominator).
 
 export function fallbackSummary({ esi, fallback }: FallbackRateData): string {
   const denom = esi + fallback;

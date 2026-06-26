@@ -19,7 +19,7 @@ import {
 const NOW = 1_750_000_000_000;
 
 describe('dataset registration data', () => {
-  // The floors are the live-read ESI cache windows (SCRATCHPAD 3.4.7/3.4.8)
+  // The floors are the live-read ESI cache windows
   // and the groups are the live-observed token buckets — pinned so a future
   // edit can't silently poll faster than a dataset's cache or bill the
   // wrong bucket.

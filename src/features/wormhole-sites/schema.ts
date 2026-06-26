@@ -17,8 +17,8 @@ export const SIGNATURE_LABELS = [
 ] as const;
 export type SignatureLabel = typeof SIGNATURE_LABELS[number];
 
-// Observed trigger column values across all tabs. Stored as free text — see CLAUDE.md plan
-// for why we don't lock these to a Postgres enum.
+// Observed trigger column values across all tabs. Stored as free text, not locked to a
+// Postgres enum.
 export const TRIGGER_LABELS = [
   'Trigger',
   'Opt',
