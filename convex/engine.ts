@@ -125,9 +125,11 @@ const SWEEP_DELETE_BATCH = 512;
 // calls are isolated Convex components, billed against their own budget.
 export const SCAN_DISPATCH_BATCH = 1024;
 
-// One structured line when a bounded pass hit its cap — the next run drains the
-// rest (NOT silent truncation), oldest-first. Shared by the scan and all three
-// sweep passes so each cap logs uniformly.
+// One structured line when a bounded dispatch pass hit its cap — the next run
+// drains the rest (NOT silent truncation), oldest-first. Shared by the scan and
+// the sweep's overdue + dropped passes (all new log lines). Pass C's retention
+// GC keeps its own long-standing warn with its deletedThisRun field, so existing
+// log queries don't lose it.
 function logBatchCapped(scope: string, note: string, processed: number): void {
   console.warn(JSON.stringify({ scope, note, processed }));
 }
@@ -501,6 +503,12 @@ async function sweepAbandoned(ctx: MutationCtx, now: number, counts: SweepCounts
   }
   if (abandoned.length === SWEEP_DELETE_BATCH) {
     // Not silent truncation: the next 15-min run drains the next oldest batch.
-    logBatchCapped('engine:sweep', 'retention_batch_capped', counts.deleted);
+    console.warn(
+      JSON.stringify({
+        scope: 'engine:sweep',
+        note: 'retention_batch_capped',
+        deletedThisRun: counts.deleted,
+      }),
+    );
   }
 }
