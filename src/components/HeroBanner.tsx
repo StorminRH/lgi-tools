@@ -1,15 +1,10 @@
-// The LGI bracket-stamp wordmark + the "first-party · independent" tag — the
-// visual hero banner. Shared by the anonymous pitch (HomeHero) and the signed-in
-// dashboard (HomeLeftColumn), where it sits above the character roster. Pure
-// presentational markup, so it renders the same on the server (anon shell) and
-// the client (signed-in swap).
+// The LGI bracket-stamp wordmark — the visual hero banner. Shared by the
+// anonymous pitch (HomeHero) and the signed-in dashboard (HomeLeftColumn), where
+// it sits above the character roster. Pure presentational markup, so it renders
+// the same on the server (anon shell) and the client (signed-in swap).
 export function HeroBanner() {
   return (
     <div className="flex flex-col gap-6">
-      <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-section px-3 py-1 font-mono text-caption uppercase tracking-[0.14em] text-muted">
-        <span className="size-[6px] rounded-full bg-isk" />
-        First-party · independent
-      </span>
       <div className="flex w-fit flex-col gap-2 text-center">
         <h1 className="hero-wordmark font-jb font-extrabold text-hero leading-none tracking-[-0.02em] uppercase text-name">
           <span className="text-isk mr-[0.18em]">[</span>

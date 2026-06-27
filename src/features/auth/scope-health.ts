@@ -84,7 +84,7 @@ export function deriveCharacterHealth(input: {
 // revoke). `gloss` is a short human description when one is known.
 export type GrantedScope = { id: string; gloss?: string; status: 'active' | 'legacy' };
 
-// Short human descriptions for the scopes a pilot may have granted — the four
+// Short human descriptions for the scopes a pilot may have granted — the six
 // currently requested plus the seven pruned in 3.7.1.1 that legacy grants still
 // carry. Private: only listGrantedScopes reads it. An unglossed scope still
 // renders (its raw id), so this map need not be exhaustive.
@@ -94,6 +94,8 @@ const SCOPE_GLOSS: Record<string, string> = {
   'esi-skills.read_skills.v1': 'Read your trained skills',
   'esi-skills.read_skillqueue.v1': 'Read your skill queue',
   'esi-industry.read_character_jobs.v1': 'Read your industry jobs',
+  'esi-characters.read_corporation_roles.v1': 'Read your corporation roles',
+  'esi-industry.read_corporation_jobs.v1': "Read your corporation's industry jobs",
   // Legacy — pruned in 3.7.1.1, still present in older grants.
   'esi-planets.manage_planets.v1': 'Manage your planetary colonies',
   'esi-characters.read_standings.v1': 'Read your standings',

@@ -10,9 +10,11 @@ import { IndustryRow } from '@/features/industry-planner/components/IndustryRow'
 import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
 import { RecentlyViewed } from '@/features/industry-planner/components/RecentlyViewed';
 import { getBlueprintStructure } from '@/features/industry-planner/queries';
+import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
+import { CorpJobsBoard } from '@/features/industry-jobs/components/CorpJobsBoard';
 import { IndustryActiveJobs } from '@/features/industry-jobs/components/IndustryActiveJobs';
 import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
-import { activeJobCharacterIds } from './active-job-character-ids';
+import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
 
 export const metadata: Metadata = {
   title: 'Industry Planner',
@@ -62,9 +64,27 @@ async function FavoritesList() {
 
 // Request-time region: reads the session + linked characters so the live
 // Active-jobs island knows which characters to keep synced. Signed-out renders
-// with no ids; the client island then shows the sign-in prompt.
+// with no ids; the client island then shows the sign-in prompt. The corp board
+// (a separate read of the same linked characters, deduped within the request)
+// adds the pilot's corporation jobs beneath the personal board.
 async function ActiveJobsSection() {
-  return <IndustryActiveJobs characterIds={await activeJobCharacterIds()} />;
+  const [characterIds, corp] = await Promise.all([activeJobCharacterIds(), corpJobsAccess()]);
+  return (
+    <div className="flex flex-col gap-9">
+      <IndustryActiveJobs characterIds={characterIds} />
+      <CorpJobsBoard
+        eligibleCharacterIds={corp.eligibleCharacterIds}
+        hasLinkedCharacters={corp.hasLinkedCharacters}
+        reconnectAction={
+          <LinkCharacterButton
+            label="Grant corp jobs access"
+            emphasis="reconnect"
+            callbackURL="/industry"
+          />
+        }
+      />
+    </div>
+  );
 }
 
 // Static shell — header, typed hint, and the recents/favorites scaffold

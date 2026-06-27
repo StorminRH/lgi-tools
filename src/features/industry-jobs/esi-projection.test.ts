@@ -47,6 +47,7 @@ describe('parseIndustryJobsBody', () => {
     expect(jobs).toEqual([
       {
         job_id: 498338452,
+        installer_id: 2114872920,
         activity_id: 4,
         blueprint_type_id: 24699,
         runs: 1,
@@ -56,6 +57,7 @@ describe('parseIndustryJobsBody', () => {
       },
       {
         job_id: 498338451,
+        installer_id: 2114872920,
         activity_id: 1,
         blueprint_type_id: 691,
         product_type_id: 587,
@@ -65,6 +67,11 @@ describe('parseIndustryJobsBody', () => {
         end_date: '2026-06-13T08:00:00Z',
       },
     ]);
+  });
+
+  it('retains installer_id for per-job runner attribution', () => {
+    const jobs = parseIndustryJobsBody([manufacturingJob]);
+    expect(jobs?.[0]?.installer_id).toBe(2114872920);
   });
 
   it('tie-breaks identical end dates by job id for a stable order', () => {
