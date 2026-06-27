@@ -1472,22 +1472,13 @@ details[data-collapsible][open] > summary [data-chevron] {
   }
 }
 
-/* ── Sitewide loading toast (loading-toast.tsx) ──────────────────────
- * Drops from under the 50px nav while any dynamic surface loads. The slide
- * is a transform transition keyed by [data-open] (CSP-safe — a stylesheet
- * rule, not an inline style); under reduced motion it appears instantly. */
-.loading-toast-panel {
-  transform: translateY(-100%);
-  transition: transform 260ms cubic-bezier(0.2, 0.85, 0.25, 1);
-  will-change: transform;
-}
-.loading-toast-panel[data-open='true'] {
-  transform: translateY(0);
-}
-@media (prefers-reduced-motion: reduce) {
-  .loading-toast-panel {
-    transition: none;
-  }
+/* ── Sonner toast — terminal theming (components/ui/toast.tsx) ───────────
+ * The card + colours are className-driven (unstyled toaster); this only tints the
+ * loading spinner, which sonner paints from --gray11 in its OWN un-layered rule.
+ * A className utility can't beat that (un-layered outranks @layer), so the green
+ * tint lives here: scoped + higher specificity than `.sonner-loading-bar`. */
+[data-sonner-toaster] .sonner-loading-bar {
+  background: var(--color-isk);
 }
 
 /* ── Site card lightbox (SiteCardLightbox) ───────────────────────────────

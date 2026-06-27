@@ -21,6 +21,7 @@
     "/dev/sandbox/prices": "Unlinked dev mockup gallery — static shell; the ten price-animation variants are client-only, driven by timers over a hardcoded sample figure.",
     "/dev/sandbox/cards": "Unlinked dev mockup gallery — static shell; the six card variants are client-only (hover/pointer effects) over hardcoded sample data.",
     "/dev/sandbox/overlays": "Unlinked Base UI overlay proving harness (OOB.2.1) — static shell; the four overlays (Tooltip/Popover/Dialog/Menu) are a client island (Portals/context). No PageShell, no DB/live reads.",
+    "/dev/sandbox/toast": "Unlinked sonner toast harness (OOB.3.2) — static shell; the toasts are a client island driven through the shipped @/components/ui/toast seam + the ambient LoadingToastProvider (the <Toaster> now lives in the root layout). No PageShell, no DB/live reads.",
     "/api/industry/blueprints": "Blueprint search index is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input.",
     "/api/industry/systems": "Build-system search index (systems with an industry-capable NPC station) is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input. Filtered client-side by the build-location selector.",
     "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic."
@@ -43,6 +44,7 @@
     "/dev/sandbox/prices": "static",
     "/dev/sandbox/cards": "static",
     "/dev/sandbox/overlays": "static",
+    "/dev/sandbox/toast": "static",
     "/industry": "partial",
     "/industry/[id]": "partial",
     "/legal": "static",
