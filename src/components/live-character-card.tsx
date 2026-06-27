@@ -9,7 +9,7 @@
 // loop) — lives here. This is the `shared` zone (`src/components/*.tsx`), the
 // only layer permitted to import features + data + ui + lib, so the two features
 // compose it without importing each other.
-import { Authenticated, AuthLoading, Unauthenticated, useQuery } from 'convex/react';
+import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';

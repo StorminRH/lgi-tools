@@ -255,6 +255,36 @@ describe('corpIndustryJobsSync.syncUser', () => {
     expect(corpJobsCalls(fn)).toBe(0);
   });
 
+  it('drops a previously-synced cold board when the corp transitions to needs_role', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    // A corp synced successfully before: hot meta + a cold board.
+    await t.run(async (ctx) => {
+      await ctx.db.insert('corpIndustryJobsSync', {
+        userId: USER,
+        corporationId: CORP_A,
+        jobsEtag: 'cj0',
+        lastSyncedAt: GEN - 1000,
+        expiresAt: GEN - 1,
+        syncError: null,
+      });
+      await ctx.db.insert('corpIndustryJobsSyncData', {
+        userId: USER,
+        corporationId: CORP_A,
+        data: { jobs: [STORED_JOB] },
+      });
+    });
+    // This run: the vending character no longer holds the role.
+    stubFetch({ esi: esiRouter({ roles: () => jsonResponse({ roles: ['Accountant'] }) }) });
+
+    await run(t);
+
+    // The hot row records the access loss; the stale cold board is removed so the
+    // viewer can't keep seeing jobs for a corp the user can no longer read.
+    expect((await readDoc(t))?.syncError).toBe('needs_role');
+    expect(await readData(t)).toBeNull();
+  });
+
   it('admits a Director (role gate accepts Factory_Manager OR Director)', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);

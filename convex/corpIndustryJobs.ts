@@ -233,8 +233,12 @@ async function upsertCorpJobs(
   // Cold payload: a fresh body replaces the board wholesale and arms a completion
   // flip for each (job_id, end_date) new to the COLD doc's prior payload
   // (flipsToSchedule) — exactly as the per-character apply does; rides the
-  // existing scheduler, no new timer. A 304, an error, or a needs_role corp
-  // leaves the cold doc — and the payload view — untouched.
+  // existing scheduler, no new timer. A 304 or a transient error leaves the cold
+  // doc — and the payload view — untouched (graceful degradation: keep serving the
+  // last-known board). A needs_role result is the exception: the vending character
+  // has lost in-game access, so the cold board is DROPPED rather than retained — we
+  // don't keep serving jobs for a corp the user can no longer read (the merge then
+  // shows the needs_role state with no stale board behind it).
   if (result.jobs !== null) {
     const jobs = result.jobs.map((job) => ({
       ...job,
@@ -258,6 +262,8 @@ async function upsertCorpJobs(
         data,
       });
     }
+  } else if (result.error === 'needs_role' && existingCold !== undefined) {
+    await ctx.db.delete(existingCold._id);
   }
   return hotFields.expiresAt;
 }
