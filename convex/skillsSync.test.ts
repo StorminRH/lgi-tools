@@ -109,10 +109,21 @@ async function seedSubject(t: TestConvex<typeof schema>, overrides?: Record<stri
   });
 }
 
+// The HOT meta doc (etags / freshness / error).
 function readDoc(t: TestConvex<typeof schema>, characterId = 101) {
   return t.run((ctx) =>
     ctx.db
       .query('characterSync')
+      .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
+      .unique(),
+  );
+}
+
+// The COLD payload doc (SA.5 split) — absent until the first successful sync.
+function readData(t: TestConvex<typeof schema>, characterId = 101) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('characterSyncData')
       .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
       .unique(),
   );
@@ -137,7 +148,7 @@ describe('skillsSync.syncUser', () => {
     await run(t);
 
     const doc = await readDoc(t);
-    expect(doc?.data).toEqual({ entries: [ENTRY], totalSp: 1000 });
+    expect((await readData(t))?.data).toEqual({ entries: [ENTRY], totalSp: 1000 });
     expect(doc?.queueEtag).toBe('q1');
     expect(doc?.skillsEtag).toBe('s1');
     expect(doc?.expiresAt).toBe(Date.parse(EXP));
@@ -151,12 +162,16 @@ describe('skillsSync.syncUser', () => {
       await ctx.db.insert('characterSync', {
         userId: USER,
         characterId: 101,
-        data: { entries: [ENTRY], totalSp: 500 },
         queueEtag: 'q0',
         skillsEtag: 's0',
         lastSyncedAt: GEN - 1000,
         expiresAt: GEN - 1,
         syncError: null,
+      });
+      await ctx.db.insert('characterSyncData', {
+        userId: USER,
+        characterId: 101,
+        data: { entries: [ENTRY], totalSp: 500 },
       });
     });
     stubFetch({ esi: () => new Response(null, { status: 304, headers: { Expires: EXP } }) });
@@ -164,7 +179,7 @@ describe('skillsSync.syncUser', () => {
     await run(t);
 
     const doc = await readDoc(t);
-    expect(doc?.data).toEqual({ entries: [ENTRY], totalSp: 500 });
+    expect((await readData(t))?.data).toEqual({ entries: [ENTRY], totalSp: 500 });
     expect(doc?.queueEtag).toBe('q0');
     expect(doc?.skillsEtag).toBe('s0');
     expect((doc?.lastSyncedAt ?? 0) > GEN - 1000).toBe(true);
@@ -181,7 +196,7 @@ describe('skillsSync.syncUser', () => {
 
     const doc = await readDoc(t);
     expect(doc?.syncError).toBe('reauth_required');
-    expect(doc?.data).toBeNull();
+    expect(await readData(t)).toBeNull();
     const calledToken = fetchFn.mock.calls.some(([u]) => String(u).endsWith('/eve-token'));
     expect(calledToken).toBe(false);
   });

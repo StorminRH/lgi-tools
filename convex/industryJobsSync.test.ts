@@ -110,10 +110,21 @@ async function seedSubject(t: TestConvex<typeof schema>, overrides?: Record<stri
   });
 }
 
+// The HOT meta doc (etag / freshness / error).
 function readDoc(t: TestConvex<typeof schema>, characterId = 101) {
   return t.run((ctx) =>
     ctx.db
       .query('industryJobsSync')
+      .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
+      .unique(),
+  );
+}
+
+// The COLD payload doc (SA.5 split) — absent until the first successful sync.
+function readData(t: TestConvex<typeof schema>, characterId = 101) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('industryJobsSyncData')
       .withIndex('by_user_character', (q) => q.eq('userId', USER).eq('characterId', characterId))
       .unique(),
   );
@@ -138,8 +149,9 @@ describe('industryJobsSync.syncUser', () => {
     await run(t);
 
     const doc = await readDoc(t);
-    expect(doc?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
-    expect(doc?.data?.jobs[0]?.status).toBe('active');
+    const data = await readData(t);
+    expect(data?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
+    expect(data?.data?.jobs[0]?.status).toBe('active');
     expect(doc?.jobsEtag).toBe('j1');
     expect(doc?.expiresAt).toBe(Date.parse(EXP));
     expect(doc?.syncError).toBeNull();
@@ -152,11 +164,15 @@ describe('industryJobsSync.syncUser', () => {
       await ctx.db.insert('industryJobsSync', {
         userId: USER,
         characterId: 101,
-        data: { jobs: [JOB] },
         jobsEtag: 'j0',
         lastSyncedAt: GEN - 1000,
         expiresAt: GEN - 1,
         syncError: null,
+      });
+      await ctx.db.insert('industryJobsSyncData', {
+        userId: USER,
+        characterId: 101,
+        data: { jobs: [JOB] },
       });
     });
     stubFetch({ esi: () => new Response(null, { status: 304, headers: { Expires: EXP } }) });
@@ -164,7 +180,7 @@ describe('industryJobsSync.syncUser', () => {
     await run(t);
 
     const doc = await readDoc(t);
-    expect(doc?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
+    expect((await readData(t))?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
     expect(doc?.jobsEtag).toBe('j0');
     expect((doc?.lastSyncedAt ?? 0) > GEN - 1000).toBe(true);
   });

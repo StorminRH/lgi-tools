@@ -7,6 +7,7 @@
 // nothing when signed out or before Convex is configured.
 import { Authenticated, useQuery } from 'convex/react';
 import { useMemo } from 'react';
+import { useCharacterMerge } from '@/components/live-character-card';
 import { api } from '@/data/convex/api';
 import { convexClient } from '@/data/convex/client';
 import { jobCategory, type JobCategory } from '../industry-jobs-styles';
@@ -21,7 +22,9 @@ export function IndustrySlotMeta() {
 }
 
 function SlotMetaInner() {
-  const live = useQuery(api.industryJobs.forViewer);
+  const cold = useQuery(api.industryJobs.forViewer);
+  const hot = useQuery(api.industryJobs.runStateForViewer);
+  const live = useCharacterMerge(cold, hot);
   const counts = useMemo(() => {
     const tally: Record<JobCategory, number> = { manufacturing: 0, science: 0, reactions: 0 };
     for (const character of live?.characters ?? []) {

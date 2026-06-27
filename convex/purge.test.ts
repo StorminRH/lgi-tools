@@ -13,11 +13,11 @@ const CHAR_A = 90000001;
 const CHAR_B = 90000002;
 const GEN = 1_700_000_000_000;
 
-function skillRow(userId: string, characterId: number) {
+// HOT meta rows + COLD payload rows (SA.5 split) — purge must delete all four.
+function skillHot(userId: string, characterId: number) {
   return {
     userId,
     characterId,
-    data: { entries: [], totalSp: 1 },
     queueEtag: 'q',
     skillsEtag: 's',
     lastSyncedAt: GEN,
@@ -26,11 +26,10 @@ function skillRow(userId: string, characterId: number) {
   };
 }
 
-function jobRow(userId: string, characterId: number) {
+function jobHot(userId: string, characterId: number) {
   return {
     userId,
     characterId,
-    data: { jobs: [] },
     jobsEtag: 'j',
     lastSyncedAt: GEN,
     expiresAt: GEN + 60_000,
@@ -39,18 +38,25 @@ function jobRow(userId: string, characterId: number) {
 }
 
 describe('purge.purgeCharacter', () => {
-  it('deletes the target character from both trackers, leaving siblings untouched', async () => {
+  it('deletes the target character from both trackers (hot + cold), leaving siblings untouched', async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
-      // Target pair (USER × CHAR_A) in both tables.
-      await ctx.db.insert('characterSync', skillRow(USER, CHAR_A));
-      await ctx.db.insert('industryJobsSync', jobRow(USER, CHAR_A));
-      // Same user, a DIFFERENT character — must survive.
-      await ctx.db.insert('characterSync', skillRow(USER, CHAR_B));
-      await ctx.db.insert('industryJobsSync', jobRow(USER, CHAR_B));
-      // Same character id, a DIFFERENT user — must survive (keyed by user×character).
-      await ctx.db.insert('characterSync', skillRow(OTHER_USER, CHAR_A));
-      await ctx.db.insert('industryJobsSync', jobRow(OTHER_USER, CHAR_A));
+      // Three pairs across all four tables: the target, a sibling character, and
+      // the same character under a different user.
+      for (const [userId, characterId] of [
+        [USER, CHAR_A],
+        [USER, CHAR_B],
+        [OTHER_USER, CHAR_A],
+      ] as const) {
+        await ctx.db.insert('characterSync', skillHot(userId, characterId));
+        await ctx.db.insert('characterSyncData', {
+          userId,
+          characterId,
+          data: { entries: [], totalSp: 1 },
+        });
+        await ctx.db.insert('industryJobsSync', jobHot(userId, characterId));
+        await ctx.db.insert('industryJobsSyncData', { userId, characterId, data: { jobs: [] } });
+      }
     });
 
     const counts = await t.mutation(internal.purge.purgeCharacter, {
@@ -63,14 +69,23 @@ describe('purge.purgeCharacter', () => {
       skills: (await ctx.db.query('characterSync').collect())
         .map((d) => `${d.userId}:${d.characterId}`)
         .sort(),
+      skillsData: (await ctx.db.query('characterSyncData').collect())
+        .map((d) => `${d.userId}:${d.characterId}`)
+        .sort(),
       jobs: (await ctx.db.query('industryJobsSync').collect())
         .map((d) => `${d.userId}:${d.characterId}`)
         .sort(),
+      jobsData: (await ctx.db.query('industryJobsSyncData').collect())
+        .map((d) => `${d.userId}:${d.characterId}`)
+        .sort(),
     }));
-    // USER:CHAR_A gone from both; USER:CHAR_B and OTHER_USER:CHAR_A remain
+    // USER:CHAR_A gone from all four tables; the two siblings remain everywhere
     // (sorted: user_purge_1:… precedes user_purge_2:…).
-    expect(remaining.skills).toEqual([`${USER}:${CHAR_B}`, `${OTHER_USER}:${CHAR_A}`]);
-    expect(remaining.jobs).toEqual([`${USER}:${CHAR_B}`, `${OTHER_USER}:${CHAR_A}`]);
+    const survivors = [`${USER}:${CHAR_B}`, `${OTHER_USER}:${CHAR_A}`];
+    expect(remaining.skills).toEqual(survivors);
+    expect(remaining.skillsData).toEqual(survivors);
+    expect(remaining.jobs).toEqual(survivors);
+    expect(remaining.jobsData).toEqual(survivors);
   });
 
   it('is a no-op (zero counts, no throw) when the character has no projections', async () => {

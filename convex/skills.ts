@@ -15,9 +15,34 @@ import { stampSyncSubject } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
 import { skillQueueEntryValidator } from './schema';
 
-// The calling user's synced characters + run state, grouped client-side by
-// character. ETags and userId are custody/keying details — not on the wire.
+// The COLD half of the viewer split (SA.5): the calling user's synced skill
+// payloads, keyed by character. Its read set is the characterSyncData table
+// alone — so it re-fires ONLY when a genuine skill body changes, never on a
+// per-cycle 304/dispatch/completion (those touch the hot meta + subject rows,
+// which this query never reads). The client joins it with runStateForViewer by
+// character id. A character with no cold doc yet (unfetched / errored-first /
+// needs-reconnect) simply isn't here — the merge surfaces it via its hot row.
 export const forViewer = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) return null;
+    const userId = identity.subject;
+    const docs = await ctx.db
+      .query('characterSyncData')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    return {
+      characters: docs.map((doc) => ({ characterId: doc.characterId, data: doc.data })),
+    };
+  },
+});
+
+// The HOT half of the viewer split (SA.5): per-character freshness/error plus
+// the run lifecycle. Reads only the small hot meta docs (characterSync) and the
+// subject row — never the heavy payload — so it can re-fire every cycle (status
+// flips, the 304 lastSyncedAt bump) cheaply. ETags and userId stay custody-only.
+export const runStateForViewer = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -31,7 +56,6 @@ export const forViewer = query({
     return {
       characters: docs.map((doc) => ({
         characterId: doc.characterId,
-        data: doc.data,
         lastSyncedAt: doc.lastSyncedAt,
         syncError: doc.syncError,
       })),
@@ -58,10 +82,18 @@ export const heldState = internalQuery({
       .query('characterSync')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
+    // The payload now lives in the cold table; a cold doc EXISTS iff that
+    // character holds data (we never write a null-data cold doc). So cold-doc
+    // presence is the data-presence gate the etag-implies-data invariant needs.
+    const coldDocs = await ctx.db
+      .query('characterSyncData')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    const hasData = new Set(coldDocs.map((doc) => doc.characterId));
     return docs.map((doc) => ({
       characterId: doc.characterId,
-      queueEtag: doc.data !== null ? doc.queueEtag : null,
-      skillsEtag: doc.data !== null ? doc.skillsEtag : null,
+      queueEtag: hasData.has(doc.characterId) ? doc.queueEtag : null,
+      skillsEtag: hasData.has(doc.characterId) ? doc.skillsEtag : null,
     }));
   },
 });
@@ -108,6 +140,13 @@ export const applySyncResults = internalMutation({
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .collect();
     const byCharacter = new Map(docs.map((doc) => [doc.characterId, doc]));
+    // The cold payload docs, loaded alongside so each result's apply gets its
+    // existing payload and orphan cleanup can delete both halves together.
+    const coldDocs = await ctx.db
+      .query('characterSyncData')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect();
+    const coldByCharacter = new Map(coldDocs.map((doc) => [doc.characterId, doc]));
     const now = Date.now();
     const enumerated = new Set(args.enumeratedCharacterIds);
 
@@ -122,7 +161,10 @@ export const applySyncResults = internalMutation({
       } else {
         // Orphan cleanup: a character no longer linked to this user (unlinked,
         // or reassigned to another pilot) must not keep serving its old snapshot.
+        // Delete BOTH the hot meta doc and the cold payload doc.
         await ctx.db.delete(doc._id);
+        const cold = coldByCharacter.get(doc.characterId);
+        if (cold !== undefined) await ctx.db.delete(cold._id);
       }
     }
 
@@ -133,6 +175,7 @@ export const applySyncResults = internalMutation({
         args.userId,
         result,
         byCharacter.get(result.characterId),
+        coldByCharacter.get(result.characterId),
         now,
       );
       windowsByCharacter.set(result.characterId, expiresAt);
@@ -147,36 +190,53 @@ export const applySyncResults = internalMutation({
   },
 });
 
-// Upsert one character's skills payload. A 304 keeps the existing halves
-// (mergeData); an errored read keeps the payload but clears the cache window so
-// the next mount/visible heartbeat re-syncs immediately rather than treating
-// the stale window as fresh. A successful result always carries a window (the
-// action falls back to now + 60s when ESI sends no Expires).
+// Upsert one character's skills result across the hot meta doc and the cold
+// payload doc. The hot doc is ALWAYS written (etags/freshness/error). The cold
+// payload doc is written ONLY when a fresh ESI half arrived: a pure 304 (both
+// halves null) keeps the existing payload AND leaves the cold doc untouched, so
+// the payload view's read set never re-fires for an unchanged blob (the SA.5
+// point). The "fresh half" test is per-half because skills has two independent
+// etags — a mixed 200/304 (queue fresh, skills 304, or vice-versa) IS a data
+// change. An errored read keeps the payload but clears the cache window so the
+// next mount/visible heartbeat re-syncs immediately. A successful result always
+// carries a window (the action falls back to now + 60s when ESI sends no Expires).
 async function applySkillResult(
   ctx: MutationCtx,
   userId: string,
   result: CharacterResult,
-  existing: Doc<'characterSync'> | undefined,
+  existingHot: Doc<'characterSync'> | undefined,
+  existingCold: Doc<'characterSyncData'> | undefined,
   now: number,
 ): Promise<number | null> {
-  const data = mergeData(existing?.data ?? null, result);
+  const data = mergeData(existingCold?.data ?? null, result);
   const refreshed = result.error === null;
-  const fields = {
-    data,
+  const hotFields = {
     queueEtag: result.queueEtag,
     skillsEtag: result.skillsEtag,
-    lastSyncedAt: refreshed ? now : (existing?.lastSyncedAt ?? null),
+    lastSyncedAt: refreshed ? now : (existingHot?.lastSyncedAt ?? null),
     expiresAt: refreshed ? result.expiresAt : null,
     syncError: result.error,
   };
-  if (existing !== undefined) {
-    await ctx.db.patch(existing._id, fields);
+  if (existingHot !== undefined) {
+    await ctx.db.patch(existingHot._id, hotFields);
   } else {
-    await ctx.db.insert('characterSync', { userId, characterId: result.characterId, ...fields });
+    await ctx.db.insert('characterSync', { userId, characterId: result.characterId, ...hotFields });
   }
+
+  // Cold payload: write only when a fresh half is present and merged to a real
+  // payload. A pure 304/error never reaches the cold table.
+  const freshHalf = result.queueEntries !== null || result.skills !== null;
+  if (freshHalf && data !== null) {
+    if (existingCold !== undefined) {
+      await ctx.db.patch(existingCold._id, { data });
+    } else {
+      await ctx.db.insert('characterSyncData', { userId, characterId: result.characterId, data });
+    }
+  }
+
   // The resulting cache window, returned so the caller can accumulate the
   // post-apply set without re-reading the whole table.
-  return fields.expiresAt;
+  return hotFields.expiresAt;
 }
 
 type SyncedData = {

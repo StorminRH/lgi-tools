@@ -28,7 +28,6 @@ describe('POST /purge-character', () => {
       await ctx.db.insert('characterSync', {
         userId: USER,
         characterId: CHAR,
-        data: null,
         queueEtag: null,
         skillsEtag: null,
         lastSyncedAt: GEN,

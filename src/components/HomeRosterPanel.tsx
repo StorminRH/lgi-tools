@@ -13,8 +13,10 @@ import { useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { type ReactNode, useEffect, useState } from 'react';
 import {
+  type LiveCharacterRow,
   LiveSessionGate,
   type PanelCharacter,
+  useCharacterMerge,
   useLiveCharacterSync,
 } from '@/components/live-character-card';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -25,9 +27,10 @@ import { RosterCard } from '@/features/skill-queue/components/RosterCard';
 import { buildRosterCard, type RosterViewModel } from '@/features/skill-queue/roster-view-model';
 import { apiFetch } from '@/lib/api-client';
 
-type LiveCharacter = NonNullable<
+type SkillData = NonNullable<
   FunctionReturnType<typeof api.skills.forViewer>
->['characters'][number];
+>['characters'][number]['data'];
+type LiveCharacter = LiveCharacterRow<SkillData>;
 
 // Resolve names for every queued skill (the shared cap is applied by the hook).
 // The displayed skill can sit at any position when ESI hasn't advanced a finished
@@ -122,7 +125,9 @@ function LiveRoster() {
 }
 
 function LiveRosterCards({ characters }: { characters: PanelCharacter[] }) {
-  const live = useQuery(api.skills.forViewer);
+  const cold = useQuery(api.skills.forViewer);
+  const hot = useQuery(api.skills.runStateForViewer);
+  const live = useCharacterMerge(cold, hot);
   const { liveByCharacter, names, now } = useLiveCharacterSync({
     live,
     dataset: 'skills',
