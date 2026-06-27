@@ -1,49 +1,85 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Suspense } from 'react';
 import { LoginButton } from '@/features/auth/components/LoginButton';
-import { NavTools } from '@/components/NavTools';
+import { Menu, MenuLinkItem } from '@/components/ui/menu';
+import { cn } from '@/components/ui/cn';
+import { isToolActive, visibleNavTools } from '@/data/tools/registry';
 
-// Mobile-only hamburger (globals.css reveals it below 1024px and hides the
-// inline tool strip + login cluster there). A pure <details> disclosure so it
-// needs no open/closed React state — the browser owns that, matching the
-// Collapsible invariant. The panel reuses the same NavTools + LoginButton the
-// desktop bar renders, restyled to stack vertically.
+// Mobile-only hamburger (globals.css reveals the trigger below 1024px and hides
+// the inline tool strip + login cluster there). Built on the shared Base UI Menu
+// primitive: the trigger is a native <button>, the panel a dropdown of the same
+// tools the desktop strip shows (as navigable menu rows) plus the reused
+// LoginButton in a footer.
 //
-// The only client behaviour is closing the menu after a link tap: the header
-// persists across client navigations, so a pure <details> would otherwise stay
-// open after you'd already moved to the new page.
-export function NavMenu() {
-  const ref = useRef<HTMLDetailsElement>(null);
+// Base UI owns the open/close, keyboard nav, focus, and dismiss. `closeOnClick`
+// on each link row closes the menu after a tap — the header persists across
+// client navigations, so it would otherwise stay open on the new page. The panel
+// drops below the whole (wrapped) header by anchoring to `.app-header` rather
+// than the trigger.
 
-  // Close the menu after a link tap. Delegated on the <details> rather than a
-  // JSX onClick (which would trip jsx-a11y on the panel div), and target-gated
-  // to anchors so opening via the summary doesn't immediately re-close it.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const onClick = (e: MouseEvent) => {
-      if ((e.target as HTMLElement).closest('a')) el.open = false;
-    };
-    el.addEventListener('click', onClick);
-    return () => el.removeEventListener('click', onClick);
-  }, []);
+const HAMBURGER = (
+  <svg className="nav-menu-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <line x1="2" y1="5" x2="16" y2="5" />
+    <line x1="2" y1="9" x2="16" y2="9" />
+    <line x1="2" y1="13" x2="16" y2="13" />
+  </svg>
+);
 
+// The tool rows, in their own component so `usePathname` (request-time data under
+// Cache Components) is read only when the popup is open — the popup mounts on
+// interaction, never in the prerendered static shell. Shares `visibleNavTools()`
+// + `isToolActive()` with the desktop strip (one source); SOON / nav-disabled
+// tools render as inert spans (none in the current roster, but the contract stays
+// and it guards a null href).
+function NavMenuItems() {
+  const pathname = usePathname();
   return (
-    <details ref={ref} className="nav-menu">
-      <summary className="nav-menu-toggle" aria-label="Menu">
-        <svg className="nav-menu-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-          <line x1="2" y1="5" x2="16" y2="5" />
-          <line x1="2" y1="9" x2="16" y2="9" />
-          <line x1="2" y1="13" x2="16" y2="13" />
-        </svg>
-      </summary>
-      <div className="nav-menu-panel">
-        <NavTools />
-        <div className="nav-menu-login">
-          <LoginButton />
-        </div>
+    <>
+      {visibleNavTools().map((tool) => {
+        if (tool.href === null || tool.navDisabled) {
+          return (
+            <span key={tool.label} className="nav-tool soon">
+              {tool.label}
+            </span>
+          );
+        }
+
+        const active = isToolActive(tool, pathname);
+
+        return (
+          <MenuLinkItem
+            key={tool.label}
+            closeOnClick
+            aria-current={active ? 'page' : undefined}
+            className={cn('nav-tool', active && 'active')}
+            render={<Link href={tool.href} />}
+          >
+            {tool.label}
+          </MenuLinkItem>
+        );
+      })}
+    </>
+  );
+}
+
+export function NavMenu() {
+  return (
+    <Menu
+      label="Menu"
+      trigger={HAMBURGER}
+      triggerClassName="nav-menu-toggle"
+      className="nav-menu-panel"
+      anchor={() => document.querySelector('.app-header')}
+    >
+      <Suspense fallback={null}>
+        <NavMenuItems />
+      </Suspense>
+      <div className="nav-menu-login">
+        <LoginButton />
       </div>
-    </details>
+    </Menu>
   );
 }

@@ -49,8 +49,7 @@ next-env.d.ts
 # local verification snapshots (wire-format diffs, not committed)
 .verify-snapshots/
 
-# ux-check capture artifacts (screenshots + report, not committed)
-/.ux-captures/
+# ux-check capture artifacts now live in docs/ux-check/captures/ (covered by /docs/ below)
 
 # internal planning docs and working memory (kept private to maintainers)
 /docs/

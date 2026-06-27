@@ -27,9 +27,18 @@ export function LoginButton() {
           // to EVE SSO, then back through the provider callback).
           void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: '/' });
         }}
-        className="inline-flex items-center gap-2 font-mono text-[12px] px-[13px] py-1.5 rounded-[3px] border border-border-idle bg-surface-sunk text-text whitespace-nowrap hover:border-border-active hover:text-name transition-colors"
+        className="inline-flex items-center hover:opacity-80 transition-opacity"
       >
-        Log in with EVE
+        {/* CCP's official "Log in with EVE Online" SSO button (served locally from
+            /public). Intrinsic 270×45, height-fit to the header; the <img> alt is
+            the button's accessible name. */}
+        <img
+          src="/eve-sso-login-black-large.png"
+          alt="Log in with EVE Online"
+          width={270}
+          height={45}
+          className="h-8 w-auto"
+        />
       </button>
     );
   }

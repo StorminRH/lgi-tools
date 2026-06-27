@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
-import { HoverPopover } from '@/components/ui/hover-popover';
+import { Popover } from '@/components/ui/popover';
 
 // Shared chrome for the Cockpit KPI tile row (`.kpi` in the handoff). A bordered
 // section-bg panel with an optional 2px top accent and a fixed min height; the
@@ -40,22 +40,13 @@ export function KpiTile({
 // and Net margin tiles so the trigger chrome is defined once.
 export function KpiHelp({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <HoverPopover
+    <Popover
       label={label}
-      panelClassName="kpi-tooltip-panel"
-      trigger={
-        <span
-          role="button"
-          tabIndex={0}
-          aria-label={label}
-          className="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg font-mono text-[9px] font-bold text-muted hover:border-isk-dim hover:text-isk"
-        >
-          ?
-        </span>
-      }
+      trigger="?"
+      triggerClassName="inline-flex h-[15px] w-[15px] cursor-help items-center justify-center rounded-full border border-border-idle bg-bg font-mono text-[9px] font-bold text-muted hover:border-isk-dim hover:text-isk"
     >
       {children}
-    </HoverPopover>
+    </Popover>
   );
 }
 
