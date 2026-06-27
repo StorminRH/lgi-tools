@@ -112,6 +112,39 @@ const SYNC_REFS = {
 // leave the shared budget comfortable.
 const SWEEP_DELETE_BATCH = 512;
 
+// The overdue/hot-set dispatch passes — the 30s scan and the sweep's Pass A and
+// Pass B — read at most this many subjects per run, oldest-first, so a large due
+// or hot set can't approach Convex's ~4,096 index-range-read per-mutation ceiling
+// (docs/CONVEX.md), the one capacity wall no tier lifts. A backlog drains over
+// subsequent runs (the scan's 30s tick, the sweep's 15-min run) — same posture as
+// Pass C's SWEEP_DELETE_BATCH. 1024 = 2× SWEEP_DELETE_BATCH and a 4× margin below
+// the ceiling; far above any realistic single-run set (the audit models ~0.021×
+// users due/tick → ~210 at 10k users, not reached until tens of thousands), so
+// normal operation stays single-run. Per-row cost against the ceiling is one
+// indexed presence/subject read — the dispatch path's rate-limiter + workpool
+// calls are isolated Convex components, billed against their own budget.
+export const SCAN_DISPATCH_BATCH = 1024;
+
+// One structured line when a bounded dispatch pass hit its cap — the next run
+// drains the rest (NOT silent truncation), oldest-first. Shared by the scan and
+// the sweep's overdue + dropped passes (all new log lines). Pass C's retention
+// GC keeps its own long-standing warn with its deletedThisRun field, so existing
+// log queries don't lose it.
+function logBatchCapped(scope: string, note: string, processed: number): void {
+  console.warn(JSON.stringify({ scope, note, processed }));
+}
+
+// The overdue range shared by the 30s scan and the sweep's Pass A: due subjects
+// (nextDueAt in (0, now]) oldest-first, capped at SCAN_DISPATCH_BATCH so neither
+// reader can approach the per-mutation read ceiling. A dispatched/retired/deleted
+// row leaves the range, so a backlog drains over subsequent runs.
+function dueSubjects(ctx: MutationCtx, now: number): Promise<Doc<'syncSubjects'>[]> {
+  return ctx.db
+    .query('syncSubjects')
+    .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
+    .take(SCAN_DISPATCH_BATCH);
+}
+
 // The liveness signal and the on-view trigger. Every beat refreshes presence
 // — written to the syncPresence row, a doc forViewer never reads, so an
 // interval beat no longer re-runs the heavy tracker payload (3.5.e1). Interval
@@ -205,10 +238,17 @@ export const scan = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const due = await ctx.db
-      .query('syncSubjects')
-      .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
-      .collect();
+    // Bounded oldest-due-first (by_next_due ascends on nextDueAt). A dispatched
+    // row re-arms nextDueAt one cadence out and a retired row nulls it, so both
+    // leave this range — a genuine backlog drains deterministically over
+    // subsequent 30s ticks. A skipped running-fresh row keeps its small nextDueAt
+    // and can be re-selected, but it ages out of isRunningFresh within
+    // STALE_RUNNING_MS and is then taken over (nextDueAt advances), so it can't
+    // hold a batch slot indefinitely; worst-case added drain latency behind a
+    // running-fresh cluster is bounded by STALE_RUNNING_MS. (Only skills can be
+    // overdue-and-running-fresh: jobs/corp cadence 300s > the 180s stale
+    // threshold, so they're never fresh by the time they re-come-due.)
+    const due = await dueSubjects(ctx, now);
     for (const subject of due) {
       // Presence is its own doc now (3.5.e1) — one point read per due row,
       // only over the hot, already-scheduled set. A missing doc reads as cold.
@@ -220,6 +260,7 @@ export const scan = internalMutation({
       if (isRunningFresh(subject.status, subject.lastRequestedAt, now)) continue;
       await dispatch(ctx, subject, now);
     }
+    if (due.length === SCAN_DISPATCH_BATCH) logBatchCapped('engine:scan', 'scan_batch_capped', due.length);
   },
 });
 
@@ -337,17 +378,20 @@ export const onSyncComplete = internalMutation({
 //
 // Three bounded indexed passes, never a full-table scan (3.5.e2). Each reads
 // only the rows that can need action, so the work scales with live working
-// sets — not the total retained-subject count — and stays well under Convex's
-// per-mutation read/scan/call limits:
+// sets — not the total retained-subject count — and each is ALSO row-capped
+// (oldest-first .take()) so no pass can approach the ~4,096-read per-mutation
+// ceiling, draining any backlog over subsequent runs:
 //   A. overdue — by_next_due over (0, now], the 30s scan's own range: delete
-//      past-retention / retire cold-within-retention / dispatch hot. Bounded
-//      by the overdue backlog (≈0 on a healthy system).
+//      past-retention / retire cold-within-retention / dispatch hot. Capped at
+//      SCAN_DISPATCH_BATCH (≈0 on a healthy system, but the scan's own cap now
+//      lets a backlog form — this recovery pass must not read it unbounded).
 //   B. dropped — by_last_seen over hot presence (lastSeenAt ≥ now−COLD): a hot
 //      idle row with targets but no schedule (timer wiped mid-flight) is
-//      re-armed. Bounded by the concurrently-watched set.
+//      re-armed. Capped at SCAN_DISPATCH_BATCH (a backstop sample of the
+//      concurrently-watched set; the on-view heartbeat is the primary re-arm).
 //   C. abandoned — by_last_seen over past-retention presence (lastSeenAt <
-//      now−RETENTION): delete subject + presence, oldest first, capped per run.
-//      Bounded by per-run retention crossings.
+//      now−RETENTION): delete subject + presence, oldest first, capped per run
+//      at SWEEP_DELETE_BATCH. Bounded by per-run retention crossings.
 // A runs first so its writes are visible (read-your-writes) to B/C: a row A
 // dispatched leaves the null-scheduled set B scans, and a row A deleted is gone
 // from C's presence range, so no row is acted on twice. The cold-but-within-
@@ -384,10 +428,11 @@ interface SweepCounts {
 // row, only over the hot, already-scheduled set. Delete past-retention /
 // never-seen rows, retire cold-within-retention, dispatch hot.
 async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts): Promise<void> {
-  const due = await ctx.db
-    .query('syncSubjects')
-    .withIndex('by_next_due', (q) => q.gt('nextDueAt', 0).lte('nextDueAt', now))
-    .collect();
+  // Same bounded oldest-due-first range as the 30s scan (and the same per-row
+  // presence read). Capped at SCAN_DISPATCH_BATCH so that once the scan's own cap
+  // lets an overdue backlog form, this recovery pass can't read it unbounded into
+  // the 4,096-read ceiling — it drains the rest on the next 15-min run.
+  const due = await dueSubjects(ctx, now);
   for (const subject of due) {
     const presence = await getPresence(ctx.db, subject.dataset, subject.userId);
     switch (
@@ -409,16 +454,23 @@ async function sweepOverdue(ctx: MutationCtx, now: number, counts: SweepCounts):
         break;
     }
   }
+  if (due.length === SCAN_DISPATCH_BATCH) logBatchCapped('engine:sweep', 'overdue_batch_capped', due.length);
 }
 
 // Pass B — dropped timers: a hot, idle subject with targets but no schedule
 // (e.g. state wiped mid-flight). Only the hot presence rows; Pass A already
 // owns anything still scheduled, so a non-null nextDueAt is its province.
 async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts): Promise<void> {
+  // Bounded read over the hot presence set (by_last_seen ascends, so oldest-seen
+  // first). Unlike the overdue passes this is a backstop, not a drain: a re-armed
+  // row keeps its presence (stays in by_last_seen), and the on-view heartbeat is
+  // the PRIMARY dropped-timer re-arm — so capping the read only means a hot row
+  // beyond the cap is reconciled by its own next heartbeat or a later sweep as its
+  // lastSeenAt rotates toward the cap window. The cap buys ceiling-safety only.
   const hot = await ctx.db
     .query('syncPresence')
     .withIndex('by_last_seen', (q) => q.gte('lastSeenAt', now - COLD_AFTER_MS))
-    .collect();
+    .take(SCAN_DISPATCH_BATCH);
   for (const presence of hot) {
     const subject = await getSyncSubject(ctx.db, presence.dataset, presence.userId);
     if (subject === null || subject.nextDueAt !== null) continue;
@@ -430,6 +482,7 @@ async function sweepDropped(ctx: MutationCtx, now: number, counts: SweepCounts):
       if (await dispatch(ctx, subject, now)) counts.dispatched += 1;
     }
   }
+  if (hot.length === SCAN_DISPATCH_BATCH) logBatchCapped('engine:sweep', 'dropped_batch_capped', hot.length);
 }
 
 // Pass C — abandoned: past-retention presence (oldest first), deleted with its

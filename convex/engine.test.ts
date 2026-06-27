@@ -1,10 +1,21 @@
 // @vitest-environment edge-runtime
 import { RateLimiter } from '@convex-dev/rate-limiter';
+import { Workpool } from '@convex-dev/workpool';
 import { convexTest } from 'convex-test';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COLD_AFTER_MS, RETENTION_MS } from '@/lib/sync-engine';
 import { api, internal } from './_generated/api';
+import { SCAN_DISPATCH_BATCH } from './engine';
 import schema from './schema';
+
+// Make the dispatch path inert in convex-test: the rate limiter always admits and
+// the workpool enqueue returns a fake workId, so a dispatched subject just flips
+// to 'running' without touching the real components (same posture as the existing
+// rate-limited-dispatch sweep test, which mocks the limiter to refuse).
+function stubDispatch() {
+  vi.spyOn(RateLimiter.prototype, 'limit').mockResolvedValue({ ok: true, retryAfter: 0 } as never);
+  vi.spyOn(Workpool.prototype, 'enqueueAction').mockResolvedValue('w-test' as never);
+}
 
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
 
@@ -165,6 +176,70 @@ describe('engine.scan', () => {
     );
     expect(subject?.nextDueAt).toBe(now - 1000);
     expect(subject?.status).toBe('running');
+  });
+
+  it('dispatches every due subject in one tick when under the cap', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    stubDispatch();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 3; i++) {
+        await ctx.db.insert('syncSubjects', subjectRow({
+          userId: `u${i}`,
+          nextDueAt: now - 1000,
+          syncedCharacterIds: [101],
+        }));
+        await ctx.db.insert('syncPresence', { dataset: 'skills', userId: `u${i}`, lastSeenAt: now });
+      }
+    });
+
+    await t.mutation(internal.engine.scan, {});
+
+    const statuses = await t.run(async (ctx) =>
+      (await ctx.db.query('syncSubjects').collect()).map((s) => s.status).sort(),
+    );
+    expect(statuses).toEqual(['running', 'running', 'running']);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('caps the dispatch at the batch and drains the backlog on the next tick', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    stubDispatch();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const total = SCAN_DISPATCH_BATCH + 1;
+    await t.run(async (ctx) => {
+      for (let i = 0; i < total; i++) {
+        // Distinct, all-past nextDueAt so the by_next_due take order is
+        // deterministic: the oldest SCAN_DISPATCH_BATCH dispatch first.
+        await ctx.db.insert('syncSubjects', subjectRow({
+          userId: `u${i}`,
+          nextDueAt: now - total + i,
+          syncedCharacterIds: [101],
+        }));
+        await ctx.db.insert('syncPresence', { dataset: 'skills', userId: `u${i}`, lastSeenAt: now });
+      }
+    });
+
+    await t.mutation(internal.engine.scan, {});
+    const tick1 = await t.run(async (ctx) => {
+      const rows = await ctx.db.query('syncSubjects').collect();
+      return {
+        running: rows.filter((s) => s.status === 'running').length,
+        idle: rows.filter((s) => s.status === 'idle').length,
+      };
+    });
+    expect(tick1).toEqual({ running: SCAN_DISPATCH_BATCH, idle: 1 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('scan_batch_capped');
+
+    await t.mutation(internal.engine.scan, {});
+    const tick2Running = await t.run(async (ctx) =>
+      (await ctx.db.query('syncSubjects').collect()).filter((s) => s.status === 'running').length,
+    );
+    expect(tick2Running).toBe(total);
+    expect(warn).toHaveBeenCalledTimes(1); // the sub-cap second tick logs nothing
   });
 });
 
@@ -348,5 +423,56 @@ describe('engine.sweep', () => {
         .unique(),
     );
     expect(subject?.nextDueAt).toBeGreaterThanOrEqual(now + 1000);
+  });
+
+  it('caps Pass A and drains overdue deletions across runs', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const total = SCAN_DISPATCH_BATCH + 1;
+    await t.run(async (ctx) => {
+      for (let i = 0; i < total; i++) {
+        // Overdue with NO presence → classifyDueSubject(null,…) === 'delete'.
+        await ctx.db.insert('syncSubjects', subjectRow({ userId: `u${i}`, nextDueAt: now - total + i }));
+      }
+    });
+
+    const run1 = await t.mutation(internal.engine.sweep, {});
+    expect(run1.deleted).toBe(SCAN_DISPATCH_BATCH);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('overdue_batch_capped');
+    const remaining1 = await t.run((ctx) => ctx.db.query('syncSubjects').collect());
+    expect(remaining1).toHaveLength(1);
+
+    const run2 = await t.mutation(internal.engine.sweep, {});
+    expect(run2.deleted).toBe(1);
+    const remaining2 = await t.run((ctx) => ctx.db.query('syncSubjects').collect());
+    expect(remaining2).toHaveLength(0);
+    expect(warn).toHaveBeenCalledTimes(1); // the sub-cap second run logs nothing
+  });
+
+  it("caps Pass B's hot-set read and logs without dispatching", async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const total = SCAN_DISPATCH_BATCH + 1;
+    await t.run(async (ctx) => {
+      for (let i = 0; i < total; i++) {
+        // Hot presence + an idle, no-target, unscheduled subject: Pass B reads it
+        // but hasSyncTarget is false, so it skips dispatch — exercising the read
+        // cap, not the dispatch path. (Pass A skips these: nextDueAt is null.)
+        await ctx.db.insert('syncSubjects', subjectRow({
+          userId: `u${i}`,
+          nextDueAt: null,
+          syncedCharacterIds: [],
+        }));
+        await ctx.db.insert('syncPresence', { dataset: 'skills', userId: `u${i}`, lastSeenAt: now - 1000 });
+      }
+    });
+
+    const counts = await t.mutation(internal.engine.sweep, {});
+    expect(counts.dispatched).toBe(0);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('dropped_batch_capped');
   });
 });
