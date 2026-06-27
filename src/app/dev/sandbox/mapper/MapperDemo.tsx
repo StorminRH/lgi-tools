@@ -148,7 +148,10 @@ function SortableSig({ sig }: { sig: Sig }) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.style.setProperty('--sbx-tf', CSS.Transform.toString(transform) ?? 'none');
+    // `||` not `??`: a valid transform is always a truthy non-empty string, so we
+    // want the 'none' fallback for any empty/absent value regardless of whether
+    // dnd-kit's util returns undefined (it does, in 3.2.2) or '' in a later version.
+    el.style.setProperty('--sbx-tf', CSS.Transform.toString(transform) || 'none');
     el.style.setProperty('--sbx-tr', transition ?? 'none');
   }, [transform, transition]);
 
