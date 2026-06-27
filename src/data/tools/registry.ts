@@ -52,3 +52,17 @@ export const TOOLS: Tool[] = [
     navHidden: true,
   },
 ];
+
+// The tools shown in the header navigation. Both the desktop strip (NavTools)
+// and the mobile hamburger (NavMenu) iterate this one list, so adding a link is
+// a single registry entry that appears in both at once.
+export function visibleNavTools(): Tool[] {
+  return TOOLS.filter((tool) => !tool.navHidden);
+}
+
+// Whether `tool` is the active page for the current pathname. Prefix-based, so a
+// tool stays highlighted across its sub-routes (e.g. /sites/30002 → Wormhole
+// Sites). `pathname` is null in the static shell before it streams in.
+export function isToolActive(tool: Tool, pathname: string | null): boolean {
+  return pathname != null && !!tool.matchPrefix && pathname.startsWith(tool.matchPrefix);
+}

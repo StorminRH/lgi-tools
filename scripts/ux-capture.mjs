@@ -121,7 +121,7 @@ function watchPage(page) {
 // expanded. Best-effort — returns null where the toggle isn't present.
 async function captureNavOpen(page, slug, viewport) {
   try {
-    const toggle = page.locator('summary.nav-menu-toggle');
+    const toggle = page.locator('button.nav-menu-toggle');
     if (!(await toggle.isVisible())) return null;
     await toggle.click();
     await page.waitForTimeout(250);

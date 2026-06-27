@@ -1073,7 +1073,10 @@ a:hover {
 .nav-tool.active { color: var(--color-name); }
 .nav-tool.active::after { opacity: 1; }
 .nav-tool.soon { opacity: 0.4; cursor: default; }
-.nav-tool:last-child { border-right: none; }
+/* The strip is now a NavigationMenu (<nav><ul><li><a class="nav-tool">), so the
+ * last cell is reached via its <li> — a bare `.nav-tool:last-child` would match
+ * every cell (each is the only child of its own <li>) and drop all separators. */
+.nav-tools li:last-child .nav-tool { border-right: none; }
 
 /* ── Responsive defensive layer (v2.9.6) ───────────────────────────────
  * LGI.tools is desktop-first; this block is the Level-1 floor that keeps
@@ -1122,51 +1125,36 @@ a:hover {
 }
 
 /* Hamburger menu (NavMenu) — the mobile counterpart to the inline tool strip +
- * login cluster. Hidden by default; the <1024px block below reveals it on the
- * bar. A pure <details> disclosure (no React state): the panel drops below the
- * whole wrapped header, anchored to .app-header's relative positioning. The
- * inline strip + login are hidden on mobile with a DIRECT-child combinator
- * (`.app-header > …`) so the panel's reused copies, nested one level deeper,
- * stay visible. */
-.nav-menu { display: none; align-items: stretch; }
+ * login cluster. The trigger <button> is hidden by default; the <1024px block
+ * below reveals it on the bar. The panel is a Base UI Menu popup, portaled to
+ * <body> and positioned by Floating UI against .app-header (so it drops below
+ * the whole wrapped header). It carries its own surface here; the vertical stack
+ * of full-width tap targets comes from the primitive's `flex flex-col`. The
+ * inline strip + login are hidden on mobile by the rule further down. */
 .nav-menu-toggle {
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 0 16px;
   border-left: 1px solid var(--color-border);
   color: var(--color-muted);
   cursor: pointer;
-  list-style: none;
   transition: color 0.15s, background 0.15s;
 }
-.nav-menu-toggle::-webkit-details-marker { display: none; }
 .nav-menu-toggle:hover,
-.nav-menu[open] .nav-menu-toggle {
+.nav-menu-toggle[data-popup-open] {
   color: var(--color-name);
   background: var(--color-row-hover);
 }
 .nav-menu-icon { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; }
 .nav-menu-panel {
-  display: none;
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 50;
   min-width: 224px;
   background: var(--color-section);
   border: 1px solid var(--color-border);
   border-top: none;
   box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.55);
 }
-.nav-menu[open] .nav-menu-panel { display: block; }
-/* the panel reuses NavTools, restacked vertically into full-width tap targets */
-.nav-menu-panel .nav-tools {
-  flex-direction: column;
-  align-items: stretch;
-  margin: 0;
-  border-left: none;
-}
+/* the link rows, restacked vertically into full-width tap targets */
 .nav-menu-panel .nav-tool {
   padding: 12px 16px;
   border-right: none;
@@ -1202,7 +1190,7 @@ a:hover {
   .app-header > .nav-tools,
   .app-header > .login-cluster { display: none; }
   .server-status-slot { margin-left: auto; }
-  .nav-menu { display: flex; }
+  .nav-menu-toggle { display: inline-flex; }
 }
 
 /* /sites card grid: 2-column at rest, single column under 900px (matching the
