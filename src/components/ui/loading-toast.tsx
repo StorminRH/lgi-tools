@@ -109,4 +109,13 @@ function useSyncToast(active: boolean): void {
     }
     wasActive.current = active;
   }, [active]);
+
+  // Safety net (mount/unmount only): if the provider ever unmounts mid-sync — in
+  // practice just a dev HMR cycle on the root layout, since it's persistent in
+  // prod — dismiss the Infinity-duration loading toast so it can't orphan into
+  // the next mount. Kept in its own [] effect so it fires on unmount, not on
+  // every `active` transition.
+  useEffect(() => () => {
+    toast.dismiss(SYNC_TOAST_ID);
+  }, []);
 }
