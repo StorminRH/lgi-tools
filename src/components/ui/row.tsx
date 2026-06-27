@@ -4,8 +4,8 @@ import { cn } from './cn';
 /**
  * EntityRow — grid row (leading badge / name / optional chips / trailing stats).
  * Used for any "count × thing → stats" line. Tunable column template via
- * `colsClass` (a Tailwind `grid-cols-[…]` class — never an inline style, which
- * the production CSP drops). When `chips` is provided the default columns add a
+ * `colsClass` (a Tailwind `grid-cols-[…]` class — never an inline style, per
+ * house style). When `chips` is provided the default columns add a
  * dedicated chip column so trailing stats stay aligned regardless of chip count.
  */
 export function EntityRow({

@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.3 — 2026-06-26
+
+#### Fixed
+- The "syncing" indicator that shows while your live data is refreshing no longer drifts away from the top of the screen when you scroll the page while it's up.
+
+#### Changed
+- That syncing indicator is now a small terminal-style status toast near the top of the screen — it appears while data loads, confirms when it's done, and clears itself.
+
 ### v3.7.2 — 2026-06-25
 
 #### Added

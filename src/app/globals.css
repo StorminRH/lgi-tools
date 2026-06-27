@@ -280,8 +280,8 @@ a:hover {
 }
 
 /* Landing wordmark glow (handoff §3) — a soft ISK-green bloom behind the
- * hero mark. A scoped rule (not an inline style) so it ships under the strict
- * CSP, which drops `style="..."` attributes. */
+ * hero mark. A scoped stylesheet rule (not an inline style) — house style:
+ * styling lives in the stylesheet/token layer rather than on the element. */
 .hero-wordmark {
   text-shadow: 0 0 36px rgba(61, 214, 140, 0.12);
 }
@@ -376,12 +376,12 @@ a:hover {
   .hover-bob:hover { animation: none; }
 }
 
-/* ── progress bar fill (CSP-safe dynamic width) ─────────────────────────
+/* ── progress bar fill (dynamic width via custom property) ───────────────
  * The fill width is a runtime value (a telemetry percentage), so it can't be
  * a build-time Tailwind class. <ProgressBar> sets `--pct` via
- * style.setProperty in an effect — JS-applied styles aren't gated by the
- * production CSP's `style-src`, unlike an inline `style="width:N%"` attribute
- * which the strict policy silently drops. Falls back to 0% pre-hydration. */
+ * style.setProperty in an effect, which this rule reads — the house-style
+ * alternative to an inline `style="width:N%"` attribute. Falls back to 0%
+ * pre-hydration. */
 .progress-fill {
   width: var(--pct, 0%);
   transition: width 0.3s ease;
@@ -390,12 +390,12 @@ a:hover {
   .progress-fill { transition: none; }
 }
 
-/* ── Sparkline tooltip (CSP-safe dynamic position) ──────────────────────
+/* ── Sparkline tooltip (dynamic position via custom property) ────────────
  * <Sparkline> (src/components/ui/sparkline.tsx) sets `--tt-x` / `--tt-y` via
- * style.setProperty on hover — the same CSSOM trick as .progress-fill, since
- * the production CSP's `style-src 'self'` drops an inline `style="left:…"`
- * attribute. The anchor element translates to the hovered point; the inner
- * box (static transform) floats centered just above it. */
+ * style.setProperty on hover — the same CSSOM trick as .progress-fill, the
+ * house-style alternative to an inline `style="left:…"` attribute. The anchor
+ * element translates to the hovered point; the inner box (static transform)
+ * floats centered just above it. */
 .sparkline-tooltip {
   position: absolute;
   top: 0;
@@ -957,8 +957,7 @@ a:hover {
  * Lives in AppHeader between the wordmark and NavTools. At rest the input
  * is 280px wide with a placeholder + ⌘K hint; on focus it grows to 440px
  * and the tool strip collapses to its 2-letter abbreviations. The dropdown
- * absolute-positions under the input. Verbatim port from
- * docs/wireframes/nav-search-inline-push.html. */
+ * absolute-positions under the input. */
 .nav-host {
   display: flex;
   align-items: stretch;
@@ -1074,14 +1073,16 @@ a:hover {
 .nav-tool.active { color: var(--color-name); }
 .nav-tool.active::after { opacity: 1; }
 .nav-tool.soon { opacity: 0.4; cursor: default; }
-.nav-tool:last-child { border-right: none; }
+/* The strip is now a NavigationMenu (<nav><ul><li><a class="nav-tool">), so the
+ * last cell is reached via its <li> — a bare `.nav-tool:last-child` would match
+ * every cell (each is the only child of its own <li>) and drop all separators. */
+.nav-tools li:last-child .nav-tool { border-right: none; }
 
 /* ── Responsive defensive layer (v2.9.6) ───────────────────────────────
  * LGI.tools is desktop-first; this block is the Level-1 floor that keeps
  * the site usable on laptop (1366×768) and tablet (1024×768) viewports
  * without overlap or horizontal scroll. Full mobile UX defers to a
- * post-Phase-3 version. Breakpoints (1500 / 1024 / 900 / 700 / 640) match
- * the VERSION_2.9_PLAN.md spec. */
+ * post-Phase-3 version. Breakpoints: 1500 / 1024 / 900 / 700 / 640. */
 
 /* Below this floor the wordmark + search + right-aligned strip leave less room,
  * so tighten the tool cells (padding / size) to keep the two full labels and the
@@ -1122,107 +1123,38 @@ a:hover {
 @media (prefers-reduced-motion: reduce) {
   .status-led { animation: none; }
 }
-/* Reusable hover/focus popover primitive (src/components/ui/hover-popover.tsx).
- * One implementation for the price-freshness chip, the planner's material-price
- * chips, and (future) the /sites resource preview. The panel is hidden until
- * [data-open], which the component toggles on hover + focus with a short close
- * delay — so the trigger→panel gap needs no invisible click-catching bridge. */
-.hover-popover {
-  position: relative;
-  display: inline-flex;
-}
-.hover-popover-trigger {
-  display: inline-flex;
-  align-items: center;
-  outline: none;
-}
-.hover-popover-panel {
-  display: none;
-  position: absolute;
-  z-index: 50;
-  width: 200px;
-  background: var(--color-section);
-  border: 1px solid var(--color-isk-dim);
-  border-radius: 4px;
-  padding: 12px 14px;
-  box-shadow:
-    0 0 0 1px rgba(61, 214, 140, 0.12),
-    0 8px 24px -8px rgba(61, 214, 140, 0.2);
-  text-transform: none;
-  letter-spacing: normal;
-  white-space: normal;
-  font-size: 11px;
-}
-.hover-popover-panel[data-open] {
-  display: block;
-}
-.hover-popover-panel[data-placement='bottom'] {
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-.hover-popover-panel[data-placement='right'] {
-  top: 0;
-  left: calc(100% + 14px);
-}
-
-/* Cockpit help tooltips (the TooltipPanel content + KpiHelp trigger): wider than
- * the default chip popover so the rows don't clip, and the raised-slate colour
- * from the design mock (no green glow). Scoped to this variant so the price /
- * material-price chips keep their existing chrome. */
-.hover-popover-panel.kpi-tooltip-panel {
-  width: 272px;
-  background: var(--color-tooltip);
-  border-color: var(--color-border);
-  box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.55);
-}
 
 /* Hamburger menu (NavMenu) — the mobile counterpart to the inline tool strip +
- * login cluster. Hidden by default; the <1024px block below reveals it on the
- * bar. A pure <details> disclosure (no React state): the panel drops below the
- * whole wrapped header, anchored to .app-header's relative positioning. The
- * inline strip + login are hidden on mobile with a DIRECT-child combinator
- * (`.app-header > …`) so the panel's reused copies, nested one level deeper,
- * stay visible. */
-.nav-menu { display: none; align-items: stretch; }
+ * login cluster. The trigger <button> is hidden by default; the <1024px block
+ * below reveals it on the bar. The panel is a Base UI Menu popup, portaled to
+ * <body> and positioned by Floating UI against .app-header (so it drops below
+ * the whole wrapped header). It carries its own surface here; the vertical stack
+ * of full-width tap targets comes from the primitive's `flex flex-col`. The
+ * inline strip + login are hidden on mobile by the rule further down. */
 .nav-menu-toggle {
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 0 16px;
   border-left: 1px solid var(--color-border);
   color: var(--color-muted);
   cursor: pointer;
-  list-style: none;
   transition: color 0.15s, background 0.15s;
 }
-.nav-menu-toggle::-webkit-details-marker { display: none; }
 .nav-menu-toggle:hover,
-.nav-menu[open] .nav-menu-toggle {
+.nav-menu-toggle[data-popup-open] {
   color: var(--color-name);
   background: var(--color-row-hover);
 }
 .nav-menu-icon { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; }
 .nav-menu-panel {
-  display: none;
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 50;
   min-width: 224px;
   background: var(--color-section);
   border: 1px solid var(--color-border);
   border-top: none;
   box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.55);
 }
-.nav-menu[open] .nav-menu-panel { display: block; }
-/* the panel reuses NavTools, restacked vertically into full-width tap targets */
-.nav-menu-panel .nav-tools {
-  flex-direction: column;
-  align-items: stretch;
-  margin: 0;
-  border-left: none;
-}
+/* the link rows, restacked vertically into full-width tap targets */
 .nav-menu-panel .nav-tool {
   padding: 12px 16px;
   border-right: none;
@@ -1258,7 +1190,7 @@ a:hover {
   .app-header > .nav-tools,
   .app-header > .login-cluster { display: none; }
   .server-status-slot { margin-left: auto; }
-  .nav-menu { display: flex; }
+  .nav-menu-toggle { display: inline-flex; }
 }
 
 /* /sites card grid: 2-column at rest, single column under 900px (matching the
@@ -1483,8 +1415,8 @@ details[data-collapsible][open] > summary [data-chevron] {
 /* ── PriceConfidence (src/components/ui/price-confidence.tsx) ─────────
  * Abstract data-quality badge: an abstract level → glyph (● ◐ ○) + tone.
  * The glyph is a ::after pseudo-element (the half-circle uses clip-path),
- * neither expressible as a CSP-safe inline style. Tooltips are handled by
- * the HoverPopover primitive at the call site, not a CSS title tooltip. */
+ * neither expressible as an inline style. The "why" panel is handled by
+ * the shared Popover primitive at the call site, not a CSS title tooltip. */
 .price-confidence {
   width: 13px;
   height: 13px;
@@ -1540,22 +1472,13 @@ details[data-collapsible][open] > summary [data-chevron] {
   }
 }
 
-/* ── Sitewide loading toast (loading-toast.tsx) ──────────────────────
- * Drops from under the 50px nav while any dynamic surface loads. The slide
- * is a transform transition keyed by [data-open] (CSP-safe — a stylesheet
- * rule, not an inline style); under reduced motion it appears instantly. */
-.loading-toast-panel {
-  transform: translateY(-100%);
-  transition: transform 260ms cubic-bezier(0.2, 0.85, 0.25, 1);
-  will-change: transform;
-}
-.loading-toast-panel[data-open='true'] {
-  transform: translateY(0);
-}
-@media (prefers-reduced-motion: reduce) {
-  .loading-toast-panel {
-    transition: none;
-  }
+/* ── Sonner toast — terminal theming (components/ui/toast.tsx) ───────────
+ * The card + colours are className-driven (unstyled toaster); this only tints the
+ * loading spinner, which sonner paints from --gray11 in its OWN un-layered rule.
+ * A className utility can't beat that (un-layered outranks @layer), so the green
+ * tint lives here: scoped + higher specificity than `.sonner-loading-bar`. */
+[data-sonner-toaster] .sonner-loading-bar {
+  background: var(--color-isk);
 }
 
 /* ── Site card lightbox (SiteCardLightbox) ───────────────────────────────
@@ -1579,19 +1502,12 @@ details[data-collapsible][open] > summary [data-chevron] {
   width: max-content;
   max-width: calc(100vw - 2rem);
 }
+/* The scroll container inside the dialog box. The scale-in/out + dim now live on
+ * the shared Dialog primitive (the Base UI popup + backdrop), so this is just the
+ * height clamp + scroll. */
 .sites-lightbox-panel {
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
-  transform: scale(0.92);
-  opacity: 0;
-  transition:
-    transform 200ms cubic-bezier(0.2, 0.85, 0.25, 1),
-    opacity 200ms cubic-bezier(0.2, 0.85, 0.25, 1);
-  will-change: transform, opacity;
-}
-.sites-lightbox-panel[data-open='true'] {
-  transform: scale(1);
-  opacity: 1;
 }
 /* Magnify the card content so the lightbox reads as an enlarged card, not a big
  * box of card-sized text. `zoom` (not `transform: scale`) so it reflows and stays
@@ -1603,7 +1519,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 }
 /* Phone: a full-bleed sheet at native scale — the narrow sheet is already as
  * readable as it gets, and scaling a full-screen sheet reads oddly, so fade only
- * (opacity still transitions; transform is pinned) and drop the zoom. */
+ * (opacity still transitions; the scale is pinned) and drop the zoom. */
 @media (max-width: 640px) {
   .sites-lightbox-dialog {
     width: 100vw;
@@ -1613,20 +1529,17 @@ details[data-collapsible][open] > summary [data-chevron] {
     margin: 0;
     border: none;
     border-radius: 0;
+    /* The scale-in lives on this element now (the Base UI popup). Pin it so the
+     * full-bleed phone sheet fades only — scaling a full-screen sheet reads
+     * oddly. (Un-layered, so it outranks the primitive's data-state utilities.) */
+    scale: 1;
   }
-  .sites-lightbox-panel,
-  .sites-lightbox-panel[data-open='true'] {
+  .sites-lightbox-panel {
     max-height: 100dvh;
-    transform: none;
   }
   .sites-lightbox-zoom {
     zoom: 1;
     width: auto;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sites-lightbox-panel {
-    transition: none;
   }
 }
 

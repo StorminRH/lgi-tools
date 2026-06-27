@@ -19,7 +19,7 @@ export interface ApiEndpoint<TIn, TData> {
   // bodies are never client-parsed. null = the endpoint takes no body.
   // Zod 4 signature: ZodType<Output, Input> — the SECOND param is the input
   // type (Zod 3 had a three-param ZodType<O, Def, I> where the second was the
-  // internal typedef; this code requires the installed Zod 4, see CLAUDE.md).
+  // internal typedef; this code requires the installed Zod 4).
   request: z.ZodType<unknown, TIn> | null;
   // Success-body schema. Outside production it safeParses the body and
   // console.errors on drift; EVERY environment returns the raw json — never

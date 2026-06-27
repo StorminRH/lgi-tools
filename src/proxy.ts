@@ -33,16 +33,17 @@ const CONVEX_CONNECT_SRC = (() => {
 // Per-request Content-Security-Policy. Through 3.0.4.5 this used a fresh
 // per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which
 // forced every route to dynamic rendering. 3.0.4.6 retired the nonce — the
-// conversion-track enabler — for a basic origin-locked policy: scripts and
-// styles load only from our own origin (`'self'`), with `'unsafe-inline'`
-// admitting the inline RSC flight-data scripts that hydration needs.
+// conversion-track enabler — for a basic origin-locked policy: scripts load
+// from our own origin (`'self'`), with `'unsafe-inline'` admitting the inline
+// RSC flight-data scripts that hydration needs. OOB.1.1 then widened `style-src`
+// to `'self' 'unsafe-inline'` as well, so inline `style="…"` attributes are now
+// permitted in every environment (see the dev-relaxation note below).
 //
 // Why `'unsafe-inline'` and not a stricter form: every App Router page emits
 // inline `self.__next_f.push(...)` scripts that `'self'` alone can't bless, and
 // the nonce that used to bless them is what we're removing. Subresource
 // Integrity doesn't help — it signs only external script files, never inline
-// content (re-confirmed empirically in 3.0.4.6; see
-// docs/VERSION_3.0.4.3_CSP_DECISION.md). This keeps origin-level XSS protection
+// content (re-confirmed empirically in 3.0.4.6). This keeps origin-level XSS protection
 // (no third-party script hosts, no object/base/frame vectors) while dropping the
 // per-request mechanism that fought the stack. The header is still emitted from
 // proxy.ts per request; relocating/caching it is a later conversion-track step.
@@ -52,15 +53,16 @@ const CONVEX_CONNECT_SRC = (() => {
 export function proxy(request: NextRequest): NextResponse {
   const isDev = process.env.NODE_ENV === "development";
 
-  // Dev-only relaxations: `'unsafe-eval'` (React rebuilds server-side error
-  // stacks via eval in dev) and `'unsafe-inline'` on style-src (Fast Refresh /
-  // HMR injects nonce-less inline <style> tags). Production keeps `style-src
-  // 'self'` — styles ship in the external stylesheet — which still drops inline
-  // `style="…"` attributes, so the 3.0.4.4 inline-style lint rule stays correct.
+  // Dev-only relaxation: `'unsafe-eval'` on script-src (React rebuilds
+  // server-side error stacks via eval in dev). `style-src` now carries
+  // `'unsafe-inline'` in every environment (OOB.1.1), so inline `style="…"`
+  // attributes are no longer dropped in production — the 3.0.4.4 inline-style
+  // lint rule is kept as house style (Tailwind + CSSOM stay the default), not as
+  // a CSP requirement.
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""};
-    style-src 'self'${isDev ? " 'unsafe-inline'" : ""};
+    style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data: https://images.evetech.net;
     font-src 'self';
     connect-src 'self' https://login.eveonline.com https://*.vercel-insights.com${CONVEX_CONNECT_SRC};

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
-import { TooltipPanel, TooltipRow } from '@/components/ui/tooltip-panel';
+import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import type { MarketScore } from '@/data/industry-math/market-score';
 import { daysSinceHistoryDate, STALENESS_FLAG_DAYS } from '../market-score-inputs';
 import type { BlueprintStructure } from '../types';
@@ -74,20 +74,19 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
     staleDays !== null && staleDays >= STALENESS_FLAG_DAYS ? ageLabel(staleDays) : null;
 
   const breakdown = (
-    <TooltipPanel
-      header={
-        marketScore.score === null ? 'Market score — no history yet' : 'Score blends 3 live signals'
-      }
-    >
-      <TooltipRow label="Liquidity">how fast a batch sells ({value.liquidity})</TooltipRow>
-      <TooltipRow label="Price stability">recent swing in sell price ({value.stability})</TooltipRow>
-      <TooltipRow label="Demand depth">buy volume vs. listed supply ({value.demand})</TooltipRow>
+    <>
+      <PopoverHeading>
+        {marketScore.score === null ? 'Market score — no history yet' : 'Score blends 3 live signals'}
+      </PopoverHeading>
+      <PopoverRow label="Liquidity">how fast a batch sells ({value.liquidity})</PopoverRow>
+      <PopoverRow label="Price stability">recent swing in sell price ({value.stability})</PopoverRow>
+      <PopoverRow label="Demand depth">buy volume vs. listed supply ({value.demand})</PopoverRow>
       {staleAge && history?.latestDate && (
         <p className="font-body text-[11px] leading-snug text-tone-orange">
           Latest trade {history.latestDate} ({staleAge} ago) — reflects that period, not today.
         </p>
       )}
-    </TooltipPanel>
+    </>
   );
 
   return (

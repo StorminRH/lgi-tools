@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & contact
+    url: https://lgi.tools/contact
+    about: For general questions or to reach the maintainers, use the contact page.

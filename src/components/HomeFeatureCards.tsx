@@ -4,15 +4,14 @@ import { SectionLabel } from '@/components/ui/section-label';
 
 // The shared tool grid — identical for anonymous and signed-in visitors. The
 // card-glow + bob hover (reduced-motion gated in globals.css) and the
-// arbitrary-value grid template are CSP-clean (no inline `style`).
+// arbitrary-value grid template use classes, not inline `style` (house style).
 export function HomeFeatureCards() {
   return (
     <section>
       <SectionLabel className="mb-4">Tools</SectionLabel>
-      {/* Tailwind arbitrary-value class, not an inline `style` prop — production
-       * CSP is `style-src 'self'` (no nonce, no unsafe-inline), which would drop
-       * a `style="..."` attribute, leaving the grid with no column template
-       * until hydration. */}
+      {/* Tailwind arbitrary-value class, not an inline `style` prop — house
+       * style keeps the column template in a class so it renders server-side,
+       * not just after hydration. */}
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         <Link
           href="/sites"

@@ -26,6 +26,12 @@ const GALLERIES = [
     count: '6 variants',
     blurb: 'The home/sites card explored for depth and polish — elevation, bevel, hover glow, gradient sheen, and a cursor-tracking aurora.',
   },
+  {
+    href: '/dev/sandbox/mapper',
+    title: 'Wormhole mapper spike',
+    count: 'spike',
+    blurb: 'React Flow node graph + dnd-kit reorder — a throwaway renderer/interaction evaluation for the future v4.0 wormhole mapper.',
+  },
 ];
 
 async function SandboxIndex() {
