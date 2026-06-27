@@ -27,9 +27,31 @@ import { stampSyncSubject } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
 import { industryJobValidator } from './schema';
 
-// The calling user's synced job boards + run state, grouped client-side by
-// character. ETags and userId are custody/keying details — not on the wire.
+// The COLD half of the viewer split (SA.5): the calling user's synced job
+// boards, keyed by character. Its read set is industryJobsSyncData alone — so it
+// re-fires only on a genuine job-board change (a fresh body or a markJobReady
+// completion flip), never on a per-cycle 304/dispatch/completion. The client
+// joins it with runStateForViewer by character id.
 export const forViewer = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) return null;
+    const userId = identity.subject;
+    const docs = await ctx.db
+      .query('industryJobsSyncData')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    return {
+      characters: docs.map((doc) => ({ characterId: doc.characterId, data: doc.data })),
+    };
+  },
+});
+
+// The HOT half of the viewer split (SA.5): per-character freshness/error plus
+// the run lifecycle. Reads only the small hot meta docs (industryJobsSync) and
+// the subject row, so it re-fires every cycle cheaply.
+export const runStateForViewer = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -43,7 +65,6 @@ export const forViewer = query({
     return {
       characters: docs.map((doc) => ({
         characterId: doc.characterId,
-        data: doc.data,
         lastSyncedAt: doc.lastSyncedAt,
         syncError: doc.syncError,
       })),
@@ -70,9 +91,17 @@ export const heldState = internalQuery({
       .query('industryJobsSync')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
+    // Cold-doc presence is the data-presence gate after the split (a cold doc
+    // exists iff that character holds a board), so the held etag is only offered
+    // when a 304 would actually have a payload to confirm.
+    const coldDocs = await ctx.db
+      .query('industryJobsSyncData')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    const hasData = new Set(coldDocs.map((doc) => doc.characterId));
     return docs.map((doc) => ({
       characterId: doc.characterId,
-      jobsEtag: doc.data !== null ? doc.jobsEtag : null,
+      jobsEtag: hasData.has(doc.characterId) ? doc.jobsEtag : null,
     }));
   },
 });
@@ -118,6 +147,13 @@ export const applySyncResults = internalMutation({
       .withIndex('by_user', (q) => q.eq('userId', args.userId))
       .collect();
     const byCharacter = new Map(docs.map((doc) => [doc.characterId, doc]));
+    // The cold payload docs, loaded alongside so each result's apply gets its
+    // existing board and orphan cleanup can delete both halves together.
+    const coldDocs = await ctx.db
+      .query('industryJobsSyncData')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect();
+    const coldByCharacter = new Map(coldDocs.map((doc) => [doc.characterId, doc]));
     const now = Date.now();
     const enumerated = new Set(args.enumeratedCharacterIds);
 
@@ -131,9 +167,12 @@ export const applySyncResults = internalMutation({
         windowsByCharacter.set(doc.characterId, doc.expiresAt);
       } else {
         // Orphan cleanup: a character no longer linked to this user (unlinked,
-        // or reassigned) must not keep serving its old snapshot. Any flip still
-        // scheduled for a deleted doc no-ops on the missing job.
+        // or reassigned) must not keep serving its old snapshot. Delete BOTH the
+        // hot meta doc and the cold payload doc; any flip still scheduled for a
+        // deleted doc no-ops on the missing job.
         await ctx.db.delete(doc._id);
+        const cold = coldByCharacter.get(doc.characterId);
+        if (cold !== undefined) await ctx.db.delete(cold._id);
       }
     }
 
@@ -144,6 +183,7 @@ export const applySyncResults = internalMutation({
         args.userId,
         result,
         byCharacter.get(result.characterId),
+        coldByCharacter.get(result.characterId),
         now,
       );
       windowsByCharacter.set(result.characterId, expiresAt);
@@ -170,16 +210,32 @@ async function applyJobResult(
   ctx: MutationCtx,
   userId: string,
   result: CharacterResult,
-  existing: Doc<'industryJobsSync'> | undefined,
+  existingHot: Doc<'industryJobsSync'> | undefined,
+  existingCold: Doc<'industryJobsSyncData'> | undefined,
   now: number,
 ): Promise<number | null> {
-  let data = existing?.data ?? null;
+  const refreshed = result.error === null;
+  const hotFields = {
+    jobsEtag: result.jobsEtag,
+    lastSyncedAt: refreshed ? now : (existingHot?.lastSyncedAt ?? null),
+    expiresAt: refreshed ? result.expiresAt : null,
+    syncError: result.error,
+  };
+  if (existingHot !== undefined) {
+    await ctx.db.patch(existingHot._id, hotFields);
+  } else {
+    await ctx.db.insert('industryJobsSync', { userId, characterId: result.characterId, ...hotFields });
+  }
+
+  // Cold payload: a fresh body replaces the board wholesale and arms the
+  // completion flips (content-deduped against the COLD doc's prior payload). A
+  // 304 or an errored read leaves the cold doc — and the payload view — untouched.
   if (result.jobs !== null) {
     const jobs = result.jobs.map((job) => ({
       ...job,
       status: deriveJobStatus(job.status, job.end_date, now),
     }));
-    for (const job of flipsToSchedule(existing?.data?.jobs ?? null, jobs, now)) {
+    for (const job of flipsToSchedule(existingCold?.data?.jobs ?? null, jobs, now)) {
       await ctx.scheduler.runAt(Date.parse(job.end_date), internal.industryJobs.markJobReady, {
         userId,
         characterId: result.characterId,
@@ -187,25 +243,17 @@ async function applyJobResult(
         endDate: job.end_date,
       });
     }
-    data = { jobs };
+    const data = { jobs };
+    if (existingCold !== undefined) {
+      await ctx.db.patch(existingCold._id, { data });
+    } else {
+      await ctx.db.insert('industryJobsSyncData', { userId, characterId: result.characterId, data });
+    }
   }
 
-  const refreshed = result.error === null;
-  const fields = {
-    data,
-    jobsEtag: result.jobsEtag,
-    lastSyncedAt: refreshed ? now : (existing?.lastSyncedAt ?? null),
-    expiresAt: refreshed ? result.expiresAt : null,
-    syncError: result.error,
-  };
-  if (existing !== undefined) {
-    await ctx.db.patch(existing._id, fields);
-  } else {
-    await ctx.db.insert('industryJobsSync', { userId, characterId: result.characterId, ...fields });
-  }
   // The resulting cache window, returned so the caller can accumulate the
   // post-apply set without re-reading the whole table.
-  return fields.expiresAt;
+  return hotFields.expiresAt;
 }
 
 // The scheduled completion transition: fires at a job's end_date and flips
@@ -232,12 +280,12 @@ export const markJobReady = internalMutation({
     // is keyed unique by the apply path; flipping the first is correct either
     // way.
     const doc = await ctx.db
-      .query('industryJobsSync')
+      .query('industryJobsSyncData')
       .withIndex('by_user_character', (q) =>
         q.eq('userId', userId).eq('characterId', characterId),
       )
       .first();
-    if (doc === null || doc.data === null) return;
+    if (doc === null) return;
     const index = findFlipTarget(doc.data.jobs, jobId, endDate);
     if (index === null) return;
     await ctx.db.patch(doc._id, {

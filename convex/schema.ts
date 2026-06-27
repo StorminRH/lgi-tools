@@ -56,35 +56,54 @@ export const industryJobValidator = v.object({
 });
 
 export default defineSchema({
-  // One doc per (user, character): the synced skill-queue + skill-totals
-  // projection, plus this tracker's conditional-request custody. The held
+  // One doc per (user, character): the HOT sync metadata for the skill-queue
+  // tracker — conditional-request custody plus freshness/error state. The held
   // ETags live HERE (not in the gate's shared cache — that cache is
   // unauthenticated-only by design, since a shared cache must never hold
-  // per-character data).
+  // per-character data). The heavy skill payload lives in characterSyncData
+  // (the COLD table); the two are written together by the apply but kept on
+  // SEPARATE docs so this row — which the run-state view subscribes to and which
+  // the apply bumps on every 304 (lastSyncedAt/expiresAt) — never re-reads the
+  // blob through Convex's document-granular reactivity (SA.5; the subscription
+  // split prescribed in docs/CONVEX.md "Reactivity is read-set–precise").
+  // Generalises the 3.5.e1 presence-split one layer deeper.
   characterSync: defineTable({
     userId: v.string(),
     characterId: v.number(),
-    // null until the first successful sync — e.g. a character whose very
-    // first read errored. ETags and payload travel together: an etag is only
-    // ever stored beside the payload a future 304 would confirm.
-    data: v.union(
-      v.null(),
-      v.object({
-        entries: v.array(skillQueueEntryValidator),
-        totalSp: v.number(),
-        unallocatedSp: v.optional(v.number()),
-      }),
-    ),
+    // ETags and payload travel together: an etag is only ever stored (HERE)
+    // beside the payload (in characterSyncData) a future 304 would confirm.
     queueEtag: v.union(v.string(), v.null()),
     skillsEtag: v.union(v.string(), v.null()),
     // Last time the data was confirmed current (a 200 or a 304) — the UI's
-    // "as of" timestamp. Not bumped by a failed sync.
+    // "as of" timestamp. Not bumped by a failed sync. Bumped on every 304,
+    // which is exactly why the heavy payload must NOT share this row.
     lastSyncedAt: v.union(v.number(), v.null()),
     // When this doc's ESI cache window ends, read off the response's Expires
     // header (60s observed for skills — but always read, never assumed).
     // The engine schedules the next run off the per-user minimum.
     expiresAt: v.union(v.number(), v.null()),
     syncError: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // One doc per (user, character): the COLD skill payload — the heavy half split
+  // off characterSync in SA.5 so the payload view (skills.forViewer) re-reads it
+  // ONLY on a genuine data change, never on a per-cycle 304/dispatch/completion.
+  // The apply writes this doc only when a fresh ESI body arrives (a pure 304
+  // leaves it untouched, which is the whole point), so the doc EXISTS iff the
+  // character has been synced at least once — data is the non-null payload, never
+  // a null placeholder (an unfetched/errored-first/needs-reconnect character has
+  // a HOT doc but no cold doc, and the merge surfaces it as "no data yet").
+  // Regenerable like every row here.
+  characterSyncData: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    data: v.object({
+      entries: v.array(skillQueueEntryValidator),
+      totalSp: v.number(),
+      unallocatedSp: v.optional(v.number()),
+    }),
   })
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
@@ -158,16 +177,16 @@ export default defineSchema({
     // run drains the backlog deterministically.
     .index('by_last_seen', ['lastSeenAt']),
 
-  // One doc per (user, character): the synced industry-jobs projection plus
-  // this tracker's conditional-request custody — the characterSync twin for
-  // tracker #2 (3.4.8). One ESI endpoint, so one held ETag. Same custody
-  // rules: etag only ever stored beside the payload a future 304 would
-  // confirm; an errored result clears expiresAt so the next mount/visible
-  // heartbeat is never silently swallowed after an error.
+  // One doc per (user, character): the HOT sync metadata for the industry-jobs
+  // tracker — the characterSync twin for tracker #2 (3.4.8). One ESI endpoint, so
+  // one held ETag. Same custody rules: etag only ever stored beside the payload
+  // (in industryJobsSyncData) a future 304 would confirm; an errored result
+  // clears expiresAt so the next mount/visible heartbeat is never silently
+  // swallowed after an error. The heavy jobs payload lives in the COLD table
+  // (SA.5 — see characterSync/characterSyncData for the reactivity rationale).
   industryJobsSync: defineTable({
     userId: v.string(),
     characterId: v.number(),
-    data: v.union(v.null(), v.object({ jobs: v.array(industryJobValidator) })),
     jobsEtag: v.union(v.string(), v.null()),
     lastSyncedAt: v.union(v.number(), v.null()),
     // Cache window read off the response's Expires header (spec says 300s
@@ -178,29 +197,56 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
-  // One doc per (user, corporation): the synced CORP industry-jobs projection —
-  // the industryJobsSync twin keyed by corp instead of character (3.7.3.1, the
-  // first corp feature). A corp board is per-corp, fanned in from the user's
-  // role-holding characters: a run resolves the user's characters to the corps
-  // they can read, dedups to one subject per corp, and reads each corp's board
-  // ONCE. The job sub-shape is identical to the character endpoint (a superset
-  // on the wire; Zod strips the corp-only extras), so industryJobValidator is
-  // reused verbatim. One ESI endpoint per corp → ONE held ETag, same custody
-  // rules as industryJobsSync (etag only stored beside the payload a 304 would
-  // confirm; an errored/needs_role result clears expiresAt so the next
-  // heartbeat re-syncs). A corporation whose vending character lacks the in-game
-  // Factory_Manager role is a PRESENT doc with data:null + syncError:'needs_role'
-  // — a distinct, graceful state (not a scope/AccessGate prompt, and not absent),
-  // so a later UX slice can surface "needs corp role". Corp data is per-user and
-  // private here (no cross-user sharing — that's a later policy call).
+  // One doc per (user, character): the COLD industry-jobs payload — the heavy
+  // half split off industryJobsSync in SA.5 (the characterSyncData twin). Written
+  // only on a fresh body (a 304 leaves it untouched) and patched in place by the
+  // markJobReady completion flip; exists iff the character has synced its board at
+  // least once. Regenerable.
+  industryJobsSyncData: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    data: v.object({ jobs: v.array(industryJobValidator) }),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // One doc per (user, corporation): the HOT sync metadata for the CORP
+  // industry-jobs tracker — the industryJobsSync twin keyed by corp instead of
+  // character (3.7.3.1, the first corp feature). A corp board is per-corp, fanned
+  // in from the user's role-holding characters: a run resolves the user's
+  // characters to the corps they can read, dedups to one subject per corp, and
+  // reads each corp's board ONCE. The job sub-shape is identical to the character
+  // endpoint (a superset on the wire; Zod strips the corp-only extras), so
+  // industryJobValidator is reused verbatim in the COLD table. One ESI endpoint
+  // per corp → ONE held ETag, same custody rules as industryJobsSync (etag only
+  // stored beside the payload — in corpIndustryJobsSyncData — a 304 would confirm;
+  // an errored/needs_role result clears expiresAt so the next heartbeat re-syncs).
+  // A corporation whose vending character lacks the in-game Factory_Manager role
+  // is a PRESENT hot doc with syncError:'needs_role' and NO cold doc — a distinct,
+  // graceful state (not a scope/AccessGate prompt, and not absent), surfaced by
+  // the merge as "needs role, no data". Corp data is per-user and private here (no
+  // cross-user sharing — that's a later policy call). Heavy payload split off in
+  // SA.5 (see characterSync/characterSyncData for the reactivity rationale).
   corpIndustryJobsSync: defineTable({
     userId: v.string(),
     corporationId: v.number(),
-    data: v.union(v.null(), v.object({ jobs: v.array(industryJobValidator) })),
     jobsEtag: v.union(v.string(), v.null()),
     lastSyncedAt: v.union(v.number(), v.null()),
     expiresAt: v.union(v.number(), v.null()),
     syncError: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_corp', ['userId', 'corporationId']),
+
+  // One doc per (user, corporation): the COLD corp industry-jobs payload — the
+  // heavy half split off corpIndustryJobsSync in SA.5 (the industryJobsSyncData
+  // twin). Written only on a fresh body (a 304 or a needs_role result leaves it
+  // untouched) and patched in place by the markJobReady completion flip; exists
+  // iff the corp board has synced at least once. Regenerable.
+  corpIndustryJobsSyncData: defineTable({
+    userId: v.string(),
+    corporationId: v.number(),
+    data: v.object({ jobs: v.array(industryJobValidator) }),
   })
     .index('by_user', ['userId'])
     .index('by_user_corp', ['userId', 'corporationId']),

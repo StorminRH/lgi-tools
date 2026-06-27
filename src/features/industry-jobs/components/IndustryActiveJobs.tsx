@@ -12,7 +12,11 @@
 // board refreshes itself on view and flips a job to ready on schedule.
 import { useQuery } from 'convex/react';
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { LiveSessionShell, useLiveCharacterSync } from '@/components/live-character-card';
+import {
+  LiveSessionShell,
+  useCharacterMerge,
+  useLiveCharacterSync,
+} from '@/components/live-character-card';
 import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
@@ -62,7 +66,9 @@ export function IndustryActiveJobs({ characterIds }: { characterIds: number[] })
 }
 
 function LiveJobs({ characterIds }: { characterIds: number[] }) {
-  const live = useQuery(api.industryJobs.forViewer);
+  const cold = useQuery(api.industryJobs.forViewer);
+  const hot = useQuery(api.industryJobs.runStateForViewer);
+  const live = useCharacterMerge(cold, hot);
   // The shared live-character sync owns the presence heartbeat, the render clock,
   // and the type-name resolution (names never live in Convex). This board
   // resolves the same job blueprint/product ids as the /jobs panel — one shared

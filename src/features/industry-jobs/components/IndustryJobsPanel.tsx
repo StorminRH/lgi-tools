@@ -17,8 +17,10 @@ import type { FunctionReturnType } from 'convex/server';
 import {
   type CharacterCardContent,
   LiveCharacterPanel,
+  type LiveCharacterRow,
   LiveSessionGate,
   type PanelCharacter,
+  useCharacterMerge,
 } from '@/components/live-character-card';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -47,9 +49,10 @@ export function IndustryJobsPanel({ characters }: { characters: PanelCharacter[]
   );
 }
 
-type LiveCharacter = NonNullable<
+type JobData = NonNullable<
   FunctionReturnType<typeof api.industryJobs.forViewer>
->['characters'][number];
+>['characters'][number]['data'];
+type LiveCharacter = LiveCharacterRow<JobData>;
 
 // The one per-feature seam of useLiveCharacterSync: which type ids to resolve to
 // names. Module-stable so it can sit in the hook's dependency list. Exported so
@@ -68,7 +71,9 @@ export function jobTypeIds(entries: { data: { jobs: IndustryJob[] } | null }[]):
 }
 
 function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
-  const live = useQuery(api.industryJobs.forViewer);
+  const cold = useQuery(api.industryJobs.forViewer);
+  const hot = useQuery(api.industryJobs.runStateForViewer);
+  const live = useCharacterMerge(cold, hot);
   return (
     <LiveCharacterPanel
       live={live}

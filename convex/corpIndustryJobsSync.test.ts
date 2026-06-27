@@ -159,10 +159,21 @@ async function seedSubject(t: TestConvex<typeof schema>, overrides?: Record<stri
   });
 }
 
+// The HOT meta doc (etag / freshness / error).
 function readDoc(t: TestConvex<typeof schema>, corporationId = CORP_A) {
   return t.run((ctx) =>
     ctx.db
       .query('corpIndustryJobsSync')
+      .withIndex('by_user_corp', (q) => q.eq('userId', USER).eq('corporationId', corporationId))
+      .unique(),
+  );
+}
+
+// The COLD payload doc (SA.5 split) — absent until the first successful sync.
+function readData(t: TestConvex<typeof schema>, corporationId = CORP_A) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('corpIndustryJobsSyncData')
       .withIndex('by_user_corp', (q) => q.eq('userId', USER).eq('corporationId', corporationId))
       .unique(),
   );
@@ -196,12 +207,13 @@ describe('corpIndustryJobsSync.syncUser', () => {
     await run(t);
 
     const doc = await readDoc(t);
-    expect(doc?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
-    expect(doc?.data?.jobs[0]?.status).toBe('active');
+    const data = await readData(t);
+    expect(data?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
+    expect(data?.data?.jobs[0]?.status).toBe('active');
     // installer_id is retained for runner attribution; the rest of the corp-only
     // superset (cost, facility ids, …) is stripped at the boundary parse.
-    expect(doc?.data?.jobs[0]?.installer_id).toBe(90001);
-    expect(doc?.data?.jobs[0]).not.toHaveProperty('cost');
+    expect(data?.data?.jobs[0]?.installer_id).toBe(90001);
+    expect(data?.data?.jobs[0]).not.toHaveProperty('cost');
     expect(doc?.jobsEtag).toBe('cj1');
     expect(doc?.expiresAt).toBe(Date.parse(EXP));
     expect(doc?.syncError).toBeNull();
@@ -238,7 +250,7 @@ describe('corpIndustryJobsSync.syncUser', () => {
 
     const doc = await readDoc(t);
     expect(doc?.syncError).toBe('needs_role');
-    expect(doc?.data).toBeNull();
+    expect(await readData(t)).toBeNull();
     // Budget-safe: a guaranteed 403 is never spent.
     expect(corpJobsCalls(fn)).toBe(0);
   });
@@ -250,7 +262,7 @@ describe('corpIndustryJobsSync.syncUser', () => {
 
     await run(t);
 
-    expect((await readDoc(t))?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
+    expect((await readData(t))?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
     expect(corpJobsCalls(fn)).toBe(1);
   });
 
@@ -327,24 +339,30 @@ describe('corpIndustryJobsSync.syncUser', () => {
   it('orphan-cleans a corp the user no longer reaches', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
-    // A stale doc for a corp not reachable this run.
+    // A stale hot + cold pair for a corp not reachable this run.
     await t.run(async (ctx) => {
       await ctx.db.insert('corpIndustryJobsSync', {
         userId: USER,
         corporationId: 9999,
-        data: { jobs: [] },
         jobsEtag: 'old',
         lastSyncedAt: GEN - 1000,
         expiresAt: GEN - 1,
         syncError: null,
+      });
+      await ctx.db.insert('corpIndustryJobsSyncData', {
+        userId: USER,
+        corporationId: 9999,
+        data: { jobs: [] },
       });
     });
     stubFetch({ esi: esiRouter() }); // only reaches CORP_A
 
     await run(t);
 
+    // Both halves of the orphan are deleted.
     expect(await readDoc(t, 9999)).toBeNull();
-    expect((await readDoc(t, CORP_A))?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
+    expect(await readData(t, 9999)).toBeNull();
+    expect((await readData(t, CORP_A))?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
   });
 
   it('keeps the held board on a 304', async () => {
@@ -354,11 +372,15 @@ describe('corpIndustryJobsSync.syncUser', () => {
       await ctx.db.insert('corpIndustryJobsSync', {
         userId: USER,
         corporationId: CORP_A,
-        data: { jobs: [STORED_JOB] },
         jobsEtag: 'cj0',
         lastSyncedAt: GEN - 1000,
         expiresAt: GEN - 1,
         syncError: null,
+      });
+      await ctx.db.insert('corpIndustryJobsSyncData', {
+        userId: USER,
+        corporationId: CORP_A,
+        data: { jobs: [STORED_JOB] },
       });
     });
     stubFetch({
@@ -368,7 +390,7 @@ describe('corpIndustryJobsSync.syncUser', () => {
     await run(t);
 
     const doc = await readDoc(t);
-    expect(doc?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
+    expect((await readData(t))?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
     expect(doc?.jobsEtag).toBe('cj0');
     expect((doc?.lastSyncedAt ?? 0) > GEN - 1000).toBe(true);
   });
@@ -379,22 +401,29 @@ describe('corpIndustryJobsSync.syncUser', () => {
     stubFetch({ esi: esiRouter() });
 
     await run(t);
-    const first = await readDoc(t);
-    expect(first?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
+    const firstHot = await readDoc(t);
+    const firstData = await readData(t);
+    expect(firstData?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
 
-    // Wipe the corp projection (Convex is regenerable; Neon + ESI are authority).
+    // Wipe BOTH halves of the corp projection (Convex is regenerable; Neon + ESI
+    // are authority — a full teardown + resync must reproduce the same state).
     await t.run(async (ctx) => {
       for (const doc of await ctx.db.query('corpIndustryJobsSync').collect()) {
         await ctx.db.delete(doc._id);
       }
+      for (const doc of await ctx.db.query('corpIndustryJobsSyncData').collect()) {
+        await ctx.db.delete(doc._id);
+      }
     });
     expect(await readDoc(t)).toBeNull();
+    expect(await readData(t)).toBeNull();
 
     await run(t);
-    const second = await readDoc(t);
-    expect(second?.data).toEqual(first?.data);
-    expect(second?.jobsEtag).toBe(first?.jobsEtag);
-    expect(second?.syncError).toBe(first?.syncError);
+    const secondHot = await readDoc(t);
+    const secondData = await readData(t);
+    expect(secondData?.data).toEqual(firstData?.data);
+    expect(secondHot?.jobsEtag).toBe(firstHot?.jobsEtag);
+    expect(secondHot?.syncError).toBe(firstHot?.syncError);
   });
 
   it('skips a character unlinked between enumeration and token vend (404): no corp doc', async () => {
@@ -416,11 +445,15 @@ describe('corpIndustryJobsSync.syncUser', () => {
       await ctx.db.insert('corpIndustryJobsSync', {
         userId: USER,
         corporationId: CORP_A,
-        data: { jobs: [] },
         jobsEtag: 'keep',
         lastSyncedAt: GEN - 1000,
         expiresAt: GEN - 1,
         syncError: null,
+      });
+      await ctx.db.insert('corpIndustryJobsSyncData', {
+        userId: USER,
+        corporationId: CORP_A,
+        data: { jobs: [] },
       });
     });
     __setScoreboardForTests('unavailable');

@@ -18,8 +18,10 @@ import type { ReactNode } from 'react';
 import {
   type CharacterCardContent,
   LiveCharacterPanel,
+  type LiveCharacterRow,
   LiveSessionGate,
   type PanelCharacter,
+  useCharacterMerge,
 } from '@/components/live-character-card';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -63,9 +65,10 @@ export function SkillQueuePanel({
   );
 }
 
-type LiveCharacter = NonNullable<
+type SkillData = NonNullable<
   FunctionReturnType<typeof api.skills.forViewer>
->['characters'][number];
+>['characters'][number]['data'];
+type LiveCharacter = LiveCharacterRow<SkillData>;
 
 // The one per-feature seam of useLiveCharacterSync: which type ids to resolve
 // to names. Module-stable so it can sit in the hook's dependency list.
@@ -86,7 +89,9 @@ function LiveQueues({
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
 }) {
-  const live = useQuery(api.skills.forViewer);
+  const cold = useQuery(api.skills.forViewer);
+  const hot = useQuery(api.skills.runStateForViewer);
+  const live = useCharacterMerge(cold, hot);
   return (
     <LiveCharacterPanel
       live={live}

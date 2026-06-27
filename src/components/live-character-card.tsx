@@ -9,7 +9,7 @@
 // loop) — lives here. This is the `shared` zone (`src/components/*.tsx`), the
 // only layer permitted to import features + data + ui + lib, so the two features
 // compose it without importing each other.
-import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
+import { Authenticated, AuthLoading, Unauthenticated, useQuery } from 'convex/react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
@@ -23,7 +23,100 @@ import { useSyncSubject } from '@/data/convex/use-sync-subject';
 import { TYPE_NAMES_MAX_IDS, typeNamesEndpoint } from '@/data/eve-data/api-contract';
 import { apiFetch } from '@/lib/api-client';
 import type { SyncDataset } from '@/lib/sync-engine';
-import { emptyDataText, syncErrorMeta } from './live-character-sync';
+import { emptyDataText, mergeLiveById, type MergedLiveRow, syncErrorMeta } from './live-character-sync';
+
+// The run lifecycle both viewer-merge hooks carry through (mirrors
+// runStateForViewer's syncState). `status` drives the "Syncing…" line; `lastError`
+// the run-level callout.
+export interface SyncRunState {
+  status: 'idle' | 'running';
+  lastRequestedAt: number;
+  lastFinishedAt: number | null;
+  lastError: string | null;
+}
+
+// One merged per-character / per-corporation live row (the pre-SA.5 forViewer
+// row), exported so feature panels can name their row type off the cold query's
+// payload type.
+export type LiveCharacterRow<D> = { characterId: number } & MergedLiveRow<D>;
+export type LiveCorporationRow<D> = { corporationId: number } & MergedLiveRow<D>;
+
+// Join a character-keyed tracker's COLD payload query result with its HOT
+// run-state result (both from useQuery) into the single shape the panels consume
+// — the SA.5 client half of the subscription split. Returns undefined until BOTH
+// subscriptions have loaded (so the existing single-`undefined` loading gate
+// holds and no half-merged frame renders) and null when signed out. Memoised so a
+// stable identity feeds the downstream useMemo in useLiveCharacterSync.
+export function useCharacterMerge<D>(
+  cold: { characters: { characterId: number; data: D }[] } | null | undefined,
+  hot:
+    | {
+        characters: { characterId: number; lastSyncedAt: number | null; syncError: string | null }[];
+        syncState: SyncRunState | null;
+      }
+    | null
+    | undefined,
+): { characters: LiveCharacterRow<D>[]; syncState: SyncRunState | null } | null | undefined {
+  return useMemo(() => {
+    if (cold === undefined || hot === undefined) return undefined;
+    if (cold === null || hot === null) return null;
+    const merged = mergeLiveById(
+      cold.characters.map((c) => ({ id: c.characterId, data: c.data })),
+      hot.characters.map((h) => ({
+        id: h.characterId,
+        lastSyncedAt: h.lastSyncedAt,
+        syncError: h.syncError,
+      })),
+    );
+    return {
+      characters: merged.map((m) => ({
+        characterId: m.id,
+        data: m.data,
+        lastSyncedAt: m.lastSyncedAt,
+        syncError: m.syncError,
+      })),
+      syncState: hot.syncState,
+    };
+  }, [cold, hot]);
+}
+
+// The per-corporation twin of useCharacterMerge, for the corp jobs board.
+export function useCorporationMerge<D>(
+  cold: { corporations: { corporationId: number; data: D }[] } | null | undefined,
+  hot:
+    | {
+        corporations: {
+          corporationId: number;
+          lastSyncedAt: number | null;
+          syncError: string | null;
+        }[];
+        syncState: SyncRunState | null;
+      }
+    | null
+    | undefined,
+): { corporations: LiveCorporationRow<D>[]; syncState: SyncRunState | null } | null | undefined {
+  return useMemo(() => {
+    if (cold === undefined || hot === undefined) return undefined;
+    if (cold === null || hot === null) return null;
+    const merged = mergeLiveById(
+      cold.corporations.map((c) => ({ id: c.corporationId, data: c.data })),
+      hot.corporations.map((h) => ({
+        id: h.corporationId,
+        lastSyncedAt: h.lastSyncedAt,
+        syncError: h.syncError,
+      })),
+    );
+    return {
+      corporations: merged.map((m) => ({
+        corporationId: m.id,
+        data: m.data,
+        lastSyncedAt: m.lastSyncedAt,
+        syncError: m.syncError,
+      })),
+      syncState: hot.syncState,
+    };
+  }, [cold, hot]);
+}
 
 // Server-prop shape for one linked character: Neon truth (name/portrait/scope
 // health) joined client-side with the live Convex projection.

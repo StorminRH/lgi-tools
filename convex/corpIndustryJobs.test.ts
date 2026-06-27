@@ -4,11 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { api, internal } from './_generated/api';
 import schema from './schema';
 
-// The corp dataset's query + scheduled live-flip (3.7.3.4). The sync action is
-// covered separately (corpIndustryJobsSync.test.ts); this file covers forViewer
-// (the client seam) and markJobReady (the per-corp twin of the per-character
-// flip), including the genuine-transition-only no-ops that keep it free of
-// no-op writes (CONVEX.md Cost Rule 3).
+// The corp dataset's queries + scheduled live-flip (3.7.3.4). The sync action is
+// covered separately (corpIndustryJobsSync.test.ts); this file covers forViewer /
+// runStateForViewer (the SA.5 cold/hot client seams) and markJobReady (the
+// per-corp twin of the per-character flip, now patching the COLD payload doc),
+// including the genuine-transition-only no-ops that keep it free of no-op writes
+// (CONVEX.md Cost Rule 3).
 const modules = import.meta.glob(['./**/*.ts', '!./**/*.test.ts']);
 
 const USER = 'user_corp_jobs_1';
@@ -31,6 +32,7 @@ function corpJob(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Seed one corp's HOT meta doc + COLD payload doc (SA.5 split).
 async function seedCorpDoc(
   t: TestConvex<typeof schema>,
   jobs: ReturnType<typeof corpJob>[],
@@ -40,19 +42,30 @@ async function seedCorpDoc(
     await ctx.db.insert('corpIndustryJobsSync', {
       userId: USER,
       corporationId,
-      data: { jobs },
       jobsEtag: 'cj1',
       lastSyncedAt: GEN,
       expiresAt: GEN,
       syncError: null,
     });
+    await ctx.db.insert('corpIndustryJobsSyncData', { userId: USER, corporationId, data: { jobs } });
   });
 }
 
+// The HOT meta doc (etag / freshness / error).
 function readCorpDoc(t: TestConvex<typeof schema>, corporationId = CORP) {
   return t.run((ctx) =>
     ctx.db
       .query('corpIndustryJobsSync')
+      .withIndex('by_user_corp', (q) => q.eq('userId', USER).eq('corporationId', corporationId))
+      .first(),
+  );
+}
+
+// The COLD payload doc (SA.5 split).
+function readCorpData(t: TestConvex<typeof schema>, corporationId = CORP) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('corpIndustryJobsSyncData')
       .withIndex('by_user_corp', (q) => q.eq('userId', USER).eq('corporationId', corporationId))
       .first(),
   );
@@ -88,15 +101,30 @@ function readSubject(t: TestConvex<typeof schema>) {
   );
 }
 
-describe('corpIndustryJobs.forViewer', () => {
+describe('corpIndustryJobs.forViewer (cold payload)', () => {
   it('returns null when signed out', async () => {
     const t = convexTest(schema, modules);
     expect(await t.query(api.corpIndustryJobs.forViewer, {})).toBe(null);
   });
 
-  it('groups the viewer corp boards by corporation with sync state', async () => {
+  it('groups the viewer corp boards by corporation', async () => {
     const t = convexTest(schema, modules);
     const j = corpJob();
+    await seedCorpDoc(t, [j]);
+
+    const view = await t.withIdentity({ subject: USER }).query(api.corpIndustryJobs.forViewer, {});
+    expect(view?.corporations).toEqual([{ corporationId: CORP, data: { jobs: [j] } }]);
+  });
+});
+
+describe('corpIndustryJobs.runStateForViewer (hot run state)', () => {
+  it('returns null when signed out', async () => {
+    const t = convexTest(schema, modules);
+    expect(await t.query(api.corpIndustryJobs.runStateForViewer, {})).toBe(null);
+  });
+
+  it('returns per-corp freshness and the sync state when signed in', async () => {
+    const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       await ctx.db.insert('syncSubjects', {
         dataset: 'corpIndustryJobs' as const,
@@ -114,13 +142,20 @@ describe('corpIndustryJobs.forViewer', () => {
         rlRemaining: null,
         rlUsed: null,
       });
+      await ctx.db.insert('corpIndustryJobsSync', {
+        userId: USER,
+        corporationId: CORP,
+        jobsEtag: 'cj1',
+        lastSyncedAt: GEN,
+        expiresAt: GEN,
+        syncError: null,
+      });
     });
-    await seedCorpDoc(t, [j]);
 
-    const view = await t.withIdentity({ subject: USER }).query(api.corpIndustryJobs.forViewer, {});
-    expect(view?.corporations).toEqual([
-      { corporationId: CORP, data: { jobs: [j] }, lastSyncedAt: GEN, syncError: null },
-    ]);
+    const view = await t
+      .withIdentity({ subject: USER })
+      .query(api.corpIndustryJobs.runStateForViewer, {});
+    expect(view?.corporations).toEqual([{ corporationId: CORP, lastSyncedAt: GEN, syncError: null }]);
     expect(view?.syncState).toEqual({
       status: 'idle',
       lastRequestedAt: GEN,
@@ -142,8 +177,7 @@ describe('corpIndustryJobs.markJobReady', () => {
       endDate: FUTURE,
     });
 
-    const doc = await readCorpDoc(t);
-    expect(doc?.data?.jobs[0]?.status).toBe('ready');
+    expect((await readCorpData(t))?.data?.jobs[0]?.status).toBe('ready');
   });
 
   it('no-ops when the end_date no longer matches (re-priced job)', async () => {
@@ -157,8 +191,7 @@ describe('corpIndustryJobs.markJobReady', () => {
       endDate: PAST,
     });
 
-    const doc = await readCorpDoc(t);
-    expect(doc?.data?.jobs[0]?.status).toBe('active');
+    expect((await readCorpData(t))?.data?.jobs[0]?.status).toBe('active');
   });
 
   it('no-ops when the job is already ready (no double-write)', async () => {
@@ -172,8 +205,7 @@ describe('corpIndustryJobs.markJobReady', () => {
       endDate: FUTURE,
     });
 
-    const doc = await readCorpDoc(t);
-    expect(doc?.data?.jobs[0]?.status).toBe('ready');
+    expect((await readCorpData(t))?.data?.jobs[0]?.status).toBe('ready');
   });
 
   it('flips only the targeted corp, leaving another corp untouched', async () => {
@@ -188,8 +220,8 @@ describe('corpIndustryJobs.markJobReady', () => {
       endDate: FUTURE,
     });
 
-    expect((await readCorpDoc(t, CORP))?.data?.jobs[0]?.status).toBe('ready');
-    expect((await readCorpDoc(t, 4000))?.data?.jobs[0]?.status).toBe('active');
+    expect((await readCorpData(t, CORP))?.data?.jobs[0]?.status).toBe('ready');
+    expect((await readCorpData(t, 4000))?.data?.jobs[0]?.status).toBe('active');
   });
 
   it('no-ops when the corp doc is gone', async () => {
@@ -215,18 +247,23 @@ describe('corpIndustryJobs.applySyncResults', () => {
   it('keeps the subject due (minExpiresAt null) after a read-loop budget stop, retaining unread corps', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
-    // Corp C: resolved but never read (after the stop). Pre-existing doc with a
-    // still-future window — the corp whose freshness the finding worried about.
+    // Corp C: resolved but never read (after the stop). Pre-existing hot + cold
+    // docs with a still-future window — the corp whose freshness the finding
+    // worried about.
     const cWindow = GEN + 1_000_000;
     await t.run(async (ctx) => {
       await ctx.db.insert('corpIndustryJobsSync', {
         userId: USER,
         corporationId: 3000,
-        data: { jobs: [corpJob({ job_id: 9 })] },
         jobsEtag: 'c',
         lastSyncedAt: GEN - 1000,
         expiresAt: cWindow,
         syncError: null,
+      });
+      await ctx.db.insert('corpIndustryJobsSyncData', {
+        userId: USER,
+        corporationId: 3000,
+        data: { jobs: [corpJob({ job_id: 9 })] },
       });
     });
 
@@ -257,9 +294,9 @@ describe('corpIndustryJobs.applySyncResults', () => {
     // The null window from the stopped corp forces the subject due-now.
     const subject = await readSubject(t);
     expect(subject?.minExpiresAt).toBeNull();
-    // Corp C is retained (complete=true keeps the full resolved set), unmodified.
-    const c = await readCorpDoc(t, 3000);
-    expect(c?.data?.jobs.map((j) => j.job_id)).toEqual([9]);
-    expect(c?.expiresAt).toBe(cWindow);
+    // Corp C is retained (complete=true keeps the full resolved set), unmodified:
+    // its cold board survives and its hot window is unchanged.
+    expect((await readCorpData(t, 3000))?.data?.jobs.map((j) => j.job_id)).toEqual([9]);
+    expect((await readCorpDoc(t, 3000))?.expiresAt).toBe(cWindow);
   });
 });

@@ -18,7 +18,12 @@
 import { useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { LiveSessionShell, useLiveCharacterSync } from '@/components/live-character-card';
+import {
+  type LiveCorporationRow,
+  LiveSessionShell,
+  useCorporationMerge,
+  useLiveCharacterSync,
+} from '@/components/live-character-card';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
@@ -38,8 +43,10 @@ import { JOB_STATUS_META, jobActivityLabel } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
 import { jobTypeIds } from './IndustryJobsPanel';
 
-type CorpView = NonNullable<FunctionReturnType<typeof api.corpIndustryJobs.forViewer>>;
-type CorpEntry = CorpView['corporations'][number];
+type CorpJobData = NonNullable<
+  FunctionReturnType<typeof api.corpIndustryJobs.forViewer>
+>['corporations'][number]['data'];
+type CorpEntry = LiveCorporationRow<CorpJobData>;
 
 export function CorpJobsBoard({
   eligibleCharacterIds,
@@ -80,7 +87,9 @@ export function CorpJobsBoard({
 }
 
 function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[] }) {
-  const corpLive = useQuery(api.corpIndustryJobs.forViewer);
+  const cold = useQuery(api.corpIndustryJobs.forViewer);
+  const hot = useQuery(api.corpIndustryJobs.runStateForViewer);
+  const corpLive = useCorporationMerge(cold, hot);
 
   // Adapt the per-corp shape to the per-character live contract so the shared
   // sync hook (heartbeat + render clock + type-name resolution + syncing flag)

@@ -27,9 +27,32 @@ import { applyCorpDataset } from './lib/corpSync';
 import { getSyncSubject } from './lib/subjects';
 import { industryJobValidator } from './schema';
 
-// The calling user's synced corp job boards + run state, grouped by corporation.
-// ETags and userId are custody/keying details — not on the wire.
+// The COLD half of the viewer split (SA.5): the calling user's synced corp job
+// boards, keyed by corporation. Its read set is corpIndustryJobsSyncData alone —
+// so it re-fires only on a genuine board change (a fresh body or a markJobReady
+// completion flip), never on a per-cycle 304/dispatch/completion. The client
+// joins it with runStateForViewer by corporation id. A needs_role corp has a hot
+// row but no cold doc, so it isn't here — the merge surfaces it via its hot row.
 export const forViewer = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) return null;
+    const userId = identity.subject;
+    const docs = await ctx.db
+      .query('corpIndustryJobsSyncData')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    return {
+      corporations: docs.map((doc) => ({ corporationId: doc.corporationId, data: doc.data })),
+    };
+  },
+});
+
+// The HOT half of the viewer split (SA.5): per-corp freshness/error plus the run
+// lifecycle. Reads only the small hot meta docs (corpIndustryJobsSync) and the
+// subject row, so it re-fires every cycle cheaply.
+export const runStateForViewer = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -43,7 +66,6 @@ export const forViewer = query({
     return {
       corporations: docs.map((doc) => ({
         corporationId: doc.corporationId,
-        data: doc.data,
         lastSyncedAt: doc.lastSyncedAt,
         syncError: doc.syncError,
       })),
@@ -70,9 +92,17 @@ export const heldState = internalQuery({
       .query('corpIndustryJobsSync')
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .collect();
+    // Cold-doc presence is the data-presence gate after the split (a cold doc
+    // exists iff that corp holds a board), so the held etag is only offered when
+    // a 304 would actually have a payload to confirm.
+    const coldDocs = await ctx.db
+      .query('corpIndustryJobsSyncData')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect();
+    const hasData = new Set(coldDocs.map((doc) => doc.corporationId));
     return docs.map((doc) => ({
       corporationId: doc.corporationId,
-      jobsEtag: doc.data !== null ? doc.jobsEtag : null,
+      jobsEtag: hasData.has(doc.corporationId) ? doc.jobsEtag : null,
     }));
   },
 });
@@ -112,6 +142,9 @@ export const applySyncResults = internalMutation({
   handler: async (ctx, args) => {
     const resultByCorp = new Map(args.results.map((r) => [r.corporationId, r]));
     const existingByCorp = new Map<number, Doc<'corpIndustryJobsSync'>>();
+    // The cold payload docs, loaded alongside the hot meta so the upsert gets
+    // each corp's existing board and orphan cleanup can delete both halves.
+    const existingColdByCorp = new Map<number, Doc<'corpIndustryJobsSyncData'>>();
     const now = Date.now();
 
     await applyCorpDataset<Doc<'corpIndustryJobsSync'>>(ctx, {
@@ -135,16 +168,32 @@ export const applySyncResults = internalMutation({
           .withIndex('by_user', (q) => q.eq('userId', args.userId))
           .collect();
         for (const doc of docs) existingByCorp.set(doc.corporationId, doc);
+        const coldDocs = await ctx.db
+          .query('corpIndustryJobsSyncData')
+          .withIndex('by_user', (q) => q.eq('userId', args.userId))
+          .collect();
+        for (const doc of coldDocs) existingColdByCorp.set(doc.corporationId, doc);
         return docs;
       },
       corpIdOf: (doc) => doc.corporationId,
       expiresAtOf: (doc) => doc.expiresAt,
-      deleteDoc: (doc) => ctx.db.delete(doc._id),
+      deleteDoc: async (doc) => {
+        await ctx.db.delete(doc._id);
+        const cold = existingColdByCorp.get(doc.corporationId);
+        if (cold !== undefined) await ctx.db.delete(cold._id);
+      },
       upsertOne: (corporationId) => {
         const result = resultByCorp.get(corporationId);
         // upsertCorpIds is derived from results, so a result always exists here.
         if (result === undefined) return Promise.resolve(null);
-        return upsertCorpJobs(ctx, args.userId, result, existingByCorp.get(corporationId), now);
+        return upsertCorpJobs(
+          ctx,
+          args.userId,
+          result,
+          existingByCorp.get(corporationId),
+          existingColdByCorp.get(corporationId),
+          now,
+        );
       },
     });
   },
@@ -160,19 +209,38 @@ async function upsertCorpJobs(
   ctx: MutationCtx,
   userId: string,
   result: CorpResult,
-  existing: Doc<'corpIndustryJobsSync'> | undefined,
+  existingHot: Doc<'corpIndustryJobsSync'> | undefined,
+  existingCold: Doc<'corpIndustryJobsSyncData'> | undefined,
   now: number,
 ): Promise<number | null> {
-  let data = existing?.data ?? null;
+  const refreshed = result.error === null;
+  const hotFields = {
+    jobsEtag: result.jobsEtag,
+    lastSyncedAt: refreshed ? now : (existingHot?.lastSyncedAt ?? null),
+    expiresAt: refreshed ? result.expiresAt : null,
+    syncError: result.error,
+  };
+  if (existingHot !== undefined) {
+    await ctx.db.patch(existingHot._id, hotFields);
+  } else {
+    await ctx.db.insert('corpIndustryJobsSync', {
+      userId,
+      corporationId: result.corporationId,
+      ...hotFields,
+    });
+  }
+
+  // Cold payload: a fresh body replaces the board wholesale and arms a completion
+  // flip for each (job_id, end_date) new to the COLD doc's prior payload
+  // (flipsToSchedule) — exactly as the per-character apply does; rides the
+  // existing scheduler, no new timer. A 304, an error, or a needs_role corp
+  // leaves the cold doc — and the payload view — untouched.
   if (result.jobs !== null) {
     const jobs = result.jobs.map((job) => ({
       ...job,
       status: deriveJobStatus(job.status, job.end_date, now),
     }));
-    // Arm a completion flip for each (job_id, end_date) new to this doc —
-    // content-deduped against the previous payload (flipsToSchedule) — exactly as
-    // the per-character apply does. Rides the existing scheduler; no new timer.
-    for (const job of flipsToSchedule(existing?.data?.jobs ?? null, jobs, now)) {
+    for (const job of flipsToSchedule(existingCold?.data?.jobs ?? null, jobs, now)) {
       await ctx.scheduler.runAt(Date.parse(job.end_date), internal.corpIndustryJobs.markJobReady, {
         userId,
         corporationId: result.corporationId,
@@ -180,27 +248,18 @@ async function upsertCorpJobs(
         endDate: job.end_date,
       });
     }
-    data = { jobs };
+    const data = { jobs };
+    if (existingCold !== undefined) {
+      await ctx.db.patch(existingCold._id, { data });
+    } else {
+      await ctx.db.insert('corpIndustryJobsSyncData', {
+        userId,
+        corporationId: result.corporationId,
+        data,
+      });
+    }
   }
-
-  const refreshed = result.error === null;
-  const fields = {
-    data,
-    jobsEtag: result.jobsEtag,
-    lastSyncedAt: refreshed ? now : (existing?.lastSyncedAt ?? null),
-    expiresAt: refreshed ? result.expiresAt : null,
-    syncError: result.error,
-  };
-  if (existing !== undefined) {
-    await ctx.db.patch(existing._id, fields);
-  } else {
-    await ctx.db.insert('corpIndustryJobsSync', {
-      userId,
-      corporationId: result.corporationId,
-      ...fields,
-    });
-  }
-  return fields.expiresAt;
+  return hotFields.expiresAt;
 }
 
 // The scheduled completion transition for a corp job: fires at a job's end_date
@@ -225,10 +284,10 @@ export const markJobReady = internalMutation({
     // retried), so a duplicate doc must never wedge the flip. The pair is keyed
     // unique by the apply path; flipping the first is correct either way.
     const doc = await ctx.db
-      .query('corpIndustryJobsSync')
+      .query('corpIndustryJobsSyncData')
       .withIndex('by_user_corp', (q) => q.eq('userId', userId).eq('corporationId', corporationId))
       .first();
-    if (doc === null || doc.data === null) return;
+    if (doc === null) return;
     const index = findFlipTarget(doc.data.jobs, jobId, endDate);
     if (index === null) return;
     await ctx.db.patch(doc._id, {
