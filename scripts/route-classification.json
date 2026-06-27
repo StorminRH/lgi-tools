@@ -68,6 +68,7 @@
     "/api/cron/refresh-gsc": "dynamic",
     "/api/cron/refresh-industry-indices": "dynamic",
     "/api/dev/esi": "dynamic",
+    "/api/eve/names": "dynamic",
     "/api/cron/refresh-prices": "dynamic",
     "/api/cron/refresh-sde": "dynamic",
     "/api/cron/sync-sweeper": "dynamic",

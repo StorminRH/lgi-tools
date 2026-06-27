@@ -1,9 +1,11 @@
 import { BetterAuthError } from 'better-auth';
 import { headers } from 'next/headers';
 import { unstable_rethrow } from 'next/navigation';
+import { cache } from 'react';
 import { auth } from '@/features/auth/auth';
-import { listLinkedCharacters } from '@/features/auth/queries';
+import { type LinkedCharacter, listLinkedCharacters } from '@/features/auth/queries';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
+import { canSyncCorpIndustryJobs } from '@/features/industry-jobs/corp-sync-eligibility';
 import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
 import { readEnv } from '@/lib/env';
 
@@ -16,31 +18,23 @@ function authEnvConfigured(): boolean {
   return Boolean(readEnv('BETTER_AUTH_SECRET') ?? readEnv('SESSION_SECRET'));
 }
 
-// The signed-in pilot's industry-job-eligible character ids, for the live sync.
-// Returns [] for signed-out viewers — and ALSO if the auth env is absent.
+// The signed-in pilot's linked characters, for the live trackers' request-time
+// reads. Returns [] for signed-out viewers — and ALSO if the auth env is absent.
 // /industry is a PUBLIC page, but the EVE auth env (BETTER_AUTH_SECRET et al.)
 // is production-only, so `getSession` raises a BetterAuthError on Vercel preview
 // deployments (unlike the auth-gated /jobs and /skills, which redirect). Degrade
-// to the signed-out jobs state there rather than crashing the page.
+// to the signed-out state there rather than crashing the page.
 //
-// Lives in its own module (not inline in page.tsx) so this request-time read can
-// be unit-tested without importing the page's Convex-backed client islands.
-export async function activeJobCharacterIds(): Promise<number[]> {
+// Lives in its own module (not inline in page.tsx) so these request-time reads
+// can be unit-tested without importing the page's Convex-backed client islands.
+// Wrapped in React's request-scoped cache so the two boards (personal + corp)
+// on /industry share ONE session + linked-character read per request rather than
+// each issuing its own. Outside a request (unit tests) cache() is a passthrough.
+const linkedJobCharacters = cache(async (): Promise<LinkedCharacter[]> => {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return [];
-    const characters = await listLinkedCharacters(session.user.id);
-    return characters
-      .filter((character) =>
-        canSyncIndustryJobs({
-          hasRefreshToken: character.hasRefreshToken,
-          missingScopes: deriveCharacterHealth({
-            scope: character.scope,
-            hasRefreshToken: character.hasRefreshToken,
-          }).missingScopes,
-        }),
-      )
-      .map((character) => character.characterId);
+    return await listLinkedCharacters(session.user.id);
   } catch (err) {
     // Let Next.js handle its own control-flow errors first. Under Partial
     // Prerendering, the request-time `headers()` call throws a framework signal
@@ -61,4 +55,51 @@ export async function activeJobCharacterIds(): Promise<number[]> {
     );
     return [];
   }
+});
+
+// A character's missing scopes against the full requested superset — the input
+// both per-feature eligibility predicates take.
+function missingScopesOf(character: LinkedCharacter): string[] {
+  return deriveCharacterHealth({
+    scope: character.scope,
+    hasRefreshToken: character.hasRefreshToken,
+  }).missingScopes;
+}
+
+// The signed-in pilot's industry-job-eligible (per-character) ids, for the live
+// sync. [] for signed-out / auth-env-absent (see linkedJobCharacters).
+export async function activeJobCharacterIds(): Promise<number[]> {
+  const characters = await linkedJobCharacters();
+  return characters
+    .filter((character) =>
+      canSyncIndustryJobs({
+        hasRefreshToken: character.hasRefreshToken,
+        missingScopes: missingScopesOf(character),
+      }),
+    )
+    .map((character) => character.characterId);
+}
+
+// The merged active-jobs board's corp slice: which characters can vend a corp
+// read (scope + token), and whether the pilot has any linked character at all.
+// The board derives its gate from these — no eligible chars but some linked →
+// scope-missing (offer the relink); none linked → render nothing.
+export interface CorpJobsAccess {
+  eligibleCharacterIds: number[];
+  hasLinkedCharacters: boolean;
+}
+
+export async function corpJobsAccess(): Promise<CorpJobsAccess> {
+  const characters = await linkedJobCharacters();
+  return {
+    eligibleCharacterIds: characters
+      .filter((character) =>
+        canSyncCorpIndustryJobs({
+          hasRefreshToken: character.hasRefreshToken,
+          missingScopes: missingScopesOf(character),
+        }),
+      )
+      .map((character) => character.characterId),
+    hasLinkedCharacters: characters.length > 0,
+  };
 }

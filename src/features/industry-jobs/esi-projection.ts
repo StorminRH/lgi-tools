@@ -29,6 +29,12 @@ export type JobStatus = (typeof JOB_STATUSES)[number];
 // a delivered job simply vanishes from the next fresh body.
 const industryJobSchema = z.object({
   job_id: z.number().int(),
+  // The character who installed the job — on the corp endpoint it identifies the
+  // corp member running each job, which the merged active-jobs board reads for
+  // per-job runner attribution (3.7.3.4). ESI always sends it; optional here only
+  // to keep the projected shape identical to the stored doc, whose validator is
+  // optional so pre-3.7.3.4 docs stay valid until their next resync.
+  installer_id: z.number().int().optional(),
   activity_id: z.number().int(),
   blueprint_type_id: z.number().int(),
   // Absent on copying/research jobs — the blueprint is the headline there.

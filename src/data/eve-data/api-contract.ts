@@ -37,6 +37,35 @@ export const typeNamesEndpoint: ApiEndpoint<
   response: typeNamesResponseSchema,
 };
 
+// ── POST /api/eve/names (authz: none — public ESI read) ─────────────────
+// Bulk entity-id → name resolution for characters + corporations (3.7.3.4),
+// resolved through the one ESI gate's /universe/names. The merged active-jobs
+// board enriches the installer + corporation ids in a pilot's live Convex docs
+// at view time — entity names are never mirrored into Convex. Capped to bound
+// the cold-cache fan-out (a board's distinct installers + corps stay small).
+
+export const ENTITY_NAMES_MAX_IDS = 200;
+
+export const entityNamesRequestSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(ENTITY_NAMES_MAX_IDS),
+});
+
+// Keys are stringified entity ids; ids that don't resolve are simply absent.
+const entityNamesResponseSchema = z.object({
+  names: z.record(z.string(), z.string()),
+});
+export type EntityNamesResponse = z.infer<typeof entityNamesResponseSchema>;
+
+export const entityNamesEndpoint: ApiEndpoint<
+  z.input<typeof entityNamesRequestSchema>,
+  EntityNamesResponse
+> = {
+  method: 'POST',
+  path: '/api/eve/names',
+  request: entityNamesRequestSchema,
+  response: entityNamesResponseSchema,
+};
+
 // ── GET /api/cron/refresh-sde (authz: cron) ─────────────────────────────
 // No programmatic consumer (Vercel cron reads logs only) — arms pinned with
 // `satisfies` in the route. Version markers are CCP build-number strings.

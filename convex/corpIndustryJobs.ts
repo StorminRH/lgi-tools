@@ -12,14 +12,15 @@
 // engine's subject row) → forViewer (reactive query). No client-posted id
 // carries authority — the action re-resolves server-side on every run.
 //
-// Live-flip note: unlike the per-character tracker, this one does NOT schedule a
-// markJobReady completion flip — that is a live-UI affordance and there is no
-// corp surface yet (it lands with the UX slice, 3.7.3.4). The at-write
-// deriveJobStatus below still rewrites an active-past-end job to 'ready' on every
-// fresh read, so the projection stays correct and regenerable (a pure function of
-// payload + now); only the between-syncs live flip is deferred.
+// Live-flip note: like the per-character tracker, the corp board now schedules a
+// markJobReady completion flip (3.7.3.4) so an open corp board flips a job to
+// 'ready' at its end_date with no resync — the per-corp twin of
+// convex/industryJobs.ts. The at-write deriveJobStatus below still rewrites an
+// active-past-end job to 'ready' on every fresh read, so the projection stays
+// correct and regenerable (a pure function of payload + now) even between flips.
 import { v, type Infer } from 'convex/values';
-import { deriveJobStatus } from '@/features/industry-jobs/job-state';
+import { deriveJobStatus, findFlipTarget, flipsToSchedule } from '@/features/industry-jobs/job-state';
+import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalMutation, internalQuery, type MutationCtx, query } from './_generated/server';
 import { applyCorpDataset } from './lib/corpSync';
@@ -164,12 +165,22 @@ async function upsertCorpJobs(
 ): Promise<number | null> {
   let data = existing?.data ?? null;
   if (result.jobs !== null) {
-    data = {
-      jobs: result.jobs.map((job) => ({
-        ...job,
-        status: deriveJobStatus(job.status, job.end_date, now),
-      })),
-    };
+    const jobs = result.jobs.map((job) => ({
+      ...job,
+      status: deriveJobStatus(job.status, job.end_date, now),
+    }));
+    // Arm a completion flip for each (job_id, end_date) new to this doc —
+    // content-deduped against the previous payload (flipsToSchedule) — exactly as
+    // the per-character apply does. Rides the existing scheduler; no new timer.
+    for (const job of flipsToSchedule(existing?.data?.jobs ?? null, jobs, now)) {
+      await ctx.scheduler.runAt(Date.parse(job.end_date), internal.corpIndustryJobs.markJobReady, {
+        userId,
+        corporationId: result.corporationId,
+        jobId: job.job_id,
+        endDate: job.end_date,
+      });
+    }
+    data = { jobs };
   }
 
   const refreshed = result.error === null;
@@ -191,3 +202,41 @@ async function upsertCorpJobs(
   }
   return fields.expiresAt;
 }
+
+// The scheduled completion transition for a corp job: fires at a job's end_date
+// and flips it to 'ready' so an open corp board updates live — the per-corp twin
+// of convex/industryJobs.ts markJobReady (keyed by corporation instead of
+// character). Identity-guarded and throw-free: every disqualifying interleaving
+// (job delivered, paused, re-priced to a new end_date, already flipped, doc
+// wiped) is a clean no-op decided purely on stored state (findFlipTarget), so it
+// never writes when nothing genuinely transitioned (CONVEX.md Cost Rule 3).
+// Deliberately NOT time-guarded (the scheduler fires at end_date by
+// construction; a hair-early no-op would orphan the job 'active' forever) and
+// does not touch expiresAt (freshness stays the engine's job).
+export const markJobReady = internalMutation({
+  args: {
+    userId: v.string(),
+    corporationId: v.number(),
+    jobId: v.number(),
+    endDate: v.string(),
+  },
+  handler: async (ctx, { userId, corporationId, jobId, endDate }) => {
+    // .first(), not .unique(): a scheduled mutation that throws is terminal (not
+    // retried), so a duplicate doc must never wedge the flip. The pair is keyed
+    // unique by the apply path; flipping the first is correct either way.
+    const doc = await ctx.db
+      .query('corpIndustryJobsSync')
+      .withIndex('by_user_corp', (q) => q.eq('userId', userId).eq('corporationId', corporationId))
+      .first();
+    if (doc === null || doc.data === null) return;
+    const index = findFlipTarget(doc.data.jobs, jobId, endDate);
+    if (index === null) return;
+    await ctx.db.patch(doc._id, {
+      data: {
+        jobs: doc.data.jobs.map((job, i) =>
+          i === index ? { ...job, status: 'ready' as const } : job,
+        ),
+      },
+    });
+  },
+});

@@ -15,9 +15,9 @@ const FUTURE = '2099-01-01T00:00:00Z';
 const CORP_A = 2000;
 const CORP_B = 3000;
 
-// The corp endpoint returns a SUPERSET of the character job shape — installer_id
-// / cost are corp-only. Zod strips them, so the stored doc carries only the
-// projected fields (asserted below).
+// The corp endpoint returns a SUPERSET of the projected job shape. installer_id
+// is retained (per-job runner attribution, 3.7.3.4); cost / facility_id stay
+// corp-only and are stripped at the boundary parse (asserted below).
 const CORP_JOB = {
   job_id: 1,
   activity_id: 1,
@@ -35,6 +35,7 @@ const CORP_JOB = {
 // existing docs (the corp-only extras above are NOT valid schema fields).
 const STORED_JOB = {
   job_id: 1,
+  installer_id: 90001,
   activity_id: 1,
   blueprint_type_id: 1000,
   runs: 1,
@@ -197,8 +198,9 @@ describe('corpIndustryJobsSync.syncUser', () => {
     const doc = await readDoc(t);
     expect(doc?.data?.jobs.map((j) => j.job_id)).toEqual([1]);
     expect(doc?.data?.jobs[0]?.status).toBe('active');
-    // The corp-only fields are stripped at the boundary parse.
-    expect(doc?.data?.jobs[0]).not.toHaveProperty('installer_id');
+    // installer_id is retained for runner attribution; the rest of the corp-only
+    // superset (cost, facility ids, …) is stripped at the boundary parse.
+    expect(doc?.data?.jobs[0]?.installer_id).toBe(90001);
     expect(doc?.data?.jobs[0]).not.toHaveProperty('cost');
     expect(doc?.jobsEtag).toBe('cj1');
     expect(doc?.expiresAt).toBe(Date.parse(EXP));

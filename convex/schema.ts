@@ -31,6 +31,11 @@ export const skillQueueEntryValidator = v.object({
 // still holds: wipe + resync reproduces the same state.
 export const industryJobValidator = v.object({
   job_id: v.number(),
+  // The installer character (who's running the job). Optional only to keep
+  // pre-3.7.3.4 stored docs valid until their next resync repopulates it (the
+  // projection now always parses it); the merged active-jobs board reads it for
+  // per-job runner attribution.
+  installer_id: v.optional(v.number()),
   activity_id: v.number(),
   blueprint_type_id: v.number(),
   // Absent on copying/research jobs — the blueprint is the headline there.

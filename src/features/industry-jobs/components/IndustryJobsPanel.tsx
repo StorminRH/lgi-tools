@@ -53,11 +53,13 @@ type LiveCharacter = NonNullable<
 
 // The one per-feature seam of useLiveCharacterSync: which type ids to resolve to
 // names. Module-stable so it can sit in the hook's dependency list. Exported so
-// the /industry active-jobs board reuses the same extraction over the same query.
-export function jobTypeIds(characters: LiveCharacter[]): number[] {
+// the /industry active-jobs board AND the corp board reuse the same extraction —
+// it reads only the `data.jobs` each live entry carries (per character or per
+// corporation), so both the per-character and per-corp live shapes satisfy it.
+export function jobTypeIds(entries: { data: { jobs: IndustryJob[] } | null }[]): number[] {
   const ids: number[] = [];
-  for (const character of characters) {
-    for (const job of character.data?.jobs ?? []) {
+  for (const entry of entries) {
+    for (const job of entry.data?.jobs ?? []) {
       ids.push(job.blueprint_type_id);
       if (job.product_type_id !== undefined) ids.push(job.product_type_id);
     }

@@ -23,7 +23,10 @@ vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
 
 // Static import — mocks above are hoisted; scope-health + sync-eligibility stay
 // real (pure), so the happy path exercises the genuine eligibility filter.
-import { activeJobCharacterIds } from './active-job-character-ids';
+import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
+
+const CORP_SCOPES =
+  'esi-characters.read_corporation_roles.v1 esi-industry.read_corporation_jobs.v1';
 
 describe('activeJobCharacterIds', () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
@@ -76,5 +79,54 @@ describe('activeJobCharacterIds', () => {
     ]);
     expect(await activeJobCharacterIds()).toEqual([100]);
     expect(errorSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('corpJobsAccess', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    getSessionMock.mockReset();
+    listLinkedCharactersMock.mockReset();
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+    vi.unstubAllEnvs();
+  });
+
+  it('reports no linked characters for a signed-out viewer', async () => {
+    getSessionMock.mockResolvedValue(null);
+    expect(await corpJobsAccess()).toEqual({
+      eligibleCharacterIds: [],
+      hasLinkedCharacters: false,
+    });
+  });
+
+  it('returns only the corp-scoped, token-holding character ids', async () => {
+    getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
+    listLinkedCharactersMock.mockResolvedValue([
+      { characterId: 100, scope: CORP_SCOPES, hasRefreshToken: true },
+      // Holds the scopes but no live token → can't vend a read.
+      { characterId: 200, scope: CORP_SCOPES, hasRefreshToken: false },
+      // Token but missing the corp scopes → not eligible.
+      { characterId: 300, scope: 'esi-industry.read_character_jobs.v1', hasRefreshToken: true },
+    ]);
+    expect(await corpJobsAccess()).toEqual({
+      eligibleCharacterIds: [100],
+      hasLinkedCharacters: true,
+    });
+  });
+
+  it('flags scope-missing: linked characters exist but none are corp-eligible', async () => {
+    getSessionMock.mockResolvedValue({ user: { id: 'eve-user-1' } });
+    listLinkedCharactersMock.mockResolvedValue([
+      { characterId: 300, scope: 'esi-industry.read_character_jobs.v1', hasRefreshToken: true },
+    ]);
+    expect(await corpJobsAccess()).toEqual({
+      eligibleCharacterIds: [],
+      hasLinkedCharacters: true,
+    });
   });
 });
