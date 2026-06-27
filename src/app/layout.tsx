@@ -10,6 +10,7 @@ import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ConvexClientProvider } from "@/features/auth/components/ConvexClientProvider";
 import { LoadingToastProvider } from "@/components/ui/loading-toast";
+import { Toaster } from "@/components/ui/toast";
 import { PreferencesProvider } from "@/components/PreferencesProvider";
 import { SITE_URL } from "@/config/site-url";
 import { readEnv } from "@/lib/env";
@@ -93,11 +94,11 @@ export default function RootLayout({
            * (anon) vs Neon (logged-in) tier, so it sits inside AuthProvider. */}
           <PreferencesProvider>
             <ConvexClientProvider>
-              {/* The shared loading toast lives here so any live surface can
-               * register via useLoadingToast; it renders one fixed strip that
-               * drops from under the nav (its top-[50px] tracks AppHeader's
-               * h-[50px]). Inside ConvexClientProvider so Convex-driven
-               * `syncing` consumers and the toast share a tree. */}
+              {/* The shared loading-toast PROVIDER lives here so any live
+               * surface can register via useLoadingToast; it drives one keyed
+               * sonner toast (the <Toaster> mounted below). Inside
+               * ConvexClientProvider so Convex-driven `syncing` consumers share
+               * a tree with the provider. */}
               <LoadingToastProvider>
                 <AppHeader />
                 <main className="flex-1">{children}</main>
@@ -107,6 +108,11 @@ export default function RootLayout({
             </ConvexClientProvider>
           </PreferencesProvider>
         </AuthProvider>
+        {/* The sonner portal toaster — a single viewport-fixed container on
+         * <body>, decoupled from header flow by construction (the OOB.3 fix).
+         * The loading-toast provider above drives it imperatively; one-off
+         * callers use the same `toast` from @/components/ui/toast. */}
+        <Toaster />
         <Suspense fallback={null}>
           <TelemetryReporter />
         </Suspense>
