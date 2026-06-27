@@ -18,8 +18,6 @@ export const SYNC_DATASETS = [
   'skills',
   'industryJobs',
   'corpIndustryJobs',
-  'characterBlueprints',
-  'corpBlueprints',
 ] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
 
@@ -41,12 +39,6 @@ export const SYNC_DATASET_CONFIG: Record<
   // group), so they get their own dispatch-smoothing key — a corp re-arm herd
   // must not burst the char-industry group's spend.
   corpIndustryJobs: { cadenceFloorMs: 300_000, tokenGroup: 'corp-industry' },
-  // Owned blueprints (3.7.5.1) cache for 3600s at ESI — a far slower floor than
-  // skills/jobs (blueprints change only when a player researches/builds). Char
-  // and corp bill DISTINCT token buckets (different route groups), each its own
-  // dispatch-smoothing key, mirroring the char/corp industry-jobs split.
-  characterBlueprints: { cadenceFloorMs: 3_600_000, tokenGroup: 'char-blueprints' },
-  corpBlueprints: { cadenceFloorMs: 3_600_000, tokenGroup: 'corp-blueprints' },
 };
 
 // Client heartbeat interval while the tab is visible.

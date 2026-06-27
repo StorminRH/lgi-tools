@@ -32,6 +32,10 @@
     "src/db/ingest-sde.ts:18-30|src/db/refresh-prices.ts:94-106",
     "src/db/ingest-sde.ts:21-30|src/db/refresh-prices.ts:97-106|src/db/refresh-sde.ts:76-85",
     "src/features/industry-planner/recent-blueprints.ts:47-54|src/features/search-recents/storage.ts:98-107",
-    "src/features/wormhole-sites/queries.ts:268-288|src/features/wormhole-sites/queries.ts:418-441"
+    "src/features/wormhole-sites/queries.ts:268-288|src/features/wormhole-sites/queries.ts:418-441",
+    "convex/lib/esiRead.ts:70-87|src/lib/esi/authed-read.ts:60-77",
+    "convex/lib/esiRead.ts:93-142|src/lib/esi/authed-read.ts:81-120",
+    "convex/lib/esiRead.ts:145-182|src/lib/esi/authed-read.ts:123-158",
+    "convex/lib/esiRead.ts:184-188|src/lib/esi/authed-read.ts:153-157"
   ]
 }

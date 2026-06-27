@@ -204,6 +204,13 @@
       "when": 1782439348470,
       "tag": "0028_jittery_runaways",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1782599386158,
+      "tag": "0029_wonderful_red_hulk",
+      "breakpoints": true
     }
   ]
 }
