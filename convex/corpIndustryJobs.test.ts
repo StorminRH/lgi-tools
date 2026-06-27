@@ -58,6 +58,36 @@ function readCorpDoc(t: TestConvex<typeof schema>, corporationId = CORP) {
   );
 }
 
+function seedSubject(t: TestConvex<typeof schema>) {
+  return t.run(async (ctx) => {
+    await ctx.db.insert('syncSubjects', {
+      dataset: 'corpIndustryJobs' as const,
+      userId: USER,
+      status: 'running' as const,
+      lastRequestedAt: GEN,
+      workId: null,
+      nextDueAt: null,
+      minExpiresAt: null,
+      syncedCharacterIds: [],
+      lastFinishedAt: null,
+      lastError: null,
+      rlGroup: null,
+      rlLimit: null,
+      rlRemaining: null,
+      rlUsed: null,
+    });
+  });
+}
+
+function readSubject(t: TestConvex<typeof schema>) {
+  return t.run((ctx) =>
+    ctx.db
+      .query('syncSubjects')
+      .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+      .unique(),
+  );
+}
+
 describe('corpIndustryJobs.forViewer', () => {
   it('returns null when signed out', async () => {
     const t = convexTest(schema, modules);
@@ -172,5 +202,64 @@ describe('corpIndustryJobs.markJobReady', () => {
         endDate: FUTURE,
       }),
     ).resolves.toBeNull();
+  });
+});
+
+describe('corpIndustryJobs.applySyncResults', () => {
+  // Guards the read-loop budget-stop edge (Greptile #168): resolution finished
+  // (complete=true), the corp-jobs read loop read corp A fresh, hit budget
+  // exhaustion on corp B, and never reached corp C. The stopped corp B carries a
+  // null cache window, so minCacheWindow returns null for the whole subject —
+  // the subject stays DUE-NOW and the engine re-dispatches, re-reading the
+  // unread corp C. It is NOT left "fresh until C's old window expires".
+  it('keeps the subject due (minExpiresAt null) after a read-loop budget stop, retaining unread corps', async () => {
+    const t = convexTest(schema, modules);
+    await seedSubject(t);
+    // Corp C: resolved but never read (after the stop). Pre-existing doc with a
+    // still-future window — the corp whose freshness the finding worried about.
+    const cWindow = GEN + 1_000_000;
+    await t.run(async (ctx) => {
+      await ctx.db.insert('corpIndustryJobsSync', {
+        userId: USER,
+        corporationId: 3000,
+        data: { jobs: [corpJob({ job_id: 9 })] },
+        jobsEtag: 'c',
+        lastSyncedAt: GEN - 1000,
+        expiresAt: cWindow,
+        syncError: null,
+      });
+    });
+
+    await t.mutation(internal.corpIndustryJobs.applySyncResults, {
+      userId: USER,
+      generation: GEN,
+      enumeratedCharacterIds: [101, 102, 103],
+      complete: true,
+      resolvedCorpIds: [2000, 2500, 3000], // A read, B budget-stopped, C unread
+      results: [
+        {
+          corporationId: 2000,
+          jobs: [corpJob({ job_id: 1 })],
+          jobsEtag: 'a',
+          expiresAt: GEN + 300_000,
+          error: null,
+        },
+        // The budget-stopped corp: errored, null window (corpErrorResult shape).
+        { corporationId: 2500, jobs: null, jobsEtag: null, expiresAt: null, error: 'budget_exhausted' },
+      ],
+      lastError: 'budget_exhausted:scoreboard',
+      rlGroup: null,
+      rlLimit: null,
+      rlRemaining: null,
+      rlUsed: null,
+    });
+
+    // The null window from the stopped corp forces the subject due-now.
+    const subject = await readSubject(t);
+    expect(subject?.minExpiresAt).toBeNull();
+    // Corp C is retained (complete=true keeps the full resolved set), unmodified.
+    const c = await readCorpDoc(t, 3000);
+    expect(c?.data?.jobs.map((j) => j.job_id)).toEqual([9]);
+    expect(c?.expiresAt).toBe(cWindow);
   });
 });
