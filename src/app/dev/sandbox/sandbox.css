@@ -219,6 +219,20 @@
   box-shadow: 0 4px 14px -8px rgba(61, 214, 140, 0.35);
 }
 
+/* ── OOB.4.1 mapper spike — dnd-kit sortable row ──────────────────────────
+ * Classic dnd-kit hands back a per-frame transform + transition the docs apply
+ * via an inline style attribute. To stay house-style-clean (no JSX style attr,
+ * no eslint exemption) the SortableSig component writes them to these CSS vars
+ * via ref.style.setProperty — the same idiom as the odometer's --digit above. */
+.sbx-sortable {
+  transform: var(--sbx-tf, none);
+  transition: var(--sbx-tr, none);
+}
+.sbx-sortable[data-dragging] {
+  opacity: 0.6;
+  z-index: 1;
+}
+
 /* Radial-depth ring fade-in. */
 .sbx-radial-node {
   transition: opacity 160ms ease;
@@ -321,4 +335,5 @@
   .sbx-connector { stroke-dashoffset: 0; }
   .sbx-radial-fade { opacity: 1; }
   .sbx-card-sheen::after { transition: none; }
+  .sbx-sortable { transition: none; }
 }
