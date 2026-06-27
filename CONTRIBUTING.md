@@ -80,6 +80,23 @@ utilities), or in `tones.ts` for the SVG fills/strokes that read `toneHex`. The
 visual identity is the existing terminal/EVE aesthetic — build within it rather
 than introducing a new palette or typeface.
 
+## UI components & overlays
+
+Interactive UI is built on adopted libraries, each **wrapped once in
+`src/components/ui/`** as a tone-prop primitive and consumed from features via
+`@/components/ui/*` — a feature never imports the raw library:
+
+- **Overlays** (tooltip / popover / dialog / menu / nav) → Base UI
+  (`@base-ui/react`).
+- **Toasts** → sonner, through `components/ui/toast.tsx` (the only sonner
+  importer).
+- **Node graphs** → React Flow; **drag / reorder** → dnd-kit; **charts** → visx.
+
+Style className-first with tone tokens (no inline `style` — see [Security &
+CSP](#security--csp)). Configure each library's built-in dismiss / focus /
+keyboard behavior rather than re-implementing it. When adding a route — including
+a sandbox demo — register it in `scripts/route-classification.json`.
+
 ## Architecture invariants
 
 These are load-bearing constraints, several **lint-enforced**:
