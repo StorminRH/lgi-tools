@@ -8,6 +8,10 @@
  * @module
  */
 
+import type * as characterBlueprints from "../characterBlueprints.js";
+import type * as characterBlueprintsSync from "../characterBlueprintsSync.js";
+import type * as corpBlueprints from "../corpBlueprints.js";
+import type * as corpBlueprintsSync from "../corpBlueprintsSync.js";
 import type * as corpIndustryJobs from "../corpIndustryJobs.js";
 import type * as corpIndustryJobsSync from "../corpIndustryJobsSync.js";
 import type * as crons from "../crons.js";
@@ -19,6 +23,7 @@ import type * as lib_bearerAuth from "../lib/bearerAuth.js";
 import type * as lib_characterSync from "../lib/characterSync.js";
 import type * as lib_corpSync from "../lib/corpSync.js";
 import type * as lib_esiRead from "../lib/esiRead.js";
+import type * as lib_ownedBlueprints from "../lib/ownedBlueprints.js";
 import type * as lib_subjects from "../lib/subjects.js";
 import type * as purge from "../purge.js";
 import type * as skills from "../skills.js";
@@ -31,6 +36,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  characterBlueprints: typeof characterBlueprints;
+  characterBlueprintsSync: typeof characterBlueprintsSync;
+  corpBlueprints: typeof corpBlueprints;
+  corpBlueprintsSync: typeof corpBlueprintsSync;
   corpIndustryJobs: typeof corpIndustryJobs;
   corpIndustryJobsSync: typeof corpIndustryJobsSync;
   crons: typeof crons;
@@ -42,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   "lib/characterSync": typeof lib_characterSync;
   "lib/corpSync": typeof lib_corpSync;
   "lib/esiRead": typeof lib_esiRead;
+  "lib/ownedBlueprints": typeof lib_ownedBlueprints;
   "lib/subjects": typeof lib_subjects;
   purge: typeof purge;
   skills: typeof skills;

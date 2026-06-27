@@ -16,10 +16,12 @@ describe('EVE_SCOPES', () => {
   // ALL sign-in (a wrong name shipped in 3.4.1a and did exactly that).
   //
   // 3.7.1.1 pruned this to STRICT LEAST-PRIVILEGE; 3.7.3.1 (the first corp
-  // feature) added the two corp reads, taking it to six. Naming trap still
-  // worth pinning: the skill-queue read lives under `esi-skills`, NOT
+  // feature) added the two corp reads, taking it to six; 3.7.5.1 added the two
+  // blueprint reads (owned-blueprints dataset), taking it to eight. Naming trap
+  // still worth pinning: the skill-queue read lives under `esi-skills`, NOT
   // `esi-skillqueue`. (`read_attributes` does not exist; /attributes is gated by
   // `read_skills`.) The corp roles read lives under `esi-characters`, NOT
+  // `esi-corporations` — but the corp BLUEPRINTS read lives under
   // `esi-corporations`. Adding a scope is a deliberate, batched decision —
   // verify the exact live name before touching this list.
   it('matches the verified least-privilege EVE scope names', () => {
@@ -30,6 +32,8 @@ describe('EVE_SCOPES', () => {
       'esi-industry.read_character_jobs.v1',
       'esi-characters.read_corporation_roles.v1',
       'esi-industry.read_corporation_jobs.v1',
+      'esi-characters.read_blueprints.v1',
+      'esi-corporations.read_blueprints.v1',
     ]);
   });
 

@@ -55,6 +55,22 @@ export const industryJobValidator = v.object({
   pause_date: v.optional(v.string()),
 });
 
+// One owned blueprint, the UI projection the 3.7.5.1 dataset stores (see
+// src/features/owned-blueprints/esi-projection.ts for the boundary parse). The
+// character and corporation blueprint endpoints share this exact shape, so the
+// validator is reused by both cold tables. Deliberately minimal: the ESI row's
+// `item_id` is dropped at the boundary (no consumer needs it yet). quantity
+// -1/-2 = BPO/BPC; runs -1 = BPO (infinite), else BPC remaining runs.
+export const ownedBlueprintValidator = v.object({
+  type_id: v.number(),
+  material_efficiency: v.number(),
+  time_efficiency: v.number(),
+  runs: v.number(),
+  quantity: v.number(),
+  location_id: v.number(),
+  location_flag: v.string(),
+});
+
 export default defineSchema({
   // One doc per (user, character): the HOT sync metadata for the skill-queue
   // tracker — conditional-request custody plus freshness/error state. The held
@@ -120,6 +136,8 @@ export default defineSchema({
       v.literal('skills'),
       v.literal('industryJobs'),
       v.literal('corpIndustryJobs'),
+      v.literal('characterBlueprints'),
+      v.literal('corpBlueprints'),
     ),
     userId: v.string(),
     status: v.union(v.literal('idle'), v.literal('running')),
@@ -163,6 +181,8 @@ export default defineSchema({
       v.literal('skills'),
       v.literal('industryJobs'),
       v.literal('corpIndustryJobs'),
+      v.literal('characterBlueprints'),
+      v.literal('corpBlueprints'),
     ),
     userId: v.string(),
     // Last heartbeat from a visible tab. The scan and sweep treat a presence
@@ -247,6 +267,76 @@ export default defineSchema({
     userId: v.string(),
     corporationId: v.number(),
     data: v.object({ jobs: v.array(industryJobValidator) }),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_corp', ['userId', 'corporationId']),
+
+  // One doc per (user, character): the HOT sync metadata for the owned-blueprints
+  // tracker — the characterSync twin for the 3.7.5.1 dataset. The endpoint is
+  // paginated (?page= + X-Pages), so one held ETag PER PAGE rides this row (an
+  // empty array before the first sync); each etag is only ever stored beside the
+  // payload (in characterBlueprintsSyncData) a future 304 would confirm. Same
+  // custody rules as characterSync: an errored result clears expiresAt so the
+  // next mount/visible heartbeat is never swallowed. Heavy payload split off into
+  // the COLD table (SA.5 — see characterSync/characterSyncData for the rationale).
+  characterBlueprintsSync: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    etags: v.array(v.string()),
+    lastSyncedAt: v.union(v.number(), v.null()),
+    // Cache window read off the response's Expires header (spec says 3600s for
+    // blueprints — but always read, never assumed).
+    expiresAt: v.union(v.number(), v.null()),
+    syncError: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // One doc per (user, character): the COLD owned-blueprints payload — the heavy
+  // half split off characterBlueprintsSync in the SA.5 pattern (the
+  // characterSyncData twin). Written only when the projected set actually changes
+  // (the apply deep-equals against the existing payload and skips an identical
+  // rewrite, so the reactive forViewer never re-fires on an unchanged hourly
+  // sync); exists iff the character has synced its blueprints at least once.
+  // Regenerable.
+  characterBlueprintsSyncData: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    data: v.object({ blueprints: v.array(ownedBlueprintValidator) }),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
+
+  // One doc per (user, corporation): the HOT sync metadata for the CORP
+  // owned-blueprints tracker — the characterBlueprintsSync twin keyed by corp
+  // (the corpIndustryJobsSync pattern). Per-corp, fanned in from the user's
+  // role-holding characters: a run resolves the user's characters to the corps
+  // they can read, dedups to one subject per corp, and reads each corp's
+  // blueprints ONCE. Paginated, so per-page ETags ride here (same custody rules).
+  // A corporation whose vending character lacks the in-game Director role is a
+  // PRESENT hot doc with syncError:'needs_role' and NO cold doc — a distinct,
+  // graceful state (not a scope/AccessGate prompt, and not absent). Corp data is
+  // per-user and private here (no cross-user sharing — a later policy call).
+  corpBlueprintsSync: defineTable({
+    userId: v.string(),
+    corporationId: v.number(),
+    etags: v.array(v.string()),
+    lastSyncedAt: v.union(v.number(), v.null()),
+    expiresAt: v.union(v.number(), v.null()),
+    syncError: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_corp', ['userId', 'corporationId']),
+
+  // One doc per (user, corporation): the COLD corp owned-blueprints payload — the
+  // heavy half split off corpBlueprintsSync (the characterBlueprintsSyncData
+  // twin). Written only on a genuine payload change (a 304 or a needs_role result
+  // leaves it untouched; needs_role deletes any stale doc); exists iff the corp's
+  // blueprints have synced at least once. Regenerable.
+  corpBlueprintsSyncData: defineTable({
+    userId: v.string(),
+    corporationId: v.number(),
+    data: v.object({ blueprints: v.array(ownedBlueprintValidator) }),
   })
     .index('by_user', ['userId'])
     .index('by_user_corp', ['userId', 'corporationId']),
