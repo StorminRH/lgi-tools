@@ -52,8 +52,10 @@ export function Menu({
   trigger: ReactNode;
   // The popup content — `MenuLinkItem`s and/or arbitrary footer content.
   children: ReactNode;
-  // Accessible name for both the trigger and the popup menu.
-  label?: string;
+  // Accessible name for both the trigger and the popup menu. Required: the
+  // trigger is often an icon (e.g. the hamburger), so without it the button would
+  // ship unnamed in the accessibility tree.
+  label: string;
   tone?: MenuTone;
   side?: PositionerProps['side'];
   align?: PositionerProps['align'];

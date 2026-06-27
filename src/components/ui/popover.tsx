@@ -52,8 +52,10 @@ export function Popover({
   trigger: ReactNode;
   // The panel content.
   children: ReactNode;
-  // Accessible name for both the trigger and the popup dialog.
-  label?: string;
+  // Accessible name for both the trigger and the popup dialog. Required: the
+  // trigger is often an icon (or empty) and the popup is a dialog, so without it
+  // they'd ship unnamed in the accessibility tree.
+  label: string;
   tone?: PopoverTone;
   side?: 'top' | 'bottom' | 'left' | 'right';
   // Opens on hover in addition to press/focus (the info-icon default). Set false

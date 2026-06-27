@@ -37,8 +37,9 @@ export function NavigationMenu({
 }: {
   // The `NavigationMenuItem`s (each wrapping a link or, later, a dropdown).
   children: ReactNode;
-  // Accessible name for the <nav> landmark.
-  label?: string;
+  // Accessible name for the <nav> landmark. Required so the landmark is always
+  // distinguishable to assistive tech.
+  label: string;
   tone?: NavigationMenuTone;
   // Classes for the <nav> root (placement + the strip's framing hairlines).
   className?: string;
