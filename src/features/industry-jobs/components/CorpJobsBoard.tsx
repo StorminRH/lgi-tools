@@ -275,7 +275,7 @@ function CorpJobRow({
       </div>
       {(job.status === 'active' || job.status === 'paused') && (
         <div className="mt-[4px]">
-          <ProgressBar pct={jobProgress(job, now)} />
+          <ProgressBar pct={jobProgress(job, now)} tone="evb" />
         </div>
       )}
       <div className="mt-[5px]">

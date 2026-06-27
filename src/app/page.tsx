@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     absolute: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
   },
   description:
-    'Browse all 69 Eve Online wormhole sites by class, type, and ISK value, with live Jita prices on ore and gas resources. Free first-party tools for wormhole pilots.',
+    'Browse all 69 Eve Online wormhole sites by class, type, and ISK value, with live Jita prices on ore and gas resources. Free tools for wormhole pilots.',
   // Next normalizes the root canonical to the bare origin (`https://lgi.tools`)
   // under `trailingSlash: false` — Google treats that as identical to
   // `https://lgi.tools/`, the form URL Inspection displays.
@@ -39,7 +39,7 @@ const HOME_JSON_LD = {
       name: 'LGI.tools',
       url: SITE_URL,
       description:
-        'First-party Eve Online tools for wormhole pilots — a searchable database of wormhole sites with live Jita loot prices.',
+        'Eve Online tools for wormhole pilots — a searchable database of wormhole sites with live Jita loot prices.',
       publisher: { '@id': `${SITE_URL}/#organization` },
     },
   ],

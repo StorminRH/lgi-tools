@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.4 — 2026-06-27
+
+#### Added
+- Your corporation's industry jobs now appear alongside your own on the Jobs board and the Industry planner. Each job shows who's running it — their portrait and name — with the corporation's logo, and a finished corp job flips to "ready" on its own while the page is open.
+
+#### Changed
+- Seeing corporation jobs needs a character with the Factory Manager or Director role in the corp. Existing players must reconnect a character once to approve two new read-only corporation permissions (its roles and its industry jobs) — EVE requires re-consent whenever an app asks for new access.
+
 ### v3.7.3 — 2026-06-26
 
 #### Fixed
