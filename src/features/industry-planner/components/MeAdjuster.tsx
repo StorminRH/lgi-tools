@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
 import { MAX_TE } from '../te-overrides';
@@ -198,6 +198,25 @@ function EfficiencyField({
     onCommit(n);
     setDraft(String(n));
   };
+  // React registers `onWheel` as a PASSIVE root listener, so an `e.preventDefault()`
+  // there is silently ignored — a focused field would step AND scroll the page. A
+  // native non-passive listener lets preventDefault suppress the page scroll; the
+  // focus gate keeps scrolling past an unfocused field from nudging it. The step is
+  // inlined (not a call to `step`) so the listener's deps stay stable values, not the
+  // per-render closure.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el === null) return;
+    const onWheel = (e: WheelEvent) => {
+      if (document.activeElement !== el) return;
+      e.preventDefault();
+      const next = Math.min(max, Math.max(0, d.effective + (e.deltaY < 0 ? 1 : -1)));
+      onCommit(next);
+      setDraft(String(next));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [d.effective, max, onCommit]);
   return (
     // Stop clicks/keys reaching the node card so editing never triggers its drill-down.
     <span
@@ -222,13 +241,6 @@ function EfficiencyField({
             e.preventDefault();
             step(-1);
           }
-        }}
-        onWheel={(e) => {
-          // Scroll-to-change only while focused, so scrolling the page past an
-          // unfocused field never nudges it.
-          if (document.activeElement !== inputRef.current) return;
-          e.preventDefault();
-          step(e.deltaY < 0 ? 1 : -1);
         }}
         onBlur={() => {
           if (draft === '' && d.isOverridden) onRevert();
