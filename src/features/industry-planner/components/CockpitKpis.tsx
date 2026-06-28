@@ -199,8 +199,10 @@ export function CockpitKpis({
             <KpiHelp label="How build time is estimated">
               <PopoverHeading>Build time — final job</PopoverHeading>
               <PopoverRow label="Runs">×{runs}</PopoverRow>
+              {/* No owned/manual qualifier on a non-zero value: topTe is the effective TE
+                  and can come from a manual override, so the bare percentage is honest. */}
               <PopoverRow label="Time efficiency">
-                {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ' (owned)'}
+                {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ''}
               </PopoverRow>
               <PopoverRow label="Skills &amp; structure">none applied</PopoverRow>
             </KpiHelp>
