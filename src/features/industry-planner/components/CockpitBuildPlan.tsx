@@ -55,10 +55,10 @@ interface Focus {
   name: string;
 }
 
-// A build-plan row is the re-laid-out node card (3.7.5.7). `efficiency` carries the
-// inline ME/TE fields for a manufacturable buildable (absent for raws/reactions or a
-// logged-out caller); `detail` is the owned blueprint's owner/location for the QTY
-// ring hover. Clicking drills the cascade when the node has children.
+// A build-plan row is the re-laid-out node card (3.7.5.8). `efficiency` carries the
+// icon-frame tone + popover adjusters for a manufacturable buildable (absent only for
+// raws/reactions); `detail` is the owned blueprint's owner/location shown in the icon
+// popover (not the QTY ring). Clicking drills the cascade when the node has children.
 function TierRow({
   item,
   qty,

@@ -6,14 +6,16 @@ import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-over
 import { MAX_TE } from '../te-overrides';
 import type { OwnedComponentDetail } from '../types';
 
-// The interactive per-node efficiency controls (3.7.5.4 ME, 3.7.5.6 TE, 3.7.5.7
-// inline). Each manufacturable node carries EVE's material-efficiency GEM and its
-// time-efficiency HOURGLASS as INLINE editable fields: the icon + a number you
-// scroll, arrow, or type (clamped ME 0-10 / TE 0-20). The VALUE's colour is the
-// state — blue owned, orange a manual what-if, faint/empty unowned — so the field
-// needs no extra baseline text; a ↺ appears only when overridden. ME drives the cost
-// ledger; TE drives the build time. The owner/location readout (`ProvenanceRows`)
-// moved to the node's QTY-ring hover.
+// The interactive per-node efficiency controls (3.7.5.4 ME, 3.7.5.6 TE, 3.7.5.8
+// steppers + icon popover). Each manufacturable node carries EVE's material-efficiency
+// GEM and its time-efficiency HOURGLASS as editable fields: a number you scroll, arrow,
+// type, or (with `steppers`) step with ▲/▼ (clamped ME 0-10 / TE 0-20). The VALUE's
+// colour is the state — blue owned, orange a manual what-if, faint/empty unowned — so
+// the field needs no extra baseline text; a ↺ appears only when overridden. ME drives
+// the cost ledger; TE drives the build time. `NodeAdjusters` lays both fields out for a
+// node's icon popover (steppers on); the planner header renders them inline (off). The
+// owner/location readout (`ProvenanceRows`) appears in that icon popover, after the
+// adjusters.
 
 interface MeProps {
   // The producing blueprint's type id — the key the override map and `meOf` use.
