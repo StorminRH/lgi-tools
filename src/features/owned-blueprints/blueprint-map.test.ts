@@ -50,6 +50,14 @@ describe('toOwnedBlueprintMap', () => {
     expect(map.get(1)).toMatchObject({ me: 10, te: 8, runs: 5, owned: 3 });
   });
 
+  it('prefers a BPO (infinite runs = -1) over a BPC on a same-ME/TE tie, regardless of order', () => {
+    const bpc = row(34, 10, 20, 30, { ownerType: 'corporation', ownerId: 9 });
+    const bpo = row(34, 10, 20, -1, { ownerType: 'character', ownerId: 1 });
+    // The BPO wins the runs tiebreak and surfaces its provenance, whichever is seen first.
+    expect(toOwnedBlueprintMap([bpc, bpo]).get(34)).toMatchObject({ runs: -1, ownerType: 'character', ownerId: 1 });
+    expect(toOwnedBlueprintMap([bpo, bpc]).get(34)).toMatchObject({ runs: -1, ownerType: 'character', ownerId: 1 });
+  });
+
   it('records the winning copy owner + location, not the first-seen copy', () => {
     // A worse copy is seen first (character, station); the winning high-ME copy is
     // owned by a corporation at a structure — its provenance is what surfaces.

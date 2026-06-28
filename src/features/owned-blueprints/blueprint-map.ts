@@ -38,14 +38,21 @@ export interface BlueprintMapInput {
   locationFlag: string;
 }
 
+// A BPO carries runs = -1 (infinite); a BPC carries its remaining count. For the
+// "most runs" tiebreak a BPO is the best copy to surface (it's permanent and
+// reusable), so its -1 ranks ABOVE any finite BPC count.
+function runsRank(runs: number): number {
+  return runs < 0 ? Number.POSITIVE_INFINITY : runs;
+}
+
 // Is `row` a better copy to surface than the summary already held? Highest ME
-// wins, then highest TE, then most runs — the same precedence a builder picks.
-// Owner/location are NOT part of the comparison: they are the chosen copy's
-// provenance, not a selection criterion, so the winner is identical to before.
+// wins, then highest TE, then most runs (a BPO beating any BPC) — the same
+// precedence a builder picks. Owner/location are NOT part of the comparison: they
+// are the chosen copy's provenance, not a selection criterion.
 function isBetterCopy(row: BlueprintMapInput, summary: OwnedBlueprintSummary): boolean {
   if (row.materialEfficiency !== summary.me) return row.materialEfficiency > summary.me;
   if (row.timeEfficiency !== summary.te) return row.timeEfficiency > summary.te;
-  return row.runs > summary.runs;
+  return runsRank(row.runs) > runsRank(summary.runs);
 }
 
 export function toOwnedBlueprintMap(rows: BlueprintMapInput[]): OwnedBlueprintMap {
