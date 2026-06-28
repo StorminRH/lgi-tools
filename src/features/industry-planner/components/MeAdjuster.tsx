@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
 import { MAX_TE } from '../te-overrides';
@@ -273,6 +273,10 @@ function EfficiencyField({
 // is "main blueprint" in the header.
 export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride }: MeProps) {
   const d = deriveAdjust(ownedMe, meOverrides, blueprintTypeId);
+  // Stable callbacks so the field's native wheel listener re-registers only on a
+  // value change, not on every render.
+  const onCommit = useCallback((n: number) => setMeOverride(blueprintTypeId, n), [setMeOverride, blueprintTypeId]);
+  const onRevert = useCallback(() => resetMeOverride(blueprintTypeId), [resetMeOverride, blueprintTypeId]);
   return (
     <EfficiencyField
       icon={<GemIcon state={d.state} />}
@@ -280,8 +284,8 @@ export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOver
       name={name}
       max={MAX_ME}
       d={d}
-      onCommit={(n) => setMeOverride(blueprintTypeId, n)}
-      onRevert={() => resetMeOverride(blueprintTypeId)}
+      onCommit={onCommit}
+      onRevert={onRevert}
     />
   );
 }
@@ -289,6 +293,8 @@ export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOver
 // The time-efficiency inline field — the time-side twin of MeField.
 export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride }: TeProps) {
   const d = deriveAdjust(ownedTe, teOverrides, blueprintTypeId);
+  const onCommit = useCallback((n: number) => setTeOverride(blueprintTypeId, n), [setTeOverride, blueprintTypeId]);
+  const onRevert = useCallback(() => resetTeOverride(blueprintTypeId), [resetTeOverride, blueprintTypeId]);
   return (
     <EfficiencyField
       icon={<HourglassIcon state={d.state} />}
@@ -296,8 +302,8 @@ export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOver
       name={name}
       max={MAX_TE}
       d={d}
-      onCommit={(n) => setTeOverride(blueprintTypeId, n)}
-      onRevert={() => resetTeOverride(blueprintTypeId)}
+      onCommit={onCommit}
+      onRevert={onRevert}
     />
   );
 }
