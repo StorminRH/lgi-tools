@@ -18,8 +18,18 @@ export function clampTe(n: number, fallback = 0): number {
 }
 
 // The effective per-blueprint TE lookup and a node's owned/manual/unowned state are
-// identical in shape to ME (override wins, else owned, else undefined); re-exported
-// so call sites read TE intent without a copy of the logic.
-export const effectiveTeOf = effectiveMeOf;
-export const nodeTeState = nodeMeState;
+// identical in shape to ME (override wins, else owned, else undefined). Thin
+// forwarders (not bare aliases) so the TE boundary is explicit — a deliberate seam to
+// make TE-specific behaviour easy to add later without a copy of the logic today.
+export function effectiveTeOf(
+  owned: Map<number, number> | null,
+  overrides: Map<number, number>,
+): (blueprintTypeId: number) => number | undefined {
+  return effectiveMeOf(owned, overrides);
+}
+
+export function nodeTeState(owned: number | undefined, override: number | undefined): NodeMeState {
+  return nodeMeState(owned, override);
+}
+
 export type NodeTeState = NodeMeState;

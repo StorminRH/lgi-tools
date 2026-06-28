@@ -23,7 +23,12 @@ import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore, type MarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { apiFetch } from '@/lib/api-client';
-import { collectBlueprintTypeIds, collectRawTypeIds, computeBatchLedgerWithMe } from '../build-batch';
+import {
+  collectBlueprintTypeIds,
+  collectRawTypeIds,
+  computeBatchLedgerWithMe,
+  type BatchLedger,
+} from '../build-batch';
 import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
 import { computeBuildTimes, type BuildTimes } from '../build-time';
@@ -184,6 +189,9 @@ interface PricingContextValue {
   // Set a node's manual TE (clamped 0–20); `reset` drops it back to owned-or-default.
   setTeOverride: (blueprintTypeId: number, te: number) => void;
   resetTeOverride: (blueprintTypeId: number) => void;
+  // The ME-aware whole-run batch ledger (the build-batch ceil). One source for the
+  // build plan's tiers + drill-down AND the build-time totals, so they can't drift.
+  ledger: BatchLedger;
   // The final-job and whole-tree build-time figures, TE-applied (readout only — TE
   // never touches the cost path). Recomputes on runs / ME / TE change.
   buildTimes: BuildTimes;
@@ -401,26 +409,35 @@ export function PricingProvider({
     [ownedMe, ownedTe],
   );
 
+  // The ME-aware batch ledger — computed ONCE here and shared (the build plan reads
+  // it from context), so the cost tiers and the build-time totals read one source and
+  // can't disagree, and the topological walk runs once per change, not twice.
+  const ledger = useMemo<BatchLedger>(
+    () =>
+      computeBatchLedgerWithMe(structure.tree, runs, {
+        meOf: effectiveMeOf(ownedMe, meOverrides),
+        topBlueprintTypeId: structure.blueprintTypeId,
+      }),
+    [structure.tree, structure.blueprintTypeId, runs, ownedMe, meOverrides],
+  );
+
   // The TE-adjusted build-time figures. Its OWN memo, separate from the cost
-  // `assemble()` — TE never enters the cost path. Builds the same ME ledger (a pure
-  // call, same inputs as CockpitBuildPlan's — no drift) for per-node batched runs,
-  // then applies effective TE per blueprint.
-  const buildTimes = useMemo<BuildTimes>(() => {
-    const ledger = computeBatchLedgerWithMe(structure.tree, runs, {
-      meOf: effectiveMeOf(ownedMe, meOverrides),
-      topBlueprintTypeId: structure.blueprintTypeId,
-    });
-    return computeBuildTimes({
-      topBlueprintTypeId: structure.blueprintTypeId,
-      topProductTypeId: structure.product.typeId,
-      topJobSeconds: structure.topJobSeconds,
-      nodeJobSeconds: structure.nodeJobSeconds,
-      runs,
-      builds: ledger.builds,
-      teOf: effectiveTeOf(ownedTe, teOverrides),
-      nameOf: (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
-    });
-  }, [structure, runs, ownedMe, meOverrides, ownedTe, teOverrides]);
+  // `assemble()` — TE never enters the cost path. Reads the shared ME ledger for
+  // per-node batched runs, then applies effective TE per blueprint.
+  const buildTimes = useMemo<BuildTimes>(
+    () =>
+      computeBuildTimes({
+        topBlueprintTypeId: structure.blueprintTypeId,
+        topProductTypeId: structure.product.typeId,
+        topJobSeconds: structure.topJobSeconds,
+        nodeJobSeconds: structure.nodeJobSeconds,
+        runs,
+        builds: ledger.builds,
+        teOf: effectiveTeOf(ownedTe, teOverrides),
+        nameOf: (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
+      }),
+    [structure, runs, ledger, ownedTe, teOverrides],
+  );
 
   // Every viewed price re-confirmed live on view — across the raw cost basis,
   // the product, and the buildable intermediates. We refresh the whole set, not
@@ -575,6 +592,7 @@ export function PricingProvider({
       teOverrides,
       setTeOverride,
       resetTeOverride,
+      ledger,
       buildTimes,
       ownedActive,
     }),
@@ -599,6 +617,7 @@ export function PricingProvider({
       teOverrides,
       setTeOverride,
       resetTeOverride,
+      ledger,
       buildTimes,
       ownedActive,
     ],

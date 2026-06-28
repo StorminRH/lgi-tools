@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { SectionLabel } from '@/components/ui/section-label';
 import { formatIsk } from '@/lib/format/isk';
-import { chainActualsFrom, computeBatchLedgerWithMe } from '../build-batch';
+import { chainActualsFrom } from '../build-batch';
 import {
   chainLevelsFrom,
   consolidateBuild,
@@ -14,7 +14,6 @@ import {
   type ConsolidatedTier,
 } from '../build-consolidate';
 import { REACTION_NODE_LABEL } from '../industry-styles';
-import { effectiveMeOf } from '../me-overrides';
 import type { BlueprintStructure, OwnedComponentDetail } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
 import { MeField, TeField } from './MeAdjuster';
@@ -204,7 +203,6 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
 export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
   const {
     pricing,
-    runs,
     ownedMe,
     ownedDetail,
     meOverrides,
@@ -215,22 +213,14 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     setTeOverride,
     resetTeOverride,
     ownedActive,
+    // The whole-run batch ledger (the build-batch ceil) — computed once in the
+    // provider and shared, so the tiers, the drill-down, and the build-time totals
+    // read one ME source. Byte-identical to the ME0 basis when nothing is owned.
+    ledger,
   } = usePricing();
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
-  // The whole-run batch ledger for `runs` runs (the build-batch ceil) — drives
-  // the batched tier quantities, the focused-drill-down actuals, AND the per-node
-  // ME readouts. ME-aware: each buildable reduces by the caller's owned-blueprint
-  // ME. With nothing owned (`ownedMe` null/empty) `meOf` returns undefined
-  // everywhere, so this is byte-identical to the ME0 cost basis.
-  const ledger = useMemo(() => {
-    const meOf = effectiveMeOf(ownedMe, meOverrides);
-    return computeBatchLedgerWithMe(structure.tree, runs, {
-      meOf,
-      topBlueprintTypeId: structure.blueprintTypeId,
-    });
-  }, [structure.tree, structure.blueprintTypeId, runs, ownedMe, meOverrides]);
   // The producing blueprint per buildable typeId — keys each row's adjusters to the
   // override maps. Undefined for raws (which never appear as tier rows).
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
