@@ -13,7 +13,7 @@ import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitKpis, type MarginMode } from './CockpitKpis';
-import { MeMainControl, TeMainControl } from './MeAdjuster';
+import { MeField, TeField } from './MeAdjuster';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
@@ -51,7 +51,6 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
     runs,
     setRuns,
     ownedMe,
-    ownedDetail,
     meOverrides,
     setMeOverride,
     resetMeOverride,
@@ -106,23 +105,24 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
 
         <div className="flex flex-wrap items-center gap-4">
           {ownedActive && isManufacturing && (
-            <>
-              <MeMainControl
+            <div className="flex items-center gap-3 rounded-[3px] border border-border px-2.5 py-1">
+              <MeField
                 blueprintTypeId={structure.blueprintTypeId}
+                name="main blueprint"
                 ownedMe={ownedMe}
                 meOverrides={meOverrides}
                 setMeOverride={setMeOverride}
                 resetMeOverride={resetMeOverride}
-                detail={ownedDetail?.get(structure.blueprintTypeId)}
               />
-              <TeMainControl
+              <TeField
                 blueprintTypeId={structure.blueprintTypeId}
+                name="main blueprint"
                 ownedTe={ownedTe}
                 teOverrides={teOverrides}
                 setTeOverride={setTeOverride}
                 resetTeOverride={resetTeOverride}
               />
-            </>
+            </div>
           )}
           <label className="flex items-center gap-2.5 text-[9px] uppercase tracking-[0.14em] text-muted">
             Runs

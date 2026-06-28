@@ -4,9 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { SectionLabel } from '@/components/ui/section-label';
-import { TypeIcon } from '@/components/ui/type-icon';
 import { formatIsk } from '@/lib/format/isk';
-import { formatQuantity } from '@/lib/format/number';
 import { chainActualsFrom, computeBatchLedgerWithMe } from '../build-batch';
 import {
   chainLevelsFrom,
@@ -17,9 +15,10 @@ import {
 } from '../build-consolidate';
 import { REACTION_NODE_LABEL } from '../industry-styles';
 import { effectiveMeOf } from '../me-overrides';
-import type { BlueprintStructure } from '../types';
+import type { BlueprintStructure, OwnedComponentDetail } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
-import { MeRowOrb, TeRowOrb } from './MeAdjuster';
+import { MeField, TeField } from './MeAdjuster';
+import { NodeCard } from './NodeCard';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit build plan: the consolidated material breakdown as a column per
@@ -50,26 +49,22 @@ const COLS_DESKTOP = [
   'min-[1080px]:grid-cols-8',
 ];
 
-const ROW =
-  'grid grid-cols-[30px_minmax(0,1fr)_auto_14px] items-center gap-2.5 px-3 py-[9px] min-h-[44px] border-t border-border-soft first:border-t-0 transition-opacity';
-
 interface Focus {
   depth: number;
   typeId: number;
   name: string;
 }
 
-// A deep input's marginal share of one end product can be sub-unit.
-function formatNodeQty(quantity: number): string {
-  if (quantity > 0 && quantity < 0.5) return '< 1';
-  return formatQuantity(quantity);
-}
-
+// A build-plan row is the re-laid-out node card (3.7.5.7). `efficiency` carries the
+// inline ME/TE fields for a manufacturable buildable (absent for raws/reactions or a
+// logged-out caller); `detail` is the owned blueprint's owner/location for the QTY
+// ring hover. Clicking drills the cascade when the node has children.
 function TierRow({
   item,
   qty,
   value,
-  orb,
+  efficiency,
+  detail,
   selected,
   related,
   faded,
@@ -78,77 +73,35 @@ function TierRow({
   item: ConsolidatedItem;
   qty: number;
   value: number | null;
-  // The per-node ME adjuster (a corner gem orb), or absent when the plan isn't
-  // ME-active (logged out / owns nothing) — then the row is byte-identical to the
-  // pre-ME plan.
-  orb?: ReactNode;
+  efficiency?: ReactNode;
+  detail?: OwnedComponentDetail;
   selected: boolean;
   related: boolean;
   faded: boolean;
   onSelect?: () => void;
 }) {
-  const inner = (
-    <>
-      <TypeIcon typeId={item.typeId} size={30} mono={item.name.slice(0, 2)} />
-      <div className="flex min-w-0 flex-col gap-px">
-        <span className="line-clamp-2 break-words font-mono text-[12.5px] font-medium leading-[1.28] text-name">
-          {item.name}
-        </span>
-        <span className="truncate font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted">
-          {item.label}
-        </span>
-      </div>
-      <span className="flex flex-col items-end gap-px text-right">
-        <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-muted">
-          × {formatNodeQty(qty)}
-        </span>
-        <span className="whitespace-nowrap font-mono text-[11.5px] tabular-nums text-text">
-          {value !== null ? formatIsk(value) : '—'}
-        </span>
-      </span>
-      <span className={cn('text-center text-[11px]', selected ? 'text-isk' : 'text-muted')}>
-        {onSelect ? '▸' : ''}
-      </span>
-    </>
-  );
-
-  const cls = cn(
-    ROW,
-    faded && 'opacity-25',
-    related && 'bg-row-related',
-    selected && 'bg-isk-selected shadow-[inset_2px_0_0_var(--color-isk)]',
-  );
-
-  const rowEl = onSelect ? (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className={cn(cls, 'w-full cursor-pointer text-left hover:bg-row-hover')}
-    >
-      {inner}
-    </button>
-  ) : (
-    <div className={cls}>{inner}</div>
-  );
-
-  // Without an adjuster the bare row renders (byte-identical to the pre-ME plan).
-  // With one, the gem orb is a sibling of the row's trace button (no nested
-  // buttons), so the wrapper carries the row divider and the row's own top border
-  // is suppressed (it's the wrapper's first child via `first:border-t-0`).
-  if (!orb) return rowEl;
   return (
-    <div className="relative border-t border-border-soft first:border-t-0">
-      {rowEl}
-      {orb}
-    </div>
+    <NodeCard
+      typeId={item.typeId}
+      name={item.name}
+      label={item.label}
+      qty={qty}
+      value={value}
+      efficiency={efficiency}
+      detail={detail}
+      selected={selected}
+      related={related}
+      faded={faded}
+      onSelect={onSelect}
+    />
   );
 }
 
 function TierColumn({
   tier,
   unitPriceOf,
-  orbFor,
+  efficiencyFor,
+  detailFor,
   focus,
   inChain,
   actualLevel,
@@ -156,9 +109,11 @@ function TierColumn({
 }: {
   tier: ConsolidatedTier;
   unitPriceOf: Map<number, number | null>;
-  // Renders a buildable row's ME adjuster (the gem orb), or undefined when the plan
-  // isn't ME-active (logged out / owns nothing) → no orbs, byte-identical rows.
-  orbFor?: (typeId: number, name: string, faded: boolean) => ReactNode;
+  // The inline ME/TE fields for a buildable row, or undefined when the plan isn't
+  // active (logged out / owns nothing) → no fields, byte-identical compute.
+  efficiencyFor?: (typeId: number, name: string) => ReactNode;
+  // The owner/location for a node's QTY-ring hover (owned buildables only).
+  detailFor: (typeId: number) => OwnedComponentDetail | undefined;
   focus: Focus | null;
   inChain: Set<number> | null;
   actualLevel: Map<number, number> | null;
@@ -208,7 +163,8 @@ function TierColumn({
               item={item}
               qty={qty}
               value={valueOf(item.typeId, qty)}
-              orb={orbFor?.(item.typeId, item.name, faded)}
+              efficiency={efficiencyFor?.(item.typeId, item.name)}
+              detail={detailFor(item.typeId)}
               selected={selected}
               related={related}
               faded={faded}
@@ -278,43 +234,43 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   // The producing blueprint per buildable typeId — keys each row's adjusters to the
   // override maps. Undefined for raws (which never appear as tier rows).
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
-  // Render a buildable row's adjuster orbs (the ME gem + the TE hourglass) — only
-  // when the plan is active (a signed-in caller owns a researched blueprint in this
-  // build); otherwise no orbs → byte-identical rows. Every buildable gets them
-  // (owned, manual, or unowned), so you can model a node you don't own.
-  const orbFor = ownedActive
-    ? (typeId: number, name: string, faded: boolean): ReactNode => {
+  // The inline ME/TE fields for a buildable row — only when the plan is active (a
+  // signed-in caller owns a researched blueprint in this build); otherwise no fields
+  // → byte-identical compute. Raws (no blueprint) and reactions (can't be researched)
+  // never get them; every other buildable does (owned, manual, or unowned).
+  const efficiencyFor = ownedActive
+    ? (typeId: number, name: string): ReactNode => {
         const bp = blueprintOf(typeId);
-        // No adjuster on raws (no blueprint) or reactions (can't be researched →
-        // no ME/TE to set), so orbs only sit on manufacturable components.
         if (bp === undefined || structure.buildNodeDisplay[typeId]?.label === REACTION_NODE_LABEL) {
-          return null;
+          return undefined;
         }
         return (
           <>
-            <MeRowOrb
+            <MeField
               blueprintTypeId={bp}
               name={name}
               ownedMe={ownedMe}
               meOverrides={meOverrides}
               setMeOverride={setMeOverride}
               resetMeOverride={resetMeOverride}
-              detail={ownedDetail?.get(bp)}
-              faded={faded}
             />
-            <TeRowOrb
+            <TeField
               blueprintTypeId={bp}
               name={name}
               ownedTe={ownedTe}
               teOverrides={teOverrides}
               setTeOverride={setTeOverride}
               resetTeOverride={resetTeOverride}
-              faded={faded}
             />
           </>
         );
       }
     : undefined;
+  // The owned blueprint's owner/location for a node's QTY-ring hover (owned buildables).
+  const detailFor = (typeId: number) => {
+    const bp = blueprintOf(typeId);
+    return bp !== undefined ? ownedDetail?.get(bp) : undefined;
+  };
   // Re-base the tier quantities onto the whole-run batch totals — what a builder
   // actually makes and buys. Placement and the trace graph (childrenOf) untouched.
   const batchedTiers = useMemo(() => scaleTiersToBatched(tiers, ledger), [tiers, ledger]);
@@ -415,7 +371,8 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             key={tier.depth}
             tier={tier}
             unitPriceOf={unitPriceOf}
-            orbFor={orbFor}
+            efficiencyFor={efficiencyFor}
+            detailFor={detailFor}
             focus={focus}
             inChain={focus && chainLevels ? (chainLevels.get(tier.depth - focus.depth) ?? null) : null}
             actualLevel={focus && chainActuals ? (chainActuals.get(tier.depth - focus.depth) ?? null) : null}
