@@ -150,15 +150,15 @@ function QtyRingCell({
   // Where the units sit; absent/empty → "No holdings tracked yet".
   heldBy?: AssetHolding[];
 }) {
-  // progress 0 (and the default neutral tone) when nothing is owned → the empty-track
-  // placeholder, byte-identical to today; the green arc fills only once owned > 0.
-  const progress = ownedQty && qty > 0 ? Math.min(ownedQty / qty, 1) : 0;
+  // progress 0 (and the default neutral tone) until we have the owned count → the empty-track
+  // placeholder, byte-identical to today; the green arc fills owned ÷ needed once synced.
+  const progress = ownedQty !== undefined && qty > 0 ? Math.min(ownedQty / qty, 1) : 0;
   // The still-to-acquire count in the ring centre — the whole need when nothing is owned
   // (so the placeholder is unchanged), shrinking toward 0 as stock accumulates.
   const remaining = Math.max(0, qty - (ownedQty ?? 0));
-  // Fully owned: only when synced data exists (ownedQty present) and it covers the need —
-  // a check replaces the count. Never true in the owns-none placeholder state.
-  const complete = ownedQty !== undefined && remaining === 0;
+  // Fully owned: synced data present (ownedQty set), a real need (qty > 0 — so a degenerate
+  // zero-need node never shows a check over an empty ring), and nothing left to acquire.
+  const complete = ownedQty !== undefined && qty > 0 && remaining === 0;
   const ringLabel =
     ownedQty === undefined
       ? `${name}: ${formatQuantity(qty)} needed`
@@ -187,7 +187,12 @@ function QtyRingCell({
         <div className="flex flex-col gap-1">
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">Item held by</div>
           {heldBy && heldBy.length > 0 ? (
-            heldBy.map((holding, i) => <HoldingLine key={i} holding={holding} />)
+            heldBy.map((holding, i) => (
+              <HoldingLine
+                key={`${holding.ownerName}-${holding.locationName}-${holding.locationFlag}-${i}`}
+                holding={holding}
+              />
+            ))
           ) : (
             <div className="font-mono text-[10.5px] text-faint">No holdings tracked yet</div>
           )}
