@@ -412,11 +412,13 @@ export function PricingProvider({
     });
     return computeBuildTimes({
       topBlueprintTypeId: structure.blueprintTypeId,
+      topProductTypeId: structure.product.typeId,
       topJobSeconds: structure.topJobSeconds,
       nodeJobSeconds: structure.nodeJobSeconds,
       runs,
       builds: ledger.builds,
       teOf: effectiveTeOf(ownedTe, teOverrides),
+      nameOf: (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
     });
   }, [structure, runs, ownedMe, meOverrides, ownedTe, teOverrides]);
 

@@ -5,6 +5,7 @@ import { LivePrice } from '@/components/ui/live-price';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
+import { formatBuildDuration, type BuildTimes } from '../build-time';
 import { selectNet, type MarginMode } from '../cockpit-margin';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import { deriveMarginFigures, marginToneClass } from '../industry-styles';
@@ -90,10 +91,48 @@ function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string 
   );
 }
 
+// The Total-job-time "?" hover: the per-job calculation. Each line is a buildable's
+// TE-adjusted per-run time × its batched run count = that job's total; the final
+// product leads, the components follow by descending total, and the lines sum to the
+// figure on the tile. The list scrolls for a deep build (a capital has dozens).
+function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
+  return (
+    <KpiHelp label="How total job time is calculated">
+      <PopoverHeading>Total job time — whole tree</PopoverHeading>
+      <div className="flex flex-col">
+        <div className="flex max-h-[240px] flex-col gap-1 overflow-y-auto pr-1">
+          {buildTimes.breakdown.map((line) => (
+            <div
+              key={line.typeId}
+              className="flex items-baseline justify-between gap-3 font-mono text-[10px]"
+            >
+              <span className="truncate text-muted">{line.name}</span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-faint">
+                {formatBuildDuration(line.perRunSeconds)} × {line.runs} ={' '}
+                <span className="text-text">{formatBuildDuration(line.totalSeconds)}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-[10px]">
+          <span className="uppercase tracking-[0.14em] text-muted">Total</span>
+          <span className="tabular-nums font-semibold text-evb-bright">
+            {buildTimes.totalProduction ?? '—'}
+          </span>
+        </div>
+      </div>
+      <p className="font-mono text-[9px] leading-snug tracking-[0.04em] text-faint">
+        Sequential — one job at a time. TE applied per blueprint; skills, structure, and parallel
+        slots not counted.
+      </p>
+    </KpiHelp>
+  );
+}
+
 // The Cockpit KPI tile row: input cost · sell · net margin (Gross/Net toggle) ·
-// market score (with "?" breakdown) · build time. All figures read the live
-// pricing store; the margin tile flips gross↔net and each figure flashes in as
-// prices land.
+// market score (with "?" breakdown) · build time · total job time. All figures read
+// the live pricing store; the margin tile flips gross↔net and each figure flashes in
+// as prices land.
 export function CockpitKpis({
   structure,
   marginMode,
@@ -171,17 +210,7 @@ export function CockpitKpis({
       </KpiTile>
 
       <KpiTile>
-        <KpiHead
-          label="Total job time"
-          right={
-            <KpiHelp label="What total job time means">
-              <PopoverHeading>Total job time — whole tree</PopoverHeading>
-              <PopoverRow label="Scope">every job, sequential</PopoverRow>
-              <PopoverRow label="Time efficiency">applied per blueprint</PopoverRow>
-              <PopoverRow label="Skills, structure, parallel slots">none applied</PopoverRow>
-            </KpiHelp>
-          }
-        />
+        <KpiHead label="Total job time" right={<TotalJobHover buildTimes={buildTimes} />} />
         <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.totalProduction ?? '—'}</div>
       </KpiTile>
     </div>

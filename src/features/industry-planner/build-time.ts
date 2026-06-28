@@ -23,6 +23,17 @@ export function formatBuildDuration(seconds: number): string {
   return formatRemaining(Math.round(seconds) * 1000);
 }
 
+// One job in the "total job time" calculation: a buildable, its TE-adjusted per-run
+// time, the batched run count, and the product (perRun × runs). Seconds; the UI
+// formats them. The whole breakdown's `totalSeconds` sums to the Total job time.
+export interface BuildTimeLine {
+  typeId: number;
+  name: string;
+  perRunSeconds: number;
+  runs: number;
+  totalSeconds: number;
+}
+
 export interface BuildTimes {
   // The final assembly job, runs-scaled + TE-adjusted, or null (degenerate / 0 runs).
   topJob: string | null;
@@ -32,38 +43,65 @@ export interface BuildTimes {
   totalProduction: string | null;
   // The effective TE applied to the top blueprint (for the tile's hover).
   topTe: number;
+  // The per-job calculation that sums to `totalProduction` — the final product first,
+  // then each component/reaction by descending total. Shown in the tile's hover.
+  breakdown: BuildTimeLine[];
 }
 
-// Compute the two build-time figures. `builds` is the ME-aware batch ledger's
-// per-node entries (each carrying its whole-run count + producing blueprint); the
-// top product is NOT among them, so it is added once from `topJobSeconds`. `teOf`
-// returns a blueprint's effective TE (owned or overridden), or undefined ⇒ TE0.
+// Compute the build-time figures + the per-job breakdown. `builds` is the ME-aware
+// batch ledger's per-node entries (keyed by product typeId, each carrying its
+// whole-run count + producing blueprint); the top product is NOT among them, so it is
+// added once from `topJobSeconds`. `teOf` returns a blueprint's effective TE (owned or
+// overridden), or undefined ⇒ TE0; `nameOf` labels each line by product typeId.
 export function computeBuildTimes(args: {
   topBlueprintTypeId: number;
+  topProductTypeId: number;
   topJobSeconds: number | null;
   nodeJobSeconds: Record<number, number>;
   runs: number;
   builds: Map<number, { runs: number; blueprintTypeId: number }>;
   teOf: (blueprintTypeId: number) => number | undefined;
+  nameOf: (typeId: number) => string;
 }): BuildTimes {
-  const { topBlueprintTypeId, topJobSeconds, nodeJobSeconds, runs, builds, teOf } = args;
+  const { topBlueprintTypeId, topProductTypeId, topJobSeconds, nodeJobSeconds, runs, builds, teOf, nameOf } =
+    args;
   const wholeRuns = Math.max(0, Math.floor(runs));
   const topTe = teOf(topBlueprintTypeId) ?? 0;
-  const topSeconds =
-    topJobSeconds === null || topJobSeconds <= 0 ? 0 : topJobSeconds * teFactor(topTe) * wholeRuns;
+  const topPerRun = topJobSeconds === null || topJobSeconds <= 0 ? 0 : topJobSeconds * teFactor(topTe);
+  const topTotal = topPerRun * wholeRuns;
 
-  // Sum every intermediate's TE-adjusted job time onto the final job. A node with no
-  // honest base time (a degenerate self-recipe) contributes nothing.
-  let totalSeconds = topSeconds;
-  for (const entry of builds.values()) {
+  // Each intermediate's TE-adjusted job time, biggest contributor first. A node with
+  // no honest base time (a degenerate self-recipe) contributes nothing.
+  const components: BuildTimeLine[] = [];
+  for (const [typeId, entry] of builds) {
     const base = nodeJobSeconds[entry.blueprintTypeId] ?? 0;
     if (base <= 0) continue;
-    totalSeconds += entry.runs * base * teFactor(teOf(entry.blueprintTypeId) ?? 0);
+    const perRunSeconds = base * teFactor(teOf(entry.blueprintTypeId) ?? 0);
+    const totalSeconds = perRunSeconds * entry.runs;
+    if (totalSeconds <= 0) continue;
+    components.push({ typeId, name: nameOf(typeId), perRunSeconds, runs: entry.runs, totalSeconds });
   }
+  components.sort((a, b) => b.totalSeconds - a.totalSeconds);
+
+  // The final product leads the breakdown; the components follow by descending total.
+  const breakdown: BuildTimeLine[] = [];
+  if (topTotal > 0) {
+    breakdown.push({
+      typeId: topProductTypeId,
+      name: nameOf(topProductTypeId),
+      perRunSeconds: topPerRun,
+      runs: wholeRuns,
+      totalSeconds: topTotal,
+    });
+  }
+  breakdown.push(...components);
+
+  const totalSeconds = breakdown.reduce((sum, line) => sum + line.totalSeconds, 0);
 
   return {
-    topJob: topSeconds > 0 ? formatBuildDuration(topSeconds) : null,
+    topJob: topTotal > 0 ? formatBuildDuration(topTotal) : null,
     totalProduction: totalSeconds > 0 ? formatBuildDuration(totalSeconds) : null,
     topTe,
+    breakdown,
   };
 }
