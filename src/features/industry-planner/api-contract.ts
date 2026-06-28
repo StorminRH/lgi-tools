@@ -2,9 +2,12 @@
 import { z } from 'zod';
 import type { ApiEndpoint } from '@/lib/api-client';
 import type {
+  AssetHolding,
   BlueprintIndexEntry,
   BuildLocationData,
   IndustryStationView,
+  OwnedAssetEntry,
+  OwnedAssetsResponse,
   OwnedBlueprintMeEntry,
   OwnedBlueprintsResponse,
   SystemSearchEntry,
@@ -137,4 +140,47 @@ export const ownedBlueprintsEndpoint: ApiEndpoint<
   path: '/api/industry/owned-blueprints',
   request: ownedBlueprintsRequestSchema,
   response: ownedBlueprintsResponseSchema,
+};
+
+// ── POST /api/industry/owned-assets ─────────────────────────────────────
+// Body: the material/product type ids present in the planned build (every node's
+// own type, raws + buildables + the top product). POST, not GET-with-query,
+// because the id set is unbounded and apiFetch carries a body. The response is
+// scoped to the caller's OWNED assets among those requested — auth-gated, the
+// user id comes from the session, never the body. Validated in the handler.
+export const ownedAssetsRequestSchema = z.object({
+  typeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(4096),
+});
+
+const assetHoldingSchema = z.object({
+  ownerType: z.enum(['character', 'corporation']),
+  ownerName: z.string(),
+  locationName: z.string(),
+  locationFlag: z.string(),
+  quantity: z.number(),
+}) satisfies z.ZodType<AssetHolding>;
+
+const ownedAssetEntrySchema = z.object({
+  typeId: z.number(),
+  ownedQty: z.number(),
+  heldBy: z.array(assetHoldingSchema),
+}) satisfies z.ZodType<OwnedAssetEntry>;
+
+export const ownedAssetsResponseSchema = z.object({
+  assets: z.array(ownedAssetEntrySchema),
+}) satisfies z.ZodType<OwnedAssetsResponse>;
+
+// 400 arms mirror the owned-blueprints endpoint's shape.
+export type OwnedAssetsBadRequest =
+  | { error: 'invalid_json' }
+  | { error: 'invalid_request'; issues: unknown[] };
+
+export const ownedAssetsEndpoint: ApiEndpoint<
+  z.input<typeof ownedAssetsRequestSchema>,
+  OwnedAssetsResponse
+> = {
+  method: 'POST',
+  path: '/api/industry/owned-assets',
+  request: ownedAssetsRequestSchema,
+  response: ownedAssetsResponseSchema,
 };

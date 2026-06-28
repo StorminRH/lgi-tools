@@ -80,6 +80,7 @@
     "/api/industry/blueprints": "static",
     "/api/industry/systems": "static",
     "/api/industry/build-location": "dynamic",
+    "/api/industry/owned-assets": "dynamic",
     "/api/industry/owned-blueprints": "dynamic",
     "/api/internal/eve-characters": "dynamic",
     "/api/internal/eve-token": "dynamic",

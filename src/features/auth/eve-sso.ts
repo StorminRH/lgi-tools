@@ -66,6 +66,15 @@ export const EVE_SCOPES = [
   // read-only.
   'esi-characters.read_blueprints.v1',
   'esi-corporations.read_blueprints.v1',
+  // Owned assets (3.7.7.1) — the owned-quantity + held-by source for the build
+  // planner's asset ledger. The character read needs no role; the corp read
+  // reuses the corp roles read above and additionally needs the in-game
+  // Director role (a 403 otherwise — the same 'needs_role' sync state, never a
+  // scope prompt). Both read-only. Naming trap: BOTH asset reads live under
+  // `esi-assets` (the corp one is `read_corporation_assets`, NOT under
+  // `esi-corporations` like the corp blueprints read above).
+  'esi-assets.read_assets.v1',
+  'esi-assets.read_corporation_assets.v1',
 ] as const;
 
 // Boundary schema for the token-exchange envelope. The JWT *claims* are

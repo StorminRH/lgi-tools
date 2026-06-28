@@ -6,6 +6,12 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.7 — 2026-06-28
+
+#### Added
+- The build planner now tracks the materials you already own. Each component's quantity ring fills in as your stock accumulates — the centre counts down to how many more you still need, with a green tick once you have enough.
+- Clicking a component's quantity ring now breaks down how many you own versus what's left to acquire, and shows where your stock is held — which of your characters or corporations has it, and the station, structure, ship, or container it sits in.
+
 ### v3.7.6 — 2026-06-28
 
 #### Changed

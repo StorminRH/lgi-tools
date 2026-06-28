@@ -32,7 +32,7 @@ import {
 import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
 import { computeBuildTimes, type BuildTimes } from '../build-time';
-import { ownedBlueprintsEndpoint } from '../api-contract';
+import { ownedAssetsEndpoint, ownedBlueprintsEndpoint } from '../api-contract';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
@@ -43,6 +43,7 @@ import type {
   BlueprintPricing,
   BlueprintStructure,
   IndustryStationView,
+  OwnedAssetEntry,
   OwnedComponentDetail,
 } from '../types';
 
@@ -170,6 +171,12 @@ interface PricingContextValue {
   // channel from `ownedMe` so the cost compute is untouched. The orb popover reads
   // it; absent entries (unowned / manual nodes) simply render ME-only.
   ownedDetail: Map<number, OwnedComponentDetail> | null;
+  // The caller's owned ASSETS (3.7.7.2), keyed by material/product type id: how many
+  // units are on hand + where they sit. null until the owned-assets read settles;
+  // empty for a logged-out caller or one owning none of this build's items — either
+  // way every QTY ring stays empty and every ledger shows '—'. The build plan reads
+  // it to fill each node's ring + asset ledger; never read by the cost compute.
+  ownedAssets: Map<number, OwnedAssetEntry> | null;
   // Manual per-node ME overrides (what-if), keyed by blueprint type id. Client-only
   // and NOT persisted — overlaid on `ownedMe` to drive the same `meOf` seam, so the
   // whole plan recomputes through one engine path. Empty by default → byte-identical
@@ -300,6 +307,12 @@ export function PricingProvider({
   // read as `ownedMe` but kept on its own channel — the orb popover consumes it; the
   // cost compute never does.
   const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
+  // The caller's owned ASSETS (3.7.7.2), keyed by material/product type id: on-hand
+  // units + holdings, for the QTY ring + asset ledger. null until the owned-assets
+  // read settles; empty for a logged-out caller or one owning none of this build's
+  // items — either way every ring stays empty and every ledger shows '—'. Never read
+  // by the cost compute.
+  const [ownedAssets, setOwnedAssets] = useState<Map<number, OwnedAssetEntry> | null>(null);
   // Manual per-node ME overrides (what-if), keyed by blueprint type id — client-only,
   // never persisted, reset when the planner remounts on a new blueprint (`structure`).
   const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
@@ -526,6 +539,33 @@ export function PricingProvider({
     };
   }, [structure]);
 
+  // Owned-asset overlay (3.7.7.2): fetch the caller's on-hand quantity + holdings
+  // for every material/product in this build, once on open — per-user data can't
+  // live in the static seed, so it arrives client-side (the owned-BP / net-margin
+  // pattern). The read fires its own stale-gated server-side refresh; we never
+  // refetch on a runs/ME recompute, so it's one call per blueprint open. The id set
+  // is `toRefresh` (every priced node — raws + buildables + the product), the same
+  // set the price loop uses, memoised on `structure`. Logged-out / owning none →
+  // empty map → every QTY ring stays empty + every ledger shows '—' (placeholders).
+  useEffect(() => {
+    let ignore = false;
+    const controller = new AbortController();
+    apiFetch(ownedAssetsEndpoint, {
+      body: { typeIds: toRefresh },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (ignore || !res.ok) return;
+        setOwnedAssets(new Map(res.data.assets.map((a) => [a.typeId, a])));
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, [structure, toRefresh]);
+
   // Recompute when runs, location, the owned-ME overlay, or a manual override
   // changes — independent of the one-shot refresh loop, which never fires onBatch
   // again once it finishes. Reads the latest pricing via a ref (not a dep) so it
@@ -573,6 +613,7 @@ export function PricingProvider({
       marketScore,
       ownedMe,
       ownedDetail,
+      ownedAssets,
       meOverrides,
       setMeOverride,
       resetMeOverride,
@@ -597,6 +638,7 @@ export function PricingProvider({
       marketScore,
       ownedMe,
       ownedDetail,
+      ownedAssets,
       meOverrides,
       setMeOverride,
       resetMeOverride,
