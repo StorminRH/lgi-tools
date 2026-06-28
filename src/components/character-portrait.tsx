@@ -36,6 +36,7 @@ export function CharacterPortrait({
   size,
   src,
   className,
+  loading = 'lazy',
 }: {
   // The character's id, used to read its online dot from context and (absent a
   // `src`) to build the image URL. Optional for the rare portrait that only
@@ -48,6 +49,8 @@ export function CharacterPortrait({
   // image is resolved from the character id at a crisp 128px rendition.
   src?: string;
   className?: string;
+  // 'eager' for an always-above-the-fold portrait (the nav); defaults to 'lazy'.
+  loading?: 'lazy' | 'eager';
 }) {
   // The hook must run unconditionally; a sentinel id never collides with a real
   // character, so an id-less portrait simply reads `unknown` → no dot.
@@ -61,7 +64,7 @@ export function CharacterPortrait({
         alt={name}
         width={size}
         height={size}
-        loading="lazy"
+        loading={loading}
         decoding="async"
         className="size-full rounded-full border border-border-idle object-cover"
       />

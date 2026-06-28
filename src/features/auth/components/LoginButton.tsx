@@ -14,7 +14,7 @@ export function LoginButton() {
   if (loading) {
     return (
       <div className="flex items-center gap-3" aria-hidden="true">
-        <div className="w-8 h-8 rounded-[2px] border border-border-idle" />
+        <div className="w-8 h-8 rounded-full border border-border-idle" />
       </div>
     );
   }
@@ -62,6 +62,7 @@ export function LoginButton() {
           name={session.name}
           size={32}
           src={session.portraitUrl}
+          loading="eager"
         />
       </a>
       <button
