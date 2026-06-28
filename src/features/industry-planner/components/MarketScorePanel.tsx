@@ -6,7 +6,7 @@ import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import type { MarketScore } from '@/data/industry-math/market-score';
 import { daysSinceHistoryDate, STALENESS_FLAG_DAYS } from '../market-score-inputs';
 import type { BlueprintStructure } from '../types';
-import { KpiHead, KpiHelp, KpiTile, KPI_FIG, KPI_SUB } from './kpi-tile';
+import { KpiHead, KpiHelp, KpiTile, KPI_FIG } from './kpi-tile';
 import { usePricing } from './PricingProvider';
 
 // The Market Score KPI tile for the Cockpit — the "how sure can I sell this?"
@@ -99,7 +99,6 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
         {seeded || marketScore.score !== null ? scoreText : '…'}
         <span className="ml-1 text-[13px] text-faint">/100</span>
       </div>
-      <div className={KPI_SUB}>{value.liquidity}</div>
       {staleAge && (
         <div className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-[9px] text-muted">
           <span aria-hidden className="h-[5px] w-[5px] rounded-full bg-tone-orange" />

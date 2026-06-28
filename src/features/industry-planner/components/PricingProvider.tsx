@@ -145,6 +145,11 @@ interface PricingContextValue {
   // units), the product's history, and its near-touch depth, so it re-scores
   // live as runs change. score === null when no signal is known.
   marketScore: MarketScore;
+  // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
+  // per type). null until the owned-blueprints read settles; empty for a
+  // logged-out caller or one owning none of this build's blueprints. The build
+  // plan reads it to drive its ME-aware ledger + per-node readouts.
+  ownedMe: Map<number, number> | null;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -427,6 +432,7 @@ export function PricingProvider({
       setStation,
       marketHistory,
       marketScore,
+      ownedMe,
     }),
     [
       pricing,
@@ -440,6 +446,7 @@ export function PricingProvider({
       setStation,
       marketHistory,
       marketScore,
+      ownedMe,
     ],
   );
 

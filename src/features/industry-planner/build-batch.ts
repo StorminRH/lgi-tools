@@ -72,8 +72,12 @@ export function collectRawTypeIds(tree: TreeNode[]): number[] {
 export interface BatchLedger {
   // Raw-material typeId → whole-run total quantity.
   raws: Map<number, number>;
-  // Buildable typeId → its whole run count and per-run yield. Produced = runs × batch.
-  builds: Map<number, { runs: number; batch: number }>;
+  // Buildable typeId → its whole run count, per-run yield, and the ME applied to
+  // ITS inputs (0 on the ME0 path / for an unowned blueprint). Produced = runs ×
+  // batch. The `me` carries the owned-blueprint level through to the build-plan's
+  // drill-down and per-node readouts, so tiers, the cascade, and the labels all
+  // read one source and can never disagree.
+  builds: Map<number, { runs: number; batch: number; me: number }>;
 }
 
 // `requestedRuns` defaults to 1 — one run of the blueprint, today's per-run cost basis.
@@ -110,9 +114,10 @@ export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLe
 
   for (const node of tree) walk(node.typeId, node.quantity * requestedRuns);
 
-  const builds = new Map<number, { runs: number; batch: number }>();
+  const builds = new Map<number, { runs: number; batch: number; me: number }>();
   for (const [typeId, entry] of ledger) {
-    builds.set(typeId, { runs: entry.runs, batch: recipes.get(typeId)!.batch });
+    // ME0 path: no owned-blueprint reduction is applied anywhere.
+    builds.set(typeId, { runs: entry.runs, batch: recipes.get(typeId)!.batch, me: 0 });
   }
 
   return { raws, builds };
@@ -214,13 +219,15 @@ export function computeBatchLedgerWithMe(
   const ordered = [...recipes.keys()].sort(
     (a, b) => (heights.get(b) ?? 0) - (heights.get(a) ?? 0),
   );
-  const builds = new Map<number, { runs: number; batch: number }>();
+  const builds = new Map<number, { runs: number; batch: number; me: number }>();
   for (const typeId of ordered) {
     const recipe = recipes.get(typeId)!;
     const required = demand.get(typeId) ?? 0;
     const runs = recipe.batch > 0 ? Math.ceil(required / recipe.batch) : 0;
-    builds.set(typeId, { runs, batch: recipe.batch });
+    // The ME of THIS buildable's own blueprint — applied to its inputs below, and
+    // surfaced on the ledger so the drill-down + per-node readouts read it too.
     const me = opts.meOf(recipe.blueprintTypeId) ?? 0;
+    builds.set(typeId, { runs, batch: recipe.batch, me });
     for (const input of recipe.inputs) addDemand(input.typeId, meAdjust(input.qty, runs, me));
   }
 
@@ -248,6 +255,17 @@ export function collectBlueprintTypeIds(tree: TreeNode[], topBlueprintTypeId: nu
   return [...out];
 }
 
+// Fractional material-efficiency factor for the marginal drill-down: ME `me`
+// scales a parent's input draw by (1 − ME/100), with ME ≤ 0 (unowned / reaction)
+// a no-op (×1). This is the LINEAR analog of `meAdjust` with no ceil and no
+// ≥1-per-run floor — right for the drill-down because that view is the
+// un-rounded marginal lens by construction (it already shows the sub-run
+// quantities the cost basis rounds up). At ME0 it's ×1, so the cascade is
+// byte-identical to the pre-ME path.
+function meFactor(me: number): number {
+  return me <= 0 ? 1 : 1 - me / 100;
+}
+
 // The ACTUAL (marginal) downstream demand when one buildable is focused: what
 // building its whole-run batch truly consumes at each descendant, with NO
 // per-component batch rounding — the build-plan drill-down view. The focused type
@@ -256,6 +274,11 @@ export function collectBlueprintTypeIds(tree: TreeNode[], topBlueprintTypeId: nu
 // quantity consumed, not rounded up to whole sub-runs. Example: a reaction's fuel
 // blocks read the amount the reaction actually burns, not the two whole fuel-block
 // runs the project's cost basis rounds up to.
+//
+// ME-aware: each parent's inputs are reduced by that parent's own owned-blueprint
+// ME (carried on `ledger.builds[typeId].me`), applied fractionally per `meFactor`
+// so it composes down the cascade. At ME0 the factor is ×1, so the actuals are
+// byte-identical to the unowned path.
 //
 // Keyed by depth RELATIVE to the focus (1 = the focus's direct inputs, 2 =
 // theirs, …) to line up with `chainLevelsFrom`, so the build plan reads each lit
@@ -273,6 +296,8 @@ export function chainActualsFrom(
   const walk = (typeId: number, runs: number, relativeDepth: number) => {
     const recipe = recipes.get(typeId);
     if (!recipe) return;
+    // This parent's owned ME reduces how much of each input it draws.
+    const factor = meFactor(ledger.builds.get(typeId)?.me ?? 0);
     const depth = relativeDepth + 1;
     let level = actuals.get(depth);
     if (!level) {
@@ -280,7 +305,7 @@ export function chainActualsFrom(
       actuals.set(depth, level);
     }
     for (const input of recipe.inputs) {
-      const demand = runs * input.qty;
+      const demand = runs * input.qty * factor;
       level.set(input.typeId, (level.get(input.typeId) ?? 0) + demand);
       const childRecipe = recipes.get(input.typeId);
       if (childRecipe && childRecipe.batch > 0) walk(input.typeId, demand / childRecipe.batch, depth);

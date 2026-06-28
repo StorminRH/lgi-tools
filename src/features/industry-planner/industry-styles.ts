@@ -21,31 +21,6 @@ export function marginToneClass(marginPct: number | null): string {
   return toneTextClass('green');
 }
 
-export type MarginCaption =
-  | 'missing-cost-index'
-  | 'missing-adjusted-prices'
-  | 'net-clean'
-  | 'gross-manufacturing'
-  | 'gross-reaction';
-
-// Which disclaimer sits under the margin figure. Net captions explain the job-
-// fee caveat (incomplete cost index / missing reference prices) or that it's
-// clean; gross captions explain that materials-only isn't take-home —
-// manufacturing can flip to net once a system is picked, reactions can't yet.
-export function selectMarginCaption(opts: {
-  showNet: boolean;
-  isManufacturing: boolean;
-  missingSystemCostIndex: boolean;
-  missingAdjustedPriceCount: number;
-}): MarginCaption {
-  if (opts.showNet) {
-    if (opts.missingSystemCostIndex) return 'missing-cost-index';
-    if (opts.missingAdjustedPriceCount > 0) return 'missing-adjusted-prices';
-    return 'net-clean';
-  }
-  return opts.isManufacturing ? 'gross-manufacturing' : 'gross-reaction';
-}
-
 export interface MarginFigures {
   showNet: boolean;
   margin: number | null;

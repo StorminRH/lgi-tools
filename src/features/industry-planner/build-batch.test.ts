@@ -58,13 +58,13 @@ describe('computeBatchLedger — raws + buildable run-counts from one walk', () 
 
   it('exposes the buildable ledger and the raw totals', () => {
     const { raws, builds } = computeBatchLedger(tree, 1);
-    expect(builds.get(100)).toEqual({ runs: 1, batch: 10 }); // ⌈5/10⌉ = 1 run, 10/run
+    expect(builds.get(100)).toEqual({ runs: 1, batch: 10, me: 0 }); // ⌈5/10⌉ = 1 run, 10/run
     expect(raws.get(200)).toBe(7);
   });
 
   it('scales the run count by requestedRuns', () => {
     const { builds, raws } = computeBatchLedger(tree, 3);
-    expect(builds.get(100)).toEqual({ runs: 2, batch: 10 }); // ⌈15/10⌉ = 2 runs
+    expect(builds.get(100)).toEqual({ runs: 2, batch: 10, me: 0 }); // ⌈15/10⌉ = 2 runs
     expect(raws.get(200)).toBe(14);
   });
 
@@ -146,7 +146,7 @@ describe('chainActualsFrom — focused build consumes marginal, not batched', ()
   const ledger = computeBatchLedger(tree, 1);
 
   it('the project cost basis rounds fuel blocks up to whole runs', () => {
-    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40 }); // 80 produced
+    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40, me: 0 }); // 80 produced
     expect(ledger.raws.get(30)).toBe(2); // 2 whole F runs × 1 G
   });
 
@@ -158,6 +158,45 @@ describe('chainActualsFrom — focused build consumes marginal, not batched', ()
 
   it('omits the focused item itself (relative depth 0)', () => {
     expect(chainActualsFrom(tree, 10, ledger).has(0)).toBe(false);
+  });
+});
+
+describe('chainActualsFrom — ME-aware marginal cascade', () => {
+  // Focus M (BP 110) is consumed 2× by the unresearched top blueprint, and draws
+  // 100 of component F (BP 120, made 40/run) per run; F draws 1 raw G/run. With
+  // M's own blueprint at ME10, M's marginal draw of F drops 10% (200 → 180), and
+  // that cascades to G (5 → 4.5) — fractionally, matching the drill-down's
+  // un-rounded lens. F's own ME0 adds no further reduction.
+  const tree: TreeNode[] = [
+    {
+      typeId: 10,
+      quantity: 2,
+      producedBy: { blueprintTypeId: 110, quantityPerRun: 1, runsNeeded: 2 },
+      inputs: [
+        {
+          typeId: 20,
+          quantity: 100,
+          producedBy: { blueprintTypeId: 120, quantityPerRun: 40, runsNeeded: 2.5 },
+          inputs: [{ typeId: 30, quantity: 1, inputs: [] }],
+        },
+      ],
+    },
+  ];
+  const me10 = { meOf: (bp: number) => (bp === 110 ? 10 : undefined), topBlueprintTypeId: 9000 };
+
+  it("reduces the focused build's marginal draw by its own ME, cascading fractionally", () => {
+    const actuals = chainActualsFrom(tree, 10, computeBatchLedgerWithMe(tree, 1, me10));
+    expect(actuals.get(1)?.get(20)).toBeCloseTo(180, 9); // 2 runs × 100 × 0.9
+    expect(actuals.get(2)?.get(30)).toBeCloseTo(4.5, 9); // (180 / 40) × 1, F is ME0
+  });
+
+  it('byte-identical to the unowned cascade when nothing is owned', () => {
+    const meActuals = chainActualsFrom(tree, 10, computeBatchLedgerWithMe(tree, 1, NO_OWNED));
+    const plainActuals = chainActualsFrom(tree, 10, computeBatchLedger(tree, 1));
+    expect(meActuals.get(1)?.get(20)).toBe(plainActuals.get(1)?.get(20));
+    expect(meActuals.get(2)?.get(30)).toBe(plainActuals.get(2)?.get(30));
+    expect(plainActuals.get(1)?.get(20)).toBe(200); // ME0: 2 × 100
+    expect(plainActuals.get(2)?.get(30)).toBe(5); // ME0: (200 / 40) × 1
   });
 });
 

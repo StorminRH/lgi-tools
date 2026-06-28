@@ -5,39 +5,16 @@ import { LivePrice } from '@/components/ui/live-price';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
-import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
 import { toBuildTimeView } from '../build-time';
 import { selectNet, type MarginMode } from '../cockpit-margin';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
-import {
-  deriveMarginFigures,
-  marginToneClass,
-  selectMarginCaption,
-  type MarginCaption,
-} from '../industry-styles';
+import { deriveMarginFigures, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure, NetMarginView } from '../types';
-import { KpiHead, KpiHelp, KpiTile, KPI_FIG, KPI_SUB, SimpleTile } from './kpi-tile';
+import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
 import { usePricing } from './PricingProvider';
 
 export type { MarginMode };
-
-// The concise honest caption under the margin figure (the hero's
-// MarginCaptionLine copy, condensed to one line for the tile).
-function captionText(caption: MarginCaption, systemName: string | undefined): string {
-  switch (caption) {
-    case 'net-clean':
-      return 'Net of job install + sell fees · NPC station · ME 0.';
-    case 'missing-cost-index':
-      return `No cost index for ${systemName ?? 'this system'} — install fee incomplete.`;
-    case 'missing-adjusted-prices':
-      return 'Some inputs lack a reference price — net margin optimistic.';
-    case 'gross-manufacturing':
-      return 'Materials only — pick a build system for net margin · ME 0.';
-    case 'gross-reaction':
-      return 'Net margin: manufacturing only for now.';
-  }
-}
 
 function GrossNetToggle({
   showNet,
@@ -130,21 +107,13 @@ export function CockpitKpis({
   const { pricing, seeded, location, runs } = usePricing();
   const summary = pricing?.summary ?? null;
 
-  const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
   const { net, netAvailable } = selectNet(
     pricing,
     structure.activityId,
     location !== null,
     marginMode,
   );
-  const { showNet, margin, marginPct, sign, missingSystemCostIndex, missingAdjustedPriceCount } =
-    deriveMarginFigures(summary, net);
-  const caption = selectMarginCaption({
-    showNet,
-    isManufacturing,
-    missingSystemCostIndex,
-    missingAdjustedPriceCount,
-  });
+  const { showNet, margin, marginPct, sign } = deriveMarginFigures(summary, net);
   const buildTime = toBuildTimeView(structure.topJobSeconds, runs);
 
   return (
@@ -153,17 +122,14 @@ export function CockpitKpis({
         label="Input cost"
         value={<LivePrice value={summary ? formatIsk(summary.inputCost) : '—'} />}
         valueClass="text-name"
-        sub="raw @ Jita buy"
       />
       <SimpleTile
         label="Sell · Jita"
-        accent="green"
         value={<LivePrice value={summary ? formatIsk(summary.revenue) : '—'} />}
         valueClass="text-isk"
-        sub="best sell order"
       />
 
-      <KpiTile accent="green" span2>
+      <KpiTile span2>
         <KpiHead
           label={showNet ? 'Net margin' : 'Gross margin'}
           right={
@@ -185,12 +151,11 @@ export function CockpitKpis({
             {seeded ? 'Pricing unavailable' : 'Calculating…'}
           </div>
         )}
-        <div className={KPI_SUB}>{captionText(caption, location?.systemName)}</div>
       </KpiTile>
 
       <MarketScorePanel structure={structure} />
 
-      <KpiTile accent="blue">
+      <KpiTile>
         <KpiHead
           label="Build time"
           right={
@@ -203,9 +168,6 @@ export function CockpitKpis({
           }
         />
         <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTime ? buildTime.topJob : '—'}</div>
-        <div className={KPI_SUB}>
-          {buildTime ? 'final job · ME 0, base skills' : 'estimate pending'}
-        </div>
       </KpiTile>
     </div>
   );

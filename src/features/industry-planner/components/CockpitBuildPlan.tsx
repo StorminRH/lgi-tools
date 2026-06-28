@@ -3,11 +3,12 @@
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
+import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SectionLabel } from '@/components/ui/section-label';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
-import { chainActualsFrom, computeBatchLedger } from '../build-batch';
+import { chainActualsFrom, computeBatchLedgerWithMe } from '../build-batch';
 import {
   chainLevelsFrom,
   consolidateBuild,
@@ -66,6 +67,7 @@ function TierRow({
   item,
   qty,
   value,
+  me,
   selected,
   related,
   faded,
@@ -74,6 +76,9 @@ function TierRow({
   item: ConsolidatedItem;
   qty: number;
   value: number | null;
+  // The ME applied to this buildable from an owned blueprint. Shown only when
+  // researched (> 0) — an owned-only readout (unowned / ME0 components show none).
+  me?: number;
   selected: boolean;
   related: boolean;
   faded: boolean;
@@ -111,8 +116,7 @@ function TierRow({
     selected && 'bg-isk-selected shadow-[inset_2px_0_0_var(--color-isk)]',
   );
 
-  if (!onSelect) return <div className={cls}>{inner}</div>;
-  return (
+  const rowEl = onSelect ? (
     <button
       type="button"
       onClick={onSelect}
@@ -121,12 +125,54 @@ function TierRow({
     >
       {inner}
     </button>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+
+  // Unowned components render the bare row (byte-identical to the pre-ME plan). An
+  // owned component gets a glowing-blue corner orb whose popover surfaces the
+  // blueprint's details. The orb is a sibling of the row's trace button (no nested
+  // buttons), so the wrapper carries the row divider in its place.
+  if (me === undefined || me <= 0) return rowEl;
+  return (
+    <div className="relative border-t border-border-soft first:border-t-0">
+      {rowEl}
+      <OwnedBlueprintOrb name={item.name} me={me} faded={faded} />
+    </div>
+  );
+}
+
+// The owned-blueprint badge: a small glowing-blue orb pinned to the component
+// icon's corner (the notification-badge idiom), whose hover/tap popover condenses
+// the owned blueprint's details. Today that's the applied ME level; owner,
+// location, and TE slot in here once they're wired through. Built on the shared
+// Base UI popover primitive; `trigger` is empty because the styled button IS the
+// orb (the accessible name comes from `label`).
+function OwnedBlueprintOrb({ name, me, faded }: { name: string; me: number; faded: boolean }) {
+  return (
+    <Popover
+      label={`${name} — owned blueprint, ME ${me}`}
+      side="top"
+      className="w-[200px]"
+      triggerClassName={cn(
+        'absolute left-1 top-1 z-10 h-2.5 w-2.5 cursor-help rounded-full bg-evb-bright shadow-[0_0_8px_var(--color-evb-glow)] transition-opacity',
+        faded && 'opacity-25',
+      )}
+      trigger={null}
+    >
+      <PopoverHeading>{name}</PopoverHeading>
+      <div className="flex items-baseline justify-between gap-6 font-mono text-[11px]">
+        <span className="uppercase tracking-[0.1em] text-muted">Material eff.</span>
+        <span className="text-evb-bright">ME {me}</span>
+      </div>
+    </Popover>
   );
 }
 
 function TierColumn({
   tier,
   unitPriceOf,
+  appliedMeOf,
   focus,
   inChain,
   actualLevel,
@@ -134,6 +180,9 @@ function TierColumn({
 }: {
   tier: ConsolidatedTier;
   unitPriceOf: Map<number, number | null>;
+  // The owned ME applied to each buildable (by product typeId) — drives the
+  // per-node "ME N" readout. Returns undefined for raws and unowned buildables.
+  appliedMeOf: (typeId: number) => number | undefined;
   focus: Focus | null;
   inChain: Set<number> | null;
   actualLevel: Map<number, number> | null;
@@ -182,6 +231,7 @@ function TierColumn({
               item={item}
               qty={qty}
               value={valueOf(item.typeId, qty)}
+              me={appliedMeOf(item.typeId)}
               selected={selected}
               related={related}
               faded={!!focus && !selected && !related}
@@ -218,14 +268,62 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
   );
 }
 
+// The build-plan header note, shown when the caller owns researched blueprints:
+// materials are reduced at owned ME. One hover/tap popover (the shared Base UI
+// primitive) carries the honest assumption — a best-ME owned copy per component,
+// unowned assumes ME 0 — without implying any per-node control (a later slice).
+function MeAdjustedNote({ topMe }: { topMe: number }) {
+  return (
+    <Popover
+      label="Owned-blueprint material efficiency"
+      tone="green"
+      triggerClassName="inline-flex cursor-help items-baseline gap-1 font-mono text-[10px] uppercase tracking-[0.12em] text-isk hover:text-name"
+      trigger={
+        <>
+          ME-adjusted
+          <span className="text-[8px]">▾</span>
+        </>
+      }
+    >
+      <PopoverHeading>Owned-blueprint ME</PopoverHeading>
+      <PopoverRow label="Materials">
+        reduced by the material efficiency of the blueprints you own.
+      </PopoverRow>
+      <PopoverRow label="Main blueprint">ME {topMe}.</PopoverRow>
+      <PopoverRow label="Components">
+        each uses your best-ME owned copy; unowned components assume ME 0.
+      </PopoverRow>
+    </Popover>
+  );
+}
+
 export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
-  const { pricing, runs } = usePricing();
+  const { pricing, runs, ownedMe } = usePricing();
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
   // The whole-run batch ledger for `runs` runs (the build-batch ceil) — drives
-  // both the batched tier quantities and the focused-drill-down actuals.
-  const ledger = useMemo(() => computeBatchLedger(structure.tree, runs), [structure.tree, runs]);
+  // the batched tier quantities, the focused-drill-down actuals, AND the per-node
+  // ME readouts. ME-aware: each buildable reduces by the caller's owned-blueprint
+  // ME. With nothing owned (`ownedMe` null/empty) `meOf` returns undefined
+  // everywhere, so this is byte-identical to the ME0 cost basis.
+  const ledger = useMemo(() => {
+    const meOf = (blueprintTypeId: number) => ownedMe?.get(blueprintTypeId);
+    return computeBatchLedgerWithMe(structure.tree, runs, {
+      meOf,
+      topBlueprintTypeId: structure.blueprintTypeId,
+    });
+  }, [structure.tree, structure.blueprintTypeId, runs, ownedMe]);
+  // The owned-ME overlay is "active" only when an owned blueprint actually reduces
+  // a number — so logged-out / owns-none / owns-only-ME0 renders identically to
+  // the pre-ME plan (no readouts). The top blueprint's own ME (0 if unowned).
+  const ownedActive = useMemo(
+    () => !!ownedMe && [...ownedMe.values()].some((me) => me > 0),
+    [ownedMe],
+  );
+  const topMe = ownedMe?.get(structure.blueprintTypeId) ?? 0;
+  // The ME applied to each buildable, by product typeId — for the per-node readout.
+  const appliedMeOf = (typeId: number) => ledger.builds.get(typeId)?.me;
   // Re-base the tier quantities onto the whole-run batch totals — what a builder
   // actually makes and buys. Placement and the trace graph (childrenOf) untouched.
   const batchedTiers = useMemo(() => scaleTiersToBatched(tiers, ledger), [tiers, ledger]);
@@ -282,6 +380,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
       <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1">
           <SectionLabel>Build plan</SectionLabel>
+          {ownedActive && <MeAdjustedNote topMe={topMe} />}
           <TraceMeta focus={focus} onClear={() => setFocus(null)} />
         </div>
         <button
@@ -326,6 +425,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             key={tier.depth}
             tier={tier}
             unitPriceOf={unitPriceOf}
+            appliedMeOf={appliedMeOf}
             focus={focus}
             inChain={focus && chainLevels ? (chainLevels.get(tier.depth - focus.depth) ?? null) : null}
             actualLevel={focus && chainActuals ? (chainActuals.get(tier.depth - focus.depth) ?? null) : null}
