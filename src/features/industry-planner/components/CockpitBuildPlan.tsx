@@ -19,7 +19,7 @@ import { REACTION_NODE_LABEL } from '../industry-styles';
 import { effectiveMeOf } from '../me-overrides';
 import type { BlueprintStructure } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
-import { MeRowOrb } from './MeAdjuster';
+import { MeRowOrb, TeRowOrb } from './MeAdjuster';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit build plan: the consolidated material breakdown as a column per
@@ -246,8 +246,20 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
 }
 
 export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
-  const { pricing, runs, ownedMe, ownedDetail, meOverrides, setMeOverride, resetMeOverride } =
-    usePricing();
+  const {
+    pricing,
+    runs,
+    ownedMe,
+    ownedDetail,
+    meOverrides,
+    setMeOverride,
+    resetMeOverride,
+    ownedTe,
+    teOverrides,
+    setTeOverride,
+    resetTeOverride,
+    ownedActive,
+  } = usePricing();
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
@@ -263,39 +275,43 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
       topBlueprintTypeId: structure.blueprintTypeId,
     });
   }, [structure.tree, structure.blueprintTypeId, runs, ownedMe, meOverrides]);
-  // The owned-ME overlay is "active" only when an owned blueprint actually reduces
-  // a number — so logged-out / owns-none / owns-only-ME0 renders identically to
-  // the pre-ME plan (no readouts). The top blueprint's own ME (0 if unowned).
-  const ownedActive = useMemo(
-    () => !!ownedMe && [...ownedMe.values()].some((me) => me > 0),
-    [ownedMe],
-  );
-  // The producing blueprint per buildable typeId — keys each row's ME adjuster to
-  // the override map. Undefined for raws (which never appear as tier rows).
+  // The producing blueprint per buildable typeId — keys each row's adjusters to the
+  // override maps. Undefined for raws (which never appear as tier rows).
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
-  // Render a buildable row's gem adjuster — only when the plan is ME-active (a
-  // signed-in caller owns a researched blueprint in this build); otherwise no orbs
-  // → byte-identical rows. Every buildable gets one (owned, manual, or unowned), so
-  // you can model ME on a node you don't own.
+  // Render a buildable row's adjuster orbs (the ME gem + the TE hourglass) — only
+  // when the plan is active (a signed-in caller owns a researched blueprint in this
+  // build); otherwise no orbs → byte-identical rows. Every buildable gets them
+  // (owned, manual, or unowned), so you can model a node you don't own.
   const orbFor = ownedActive
     ? (typeId: number, name: string, faded: boolean): ReactNode => {
         const bp = blueprintOf(typeId);
         // No adjuster on raws (no blueprint) or reactions (can't be researched →
-        // no ME to set), so the gem only sits on manufacturable components.
+        // no ME/TE to set), so orbs only sit on manufacturable components.
         if (bp === undefined || structure.buildNodeDisplay[typeId]?.label === REACTION_NODE_LABEL) {
           return null;
         }
         return (
-          <MeRowOrb
-            blueprintTypeId={bp}
-            name={name}
-            ownedMe={ownedMe}
-            meOverrides={meOverrides}
-            setMeOverride={setMeOverride}
-            resetMeOverride={resetMeOverride}
-            detail={ownedDetail?.get(bp)}
-            faded={faded}
-          />
+          <>
+            <MeRowOrb
+              blueprintTypeId={bp}
+              name={name}
+              ownedMe={ownedMe}
+              meOverrides={meOverrides}
+              setMeOverride={setMeOverride}
+              resetMeOverride={resetMeOverride}
+              detail={ownedDetail?.get(bp)}
+              faded={faded}
+            />
+            <TeRowOrb
+              blueprintTypeId={bp}
+              name={name}
+              ownedTe={ownedTe}
+              teOverrides={teOverrides}
+              setTeOverride={setTeOverride}
+              resetTeOverride={resetTeOverride}
+              faded={faded}
+            />
+          </>
         );
       }
     : undefined;

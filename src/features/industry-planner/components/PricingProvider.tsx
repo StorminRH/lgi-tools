@@ -10,7 +10,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from 'react';
 import {
   useRefreshOnView,
@@ -21,8 +23,10 @@ import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore, type MarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { apiFetch } from '@/lib/api-client';
-import { collectBlueprintTypeIds, collectRawTypeIds } from '../build-batch';
+import { collectBlueprintTypeIds, collectRawTypeIds, computeBatchLedgerWithMe } from '../build-batch';
 import { clampMe, effectiveMeOf } from '../me-overrides';
+import { clampTe, effectiveTeOf } from '../te-overrides';
+import { computeBuildTimes, type BuildTimes } from '../build-time';
 import { ownedBlueprintsEndpoint } from '../api-contract';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
@@ -169,6 +173,24 @@ interface PricingContextValue {
   // Set a node's manual ME (clamped 0–10); `reset` drops it back to owned-or-default.
   setMeOverride: (blueprintTypeId: number, me: number) => void;
   resetMeOverride: (blueprintTypeId: number) => void;
+  // The caller's owned-blueprint TE, keyed by blueprint type id — derived from
+  // `ownedDetail`, the time-side twin of `ownedMe`. Drives the TE adjuster + the
+  // build-time figures. null until the read settles.
+  ownedTe: Map<number, number> | null;
+  // Manual per-node TE overrides (what-if), keyed by blueprint type id. Client-only,
+  // not persisted — overlaid on `ownedTe` for the build-time engine. Empty by default
+  // ⇒ "Build time" is identical to the pre-TE figure.
+  teOverrides: Map<number, number>;
+  // Set a node's manual TE (clamped 0–20); `reset` drops it back to owned-or-default.
+  setTeOverride: (blueprintTypeId: number, te: number) => void;
+  resetTeOverride: (blueprintTypeId: number) => void;
+  // The final-job and whole-tree build-time figures, TE-applied (readout only — TE
+  // never touches the cost path). Recomputes on runs / ME / TE change.
+  buildTimes: BuildTimes;
+  // True when the caller owns any RESEARCHED blueprint in this build (ME>0 or TE>0)
+  // — the gate for showing the per-node adjuster orbs. Logged-out / owns-none → false
+  // → no orbs → byte-identical plan.
+  ownedActive: boolean;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -219,6 +241,33 @@ function HistorySeeder({
   return null;
 }
 
+// Shared what-if override setters for ME and TE: `set` clamps + writes a fresh map
+// (a new identity so the recompute dep fires); `reset` drops the entry. Same shape,
+// only the clamp (the cap) differs between the two.
+function useOverrideSetters(
+  setOverrides: Dispatch<SetStateAction<Map<number, number>>>,
+  clamp: (n: number) => number,
+) {
+  const set = useCallback(
+    (blueprintTypeId: number, value: number) => {
+      setOverrides((prev) => new Map(prev).set(blueprintTypeId, clamp(value)));
+    },
+    [setOverrides, clamp],
+  );
+  const reset = useCallback(
+    (blueprintTypeId: number) => {
+      setOverrides((prev) => {
+        if (!prev.has(blueprintTypeId)) return prev;
+        const next = new Map(prev);
+        next.delete(blueprintTypeId);
+        return next;
+      });
+    },
+    [setOverrides],
+  );
+  return { set, reset };
+}
+
 export function PricingProvider({
   structure,
   pricingPromise,
@@ -250,6 +299,8 @@ export function PricingProvider({
   // Manual per-node ME overrides (what-if), keyed by blueprint type id — client-only,
   // never persisted, reset when the planner remounts on a new blueprint (`structure`).
   const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
+  // Manual per-node TE overrides (what-if), the time-side twin of `meOverrides`.
+  const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
   // The seed price map, captured when the snapshot first lands. Each refresh
   // batch merges over it (refreshed value wins; un-refreshed rows keep their
   // seed) before recomputing margin, so the assembly never drops back to nulls
@@ -330,20 +381,44 @@ export function PricingProvider({
     [],
   );
 
-  // Manual ME override setters (what-if). `setMeOverride` clamps to 0–10; `reset`
-  // drops the entry so the node tracks its owned ME (or ME0) again. A fresh map
-  // identity each time so the recompute effect's `meOverrides` dep fires.
-  const setMeOverride = useCallback((blueprintTypeId: number, me: number) => {
-    setMeOverrides((prev) => new Map(prev).set(blueprintTypeId, clampMe(me)));
-  }, []);
-  const resetMeOverride = useCallback((blueprintTypeId: number) => {
-    setMeOverrides((prev) => {
-      if (!prev.has(blueprintTypeId)) return prev;
-      const next = new Map(prev);
-      next.delete(blueprintTypeId);
-      return next;
+  // Manual ME / TE override setters (what-if) — `set` clamps (ME 0–10, TE 0–20),
+  // `reset` drops the entry so the node tracks its owned value again.
+  const { set: setMeOverride, reset: resetMeOverride } = useOverrideSetters(setMeOverrides, clampMe);
+  const { set: setTeOverride, reset: resetTeOverride } = useOverrideSetters(setTeOverrides, clampTe);
+
+  // Owned TE, derived from the readout detail (the time-side twin of `ownedMe`) — one
+  // source, no second fetch. null until the owned read settles.
+  const ownedTe = useMemo<Map<number, number> | null>(
+    () => (ownedDetail ? new Map([...ownedDetail].map(([bp, d]) => [bp, d.te])) : null),
+    [ownedDetail],
+  );
+
+  // The adjuster gate: owns any RESEARCHED blueprint (ME>0 or TE>0) in this build.
+  const ownedActive = useMemo(
+    () =>
+      (!!ownedMe && [...ownedMe.values()].some((me) => me > 0)) ||
+      (!!ownedTe && [...ownedTe.values()].some((te) => te > 0)),
+    [ownedMe, ownedTe],
+  );
+
+  // The TE-adjusted build-time figures. Its OWN memo, separate from the cost
+  // `assemble()` — TE never enters the cost path. Builds the same ME ledger (a pure
+  // call, same inputs as CockpitBuildPlan's — no drift) for per-node batched runs,
+  // then applies effective TE per blueprint.
+  const buildTimes = useMemo<BuildTimes>(() => {
+    const ledger = computeBatchLedgerWithMe(structure.tree, runs, {
+      meOf: effectiveMeOf(ownedMe, meOverrides),
+      topBlueprintTypeId: structure.blueprintTypeId,
     });
-  }, []);
+    return computeBuildTimes({
+      topBlueprintTypeId: structure.blueprintTypeId,
+      topJobSeconds: structure.topJobSeconds,
+      nodeJobSeconds: structure.nodeJobSeconds,
+      runs,
+      builds: ledger.builds,
+      teOf: effectiveTeOf(ownedTe, teOverrides),
+    });
+  }, [structure, runs, ownedMe, meOverrides, ownedTe, teOverrides]);
 
   // Every viewed price re-confirmed live on view — across the raw cost basis,
   // the product, and the buildable intermediates. We refresh the whole set, not
@@ -494,6 +569,12 @@ export function PricingProvider({
       meOverrides,
       setMeOverride,
       resetMeOverride,
+      ownedTe,
+      teOverrides,
+      setTeOverride,
+      resetTeOverride,
+      buildTimes,
+      ownedActive,
     }),
     [
       pricing,
@@ -512,6 +593,12 @@ export function PricingProvider({
       meOverrides,
       setMeOverride,
       resetMeOverride,
+      ownedTe,
+      teOverrides,
+      setTeOverride,
+      resetTeOverride,
+      buildTimes,
+      ownedActive,
     ],
   );
 

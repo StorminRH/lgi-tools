@@ -1,28 +1,114 @@
 import { describe, expect, it } from 'vitest';
-import { formatBuildDuration, toBuildTimeView } from './build-time';
+import { computeBuildTimes, formatBuildDuration, teFactor } from './build-time';
+
+const noTe = () => undefined;
+const ledger = (entries: [number, { runs: number; blueprintTypeId: number }][]) => new Map(entries);
+
+describe('teFactor', () => {
+  it('is 1 at TE0 (the byte-identical anchor) and scales down with TE', () => {
+    expect(teFactor(0)).toBe(1);
+    expect(teFactor(-5)).toBe(1);
+    expect(teFactor(20)).toBeCloseTo(0.8);
+    expect(teFactor(10)).toBeCloseTo(0.9);
+  });
+});
 
 describe('formatBuildDuration', () => {
   it('formats seconds as the largest two units', () => {
     expect(formatBuildDuration(0)).toBe('<1m');
     expect(formatBuildDuration(6000)).toBe('1h 40m'); // Rifter base
+    expect(formatBuildDuration(18_000)).toBe('5h');
     expect(formatBuildDuration(240_000)).toBe('2d 18h'); // Ishtar base
     expect(formatBuildDuration(9_000_000)).toBe('104d 4h'); // Ragnarok base
   });
 });
 
-describe('toBuildTimeView', () => {
-  it('shows the final job at base time, runs-scaled', () => {
-    expect(toBuildTimeView(240_000, 1)).toEqual({ topJob: '2d 18h' });
-    expect(toBuildTimeView(6_000, 3)).toEqual({ topJob: '5h' }); // 3 runs × 1h40m
+describe('computeBuildTimes', () => {
+  const base = {
+    topBlueprintTypeId: 1,
+    nodeJobSeconds: {} as Record<number, number>,
+    builds: ledger([]),
+    teOf: noTe,
+  };
+
+  it('topJob is byte-identical to the pre-TE final-job figure at TE0', () => {
+    expect(computeBuildTimes({ ...base, topJobSeconds: 240_000, runs: 1 }).topJob).toBe('2d 18h');
+    expect(computeBuildTimes({ ...base, topJobSeconds: 6_000, runs: 3 }).topJob).toBe('5h'); // 3 × 1h40m
+    // fractional runs floor (2.9 → 2 runs)
+    expect(computeBuildTimes({ ...base, topJobSeconds: 6_000, runs: 2.9 }).topJob).toBe('3h 20m');
   });
 
-  it('floors fractional runs and treats zero runs as no figure', () => {
-    expect(toBuildTimeView(6_000, 2.9)).toEqual({ topJob: '3h 20m' }); // 2 runs
-    expect(toBuildTimeView(6_000, 0)).toBeNull();
+  it('topJob is null for a degenerate / zero-run top job', () => {
+    expect(computeBuildTimes({ ...base, topJobSeconds: 6_000, runs: 0 }).topJob).toBeNull();
+    expect(computeBuildTimes({ ...base, topJobSeconds: null, runs: 1 }).topJob).toBeNull();
+    expect(computeBuildTimes({ ...base, topJobSeconds: 0, runs: 1 }).topJob).toBeNull();
   });
 
-  it('returns null when the product has no honest base time', () => {
-    expect(toBuildTimeView(null, 1)).toBeNull();
-    expect(toBuildTimeView(0, 1)).toBeNull();
+  it('applies the top blueprint TE to the final-job figure and reports topTe', () => {
+    const r = computeBuildTimes({
+      ...base,
+      topJobSeconds: 18_000,
+      runs: 1,
+      teOf: (bp) => (bp === 1 ? 20 : undefined),
+    });
+    expect(r.topJob).toBe('4h'); // 18000 × 0.8 = 14400s
+    expect(r.topTe).toBe(20);
+  });
+
+  it('sums every intermediate onto the final job, counting the top exactly once', () => {
+    // top (bp 1) is NOT in builds; one intermediate (bp 5) is. Total = top + node.
+    const r = computeBuildTimes({
+      topBlueprintTypeId: 1,
+      topJobSeconds: 18_000, // 5h
+      nodeJobSeconds: { 5: 18_000 },
+      runs: 1,
+      builds: ledger([[200, { runs: 1, blueprintTypeId: 5 }]]),
+      teOf: noTe,
+    });
+    expect(r.topJob).toBe('5h');
+    expect(r.totalProduction).toBe('10h'); // 18000 + 18000
+  });
+
+  it('counts a reaction (TE0) intermediate at full time', () => {
+    const r = computeBuildTimes({
+      topBlueprintTypeId: 1,
+      topJobSeconds: 18_000,
+      nodeJobSeconds: { 5: 18_000 },
+      runs: 1,
+      builds: ledger([[200, { runs: 1, blueprintTypeId: 5 }]]),
+      teOf: (bp) => (bp === 5 ? 0 : undefined), // reaction: TE0 → factor 1
+    });
+    expect(r.totalProduction).toBe('10h');
+  });
+
+  it('applies per-node TE to an intermediate and multiplies by its batched runs', () => {
+    const r = computeBuildTimes({
+      topBlueprintTypeId: 1,
+      topJobSeconds: 0, // no top job → total is just the intermediate
+      nodeJobSeconds: { 5: 18_000 },
+      runs: 1,
+      builds: ledger([[200, { runs: 2, blueprintTypeId: 5 }]]),
+      teOf: (bp) => (bp === 5 ? 20 : undefined),
+    });
+    // 2 runs × 18000s × 0.8 = 28800s = 8h
+    expect(r.totalProduction).toBe('8h');
+    expect(r.topJob).toBeNull();
+  });
+
+  it('skips a degenerate intermediate with no base time without producing NaN', () => {
+    const r = computeBuildTimes({
+      topBlueprintTypeId: 1,
+      topJobSeconds: 18_000,
+      nodeJobSeconds: {}, // bp 7 absent → contributes 0
+      runs: 1,
+      builds: ledger([[200, { runs: 5, blueprintTypeId: 7 }]]),
+      teOf: noTe,
+    });
+    expect(r.totalProduction).toBe('5h'); // just the top job, no NaN
+  });
+
+  it('totalProduction is null when nothing has an honest base time', () => {
+    const r = computeBuildTimes({ ...base, topJobSeconds: null, runs: 1 });
+    expect(r.totalProduction).toBeNull();
   });
 });

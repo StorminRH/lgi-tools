@@ -13,7 +13,7 @@ import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitKpis, type MarginMode } from './CockpitKpis';
-import { MeMainControl } from './MeAdjuster';
+import { MeMainControl, TeMainControl } from './MeAdjuster';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
@@ -47,17 +47,28 @@ function PlannerHead({ name, group, activity }: { name: string; group: string; a
 }
 
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
-  const { runs, setRuns, ownedMe, ownedDetail, meOverrides, setMeOverride, resetMeOverride } =
-    usePricing();
+  const {
+    runs,
+    setRuns,
+    ownedMe,
+    ownedDetail,
+    meOverrides,
+    setMeOverride,
+    resetMeOverride,
+    ownedTe,
+    teOverrides,
+    setTeOverride,
+    resetTeOverride,
+    ownedActive,
+  } = usePricing();
   // Gross/Net is the user's preference, gated by an available net estimate. Lives
   // here so the KPI margin tile reads one source of truth.
   const [marginMode, setMarginMode] = useState<MarginMode>('net');
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
-  // The main blueprint's ME adjuster shows only when an owned researched blueprint
-  // makes the plan ME-active (matching the per-node orbs); reactions are excluded
+  // The main blueprint's adjusters show only when an owned researched blueprint
+  // makes the plan active (matching the per-node orbs); reactions are excluded
   // by `isManufacturing` since they can't be researched.
-  const ownedActive = !!ownedMe && [...ownedMe.values()].some((me) => me > 0);
   const outputUnits = structure.product.quantityPerRun * runs;
 
   return (
@@ -95,14 +106,23 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
 
         <div className="flex flex-wrap items-center gap-4">
           {ownedActive && isManufacturing && (
-            <MeMainControl
-              blueprintTypeId={structure.blueprintTypeId}
-              ownedMe={ownedMe}
-              meOverrides={meOverrides}
-              setMeOverride={setMeOverride}
-              resetMeOverride={resetMeOverride}
-              detail={ownedDetail?.get(structure.blueprintTypeId)}
-            />
+            <>
+              <MeMainControl
+                blueprintTypeId={structure.blueprintTypeId}
+                ownedMe={ownedMe}
+                meOverrides={meOverrides}
+                setMeOverride={setMeOverride}
+                resetMeOverride={resetMeOverride}
+                detail={ownedDetail?.get(structure.blueprintTypeId)}
+              />
+              <TeMainControl
+                blueprintTypeId={structure.blueprintTypeId}
+                ownedTe={ownedTe}
+                teOverrides={teOverrides}
+                setTeOverride={setTeOverride}
+                resetTeOverride={resetTeOverride}
+              />
+            </>
           )}
           <label className="flex items-center gap-2.5 text-[9px] uppercase tracking-[0.14em] text-muted">
             Runs

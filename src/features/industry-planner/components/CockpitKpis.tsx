@@ -5,7 +5,6 @@ import { LivePrice } from '@/components/ui/live-price';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
-import { toBuildTimeView } from '../build-time';
 import { selectNet, type MarginMode } from '../cockpit-margin';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import { deriveMarginFigures, marginToneClass } from '../industry-styles';
@@ -104,7 +103,7 @@ export function CockpitKpis({
   marginMode: MarginMode;
   setMarginMode: (m: MarginMode) => void;
 }) {
-  const { pricing, seeded, location, runs } = usePricing();
+  const { pricing, seeded, location, runs, buildTimes } = usePricing();
   const summary = pricing?.summary ?? null;
 
   const { net, netAvailable } = selectNet(
@@ -114,7 +113,6 @@ export function CockpitKpis({
     marginMode,
   );
   const { showNet, margin, marginPct, sign } = deriveMarginFigures(summary, net);
-  const buildTime = toBuildTimeView(structure.topJobSeconds, runs);
 
   return (
     <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
@@ -129,7 +127,7 @@ export function CockpitKpis({
         valueClass="text-isk"
       />
 
-      <KpiTile span2>
+      <KpiTile>
         <KpiHead
           label={showNet ? 'Net margin' : 'Gross margin'}
           right={
@@ -162,12 +160,29 @@ export function CockpitKpis({
             <KpiHelp label="How build time is estimated">
               <PopoverHeading>Build time — final job</PopoverHeading>
               <PopoverRow label="Runs">×{runs}</PopoverRow>
-              <PopoverRow label="Time efficiency">0% (unresearched)</PopoverRow>
+              <PopoverRow label="Time efficiency">
+                {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ' (owned)'}
+              </PopoverRow>
               <PopoverRow label="Skills &amp; structure">none applied</PopoverRow>
             </KpiHelp>
           }
         />
-        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTime ? buildTime.topJob : '—'}</div>
+        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.topJob ?? '—'}</div>
+      </KpiTile>
+
+      <KpiTile>
+        <KpiHead
+          label="Total job time"
+          right={
+            <KpiHelp label="What total job time means">
+              <PopoverHeading>Total job time — whole tree</PopoverHeading>
+              <PopoverRow label="Scope">every job, sequential</PopoverRow>
+              <PopoverRow label="Time efficiency">applied per blueprint</PopoverRow>
+              <PopoverRow label="Skills, structure, parallel slots">none applied</PopoverRow>
+            </KpiHelp>
+          }
+        />
+        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.totalProduction ?? '—'}</div>
       </KpiTile>
     </div>
   );
