@@ -211,6 +211,13 @@
       "when": 1782599386158,
       "tag": "0029_wonderful_red_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1782671315560,
+      "tag": "0030_cloudy_eternals",
+      "breakpoints": true
     }
   ]
 }

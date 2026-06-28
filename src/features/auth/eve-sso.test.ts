@@ -17,13 +17,15 @@ describe('EVE_SCOPES', () => {
   //
   // 3.7.1.1 pruned this to STRICT LEAST-PRIVILEGE; 3.7.3.1 (the first corp
   // feature) added the two corp reads, taking it to six; 3.7.5.1 added the two
-  // blueprint reads (owned-blueprints dataset), taking it to eight. Naming trap
-  // still worth pinning: the skill-queue read lives under `esi-skills`, NOT
+  // blueprint reads (owned-blueprints dataset), taking it to eight; 3.7.7.1
+  // added the two asset reads (owned-assets dataset), taking it to ten. Naming
+  // trap still worth pinning: the skill-queue read lives under `esi-skills`, NOT
   // `esi-skillqueue`. (`read_attributes` does not exist; /attributes is gated by
   // `read_skills`.) The corp roles read lives under `esi-characters`, NOT
   // `esi-corporations` — but the corp BLUEPRINTS read lives under
-  // `esi-corporations`. Adding a scope is a deliberate, batched decision —
-  // verify the exact live name before touching this list.
+  // `esi-corporations`, while BOTH asset reads live under `esi-assets` (the corp
+  // one is `read_corporation_assets`). Adding a scope is a deliberate, batched
+  // decision — verify the exact live name before touching this list.
   it('matches the verified least-privilege EVE scope names', () => {
     expect([...EVE_SCOPES]).toEqual([
       'publicData',
@@ -34,6 +36,8 @@ describe('EVE_SCOPES', () => {
       'esi-industry.read_corporation_jobs.v1',
       'esi-characters.read_blueprints.v1',
       'esi-corporations.read_blueprints.v1',
+      'esi-assets.read_assets.v1',
+      'esi-assets.read_corporation_assets.v1',
     ]);
   });
 
