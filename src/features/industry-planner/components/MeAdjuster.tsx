@@ -6,14 +6,16 @@ import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-over
 import { MAX_TE } from '../te-overrides';
 import type { OwnedComponentDetail } from '../types';
 
-// The interactive per-node efficiency controls (3.7.5.4 ME, 3.7.5.6 TE, 3.7.5.7
-// inline). Each manufacturable node carries EVE's material-efficiency GEM and its
-// time-efficiency HOURGLASS as INLINE editable fields: the icon + a number you
-// scroll, arrow, or type (clamped ME 0-10 / TE 0-20). The VALUE's colour is the
-// state — blue owned, orange a manual what-if, faint/empty unowned — so the field
-// needs no extra baseline text; a ↺ appears only when overridden. ME drives the cost
-// ledger; TE drives the build time. The owner/location readout (`ProvenanceRows`)
-// moved to the node's QTY-ring hover.
+// The interactive per-node efficiency controls (3.7.5.4 ME, 3.7.5.6 TE, 3.7.5.8
+// steppers + icon popover). Each manufacturable node carries EVE's material-efficiency
+// GEM and its time-efficiency HOURGLASS as editable fields: a number you scroll, arrow,
+// type, or (with `steppers`) step with ▲/▼ (clamped ME 0-10 / TE 0-20). The VALUE's
+// colour is the state — blue owned, orange a manual what-if, faint/empty unowned — so
+// the field needs no extra baseline text; a ↺ appears only when overridden. ME drives
+// the cost ledger; TE drives the build time. `NodeAdjusters` lays both fields out for a
+// node's icon popover (steppers on); the planner header renders them inline (off). The
+// owner/location readout (`ProvenanceRows`) appears in that icon popover, after the
+// adjusters.
 
 interface MeProps {
   // The producing blueprint's type id — the key the override map and `meOf` use.
@@ -153,6 +155,11 @@ function valueToneClass(state: NodeMeState): string {
   return 'text-faint';
 }
 
+// The up/down step buttons shown in the popover stepper layout (`steppers`). Small
+// hover-lit tap targets flanking the typeable field, the Stepper primitive's idiom.
+const STEP_BTN =
+  'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] text-[8px] leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
+
 // One inline efficiency control: the icon + an editable number you scroll, arrow, or
 // type (clamped 0–max). The value's colour is the state; a ↺ appears only when it's a
 // manual override (click resets to owned). Empty when unowned-and-unset. The field
@@ -166,6 +173,7 @@ function EfficiencyField({
   d,
   onCommit,
   onRevert,
+  steppers = false,
 }: {
   icon: ReactNode;
   ariaUnit: string;
@@ -174,6 +182,9 @@ function EfficiencyField({
   d: Derived;
   onCommit: (n: number) => void;
   onRevert: () => void;
+  // Show the up/down step buttons flanking the field (the popover layout). The inline
+  // header field omits them (the wheel + arrow keys still step it).
+  steppers?: boolean;
 }) {
   // Shown value: empty when unowned-and-unset, else the effective number.
   const shown = d.state === 'unowned' && !d.isOverridden ? '' : String(d.effective);
@@ -225,6 +236,19 @@ function EfficiencyField({
       onKeyDown={(e) => e.stopPropagation()}
     >
       <span className="inline-flex h-3 w-3 shrink-0">{icon}</span>
+      {steppers && (
+        <button
+          type="button"
+          aria-label={`Increase ${name} ${ariaUnit}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            step(1);
+          }}
+          className={STEP_BTN}
+        >
+          ▲
+        </button>
+      )}
       <input
         ref={inputRef}
         type="text"
@@ -252,6 +276,19 @@ function EfficiencyField({
           valueToneClass(d.state),
         )}
       />
+      {steppers && (
+        <button
+          type="button"
+          aria-label={`Decrease ${name} ${ariaUnit}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            step(-1);
+          }}
+          className={STEP_BTN}
+        >
+          ▼
+        </button>
+      )}
       {d.isOverridden && (
         <button
           type="button"
@@ -271,7 +308,7 @@ function EfficiencyField({
 
 // The material-efficiency inline field for a node (or the build-plan header). `name`
 // is "main blueprint" in the header.
-export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride }: MeProps) {
+export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, steppers }: MeProps & { steppers?: boolean }) {
   const d = deriveAdjust(ownedMe, meOverrides, blueprintTypeId);
   // Stable callbacks so the field's native wheel listener re-registers only on a
   // value change, not on every render.
@@ -286,12 +323,13 @@ export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOver
       d={d}
       onCommit={onCommit}
       onRevert={onRevert}
+      steppers={steppers}
     />
   );
 }
 
 // The time-efficiency inline field — the time-side twin of MeField.
-export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride }: TeProps) {
+export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, steppers }: TeProps & { steppers?: boolean }) {
   const d = deriveAdjust(ownedTe, teOverrides, blueprintTypeId);
   const onCommit = useCallback((n: number) => setTeOverride(blueprintTypeId, n), [setTeOverride, blueprintTypeId]);
   const onRevert = useCallback(() => resetTeOverride(blueprintTypeId), [resetTeOverride, blueprintTypeId]);
@@ -304,6 +342,61 @@ export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOver
       d={d}
       onCommit={onCommit}
       onRevert={onRevert}
+      steppers={steppers}
     />
+  );
+}
+
+// A labelled efficiency row (the label, then the inline field) for the node's icon
+// popover. Mono label to match the field digits.
+function AdjusterRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-5">
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+// The two labelled fields (gem ME + hourglass TE) that fill a buildable node's icon
+// popover (3.7.5.8) — one source for the live planner and the sandbox. The frame tone
+// and the popover shell live in NodeCard; this is only the body.
+export function NodeAdjusters({
+  blueprintTypeId,
+  name,
+  ownedMe,
+  meOverrides,
+  setMeOverride,
+  resetMeOverride,
+  ownedTe,
+  teOverrides,
+  setTeOverride,
+  resetTeOverride,
+}: MeProps & Omit<TeProps, 'blueprintTypeId' | 'name'>) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <AdjusterRow label="Material Efficiency">
+        <MeField
+          blueprintTypeId={blueprintTypeId}
+          name={name}
+          ownedMe={ownedMe}
+          meOverrides={meOverrides}
+          setMeOverride={setMeOverride}
+          resetMeOverride={resetMeOverride}
+          steppers
+        />
+      </AdjusterRow>
+      <AdjusterRow label="Time Efficiency">
+        <TeField
+          blueprintTypeId={blueprintTypeId}
+          name={name}
+          ownedTe={ownedTe}
+          teOverrides={teOverrides}
+          setTeOverride={setTeOverride}
+          resetTeOverride={resetTeOverride}
+          steppers
+        />
+      </AdjusterRow>
+    </div>
   );
 }
