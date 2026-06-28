@@ -250,6 +250,39 @@ describe('assemblePricing net margin', () => {
   });
 });
 
+describe('assemblePricing owned-ME overlay (3.7.5.2)', () => {
+  // NET_STRUCTURE's top blueprint is typeId 1; its two ME0 raw inputs are 34
+  // (×100) and 35 (×50). An owned ME10 on the top blueprint reduces them to
+  // ⌈100·0.9⌉ = 90 and ⌈50·0.9⌉ = 45.
+  const meOf10 = (bp: number) => (bp === 1 ? 10 : undefined);
+
+  it('reduces the cost-basis quantities + inputCost at the owned ME', () => {
+    const owned = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { meOf: meOf10 });
+    expect(owned.rows.find((r) => r.typeId === 34)?.quantity).toBe(90);
+    expect(owned.rows.find((r) => r.typeId === 35)?.quantity).toBe(45);
+    expect(owned.summary.inputCost).toBe(585); // 90×5 + 45×3 (gross is 650)
+  });
+
+  it('owning none of the build (meOf → undefined) is byte-identical to the no-meOf gross path', () => {
+    const gross = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
+    const unowned = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { meOf: () => undefined });
+    expect(unowned.rows).toEqual(gross.rows);
+    expect(unowned.summary).toEqual(gross.summary);
+  });
+
+  it('leaves the net-margin EIV at ME0 even when the cost basis is ME-reduced', () => {
+    const fee = { adjustedPriceOf: adjustedOf, systemCostIndex: 0.04 };
+    const grossNet = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { fee });
+    const ownedNet = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t], { fee, meOf: meOf10 });
+    // EIV (install-fee basis) is defined at ME0, so it is unchanged…
+    expect(ownedNet.net!.jobFee.estimatedItemValue).toBe(650);
+    expect(ownedNet.net!.jobFee.estimatedItemValue).toBe(grossNet.net!.jobFee.estimatedItemValue);
+    // …while the build cost (what you buy) drops, so net cost reflects the saving.
+    expect(ownedNet.summary.inputCost).toBe(585);
+    expect(ownedNet.net!.netCost).toBeLessThan(grossNet.net!.netCost!);
+  });
+});
+
 // Near-touch depth ladders for the product (3.5.3b). Plain {pct, cumVolume}
 // objects, matching DepthBand.
 const BUY_LADDER = [

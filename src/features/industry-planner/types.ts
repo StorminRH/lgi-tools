@@ -222,3 +222,21 @@ export interface BlueprintPricing {
   // gross-only client path, so the gross payload shape is unchanged.
   net: NetMarginView | null;
 }
+
+// --- Owned-blueprint ME overlay (3.7.5.2) --------------------------------
+
+// One owned blueprint's effective material efficiency, keyed by blueprint type.
+// `me` is the best ME across all the caller's copies of that blueprint (resolved
+// server-side). The wire shape for /api/industry/owned-blueprints; the client
+// builds a Map<blueprintTypeId, me> the cost basis ME-reduces against.
+export interface OwnedBlueprintMeEntry {
+  blueprintTypeId: number;
+  me: number;
+}
+
+// The owned-ME overlay payload: only the blueprints the caller owns among those
+// requested. Blueprints absent from the list are unowned → the client applies
+// ME0 to them (the byte-identical gross path). Empty for a logged-out caller.
+export interface OwnedBlueprintsResponse {
+  blueprints: OwnedBlueprintMeEntry[];
+}

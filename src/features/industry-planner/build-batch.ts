@@ -18,7 +18,10 @@ import type { TreeNode } from '@/data/eve-data/tree-resolver';
 
 // One buildable type's recipe, flattened from the nested tree (the per-run
 // inputs of the blueprint that produces it, plus how many it yields per run).
+// `blueprintTypeId` is the producing blueprint — the key the owned-ME transform
+// looks an ME level up by; inert for the ME0 cost basis.
 interface Recipe {
+  blueprintTypeId: number;
   batch: number;
   inputs: { typeId: number; qty: number }[];
 }
@@ -32,6 +35,7 @@ function flattenRecipes(tree: TreeNode[]): Map<number, Recipe> {
     for (const node of nodes) {
       if (node.producedBy && !recipes.has(node.typeId)) {
         recipes.set(node.typeId, {
+          blueprintTypeId: node.producedBy.blueprintTypeId,
           batch: node.producedBy.quantityPerRun,
           inputs: node.inputs.map((i) => ({ typeId: i.typeId, qty: i.quantity })),
         });
@@ -124,6 +128,124 @@ export function computeBatchMaterials(
   return [...computeBatchLedger(tree, requestedRuns).raws.entries()].map(
     ([typeId, quantity]) => ({ typeId, quantity }),
   );
+}
+
+// --- Owned-blueprint material efficiency (3.7.5.2) -----------------------
+//
+// Per-component ME: each buildable node's material consumption is computed at
+// the ME of the OWNED blueprint that produces it (best-ME-per-type, resolved
+// upstream), falling back to ME0 for unowned nodes — so the cost basis reflects
+// what the player actually owns. A pure overlay over the same tree: it never
+// touches the resolver or the ME0 path, so the gross seed stays byte-identical
+// when nothing is owned (`meOf` returns undefined → ME0 everywhere).
+//
+// The ME lookup is a callback (not the owned-blueprints map type) so this stays
+// inside the industry-planner slice — a feature never imports another feature.
+
+// What the transform needs to apply per-component ME: the per-blueprint ME
+// lookup, and the TOP blueprint's id (the root tree nodes are ITS direct inputs,
+// so the top blueprint's ME reduces them).
+export interface MeOptions {
+  meOf: (blueprintTypeId: number) => number | undefined;
+  topBlueprintTypeId: number;
+}
+
+function roundTo2(x: number): number {
+  return Math.round(x * 100) / 100;
+}
+
+// EVE's manufacturing material quantity for `runs` runs of a blueprint at ME
+// `me`, base per-run quantity `qty` (no structure/rig bonuses):
+//   max(runs, ceil(round(qty · runs · (1 − ME/100), 2))).
+// ME ≤ 0 (the unowned / reaction case) is exactly qty·runs, so it's a no-op.
+// `max(runs, …)` is EVE's "≥1 unit per run" floor (qty 1 / 100 runs / ME10 → 100,
+// not 90); the round-to-2 before the ceil neutralises float noise.
+function meAdjust(qty: number, runs: number, me: number): number {
+  if (me <= 0) return qty * runs;
+  return Math.max(runs, Math.ceil(roundTo2(qty * runs * (1 - me / 100))));
+}
+
+// Per-buildable-type graph height over the recipe DAG (raws = 0). Memoised; the
+// DAG is acyclic (the resolver guarantees it), so the recursion terminates.
+function recipeHeights(recipes: Map<number, Recipe>): Map<number, number> {
+  const heights = new Map<number, number>();
+  const heightOf = (typeId: number): number => {
+    const cached = heights.get(typeId);
+    if (cached !== undefined) return cached;
+    const recipe = recipes.get(typeId);
+    if (!recipe) return 0; // raw leaf
+    let h = 0;
+    for (const input of recipe.inputs) h = Math.max(h, 1 + heightOf(input.typeId));
+    heights.set(typeId, h);
+    return h;
+  };
+  for (const typeId of recipes.keys()) heightOf(typeId);
+  return heights;
+}
+
+// The whole-run batch ledger with per-component owned ME applied. Same shape and
+// meaning as `computeBatchLedger`, but ME-aware: because ME's ceil is non-linear
+// in the run count, each buildable's ME must be applied ONCE over its final run
+// total — so this is a topological aggregate-then-ceil (process parents before
+// children by descending height) rather than the ME0 path's incremental walk. A
+// buildable's height is strictly greater than any of its inputs', so its demand
+// is fully aggregated before its runs (and ME-reduced input draw) are computed.
+// With `meOf` returning undefined everywhere this reproduces `computeBatchLedger`
+// exactly (meAdjust → qty·runs), the byte-identical-at-ME0 guarantee.
+export function computeBatchLedgerWithMe(
+  tree: TreeNode[],
+  requestedRuns: number,
+  opts: MeOptions,
+): BatchLedger {
+  const recipes = flattenRecipes(tree);
+  const heights = recipeHeights(recipes);
+  const demand = new Map<number, number>();
+  const raws = new Map<number, number>();
+  const addDemand = (typeId: number, qty: number) => {
+    if (recipes.has(typeId)) demand.set(typeId, (demand.get(typeId) ?? 0) + qty);
+    else raws.set(typeId, (raws.get(typeId) ?? 0) + qty);
+  };
+
+  // Seed: the root tree nodes are the TOP blueprint's direct inputs, so the top
+  // blueprint's ME reduces them. requestedRuns is an integer run count.
+  const topMe = opts.meOf(opts.topBlueprintTypeId) ?? 0;
+  for (const node of tree) addDemand(node.typeId, meAdjust(node.quantity, requestedRuns, topMe));
+
+  const ordered = [...recipes.keys()].sort(
+    (a, b) => (heights.get(b) ?? 0) - (heights.get(a) ?? 0),
+  );
+  const builds = new Map<number, { runs: number; batch: number }>();
+  for (const typeId of ordered) {
+    const recipe = recipes.get(typeId)!;
+    const required = demand.get(typeId) ?? 0;
+    const runs = recipe.batch > 0 ? Math.ceil(required / recipe.batch) : 0;
+    builds.set(typeId, { runs, batch: recipe.batch });
+    const me = opts.meOf(recipe.blueprintTypeId) ?? 0;
+    for (const input of recipe.inputs) addDemand(input.typeId, meAdjust(input.qty, runs, me));
+  }
+
+  return { raws, builds };
+}
+
+// Raw-material totals with per-component owned ME applied — the ME-aware twin of
+// `computeBatchMaterials`, a thin projection of `computeBatchLedgerWithMe`'s raws.
+export function computeBatchMaterialsWithMe(
+  tree: TreeNode[],
+  requestedRuns: number,
+  opts: MeOptions,
+): { typeId: number; quantity: number }[] {
+  return [...computeBatchLedgerWithMe(tree, requestedRuns, opts).raws.entries()].map(
+    ([typeId, quantity]) => ({ typeId, quantity }),
+  );
+}
+
+// Every blueprint type that produces something in this build — the top product's
+// blueprint plus every buildable node's producing blueprint. The set the client
+// asks the owned-blueprints endpoint about (its ME lookup is keyed by these).
+export function collectBlueprintTypeIds(tree: TreeNode[], topBlueprintTypeId: number): number[] {
+  const out = new Set<number>([topBlueprintTypeId]);
+  for (const recipe of flattenRecipes(tree).values()) out.add(recipe.blueprintTypeId);
+  return [...out];
 }
 
 // The ACTUAL (marginal) downstream demand when one buildable is focused: what

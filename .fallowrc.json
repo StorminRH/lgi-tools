@@ -10,7 +10,6 @@
     "src/db/ingest-sde.ts",
     "src/db/refresh-prices.ts",
     "src/db/refresh-sde.ts",
-    "src/db/owned-blueprints-sync.ts",
     "scripts/validate-resolver-output.ts",
     "scripts/assert-route-classification.mjs",
     "scripts/ux-capture.mjs",

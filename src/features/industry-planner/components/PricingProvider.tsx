@@ -20,7 +20,9 @@ import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-vi
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore, type MarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
-import { collectRawTypeIds } from '../build-batch';
+import { apiFetch } from '@/lib/api-client';
+import { collectBlueprintTypeIds, collectRawTypeIds } from '../build-batch';
+import { ownedBlueprintsEndpoint } from '../api-contract';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
@@ -212,6 +214,11 @@ export function PricingProvider({
   const [runs, setRunsState] = useState(1);
   const [location, setLocationState] = useState<SelectedLocation | null>(null);
   const [station, setStationState] = useState<SelectedStation | null>(null);
+  // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
+  // per type). null until the owned-blueprints read settles; empty for a
+  // logged-out caller or one owning none of this build's blueprints — either way
+  // the cost basis falls back to ME0 (the byte-identical gross path).
+  const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
   // The seed price map, captured when the snapshot first lands. Each refresh
   // batch merges over it (refreshed value wins; un-refreshed rows keep their
   // seed) before recomputing margin, so the assembly never drops back to nulls
@@ -227,10 +234,12 @@ export function PricingProvider({
   const runsRef = useRef(runs);
   const locationRef = useRef(location);
   const pricingRef = useRef(pricing);
+  const ownedMeRef = useRef(ownedMe);
   useEffect(() => {
     runsRef.current = runs;
     locationRef.current = location;
     pricingRef.current = pricing;
+    ownedMeRef.current = ownedMe;
   });
 
   // THE one recompute, used by both the live-price path and the runs/location
@@ -248,7 +257,11 @@ export function PricingProvider({
           systemCostIndex: loc.costIndices.manufacturing ?? null,
         }
       : undefined;
-    setPricing(assemblePricing(structure, lookup, { runs: runsRef.current, fee }));
+    // Owned-ME overlay: once the owned-blueprints read lands, the cost basis is
+    // recomputed at each buildable's owned ME. Absent (null) → ME0 gross basis.
+    const owned = ownedMeRef.current;
+    const meOf = owned ? (blueprintTypeId: number) => owned.get(blueprintTypeId) : undefined;
+    setPricing(assemblePricing(structure, lookup, { runs: runsRef.current, fee, meOf }));
   }, [structure]);
 
   // Settle the store from the streamed read. Mark it seeded either way (so a
@@ -343,18 +356,45 @@ export function PricingProvider({
     onResult: onHistoryResult,
   });
 
-  // Recompute when runs or location changes — independent of the one-shot
-  // refresh loop, which never fires onBatch again once it finishes. Reads the
-  // latest pricing via a ref (not a dep) so it fires only on a real runs/location
-  // change, never on its own setPricing (which would loop). Guarded on a settled
-  // non-null seed so it never overwrites the "unavailable" state, and deferred
-  // via a 0ms timer so setState isn't called synchronously from the effect body
-  // (the Cache-Components-safe shape used by PricingSeeder).
+  // Owned-blueprint ME overlay (3.7.5.2): fetch the caller's owned ME for this
+  // build's blueprints once on open — per-user data can't live in the static
+  // seed, so it arrives client-side (the net-margin pattern). The read fires its
+  // own stale-gated server-side refresh; we never refetch on a runs/location
+  // recompute, so it's one call per blueprint open. Logged-out / owning none of
+  // these → empty map → the cost basis stays the ME0 gross basis.
+  useEffect(() => {
+    let ignore = false;
+    const controller = new AbortController();
+    const blueprintTypeIds = collectBlueprintTypeIds(structure.tree, structure.blueprintTypeId);
+    apiFetch(ownedBlueprintsEndpoint, {
+      body: { blueprintTypeIds },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (ignore || !res.ok) return;
+        setOwnedMe(new Map(res.data.blueprints.map((b) => [b.blueprintTypeId, b.me])));
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, [structure]);
+
+  // Recompute when runs, location, or the owned-ME overlay changes — independent
+  // of the one-shot refresh loop, which never fires onBatch again once it
+  // finishes. Reads the latest pricing via a ref (not a dep) so it fires only on
+  // a real runs/location/owned-ME change, never on its own setPricing (which
+  // would loop). Guarded on a settled non-null seed so it never overwrites the
+  // "unavailable" state, and deferred via a 0ms timer so setState isn't called
+  // synchronously from the effect body (the Cache-Components-safe shape used by
+  // PricingSeeder).
   useEffect(() => {
     if (!seeded || !pricingRef.current) return;
     const t = setTimeout(() => assemble(), 0);
     return () => clearTimeout(t);
-  }, [runs, location, seeded, assemble]);
+  }, [runs, location, ownedMe, seeded, assemble]);
 
   // The product's Market Score — pure, no fetch. Re-derives when runs change
   // (via output units), when the product's history lands, and when a price/depth

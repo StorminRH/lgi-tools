@@ -5,6 +5,8 @@ import type {
   BlueprintIndexEntry,
   BuildLocationData,
   IndustryStationView,
+  OwnedBlueprintMeEntry,
+  OwnedBlueprintsResponse,
   SystemSearchEntry,
 } from './types';
 
@@ -96,4 +98,38 @@ export const buildLocationEndpoint: ApiEndpoint<
   path: '/api/industry/build-location',
   request: buildLocationRequestSchema,
   response: buildLocationResponseSchema,
+};
+
+// ── POST /api/industry/owned-blueprints ─────────────────────────────────
+// Body: the blueprint type ids present in the planned build (the top product's
+// blueprint + every buildable component's blueprint). POST, not GET-with-query,
+// because the id set is unbounded and apiFetch carries a body. The response is
+// scoped to the caller's OWNED blueprints among those requested — auth-gated,
+// the user id comes from the session, never the body. Validated in the handler.
+export const ownedBlueprintsRequestSchema = z.object({
+  blueprintTypeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(4096),
+});
+
+const ownedBlueprintMeEntrySchema = z.object({
+  blueprintTypeId: z.number(),
+  me: z.number(),
+}) satisfies z.ZodType<OwnedBlueprintMeEntry>;
+
+export const ownedBlueprintsResponseSchema = z.object({
+  blueprints: z.array(ownedBlueprintMeEntrySchema),
+}) satisfies z.ZodType<OwnedBlueprintsResponse>;
+
+// 400 arms mirror the build-location endpoint's shape.
+export type OwnedBlueprintsBadRequest =
+  | { error: 'invalid_json' }
+  | { error: 'invalid_request'; issues: unknown[] };
+
+export const ownedBlueprintsEndpoint: ApiEndpoint<
+  z.input<typeof ownedBlueprintsRequestSchema>,
+  OwnedBlueprintsResponse
+> = {
+  method: 'POST',
+  path: '/api/industry/owned-blueprints',
+  request: ownedBlueprintsRequestSchema,
+  response: ownedBlueprintsResponseSchema,
 };
