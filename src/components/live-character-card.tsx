@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { SectionHeader } from '@/components/ui/section-header';
+import { CharacterPortrait } from '@/components/character-portrait';
 import { convexClient } from '@/data/convex/client';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
 import { TYPE_NAMES_MAX_IDS, typeNamesEndpoint } from '@/data/eve-data/api-contract';
@@ -349,12 +350,11 @@ export function LiveCharacterCard({
   return (
     <Card>
       <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
-        <img
+        <CharacterPortrait
+          characterId={character.characterId}
+          name={character.name}
+          size={36}
           src={character.portraitUrl}
-          alt={character.name}
-          width={36}
-          height={36}
-          className="rounded-[2px] border border-border-idle"
         />
         <div className="min-w-0 flex-1">
           <div className="font-display font-bold text-[15px] text-name truncate">

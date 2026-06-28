@@ -1100,6 +1100,9 @@ a:hover {
   transition: color 0.15s;
 }
 .status-led {
+  /* inline-block so width/height apply in ANY context — the nav chip blockifies
+   * it via its flex parent, but the character-portrait overlay does not. */
+  display: inline-block;
   width: 6px;
   height: 6px;
   border-radius: 50%;

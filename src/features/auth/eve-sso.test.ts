@@ -18,7 +18,9 @@ describe('EVE_SCOPES', () => {
   // 3.7.1.1 pruned this to STRICT LEAST-PRIVILEGE; 3.7.3.1 (the first corp
   // feature) added the two corp reads, taking it to six; 3.7.5.1 added the two
   // blueprint reads (owned-blueprints dataset), taking it to eight; 3.7.7.1
-  // added the two asset reads (owned-assets dataset), taking it to ten. Naming
+  // added the two asset reads (owned-assets dataset), taking it to ten; MIGRATE.A
+  // re-admitted the online-status read (esi-location.read_online.v1, pruned in
+  // 3.7.1.1) for the live online-status canary, taking it to eleven. Naming
   // trap still worth pinning: the skill-queue read lives under `esi-skills`, NOT
   // `esi-skillqueue`. (`read_attributes` does not exist; /attributes is gated by
   // `read_skills`.) The corp roles read lives under `esi-characters`, NOT
@@ -38,6 +40,7 @@ describe('EVE_SCOPES', () => {
       'esi-corporations.read_blueprints.v1',
       'esi-assets.read_assets.v1',
       'esi-assets.read_corporation_assets.v1',
+      'esi-location.read_online.v1',
     ]);
   });
 

@@ -32,6 +32,14 @@ describe('dataset registration data', () => {
       cadenceFloorMs: 300_000,
       tokenGroup: 'char-industry',
     });
+    expect(SYNC_DATASET_CONFIG.corpIndustryJobs).toEqual({
+      cadenceFloorMs: 300_000,
+      tokenGroup: 'corp-industry',
+    });
+    expect(SYNC_DATASET_CONFIG.onlineStatus).toEqual({
+      cadenceFloorMs: 60_000,
+      tokenGroup: 'char-online',
+    });
   });
 });
 

@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { CharacterPortrait } from '@/components/character-portrait';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -90,14 +91,11 @@ function AdminUserRow({
     <EntityRow
       colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto_auto]"
       leading={
-        <img
+        <CharacterPortrait
+          characterId={user.characterId ?? undefined}
+          name={user.name}
+          size={28}
           src={user.portraitUrl}
-          alt={user.name}
-          width={28}
-          height={28}
-          loading="lazy"
-          decoding="async"
-          className="rounded-[2px] border border-border-idle"
         />
       }
       name={

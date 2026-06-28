@@ -1,5 +1,6 @@
 'use client';
 
+import { CharacterPortrait } from '@/components/character-portrait';
 import { Chip } from '@/components/ui/chip';
 import { authClient } from '../auth-client';
 import { useAuth } from './AuthProvider';
@@ -56,14 +57,11 @@ export function LoginButton() {
         aria-label={`${session.name} — manage your characters`}
         className="flex items-center hover:opacity-80 transition-opacity"
       >
-        <img
+        <CharacterPortrait
+          characterId={session.characterId}
+          name={session.name}
+          size={32}
           src={session.portraitUrl}
-          alt={session.name}
-          width={32}
-          height={32}
-          loading="eager"
-          decoding="async"
-          className="rounded-[2px] border border-border-idle"
         />
       </a>
       <button
