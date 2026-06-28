@@ -5,7 +5,7 @@ import {
   type PriceOf,
 } from '@/data/industry-math/profitability';
 import type { DepthBand, PriceSource } from '@/data/market-prices/types';
-import { computeBatchMaterials } from './build-batch';
+import { computeBatchMaterials, computeBatchMaterialsWithMe } from './build-batch';
 import type { ConfidenceInput } from './industry-styles';
 import type {
   BlueprintPricing,
@@ -110,6 +110,12 @@ export interface AssembleOptions {
   // has no stored index). Omitted on the gross-only path (server seed / no
   // location), so `assemblePricing(structure, priceOf)` is byte-identical gross.
   fee?: { adjustedPriceOf: AdjustedPriceOf; systemCostIndex: number | null };
+  // Per-blueprint owned-ME lookup (3.7.5.2). Present only on the client once the
+  // player's owned blueprints have loaded — it ME-reduces the cost-basis material
+  // quantities at each buildable's owned ME. Omitted on the server seed and the
+  // no-owned-data client path, so the gross cost basis is byte-identical (every
+  // lookup → undefined → ME0). The net-margin EIV base stays ME0 regardless.
+  meOf?: (blueprintTypeId: number) => number | undefined;
 }
 
 // Net margin for the FINAL build job only (3.5.2b "top job"). Null unless a
@@ -164,8 +170,16 @@ export function assemblePricing(
 
   // Cost basis is the whole-run batch total scaled to `runs` — what you must buy
   // from an empty hangar to build `runs` runs — not the resolver's marginal flat
-  // list. Re-derived per request from the tree.
-  const buildCost = computeBuildCost(computeBatchMaterials(structure.tree, runs), buyOf);
+  // list. Re-derived per request from the tree. With an owned-ME lookup the
+  // material quantities are reduced at each buildable's owned ME; without one
+  // (server seed / no owned data) this is the byte-identical ME0 cost basis.
+  const materials = opts.meOf
+    ? computeBatchMaterialsWithMe(structure.tree, runs, {
+        meOf: opts.meOf,
+        topBlueprintTypeId: structure.blueprintTypeId,
+      })
+    : computeBatchMaterials(structure.tree, runs);
+  const buildCost = computeBuildCost(materials, buyOf);
   const productPrice = priceOf(structure.product.typeId);
   // Output units = per-run yield × runs. Revenue is per output unit, never per
   // run — runs only drives the batch material walk above.

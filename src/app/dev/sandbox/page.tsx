@@ -32,6 +32,12 @@ const GALLERIES = [
     count: 'spike',
     blurb: 'React Flow node graph + dnd-kit reorder — a throwaway renderer/interaction evaluation for the future v4.0 wormhole mapper.',
   },
+  {
+    href: '/dev/sandbox/me-adjuster',
+    title: 'ME adjuster variations',
+    count: '5 variants',
+    blurb: 'Five ways to override a build node’s material efficiency (0–10) — corner orb, value pill, inline stepper, segmented scale, and an expandable tune panel. Owned auto-fill, manual values shown distinctly.',
+  },
 ];
 
 async function SandboxIndex() {

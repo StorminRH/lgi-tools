@@ -10,7 +10,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from 'react';
 import {
   useRefreshOnView,
@@ -20,14 +22,29 @@ import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-vi
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore, type MarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
-import { collectRawTypeIds } from '../build-batch';
+import { apiFetch } from '@/lib/api-client';
+import {
+  collectBlueprintTypeIds,
+  collectRawTypeIds,
+  computeBatchLedgerWithMe,
+  type BatchLedger,
+} from '../build-batch';
+import { clampMe, effectiveMeOf } from '../me-overrides';
+import { clampTe, effectiveTeOf } from '../te-overrides';
+import { computeBuildTimes, type BuildTimes } from '../build-time';
+import { ownedBlueprintsEndpoint } from '../api-contract';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
   type PriceLite,
 } from '../build-pricing';
-import type { BlueprintPricing, BlueprintStructure, IndustryStationView } from '../types';
+import type {
+  BlueprintPricing,
+  BlueprintStructure,
+  IndustryStationView,
+  OwnedComponentDetail,
+} from '../types';
 
 // The planner's single live-pricing store. It owns what `CostPanel` used to:
 // the price snapshot seeded from the server, the client clock, and the
@@ -143,6 +160,45 @@ interface PricingContextValue {
   // units), the product's history, and its near-touch depth, so it re-scores
   // live as runs change. score === null when no signal is known.
   marketScore: MarketScore;
+  // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
+  // per type). null until the owned-blueprints read settles; empty for a
+  // logged-out caller or one owning none of this build's blueprints. The build
+  // plan reads it to drive its ME-aware ledger + per-node readouts.
+  ownedMe: Map<number, number> | null;
+  // The readout detail (TE / owner / location) for each owned component, keyed by
+  // blueprint type id — built from the SAME owned-blueprints read, but a separate
+  // channel from `ownedMe` so the cost compute is untouched. The orb popover reads
+  // it; absent entries (unowned / manual nodes) simply render ME-only.
+  ownedDetail: Map<number, OwnedComponentDetail> | null;
+  // Manual per-node ME overrides (what-if), keyed by blueprint type id. Client-only
+  // and NOT persisted — overlaid on `ownedMe` to drive the same `meOf` seam, so the
+  // whole plan recomputes through one engine path. Empty by default → byte-identical
+  // to the owned-only plan.
+  meOverrides: Map<number, number>;
+  // Set a node's manual ME (clamped 0–10); `reset` drops it back to owned-or-default.
+  setMeOverride: (blueprintTypeId: number, me: number) => void;
+  resetMeOverride: (blueprintTypeId: number) => void;
+  // The caller's owned-blueprint TE, keyed by blueprint type id — derived from
+  // `ownedDetail`, the time-side twin of `ownedMe`. Drives the TE adjuster + the
+  // build-time figures. null until the read settles.
+  ownedTe: Map<number, number> | null;
+  // Manual per-node TE overrides (what-if), keyed by blueprint type id. Client-only,
+  // not persisted — overlaid on `ownedTe` for the build-time engine. Empty by default
+  // ⇒ "Build time" is identical to the pre-TE figure.
+  teOverrides: Map<number, number>;
+  // Set a node's manual TE (clamped 0–20); `reset` drops it back to owned-or-default.
+  setTeOverride: (blueprintTypeId: number, te: number) => void;
+  resetTeOverride: (blueprintTypeId: number) => void;
+  // The ME-aware whole-run batch ledger (the build-batch ceil). One source for the
+  // build plan's tiers + drill-down AND the build-time totals, so they can't drift.
+  ledger: BatchLedger;
+  // The final-job and whole-tree build-time figures, TE-applied (readout only — TE
+  // never touches the cost path). Recomputes on runs / ME / TE change.
+  buildTimes: BuildTimes;
+  // True when the caller owns any RESEARCHED blueprint in this build (ME>0 or TE>0)
+  // — the gate for showing the per-node adjuster orbs. Logged-out / owns-none → false
+  // → no orbs → byte-identical plan.
+  ownedActive: boolean;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -193,6 +249,33 @@ function HistorySeeder({
   return null;
 }
 
+// Shared what-if override setters for ME and TE: `set` clamps + writes a fresh map
+// (a new identity so the recompute dep fires); `reset` drops the entry. Same shape,
+// only the clamp (the cap) differs between the two.
+function useOverrideSetters(
+  setOverrides: Dispatch<SetStateAction<Map<number, number>>>,
+  clamp: (n: number) => number,
+) {
+  const set = useCallback(
+    (blueprintTypeId: number, value: number) => {
+      setOverrides((prev) => new Map(prev).set(blueprintTypeId, clamp(value)));
+    },
+    [setOverrides, clamp],
+  );
+  const reset = useCallback(
+    (blueprintTypeId: number) => {
+      setOverrides((prev) => {
+        if (!prev.has(blueprintTypeId)) return prev;
+        const next = new Map(prev);
+        next.delete(blueprintTypeId);
+        return next;
+      });
+    },
+    [setOverrides],
+  );
+  return { set, reset };
+}
+
 export function PricingProvider({
   structure,
   pricingPromise,
@@ -212,6 +295,20 @@ export function PricingProvider({
   const [runs, setRunsState] = useState(1);
   const [location, setLocationState] = useState<SelectedLocation | null>(null);
   const [station, setStationState] = useState<SelectedStation | null>(null);
+  // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
+  // per type). null until the owned-blueprints read settles; empty for a
+  // logged-out caller or one owning none of this build's blueprints — either way
+  // the cost basis falls back to ME0 (the byte-identical gross path).
+  const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
+  // The owned-component readout detail (TE / owner / location), built from the same
+  // read as `ownedMe` but kept on its own channel — the orb popover consumes it; the
+  // cost compute never does.
+  const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
+  // Manual per-node ME overrides (what-if), keyed by blueprint type id — client-only,
+  // never persisted, reset when the planner remounts on a new blueprint (`structure`).
+  const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
+  // Manual per-node TE overrides (what-if), the time-side twin of `meOverrides`.
+  const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
   // The seed price map, captured when the snapshot first lands. Each refresh
   // batch merges over it (refreshed value wins; un-refreshed rows keep their
   // seed) before recomputing margin, so the assembly never drops back to nulls
@@ -227,10 +324,14 @@ export function PricingProvider({
   const runsRef = useRef(runs);
   const locationRef = useRef(location);
   const pricingRef = useRef(pricing);
+  const ownedMeRef = useRef(ownedMe);
+  const meOverridesRef = useRef(meOverrides);
   useEffect(() => {
     runsRef.current = runs;
     locationRef.current = location;
     pricingRef.current = pricing;
+    ownedMeRef.current = ownedMe;
+    meOverridesRef.current = meOverrides;
   });
 
   // THE one recompute, used by both the live-price path and the runs/location
@@ -248,7 +349,14 @@ export function PricingProvider({
           systemCostIndex: loc.costIndices.manufacturing ?? null,
         }
       : undefined;
-    setPricing(assemblePricing(structure, lookup, { runs: runsRef.current, fee }));
+    // Owned-ME overlay + manual overrides: the cost basis is recomputed at each
+    // buildable's effective ME (a manual override wins, else the owned ME). No owned
+    // data and no overrides → meOf stays undefined → ME0 gross basis. With overrides
+    // empty it equals the owned-only meOf → byte-identical to the pre-override plan.
+    const owned = ownedMeRef.current;
+    const overrides = meOverridesRef.current;
+    const meOf = owned || overrides.size ? effectiveMeOf(owned, overrides) : undefined;
+    setPricing(assemblePricing(structure, lookup, { runs: runsRef.current, fee, meOf }));
   }, [structure]);
 
   // Settle the store from the streamed read. Mark it seeded either way (so a
@@ -279,6 +387,56 @@ export function PricingProvider({
       setStationState(stationId === null ? null : { id: stationId, name: stationName ?? '' });
     },
     [],
+  );
+
+  // Manual ME / TE override setters (what-if) — `set` clamps (ME 0–10, TE 0–20),
+  // `reset` drops the entry so the node tracks its owned value again.
+  const { set: setMeOverride, reset: resetMeOverride } = useOverrideSetters(setMeOverrides, clampMe);
+  const { set: setTeOverride, reset: resetTeOverride } = useOverrideSetters(setTeOverrides, clampTe);
+
+  // Owned TE, derived from the readout detail (the time-side twin of `ownedMe`) — one
+  // source, no second fetch. null until the owned read settles.
+  const ownedTe = useMemo<Map<number, number> | null>(
+    () => (ownedDetail ? new Map([...ownedDetail].map(([bp, d]) => [bp, d.te])) : null),
+    [ownedDetail],
+  );
+
+  // The adjuster gate: owns any RESEARCHED blueprint (ME>0 or TE>0) in this build.
+  const ownedActive = useMemo(
+    () =>
+      (!!ownedMe && [...ownedMe.values()].some((me) => me > 0)) ||
+      (!!ownedTe && [...ownedTe.values()].some((te) => te > 0)),
+    [ownedMe, ownedTe],
+  );
+
+  // The ME-aware batch ledger — computed ONCE here and shared (the build plan reads
+  // it from context), so the cost tiers and the build-time totals read one source and
+  // can't disagree, and the topological walk runs once per change, not twice.
+  const ledger = useMemo<BatchLedger>(
+    () =>
+      computeBatchLedgerWithMe(structure.tree, runs, {
+        meOf: effectiveMeOf(ownedMe, meOverrides),
+        topBlueprintTypeId: structure.blueprintTypeId,
+      }),
+    [structure.tree, structure.blueprintTypeId, runs, ownedMe, meOverrides],
+  );
+
+  // The TE-adjusted build-time figures. Its OWN memo, separate from the cost
+  // `assemble()` — TE never enters the cost path. Reads the shared ME ledger for
+  // per-node batched runs, then applies effective TE per blueprint.
+  const buildTimes = useMemo<BuildTimes>(
+    () =>
+      computeBuildTimes({
+        topBlueprintTypeId: structure.blueprintTypeId,
+        topProductTypeId: structure.product.typeId,
+        topJobSeconds: structure.topJobSeconds,
+        nodeJobSeconds: structure.nodeJobSeconds,
+        runs,
+        builds: ledger.builds,
+        teOf: effectiveTeOf(ownedTe, teOverrides),
+        nameOf: (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
+      }),
+    [structure, runs, ledger, ownedTe, teOverrides],
   );
 
   // Every viewed price re-confirmed live on view — across the raw cost basis,
@@ -343,18 +501,56 @@ export function PricingProvider({
     onResult: onHistoryResult,
   });
 
-  // Recompute when runs or location changes — independent of the one-shot
-  // refresh loop, which never fires onBatch again once it finishes. Reads the
-  // latest pricing via a ref (not a dep) so it fires only on a real runs/location
-  // change, never on its own setPricing (which would loop). Guarded on a settled
-  // non-null seed so it never overwrites the "unavailable" state, and deferred
-  // via a 0ms timer so setState isn't called synchronously from the effect body
-  // (the Cache-Components-safe shape used by PricingSeeder).
+  // Owned-blueprint ME overlay (3.7.5.2): fetch the caller's owned ME for this
+  // build's blueprints once on open — per-user data can't live in the static
+  // seed, so it arrives client-side (the net-margin pattern). The read fires its
+  // own stale-gated server-side refresh; we never refetch on a runs/location
+  // recompute, so it's one call per blueprint open. Logged-out / owning none of
+  // these → empty map → the cost basis stays the ME0 gross basis.
+  useEffect(() => {
+    let ignore = false;
+    const controller = new AbortController();
+    const blueprintTypeIds = collectBlueprintTypeIds(structure.tree, structure.blueprintTypeId);
+    apiFetch(ownedBlueprintsEndpoint, {
+      body: { blueprintTypeIds },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (ignore || !res.ok) return;
+        // One response, two maps: the ME map feeds the cost compute; the detail map
+        // is the orb popover's readout channel (TE / owner / location) — kept apart
+        // so the compute path stays byte-identical.
+        setOwnedMe(new Map(res.data.blueprints.map((b) => [b.blueprintTypeId, b.me])));
+        setOwnedDetail(
+          new Map(
+            res.data.blueprints.map((b) => [
+              b.blueprintTypeId,
+              { te: b.te, ownerType: b.ownerType, ownerName: b.ownerName, locationName: b.locationName, locationFlag: b.locationFlag },
+            ]),
+          ),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, [structure]);
+
+  // Recompute when runs, location, the owned-ME overlay, or a manual override
+  // changes — independent of the one-shot refresh loop, which never fires onBatch
+  // again once it finishes. Reads the latest pricing via a ref (not a dep) so it
+  // fires only on a real runs/location/ME change, never on its own setPricing
+  // (which would loop). Guarded on a settled non-null seed so it never overwrites
+  // the "unavailable" state, and deferred via a 0ms timer so setState isn't called
+  // synchronously from the effect body (the Cache-Components-safe shape used by
+  // PricingSeeder).
   useEffect(() => {
     if (!seeded || !pricingRef.current) return;
     const t = setTimeout(() => assemble(), 0);
     return () => clearTimeout(t);
-  }, [runs, location, seeded, assemble]);
+  }, [runs, location, ownedMe, meOverrides, seeded, assemble]);
 
   // The product's Market Score — pure, no fetch. Re-derives when runs change
   // (via output units), when the product's history lands, and when a price/depth
@@ -387,6 +583,18 @@ export function PricingProvider({
       setStation,
       marketHistory,
       marketScore,
+      ownedMe,
+      ownedDetail,
+      meOverrides,
+      setMeOverride,
+      resetMeOverride,
+      ownedTe,
+      teOverrides,
+      setTeOverride,
+      resetTeOverride,
+      ledger,
+      buildTimes,
+      ownedActive,
     }),
     [
       pricing,
@@ -400,6 +608,18 @@ export function PricingProvider({
       setStation,
       marketHistory,
       marketScore,
+      ownedMe,
+      ownedDetail,
+      meOverrides,
+      setMeOverride,
+      resetMeOverride,
+      ownedTe,
+      teOverrides,
+      setTeOverride,
+      resetTeOverride,
+      ledger,
+      buildTimes,
+      ownedActive,
     ],
   );
 

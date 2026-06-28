@@ -21,31 +21,6 @@ export function marginToneClass(marginPct: number | null): string {
   return toneTextClass('green');
 }
 
-export type MarginCaption =
-  | 'missing-cost-index'
-  | 'missing-adjusted-prices'
-  | 'net-clean'
-  | 'gross-manufacturing'
-  | 'gross-reaction';
-
-// Which disclaimer sits under the margin figure. Net captions explain the job-
-// fee caveat (incomplete cost index / missing reference prices) or that it's
-// clean; gross captions explain that materials-only isn't take-home —
-// manufacturing can flip to net once a system is picked, reactions can't yet.
-export function selectMarginCaption(opts: {
-  showNet: boolean;
-  isManufacturing: boolean;
-  missingSystemCostIndex: boolean;
-  missingAdjustedPriceCount: number;
-}): MarginCaption {
-  if (opts.showNet) {
-    if (opts.missingSystemCostIndex) return 'missing-cost-index';
-    if (opts.missingAdjustedPriceCount > 0) return 'missing-adjusted-prices';
-    return 'net-clean';
-  }
-  return opts.isManufacturing ? 'gross-manufacturing' : 'gross-reaction';
-}
-
 export interface MarginFigures {
   showNet: boolean;
   margin: number | null;
@@ -136,6 +111,10 @@ export function classifyRaw(groupName: string, categoryName: string): Category {
 // Raws reuse the ledger's source-category colour but show their real SDE group
 // name, so no invented name enters the tree.
 const REACTION_ACTIVITY_ID = 11;
+// The label a reaction-activity (11) build node carries. Exported so the planner
+// can tell a reaction node from a manufactured one — reactions can't be researched,
+// so they have no ME/TE to adjust.
+export const REACTION_NODE_LABEL = 'Reaction';
 
 export interface NodeLabel {
   label: string;
@@ -157,7 +136,7 @@ export function classifyBuildNode(args: {
     return { label: groupName || categoryName || 'Final Product', tone: 'teal' };
   }
   if (activityId === REACTION_ACTIVITY_ID) {
-    return { label: 'Reaction', tone: 'purple' };
+    return { label: REACTION_NODE_LABEL, tone: 'purple' };
   }
   return { label: groupName || categoryName || 'Manufacturing', tone: 'blue' };
 }

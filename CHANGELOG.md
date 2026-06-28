@@ -6,6 +6,17 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.5 — 2026-06-28
+
+#### Added
+- The build planner now factors in the blueprints you own. Your researched material efficiency lowers the materials and cost of every component you hold a blueprint for, across the whole build, and your time efficiency shortens the estimated build time.
+- You can set material and time efficiency per component right on the build plan — scroll or type a value to model a build at any efficiency, even for a blueprint you don't own. Your owned value, a manual what-if, and an unowned component each read in their own colour.
+- A new "Total job time" figure sums every manufacturing job in the build — each component plus the final assembly — with a hover breakdown of how each one adds up. The existing build-time figure now reflects time efficiency too.
+- Each owned component shows who owns its blueprint and where it's stored, beside how many you need.
+
+#### Changed
+- The build-plan components were re-laid out, gathering each one's efficiency controls, ISK value, and a needed-quantity ring onto a single card.
+
 ### v3.7.4 — 2026-06-27
 
 #### Added

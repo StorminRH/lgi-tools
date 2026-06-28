@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
-import { computeBatchLedger, computeBatchMaterials } from './build-batch';
+import {
+  computeBatchLedger,
+  computeBatchLedgerWithMe,
+  computeBatchMaterials,
+  type BatchLedger,
+} from './build-batch';
 import { chainLevelsFrom, consolidateBuild, scaleTiersToBatched } from './build-consolidate';
 import type { BlueprintStructure } from './types';
 
@@ -201,5 +206,46 @@ describe('scaleTiersToBatched — multi-depth raw sums to the batch total', () =
     const batchTotal = computeBatchMaterials(tree, 1).find((r) => r.typeId === 200)?.quantity;
     expect(batchTotal).toBe(12);
     expect(sum).toBeCloseTo(12, 9);
+  });
+});
+
+describe('scaleTiersToBatched — follows an ME-reduced ledger', () => {
+  // scaleTiersToBatched carries no ME logic of its own — it projects whatever
+  // ledger it's handed. Component X (BP 1100, ME10) draws 100 raw R/run; the
+  // unowned ledger bears a full run's 100 R, the ME10 ledger bears 90, and the
+  // tier cell tracks the ledger. (This is how the build plan's tier totals become
+  // ME-consistent: the same swap from computeBatchLedger to …WithMe.)
+  const tree: TreeNode[] = [
+    {
+      typeId: 100,
+      quantity: 5,
+      producedBy: { blueprintTypeId: 1100, quantityPerRun: 10, runsNeeded: 0.5 },
+      inputs: [{ typeId: 200, quantity: 100, inputs: [] }],
+    },
+  ];
+  const structure = {
+    buildNodeDisplay: {
+      100: { name: 'Comp X', height: 1, isRaw: false, label: 'Component', tone: 'purple' },
+      200: { name: 'Raw R', height: 0, isRaw: true, label: 'Mineral', tone: 'neutral' },
+      999: { name: 'Product', height: 2, isRaw: false, label: 'Ship', tone: 'teal' },
+    },
+    buildTree: [
+      {
+        typeId: 999,
+        quantity: 1,
+        inputs: [{ typeId: 100, quantity: 5, inputs: [{ typeId: 200, quantity: 50, inputs: [] }] }],
+      },
+    ],
+    materialNames: { 100: 'Comp X', 200: 'Raw R', 999: 'Product' },
+  } as unknown as BlueprintStructure;
+  const me10 = { meOf: (bp: number) => (bp === 1100 ? 10 : undefined), topBlueprintTypeId: 0 };
+  const rawCell = (ledger: BatchLedger) =>
+    scaleTiersToBatched(consolidateBuild(structure).tiers, ledger)
+      .find((t) => t.depth === 2)
+      ?.items.find((i) => i.typeId === 200)?.quantity;
+
+  it('an ME10 ledger bears 90 raw R where the unowned ledger bears 100', () => {
+    expect(rawCell(computeBatchLedger(tree, 1))).toBe(100);
+    expect(rawCell(computeBatchLedgerWithMe(tree, 1, me10))).toBe(90);
   });
 });

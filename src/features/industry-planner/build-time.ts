@@ -1,15 +1,21 @@
 import { formatRemaining } from '@/lib/format/time';
-import type { BuildTimeView } from './types';
 
-// Build-time for the cockpit's Build-time tile — the FINAL assembly job only.
-// CCP's `time` is the base seconds for one run at ME0/TE0 with NO character
-// skills, structure/rig time bonuses, or implants; a maxed, rigged builder
-// finishes materially faster, so the tile's hover says so.
+// Manufacturing build time for the cockpit (3.7.5.6 applies Time Efficiency). CCP's
+// `time` is the base seconds for one run at TE0 with NO character skills,
+// structure/rig time bonuses, or implants; TE reduces it by `TE%` (research level ×
+// 2%, capped at 20%). Skills/structure stay unapplied (the tile's hover says so), so
+// a maxed, rigged builder still finishes faster than shown.
 //
-// The whole-tree "total build time" (every component + reaction job) is
-// deliberately NOT shown: it isn't a simple sum of intermediate job times — job
-// slots, parallelism, and build-vs-buy all change the answer (building one Ishtar
-// from an empty hangar would otherwise read as ~27 days). Deferred to the backlog.
+// Two figures: the FINAL assembly job ("Build time") and the WHOLE-TREE sum across
+// every component + reaction job ("Total job time"). The total is a sequential sum
+// (one job slot, no parallelism) — building one Ishtar from an empty hangar reads as
+// days; the tile's hover says so.
+
+// Time-efficiency multiplier: TE% (0–20) reduces job time. 0 ⇒ 1 (unchanged), the
+// byte-identical anchor for the pre-TE Build-time figure.
+export function teFactor(te: number): number {
+  return te <= 0 ? 1 : 1 - te / 100;
+}
 
 // Compact largest-two-units duration for a build job, reusing the app's
 // remaining-time idiom (seconds → ms). Sub-minute floors to "<1m".
@@ -17,12 +23,85 @@ export function formatBuildDuration(seconds: number): string {
   return formatRemaining(Math.round(seconds) * 1000);
 }
 
-// The tile's pre-formatted view, or null when the product has no honest base time
-// (a degenerate blueprint, or zero runs). `seconds` is the top blueprint's per-run
-// base time; the final job runs `runs` of it back-to-back.
-export function toBuildTimeView(seconds: number | null, runs: number): BuildTimeView | null {
-  if (seconds === null || seconds <= 0) return null;
-  const total = seconds * Math.max(0, Math.floor(runs));
-  if (total <= 0) return null;
-  return { topJob: formatBuildDuration(total) };
+// One job in the "total job time" calculation: a buildable, its TE-adjusted per-run
+// time, the batched run count, and the product (perRun × runs). Seconds; the UI
+// formats them. The whole breakdown's `totalSeconds` sums to the Total job time.
+export interface BuildTimeLine {
+  typeId: number;
+  name: string;
+  perRunSeconds: number;
+  runs: number;
+  totalSeconds: number;
+}
+
+export interface BuildTimes {
+  // The final assembly job, runs-scaled + TE-adjusted, or null (degenerate / 0 runs).
+  topJob: string | null;
+  // Every job in the tree (final + components + reactions), each TE-adjusted and
+  // scaled by its batched run count, summed sequentially. Null only when nothing
+  // has an honest base time.
+  totalProduction: string | null;
+  // The effective TE applied to the top blueprint (for the tile's hover).
+  topTe: number;
+  // The per-job calculation that sums to `totalProduction` — the final product first,
+  // then each component/reaction by descending total. Shown in the tile's hover.
+  breakdown: BuildTimeLine[];
+}
+
+// Compute the build-time figures + the per-job breakdown. `builds` is the ME-aware
+// batch ledger's per-node entries (keyed by product typeId, each carrying its
+// whole-run count + producing blueprint); the top product is NOT among them, so it is
+// added once from `topJobSeconds`. `teOf` returns a blueprint's effective TE (owned or
+// overridden), or undefined ⇒ TE0; `nameOf` labels each line by product typeId.
+export function computeBuildTimes(args: {
+  topBlueprintTypeId: number;
+  topProductTypeId: number;
+  topJobSeconds: number | null;
+  nodeJobSeconds: Record<number, number>;
+  runs: number;
+  builds: Map<number, { runs: number; blueprintTypeId: number }>;
+  teOf: (blueprintTypeId: number) => number | undefined;
+  nameOf: (typeId: number) => string;
+}): BuildTimes {
+  const { topBlueprintTypeId, topProductTypeId, topJobSeconds, nodeJobSeconds, runs, builds, teOf, nameOf } =
+    args;
+  const wholeRuns = Math.max(0, Math.floor(runs));
+  const topTe = teOf(topBlueprintTypeId) ?? 0;
+  const topPerRun = topJobSeconds === null || topJobSeconds <= 0 ? 0 : topJobSeconds * teFactor(topTe);
+  const topTotal = topPerRun * wholeRuns;
+
+  // Each intermediate's TE-adjusted job time, biggest contributor first. A node with
+  // no honest base time (a degenerate self-recipe) contributes nothing.
+  const components: BuildTimeLine[] = [];
+  for (const [typeId, entry] of builds) {
+    const base = nodeJobSeconds[entry.blueprintTypeId] ?? 0;
+    if (base <= 0) continue;
+    const perRunSeconds = base * teFactor(teOf(entry.blueprintTypeId) ?? 0);
+    const totalSeconds = perRunSeconds * entry.runs;
+    if (totalSeconds <= 0) continue;
+    components.push({ typeId, name: nameOf(typeId), perRunSeconds, runs: entry.runs, totalSeconds });
+  }
+  components.sort((a, b) => b.totalSeconds - a.totalSeconds);
+
+  // The final product leads the breakdown; the components follow by descending total.
+  const breakdown: BuildTimeLine[] = [];
+  if (topTotal > 0) {
+    breakdown.push({
+      typeId: topProductTypeId,
+      name: nameOf(topProductTypeId),
+      perRunSeconds: topPerRun,
+      runs: wholeRuns,
+      totalSeconds: topTotal,
+    });
+  }
+  breakdown.push(...components);
+
+  const totalSeconds = breakdown.reduce((sum, line) => sum + line.totalSeconds, 0);
+
+  return {
+    topJob: topTotal > 0 ? formatBuildDuration(topTotal) : null,
+    totalProduction: totalSeconds > 0 ? formatBuildDuration(totalSeconds) : null,
+    topTe,
+    breakdown,
+  };
 }

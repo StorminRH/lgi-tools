@@ -23,13 +23,6 @@ export interface BlueprintProduct {
   quantityPerRun: number;
 }
 
-// Industry job time for the Build-time KPI tile — the final assembly job only,
-// pre-formatted. The whole-tree "total build time" is deferred (see build-time.ts
-// / backlog), so the tile shows one honest figure: the top product's own job.
-export interface BuildTimeView {
-  topJob: string; // the final (product) job, runs-scaled, e.g. "2d 18h"
-}
-
 // --- Build-sequence tree -------------------------------------------------
 // The "what do I make next" view: the dependency tree rooted at the product,
 // shown as a phased build sequence. Two separate axes:
@@ -89,8 +82,13 @@ export interface BlueprintStructure {
   materialNames: Record<number, string>;
   // The top product's base build time (CCP SDE seconds for one run, ME0/TE0, no
   // skill/structure bonuses), or null when the blueprint has none. The Build-time
-  // tile scales it by runs. (Whole-tree "total build time" is deferred — backlog.)
+  // tile scales it by runs.
   topJobSeconds: number | null;
+  // blueprintTypeId → base build seconds (ME0/TE0) for the top blueprint and every
+  // producing blueprint in the tree (intermediates + reactions). Feeds the
+  // whole-tree "total job time" KPI, which applies TE per blueprint and sums the
+  // batched runs. A degenerate blueprint with no positive time is simply absent.
+  nodeJobSeconds: Record<number, number>;
 }
 
 export interface MaterialCostRow {
@@ -222,3 +220,36 @@ export interface BlueprintPricing {
   // gross-only client path, so the gross payload shape is unchanged.
   net: NetMarginView | null;
 }
+
+// --- Owned-blueprint ME overlay (3.7.5.2) --------------------------------
+
+// One owned blueprint's effective material efficiency + readout detail, keyed by
+// blueprint type. `me` is the best ME across all the caller's copies of that
+// blueprint (resolved server-side); `te`, owner, and location describe that same
+// best copy — informational popover rows, never part of the cost compute. The wire
+// shape for /api/industry/owned-blueprints; the client builds a
+// Map<blueprintTypeId, me> for the cost basis and a parallel detail map for the orb.
+// ownerType is the wire's own literal (the DB enum lives in the owned-blueprints
+// slice, which a feature may not import — features never import each other).
+export interface OwnedBlueprintMeEntry {
+  blueprintTypeId: number;
+  me: number;
+  te: number;
+  ownerType: 'character' | 'corporation';
+  ownerName: string;
+  locationName: string;
+  locationFlag: string;
+}
+
+// The owned-ME overlay payload: only the blueprints the caller owns among those
+// requested. Blueprints absent from the list are unowned → the client applies
+// ME0 to them (the byte-identical gross path). Empty for a logged-out caller.
+export interface OwnedBlueprintsResponse {
+  blueprints: OwnedBlueprintMeEntry[];
+}
+
+// The readout detail for an owned component's orb popover (3.7.5.5): the best
+// owned copy's TE + owner + location. Built client-side into a
+// Map<blueprintTypeId, …> parallel to the ME map, and NEVER read by the cost
+// compute — purely informational rows.
+export type OwnedComponentDetail = Omit<OwnedBlueprintMeEntry, 'blueprintTypeId' | 'me'>;

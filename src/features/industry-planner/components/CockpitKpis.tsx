@@ -5,39 +5,16 @@ import { LivePrice } from '@/components/ui/live-price';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
-import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
-import { toBuildTimeView } from '../build-time';
+import { formatBuildDuration, type BuildTimes } from '../build-time';
 import { selectNet, type MarginMode } from '../cockpit-margin';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
-import {
-  deriveMarginFigures,
-  marginToneClass,
-  selectMarginCaption,
-  type MarginCaption,
-} from '../industry-styles';
+import { deriveMarginFigures, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure, NetMarginView } from '../types';
-import { KpiHead, KpiHelp, KpiTile, KPI_FIG, KPI_SUB, SimpleTile } from './kpi-tile';
+import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
 import { usePricing } from './PricingProvider';
 
 export type { MarginMode };
-
-// The concise honest caption under the margin figure (the hero's
-// MarginCaptionLine copy, condensed to one line for the tile).
-function captionText(caption: MarginCaption, systemName: string | undefined): string {
-  switch (caption) {
-    case 'net-clean':
-      return 'Net of job install + sell fees · NPC station · ME 0.';
-    case 'missing-cost-index':
-      return `No cost index for ${systemName ?? 'this system'} — install fee incomplete.`;
-    case 'missing-adjusted-prices':
-      return 'Some inputs lack a reference price — net margin optimistic.';
-    case 'gross-manufacturing':
-      return 'Materials only — pick a build system for net margin · ME 0.';
-    case 'gross-reaction':
-      return 'Net margin: manufacturing only for now.';
-  }
-}
 
 function GrossNetToggle({
   showNet,
@@ -114,10 +91,48 @@ function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string 
   );
 }
 
+// The Total-job-time "?" hover: the per-job calculation. Each line is a buildable's
+// TE-adjusted per-run time × its batched run count = that job's total; the final
+// product leads, the components follow by descending total, and the lines sum to the
+// figure on the tile. The list scrolls for a deep build (a capital has dozens).
+function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
+  return (
+    <KpiHelp label="How total job time is calculated">
+      <PopoverHeading>Total job time — whole tree</PopoverHeading>
+      <div className="flex flex-col">
+        <div className="flex max-h-[240px] flex-col gap-1 overflow-y-auto pr-1">
+          {buildTimes.breakdown.map((line) => (
+            <div
+              key={line.typeId}
+              className="flex items-baseline justify-between gap-3 font-mono text-[10px]"
+            >
+              <span className="truncate text-muted">{line.name}</span>
+              <span className="shrink-0 whitespace-nowrap tabular-nums text-faint">
+                {formatBuildDuration(line.perRunSeconds)} × {line.runs} ={' '}
+                <span className="text-text">{formatBuildDuration(line.totalSeconds)}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-[10px]">
+          <span className="uppercase tracking-[0.14em] text-muted">Total</span>
+          <span className="tabular-nums font-semibold text-evb-bright">
+            {buildTimes.totalProduction ?? '—'}
+          </span>
+        </div>
+      </div>
+      <p className="font-mono text-[9px] leading-snug tracking-[0.04em] text-faint">
+        Sequential — one job at a time. TE applied per blueprint; skills, structure, and parallel
+        slots not counted.
+      </p>
+    </KpiHelp>
+  );
+}
+
 // The Cockpit KPI tile row: input cost · sell · net margin (Gross/Net toggle) ·
-// market score (with "?" breakdown) · build time. All figures read the live
-// pricing store; the margin tile flips gross↔net and each figure flashes in as
-// prices land.
+// market score (with "?" breakdown) · build time · total job time. All figures read
+// the live pricing store; the margin tile flips gross↔net and each figure flashes in
+// as prices land.
 export function CockpitKpis({
   structure,
   marginMode,
@@ -127,25 +142,16 @@ export function CockpitKpis({
   marginMode: MarginMode;
   setMarginMode: (m: MarginMode) => void;
 }) {
-  const { pricing, seeded, location, runs } = usePricing();
+  const { pricing, seeded, location, runs, buildTimes } = usePricing();
   const summary = pricing?.summary ?? null;
 
-  const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
   const { net, netAvailable } = selectNet(
     pricing,
     structure.activityId,
     location !== null,
     marginMode,
   );
-  const { showNet, margin, marginPct, sign, missingSystemCostIndex, missingAdjustedPriceCount } =
-    deriveMarginFigures(summary, net);
-  const caption = selectMarginCaption({
-    showNet,
-    isManufacturing,
-    missingSystemCostIndex,
-    missingAdjustedPriceCount,
-  });
-  const buildTime = toBuildTimeView(structure.topJobSeconds, runs);
+  const { showNet, margin, marginPct, sign } = deriveMarginFigures(summary, net);
 
   return (
     <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
@@ -153,17 +159,14 @@ export function CockpitKpis({
         label="Input cost"
         value={<LivePrice value={summary ? formatIsk(summary.inputCost) : '—'} />}
         valueClass="text-name"
-        sub="raw @ Jita buy"
       />
       <SimpleTile
         label="Sell · Jita"
-        accent="green"
         value={<LivePrice value={summary ? formatIsk(summary.revenue) : '—'} />}
         valueClass="text-isk"
-        sub="best sell order"
       />
 
-      <KpiTile accent="green" span2>
+      <KpiTile>
         <KpiHead
           label={showNet ? 'Net margin' : 'Gross margin'}
           right={
@@ -185,27 +188,32 @@ export function CockpitKpis({
             {seeded ? 'Pricing unavailable' : 'Calculating…'}
           </div>
         )}
-        <div className={KPI_SUB}>{captionText(caption, location?.systemName)}</div>
       </KpiTile>
 
       <MarketScorePanel structure={structure} />
 
-      <KpiTile accent="blue">
+      <KpiTile>
         <KpiHead
           label="Build time"
           right={
             <KpiHelp label="How build time is estimated">
               <PopoverHeading>Build time — final job</PopoverHeading>
               <PopoverRow label="Runs">×{runs}</PopoverRow>
-              <PopoverRow label="Time efficiency">0% (unresearched)</PopoverRow>
+              {/* No owned/manual qualifier on a non-zero value: topTe is the effective TE
+                  and can come from a manual override, so the bare percentage is honest. */}
+              <PopoverRow label="Time efficiency">
+                {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ''}
+              </PopoverRow>
               <PopoverRow label="Skills &amp; structure">none applied</PopoverRow>
             </KpiHelp>
           }
         />
-        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTime ? buildTime.topJob : '—'}</div>
-        <div className={KPI_SUB}>
-          {buildTime ? 'final job · ME 0, base skills' : 'estimate pending'}
-        </div>
+        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.topJob ?? '—'}</div>
+      </KpiTile>
+
+      <KpiTile>
+        <KpiHead label="Total job time" right={<TotalJobHover buildTimes={buildTimes} />} />
+        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.totalProduction ?? '—'}</div>
       </KpiTile>
     </div>
   );

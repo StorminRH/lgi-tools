@@ -14,7 +14,11 @@
 // The datasets registered with the engine — one entry per live tracker.
 // Adding a future consumer is a config change here plus a syncRef in
 // convex/engine.ts, not new machinery.
-export const SYNC_DATASETS = ['skills', 'industryJobs', 'corpIndustryJobs'] as const;
+export const SYNC_DATASETS = [
+  'skills',
+  'industryJobs',
+  'corpIndustryJobs',
+] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
 
 // Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:

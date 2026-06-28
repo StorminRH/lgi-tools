@@ -250,5 +250,4 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_user_corp', ['userId', 'corporationId']),
-
 });

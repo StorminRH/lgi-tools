@@ -4,7 +4,6 @@ import {
   aggregateConfidenceFromCounts,
   deriveMarginFigures,
   priceConfidence,
-  selectMarginCaption,
   type ConfidenceInput,
 } from './industry-styles';
 
@@ -159,51 +158,6 @@ describe('aggregateConfidenceFromCounts', () => {
       missing: 1,
     });
     expect(viaCounts).toEqual(viaRows);
-  });
-});
-
-describe('selectMarginCaption', () => {
-  it('picks the job-fee caveat captions when showing net', () => {
-    const base = { showNet: true, isManufacturing: true };
-    expect(
-      selectMarginCaption({ ...base, missingSystemCostIndex: true, missingAdjustedPriceCount: 0 }),
-    ).toBe('missing-cost-index');
-    expect(
-      selectMarginCaption({ ...base, missingSystemCostIndex: false, missingAdjustedPriceCount: 3 }),
-    ).toBe('missing-adjusted-prices');
-    expect(
-      selectMarginCaption({ ...base, missingSystemCostIndex: false, missingAdjustedPriceCount: 0 }),
-    ).toBe('net-clean');
-  });
-
-  it('cost-index caveat wins over the missing-price caveat', () => {
-    expect(
-      selectMarginCaption({
-        showNet: true,
-        isManufacturing: true,
-        missingSystemCostIndex: true,
-        missingAdjustedPriceCount: 5,
-      }),
-    ).toBe('missing-cost-index');
-  });
-
-  it('splits gross captions by activity (reactions cannot flip to net yet)', () => {
-    expect(
-      selectMarginCaption({
-        showNet: false,
-        isManufacturing: true,
-        missingSystemCostIndex: false,
-        missingAdjustedPriceCount: 0,
-      }),
-    ).toBe('gross-manufacturing');
-    expect(
-      selectMarginCaption({
-        showNet: false,
-        isManufacturing: false,
-        missingSystemCostIndex: false,
-        missingAdjustedPriceCount: 0,
-      }),
-    ).toBe('gross-reaction');
   });
 });
 

@@ -84,14 +84,19 @@ export async function getBlueprintStructure(
     const rawTypeIds = collectRawTypeIds(tree);
 
     const labelIds = dedupe([chosen.productTypeId, ...collectTreeTypeIds(tree)]);
+    // Every producing blueprint in the tree (intermediates + reactions), plus the
+    // top blueprint itself — so each node's base job time is available for the
+    // whole-tree "total job time" the client sums, not just the final job.
+    const blueprintIds = collectBlueprintIds(tree);
     const [labels, activityByBlueprint, activityTimeMap] = await Promise.all([
       getTypeLabels(labelIds),
-      getActivityByBlueprint([...collectBlueprintIds(tree)]),
-      // Only the top product's base build time — the Build-time tile shows the
-      // final assembly job; the whole-tree total is deferred (backlog).
-      getBlueprintActivityTimes([blueprintId]),
+      getActivityByBlueprint([...blueprintIds]),
+      getBlueprintActivityTimes([blueprintId, ...blueprintIds]),
     ]);
     const topJobSeconds = activityTimeMap.get(blueprintId) ?? null;
+    // blueprintTypeId → base seconds (ME0/TE0), one entry per producing blueprint.
+    const nodeJobSeconds: Record<number, number> = {};
+    for (const [bp, secs] of activityTimeMap) nodeJobSeconds[bp] = secs;
     const materialNames: Record<number, string> = {};
     for (const [id, l] of labels) materialNames[id] = l.name;
 
@@ -137,6 +142,7 @@ export async function getBlueprintStructure(
       materialCategories,
       materialNames,
       topJobSeconds,
+      nodeJobSeconds,
     };
   });
 }

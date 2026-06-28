@@ -59,6 +59,13 @@ export const EVE_SCOPES = [
   // 'needs_role' state in the sync layer, never a scope prompt). Both read-only.
   'esi-characters.read_corporation_roles.v1',
   'esi-industry.read_corporation_jobs.v1',
+  // Owned blueprints (3.7.5.1) — the ME/TE/runs source for the efficiency
+  // engine. The character read needs no role; the corp read reuses the corp
+  // roles read above and additionally needs the in-game Director role (a 403
+  // otherwise — the same 'needs_role' sync state, never a scope prompt). Both
+  // read-only.
+  'esi-characters.read_blueprints.v1',
+  'esi-corporations.read_blueprints.v1',
 ] as const;
 
 // Boundary schema for the token-exchange envelope. The JWT *claims* are
