@@ -120,6 +120,7 @@ export default defineSchema({
       v.literal('skills'),
       v.literal('industryJobs'),
       v.literal('corpIndustryJobs'),
+      v.literal('onlineStatus'),
     ),
     userId: v.string(),
     status: v.union(v.literal('idle'), v.literal('running')),
@@ -163,6 +164,7 @@ export default defineSchema({
       v.literal('skills'),
       v.literal('industryJobs'),
       v.literal('corpIndustryJobs'),
+      v.literal('onlineStatus'),
     ),
     userId: v.string(),
     // Last heartbeat from a visible tab. The scan and sweep treat a presence
@@ -250,4 +252,31 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     .index('by_user_corp', ['userId', 'corporationId']),
+
+  // One doc per (user, character): the live online/offline state (MIGRATE.A — the
+  // online-status canary, the engine's keeper consumer through the placement
+  // migration). DELIBERATELY NOT split hot/cold like the trackers above. This row
+  // carries NO per-cycle bookkeeping field — no lastSyncedAt, no expiresAt (the
+  // cache window is stamped only onto the syncSubjects row), and no syncError —
+  // so onlineStatus.forViewer subscribes to it directly. `etag` is the only
+  // custody field, and for THIS endpoint it rotates only on a genuine flip:
+  // GET /characters/{id}/online's body (online + last_login/last_logout/logins)
+  // changes solely at a login/logout, which always flips `online`, so a steady
+  // character only ever 304s and this row is written ONLY on a real online↔offline
+  // change. The SA.5 hot/cold split exists to stop a per-cycle bookkeeping write
+  // re-reading a HEAVY payload through document-granular reactivity; here the
+  // payload is one bool and there is no per-cycle write, so neither reason applies
+  // — the apply's no-op-write guard (write only when online/etag changed) is the
+  // discipline instead. Regenerable like every row here.
+  characterOnline: defineTable({
+    userId: v.string(),
+    characterId: v.number(),
+    online: v.boolean(),
+    // Held for the conditional read; only ever stored beside the `online` value a
+    // 304 would confirm. ESI's 304 never repeats the ETag, so the action echoes
+    // the held one across an unchanged read.
+    etag: v.union(v.string(), v.null()),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_character', ['userId', 'characterId']),
 });

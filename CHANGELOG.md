@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.8 — 2026-06-28
+
+#### Added
+- Your characters now show a live online indicator — a small dot on each portrait that glows when the character is online and dims when offline, updating on its own as you log in and out of the game. (You'll be asked to reconnect once so it can read your online status.)
+
+#### Changed
+- Character portraits are now round and consistent everywhere they appear across the site.
+
 ### v3.7.7 — 2026-06-28
 
 #### Added

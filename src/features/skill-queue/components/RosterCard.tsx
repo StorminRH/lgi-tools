@@ -6,6 +6,7 @@
 // supplies for a character that needs reauth. The ?demo seed passes no slot, so
 // it renders the same static pill it always did.
 import type { ReactNode } from 'react';
+import { CharacterPortrait } from '@/components/character-portrait';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatQuantity } from '@/lib/format/number';
@@ -41,15 +42,7 @@ export function RosterCard({
 }) {
   return (
     <div className="flex items-center gap-2.5">
-      <img
-        src={vm.portraitUrl}
-        alt={vm.name}
-        width={38}
-        height={38}
-        loading="lazy"
-        decoding="async"
-        className="size-[38px] rounded-full border border-border-idle shrink-0"
-      />
+      <CharacterPortrait characterId={vm.characterId} name={vm.name} size={38} src={vm.portraitUrl} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <span className="font-display font-bold text-[13px] leading-tight text-name truncate">

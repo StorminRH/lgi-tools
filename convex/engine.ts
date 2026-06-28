@@ -97,12 +97,14 @@ const syncDatasetValidator = v.union(
   v.literal('skills'),
   v.literal('industryJobs'),
   v.literal('corpIndustryJobs'),
+  v.literal('onlineStatus'),
 );
 
 const SYNC_REFS = {
   skills: internal.skillsSync.syncUser,
   industryJobs: internal.industryJobsSync.syncUser,
   corpIndustryJobs: internal.corpIndustryJobsSync.syncUser,
+  onlineStatus: internal.onlineStatusSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
 // Pass C (abandoned-row GC) deletes at most this many past-retention subjects

@@ -20,6 +20,8 @@ import type * as lib_characterSync from "../lib/characterSync.js";
 import type * as lib_corpSync from "../lib/corpSync.js";
 import type * as lib_esiRead from "../lib/esiRead.js";
 import type * as lib_subjects from "../lib/subjects.js";
+import type * as onlineStatus from "../onlineStatus.js";
+import type * as onlineStatusSync from "../onlineStatusSync.js";
 import type * as purge from "../purge.js";
 import type * as skills from "../skills.js";
 import type * as skillsSync from "../skillsSync.js";
@@ -43,6 +45,8 @@ declare const fullApi: ApiFromModules<{
   "lib/corpSync": typeof lib_corpSync;
   "lib/esiRead": typeof lib_esiRead;
   "lib/subjects": typeof lib_subjects;
+  onlineStatus: typeof onlineStatus;
+  onlineStatusSync: typeof onlineStatusSync;
   purge: typeof purge;
   skills: typeof skills;
   skillsSync: typeof skillsSync;

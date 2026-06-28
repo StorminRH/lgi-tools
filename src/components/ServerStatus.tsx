@@ -1,4 +1,5 @@
 import { serverStatusPresentation } from '@/components/server-status-presentation';
+import { StatusDot } from '@/components/ui/status-dot';
 import type { ServerStatus as ServerStatusValue } from '@/data/eve-status/types';
 
 // Passive Tranquility status chip in the nav (replaces the price-freshness
@@ -20,7 +21,7 @@ export function ServerStatus({ status }: { status: ServerStatusValue }) {
         reachable ? 'text-isk' : 'text-muted'
       }`}
     >
-      <span aria-hidden className={`status-led ${status.state}`} />
+      <StatusDot state={status.state} />
       {label}
     </span>
   );

@@ -75,6 +75,12 @@ export const EVE_SCOPES = [
   // `esi-corporations` like the corp blueprints read above).
   'esi-assets.read_assets.v1',
   'esi-assets.read_corporation_assets.v1',
+  // Online status (MIGRATE.A) — the live online-status canary on the Convex
+  // engine, the placement migration's keeper consumer. Per-character, ~60s ESI
+  // cache; drives the live online/offline dot on character portraits. Read-only,
+  // needs no in-game role. Re-admitted here after being pruned in 3.7.1.1 — a
+  // deliberate, batched re-add (name verified live: esi-location.read_online.v1).
+  'esi-location.read_online.v1',
 ] as const;
 
 // Boundary schema for the token-exchange envelope. The JWT *claims* are

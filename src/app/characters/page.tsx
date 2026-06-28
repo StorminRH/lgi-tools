@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { CharacterPortrait } from '@/components/character-portrait';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
@@ -70,14 +71,11 @@ function CharacterRow({
         className="border-t-0"
         colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto]"
         leading={
-          <img
+          <CharacterPortrait
+            characterId={character.characterId}
+            name={character.name}
+            size={28}
             src={character.portraitUrl}
-            alt={character.name}
-            width={28}
-            height={28}
-            loading="lazy"
-            decoding="async"
-            className="rounded-[2px] border border-border-idle"
           />
         }
         name={character.name}

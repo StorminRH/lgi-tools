@@ -18,6 +18,7 @@ export const SYNC_DATASETS = [
   'skills',
   'industryJobs',
   'corpIndustryJobs',
+  'onlineStatus',
 ] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
 
@@ -39,6 +40,13 @@ export const SYNC_DATASET_CONFIG: Record<
   // group), so they get their own dispatch-smoothing key — a corp re-arm herd
   // must not burst the char-industry group's spend.
   corpIndustryJobs: { cadenceFloorMs: 300_000, tokenGroup: 'corp-industry' },
+  // Online status (MIGRATE.A) — ~60s ESI cache, polled at the same 60s floor as
+  // skills. Its own dispatch-smoothing key because /characters/{id}/online is a
+  // distinct ESI route from the skill reads (the group smooths re-arm herds, it
+  // is NOT the spend budget — that's the gate's Redis scoreboard, keyed by the
+  // real route group), so an online re-arm herd must not burst the char-detail
+  // group's dispatch.
+  onlineStatus: { cadenceFloorMs: 60_000, tokenGroup: 'char-online' },
 };
 
 // Client heartbeat interval while the tab is visible.

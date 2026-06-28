@@ -9,6 +9,7 @@ import { FeedbackButton } from "@/components/FeedbackButton";
 import { TelemetryReporter } from "@/components/telemetry/TelemetryReporter";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ConvexClientProvider } from "@/features/auth/components/ConvexClientProvider";
+import { OnlineStatusProvider } from "@/components/OnlineStatusProvider";
 import { LoadingToastProvider } from "@/components/ui/loading-toast";
 import { Toaster } from "@/components/ui/toast";
 import { PreferencesProvider } from "@/components/PreferencesProvider";
@@ -94,17 +95,23 @@ export default function RootLayout({
            * (anon) vs Neon (logged-in) tier, so it sits inside AuthProvider. */}
           <PreferencesProvider>
             <ConvexClientProvider>
-              {/* The shared loading-toast PROVIDER lives here so any live
-               * surface can register via useLoadingToast; it drives one keyed
-               * sonner toast (the <Toaster> mounted below). Inside
-               * ConvexClientProvider so Convex-driven `syncing` consumers share
-               * a tree with the provider. */}
-              <LoadingToastProvider>
-                <AppHeader />
-                <main className="flex-1">{children}</main>
-                <Footer />
-                <FeedbackButton />
-              </LoadingToastProvider>
+              {/* One live online-status subscription for the whole app (MIGRATE.A):
+               * every CharacterPortrait below reads its online dot from this
+               * context. Inside ConvexClientProvider so it can subscribe; it
+               * no-ops without a Convex deployment or a session. */}
+              <OnlineStatusProvider>
+                {/* The shared loading-toast PROVIDER lives here so any live
+                 * surface can register via useLoadingToast; it drives one keyed
+                 * sonner toast (the <Toaster> mounted below). Inside
+                 * ConvexClientProvider so Convex-driven `syncing` consumers share
+                 * a tree with the provider. */}
+                <LoadingToastProvider>
+                  <AppHeader />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                  <FeedbackButton />
+                </LoadingToastProvider>
+              </OnlineStatusProvider>
             </ConvexClientProvider>
           </PreferencesProvider>
         </AuthProvider>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { CharacterPortrait } from '@/components/character-portrait';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -78,14 +79,10 @@ export default function ContactPage() {
               <span className="k">Character</span>
               <span className="v">
                 <span className="contact-id">
-                  <img
-                    src={`https://images.evetech.net/characters/${MAINTAINER_CHARACTER_ID}/portrait?size=64`}
-                    alt={MAINTAINER_CHARACTER_NAME}
-                    width={38}
-                    height={38}
-                    loading="lazy"
-                    decoding="async"
-                    className="size-[38px] rounded-full border border-border-idle shrink-0"
+                  <CharacterPortrait
+                    characterId={MAINTAINER_CHARACTER_ID}
+                    name={MAINTAINER_CHARACTER_NAME}
+                    size={38}
                   />
                   <span className="contact-id-text">
                     <a
