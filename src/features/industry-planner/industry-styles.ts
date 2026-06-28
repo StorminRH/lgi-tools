@@ -111,6 +111,10 @@ export function classifyRaw(groupName: string, categoryName: string): Category {
 // Raws reuse the ledger's source-category colour but show their real SDE group
 // name, so no invented name enters the tree.
 const REACTION_ACTIVITY_ID = 11;
+// The label a reaction-activity (11) build node carries. Exported so the planner
+// can tell a reaction node from a manufactured one — reactions can't be researched,
+// so they have no ME/TE to adjust.
+export const REACTION_NODE_LABEL = 'Reaction';
 
 export interface NodeLabel {
   label: string;
@@ -132,7 +136,7 @@ export function classifyBuildNode(args: {
     return { label: groupName || categoryName || 'Final Product', tone: 'teal' };
   }
   if (activityId === REACTION_ACTIVITY_ID) {
-    return { label: 'Reaction', tone: 'purple' };
+    return { label: REACTION_NODE_LABEL, tone: 'purple' };
   }
   return { label: groupName || categoryName || 'Manufacturing', tone: 'blue' };
 }

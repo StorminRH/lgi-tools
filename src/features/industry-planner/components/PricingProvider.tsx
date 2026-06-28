@@ -22,6 +22,7 @@ import { computeMarketScore, type MarketScore } from '@/data/industry-math/marke
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { apiFetch } from '@/lib/api-client';
 import { collectBlueprintTypeIds, collectRawTypeIds } from '../build-batch';
+import { clampMe, effectiveMeOf } from '../me-overrides';
 import { ownedBlueprintsEndpoint } from '../api-contract';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
@@ -150,6 +151,14 @@ interface PricingContextValue {
   // logged-out caller or one owning none of this build's blueprints. The build
   // plan reads it to drive its ME-aware ledger + per-node readouts.
   ownedMe: Map<number, number> | null;
+  // Manual per-node ME overrides (what-if), keyed by blueprint type id. Client-only
+  // and NOT persisted — overlaid on `ownedMe` to drive the same `meOf` seam, so the
+  // whole plan recomputes through one engine path. Empty by default → byte-identical
+  // to the owned-only plan.
+  meOverrides: Map<number, number>;
+  // Set a node's manual ME (clamped 0–10); `reset` drops it back to owned-or-default.
+  setMeOverride: (blueprintTypeId: number, me: number) => void;
+  resetMeOverride: (blueprintTypeId: number) => void;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -224,6 +233,9 @@ export function PricingProvider({
   // logged-out caller or one owning none of this build's blueprints — either way
   // the cost basis falls back to ME0 (the byte-identical gross path).
   const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
+  // Manual per-node ME overrides (what-if), keyed by blueprint type id — client-only,
+  // never persisted, reset when the planner remounts on a new blueprint (`structure`).
+  const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
   // The seed price map, captured when the snapshot first lands. Each refresh
   // batch merges over it (refreshed value wins; un-refreshed rows keep their
   // seed) before recomputing margin, so the assembly never drops back to nulls
@@ -240,11 +252,13 @@ export function PricingProvider({
   const locationRef = useRef(location);
   const pricingRef = useRef(pricing);
   const ownedMeRef = useRef(ownedMe);
+  const meOverridesRef = useRef(meOverrides);
   useEffect(() => {
     runsRef.current = runs;
     locationRef.current = location;
     pricingRef.current = pricing;
     ownedMeRef.current = ownedMe;
+    meOverridesRef.current = meOverrides;
   });
 
   // THE one recompute, used by both the live-price path and the runs/location
@@ -262,10 +276,13 @@ export function PricingProvider({
           systemCostIndex: loc.costIndices.manufacturing ?? null,
         }
       : undefined;
-    // Owned-ME overlay: once the owned-blueprints read lands, the cost basis is
-    // recomputed at each buildable's owned ME. Absent (null) → ME0 gross basis.
+    // Owned-ME overlay + manual overrides: the cost basis is recomputed at each
+    // buildable's effective ME (a manual override wins, else the owned ME). No owned
+    // data and no overrides → meOf stays undefined → ME0 gross basis. With overrides
+    // empty it equals the owned-only meOf → byte-identical to the pre-override plan.
     const owned = ownedMeRef.current;
-    const meOf = owned ? (blueprintTypeId: number) => owned.get(blueprintTypeId) : undefined;
+    const overrides = meOverridesRef.current;
+    const meOf = owned || overrides.size ? effectiveMeOf(owned, overrides) : undefined;
     setPricing(assemblePricing(structure, lookup, { runs: runsRef.current, fee, meOf }));
   }, [structure]);
 
@@ -298,6 +315,21 @@ export function PricingProvider({
     },
     [],
   );
+
+  // Manual ME override setters (what-if). `setMeOverride` clamps to 0–10; `reset`
+  // drops the entry so the node tracks its owned ME (or ME0) again. A fresh map
+  // identity each time so the recompute effect's `meOverrides` dep fires.
+  const setMeOverride = useCallback((blueprintTypeId: number, me: number) => {
+    setMeOverrides((prev) => new Map(prev).set(blueprintTypeId, clampMe(me)));
+  }, []);
+  const resetMeOverride = useCallback((blueprintTypeId: number) => {
+    setMeOverrides((prev) => {
+      if (!prev.has(blueprintTypeId)) return prev;
+      const next = new Map(prev);
+      next.delete(blueprintTypeId);
+      return next;
+    });
+  }, []);
 
   // Every viewed price re-confirmed live on view — across the raw cost basis,
   // the product, and the buildable intermediates. We refresh the whole set, not
@@ -387,19 +419,19 @@ export function PricingProvider({
     };
   }, [structure]);
 
-  // Recompute when runs, location, or the owned-ME overlay changes — independent
-  // of the one-shot refresh loop, which never fires onBatch again once it
-  // finishes. Reads the latest pricing via a ref (not a dep) so it fires only on
-  // a real runs/location/owned-ME change, never on its own setPricing (which
-  // would loop). Guarded on a settled non-null seed so it never overwrites the
-  // "unavailable" state, and deferred via a 0ms timer so setState isn't called
+  // Recompute when runs, location, the owned-ME overlay, or a manual override
+  // changes — independent of the one-shot refresh loop, which never fires onBatch
+  // again once it finishes. Reads the latest pricing via a ref (not a dep) so it
+  // fires only on a real runs/location/ME change, never on its own setPricing
+  // (which would loop). Guarded on a settled non-null seed so it never overwrites
+  // the "unavailable" state, and deferred via a 0ms timer so setState isn't called
   // synchronously from the effect body (the Cache-Components-safe shape used by
   // PricingSeeder).
   useEffect(() => {
     if (!seeded || !pricingRef.current) return;
     const t = setTimeout(() => assemble(), 0);
     return () => clearTimeout(t);
-  }, [runs, location, ownedMe, seeded, assemble]);
+  }, [runs, location, ownedMe, meOverrides, seeded, assemble]);
 
   // The product's Market Score — pure, no fetch. Re-derives when runs change
   // (via output units), when the product's history lands, and when a price/depth
@@ -433,6 +465,9 @@ export function PricingProvider({
       marketHistory,
       marketScore,
       ownedMe,
+      meOverrides,
+      setMeOverride,
+      resetMeOverride,
     }),
     [
       pricing,
@@ -447,6 +482,9 @@ export function PricingProvider({
       marketHistory,
       marketScore,
       ownedMe,
+      meOverrides,
+      setMeOverride,
+      resetMeOverride,
     ],
   );
 

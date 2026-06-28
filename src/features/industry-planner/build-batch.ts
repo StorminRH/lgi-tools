@@ -72,12 +72,14 @@ export function collectRawTypeIds(tree: TreeNode[]): number[] {
 export interface BatchLedger {
   // Raw-material typeId → whole-run total quantity.
   raws: Map<number, number>;
-  // Buildable typeId → its whole run count, per-run yield, and the ME applied to
-  // ITS inputs (0 on the ME0 path / for an unowned blueprint). Produced = runs ×
-  // batch. The `me` carries the owned-blueprint level through to the build-plan's
-  // drill-down and per-node readouts, so tiers, the cascade, and the labels all
-  // read one source and can never disagree.
-  builds: Map<number, { runs: number; batch: number; me: number }>;
+  // Buildable typeId → its whole run count, per-run yield, the ME applied to ITS
+  // inputs (0 on the ME0 path / for an unowned blueprint), and the producing
+  // blueprint's type id. Produced = runs × batch. The `me` carries the owned (or
+  // manually overridden) level through to the build-plan's drill-down and per-node
+  // readouts; `blueprintTypeId` keys each node's ME control back to the override
+  // map — so tiers, the cascade, and the controls all read one source and can
+  // never disagree.
+  builds: Map<number, { runs: number; batch: number; me: number; blueprintTypeId: number }>;
 }
 
 // `requestedRuns` defaults to 1 — one run of the blueprint, today's per-run cost basis.
@@ -114,10 +116,11 @@ export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLe
 
   for (const node of tree) walk(node.typeId, node.quantity * requestedRuns);
 
-  const builds = new Map<number, { runs: number; batch: number; me: number }>();
+  const builds = new Map<number, { runs: number; batch: number; me: number; blueprintTypeId: number }>();
   for (const [typeId, entry] of ledger) {
+    const recipe = recipes.get(typeId)!;
     // ME0 path: no owned-blueprint reduction is applied anywhere.
-    builds.set(typeId, { runs: entry.runs, batch: recipes.get(typeId)!.batch, me: 0 });
+    builds.set(typeId, { runs: entry.runs, batch: recipe.batch, me: 0, blueprintTypeId: recipe.blueprintTypeId });
   }
 
   return { raws, builds };
@@ -219,7 +222,7 @@ export function computeBatchLedgerWithMe(
   const ordered = [...recipes.keys()].sort(
     (a, b) => (heights.get(b) ?? 0) - (heights.get(a) ?? 0),
   );
-  const builds = new Map<number, { runs: number; batch: number; me: number }>();
+  const builds = new Map<number, { runs: number; batch: number; me: number; blueprintTypeId: number }>();
   for (const typeId of ordered) {
     const recipe = recipes.get(typeId)!;
     const required = demand.get(typeId) ?? 0;
@@ -227,7 +230,7 @@ export function computeBatchLedgerWithMe(
     // The ME of THIS buildable's own blueprint — applied to its inputs below, and
     // surfaced on the ledger so the drill-down + per-node readouts read it too.
     const me = opts.meOf(recipe.blueprintTypeId) ?? 0;
-    builds.set(typeId, { runs, batch: recipe.batch, me });
+    builds.set(typeId, { runs, batch: recipe.batch, me, blueprintTypeId: recipe.blueprintTypeId });
     for (const input of recipe.inputs) addDemand(input.typeId, meAdjust(input.qty, runs, me));
   }
 

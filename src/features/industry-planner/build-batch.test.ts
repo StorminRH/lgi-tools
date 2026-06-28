@@ -58,13 +58,13 @@ describe('computeBatchLedger — raws + buildable run-counts from one walk', () 
 
   it('exposes the buildable ledger and the raw totals', () => {
     const { raws, builds } = computeBatchLedger(tree, 1);
-    expect(builds.get(100)).toEqual({ runs: 1, batch: 10, me: 0 }); // ⌈5/10⌉ = 1 run, 10/run
+    expect(builds.get(100)).toEqual({ runs: 1, batch: 10, me: 0, blueprintTypeId: 1100 }); // ⌈5/10⌉ = 1 run, 10/run
     expect(raws.get(200)).toBe(7);
   });
 
   it('scales the run count by requestedRuns', () => {
     const { builds, raws } = computeBatchLedger(tree, 3);
-    expect(builds.get(100)).toEqual({ runs: 2, batch: 10, me: 0 }); // ⌈15/10⌉ = 2 runs
+    expect(builds.get(100)).toEqual({ runs: 2, batch: 10, me: 0, blueprintTypeId: 1100 }); // ⌈15/10⌉ = 2 runs
     expect(raws.get(200)).toBe(14);
   });
 
@@ -146,7 +146,7 @@ describe('chainActualsFrom — focused build consumes marginal, not batched', ()
   const ledger = computeBatchLedger(tree, 1);
 
   it('the project cost basis rounds fuel blocks up to whole runs', () => {
-    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40, me: 0 }); // 80 produced
+    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40, me: 0, blueprintTypeId: 120 }); // 80 produced
     expect(ledger.raws.get(30)).toBe(2); // 2 whole F runs × 1 G
   });
 

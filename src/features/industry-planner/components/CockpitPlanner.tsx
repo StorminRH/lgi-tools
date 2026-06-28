@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
+import { Stepper } from '@/components/ui/stepper';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { formatQuantity } from '@/lib/format/number';
 import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
@@ -12,6 +13,7 @@ import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitKpis, type MarginMode } from './CockpitKpis';
+import { MeMainControl } from './MeAdjuster';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
@@ -20,49 +22,6 @@ import { usePricing } from './PricingProvider';
 // as: a page head + identity bar (here), a KPI tile row, and a consolidated tier
 // build plan (with its collapsible raw-materials ledger). Built section by
 // section; this file owns the page head and the identity bar.
-
-// Runs stepper: minus / numeric input / plus. The input is a controlled string so
-// the field can be cleared and retyped mid-edit; it commits only on a whole
-// number >= 1 and snaps back to the committed value on blur. Mirrors the legacy
-// RunsField, with -/+ buttons added.
-function RunsStepper({ runs, setRuns }: { runs: number; setRuns: (n: number) => void }) {
-  const [draft, setDraft] = useState(String(runs));
-  const commit = (raw: string) => {
-    setDraft(raw);
-    const n = Number(raw);
-    if (raw !== '' && Number.isInteger(n) && n >= 1) setRuns(n);
-  };
-  const step = (delta: number) => {
-    const next = Math.max(1, runs + delta);
-    setRuns(next);
-    setDraft(String(next));
-  };
-  const btn =
-    'w-[26px] h-7 text-[14px] leading-none text-muted hover:text-isk hover:bg-isk-hover-strong cursor-pointer';
-  return (
-    <span className="inline-flex items-center overflow-hidden rounded-[3px] border border-border bg-bg">
-      <button type="button" onClick={() => step(-1)} aria-label="Decrease runs" className={btn}>
-        –
-      </button>
-      <input
-        type="number"
-        min={1}
-        step={1}
-        value={draft}
-        onChange={(e) => commit(e.target.value)}
-        onBlur={() => setDraft(String(runs))}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
-        }}
-        aria-label="Runs"
-        className="h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-[12px] text-name outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-      />
-      <button type="button" onClick={() => step(1)} aria-label="Increase runs" className={btn}>
-        +
-      </button>
-    </span>
-  );
-}
 
 // lgi://industry / <name> breadcrumb + a terse right-aligned stat strip. The
 // crumb's `industry` segment links back to the planner index (replacing the old
@@ -88,12 +47,16 @@ function PlannerHead({ name, group, activity }: { name: string; group: string; a
 }
 
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
-  const { runs, setRuns } = usePricing();
+  const { runs, setRuns, ownedMe, meOverrides, setMeOverride, resetMeOverride } = usePricing();
   // Gross/Net is the user's preference, gated by an available net estimate. Lives
   // here so the KPI margin tile reads one source of truth.
   const [marginMode, setMarginMode] = useState<MarginMode>('net');
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
+  // The main blueprint's ME adjuster shows only when an owned researched blueprint
+  // makes the plan ME-active (matching the per-node orbs); reactions are excluded
+  // by `isManufacturing` since they can't be researched.
+  const ownedActive = !!ownedMe && [...ownedMe.values()].some((me) => me > 0);
   const outputUnits = structure.product.quantityPerRun * runs;
 
   return (
@@ -130,9 +93,18 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
         <div className="flex-1" />
 
         <div className="flex flex-wrap items-center gap-4">
+          {ownedActive && isManufacturing && (
+            <MeMainControl
+              blueprintTypeId={structure.blueprintTypeId}
+              ownedMe={ownedMe}
+              meOverrides={meOverrides}
+              setMeOverride={setMeOverride}
+              resetMeOverride={resetMeOverride}
+            />
+          )}
           <label className="flex items-center gap-2.5 text-[9px] uppercase tracking-[0.14em] text-muted">
             Runs
-            <RunsStepper runs={runs} setRuns={setRuns} />
+            <Stepper value={runs} onChange={setRuns} min={1} ariaLabel="Runs" />
           </label>
           {isManufacturing && (
             <div className="flex items-center gap-2.5">
