@@ -15,7 +15,7 @@ import {
 } from '../build-consolidate';
 import { REACTION_NODE_LABEL } from '../industry-styles';
 import { nodeFrameState } from '../node-frame-state';
-import type { BlueprintStructure, OwnedComponentDetail } from '../types';
+import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
 import { NodeAdjusters } from './MeAdjuster';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
@@ -65,6 +65,8 @@ function TierRow({
   value,
   efficiency,
   detail,
+  ownedQty,
+  heldBy,
   selected,
   related,
   faded,
@@ -75,6 +77,8 @@ function TierRow({
   value: number | null;
   efficiency?: NodeEfficiency;
   detail?: OwnedComponentDetail;
+  ownedQty?: number;
+  heldBy?: AssetHolding[];
   selected: boolean;
   related: boolean;
   faded: boolean;
@@ -89,6 +93,8 @@ function TierRow({
       value={value}
       efficiency={efficiency}
       detail={detail}
+      ownedQty={ownedQty}
+      heldBy={heldBy}
       selected={selected}
       related={related}
       faded={faded}
@@ -102,6 +108,7 @@ function TierColumn({
   unitPriceOf,
   efficiencyFor,
   detailFor,
+  ownedAssetFor,
   focus,
   inChain,
   actualLevel,
@@ -114,6 +121,8 @@ function TierColumn({
   efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
   // The owner/location for a node's icon popover (owned buildables only).
   detailFor: (typeId: number) => OwnedComponentDetail | undefined;
+  // The caller's on-hand quantity + holdings for a node's QTY ring / asset ledger.
+  ownedAssetFor: (typeId: number) => OwnedAssetEntry | undefined;
   focus: Focus | null;
   inChain: Set<number> | null;
   actualLevel: Map<number, number> | null;
@@ -157,6 +166,7 @@ function TierColumn({
           const related = !selected && (inChain?.has(item.typeId) ?? false);
           const faded = !!focus && !selected && !related;
           const qty = displayQtyOf(item);
+          const asset = ownedAssetFor(item.typeId);
           return (
             <TierRow
               key={item.typeId}
@@ -165,6 +175,8 @@ function TierColumn({
               value={valueOf(item.typeId, qty)}
               efficiency={efficiencyFor?.(item.typeId, item.name)}
               detail={detailFor(item.typeId)}
+              ownedQty={asset?.ownedQty}
+              heldBy={asset?.heldBy}
               selected={selected}
               related={related}
               faded={faded}
@@ -206,6 +218,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     pricing,
     ownedMe,
     ownedDetail,
+    ownedAssets,
     meOverrides,
     setMeOverride,
     resetMeOverride,
@@ -258,6 +271,10 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     const bp = blueprintOf(typeId);
     return bp !== undefined ? ownedDetail?.get(bp) : undefined;
   };
+  // The caller's on-hand quantity + holdings for a node's QTY ring / asset ledger.
+  // Keyed by the material/product typeId directly — assets are the item itself, not
+  // its blueprint (no blueprintOf indirection). undefined → the owns-none placeholders.
+  const ownedAssetFor = (typeId: number): OwnedAssetEntry | undefined => ownedAssets?.get(typeId);
   // Re-base the tier quantities onto the whole-run batch totals — what a builder
   // actually makes and buys. Placement and the trace graph (childrenOf) untouched.
   const batchedTiers = useMemo(() => scaleTiersToBatched(tiers, ledger), [tiers, ledger]);
@@ -360,6 +377,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             unitPriceOf={unitPriceOf}
             efficiencyFor={efficiencyFor}
             detailFor={detailFor}
+            ownedAssetFor={ownedAssetFor}
             focus={focus}
             inChain={focus && chainLevels ? (chainLevels.get(tier.depth - focus.depth) ?? null) : null}
             actualLevel={focus && chainActuals ? (chainActuals.get(tier.depth - focus.depth) ?? null) : null}

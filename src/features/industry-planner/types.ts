@@ -253,3 +253,35 @@ export interface OwnedBlueprintsResponse {
 // Map<blueprintTypeId, …> parallel to the ME map, and NEVER read by the cost
 // compute — purely informational rows.
 export type OwnedComponentDetail = Omit<OwnedBlueprintMeEntry, 'blueprintTypeId' | 'me'>;
+
+// ── Owned-assets overlay (3.7.7.2) ──────────────────────────────────────
+// The wire shape for /api/industry/owned-assets; the client builds a
+// Map<typeId, OwnedAssetEntry> keyed by the material/product type id (assets are
+// the item itself, not its blueprint) to fill each node's QTY ring + asset ledger.
+// A type can sit in several places / be held by several owners, so each entry
+// carries a `heldBy` LIST — owner + location are resolved to names server-side.
+// ownerType is the wire's own literal (the DB enum lives in the owned-assets slice,
+// which a feature may not import — features never import each other).
+export interface AssetHolding {
+  ownerType: 'character' | 'corporation';
+  ownerName: string;
+  locationName: string;
+  locationFlag: string;
+  quantity: number;
+}
+
+// One owned type: total on-hand quantity across every owner + location, plus the
+// held-by list backing the popover.
+export interface OwnedAssetEntry {
+  typeId: number;
+  ownedQty: number;
+  heldBy: AssetHolding[];
+}
+
+// The owned-asset overlay payload: only the types the caller owns among those
+// requested. Types absent from the list are un-held → the client leaves the ring
+// empty + the ledger '—' (the byte-identical placeholder path). Empty for a
+// logged-out caller.
+export interface OwnedAssetsResponse {
+  assets: OwnedAssetEntry[];
+}
