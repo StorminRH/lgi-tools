@@ -21,6 +21,12 @@ export async function refreshOwnedBlueprintsForUser(
   userId: string,
 ): Promise<void> {
   const characters = await port.listCharacters(userId);
+  // Character owners THEN corp owners, in series at the top level: a character is
+  // both a character-owner and a corp member, so running the two passes one after
+  // the other avoids vending the same character's token concurrently. WITHIN each
+  // pass the owners are independent (own token, own ESI read, own owner-keyed DB
+  // write), so they refresh in parallel — the shared ESI gate throttles its own
+  // budget, and the staleness gate keeps the common (fresh) path free either way.
   await refreshCharacterOwners(port, characters);
   await refreshCorpOwners(port, characters);
 }
@@ -54,18 +60,23 @@ async function refreshOwner(
 }
 
 // Character owners: each scope-eligible character syncs its OWN blueprints with
-// its own token.
+// its own token — in parallel, since the characters are independent.
 async function refreshCharacterOwners(
   port: OwnedBlueprintsPort,
   characters: RefreshCharacter[],
 ): Promise<void> {
-  for (const character of characters) {
-    if (!canSyncBlueprints(character)) continue;
-    const owner: OwnerKey = { ownerType: 'character', ownerId: character.characterId };
-    await refreshOwner(port, owner, `/characters/${character.characterId}/blueprints/`, () =>
-      port.vendToken(character.characterId),
-    );
-  }
+  await Promise.all(
+    characters
+      .filter((character) => canSyncBlueprints(character))
+      .map((character) =>
+        refreshOwner(
+          port,
+          { ownerType: 'character', ownerId: character.characterId },
+          `/characters/${character.characterId}/blueprints/`,
+          () => port.vendToken(character.characterId),
+        ),
+      ),
+  );
 }
 
 // Corporation owners: group the user's corp-eligible characters by their cached
@@ -84,31 +95,41 @@ async function refreshCorpOwners(
     byCorp.set(character.corporationId, members);
   }
 
-  for (const [corporationId, members] of byCorp) {
-    const owner: OwnerKey = { ownerType: 'corporation', ownerId: corporationId };
-    await refreshOwner(port, owner, `/corporations/${corporationId}/blueprints/`, () =>
-      resolveCorpDirectorToken(port, corporationId, members),
-    );
-  }
+  // Corps are independent (distinct owner keys; a character belongs to one corp, so
+  // no member token is vended by two corps at once), so refresh them in parallel.
+  await Promise.all(
+    [...byCorp].map(([corporationId, members]) =>
+      refreshOwner(
+        port,
+        { ownerType: 'corporation', ownerId: corporationId },
+        `/corporations/${corporationId}/blueprints/`,
+        () => resolveCorpDirectorToken(port, corporationId, members),
+      ),
+    ),
+  );
 }
 
 // Vend each member's token, read its corp roles, and pick a Director's token to
 // read the corp endpoint with (preferring a role-holder via dedupeCorpDirectors).
-// Returns null when no member holds the role — the graceful needs-role skip.
+// Returns null when no member holds the role — the graceful needs-role skip. The
+// members are vended/read in parallel (distinct characters); `Promise.all` preserves
+// their order, so `dedupeCorpDirectors` picks the same subject as a serial pass.
 async function resolveCorpDirectorToken(
   port: OwnedBlueprintsPort,
   corporationId: number,
   members: RefreshCharacter[],
 ): Promise<string | null> {
-  const candidates: CorpDirectorCandidate[] = [];
-  for (const member of members) {
-    const accessToken = await port.vendToken(member.characterId);
-    if (accessToken === null) continue;
-    const roles = await port.readRoles(member.characterId, accessToken);
-    if (roles === null) continue;
-    const hasRole = CORP_BLUEPRINTS_REQUIRED_ROLES.some((role) => roles.includes(role));
-    candidates.push({ corporationId, vendingCharacterId: member.characterId, accessToken, hasRole });
-  }
+  const resolved = await Promise.all(
+    members.map(async (member): Promise<CorpDirectorCandidate | null> => {
+      const accessToken = await port.vendToken(member.characterId);
+      if (accessToken === null) return null;
+      const roles = await port.readRoles(member.characterId, accessToken);
+      if (roles === null) return null;
+      const hasRole = CORP_BLUEPRINTS_REQUIRED_ROLES.some((role) => roles.includes(role));
+      return { corporationId, vendingCharacterId: member.characterId, accessToken, hasRole };
+    }),
+  );
+  const candidates = resolved.filter((c): c is CorpDirectorCandidate => c !== null);
   const [subject] = dedupeCorpDirectors(candidates);
   return subject !== undefined && subject.hasRole ? subject.accessToken : null;
 }

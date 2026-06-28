@@ -102,6 +102,24 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
     expect(port.saveBlueprints).not.toHaveBeenCalled();
   });
 
+  it('refreshes several stale character owners (the parallel pass saves each one)', async () => {
+    const port = makePort({
+      listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
+      readSyncState: vi.fn(async () => null), // all stale
+      readBlueprints: vi.fn(
+        async (): Promise<OwnedBlueprintsReadResult> => ({ kind: 'fresh', items: [esiBlueprint(34)], etags: [] }),
+      ),
+    });
+
+    await refreshOwnedBlueprintsForUser(port, 'u1');
+
+    const saved = vi
+      .mocked(port.saveBlueprints)
+      .mock.calls.map(([owner]) => owner.ownerId)
+      .sort((a, b) => a - b);
+    expect(saved).toEqual([1, 2, 3]);
+  });
+
   it('skips a character missing the blueprints scope', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1, { missingScopes: [CHAR_BP_SCOPE] })]),
