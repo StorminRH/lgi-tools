@@ -246,7 +246,8 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
 }
 
 export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
-  const { pricing, runs, ownedMe, meOverrides, setMeOverride, resetMeOverride } = usePricing();
+  const { pricing, runs, ownedMe, ownedDetail, meOverrides, setMeOverride, resetMeOverride } =
+    usePricing();
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);
@@ -292,6 +293,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             meOverrides={meOverrides}
             setMeOverride={setMeOverride}
             resetMeOverride={resetMeOverride}
+            detail={ownedDetail?.get(bp)}
             faded={faded}
           />
         );

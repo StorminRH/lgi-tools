@@ -113,6 +113,11 @@ export const ownedBlueprintsRequestSchema = z.object({
 const ownedBlueprintMeEntrySchema = z.object({
   blueprintTypeId: z.number(),
   me: z.number(),
+  te: z.number(),
+  ownerType: z.enum(['character', 'corporation']),
+  ownerName: z.string(),
+  locationName: z.string(),
+  locationFlag: z.string(),
 }) satisfies z.ZodType<OwnedBlueprintMeEntry>;
 
 export const ownedBlueprintsResponseSchema = z.object({

@@ -24,15 +24,20 @@ async function getOwnerBlueprintRows(owner: OwnerKey): Promise<BlueprintMapInput
   'use cache';
   cacheLife('hours');
   cacheTag(ownedBlueprintsTag(owner));
-  return db
+  // location varies per row, so it is selected; owner is constant for this owner's
+  // read, so it is injected rather than re-selected on every row.
+  const rows = await db
     .select({
       typeId: ownedBlueprints.typeId,
       materialEfficiency: ownedBlueprints.materialEfficiency,
       timeEfficiency: ownedBlueprints.timeEfficiency,
       runs: ownedBlueprints.runs,
+      locationId: ownedBlueprints.locationId,
+      locationFlag: ownedBlueprints.locationFlag,
     })
     .from(ownedBlueprints)
     .where(and(eq(ownedBlueprints.ownerType, owner.ownerType), eq(ownedBlueprints.ownerId, owner.ownerId)));
+  return rows.map((row) => ({ ...row, ownerType: owner.ownerType, ownerId: owner.ownerId }));
 }
 
 // The combined owned-BP map across the given owners (the user's characters +

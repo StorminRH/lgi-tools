@@ -4,14 +4,16 @@ import { cn } from '@/components/ui/cn';
 import { Popover } from '@/components/ui/popover';
 import { Stepper } from '@/components/ui/stepper';
 import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
+import type { OwnedComponentDetail } from '../types';
 
 // The interactive per-node material-efficiency control (3.7.5.4). A buildable
 // node's owned-or-overridden ME, surfaced as EVE's material-efficiency gem: blue
 // when owned, orange when manually overridden, a faint outline when unowned. The
 // gem opens a small popover — the ME stepper, a subscript of the owned level, and
 // a Revert (only when overridden). Owned/manual is read from the gem's colour, so
-// the popover carries no extra text. Time efficiency (a later slice) uses EVE's
-// hourglass; the same control shape will take it.
+// the popover carries no extra text beyond the owned-blueprint readout (3.7.5.5):
+// for an owned node it also lists that blueprint's TE / owner / location. A TE
+// *adjuster* (EVE's hourglass) is a later slice; TE here is a readout only.
 
 interface MeProps {
   // The producing blueprint's type id — the key the override map and `meOf` use.
@@ -22,6 +24,9 @@ interface MeProps {
   meOverrides: Map<number, number>;
   setMeOverride: (blueprintTypeId: number, me: number) => void;
   resetMeOverride: (blueprintTypeId: number) => void;
+  // The owned copy's TE / owner / location readout, when this node is owned. Absent
+  // for unowned / manual-only nodes → the popover stays ME-only.
+  detail?: OwnedComponentDetail;
 }
 
 // Derive a node's display state from the owned + override maps through the shared
@@ -74,8 +79,20 @@ export function GemIcon({ state }: { state: NodeMeState }) {
   );
 }
 
+// A label/value readout row in the orb popover (the owned-blueprint detail). Mono,
+// to match the ME row above it; the value wraps for long station names.
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{label}</span>
+      <span className="break-words text-right font-mono text-[10px] tracking-[0.04em] text-faint">{value}</span>
+    </div>
+  );
+}
+
 // The shared popover body: the ME stepper, an owned-ME subscript, and a Revert
-// (shown only when overridden, in ISK-green so it reads as an action).
+// (shown only when overridden, in ISK-green so it reads as an action). For an owned
+// node it also lists the owned blueprint's TE / owner / location (readout only).
 function MePopoverBody({
   name,
   owned,
@@ -83,6 +100,7 @@ function MePopoverBody({
   isOverridden,
   setMe,
   reset,
+  detail,
 }: {
   name: string;
   owned: number | undefined;
@@ -90,6 +108,7 @@ function MePopoverBody({
   isOverridden: boolean;
   setMe: (n: number) => void;
   reset: () => void;
+  detail?: OwnedComponentDetail;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -111,6 +130,20 @@ function MePopoverBody({
           </button>
         )}
       </div>
+      {detail && (
+        <div className="flex flex-col gap-1 border-t border-border-soft pt-1.5">
+          <DetailRow label="TE" value={`${detail.te}%`} />
+          <DetailRow label={detail.ownerType === 'corporation' ? 'Corp' : 'Owner'} value={detail.ownerName} />
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">At</span>
+            <span className="break-words text-right font-mono text-[10px] tracking-[0.04em] text-faint">
+              {detail.locationName}
+              {/* The hangar / division the copy sits in — a faint sub-detail of the place. */}
+              <span className="block text-[9px] tracking-[0.04em] text-muted">{detail.locationFlag}</span>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -124,6 +157,7 @@ export function MeRowOrb({
   meOverrides,
   setMeOverride,
   resetMeOverride,
+  detail,
   faded,
 }: MeProps & { faded?: boolean }) {
   const d = derive(ownedMe, meOverrides, blueprintTypeId);
@@ -146,6 +180,7 @@ export function MeRowOrb({
         isOverridden={d.isOverridden}
         setMe={(n) => setMeOverride(blueprintTypeId, n)}
         reset={() => resetMeOverride(blueprintTypeId)}
+        detail={detail}
       />
     </Popover>
   );
@@ -166,6 +201,7 @@ export function MeMainControl({
   meOverrides,
   setMeOverride,
   resetMeOverride,
+  detail,
 }: Omit<MeProps, 'name'>) {
   const d = derive(ownedMe, meOverrides, blueprintTypeId);
   return (
@@ -195,6 +231,7 @@ export function MeMainControl({
         isOverridden={d.isOverridden}
         setMe={(n) => setMeOverride(blueprintTypeId, n)}
         reset={() => resetMeOverride(blueprintTypeId)}
+        detail={detail}
       />
     </Popover>
   );

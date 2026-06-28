@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { getOwnedBlueprintsOnView } from '@/db/owned-blueprints-sync';
+import { getOwnedBlueprintDetailOnView } from '@/db/owned-blueprints-sync';
 import {
   ownedBlueprintsRequestSchema,
   type OwnedBlueprintsBadRequest,
@@ -10,12 +10,13 @@ import { getCurrentUserId } from '@/features/auth/session';
 // POST /api/industry/owned-blueprints
 // Body: { blueprintTypeIds } — the blueprints in the planned build.
 //
-// Per-pick owned-ME read for the planner's owned-blueprint cost overlay: the
-// caller's effective ME (best owned copy) for each requested blueprint they own.
-// Scoped to the authenticated caller's own owners (the user id comes from the
-// session, never the body); an anonymous caller gets an empty set, so the client
-// applies ME0 (the gross path). Returns only the OWNED blueprints among those
-// requested — an unowned one is simply absent.
+// Per-pick owned-blueprint read for the planner's cost overlay + orb popover: the
+// caller's effective ME (best owned copy) for each requested blueprint they own,
+// plus that copy's TE / owner / location as readout detail (resolved server-side
+// in one bounded pass). Scoped to the authenticated caller's own owners (the user
+// id comes from the session, never the body); an anonymous caller gets an empty
+// set, so the client applies ME0 (the gross path). Returns only the OWNED
+// blueprints among those requested — an unowned one is simply absent.
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   let body: unknown;
@@ -40,13 +41,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json({ blueprints: [] } satisfies OwnedBlueprintsResponse);
   }
 
-  const owned = await getOwnedBlueprintsOnView(userId);
-  const blueprints = parsed.data.blueprintTypeIds
-    .map((blueprintTypeId) => {
-      const summary = owned.get(blueprintTypeId);
-      return summary ? { blueprintTypeId, me: summary.me } : null;
-    })
-    .filter((entry): entry is { blueprintTypeId: number; me: number } => entry !== null);
+  const blueprints = await getOwnedBlueprintDetailOnView(userId, parsed.data.blueprintTypeIds);
 
   return Response.json({ blueprints } satisfies OwnedBlueprintsResponse);
 }

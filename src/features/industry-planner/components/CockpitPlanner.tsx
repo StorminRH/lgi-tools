@@ -47,7 +47,8 @@ function PlannerHead({ name, group, activity }: { name: string; group: string; a
 }
 
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
-  const { runs, setRuns, ownedMe, meOverrides, setMeOverride, resetMeOverride } = usePricing();
+  const { runs, setRuns, ownedMe, ownedDetail, meOverrides, setMeOverride, resetMeOverride } =
+    usePricing();
   // Gross/Net is the user's preference, gated by an available net estimate. Lives
   // here so the KPI margin tile reads one source of truth.
   const [marginMode, setMarginMode] = useState<MarginMode>('net');
@@ -100,6 +101,7 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
               meOverrides={meOverrides}
               setMeOverride={setMeOverride}
               resetMeOverride={resetMeOverride}
+              detail={ownedDetail?.get(structure.blueprintTypeId)}
             />
           )}
           <label className="flex items-center gap-2.5 text-[9px] uppercase tracking-[0.14em] text-muted">

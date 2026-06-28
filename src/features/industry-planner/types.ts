@@ -225,13 +225,22 @@ export interface BlueprintPricing {
 
 // --- Owned-blueprint ME overlay (3.7.5.2) --------------------------------
 
-// One owned blueprint's effective material efficiency, keyed by blueprint type.
-// `me` is the best ME across all the caller's copies of that blueprint (resolved
-// server-side). The wire shape for /api/industry/owned-blueprints; the client
-// builds a Map<blueprintTypeId, me> the cost basis ME-reduces against.
+// One owned blueprint's effective material efficiency + readout detail, keyed by
+// blueprint type. `me` is the best ME across all the caller's copies of that
+// blueprint (resolved server-side); `te`, owner, and location describe that same
+// best copy — informational popover rows, never part of the cost compute. The wire
+// shape for /api/industry/owned-blueprints; the client builds a
+// Map<blueprintTypeId, me> for the cost basis and a parallel detail map for the orb.
+// ownerType is the wire's own literal (the DB enum lives in the owned-blueprints
+// slice, which a feature may not import — features never import each other).
 export interface OwnedBlueprintMeEntry {
   blueprintTypeId: number;
   me: number;
+  te: number;
+  ownerType: 'character' | 'corporation';
+  ownerName: string;
+  locationName: string;
+  locationFlag: string;
 }
 
 // The owned-ME overlay payload: only the blueprints the caller owns among those
@@ -240,3 +249,9 @@ export interface OwnedBlueprintMeEntry {
 export interface OwnedBlueprintsResponse {
   blueprints: OwnedBlueprintMeEntry[];
 }
+
+// The readout detail for an owned component's orb popover (3.7.5.5): the best
+// owned copy's TE + owner + location. Built client-side into a
+// Map<blueprintTypeId, …> parallel to the ME map, and NEVER read by the cost
+// compute — purely informational rows.
+export type OwnedComponentDetail = Omit<OwnedBlueprintMeEntry, 'blueprintTypeId' | 'me'>;

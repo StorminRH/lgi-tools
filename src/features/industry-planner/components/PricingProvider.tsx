@@ -30,7 +30,12 @@ import {
   collectIntermediateTypeIds,
   type PriceLite,
 } from '../build-pricing';
-import type { BlueprintPricing, BlueprintStructure, IndustryStationView } from '../types';
+import type {
+  BlueprintPricing,
+  BlueprintStructure,
+  IndustryStationView,
+  OwnedComponentDetail,
+} from '../types';
 
 // The planner's single live-pricing store. It owns what `CostPanel` used to:
 // the price snapshot seeded from the server, the client clock, and the
@@ -151,6 +156,11 @@ interface PricingContextValue {
   // logged-out caller or one owning none of this build's blueprints. The build
   // plan reads it to drive its ME-aware ledger + per-node readouts.
   ownedMe: Map<number, number> | null;
+  // The readout detail (TE / owner / location) for each owned component, keyed by
+  // blueprint type id — built from the SAME owned-blueprints read, but a separate
+  // channel from `ownedMe` so the cost compute is untouched. The orb popover reads
+  // it; absent entries (unowned / manual nodes) simply render ME-only.
+  ownedDetail: Map<number, OwnedComponentDetail> | null;
   // Manual per-node ME overrides (what-if), keyed by blueprint type id. Client-only
   // and NOT persisted — overlaid on `ownedMe` to drive the same `meOf` seam, so the
   // whole plan recomputes through one engine path. Empty by default → byte-identical
@@ -233,6 +243,10 @@ export function PricingProvider({
   // logged-out caller or one owning none of this build's blueprints — either way
   // the cost basis falls back to ME0 (the byte-identical gross path).
   const [ownedMe, setOwnedMe] = useState<Map<number, number> | null>(null);
+  // The owned-component readout detail (TE / owner / location), built from the same
+  // read as `ownedMe` but kept on its own channel — the orb popover consumes it; the
+  // cost compute never does.
+  const [ownedDetail, setOwnedDetail] = useState<Map<number, OwnedComponentDetail> | null>(null);
   // Manual per-node ME overrides (what-if), keyed by blueprint type id — client-only,
   // never persisted, reset when the planner remounts on a new blueprint (`structure`).
   const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
@@ -410,7 +424,18 @@ export function PricingProvider({
     })
       .then((res) => {
         if (ignore || !res.ok) return;
+        // One response, two maps: the ME map feeds the cost compute; the detail map
+        // is the orb popover's readout channel (TE / owner / location) — kept apart
+        // so the compute path stays byte-identical.
         setOwnedMe(new Map(res.data.blueprints.map((b) => [b.blueprintTypeId, b.me])));
+        setOwnedDetail(
+          new Map(
+            res.data.blueprints.map((b) => [
+              b.blueprintTypeId,
+              { te: b.te, ownerType: b.ownerType, ownerName: b.ownerName, locationName: b.locationName, locationFlag: b.locationFlag },
+            ]),
+          ),
+        );
       })
       .catch(() => {});
     return () => {
@@ -465,6 +490,7 @@ export function PricingProvider({
       marketHistory,
       marketScore,
       ownedMe,
+      ownedDetail,
       meOverrides,
       setMeOverride,
       resetMeOverride,
@@ -482,6 +508,7 @@ export function PricingProvider({
       marketHistory,
       marketScore,
       ownedMe,
+      ownedDetail,
       meOverrides,
       setMeOverride,
       resetMeOverride,

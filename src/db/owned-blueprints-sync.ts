@@ -8,10 +8,16 @@
 // stale-gated write-behind refresh behind the response (zero added latency, like
 // the affiliation on-view refresh and the market-prices getLivePrices).
 import { after } from 'next/server';
+import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
 import { getUserAffiliations, listLinkedCharacters } from '@/features/auth/queries';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
-import type { OwnedBlueprintMap } from '@/features/owned-blueprints/blueprint-map';
+import { formatStationName } from '@/features/industry-planner/format-station-name';
+import {
+  buildOwnedDetail,
+  collectDetailNameIds,
+  type OwnedBlueprintDetailEntry,
+} from '@/features/owned-blueprints/detail';
 import { getOwnedBlueprintMap, readOwnerSyncState, saveOwnedBlueprints, stampOwnerFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort, OwnedBlueprintsReadResult, OwnerKey, RefreshCharacter } from '@/features/owned-blueprints/types';
@@ -105,12 +111,19 @@ async function resolveOwnersForUser(userId: string): Promise<OwnerKey[]> {
   return owners;
 }
 
-// The on-view seam: return the current owned-BP map immediately, and fire a
-// stale-gated write-behind refresh behind the response. A re-view inside the 1h
-// window makes no ESI call (the refresh's per-owner staleness gate is the dedup).
-export async function getOwnedBlueprintsOnView(userId: string): Promise<OwnedBlueprintMap> {
+// The on-view seam: resolve the owned-BP detail for the requested blueprint types
+// immediately, and fire a stale-gated write-behind refresh behind the response. A
+// re-view inside the 1h window makes no blueprint ESI call (the refresh's per-owner
+// staleness gate is the dedup). Owner + NPC-station names are resolved server-side
+// in ONE bounded /universe/names pass (day-cached, shared across viewers); player
+// structures degrade to a generic label — no read_structures scope is taken.
+export async function getOwnedBlueprintDetailOnView(
+  userId: string,
+  requestedTypeIds: number[],
+): Promise<OwnedBlueprintDetailEntry[]> {
   const owners = await resolveOwnersForUser(userId);
   const map = await getOwnedBlueprintMap(owners);
   after(() => refreshOwnedBlueprintsForUser(makeOwnedBlueprintsPort(), userId));
-  return map;
+  const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds));
+  return buildOwnedDetail(map, requestedTypeIds, names, formatStationName);
 }
