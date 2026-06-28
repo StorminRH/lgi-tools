@@ -165,7 +165,7 @@ export function NodeCard({
   // Present for a manufacturable buildable → a framed, click-popover icon. Absent for
   // raws/reactions → a plain icon in the same footprint.
   efficiency?: NodeEfficiency;
-  // The owned blueprint's owner/location, for the ring hover (owned buildables only).
+  // The owned blueprint's owner/location, shown in the icon popover (owned buildables only).
   detail?: OwnedComponentDetail;
   selected: boolean;
   related: boolean;

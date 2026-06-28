@@ -112,7 +112,7 @@ function TierColumn({
   // The per-node ME/TE adjusters + icon-frame state for a buildable row; undefined
   // for raws/reactions (a plain, frameless icon).
   efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
-  // The owner/location for a node's QTY-ring hover (owned buildables only).
+  // The owner/location for a node's icon popover (owned buildables only).
   detailFor: (typeId: number) => OwnedComponentDetail | undefined;
   focus: Focus | null;
   inChain: Set<number> | null;
@@ -253,7 +253,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
       ),
     };
   };
-  // The owned blueprint's owner/location for a node's QTY-ring hover (owned buildables).
+  // The owned blueprint's owner/location for a node's icon popover (owned buildables).
   const detailFor = (typeId: number) => {
     const bp = blueprintOf(typeId);
     return bp !== undefined ? ownedDetail?.get(bp) : undefined;
