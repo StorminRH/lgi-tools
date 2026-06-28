@@ -35,9 +35,12 @@ import { z } from 'zod';
 //  - location_flag: the sub-location (Hangar, CorpSAG1, Cargo, …).
 //  - location_type: station | solar_system | item | other.
 const ownedAssetSchema = z.object({
-  type_id: z.number().int(),
-  quantity: z.number().int(),
-  location_id: z.number().int(),
+  // Type id, stack size, and location id are all positive EVE identifiers/counts — a
+  // non-positive value would be a malformed boundary payload, so reject it here (a
+  // failed parse skips the owner safely) rather than store a nonsense row.
+  type_id: z.number().int().positive(),
+  quantity: z.number().int().positive(),
+  location_id: z.number().int().positive(),
   // Both typed as large, CCP-extended enums — stored verbatim as strings so a new
   // flag or location type never fails the boundary parse.
   location_flag: z.string(),
