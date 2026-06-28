@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { MeField, TeField } from '@/features/industry-planner/components/MeAdjuster';
+import { NodeAdjusters } from '@/features/industry-planner/components/MeAdjuster';
 import { NodeCard } from '@/features/industry-planner/components/NodeCard';
 import { clampMe } from '@/features/industry-planner/me-overrides';
+import { nodeFrameState } from '@/features/industry-planner/node-frame-state';
 import { clampTe } from '@/features/industry-planner/te-overrides';
 import type { OwnedComponentDetail } from '@/features/industry-planner/types';
 
@@ -94,26 +95,25 @@ function Column({ width, label }: { width: string; label: string }) {
             faded={false}
             onSelect={i % 2 === 0 ? () => undefined : undefined}
             efficiency={
-              n.bp !== undefined ? (
-                <>
-                  <MeField
-                    blueprintTypeId={n.bp}
-                    name={n.name}
-                    ownedMe={OWNED_ME}
-                    meOverrides={me.map}
-                    setMeOverride={me.set}
-                    resetMeOverride={me.reset}
-                  />
-                  <TeField
-                    blueprintTypeId={n.bp}
-                    name={n.name}
-                    ownedTe={OWNED_TE}
-                    teOverrides={te.map}
-                    setTeOverride={te.set}
-                    resetTeOverride={te.reset}
-                  />
-                </>
-              ) : undefined
+              n.bp !== undefined
+                ? {
+                    state: nodeFrameState(n.bp, OWNED_ME, OWNED_TE, me.map, te.map),
+                    adjusters: (
+                      <NodeAdjusters
+                        blueprintTypeId={n.bp}
+                        name={n.name}
+                        ownedMe={OWNED_ME}
+                        meOverrides={me.map}
+                        setMeOverride={me.set}
+                        resetMeOverride={me.reset}
+                        ownedTe={OWNED_TE}
+                        teOverrides={te.map}
+                        setTeOverride={te.set}
+                        resetTeOverride={te.reset}
+                      />
+                    ),
+                  }
+                : undefined
             }
           />
         ))}

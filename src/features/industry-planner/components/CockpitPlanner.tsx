@@ -58,16 +58,15 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
     teOverrides,
     setTeOverride,
     resetTeOverride,
-    ownedActive,
   } = usePricing();
   // Gross/Net is the user's preference, gated by an available net estimate. Lives
   // here so the KPI margin tile reads one source of truth.
   const [marginMode, setMarginMode] = useState<MarginMode>('net');
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
-  // The main blueprint's adjusters show only when an owned researched blueprint
-  // makes the plan active (matching the per-node orbs); reactions are excluded
-  // by `isManufacturing` since they can't be researched.
+  // The main blueprint's adjusters show on any manufacturing blueprint (matching
+  // the always-on per-node orbs) — empty outline when unowned, a what-if when typed;
+  // reactions are excluded by `isManufacturing` since they can't be researched.
   const outputUnits = structure.product.quantityPerRun * runs;
 
   return (
@@ -104,7 +103,7 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
         <div className="flex-1" />
 
         <div className="flex flex-wrap items-center gap-4">
-          {ownedActive && isManufacturing && (
+          {isManufacturing && (
             <div className="flex items-center gap-3 rounded-[3px] border border-border px-2.5 py-1">
               <MeField
                 blueprintTypeId={structure.blueprintTypeId}

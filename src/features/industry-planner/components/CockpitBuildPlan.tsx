@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/components/ui/cn';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -14,10 +14,11 @@ import {
   type ConsolidatedTier,
 } from '../build-consolidate';
 import { REACTION_NODE_LABEL } from '../industry-styles';
+import { nodeFrameState } from '../node-frame-state';
 import type { BlueprintStructure, OwnedComponentDetail } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
-import { MeField, TeField } from './MeAdjuster';
-import { NodeCard } from './NodeCard';
+import { NodeAdjusters } from './MeAdjuster';
+import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { usePricing } from './PricingProvider';
 
 // The Cockpit build plan: the consolidated material breakdown as a column per
@@ -72,7 +73,7 @@ function TierRow({
   item: ConsolidatedItem;
   qty: number;
   value: number | null;
-  efficiency?: ReactNode;
+  efficiency?: NodeEfficiency;
   detail?: OwnedComponentDetail;
   selected: boolean;
   related: boolean;
@@ -108,9 +109,9 @@ function TierColumn({
 }: {
   tier: ConsolidatedTier;
   unitPriceOf: Map<number, number | null>;
-  // The inline ME/TE fields for a buildable row, or undefined when the plan isn't
-  // active (logged out / owns nothing) → no fields, byte-identical compute.
-  efficiencyFor?: (typeId: number, name: string) => ReactNode;
+  // The per-node ME/TE adjusters + icon-frame state for a buildable row; undefined
+  // for raws/reactions (a plain, frameless icon).
+  efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
   // The owner/location for a node's QTY-ring hover (owned buildables only).
   detailFor: (typeId: number) => OwnedComponentDetail | undefined;
   focus: Focus | null;
@@ -212,7 +213,6 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     teOverrides,
     setTeOverride,
     resetTeOverride,
-    ownedActive,
     // The whole-run batch ledger (the build-batch ceil) — computed once in the
     // provider and shared, so the tiers, the drill-down, and the build-time totals
     // read one ME source. Byte-identical to the ME0 basis when nothing is owned.
@@ -224,38 +224,35 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   // The producing blueprint per buildable typeId — keys each row's adjusters to the
   // override maps. Undefined for raws (which never appear as tier rows).
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
-  // The inline ME/TE fields for a buildable row — only when the plan is active (a
-  // signed-in caller owns a researched blueprint in this build); otherwise no fields
-  // → byte-identical compute. Raws (no blueprint) and reactions (can't be researched)
-  // never get them; every other buildable does (owned, manual, or unowned).
-  const efficiencyFor = ownedActive
-    ? (typeId: number, name: string): ReactNode => {
-        const bp = blueprintOf(typeId);
-        if (bp === undefined || structure.buildNodeDisplay[typeId]?.label === REACTION_NODE_LABEL) {
-          return undefined;
-        }
-        return (
-          <>
-            <MeField
-              blueprintTypeId={bp}
-              name={name}
-              ownedMe={ownedMe}
-              meOverrides={meOverrides}
-              setMeOverride={setMeOverride}
-              resetMeOverride={resetMeOverride}
-            />
-            <TeField
-              blueprintTypeId={bp}
-              name={name}
-              ownedTe={ownedTe}
-              teOverrides={teOverrides}
-              setTeOverride={setTeOverride}
-              resetTeOverride={resetTeOverride}
-            />
-          </>
-        );
-      }
-    : undefined;
+  // The per-node icon-frame tone + popover adjusters for a buildable row — every
+  // manufacturable buildable (owned, manual, or unowned), so the what-if is always
+  // available behind the icon. The frame tone is the combined ME/TE state; the popover
+  // holds the two labelled fields. An unowned node's fields default to ME/TE 0, so cost
+  // + build-time stay byte-identical until edited. Raws (no blueprint) and reactions
+  // (can't be researched) get none → a plain, frameless icon.
+  const efficiencyFor = (typeId: number, name: string): NodeEfficiency | undefined => {
+    const bp = blueprintOf(typeId);
+    if (bp === undefined || structure.buildNodeDisplay[typeId]?.label === REACTION_NODE_LABEL) {
+      return undefined;
+    }
+    return {
+      state: nodeFrameState(bp, ownedMe, ownedTe, meOverrides, teOverrides),
+      adjusters: (
+        <NodeAdjusters
+          blueprintTypeId={bp}
+          name={name}
+          ownedMe={ownedMe}
+          meOverrides={meOverrides}
+          setMeOverride={setMeOverride}
+          resetMeOverride={resetMeOverride}
+          ownedTe={ownedTe}
+          teOverrides={teOverrides}
+          setTeOverride={setTeOverride}
+          resetTeOverride={resetTeOverride}
+        />
+      ),
+    };
+  };
   // The owned blueprint's owner/location for a node's QTY-ring hover (owned buildables).
   const detailFor = (typeId: number) => {
     const bp = blueprintOf(typeId);

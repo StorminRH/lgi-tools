@@ -6,6 +6,15 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.6 — 2026-06-28
+
+#### Changed
+- The build-plan component cards were redesigned for a cleaner, more uniform look. Each component's blueprint efficiency controls now open in a popover when you click its icon — the icon is framed and colour-coded to show whether you own the blueprint, have set a manual what-if, or neither — and the cost and needed-quantity details moved into a popover on the quantity ring.
+- The material- and time-efficiency adjusters are now available on every buildable component, not only ones whose blueprint you own, so you can model any component at any efficiency.
+
+#### Fixed
+- Build-plan component icons are uniform squares again, instead of appearing stretched or different sizes.
+
 ### v3.7.5 — 2026-06-28
 
 #### Added

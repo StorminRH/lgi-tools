@@ -195,10 +195,6 @@ interface PricingContextValue {
   // The final-job and whole-tree build-time figures, TE-applied (readout only — TE
   // never touches the cost path). Recomputes on runs / ME / TE change.
   buildTimes: BuildTimes;
-  // True when the caller owns any RESEARCHED blueprint in this build (ME>0 or TE>0)
-  // — the gate for showing the per-node adjuster orbs. Logged-out / owns-none → false
-  // → no orbs → byte-identical plan.
-  ownedActive: boolean;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -401,14 +397,6 @@ export function PricingProvider({
     [ownedDetail],
   );
 
-  // The adjuster gate: owns any RESEARCHED blueprint (ME>0 or TE>0) in this build.
-  const ownedActive = useMemo(
-    () =>
-      (!!ownedMe && [...ownedMe.values()].some((me) => me > 0)) ||
-      (!!ownedTe && [...ownedTe.values()].some((te) => te > 0)),
-    [ownedMe, ownedTe],
-  );
-
   // The ME-aware batch ledger — computed ONCE here and shared (the build plan reads
   // it from context), so the cost tiers and the build-time totals read one source and
   // can't disagree, and the topological walk runs once per change, not twice.
@@ -594,7 +582,6 @@ export function PricingProvider({
       resetTeOverride,
       ledger,
       buildTimes,
-      ownedActive,
     }),
     [
       pricing,
@@ -619,7 +606,6 @@ export function PricingProvider({
       resetTeOverride,
       ledger,
       buildTimes,
-      ownedActive,
     ],
   );
 
