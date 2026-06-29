@@ -6,6 +6,7 @@ import {
   isAffiliationStale,
   isMemberOfCorp,
   memberCharacterIdInCorp,
+  memberCorpIds,
 } from './membership';
 
 const NOW = new Date('2026-06-25T12:00:00.000Z');
@@ -115,6 +116,45 @@ describe('memberCharacterIdInCorp (the granting pilot, for the audit)', () => {
 
   it('returns null on an empty affiliation set', () => {
     expect(memberCharacterIdInCorp([], 2000, NOW)).toBeNull();
+  });
+});
+
+describe('memberCorpIds (the read-scope set for shared per-corp data)', () => {
+  it('returns the corps a fresh member is in — and a non-member sees nothing of others', () => {
+    // The shared-store read gate: a member of 2000 gets [2000]; a viewer in only
+    // 3000 never sees 2000's catalogue.
+    expect(memberCorpIds([aff({ corporationId: 2000 })], NOW)).toEqual([2000]);
+    expect(memberCorpIds([aff({ corporationId: 3000 })], NOW)).not.toContain(2000);
+  });
+
+  it('excludes a stale or never-refreshed corp (fail closed)', () => {
+    expect(memberCorpIds([aff({ corporationId: 2000, refreshedAt: STALE })], NOW)).toEqual([]);
+    expect(memberCorpIds([aff({ corporationId: 2000, refreshedAt: null })], NOW)).toEqual([]);
+  });
+
+  it('excludes a null cached corp', () => {
+    expect(memberCorpIds([aff({ corporationId: null })], NOW)).toEqual([]);
+  });
+
+  it('dedupes when several linked characters share a corp', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000 }),
+      aff({ characterId: 102, corporationId: 2000 }),
+    ];
+    expect(memberCorpIds(affiliations, NOW)).toEqual([2000]);
+  });
+
+  it('returns every distinct corp the user is a fresh member of', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000 }),
+      aff({ characterId: 102, corporationId: 3000 }),
+      aff({ characterId: 103, corporationId: 4000, refreshedAt: STALE }), // excluded
+    ];
+    expect(memberCorpIds(affiliations, NOW).sort((a, b) => a - b)).toEqual([2000, 3000]);
+  });
+
+  it('returns an empty list on an empty affiliation set', () => {
+    expect(memberCorpIds([], NOW)).toEqual([]);
   });
 });
 

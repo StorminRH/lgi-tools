@@ -66,6 +66,7 @@
     "/api/account/skills": "dynamic",
     "/api/account/industry-jobs": "dynamic",
     "/api/account/corp-industry-jobs": "dynamic",
+    "/api/account/corp-structures": "dynamic",
     "/api/admin/characters/reassign": "dynamic",
     "/api/admin/characters/unlink": "dynamic",
     "/api/admin/role": "dynamic",

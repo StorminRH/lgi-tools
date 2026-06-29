@@ -10,6 +10,7 @@ export * from '../data/industry-indices/schema';
 export * from '../features/auth/schema';
 export * from '../features/owned-blueprints/schema';
 export * from '../features/owned-assets/schema';
+export * from '../features/owned-structures/schema';
 export * from '../features/skill-queue/schema';
 export * from '../features/industry-jobs/schema';
 export * from '../data/telemetry/schema';

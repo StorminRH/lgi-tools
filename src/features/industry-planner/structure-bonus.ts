@@ -36,7 +36,13 @@
 //     a 2% reduction). Absent ⇒ 0 (no-op). Scaled by the rig's OWN per-class
 //     security multiplier (2355/2356/2357), read from the rig's dogma.
 
+import type { SecurityClass } from '@/data/eve-data/security';
 import type { AttrMap } from '@/data/eve-data/types';
+
+// Re-exported from its shared home so this feature's consumers keep importing it
+// here. The type moved to `src/data/eve-data/security.ts` (3.7.9) so the
+// owned-structures store can share it without a feature→feature import.
+export type { SecurityClass };
 
 // SDE dogma attribute ids — real CCP ids from dgmAttributeTypes, verified against
 // everef/skoli for the structures and Standup rigs this feature reads.
@@ -61,9 +67,6 @@ const ATTR = {
   secMultLow: 2356,
   secMultNull: 2357, // covers BOTH null-sec and wormhole space
 } as const;
-
-// System security class. Wormhole space scales rigs with the null-sec multiplier.
-export type SecurityClass = 'high' | 'low' | 'null' | 'wormhole';
 
 // The two industry activities a structure modifies. CCP activity ids (constants.ts):
 // 1 = manufacturing, 11 = reaction.
