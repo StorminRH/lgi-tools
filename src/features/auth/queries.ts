@@ -1,6 +1,5 @@
 import { and, asc, eq, gt, ilike, isNull, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import { purgeConvexCharacterProjections } from '@/data/convex/purge';
 import { db } from '@/db';
 import type { AffiliationRow } from './affiliation-source';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
@@ -635,8 +634,11 @@ export async function reconcileCharacterOwner(
 // per-user owner-authored data lands):
 //   1. account row + encrypted tokens — the existing delete path, reused.
 //   2. per-character owner-authored profile fields on the shared `characters` row.
-//   3. Convex projections (skills + industry jobs) — prompt teardown.
-//   4. the prior owner's user row — only when it's left account-less.
+//   3. the prior owner's user row — only when it's left account-less.
+// The trackers' per-character projections need no prompt teardown here: skills +
+// personal/corp industry jobs are Neon char-keyed (MIGRATE.B), so the new owner's
+// resync overwrites them; the online-status canary doc (per user+character) is reaped
+// by its lazy enumerated-set orphan cleanup in onlineStatus.applySyncResults.
 export async function purgeTransferredCharacter(
   priorUserId: string,
   characterId: number,
@@ -655,11 +657,7 @@ export async function purgeTransferredCharacter(
     .set({ preferences: {}, updatedAt: new Date() })
     .where(eq(characters.characterId, characterId));
 
-  // 3. Prompt Convex projection teardown (best-effort — never throws; the lazy
-  //    orphan cleanup in applySyncResults is the safety net).
-  await purgeConvexCharacterProjections(priorUserId, characterId);
-
-  // 4. Reconcile the prior owner's user row. Better Auth's findOAuthUser falls
+  // 3. Reconcile the prior owner's user row. Better Auth's findOAuthUser falls
   //    back to a user.email match when no account row is found, and
   //    overrideUserInfo keeps that email tracking the last-signed-in character's
   //    synthetic <id>@eve.invalid — so a surviving user.email == the freed

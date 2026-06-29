@@ -28,11 +28,6 @@ const { chain, state } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
-const purgeConvexMock = vi.fn().mockResolvedValue(undefined);
-vi.mock('@/data/convex/purge', () => ({
-  purgeConvexCharacterProjections: (...args: unknown[]) => purgeConvexMock(...args),
-}));
-
 import { purgeTransferredCharacter, reconcileCharacterOwner } from './queries';
 
 const USER = 'eve-user-1';
@@ -45,40 +40,31 @@ beforeEach(() => {
   state.results = [];
   state.calls.delete = 0;
   state.calls.update = 0;
-  purgeConvexMock.mockClear();
 });
 
 describe('reconcileCharacterOwner', () => {
   it('no-ops when the JWT carries no owner claim (no DB read, no purge)', async () => {
     await reconcileCharacterOwner(CHAR, undefined);
-    expect(state.calls).toEqual({ delete: 0, update: 0 });
-    expect(purgeConvexMock).not.toHaveBeenCalled();
-    // The lookup never ran — the seeded result (none) was never consumed.
+    expect(state.calls).toEqual({ delete: 0, update: 0 });    // The lookup never ran — the seeded result (none) was never consumed.
     expect(state.results).toEqual([]);
   });
 
   it('no-ops for the common re-login (stored hash matches)', async () => {
     state.results = [[{ userId: USER, ownerHash: H1 }]];
     await reconcileCharacterOwner(CHAR, H1);
-    expect(state.calls).toEqual({ delete: 0, update: 0 });
-    expect(purgeConvexMock).not.toHaveBeenCalled();
-  });
+    expect(state.calls).toEqual({ delete: 0, update: 0 });  });
 
   it('backfills a legacy null-hash row with a single update, never purging', async () => {
     state.results = [[{ userId: USER, ownerHash: null }], undefined];
     await reconcileCharacterOwner(CHAR, H1);
-    expect(state.calls).toEqual({ delete: 0, update: 1 });
-    expect(purgeConvexMock).not.toHaveBeenCalled();
-  });
+    expect(state.calls).toEqual({ delete: 0, update: 1 });  });
 
   it('no-ops when the character has no account row yet (first link)', async () => {
     state.results = [[]]; // lookup finds nothing
     await reconcileCharacterOwner(CHAR, H1);
-    expect(state.calls).toEqual({ delete: 0, update: 0 });
-    expect(purgeConvexMock).not.toHaveBeenCalled();
-  });
+    expect(state.calls).toEqual({ delete: 0, update: 0 });  });
 
-  it('purges when the stored hash differs (a transfer), tearing down Convex', async () => {
+  it('purges when the stored hash differs (a transfer)', async () => {
     state.results = [
       [{ userId: USER, ownerHash: H1 }], // reconcile lookup → mismatch H1≠H2
       [{ id: 'acc-1' }], // deleteLinkedCharacter .returning
@@ -88,13 +74,11 @@ describe('reconcileCharacterOwner', () => {
     ];
     await reconcileCharacterOwner(CHAR, H2);
     // account row + user row both deleted; characters reset once.
-    expect(state.calls).toEqual({ delete: 2, update: 1 });
-    expect(purgeConvexMock).toHaveBeenCalledWith(USER, CHAR);
-  });
+    expect(state.calls).toEqual({ delete: 2, update: 1 });  });
 });
 
 describe('purgeTransferredCharacter', () => {
-  it('deletes the account-less prior owner (account + user), resets profile, tears down Convex', async () => {
+  it('deletes the account-less prior owner (account + user), resets profile', async () => {
     state.results = [
       [{ id: 'acc-1' }], // deleteLinkedCharacter .returning
       undefined, // characters.preferences reset
@@ -102,9 +86,7 @@ describe('purgeTransferredCharacter', () => {
       undefined, // delete user row
     ];
     await purgeTransferredCharacter(USER, CHAR);
-    expect(state.calls).toEqual({ delete: 2, update: 1 });
-    expect(purgeConvexMock).toHaveBeenCalledWith(USER, CHAR);
-  });
+    expect(state.calls).toEqual({ delete: 2, update: 1 });  });
 
   it('keeps a multi-character prior owner: rebinds the identity email + repoints active', async () => {
     state.results = [
@@ -119,9 +101,7 @@ describe('purgeTransferredCharacter', () => {
     ];
     await purgeTransferredCharacter(USER, CHAR);
     // account deleted (1), user row NOT deleted; characters reset + email rebind + repoint = 3 updates.
-    expect(state.calls).toEqual({ delete: 1, update: 3 });
-    expect(purgeConvexMock).toHaveBeenCalledWith(USER, CHAR);
-  });
+    expect(state.calls).toEqual({ delete: 1, update: 3 });  });
 
   it('keeps a multi-character prior owner untouched when the freed char is neither their email nor active', async () => {
     state.results = [
@@ -133,7 +113,5 @@ describe('purgeTransferredCharacter', () => {
     ];
     await purgeTransferredCharacter(USER, CHAR);
     // account deleted (1); only the characters reset writes (1) — no rebind, no repoint.
-    expect(state.calls).toEqual({ delete: 1, update: 1 });
-    expect(purgeConvexMock).toHaveBeenCalledWith(USER, CHAR);
-  });
+    expect(state.calls).toEqual({ delete: 1, update: 1 });  });
 });
