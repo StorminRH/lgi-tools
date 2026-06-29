@@ -1,52 +1,40 @@
 'use client';
 
-// The corp industry-jobs section (3.7.3.4) — the consumer surface for the corp
-// dataset built in 3.7.3.1–.3. Rendered beneath the personal jobs on both the
-// /jobs board and the /industry landing's Active-jobs section, so a pilot's corp
-// jobs populate the existing surfaces. Each corp job is attributed to its
-// installer (portrait + name) with the corporation's logo as a badge; corp +
-// installer names resolve client-side through /api/eve/names (names live neither
-// in Convex nor the SDE). Live-data policy: presence-gated auto-refresh via the
-// shared heartbeat, no manual refresh control; a completing job flips to ready on
-// schedule (the corp markJobReady twin).
+// The corp industry-jobs section — the consumer surface for the corp dataset, now read
+// from Neon (MIGRATE.B.3) instead of the live Convex engine. Rendered beneath the
+// personal jobs on both the /jobs board and the /industry landing's Active-jobs section.
+// Each corp job is attributed to its installer (portrait + name) with the corporation's
+// logo as a badge; corp + installer names resolve client-side through /api/eve/names
+// (names live neither in Neon nor the SDE), while blueprint/product names ride the
+// on-view response. Data policy: auto-refresh on view (the stale-gated write-behind), no
+// manual refresh control; a completing job flips to ready CLIENT-SIDE at its end_date
+// (deriveJobStatus on the render clock — no scheduler).
 //
 // Two gates, computed app-side and passed in:
-//  - scope-missing (no linked character can vend a corp read) → an AccessGate
-//    invite to relink and grant the corp scopes.
-//  - role-insufficient (`needs_role`) → a distinct notice: granting more access
-//    can't fix an in-game role.
-import { useQuery } from 'convex/react';
-import type { FunctionReturnType } from 'convex/server';
+//  - scope-missing (no linked character can vend a corp read) → an AccessGate invite to
+//    relink and grant the corp scopes.
+//  - role-insufficient (`needs_role`) → a distinct notice: granting more access can't fix
+//    an in-game role.
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import {
-  type LiveCorporationRow,
-  LiveSessionShell,
-  useCorporationMerge,
-  useLiveCharacterSync,
-} from '@/components/live-character-card';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
-import { useLoadingToast } from '@/components/ui/loading-toast';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionLabel } from '@/components/ui/section-label';
-import { api } from '@/data/convex/api';
 import { ENTITY_NAMES_MAX_IDS, entityNamesEndpoint } from '@/data/eve-data/api-contract';
 import { apiFetch } from '@/lib/api-client';
 import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import { formatRemaining } from '@/lib/format/time';
+import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';
 import { JOB_STATUS_META, jobActivityLabel } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
-import { jobTypeIds } from './IndustryJobsPanel';
+import { useCorpJobsLive } from '../use-corp-jobs-live';
 
-type CorpJobData = NonNullable<
-  FunctionReturnType<typeof api.corpIndustryJobs.forViewer>
->['corporations'][number]['data'];
-type CorpEntry = LiveCorporationRow<CorpJobData>;
+type CorpEntry = CorpJobsResponse['corporations'][number];
 
 export function CorpJobsBoard({
   eligibleCharacterIds,
@@ -63,61 +51,30 @@ export function CorpJobsBoard({
   // character"; the corp section stays silent rather than double-prompting.
   if (!hasLinkedCharacters) return null;
 
-  // Gate on the Convex session like the other live surfaces. unavailable/loading/
-  // signedOut render nothing here so the corp section never shows an empty header
-  // to a signed-out /industry viewer or duplicates the personal board's prompts.
   return (
-    <LiveSessionShell unavailable={null} loading={null} signedOut={null}>
-      <section>
-        <SectionLabel className="mb-3">Corporation industry jobs</SectionLabel>
-        {eligibleCharacterIds.length === 0 ? (
-          <AccessGate
-            blocked
-            reason="Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here."
-            action={reconnectAction}
-          >
-            {null}
-          </AccessGate>
-        ) : (
-          <LiveCorpJobs eligibleCharacterIds={eligibleCharacterIds} />
-        )}
-      </section>
-    </LiveSessionShell>
+    <section>
+      <SectionLabel className="mb-3">Corporation industry jobs</SectionLabel>
+      {eligibleCharacterIds.length === 0 ? (
+        <AccessGate
+          blocked
+          reason="Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here."
+          action={reconnectAction}
+        >
+          {null}
+        </AccessGate>
+      ) : (
+        <LiveCorpJobs eligibleCharacterIds={eligibleCharacterIds} />
+      )}
+    </section>
   );
 }
 
 function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[] }) {
-  const cold = useQuery(api.corpIndustryJobs.forViewer);
-  const hot = useQuery(api.corpIndustryJobs.runStateForViewer);
-  const corpLive = useCorporationMerge(cold, hot);
+  const { corporations, names, now, loading } = useCorpJobsLive(eligibleCharacterIds);
+  const entityNames = useEntityNames(corporations);
 
-  // Adapt the per-corp shape to the per-character live contract so the shared
-  // sync hook (heartbeat + render clock + type-name resolution + syncing flag)
-  // is reused verbatim — the corporation id stands in as the entry key.
-  const live = useMemo(() => {
-    if (corpLive == null) return corpLive;
-    return {
-      characters: corpLive.corporations.map((corp) => ({ ...corp, characterId: corp.corporationId })),
-      syncState: corpLive.syncState,
-    };
-  }, [corpLive]);
+  if (loading) return <LoadingLabel label="Loading…" />;
 
-  const { names, now, syncing } = useLiveCharacterSync({
-    live,
-    dataset: 'corpIndustryJobs',
-    characterIds: eligibleCharacterIds,
-    extractTypeIds: jobTypeIds,
-  });
-
-  // Drop the sitewide loading toast while a corp sync is running (the existing
-  // sonner seam — no new toast).
-  useLoadingToast(syncing);
-
-  const entityNames = useEntityNames(corpLive?.corporations ?? []);
-
-  if (corpLive === undefined) return <LoadingLabel label="Connecting live session…" />;
-
-  const corporations = corpLive?.corporations ?? [];
   if (corporations.length === 0) {
     return (
       <Card>
@@ -300,8 +257,8 @@ function CorpJobRow({
 
 // Per-job runner attribution: the installer's portrait with the corporation's
 // logo as a small badge (bottom-left), then the runner + corp name. When the
-// installer id is absent (a pre-3.7.3.4 doc), the corp logo stands in as the
-// avatar with no badge.
+// installer id is absent (a legacy doc), the corp logo stands in as the avatar
+// with no badge.
 function JobRunner({
   portrait,
   name,

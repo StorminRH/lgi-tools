@@ -27,7 +27,7 @@ export type JobStatus = (typeof JOB_STATUSES)[number];
 // invention detail); Zod strips the rest so the doc carries only what the UI
 // renders. Without `include_completed` only active/paused/ready jobs appear —
 // a delivered job simply vanishes from the next fresh body.
-const industryJobSchema = z.object({
+export const industryJobSchema = z.object({
   job_id: z.number().int(),
   // The character who installed the job — on the corp endpoint it identifies the
   // corp member running each job, which the merged active-jobs board reads for
@@ -61,4 +61,22 @@ export function parseIndustryJobsBody(body: unknown): IndustryJob[] | null {
   return [...parsed.data].sort(
     (a, b) => Date.parse(a.end_date) - Date.parse(b.end_date) || a.job_id - b.job_id,
   );
+}
+
+// The type ids a set of job boards reference — each job's blueprint plus its
+// product where one exists — so a consumer can resolve them to names in one
+// batch. Reads only the `data.jobs` each entry carries, so the per-character
+// (personal) and per-corporation (corp) live shapes both satisfy it. Lives here
+// in the runtime-light projection (not the 'use client' panel) so the Neon
+// server wrapper (src/db/industry-jobs-sync.ts) can resolve names server-side and
+// the corp board can still resolve them client-side — one shared extraction.
+export function jobTypeIds(entries: { data: { jobs: IndustryJob[] } | null }[]): number[] {
+  const ids: number[] = [];
+  for (const entry of entries) {
+    for (const job of entry.data?.jobs ?? []) {
+      ids.push(job.blueprint_type_id);
+      if (job.product_type_id !== undefined) ids.push(job.product_type_id);
+    }
+  }
+  return ids;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JOB_STATUSES, parseIndustryJobsBody } from './esi-projection';
+import { JOB_STATUSES, jobTypeIds, parseIndustryJobsBody } from './esi-projection';
 
 // A manufacturing job as the live endpoint shapes it — including the fields
 // the tracker deliberately does NOT store (location ids, cost, duration).
@@ -98,5 +98,20 @@ describe('parseIndustryJobsBody', () => {
 
   it('parses an empty board', () => {
     expect(parseIndustryJobsBody([])).toEqual([]);
+  });
+});
+
+describe('jobTypeIds', () => {
+  it("collects each job's blueprint and product type ids across characters", () => {
+    const jobs = parseIndustryJobsBody([manufacturingJob, researchJob]) ?? [];
+    // manufacturing → blueprint 691 + product 587; research → blueprint 24699 (no product).
+    expect(jobTypeIds([{ data: { jobs } }]).sort((a, b) => a - b)).toEqual([587, 691, 24699]);
+  });
+
+  it('omits the product id where a job has none, and skips null / empty entries', () => {
+    const research = parseIndustryJobsBody([researchJob]) ?? [];
+    expect(
+      jobTypeIds([{ data: { jobs: research } }, { data: null }, { data: { jobs: [] } }]),
+    ).toEqual([24699]);
   });
 });

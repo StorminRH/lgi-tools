@@ -13,7 +13,9 @@ import { z } from 'zod';
 // GET /characters/{id}/skillqueue — only queue_position, skill_id, and
 // finished_level are required; the dates and SP fields are all absent when
 // the queue is paused.
-const skillQueueEntrySchema = z.object({
+// Exported so the API contract (api-contract.ts) builds the wire response schema off
+// the same entry shape the projection produces — one source of truth for an entry.
+export const skillQueueEntrySchema = z.object({
   skill_id: z.number().int(),
   queue_position: z.number().int(),
   finished_level: z.number().int(),

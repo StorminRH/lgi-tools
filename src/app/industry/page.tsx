@@ -87,14 +87,31 @@ async function ActiveJobsSection() {
   );
 }
 
+// The header's used-slot counts read the same per-character ids the active-jobs
+// board does (deduped within the request via activeJobCharacterIds' cache), so the
+// header meta is its own small request-time <Suspense> hole feeding the client island.
+async function SlotMeta() {
+  const characterIds = await activeJobCharacterIds();
+  return <IndustrySlotMeta characterIds={characterIds} />;
+}
+
 // Static shell — header, typed hint, and the recents/favorites scaffold
 // prerender; the recently-viewed list hydrates from localStorage, the slot
-// counts + active jobs stream over Convex, and the active-jobs character list
-// is the one request-time read (a <Suspense> hole).
+// counts + active jobs are fetched client-side from /api/account/industry-jobs (Neon
+// stale-gated on-view), and the active-jobs character list is the request-time read
+// (a <Suspense> hole, shared by the header meta and the active-jobs section).
 export default function IndustryDashboardPage() {
   return (
     <PageShell>
-      <PageHead crumb="industry" title="Industry" meta={<IndustrySlotMeta />} />
+      <PageHead
+        crumb="industry"
+        title="Industry"
+        meta={
+          <Suspense fallback={null}>
+            <SlotMeta />
+          </Suspense>
+        }
+      />
 
       <div className="pb-16 flex flex-col gap-9">
         <IndustryTypedHint />

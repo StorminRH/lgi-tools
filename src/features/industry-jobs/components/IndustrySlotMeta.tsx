@@ -1,42 +1,29 @@
 'use client';
 
-// The /industry header's used-slot counts (handoff §5): manufacturing /
-// science / reactions, with the numbers in EVE-industry-blue. Derived from the
-// same live `forViewer` jobs query the Active-jobs table reads (Convex dedupes
-// the subscription); this one only reads — the table drives the sync. Renders
-// nothing when signed out or before Convex is configured.
-import { Authenticated, useQuery } from 'convex/react';
+// The /industry header's used-slot counts (MIGRATE.B.2): manufacturing / science /
+// reactions, with the numbers in EVE-industry-blue. Derived from the same on-view jobs
+// read the Active-jobs table uses (/api/account/industry-jobs, a Neon stale-gated on-view
+// read; the two fetches dedup against the 300s staleness gate). This one only reads — it
+// renders nothing until the read lands, or when the viewer has no characters (signed out
+// / none linked, so the on-view read returns an empty roster).
 import { useMemo } from 'react';
-import { useCharacterMerge } from '@/components/live-character-card';
-import { api } from '@/data/convex/api';
-import { convexClient } from '@/data/convex/client';
 import { jobCategory, type JobCategory } from '../industry-jobs-styles';
+import { useJobsLive } from '../use-jobs-live';
 
-export function IndustrySlotMeta() {
-  if (convexClient === null) return null;
-  return (
-    <Authenticated>
-      <SlotMetaInner />
-    </Authenticated>
-  );
-}
-
-function SlotMetaInner() {
-  const cold = useQuery(api.industryJobs.forViewer);
-  const hot = useQuery(api.industryJobs.runStateForViewer);
-  const live = useCharacterMerge(cold, hot);
+export function IndustrySlotMeta({ characterIds }: { characterIds: number[] }) {
+  const { jobsByCharacter, loading } = useJobsLive(characterIds);
   const counts = useMemo(() => {
     const tally: Record<JobCategory, number> = { manufacturing: 0, science: 0, reactions: 0 };
-    for (const character of live?.characters ?? []) {
-      for (const job of character.data?.jobs ?? []) {
+    for (const live of jobsByCharacter.values()) {
+      for (const job of live.data?.jobs ?? []) {
         const category = jobCategory(job.activity_id);
         if (category) tally[category] += 1;
       }
     }
     return tally;
-  }, [live]);
+  }, [jobsByCharacter]);
 
-  if (!live) return null;
+  if (loading || jobsByCharacter.size === 0) return null;
 
   return (
     <>

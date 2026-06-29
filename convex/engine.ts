@@ -51,8 +51,10 @@
 // onComplete + ~3 forViewer echoes — a genuine status change still re-runs
 // forViewer) plus ~34 Workpool main-loop calls (its 200ms cooldown polling;
 // amortizes across a burst).
-// Watched-hour ≈ 2.9k calls skills (60-run floor), ~0.7k jobs (12) → both-
-// tracker hours ≈ 250/mo on Free, ~6,900 on Pro. Calls do NOT scale with
+// Watched-hour ≈ 2.9k calls online status (60-run floor), ~0.7k jobs (12-run) →
+// the live-tracker hours ≈ 250/mo on Free, ~6,900 on Pro (skills left the engine in
+// MIGRATE.B.1 for a Neon on-view read, so it no longer contributes a watcher cost).
+// Calls do NOT scale with
 // characters-per-user — characters multiply ESI reads inside ONE action
 // (action compute + bandwidth scale, calls don't) — and since 3.5.e1 DB I/O
 // no longer scales with the payload re-read on every beat either.
@@ -65,6 +67,7 @@ import {
   computeNextDueAt,
   hasSyncTarget,
   isColdFromPresence,
+  isRegisteredDataset,
   isRunningFresh,
   isStaleForImmediate,
   RETENTION_MS,
@@ -91,8 +94,14 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
   syncDispatch: { kind: 'token bucket', period: MINUTE, rate: 30, capacity: 10 },
 });
 
-// Must enumerate the same datasets as SYNC_DATASETS (src/lib/sync-engine.ts)
-// and the schema's dataset union.
+// Enumerates the STORED dataset literals (the schema's dataset union) — a superset of
+// the active SYNC_DATASETS. It deliberately RETAINS 'skills', 'industryJobs', and
+// 'corpIndustryJobs' as dormant literals: skills moved to Neon in MIGRATE.B.1, personal
+// industry jobs in MIGRATE.B.2, and corp industry jobs in MIGRATE.B.3, but their
+// leftover subject rows persist until the session-D wipe, so a leftover heartbeat / an
+// in-flight run's completion must still validate. No syncRef is registered for them
+// below; the engine retires an orphaned subject instead of dispatching it
+// (isRegisteredDataset).
 const syncDatasetValidator = v.union(
   v.literal('skills'),
   v.literal('industryJobs'),
@@ -100,10 +109,12 @@ const syncDatasetValidator = v.union(
   v.literal('onlineStatus'),
 );
 
+// The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS). Skills,
+// personal industry jobs, and corp industry jobs are absent (their actions were deleted
+// in MIGRATE.B.1/B.2/B.3); a leftover subject for any of them never reaches here because
+// dispatch() retires any unregistered-dataset subject first. The engine now serves a
+// single live consumer — onlineStatus, the canary that keeps it alive (MIGRATE.A).
 const SYNC_REFS = {
-  skills: internal.skillsSync.syncUser,
-  industryJobs: internal.industryJobsSync.syncUser,
-  corpIndustryJobs: internal.corpIndustryJobsSync.syncUser,
   onlineStatus: internal.onlineStatusSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;
 
@@ -215,7 +226,10 @@ export const heartbeat = mutation({
       // retired from the scan set (the cold branch nulled nextDueAt) — re-arm
       // the schedule off the held window so the cadence resumes without
       // waiting for staleness or the sweeper.
-      if (subject.nextDueAt === null) {
+      // isRegisteredDataset narrows subject.dataset for the config lookup; a heartbeat
+      // never arrives for a retired dataset (the client only beats active ones), so the
+      // guard is also a defensive no-op for any leftover dormant subject.
+      if (subject.nextDueAt === null && isRegisteredDataset(subject.dataset)) {
         const { cadenceFloorMs } = SYNC_DATASET_CONFIG[subject.dataset];
         await ctx.db.patch(subject._id, {
           nextDueAt: computeNextDueAt(
@@ -293,6 +307,17 @@ async function dispatch(
   subject: Doc<'syncSubjects'>,
   now: number,
 ): Promise<boolean> {
+  // Orphaned subject for a dataset retired from the active registry (e.g. skills after
+  // MIGRATE.B.1, whose syncRef was deleted): retire it from the scan instead of
+  // dispatching — this is what stops a leftover hot+due row in the post-deploy window
+  // from indexing a missing SYNC_REFS entry and crashing the shared scan. A cold such
+  // row already self-retires in the scan/sweep; this covers the hot+due case. The sweep
+  // deletes it once abandoned. (Narrows subject.dataset to SyncDataset for the lookups
+  // below.)
+  if (!isRegisteredDataset(subject.dataset)) {
+    await ctx.db.patch(subject._id, { nextDueAt: null });
+    return false;
+  }
   const { cadenceFloorMs, tokenGroup } = SYNC_DATASET_CONFIG[subject.dataset];
   const { ok, retryAfter } = await rateLimiter.limit(ctx, 'syncDispatch', { key: tokenGroup });
   if (!ok) {
@@ -330,6 +355,10 @@ export const onSyncComplete = internalMutation({
   handler: async (ctx, { workId, context, result }) => {
     const subject = await getSyncSubject(ctx.db, context.dataset, context.userId);
     if (subject === null || subject.workId !== workId) return;
+    // A completion for a dataset retired from the active registry (e.g. an in-flight
+    // skills run finishing just after MIGRATE.B.1 deploys): nothing to re-arm, and the
+    // scan/dispatch guard retires its leftover subject. (Narrows subject.dataset.)
+    if (!isRegisteredDataset(subject.dataset)) return;
     const now = Date.now();
     const { cadenceFloorMs } = SYNC_DATASET_CONFIG[subject.dataset];
     const failed = result.kind === 'failed';

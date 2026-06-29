@@ -1,11 +1,9 @@
 {
   "clone_groups": [
     "convex/engine.ts:203-210|convex/engine.ts:382-387",
-    "convex/industryJobs.ts:32-39|convex/skills.ts:20-27",
-    "convex/industryJobs.ts:42-70|convex/skills.ts:30-58",
-    "convex/industryJobs.ts:100-113|convex/skills.ts:90-103",
-    "convex/industryJobs.ts:142-209|convex/skills.ts:131-180",
-    "convex/industryJobsSync.ts:43-60|convex/skillsSync.ts:54-71",
+    "src/components/live-character-card.tsx:239-253|src/features/skill-queue/use-skills-live.ts:76-88",
+    "src/db/owned-assets-sync.ts:39-45|src/db/owned-blueprints-sync.ts:39-45|src/db/skills-sync.ts:59-65",
+    "src/db/owned-assets-sync.ts:47-57|src/db/owned-blueprints-sync.ts:47-57|src/db/skills-sync.ts:66-76",
     "src/app/admin/access/[userId]/page.tsx:142-152|src/app/admin/access/page.tsx:195-206",
     "src/app/api/admin/characters/reassign/route.ts:15-20|src/app/api/admin/characters/unlink/route.ts:29-35|src/app/api/admin/role/route.ts:31-36|src/app/api/admin/sessions/revoke/route.ts:14-20",
     "src/app/api/admin/characters/unlink/route.ts:29-39|src/app/api/admin/sessions/revoke/route.ts:14-21",

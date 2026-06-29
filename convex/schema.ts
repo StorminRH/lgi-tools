@@ -56,6 +56,9 @@ export const industryJobValidator = v.object({
 });
 
 export default defineSchema({
+  // DORMANT since MIGRATE.B.1 — skills moved to a Neon stale-gated on-view read; this
+  // table is no longer written (its syncer was removed) but kept declared so existing
+  // rows stay schema-valid until the session-D wipe + declaration removal.
   // One doc per (user, character): the HOT sync metadata for the skill-queue
   // tracker — conditional-request custody plus freshness/error state. The held
   // ETags live HERE (not in the gate's shared cache — that cache is
@@ -87,6 +90,8 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
+  // DORMANT since MIGRATE.B.1 (see characterSync above) — no longer written; kept
+  // declared until the session-D wipe.
   // One doc per (user, character): the COLD skill payload — the heavy half split
   // off characterSync in SA.5 so the payload view (skills.forViewer) re-reads it
   // ONLY on a genuine data change, never on a per-cycle 304/dispatch/completion.
@@ -114,8 +119,12 @@ export default defineSchema({
   // row key, so the trackers' lifecycles stay isolated (the recorded clobber
   // rationale) without duplicating the machinery.
   syncSubjects: defineTable({
-    // Must enumerate the same datasets as SYNC_DATASETS in
-    // src/lib/sync-engine.ts (the engine's registry).
+    // A SUPERSET of the active SYNC_DATASETS in src/lib/sync-engine.ts. It retains
+    // 'skills' (MIGRATE.B.1) and 'industryJobs' (MIGRATE.B.2) as dormant literals after
+    // each moved to Neon, so existing subject rows stay schema-valid until the session-D
+    // wipe — removing a literal while those rows exist would halt the schema push. No
+    // syncer is registered for them; the engine retires an orphaned subject
+    // (isRegisteredDataset).
     dataset: v.union(
       v.literal('skills'),
       v.literal('industryJobs'),
@@ -179,6 +188,8 @@ export default defineSchema({
     // run drains the backlog deterministically.
     .index('by_last_seen', ['lastSeenAt']),
 
+  // DORMANT since MIGRATE.B.2 (like characterSync above) — no longer written; kept
+  // declared until the session-D wipe so leftover rows stay schema-valid.
   // One doc per (user, character): the HOT sync metadata for the industry-jobs
   // tracker — the characterSync twin for tracker #2 (3.4.8). One ESI endpoint, so
   // one held ETag. Same custody rules: etag only ever stored beside the payload
@@ -199,11 +210,14 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
+  // DORMANT since MIGRATE.B.2 (like characterSyncData above) — no longer written; kept
+  // declared until the session-D wipe.
   // One doc per (user, character): the COLD industry-jobs payload — the heavy
-  // half split off industryJobsSync in SA.5 (the characterSyncData twin). Written
-  // only on a fresh body (a 304 leaves it untouched) and patched in place by the
-  // markJobReady completion flip; exists iff the character has synced its board at
-  // least once. Regenerable.
+  // half split off industryJobsSync in SA.5 (the characterSyncData twin). While live it
+  // was written only on a fresh body (a 304 left it untouched) and patched in place by
+  // the markJobReady completion flip (removed in B.2 — the Neon read now stores raw ESI
+  // status and the client derives "ready" from each job's absolute end_date). Existed iff
+  // the character had synced its board at least once. Regenerable.
   industryJobsSyncData: defineTable({
     userId: v.string(),
     characterId: v.number(),
@@ -212,6 +226,10 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
+  // DORMANT since MIGRATE.B.3 (like characterSync / industryJobsSync above) — corp
+  // jobs moved to a Neon stale-gated on-view read; no longer written (its syncer +
+  // markJobReady were removed) but kept declared until the session-D wipe so leftover
+  // rows stay schema-valid.
   // One doc per (user, corporation): the HOT sync metadata for the CORP
   // industry-jobs tracker — the industryJobsSync twin keyed by corp instead of
   // character (3.7.3.1, the first corp feature). A corp board is per-corp, fanned
@@ -240,11 +258,15 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_user_corp', ['userId', 'corporationId']),
 
+  // DORMANT since MIGRATE.B.3 (like characterSyncData / industryJobsSyncData above) —
+  // no longer written; kept declared until the session-D wipe.
   // One doc per (user, corporation): the COLD corp industry-jobs payload — the
   // heavy half split off corpIndustryJobsSync in SA.5 (the industryJobsSyncData
-  // twin). Written only on a fresh body (a 304 or a needs_role result leaves it
-  // untouched) and patched in place by the markJobReady completion flip; exists
-  // iff the corp board has synced at least once. Regenerable.
+  // twin). While live it was written only on a fresh body (a 304 or a needs_role
+  // result left it untouched) and patched in place by the markJobReady completion flip
+  // (removed in B.3 — the Neon read now stores raw ESI status and the client derives
+  // "ready" from each job's absolute end_date); existed iff the corp board had synced at
+  // least once. Regenerable.
   corpIndustryJobsSyncData: defineTable({
     userId: v.string(),
     corporationId: v.number(),

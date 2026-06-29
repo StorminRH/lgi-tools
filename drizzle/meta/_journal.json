@@ -218,6 +218,27 @@
       "when": 1782671315560,
       "tag": "0030_cloudy_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1782691638104,
+      "tag": "0031_tiresome_wild_child",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1782698058232,
+      "tag": "0032_high_the_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782702633754,
+      "tag": "0033_rich_warbound",
+      "breakpoints": true
     }
   ]
 }
