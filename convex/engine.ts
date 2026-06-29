@@ -249,9 +249,9 @@ export const scan = internalMutation({
     // and can be re-selected, but it ages out of isRunningFresh within
     // STALE_RUNNING_MS and is then taken over (nextDueAt advances), so it can't
     // hold a batch slot indefinitely; worst-case added drain latency behind a
-    // running-fresh cluster is bounded by STALE_RUNNING_MS. (Only skills can be
-    // overdue-and-running-fresh: jobs/corp cadence 300s > the 180s stale
-    // threshold, so they're never fresh by the time they re-come-due.)
+    // running-fresh cluster is bounded by STALE_RUNNING_MS. (onlineStatus's 60s
+    // cadence is below the 180s stale threshold, so a still-running subject can
+    // re-come-due before it ages out — exactly this re-select-then-take-over case.)
     const due = await dueSubjects(ctx, now);
     for (const subject of due) {
       // Presence is its own doc now (3.5.e1) — one point read per due row,
