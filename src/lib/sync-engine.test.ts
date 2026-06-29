@@ -7,6 +7,7 @@ import {
   hasSyncTarget,
   isCold,
   isColdFromPresence,
+  isRegisteredDataset,
   isRunningFresh,
   isStaleForImmediate,
   minCacheWindow,
@@ -24,10 +25,6 @@ describe('dataset registration data', () => {
   // edit can't silently poll faster than a dataset's cache or bill the
   // wrong bucket.
   it('pins the live-read cadence floors and token groups', () => {
-    expect(SYNC_DATASET_CONFIG.skills).toEqual({
-      cadenceFloorMs: 60_000,
-      tokenGroup: 'char-detail',
-    });
     expect(SYNC_DATASET_CONFIG.industryJobs).toEqual({
       cadenceFloorMs: 300_000,
       tokenGroup: 'char-industry',
@@ -40,6 +37,20 @@ describe('dataset registration data', () => {
       cadenceFloorMs: 60_000,
       tokenGroup: 'char-online',
     });
+  });
+});
+
+describe('isRegisteredDataset', () => {
+  // Skills left the engine in MIGRATE.B.1 but keeps a dormant schema literal, so a
+  // leftover subject row can still carry dataset:'skills'. The predicate is how the
+  // engine tells an active dataset (dispatch) from a retired one (retire) — see the
+  // engine's dispatch guard.
+  it('accepts the active datasets and rejects a retired one', () => {
+    expect(isRegisteredDataset('industryJobs')).toBe(true);
+    expect(isRegisteredDataset('corpIndustryJobs')).toBe(true);
+    expect(isRegisteredDataset('onlineStatus')).toBe(true);
+    expect(isRegisteredDataset('skills')).toBe(false);
+    expect(isRegisteredDataset('nonsense')).toBe(false);
   });
 });
 

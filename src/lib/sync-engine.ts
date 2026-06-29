@@ -14,18 +14,29 @@
 // The datasets registered with the engine — one entry per live tracker.
 // Adding a future consumer is a config change here plus a syncRef in
 // convex/engine.ts, not new machinery.
-export const SYNC_DATASETS = [
-  'skills',
-  'industryJobs',
-  'corpIndustryJobs',
-  'onlineStatus',
-] as const;
+//
+// Skills was here through 3.7.x but MOVED to a Neon stale-gated on-view read in
+// MIGRATE.B.1 (skills/skillqueue cache 120s and the queue's progress is derived
+// client-side, so they're slow per-character data, not live). It is intentionally
+// absent here — no syncer is registered — while its schema literal + any leftover
+// subject rows stay dormant until the session-D wipe. The scan retires an orphaned
+// subject for an unregistered dataset rather than dispatching it (isRegisteredDataset).
+export const SYNC_DATASETS = ['industryJobs', 'corpIndustryJobs', 'onlineStatus'] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
+
+// True iff a stored dataset still has a registered syncer on the engine. A dataset
+// retired from SYNC_DATASETS (e.g. skills after MIGRATE.B.1) keeps its schema literal
+// and any leftover subject rows until the session-D wipe, but no longer dispatches —
+// the engine retires such an orphaned subject instead, so a leftover hot+due row can
+// never reach a deleted syncRef and crash the shared scan.
+export function isRegisteredDataset(dataset: string): dataset is SyncDataset {
+  return (SYNC_DATASETS as readonly string[]).includes(dataset);
+}
 
 // Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:
 // the real schedule comes off each run's stored ESI Expires (minExpiresAt),
 // and the floor only guards against polling faster than the dataset's cache
-// (60s skills / ~300s jobs, both read live).
+// (~300s jobs / 60s online, both read live).
 // tokenGroup names the ESI token bucket the dataset bills (per-character
 // buckets, group-keyed) — the engine's rate limiter smooths dispatch per
 // group so a re-arm herd can't burst one group's spend.
@@ -33,7 +44,6 @@ export const SYNC_DATASET_CONFIG: Record<
   SyncDataset,
   { cadenceFloorMs: number; tokenGroup: string }
 > = {
-  skills: { cadenceFloorMs: 60_000, tokenGroup: 'char-detail' },
   industryJobs: { cadenceFloorMs: 300_000, tokenGroup: 'char-industry' },
   // Corp industry jobs share the 300s ESI cache floor with character jobs, but
   // bill a DISTINCT ESI token bucket (the corp endpoint is a different route

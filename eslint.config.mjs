@@ -238,6 +238,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Gitignored working docs (SCRATCHPAD, plan/audit artifacts) — not source.
     "docs/**",
+    // Gitignored local-only Claude Code state, incl. harness worktrees under
+    // .claude/worktrees/** (a full repo copy whose prefixed paths bypass the
+    // per-file exemptions below — e.g. tones.ts, the dev/preview sandboxes).
+    ".claude/**",
     // Convex generated code (committed for CI typecheck, regenerated on deploy).
     "convex/_generated/**",
   ]),

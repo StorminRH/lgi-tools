@@ -1,36 +1,32 @@
 'use client';
 
-// The skill-queue island (3.4.7). Receives the signed-in pilot's linked
-// characters as server props (names, portraits, scope health — Neon truth at
-// render time) and joins them with the live Convex projection: useQuery
-// streams every sync write over the websocket, so a queue updates with no
-// reload and no client polling. Liveness comes from the presence-gated
-// engine (3.4.9): the visibility-gated heartbeat keeps this subject hot
-// while the tab is watched, and the engine refreshes it on the dataset's
-// cadence — the ids it sends are a freshness hint only, never authority. The
-// session gate and the whole live panel (sync hook, status line, per-character
-// card shell) are shared with the industry-jobs panel
-// (src/components/live-character-card); this slice supplies only its row,
-// summary, and id-extraction.
-import { useQuery } from 'convex/react';
-import type { FunctionReturnType } from 'convex/server';
+// The skill-queue island. Receives the signed-in pilot's linked characters as server
+// props (names, portraits, scope health — Neon truth at render time) and fetches each
+// one's trained totals + training queue from /api/account/skills on view (MIGRATE.B.1
+// — the queue moved off the live Convex engine onto a Neon stale-gated on-view read).
+// The queue's live progress and completion are derived CLIENT-SIDE from each entry's
+// absolute finish_date (progress.ts) against a 30s render clock, so a finishing skill
+// flips to done with no reload and no polling; the on-view fetch reconciles only the
+// queue's shape. The per-character card shell (portrait header, reconnect/as-of
+// callouts, null/empty/rows tristate) is the shared LiveCharacterCard; this slice
+// supplies the row + summary.
 import type { ReactNode } from 'react';
 import {
   type CharacterCardContent,
-  LiveCharacterPanel,
-  type LiveCharacterRow,
-  LiveSessionGate,
+  LiveCharacterCard,
   type PanelCharacter,
-  useCharacterMerge,
 } from '@/components/live-character-card';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { api } from '@/data/convex/api';
 import { formatQuantity } from '@/lib/format/number';
 import { formatRemaining } from '@/lib/format/time';
 import type { SkillQueueEntry } from '../esi-projection';
 import { entryProgress, romanLevel, summarizeQueue } from '../progress';
 import { STATUS_META } from '../skill-queue-styles';
+import type { CharacterSkillData } from '../types';
+import { useSkillsLive } from '../use-skills-live';
 
 export function SkillQueuePanel({
   characters,
@@ -43,41 +39,33 @@ export function SkillQueuePanel({
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
 }) {
-  return (
-    <LiveSessionGate
-      characters={characters}
-      emptyText={
-        <>
+  if (characters.length === 0) {
+    return (
+      <Card>
+        <EmptyState>
           No characters linked to this account —{' '}
           <a href="/characters" className="underline text-name">
             link one on the Characters page
           </a>{' '}
           to see live skill queues.
-        </>
-      }
-    >
-      <LiveQueues
-        characters={characters}
-        reconnectAction={reconnectAction}
-        reconnectReason={reconnectReason}
-      />
-    </LiveSessionGate>
+        </EmptyState>
+      </Card>
+    );
+  }
+  return (
+    <LiveQueues
+      characters={characters}
+      reconnectAction={reconnectAction}
+      reconnectReason={reconnectReason}
+    />
   );
 }
 
-type SkillData = NonNullable<
-  FunctionReturnType<typeof api.skills.forViewer>
->['characters'][number]['data'];
-type LiveCharacter = LiveCharacterRow<SkillData>;
-
-// The one per-feature seam of useLiveCharacterSync: which type ids to resolve
-// to names. Module-stable so it can sit in the hook's dependency list.
-function skillTypeIds(characters: LiveCharacter[]): number[] {
-  const ids: number[] = [];
-  for (const character of characters) {
-    for (const entry of character.data?.entries ?? []) ids.push(entry.skill_id);
-  }
-  return ids;
+// The live half of one row: the cached payload + its "as of" stamp. renderQueueCard
+// reads only `data`; lastSyncedAt feeds the card's as-of header.
+interface SkillsLiveRow {
+  data: CharacterSkillData | null;
+  lastSyncedAt: number | null;
 }
 
 function LiveQueues({
@@ -89,31 +77,54 @@ function LiveQueues({
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
 }) {
-  const cold = useQuery(api.skills.forViewer);
-  const hot = useQuery(api.skills.runStateForViewer);
-  const live = useCharacterMerge(cold, hot);
+  const eligibleIds = characters
+    .filter((character) => !character.needsReconnect)
+    .map((character) => character.characterId);
+  const { skillsByCharacter, names, now, loading } = useSkillsLive(eligibleIds);
+
   return (
-    <LiveCharacterPanel
-      live={live}
-      characters={characters}
-      dataset="skills"
-      extractTypeIds={skillTypeIds}
-      liveLabel="Live · updates as syncs land"
-      sectionLabel="Skill queue"
-      scopePhrase="the skill scopes"
-      noun="queue"
-      emptyRowsText="No skills in the training queue."
-      reconnectAction={reconnectAction}
-      reconnectReason={reconnectReason}
-      renderCard={renderQueueCard}
-    />
+    <div className="w-full max-w-[760px] flex flex-col gap-6">
+      <div className="flex items-center">
+        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
+          {loading ? 'Loading…' : 'Synced from ESI on view'}
+        </span>
+      </div>
+
+      {characters.map((character) => {
+        const live = skillsByCharacter.get(character.characterId);
+        const row: SkillsLiveRow | undefined =
+          live !== undefined ? { data: live.data, lastSyncedAt: live.lastRefreshedAt } : undefined;
+        const { isEmpty, subtitle, headerRight, rows } = renderQueueCard(row, names, now);
+        return (
+          <LiveCharacterCard
+            key={character.characterId}
+            character={character}
+            syncError={null}
+            lastSyncedAt={row?.lastSyncedAt}
+            hasData={(row?.data ?? null) !== null}
+            isEmpty={isEmpty}
+            syncing={false}
+            sectionLabel="Skill queue"
+            scopePhrase="the skill scopes"
+            noun="queue"
+            subtitle={subtitle}
+            headerRight={headerRight}
+            emptyRowsText="No skills in the training queue."
+            reconnectAction={reconnectAction}
+            reconnectReason={reconnectReason}
+          >
+            {rows}
+          </LiveCharacterCard>
+        );
+      })}
+    </div>
   );
 }
 
-// One character's queue-card content: the SP subtitle, the "queue ends in" /
-// paused header slot, and the per-entry rows. The panel owns the card shell.
+// One character's queue-card content: the SP subtitle, the "queue ends in" / paused
+// header slot, and the per-entry rows. The panel owns the card shell.
 function renderQueueCard(
-  live: LiveCharacter | undefined,
+  live: SkillsLiveRow | undefined,
   names: Record<string, string>,
   now: number,
 ): CharacterCardContent {
@@ -179,9 +190,7 @@ function QueueEntryRow({
           <span className="text-muted">{romanLevel(entry.finished_level)}</span>
         </span>
         <span className="text-[10px] text-muted shrink-0">
-          {progress.status === 'training' && finish !== null
-            ? formatRemaining(finish - now)
-            : ''}
+          {progress.status === 'training' && finish !== null ? formatRemaining(finish - now) : ''}
         </span>
         <Pill tone={meta.tone}>{meta.label}</Pill>
       </div>

@@ -2,47 +2,23 @@
 
 // The home page's logged-in left slot (P3b): the pilot's character roster with a
 // live skill-queue preview per character, plus an Add Character control. The live
-// data is the existing presence-gated skills sync (api.skills.forViewer) joined
-// with the linked-character list (names/portraits, fetched from the account
-// endpoint) — no new sync subject, no forked fetch. Mirrors the SkillQueuePanel
-// container/presentational split and reuses its shared live primitives. A `demo`
-// prop seeds the presentational cards directly for the dev/preview ?demo review,
-// bypassing auth + Convex entirely. This is the `shared` zone, the only layer
-// permitted to compose features + data + ui + lib.
-import { useQuery } from 'convex/react';
-import type { FunctionReturnType } from 'convex/server';
+// data is the per-character skills read from /api/account/skills (MIGRATE.B.1 — the
+// queue moved off the live Convex engine onto a Neon stale-gated on-view read),
+// joined with the linked-character list (names/portraits, fetched from the account
+// endpoint). The current-training line counts down client-side from the active
+// entry's absolute finish_date (progress.ts) against a 30s clock — no reload, no
+// polling. A `demo` prop seeds the presentational cards directly for the dev/preview
+// ?demo review, bypassing auth + the fetch entirely. This is the `shared` zone, the
+// only layer permitted to compose features + data + ui + lib.
 import { type ReactNode, useEffect, useState } from 'react';
-import {
-  type LiveCharacterRow,
-  LiveSessionGate,
-  type PanelCharacter,
-  useCharacterMerge,
-  useLiveCharacterSync,
-} from '@/components/live-character-card';
+import type { PanelCharacter } from '@/components/live-character-card';
 import { SectionLabel } from '@/components/ui/section-label';
-import { api } from '@/data/convex/api';
 import { accountCharactersEndpoint } from '@/features/auth/api-contract';
 import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
 import { RosterCard } from '@/features/skill-queue/components/RosterCard';
 import { buildRosterCard, type RosterViewModel } from '@/features/skill-queue/roster-view-model';
+import { useSkillsLive } from '@/features/skill-queue/use-skills-live';
 import { apiFetch } from '@/lib/api-client';
-
-type SkillData = NonNullable<
-  FunctionReturnType<typeof api.skills.forViewer>
->['characters'][number]['data'];
-type LiveCharacter = LiveCharacterRow<SkillData>;
-
-// Resolve names for every queued skill (the shared cap is applied by the hook).
-// The displayed skill can sit at any position when ESI hasn't advanced a finished
-// head, so resolving the whole queue keeps the current-skill name correct.
-// Module-stable for the hook's dependency list.
-function queueSkillIds(characters: LiveCharacter[]): number[] {
-  const ids: number[] = [];
-  for (const character of characters) {
-    for (const entry of character.data?.entries ?? []) ids.push(entry.skill_id);
-  }
-  return ids;
-}
 
 export function HomeRosterPanel({ demo }: { demo?: RosterViewModel[] }) {
   return (
@@ -91,10 +67,10 @@ function LiveRoster() {
   );
   useEffect(() => {
     let cancelled = false;
-    void apiFetch(accountCharactersEndpoint)
+    void apiFetchCharacters()
       .then((result) => {
         if (cancelled) return;
-        setState(result.ok ? { characters: result.data.characters } : 'error');
+        setState(result);
       })
       .catch(() => {
         if (!cancelled) setState('error');
@@ -114,29 +90,37 @@ function LiveRoster() {
       </p>
     );
   }
-  return (
-    <LiveSessionGate
-      characters={state.characters}
-      emptyText={<>No characters linked yet — add one below to see its skill queue here.</>}
-    >
-      <LiveRosterCards characters={state.characters} />
-    </LiveSessionGate>
-  );
+  if (state.characters.length === 0) {
+    return (
+      <p className="text-[11px] text-muted">
+        No characters linked yet — add one below to see its skill queue here.
+      </p>
+    );
+  }
+  return <LiveRosterCards characters={state.characters} />;
+}
+
+async function apiFetchCharacters(): Promise<{ characters: PanelCharacter[] } | 'error'> {
+  const result = await apiFetch(accountCharactersEndpoint);
+  return result.ok ? { characters: result.data.characters } : 'error';
 }
 
 function LiveRosterCards({ characters }: { characters: PanelCharacter[] }) {
-  const cold = useQuery(api.skills.forViewer);
-  const hot = useQuery(api.skills.runStateForViewer);
-  const live = useCharacterMerge(cold, hot);
-  const { liveByCharacter, names, now } = useLiveCharacterSync({
-    live,
-    dataset: 'skills',
-    characterIds: characters.map((c) => c.characterId),
-    extractTypeIds: queueSkillIds,
+  const eligibleIds = characters
+    .filter((character) => !character.needsReconnect)
+    .map((character) => character.characterId);
+  const { skillsByCharacter, names, now } = useSkillsLive(eligibleIds);
+  const items = characters.map((character) => {
+    const live = skillsByCharacter.get(character.characterId);
+    return buildRosterCard(
+      character,
+      live !== undefined
+        ? { data: live.data, lastSyncedAt: live.lastRefreshedAt, syncError: null }
+        : undefined,
+      names,
+      now,
+    );
   });
-  const items = characters.map((character) =>
-    buildRosterCard(character, liveByCharacter.get(character.characterId), names, now),
-  );
   return (
     <RosterList
       items={items}

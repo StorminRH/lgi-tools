@@ -23,8 +23,6 @@ import type * as lib_subjects from "../lib/subjects.js";
 import type * as onlineStatus from "../onlineStatus.js";
 import type * as onlineStatusSync from "../onlineStatusSync.js";
 import type * as purge from "../purge.js";
-import type * as skills from "../skills.js";
-import type * as skillsSync from "../skillsSync.js";
 
 import type {
   ApiFromModules,
@@ -48,8 +46,6 @@ declare const fullApi: ApiFromModules<{
   onlineStatus: typeof onlineStatus;
   onlineStatusSync: typeof onlineStatusSync;
   purge: typeof purge;
-  skills: typeof skills;
-  skillsSync: typeof skillsSync;
 }>;
 
 /**

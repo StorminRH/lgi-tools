@@ -56,6 +56,9 @@ export const industryJobValidator = v.object({
 });
 
 export default defineSchema({
+  // DORMANT since MIGRATE.B.1 — skills moved to a Neon stale-gated on-view read; this
+  // table is no longer written (its syncer was removed) but kept declared so existing
+  // rows stay schema-valid until the session-D wipe + declaration removal.
   // One doc per (user, character): the HOT sync metadata for the skill-queue
   // tracker — conditional-request custody plus freshness/error state. The held
   // ETags live HERE (not in the gate's shared cache — that cache is
@@ -87,6 +90,8 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
+  // DORMANT since MIGRATE.B.1 (see characterSync above) — no longer written; kept
+  // declared until the session-D wipe.
   // One doc per (user, character): the COLD skill payload — the heavy half split
   // off characterSync in SA.5 so the payload view (skills.forViewer) re-reads it
   // ONLY on a genuine data change, never on a per-cycle 304/dispatch/completion.
@@ -114,8 +119,11 @@ export default defineSchema({
   // row key, so the trackers' lifecycles stay isolated (the recorded clobber
   // rationale) without duplicating the machinery.
   syncSubjects: defineTable({
-    // Must enumerate the same datasets as SYNC_DATASETS in
-    // src/lib/sync-engine.ts (the engine's registry).
+    // A SUPERSET of the active SYNC_DATASETS in src/lib/sync-engine.ts. It retains
+    // 'skills' as a dormant literal after MIGRATE.B.1 (skills moved to Neon) so existing
+    // skills subject rows stay schema-valid until the session-D wipe — removing the
+    // literal while those rows exist would halt the schema push. No syncer is registered
+    // for it; the engine retires an orphaned skills subject (isRegisteredDataset).
     dataset: v.union(
       v.literal('skills'),
       v.literal('industryJobs'),

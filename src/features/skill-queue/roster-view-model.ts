@@ -1,14 +1,14 @@
-// The view model the home roster card renders for one character — Neon truth
-// (name/portrait/reconnect) joined with the live Convex skill projection (totals
-// + the current-training derivation). Pure, so the card is branch-on-kind only
-// and the ?demo path can seed it directly without Convex or auth.
+// The view model the home roster card renders for one character — the linked-character
+// truth (name/portrait/reconnect) joined with the Neon skills read (totals + the
+// current-training derivation). Pure, so the card is branch-on-kind only and the ?demo
+// path can seed it directly without a fetch or auth.
 import type { PanelCharacter } from '@/components/live-character-card';
 import { formatRemaining } from '@/lib/format/time';
 import type { SkillQueueEntry } from './esi-projection';
 import { currentTraining, type CurrentTraining } from './progress';
 
-// The live half of one row, as api.skills.forViewer returns it per character
-// (the extra characterId on the wire is ignored here).
+// The live half of one row, as the Neon skills read returns it per character (the
+// extra characterId on the wire is ignored here).
 export interface RosterLiveData {
   data: { entries: SkillQueueEntry[]; totalSp: number; unallocatedSp?: number } | null;
   lastSyncedAt: number | null;
