@@ -3,10 +3,7 @@
 // its refreshXForUser(port, userId). See types.ts for the seam.
 export { runOwnerSync } from './engine';
 export { planRead } from './plan';
-export type {
-  CorpOwnerAxis,
-  EnumeratedOwner,
-  OwnerAxis,
-  OwnerSyncDescriptor,
-  PersistVerdict,
-} from './types';
+// The slices consume only the descriptor type from the barrel; the component types
+// (OwnerAxis, CorpOwnerAxis, EnumeratedOwner, PersistVerdict) stay in ./types for the
+// engine's own use — re-export them here when a consumer actually needs them.
+export type { OwnerSyncDescriptor } from './types';

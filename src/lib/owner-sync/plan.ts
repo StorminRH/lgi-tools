@@ -21,5 +21,7 @@ export function planRead<TRead extends ReadResult, TSave extends object>(
   if (read.kind === 'error') return mapError?.(read.code) ?? { kind: 'skip' };
   const payload = onFresh(read as Extract<TRead, { kind: 'fresh' }>);
   if (payload === null) return { kind: 'skip' };
-  return { kind: 'save', ...payload };
+  // kind LAST so a payload that happens to carry its own `kind` can't clobber the
+  // 'save' discriminant (no current slice does, but the engine is a reused primitive).
+  return { ...payload, kind: 'save' };
 }
