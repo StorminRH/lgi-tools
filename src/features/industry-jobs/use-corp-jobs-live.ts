@@ -43,6 +43,17 @@ export function useCorpJobsLive(eligibleCharacterIds: number[]): {
   // The reconcile fires once when the user CAN read corp jobs (has eligible characters)
   // but no corp rows have landed yet — the cold first view. A change in eligibility
   // re-arms it.
+  //
+  // NOTE — deliberately NARROWER than use-jobs-live's per-character reconcile: it keys
+  // cold on `corporations.length === 0` (no corp written yet), not on a per-corp cold
+  // signal. The personal hook can do per-character (`anyEligibleCold`) because the
+  // client holds the eligible CHARACTER ids; here the client holds character ids but the
+  // corp set is resolved server-side from affiliations, so it can't tell "an eligible
+  // corp is missing from the response." Consequence: a user who already has one synced
+  // corp and joins a SECOND mid-session won't reconcile — the new corp surfaces on the
+  // next page view (the on-view write-behind still writes its row this view; only the
+  // immediate re-fetch is skipped). Acceptable: corp membership changes rarely, and the
+  // data is never wrong, only one view late.
   const hasEligible = eligibleCharacterIds.length > 0;
 
   useEffect(() => {
@@ -55,7 +66,7 @@ export function useCorpJobsLive(eligibleCharacterIds: number[]): {
       if (cancelled || !result.ok) return;
       setResponse(result.data);
       // Eligible but no corps yet → the write-behind is still populating Neon; re-fetch
-      // ONCE to surface it.
+      // ONCE to surface it (the cold-first-view case; see the NOTE above on its scope).
       if (!reconciled && hasEligible && result.data.corporations.length === 0) {
         reconciled = true;
         timer = setTimeout(() => void load(), RECONCILE_DELAY_MS);

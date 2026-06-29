@@ -107,6 +107,13 @@ async function refreshCorp(
 // that can't be vended or whose roles can't be read contributes no candidate; no
 // candidates at all → 'unavailable' (transient), candidates but no role-holder →
 // 'needs_role', a role-holder → its token.
+//
+// Deliberately fans out to ALL members rather than short-circuiting on the first
+// role-holder (mirrors the owned-blueprints/assets corp-director resolver): `Promise.all`
+// keeps wall-clock to one round-trip instead of N sequential probes, the cost is bounded
+// by the per-corp staleness gate above (this runs at most once per 300s window), and ESI
+// budget is per-character (no shared wall). For typical 1–3 members per corp the extra
+// vends/role-reads are negligible — the latency win outweighs them.
 async function resolveCorpDirectorToken(
   port: CorpJobsPort,
   _corporationId: number,
