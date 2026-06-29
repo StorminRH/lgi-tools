@@ -13,12 +13,10 @@ import type * as engine from "../engine.js";
 import type * as http from "../http.js";
 import type * as lib_bearerAuth from "../lib/bearerAuth.js";
 import type * as lib_characterSync from "../lib/characterSync.js";
-import type * as lib_corpSync from "../lib/corpSync.js";
 import type * as lib_esiRead from "../lib/esiRead.js";
 import type * as lib_subjects from "../lib/subjects.js";
 import type * as onlineStatus from "../onlineStatus.js";
 import type * as onlineStatusSync from "../onlineStatusSync.js";
-import type * as purge from "../purge.js";
 
 import type {
   ApiFromModules,
@@ -32,12 +30,10 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/bearerAuth": typeof lib_bearerAuth;
   "lib/characterSync": typeof lib_characterSync;
-  "lib/corpSync": typeof lib_corpSync;
   "lib/esiRead": typeof lib_esiRead;
   "lib/subjects": typeof lib_subjects;
   onlineStatus: typeof onlineStatus;
   onlineStatusSync: typeof onlineStatusSync;
-  purge: typeof purge;
 }>;
 
 /**

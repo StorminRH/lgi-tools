@@ -11,31 +11,21 @@
 // below. Tying heartbeat frequency to a dataset's refresh rate would blind
 // cold-detection for that dataset's whole cadence.
 
-// The datasets registered with the engine — one entry per live tracker.
+// The datasets registered with the engine — one entry per live consumer.
 // Adding a future consumer is a config change here plus a syncRef in
 // convex/engine.ts, not new machinery.
 //
-// Skills was here through 3.7.x but MOVED to a Neon stale-gated on-view read in
-// MIGRATE.B.1, personal industry jobs followed in MIGRATE.B.2, and corp industry jobs in
-// MIGRATE.B.3 (all 300s cache, and a job's "ready" is derived client-side from its
-// absolute end_date — slow per-owner data, not live; the markReady schedulers are gone).
-// All three are intentionally absent here — no syncer is registered — while their schema
-// literals + any leftover subject rows stay dormant until the session-D wipe. The engine
-// now serves a SINGLE live consumer: onlineStatus, the canary (MIGRATE.A). The scan
-// retires an orphaned subject for an unregistered dataset rather than dispatching it
-// (isRegisteredDataset).
+// The engine serves a SINGLE live consumer: onlineStatus, the ≤2-min canary
+// (MIGRATE.A) that keeps it exercised + proven for the v4.0 mapper. The three
+// slow trackers (skills, personal + corp industry jobs) MOVED to Neon
+// stale-gated on-view reads in MIGRATE.B (all 300s/120s cache, "ready" derived
+// client-side from each job's absolute end_date — slow per-owner data, not
+// live); MIGRATE.D.1 wiped their dormant schema literals + subject rows. See
+// docs/CONVEX.md for the ≤2-min placement rule and the orphan-guard pattern
+// (the dataset-union-as-superset-of-the-registry technique a future retirement
+// re-instantiates).
 export const SYNC_DATASETS = ['onlineStatus'] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
-
-// True iff a stored dataset still has a registered syncer on the engine. A dataset
-// retired from SYNC_DATASETS (skills after MIGRATE.B.1, personal industryJobs after
-// MIGRATE.B.2, corpIndustryJobs after MIGRATE.B.3) keeps its schema literal and any
-// leftover subject rows until the session-D wipe, but no longer dispatches — the engine
-// retires such an orphaned subject instead, so a leftover hot+due row can never reach a
-// deleted syncRef and crash the shared scan.
-export function isRegisteredDataset(dataset: string): dataset is SyncDataset {
-  return (SYNC_DATASETS as readonly string[]).includes(dataset);
-}
 
 // Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:
 // the real schedule comes off each run's stored ESI Expires (minExpiresAt),
