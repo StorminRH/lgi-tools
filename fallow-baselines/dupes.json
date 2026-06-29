@@ -2,8 +2,6 @@
   "clone_groups": [
     "convex/engine.ts:203-210|convex/engine.ts:382-387",
     "src/components/live-character-card.tsx:239-253|src/features/skill-queue/use-skills-live.ts:76-88",
-    "src/db/owned-assets-sync.ts:39-45|src/db/owned-blueprints-sync.ts:39-45|src/db/skills-sync.ts:59-65",
-    "src/db/owned-assets-sync.ts:47-57|src/db/owned-blueprints-sync.ts:47-57|src/db/skills-sync.ts:66-76",
     "src/app/admin/access/[userId]/page.tsx:142-152|src/app/admin/access/page.tsx:195-206",
     "src/app/api/admin/characters/reassign/route.ts:15-20|src/app/api/admin/characters/unlink/route.ts:29-35|src/app/api/admin/role/route.ts:31-36|src/app/api/admin/sessions/revoke/route.ts:14-20",
     "src/app/api/admin/characters/unlink/route.ts:29-39|src/app/api/admin/sessions/revoke/route.ts:14-21",
@@ -31,9 +29,9 @@
     "src/db/ingest-sde.ts:21-30|src/db/refresh-prices.ts:97-106|src/db/refresh-sde.ts:76-85",
     "src/features/industry-planner/recent-blueprints.ts:47-54|src/features/search-recents/storage.ts:98-107",
     "src/features/wormhole-sites/queries.ts:268-288|src/features/wormhole-sites/queries.ts:418-441",
-    "convex/lib/esiRead.ts:70-87|src/lib/esi/authed-read.ts:60-77",
-    "convex/lib/esiRead.ts:93-142|src/lib/esi/authed-read.ts:81-120",
-    "convex/lib/esiRead.ts:145-182|src/lib/esi/authed-read.ts:123-158",
-    "convex/lib/esiRead.ts:184-188|src/lib/esi/authed-read.ts:153-157"
+    "src/db/industry-jobs-sync.ts:71-79|src/db/skills-sync.ts:73-81",
+    "src/features/industry-jobs/refresh.ts:44-50|src/features/skill-queue/refresh.ts:59-65",
+    "src/features/owned-assets/refresh.ts:33-37|src/features/owned-blueprints/refresh.ts:35-39",
+    "src/features/owned-assets/refresh.ts:46-50|src/features/owned-blueprints/refresh.ts:48-52"
   ]
 }
