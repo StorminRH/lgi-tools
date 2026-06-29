@@ -24,11 +24,9 @@ describe('dataset registration data', () => {
   // and the groups are the live-observed token buckets — pinned so a future
   // edit can't silently poll faster than a dataset's cache or bill the
   // wrong bucket.
-  it('pins the live-read cadence floors and token groups', () => {
-    expect(SYNC_DATASET_CONFIG.corpIndustryJobs).toEqual({
-      cadenceFloorMs: 300_000,
-      tokenGroup: 'corp-industry',
-    });
+  it('pins the live-read cadence floor and token group', () => {
+    // After MIGRATE.B.3 the engine serves a SINGLE live consumer — onlineStatus, the
+    // canary. The skills / personal-jobs / corp-jobs floors left with their syncers.
     expect(SYNC_DATASET_CONFIG.onlineStatus).toEqual({
       cadenceFloorMs: 60_000,
       tokenGroup: 'char-online',
@@ -37,13 +35,14 @@ describe('dataset registration data', () => {
 });
 
 describe('isRegisteredDataset', () => {
-  // Skills (MIGRATE.B.1) and personal industry jobs (MIGRATE.B.2) left the engine but keep
-  // dormant schema literals, so a leftover subject row can still carry dataset:'skills' or
-  // dataset:'industryJobs'. The predicate is how the engine tells an active dataset
-  // (dispatch) from a retired one (retire) — see the engine's dispatch guard.
-  it('accepts the active datasets and rejects the retired ones', () => {
-    expect(isRegisteredDataset('corpIndustryJobs')).toBe(true);
+  // Skills (MIGRATE.B.1), personal industry jobs (MIGRATE.B.2), and corp industry jobs
+  // (MIGRATE.B.3) left the engine but keep dormant schema literals, so a leftover subject
+  // row can still carry dataset:'skills', 'industryJobs', or 'corpIndustryJobs'. The
+  // predicate is how the engine tells the active dataset (dispatch) from a retired one
+  // (retire) — see the engine's dispatch guard.
+  it('accepts the active dataset and rejects the retired ones', () => {
     expect(isRegisteredDataset('onlineStatus')).toBe(true);
+    expect(isRegisteredDataset('corpIndustryJobs')).toBe(false);
     expect(isRegisteredDataset('industryJobs')).toBe(false);
     expect(isRegisteredDataset('skills')).toBe(false);
     expect(isRegisteredDataset('nonsense')).toBe(false);

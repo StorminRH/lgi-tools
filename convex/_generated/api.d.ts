@@ -8,8 +8,6 @@
  * @module
  */
 
-import type * as corpIndustryJobs from "../corpIndustryJobs.js";
-import type * as corpIndustryJobsSync from "../corpIndustryJobsSync.js";
 import type * as crons from "../crons.js";
 import type * as engine from "../engine.js";
 import type * as http from "../http.js";
@@ -29,8 +27,6 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  corpIndustryJobs: typeof corpIndustryJobs;
-  corpIndustryJobsSync: typeof corpIndustryJobsSync;
   crons: typeof crons;
   engine: typeof engine;
   http: typeof http;

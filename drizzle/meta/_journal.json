@@ -232,6 +232,13 @@
       "when": 1782698058232,
       "tag": "0032_high_the_fury",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782702633754,
+      "tag": "0033_rich_warbound",
+      "breakpoints": true
     }
   ]
 }

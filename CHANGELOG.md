@@ -6,6 +6,11 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.9 — 2026-06-28
+
+#### Changed
+- Your skill queue, your industry jobs, and your corporation's industry jobs now load straight from LGI's database the moment you open their pages and refresh themselves in the background, instead of waiting on an always-on live game-data connection. The boards work the same — countdowns keep ticking and finished jobs flip to ready on their own — but they appear faster and more reliably.
+
 ### v3.7.8 — 2026-06-28
 
 #### Added

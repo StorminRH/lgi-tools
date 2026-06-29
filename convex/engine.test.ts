@@ -23,7 +23,7 @@ const USER = 'user_engine_1';
 
 function subjectRow(overrides: Record<string, unknown> = {}) {
   return {
-    dataset: 'corpIndustryJobs' as const,
+    dataset: 'onlineStatus' as const,
     userId: USER,
     status: 'idle' as const,
     lastRequestedAt: 0,
@@ -46,7 +46,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('engine.heartbeat', () => {
   it('does nothing when signed out', async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(api.engine.heartbeat, { dataset: 'corpIndustryJobs', characterIdsHint: [], reason: 'mount' });
+    await t.mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [], reason: 'mount' });
     const { presence, subjects } = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
       subjects: await ctx.db.query('syncSubjects').collect(),
@@ -59,7 +59,7 @@ describe('engine.heartbeat', () => {
     const t = convexTest(schema, modules);
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'corpIndustryJobs', characterIdsHint: [101], reason: 'interval' });
+      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'interval' });
     const { presence, subjects } = await t.run(async (ctx) => ({
       presence: await ctx.db.query('syncPresence').collect(),
       subjects: await ctx.db.query('syncSubjects').collect(),
@@ -72,11 +72,11 @@ describe('engine.heartbeat', () => {
     const t = convexTest(schema, modules);
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'corpIndustryJobs', characterIdsHint: [], reason: 'mount' });
+      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [], reason: 'mount' });
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.status).toBe('idle');
@@ -98,12 +98,12 @@ describe('engine.heartbeat', () => {
 
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'corpIndustryJobs', characterIdsHint: [101], reason: 'mount' });
+      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'mount' });
 
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(typeof subject?.nextDueAt).toBe('number');
@@ -125,12 +125,12 @@ describe('engine.heartbeat', () => {
 
     await t
       .withIdentity({ subject: USER })
-      .mutation(api.engine.heartbeat, { dataset: 'corpIndustryJobs', characterIdsHint: [101], reason: 'mount' });
+      .mutation(api.engine.heartbeat, { dataset: 'onlineStatus', characterIdsHint: [101], reason: 'mount' });
 
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.status).toBe('running');
@@ -149,7 +149,7 @@ describe('engine.scan', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.nextDueAt).toBeNull();
@@ -165,13 +165,13 @@ describe('engine.scan', () => {
         workId: 'w1',
         nextDueAt: now - 1000,
       }));
-      await ctx.db.insert('syncPresence', { dataset: 'corpIndustryJobs', userId: USER, lastSeenAt: now });
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: USER, lastSeenAt: now });
     });
     await t.mutation(internal.engine.scan, {});
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.nextDueAt).toBe(now - 1000);
@@ -190,7 +190,7 @@ describe('engine.scan', () => {
           nextDueAt: now - 1000,
           syncedCharacterIds: [101],
         }));
-        await ctx.db.insert('syncPresence', { dataset: 'corpIndustryJobs', userId: `u${i}`, lastSeenAt: now });
+        await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: `u${i}`, lastSeenAt: now });
       }
     });
 
@@ -218,7 +218,7 @@ describe('engine.scan', () => {
           nextDueAt: now - total + i,
           syncedCharacterIds: [101],
         }));
-        await ctx.db.insert('syncPresence', { dataset: 'corpIndustryJobs', userId: `u${i}`, lastSeenAt: now });
+        await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: `u${i}`, lastSeenAt: now });
       }
     });
 
@@ -247,7 +247,7 @@ describe('engine.onSyncComplete', () => {
   function callComplete(t: ReturnType<typeof convexTest>, result: unknown, workId = 'w1') {
     return t.mutation(internal.engine.onSyncComplete, {
       workId: workId as never,
-      context: { dataset: 'corpIndustryJobs', userId: USER },
+      context: { dataset: 'onlineStatus', userId: USER },
       result: result as never,
     });
   }
@@ -272,7 +272,7 @@ describe('engine.onSyncComplete', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.status).toBe('idle');
@@ -300,7 +300,7 @@ describe('engine.onSyncComplete', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.status).toBe('idle');
@@ -325,7 +325,7 @@ describe('engine.onSyncComplete', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.nextDueAt).toBeNull();
@@ -348,7 +348,7 @@ describe('engine.onSyncComplete', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', USER).eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.status).toBe('running');
@@ -366,20 +366,20 @@ describe('engine.sweep', () => {
       // S2 — overdue, cold-within-retention presence → retire.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u2', nextDueAt: now - 1000 }));
       await ctx.db.insert('syncPresence', {
-        dataset: 'corpIndustryJobs',
+        dataset: 'onlineStatus',
         userId: 'u2',
         lastSeenAt: now - COLD_AFTER_MS - 5000,
       });
       // S3 — past-retention presence, not due → reaped in Pass C.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u3', nextDueAt: null }));
       await ctx.db.insert('syncPresence', {
-        dataset: 'corpIndustryJobs',
+        dataset: 'onlineStatus',
         userId: 'u3',
         lastSeenAt: now - RETENTION_MS - 5000,
       });
       // S5 — hot presence, idle, no target → Pass B touches it, no dispatch.
       await ctx.db.insert('syncSubjects', subjectRow({ userId: 'u5', nextDueAt: null }));
-      await ctx.db.insert('syncPresence', { dataset: 'corpIndustryJobs', userId: 'u5', lastSeenAt: now - 1000 });
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u5', lastSeenAt: now - 1000 });
     });
 
     const counts = await t.mutation(internal.engine.sweep, {});
@@ -401,7 +401,7 @@ describe('engine.sweep', () => {
         'syncSubjects',
         subjectRow({ userId: 'u1', nextDueAt: now - 1000, syncedCharacterIds: [101] }),
       );
-      await ctx.db.insert('syncPresence', { dataset: 'corpIndustryJobs', userId: 'u1', lastSeenAt: now });
+      await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: 'u1', lastSeenAt: now });
     });
     // Force the per-token-group limiter to refuse: dispatch parks the row and
     // returns without enqueuing (so this never touches the workpool).
@@ -419,7 +419,7 @@ describe('engine.sweep', () => {
     const subject = await t.run((ctx) =>
       ctx.db
         .query('syncSubjects')
-        .withIndex('by_user_dataset', (q) => q.eq('userId', 'u1').eq('dataset', 'corpIndustryJobs'))
+        .withIndex('by_user_dataset', (q) => q.eq('userId', 'u1').eq('dataset', 'onlineStatus'))
         .unique(),
     );
     expect(subject?.nextDueAt).toBeGreaterThanOrEqual(now + 1000);
@@ -466,7 +466,7 @@ describe('engine.sweep', () => {
           nextDueAt: null,
           syncedCharacterIds: [],
         }));
-        await ctx.db.insert('syncPresence', { dataset: 'corpIndustryJobs', userId: `u${i}`, lastSeenAt: now - 1000 });
+        await ctx.db.insert('syncPresence', { dataset: 'onlineStatus', userId: `u${i}`, lastSeenAt: now - 1000 });
       }
     });
 
@@ -477,13 +477,14 @@ describe('engine.sweep', () => {
   });
 });
 
-describe('retired-dataset guard (skills / industryJobs after MIGRATE.B.1 / B.2)', () => {
-  // Skills (B.1) and personal industry jobs (B.2) left the engine but keep dormant schema
-  // literals, so a leftover subject row can still carry dataset:'skills' or
-  // dataset:'industryJobs' until the session-D wipe. Their syncRefs were deleted, so the
-  // engine must RETIRE such an orphaned subject, never dispatch it — else a hot+due row in
-  // the post-deploy window would index a missing SYNC_REFS entry and crash the shared scan
-  // for the live trackers. These cases are that proof.
+describe('retired-dataset guard (skills / industryJobs / corpIndustryJobs after MIGRATE.B.1 / B.2 / B.3)', () => {
+  // Skills (B.1), personal industry jobs (B.2), and corp industry jobs (B.3) left the
+  // engine but keep dormant schema literals, so a leftover subject row can still carry
+  // dataset:'skills', 'industryJobs', or 'corpIndustryJobs' until the session-D wipe.
+  // Their syncRefs were deleted, so the engine must RETIRE such an orphaned subject, never
+  // dispatch it — else a hot+due row in the post-deploy window would index a missing
+  // SYNC_REFS entry and crash the shared scan for the live tracker (onlineStatus). These
+  // cases are that proof.
   it('retires a hot, due, idle subject for a retired dataset instead of dispatching', async () => {
     const t = convexTest(schema, modules);
     const now = Date.now();
@@ -532,6 +533,35 @@ describe('retired-dataset guard (skills / industryJobs after MIGRATE.B.1 / B.2)'
       ctx.db
         .query('syncSubjects')
         .withIndex('by_user_dataset', (q) => q.eq('userId', 'u1').eq('dataset', 'industryJobs'))
+        .unique(),
+    );
+    expect(subject?.status).toBe('idle'); // not dispatched
+    expect(subject?.nextDueAt).toBeNull(); // retired from the scan set
+  });
+
+  it('retires an orphaned corpIndustryJobs subject (MIGRATE.B.3) instead of dispatching', async () => {
+    const t = convexTest(schema, modules);
+    const now = Date.now();
+    stubDispatch();
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        'syncSubjects',
+        subjectRow({
+          dataset: 'corpIndustryJobs' as const,
+          userId: 'u1',
+          nextDueAt: now - 1000,
+          syncedCharacterIds: [101],
+        }),
+      );
+      await ctx.db.insert('syncPresence', { dataset: 'corpIndustryJobs', userId: 'u1', lastSeenAt: now });
+    });
+
+    await t.mutation(internal.engine.scan, {});
+
+    const subject = await t.run((ctx) =>
+      ctx.db
+        .query('syncSubjects')
+        .withIndex('by_user_dataset', (q) => q.eq('userId', 'u1').eq('dataset', 'corpIndustryJobs'))
         .unique(),
     );
     expect(subject?.status).toBe('idle'); // not dispatched

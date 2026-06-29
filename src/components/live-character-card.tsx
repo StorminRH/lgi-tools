@@ -1,278 +1,31 @@
 'use client';
 
-// Shared chrome for the live per-character panels (skill queue, industry jobs,
-// and any future tracker). Each feature owns its row renderer, summary, and
-// id-extraction; everything that was byte-identical between the panels — the
-// session gate, the sync/clock/name-enrichment hook, the per-character card
-// shell with its reconnect/sync-error callouts and null/empty/rows tri-state,
-// and the whole panel column (status line, sync-error callout, per-character
-// loop) — lives here. This is the `shared` zone (`src/components/*.tsx`), the
-// only layer permitted to import features + data + ui + lib, so the two features
-// compose it without importing each other.
-import { Authenticated, AuthLoading, Unauthenticated } from 'convex/react';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+// Presentational chrome for the per-character panels (skill queue, industry jobs).
+// The Convex-reactive plumbing that once lived here — the session gate, the
+// engine-coupled sync/clock/name hook, and the per-tracker COLD/HOT merge hooks —
+// left with the trackers as each moved to a Neon stale-gated on-view read
+// (MIGRATE.B.1/B.2/B.3); the engine now serves only the onlineStatus canary, which
+// rides its own path (OnlineStatusProvider + use-sync-subject). What remains is the
+// pure card shell each feature feeds with already-resolved data + its own render
+// clock. This is the `shared` zone (`src/components/*.tsx`), the only layer permitted
+// to import features + data + ui + lib, so the two features compose it without
+// importing each other.
+import type { ReactNode } from 'react';
+import { CharacterPortrait } from '@/components/character-portrait';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingLabel } from '@/components/ui/loading-label';
-import { useLoadingToast } from '@/components/ui/loading-toast';
 import { SectionHeader } from '@/components/ui/section-header';
-import { CharacterPortrait } from '@/components/character-portrait';
-import { convexClient } from '@/data/convex/client';
-import { useSyncSubject } from '@/data/convex/use-sync-subject';
-import { TYPE_NAMES_MAX_IDS, typeNamesEndpoint } from '@/data/eve-data/api-contract';
-import { apiFetch } from '@/lib/api-client';
-import type { SyncDataset } from '@/lib/sync-engine';
-import { emptyDataText, mergeLiveById, type MergedLiveRow, syncErrorMeta } from './live-character-sync';
-
-// The run lifecycle both viewer-merge hooks carry through (mirrors
-// runStateForViewer's syncState). `status` drives the "Syncing…" line; `lastError`
-// the run-level callout.
-export interface SyncRunState {
-  status: 'idle' | 'running';
-  lastRequestedAt: number;
-  lastFinishedAt: number | null;
-  lastError: string | null;
-}
-
-// One merged per-character / per-corporation live row (the pre-SA.5 forViewer
-// row), exported so feature panels can name their row type off the cold query's
-// payload type.
-export type LiveCharacterRow<D> = { characterId: number } & MergedLiveRow<D>;
-export type LiveCorporationRow<D> = { corporationId: number } & MergedLiveRow<D>;
-
-// Join a character-keyed tracker's COLD payload query result with its HOT
-// run-state result (both from useQuery) into the single shape the panels consume
-// — the SA.5 client half of the subscription split. Returns undefined until BOTH
-// subscriptions have loaded (so the existing single-`undefined` loading gate
-// holds and no half-merged frame renders) and null when signed out. Memoised so a
-// stable identity feeds the downstream useMemo in useLiveCharacterSync.
-export function useCharacterMerge<D>(
-  cold: { characters: { characterId: number; data: D }[] } | null | undefined,
-  hot:
-    | {
-        characters: { characterId: number; lastSyncedAt: number | null; syncError: string | null }[];
-        syncState: SyncRunState | null;
-      }
-    | null
-    | undefined,
-): { characters: LiveCharacterRow<D>[]; syncState: SyncRunState | null } | null | undefined {
-  return useMemo(() => {
-    if (cold === undefined || hot === undefined) return undefined;
-    if (cold === null || hot === null) return null;
-    const merged = mergeLiveById(
-      cold.characters.map((c) => ({ id: c.characterId, data: c.data })),
-      hot.characters.map((h) => ({
-        id: h.characterId,
-        lastSyncedAt: h.lastSyncedAt,
-        syncError: h.syncError,
-      })),
-    );
-    return {
-      characters: merged.map((m) => ({
-        characterId: m.id,
-        data: m.data,
-        lastSyncedAt: m.lastSyncedAt,
-        syncError: m.syncError,
-      })),
-      syncState: hot.syncState,
-    };
-  }, [cold, hot]);
-}
-
-// The per-corporation twin of useCharacterMerge, for the corp jobs board.
-export function useCorporationMerge<D>(
-  cold: { corporations: { corporationId: number; data: D }[] } | null | undefined,
-  hot:
-    | {
-        corporations: {
-          corporationId: number;
-          lastSyncedAt: number | null;
-          syncError: string | null;
-        }[];
-        syncState: SyncRunState | null;
-      }
-    | null
-    | undefined,
-): { corporations: LiveCorporationRow<D>[]; syncState: SyncRunState | null } | null | undefined {
-  return useMemo(() => {
-    if (cold === undefined || hot === undefined) return undefined;
-    if (cold === null || hot === null) return null;
-    const merged = mergeLiveById(
-      cold.corporations.map((c) => ({ id: c.corporationId, data: c.data })),
-      hot.corporations.map((h) => ({
-        id: h.corporationId,
-        lastSyncedAt: h.lastSyncedAt,
-        syncError: h.syncError,
-      })),
-    );
-    return {
-      corporations: merged.map((m) => ({
-        corporationId: m.id,
-        data: m.data,
-        lastSyncedAt: m.lastSyncedAt,
-        syncError: m.syncError,
-      })),
-      syncState: hot.syncState,
-    };
-  }, [cold, hot]);
-}
+import { emptyDataText, syncErrorMeta } from './live-character-sync';
 
 // Server-prop shape for one linked character: Neon truth (name/portrait/scope
-// health) joined client-side with the live Convex projection.
+// health) joined client-side with the live projection.
 export interface PanelCharacter {
   characterId: number;
   name: string;
   portraitUrl: string;
   needsReconnect: boolean;
-}
-
-// The Convex session tri-state, content-agnostic. No deployment → `unavailable`;
-// an optional pre-auth `empty` slot (rendered before the tri-state so its order
-// matches a gate that short-circuits on "no characters"); otherwise the auth
-// tri-state — `loading` while the session resolves, `signedOut` with no session,
-// `children` once authenticated. Each consumer supplies its own chrome (the
-// Card-framed gate below, the `// Active jobs` section on /industry), so the
-// shell owns only the branch logic both share.
-export function LiveSessionShell({
-  unavailable,
-  empty,
-  loading,
-  signedOut,
-  children,
-}: {
-  unavailable: ReactNode;
-  empty?: ReactNode;
-  loading: ReactNode;
-  signedOut: ReactNode;
-  children: ReactNode;
-}) {
-  if (convexClient === null) return <>{unavailable}</>;
-  if (empty != null) return <>{empty}</>;
-  return (
-    <>
-      <AuthLoading>{loading}</AuthLoading>
-      <Unauthenticated>{signedOut}</Unauthenticated>
-      <Authenticated>{children}</Authenticated>
-    </>
-  );
-}
-
-// Gate the live island on build config, account state, and the Convex session:
-// no deployment → unavailable; no linked characters → empty; otherwise show the
-// children only once authenticated. The per-character panels (skill queue,
-// industry jobs, home roster) share this Card-framed gate.
-export function LiveSessionGate({
-  characters,
-  emptyText,
-  children,
-}: {
-  characters: PanelCharacter[];
-  emptyText: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <LiveSessionShell
-      unavailable={
-        <Card>
-          <Callout label="Unavailable">
-            Live data is not configured on this build (no Convex deployment).
-          </Callout>
-        </Card>
-      }
-      empty={
-        characters.length === 0 ? (
-          <Card>
-            <EmptyState>{emptyText}</EmptyState>
-          </Card>
-        ) : undefined
-      }
-      loading={<LoadingLabel label="Connecting live session…" />}
-      signedOut={
-        <Card>
-          <Callout label="Heads up">
-            Live session unavailable — try reloading, or signing out and back in.
-          </Callout>
-        </Card>
-      }
-    >
-      {children}
-    </LiveSessionShell>
-  );
-}
-
-// Re-render cadence for the client-side timestamp math — progress bars and
-// "done in" labels stay honest without any data traffic.
-const TICK_MS = 30_000;
-
-// The live join shared by every per-character panel: heartbeat the subject,
-// tick a render clock, and resolve the type ids present in the live docs to
-// names (names never live in Convex). `extractTypeIds` is the one per-feature
-// seam — it gathers the ids that feature cares about; dedupe/sort/cap is shared.
-export function useLiveCharacterSync<TChar extends { characterId: number }>({
-  live,
-  dataset,
-  characterIds,
-  extractTypeIds,
-}: {
-  live:
-    | {
-        characters: TChar[];
-        syncState?: { status?: string | null; lastError?: string | null } | null;
-      }
-    | null
-    | undefined;
-  dataset: SyncDataset;
-  characterIds: number[];
-  extractTypeIds: (characters: TChar[]) => number[];
-}): {
-  liveByCharacter: Map<number, TChar>;
-  names: Record<string, string>;
-  now: number;
-  syncing: boolean;
-  runError: string | null;
-} {
-  // Presence + on-view sync: rendered only inside <Authenticated>, so Convex
-  // auth is established before the first heartbeat. The engine decides whether a
-  // run is warranted and keeps the subject refreshing while the tab is visible.
-  useSyncSubject(dataset, characterIds);
-
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), TICK_MS);
-    return () => clearInterval(timer);
-  }, []);
-
-  const typeIds = useMemo(
-    () =>
-      [...new Set(extractTypeIds(live?.characters ?? []))]
-        .sort((a, b) => a - b)
-        .slice(0, TYPE_NAMES_MAX_IDS),
-    [live, extractTypeIds],
-  );
-  const [names, setNames] = useState<Record<string, string>>({});
-  const typeIdsKey = typeIds.join(',');
-  useEffect(() => {
-    if (typeIdsKey === '') return;
-    let cancelled = false;
-    void apiFetch(typeNamesEndpoint, {
-      body: { typeIds: typeIdsKey.split(',').map(Number) },
-    }).then((result) => {
-      if (!cancelled && result.ok) setNames((prev) => ({ ...prev, ...result.data.names }));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [typeIdsKey]);
-
-  const liveByCharacter = new Map(
-    (live?.characters ?? []).map((character) => [character.characterId, character]),
-  );
-  const syncing = live?.syncState?.status === 'running';
-  const runError = live?.syncState?.lastError ?? null;
-
-  return { liveByCharacter, names, now, syncing, runError };
 }
 
 // The card shell for one character: portrait header (with feature-supplied
@@ -392,17 +145,6 @@ export function LiveCharacterCard({
   );
 }
 
-// The minimum a panel reads off one character's live doc: `data` presence drives
-// the card's has-data/empty tri-state; the sync metadata feeds the reconnect /
-// sync-error callouts. The concrete `data` shape (a queue vs a job list) stays
-// with the feature — the panel only tests presence.
-interface LivePanelCharacter {
-  characterId: number;
-  data?: unknown;
-  syncError?: string | null;
-  lastSyncedAt?: number | null;
-}
-
 // What a feature renders for one character once its live doc is in hand. The
 // panel owns the LiveCharacterCard shell; the feature supplies only what differs
 // per character — the empty test, the two header slots, and the rows.
@@ -411,106 +153,4 @@ export interface CharacterCardContent {
   subtitle?: ReactNode;
   headerRight?: ReactNode;
   rows: ReactNode;
-}
-
-// The full live-character panel: the column of per-character cards under a
-// "Live · …" status line, with the sitewide loading toast and the run-error
-// callout. Everything byte-identical between the skill-queue and industry-jobs
-// panels lives here — the sync wiring, the toast, the status line, the error
-// callout, and the LiveCharacterCard shell — so each feature is a thin config
-// plus one `renderCard` seam. The card chrome (labels/scope/noun/empty copy) is
-// static config; `renderCard` supplies the dynamic per-character content.
-export function LiveCharacterPanel<TChar extends LivePanelCharacter>({
-  live,
-  characters,
-  dataset,
-  extractTypeIds,
-  liveLabel,
-  sectionLabel,
-  scopePhrase,
-  noun,
-  emptyRowsText,
-  reconnectAction,
-  reconnectReason,
-  renderCard,
-}: {
-  live:
-    | {
-        characters: TChar[];
-        syncState?: { status?: string | null; lastError?: string | null } | null;
-      }
-    | null
-    | undefined;
-  characters: PanelCharacter[];
-  dataset: SyncDataset;
-  extractTypeIds: (characters: TChar[]) => number[];
-  liveLabel: string;
-  sectionLabel: string;
-  scopePhrase: string;
-  noun: string;
-  emptyRowsText: string;
-  // Optional per-character scope gate, forwarded to each card (see
-  // LiveCharacterCard). Omitted by panels that keep the link affordance.
-  reconnectAction?: ReactNode;
-  reconnectReason?: ReactNode;
-  renderCard: (
-    live: TChar | undefined,
-    names: Record<string, string>,
-    now: number,
-  ) => CharacterCardContent;
-}) {
-  const { liveByCharacter, names, now, syncing, runError } = useLiveCharacterSync({
-    live,
-    dataset,
-    characterIds: characters.map((c) => c.characterId),
-    extractTypeIds,
-  });
-
-  // Drop the sitewide loading toast while an ESI character sync is running.
-  useLoadingToast(syncing);
-
-  return (
-    <div className="w-full max-w-[760px] flex flex-col gap-6">
-      <div className="flex items-center">
-        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
-          {syncing ? 'Syncing from ESI…' : liveLabel}
-        </span>
-      </div>
-
-      {runError !== null && (
-        <Card>
-          <Callout label="Sync trouble">
-            {syncErrorMeta(runError.split(':')[0] ?? runError).label} — showing the last
-            synced data below.
-          </Callout>
-        </Card>
-      )}
-
-      {characters.map((character) => {
-        const liveChar = liveByCharacter.get(character.characterId);
-        const { isEmpty, subtitle, headerRight, rows } = renderCard(liveChar, names, now);
-        return (
-          <LiveCharacterCard
-            key={character.characterId}
-            character={character}
-            syncError={liveChar?.syncError}
-            lastSyncedAt={liveChar?.lastSyncedAt}
-            hasData={(liveChar?.data ?? null) !== null}
-            isEmpty={isEmpty}
-            syncing={syncing}
-            sectionLabel={sectionLabel}
-            scopePhrase={scopePhrase}
-            noun={noun}
-            subtitle={subtitle}
-            headerRight={headerRight}
-            emptyRowsText={emptyRowsText}
-            reconnectAction={reconnectAction}
-            reconnectReason={reconnectReason}
-          >
-            {rows}
-          </LiveCharacterCard>
-        );
-      })}
-    </div>
-  );
 }
