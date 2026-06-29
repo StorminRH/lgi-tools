@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readEsiAuthed, readEsiPagedAuthed } from './authed-read';
+import { readEsiAuthed, readEsiPagedAuthed, type RlSnapshot } from './authed-read';
 import { __resetEsiGateForTests } from './index';
 
 const TOKEN = 'access-token-xyz';
@@ -69,6 +69,39 @@ describe('readEsiAuthed', () => {
 
     expect(read).toEqual({ kind: 'error', code: 'esi_403' });
   });
+
+  // The online-status live canary passes an RlSnapshot so the Convex engine can
+  // schedule its next run against the observed token-bucket usage; the Neon
+  // trackers omit it. (MIGRATE.D.2 unified this reader with convex/lib/esiRead.ts.)
+  it('harvests the rate-limit headers into the snapshot when one is supplied', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        200,
+        {
+          ETag: '"abc"',
+          'X-Ratelimit-Group': 'char-online',
+          'X-Ratelimit-Limit': '600',
+          'X-Ratelimit-Remaining': '598',
+          'X-Ratelimit-Used': '2',
+        },
+        { online: true },
+      ),
+    );
+    const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
+
+    await readEsiAuthed('/characters/1/online', TOKEN, null, rl);
+
+    expect(rl).toEqual({ rlGroup: 'char-online', rlLimit: 600, rlRemaining: 598, rlUsed: 2 });
+  });
+
+  it('leaves the snapshot untouched when the response carries no rate-limit group', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, { ETag: '"abc"' }, { online: true }));
+    const rl: RlSnapshot = { rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null };
+
+    await readEsiAuthed('/characters/1/online', TOKEN, null, rl);
+
+    expect(rl).toEqual({ rlGroup: null, rlLimit: null, rlRemaining: null, rlUsed: null });
+  });
 });
 
 describe('readEsiPagedAuthed', () => {
@@ -131,5 +164,13 @@ describe('readEsiPagedAuthed', () => {
     const read = await readEsiPagedAuthed('/characters/1/blueprints/', TOKEN, []);
 
     expect(read).toEqual({ kind: 'error', code: 'esi_404' });
+  });
+
+  it('treats a non-array body as a contract error', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, { ETag: '"p1"', 'X-Pages': '1' }, { not: 'an array' }));
+
+    const read = await readEsiPagedAuthed('/characters/1/blueprints/', TOKEN, []);
+
+    expect(read).toEqual({ kind: 'error', code: 'contract_error' });
   });
 });
