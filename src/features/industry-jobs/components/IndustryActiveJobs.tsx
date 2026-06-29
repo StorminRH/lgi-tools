@@ -1,34 +1,24 @@
 'use client';
 
-// The /industry landing's live Active-jobs table (handoff §5). Reuses the
-// industry-jobs Convex sync — the same `forViewer` query, presence-gated
-// `useSyncSubject`, render clock, and type-name resolution the /jobs tracker
-// uses, all via the shared `useLiveCharacterSync` hook — but renders one unified
-// table across all of the viewer's characters with EVE-industry-blue progress
-// bars. The character ids that drive the sync come from the server (Neon truth);
-// the live job data, names, and progress are resolved client-side. The Convex
-// session tri-state is the shared `LiveSessionShell`, wrapped in this board's own
-// `// Active jobs` section. No manual refresh control (live-data policy): the
-// board refreshes itself on view and flips a job to ready on schedule.
-import { useQuery } from 'convex/react';
+// The /industry landing's live Active-jobs table (MIGRATE.B.2). Reads the personal job
+// boards from /api/account/industry-jobs (the board moved off the live Convex engine onto
+// a Neon stale-gated on-view read) and renders one unified table across all of the
+// viewer's characters with EVE-industry-blue progress bars. The character ids that drive
+// the on-view reconcile come from the server (Neon truth); each job's live "ready" +
+// progress is derived client-side from its absolute end_date against the render clock — a
+// finishing job flips to ready with no reload and no scheduler. No manual refresh control
+// (live-data policy): the board refreshes itself on view.
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import {
-  LiveSessionShell,
-  useCharacterMerge,
-  useLiveCharacterSync,
-} from '@/components/live-character-card';
-import { Callout } from '@/components/ui/callout';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
-import { api } from '@/data/convex/api';
 import { initials } from '@/lib/format/names';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { jobActivityPill } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
-import { jobTypeIds } from './IndustryJobsPanel';
+import { useJobsLive } from '../use-jobs-live';
 
 function JobsSection({ meta, children }: { meta?: ReactNode; children: ReactNode }) {
   return (
@@ -42,53 +32,36 @@ function JobsSection({ meta, children }: { meta?: ReactNode; children: ReactNode
 }
 
 export function IndustryActiveJobs({ characterIds }: { characterIds: number[] }) {
-  return (
-    <LiveSessionShell
-      unavailable={
-        <JobsSection>
-          <Callout label="Unavailable">Live data is not configured on this build.</Callout>
-        </JobsSection>
-      }
-      loading={
-        <JobsSection>
-          <LoadingLabel label="Connecting live session…" />
-        </JobsSection>
-      }
-      signedOut={
-        <JobsSection>
-          <EmptyState>Sign in with EVE (top right) to track your industry jobs here.</EmptyState>
-        </JobsSection>
-      }
-    >
-      <LiveJobs characterIds={characterIds} />
-    </LiveSessionShell>
-  );
-}
-
-function LiveJobs({ characterIds }: { characterIds: number[] }) {
-  const cold = useQuery(api.industryJobs.forViewer);
-  const hot = useQuery(api.industryJobs.runStateForViewer);
-  const live = useCharacterMerge(cold, hot);
-  // The shared live-character sync owns the presence heartbeat, the render clock,
-  // and the type-name resolution (names never live in Convex). This board
-  // resolves the same job blueprint/product ids as the /jobs panel — one shared
-  // `jobTypeIds` extraction — then flattens every character's jobs into one table.
-  const { names, now } = useLiveCharacterSync({
-    live,
-    dataset: 'industryJobs',
-    characterIds,
-    extractTypeIds: jobTypeIds,
-  });
+  const { jobsByCharacter, names, now, loading } = useJobsLive(characterIds);
 
   const jobs = useMemo<IndustryJob[]>(() => {
     const all: IndustryJob[] = [];
-    for (const character of live?.characters ?? []) {
-      for (const job of character.data?.jobs ?? []) all.push(job);
+    for (const live of jobsByCharacter.values()) {
+      for (const job of live.data?.jobs ?? []) all.push(job);
     }
     return all.sort(
       (a, b) => Date.parse(a.end_date) - Date.parse(b.end_date) || a.job_id - b.job_id,
     );
-  }, [live]);
+  }, [jobsByCharacter]);
+
+  if (loading) {
+    return (
+      <JobsSection>
+        <LoadingLabel label="Loading…" />
+      </JobsSection>
+    );
+  }
+
+  // No characters in the payload → signed out, or no character linked: the on-view read
+  // returns an empty roster. A signed-in pilot's linked characters are always present
+  // (even with no active jobs), so a populated roster falls through to the table below.
+  if (jobsByCharacter.size === 0) {
+    return (
+      <JobsSection>
+        <EmptyState>Sign in with EVE (top right) to track your industry jobs here.</EmptyState>
+      </JobsSection>
+    );
+  }
 
   const completeCount = jobs.filter((job) => job.status === 'ready').length;
   const inProgressCount = jobs.filter((job) => job.status === 'active').length;

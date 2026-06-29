@@ -11,6 +11,7 @@ export * from '../features/auth/schema';
 export * from '../features/owned-blueprints/schema';
 export * from '../features/owned-assets/schema';
 export * from '../features/skill-queue/schema';
+export * from '../features/industry-jobs/schema';
 export * from '../data/telemetry/schema';
 export * from '../data/gsc/schema';
 export * from '../data/preferences/schema';

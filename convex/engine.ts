@@ -95,11 +95,12 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
 });
 
 // Enumerates the STORED dataset literals (the schema's dataset union) — a superset of
-// the active SYNC_DATASETS. It deliberately RETAINS 'skills' as a dormant literal:
-// skills moved to Neon in MIGRATE.B.1, but its leftover subject rows persist until the
-// session-D wipe, so a leftover heartbeat / an in-flight run's completion must still
-// validate. No 'skills' syncRef is registered below; the engine retires an orphaned
-// 'skills' subject instead of dispatching it (isRegisteredDataset).
+// the active SYNC_DATASETS. It deliberately RETAINS 'skills' and 'industryJobs' as
+// dormant literals: skills moved to Neon in MIGRATE.B.1 and personal industry jobs in
+// MIGRATE.B.2, but their leftover subject rows persist until the session-D wipe, so a
+// leftover heartbeat / an in-flight run's completion must still validate. No syncRef is
+// registered for them below; the engine retires an orphaned subject instead of
+// dispatching it (isRegisteredDataset).
 const syncDatasetValidator = v.union(
   v.literal('skills'),
   v.literal('industryJobs'),
@@ -107,11 +108,11 @@ const syncDatasetValidator = v.union(
   v.literal('onlineStatus'),
 );
 
-// The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS). Skills is
-// absent (its action was deleted in MIGRATE.B.1); a leftover 'skills' subject never
-// reaches here because dispatch() retires any unregistered-dataset subject first.
+// The ACTIVE registry — one syncRef per registered dataset (SYNC_DATASETS). Skills and
+// personal industry jobs are absent (their actions were deleted in MIGRATE.B.1/B.2); a
+// leftover 'skills' / 'industryJobs' subject never reaches here because dispatch()
+// retires any unregistered-dataset subject first.
 const SYNC_REFS = {
-  industryJobs: internal.industryJobsSync.syncUser,
   corpIndustryJobs: internal.corpIndustryJobsSync.syncUser,
   onlineStatus: internal.onlineStatusSync.syncUser,
 } satisfies Record<SyncDataset, unknown>;

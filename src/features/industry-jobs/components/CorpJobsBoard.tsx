@@ -38,10 +38,9 @@ import { ENTITY_NAMES_MAX_IDS, entityNamesEndpoint } from '@/data/eve-data/api-c
 import { apiFetch } from '@/lib/api-client';
 import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
 import { formatRemaining } from '@/lib/format/time';
-import type { IndustryJob } from '../esi-projection';
+import { type IndustryJob, jobTypeIds } from '../esi-projection';
 import { JOB_STATUS_META, jobActivityLabel } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
-import { jobTypeIds } from './IndustryJobsPanel';
 
 type CorpJobData = NonNullable<
   FunctionReturnType<typeof api.corpIndustryJobs.forViewer>

@@ -76,11 +76,12 @@
           "src/data/market-prices/use-refresh-on-view.ts",
           "src/data/market-history/use-refresh-on-view.ts",
           "src/features/wormhole-sites/components/site-live-context.ts",
-          "src/features/skill-queue/use-skills-live.ts"
+          "src/features/skill-queue/use-skills-live.ts",
+          "src/features/industry-jobs/use-jobs-live.ts"
         ],
         "maxCrap": 9999,
         "maxCognitive": 18,
-        "reason": "framework-convention: client-side React effect / live-context modules whose nesting is mandatory effect-cleanup correctness (AbortController, per-batch try/finally, unmount drain). Integration/visual-tested; the unit-tested halves are the server engines. use-skills-live's fetch/reconcile/tick effect is the skills on-view client half; its server engine (refresh.ts + planSkillsPersist) is unit-tested."
+        "reason": "framework-convention: client-side React effect / live-context modules whose nesting is mandatory effect-cleanup correctness (AbortController, per-batch try/finally, unmount drain). Integration/visual-tested; the unit-tested halves are the server engines. use-skills-live's fetch/reconcile/tick effect is the skills on-view client half and use-jobs-live's is the personal industry-jobs half; their server engines (refresh.ts + planSkillsPersist / planJobsPersist) are unit-tested."
       },
       {
         "files": [

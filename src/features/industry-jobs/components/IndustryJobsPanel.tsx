@@ -1,99 +1,101 @@
 'use client';
 
-// The industry-jobs island (3.4.8). Receives the signed-in pilot's linked
-// characters as server props (names, portraits, scope health — Neon truth at
-// render time) and joins them with the live Convex projection: useQuery
-// streams every sync write over the websocket — including the scheduled
-// flip-to-ready at a job's end_date — so the board updates with no reload
-// and no client polling. Liveness comes from the presence-gated engine
-// (3.4.9): the visibility-gated heartbeat keeps this subject hot while the
-// tab is watched, and the engine refreshes it on the dataset's cadence —
-// the ids it sends are a freshness hint only, never authority. The session gate
-// and the whole live panel (sync hook, status line, per-character card shell)
-// are shared with the skill-queue panel (src/components/live-character-card);
-// this slice supplies only its row, summary, and id-extraction.
-import { useQuery } from 'convex/react';
-import type { FunctionReturnType } from 'convex/server';
+// The industry-jobs island (MIGRATE.B.2). Receives the signed-in pilot's linked
+// characters as server props (names, portraits, scope health — Neon truth at render
+// time) and fetches each one's active job board from /api/account/industry-jobs on view
+// (the board moved off the live Convex engine onto a Neon stale-gated on-view read). Each
+// job's live "ready" + countdown is derived CLIENT-SIDE from its absolute end_date
+// (job-state.ts) against a 30s render clock, so a finishing job flips to ready with no
+// reload and no scheduler; the on-view fetch reconciles only the board's EXISTENCE. The
+// per-character card shell (portrait header, reconnect/as-of callouts, null/empty/rows
+// tristate) is the shared LiveCharacterCard; this slice supplies the row + summary.
 import {
   type CharacterCardContent,
-  LiveCharacterPanel,
-  type LiveCharacterRow,
-  LiveSessionGate,
+  LiveCharacterCard,
   type PanelCharacter,
-  useCharacterMerge,
 } from '@/components/live-character-card';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { api } from '@/data/convex/api';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
-import { jobProgress, summarizeJobs } from '../job-state';
 import { JOB_STATUS_META, jobActivityLabel } from '../industry-jobs-styles';
+import { jobProgress, summarizeJobs } from '../job-state';
+import type { CharacterJobsData } from '../types';
+import { useJobsLive } from '../use-jobs-live';
 
 export function IndustryJobsPanel({ characters }: { characters: PanelCharacter[] }) {
-  return (
-    <LiveSessionGate
-      characters={characters}
-      emptyText={
-        <>
+  if (characters.length === 0) {
+    return (
+      <Card>
+        <EmptyState>
           No characters linked to this account —{' '}
           <a href="/characters" className="underline text-name">
             link one on the Characters page
           </a>{' '}
           to see live industry jobs.
-        </>
-      }
-    >
-      <LiveJobs characters={characters} />
-    </LiveSessionGate>
-  );
+        </EmptyState>
+      </Card>
+    );
+  }
+  return <LiveJobs characters={characters} />;
 }
 
-type JobData = NonNullable<
-  FunctionReturnType<typeof api.industryJobs.forViewer>
->['characters'][number]['data'];
-type LiveCharacter = LiveCharacterRow<JobData>;
-
-// The one per-feature seam of useLiveCharacterSync: which type ids to resolve to
-// names. Module-stable so it can sit in the hook's dependency list. Exported so
-// the /industry active-jobs board AND the corp board reuse the same extraction —
-// it reads only the `data.jobs` each live entry carries (per character or per
-// corporation), so both the per-character and per-corp live shapes satisfy it.
-export function jobTypeIds(entries: { data: { jobs: IndustryJob[] } | null }[]): number[] {
-  const ids: number[] = [];
-  for (const entry of entries) {
-    for (const job of entry.data?.jobs ?? []) {
-      ids.push(job.blueprint_type_id);
-      if (job.product_type_id !== undefined) ids.push(job.product_type_id);
-    }
-  }
-  return ids;
+// The live half of one row: the cached board + its "as of" stamp. renderJobsCard reads
+// only `data`; lastSyncedAt feeds the card's as-of header.
+interface JobsLiveRow {
+  data: CharacterJobsData | null;
+  lastSyncedAt: number | null;
 }
 
 function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
-  const cold = useQuery(api.industryJobs.forViewer);
-  const hot = useQuery(api.industryJobs.runStateForViewer);
-  const live = useCharacterMerge(cold, hot);
+  const eligibleIds = characters
+    .filter((character) => !character.needsReconnect)
+    .map((character) => character.characterId);
+  const { jobsByCharacter, names, now, loading } = useJobsLive(eligibleIds);
+
   return (
-    <LiveCharacterPanel
-      live={live}
-      characters={characters}
-      dataset="industryJobs"
-      extractTypeIds={jobTypeIds}
-      liveLabel="Live · jobs flip to ready on schedule"
-      sectionLabel="Industry jobs"
-      scopePhrase="the industry scope"
-      noun="jobs"
-      emptyRowsText="No industry jobs running."
-      renderCard={renderJobsCard}
-    />
+    <div className="w-full max-w-[760px] flex flex-col gap-6">
+      <div className="flex items-center">
+        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
+          {loading ? 'Loading…' : 'Synced from ESI on view'}
+        </span>
+      </div>
+
+      {characters.map((character) => {
+        const live = jobsByCharacter.get(character.characterId);
+        const row: JobsLiveRow | undefined =
+          live !== undefined ? { data: live.data, lastSyncedAt: live.lastRefreshedAt } : undefined;
+        const { isEmpty, subtitle, headerRight, rows } = renderJobsCard(row, names, now);
+        return (
+          <LiveCharacterCard
+            key={character.characterId}
+            character={character}
+            syncError={null}
+            lastSyncedAt={row?.lastSyncedAt}
+            hasData={(row?.data ?? null) !== null}
+            isEmpty={isEmpty}
+            syncing={false}
+            sectionLabel="Industry jobs"
+            scopePhrase="the industry scope"
+            noun="jobs"
+            subtitle={subtitle}
+            headerRight={headerRight}
+            emptyRowsText="No industry jobs running."
+          >
+            {rows}
+          </LiveCharacterCard>
+        );
+      })}
+    </div>
   );
 }
 
-// One character's jobs-card content: the jobs-count subtitle, the "next done in"
-// header slot, and the per-job rows. The panel owns the card shell.
+// One character's jobs-card content: the jobs-count subtitle, the "next done in" header
+// slot, and the per-job rows. The panel owns the card shell.
 function renderJobsCard(
-  live: LiveCharacter | undefined,
+  live: JobsLiveRow | undefined,
   names: Record<string, string>,
   now: number,
 ): CharacterCardContent {

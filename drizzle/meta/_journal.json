@@ -225,6 +225,13 @@
       "when": 1782691638104,
       "tag": "0031_tiresome_wild_child",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1782698058232,
+      "tag": "0032_high_the_fury",
+      "breakpoints": true
     }
   ]
 }

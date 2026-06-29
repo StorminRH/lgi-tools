@@ -120,10 +120,11 @@ export default defineSchema({
   // rationale) without duplicating the machinery.
   syncSubjects: defineTable({
     // A SUPERSET of the active SYNC_DATASETS in src/lib/sync-engine.ts. It retains
-    // 'skills' as a dormant literal after MIGRATE.B.1 (skills moved to Neon) so existing
-    // skills subject rows stay schema-valid until the session-D wipe — removing the
-    // literal while those rows exist would halt the schema push. No syncer is registered
-    // for it; the engine retires an orphaned skills subject (isRegisteredDataset).
+    // 'skills' (MIGRATE.B.1) and 'industryJobs' (MIGRATE.B.2) as dormant literals after
+    // each moved to Neon, so existing subject rows stay schema-valid until the session-D
+    // wipe — removing a literal while those rows exist would halt the schema push. No
+    // syncer is registered for them; the engine retires an orphaned subject
+    // (isRegisteredDataset).
     dataset: v.union(
       v.literal('skills'),
       v.literal('industryJobs'),
@@ -187,6 +188,8 @@ export default defineSchema({
     // run drains the backlog deterministically.
     .index('by_last_seen', ['lastSeenAt']),
 
+  // DORMANT since MIGRATE.B.2 (like characterSync above) — no longer written; kept
+  // declared until the session-D wipe so leftover rows stay schema-valid.
   // One doc per (user, character): the HOT sync metadata for the industry-jobs
   // tracker — the characterSync twin for tracker #2 (3.4.8). One ESI endpoint, so
   // one held ETag. Same custody rules: etag only ever stored beside the payload
@@ -207,11 +210,14 @@ export default defineSchema({
     .index('by_user', ['userId'])
     .index('by_user_character', ['userId', 'characterId']),
 
+  // DORMANT since MIGRATE.B.2 (like characterSyncData above) — no longer written; kept
+  // declared until the session-D wipe.
   // One doc per (user, character): the COLD industry-jobs payload — the heavy
-  // half split off industryJobsSync in SA.5 (the characterSyncData twin). Written
-  // only on a fresh body (a 304 leaves it untouched) and patched in place by the
-  // markJobReady completion flip; exists iff the character has synced its board at
-  // least once. Regenerable.
+  // half split off industryJobsSync in SA.5 (the characterSyncData twin). While live it
+  // was written only on a fresh body (a 304 left it untouched) and patched in place by
+  // the markJobReady completion flip (removed in B.2 — the Neon read now stores raw ESI
+  // status and the client derives "ready" from each job's absolute end_date). Existed iff
+  // the character had synced its board at least once. Regenerable.
   industryJobsSyncData: defineTable({
     userId: v.string(),
     characterId: v.number(),

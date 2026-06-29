@@ -13,8 +13,6 @@ import type * as corpIndustryJobsSync from "../corpIndustryJobsSync.js";
 import type * as crons from "../crons.js";
 import type * as engine from "../engine.js";
 import type * as http from "../http.js";
-import type * as industryJobs from "../industryJobs.js";
-import type * as industryJobsSync from "../industryJobsSync.js";
 import type * as lib_bearerAuth from "../lib/bearerAuth.js";
 import type * as lib_characterSync from "../lib/characterSync.js";
 import type * as lib_corpSync from "../lib/corpSync.js";
@@ -36,8 +34,6 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   engine: typeof engine;
   http: typeof http;
-  industryJobs: typeof industryJobs;
-  industryJobsSync: typeof industryJobsSync;
   "lib/bearerAuth": typeof lib_bearerAuth;
   "lib/characterSync": typeof lib_characterSync;
   "lib/corpSync": typeof lib_corpSync;

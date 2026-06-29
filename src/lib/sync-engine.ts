@@ -16,19 +16,20 @@
 // convex/engine.ts, not new machinery.
 //
 // Skills was here through 3.7.x but MOVED to a Neon stale-gated on-view read in
-// MIGRATE.B.1 (skills/skillqueue cache 120s and the queue's progress is derived
-// client-side, so they're slow per-character data, not live). It is intentionally
-// absent here — no syncer is registered — while its schema literal + any leftover
+// MIGRATE.B.1, and personal industry jobs followed in MIGRATE.B.2 (300s cache, and a
+// job's "ready" is derived client-side from its absolute end_date — so it's slow
+// per-character data, not live; the markReady scheduler is gone). Both are intentionally
+// absent here — no syncer is registered — while their schema literals + any leftover
 // subject rows stay dormant until the session-D wipe. The scan retires an orphaned
 // subject for an unregistered dataset rather than dispatching it (isRegisteredDataset).
-export const SYNC_DATASETS = ['industryJobs', 'corpIndustryJobs', 'onlineStatus'] as const;
+export const SYNC_DATASETS = ['corpIndustryJobs', 'onlineStatus'] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
 
 // True iff a stored dataset still has a registered syncer on the engine. A dataset
-// retired from SYNC_DATASETS (e.g. skills after MIGRATE.B.1) keeps its schema literal
-// and any leftover subject rows until the session-D wipe, but no longer dispatches —
-// the engine retires such an orphaned subject instead, so a leftover hot+due row can
-// never reach a deleted syncRef and crash the shared scan.
+// retired from SYNC_DATASETS (e.g. skills after MIGRATE.B.1, personal industryJobs after
+// MIGRATE.B.2) keeps its schema literal and any leftover subject rows until the session-D
+// wipe, but no longer dispatches — the engine retires such an orphaned subject instead,
+// so a leftover hot+due row can never reach a deleted syncRef and crash the shared scan.
 export function isRegisteredDataset(dataset: string): dataset is SyncDataset {
   return (SYNC_DATASETS as readonly string[]).includes(dataset);
 }
@@ -44,11 +45,10 @@ export const SYNC_DATASET_CONFIG: Record<
   SyncDataset,
   { cadenceFloorMs: number; tokenGroup: string }
 > = {
-  industryJobs: { cadenceFloorMs: 300_000, tokenGroup: 'char-industry' },
-  // Corp industry jobs share the 300s ESI cache floor with character jobs, but
-  // bill a DISTINCT ESI token bucket (the corp endpoint is a different route
-  // group), so they get their own dispatch-smoothing key — a corp re-arm herd
-  // must not burst the char-industry group's spend.
+  // Corp industry jobs share the 300s ESI cache floor with the (now Neon-served)
+  // character jobs endpoint, but bill a DISTINCT ESI token bucket (the corp endpoint is
+  // a different route group), so they get their own dispatch-smoothing key — a corp
+  // re-arm herd must not burst another group's spend.
   corpIndustryJobs: { cadenceFloorMs: 300_000, tokenGroup: 'corp-industry' },
   // Online status (MIGRATE.A) — ~60s ESI cache, polled at the same 60s floor as
   // skills. Its own dispatch-smoothing key because /characters/{id}/online is a

@@ -10,10 +10,11 @@ import { internalMutation } from './_generated/server';
 
 // Delete every per-character projection doc for one (user, character) pair across
 // both trackers — the HOT meta doc AND its COLD payload twin (SA.5), so the
-// purge leaves nothing serving the prior owner's data. NOTE: the skills tables
-// (characterSync / characterSyncData) are DORMANT since MIGRATE.B.1 — skills moved to
-// a Neon char-keyed table (no per-user duplication to purge there); this still reaps
-// any leftover skills docs and is removed in session D with the table declarations.
+// purge leaves nothing serving the prior owner's data. NOTE: BOTH trackers' tables are
+// now DORMANT — skills (characterSync / characterSyncData) since MIGRATE.B.1 and personal
+// industry jobs (industryJobsSync / industryJobsSyncData) since MIGRATE.B.2, each having
+// moved to a Neon char-keyed table (no per-user duplication to purge there); this still
+// reaps any leftover docs and is removed in session D with the table declarations.
 // `.collect()` (not
 // `.first()`) so a purge is thorough even if a duplicate doc ever slipped past
 // the apply path's keying. Returns the per-tracker character-doc delete counts

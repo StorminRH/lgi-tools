@@ -25,10 +25,6 @@ describe('dataset registration data', () => {
   // edit can't silently poll faster than a dataset's cache or bill the
   // wrong bucket.
   it('pins the live-read cadence floors and token groups', () => {
-    expect(SYNC_DATASET_CONFIG.industryJobs).toEqual({
-      cadenceFloorMs: 300_000,
-      tokenGroup: 'char-industry',
-    });
     expect(SYNC_DATASET_CONFIG.corpIndustryJobs).toEqual({
       cadenceFloorMs: 300_000,
       tokenGroup: 'corp-industry',
@@ -41,14 +37,14 @@ describe('dataset registration data', () => {
 });
 
 describe('isRegisteredDataset', () => {
-  // Skills left the engine in MIGRATE.B.1 but keeps a dormant schema literal, so a
-  // leftover subject row can still carry dataset:'skills'. The predicate is how the
-  // engine tells an active dataset (dispatch) from a retired one (retire) — see the
-  // engine's dispatch guard.
-  it('accepts the active datasets and rejects a retired one', () => {
-    expect(isRegisteredDataset('industryJobs')).toBe(true);
+  // Skills (MIGRATE.B.1) and personal industry jobs (MIGRATE.B.2) left the engine but keep
+  // dormant schema literals, so a leftover subject row can still carry dataset:'skills' or
+  // dataset:'industryJobs'. The predicate is how the engine tells an active dataset
+  // (dispatch) from a retired one (retire) — see the engine's dispatch guard.
+  it('accepts the active datasets and rejects the retired ones', () => {
     expect(isRegisteredDataset('corpIndustryJobs')).toBe(true);
     expect(isRegisteredDataset('onlineStatus')).toBe(true);
+    expect(isRegisteredDataset('industryJobs')).toBe(false);
     expect(isRegisteredDataset('skills')).toBe(false);
     expect(isRegisteredDataset('nonsense')).toBe(false);
   });
