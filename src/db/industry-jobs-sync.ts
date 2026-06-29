@@ -8,12 +8,10 @@
 // response (zero added latency). A job's live "ready" is derived client-side from its
 // absolute end_date (no scheduler); the first-view cold cache is populated by the
 // client's auto-reconcile re-fetch, so the seam stays template-pure write-behind (never
-// awaits the refresh).
+// awaits the refresh). The shared auth + ESI port wiring lives in owner-sync-port.ts.
 import { after } from 'next/server';
 import { getTypeNames } from '@/data/eve-data/queries';
-import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
 import { listLinkedCharacters } from '@/features/auth/queries';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
 import {
   getJobsForCharacters,
@@ -22,61 +20,18 @@ import {
   stampCharacterJobsFresh,
 } from '@/features/industry-jobs/queries';
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
-import type { CharacterJobsData, JobsEsiRead, JobsPort } from '@/features/industry-jobs/types';
-import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
-import { type EsiAuthedRead, readEsiAuthed } from '@/lib/esi/authed-read';
+import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
+import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 
-// Map lib/esi's read result into the slice's port contract (dropping the ESI cache
-// window the Neon path's fixed TTL ignores). Budget exhaustion / 5xx throw out of
-// esiFetch and are swallowed to a soft 'error' skip (best-effort per character).
-function toJobsEsiRead(read: EsiAuthedRead): JobsEsiRead {
-  if (read.kind === 'fresh') return { kind: 'fresh', body: read.body, etag: read.etag };
-  if (read.kind === 'unchanged') return { kind: 'unchanged' };
-  return { kind: 'error', code: read.code };
-}
-
-async function readJobsEndpoint(
-  characterId: number,
-  accessToken: string,
-  heldEtag: string | null,
-): Promise<JobsEsiRead> {
-  try {
-    return toJobsEsiRead(
-      await readEsiAuthed(`/characters/${characterId}/industry/jobs/`, accessToken, heldEtag),
-    );
-  } catch (error) {
-    if (error instanceof EsiBudgetExhaustedError) return { kind: 'error', code: 'budget_exhausted' };
-    if (error instanceof EsiServerError) return { kind: 'error', code: 'esi_server_error' };
-    throw error;
-  }
-}
-
-// The real port. Auth + ESI + Neon, each method mapping its underlying result into the
-// slice's port contract.
+// The real port: the shared auth + ESI wiring (owner-sync-port.ts) plus this slice's
+// own Neon read/save/stamp. Jobs reads one single-page endpoint (readSingleEndpoint).
 function makeJobsPort(): JobsPort {
   return {
     now: () => new Date(),
-
-    async listCharacters(userId: string) {
-      const linked = await listLinkedCharacters(userId);
-      return linked.map((character) => ({
-        characterId: character.characterId,
-        hasRefreshToken: character.hasRefreshToken,
-        missingScopes: deriveCharacterHealth({
-          scope: character.scope,
-          hasRefreshToken: character.hasRefreshToken,
-        }).missingScopes,
-      }));
-    },
-
-    async vendToken(characterId: number) {
-      const result = await getFreshAccessTokenForCharacter(characterId);
-      return result.kind === 'ok' ? result.accessToken : null;
-    },
-
+    listCharacters: listCharactersWithHealth,
+    vendToken: vendTokenFor,
     readJobs: (characterId, accessToken, heldEtag) =>
-      readJobsEndpoint(characterId, accessToken, heldEtag),
-
+      readSingleEndpoint(`/characters/${characterId}/industry/jobs/`, accessToken, heldEtag),
     readSyncState: (characterId) => readCharacterJobSyncState(characterId),
     saveJobs: (characterId, jobs, etag) => saveCharacterJobs(characterId, jobs, etag),
     stampFresh: (characterId) => stampCharacterJobsFresh(characterId),

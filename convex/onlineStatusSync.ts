@@ -26,7 +26,7 @@ import {
   type SyncEnv,
   vendCharacterToken,
 } from './lib/characterSync';
-import { readEsi, type RlSnapshot } from './lib/esiRead';
+import { readEsiAuthed, type RlSnapshot } from '@/lib/esi/authed-read';
 
 // Fallback freshness window when a response carries no parseable Expires header.
 // Matches the live-observed online cache (~60s) but is a last resort — the header
@@ -135,7 +135,7 @@ async function readOnlineCharacter(
   heldEtag: string | null,
   rl: RlSnapshot,
 ): Promise<CharacterResult> {
-  const read = await readEsi(`/characters/${characterId}/online`, accessToken, heldEtag, rl);
+  const read = await readEsiAuthed(`/characters/${characterId}/online`, accessToken, heldEtag, rl);
   if (read.kind === 'error') return errorResult(characterId, read.code, heldEtag);
 
   const expiresAt = resolveExpiresAt([read.expiresAt], FALLBACK_TTL_MS, Date.now());

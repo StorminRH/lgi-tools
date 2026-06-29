@@ -6,12 +6,10 @@
 // and exposes the on-view seam the corp-jobs API route consumes: read the cached
 // per-corp boards, fire a stale-gated write-behind refresh behind the response (zero
 // added latency). A direct mirror of src/db/industry-jobs-sync.ts, corp-keyed, with the
-// owned-blueprints/assets corp-director resolution (vend + roles read) — NOT corpSync.
+// Director resolution (vend + roles read) supplied by the shared owner-sync-port.ts
+// wiring (MIGRATE.D.2).
 import { after } from 'next/server';
 import { getTypeNames } from '@/data/eve-data/queries';
-import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
-import { listLinkedCharacters } from '@/features/auth/queries';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { refreshCorpJobsForUser } from '@/features/industry-jobs/corp-refresh';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
 import {
@@ -22,80 +20,20 @@ import {
   saveCorpNeedsRole,
   stampCorpJobsFresh,
 } from '@/features/industry-jobs/queries';
-import type { CharacterJobsData, CorpJobsPort, JobsEsiRead } from '@/features/industry-jobs/types';
-import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
-import { type EsiAuthedRead, readEsiAuthed } from '@/lib/esi/authed-read';
+import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
+import { listCharactersWithHealth, readRolesFor, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 
-// Map ESI's role body ({ roles?: string[] }) to a plain string list. Defensive (ESI is
-// an external boundary): a missing/foreign shape reads as no roles.
-function extractRoles(body: unknown): string[] {
-  if (typeof body !== 'object' || body === null) return [];
-  const roles = (body as { roles?: unknown }).roles;
-  return Array.isArray(roles) ? roles.filter((r): r is string => typeof r === 'string') : [];
-}
-
-// Map lib/esi's read result into the slice's port contract (dropping the ESI cache
-// window the Neon path's fixed TTL ignores). Budget exhaustion / 5xx throw out of
-// esiFetch and are swallowed to a soft 'error' skip (best-effort per corp).
-function toJobsEsiRead(read: EsiAuthedRead): JobsEsiRead {
-  if (read.kind === 'fresh') return { kind: 'fresh', body: read.body, etag: read.etag };
-  if (read.kind === 'unchanged') return { kind: 'unchanged' };
-  return { kind: 'error', code: read.code };
-}
-
-async function readCorpJobsEndpoint(
-  corporationId: number,
-  accessToken: string,
-  heldEtag: string | null,
-): Promise<JobsEsiRead> {
-  try {
-    return toJobsEsiRead(
-      await readEsiAuthed(`/corporations/${corporationId}/industry/jobs/`, accessToken, heldEtag),
-    );
-  } catch (error) {
-    if (error instanceof EsiBudgetExhaustedError) return { kind: 'error', code: 'budget_exhausted' };
-    if (error instanceof EsiServerError) return { kind: 'error', code: 'esi_server_error' };
-    throw error;
-  }
-}
-
-// The real corp port. Auth + ESI + Neon, each method mapping its underlying result into
-// the slice's port contract.
+// The real corp port: the shared auth + ESI wiring (owner-sync-port.ts) plus this
+// slice's own corp-keyed Neon read/save/stamp + the graceful needs_role drop. Corp
+// jobs reads one single-page endpoint (readSingleEndpoint) per corporation.
 function makeCorpJobsPort(): CorpJobsPort {
   return {
     now: () => new Date(),
-
-    async listMembers(userId: string) {
-      const linked = await listLinkedCharacters(userId);
-      return linked.map((character) => ({
-        characterId: character.characterId,
-        corporationId: character.corporationId,
-        hasRefreshToken: character.hasRefreshToken,
-        missingScopes: deriveCharacterHealth({
-          scope: character.scope,
-          hasRefreshToken: character.hasRefreshToken,
-        }).missingScopes,
-      }));
-    },
-
-    async vendToken(characterId: number) {
-      const result = await getFreshAccessTokenForCharacter(characterId);
-      return result.kind === 'ok' ? result.accessToken : null;
-    },
-
-    async readRoles(characterId: number, accessToken: string) {
-      try {
-        const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
-        return read.kind === 'fresh' ? extractRoles(read.body) : null;
-      } catch (error) {
-        if (error instanceof EsiBudgetExhaustedError || error instanceof EsiServerError) return null;
-        throw error;
-      }
-    },
-
+    listMembers: listCharactersWithHealth,
+    vendToken: vendTokenFor,
+    readRoles: readRolesFor,
     readJobs: (corporationId, accessToken, heldEtag) =>
-      readCorpJobsEndpoint(corporationId, accessToken, heldEtag),
-
+      readSingleEndpoint(`/corporations/${corporationId}/industry/jobs/`, accessToken, heldEtag),
     readSyncState: (userId, corporationId) => readCorpJobSyncState(userId, corporationId),
     saveJobs: (userId, corporationId, jobs, etag) => saveCorpJobs(userId, corporationId, jobs, etag),
     saveNeedsRole: (userId, corporationId) => saveCorpNeedsRole(userId, corporationId),

@@ -33,6 +33,7 @@ duplication dropped from **4.8% → 3.4%**; the remainder is captured here:
 | `ingest-sde-if-empty.ts` ↔ `refresh-sde.ts` (SDE version check) | **Legitimate boilerplate.** Two entry scripts sharing the deploy-time version-gate; coupling them would entangle independent deploy/cron entry points. |
 | `cron/refresh-gsc/route.ts` ↔ `cron/refresh-industry-indices/route.ts` | **Legitimate boilerplate.** Two independent cron endpoints sharing the `requireCronAuth` + advisory-lock + busy-skip guard; coupling them would entangle separate cron jobs (same call as the entry-script gate above). |
 | `legal/page.tsx` (two adjacent sections) | **Legitimate boilerplate.** Parallel static-content sections — identical `section`/`SectionLabel`/`p` markup, different prose; a shared component would only obscure plain page copy. |
+| owner-sync descriptor + wrapper heads (`owned-assets` ↔ `owned-blueprints` `refresh.ts`; `industry-jobs` ↔ `skill-queue` `refresh.ts`; `industry-jobs-sync.ts` ↔ `skills-sync.ts`) | **Legitimate boilerplate.** The per-slice `OwnerSyncDescriptor` builders + on-view wrappers that drive the shared owner-sync engine (`src/lib/owner-sync`). After MIGRATE.D.2 pulled the refresh mechanism, the ESI reader, the corp-director resolution, and the auth/ESI port wiring each into ONE place, the residual is the thin per-slice mapping between mirror slices (blueprints↔assets, jobs↔skills) — distinct projection, eligibility, endpoints, tables, owner key. Folding 5–9 line descriptor/wrapper heads behind a factory of 6+ slice-specific callbacks would be a forced, flag-laden abstraction. |
 
 _Gate-enablement pass (2026-06-25): turned the gate from warn-only to failing
 (`--fail-on-issues`, above) and extracted the one clean clone introduced since —
@@ -40,6 +41,18 @@ the three blueprint-activity batch reads in `eve-data/queries.ts` now share a
 `mapBlueprintActivities` scaffold. The families above stayed baselined per their
 stated reasons (the convex sync apply-halves and the chart SVG scaffold are
 deliberately not merged). Baseline refreshed to the current set._
+
+_Owner-sync engine extraction (MIGRATE.D.2): the per-owner ESI→Neon refresh
+mechanism the five trackers cloned (owned blueprints/assets, skills, char + corp
+industry jobs) moved into one shared engine (`src/lib/owner-sync`), the two ESI
+readers unified into one (`src/lib/esi/authed-read.ts`), the corp-director
+resolution + the auth/ESI port wiring each extracted to one place
+(`src/db/owner-sync-port.ts`). That **dropped** six baselined clones (the four
+`esiRead` ↔ `authed-read` reader groups and the two `*-sync.ts` auth/ESI wiring
+groups) and **added** four small parallel-slice descriptor/wrapper heads (the row
+above) — a net shrink. Pruned surgically rather than via `--save-baseline` to keep
+the unrelated MIGRATE.B `use-*-live` / queries clones (out of scope here) excluded
+by git new-only attribution, not absorbed into the curated accept-list._
 
 ### Regenerating
 

@@ -1,18 +1,19 @@
-// Neon-side authed ESI reads (MIGRATE.0) — the conditional + paginated reads the
-// Neon slow-data trackers use, reusable by the live-tracker migrations (A–D).
+// Authed ESI reads — the ONE shared conditional + paginated reader for every
+// per-owner ESI consumer (MIGRATE.D.2 unified convex/lib/esiRead.ts into this).
 //
-// These are the twins of convex/lib/esiRead.ts, deliberately WITHOUT its
-// `RlSnapshot` rate-limit harvest: that snapshot feeds the Convex presence
-// engine's per-token-group cadence scheduling, a concept the Neon on-view path
-// (a stale-gated write-behind, no engine) does not have. The shared ESI budget
-// is still enforced inside esiFetch. The small overlap with the Convex pair is
-// transient — it converges when the live trackers leave Convex (session D); the
-// Convex helper stays untouched so the still-live jobs/skills trackers are not
-// disturbed.
+// Two consumers, one implementation:
+//   - the five Neon slow-data trackers (owned blueprints / assets, skills, char +
+//     corp industry jobs) call it with NO `rl` — a stale-gated write-behind has no
+//     cadence engine, so the rate-limit harvest has no consumer there;
+//   - the Convex `onlineStatus` live canary (convex/onlineStatusSync.ts) passes an
+//     `rl: RlSnapshot` so the live engine schedules its next run against the
+//     observed token-bucket usage. The reader runs in the Convex action runtime
+//     too — the shared ESI gate is runtime-portable, so one implementation serves
+//     both (online keeps a Convex-side CALLER; the read mechanics are shared).
 //
 // The gate's own ETag cache is unauthenticated-only (it never attaches
-// If-None-Match to an Authorization-carrying request), so an authed reader
-// replays its own held ETag and the raw 304 passes straight through.
+// If-None-Match to an Authorization-carrying request), so an authed reader replays
+// its own held ETag and the raw 304 passes straight through.
 //
 // 5xx / 420 / budget-exhaustion throw out of esiFetch (EsiServerError /
 // EsiBudgetExhaustedError) — the per-owner caller catches them and skips that
@@ -20,21 +21,34 @@
 // missing role, 404 a vanished owner) is a soft 'error' result, not a throw.
 import { esiFetch, esiUrl } from './index';
 
+// Latest X-Ratelimit-* numbers seen this run — the token-bucket group usage the
+// Convex live engine schedules against. Mutated in place as reads land. Supplied
+// ONLY by the online-status caller; the Neon trackers omit it (no harvest).
+export interface RlSnapshot {
+  rlGroup: string | null;
+  rlLimit: number | null;
+  rlRemaining: number | null;
+  rlUsed: number | null;
+}
+
 export type EsiAuthedRead =
   | { kind: 'fresh'; body: unknown; etag: string | null; expiresAt: number | null }
   | { kind: 'unchanged'; expiresAt: number | null }
   | { kind: 'error'; code: string };
 
 // One authed conditional read. Used for the corp-roles probe (which needs no
-// pagination) and as the single-call building block.
+// pagination) and as the single-call building block. `rl`, when given, harvests
+// the rate-limit headers off the response (the online-status cadence seam).
 export async function readEsiAuthed(
   path: string,
   accessToken: string,
   heldEtag: string | null,
+  rl?: RlSnapshot,
 ): Promise<EsiAuthedRead> {
   const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
   if (heldEtag !== null) headers['If-None-Match'] = heldEtag;
   const res = await esiFetch(esiUrl(path), { headers });
+  if (rl !== undefined) captureRl(res, rl);
   const expiresAt = parseExpires(res);
   if (res.status === 304) return { kind: 'unchanged', expiresAt };
   if (res.status === 200) {
@@ -43,8 +57,8 @@ export async function readEsiAuthed(
   return { kind: 'error', code: `esi_${res.status}` };
 }
 
-// The paginated read for the owned-blueprints endpoints (?page= + X-Pages),
-// returning the flattened element array across all pages.
+// The paginated read for the owned-blueprints / owned-assets endpoints (?page= +
+// X-Pages), returning the flattened element array across all pages.
 //
 //  - 'unchanged' — a single-page collection whose held page-1 etag still matches
 //    (the dominant character case): the caller bumps the staleness stamp and
@@ -75,10 +89,12 @@ async function fetchPage(
   page: number,
   etag: string | null,
   accessToken: string,
+  rl?: RlSnapshot,
 ): Promise<PageFetch> {
   const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
   if (etag !== null) headers['If-None-Match'] = etag;
   const res = await esiFetch(esiUrl(pagedPath(basePath, page)), { headers });
+  if (rl !== undefined) captureRl(res, rl);
   const expiresAt = parseExpires(res);
   const xPages = intHeader(res, 'X-Pages') ?? 1;
   if (res.status === 304) return { kind: 'unchanged', expiresAt, xPages };
@@ -92,10 +108,11 @@ export async function readEsiPagedAuthed(
   basePath: string,
   accessToken: string,
   heldEtags: string[],
+  rl?: RlSnapshot,
 ): Promise<EsiPagedRead> {
   // Page 1 doubles as the conditional probe (with the held page-1 etag) and the
   // X-Pages source.
-  const first = await fetchPage(basePath, 1, heldEtags[0] ?? null, accessToken);
+  const first = await fetchPage(basePath, 1, heldEtags[0] ?? null, accessToken, rl);
   if (first.kind === 'error') return first;
   const pageCount = Math.max(1, first.xPages);
 
@@ -104,7 +121,7 @@ export async function readEsiPagedAuthed(
       // One page, held etag still matched → unchanged, but only when the stored
       // set was also one page (a collection that shrank to one page refetches).
       if (heldEtags.length === 1) return { kind: 'unchanged', expiresAt: first.expiresAt };
-      return finalizeFresh([await fetchPage(basePath, 1, null, accessToken)]);
+      return finalizeFresh([await fetchPage(basePath, 1, null, accessToken, rl)]);
     }
     return finalizeFresh([first]);
   }
@@ -112,9 +129,9 @@ export async function readEsiPagedAuthed(
   // Multi-page → reassemble every page fresh (drop etags), page order preserved.
   // Reuse the probe's page 1 when it came back fresh; otherwise (a 304 against
   // the held etag) refetch it without an etag to recover its body.
-  const firstFresh = first.kind === 'fresh' ? first : await fetchPage(basePath, 1, null, accessToken);
+  const firstFresh = first.kind === 'fresh' ? first : await fetchPage(basePath, 1, null, accessToken, rl);
   const rest = await Promise.all(
-    Array.from({ length: pageCount - 1 }, (_unused, i) => fetchPage(basePath, i + 2, null, accessToken)),
+    Array.from({ length: pageCount - 1 }, (_unused, i) => fetchPage(basePath, i + 2, null, accessToken, rl)),
   );
   return finalizeFresh([firstFresh, ...rest]);
 }
@@ -148,6 +165,17 @@ function parseExpires(res: Response): number | null {
   if (raw === null) return null;
   const parsed = Date.parse(raw);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Harvest the X-Ratelimit-* token-bucket headers into the caller's snapshot. A
+// no-op when the response carries no group header (e.g. a 304 from cache).
+function captureRl(res: Response, rl: RlSnapshot): void {
+  const group = res.headers.get('X-Ratelimit-Group');
+  if (group === null) return;
+  rl.rlGroup = group;
+  rl.rlLimit = intHeader(res, 'X-Ratelimit-Limit');
+  rl.rlRemaining = intHeader(res, 'X-Ratelimit-Remaining');
+  rl.rlUsed = intHeader(res, 'X-Ratelimit-Used');
 }
 
 function intHeader(res: Response, name: string): number | null {
