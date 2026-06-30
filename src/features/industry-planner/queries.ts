@@ -9,6 +9,7 @@ import {
   getIndustrySolarSystems,
   getIndustryStationsForSystem,
   getTypeLabels,
+  type TypeLabel,
 } from '@/data/eve-data/queries';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { getAdjustedPrices, getSystemCostIndices } from '@/data/industry-indices/queries';
@@ -56,6 +57,30 @@ function collectBlueprintIds(nodes: TreeNode[], acc: Set<number> = new Set()): S
   return acc;
 }
 
+// Bucket each raw leaf into its source category, with the categories' display
+// order + colour so the priced ledger renders ordered sections. Extracted from
+// getBlueprintStructure to keep that accessor's complexity in budget.
+function bucketRawCategories(
+  rawTypeIds: number[],
+  labels: Map<number, TypeLabel>,
+): Pick<BlueprintStructure, 'materialCategory' | 'materialCategories'> {
+  const materialCategory: Record<number, string> = {};
+  const seenCategory = new Map<
+    string,
+    { tone: BlueprintStructure['materialCategories'][number]['tone']; order: number }
+  >();
+  for (const rawTypeId of rawTypeIds) {
+    const l = labels.get(rawTypeId);
+    const cat = classifyRaw(l?.groupName ?? '', l?.categoryName ?? '');
+    materialCategory[rawTypeId] = cat.label;
+    seenCategory.set(cat.label, { tone: cat.tone, order: cat.order });
+  }
+  const materialCategories = [...seenCategory.entries()]
+    .sort((a, b) => a[1].order - b[1].order)
+    .map(([label, c]) => ({ label, tone: c.tone }));
+  return { materialCategory, materialCategories };
+}
+
 // Deploy-static blueprint structure: the nested tree, the flattened raw
 // materials (cost basis), and names for everything. No price dependency, so it
 // renders in the static shell. Cached `'max'` (build ID drops it on deploy,
@@ -97,22 +122,15 @@ export async function getBlueprintStructure(
     // blueprintTypeId → base seconds (ME0/TE0), one entry per producing blueprint.
     const nodeJobSeconds: Record<number, number> = {};
     for (const [bp, secs] of activityTimeMap) nodeJobSeconds[bp] = secs;
+    // blueprintTypeId → activity (1 manufacturing / 11 reaction). The top blueprint
+    // isn't among the tree's producing blueprints (the root nodes are ITS inputs),
+    // so its own activity is seeded explicitly; the rest come from the batched read.
+    const nodeActivityByBlueprint: Record<number, number> = { [blueprintId]: chosen.activityId };
+    for (const [bp, act] of activityByBlueprint) nodeActivityByBlueprint[bp] = act;
     const materialNames: Record<number, string> = {};
     for (const [id, l] of labels) materialNames[id] = l.name;
 
-    // Bucket each raw leaf into its source category, and remember the categories'
-    // display order + colour so the priced ledger can render ordered sections.
-    const materialCategory: Record<number, string> = {};
-    const seenCategory = new Map<string, { tone: BlueprintStructure['materialCategories'][number]['tone']; order: number }>();
-    for (const rawTypeId of rawTypeIds) {
-      const l = labels.get(rawTypeId);
-      const cat = classifyRaw(l?.groupName ?? '', l?.categoryName ?? '');
-      materialCategory[rawTypeId] = cat.label;
-      seenCategory.set(cat.label, { tone: cat.tone, order: cat.order });
-    }
-    const materialCategories = [...seenCategory.entries()]
-      .sort((a, b) => a[1].order - b[1].order)
-      .map(([label, c]) => ({ label, tone: c.tone }));
+    const { materialCategory, materialCategories } = bucketRawCategories(rawTypeIds, labels);
 
     const { buildTree, buildNodeDisplay, rootHeight } = toBuildTree({
       tree,
@@ -143,6 +161,7 @@ export async function getBlueprintStructure(
       materialNames,
       topJobSeconds,
       nodeJobSeconds,
+      nodeActivityByBlueprint,
     };
   });
 }

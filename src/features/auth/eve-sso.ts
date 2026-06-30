@@ -81,6 +81,15 @@ export const EVE_SCOPES = [
   // needs no in-game role. Re-admitted here after being pruned in 3.7.1.1 — a
   // deliberate, batched re-add (name verified live: esi-location.read_online.v1).
   'esi-location.read_online.v1',
+  // Corp owned structures (3.7.9) — the per-corp catalogue of owned Upwell
+  // structures the planner offers as build locations. The roles read above gates
+  // which linked character may vend the corp read; the structures endpoint also
+  // needs the in-game Station_Manager role (a 403 otherwise — the same graceful
+  // skip the corp sync layer uses, never a scope prompt). Read-only. Naming trap:
+  // this corp list lives under `esi-corporations` (like the corp BLUEPRINTS read),
+  // NOT under `esi-universe` — that family's read_structures resolves a single
+  // structure's name and is a separate, later decision.
+  'esi-corporations.read_structures.v1',
 ] as const;
 
 // Boundary schema for the token-exchange envelope. The JWT *claims* are

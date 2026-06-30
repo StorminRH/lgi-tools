@@ -6,6 +6,8 @@ import {
   isAffiliationStale,
   isMemberOfCorp,
   memberCharacterIdInCorp,
+  memberCharacterIdsInCorp,
+  memberCorpIds,
 } from './membership';
 
 const NOW = new Date('2026-06-25T12:00:00.000Z');
@@ -115,6 +117,69 @@ describe('memberCharacterIdInCorp (the granting pilot, for the audit)', () => {
 
   it('returns null on an empty affiliation set', () => {
     expect(memberCharacterIdInCorp([], 2000, NOW)).toBeNull();
+  });
+});
+
+describe('memberCharacterIdsInCorp (every in-corp pilot, for the role gate)', () => {
+  it('returns all fresh members of the corp', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000 }),
+      aff({ characterId: 102, corporationId: 2000 }),
+      aff({ characterId: 103, corporationId: 3000 }),
+    ];
+    expect(memberCharacterIdsInCorp(affiliations, 2000, NOW).sort((a, b) => a - b)).toEqual([101, 102]);
+  });
+
+  it('excludes a stale or never-refreshed matching pilot (fail closed)', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000, refreshedAt: STALE }),
+      aff({ characterId: 102, corporationId: 2000, refreshedAt: null }),
+      aff({ characterId: 103, corporationId: 2000 }),
+    ];
+    expect(memberCharacterIdsInCorp(affiliations, 2000, NOW)).toEqual([103]);
+  });
+
+  it('returns an empty list when no pilot is in the corp', () => {
+    expect(memberCharacterIdsInCorp([aff({ corporationId: 3000 })], 2000, NOW)).toEqual([]);
+  });
+});
+
+describe('memberCorpIds (the read-scope set for shared per-corp data)', () => {
+  it('returns the corps a fresh member is in — and a non-member sees nothing of others', () => {
+    // The shared-store read gate: a member of 2000 gets [2000]; a viewer in only
+    // 3000 never sees 2000's catalogue.
+    expect(memberCorpIds([aff({ corporationId: 2000 })], NOW)).toEqual([2000]);
+    expect(memberCorpIds([aff({ corporationId: 3000 })], NOW)).not.toContain(2000);
+  });
+
+  it('excludes a stale or never-refreshed corp (fail closed)', () => {
+    expect(memberCorpIds([aff({ corporationId: 2000, refreshedAt: STALE })], NOW)).toEqual([]);
+    expect(memberCorpIds([aff({ corporationId: 2000, refreshedAt: null })], NOW)).toEqual([]);
+  });
+
+  it('excludes a null cached corp', () => {
+    expect(memberCorpIds([aff({ corporationId: null })], NOW)).toEqual([]);
+  });
+
+  it('dedupes when several linked characters share a corp', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000 }),
+      aff({ characterId: 102, corporationId: 2000 }),
+    ];
+    expect(memberCorpIds(affiliations, NOW)).toEqual([2000]);
+  });
+
+  it('returns every distinct corp the user is a fresh member of', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000 }),
+      aff({ characterId: 102, corporationId: 3000 }),
+      aff({ characterId: 103, corporationId: 4000, refreshedAt: STALE }), // excluded
+    ];
+    expect(memberCorpIds(affiliations, NOW).sort((a, b) => a - b)).toEqual([2000, 3000]);
+  });
+
+  it('returns an empty list on an empty affiliation set', () => {
+    expect(memberCorpIds([], NOW)).toEqual([]);
   });
 });
 

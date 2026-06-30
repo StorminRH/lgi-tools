@@ -86,6 +86,41 @@ export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 // beat the real reaction formula and inflated T2 build cost ~500x).
 export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
 
+// --- Upwell structures + industry rigs (3.7.9) --------------------------
+// The three industry-capable structure families the planner offers as build
+// locations, by SDE group id (verified against the SDE — all sit under category
+// 65 "Structure"). A structure is just a build location: it bonuses each build
+// node BY THAT NODE'S ACTIVITY from the structure's own role attrs (if any) plus
+// whatever rigs physically fit it — there is no per-structure "role". Citadels
+// carry no role bonus of their own but DO host manufacturing rigs, so a Citadel +
+// a manufacturing rig still bonuses manufacturing nodes (the rig's bonus only).
+export const SDE_ENGINEERING_COMPLEX_GROUP_ID = 1404; // Raitaru / Azbel / Sotiyo
+export const SDE_REFINERY_GROUP_ID = 1406; // Athanor / Tatara
+export const SDE_CITADEL_GROUP_ID = 1657; // Astrahus / Fortizar / Keepstar (+ faction Fortizars)
+// The full offerable set: the three industry-capable structure groups.
+export const SDE_INDUSTRY_STRUCTURE_GROUP_IDS = [
+  SDE_ENGINEERING_COMPLEX_GROUP_ID,
+  SDE_REFINERY_GROUP_ID,
+  SDE_CITADEL_GROUP_ID,
+] as const;
+// Structure rigs live under category 66 "Structure Module".
+export const SDE_STRUCTURE_MODULE_CATEGORY_ID = 66;
+
+// Dogma attribute ids used ONLY to enumerate + fit-match industry rigs in the SDE
+// picker. A rig FITS a structure when one of its `canFitShipGroup01/02/03` attrs
+// equals the structure's group id AND its rig-size attr equals the structure's
+// (CCP's actual fitting rule — not a "role"). A rig is an INDUSTRY rig (vs a
+// defensive/service module that also fits these groups) when it carries the
+// material-reduction attr (manufacturing) or the reaction-time attr (reaction).
+// The full bonus math reads the rest of the dogma in the industry-planner slice —
+// these ids are duplicated here purely for the enumeration filter, because the
+// data slice may not import the feature and the verified structure-bonus constants
+// must not be edited this session.
+export const STRUCTURE_RIG_SIZE_ATTR = 1547; // rig fits when this equals the structure's 1547
+export const RIG_CAN_FIT_GROUP_ATTRS = [1298, 1299, 1300] as const; // canFitShipGroup01/02/03
+export const RIG_MFG_MATERIAL_ATTR = 2594; // nonzero ⇒ a manufacturing-efficiency rig
+export const RIG_REACTION_TIME_ATTR = 2713; // present ⇒ a reactor-efficiency rig
+
 // Revalidation tag for cached blueprint *structure* reads (the Industry
 // Planner's `'use cache'` tree + flat-materials view, and the blueprint search
 // index). `cacheLife('max')` already drops these on deploy, which covers the

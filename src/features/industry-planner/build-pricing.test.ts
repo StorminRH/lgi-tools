@@ -29,6 +29,7 @@ const STRUCTURE: BlueprintStructure = {
   materialNames: { 34: 'Tritanium', 35: 'Pyerite', 999: 'Widget' },
   topJobSeconds: null,
   nodeJobSeconds: {},
+  nodeActivityByBlueprint: {},
 };
 
 const PRICES: Record<number, PriceLite> = {

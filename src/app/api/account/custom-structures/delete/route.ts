@@ -1,0 +1,28 @@
+import type { NextRequest } from 'next/server';
+import {
+  deleteCustomStructureRequestSchema,
+  type CustomStructuresResponse,
+} from '@/features/custom-structures/api-contract';
+import {
+  deleteCustomStructure,
+  listCustomStructures,
+} from '@/features/custom-structures/queries';
+import { getCurrentUserId } from '@/features/auth/session';
+import { parseJsonBody } from '@/lib/route-body';
+
+// authz: auth
+// POST /api/account/custom-structures/delete. Deletes one of the caller's OWN
+// structures (the query's (userId, id) predicate makes it a no-op for a row the
+// caller doesn't own). Returns the updated list. apiFetch only speaks GET/POST,
+// so this is a POST sub-route rather than an HTTP DELETE.
+export async function POST(request: NextRequest): Promise<Response> {
+  const userId = await getCurrentUserId();
+  if (!userId) return new Response('Unauthorized', { status: 401 });
+
+  const parsed = await parseJsonBody(request, deleteCustomStructureRequestSchema);
+  if (!parsed.ok) return parsed.response;
+
+  await deleteCustomStructure(userId, parsed.data.id);
+  const structures = await listCustomStructures(userId);
+  return Response.json({ structures } satisfies CustomStructuresResponse);
+}

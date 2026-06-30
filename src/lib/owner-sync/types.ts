@@ -77,6 +77,13 @@ export interface OwnerSyncDescriptor<TOwner, TState, TSave> {
   now(): Date;
   // The user's linked characters (the slice's port.listCharacters / listMembers).
   enumerate(userId: string): Promise<EnumeratedOwner[]>;
+  // An optional per-owner gate read FIRST in syncOwner — before readState, the
+  // staleness check, and any token vend. Returns false ⇒ the owner is skipped
+  // entirely: no state read, no vend / roles read, no fetch, no save. Absent ⇒ the
+  // owner always proceeds (every existing slice omits it — byte-identical). Corp
+  // structures supply it to gate the pull on per-corp sharing consent, so a
+  // non-opted-in corp dispatches zero ESI and stores zero rows.
+  precondition?(owner: TOwner): Promise<boolean>;
   // A fresh access token for a character, or null when unavailable / reauth-needed.
   vendToken(characterId: number): Promise<string | null>;
   // The staleness gate (the slice's isXStale, closing over its TTL), read BEFORE any

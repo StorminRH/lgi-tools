@@ -127,14 +127,16 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
             Runs
             <Stepper value={runs} onChange={setRuns} min={1} ariaLabel="Runs" />
           </label>
-          {isManufacturing && (
-            <div className="flex items-center gap-2.5">
-              <span className="text-[9px] uppercase tracking-[0.14em] text-muted">Build at</span>
-              <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
-            </div>
-          )}
         </div>
       </div>
+
+      {/* The build-location control gets its own full-width row so the structure
+          bonus readout has room to appear without shifting any other control. */}
+      {isManufacturing && (
+        <div className={cn('mb-3.5 rounded-md border border-border bg-section px-[18px] py-3')}>
+          <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
+        </div>
+      )}
 
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
       <CockpitBuildPlan structure={structure} />

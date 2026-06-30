@@ -18,7 +18,16 @@ import {
   ACTIVITY_NAME_TO_ID,
   BLUEPRINT_STRUCTURE_TAG,
   INDUSTRY_ACTIVITY_NAMES,
+  RIG_CAN_FIT_GROUP_ATTRS,
+  SDE_INDUSTRY_STRUCTURE_GROUP_IDS,
+  SDE_STRUCTURE_MODULE_CATEGORY_ID,
+  STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
+import {
+  isIndustryRig,
+  type StructureRigOption,
+  type StructureTypeOption,
+} from './structures';
 import {
   activitiesToRows,
   pickBuildTimeSeconds,
@@ -430,4 +439,100 @@ export async function getIndustryStationsForSystem(
         eq(eveNpcStations.industryCapable, true),
       ),
     );
+}
+
+// ----- Upwell structures + industry rigs (3.7.9) ---------------------------
+
+// The three industry-capable structure families (Engineering Complexes,
+// Refineries, Citadels) the planner offers as build locations, with each one's
+// SDE group + rig-size class. A structure carries no "role" — the bonus is
+// computed per build node from the structure's own attrs plus whatever rigs fit.
+// Deploy-static SDE data — cached `'max'`, busted by the SDE drift cron's tag.
+export async function getStructureTypes(): Promise<StructureTypeOption[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  return withColdStartRetry(async () => {
+    const rows = await db
+      .select({
+        id: eveTypes.id,
+        name: eveTypes.name,
+        groupId: eveTypes.groupId,
+        attributes: typeDogma.attributes,
+      })
+      .from(eveTypes)
+      .leftJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
+      .where(
+        and(
+          inArray(eveTypes.groupId, [...SDE_INDUSTRY_STRUCTURE_GROUP_IDS]),
+          eq(eveTypes.published, true),
+        ),
+      );
+    return rows
+      .map((r) => {
+        const attrs = (r.attributes ?? {}) as AttrMap;
+        return {
+          typeId: r.id,
+          name: r.name,
+          groupId: r.groupId,
+          rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+}
+
+// Every industry-efficiency structure rig the planner models, with the structure
+// groups it can fit (canFitShipGroup) + its rig-size class — the builder filters
+// this list to the rigs that fit a chosen structure (group in canFitGroups, same
+// rig size). Deploy-static SDE data, cached `'max'`.
+export async function getStructureRigs(): Promise<StructureRigOption[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  return withColdStartRetry(async () => {
+    const rows = await db
+      .select({
+        id: eveTypes.id,
+        name: eveTypes.name,
+        attributes: typeDogma.attributes,
+      })
+      .from(eveTypes)
+      .innerJoin(eveGroups, eq(eveGroups.id, eveTypes.groupId))
+      .innerJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
+      .where(
+        and(
+          eq(eveGroups.categoryId, SDE_STRUCTURE_MODULE_CATEGORY_ID),
+          eq(eveTypes.published, true),
+        ),
+      );
+    const out: StructureRigOption[] = [];
+    for (const r of rows) {
+      const attrs = (r.attributes ?? {}) as AttrMap;
+      if (!isIndustryRig(attrs)) continue;
+      const canFitGroups = RIG_CAN_FIT_GROUP_ATTRS.map((a) => attrs[a]).filter(
+        (g): g is number => g !== undefined,
+      );
+      out.push({
+        typeId: r.id,
+        name: r.name,
+        canFitGroups,
+        rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null,
+      });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  });
+}
+
+// Exact in-game name → typeId over the structures + industry rigs the planner
+// models — the bounded lookup behind the structure-fit paste path (the parser's
+// `resolveTypeId` callback). A pasted line that isn't one of these (a defensive
+// rig, a service module) simply doesn't resolve and is dropped, which is exactly
+// what we want: only industry structures + rigs enter a saved custom structure.
+export async function getStructureFitNameIndex(): Promise<Map<string, number>> {
+  const [types, rigs] = await Promise.all([getStructureTypes(), getStructureRigs()]);
+  const index = new Map<string, number>();
+  for (const t of types) index.set(t.name, t.typeId);
+  for (const r of rigs) index.set(r.name, r.typeId);
+  return index;
 }

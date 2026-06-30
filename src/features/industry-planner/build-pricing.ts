@@ -107,15 +107,26 @@ export interface AssembleOptions {
   runs?: number;
   // Present once a build location is picked — the adapter feeds the net-margin
   // leaf. `systemCostIndex` is the activity-matched index (null when the system
-  // has no stored index). Omitted on the gross-only path (server seed / no
-  // location), so `assemblePricing(structure, priceOf)` is byte-identical gross.
-  fee?: { adjustedPriceOf: AdjustedPriceOf; systemCostIndex: number | null };
+  // has no stored index). `structureCostBonusPct` is the selected manufacturing
+  // structure's job-cost reduction (3.7.9.1.3, 0 with no structure). Omitted on
+  // the gross-only path (server seed / no location), so
+  // `assemblePricing(structure, priceOf)` is byte-identical gross.
+  fee?: {
+    adjustedPriceOf: AdjustedPriceOf;
+    systemCostIndex: number | null;
+    structureCostBonusPct?: number;
+  };
   // Per-blueprint owned-ME lookup (3.7.5.2). Present only on the client once the
   // player's owned blueprints have loaded — it ME-reduces the cost-basis material
   // quantities at each buildable's owned ME. Omitted on the server seed and the
   // no-owned-data client path, so the gross cost basis is byte-identical (every
   // lookup → undefined → ME0). The net-margin EIV base stays ME0 regardless.
   meOf?: (blueprintTypeId: number) => number | undefined;
+  // Per-node structure material factor (3.7.9.1.3) — the (1 − structureMe/100) a
+  // selected build structure applies to a manufacturing node. Composes into the
+  // cost-basis materials alongside owned ME (one round at the end, in meAdjust);
+  // omitted / returning 1 ⇒ the basis is byte-identical to the no-structure path.
+  structureMeFactorOf?: (blueprintTypeId: number) => number;
 }
 
 // Net margin for the FINAL build job only (3.5.2b "top job"). Null unless a
@@ -146,6 +157,7 @@ function computeNet(
     baseMaterials,
     adjustedPriceOf: fee.adjustedPriceOf,
     systemCostIndex: fee.systemCostIndex,
+    structureCostBonusPct: fee.structureCostBonusPct,
   });
   return {
     netMargin: result.netMargin,
@@ -173,12 +185,14 @@ export function assemblePricing(
   // list. Re-derived per request from the tree. With an owned-ME lookup the
   // material quantities are reduced at each buildable's owned ME; without one
   // (server seed / no owned data) this is the byte-identical ME0 cost basis.
-  const materials = opts.meOf
-    ? computeBatchMaterialsWithMe(structure.tree, runs, {
-        meOf: opts.meOf,
-        topBlueprintTypeId: structure.blueprintTypeId,
-      })
-    : computeBatchMaterials(structure.tree, runs);
+  const materials =
+    opts.meOf || opts.structureMeFactorOf
+      ? computeBatchMaterialsWithMe(structure.tree, runs, {
+          meOf: opts.meOf ?? (() => undefined),
+          topBlueprintTypeId: structure.blueprintTypeId,
+          structureMeFactorOf: opts.structureMeFactorOf,
+        })
+      : computeBatchMaterials(structure.tree, runs);
   const buildCost = computeBuildCost(materials, buyOf);
   const productPrice = priceOf(structure.product.typeId);
   // Output units = per-run yield × runs. Revenue is per output unit, never per

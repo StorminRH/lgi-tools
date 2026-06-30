@@ -1,8 +1,10 @@
 // API wire contract owned by the industry-planner feature (3.4.T).
 import { z } from 'zod';
+import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import type { ApiEndpoint } from '@/lib/api-client';
 import type {
   AssetHolding,
+  AvailableStructuresResponse,
   BlueprintIndexEntry,
   BuildLocationData,
   IndustryStationView,
@@ -183,4 +185,43 @@ export const ownedAssetsEndpoint: ApiEndpoint<
   path: '/api/industry/owned-assets',
   request: ownedAssetsRequestSchema,
   response: ownedAssetsResponseSchema,
+};
+
+// ── GET /api/account/structures (authz: auth) ────────────────────────────
+// The structures the signed-in caller can place a build in — their custom
+// structures now (3.7.9.1.3), plus their corp's pulled structures next session
+// (3.7.9.1.4), merged server-side with no selector change. Each carries its
+// resolved structure + rig dogma so the bonus recomputes client-side, live.
+// Anonymous callers get an empty list.
+//
+// `AttrMap` is number-keyed in TS but serializes with string JSON keys, so the
+// runtime schema validates a string-keyed record; the endpoint's response type is
+// pinned to the number-keyed wire interface (the one place the SDE dogma's
+// number keys meet the wire's string keys).
+const attrMapSchema = z.record(z.string(), z.number());
+
+const availableStructureSchema = z.object({
+  id: z.string(),
+  source: z.enum(['custom', 'corp']),
+  name: z.string(),
+  structureTypeId: z.number(),
+  systemId: z.number().nullable(),
+  structureAttrs: attrMapSchema,
+  rigAttrs: z.array(attrMapSchema),
+  securityClass: z.enum(SECURITY_CLASSES).nullable(),
+});
+
+export const availableStructuresResponseSchema = z.object({
+  structures: z.array(availableStructureSchema),
+});
+
+// Surfaced from the contract module (alongside the schema) so the route imports
+// its response shape from here — the api-contract is the one wire-shape home.
+export type { AvailableStructure, AvailableStructuresResponse } from './types';
+
+export const availableStructuresEndpoint: ApiEndpoint<null, AvailableStructuresResponse> = {
+  method: 'GET',
+  path: '/api/account/structures',
+  request: null,
+  response: availableStructuresResponseSchema as unknown as z.ZodType<AvailableStructuresResponse>,
 };

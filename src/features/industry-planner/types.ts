@@ -1,5 +1,7 @@
 import type { Tone } from '@/components/ui/tones';
+import type { SecurityClass } from '@/data/eve-data/security';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
+import type { AttrMap } from '@/data/eve-data/types';
 import type { DepthBand, PriceSource } from '@/data/market-prices/types';
 
 // One searchable blueprint: its own type ID, plus the type ID and name of the
@@ -89,6 +91,12 @@ export interface BlueprintStructure {
   // whole-tree "total job time" KPI, which applies TE per blueprint and sums the
   // batched runs. A degenerate blueprint with no positive time is simply absent.
   nodeJobSeconds: Record<number, number>;
+  // blueprintTypeId → its industry activity (1 = manufacturing, 11 = reaction),
+  // for the top blueprint and every producing blueprint in the tree. The build
+  // structure bonus (3.7.9.1.3) reads this to map each node to its activity's
+  // structure slot (an Engineering Complex's bonus only reaches manufacturing
+  // nodes; a Refinery's only reaches reaction nodes).
+  nodeActivityByBlueprint: Record<number, number>;
 }
 
 export interface MaterialCostRow {
@@ -126,6 +134,34 @@ export interface IntermediatePrice {
   sellVolume: number | null;
   source: PriceSource | null;
   staleAfterMs: number | null;
+}
+
+// --- Build-structure selector (3.7.9.1.3) --------------------------------
+
+// A structure the planner can place a build in — SOURCE-AGNOSTIC so the corp-
+// pulled source (3.7.9.1.5) slots in beside the user's custom ones with no
+// selector/wiring change. There is no per-structure "role": one selected
+// structure bonuses each build node by THAT node's activity, from the structure's
+// own attrs plus whatever rigs fit it. The resolved structure + rig dogma travels
+// on the wire so the bonus recomputes client-side, live, as the build system /
+// per-node activity change. `securityClass` is the structure's own system band for
+// a corp structure; null for a custom one, whose rig bonus instead scales against
+// the security of the planner's selected build LOCATION. `systemId` is the corp
+// structure's home system (so a corp pick can lock the build location); null for a
+// custom structure, which borrows whatever system the planner has selected.
+export interface AvailableStructure {
+  id: string;
+  source: 'custom' | 'corp';
+  name: string;
+  structureTypeId: number;
+  systemId: number | null;
+  structureAttrs: AttrMap;
+  rigAttrs: AttrMap[];
+  securityClass: SecurityClass | null;
+}
+
+export interface AvailableStructuresResponse {
+  structures: AvailableStructure[];
 }
 
 // --- Build-location selector + net margin (3.5.2b) -----------------------

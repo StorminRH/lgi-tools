@@ -51,6 +51,16 @@ export const TOOLS: Tool[] = [
     // placement; live via search and direct URL.
     navHidden: true,
   },
+  {
+    label: 'Structures',
+    abbr: 'ST',
+    href: '/structures',
+    matchPrefix: '/structures',
+    description: 'Live · /structures',
+    // Out of the header strip until the sitewide UX pass decides nav placement;
+    // reachable via search, direct URL, and the planner's structure-selector link.
+    navHidden: true,
+  },
 ];
 
 // The tools shown in the header navigation. Both the desktop strip (NavTools)

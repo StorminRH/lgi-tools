@@ -345,6 +345,70 @@ describe('computeBatchLedgerWithMe — cascade + reaction ME0', () => {
   });
 });
 
+describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', () => {
+  // A one-level build: the TOP blueprint (BP 9000) consumes raw R (typeId 1). The
+  // structure applies a (1 − structureMe/100) factor to that job; here as a plain
+  // factor — the realistic per-activity mapping is tested over computeStructureBonus
+  // in the selector's structureFactorsFor.
+  const oneLevel = (baseQty: number): TreeNode[] => [{ typeId: 1, quantity: baseQty, inputs: [] }];
+  const noBpMe = (mult: number) => ({
+    meOf: () => undefined,
+    topBlueprintTypeId: 9000,
+    structureMeFactorOf: () => mult,
+  });
+
+  it('reduces a node by the structure factor, rounded once', () => {
+    // qty 200, 1 run, ME0, structure 0.95 → max(1, ceil(round(200·0.95))) = 190
+    expect(asMap(computeBatchMaterialsWithMe(oneLevel(200), 1, noBpMe(0.95)))).toEqual({ 1: 190 });
+  });
+
+  it('composes blueprint ME and the structure as ONE round (no double-ceil)', () => {
+    // qty 199, ME1, structure 0.99: single round = ceil(round(199·0.99·0.99, 2)) =
+    // ceil(195.04) = 196. A double-ceil (ME-ceil 198, then structure-ceil) would
+    // give 197 — so this pins the single round-at-end.
+    const opts = {
+      meOf: (bp: number) => (bp === 9000 ? 1 : undefined),
+      topBlueprintTypeId: 9000,
+      structureMeFactorOf: () => 0.99,
+    };
+    expect(asMap(computeBatchMaterialsWithMe(oneLevel(199), 1, opts))).toEqual({ 1: 196 });
+  });
+
+  it('honours the ≥1-per-run floor under a structure factor', () => {
+    // qty 1, 100 runs, structure 0.95 → max(100, ceil(round(95))) = 100
+    expect(asMap(computeBatchMaterialsWithMe(oneLevel(1), 100, noBpMe(0.95)))).toEqual({ 1: 100 });
+  });
+
+  it('byte-identical to the no-structure basis when the factor is 1 everywhere', () => {
+    const tree = oneLevel(200);
+    expect(asMap(computeBatchMaterialsWithMe(tree, 3, noBpMe(1)))).toEqual(
+      asMap(computeBatchMaterials(tree, 3)),
+    );
+  });
+
+  it('applies per node — a reaction child kept at factor 1 draws its raws unreduced', () => {
+    // Top (BP 9000, mfg, structure 0.95) consumes 100 of reaction C (BP 1200, kept
+    // at factor 1 — reactions get no structure ME), made 30/run, 1 raw/run. The top's
+    // factor cuts C demand 100 → 95 → ⌈95/30⌉ = 4 runs; C's own raw draw stays
+    // 4 × 1 = 4, never structure-reduced.
+    const tree: TreeNode[] = [
+      {
+        typeId: 200,
+        quantity: 100,
+        producedBy: { blueprintTypeId: 1200, quantityPerRun: 30, runsNeeded: 100 / 30 },
+        inputs: [{ typeId: 300, quantity: 1, inputs: [] }],
+      },
+    ];
+    const ledger = computeBatchLedgerWithMe(tree, 1, {
+      meOf: () => undefined,
+      topBlueprintTypeId: 9000,
+      structureMeFactorOf: (bp: number) => (bp === 9000 ? 0.95 : 1),
+    });
+    expect(ledger.builds.get(200)?.runs).toBe(4);
+    expect(ledger.raws.get(300)).toBe(4);
+  });
+});
+
 describe('collectBlueprintTypeIds', () => {
   it('returns the top blueprint plus every buildable node’s producing blueprint', () => {
     const tree: TreeNode[] = [

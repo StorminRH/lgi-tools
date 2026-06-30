@@ -239,6 +239,27 @@
       "when": 1782702633754,
       "tag": "0033_rich_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1782768341067,
+      "tag": "0034_groovy_randall_flagg",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1782771992045,
+      "tag": "0035_curvy_tyger_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1782811676454,
+      "tag": "0036_new_nico_minoru",
+      "breakpoints": true
     }
   ]
 }

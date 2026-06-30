@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.9.1 — 2026-06-30
+
+#### Added
+- The build planner can now build in your corporation's own Upwell structures. A station manager switches sharing on for the corporation from the Structures page; once on, every member sees the corporation's structures as build locations, and picking one locks the build to that structure's system and applies its bonuses. A station manager can also record which rigs each structure is fitted with so the bonuses are exact. Sharing is off until a station manager turns it on, and turning it off removes the corporation's structures and recorded rig fits again.
+
+#### Changed
+- Seeing your corporation's structures needs a character with the Station Manager role in the corporation. Existing players must reconnect a character once to approve a new read-only corporation permission (its owned structures) — EVE requires re-consent whenever an app asks for new access.
+
 ### v3.7.9 — 2026-06-28
 
 #### Changed

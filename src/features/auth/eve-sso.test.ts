@@ -20,13 +20,15 @@ describe('EVE_SCOPES', () => {
   // blueprint reads (owned-blueprints dataset), taking it to eight; 3.7.7.1
   // added the two asset reads (owned-assets dataset), taking it to ten; MIGRATE.A
   // re-admitted the online-status read (esi-location.read_online.v1, pruned in
-  // 3.7.1.1) for the live online-status canary, taking it to eleven. Naming
+  // 3.7.1.1) for the live online-status canary, taking it to eleven; 3.7.9 added
+  // the corp owned-structures read (esi-corporations.read_structures.v1) for the
+  // planner's build-location catalogue, taking it to twelve. Naming
   // trap still worth pinning: the skill-queue read lives under `esi-skills`, NOT
   // `esi-skillqueue`. (`read_attributes` does not exist; /attributes is gated by
   // `read_skills`.) The corp roles read lives under `esi-characters`, NOT
-  // `esi-corporations` — but the corp BLUEPRINTS read lives under
-  // `esi-corporations`, while BOTH asset reads live under `esi-assets` (the corp
-  // one is `read_corporation_assets`). Adding a scope is a deliberate, batched
+  // `esi-corporations` — but the corp BLUEPRINTS and corp STRUCTURES reads live
+  // under `esi-corporations`, while BOTH asset reads live under `esi-assets` (the
+  // corp one is `read_corporation_assets`). Adding a scope is a deliberate, batched
   // decision — verify the exact live name before touching this list.
   it('matches the verified least-privilege EVE scope names', () => {
     expect([...EVE_SCOPES]).toEqual([
@@ -41,6 +43,7 @@ describe('EVE_SCOPES', () => {
       'esi-assets.read_assets.v1',
       'esi-assets.read_corporation_assets.v1',
       'esi-location.read_online.v1',
+      'esi-corporations.read_structures.v1',
     ]);
   });
 
