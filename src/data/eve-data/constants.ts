@@ -86,6 +86,28 @@ export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 // beat the real reaction formula and inflated T2 build cost ~500x).
 export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
 
+// --- Upwell structures + industry rigs (3.7.9) --------------------------
+// The two industry structure families the planner offers as build locations,
+// by SDE group id (verified against the SDE — both sit under category 65
+// "Structure"). Engineering Complexes modify MANUFACTURING; Refineries modify
+// REACTIONS. Citadels carry no industry bonus, so they are deliberately absent.
+export const SDE_ENGINEERING_COMPLEX_GROUP_ID = 1404; // Raitaru / Azbel / Sotiyo
+export const SDE_REFINERY_GROUP_ID = 1406; // Athanor / Tatara
+// Structure rigs live under category 66 "Structure Module".
+export const SDE_STRUCTURE_MODULE_CATEGORY_ID = 66;
+
+// Dogma attribute ids used ONLY to enumerate + size-match industry rigs in the
+// SDE picker. A rig is valid for a structure when its rig-size attr equals the
+// structure's own; a rig is an industry rig when it carries the material-
+// reduction attr (manufacturing) or the reaction-time attr (reaction). The full
+// bonus math reads the rest of the dogma in the industry-planner slice — these
+// ids are duplicated here purely for the enumeration filter, because the data
+// slice may not import the feature and the verified structure-bonus constants
+// must not be edited this session.
+export const STRUCTURE_RIG_SIZE_ATTR = 1547; // rig fits when this equals the structure's 1547
+export const RIG_MFG_MATERIAL_ATTR = 2594; // nonzero ⇒ a manufacturing-efficiency rig
+export const RIG_REACTION_TIME_ATTR = 2713; // present ⇒ a reactor-efficiency rig
+
 // Revalidation tag for cached blueprint *structure* reads (the Industry
 // Planner's `'use cache'` tree + flat-materials view, and the blueprint search
 // index). `cacheLife('max')` already drops these on deploy, which covers the

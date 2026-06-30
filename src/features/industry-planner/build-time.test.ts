@@ -96,6 +96,34 @@ describe('computeBuildTimes', () => {
     expect(r.topJob).toBeNull();
   });
 
+  it('applies the structure TE factor to the top job and intermediates (3.7.9.1.3)', () => {
+    const r = computeBuildTimes({
+      ...base,
+      topJobSeconds: 18_000, // 5h base
+      nodeJobSeconds: { 5: 18_000 },
+      runs: 1,
+      builds: ledger([[200, { runs: 1, blueprintTypeId: 5 }]]),
+      structureTeFactorOf: () => 0.9, // a 10% structure time reduction
+    });
+    // top: 18000 × 1 (TE0) × 0.9 = 16200s = 4h 30m; node same → total 32400 = 9h
+    expect(r.topJob).toBe('4h 30m');
+    expect(r.totalProduction).toBe('9h');
+  });
+
+  it('build-time is byte-identical when the structure TE factor is 1', () => {
+    const args = {
+      ...base,
+      topJobSeconds: 18_000,
+      nodeJobSeconds: { 5: 18_000 },
+      runs: 1,
+      builds: ledger([[200, { runs: 1, blueprintTypeId: 5 }]]),
+    };
+    const withFactor = computeBuildTimes({ ...args, structureTeFactorOf: () => 1 });
+    const without = computeBuildTimes(args);
+    expect(withFactor.topJob).toBe(without.topJob);
+    expect(withFactor.totalProduction).toBe(without.totalProduction);
+  });
+
   it('skips a degenerate intermediate with no base time without producing NaN', () => {
     const r = computeBuildTimes({
       ...base,

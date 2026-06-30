@@ -84,6 +84,11 @@ export function computeJobInstallationFee(
   adjustedPriceOf: AdjustedPriceOf,
   systemCostIndex: number | null,
   rates: FeeRates = DEFAULT_FEE_RATES,
+  // The selected build structure's job-cost reduction PERCENT (3.7.9.1.3), which
+  // reduces ONLY the EIV × systemCostIndex portion — the structure/rig cost bonus
+  // doesn't touch the facility tax or SCC surcharge. Defaults to 0 (no structure),
+  // so the fee is byte-identical to the pre-3.7.9 result.
+  structureCostBonusPct = 0,
 ): JobInstallationFee {
   const missingAdjustedPriceTypeIds: number[] = [];
   let estimatedItemValue = 0;
@@ -100,7 +105,9 @@ export function computeJobInstallationFee(
   const facilityTax = estimatedItemValue * rates.facilityTax;
   const sccSurcharge = estimatedItemValue * rates.sccSurcharge;
   const missingSystemCostIndex = systemCostIndex === null;
-  const jobGrossCost = missingSystemCostIndex ? null : estimatedItemValue * systemCostIndex;
+  const jobGrossCost = missingSystemCostIndex
+    ? null
+    : estimatedItemValue * systemCostIndex * (1 - structureCostBonusPct / 100);
   const total = jobGrossCost === null ? null : jobGrossCost + facilityTax + sccSurcharge;
 
   return {
@@ -140,6 +147,9 @@ export interface NetMarginInput extends MarginInput {
   adjustedPriceOf: AdjustedPriceOf;
   systemCostIndex: number | null;
   rates?: FeeRates;
+  // The selected build structure's job-cost reduction percent (3.7.9.1.3),
+  // applied to the EIV × systemCostIndex portion only. Omitted ⇒ 0 (no structure).
+  structureCostBonusPct?: number;
 }
 
 export interface NetMargin {
@@ -167,6 +177,7 @@ export function computeNetMargin(input: NetMarginInput): NetMargin {
     input.adjustedPriceOf,
     input.systemCostIndex,
     rates,
+    input.structureCostBonusPct ?? 0,
   );
   const sellSide = computeSellSideFees(gross.revenue, rates);
 

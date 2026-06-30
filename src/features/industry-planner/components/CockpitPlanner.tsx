@@ -11,6 +11,7 @@ import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
 import { activityLabel } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
+import { StructureSelector } from './StructureSelector';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitKpis, type MarginMode } from './CockpitKpis';
 import { MeField, TeField } from './MeAdjuster';
@@ -135,6 +136,18 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
           )}
         </div>
       </div>
+
+      {isManufacturing && (
+        <div
+          className={cn(
+            'mb-3.5 flex flex-wrap items-center gap-3.5',
+            'rounded-md border border-border bg-section px-[18px] py-3',
+          )}
+        >
+          <span className="text-[9px] uppercase tracking-[0.14em] text-muted">Build structure</span>
+          <StructureSelector />
+        </div>
+      )}
 
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />
       <CockpitBuildPlan structure={structure} />

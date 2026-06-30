@@ -156,6 +156,12 @@ export function computeBatchMaterials(
 export interface MeOptions {
   meOf: (blueprintTypeId: number) => number | undefined;
   topBlueprintTypeId: number;
+  // Optional per-node structure material factor (3.7.9.1.3): the (1 − structureMe/100)
+  // a selected build structure applies to THIS blueprint's job, by its activity — an
+  // Engineering Complex reduces manufacturing nodes; a Refinery does NOT reduce
+  // reaction material (reactions get no structure ME), so it returns 1 there. Omitted
+  // (or returning 1) ⇒ the material basis is byte-identical to the no-structure path.
+  structureMeFactorOf?: (blueprintTypeId: number) => number;
 }
 
 function roundTo2(x: number): number {
@@ -163,14 +169,20 @@ function roundTo2(x: number): number {
 }
 
 // EVE's manufacturing material quantity for `runs` runs of a blueprint at ME
-// `me`, base per-run quantity `qty` (no structure/rig bonuses):
-//   max(runs, ceil(round(qty · runs · (1 − ME/100), 2))).
-// ME ≤ 0 (the unowned / reaction case) is exactly qty·runs, so it's a no-op.
-// `max(runs, …)` is EVE's "≥1 unit per run" floor (qty 1 / 100 runs / ME10 → 100,
-// not 90); the round-to-2 before the ceil neutralises float noise.
-function meAdjust(qty: number, runs: number, me: number): number {
-  if (me <= 0) return qty * runs;
-  return Math.max(runs, Math.ceil(roundTo2(qty * runs * (1 - me / 100))));
+// `me`, base per-run quantity `qty`, optionally reduced further by a structure
+// material factor `structureMult` (3.7.9.1.3):
+//   max(runs, ceil(round(qty · runs · (1 − ME/100) · structureMult, 2))).
+// The blueprint ME and the structure compose as independent (1 − x) factors and
+// the product is rounded ONCE (round-to-2 then ceil), floored at one unit per run
+// — the verified EVE formula. `structureMult` defaults to 1, and ME ≤ 0 with no
+// structure is exactly qty·runs, so the no-structure / unowned / reaction path is
+// byte-identical to the pre-3.7.9 formula. `max(runs, …)` is EVE's "≥1 unit per
+// run" floor; the round-to-2 before the ceil neutralises float noise.
+function meAdjust(qty: number, runs: number, me: number, structureMult = 1): number {
+  const meMult = me > 0 ? 1 - me / 100 : 1;
+  const mult = meMult * structureMult;
+  if (mult >= 1) return qty * runs; // both factors no-ops → exactly qty·runs
+  return Math.max(runs, Math.ceil(roundTo2(qty * runs * mult)));
 }
 
 // Per-buildable-type graph height over the recipe DAG (raws = 0). Memoised; the
@@ -214,10 +226,19 @@ export function computeBatchLedgerWithMe(
     else raws.set(typeId, (raws.get(typeId) ?? 0) + qty);
   };
 
+  // Per-node structure material factor (3.7.9.1.3); 1 everywhere with no structure
+  // selected, keeping the basis byte-identical.
+  const structureFactorOf = opts.structureMeFactorOf ?? (() => 1);
+
   // Seed: the root tree nodes are the TOP blueprint's direct inputs, so the top
-  // blueprint's ME reduces them. requestedRuns is an integer run count.
+  // blueprint's ME (and the structure placed there) reduces them. requestedRuns
+  // is an integer run count.
   const topMe = opts.meOf(opts.topBlueprintTypeId) ?? 0;
-  for (const node of tree) addDemand(node.typeId, meAdjust(node.quantity, requestedRuns, topMe));
+  for (const node of tree)
+    addDemand(
+      node.typeId,
+      meAdjust(node.quantity, requestedRuns, topMe, structureFactorOf(opts.topBlueprintTypeId)),
+    );
 
   const ordered = [...recipes.keys()].sort(
     (a, b) => (heights.get(b) ?? 0) - (heights.get(a) ?? 0),
@@ -231,7 +252,9 @@ export function computeBatchLedgerWithMe(
     // surfaced on the ledger so the drill-down + per-node readouts read it too.
     const me = opts.meOf(recipe.blueprintTypeId) ?? 0;
     builds.set(typeId, { runs, batch: recipe.batch, me, blueprintTypeId: recipe.blueprintTypeId });
-    for (const input of recipe.inputs) addDemand(input.typeId, meAdjust(input.qty, runs, me));
+    const structureMult = structureFactorOf(recipe.blueprintTypeId);
+    for (const input of recipe.inputs)
+      addDemand(input.typeId, meAdjust(input.qty, runs, me, structureMult));
   }
 
   return { raws, builds };

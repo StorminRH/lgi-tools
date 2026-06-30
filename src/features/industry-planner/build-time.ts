@@ -62,12 +62,21 @@ export function computeBuildTimes(args: {
   builds: Map<number, { runs: number; blueprintTypeId: number }>;
   teOf: (blueprintTypeId: number) => number | undefined;
   nameOf: (typeId: number) => string;
+  // Optional per-node structure TIME factor (3.7.9.1.3): the (1 − structureTe/100)
+  // a selected build structure applies to a job by its activity (an Engineering
+  // Complex's time bonus on manufacturing jobs, a Refinery's on reactions).
+  // Omitted / returning 1 ⇒ the build-time figures are byte-identical to pre-3.7.9.
+  structureTeFactorOf?: (blueprintTypeId: number) => number;
 }): BuildTimes {
   const { topBlueprintTypeId, topProductTypeId, topJobSeconds, nodeJobSeconds, runs, builds, teOf, nameOf } =
     args;
+  const structureTeOf = args.structureTeFactorOf ?? (() => 1);
   const wholeRuns = Math.max(0, Math.floor(runs));
   const topTe = teOf(topBlueprintTypeId) ?? 0;
-  const topPerRun = topJobSeconds === null || topJobSeconds <= 0 ? 0 : topJobSeconds * teFactor(topTe);
+  const topPerRun =
+    topJobSeconds === null || topJobSeconds <= 0
+      ? 0
+      : topJobSeconds * teFactor(topTe) * structureTeOf(topBlueprintTypeId);
   const topTotal = topPerRun * wholeRuns;
 
   // Each intermediate's TE-adjusted job time, biggest contributor first. A node with
@@ -76,7 +85,8 @@ export function computeBuildTimes(args: {
   for (const [typeId, entry] of builds) {
     const base = nodeJobSeconds[entry.blueprintTypeId] ?? 0;
     if (base <= 0) continue;
-    const perRunSeconds = base * teFactor(teOf(entry.blueprintTypeId) ?? 0);
+    const perRunSeconds =
+      base * teFactor(teOf(entry.blueprintTypeId) ?? 0) * structureTeOf(entry.blueprintTypeId);
     const totalSeconds = perRunSeconds * entry.runs;
     if (totalSeconds <= 0) continue;
     components.push({ typeId, name: nameOf(typeId), perRunSeconds, runs: entry.runs, totalSeconds });

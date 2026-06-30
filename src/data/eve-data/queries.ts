@@ -18,7 +18,17 @@ import {
   ACTIVITY_NAME_TO_ID,
   BLUEPRINT_STRUCTURE_TAG,
   INDUSTRY_ACTIVITY_NAMES,
+  SDE_ENGINEERING_COMPLEX_GROUP_ID,
+  SDE_REFINERY_GROUP_ID,
+  SDE_STRUCTURE_MODULE_CATEGORY_ID,
+  STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
+import {
+  structureRigRole,
+  type StructureRigOption,
+  type StructureRole,
+  type StructureTypeOption,
+} from './structures';
 import {
   activitiesToRows,
   pickBuildTimeSeconds,
@@ -430,4 +440,92 @@ export async function getIndustryStationsForSystem(
         eq(eveNpcStations.industryCapable, true),
       ),
     );
+}
+
+// ----- Upwell structures + industry rigs (3.7.9) ---------------------------
+
+// The two industry structure families (Engineering Complexes + Refineries) the
+// planner offers as build locations, with each one's role + rig-size class.
+// Deploy-static SDE data — cached `'max'`, busted by the SDE drift cron's tag.
+export async function getStructureTypes(): Promise<StructureTypeOption[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  return withColdStartRetry(async () => {
+    const rows = await db
+      .select({
+        id: eveTypes.id,
+        name: eveTypes.name,
+        groupId: eveTypes.groupId,
+        attributes: typeDogma.attributes,
+      })
+      .from(eveTypes)
+      .leftJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
+      .where(
+        and(
+          inArray(eveTypes.groupId, [SDE_ENGINEERING_COMPLEX_GROUP_ID, SDE_REFINERY_GROUP_ID]),
+          eq(eveTypes.published, true),
+        ),
+      );
+    return rows
+      .map((r) => {
+        const attrs = (r.attributes ?? {}) as AttrMap;
+        return {
+          typeId: r.id,
+          name: r.name,
+          role: (r.groupId === SDE_ENGINEERING_COMPLEX_GROUP_ID
+            ? 'manufacturing'
+            : 'reaction') as StructureRole,
+          rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+}
+
+// Every industry-efficiency structure rig the planner models, with its role +
+// rig-size class — the builder filters this list to the rigs that fit a chosen
+// structure (same role, same rig size). Deploy-static SDE data, cached `'max'`.
+export async function getStructureRigs(): Promise<StructureRigOption[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
+  return withColdStartRetry(async () => {
+    const rows = await db
+      .select({
+        id: eveTypes.id,
+        name: eveTypes.name,
+        attributes: typeDogma.attributes,
+      })
+      .from(eveTypes)
+      .innerJoin(eveGroups, eq(eveGroups.id, eveTypes.groupId))
+      .innerJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
+      .where(
+        and(
+          eq(eveGroups.categoryId, SDE_STRUCTURE_MODULE_CATEGORY_ID),
+          eq(eveTypes.published, true),
+        ),
+      );
+    const out: StructureRigOption[] = [];
+    for (const r of rows) {
+      const attrs = (r.attributes ?? {}) as AttrMap;
+      const role = structureRigRole(attrs);
+      if (role === null) continue;
+      out.push({ typeId: r.id, name: r.name, role, rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  });
+}
+
+// Exact in-game name → typeId over the structures + industry rigs the planner
+// models — the bounded lookup behind the structure-fit paste path (the parser's
+// `resolveTypeId` callback). A pasted line that isn't one of these (a defensive
+// rig, a service module) simply doesn't resolve and is dropped, which is exactly
+// what we want: only industry structures + rigs enter a saved custom structure.
+export async function getStructureFitNameIndex(): Promise<Map<string, number>> {
+  const [types, rigs] = await Promise.all([getStructureTypes(), getStructureRigs()]);
+  const index = new Map<string, number>();
+  for (const t of types) index.set(t.name, t.typeId);
+  for (const r of rigs) index.set(r.name, r.typeId);
+  return index;
 }

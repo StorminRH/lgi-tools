@@ -32,14 +32,24 @@ import {
 import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
 import { computeBuildTimes, type BuildTimes } from '../build-time';
-import { ownedAssetsEndpoint, ownedBlueprintsEndpoint } from '../api-contract';
+import {
+  availableStructuresEndpoint,
+  ownedAssetsEndpoint,
+  ownedBlueprintsEndpoint,
+} from '../api-contract';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
   type PriceLite,
 } from '../build-pricing';
+import {
+  structureFactorsFor,
+  type SelectedStructures,
+  type StructureFactors,
+} from '../structure-factors';
 import type {
+  AvailableStructure,
   BlueprintPricing,
   BlueprintStructure,
   IndustryStationView,
@@ -152,6 +162,18 @@ interface PricingContextValue {
   // The optional per-station refinement (display/future-score only).
   station: SelectedStation | null;
   setStation: (stationId: number | null, stationName: string | null) => void;
+  // The structures the caller can place this build in (3.7.9.1.3) — their custom
+  // structures (and, next session, their corp's), fetched once on open. null until
+  // the read settles; empty for a logged-out caller or one with none.
+  availableStructures: AvailableStructure[] | null;
+  // The role-paired selection: one Engineering-Complex slot (drives manufacturing
+  // nodes) + one Refinery slot (drives reaction nodes). Setting a structure routes
+  // it to its role's slot; null clears that slot.
+  selectedStructures: SelectedStructures;
+  setSelectedStructure: (role: 'manufacturing' | 'reaction', structure: AvailableStructure | null) => void;
+  // The derived per-node engine factors + per-slot bonus readout. Re-derives when
+  // the selection or the build system's security changes.
+  structureFactors: StructureFactors;
   // History-derived score inputs keyed by type ID (3.5.3a). Seeded from the
   // server (warm) and refreshed on view; the product type is always present
   // once it has stored history. 3.5.3b's Market Score reads this from here.
@@ -298,6 +320,26 @@ export function PricingProvider({
   const [runs, setRunsState] = useState(1);
   const [location, setLocationState] = useState<SelectedLocation | null>(null);
   const [station, setStationState] = useState<SelectedStation | null>(null);
+  // The structures the caller can place this build in (3.7.9.1.3), fetched on open
+  // (the owned-blueprints pattern), and the role-paired selection over them.
+  const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
+  const [selectedStructures, setSelectedStructures] = useState<SelectedStructures>(() => ({
+    manufacturing: null,
+    reaction: null,
+  }));
+  // Per-node engine factors derived from the role-paired selection + the build
+  // system's security (3.7.9.1.3). Re-derives only when the selection or the
+  // system's security changes; NO_STRUCTURE_FACTORS (all no-ops) when nothing is
+  // selected, so the plan stays byte-identical to the no-structure path.
+  const structureFactors = useMemo<StructureFactors>(
+    () =>
+      structureFactorsFor({
+        selection: selectedStructures,
+        locationSecurity: location?.security ?? null,
+        nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
+      }),
+    [selectedStructures, location?.security, structure.nodeActivityByBlueprint],
+  );
   // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
   // per type). null until the owned-blueprints read settles; empty for a
   // logged-out caller or one owning none of this build's blueprints — either way
@@ -335,12 +377,14 @@ export function PricingProvider({
   const pricingRef = useRef(pricing);
   const ownedMeRef = useRef(ownedMe);
   const meOverridesRef = useRef(meOverrides);
+  const structureFactorsRef = useRef(structureFactors);
   useEffect(() => {
     runsRef.current = runs;
     locationRef.current = location;
     pricingRef.current = pricing;
     ownedMeRef.current = ownedMe;
     meOverridesRef.current = meOverrides;
+    structureFactorsRef.current = structureFactors;
   });
 
   // THE one recompute, used by both the live-price path and the runs/location
@@ -352,10 +396,13 @@ export function PricingProvider({
     const lookup = (typeId: number): PriceLite | undefined =>
       liveRef.current.get(typeId) ?? seedMapRef.current.get(typeId);
     const loc = locationRef.current;
+    const sf = structureFactorsRef.current;
     const fee = loc
       ? {
           adjustedPriceOf: (id: number) => loc.adjustedPrices.get(id) ?? null,
           systemCostIndex: loc.costIndices.manufacturing ?? null,
+          // The selected manufacturing structure's job-cost reduction (0 when none).
+          structureCostBonusPct: sf.structureCostBonusPct,
         }
       : undefined;
     // Owned-ME overlay + manual overrides: the cost basis is recomputed at each
@@ -365,7 +412,16 @@ export function PricingProvider({
     const owned = ownedMeRef.current;
     const overrides = meOverridesRef.current;
     const meOf = owned || overrides.size ? effectiveMeOf(owned, overrides) : undefined;
-    setPricing(assemblePricing(structure, lookup, { runs: runsRef.current, fee, meOf }));
+    setPricing(
+      assemblePricing(structure, lookup, {
+        runs: runsRef.current,
+        fee,
+        meOf,
+        // The structure material factor composes alongside owned ME; passed only
+        // when a structure is active, so the gross seed path stays byte-identical.
+        structureMeFactorOf: sf.active ? sf.structureMeFactorOf : undefined,
+      }),
+    );
   }, [structure]);
 
   // Settle the store from the streamed read. Mark it seeded either way (so a
@@ -398,6 +454,15 @@ export function PricingProvider({
     [],
   );
 
+  // Route a picked structure to its role's slot (an EC fills the manufacturing
+  // slot, a Refinery the reaction slot); null clears that slot.
+  const setSelectedStructure = useCallback(
+    (role: 'manufacturing' | 'reaction', structureChoice: AvailableStructure | null) => {
+      setSelectedStructures((prev) => ({ ...prev, [role]: structureChoice }));
+    },
+    [],
+  );
+
   // Manual ME / TE override setters (what-if) — `set` clamps (ME 0–10, TE 0–20),
   // `reset` drops the entry so the node tracks its owned value again.
   const { set: setMeOverride, reset: resetMeOverride } = useOverrideSetters(setMeOverrides, clampMe);
@@ -418,8 +483,11 @@ export function PricingProvider({
       computeBatchLedgerWithMe(structure.tree, runs, {
         meOf: effectiveMeOf(ownedMe, meOverrides),
         topBlueprintTypeId: structure.blueprintTypeId,
+        // The selected structure's material factor by node activity (3.7.9.1.3);
+        // a no-op (×1) when nothing is selected, so the tiers stay byte-identical.
+        structureMeFactorOf: structureFactors.structureMeFactorOf,
       }),
-    [structure.tree, structure.blueprintTypeId, runs, ownedMe, meOverrides],
+    [structure.tree, structure.blueprintTypeId, runs, ownedMe, meOverrides, structureFactors],
   );
 
   // The TE-adjusted build-time figures. Its OWN memo, separate from the cost
@@ -436,8 +504,11 @@ export function PricingProvider({
         builds: ledger.builds,
         teOf: effectiveTeOf(ownedTe, teOverrides),
         nameOf: (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
+        // The selected structure's time factor by node activity (3.7.9.1.3);
+        // a no-op (×1) when nothing is selected.
+        structureTeFactorOf: structureFactors.structureTeFactorOf,
       }),
-    [structure, runs, ledger, ownedTe, teOverrides],
+    [structure, runs, ledger, ownedTe, teOverrides, structureFactors],
   );
 
   // Every viewed price re-confirmed live on view — across the raw cost basis,
@@ -566,6 +637,25 @@ export function PricingProvider({
     };
   }, [structure, toRefresh]);
 
+  // Available build structures (3.7.9.1.3): the caller's custom (and, next session,
+  // corp) structures with resolved dogma, fetched once on open — per-user data
+  // can't live in the static seed. Global to the user, so it doesn't refetch per
+  // blueprint. Logged-out / none → empty list → the selector shows its empty state.
+  useEffect(() => {
+    let ignore = false;
+    const controller = new AbortController();
+    apiFetch(availableStructuresEndpoint, { cache: 'no-store', signal: controller.signal })
+      .then((res) => {
+        if (ignore || !res.ok) return;
+        setAvailableStructures(res.data.structures);
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, []);
+
   // Recompute when runs, location, the owned-ME overlay, or a manual override
   // changes — independent of the one-shot refresh loop, which never fires onBatch
   // again once it finishes. Reads the latest pricing via a ref (not a dep) so it
@@ -578,7 +668,7 @@ export function PricingProvider({
     if (!seeded || !pricingRef.current) return;
     const t = setTimeout(() => assemble(), 0);
     return () => clearTimeout(t);
-  }, [runs, location, ownedMe, meOverrides, seeded, assemble]);
+  }, [runs, location, ownedMe, meOverrides, structureFactors, seeded, assemble]);
 
   // The product's Market Score — pure, no fetch. Re-derives when runs change
   // (via output units), when the product's history lands, and when a price/depth
@@ -609,6 +699,10 @@ export function PricingProvider({
       setLocation,
       station,
       setStation,
+      availableStructures,
+      selectedStructures,
+      setSelectedStructure,
+      structureFactors,
       marketHistory,
       marketScore,
       ownedMe,
@@ -634,6 +728,10 @@ export function PricingProvider({
       setLocation,
       station,
       setStation,
+      availableStructures,
+      selectedStructures,
+      setSelectedStructure,
+      structureFactors,
       marketHistory,
       marketScore,
       ownedMe,

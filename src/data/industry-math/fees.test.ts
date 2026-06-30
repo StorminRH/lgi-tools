@@ -116,6 +116,39 @@ describe('computeJobInstallationFee', () => {
     expect(fee.missingAdjustedPriceTypeIds).toEqual([]);
     expect(fee.missingSystemCostIndex).toBe(false);
   });
+
+  it('applies a structure job-cost bonus to jobGrossCost ONLY — not facility tax or SCC (3.7.9.1.3)', () => {
+    const fee = computeJobInstallationFee(
+      toMaterials(RIFTER_BASE),
+      adjustedFrom(RIFTER_ADJUSTED),
+      0.05,
+      DEFAULT_FEE_RATES,
+      4, // a 4% structure cost reduction (an Azbel role bonus)
+    );
+    expect(fee.estimatedItemValue).toBe(683_000);
+    // jobGrossCost = 683000 × 0.05 × (1 − 0.04) = 34150 × 0.96 = 32784
+    expect(fee.jobGrossCost).toBeCloseTo(32_784, 6);
+    // facility tax + SCC are EIV-only — the structure bonus must NOT touch them
+    expect(fee.facilityTax).toBeCloseTo(1707.5, 6);
+    expect(fee.sccSurcharge).toBe(27_320);
+    expect(fee.total).toBeCloseTo(32_784 + 1707.5 + 27_320, 6);
+  });
+
+  it('job fee is byte-identical when the structure cost bonus is 0', () => {
+    const withZero = computeJobInstallationFee(
+      toMaterials(RIFTER_BASE),
+      adjustedFrom(RIFTER_ADJUSTED),
+      0.05,
+      DEFAULT_FEE_RATES,
+      0,
+    );
+    const without = computeJobInstallationFee(
+      toMaterials(RIFTER_BASE),
+      adjustedFrom(RIFTER_ADJUSTED),
+      0.05,
+    );
+    expect(withZero).toEqual(without);
+  });
 });
 
 describe('computeSellSideFees', () => {
