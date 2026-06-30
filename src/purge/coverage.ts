@@ -35,14 +35,17 @@ export function findUnclaimed(
 
 // Data homes that hold user/character state but are NOT Neon tables, so the
 // schema-reflection gate cannot see them. Declared here so every home is accounted
-// for — the same discipline as a retained-table exemption: a deferral is an
-// explicit, audited entry, never a silent omission. The gate test pins this list.
+// for — the same discipline as a retained-table exemption: an explicit, audited
+// entry per home, never a silent omission. Each carries how it is torn down. The
+// gate test pins this list. (Named DEFERRED_ historically — ACCOUNT.1 left
+// characterOnline's teardown owed to ACCOUNT.2, which has since shipped it.)
 export const DEFERRED_HOMES = [
   {
     home: 'convex:characterOnline',
-    coveredByToday: 'lazy orphan-clean in convex/onlineStatus.applySyncResults',
-    explicitTeardownOwedBy: 'ACCOUNT.2',
+    coveredBy:
+      'explicit teardown via the online-status purge contributor (POST /purge-online → convex/onlineStatus.purgeForUser); lazy orphan-clean in convex/onlineStatus.applySyncResults is the backstop',
+    explicitTeardown: 'src/features/online-status/purge.ts — shipped ACCOUNT.2',
     reason:
-      'lazy orphan-clean cannot cover an account-nuke (no subsequent sync re-enumerates the removed user), so explicit Convex teardown lands with the nuke that needs it.',
+      'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Lazy orphan-clean alone cannot cover an account-nuke (no later sync re-enumerates a removed account), so the online-status contributor tears it down explicitly during runPurge.',
   },
 ] as const;

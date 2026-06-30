@@ -20,7 +20,7 @@ import { and, eq, isNull, or } from 'drizzle-orm';
 import { db } from '@/db';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { requireEnv } from '@/lib/env';
-import { EVE_PROVIDER_ID, refreshEveToken } from './eve-sso';
+import { EVE_PROVIDER_ID, refreshEveToken, revokeEveRefreshToken } from './eve-sso';
 import { account } from './schema';
 import { decryptToken, encryptToken } from './token-crypto';
 
@@ -88,6 +88,35 @@ async function reflectStoredToken(characterId: number): Promise<FreshTokenResult
     characterId,
     scopes: parseScopes(row.scope),
   };
+}
+
+// Revoke a character's EVE grant at CCP (RFC 7009), BEST-EFFORT. Reads the stored
+// refresh-token ciphertext, decrypts it, and revokes it at EVE's SSO endpoint so
+// the renewal path is closed upstream — not just dropped from local custody. NEVER
+// throws: a purge that calls this must finish its Neon teardown even if the revoke
+// fails (CCP down, network blip, env missing, already-dead token). A null/legacy/
+// tampered ciphertext means there is nothing valid to revoke, so we skip silently.
+//
+// Ordering: a purge calls this BEFORE its credential tier deletes the account row
+// (which carries the encrypted token) — the plaintext is needed to revoke. The
+// vend path's CAS race does not apply here: we revoke whatever ciphertext is stored
+// at read time; a concurrent rotation at worst revokes a now-stale token, which CCP
+// treats as a harmless no-op (200 either way).
+export async function revokeCharacterToken(characterId: number): Promise<void> {
+  try {
+    const row = await loadAccountRow(characterId);
+    const refreshToken = row?.refreshToken ? decryptToken(row.refreshToken) : null;
+    if (refreshToken === null) return; // null/legacy/tampered → nothing valid to revoke
+    await revokeEveRefreshToken({
+      refreshToken,
+      clientId: requireEnv('EVE_CLIENT_ID'),
+      clientSecret: requireEnv('EVE_CLIENT_SECRET'),
+    });
+  } catch (err) {
+    // Best-effort: swallow EVERY failure so the caller's purge completes. The
+    // grant's local custody is deleted by the purge's credential tier regardless.
+    console.error('[eve-token] revoke failed', err);
+  }
 }
 
 export async function getFreshAccessTokenForCharacter(

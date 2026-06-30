@@ -26,6 +26,7 @@ export const SERVER_USAGE_ACTIONS = [
   'cron_sync_sweeper', // 15-min sync-engine watchdog — dispatched>0 means the Convex scan lagged (3.4.9)
   'cron_affiliations', // nightly corp-affiliation refresh outcome — busy / refreshed (3.7.3.2)
   'eve_token_refresh_race', // a vend hit invalid_grant on a token a concurrent vend had already rotated — the signal EVE has enabled invalidating refresh-token rotation (OOB-AUTH)
+  'account_purge', // a self-service character-purge or account-nuke completed (ACCOUNT.2). IDENTITY-FREE (D-6): logged with NO character id; metadata carries only { scope: 'character' | 'account' }
 ] as const;
 
 // Closed enumeration of recognised actions. Extending: add to the client or

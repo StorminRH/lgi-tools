@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { runPurge } from '@/purge/orchestrator';
 import type { AffiliationRow } from './affiliation-source';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
+import { revokeCharacterToken } from './eve-token-service';
 import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
 import { classifyOwnerReconcile } from './owner-reconcile';
 import { account, characters, corpAccessAudit, session, user } from './schema';
@@ -653,43 +654,111 @@ export async function purgeTransferredCharacter(
   // 1–2. Credential + owner-authored profile teardown via the purge registry.
   await runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']);
 
-  // 3. Reconcile the prior owner's user row. Better Auth's findOAuthUser falls
-  //    back to a user.email match when no account row is found, and
-  //    overrideUserInfo keeps that email tracking the last-signed-in character's
-  //    synthetic <id>@eve.invalid — so a surviving user.email == the freed
-  //    character's synthetic address would re-link it to the prior owner.
+  // 3. Reconcile the prior owner's user row — delete when account-less, else rebind
+  //    the identity email off the freed character + repoint active. Shared with the
+  //    self-service character-purge (reconcileAfterCharacterRemoval below).
+  await reconcileAfterCharacterRemoval(priorUserId, characterId);
+}
+
+// Reconcile a user row after one of its characters has been torn down. Shared by
+// the transfer-purge (owner-hash) and the self-service character-purge — the same
+// two outcomes either way:
+//   - No EVE accounts left ⇒ the user is permanently un-loginable (EVE SSO is the
+//     only login), so delete it. Sessions + user_preferences + custom_structures
+//     cascade (onDelete:'cascade') — the deliberate completion of the purge,
+//     mirroring the admin reassignCharacter precedent.
+//   - Siblings remain ⇒ if the freed character was the identity email, rebind it to
+//     a surviving character. Better Auth's findOAuthUser falls back to a user.email
+//     match when no account row is found, and overrideUserInfo keeps that email
+//     tracking the last-signed-in character's synthetic <id>@eve.invalid — so a
+//     surviving user.email == the freed character's synthetic address would re-link
+//     it. Also repoint the active character if it was the freed one.
+// Returns whether the account was emptied (and thus the user deleted) — the signal
+// the self-service purge surfaces so the UI knows the session is gone. Sequential,
+// non-atomic neon-http writes (no request-path transaction) — the accepted
+// reassignCharacter trade-off; a purge is rare and low-rate.
+async function reconcileAfterCharacterRemoval(
+  userId: string,
+  characterId: number,
+): Promise<{ accountEmptied: boolean }> {
   const remaining = await db
     .select({ accountId: account.accountId })
     .from(account)
-    .where(eveAccountsForUser(priorUserId))
+    .where(eveAccountsForUser(userId))
     .orderBy(asc(account.createdAt));
 
   if (remaining.length === 0) {
-    // Account-less ⇒ permanently un-loginable (EVE SSO is the only login) ⇒
-    // delete it. Sessions + user_preferences cascade (onDelete:'cascade') — the
-    // deliberate completion of the purge, mirroring the admin reassignCharacter
-    // precedent. NB: steps 1–4 are sequential, non-atomic neon-http writes (no
-    // request-path transaction) — the same accepted trade-off as
-    // reassignCharacter; an actual transfer is rare and low-rate.
-    await db.delete(user).where(eq(user.id, priorUserId));
-    return;
+    await db.delete(user).where(eq(user.id, userId));
+    return { accountEmptied: true };
   }
 
-  // The prior owner keeps other characters. If the freed character was their
-  // identity email, rebind it to a surviving character so the freed synthetic
-  // address can't email-match this user on the new owner's sign-in.
   const [u] = await db
     .select({ email: user.email, activeCharacterId: user.activeCharacterId })
     .from(user)
-    .where(eq(user.id, priorUserId))
+    .where(eq(user.id, userId))
     .limit(1);
   if (u?.email === syntheticEmail(characterId)) {
     await db
       .update(user)
       .set({ email: syntheticEmail(Number(remaining[0].accountId)), updatedAt: new Date() })
-      .where(eq(user.id, priorUserId));
+      .where(eq(user.id, userId));
   }
   if (u?.activeCharacterId === characterId) {
-    await repointActiveToOldest(priorUserId);
+    await repointActiveToOldest(userId);
   }
+  return { accountEmptied: false };
+}
+
+// ---------------------------------------------------------------------------
+// Self-service account safety (ACCOUNT.2). These act on the CALLER's OWN account;
+// the route handler owns the session gate + ownership check, these own the
+// auth-identity orchestration. Writes are sequential, non-atomic neon-http — the
+// reassignCharacter/purgeTransferredCharacter trade-off (a purge is rare).
+// ---------------------------------------------------------------------------
+
+// Purge one of the caller's own characters — the destructive counterpart to unlink.
+// Where unlink (deleteLinkedCharacter) only detaches the account row, this scrubs
+// ALL of the character's derived data and revokes its EVE grant upstream. Order:
+//   1. Revoke the EVE refresh token at CCP (best-effort — never aborts the purge),
+//      BEFORE the credential tier below deletes the stored token.
+//   2. runPurge ALL tiers (credential link+tokens → cache mirrors incl. the Convex
+//      online doc → durable), the full per-character sweep.
+//   3. Reconcile the user row: a last-character purge empties the account, so the
+//      user is deleted (a de-facto nuke) and accountEmptied is true; otherwise the
+//      identity email is rebound + active repointed and accountEmptied is false.
+// The returned accountEmptied tells the caller/UI whether the account (and session)
+// is gone — the D-5 redirect-to-authorized-apps lightbox shows only when emptied.
+export async function purgeOwnCharacter(
+  userId: string,
+  characterId: number,
+): Promise<{ accountEmptied: boolean }> {
+  await revokeCharacterToken(characterId);
+  await runPurge({ kind: 'character', userId, characterId });
+  return reconcileAfterCharacterRemoval(userId, characterId);
+}
+
+// Nuke the caller's entire account. The user-row delete cascades
+// session/account/user_preferences/custom_structures, but the per-character caches
+// (skills, jobs, owned assets/blueprints, telemetry) key on character_id with no
+// user FK, so they do NOT cascade — they must be swept per character first. So:
+//   - for each linked character: revoke its EVE grant (best-effort) + runPurge its
+//     per-character tiers (credential-first, so nothing can re-sync mid-purge);
+//   - runPurge the per-user tiers (the user-keyed tables with no FK — e.g. the corp
+//     jobs board — plus the user-axis Convex online teardown);
+//   - delete the user row (the cascade finishes the cascading tables).
+// "N character purges + 1 user purge + the user-row delete" (src/purge/types.ts).
+export async function nukeAccount(userId: string): Promise<void> {
+  const linked = await db
+    .select({ accountId: account.accountId })
+    .from(account)
+    .where(eveAccountsForUser(userId));
+
+  for (const row of linked) {
+    const characterId = Number(row.accountId);
+    await revokeCharacterToken(characterId);
+    await runPurge({ kind: 'character', userId, characterId });
+  }
+
+  await runPurge({ kind: 'user', userId });
+  await db.delete(user).where(eq(user.id, userId));
 }

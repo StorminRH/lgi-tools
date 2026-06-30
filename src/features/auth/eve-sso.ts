@@ -15,6 +15,12 @@ export const EVE_PROVIDER_ID = 'eve';
 
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
 export const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
+// CCP's published OAuth2 token-revocation endpoint (RFC 7009) — the per-token
+// server-side revoke used when a pilot purges a character/account. Distinct from
+// EVE_AUTHORIZED_APPS_URL above: that is the pilot's account-level dashboard page;
+// this is the granular, per-refresh-token machine endpoint. Hardcoded like the
+// other EVE_* URLs (CCP advertises it under `.well-known/oauth-authorization-server`).
+export const EVE_REVOKE_URL = 'https://login.eveonline.com/v2/oauth/revoke';
 export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
 export const EVE_ISSUER = 'https://login.eveonline.com';
 export const EVE_AUDIENCE = 'EVE Online';
@@ -257,6 +263,47 @@ export async function refreshEveToken({
     refresh_token: parsed.data.refresh_token ?? refreshToken,
     expires_in: parsed.data.expires_in ?? 1200,
   };
+}
+
+interface RevokeTokenInput {
+  refreshToken: string;
+  clientId: string;
+  clientSecret: string;
+}
+
+// Revoke a stored refresh token at EVE's SSO revocation endpoint (RFC 7009). Pure
+// HTTP — no DB, no crypto — so it stays unit-testable with a `fetch` spy, like
+// refreshEveToken. BEST-EFFORT by contract: a purge that revokes a pilot's grant
+// must never be aborted by a revoke failure, so this never throws and reports only
+// a boolean. Reuses the shared Basic-auth form request shape (the revoke endpoint
+// authenticates a confidential client exactly like the token endpoint).
+//
+// NOTE: EVE returns 200 for an unknown/already-invalid token too (RFC 7009 §2.2),
+// so `ok` means "the renewal path is closed", NOT "the token existed". Revoking
+// the refresh token immediately stops new access tokens from being minted; any
+// access token already issued self-expires within EVE's ~20 min lifetime.
+export async function revokeEveRefreshToken({
+  refreshToken,
+  clientId,
+  clientSecret,
+}: RevokeTokenInput): Promise<{ ok: boolean }> {
+  // RFC 7009 revoke params: the token + its type hint. NOT the token endpoint's
+  // `grant_type`/`refresh_token` keys — the revoke endpoint takes `token`.
+  const body = new URLSearchParams({
+    token: refreshToken,
+    token_type_hint: 'refresh_token',
+  });
+
+  try {
+    const res = await fetchWithTimeout(
+      EVE_REVOKE_URL,
+      buildTokenRequestInit(body, clientId, clientSecret),
+    );
+    return { ok: res.ok };
+  } catch {
+    // Network error or the fetch-with-timeout abort firing — best-effort, swallow.
+    return { ok: false };
+  }
 }
 
 export async function verifyEveJwt(accessToken: string): Promise<EveJwtClaims> {

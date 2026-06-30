@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
+  EVE_REVOKE_URL,
   EVE_SCOPES,
   claimsToCharacter,
   exchangeCodeForToken,
   portraitUrl,
   refreshEveToken,
+  revokeEveRefreshToken,
 } from './eve-sso';
 
 describe('EVE_SCOPES', () => {
@@ -270,5 +272,54 @@ describe('refreshEveToken', () => {
   it('treats a network/timeout error as retryable', async () => {
     fetchSpy.mockRejectedValueOnce(new Error('aborted'));
     expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
+  });
+});
+
+describe('revokeEveRefreshToken', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  const input = {
+    refreshToken: 'a+b/c',
+    clientId: 'client-id',
+    clientSecret: 'client-secret',
+  };
+
+  it('POSTs the RFC 7009 revoke params to the revoke endpoint with Basic auth + the outbound UA', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    const result = await revokeEveRefreshToken(input);
+    expect(result).toEqual({ ok: true });
+
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe(EVE_REVOKE_URL);
+    // RFC 7009 body: `token` + `token_type_hint` — NOT the token endpoint's
+    // `grant_type`/`refresh_token` keys.
+    expect(init?.body).toContain('token=a%2Bb%2Fc');
+    expect(init?.body).toContain('token_type_hint=refresh_token');
+    expect(init?.body).not.toContain('grant_type');
+    const headers = new Headers(init?.headers);
+    expect(headers.get('Authorization')).toBe(
+      `Basic ${Buffer.from('client-id:client-secret').toString('base64')}`,
+    );
+    expect(headers.get('User-Agent')).toBe(OUTBOUND_USER_AGENT);
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('reports ok:false on a non-2xx without throwing (best-effort; 200-on-invalid is CCP-specific)', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('nope', { status: 400 }));
+    expect(await revokeEveRefreshToken(input)).toEqual({ ok: false });
+  });
+
+  it('swallows a network/timeout error and reports ok:false (never aborts a purge)', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('aborted'));
+    expect(await revokeEveRefreshToken(input)).toEqual({ ok: false });
   });
 });
