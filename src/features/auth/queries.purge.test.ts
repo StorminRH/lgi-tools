@@ -92,7 +92,8 @@ describe('purgeOwnCharacter', () => {
 describe('nukeAccount', () => {
   it('revokes + sweeps every linked character, sweeps the user, then deletes the user', async () => {
     state.results = [
-      [{ accountId: String(CHAR) }, { accountId: String(OTHER) }], // linked enumeration
+      [{ accountId: String(CHAR) }, { accountId: String(OTHER) }], // pass 1 enumeration
+      [], // pass 2 re-enumeration → no newcomers, loop exits
       undefined, // delete user row
     ];
     await nukeAccount(USER);
@@ -105,5 +106,20 @@ describe('nukeAccount', () => {
     expect(runPurgeMock).toHaveBeenNthCalledWith(2, { kind: 'character', userId: USER, characterId: OTHER });
     expect(runPurgeMock).toHaveBeenNthCalledWith(3, { kind: 'user', userId: USER });
     expect(state.calls.delete).toBe(1); // the user row; the cascade finishes the rest
+  });
+
+  it('re-enumerates until empty, catching a character linked mid-nuke (no cascade orphan)', async () => {
+    state.results = [
+      [{ accountId: String(CHAR) }], // pass 1: one linked
+      [{ accountId: String(OTHER) }], // pass 2: a newcomer linked during pass 1
+      [], // pass 3: empty → loop exits
+      undefined, // delete user row
+    ];
+    await nukeAccount(USER);
+
+    // The newcomer is swept too, so its character-keyed caches don't orphan.
+    expect(revokeMock.mock.calls).toEqual([[CHAR], [OTHER]]);
+    expect(runPurgeMock).toHaveBeenCalledTimes(3); // 2 character purges + 1 user purge
+    expect(state.calls.delete).toBe(1);
   });
 });

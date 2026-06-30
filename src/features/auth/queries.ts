@@ -677,6 +677,12 @@ export async function purgeTransferredCharacter(
 // the self-service purge surfaces so the UI knows the session is gone. Sequential,
 // non-atomic neon-http writes (no request-path transaction) — the accepted
 // reassignCharacter trade-off; a purge is rare and low-rate.
+//
+// PRECONDITION: the caller must have ALREADY run the credential-tier purge for
+// `characterId` (which deletes its `account` row) before calling this — the
+// remaining-accounts count below must not still see the removed character, or it
+// would count itself a survivor and wrongly return accountEmptied=false. Both
+// callers (purgeOwnCharacter, purgeTransferredCharacter) run runPurge first.
 async function reconcileAfterCharacterRemoval(
   userId: string,
   characterId: number,
@@ -737,6 +743,15 @@ export async function purgeOwnCharacter(
   return reconcileAfterCharacterRemoval(userId, characterId);
 }
 
+// The character ids of a user's currently-linked EVE accounts.
+async function eveAccountIdsFor(userId: string): Promise<number[]> {
+  const rows = await db
+    .select({ accountId: account.accountId })
+    .from(account)
+    .where(eveAccountsForUser(userId));
+  return rows.map((r) => Number(r.accountId));
+}
+
 // Nuke the caller's entire account. The user-row delete cascades
 // session/account/user_preferences/custom_structures, but the per-character caches
 // (skills, jobs, owned assets/blueprints, telemetry) key on character_id with no
@@ -747,16 +762,23 @@ export async function purgeOwnCharacter(
 //     jobs board — plus the user-axis Convex online teardown);
 //   - delete the user row (the cascade finishes the cascading tables).
 // "N character purges + 1 user purge + the user-row delete" (src/purge/types.ts).
+//
+// Re-enumerate until no EVE account remains rather than snapshotting once: a
+// character linked concurrently (after an enumeration) would otherwise be
+// cascade-orphaned by the final user-row drop — its account row gone, its
+// character-keyed caches surviving with no later sync to reap them. Each pass purges
+// the linked set (the credential tier deletes those account rows), so the next pass
+// sees only a newcomer or nothing; it converges because a pilot cannot complete the
+// EVE link flow faster than a pass purges. The neon-http path has no transaction, so
+// this shrinks the race to the negligible gap before the delete, not fully closing it.
 export async function nukeAccount(userId: string): Promise<void> {
-  const linked = await db
-    .select({ accountId: account.accountId })
-    .from(account)
-    .where(eveAccountsForUser(userId));
-
-  for (const row of linked) {
-    const characterId = Number(row.accountId);
-    await revokeCharacterToken(characterId);
-    await runPurge({ kind: 'character', userId, characterId });
+  let linked = await eveAccountIdsFor(userId);
+  while (linked.length > 0) {
+    for (const characterId of linked) {
+      await revokeCharacterToken(characterId);
+      await runPurge({ kind: 'character', userId, characterId });
+    }
+    linked = await eveAccountIdsFor(userId);
   }
 
   await runPurge({ kind: 'user', userId });
