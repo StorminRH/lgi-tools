@@ -205,7 +205,7 @@ const availableStructureSchema = z.object({
   source: z.enum(['custom', 'corp']),
   name: z.string(),
   structureTypeId: z.number(),
-  role: z.enum(['manufacturing', 'reaction']),
+  systemId: z.number().nullable(),
   structureAttrs: attrMapSchema,
   rigAttrs: z.array(attrMapSchema),
   securityClass: z.enum(SECURITY_CLASSES).nullable(),

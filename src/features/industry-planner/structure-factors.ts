@@ -1,14 +1,19 @@
-// Maps a role-paired structure selection (3.7.9.1.3) onto the per-node engine
+// Maps the single selected build structure (3.7.9.1.4) onto the per-node engine
 // factors the build tree composes — pure, so the selector stays a humble shell.
 //
-// The model: one Engineering-Complex slot (drives MANUFACTURING nodes) and one
-// Refinery slot (drives REACTION nodes). For each filled slot we compute the
-// verified bonus ONCE at the current security, then map every build node to its
-// activity's slot. The security a rig scales against is the structure's OWN system
-// (a corp structure) or, for a custom structure, the planner's selected build
-// LOCATION — never a property of the structure record. With no security known yet
-// (a custom structure and no build system picked) the slot is INACTIVE, so the
-// material/time/cost stay byte-identical to the no-structure path.
+// The model is ROLE-AGNOSTIC: one selected structure bonuses each build node by
+// THAT node's activity. We compute the verified bonus from the SAME structure for
+// both activities (manufacturing + reaction) — the structure-bonus math reads only
+// the active activity's attrs and no-ops wrong-activity rigs, so a Citadel + a
+// manufacturing rig bonuses manufacturing nodes (rig only, no role), and a Tatara
+// fitted with both a manufacturing rig and a reaction rig bonuses BOTH a
+// manufacturing node and a reaction node from one pick. Each build node is then
+// mapped to its activity's bonus. The security a rig scales against is the
+// structure's OWN system (a corp structure) or, for a custom structure, the
+// planner's selected build LOCATION — never a property of the structure record.
+// With no security known yet (a custom structure and no build system picked) both
+// bonuses are null, so the material/time/cost stay byte-identical to the
+// no-structure path.
 
 import { systemSecurityClass } from '@/data/eve-data/security';
 import {
@@ -20,22 +25,18 @@ import {
 } from './structure-bonus';
 import type { AvailableStructure } from './types';
 
-export interface SelectedStructures {
-  manufacturing: AvailableStructure | null;
-  reaction: AvailableStructure | null;
-}
-
 export interface StructureFactors {
   // Per-node factors fed to the engine (default 1 ⇒ no change).
   structureMeFactorOf: (blueprintTypeId: number) => number;
   structureTeFactorOf: (blueprintTypeId: number) => number;
   // The top manufacturing job's structure job-cost reduction percent (net path).
   structureCostBonusPct: number;
-  // The effective bonus per slot, for the selector's readout (null when the slot
-  // is empty or inactive — no security known yet).
+  // The selected structure's effective bonus per activity, for the readout (null
+  // when no structure is selected or no security is known yet). A structure can
+  // contribute one or both — e.g. a Tatara fitted for both activities.
   manufacturingBonus: StructureBonus | null;
   reactionBonus: StructureBonus | null;
-  // True once at least one slot is contributing a real bonus.
+  // True once the selected structure is contributing a real bonus.
   active: boolean;
 }
 
@@ -80,25 +81,27 @@ function bonusFor(
 }
 
 export function structureFactorsFor(args: {
-  selection: SelectedStructures;
+  selectedStructure: AvailableStructure | null;
   locationSecurity: number | null;
   nodeActivityByBlueprint: Record<number, number>;
 }): StructureFactors {
-  const { selection, locationSecurity, nodeActivityByBlueprint } = args;
-  const manufacturingBonus = bonusFor(selection.manufacturing, MANUFACTURING_ACTIVITY, locationSecurity);
-  const reactionBonus = bonusFor(selection.reaction, REACTION_ACTIVITY, locationSecurity);
+  const { selectedStructure, locationSecurity, nodeActivityByBlueprint } = args;
+  // Both bonuses come from the SAME structure — the math no-ops the wrong-activity
+  // rigs, so one pick can bonus manufacturing nodes, reaction nodes, or both.
+  const manufacturingBonus = bonusFor(selectedStructure, MANUFACTURING_ACTIVITY, locationSecurity);
+  const reactionBonus = bonusFor(selectedStructure, REACTION_ACTIVITY, locationSecurity);
   if (!manufacturingBonus && !reactionBonus) return NO_STRUCTURE_FACTORS;
 
   const activityOf = (bp: number) => nodeActivityByBlueprint[bp];
   return {
-    // Material: ONLY manufacturing nodes get a structure ME reduction (a Refinery
-    // gives reactions no ME — the recorded reaction-me=0 divergence).
+    // Material: ONLY manufacturing nodes get a structure ME reduction (reactions
+    // get no ME — the recorded reaction-me=0 divergence).
     structureMeFactorOf: (bp) =>
       activityOf(bp) === MANUFACTURING_ACTIVITY && manufacturingBonus
         ? 1 - manufacturingBonus.me / 100
         : 1,
-    // Time: each node's activity slot (an EC's time bonus on manufacturing jobs, a
-    // Refinery's on reactions).
+    // Time: each node by its own activity (the structure's manufacturing bonus on
+    // manufacturing jobs, its reaction bonus on reactions).
     structureTeFactorOf: (bp) => {
       const activity = activityOf(bp);
       if (activity === MANUFACTURING_ACTIVITY && manufacturingBonus) return 1 - manufacturingBonus.te / 100;
@@ -106,7 +109,7 @@ export function structureFactorsFor(args: {
       return 1;
     },
     // Job cost: the net path fees the top manufacturing job only, so the cost
-    // reduction is the manufacturing slot's (reactions carry no job-cost bonus).
+    // reduction is the manufacturing bonus's (reactions carry no job-cost bonus).
     structureCostBonusPct: manufacturingBonus?.costBonus ?? 0,
     manufacturingBonus,
     reactionBonus,

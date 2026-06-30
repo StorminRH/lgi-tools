@@ -18,15 +18,14 @@ import {
   ACTIVITY_NAME_TO_ID,
   BLUEPRINT_STRUCTURE_TAG,
   INDUSTRY_ACTIVITY_NAMES,
-  SDE_ENGINEERING_COMPLEX_GROUP_ID,
-  SDE_REFINERY_GROUP_ID,
+  RIG_CAN_FIT_GROUP_ATTRS,
+  SDE_INDUSTRY_STRUCTURE_GROUP_IDS,
   SDE_STRUCTURE_MODULE_CATEGORY_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
 import {
-  structureRigRole,
+  isIndustryRig,
   type StructureRigOption,
-  type StructureRole,
   type StructureTypeOption,
 } from './structures';
 import {
@@ -444,8 +443,10 @@ export async function getIndustryStationsForSystem(
 
 // ----- Upwell structures + industry rigs (3.7.9) ---------------------------
 
-// The two industry structure families (Engineering Complexes + Refineries) the
-// planner offers as build locations, with each one's role + rig-size class.
+// The three industry-capable structure families (Engineering Complexes,
+// Refineries, Citadels) the planner offers as build locations, with each one's
+// SDE group + rig-size class. A structure carries no "role" — the bonus is
+// computed per build node from the structure's own attrs plus whatever rigs fit.
 // Deploy-static SDE data — cached `'max'`, busted by the SDE drift cron's tag.
 export async function getStructureTypes(): Promise<StructureTypeOption[]> {
   'use cache';
@@ -463,7 +464,7 @@ export async function getStructureTypes(): Promise<StructureTypeOption[]> {
       .leftJoin(typeDogma, eq(typeDogma.typeId, eveTypes.id))
       .where(
         and(
-          inArray(eveTypes.groupId, [SDE_ENGINEERING_COMPLEX_GROUP_ID, SDE_REFINERY_GROUP_ID]),
+          inArray(eveTypes.groupId, [...SDE_INDUSTRY_STRUCTURE_GROUP_IDS]),
           eq(eveTypes.published, true),
         ),
       );
@@ -473,9 +474,7 @@ export async function getStructureTypes(): Promise<StructureTypeOption[]> {
         return {
           typeId: r.id,
           name: r.name,
-          role: (r.groupId === SDE_ENGINEERING_COMPLEX_GROUP_ID
-            ? 'manufacturing'
-            : 'reaction') as StructureRole,
+          groupId: r.groupId,
           rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null,
         };
       })
@@ -483,9 +482,10 @@ export async function getStructureTypes(): Promise<StructureTypeOption[]> {
   });
 }
 
-// Every industry-efficiency structure rig the planner models, with its role +
-// rig-size class — the builder filters this list to the rigs that fit a chosen
-// structure (same role, same rig size). Deploy-static SDE data, cached `'max'`.
+// Every industry-efficiency structure rig the planner models, with the structure
+// groups it can fit (canFitShipGroup) + its rig-size class — the builder filters
+// this list to the rigs that fit a chosen structure (group in canFitGroups, same
+// rig size). Deploy-static SDE data, cached `'max'`.
 export async function getStructureRigs(): Promise<StructureRigOption[]> {
   'use cache';
   cacheLife('max');
@@ -509,9 +509,16 @@ export async function getStructureRigs(): Promise<StructureRigOption[]> {
     const out: StructureRigOption[] = [];
     for (const r of rows) {
       const attrs = (r.attributes ?? {}) as AttrMap;
-      const role = structureRigRole(attrs);
-      if (role === null) continue;
-      out.push({ typeId: r.id, name: r.name, role, rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null });
+      if (!isIndustryRig(attrs)) continue;
+      const canFitGroups = RIG_CAN_FIT_GROUP_ATTRS.map((a) => attrs[a]).filter(
+        (g): g is number => g !== undefined,
+      );
+      out.push({
+        typeId: r.id,
+        name: r.name,
+        canFitGroups,
+        rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null,
+      });
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
   });

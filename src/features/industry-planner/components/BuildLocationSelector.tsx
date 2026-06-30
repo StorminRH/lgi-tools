@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePreference, usePreferencesReady } from '@/components/PreferencesProvider';
 import { cn } from '@/components/ui/cn';
@@ -10,13 +11,161 @@ import { apiFetch } from '@/lib/api-client';
 import { plannerBuildLocation } from '@/lib/preferences';
 import { buildLocationEndpoint, systemsEndpoint } from '../api-contract';
 import { formatStationName } from '../format-station-name';
-import type { IndustryStationView, SystemSearchEntry } from '../types';
+import type { StructureBonus } from '../structure-bonus';
+import type { StructureFactors } from '../structure-factors';
+import type { AvailableStructure, IndustryStationView, SystemSearchEntry } from '../types';
 import { usePricing } from './PricingProvider';
 
 // The station's display label: its full in-game name (compacted) when ESI has
 // resolved one, else the station-operation label as a fallback.
 function stationLabel(s: IndustryStationView): string {
   return s.name ? formatStationName(s.name) : s.operationName;
+}
+
+// A reduction percent for the structure-bonus readout — small values keep a decimal.
+function pct(n: number): string {
+  return `${n < 10 ? n.toFixed(1) : Math.round(n)}%`;
+}
+
+// The manufacturing-side bonus parts (a Refinery / Citadel may contribute none).
+function manufacturingParts(b: StructureBonus): string[] {
+  const parts: string[] = [];
+  if (b.me > 0) parts.push(`ME −${pct(b.me)}`);
+  if (b.te > 0) parts.push(`TE −${pct(b.te)}`);
+  if (b.costBonus > 0) parts.push(`Cost −${pct(b.costBonus)}`);
+  return parts;
+}
+
+// The single selected structure's effect, ungated and folded into the build-
+// location control: a green pill for whichever activity it bonuses (one structure
+// can bonus both — a Tatara fitted for manufacturing and reactions), or a prompt
+// when a custom structure is picked but no build system supplies the security yet.
+function StructureReadout({
+  selectedStructure,
+  factors,
+}: {
+  selectedStructure: AvailableStructure | null;
+  factors: StructureFactors;
+}) {
+  if (!selectedStructure) return null;
+  const { manufacturingBonus, reactionBonus } = factors;
+  // No bonus on either activity ⇒ no security known yet (a custom structure with no
+  // build system). Keyed on the bonuses, NOT on `!location`: a corp structure
+  // (3.7.9.1.5) carries its own security and shows a bonus with no planner location.
+  if (manufacturingBonus === null && reactionBonus === null) {
+    return (
+      <span className="text-[10px] text-muted">
+        Select a build system to apply this structure&apos;s bonus
+      </span>
+    );
+  }
+  const mfg = manufacturingBonus ? manufacturingParts(manufacturingBonus) : [];
+  const rxn = reactionBonus && reactionBonus.te > 0 ? [`TE −${pct(reactionBonus.te)}`] : [];
+  return (
+    <>
+      {mfg.length > 0 && <Pill tone="green">Mfg {mfg.join(' · ')}</Pill>}
+      {rxn.length > 0 && <Pill tone="green">Rxn {rxn.join(' · ')}</Pill>}
+    </>
+  );
+}
+
+// The single build-LOCATION dropdown: the caller's structures AND, once a system
+// is picked, that system's NPC stations — one list, mutually exclusive (you build
+// in one place). A structure applies its bonus (scaled to the system's security);
+// an NPC station is display-only. The structures show even before a system is
+// picked; a custom structure then prompts for a system (its bonus needs one). For
+// a CORP structure (3.7.9.1.5) the onChange will additionally deduce-and-lock the
+// build location to the structure's own system (it carries `systemId`).
+//
+// TWO-DIFFERENT-STRUCTURES SEAM (3.7.9.1.5): a plan with reaction sub-nodes could
+// use a SECOND structure for those reactions (an Azbel for mfg + a Tatara for
+// reactions). That second selector is deliberately not built — one structure
+// bonuses both activities for now.
+function BuildFacilitySelect({
+  structures,
+  stations,
+  selectedStructure,
+  station,
+  structureFactors,
+  setSelectedStructure,
+  setStation,
+}: {
+  structures: AvailableStructure[];
+  stations: IndustryStationView[];
+  selectedStructure: AvailableStructure | null;
+  station: { id: number } | null;
+  structureFactors: StructureFactors;
+  setSelectedStructure: (structure: AvailableStructure | null) => void;
+  setStation: (stationId: number | null, stationName: string | null) => void;
+}) {
+  // Nothing to choose between yet (no structures and no system's stations): a link
+  // to build one.
+  if (structures.length === 0 && stations.length === 0) {
+    return (
+      <Link
+        href="/structures"
+        className="self-start text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text"
+      >
+        Add a build structure →
+      </Link>
+    );
+  }
+  const facilityValue = selectedStructure
+    ? `structure:${selectedStructure.id}`
+    : station
+      ? `station:${station.id}`
+      : '';
+  const onChange = (v: string) => {
+    if (v.startsWith('structure:')) {
+      const id = v.slice('structure:'.length);
+      setSelectedStructure(structures.find((s) => s.id === id) ?? null);
+      setStation(null, null); // mutually exclusive — a structure isn't an NPC station
+      return;
+    }
+    if (v.startsWith('station:')) {
+      const id = Number(v.slice('station:'.length));
+      const st = stations.find((s) => s.id === id);
+      setStation(id, st ? stationLabel(st) : null);
+      setSelectedStructure(null);
+      return;
+    }
+    setSelectedStructure(null);
+    setStation(null, null);
+  };
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Location</span>
+      {/* Fixed width + shrink-0: a native select otherwise resizes to the selected
+          option's text, so picking a structure would shift the control. */}
+      <select
+        value={facilityValue}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Build location"
+        className="w-[260px] shrink-0 border border-border bg-bg px-2 py-1 font-mono text-[11px] text-text focus:border-border-active focus:outline-none"
+      >
+        <option value="">{stations.length > 0 ? `Any NPC station (${stations.length})` : '— none —'}</option>
+        {structures.length > 0 && (
+          <optgroup label="Your structures">
+            {structures.map((s) => (
+              <option key={s.id} value={`structure:${s.id}`}>
+                {s.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {stations.length > 0 && (
+          <optgroup label="NPC stations">
+            {stations.map((s) => (
+              <option key={s.id} value={`station:${s.id}`}>
+                {stationLabel(s)}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </select>
+      <StructureReadout selectedStructure={selectedStructure} factors={structureFactors} />
+    </div>
+  );
 }
 
 // The build-system / station picker. Reuses the generic <TerminalSearch> for the
@@ -55,7 +204,8 @@ type SystemParams = { system: SystemSearchEntry };
 type SystemErr = { kind: 'not_found' };
 
 export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) {
-  const { location, setLocation, station, setStation } = usePricing();
+  const { location, setLocation, station, setStation, availableStructures, selectedStructure, setSelectedStructure, structureFactors } =
+    usePricing();
   // The persisted build-system identifier (F4). Only the id/name/security is
   // saved; the live stations/indices/prices are re-fetched on restore. NOT
   // ssrReadable — there's no static value to render, so no cookie/flash concern.
@@ -188,70 +338,65 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
     );
   }, [ready, savedLoc, location, applySystem]);
 
-  if (location) {
-    return (
-      <div className="flex items-center gap-2 flex-wrap">
-        <Pill tone="blue">
-          {location.systemName} {formatSec(location.security)}
-        </Pill>
-        {location.stations.length > 0 && (
-          <select
-            value={station?.id ?? ''}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === '') {
-                setStation(null, null);
-                return;
-              }
-              const id = Number(v);
-              const st = location.stations.find((s) => s.id === id);
-              setStation(id, st ? stationLabel(st) : null);
-            }}
-            aria-label="Build station"
-            className="font-mono text-[11px] px-2 py-1 bg-bg border border-border text-text focus:outline-none focus:border-border-active"
-          >
-            <option value="">Any NPC station ({location.stations.length})</option>
-            {location.stations.map((s) => (
-              <option key={s.id} value={s.id}>
-                {stationLabel(s)}
-              </option>
-            ))}
-          </select>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            setLocation(null);
-            setSavedLoc(null);
-          }}
-          className="text-[10px] tracking-[0.12em] uppercase text-muted hover:text-text"
-        >
-          Clear
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-[260px] max-w-full">
-      <TerminalSearch<SystemParams, SystemErr>
-        initialValue=""
-        placeholder="Build system — type a name"
-        parse={parse}
-        suggest={suggest}
-        errorMessage={() => 'No build system matches that name.'}
-        onSubmit={onSubmit}
-        onClear={() => {
+  // The build SYSTEM control (drives the cost index + the security a custom
+  // structure's rigs scale against): a search box until one is picked, then a pill.
+  const systemControl = location ? (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Build at</span>
+      <Pill tone="blue">
+        {location.systemName} {formatSec(location.security)}
+      </Pill>
+      <button
+        type="button"
+        onClick={() => {
           setLocation(null);
           setSavedLoc(null);
         }}
-        errorLabel="System"
-        hint="Pick a system for net margin"
-      />
-      {fetchError && (
-        <div className={cn('mt-1 text-[10px]', toneTextClass('red'))}>
-          Couldn&apos;t load that system — try again.
-        </div>
+        className="text-[10px] tracking-[0.12em] uppercase text-muted hover:text-text"
+      >
+        Clear
+      </button>
+    </div>
+  ) : (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Build at</span>
+      <div className="w-[260px] max-w-full">
+        <TerminalSearch<SystemParams, SystemErr>
+          initialValue=""
+          placeholder="Build system — type a name"
+          parse={parse}
+          suggest={suggest}
+          errorMessage={() => 'No build system matches that name.'}
+          onSubmit={onSubmit}
+          onClear={() => {
+            setLocation(null);
+            setSavedLoc(null);
+          }}
+          errorLabel="System"
+          hint="Pick a system for net margin"
+        />
+        {fetchError && (
+          <div className={cn('mt-1 text-[10px]', toneTextClass('red'))}>
+            Couldn&apos;t load that system — try again.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      {systemControl}
+      {availableStructures !== null && (
+        <BuildFacilitySelect
+          structures={availableStructures}
+          stations={location?.stations ?? []}
+          selectedStructure={selectedStructure}
+          station={station}
+          structureFactors={structureFactors}
+          setSelectedStructure={setSelectedStructure}
+          setStation={setStation}
+        />
       )}
     </div>
   );

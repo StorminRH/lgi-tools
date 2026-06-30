@@ -5,43 +5,47 @@
 import { RIG_MFG_MATERIAL_ATTR, RIG_REACTION_TIME_ATTR } from './constants';
 import type { AttrMap } from './types';
 
-// Which industry activity a structure / rig modifies. 1:1 with the planner's
-// activity ids (manufacturing 1, reaction 11); kept as a readable string for the
-// builder UI. An Engineering Complex is a manufacturing structure; a Refinery a
-// reaction one.
-export type StructureRole = 'manufacturing' | 'reaction';
-
 export type StructureTypeOption = {
   typeId: number;
   name: string;
-  role: StructureRole;
+  // The structure's SDE group id (1404 Engineering Complex, 1406 Refinery, 1657
+  // Citadel). A rig fits when one of its canFitShipGroup attrs equals this.
+  groupId: number;
   // The structure's rig-size class (SDE attr 1547): 2 = M, 3 = L, 4 = XL. A rig
   // fits only when its own rig size equals this. Null only if the SDE row is
   // missing the attribute (it never is for the published structures).
   rigSize: number | null;
 };
 
-export type StructureRigOption = StructureTypeOption;
+export type StructureRigOption = {
+  typeId: number;
+  name: string;
+  // The structure group ids this rig can be fitted to (CCP's canFitShipGroup01/02/03,
+  // dogma attrs 1298/1299/1300): manufacturing rigs carry {1404, 1406, 1657};
+  // reaction rigs carry {1406} only.
+  canFitGroups: number[];
+  rigSize: number | null;
+};
 
-// The industry role of a structure rig from its dogma, or null when the rig is
-// not an industry-efficiency rig the planner models. Reaction rigs (reactor-time
-// attr) take precedence; a manufacturing-efficiency rig is one whose material-
-// reduction attr is present AND nonzero — that excludes the copy / invention /
-// research optimization rigs, which share the time/cost attrs but carry no
-// material reduction (and don't apply to manufacturing in game).
-export function structureRigRole(attrs: AttrMap): StructureRole | null {
-  if (attrs[RIG_REACTION_TIME_ATTR] !== undefined) return 'reaction';
-  if ((attrs[RIG_MFG_MATERIAL_ATTR] ?? 0) !== 0) return 'manufacturing';
-  return null;
+// Whether a rig is an industry-efficiency rig the planner models, from its dogma.
+// Reaction rigs carry the reactor-time attr; a manufacturing rig is one whose
+// material-reduction attr is present AND nonzero — that excludes the copy /
+// invention / research optimization rigs, which share the time/cost attrs but
+// carry no material reduction (and must not speed up a manufacturing build).
+export function isIndustryRig(attrs: AttrMap): boolean {
+  if (attrs[RIG_REACTION_TIME_ATTR] !== undefined) return true;
+  return (attrs[RIG_MFG_MATERIAL_ATTR] ?? 0) !== 0;
 }
 
-// Whether a rig fits a structure: same industry role (an Engineering Complex
-// takes manufacturing rigs, a Refinery reaction rigs) AND the same rig-size class
-// (M/L/XL). The single rule behind both the builder's rig picker and the save
-// trust boundary, so the two can never disagree on what's valid.
+// Whether a rig physically fits a structure: CCP's actual fitting rule, not a
+// "role". The structure's group id must be one of the rig's canFitShipGroup ids
+// AND the rig-size class (M/L/XL) must match. A manufacturing rig fits an
+// Engineering Complex, a Refinery, or a Citadel; a reaction rig fits a Refinery
+// only. The single rule behind both the builder's rig picker and the save trust
+// boundary, so the two can never disagree on what's valid.
 export function rigFitsStructure(
-  rig: { role: StructureRole; rigSize: number | null },
-  structure: { role: StructureRole; rigSize: number | null },
+  rig: { canFitGroups: number[]; rigSize: number | null },
+  structure: { groupId: number; rigSize: number | null },
 ): boolean {
-  return rig.role === structure.role && rig.rigSize === structure.rigSize;
+  return rig.canFitGroups.includes(structure.groupId) && rig.rigSize === structure.rigSize;
 }

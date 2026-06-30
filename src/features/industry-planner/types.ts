@@ -138,24 +138,23 @@ export interface IntermediatePrice {
 
 // --- Build-structure selector (3.7.9.1.3) --------------------------------
 
-// The industry activity a build structure modifies — 1:1 with the planner's
-// activity ids. An Engineering Complex is a manufacturing structure; a Refinery a
-// reaction one. The selector keeps one slot per role.
-export type StructureBonusRole = 'manufacturing' | 'reaction';
-
 // A structure the planner can place a build in — SOURCE-AGNOSTIC so the corp-
-// pulled source (3.7.9.1.4) slots in beside the user's custom ones with no
-// selector/wiring change. The resolved structure + rig dogma travels on the wire
-// so the bonus recomputes client-side, live, as the build system / per-node
-// activity change. `securityClass` is the structure's own system band for a corp
-// structure; null for a custom one, whose rig bonus instead scales against the
-// security of the planner's selected build LOCATION.
+// pulled source (3.7.9.1.5) slots in beside the user's custom ones with no
+// selector/wiring change. There is no per-structure "role": one selected
+// structure bonuses each build node by THAT node's activity, from the structure's
+// own attrs plus whatever rigs fit it. The resolved structure + rig dogma travels
+// on the wire so the bonus recomputes client-side, live, as the build system /
+// per-node activity change. `securityClass` is the structure's own system band for
+// a corp structure; null for a custom one, whose rig bonus instead scales against
+// the security of the planner's selected build LOCATION. `systemId` is the corp
+// structure's home system (so a corp pick can lock the build location); null for a
+// custom structure, which borrows whatever system the planner has selected.
 export interface AvailableStructure {
   id: string;
   source: 'custom' | 'corp';
   name: string;
   structureTypeId: number;
-  role: StructureBonusRole;
+  systemId: number | null;
   structureAttrs: AttrMap;
   rigAttrs: AttrMap[];
   securityClass: SecurityClass | null;

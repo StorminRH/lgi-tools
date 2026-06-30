@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   RIG_MFG_MATERIAL_ATTR,
   RIG_REACTION_TIME_ATTR,
+  SDE_CITADEL_GROUP_ID,
+  SDE_ENGINEERING_COMPLEX_GROUP_ID,
+  SDE_REFINERY_GROUP_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
-import { rigFitsStructure, structureRigRole } from './structures';
+import { isIndustryRig, rigFitsStructure } from './structures';
 import type { AttrMap } from './types';
 
 // Real SDE dogma shapes (verified against the local SDE this session).
@@ -25,49 +28,76 @@ const copyOptimization: AttrMap = {
   2595: -10,
 };
 
-describe('structureRigRole', () => {
-  it('classifies a manufacturing-efficiency rig (nonzero material reduction)', () => {
-    expect(structureRigRole(equipmentMfgEff)).toBe('manufacturing');
+describe('isIndustryRig', () => {
+  it('accepts a manufacturing-efficiency rig (nonzero material reduction)', () => {
+    expect(isIndustryRig(equipmentMfgEff)).toBe(true);
   });
 
-  it('classifies a reactor-efficiency rig (reactor-time attr present)', () => {
-    expect(structureRigRole(reactorEff)).toBe('reaction');
+  it('accepts a reactor-efficiency rig (reactor-time attr present)', () => {
+    expect(isIndustryRig(reactorEff)).toBe(true);
   });
 
-  it('excludes optimization rigs that carry time/cost but no material reduction', () => {
-    expect(structureRigRole(copyOptimization)).toBeNull();
+  it('rejects optimization rigs that carry time/cost but no material reduction', () => {
+    // Blueprint Copy / Invention / Research optimization rigs share 2593/2595 but
+    // must NOT be offerable — the bonus math reads 2593 for every fitted rig, so
+    // including one would wrongly speed up a manufacturing build.
+    expect(isIndustryRig(copyOptimization)).toBe(false);
   });
 
-  it('excludes a non-industry rig (no relevant attrs)', () => {
-    expect(structureRigRole({ [STRUCTURE_RIG_SIZE_ATTR]: 2, 999: 5 })).toBeNull();
-  });
-
-  it('treats reaction precedence over manufacturing when both attrs somehow appear', () => {
-    expect(
-      structureRigRole({ [RIG_REACTION_TIME_ATTR]: -20, [RIG_MFG_MATERIAL_ATTR]: -2 }),
-    ).toBe('reaction');
+  it('rejects a non-industry rig (no relevant attrs)', () => {
+    expect(isIndustryRig({ [STRUCTURE_RIG_SIZE_ATTR]: 2, 999: 5 })).toBe(false);
   });
 });
 
 describe('rigFitsStructure', () => {
-  const azbel = { role: 'manufacturing', rigSize: 3 } as const; // L
-  const sotiyo = { role: 'manufacturing', rigSize: 4 } as const; // XL
-  const tatara = { role: 'reaction', rigSize: 3 } as const; // L refinery
+  const EC = SDE_ENGINEERING_COMPLEX_GROUP_ID; // 1404
+  const REFINERY = SDE_REFINERY_GROUP_ID; // 1406
+  const CITADEL = SDE_CITADEL_GROUP_ID; // 1657
 
-  it('fits when role + size both match', () => {
-    expect(rigFitsStructure({ role: 'manufacturing', rigSize: 3 }, azbel)).toBe(true);
+  // Manufacturing rigs carry canFitShipGroup {EC, Refinery, Citadel}; reaction
+  // rigs carry {Refinery} only (verified against the local SDE).
+  const lMfgRig = { canFitGroups: [CITADEL, EC, REFINERY], rigSize: 3 };
+  const xlMfgRig = { canFitGroups: [CITADEL, EC, REFINERY], rigSize: 4 };
+  const mReactionRig = { canFitGroups: [REFINERY], rigSize: 2 };
+  const lReactionRig = { canFitGroups: [REFINERY], rigSize: 3 };
+
+  const azbel = { groupId: EC, rigSize: 3 } as const; // L Engineering Complex
+  const sotiyo = { groupId: EC, rigSize: 4 } as const; // XL Engineering Complex
+  const raitaru = { groupId: EC, rigSize: 2 } as const; // M Engineering Complex
+  const athanor = { groupId: REFINERY, rigSize: 2 } as const; // M Refinery
+  const tatara = { groupId: REFINERY, rigSize: 3 } as const; // L Refinery
+  const fortizar = { groupId: CITADEL, rigSize: 3 } as const; // L Citadel
+  const keepstar = { groupId: CITADEL, rigSize: 4 } as const; // XL Citadel
+
+  it('fits a manufacturing rig to an Engineering Complex of the same size', () => {
+    expect(rigFitsStructure(lMfgRig, azbel)).toBe(true);
+    expect(rigFitsStructure(xlMfgRig, sotiyo)).toBe(true);
   });
 
-  it('rejects a size mismatch (XL rig on an L structure)', () => {
-    expect(rigFitsStructure({ role: 'manufacturing', rigSize: 4 }, azbel)).toBe(false);
+  it('fits a manufacturing rig to a Refinery (mfg rigs fit all three groups)', () => {
+    expect(rigFitsStructure(lMfgRig, tatara)).toBe(true);
   });
 
-  it('rejects a role mismatch (reaction rig on a manufacturing structure)', () => {
-    expect(rigFitsStructure({ role: 'reaction', rigSize: 3 }, azbel)).toBe(false);
-    expect(rigFitsStructure({ role: 'manufacturing', rigSize: 3 }, tatara)).toBe(false);
+  it('fits a manufacturing rig to a Citadel (no role, but the rig still fits)', () => {
+    expect(rigFitsStructure(lMfgRig, fortizar)).toBe(true);
+    expect(rigFitsStructure(xlMfgRig, keepstar)).toBe(true);
   });
 
-  it('matches an XL manufacturing rig to a Sotiyo', () => {
-    expect(rigFitsStructure({ role: 'manufacturing', rigSize: 4 }, sotiyo)).toBe(true);
+  it('fits a reaction rig to a Refinery of the same size', () => {
+    expect(rigFitsStructure(mReactionRig, athanor)).toBe(true);
+    expect(rigFitsStructure(lReactionRig, tatara)).toBe(true);
+  });
+
+  it('rejects a reaction rig on an Engineering Complex (group not in canFitGroups)', () => {
+    expect(rigFitsStructure(mReactionRig, raitaru)).toBe(false);
+    expect(rigFitsStructure(lReactionRig, azbel)).toBe(false);
+  });
+
+  it('rejects a reaction rig on a Citadel (canFitGroups is Refinery only)', () => {
+    expect(rigFitsStructure(lReactionRig, fortizar)).toBe(false);
+  });
+
+  it('rejects a size mismatch even when the group fits (XL rig on an L structure)', () => {
+    expect(rigFitsStructure(xlMfgRig, azbel)).toBe(false);
   });
 });

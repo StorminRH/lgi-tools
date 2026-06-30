@@ -43,11 +43,7 @@ import {
   collectIntermediateTypeIds,
   type PriceLite,
 } from '../build-pricing';
-import {
-  structureFactorsFor,
-  type SelectedStructures,
-  type StructureFactors,
-} from '../structure-factors';
+import { structureFactorsFor, type StructureFactors } from '../structure-factors';
 import type {
   AvailableStructure,
   BlueprintPricing,
@@ -162,17 +158,16 @@ interface PricingContextValue {
   // The optional per-station refinement (display/future-score only).
   station: SelectedStation | null;
   setStation: (stationId: number | null, stationName: string | null) => void;
-  // The structures the caller can place this build in (3.7.9.1.3) — their custom
+  // The structures the caller can place this build in (3.7.9.1.4) — their custom
   // structures (and, next session, their corp's), fetched once on open. null until
   // the read settles; empty for a logged-out caller or one with none.
   availableStructures: AvailableStructure[] | null;
-  // The role-paired selection: one Engineering-Complex slot (drives manufacturing
-  // nodes) + one Refinery slot (drives reaction nodes). Setting a structure routes
-  // it to its role's slot; null clears that slot.
-  selectedStructures: SelectedStructures;
-  setSelectedStructure: (role: 'manufacturing' | 'reaction', structure: AvailableStructure | null) => void;
-  // The derived per-node engine factors + per-slot bonus readout. Re-derives when
-  // the selection or the build system's security changes.
+  // The single selected build structure (role-agnostic): it bonuses each build node
+  // by that node's activity. null clears the selection.
+  selectedStructure: AvailableStructure | null;
+  setSelectedStructure: (structure: AvailableStructure | null) => void;
+  // The derived per-node engine factors + per-activity bonus readout. Re-derives
+  // when the selection or the build system's security changes.
   structureFactors: StructureFactors;
   // History-derived score inputs keyed by type ID (3.5.3a). Seeded from the
   // server (warm) and refreshed on view; the product type is always present
@@ -320,25 +315,22 @@ export function PricingProvider({
   const [runs, setRunsState] = useState(1);
   const [location, setLocationState] = useState<SelectedLocation | null>(null);
   const [station, setStationState] = useState<SelectedStation | null>(null);
-  // The structures the caller can place this build in (3.7.9.1.3), fetched on open
-  // (the owned-blueprints pattern), and the role-paired selection over them.
+  // The structures the caller can place this build in (3.7.9.1.4), fetched on open
+  // (the owned-blueprints pattern), and the single selected structure over them.
   const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
-  const [selectedStructures, setSelectedStructures] = useState<SelectedStructures>(() => ({
-    manufacturing: null,
-    reaction: null,
-  }));
-  // Per-node engine factors derived from the role-paired selection + the build
-  // system's security (3.7.9.1.3). Re-derives only when the selection or the
+  const [selectedStructure, setSelectedStructure] = useState<AvailableStructure | null>(null);
+  // Per-node engine factors derived from the selected structure + the build
+  // system's security (3.7.9.1.4). Re-derives only when the selection or the
   // system's security changes; NO_STRUCTURE_FACTORS (all no-ops) when nothing is
   // selected, so the plan stays byte-identical to the no-structure path.
   const structureFactors = useMemo<StructureFactors>(
     () =>
       structureFactorsFor({
-        selection: selectedStructures,
+        selectedStructure,
         locationSecurity: location?.security ?? null,
         nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
       }),
-    [selectedStructures, location?.security, structure.nodeActivityByBlueprint],
+    [selectedStructure, location?.security, structure.nodeActivityByBlueprint],
   );
   // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
   // per type). null until the owned-blueprints read settles; empty for a
@@ -450,15 +442,6 @@ export function PricingProvider({
       // Station refinement is its own state — not part of `location` — so this
       // never changes the recompute effect's `location` dep.
       setStationState(stationId === null ? null : { id: stationId, name: stationName ?? '' });
-    },
-    [],
-  );
-
-  // Route a picked structure to its role's slot (an EC fills the manufacturing
-  // slot, a Refinery the reaction slot); null clears that slot.
-  const setSelectedStructure = useCallback(
-    (role: 'manufacturing' | 'reaction', structureChoice: AvailableStructure | null) => {
-      setSelectedStructures((prev) => ({ ...prev, [role]: structureChoice }));
     },
     [],
   );
@@ -700,7 +683,7 @@ export function PricingProvider({
       station,
       setStation,
       availableStructures,
-      selectedStructures,
+      selectedStructure,
       setSelectedStructure,
       structureFactors,
       marketHistory,
@@ -729,7 +712,7 @@ export function PricingProvider({
       station,
       setStation,
       availableStructures,
-      selectedStructures,
+      selectedStructure,
       setSelectedStructure,
       structureFactors,
       marketHistory,

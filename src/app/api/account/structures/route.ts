@@ -11,9 +11,10 @@ import { getCurrentUserId } from '@/features/auth/session';
 
 // authz: auth
 // GET /api/account/structures. The structures the caller can place a build in:
-// their custom structures now (3.7.9.1.3), plus their corp's pulled structures
-// next session (3.7.9.1.4), merged here with no selector change. Each row carries
-// its resolved structure + rig dogma so the planner computes the bonus
+// their custom structures now (3.7.9.1.4), plus their corp's pulled structures
+// next session (3.7.9.1.5), merged here with no selector change — the source-
+// agnostic AvailableStructure (with `systemId`) is the seam corp fills. Each row
+// carries its resolved structure + rig dogma so the planner computes the bonus
 // client-side. Anonymous callers get an empty list.
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
@@ -27,7 +28,7 @@ export async function GET(): Promise<Response> {
     return Response.json({ structures: [] } satisfies AvailableStructuresResponse);
   }
 
-  const roleByType = new Map(structureTypes.map((t) => [t.typeId, t.role]));
+  const knownTypeIds = new Set(structureTypes.map((t) => t.typeId));
   // One batched dogma read across every structure + rig type referenced.
   const typeIds = new Set<number>();
   for (const c of custom) {
@@ -38,16 +39,18 @@ export async function GET(): Promise<Response> {
 
   const structures: AvailableStructure[] = [];
   for (const c of custom) {
-    const role = roleByType.get(c.structureTypeId);
     // A structure type that's no longer a known industry structure (an SDE drift)
-    // is dropped rather than shown with an undefined role.
-    if (!role) continue;
+    // is dropped rather than shown without resolvable dogma.
+    if (!knownTypeIds.has(c.structureTypeId)) continue;
     structures.push({
       id: c.id,
       source: 'custom',
       name: c.name,
       structureTypeId: c.structureTypeId,
-      role,
+      // A custom structure has no fixed system — its rig bonus scales against
+      // whatever build system the planner has picked. Corp structures (3.7.9.1.5)
+      // fill this with their home system.
+      systemId: null,
       structureAttrs: dogma.get(c.structureTypeId) ?? {},
       rigAttrs: c.rigTypeIds.map((r) => dogma.get(r) ?? {}),
       securityClass: null,

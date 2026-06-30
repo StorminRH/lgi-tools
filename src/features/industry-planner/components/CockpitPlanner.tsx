@@ -11,7 +11,6 @@ import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
 import { activityLabel } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
-import { StructureSelector } from './StructureSelector';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitKpis, type MarginMode } from './CockpitKpis';
 import { MeField, TeField } from './MeAdjuster';
@@ -128,24 +127,14 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
             Runs
             <Stepper value={runs} onChange={setRuns} min={1} ariaLabel="Runs" />
           </label>
-          {isManufacturing && (
-            <div className="flex items-center gap-2.5">
-              <span className="text-[9px] uppercase tracking-[0.14em] text-muted">Build at</span>
-              <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
-            </div>
-          )}
         </div>
       </div>
 
+      {/* The build-location control gets its own full-width row so the structure
+          bonus readout has room to appear without shifting any other control. */}
       {isManufacturing && (
-        <div
-          className={cn(
-            'mb-3.5 flex flex-wrap items-center gap-3.5',
-            'rounded-md border border-border bg-section px-[18px] py-3',
-          )}
-        >
-          <span className="text-[9px] uppercase tracking-[0.14em] text-muted">Build structure</span>
-          <StructureSelector />
+        <div className={cn('mb-3.5 rounded-md border border-border bg-section px-[18px] py-3')}>
+          <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
         </div>
       )}
 
