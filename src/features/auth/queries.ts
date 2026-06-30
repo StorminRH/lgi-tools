@@ -1,6 +1,7 @@
 import { and, asc, eq, gt, ilike, isNull, lt, notExists, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/db';
+import { runPurge } from '@/purge/orchestrator';
 import type { AffiliationRow } from './affiliation-source';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
 import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
@@ -627,35 +628,30 @@ export async function reconcileCharacterOwner(
   await purgeTransferredCharacter(row.userId, characterId);
 }
 
-// Purge a transferred character's prior owner across the DEFINED purge surface,
-// then let Better Auth create a fresh user for the new owner (it finds no account
-// row, so its findOAuthUser email fallback no longer re-links to the prior owner).
-// Surface (keep in sync with the 3.7.14 hardening note when new per-character /
-// per-user owner-authored data lands):
-//   1. account row + encrypted tokens — the existing delete path, reused.
-//   2. per-character owner-authored profile fields on the shared `characters` row.
-//   3. the prior owner's user row — only when it's left account-less.
-// The trackers' per-character projections need no prompt teardown here: skills +
-// personal/corp industry jobs are Neon char-keyed (MIGRATE.B), so the new owner's
-// resync overwrites them; the online-status canary doc (per user+character) is reaped
-// by its lazy enumerated-set orphan cleanup in onlineStatus.applySyncResults.
+// Purge a transferred character's prior owner, then let Better Auth create a fresh
+// user for the new owner (it finds no account row, so its findOAuthUser email
+// fallback no longer re-links to the prior owner). Surface:
+//   1–2. credential + owner-authored profile teardown — the purge registry's
+//        credential tier (src/features/auth/purge.ts): account row + encrypted
+//        tokens, then reset the owner-authored fields on the shared `characters`
+//        row (kept — a telemetry FK target). A NEW per-character owner-authored
+//        table is covered by claiming it in its slice's purge contributor, not by
+//        editing here (the registry is now the home of which tables this touches).
+//   3.   the prior owner's user row — reconciled below (delete when account-less,
+//        else rebind the identity email + repoint active). Auth-identity logic, so
+//        it stays here rather than in a generic contributor.
+// ONLY the credential tier runs: the trackers' per-character caches (skills +
+// personal/corp jobs, owned assets/blueprints) are regenerable and re-sync under
+// the new owner, so they must NOT be torn down; the online-status canary doc is
+// reaped by its lazy orphan cleanup in onlineStatus.applySyncResults. Steps are
+// sequential, non-atomic neon-http writes (no request-path transaction) — the same
+// accepted trade-off as reassignCharacter; a transfer is rare and low-rate.
 export async function purgeTransferredCharacter(
   priorUserId: string,
   characterId: number,
 ): Promise<void> {
-  // 1. Account row + encrypted tokens (reuse the existing delete path).
-  await deleteLinkedCharacter(priorUserId, characterId);
-
-  // 2. Reset the per-character owner-authored fields on the shared `characters`
-  //    row. The row is kept (it's a telemetry FK target) and the
-  //    character-intrinsic name/portrait are refreshed by the new owner's login;
-  //    only preferences (owner-authored) are cleared. Defensive today — nothing
-  //    writes characters.preferences yet — but it pins the purge surface for the
-  //    per-character owner-authored data 3.7.10 will add.
-  await db
-    .update(characters)
-    .set({ preferences: {}, updatedAt: new Date() })
-    .where(eq(characters.characterId, characterId));
+  // 1–2. Credential + owner-authored profile teardown via the purge registry.
+  await runPurge({ kind: 'character', userId: priorUserId, characterId }, ['credential']);
 
   // 3. Reconcile the prior owner's user row. Better Auth's findOAuthUser falls
   //    back to a user.email match when no account row is found, and
