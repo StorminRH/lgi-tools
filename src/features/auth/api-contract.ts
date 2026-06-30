@@ -177,3 +177,34 @@ export const accountCharactersEndpoint: ApiEndpoint<null, AccountCharactersRespo
   request: null, // GET — no body
   response: accountCharactersResponseSchema,
 };
+
+// ── Self-service account safety (ACCOUNT.2, authz: auth) ─────────────────
+// The plumbing layer's wire shapes; the account-page UI (later sub-version) wires
+// these to apiFetch via endpoint descriptors then. Each route acts on the CALLER's
+// own account only — no body carries a target user id. Request/response live here so
+// the route imports its contract (the api-contracts.test invariant) and pins its
+// JSON payload with `satisfies`.
+
+// POST /api/account/purge-character — purge one of the caller's own characters
+// (full teardown + EVE revoke). The route also verifies the posted id belongs to
+// the session user before acting.
+export const purgeCharacterRequestSchema = z.object({
+  characterId: z.number().int().positive(),
+});
+// 200. accountEmptied is true when this was the last character — the account was
+// emptied and the user deleted (a de-facto nuke); the UI shows the EVE-revoke
+// redirect + logs out only then.
+export interface PurgeCharacterResponse {
+  accountEmptied: boolean;
+}
+
+// POST /api/account/delete — nuke the caller's entire account. No request body.
+export interface AccountDeleteResponse {
+  ok: true;
+}
+
+// POST /api/account/sessions/revoke — log the caller out everywhere. No request
+// body; `revoked` is the number of sessions removed.
+export interface SessionsRevokeResponse {
+  revoked: number;
+}

@@ -12,6 +12,7 @@ import { authPurgeContributor } from '@/features/auth/purge';
 import { industryJobsPurgeContributor } from '@/features/industry-jobs/purge';
 import { ownedAssetsPurgeContributor } from '@/features/owned-assets/purge';
 import { ownedBlueprintsPurgeContributor } from '@/features/owned-blueprints/purge';
+import { onlineStatusPurgeContributor } from '@/features/online-status/purge';
 import { skillQueuePurgeContributor } from '@/features/skill-queue/purge';
 import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
@@ -23,6 +24,7 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   industryJobsPurgeContributor,
   ownedAssetsPurgeContributor,
   ownedBlueprintsPurgeContributor,
+  onlineStatusPurgeContributor,
   telemetryPurgeContributor,
   preferencesPurgeContributor,
   customStructuresPurgeContributor,

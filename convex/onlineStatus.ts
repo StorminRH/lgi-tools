@@ -152,3 +152,30 @@ async function applyOnlineResult(
   }
   return result.expiresAt;
 }
+
+// Explicit teardown for a Neon-side account/character purge (ACCOUNT.2). The lazy
+// orphan-clean in applySyncResults cannot cover a removed user — no later sync
+// re-enumerates a deleted account — so the purge calls this directly. `characterId`
+// null tears down the whole user (an account-nuke); a number tears down one
+// character (a single character-purge / unlink). Idempotent: deleting absent rows is
+// a no-op, so a retried best-effort purge is safe. Reached only via the bearer-gated
+// /purge-online HTTP action (Neon → Convex, one-directional).
+export const purgeForUser = internalMutation({
+  args: { userId: v.string(), characterId: v.union(v.number(), v.null()) },
+  handler: async (ctx, { userId, characterId }) => {
+    const docs =
+      characterId === null
+        ? await ctx.db
+            .query('characterOnline')
+            .withIndex('by_user', (q) => q.eq('userId', userId))
+            .collect()
+        : await ctx.db
+            .query('characterOnline')
+            .withIndex('by_user_character', (q) =>
+              q.eq('userId', userId).eq('characterId', characterId),
+            )
+            .collect();
+    for (const doc of docs) await ctx.db.delete(doc._id);
+    return { deleted: docs.length };
+  },
+});

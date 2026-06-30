@@ -97,6 +97,47 @@ describe('onlineStatus.forViewer', () => {
   });
 });
 
+describe('onlineStatus.purgeForUser', () => {
+  // The explicit teardown a Neon account/character purge calls — the lazy orphan-clean
+  // can't cover a removed account, so this is its only reaper for that case.
+  it('deletes all of a user\'s online docs when characterId is null (account-nuke)', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterOnline', { userId: USER, characterId: 101, online: true, etag: 'a' });
+      await ctx.db.insert('characterOnline', { userId: USER, characterId: 102, online: false, etag: 'b' });
+      await ctx.db.insert('characterOnline', { userId: 'other', characterId: 201, online: true, etag: 'c' });
+    });
+
+    const out = await t.mutation(internal.onlineStatus.purgeForUser, { userId: USER, characterId: null });
+    expect(out).toEqual({ deleted: 2 });
+
+    const remaining = await t.run((ctx) => ctx.db.query('characterOnline').collect());
+    expect(remaining.map((d) => d.userId)).toEqual(['other']); // a different user's doc survives
+  });
+
+  it('deletes only the named character when characterId is set (single character-purge)', async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('characterOnline', { userId: USER, characterId: 101, online: true, etag: 'a' });
+      await ctx.db.insert('characterOnline', { userId: USER, characterId: 102, online: false, etag: 'b' });
+    });
+
+    const out = await t.mutation(internal.onlineStatus.purgeForUser, { userId: USER, characterId: 101 });
+    expect(out).toEqual({ deleted: 1 });
+
+    const remaining = await t.run((ctx) =>
+      ctx.db.query('characterOnline').withIndex('by_user', (q) => q.eq('userId', USER)).collect(),
+    );
+    expect(remaining.map((d) => d.characterId)).toEqual([102]); // the sibling survives
+  });
+
+  it('is a no-op when there is nothing to delete (idempotent — a retried best-effort purge is safe)', async () => {
+    const t = convexTest(schema, modules);
+    const out = await t.mutation(internal.onlineStatus.purgeForUser, { userId: USER, characterId: null });
+    expect(out).toEqual({ deleted: 0 });
+  });
+});
+
 describe('onlineStatus.heldState', () => {
   it('returns each character etag for the conditional read', async () => {
     const t = convexTest(schema, modules);
