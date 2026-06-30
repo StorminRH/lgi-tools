@@ -40,8 +40,7 @@ export const authPurgeContributor: PurgeContributor = {
           eq(account.userId, userId),
           eq(account.accountId, String(characterId)),
         ),
-      )
-      .returning({ id: account.id });
+      );
     await db
       .update(characters)
       .set({ preferences: {}, updatedAt: new Date() })

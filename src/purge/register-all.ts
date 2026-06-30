@@ -5,7 +5,8 @@
 // slices import only the contributor TYPE from @/purge/types. This manifest is the
 // single consumer that keeps every contributor reachable (no unused-exports).
 //
-// Listed in tier order for readability; the orchestrator sorts by tier regardless.
+// The PURGE_CONTRIBUTORS array below is listed in tier order for readability (the
+// imports are path-grouped); the orchestrator sorts by tier regardless.
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import { authPurgeContributor } from '@/features/auth/purge';
 import { industryJobsPurgeContributor } from '@/features/industry-jobs/purge';
