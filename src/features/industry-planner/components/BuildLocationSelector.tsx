@@ -87,7 +87,7 @@ function BuildFacilitySelect({
   selectedStructure,
   station,
   structureFactors,
-  setSelectedStructure,
+  onSelectStructure,
   setStation,
 }: {
   structures: AvailableStructure[];
@@ -95,7 +95,9 @@ function BuildFacilitySelect({
   selectedStructure: AvailableStructure | null;
   station: { id: number } | null;
   structureFactors: StructureFactors;
-  setSelectedStructure: (structure: AvailableStructure | null) => void;
+  // The parent owns structure selection: it sets the structure AND, for a corp
+  // structure, deduces-and-locks the build system (this child stays a humble select).
+  onSelectStructure: (structure: AvailableStructure | null) => void;
   setStation: (stationId: number | null, stationName: string | null) => void;
 }) {
   // Nothing to choose between yet (no structures and no system's stations): a link
@@ -118,7 +120,7 @@ function BuildFacilitySelect({
   const onChange = (v: string) => {
     if (v.startsWith('structure:')) {
       const id = v.slice('structure:'.length);
-      setSelectedStructure(structures.find((s) => s.id === id) ?? null);
+      onSelectStructure(structures.find((s) => s.id === id) ?? null);
       setStation(null, null); // mutually exclusive — a structure isn't an NPC station
       return;
     }
@@ -126,10 +128,10 @@ function BuildFacilitySelect({
       const id = Number(v.slice('station:'.length));
       const st = stations.find((s) => s.id === id);
       setStation(id, st ? stationLabel(st) : null);
-      setSelectedStructure(null);
+      onSelectStructure(null);
       return;
     }
-    setSelectedStructure(null);
+    onSelectStructure(null);
     setStation(null, null);
   };
   return (
@@ -325,6 +327,41 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
     [applySystem],
   );
 
+  // Structure selection (lifted from the facility select). A CORP structure carries
+  // its own system, so picking one DEDUCES that system and LOCKS the build location to
+  // it (silent — the bonus still renders from the structure's securityClass even if the
+  // cost-index fetch misses; persist:false — a deduced system must not overwrite the
+  // user's own saved build location). Leaving a corp lock for a custom/station/none
+  // pick restores the user's saved system (or clears). A custom pick never touches the
+  // system — byte-identical to the pre-corp behaviour.
+  const onSelectStructure = useCallback(
+    (structure: AvailableStructure | null) => {
+      const wasCorpLocked = selectedStructure?.source === 'corp' && selectedStructure.systemId !== null;
+      setSelectedStructure(structure);
+      if (structure?.source === 'corp' && structure.systemId !== null) {
+        const sys = systems.find((s) => s.id === structure.systemId);
+        // A system absent from the industry index (no industry-capable NPC station)
+        // can't load cost indices — keep the structure selected (its bonus computes
+        // from securityClass) and leave the location as-is rather than erroring.
+        if (sys) {
+          applySystem({ id: sys.id, name: sys.name, security: sys.security }, { silent: true, persist: false });
+        }
+        return;
+      }
+      if (wasCorpLocked) {
+        if (savedLoc) {
+          applySystem(
+            { id: savedLoc.systemId, name: savedLoc.systemName, security: savedLoc.security },
+            { silent: true, persist: false },
+          );
+        } else {
+          setLocation(null);
+        }
+      }
+    },
+    [selectedStructure, systems, applySystem, setSelectedStructure, savedLoc, setLocation],
+  );
+
   // Restore a previously-picked build system once the authoritative tier has
   // settled (`ready`): re-fetch its live data for THIS blueprint and seed the
   // store. Runs once; skipped if the user already picked (a manual pick wins).
@@ -338,9 +375,33 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
     );
   }, [ready, savedLoc, location, applySystem]);
 
+  // A selected CORP structure locks the build system to its own (deduce-and-lock).
+  // Derived, not stored. The deduced system's display name/security come straight from
+  // the index (shown immediately, before the cost-index fetch returns).
+  const lockedCorpStructure =
+    selectedStructure?.source === 'corp' && selectedStructure.systemId !== null ? selectedStructure : null;
+  const deducedSystem = lockedCorpStructure
+    ? systems.find((s) => s.id === lockedCorpStructure.systemId) ?? null
+    : null;
+
   // The build SYSTEM control (drives the cost index + the security a custom
-  // structure's rigs scale against): a search box until one is picked, then a pill.
-  const systemControl = location ? (
+  // structure's rigs scale against): locked to a corp structure's system → a search
+  // box until one is picked → a pill once picked.
+  const systemControl = lockedCorpStructure ? (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Build at</span>
+      {deducedSystem ? (
+        <Pill tone="blue">
+          {deducedSystem.name} {formatSec(deducedSystem.security)}
+        </Pill>
+      ) : (
+        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">System unavailable for net margin</span>
+      )}
+      {/* No Clear while locked — the Location dropdown is the single source of truth
+          for where the build happens; changing it there unlocks the system. */}
+      <span className="text-[10px] tracking-[0.12em] uppercase text-muted">↳ locked to {lockedCorpStructure.name}</span>
+    </div>
+  ) : location ? (
     <div className="flex items-center gap-2 flex-wrap">
       <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Build at</span>
       <Pill tone="blue">
@@ -394,7 +455,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
           selectedStructure={selectedStructure}
           station={station}
           structureFactors={structureFactors}
-          setSelectedStructure={setSelectedStructure}
+          onSelectStructure={onSelectStructure}
           setStation={setStation}
         />
       )}

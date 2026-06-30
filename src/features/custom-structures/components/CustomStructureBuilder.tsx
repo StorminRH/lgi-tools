@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { RigSupply } from '@/components/RigSupply';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
@@ -162,35 +163,13 @@ export function CustomStructureBuilder({
         </label>
 
         {structure && (
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-[0.12em] text-muted">
-              Rigs ({validRigs.length} fit this structure)
-            </span>
-            <div className="flex flex-col gap-1.5">
-              {slotIndices.map((i) => (
-                <select
-                  key={i}
-                  value={rigSlots[i] ?? ''}
-                  onChange={(e) =>
-                    setRigSlots((prev) => {
-                      const next = [...prev];
-                      next[i] = e.target.value === '' ? null : Number(e.target.value);
-                      return next;
-                    })
-                  }
-                  aria-label={`Rig slot ${i + 1}`}
-                  className={cn(inputClass, 'w-full max-w-[420px]')}
-                >
-                  <option value="">— rig slot {i + 1}: none —</option>
-                  {validRigs.map((r) => (
-                    <option key={r.typeId} value={r.typeId}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              ))}
-            </div>
-          </div>
+          <RigSupply
+            validRigs={validRigs}
+            maxSlots={MAX_CUSTOM_STRUCTURE_RIGS}
+            slots={rigSlots}
+            onSlotsChange={setRigSlots}
+            disabled={busy}
+          />
         )}
 
         <label className="flex flex-col gap-1">

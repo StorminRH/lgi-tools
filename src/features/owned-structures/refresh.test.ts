@@ -22,6 +22,7 @@ function esiStructure(structureId: number, extra: Record<string, unknown> = {}) 
 function makePort(overrides: Partial<CorpStructuresPort> = {}): CorpStructuresPort {
   return {
     now: () => NOW,
+    isSharingEnabled: vi.fn(async () => true),
     listMembers: vi.fn(async () => []),
     vendToken: vi.fn(async () => 'token'),
     readRoles: vi.fn(async () => ['Station_Manager']),
@@ -61,6 +62,26 @@ describe('refreshCorpStructuresForUser', () => {
     expect(port.readRoles).not.toHaveBeenCalled();
     expect(port.readStructures).not.toHaveBeenCalled();
     expect(port.saveStructures).not.toHaveBeenCalled();
+  });
+
+  it('dispatches nothing for a corp that has not opted in to sharing (the consent gate)', async () => {
+    // The load-bearing retrofit: sharing OFF short-circuits in the engine BEFORE the
+    // staleness read, the token vend, the roles read, and any ESI fetch or save —
+    // zero ESI, zero rows for a non-opted-in corp.
+    const port = makePort({
+      isSharingEnabled: vi.fn(async () => false),
+      listMembers: vi.fn(async () => [member(1)]),
+      readSyncState: vi.fn(async () => null), // would be stale → would pull if not gated
+    });
+
+    await refreshCorpStructuresForUser(port, 'u1');
+
+    expect(port.readSyncState).not.toHaveBeenCalled();
+    expect(port.vendToken).not.toHaveBeenCalled();
+    expect(port.readRoles).not.toHaveBeenCalled();
+    expect(port.readStructures).not.toHaveBeenCalled();
+    expect(port.saveStructures).not.toHaveBeenCalled();
+    expect(port.stampFresh).not.toHaveBeenCalled();
   });
 
   it('reads with a Station_Manager member token and saves the shared corp-keyed row', async () => {

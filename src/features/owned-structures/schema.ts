@@ -14,7 +14,7 @@
 // Two tables, the same metadata + payload split as owned assets:
 //   - corp_structures       — one row per owned structure (replace-all per corp)
 //   - corp_structure_syncs  — one row per corp: the staleness stamp + held etags
-import { bigint, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, boolean, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 
 // Postgres enum driven from the shared TS `as const` (the one-source-of-truth
@@ -66,3 +66,39 @@ export const corpStructureSyncs = pgTable('corp_structure_syncs', {
   lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull(),
   pageEtags: jsonb('page_etags').$type<string[]>().default([]).notNull(),
 });
+
+// Per-corp sharing consent — APP-AUTHORED system-of-record (NOT regenerable cache
+// like the two tables above). A corp's structures are private until a Station_Manager
+// opts the corp in here. Default OFF: a corp with no row, or `enabled: false`, gates
+// the pull (the sync engine's precondition reads this before any staleness check or
+// token vend) AND fails the read closed — so a non-opted-in corp dispatches zero ESI,
+// stores zero rows, and shows nothing. Disabling wipes the corp's regenerable rows +
+// sync state + authored rigs (below); re-enabling re-pulls from scratch on next view.
+// Keyed by corporation_id alone (one shared setting per corp); `set_by` is the
+// character id that last flipped it (audit only, nullable).
+export const corpStructureSharing = pgTable('corp_structure_sharing', {
+  corporationId: bigint('corporation_id', { mode: 'number' }).primaryKey(),
+  enabled: boolean('enabled').default(false).notNull(),
+  setBy: bigint('set_by', { mode: 'number' }),
+  setAt: timestamp('set_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Authored rig fits for a corp's structures — APP-AUTHORED system-of-record. The
+// corp-structures ESI endpoint does NOT expose a structure's fitted rigs, so a
+// Station_Manager records them here to make the bonus exact; without a row a
+// structure contributes its type bonus only (empty rig set). MUST survive the hourly
+// full-replace pull: `saveCorpStructures` rewrites only corp_structures +
+// corp_structure_syncs and never touches this table, so a re-pull cannot clobber the
+// authored rigs. Wiped only when sharing is disabled. Keyed by (corporation_id,
+// structure_id); no FK to corp_structures (regenerable, replace-all) — same FK-less
+// posture as the rows above.
+export const corpStructureRigs = pgTable(
+  'corp_structure_rigs',
+  {
+    corporationId: bigint('corporation_id', { mode: 'number' }).notNull(),
+    structureId: bigint('structure_id', { mode: 'number' }).notNull(),
+    rigTypeIds: jsonb('rig_type_ids').$type<number[]>().default([]).notNull(),
+    setAt: timestamp('set_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.corporationId, t.structureId] })],
+);

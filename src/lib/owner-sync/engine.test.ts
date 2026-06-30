@@ -112,6 +112,28 @@ describe('runOwnerSync — the per-owner dance', () => {
     expect(d.vendToken).not.toHaveBeenCalled();
   });
 
+  it('skips an owner whose precondition returns false — before any state read or vend', async () => {
+    const precondition = vi.fn(async () => false);
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1)]), precondition });
+
+    await runOwnerSync(d, 'u');
+
+    expect(precondition).toHaveBeenCalledWith('char:1');
+    expect(d.readState).not.toHaveBeenCalled();
+    expect(d.vendToken).not.toHaveBeenCalled();
+    expect(d.fetchAndPlan).not.toHaveBeenCalled();
+    expect(d.save).not.toHaveBeenCalled();
+  });
+
+  it('proceeds normally when the precondition returns true', async () => {
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1)]), precondition: vi.fn(async () => true) });
+
+    await runOwnerSync(d, 'u');
+
+    expect(d.readState).toHaveBeenCalled();
+    expect(d.save).toHaveBeenCalledWith('char:1', { kind: 'save', value: 1 });
+  });
+
   it('refreshes multiple eligible characters in one pass', async () => {
     const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1), owner(2), owner(3)]) });
 

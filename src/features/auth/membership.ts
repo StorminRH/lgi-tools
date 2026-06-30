@@ -56,6 +56,20 @@ export function memberCharacterIdInCorp(
   return match ? match.characterId : null;
 }
 
+// By corp, over a user's linked characters: the ids of ALL characters that are
+// CURRENT members of corporationId (same fail-closed rule). The plural form of
+// memberCharacterIdInCorp — for a role gate that must try every in-corp pilot (any
+// one of which might hold the in-game role), not just the first.
+export function memberCharacterIdsInCorp(
+  affiliations: CachedAffiliation[],
+  corporationId: number,
+  now: Date,
+): number[] {
+  return affiliations
+    .filter((a) => a.corporationId === corporationId && !isAffiliationStale(a.refreshedAt, now))
+    .map((a) => a.characterId);
+}
+
 // Every corporation the user is a CURRENT member of, deduped — the read-scope set
 // for shared per-corp data (3.7.9 owned structures): a member sees their corp's
 // shared catalogue, a non-member's set never includes it. Same fail-closed rule as

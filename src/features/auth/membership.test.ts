@@ -6,6 +6,7 @@ import {
   isAffiliationStale,
   isMemberOfCorp,
   memberCharacterIdInCorp,
+  memberCharacterIdsInCorp,
   memberCorpIds,
 } from './membership';
 
@@ -116,6 +117,30 @@ describe('memberCharacterIdInCorp (the granting pilot, for the audit)', () => {
 
   it('returns null on an empty affiliation set', () => {
     expect(memberCharacterIdInCorp([], 2000, NOW)).toBeNull();
+  });
+});
+
+describe('memberCharacterIdsInCorp (every in-corp pilot, for the role gate)', () => {
+  it('returns all fresh members of the corp', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000 }),
+      aff({ characterId: 102, corporationId: 2000 }),
+      aff({ characterId: 103, corporationId: 3000 }),
+    ];
+    expect(memberCharacterIdsInCorp(affiliations, 2000, NOW).sort((a, b) => a - b)).toEqual([101, 102]);
+  });
+
+  it('excludes a stale or never-refreshed matching pilot (fail closed)', () => {
+    const affiliations = [
+      aff({ characterId: 101, corporationId: 2000, refreshedAt: STALE }),
+      aff({ characterId: 102, corporationId: 2000, refreshedAt: null }),
+      aff({ characterId: 103, corporationId: 2000 }),
+    ];
+    expect(memberCharacterIdsInCorp(affiliations, 2000, NOW)).toEqual([103]);
+  });
+
+  it('returns an empty list when no pilot is in the corp', () => {
+    expect(memberCharacterIdsInCorp([aff({ corporationId: 3000 })], 2000, NOW)).toEqual([]);
   });
 });
 

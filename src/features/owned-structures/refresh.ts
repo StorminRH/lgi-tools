@@ -32,6 +32,9 @@ function makeDescriptor(
     now: () => port.now(),
     enumerate: (userId) => port.listMembers(userId),
     vendToken: (characterId) => port.vendToken(characterId),
+    // Consent gate, FIRST in the engine — a corp that hasn't opted in is skipped
+    // before any staleness check, vend, or roles read (zero ESI, zero rows).
+    precondition: (owner) => port.isSharingEnabled(owner.corporationId),
     isStale: (state, now) => isStructuresStale(state?.lastRefreshedAt ?? null, now),
     corpAxis: {
       eligible: (owner) => canSyncCorpStructures(owner),

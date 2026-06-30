@@ -20,6 +20,35 @@ export interface CorpStructureRow {
   name: string | null;
 }
 
+// Per-corp sharing consent state (the app-authored system-of-record). `enabled`
+// defaults false; `setBy`/`setAt` are audit fields the structures page can surface.
+export interface CorpStructureSharingState {
+  enabled: boolean;
+  setBy: number | null;
+  setAt: Date;
+}
+
+// One stored structure joined with its authored rig fit — the shape the structures
+// page + corp rig-completion editor consume (the rigs are empty until a Station_Manager
+// records them).
+export interface CorpStructurePageStructure extends CorpStructureRow {
+  rigTypeIds: number[];
+}
+
+// One member corp as the structures page renders it: the corp + its resolved name +
+// the viewer's Station_Manager flag + the sharing state + the shared structures
+// (populated only when sharing is on). Defined here in the slice so both the
+// composition layer (which builds it) and the client section (which renders it) share
+// one shape without the component reaching into src/db.
+export interface CorpStructurePageView {
+  corporationId: number;
+  corporationName: string;
+  isStationManager: boolean;
+  sharingEnabled: boolean;
+  structures: CorpStructurePageStructure[];
+  lastRefreshedAt: number | null;
+}
+
 // The owner key: a corporation alone. NO userId — the structures catalogue is shared
 // across every member of the corp, so one row set is keyed by the corp id and all
 // members read it. (Contrast corp jobs, whose owner is (userId, corporationId).)
@@ -57,6 +86,10 @@ export type CorpStructuresReadResult =
 // The real implementations are wired in src/db/corp-structures-sync.ts.
 export interface CorpStructuresPort {
   now(): Date;
+  // Whether the corp has opted in to sharing its structures (the consent gate). Read
+  // FIRST by the engine's precondition, before any staleness check or token vend, so a
+  // non-opted-in corp dispatches zero ESI and stores zero rows. Default OFF.
+  isSharingEnabled(corporationId: number): Promise<boolean>;
   // The user's linked characters with corp id + scope health.
   listMembers(userId: string): Promise<RefreshCorpMember[]>;
   // A fresh access token for a member character, or null when unavailable.

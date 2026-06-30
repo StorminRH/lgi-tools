@@ -5,6 +5,7 @@
 // planner's build-location selector will fetch on view.
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
+import type { ApiEndpoint } from '@/lib/api-client';
 
 // ── GET /api/account/corp-structures (authz: auth) ───────────────────────
 // The signed-in user's owned-structure catalogues, one per corporation they are a
@@ -37,3 +38,62 @@ export const corpStructuresResponseSchema = z.object({
 });
 
 export type CorpStructuresResponse = z.infer<typeof corpStructuresResponseSchema>;
+
+// ── POST /api/account/corp-structures/sharing (authz: auth + Station_Manager) ──
+// Flip a corp's structure-sharing consent. The route is the trust boundary: the
+// caller must be a member of the corp AND hold the in-game Station_Manager role
+// (any of their linked pilots in it). ENABLE opts the corp in (the next member view
+// pulls the catalogue); DISABLE wipes the corp's stored structures, sync state, and
+// authored rigs. Echoes the new state so the toggle reflects it without a refetch.
+export const setCorpStructureSharingRequestSchema = z.object({
+  corporationId: z.number().int().positive(),
+  enabled: z.boolean(),
+});
+export type SetCorpStructureSharingRequest = z.input<typeof setCorpStructureSharingRequestSchema>;
+
+export const corpStructureSharingResponseSchema = z.object({
+  corporationId: z.number(),
+  enabled: z.boolean(),
+});
+export type CorpStructureSharingResponse = z.infer<typeof corpStructureSharingResponseSchema>;
+
+export const setCorpStructureSharingEndpoint: ApiEndpoint<
+  SetCorpStructureSharingRequest,
+  CorpStructureSharingResponse
+> = {
+  method: 'POST',
+  path: '/api/account/corp-structures/sharing',
+  request: setCorpStructureSharingRequestSchema,
+  response: corpStructureSharingResponseSchema,
+};
+
+// ── POST /api/account/corp-structures/rigs (authz: auth + Station_Manager) ─────
+// Record the fitted rigs for one corp structure (ESI doesn't expose them). Same
+// member + Station_Manager gate as the sharing toggle. The structure/corp ids are
+// EVE item ids (int8, not int4-bounded); rig type ids are int4 SDE type ids, capped
+// at the 3 Upwell rig slots. An orphan structureId (not in the corp's pulled set) is
+// harmless — it's never joined and is wiped on disable. Echoes the saved fit.
+const PG_INT4_MAX = 2_147_483_647;
+export const MAX_CORP_STRUCTURE_RIGS = 3;
+export const setCorpStructureRigsRequestSchema = z.object({
+  corporationId: z.number().int().positive(),
+  structureId: z.number().int().positive(),
+  rigTypeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(MAX_CORP_STRUCTURE_RIGS),
+});
+export type SetCorpStructureRigsRequest = z.input<typeof setCorpStructureRigsRequestSchema>;
+
+export const corpStructureRigsResponseSchema = z.object({
+  structureId: z.number(),
+  rigTypeIds: z.array(z.number()),
+});
+export type CorpStructureRigsResponse = z.infer<typeof corpStructureRigsResponseSchema>;
+
+export const setCorpStructureRigsEndpoint: ApiEndpoint<
+  SetCorpStructureRigsRequest,
+  CorpStructureRigsResponse
+> = {
+  method: 'POST',
+  path: '/api/account/corp-structures/rigs',
+  request: setCorpStructureRigsRequestSchema,
+  response: corpStructureRigsResponseSchema,
+};

@@ -86,6 +86,11 @@ async function syncOwner<TOwner, TState, TSave>(
   owner: TOwner,
   resolveToken: () => Promise<TokenOutcome>,
 ): Promise<void> {
+  // Consent gate, FIRST — before the state read, the staleness check, and any vend.
+  // A descriptor that opts out (returns false) is skipped with zero I/O: no readState,
+  // no token vend, no roles read, no fetch. Absent ⇒ always proceed (every other slice).
+  if (descriptor.precondition !== undefined && !(await descriptor.precondition(owner))) return;
+
   const state = await descriptor.readState(owner);
   if (!descriptor.isStale(state, descriptor.now())) return;
 

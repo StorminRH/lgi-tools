@@ -69,6 +69,8 @@
     "/api/account/industry-jobs": "dynamic",
     "/api/account/corp-industry-jobs": "dynamic",
     "/api/account/corp-structures": "dynamic",
+    "/api/account/corp-structures/sharing": "dynamic",
+    "/api/account/corp-structures/rigs": "dynamic",
     "/api/account/custom-structures": "dynamic",
     "/api/account/custom-structures/delete": "dynamic",
     "/api/account/custom-structures/parse-fit": "dynamic",

@@ -6,10 +6,12 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
+import { getCorpStructuresPageData } from '@/db/corp-structures-sync';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import { auth } from '@/features/auth/auth';
 import { CustomStructureBuilder } from '@/features/custom-structures/components/CustomStructureBuilder';
 import { listCustomStructures } from '@/features/custom-structures/queries';
+import { CorpStructureSection } from '@/features/owned-structures/components/CorpStructureSection';
 
 // Per-user, session-gated: the content (auth check, the saved-list read) is a
 // request-time dynamic hole, so only the page container prerenders. The SDE
@@ -21,10 +23,11 @@ async function StructuresContent() {
     redirect('/?auth_error=login_required');
   }
 
-  const [structureTypes, structureRigs, saved] = await Promise.all([
+  const [structureTypes, structureRigs, saved, corps] = await Promise.all([
     getStructureTypes(),
     getStructureRigs(),
     listCustomStructures(session.user.id),
+    getCorpStructuresPageData(session.user.id),
   ]);
 
   return (
@@ -33,7 +36,7 @@ async function StructuresContent() {
         <PageHead
           crumb="structures"
           title="Structures"
-          subtitle="Build a custom structure to place a build in — pick a type and rigs (no security; the planner scales rig bonuses to your selected build system)."
+          subtitle="Build a custom structure to place a build in, or share your corporation’s structures with every member — pick a type and rigs to apply their bonuses in the planner."
         />
       </div>
 
@@ -49,6 +52,8 @@ async function StructuresContent() {
           </div>
         </Card>
       </div>
+
+      <CorpStructureSection corps={corps} structureTypes={structureTypes} structureRigs={structureRigs} />
     </>
   );
 }
