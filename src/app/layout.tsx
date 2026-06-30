@@ -13,6 +13,7 @@ import { OnlineStatusProvider } from "@/components/OnlineStatusProvider";
 import { LoadingToastProvider } from "@/components/ui/loading-toast";
 import { Toaster } from "@/components/ui/toast";
 import { PreferencesProvider } from "@/components/PreferencesProvider";
+import { PageMenuProvider } from "@/components/PageMenuProvider";
 import { SITE_URL } from "@/config/site-url";
 import { readEnv } from "@/lib/env";
 
@@ -106,10 +107,17 @@ export default function RootLayout({
                  * ConvexClientProvider so Convex-driven `syncing` consumers share
                  * a tree with the provider. */}
                 <LoadingToastProvider>
-                  <AppHeader />
-                  <main className="flex-1">{children}</main>
-                  <Footer />
-                  <FeedbackButton />
+                  {/* The page-menu slot (ACCOUNT.4): resolves the current
+                   * route's page-settings spec for the portrait menu's dynamic
+                   * half (ACCOUNT.5) to read. Innermost — it needs only the
+                   * pathname (no auth/convex/preferences) — and wraps both the
+                   * header and the page so each can read the slot. */}
+                  <PageMenuProvider>
+                    <AppHeader />
+                    <main className="flex-1">{children}</main>
+                    <Footer />
+                    <FeedbackButton />
+                  </PageMenuProvider>
                 </LoadingToastProvider>
               </OnlineStatusProvider>
             </ConvexClientProvider>
