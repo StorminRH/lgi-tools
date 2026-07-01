@@ -11,6 +11,7 @@ import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
 import { MeField, TeField } from './MeAdjuster';
 import { usePricing } from './PricingProvider';
+import { ReactionStructureSelect } from './ReactionStructureSelect';
 
 // One stacked stepper row: a mono label + its control. Shared by ME, TE and Runs
 // so the three read as a single vertical group (the hero-card mockup).
@@ -81,38 +82,11 @@ function HeroSteppers({
   );
 }
 
-// The reserved-but-inert second build-location row (System + Refinery). It holds the
-// layout slot for the next session's refinery bonus source (reaction nodes routed to
-// a second structure); it renders disabled with no wiring and no bonus. Deliberately
-// NOT a copy of BuildFacilitySelect's markup — just placeholder chrome.
-function RefineryRowStub() {
-  return (
-    <div className="flex flex-col gap-2 opacity-55" aria-hidden>
-      <div className="flex items-center gap-2">
-        <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">
-          System
-        </span>
-        <span className="flex-1 border border-border-idle bg-bg px-2 py-1 font-mono text-[11px] text-faint">
-          —
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">
-          Refinery
-        </span>
-        <span className="flex-1 border border-border-idle bg-bg px-2 py-1 font-mono text-[11px] text-faint">
-          — next session
-        </span>
-      </div>
-    </div>
-  );
-}
-
 // The consolidated hero card: a single horizontal band — blueprint icon, the item
 // identity, the stacked ME/TE/Runs steppers, the Run-As building-character frame, and
-// the two-group location area (the live System+Structure selector plus the reserved
-// System+Refinery slot). Clusters are self-contained flex children so the band wraps
-// cleanly on narrow viewports.
+// the two-group location area (the live System+Structure selector plus the computed
+// refinery gap-filler for reaction nodes). Clusters are self-contained flex children so
+// the band wraps cleanly on narrow viewports.
 export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   const { runs } = usePricing();
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
@@ -148,12 +122,14 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
 
       <RunAsFrame />
 
-      {isManufacturing && (
-        <div className="flex flex-col justify-center gap-2 sm:ml-auto">
-          <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
-          <RefineryRowStub />
-        </div>
-      )}
+      {/* Two stacked selectors, always shown (a reaction root builds in a refinery too):
+          a general 'build at' structure over a 'react at' refinery. The routing derives
+          roles — a lone refinery does everything; adding a build structure takes over
+          just the manufacturing nodes. */}
+      <div className="flex flex-col justify-center gap-2 sm:ml-auto">
+        <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
+        <ReactionStructureSelect />
+      </div>
     </div>
   );
 }

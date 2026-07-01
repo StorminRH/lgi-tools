@@ -1,11 +1,17 @@
 import { describe, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import {
+  availableStructureSchema,
   blueprintIndexEntrySchema,
   buildLocationResponseSchema,
   systemSearchEntrySchema,
 } from './api-contract';
-import type { BlueprintIndexEntry, BuildLocationData, SystemSearchEntry } from './types';
+import type {
+  AvailableStructure,
+  BlueprintIndexEntry,
+  BuildLocationData,
+  SystemSearchEntry,
+} from './types';
 
 describe('industry-planner contract', () => {
   it('pins the wire entry to BlueprintIndexEntry exactly (both directions)', () => {
@@ -20,5 +26,14 @@ describe('industry-planner contract', () => {
 
   it('pins the build-location response to BuildLocationData exactly (both directions)', () => {
     expectTypeOf<z.infer<typeof buildLocationResponseSchema>>().toEqualTypeOf<BuildLocationData>();
+  });
+
+  it('carries a numeric groupId on the available structure (schema ⇄ type)', () => {
+    // Guards the coverage seam: adding groupId to the type but not the schema would
+    // silently strip it at runtime (the whole structure can't be toEqualTypeOf-pinned
+    // because attrMapSchema infers string keys vs AttrMap's number keys — so pin the
+    // one scalar field both ways).
+    expectTypeOf<z.infer<typeof availableStructureSchema>['groupId']>().toEqualTypeOf<number>();
+    expectTypeOf<AvailableStructure['groupId']>().toEqualTypeOf<number>();
   });
 });

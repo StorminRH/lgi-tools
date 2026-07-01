@@ -6,6 +6,11 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.12.2 — 2026-07-01
+
+#### Added
+- When the structure you're building in can't run reactions — an Engineering Complex or Citadel — the planner now offers a refinery for just the reaction steps of the build, and applies that refinery's own bonuses and system to those steps. It only appears when there's a gap to fill: a refinery already runs everything, so picking one needs no second choice. Reaction blueprints opened on their own now get the build-location controls too.
+
 ### v3.7.12.1 — 2026-07-01
 
 #### Changed

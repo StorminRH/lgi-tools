@@ -154,6 +154,11 @@ export interface AvailableStructure {
   source: 'custom' | 'corp';
   name: string;
   structureTypeId: number;
+  // The structure's SDE group id (1404 Engineering Complex, 1406 Refinery, 1657
+  // Citadel). Drives COVERAGE — which activities the structure can HOST, distinct
+  // from the rig/role BONUS: only a Refinery (1406) hosts reactions. Resolved from
+  // the structure type on the wire so the planner can gap-fill a reaction-only slot.
+  groupId: number;
   systemId: number | null;
   structureAttrs: AttrMap;
   rigAttrs: AttrMap[];
