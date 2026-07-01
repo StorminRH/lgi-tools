@@ -23,6 +23,11 @@ export function RunAsFrame() {
   // is a plain glyph that does nothing on click.
   return (
     <div
+      // role="img" so the aria-label is actually announced — on a role-less div
+      // it's ignored. The frame reads as one labelled avatar (the inner portrait
+      // and caret are atomic under it). Becomes a real button when the Run-As
+      // dropdown is wired.
+      role="img"
       className="relative flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-[3px] border border-border px-3 py-2"
       aria-label={view.kind === 'present' ? `Building as ${view.name}` : 'Building character'}
       title={view.kind === 'present' ? view.name : undefined}
