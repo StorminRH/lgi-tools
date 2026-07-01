@@ -4,9 +4,10 @@
 // live online dot at the top-right. Round, bordered, modeled on the home-roster
 // tiles, so every surface (the live cards, the roster, /characters, the nav, the
 // corp board, admin) renders the same portrait. The online dot is read from the
-// OnlineStatusProvider context by characterId: it lights green (online) / muted
-// (offline) only for the viewer's OWN characters; any other character — corp
-// jobmate, admin view, the maintainer — isn't in the map and shows no dot.
+// OnlineStatusProvider context by characterId: a green dot shows only when the
+// character is online — offline or unknown shows no dot at all. Only the viewer's
+// OWN characters are in the map; any other character — corp jobmate, admin view,
+// the maintainer — isn't, and shows no dot.
 //
 // Shared zone (not ui/): it's character-domain-aware (reads the online context),
 // so it composes the domain-agnostic StatusDot primitive rather than living
@@ -68,8 +69,9 @@ export function CharacterPortrait({
         decoding="async"
         className="size-full rounded-full border border-border-idle object-cover"
       />
-      {online !== 'unknown' && (
-        // Bare pulsing dot, no backing rail. The % inset scales with the
+      {online === 'online' && (
+        // Bare pulsing green dot, no backing rail — shown only while online (an
+        // offline/unknown character shows nothing). The % inset scales with the
         // portrait size to reach the circle's top-right edge; the fixed 2px
         // outward nudge then lifts it a smidge off the round edge (a consistent
         // gap at every size).

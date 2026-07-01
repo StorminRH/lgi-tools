@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.11.1 — 2026-06-30
+
+#### Added
+- Under the Hood — a behind-the-scenes dev log about how LGI.tools is built and the reasoning behind it, linked from the footer. It reads like a file browser: pick a topic from the folders on the left, and the code snippets a topic references sit inline where they're mentioned, collapsed until you open them.
+
+#### Fixed
+- The live "online" dot on a character portrait now appears only when that character is actually online, instead of also showing on characters who are offline.
+
 ### v3.7.10.1 — 2026-06-30
 
 #### Added

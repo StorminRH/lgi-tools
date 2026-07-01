@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { cacheLife } from 'next/cache';
 import { SITE_URL } from '@/config/site-url';
+import { loadDevlog } from '@/features/devlog/load';
+import { flattenDocuments, introDocument } from '@/features/devlog/parse';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
 // The catalogue (69 rows) only changes on deploy, so the sitemap is cached into
@@ -28,7 +30,16 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...siteRoutes];
+  const tree = await loadDevlog();
+  const introSlug = introDocument(tree)?.slug;
+  const devlogRoutes: MetadataRoute.Sitemap = flattenDocuments(tree).map((d) => ({
+    url: d.slug === introSlug ? `${SITE_URL}/devlog` : `${SITE_URL}/devlog/${d.slug}`,
+    lastModified: now,
+    changeFrequency: 'monthly',
+    priority: d.slug === introSlug ? 0.4 : 0.3,
+  }));
+
+  return [...staticRoutes, ...siteRoutes, ...devlogRoutes];
 }
 
 export default function sitemap(): Promise<MetadataRoute.Sitemap> {
