@@ -32,6 +32,9 @@ export function Footer() {
           <Link href="/changelog" className="text-muted">
             Changelog
           </Link>
+          <Link href="/devlog" className="text-muted">
+            Under the Hood
+          </Link>
           <span className="text-faint">v{APP_VERSION}</span>
         </span>
       }

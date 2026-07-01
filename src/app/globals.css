@@ -1672,3 +1672,191 @@ details[data-collapsible][open] > summary [data-chevron] {
     color: inherit !important;
   }
 }
+
+/* Dev log (/devlog) — a file-browser rail beside a reading column, with code
+ * excerpts as inline collapsibles. Prose mirrors the legal page's measure. */
+.devlog-layout {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+.devlog-content { min-width: 0; }
+
+/* The rail: a persistent left column on desktop; a collapsible "Documents"
+ * disclosure on narrow screens (the summary is hidden on desktop, so the
+ * always-open <details> just renders the tree). */
+.devlog-rail { min-width: 0; }
+.devlog-rail-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.devlog-rail-toggle::after { content: '▾'; margin-left: auto; font-size: 10px; }
+
+.devlog-nav { font-family: var(--font-mono); }
+.devlog-nav-loose { list-style: none; margin: 0 0 14px; padding: 0; }
+.devlog-nav-doc {
+  display: block;
+  padding: 5px 10px;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--color-muted);
+  border-left: 2px solid transparent;
+  text-decoration: none;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+.devlog-nav-doc:hover { color: var(--color-text); background: var(--color-row-hover); }
+.devlog-nav-doc-active {
+  color: var(--color-isk);
+  border-left-color: var(--color-isk);
+  background: var(--color-row-hover);
+}
+.devlog-nav-folder { margin-bottom: 4px; }
+.devlog-nav-folder-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  padding: 5px 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+.devlog-nav-folder-summary:hover { color: var(--color-muted); }
+.devlog-nav-chevron {
+  display: inline-block;
+  width: 8px;
+  font-size: 9px;
+  color: var(--color-faint);
+  transition: transform 0.15s;
+}
+.devlog-nav-folder-docs { list-style: none; margin: 0 0 6px; padding: 0 0 0 15px; }
+
+/* Prose — the legal page's reading measure and tone. */
+.devlog-prose { max-width: 768px; }
+.devlog-doc-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 23px;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: var(--color-name);
+  margin: 2px 0 20px;
+}
+.devlog-prose p {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.72;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  margin: 0 0 14px;
+  text-wrap: pretty;
+}
+.devlog-prose strong { color: var(--color-name); font-weight: 600; }
+.devlog-prose a {
+  color: var(--color-isk);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-isk-dim);
+  transition: border-color 0.15s;
+}
+.devlog-prose a:hover { border-bottom-color: var(--color-isk); }
+.devlog-prose code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--color-name);
+  background: var(--color-section);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.devlog-prose ul, .devlog-prose ol {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.devlog-prose li {
+  position: relative;
+  padding-left: 18px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.65;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  text-wrap: pretty;
+}
+.devlog-prose li::before { content: '–'; position: absolute; left: 2px; color: var(--color-isk); }
+.devlog-prose blockquote {
+  margin: 0 0 14px;
+  padding: 2px 0 2px 16px;
+  border-left: 2px solid var(--color-isk-dim);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+/* Inline code excerpt — a collapsed mono file:lines label expanding the snapshot. */
+.devlog-excerpt {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-section);
+  margin: 4px 0 16px;
+  overflow: hidden;
+}
+.devlog-excerpt-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 7px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.devlog-excerpt-summary:hover { background: var(--color-row-hover); }
+.devlog-excerpt-chevron {
+  display: inline-block;
+  width: 8px;
+  font-size: 9px;
+  color: var(--color-faint);
+  transition: transform 0.15s;
+}
+.devlog-excerpt-file { color: var(--color-isk); }
+.devlog-excerpt-lines { color: var(--color-faint); }
+.devlog-excerpt-code {
+  margin: 0;
+  padding: 12px 14px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-deep);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--color-text);
+  tab-size: 2;
+}
+.devlog-excerpt-code code { font-family: inherit; white-space: pre; }
+
+@media (min-width: 861px) {
+  .devlog-rail { position: sticky; top: 24px; }
+  .devlog-rail-toggle { display: none; }
+}
+@media (max-width: 860px) {
+  .devlog-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+}
