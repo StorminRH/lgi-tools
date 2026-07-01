@@ -9,12 +9,13 @@ import { TerminalSearch } from '@/components/ui/terminal-search';
 import { toneTextClass } from '@/components/ui/tones';
 import { apiFetch } from '@/lib/api-client';
 import { plannerBuildLocation } from '@/lib/preferences';
-import { buildLocationEndpoint, systemsEndpoint } from '../api-contract';
+import { buildLocationEndpoint } from '../api-contract';
 import { formatStationName } from '../format-station-name';
-import type { StructureBonus } from '../structure-bonus';
-import type { StructureFactors } from '../structure-factors';
-import type { AvailableStructure, IndustryStationView, SystemSearchEntry } from '../types';
+import type { StructureReadout as StructureReadoutBonus } from '../structure-factors';
+import type { AvailableStructure, IndustryStationView } from '../types';
 import { usePricing } from './PricingProvider';
+import { StructureBonusPills } from './structure-bonus-pills';
+import { useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
 
 // The station's display label: its full in-game name (compacted) when ESI has
 // resolved one, else the station-operation label as a fallback.
@@ -22,71 +23,44 @@ function stationLabel(s: IndustryStationView): string {
   return s.name ? formatStationName(s.name) : s.operationName;
 }
 
-// A reduction percent for the structure-bonus readout — small values keep a decimal.
-function pct(n: number): string {
-  return `${n < 10 ? n.toFixed(1) : Math.round(n)}%`;
-}
-
-// The manufacturing-side bonus parts (a Refinery / Citadel may contribute none).
-function manufacturingParts(b: StructureBonus): string[] {
-  const parts: string[] = [];
-  if (b.me > 0) parts.push(`ME −${pct(b.me)}`);
-  if (b.te > 0) parts.push(`TE −${pct(b.te)}`);
-  if (b.costBonus > 0) parts.push(`Cost −${pct(b.costBonus)}`);
-  return parts;
-}
-
-// The single selected structure's effect, ungated and folded into the build-
-// location control: a green pill for whichever activity it bonuses (one structure
-// can bonus both — a Tatara fitted for manufacturing and reactions), or a prompt
-// when a custom structure is picked but no build system supplies the security yet.
+// The "build at" structure's readout: green pills for what it hosts (manufacturing,
+// plus reactions when it's a lone refinery), or a prompt when a custom structure is
+// picked but no build system supplies the security yet.
 function StructureReadout({
   selectedStructure,
-  factors,
+  readout,
 }: {
   selectedStructure: AvailableStructure | null;
-  factors: StructureFactors;
+  readout: StructureReadoutBonus;
 }) {
   if (!selectedStructure) return null;
-  const { manufacturingBonus, reactionBonus } = factors;
   // No bonus on either activity ⇒ no security known yet (a custom structure with no
   // build system). Keyed on the bonuses, NOT on `!location`: a corp structure
   // (3.7.9.1.5) carries its own security and shows a bonus with no planner location.
-  if (manufacturingBonus === null && reactionBonus === null) {
+  if (readout.mfg === null && readout.rxn === null) {
     return (
       <span className="text-[10px] text-muted">
         Select a build system to apply this structure&apos;s bonus
       </span>
     );
   }
-  const mfg = manufacturingBonus ? manufacturingParts(manufacturingBonus) : [];
-  const rxn = reactionBonus && reactionBonus.te > 0 ? [`TE −${pct(reactionBonus.te)}`] : [];
-  return (
-    <>
-      {mfg.length > 0 && <Pill tone="green">Mfg {mfg.join(' · ')}</Pill>}
-      {rxn.length > 0 && <Pill tone="green">Rxn {rxn.join(' · ')}</Pill>}
-    </>
-  );
+  return <StructureBonusPills readout={readout} />;
 }
 
-// The single build-LOCATION dropdown: the caller's structures AND, once a system
-// is picked, that system's NPC stations — one list, mutually exclusive (you build
-// in one place). A structure applies its bonus (scaled to the system's security);
-// an NPC station is display-only. The structures show even before a system is
-// picked; a custom structure then prompts for a system (its bonus needs one). For
-// a CORP structure (3.7.9.1.5) the onChange will additionally deduce-and-lock the
-// build location to the structure's own system (it carries `systemId`).
-//
-// TWO-DIFFERENT-STRUCTURES SEAM (3.7.9.1.5): a plan with reaction sub-nodes could
-// use a SECOND structure for those reactions (an Azbel for mfg + a Tatara for
-// reactions). That second selector is deliberately not built — one structure
-// bonuses both activities for now.
+// The "build at" facility dropdown: the caller's structures AND, once a system is
+// picked, that system's NPC stations — one list, mutually exclusive (you build in one
+// place). A structure applies its bonus (scaled to the system's security); an NPC
+// station is display-only. The structures show even before a system is picked; a
+// custom structure then prompts for a system (its bonus needs one). For a CORP
+// structure (3.7.9.1.5) the onChange deduces-and-locks the build location to the
+// structure's own system (it carries `systemId`). Reactions are handled by the
+// separate "react at" refinery slot (3.7.12.2) — this is the manufacturing host.
 function BuildFacilitySelect({
   structures,
   stations,
   selectedStructure,
   station,
-  structureFactors,
+  readout,
   onSelectStructure,
   setStation,
 }: {
@@ -94,7 +68,7 @@ function BuildFacilitySelect({
   stations: IndustryStationView[];
   selectedStructure: AvailableStructure | null;
   station: { id: number } | null;
-  structureFactors: StructureFactors;
+  readout: StructureReadoutBonus;
   // The parent owns structure selection: it sets the structure AND, for a corp
   // structure, deduces-and-locks the build system (this child stays a humble select).
   onSelectStructure: (structure: AvailableStructure | null) => void;
@@ -165,7 +139,7 @@ function BuildFacilitySelect({
           </optgroup>
         )}
       </select>
-      <StructureReadout selectedStructure={selectedStructure} factors={structureFactors} />
+      <StructureReadout selectedStructure={selectedStructure} readout={readout} />
     </div>
   );
 }
@@ -178,94 +152,27 @@ function BuildFacilitySelect({
 // display/future-score only — the fee math is system-driven (flat NPC facility
 // tax, per-system cost index), so it never changes the numbers.
 
-const MAX_SUGGESTIONS = 10;
-
-// Session-memoized lazy fetch of the build-system index — mirrors the blueprint
-// search source: fetched once, never on the initial bundle, retried on failure.
-let systemsPromise: Promise<SystemSearchEntry[]> | null = null;
-function loadSystems(): Promise<SystemSearchEntry[]> {
-  if (!systemsPromise) {
-    systemsPromise = apiFetch(systemsEndpoint)
-      .then((r) => {
-        if (!r.ok) throw new Error(`systems ${r.status}`);
-        return r.data.systems;
-      })
-      .catch((err) => {
-        systemsPromise = null; // let a later mount retry rather than cache a reject
-        throw err;
-      });
-  }
-  return systemsPromise;
-}
-
 function formatSec(sec: number | null): string {
   return sec === null ? '—' : sec.toFixed(1);
 }
 
-type SystemParams = { system: SystemSearchEntry };
-type SystemErr = { kind: 'not_found' };
-
 export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) {
-  const { location, setLocation, station, setStation, availableStructures, selectedStructure, setSelectedStructure, structureFactors } =
+  const { location, setLocation, station, setStation, availableStructures, selectedStructure, setSelectedStructure, buildStructureReadout } =
     usePricing();
   // The persisted build-system identifier (F4). Only the id/name/security is
   // saved; the live stations/indices/prices are re-fetched on restore. NOT
   // ssrReadable — there's no static value to render, so no cookie/flash concern.
   const [savedLoc, setSavedLoc] = usePreference(plannerBuildLocation);
   const ready = usePreferencesReady();
-  const [systems, setSystems] = useState<SystemSearchEntry[]>([]);
+  const { systems, parse, suggest } = useSystemSearch();
   // Surfaced when a build-location fetch fails (non-OK or network) so a pick that
   // can't load doesn't silently leave the picker empty. Aborted (superseded)
   // fetches stay silent.
   const [fetchError, setFetchError] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    loadSystems()
-      .then((s) => {
-        if (alive) setSystems(s);
-      })
-      .catch(() => {
-        // index unavailable — the selector stays empty and the page is gross-only
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   // Generation guard + abort so a rapid system switch applies only the last pick.
   const genRef = useRef(0);
   const ctrlRef = useRef<AbortController | null>(null);
-
-  const parse = useCallback(
-    (
-      input: string,
-    ): { ok: true; params: SystemParams } | { ok: false; error: SystemErr } => {
-      const q = input.trim().toLowerCase();
-      const exact = systems.find((s) => s.name.toLowerCase() === q);
-      const match = exact ?? systems.find((s) => s.name.toLowerCase().startsWith(q));
-      return match
-        ? { ok: true, params: { system: match } }
-        : { ok: false, error: { kind: 'not_found' } };
-    },
-    [systems],
-  );
-
-  const suggest = useCallback(
-    (input: string): string[] => {
-      const q = input.trim().toLowerCase();
-      if (q.length === 0) return [];
-      const starts: string[] = [];
-      const contains: string[] = [];
-      for (const s of systems) {
-        const name = s.name.toLowerCase();
-        if (name.startsWith(q)) starts.push(s.name);
-        else if (name.includes(q)) contains.push(s.name);
-      }
-      return [...starts, ...contains].slice(0, MAX_SUGGESTIONS);
-    },
-    [systems],
-  );
 
   // Load a system's live build data and seed the store. Shared by a manual pick
   // (persist: true → save the identifier) and the on-mount restore (silent: a
@@ -454,7 +361,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
           stations={location?.stations ?? []}
           selectedStructure={selectedStructure}
           station={station}
-          structureFactors={structureFactors}
+          readout={buildStructureReadout}
           onSelectStructure={onSelectStructure}
           setStation={setStation}
         />

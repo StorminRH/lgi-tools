@@ -1,3 +1,4 @@
+import { SDE_ENGINEERING_COMPLEX_GROUP_ID } from '@/data/eve-data/constants';
 import { getStructureTypes, getTypeAttributesBatch } from '@/data/eve-data/queries';
 import { getAvailableCorpStructuresForUser } from '@/db/corp-structures-sync';
 import { listCustomStructures } from '@/features/custom-structures/queries';
@@ -9,6 +10,12 @@ import type {
   AvailableStructuresResponse,
 } from '@/features/industry-planner/api-contract';
 import { getCurrentUserId } from '@/features/auth/session';
+
+// The structure's coverage group. Defensive default only — a row past the knownTypeIds
+// gate always resolves (knownTypeIds and the group map both derive from structureTypes).
+function resolveGroupId(groupIdByType: Map<number, number>, typeId: number): number {
+  return groupIdByType.get(typeId) ?? SDE_ENGINEERING_COMPLEX_GROUP_ID;
+}
 
 // authz: auth
 // GET /api/account/structures. The structures the caller can place a build in:
@@ -35,6 +42,10 @@ export async function GET(): Promise<Response> {
 
   const knownTypeIds = new Set(structureTypes.map((t) => t.typeId));
   const typeNameById = new Map(structureTypes.map((t) => [t.typeId, t.name]));
+  // The structure's SDE group (EC / Refinery / Citadel) — the planner's coverage
+  // input (only a Refinery hosts reactions). A row past the knownTypeIds gate below
+  // always resolves; the EC default is a defensive fallback that never fires.
+  const groupIdByType = new Map(structureTypes.map((t) => [t.typeId, t.groupId]));
   // One batched dogma read across every structure + rig type referenced (custom and corp).
   const typeIds = new Set<number>();
   for (const c of custom) {
@@ -57,6 +68,7 @@ export async function GET(): Promise<Response> {
       source: 'custom',
       name: c.name,
       structureTypeId: c.structureTypeId,
+      groupId: resolveGroupId(groupIdByType, c.structureTypeId),
       // A custom structure has no fixed system — its rig bonus scales against
       // whatever build system the planner has picked.
       systemId: null,
@@ -76,6 +88,7 @@ export async function GET(): Promise<Response> {
       // rare nameless structure (mirrors the selector's documented fallback).
       name: s.name ?? typeNameById.get(s.typeId) ?? `Structure ${s.structureId}`,
       structureTypeId: s.typeId,
+      groupId: resolveGroupId(groupIdByType, s.typeId),
       // Corp structures carry their home system + SDE-derived security band — the
       // planner deduces-and-locks the build system from this on select.
       systemId: s.systemId,

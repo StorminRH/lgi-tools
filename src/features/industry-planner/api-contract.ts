@@ -200,11 +200,15 @@ export const ownedAssetsEndpoint: ApiEndpoint<
 // number keys meet the wire's string keys).
 const attrMapSchema = z.record(z.string(), z.number());
 
-const availableStructureSchema = z.object({
+// Exported so api-contract.test.ts can pin its `groupId` field (the whole shape
+// can't be `satisfies`/`toEqualTypeOf`-pinned because attrMapSchema infers string
+// keys while AttrMap is number-keyed — see the response cast below).
+export const availableStructureSchema = z.object({
   id: z.string(),
   source: z.enum(['custom', 'corp']),
   name: z.string(),
   structureTypeId: z.number(),
+  groupId: z.number(),
   systemId: z.number().nullable(),
   structureAttrs: attrMapSchema,
   rigAttrs: z.array(attrMapSchema),

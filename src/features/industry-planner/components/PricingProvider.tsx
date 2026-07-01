@@ -43,7 +43,12 @@ import {
   collectIntermediateTypeIds,
   type PriceLite,
 } from '../build-pricing';
-import { structureFactorsFor, type StructureFactors } from '../structure-factors';
+import {
+  structureFactorsFor,
+  structureReadouts,
+  type StructureFactors,
+  type StructureReadout,
+} from '../structure-factors';
 import type {
   AvailableStructure,
   BlueprintPricing,
@@ -140,6 +145,18 @@ export interface SelectedStation {
   name: string;
 }
 
+// Group B's own build system (3.7.12.2) — the reaction gap-filler refinery's system.
+// SECURITY-ONLY: it scales B's reaction rigs, and that's all reactions need — the net
+// path fees only the top manufacturing job (in A), so B carries no cost index and needs
+// no build-location fetch. A corp refinery deduce-locks this from its home system; a
+// custom refinery picks it. Kept apart from `location` (A's system) so the two are
+// independent.
+export interface SelectedReactionSystem {
+  systemId: number;
+  systemName: string;
+  security: number | null;
+}
+
 interface PricingContextValue {
   pricing: BlueprintPricing | null;
   // True once the streamed price read has settled — distinguishes "still
@@ -169,6 +186,18 @@ interface PricingContextValue {
   // The derived per-node engine factors + per-activity bonus readout. Re-derives
   // when the selection or the build system's security changes.
   structureFactors: StructureFactors;
+  // The dedicated "react at" refinery (3.7.12.2) + its own system (security-only —
+  // reactions carry no install fee, so no build-location fetch). Always available; the
+  // routing derives roles: a lone refinery does the whole chain, and adding a build
+  // structure takes over just the manufacturing nodes. Live-only, like the build pick.
+  reactionStructure: AvailableStructure | null;
+  setReactionStructure: (structure: AvailableStructure | null) => void;
+  reactionSystem: SelectedReactionSystem | null;
+  setReactionSystem: (system: SelectedReactionSystem | null) => void;
+  // Per-slot readout pills — the bonus each slot is actually contributing (a slot shows
+  // a pill only for an activity it hosts).
+  buildStructureReadout: StructureReadout;
+  reactionStructureReadout: StructureReadout;
   // History-derived score inputs keyed by type ID (3.5.3a). Seeded from the
   // server (warm) and refreshed on view; the product type is always present
   // once it has stored history. 3.5.3b's Market Score reads this from here.
@@ -319,18 +348,30 @@ export function PricingProvider({
   // (the owned-blueprints pattern), and the single selected structure over them.
   const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
   const [selectedStructure, setSelectedStructure] = useState<AvailableStructure | null>(null);
-  // Per-node engine factors derived from the selected structure + the build
-  // system's security (3.7.9.1.4). Re-derives only when the selection or the
-  // system's security changes; NO_STRUCTURE_FACTORS (all no-ops) when nothing is
-  // selected, so the plan stays byte-identical to the no-structure path.
+  // Group B (3.7.12.2): the reaction gap-filler refinery + its own system (security-
+  // only). Live-only, reset with the planner. Independent of `location` (A's system).
+  const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
+  const [reactionSystem, setReactionSystem] = useState<SelectedReactionSystem | null>(null);
+  const reactionSecurity = reactionSystem?.security ?? null;
+  // Per-node engine factors derived from the two picks + each one's OWN system security
+  // (3.7.9.1.4 / 3.7.12.2). The routing derives roles (a refinery → reactions; a build
+  // structure → manufacturing; a lone refinery → the whole chain). NO_STRUCTURE_FACTORS
+  // (all no-ops) when nothing is selected, so the plan stays byte-identical.
   const structureFactors = useMemo<StructureFactors>(
     () =>
       structureFactorsFor({
         selectedStructure,
         locationSecurity: location?.security ?? null,
+        reactionStructure,
+        reactionSecurity,
         nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
       }),
-    [selectedStructure, location?.security, structure.nodeActivityByBlueprint],
+    [selectedStructure, location?.security, reactionStructure, reactionSecurity, structure.nodeActivityByBlueprint],
+  );
+  // The per-slot readout pills — each slot shows only the bonus for what it hosts.
+  const { build: buildStructureReadout, reaction: reactionStructureReadout } = useMemo(
+    () => structureReadouts({ selectedStructure, reactionStructure, factors: structureFactors }),
+    [selectedStructure, reactionStructure, structureFactors],
   );
   // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
   // per type). null until the owned-blueprints read settles; empty for a
@@ -686,6 +727,12 @@ export function PricingProvider({
       selectedStructure,
       setSelectedStructure,
       structureFactors,
+      reactionStructure,
+      setReactionStructure,
+      reactionSystem,
+      setReactionSystem,
+      buildStructureReadout,
+      reactionStructureReadout,
       marketHistory,
       marketScore,
       ownedMe,
@@ -715,6 +762,12 @@ export function PricingProvider({
       selectedStructure,
       setSelectedStructure,
       structureFactors,
+      reactionStructure,
+      setReactionStructure,
+      reactionSystem,
+      setReactionSystem,
+      buildStructureReadout,
+      reactionStructureReadout,
       marketHistory,
       marketScore,
       ownedMe,
