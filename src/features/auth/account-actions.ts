@@ -5,6 +5,11 @@
 // `{accountEmptied}` branch, the route wiring, and the post-action redirect rule
 // are proven without a network. The shipped ACCOUNT.2 routes are consumed exactly
 // as-is; nothing here touches the server.
+//
+// Each runner is TOTAL: it maps both a non-2xx response and a network-level failure
+// (apiFetch can reject — offline, DNS, an aborted request) to an `error` outcome, so
+// it never rejects. That keeps the confirm gate from freezing mid-call — a rejected
+// action would skip the gate's error dispatch and strand its phase in `running`.
 
 import type { ApiEndpoint, ApiResult } from '@/lib/api-client';
 import {
@@ -32,17 +37,25 @@ export async function runPurgeCharacter(
   characterId: number,
   call: AccountApiCaller,
 ): Promise<PurgeOutcome> {
-  const res = await call(purgeCharacterEndpoint, { body: { characterId } });
-  if (!res.ok) return { kind: 'error' };
-  return res.data.accountEmptied ? { kind: 'emptied' } : { kind: 'stayed' };
+  try {
+    const res = await call(purgeCharacterEndpoint, { body: { characterId } });
+    if (!res.ok) return { kind: 'error' };
+    return res.data.accountEmptied ? { kind: 'emptied' } : { kind: 'stayed' };
+  } catch {
+    return { kind: 'error' }; // network-level failure — retryable, same as a non-2xx
+  }
 }
 
 // Deleting the whole account always empties it (always the D-5 lightbox on success).
 export type DeleteOutcome = { kind: 'emptied' } | { kind: 'error' };
 
 export async function runDeleteAccount(call: AccountApiCaller): Promise<DeleteOutcome> {
-  const res = await call(accountDeleteEndpoint);
-  return res.ok ? { kind: 'emptied' } : { kind: 'error' };
+  try {
+    const res = await call(accountDeleteEndpoint);
+    return res.ok ? { kind: 'emptied' } : { kind: 'error' };
+  } catch {
+    return { kind: 'error' }; // network-level failure — retryable, same as a non-2xx
+  }
 }
 
 // Log-out-everywhere revokes EVERY session including this one, so success means the
@@ -50,8 +63,12 @@ export async function runDeleteAccount(call: AccountApiCaller): Promise<DeleteOu
 export type LogoutOutcome = { kind: 'done' } | { kind: 'error' };
 
 export async function runLogoutEverywhere(call: AccountApiCaller): Promise<LogoutOutcome> {
-  const res = await call(sessionsRevokeEndpoint);
-  return res.ok ? { kind: 'done' } : { kind: 'error' };
+  try {
+    const res = await call(sessionsRevokeEndpoint);
+    return res.ok ? { kind: 'done' } : { kind: 'error' };
+  } catch {
+    return { kind: 'error' }; // network-level failure — retryable, same as a non-2xx
+  }
 }
 
 export type DestructionOutcome = PurgeOutcome | DeleteOutcome | LogoutOutcome;

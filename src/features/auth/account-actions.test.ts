@@ -20,6 +20,14 @@ function errCaller(status = 500) {
   const fn = vi.fn(async () => ({ ok: false, status, response: {} as Response }));
   return { fn, call: fn as unknown as AccountApiCaller };
 }
+// A caller that REJECTS — the apiFetch network-failure path (offline, DNS, abort),
+// where `fetch` throws rather than resolving to a non-2xx `{ ok: false }`.
+function throwingCaller() {
+  const fn = vi.fn(async () => {
+    throw new Error('network down');
+  });
+  return { fn, call: fn as unknown as AccountApiCaller };
+}
 
 describe('runPurgeCharacter', () => {
   it('a one-of-many purge ({accountEmptied:false}) → stayed, and stayed never redirects', async () => {
@@ -43,6 +51,11 @@ describe('runPurgeCharacter', () => {
     expect(outcome).toEqual({ kind: 'error' });
     expect(redirectTargetFor(outcome)).toBeNull();
   });
+
+  it('a network-level throw → error, and never rejects (the gate can’t freeze)', async () => {
+    const { call } = throwingCaller();
+    await expect(runPurgeCharacter(1, call)).resolves.toEqual({ kind: 'error' });
+  });
 });
 
 describe('runDeleteAccount', () => {
@@ -57,6 +70,11 @@ describe('runDeleteAccount', () => {
   it('a non-2xx delete → error', async () => {
     const { call } = errCaller();
     expect(await runDeleteAccount(call)).toEqual({ kind: 'error' });
+  });
+
+  it('a network-level throw → error, and never rejects', async () => {
+    const { call } = throwingCaller();
+    await expect(runDeleteAccount(call)).resolves.toEqual({ kind: 'error' });
   });
 });
 
@@ -74,6 +92,11 @@ describe('runLogoutEverywhere', () => {
     const outcome = await runLogoutEverywhere(call);
     expect(outcome).toEqual({ kind: 'error' });
     expect(redirectTargetFor(outcome)).toBeNull();
+  });
+
+  it('a network-level throw → error, and never rejects', async () => {
+    const { call } = throwingCaller();
+    await expect(runLogoutEverywhere(call)).resolves.toEqual({ kind: 'error' });
   });
 });
 
