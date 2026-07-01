@@ -41,7 +41,12 @@ function applyFlag(opts, key, value) {
 function parseArgs(argv) {
   const routes = [];
   const opts = {
-    baseUrl: process.env.UX_BASE_URL ?? 'http://127.0.0.1:3000',
+    // localhost, never 127.0.0.1: Next dev (Turbopack) blocks /_next/* dev
+    // assets cross-origin from a 127.0.0.1 Host (allowedDevOrigins), so the HMR
+    // handshake fails and pages silently render the SSR shell unhydrated — no
+    // client fetches, no errors. The server may still be *bound* to 127.0.0.1
+    // (`next dev -H 127.0.0.1`); only the browsed URL must be localhost.
+    baseUrl: process.env.UX_BASE_URL ?? 'http://localhost:3000',
     viewports: ['desktop', 'mobile'],
     settle: 1500,
   };
