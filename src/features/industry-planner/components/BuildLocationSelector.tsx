@@ -15,7 +15,7 @@ import type { StructureReadout as StructureReadoutBonus } from '../structure-fac
 import type { AvailableStructure, IndustryStationView } from '../types';
 import { usePricing } from './PricingProvider';
 import { StructureBonusPills } from './structure-bonus-pills';
-import { useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
+import { formatSec, useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
 
 // The station's display label: its full in-game name (compacted) when ESI has
 // resolved one, else the station-operation label as a fallback.
@@ -151,10 +151,6 @@ function BuildFacilitySelect({
 // hero/ledger to net margin; clearing returns to gross. The station choice is
 // display/future-score only — the fee math is system-driven (flat NPC facility
 // tax, per-system cost index), so it never changes the numbers.
-
-function formatSec(sec: number | null): string {
-  return sec === null ? '—' : sec.toFixed(1);
-}
 
 export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) {
   const { location, setLocation, station, setStation, availableStructures, selectedStructure, setSelectedStructure, buildStructureReadout } =

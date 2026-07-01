@@ -34,6 +34,11 @@ function loadSystems(): Promise<SystemSearchEntry[]> {
 export type SystemParams = { system: SystemSearchEntry };
 export type SystemErr = { kind: 'not_found' };
 
+// The display form of a system's security status, shared by both location slots.
+export function formatSec(sec: number | null): string {
+  return sec === null ? '—' : sec.toFixed(1);
+}
+
 // Pure matchers over an already-loaded index (unit-tested) — the hook just wires them
 // to its `systems` state. An exact name match wins, else the first prefix match.
 export function matchSystem(systems: SystemSearchEntry[], input: string): SystemSearchEntry | null {

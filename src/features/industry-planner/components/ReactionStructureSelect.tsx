@@ -8,11 +8,7 @@ import { hostsReactions } from '../structure-factors';
 import type { AvailableStructure } from '../types';
 import { usePricing, type SelectedReactionSystem } from './PricingProvider';
 import { StructureBonusPills } from './structure-bonus-pills';
-import { useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
-
-function formatSec(sec: number | null): string {
-  return sec === null ? '—' : sec.toFixed(1);
-}
+import { formatSec, useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
 
 // The reaction group's SYSTEM row (3.7.12.2), ALWAYS visible — the mirror of the
 // "Build at" row above it, so the reaction side has its own independent system at all
@@ -104,19 +100,24 @@ export function ReactionStructureSelect() {
   const { systems } = useSystemSearch();
 
   // Picking a refinery: a corp refinery carries its home system — deduce-and-lock it.
-  // A custom (or cleared) pick leaves the row's system alone, so picking the system
-  // first and the refinery second works in either order.
+  // A custom (or cleared) pick keeps a USER-picked system (so system-first and
+  // refinery-first both work), but drops a system the OUTGOING corp refinery had
+  // deduce-locked — that one was never the user's choice, and leaving it would render
+  // a ghost pick beside an empty refinery select.
   const onSelectRefinery = useCallback(
     (structure: AvailableStructure | null) => {
+      const prevDeduced = reactionStructure?.source === 'corp' && reactionStructure.systemId !== null;
       setReactionStructure(structure);
       if (structure?.source === 'corp' && structure.systemId !== null) {
         const sys = systems.find((s) => s.id === structure.systemId);
         setReactionSystem(
           sys ? { systemId: sys.id, systemName: sys.name, security: sys.security } : null,
         );
+      } else if (prevDeduced) {
+        setReactionSystem(null);
       }
     },
-    [systems, setReactionStructure, setReactionSystem],
+    [systems, reactionStructure, setReactionStructure, setReactionSystem],
   );
 
   if (availableStructures === null) return null;

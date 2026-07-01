@@ -16,7 +16,9 @@ describe('matchSystem', () => {
   });
 
   it('falls back to the first prefix match', () => {
-    // "ja" prefixes both Jita and Jarizza — the first in order wins.
+    // 'j' prefixes both Jita and Jarizza — the first in index order wins…
+    expect(matchSystem(systems, 'j')?.id).toBe(1);
+    // …while 'jar' is unambiguous and picks Jarizza.
     expect(matchSystem(systems, 'jar')?.id).toBe(2);
   });
 

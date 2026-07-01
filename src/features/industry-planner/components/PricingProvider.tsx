@@ -347,12 +347,27 @@ export function PricingProvider({
   // The structures the caller can place this build in (3.7.9.1.4), fetched on open
   // (the owned-blueprints pattern), and the single selected structure over them.
   const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
-  const [selectedStructure, setSelectedStructure] = useState<AvailableStructure | null>(null);
-  // Group B (3.7.12.2): the reaction gap-filler refinery + its own system (security-
-  // only). Live-only, reset with the planner. Independent of `location` (A's system).
+  const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
+  // The reaction slot's refinery + its own system (security-only). Live-only, reset
+  // with the planner. Independent of `location` (the build slot's system).
   const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
   const [reactionSystem, setReactionSystem] = useState<SelectedReactionSystem | null>(null);
   const reactionSecurity = reactionSystem?.security ?? null;
+  // The no-double-select rule holds in STATE, not just in the option lists: picking
+  // the reaction slot's refinery as the build structure vacates the reaction slot.
+  // (Its dropdown filters that structure out, so leaving the state set would silently
+  // keep scaling reaction rigs against the stale slot's system and render an orphaned
+  // bonus pill beside a select reading "none".)
+  const setSelectedStructure = useCallback(
+    (structure: AvailableStructure | null) => {
+      setSelectedStructureState(structure);
+      if (structure && reactionStructure && reactionStructure.id === structure.id) {
+        setReactionStructure(null);
+        setReactionSystem(null);
+      }
+    },
+    [reactionStructure],
+  );
   // Per-node engine factors derived from the two picks + each one's OWN system security
   // (3.7.9.1.4 / 3.7.12.2). The routing derives roles (a refinery → reactions; a build
   // structure → manufacturing; a lone refinery → the whole chain). NO_STRUCTURE_FACTORS
