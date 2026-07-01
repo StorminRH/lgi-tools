@@ -68,7 +68,7 @@ function ReactionSystemRow({
             placeholder="Reaction system — type a name"
             parse={parse}
             suggest={suggest}
-            errorMessage={() => 'No build system matches that name.'}
+            errorMessage={() => 'No system matches that name.'}
             onSubmit={onSubmit}
             onClear={() => setReactionSystem(null)}
             errorLabel="System"
