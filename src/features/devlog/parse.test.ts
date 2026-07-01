@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { findDocument, flattenDocuments, parseDevlog, parseInline, slugify } from './parse';
+import {
+  documentSummary,
+  findDocument,
+  flattenDocuments,
+  parseDevlog,
+  parseInline,
+  slugify,
+} from './parse';
 import type { Block } from './types';
 
 const excerptBlocks = (blocks: Block[]) =>
@@ -137,6 +144,26 @@ describe('parseDevlog — excerpts', () => {
     const tree = parseDevlog(md);
     const ids = excerptBlocks(tree.looseDocuments[0].blocks).map((b) => b.excerpt.id);
     expect(ids).toEqual(['code-x', 'code-orphan']);
+  });
+});
+
+describe('documentSummary', () => {
+  it('flattens the first paragraph (links/code/bold → their text)', () => {
+    const tree = parseDevlog(
+      ['## Doc', '', 'Start with a [link](https://x), then `code`, then **bold**.', '', 'Second para.'].join('\n'),
+    );
+    expect(documentSummary(tree.looseDocuments[0])).toBe('Start with a link, then code, then bold.');
+  });
+
+  it('truncates past the max with an ellipsis', () => {
+    const tree = parseDevlog(['## Doc', '', 'x'.repeat(200)].join('\n'));
+    const summary = documentSummary(tree.looseDocuments[0], 20);
+    expect(summary).toHaveLength(20);
+    expect(summary.endsWith('…')).toBe(true);
+  });
+
+  it('falls back when the document has no paragraph', () => {
+    expect(documentSummary({ slug: 'e', title: 'E', blocks: [] })).toMatch(/behind-the-scenes/);
   });
 });
 
