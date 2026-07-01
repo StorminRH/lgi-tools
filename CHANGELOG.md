@@ -6,6 +6,11 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.12.1 — 2026-07-01
+
+#### Changed
+- The industry planner's header was reorganized into a single panel — the blueprint, its efficiency and run controls, and the build location now sit together — and it shows a portrait of the character you're building as.
+
 ### v3.7.11.1 — 2026-06-30
 
 #### Added
