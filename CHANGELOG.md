@@ -6,6 +6,11 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.10.1 — 2026-06-30
+
+#### Added
+- The Characters page now has a Danger zone for managing your account. You can purge an individual character — clearing everything the site has stored for it and cutting off the site's access to that character's EVE data — delete your entire account, or sign out of every device at once. Deleting your account (or purging your last character) also clears anything the site saved that doesn't come from EVE, such as your saved preferences and custom structures.
+
 ### v3.7.9.1 — 2026-06-30
 
 #### Added

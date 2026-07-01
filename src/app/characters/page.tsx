@@ -15,6 +15,7 @@ import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { auth } from '@/features/auth/auth';
+import { AccountDangerZone } from '@/features/auth/components/AccountDangerZone';
 import { GrantedScopesList } from '@/features/auth/components/GrantedScopesList';
 import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
 import { SwitchCharacterForm } from '@/features/auth/components/SwitchCharacterForm';
@@ -200,6 +201,10 @@ async function CharactersContent({
             .
           </div>
         </Card>
+
+        <AccountDangerZone
+          characters={characters.map((c) => ({ characterId: c.characterId, name: c.name }))}
+        />
       </div>
     </>
   );

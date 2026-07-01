@@ -194,17 +194,35 @@ export const purgeCharacterRequestSchema = z.object({
 // 200. accountEmptied is true when this was the last character — the account was
 // emptied and the user deleted (a de-facto nuke); the UI shows the EVE-revoke
 // redirect + logs out only then.
-export interface PurgeCharacterResponse {
-  accountEmptied: boolean;
-}
+const purgeCharacterResponseSchema = z.object({ accountEmptied: z.boolean() });
+export type PurgeCharacterResponse = z.infer<typeof purgeCharacterResponseSchema>;
+export const purgeCharacterEndpoint: ApiEndpoint<
+  z.input<typeof purgeCharacterRequestSchema>,
+  PurgeCharacterResponse
+> = {
+  method: 'POST',
+  path: '/api/account/purge-character',
+  request: purgeCharacterRequestSchema,
+  response: purgeCharacterResponseSchema,
+};
 
 // POST /api/account/delete — nuke the caller's entire account. No request body.
-export interface AccountDeleteResponse {
-  ok: true;
-}
+const accountDeleteResponseSchema = z.object({ ok: z.literal(true) });
+export type AccountDeleteResponse = z.infer<typeof accountDeleteResponseSchema>;
+export const accountDeleteEndpoint: ApiEndpoint<null, AccountDeleteResponse> = {
+  method: 'POST',
+  path: '/api/account/delete',
+  request: null, // no body
+  response: accountDeleteResponseSchema,
+};
 
 // POST /api/account/sessions/revoke — log the caller out everywhere. No request
 // body; `revoked` is the number of sessions removed.
-export interface SessionsRevokeResponse {
-  revoked: number;
-}
+const sessionsRevokeResponseSchema = z.object({ revoked: z.number() });
+export type SessionsRevokeResponse = z.infer<typeof sessionsRevokeResponseSchema>;
+export const sessionsRevokeEndpoint: ApiEndpoint<null, SessionsRevokeResponse> = {
+  method: 'POST',
+  path: '/api/account/sessions/revoke',
+  request: null, // no body
+  response: sessionsRevokeResponseSchema,
+};
