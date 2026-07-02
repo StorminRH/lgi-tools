@@ -16,6 +16,7 @@ import type { StructureReadout as StructureReadoutBonus } from '../structure-fac
 import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
 import type { AvailableStructure, IndustryStationView } from '../types';
 import { usePricing } from './PricingProvider';
+import { StructureOptgroups } from './StructureOptgroups';
 import { StructureBonusPills } from './structure-bonus-pills';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
@@ -81,8 +82,6 @@ function BuildFacilitySelect({
   setStation: (stationId: number | null, stationName: string | null) => void;
 }) {
   const router = useRouter();
-  const corp = structures.filter((s) => s.source === 'corp');
-  const custom = structures.filter((s) => s.source === 'custom');
   const facilityValue = selectedStructure
     ? `structure:${selectedStructure.id}`
     : station
@@ -121,24 +120,7 @@ function BuildFacilitySelect({
         className="w-[260px] shrink-0 border border-border bg-bg px-2 py-1 font-mono text-[11px] text-text focus:border-border-active focus:outline-none"
       >
         <option value="">{stations.length > 0 ? `Any NPC station (${stations.length})` : '— none —'}</option>
-        {corp.length > 0 && (
-          <optgroup label="Corp structures">
-            {corp.map((s) => (
-              <option key={s.id} value={`structure:${s.id}`}>
-                {s.name}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {custom.length > 0 && (
-          <optgroup label="Custom structures">
-            {custom.map((s) => (
-              <option key={s.id} value={`structure:${s.id}`}>
-                {s.name}
-              </option>
-            ))}
-          </optgroup>
-        )}
+        <StructureOptgroups structures={structures} />
         {stations.length > 0 && (
           <optgroup label="NPC stations">
             {stations.map((s) => (

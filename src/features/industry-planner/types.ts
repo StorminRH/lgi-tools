@@ -145,10 +145,12 @@ export interface IntermediatePrice {
 // own attrs plus whatever rigs fit it. The resolved structure + rig dogma travels
 // on the wire so the bonus recomputes client-side, live, as the build system /
 // per-node activity change. `securityClass` is the structure's own system band for
-// a corp structure; null for a custom one, whose rig bonus instead scales against
-// the security of the planner's selected build LOCATION. `systemId` is the corp
-// structure's home system (so a corp pick can lock the build location); null for a
-// custom structure, which borrows whatever system the planner has selected.
+// a corp structure; null for a custom one (pinned or not), whose rig bonus instead
+// scales against the security of the planner's selected build LOCATION. `systemId`
+// is the structure's home system — always set for corp, set for a custom structure
+// its owner PINNED in the builder (3.7.13.2) — and makes a pick lock the build
+// location to it (isSystemLocked); null = portable, borrowing whatever system the
+// planner has selected.
 export interface AvailableStructure {
   id: string;
   source: 'custom' | 'corp';

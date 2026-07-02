@@ -9,6 +9,7 @@ import { hostsReactions } from '../structure-factors';
 import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
 import type { AvailableStructure } from '../types';
 import { usePricing, type SelectedReactionSystem } from './PricingProvider';
+import { StructureOptgroups } from './StructureOptgroups';
 import { StructureBonusPills } from './structure-bonus-pills';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
@@ -140,9 +141,6 @@ export function ReactionStructureSelect() {
     effectiveSystemId,
     reactionStructure?.id ?? null,
   );
-  const corp = refineries.filter((s) => s.source === 'corp');
-  const custom = refineries.filter((s) => s.source === 'custom');
-
   return (
     <div className="flex flex-col gap-2">
       <ReactionSystemRow
@@ -171,24 +169,7 @@ export function ReactionStructureSelect() {
           className="w-[260px] shrink-0 border border-border bg-bg px-2 py-1 font-mono text-[11px] text-text focus:border-border-active focus:outline-none"
         >
           <option value="">— none —</option>
-          {corp.length > 0 && (
-            <optgroup label="Corp structures">
-              {corp.map((s) => (
-                <option key={s.id} value={`structure:${s.id}`}>
-                  {s.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {custom.length > 0 && (
-            <optgroup label="Custom structures">
-              {custom.map((s) => (
-                <option key={s.id} value={`structure:${s.id}`}>
-                  {s.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
+          <StructureOptgroups structures={refineries} />
           <option value="add-custom">+ Add custom structure…</option>
         </select>
         <StructureBonusPills readout={reactionStructureReadout} />
