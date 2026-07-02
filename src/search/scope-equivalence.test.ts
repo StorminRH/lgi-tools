@@ -35,7 +35,7 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import '@/search/register-all';
-import { searchAll, type SearchContext, type SearchResult, type SearchSection } from '@/search';
+import { listRegisteredSources, searchAll, type SearchContext, type SearchResult, type SearchSection } from '@/search';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import type { Session } from '@/features/auth/types';
@@ -112,9 +112,14 @@ beforeEach(() => {
 
 afterEach(() => {
   // A dropped source (rejected inside allSettled) would warn — the anchor
-  // must never pass by silently losing a section.
-  expect(warnSpy).not.toHaveBeenCalled();
+  // must never pass by silently losing a section. Capture-then-restore-then-
+  // assert: restoring first would wipe the spy's call record (vacuous assert),
+  // and asserting first would skip the restore on failure, leaving the stale
+  // spy installed so one real warn cascades into phantom failures in every
+  // later test.
+  const calls = [...warnSpy.mock.calls];
   warnSpy.mockRestore();
+  expect(calls).toEqual([]);
 });
 
 describe('full-scope search over the real manifest (characterization anchor)', () => {
@@ -426,5 +431,21 @@ describe('scoped queries against the real manifest', () => {
     expect(out.map((s) => s.name)).toEqual(['Sites', 'Commands']);
     const full = await searchAll('in', admin());
     expect(out).toEqual(full.filter((s) => s.name === 'Sites' || s.name === 'Commands'));
+  });
+
+  it('pins the manifest: every registered id listed, unique, in registration order', () => {
+    // Guards the hand-maintained ALL_SOURCE_IDS against manifest drift (a new
+    // source must join this suite) and doubles as the id-uniqueness pin —
+    // a duplicated id would double-dispatch under a scoped query.
+    expect(listRegisteredSources().map((s) => s.id)).toEqual([...ALL_SOURCE_IDS]);
+  });
+
+  it('a full-scope run after scoped queries still sees every source', async () => {
+    // Absolute re-pin, deliberately LAST: every other scoped comparison is
+    // relative (scoped vs same-moment full), so a scoped path that mutated
+    // the registry would agree with its own damage. This assertion is the
+    // one that fails if a scoped call ever corrupts full-scope state.
+    const out = await searchAll('in', admin());
+    expect(out.map((s) => s.name)).toEqual(['Recent', 'Sites', 'Blueprints', 'Tools', 'Commands']);
   });
 });
