@@ -2,10 +2,9 @@
 
 // The signed-in portrait menu (ACCOUNT.5): the top-right portrait as a Base UI
 // Menu trigger instead of a link. GLOBAL half: the ambient account actions —
-// navigate to manage, start the add-character link flow, and plain
-// current-session log-out (D-3: the destructive flows stay behind the account
-// page's confirm gates; this menu never hosts one). "Account settings" ships as
-// a disabled SOON row (the nav-tool idiom) until ACCOUNT.6's page exists.
+// navigate to manage characters or account settings, start the add-character
+// link flow, and plain current-session log-out (D-3: the destructive flows stay
+// behind the account pages' confirm gates; this menu never hosts one).
 // DYNAMIC half: <PageMenuSection /> renders the current route's page-settings
 // spec, empty where none.
 //
@@ -44,9 +43,9 @@ export function AccountMenu({ session }: { session: Session }) {
       <MenuItem className="account-menu-item" onClick={() => startCharacterLink()}>
         Add character
       </MenuItem>
-      <MenuItem disabled className="account-menu-item soon">
+      <MenuLinkItem closeOnClick className="account-menu-item" render={<Link href="/settings" />}>
         Account settings
-      </MenuItem>
+      </MenuLinkItem>
       <PageMenuSection />
       <MenuSeparator className="account-menu-separator" />
       <MenuItem

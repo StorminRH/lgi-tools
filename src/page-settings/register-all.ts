@@ -12,9 +12,13 @@
 
 import { sitesPageSettings } from '@/features/wormhole-sites/page-settings';
 import { registerPageSettings } from '@/page-settings';
+import { accountPageSettings } from '@/page-settings/account';
 import type { PageSettingsSpec } from '@/page-settings/types';
 
-export const PAGE_SETTINGS_SPECS: readonly PageSettingsSpec[] = [sitesPageSettings];
+export const PAGE_SETTINGS_SPECS: readonly PageSettingsSpec[] = [
+  sitesPageSettings,
+  accountPageSettings,
+];
 
 for (const spec of PAGE_SETTINGS_SPECS) {
   registerPageSettings(spec);

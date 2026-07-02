@@ -1200,16 +1200,6 @@ a:hover {
   color: var(--color-name);
   background: var(--color-row-hover);
 }
-/* the ACCOUNT.6 placeholder — present but inert, the nav-tool `soon` idiom */
-.account-menu-item.soon {
-  opacity: 0.4;
-  cursor: default;
-}
-.account-menu-item.soon[data-highlighted],
-.account-menu-item.soon:hover {
-  color: var(--color-muted);
-  background: none;
-}
 .account-menu-separator {
   border-top: 1px solid var(--color-border-soft);
 }
