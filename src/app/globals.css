@@ -1170,6 +1170,76 @@ a:hover {
   border-top: 1px solid var(--color-border);
 }
 
+/* Account menu (AccountMenu) — the signed-in portrait's dropdown (ACCOUNT.5),
+ * on the same Base UI Menu primitive + surface as the hamburger panel above,
+ * anchored to .app-header so it drops flush under the header's right edge.
+ * Rows keep a padding rhythm with no per-row borders; the two structural
+ * dividers (before the page-settings section, before Log out) come from the
+ * section's and the separator's border-top, so no route ever shows a double
+ * line. Desktop-only by construction: the login cluster is hidden <1024px. */
+.account-menu-panel {
+  min-width: 240px;
+  background: var(--color-section);
+  border: 1px solid var(--color-border);
+  border-top: none;
+  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.55);
+}
+.account-menu-item {
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.account-menu-item[data-highlighted],
+.account-menu-item:hover {
+  color: var(--color-name);
+  background: var(--color-row-hover);
+}
+/* the ACCOUNT.6 placeholder — present but inert, the nav-tool `soon` idiom */
+.account-menu-item.soon {
+  opacity: 0.4;
+  cursor: default;
+}
+.account-menu-item.soon[data-highlighted],
+.account-menu-item.soon:hover {
+  color: var(--color-muted);
+  background: none;
+}
+.account-menu-separator {
+  border-top: 1px solid var(--color-border-soft);
+}
+.account-menu-section {
+  border-top: 1px solid var(--color-border-soft);
+  padding-bottom: 6px;
+}
+.account-menu-group-label {
+  padding: 10px 16px 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.account-menu-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px;
+}
+.account-menu-control-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
 /* Mobile nav (<1024px). Below here the inline tool strip + login cluster don't
  * fit alongside the always-on Tranquility status chip, so they collapse into
  * the hamburger above; the status chip stays glanceable on the bar and the

@@ -15,8 +15,9 @@ type SettingsPlacement = 'global' | 'section' | 'inline';
 
 // A reference to ONE value-registry setting, BY KEY (a lib/preferences
 // PreferenceDef.key). The menu never invents a setting — anti-drift is the
-// engine test asserting every key is a registered preference.
-type SettingsControlRef = {
+// engine test asserting every key is a registered preference. Exported for the
+// presentation resolver (./controls); features keep importing only the spec type.
+export type SettingsControlRef = {
   key: string;
   placement: SettingsPlacement;
   order?: number;

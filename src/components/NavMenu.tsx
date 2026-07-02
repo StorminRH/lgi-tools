@@ -78,7 +78,9 @@ export function NavMenu() {
         <NavMenuItems />
       </Suspense>
       <div className="nav-menu-login">
-        <LoginButton />
+        {/* The flat cluster on purpose: the account-menu variant would nest a
+            Menu trigger inside this popup. */}
+        <LoginButton variant="flat" />
       </div>
     </Menu>
   );
