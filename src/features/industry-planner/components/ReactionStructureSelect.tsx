@@ -131,9 +131,11 @@ export function ReactionStructureSelect() {
     reactionStructure?.id ?? null,
   );
   return (
-    <div className="flex flex-col justify-center gap-1.5">
+    // FIXED group width, mirroring the Manufacturing group — see its note: an
+    // unconstrained group would widen to a long readout and rewrap the plane.
+    <div className="flex w-[332px] flex-col justify-center gap-1.5">
       {/* The group header carries the bonus readout on its own fixed-height
-          line, right of the title — mirrors the Manufacturing group. */}
+          line, right of the title. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
         <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-faint">Reactions</span>
         <StructureBonusReadout readout={reactionStructureReadout} />

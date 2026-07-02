@@ -323,7 +323,10 @@ function EfficiencyField({
             +
           </button>
         </span>
-        {revertButton}
+        {/* Fixed slot for the ↺ — reserved even when it's absent, so an
+            override appearing never pushes the row's box out of line with its
+            siblings (the Runs row reserves a matching spacer). */}
+        <span className="inline-flex w-3.5 shrink-0 items-center justify-center">{revertButton}</span>
       </span>
     );
   }

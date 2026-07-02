@@ -45,7 +45,7 @@ function StructureReadout({
         title="Select a build system to apply this structure's bonus"
         className="min-w-0 truncate text-[10px] text-muted"
       >
-        Select a build system to apply this structure&apos;s bonus
+        Select a system to apply its bonus
       </span>
     );
   }
@@ -360,7 +360,11 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
   );
 
   return (
-    <div className="flex flex-col justify-center gap-1.5">
+    // FIXED group width (label 64 + gap 8 + control 260): the header line's
+    // content must truncate against it — an unconstrained flex child sizes to
+    // max-content, so a long readout/prompt would widen the whole group and
+    // rewrap the hero's plane (the shifting-pane bug).
+    <div className="flex w-[332px] flex-col justify-center gap-1.5">
       {/* The group header carries the bonus readout (or the pick-a-system
           prompt) on its own fixed-height line, right of the title — beside the
           controls it would push them; below them it would stretch the group. */}
