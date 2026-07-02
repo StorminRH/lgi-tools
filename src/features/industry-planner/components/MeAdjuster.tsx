@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
 import { MAX_TE } from '../te-overrides';
@@ -13,9 +13,10 @@ import type { OwnedComponentDetail } from '../types';
 // colour is the state — blue owned, orange a manual what-if, faint/empty unowned — so
 // the field needs no extra baseline text; a ↺ appears only when overridden. ME drives
 // the cost ledger; TE drives the build time. `NodeAdjusters` lays both fields out for a
-// node's icon popover (steppers on); the planner header renders them inline (off). The
-// owner/location readout (`ProvenanceRows`) appears in that icon popover, after the
-// adjusters.
+// node's icon popover (steppers on); the hero card renders the `boxed` variant (the
+// −/[value]/+ box, visually identical to the Runs Stepper, icon handled by the row
+// label). The owner/location readout (`ProvenanceRows`) appears in that icon popover,
+// after the adjusters.
 
 interface MeProps {
   // The producing blueprint's type id — the key the override map and `meOf` use.
@@ -51,8 +52,16 @@ function deriveAdjust(owned: Map<number, number> | null, overrides: Map<number, 
   };
 }
 
-// Shared fill + glow for a filled (owned/manual) efficiency glyph.
-function iconTone(state: NodeMeState): { fill: string; glow: string } {
+// The glyph states: the node's ME/TE state tones, plus 'bonus' — the ISK-green
+// used when the gem/hourglass stand for a STRUCTURE's reduction percents in the
+// hero card's compact bonus readout (the green the old readout pills wore).
+type IconState = NodeMeState | 'bonus';
+
+// Shared fill + glow for a filled efficiency glyph.
+function iconTone(state: Exclude<IconState, 'unowned'>): { fill: string; glow: string } {
+  if (state === 'bonus') {
+    return { fill: 'fill-[var(--color-isk)]', glow: 'drop-shadow-[0_0_4px_var(--color-isk)]' };
+  }
   return state === 'manual'
     ? { fill: 'fill-[var(--color-dps-mid)]', glow: 'drop-shadow-[0_0_4px_var(--color-dps-mid)]' }
     : { fill: 'fill-evb-bright', glow: 'drop-shadow-[0_0_4px_var(--color-evb-glow)]' };
@@ -60,7 +69,7 @@ function iconTone(state: NodeMeState): { fill: string; glow: string } {
 
 // EVE's material-efficiency gem. Sized by its container. Exported so the UX sandbox
 // renders the same glyph (one source, no duplicate).
-export function GemIcon({ state }: { state: NodeMeState }) {
+export function GemIcon({ state }: { state: IconState }) {
   if (state === 'unowned') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full">
@@ -92,7 +101,7 @@ export function GemIcon({ state }: { state: NodeMeState }) {
 
 // EVE's time-efficiency hourglass — the time-side twin of the gem, same tone logic.
 // A bowtie silhouette with cap bars top and bottom.
-export function HourglassIcon({ state }: { state: NodeMeState }) {
+export function HourglassIcon({ state }: { state: IconState }) {
   if (state === 'unowned') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden className="h-full w-full">
@@ -160,6 +169,11 @@ function valueToneClass(state: NodeMeState): string {
 const STEP_BTN =
   'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] text-[8px] leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
 
+// The −/+ buttons of the boxed (hero) layout — the Runs Stepper's exact button
+// style, so the three hero rows read as one control family.
+const BOX_BTN =
+  'h-7 w-[26px] text-[14px] leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
+
 // One inline efficiency control: the icon + an editable number you scroll, arrow, or
 // type (clamped 0–max). The value's colour is the state; a ↺ appears only when it's a
 // manual override (click resets to owned). Empty when unowned-and-unset. The field
@@ -174,6 +188,7 @@ function EfficiencyField({
   onCommit,
   onRevert,
   steppers = false,
+  boxed = false,
 }: {
   icon: ReactNode;
   ariaUnit: string;
@@ -185,6 +200,9 @@ function EfficiencyField({
   // Show the up/down step buttons flanking the field (the popover layout). The inline
   // header field omits them (the wheel + arrow keys still step it).
   steppers?: boolean;
+  // The hero-card layout: a −/[value]/+ box visually identical to the Runs Stepper.
+  // The icon is NOT rendered here — the hero row shows it beside its ME/TE label.
+  boxed?: boolean;
 }) {
   // Shown value: empty when unowned-and-unset, else the effective number.
   const shown = d.state === 'unowned' && !d.isOverridden ? '' : String(d.effective);
@@ -228,6 +246,92 @@ function EfficiencyField({
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [d.effective, max, onCommit]);
+  // The typeable field + the ↺ revert, shared VERBATIM by the boxed and inline
+  // layouts (only the shell and the field's size classes differ) — one source so
+  // the two branches can't drift.
+  const inputProps: ComponentProps<'input'> = {
+    ref: inputRef,
+    type: 'text',
+    inputMode: 'numeric',
+    value: draft,
+    placeholder: '–',
+    'aria-label': `${name} ${ariaUnit}`,
+    onChange: (e) => commit(e.target.value),
+    onKeyDown: (e) => {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        step(1);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        step(-1);
+      }
+    },
+    onBlur: () => {
+      if (draft === '' && d.isOverridden) onRevert();
+      setDraft(shown);
+    },
+  };
+  const revertButton = d.isOverridden ? (
+    <button
+      type="button"
+      aria-label={`Reset ${name} ${ariaUnit}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onRevert();
+      }}
+      // 13px (not the row's 10px): the ↺ was too easy to miss. Still narrower
+      // than its reserved w-3.5 slot, so growing it never pushes the boxes.
+      className="cursor-pointer font-mono text-[13px] leading-none text-isk hover:text-name"
+    >
+      ↺
+    </button>
+  ) : null;
+  if (boxed) {
+    return (
+      <span
+        className="inline-flex items-center gap-1"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <span className="inline-flex items-center overflow-hidden rounded-[3px] border border-border bg-bg">
+          <button
+            type="button"
+            aria-label={`Decrease ${name} ${ariaUnit}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              step(-1);
+            }}
+            className={BOX_BTN}
+          >
+            –
+          </button>
+          <input
+            {...inputProps}
+            className={cn(
+              'h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-[12px] outline-none',
+              'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+              valueToneClass(d.state),
+            )}
+          />
+          <button
+            type="button"
+            aria-label={`Increase ${name} ${ariaUnit}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              step(1);
+            }}
+            className={BOX_BTN}
+          >
+            +
+          </button>
+        </span>
+        {/* Fixed slot for the ↺ — reserved even when it's absent, so an
+            override appearing never pushes the row's box out of line with its
+            siblings (the Runs row reserves a matching spacer). */}
+        <span className="inline-flex w-3.5 shrink-0 items-center justify-center">{revertButton}</span>
+      </span>
+    );
+  }
   return (
     // Stop clicks/keys reaching the node card so editing never triggers its drill-down.
     <span
@@ -250,26 +354,7 @@ function EfficiencyField({
         </button>
       )}
       <input
-        ref={inputRef}
-        type="text"
-        inputMode="numeric"
-        value={draft}
-        placeholder="–"
-        aria-label={`${name} ${ariaUnit}`}
-        onChange={(e) => commit(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            step(1);
-          } else if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            step(-1);
-          }
-        }}
-        onBlur={() => {
-          if (draft === '' && d.isOverridden) onRevert();
-          setDraft(shown);
-        }}
+        {...inputProps}
         className={cn(
           'w-[22px] bg-transparent text-center font-mono text-[11px] tabular-nums outline-none',
           'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
@@ -289,26 +374,14 @@ function EfficiencyField({
           ▼
         </button>
       )}
-      {d.isOverridden && (
-        <button
-          type="button"
-          aria-label={`Reset ${name} ${ariaUnit}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onRevert();
-          }}
-          className="cursor-pointer font-mono text-[10px] leading-none text-isk hover:text-name"
-        >
-          ↺
-        </button>
-      )}
+      {revertButton}
     </span>
   );
 }
 
-// The material-efficiency inline field for a node (or the build-plan header). `name`
-// is "main blueprint" in the header.
-export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, steppers }: MeProps & { steppers?: boolean }) {
+// The material-efficiency inline field for a node (or the hero card, `boxed`). `name`
+// is "main blueprint" in the hero.
+export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, steppers, boxed }: MeProps & { steppers?: boolean; boxed?: boolean }) {
   const d = deriveAdjust(ownedMe, meOverrides, blueprintTypeId);
   // Stable callbacks so the field's native wheel listener re-registers only on a
   // value change, not on every render.
@@ -324,12 +397,13 @@ export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOver
       onCommit={onCommit}
       onRevert={onRevert}
       steppers={steppers}
+      boxed={boxed}
     />
   );
 }
 
 // The time-efficiency inline field — the time-side twin of MeField.
-export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, steppers }: TeProps & { steppers?: boolean }) {
+export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, steppers, boxed }: TeProps & { steppers?: boolean; boxed?: boolean }) {
   const d = deriveAdjust(ownedTe, teOverrides, blueprintTypeId);
   const onCommit = useCallback((n: number) => setTeOverride(blueprintTypeId, n), [setTeOverride, blueprintTypeId]);
   const onRevert = useCallback(() => resetTeOverride(blueprintTypeId), [resetTeOverride, blueprintTypeId]);
@@ -343,6 +417,7 @@ export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOver
       onCommit={onCommit}
       onRevert={onRevert}
       steppers={steppers}
+      boxed={boxed}
     />
   );
 }

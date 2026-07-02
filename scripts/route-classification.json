@@ -30,7 +30,7 @@
     "/devlog": "The dev log (UNDER_THE_HOOD.md) is deploy-static: a cached file read + parse renders the static shell; the file-browser rail's active-document highlight is a usePathname read isolated in a <Suspense> (the NavTools pattern), so the shell stays static like /changelog.",
     "/devlog/[slug]": "Prerendered per slug (generateStaticParams enumerates them all) from the same cached parse, but partial not static: the shared layout's active-document highlight reads the path (usePathname) in a <Suspense> boundary, and for the parameterized route the shell is shared across slugs, so that highlight is a request-time hole. The /devlog index bakes its own known path and stays static (○). Cache Components disallows the dynamicParams route config, so an unknown slug returns notFound().",
     "/api/industry/blueprints": "Blueprint search index is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input.",
-    "/api/industry/systems": "Build-system search index (systems with an industry-capable NPC station) is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input. Filtered client-side by the build-location selector.",
+    "/api/industry/systems": "Universe system search index (every persistent solar system — K-space, Pochven, J-space) is deploy-static SDE data (cached 'max', SDE-tag revalidated), so the handler prerenders to a static JSON asset — no per-request input. Matched client-side by the systems search source (the build-location pickers + the structure-pin control).",
     "dynamic /api/*": "Route handlers — per-request by nature (auth, mutations, DB queries, crons, external calls). Justified dynamic."
   },
   "routes": {
@@ -83,6 +83,7 @@
     "/api/account/custom-structures": "dynamic",
     "/api/account/custom-structures/delete": "dynamic",
     "/api/account/custom-structures/parse-fit": "dynamic",
+    "/api/account/custom-structures/set-pin": "dynamic",
     "/api/account/structures": "dynamic",
     "/api/admin/characters/reassign": "dynamic",
     "/api/admin/characters/unlink": "dynamic",

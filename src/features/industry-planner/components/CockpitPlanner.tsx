@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Pill } from '@/components/ui/pill';
+import { formatQuantity } from '@/lib/format/number';
 import { activityLabel } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
@@ -16,24 +17,38 @@ import { HeroCard } from './HeroCard';
 // consolidated tier build plan (with its collapsible raw-materials ledger). This
 // file owns the page head and composes the sections below it.
 
-// lgi://industry / <name> breadcrumb + a terse right-aligned stat strip. The
-// crumb's `industry` segment links back to the planner index (replacing the old
-// back link); the current product name is the bright tail. The right strip pairs
-// the product's category with the job-type chip (manufacturing / reaction).
-function PlannerHead({ name, group, activity }: { name: string; group: string; activity: string }) {
+// The page head, ONE bottom-aligned line resting on the hero card: the
+// lgi://industry breadcrumb left, the item's name CENTERED (the card itself
+// carries no title), and the terse stat strip right — the product's category,
+// the job-type chip, and the per-run output chip. The 1fr/auto/1fr grid keeps
+// the name on the true page center regardless of the side content's widths;
+// on narrow viewports the three stack instead.
+function PlannerHead({
+  name,
+  group,
+  activity,
+  perRun,
+}: {
+  name: string;
+  group: string;
+  activity: string;
+  perRun: string;
+}) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 pt-[26px] pb-1">
-      <div className="font-mono text-caption tracking-[0.08em] text-muted">
+    <header className="grid grid-cols-1 items-end gap-x-6 gap-y-2 pt-[26px] pb-1 sm:grid-cols-[1fr_auto_1fr]">
+      <div className="justify-self-start font-mono text-caption tracking-[0.08em] text-muted">
         <span className="text-isk">lgi://</span>
         <Link href="/industry" className="hover:text-isk">
           industry
         </Link>
-        <span className="mx-1.5 text-border-active">/</span>
-        <span className="text-name">{name.toLowerCase()}</span>
       </div>
-      <div className="inline-flex items-center gap-[14px] pb-0.5 font-mono text-caption uppercase tracking-[0.08em] text-muted">
+      <h1 className="text-center font-display text-[25px] font-bold uppercase leading-none tracking-[0.01em] text-name">
+        {name}
+      </h1>
+      <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 font-mono text-caption uppercase tracking-[0.08em] text-muted">
         {group && <span>{group}</span>}
         <Pill tone="blue">{activity}</Pill>
+        <Pill tone="neutral">{perRun} per Run</Pill>
       </div>
     </header>
   );
@@ -51,6 +66,7 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
         name={structure.product.name}
         group={group}
         activity={activityLabel(structure.activityId)}
+        perRun={formatQuantity(structure.product.quantityPerRun)}
       />
       <HeroCard structure={structure} />
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />

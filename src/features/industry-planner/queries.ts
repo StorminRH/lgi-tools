@@ -6,7 +6,6 @@ import {
   getBlueprintOutput,
   getBlueprintSearchRows,
   getBlueprintTree,
-  getIndustrySolarSystems,
   getIndustryStationsForSystem,
   getTypeLabels,
   type TypeLabel,
@@ -30,7 +29,6 @@ import type {
   BlueprintPricing,
   BlueprintStructure,
   BuildLocationData,
-  SystemSearchEntry,
 } from './types';
 
 // The industry-planner feature is the composition layer that sits ABOVE the
@@ -254,22 +252,6 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
       productTypeId: v.productTypeId,
       name: v.name,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-// Compact build-system search index: every solar system that can host an NPC
-// industry job (≥1 industry-capable NPC station), name-sorted. Cached `'max'`
-// (deploy-static SDE universe data, SDE-tagged). Fetched once by the lazy build-
-// location selector on the client and filtered client-side, so the ~2k-entry
-// index never rides the initial bundle — mirrors getBlueprintSearchIndex.
-export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
-  'use cache';
-  cacheLife('max');
-  cacheTag(BLUEPRINT_STRUCTURE_TAG);
-
-  const systems = await withColdStartRetry(() => getIndustrySolarSystems());
-  return systems
-    .map((s) => ({ id: s.id, name: s.name, security: s.security }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

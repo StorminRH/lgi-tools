@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
-import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
+import { getStructureRigs, getStructureTypes, solarSystemExists } from '@/data/eve-data/queries';
 import {
   createCustomStructureRequestSchema,
   MAX_CUSTOM_STRUCTURES_PER_USER,
@@ -32,6 +32,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   const check = validateCustomStructureSelection(parsed.data, types, rigs);
   if (!check.ok) return new Response(check.reason, { status: 400 });
 
+  // The optional pin must reference a real solar system (the column is
+  // FK-less on purpose — the SDE tables are truncate-rebuilt on re-ingest).
+  if (parsed.data.systemId !== null && !(await solarSystemExists(parsed.data.systemId))) {
+    return new Response('unknown system', { status: 400 });
+  }
+
   if ((await countCustomStructures(userId)) >= MAX_CUSTOM_STRUCTURES_PER_USER) {
     return new Response('structure limit reached', { status: 409 });
   }
@@ -41,6 +47,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     name: parsed.data.name,
     structureTypeId: parsed.data.structureTypeId,
     rigTypeIds: parsed.data.rigTypeIds,
+    systemId: parsed.data.systemId,
   });
   const structures = await listCustomStructures(userId);
   return Response.json({ structures } satisfies CustomStructuresResponse, { status: 201 });

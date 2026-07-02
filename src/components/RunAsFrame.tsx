@@ -24,11 +24,12 @@ export function RunAsFrame() {
   return (
     <div
       // role="img" so the aria-label is actually announced — on a role-less div
-      // it's ignored. The frame reads as one labelled avatar (the inner portrait
-      // and caret are atomic under it). Becomes a real button when the Run-As
-      // dropdown is wired.
+      // it's ignored. The frame reads as one labelled avatar (the inner portrait,
+      // name and caret are atomic under it). Becomes a real button when the
+      // Run-As dropdown is wired. SQUARE by design (the hero-card rework): the
+      // round portrait sits centered with the character's name beneath it.
       role="img"
-      className="relative flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-[3px] border border-border px-3 py-2"
+      className="relative flex aspect-square w-[108px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-[3px] border border-border p-2"
       aria-label={view.kind === 'present' ? `Building as ${view.name}` : 'Building character'}
       title={view.kind === 'present' ? view.name : undefined}
     >
@@ -50,6 +51,11 @@ export function RunAsFrame() {
           className="flex size-16 items-center justify-center rounded-full border border-border-idle text-[18px] text-muted"
         >
           —
+        </span>
+      )}
+      {view.kind === 'present' && (
+        <span className="max-w-full truncate font-mono text-[9px] uppercase tracking-[0.08em] text-muted">
+          {view.name}
         </span>
       )}
       {view.kind === 'anon' && (

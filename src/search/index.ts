@@ -29,6 +29,10 @@
 //    embedded consumer (a feature-level picker) can query just its sources
 //    through the same engine. Omitting the subset queries everything — the
 //    global command bar's full-scope behavior is the unchanged default.
+//  - Default-scope exclusion: a source with `excludeFromDefaultScope` is
+//    reachable ONLY via an explicit scope — the unscoped dispatch skips it.
+//    For sources whose rows have no real navigation target yet (systems):
+//    the command bar never sees them, embedded pickers query them by id.
 
 import type { useRouter } from 'next/navigation';
 import type { Session } from '@/features/auth/types';
@@ -90,6 +94,11 @@ export type SearchSource = {
   search: (query: string, ctx: SearchContext) => Promise<SearchResult[]>;
   limit?: number;
   showOnEmpty?: boolean;
+  // Skipped by the unscoped (default) dispatch; only an explicit `sourceIds`
+  // scope reaches this source. For rows with no real navigation target —
+  // `href` is required, so a source registers excluded until its rows have
+  // somewhere to go.
+  excludeFromDefaultScope?: boolean;
 };
 
 // Descriptor for a lazily-loaded source. Same metadata as a SearchSource
@@ -101,6 +110,7 @@ export type LazySearchSource = {
   name: string;
   limit?: number;
   showOnEmpty?: boolean;
+  excludeFromDefaultScope?: boolean;
   load: () => Promise<SearchSource>;
 };
 
@@ -154,6 +164,7 @@ export function registerLazySearchSource(meta: LazySearchSource): void {
     name: meta.name,
     limit: meta.limit,
     showOnEmpty: meta.showOnEmpty,
+    excludeFromDefaultScope: meta.excludeFromDefaultScope,
     async search(query, ctx) {
       if (!loadPromise) {
         // Cache the in-flight load on success. On failure (network drop,
@@ -200,10 +211,12 @@ export async function searchAll(
   const trimmed = query.trim();
   const isEmpty = trimmed.length === 0;
 
-  // When unscoped, `active` IS the registry array — the default path filters
-  // nothing and stays byte-identical to the pre-scoping engine.
+  // When unscoped, the default path runs every source that hasn't opted out
+  // via `excludeFromDefaultScope` — behaviorally identical to the pre-flag
+  // engine for the global command bar, since only picker-scoped sources
+  // (systems) opt out.
   const active = sourceIds === undefined
-    ? sources
+    ? sources.filter((s) => !s.excludeFromDefaultScope)
     : sources.filter((s) => sourceIds.includes(s.id));
 
   // Promise.allSettled (not Promise.all) so one source's failure — e.g. a

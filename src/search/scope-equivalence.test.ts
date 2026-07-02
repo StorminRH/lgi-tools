@@ -12,26 +12,38 @@
 //    would empty the manifest-populated registry for the whole file. (Vitest
 //    gives each test file its own module registry, so search.test.ts's
 //    fixture-world reset is unaffected.)
-//  - The lazy Blueprints source fetches its index through `apiFetch`; the
-//    module mock below serves a fixture instead. The commands source also
-//    imports `apiFetch`, but only inside `onSelect` closures the engine never
-//    invokes, so the mock is inert there.
+//  - The lazy Blueprints and Systems sources fetch their indexes through
+//    `apiFetch`; the module mock below dispatches a fixture per endpoint
+//    path. The commands source also imports `apiFetch`, but only inside
+//    `onSelect` closures the engine never invokes, so the mock is inert there.
 //  - Every run asserts console.warn was NOT called — a broken mock or fixture
 //    would silently drop a source via allSettled, and the anchor must fail
 //    loudly rather than pass vacuously.
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
-const { BP_FIXTURE } = vi.hoisted(() => ({
+const { BP_FIXTURE, SYSTEMS_FIXTURE } = vi.hoisted(() => ({
   BP_FIXTURE: [
     { blueprintTypeId: 29988, productTypeId: 29986, name: 'Legion Blueprint' },
     { blueprintTypeId: 691, productTypeId: 587, name: 'Rifter Blueprint' },
     { blueprintTypeId: 3888, productTypeId: 3841, name: 'Large Shield Extender II Blueprint' },
   ],
+  // 'Perimeter' (a real system) deliberately co-matches the sites fixture's
+  // 'perimeter' queries: the anchor snapshots above must stay intact even
+  // though a system now matches too — the default scope never consults the
+  // excluded source.
+  SYSTEMS_FIXTURE: [
+    { id: 30000142, name: 'Jita', security: 0.9 },
+    { id: 30000144, name: 'Perimeter', security: 0.9 },
+    { id: 31000001, name: 'J100001', security: -0.99 },
+  ],
 }));
 
 vi.mock('@/lib/api-client', () => ({
-  apiFetch: vi.fn(async () => ({ ok: true, status: 200, data: { blueprints: BP_FIXTURE } })),
+  apiFetch: vi.fn(async (endpoint: { path: string }) =>
+    endpoint.path === '/api/industry/systems'
+      ? { ok: true, status: 200, data: { systems: SYSTEMS_FIXTURE } }
+      : { ok: true, status: 200, data: { blueprints: BP_FIXTURE } }),
 }));
 
 import '@/search/register-all';
@@ -386,9 +398,15 @@ describe('full-scope search over the real manifest (characterization anchor)', (
 // pure filter over it — same sections, same rows, same order, just fewer
 // sources consulted.
 
-const ALL_SOURCE_IDS = ['recents', 'sites', 'blueprints', 'tools', 'commands'] as const;
+// The DEFAULT-scope ids — what an unscoped run consults. Systems registers
+// sixth but opts out of the default scope (`excludeFromDefaultScope`), so it
+// belongs to the manifest pin below and its own invariants suite, never to
+// the default-equivalence matrix.
+const DEFAULT_SOURCE_IDS = ['recents', 'sites', 'blueprints', 'tools', 'commands'] as const;
 
-const SECTION_NAME_BY_ID: Record<(typeof ALL_SOURCE_IDS)[number], string> = {
+const REGISTERED_SOURCE_IDS = [...DEFAULT_SOURCE_IDS, 'systems'] as const;
+
+const SECTION_NAME_BY_ID: Record<(typeof DEFAULT_SOURCE_IDS)[number], string> = {
   recents: 'Recent',
   sites: 'Sites',
   blueprints: 'Blueprints',
@@ -410,16 +428,16 @@ const MATRIX: readonly [string, () => SearchContext][] = [
 ];
 
 describe('scoped queries against the real manifest', () => {
-  it('an explicit all-ids scope equals the default full-scope run', async () => {
+  it('an explicit all-default-ids scope equals the default full-scope run', async () => {
     for (const [query, ctx] of MATRIX) {
-      expect(await searchAll(query, ctx(), ALL_SOURCE_IDS)).toEqual(await searchAll(query, ctx()));
+      expect(await searchAll(query, ctx(), DEFAULT_SOURCE_IDS)).toEqual(await searchAll(query, ctx()));
     }
   });
 
   it("a singleton scope returns exactly that source's slice of the full run", async () => {
     for (const [query, ctx] of MATRIX) {
       const full = await searchAll(query, ctx());
-      for (const id of ALL_SOURCE_IDS) {
+      for (const id of DEFAULT_SOURCE_IDS) {
         const scoped = await searchAll(query, ctx(), [id]);
         expect(scoped).toEqual(full.filter((s) => s.name === SECTION_NAME_BY_ID[id]));
       }
@@ -434,10 +452,10 @@ describe('scoped queries against the real manifest', () => {
   });
 
   it('pins the manifest: every registered id listed, unique, in registration order', () => {
-    // Guards the hand-maintained ALL_SOURCE_IDS against manifest drift (a new
+    // Guards the hand-maintained id lists against manifest drift (a new
     // source must join this suite) and doubles as the id-uniqueness pin —
     // a duplicated id would double-dispatch under a scoped query.
-    expect(listRegisteredSources().map((s) => s.id)).toEqual([...ALL_SOURCE_IDS]);
+    expect(listRegisteredSources().map((s) => s.id)).toEqual([...REGISTERED_SOURCE_IDS]);
   });
 
   it('a full-scope run after scoped queries still sees every source', async () => {
@@ -447,5 +465,58 @@ describe('scoped queries against the real manifest', () => {
     // one that fails if a scoped call ever corrupts full-scope state.
     const out = await searchAll('in', admin());
     expect(out.map((s) => s.name)).toEqual(['Recent', 'Sites', 'Blueprints', 'Tools', 'Commands']);
+  });
+});
+
+// The default-scope-excluded source (3.7.13.2). Systems registers in the
+// manifest like any source but carries `excludeFromDefaultScope`: the global
+// command bar's unscoped dispatch must never consult it (its rows have no
+// destination page), while an explicit scope — the build-location pickers,
+// the structure-pin control — reaches it through the same engine.
+
+describe('default-scope-excluded sources (systems)', () => {
+  it('a default-scope run never consults the excluded source', async () => {
+    // 'jita' matches ONLY the systems fixture — the default run returns
+    // nothing at all, proving the source was not dispatched.
+    expect(await searchAll('jita', signedOut())).toEqual([]);
+    // And a query the sites fixture co-matches ('Perimeter' is a system too)
+    // still returns only the included source's section — the anchor
+    // snapshots above hold with the sixth source registered.
+    const names = (await searchAll('perimeter', signedOut())).map((s) => s.name);
+    expect(names).toEqual(['Sites']);
+  });
+
+  it("an explicit ['systems'] scope reaches the excluded source through the lazy wrapper", async () => {
+    const out = await searchAll('jita', signedOut(), ['systems']);
+    expect(out).toEqual([
+      {
+        name: 'Systems',
+        results: [
+          {
+            kind: 'system',
+            id: 'system:30000142',
+            label: 'Jita',
+            sub: '0.9',
+            // Inert placeholder — no system page exists; the scoped picker
+            // consumers read label/id only.
+            href: '#',
+            matchIndices: [0, 1, 2, 3],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('a mixed scope returns included + excluded sections in registration order', async () => {
+    const out = await searchAll('perimeter', signedOut(), ['systems', 'sites']);
+    expect(out.map((s) => s.name)).toEqual(['Sites', 'Systems']);
+  });
+
+  it('pins the flag on the registered systems source', () => {
+    // The lazy wrapper must propagate `excludeFromDefaultScope` (like
+    // `showOnEmpty`) — a wrapper that dropped it would silently put systems
+    // into the global bar.
+    const systems = listRegisteredSources().find((s) => s.id === 'systems');
+    expect(systems?.excludeFromDefaultScope).toBe(true);
   });
 });

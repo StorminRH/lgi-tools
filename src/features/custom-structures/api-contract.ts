@@ -24,6 +24,7 @@ const customStructureRowSchema = z.object({
   name: z.string(),
   structureTypeId: z.number(),
   rigTypeIds: z.array(z.number()),
+  systemId: z.number().nullable(),
 }) satisfies z.ZodType<CustomStructureRow>;
 
 export const customStructuresResponseSchema = z.object({
@@ -40,6 +41,9 @@ export const createCustomStructureRequestSchema = z.object({
   name: z.string().trim().min(1).max(MAX_CUSTOM_STRUCTURE_NAME_LEN),
   structureTypeId: typeId,
   rigTypeIds: z.array(typeId).max(MAX_CUSTOM_STRUCTURE_RIGS),
+  // The optional system pin — null (the default) saves a portable structure.
+  // The route confirms a non-null id is a real solar system.
+  systemId: typeId.nullable().default(null),
 });
 export type CreateCustomStructureRequest = z.input<typeof createCustomStructureRequestSchema>;
 
@@ -68,6 +72,26 @@ export const deleteCustomStructureEndpoint: ApiEndpoint<
   method: 'POST',
   path: '/api/account/custom-structures/delete',
   request: deleteCustomStructureRequestSchema,
+  response: customStructuresResponseSchema,
+};
+
+// ── POST /api/account/custom-structures/set-pin ──────────────────────────
+// Pin one of the caller's own structures to a system, or unpin it (null).
+// Ownership-scoped in the query like delete; the route confirms a non-null
+// system exists. Echoes back the updated list.
+export const setCustomStructurePinRequestSchema = z.object({
+  id: z.string().min(1).max(100),
+  systemId: typeId.nullable(),
+});
+export type SetCustomStructurePinRequest = z.input<typeof setCustomStructurePinRequestSchema>;
+
+export const setCustomStructurePinEndpoint: ApiEndpoint<
+  SetCustomStructurePinRequest,
+  CustomStructuresResponse
+> = {
+  method: 'POST',
+  path: '/api/account/custom-structures/set-pin',
+  request: setCustomStructurePinRequestSchema,
   response: customStructuresResponseSchema,
 };
 

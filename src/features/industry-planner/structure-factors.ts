@@ -69,8 +69,10 @@ function securityClassFor(
 ): ReturnType<typeof systemSecurityClass> | null {
   if (structure.securityClass !== null) return structure.securityClass;
   if (systemSecurity === null) return null;
-  // The system picker only offers K-space NPC systems, so there is no wormhole-class
-  // to pass — the security status alone resolves the band.
+  // No wormhole-class to pass: the picker offers the whole universe (3.7.13.2),
+  // but a J-space system's ≤0 security lands on the 'null' band, which shares
+  // the wormhole rig multiplier — the number is identical, only the band label
+  // differs (see SECURITY_CLASSES).
   return systemSecurityClass(systemSecurity, null);
 }
 

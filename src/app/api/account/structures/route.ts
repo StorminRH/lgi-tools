@@ -69,9 +69,11 @@ export async function GET(): Promise<Response> {
       name: c.name,
       structureTypeId: c.structureTypeId,
       groupId: resolveGroupId(groupIdByType, c.structureTypeId),
-      // A custom structure has no fixed system — its rig bonus scales against
-      // whatever build system the planner has picked.
-      systemId: null,
+      // The optional pin (3.7.13.2): a pinned custom structure carries a home
+      // system and the planner deduce-locks it like corp; null = portable. Its
+      // rig bonus still scales against the planner's picked build system —
+      // securityClass stays null, security is never a structure property here.
+      systemId: c.systemId,
       structureAttrs: dogma.get(c.structureTypeId) ?? {},
       rigAttrs: c.rigTypeIds.map((r) => dogma.get(r) ?? {}),
       securityClass: null,
