@@ -1,4 +1,5 @@
 import { toNextJsHandler } from 'better-auth/next-js';
+import { runWithAbsorbTracking } from '@/features/auth/absorb-context';
 import { auth } from '@/features/auth/auth';
 import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
 
@@ -6,9 +7,30 @@ import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-li
 // get-session all mount under /api/auth/*. These are public auth endpoints —
 // they establish identity rather than requiring it.
 // authz: public
-const { GET, POST: betterAuthPost } = toNextJsHandler(auth);
+const { GET: betterAuthGet, POST: betterAuthPost } = toNextJsHandler(auth);
 
-export { GET };
+// GET runs inside the absorb-tracking scope so the OAuth callback can report
+// an absorb-on-proof (a stray duplicate account merged during "Add character")
+// and the SUCCESS redirect can carry it to the roster's moved-note. Only a
+// clean redirect is decorated: the absorb can commit and the callback still
+// fail afterwards, and an error redirect must never claim a move succeeded.
+// The Location being decorated is Better Auth's own callbackURL, validated
+// against trustedOrigins when the link started — this only appends a param.
+export async function GET(request: Request): Promise<Response> {
+  const { result: response, absorbedCharacterId } = await runWithAbsorbTracking(() =>
+    betterAuthGet(request),
+  );
+  if (absorbedCharacterId === null) return response;
+  if (response.status < 300 || response.status >= 400) return response;
+  const location = response.headers.get('location');
+  if (!location) return response;
+  const target = new URL(location, request.url); // Location may be relative
+  if (target.searchParams.has('error')) return response;
+  target.searchParams.set('absorbed', String(absorbedCharacterId));
+  const headers = new Headers(response.headers);
+  headers.set('location', target.toString());
+  return new Response(response.body, { status: response.status, headers });
+}
 
 // The two anonymous OAuth entry paths: starting a sign-in and starting an
 // alt-character link (authClient.oauth2.link). Better Auth's built-in

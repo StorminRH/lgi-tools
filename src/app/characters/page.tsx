@@ -130,7 +130,7 @@ function CharacterRow({
 async function CharactersContent({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
 }) {
   // Session-gated (any signed-in pilot), NOT admin-gated. The active character
   // comes straight off the enriched session.
@@ -139,12 +139,20 @@ async function CharactersContent({
     redirect('/?auth_error=login_required');
   }
 
-  const [{ error: rawError }, characters] = await Promise.all([
+  const [{ error: rawError, absorbed: rawAbsorbed }, characters] = await Promise.all([
     searchParams,
     listLinkedCharacters(session.user.id),
   ]);
   const error = errorMessage(rawError);
   const isOnlyCharacter = characters.length <= 1;
+  // The absorb-on-proof success note (ACCOUNT.3): the auth route appends
+  // ?absorbed=<characterId> to the link-success redirect when "Add character"
+  // merged a stray duplicate account. Resolve it against the just-loaded
+  // roster — which doubles as the whitelist: a stale or forged id doesn't
+  // resolve, so nothing renders (the ERROR_MESSAGES fail-closed stance).
+  const absorbedId = typeof rawAbsorbed === 'string' ? Number(rawAbsorbed) : null;
+  const absorbedCharacter =
+    absorbedId !== null ? characters.find((c) => c.characterId === absorbedId) : undefined;
 
   return (
     <>
@@ -157,6 +165,14 @@ async function CharactersContent({
       </div>
 
       <div className="w-full max-w-[760px] flex flex-col gap-6">
+        {absorbedCharacter ? (
+          <Card>
+            <Callout label="Character moved">
+              {absorbedCharacter.name} was already linked to a separate account, so LGI.tools
+              moved it into this one. Everything tracked for that character came along.
+            </Callout>
+          </Card>
+        ) : null}
         {error ? (
           <Card>
             <Callout label="Heads up">{error}</Callout>
@@ -221,7 +237,7 @@ function CharactersLoading() {
 export default function CharactersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{ error?: string | string[]; absorbed?: string | string[] }>;
 }) {
   return (
     <PageShell>

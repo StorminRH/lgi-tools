@@ -6,6 +6,11 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.14.1 — 2026-07-02
+
+#### Changed
+- Adding a character that had accidentally become its own separate account now moves it into your current account instead of being refused. Everything tracked for that character comes along, the leftover duplicate account is cleaned up once it's empty, and the Characters page confirms the move. The move happens only when you complete EVE login for that exact character — proof it's yours.
+
 ### v3.7.13.3 — 2026-07-02
 
 #### Added

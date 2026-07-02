@@ -26,7 +26,13 @@ import {
   verifyEveJwt,
 } from './eve-sso';
 import { refreshAffiliations } from './affiliation';
-import { reconcileCharacterOwner, resolveActiveCharacter, upsertCharacterOnLogin } from './queries';
+import { recordAbsorb } from './absorb-context';
+import {
+  absorbLinkedCharacterOnProof,
+  reconcileCharacterOwner,
+  resolveActiveCharacter,
+  upsertCharacterOnLogin,
+} from './queries';
 import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import { TOKEN_CRYPTO_VERSION, encryptToken } from './token-crypto';
@@ -203,6 +209,14 @@ const options = {
             // fresh user for the new owner instead of signing them in as the old
             // one. A matching or absent/legacy hash is a no-op/backfill.
             await reconcileCharacterOwner(character.characterId, claims.owner);
+            // Absorb-on-proof (ACCOUNT.3): strictly AFTER the owner-hash gate
+            // (a transferred character is purged first, so absorb finds no row
+            // and the link proceeds fresh) and BEFORE Better Auth's own account
+            // lookup — a stray duplicate's row is already on the linking user
+            // when the callback compares userIds, so the refusal becomes a
+            // normal relink. Sign-ins carry no link state and never absorb.
+            const { absorbed } = await absorbLinkedCharacterOnProof(character.characterId);
+            if (absorbed) recordAbsorb(character.characterId);
             await upsertCharacterOnLogin(character);
             // Refresh this character's cached corp affiliation (3.7.3.2). Runs
             // AFTER upsertCharacterOnLogin so the `characters` row exists even on
