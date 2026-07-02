@@ -6,6 +6,7 @@ import {
   registerPageSettings,
   resolvePageSettings,
 } from '@/page-settings';
+import { FEATURE_CONTROL_IDS } from '@/page-settings/feature-controls';
 import { PAGE_SETTINGS_SPECS } from '@/page-settings/register-all';
 
 // Importing register-all (for PAGE_SETTINGS_SPECS) also runs its side-effect
@@ -30,14 +31,23 @@ describe('page-settings engine', () => {
 });
 
 describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
-  it('every spec has a non-empty route and references only real preference keys (anti-drift)', () => {
+  it('every spec has a non-empty route and references only real preference keys or feature-control ids (anti-drift)', () => {
     expect(PAGE_SETTINGS_SPECS.length).toBeGreaterThan(0);
     for (const spec of PAGE_SETTINGS_SPECS) {
       expect(spec.route.length).toBeGreaterThan(0);
       for (const control of spec.controls ?? []) {
-        expect(PREFERENCE_KEYS).toContain(control.key);
+        if (control.kind === 'feature') {
+          expect(FEATURE_CONTROL_IDS).toContain(control.id);
+        } else {
+          expect(PREFERENCE_KEYS).toContain(control.key);
+        }
       }
     }
+  });
+
+  it('registers at most one spec per route (the engine keeps the first; a duplicate would be silently dead)', () => {
+    const routes = PAGE_SETTINGS_SPECS.map((spec) => spec.route);
+    expect(new Set(routes).size).toBe(routes.length);
   });
 
   it('resolves /sites and its sub-routes once registered, empty elsewhere', () => {
@@ -47,5 +57,11 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
     expect(sites?.route).toBe('/sites');
     expect(resolvePageSettings('/sites/30002')).toBe(sites);
     expect(resolvePageSettings('/skills')).toBeNull();
+  });
+
+  it('resolves the account settings page to its junction-owned spec', () => {
+    for (const spec of PAGE_SETTINGS_SPECS) registerPageSettings(spec);
+
+    expect(resolvePageSettings('/settings')?.route).toBe('/settings');
   });
 });

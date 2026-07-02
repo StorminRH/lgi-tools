@@ -9,19 +9,37 @@
 // renders nothing this session — ACCOUNT.5 reads it into the portrait menu,
 // ACCOUNT.6 maps a key to its control, ACCOUNT.7 renders the strip.
 
+import type { FeatureControlId } from './feature-controls';
+
 // Where a control sits: the always-present global half of the menu, a per-page
 // section, or inline on the page.
 type SettingsPlacement = 'global' | 'section' | 'inline';
 
-// A reference to ONE value-registry setting, BY KEY (a lib/preferences
-// PreferenceDef.key). The menu never invents a setting — anti-drift is the
-// engine test asserting every key is a registered preference. Exported for the
-// presentation resolver (./controls); features keep importing only the spec type.
-export type SettingsControlRef = {
-  key: string;
-  placement: SettingsPlacement;
-  order?: number;
-};
+// A reference to ONE setting, in two kinds (ACCOUNT.6 grew the union):
+// - 'preference' (the default when `kind` is omitted, keeping pre-.6 spec
+//   literals valid as-is): a value-registry setting BY KEY (a lib/preferences
+//   PreferenceDef.key). Anti-drift is the engine test asserting every key is a
+//   registered preference.
+// - 'feature': a feature-owned, server-backed control BY ID (a
+//   ./feature-controls id — type-only import, so this module stays value-free).
+//   Pinned to placement 'inline' at the type level: a feature control never
+//   renders in the menu (D-3 — the menu hosts no confirm-gated/destructive
+//   flow); the menu resolver also drops it at runtime as cast-defense.
+// Exported for the presentation resolver (./controls); features keep importing
+// only the spec type.
+export type SettingsControlRef =
+  | {
+      kind?: 'preference';
+      key: string;
+      placement: SettingsPlacement;
+      order?: number;
+    }
+  | {
+      kind: 'feature';
+      id: FeatureControlId;
+      placement: 'inline';
+      order?: number;
+    };
 
 // The per-surface character strip (D-7, per-feature opt-in). Carried as a type
 // the spec CAN declare; the strip component is ACCOUNT.7. `surfaceId` is the key

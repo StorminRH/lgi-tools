@@ -16,7 +16,7 @@ import { __resetPageSettings, registerPageSettings } from '@/page-settings';
 function Consumer() {
   const spec = usePageSettings();
   const text = spec
-    ? `${spec.route}|${(spec.controls ?? []).map((c) => c.key).join(',')}|strip:${spec.strip?.surfaceId ?? 'none'}`
+    ? `${spec.route}|${(spec.controls ?? []).map((c) => ('key' in c ? c.key : c.id)).join(',')}|strip:${spec.strip?.surfaceId ?? 'none'}`
     : 'EMPTY';
   return createElement('output', null, text);
 }

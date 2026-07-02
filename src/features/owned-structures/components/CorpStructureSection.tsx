@@ -1,31 +1,25 @@
 'use client';
 
-import { useId, useState } from 'react';
+import Link from 'next/link';
+import { useState } from 'react';
 import { RigSupply } from '@/components/RigSupply';
 import { Card } from '@/components/ui/card';
-import { Dialog, DialogClose } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
 import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft } from '@/data/industry-math/fees';
 import { apiFetch } from '@/lib/api-client';
-import {
-  MAX_CORP_STRUCTURE_RIGS,
-  setCorpStructureRigsEndpoint,
-  setCorpStructureSharingEndpoint,
-} from '../api-contract';
+import { MAX_CORP_STRUCTURE_RIGS, setCorpStructureRigsEndpoint } from '../api-contract';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '../types';
 
-// The corp-structures section of the /structures page. For each member corp: a
-// Station_Manager sees the sharing toggle (default off; enabling pulls the corp's
-// structures, disabling wipes them) and, per shared structure, a rig-completion editor
-// (ESI doesn't expose fitted rigs). A non-Station_Manager member sees the shared
-// structures read-only; a corp that isn't shared and where the viewer isn't a manager
-// shows nothing. The island takes server-resolved data in and fires mutations out — the
-// gate/wipe live in the data layer, so it relocates into a future settings menu unchanged.
+// The corp-structures section of the /structures page. For each member corp: the
+// shared structures with, for a Station_Manager, a per-structure rig-completion
+// editor (ESI doesn't expose fitted rigs). A non-Station_Manager member sees the
+// shared structures read-only; a corp that isn't shared and where the viewer isn't
+// a manager shows nothing. The sharing consent toggle itself lives on the account
+// settings page (ACCOUNT.6 — its one home); managers get a pointer there.
 export function CorpStructureSection({
   corps,
   structureTypes,
@@ -59,64 +53,32 @@ function CorpCard({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
 }) {
-  const [enabled, setEnabled] = useState(corp.sharingEnabled);
-  const [structures, setStructures] = useState(corp.structures);
-  const [busy, setBusy] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const confirmLabelId = useId();
-
-  async function applySharing(next: boolean) {
-    setBusy(true);
-    const res = await apiFetch(setCorpStructureSharingEndpoint, {
-      body: { corporationId: corp.corporationId, enabled: next },
-      cache: 'no-store',
-    });
-    setBusy(false);
-    if (!res.ok) {
-      toast.error('Could not change sharing');
-      return;
-    }
-    setEnabled(next);
-    if (next) {
-      toast.success('Sharing on — structures appear after the next refresh');
-    } else {
-      setStructures([]); // disable wipes the catalogue
-      toast.success('Sharing off — this corp’s structures were removed');
-    }
-  }
-
-  // Enabling is one click; disabling wipes the catalogue, so it confirms first.
-  function onToggle(next: boolean) {
-    if (next) void applySharing(true);
-    else setConfirmOpen(true);
-  }
-
   return (
     <Card>
       <SectionHeader
         size="md"
         label={corp.corporationName}
-        hint={corp.isStationManager ? (enabled ? 'sharing on' : 'sharing off') : 'shared'}
+        hint={corp.isStationManager ? (corp.sharingEnabled ? 'sharing on' : 'sharing off') : 'shared'}
       />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         {corp.isStationManager && (
-          <label className="flex items-center gap-2.5">
-            <Switch
-              checked={enabled}
-              onCheckedChange={onToggle}
-              disabled={busy}
-              label={`Share ${corp.corporationName}'s structures`}
-            />
-            <span className="text-[11px] text-text">Share this corporation’s structures as build locations</span>
-          </label>
+          <p className="text-[11px] text-muted">
+            Structure sharing is managed in{' '}
+            <Link href="/settings" className="text-name underline hover:text-text">
+              Account settings
+            </Link>
+            {corp.sharingEnabled
+              ? '.'
+              : ' — turn it on to make this corporation’s structures selectable as build locations for every member.'}
+          </p>
         )}
 
-        {enabled ? (
-          structures.length === 0 ? (
+        {corp.sharingEnabled &&
+          (corp.structures.length === 0 ? (
             <EmptyState>No structures synced yet — they appear here after the next refresh.</EmptyState>
           ) : (
             <ul className="flex flex-col gap-2.5">
-              {structures.map((s) => (
+              {corp.structures.map((s) => (
                 <CorpStructureItem
                   key={s.structureId}
                   corporationId={corp.corporationId}
@@ -127,35 +89,8 @@ function CorpCard({
                 />
               ))}
             </ul>
-          )
-        ) : (
-          corp.isStationManager && (
-            <p className="text-[11px] text-muted">
-              Turn sharing on to make this corporation’s structures selectable as build locations for every member.
-            </p>
-          )
-        )}
+          ))}
       </div>
-
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen} labelledBy={confirmLabelId}>
-        <div className="flex flex-col gap-3 p-4 max-w-[360px]">
-          <p id={confirmLabelId} className="text-[12px] text-text">
-            Stop sharing {corp.corporationName}’s structures? This removes the corporation’s structures and any
-            recorded rig fits and facility taxes. Turning sharing back on re-fetches them.
-          </p>
-          <div className="flex items-center justify-end gap-3">
-            <DialogClose className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text">
-              Keep sharing
-            </DialogClose>
-            <DialogClose
-              onClick={() => void applySharing(false)}
-              className="text-[10px] uppercase tracking-[0.12em] text-tone-red hover:underline"
-            >
-              Stop sharing
-            </DialogClose>
-          </div>
-        </div>
-      </Dialog>
     </Card>
   );
 }
