@@ -6,6 +6,15 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.15.1 — 2026-07-02
+
+#### Added
+- Your character portrait in the header now opens an account menu: manage characters, add a character, and log out all live in one place. An account settings entry is visible but marked coming soon.
+- Pages that offer view settings now surface them right in the account menu. On Wormhole Sites, the cards/table view and the lightbox/expand detail mode can be switched from the menu anywhere on the page, staying in sync with the on-page toggles.
+
+#### Changed
+- Logging out moved from a standalone header button into the account menu. Clicking the portrait no longer jumps straight to the Characters page — use the menu's "Manage characters" entry.
+
 ### v3.7.14.1 — 2026-07-02
 
 #### Changed
