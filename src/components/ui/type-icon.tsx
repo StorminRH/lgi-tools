@@ -31,6 +31,7 @@ const FALLBACK_SIZE_CLASS: Record<number, string> = {
   22: 'w-[22px] h-[22px]',
   32: 'w-[32px] h-[32px]',
   64: 'w-[64px] h-[64px]',
+  96: 'w-[96px] h-[96px]',
 };
 
 export function TypeIcon({

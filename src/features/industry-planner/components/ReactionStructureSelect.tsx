@@ -10,7 +10,7 @@ import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
 import type { AvailableStructure } from '../types';
 import { usePricing, type SelectedReactionSystem } from './PricingProvider';
 import { StructureOptgroups } from './StructureOptgroups';
-import { StructureBonusPills } from './structure-bonus-pills';
+import { StructureBonusReadout } from './structure-bonus-readout';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
 // The reaction group's SYSTEM row (3.7.12.2), ALWAYS visible — the mirror of the
@@ -39,7 +39,7 @@ function ReactionSystemRow({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">React at</span>
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
       {lockedTo ? (
         deducedSystem ? (
           <>
@@ -142,7 +142,8 @@ export function ReactionStructureSelect() {
     reactionStructure?.id ?? null,
   );
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
+      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-faint">React at</span>
       <ReactionSystemRow
         lockedTo={lockedRefinery?.name ?? null}
         deducedSystem={deducedSystem}
@@ -150,7 +151,7 @@ export function ReactionStructureSelect() {
         setReactionSystem={setReactionSystem}
       />
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Refinery</span>
+        <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Station</span>
         <select
           value={reactionStructure ? `structure:${reactionStructure.id}` : ''}
           onChange={(e) => {
@@ -172,7 +173,11 @@ export function ReactionStructureSelect() {
           <StructureOptgroups structures={refineries} />
           <option value="add-custom">+ Add custom structure…</option>
         </select>
-        <StructureBonusPills readout={reactionStructureReadout} />
+      </div>
+      {/* Fixed-height bonus slot, aligned under the controls — mirrors the build
+          group so a readout appearing never pushes the selects around. */}
+      <div className="flex min-h-4 items-center pl-[72px]">
+        <StructureBonusReadout readout={reactionStructureReadout} />
       </div>
     </div>
   );

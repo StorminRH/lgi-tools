@@ -17,7 +17,7 @@ import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
 import type { AvailableStructure, IndustryStationView } from '../types';
 import { usePricing } from './PricingProvider';
 import { StructureOptgroups } from './StructureOptgroups';
-import { StructureBonusPills } from './structure-bonus-pills';
+import { StructureBonusReadout } from './structure-bonus-readout';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
 // The station's display label: its full in-game name (compacted) when ESI has
@@ -26,9 +26,9 @@ function stationLabel(s: IndustryStationView): string {
   return s.name ? formatStationName(s.name) : s.operationName;
 }
 
-// The "build at" structure's readout: green pills for what it hosts (manufacturing,
-// plus reactions when it's a lone refinery), or a prompt when a custom structure is
-// picked but no build system supplies the security yet.
+// The "build at" structure's readout: the compact gem/hourglass percents for what
+// it hosts (manufacturing, plus reactions when it's a lone refinery), or a prompt
+// when a custom structure is picked but no build system supplies the security yet.
 function StructureReadout({
   selectedStructure,
   readout,
@@ -47,7 +47,7 @@ function StructureReadout({
       </span>
     );
   }
-  return <StructureBonusPills readout={readout} />;
+  return <StructureBonusReadout readout={readout} />;
 }
 
 // The "build at" facility dropdown, per-source segmented (3.7.13.2): the
@@ -66,7 +66,6 @@ function BuildFacilitySelect({
   stations,
   selectedStructure,
   station,
-  readout,
   onSelectStructure,
   setStation,
 }: {
@@ -74,10 +73,9 @@ function BuildFacilitySelect({
   stations: IndustryStationView[];
   selectedStructure: AvailableStructure | null;
   station: { id: number } | null;
-  readout: StructureReadoutBonus;
   // The parent owns structure selection: it sets the structure AND, for a
   // locked structure, deduces-and-locks the build system (this child stays a
-  // humble select).
+  // humble select). It also owns the bonus readout slot below this row.
   onSelectStructure: (structure: AvailableStructure | null) => void;
   setStation: (stationId: number | null, stationName: string | null) => void;
 }) {
@@ -110,7 +108,7 @@ function BuildFacilitySelect({
   };
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Location</span>
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Station</span>
       {/* Fixed width + shrink-0: a native select otherwise resizes to the selected
           option's text, so picking a structure would shift the control. */}
       <select
@@ -132,7 +130,6 @@ function BuildFacilitySelect({
         )}
         <option value="add-custom">+ Add custom structure…</option>
       </select>
-      <StructureReadout selectedStructure={selectedStructure} readout={readout} />
     </div>
   );
 }
@@ -310,7 +307,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
   // box until one is picked → a pill once picked.
   const systemControl = lockedStructure ? (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Build at</span>
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
       {deducedSystem ? (
         <Pill tone="blue">
           {deducedSystem.name} {formatSec(deducedSystem.security)}
@@ -324,7 +321,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
     </div>
   ) : location ? (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Build at</span>
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
       <Pill tone="blue">
         {location.systemName} {formatSec(location.security)}
       </Pill>
@@ -341,7 +338,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
     </div>
   ) : (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Build at</span>
+      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
       <div className="w-[260px] max-w-full">
         <TerminalSearch<SystemParams, SystemErr>
           initialValue=""
@@ -367,7 +364,8 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
   );
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
+      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-faint">Build at</span>
       {systemControl}
       {visibleStructures !== null && (
         <BuildFacilitySelect
@@ -375,11 +373,16 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
           stations={location?.stations ?? []}
           selectedStructure={selectedStructure}
           station={station}
-          readout={buildStructureReadout}
           onSelectStructure={onSelectStructure}
           setStation={setStation}
         />
       )}
+      {/* Fixed-height bonus slot, aligned under the controls: the compact
+          gem/hourglass readout (or the pick-a-system prompt) lives here, so a
+          bonus appearing or vanishing never pushes the selects around. */}
+      <div className="flex min-h-4 items-center pl-[72px]">
+        <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
+      </div>
     </div>
   );
 }
