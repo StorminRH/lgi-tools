@@ -408,6 +408,18 @@ export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
   return systems.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// One system's existence — the custom-structure pin routes' boundary check (a
+// pin must reference a real persistent system; the column carries no FK
+// because the SDE tables are truncate-rebuilt on re-ingest).
+export async function solarSystemExists(systemId: number): Promise<boolean> {
+  const rows = await db
+    .select({ id: eveSolarSystems.id })
+    .from(eveSolarSystems)
+    .where(eq(eveSolarSystems.id, systemId))
+    .limit(1);
+  return rows.length > 0;
+}
+
 // The industry-capable NPC stations in one system — the build-location picker's
 // per-system refinement, and the first consumer of the indexed
 // (solar_system_id, industry_capable) data model proven in 3.5.1a. NPC stations

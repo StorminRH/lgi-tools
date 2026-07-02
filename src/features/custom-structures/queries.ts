@@ -13,6 +13,7 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
       name: customStructures.name,
       structureTypeId: customStructures.structureTypeId,
       rigTypeIds: customStructures.rigTypeIds,
+      systemId: customStructures.systemId,
     })
     .from(customStructures)
     .where(eq(customStructures.userId, userId))
@@ -22,6 +23,7 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
     name: r.name,
     structureTypeId: r.structureTypeId,
     rigTypeIds: r.rigTypeIds ?? [],
+    systemId: r.systemId,
   }));
 }
 
@@ -35,7 +37,7 @@ export async function countCustomStructures(userId: string): Promise<number> {
 
 export async function createCustomStructure(
   userId: string,
-  input: { id: string; name: string; structureTypeId: number; rigTypeIds: number[] },
+  input: { id: string; name: string; structureTypeId: number; rigTypeIds: number[]; systemId: number | null },
 ): Promise<void> {
   await db.insert(customStructures).values({
     id: input.id,
@@ -43,6 +45,7 @@ export async function createCustomStructure(
     name: input.name,
     structureTypeId: input.structureTypeId,
     rigTypeIds: input.rigTypeIds,
+    systemId: input.systemId,
   });
 }
 
@@ -51,5 +54,18 @@ export async function createCustomStructure(
 export async function deleteCustomStructure(userId: string, id: string): Promise<void> {
   await db
     .delete(customStructures)
+    .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
+}
+
+// Ownership-scoped pin update (null = unpin) — the same no-op-for-unowned-rows
+// predicate as delete.
+export async function setCustomStructurePin(
+  userId: string,
+  id: string,
+  systemId: number | null,
+): Promise<void> {
+  await db
+    .update(customStructures)
+    .set({ systemId })
     .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
 }

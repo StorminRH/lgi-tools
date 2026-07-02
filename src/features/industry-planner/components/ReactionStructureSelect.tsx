@@ -10,7 +10,7 @@ import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
 import type { AvailableStructure } from '../types';
 import { usePricing, type SelectedReactionSystem } from './PricingProvider';
 import { StructureBonusPills } from './structure-bonus-pills';
-import { useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
+import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
 // The reaction group's SYSTEM row (3.7.12.2), ALWAYS visible — the mirror of the
 // "Build at" row above it, so the reaction side has its own independent system at all

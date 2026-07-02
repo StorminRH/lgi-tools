@@ -10,8 +10,15 @@ import { user } from '@/features/auth/schema';
 //
 // NO security column ON PURPOSE: a structure's rig bonus scales against the
 // SECURITY of the planner's selected build system at planning time, never a
-// property of the structure record. `rig_type_ids` is stored as JSONB (the
-// corp_structure_syncs.page_etags precedent), not a pg array.
+// property of the structure record. `system_id` (3.7.13.2) is an OPTIONAL pin
+// and does not bend that rule — it is a home SYSTEM, not a security band: a
+// pinned structure appears only in that system's build list and selecting it
+// points the planner at the system, which still supplies the security at
+// select-time. Null = portable (shown in every system's list). No FK on
+// system_id: eve_solar_systems is TRUNCATEd + rebuilt on every SDE re-ingest,
+// so an FK would block the ingest (the corp_structures posture); the pin
+// routes validate existence at the boundary instead. `rig_type_ids` is stored
+// as JSONB (the corp_structure_syncs.page_etags precedent), not a pg array.
 export const customStructures = pgTable('custom_structures', {
   // App-generated (crypto.randomUUID) — opaque, never an ESI/SDE id.
   id: text('id').primaryKey(),
@@ -21,5 +28,6 @@ export const customStructures = pgTable('custom_structures', {
   name: text('name').notNull(),
   structureTypeId: integer('structure_type_id').notNull(),
   rigTypeIds: jsonb('rig_type_ids').$type<number[]>().notNull().default([]),
+  systemId: integer('system_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

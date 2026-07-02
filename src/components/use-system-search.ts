@@ -4,14 +4,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { getLoadedSystems, loadSystems, matchSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { searchAll } from '@/search';
 
-// The read-only build-system search, shared by the two location slots (Build
-// at / React at). ONE search path (3.7.13.2): `suggest` dispatches the scoped
-// systems source through the engine — searchAll(q, ctx, ['systems']) — while
-// `parse` (Enter-to-submit) and the deduce-lock lookups resolve exactly over
-// the SAME memoized index via the eve-data snapshot. It carries NO selection
-// state: the build slot layers its heavy system loader (cost indices +
-// adjusted prices) on top, while the reaction slot only needs a system's
-// name + security, so it just reads the matched entry.
+// The read-only universe-system search for a TerminalSearch picker — SHARED
+// zone: the planner's two location slots (Build at / React at) and the
+// custom-structure builder's pin control all wire the same hook (features
+// can't import each other, so the wiring lives here beside GlobalSearch).
+// ONE search path (3.7.13.2): `suggest` dispatches the scoped systems source
+// through the engine — searchAll(q, ctx, ['systems']) — while `parse`
+// (Enter-to-submit) and the deduce-lock lookups resolve exactly over the SAME
+// memoized index via the eve-data snapshot. It carries NO selection state:
+// consumers read the matched entry and keep their own picks.
 
 export type SystemParams = { system: SystemSearchEntry };
 export type SystemErr = { kind: 'not_found' };

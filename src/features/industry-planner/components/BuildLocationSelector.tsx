@@ -17,7 +17,7 @@ import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
 import type { AvailableStructure, IndustryStationView } from '../types';
 import { usePricing } from './PricingProvider';
 import { StructureBonusPills } from './structure-bonus-pills';
-import { useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
+import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
 // The station's display label: its full in-game name (compacted) when ESI has
 // resolved one, else the station-operation label as a fallback.

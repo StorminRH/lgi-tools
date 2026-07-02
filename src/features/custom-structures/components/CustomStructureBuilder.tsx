@@ -5,12 +5,15 @@ import { RigSupply } from '@/components/RigSupply';
 import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
+import { TerminalSearch } from '@/components/ui/terminal-search';
+import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 import {
   SDE_CITADEL_GROUP_ID,
   SDE_ENGINEERING_COMPLEX_GROUP_ID,
   SDE_REFINERY_GROUP_ID,
 } from '@/data/eve-data/constants';
 import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
+import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { apiFetch } from '@/lib/api-client';
 import {
   createCustomStructureEndpoint,
@@ -18,6 +21,7 @@ import {
   MAX_CUSTOM_STRUCTURE_NAME_LEN,
   MAX_CUSTOM_STRUCTURE_RIGS,
   parseStructureFitEndpoint,
+  setCustomStructurePinEndpoint,
 } from '../api-contract';
 import type { CustomStructureRow } from '../types';
 
@@ -49,6 +53,11 @@ export function CustomStructureBuilder({
   const [paste, setPaste] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The optional system pin for the structure being built (null = portable),
+  // and the saved row currently showing an inline pin picker.
+  const [pin, setPin] = useState<SystemSearchEntry | null>(null);
+  const [pinningId, setPinningId] = useState<string | null>(null);
+  const { systems, parse, suggest } = useSystemSearch();
 
   const typeName = useMemo(
     () => new Map(structureTypes.map((t) => [t.typeId, t.name])),
@@ -95,7 +104,7 @@ export function CustomStructureBuilder({
     setError(null);
     const rigTypeIds = rigSlots.filter((x): x is number => x !== null);
     const res = await apiFetch(createCustomStructureEndpoint, {
-      body: { name: name.trim(), structureTypeId, rigTypeIds },
+      body: { name: name.trim(), structureTypeId, rigTypeIds, systemId: pin?.id ?? null },
       cache: 'no-store',
     });
     setBusy(false);
@@ -106,6 +115,7 @@ export function CustomStructureBuilder({
     setStructures(res.data.structures);
     setName('');
     setPaste('');
+    setPin(null);
     chooseStructure(null);
   }
 
@@ -115,6 +125,24 @@ export function CustomStructureBuilder({
     const res = await apiFetch(deleteCustomStructureEndpoint, { body: { id }, cache: 'no-store' });
     setBusy(false);
     if (res.ok) setStructures(res.data.structures);
+  }
+
+  async function onSetPin(id: string, systemId: number | null) {
+    if (busy) return;
+    setBusy(true);
+    const res = await apiFetch(setCustomStructurePinEndpoint, { body: { id, systemId }, cache: 'no-store' });
+    setBusy(false);
+    if (res.ok) {
+      setStructures(res.data.structures);
+      setPinningId(null);
+    }
+  }
+
+  // The pin's display name resolves from the loaded universe index; the raw id
+  // is the fallback while the index is still fetching.
+  function pinLabel(systemId: number): string {
+    const sys = systems.find((s) => s.id === systemId);
+    return sys ? `${sys.name} ${formatSec(sys.security)}` : `System ${systemId}`;
   }
 
   const canSave = structureTypeId !== null && name.trim().length > 0 && !busy;
@@ -185,6 +213,41 @@ export function CustomStructureBuilder({
           />
         </label>
 
+        {/* The optional system pin: a pinned structure appears only in that
+            system's build list and locks the planner to it on select; leaving
+            this empty saves a portable structure (shown everywhere). */}
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Pin to system (optional)</span>
+          {pin ? (
+            <div className="flex items-center gap-2">
+              <Pill tone="blue">
+                {pin.name} {formatSec(pin.security)}
+              </Pill>
+              <button
+                type="button"
+                onClick={() => setPin(null)}
+                className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text"
+              >
+                Clear
+              </button>
+            </div>
+          ) : (
+            <div className="w-full max-w-[320px]">
+              <TerminalSearch<SystemParams, SystemErr>
+                initialValue=""
+                placeholder="System name — leave empty for portable"
+                parse={parse}
+                suggest={suggest}
+                errorMessage={() => 'No system matches that name.'}
+                onSubmit={({ system }) => setPin(system)}
+                onClear={() => setPin(null)}
+                errorLabel="System"
+                hint="Pinned structures show only in that system's build list"
+              />
+            </div>
+          )}
+        </div>
+
         {error && <p className="text-[11px] text-tone-red">{error}</p>}
 
         <button
@@ -223,14 +286,50 @@ export function CustomStructureBuilder({
                   </Pill>
                 ))}
                 {s.rigTypeIds.length === 0 && <span className="text-[10px] text-muted">no rigs</span>}
-                <button
-                  type="button"
-                  onClick={() => onDelete(s.id)}
-                  disabled={busy}
-                  className="ml-auto text-[10px] uppercase tracking-[0.12em] text-muted hover:text-tone-red disabled:text-muted"
-                >
-                  Delete
-                </button>
+                {s.systemId !== null && <Pill tone="blue">Pinned · {pinLabel(s.systemId)}</Pill>}
+                <span className="ml-auto flex items-center gap-3">
+                  {s.systemId !== null ? (
+                    <button
+                      type="button"
+                      onClick={() => onSetPin(s.id, null)}
+                      disabled={busy}
+                      className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+                    >
+                      Unpin
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setPinningId(pinningId === s.id ? null : s.id)}
+                      disabled={busy}
+                      className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+                    >
+                      Pin…
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onDelete(s.id)}
+                    disabled={busy}
+                    className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-tone-red disabled:text-muted"
+                  >
+                    Delete
+                  </button>
+                </span>
+                {pinningId === s.id && s.systemId === null && (
+                  <div className="w-full max-w-[320px]">
+                    <TerminalSearch<SystemParams, SystemErr>
+                      initialValue=""
+                      placeholder="Pin to system — type a name"
+                      parse={parse}
+                      suggest={suggest}
+                      errorMessage={() => 'No system matches that name.'}
+                      onSubmit={({ system }) => onSetPin(s.id, system.id)}
+                      onClear={() => setPinningId(null)}
+                      errorLabel="System"
+                    />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

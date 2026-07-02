@@ -1,0 +1,1 @@
+ALTER TABLE "custom_structures" ADD COLUMN "system_id" integer;

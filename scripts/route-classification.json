@@ -83,6 +83,7 @@
     "/api/account/custom-structures": "dynamic",
     "/api/account/custom-structures/delete": "dynamic",
     "/api/account/custom-structures/parse-fit": "dynamic",
+    "/api/account/custom-structures/set-pin": "dynamic",
     "/api/account/structures": "dynamic",
     "/api/admin/characters/reassign": "dynamic",
     "/api/admin/characters/unlink": "dynamic",

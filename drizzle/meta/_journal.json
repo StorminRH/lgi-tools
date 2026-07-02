@@ -260,6 +260,13 @@
       "when": 1782811676454,
       "tag": "0036_new_nico_minoru",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1782958133849,
+      "tag": "0037_great_silver_sable",
+      "breakpoints": true
     }
   ]
 }
