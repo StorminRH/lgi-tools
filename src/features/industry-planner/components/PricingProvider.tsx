@@ -366,21 +366,24 @@ export function PricingProvider({
   const reactionSecurity = reactionSystem?.security ?? null;
   // The REACTION system's fee inputs (3.7.13.3 — the #187 seam live): its 'reaction'
   // cost index + the blueprint's adjusted prices, fetched below for a reaction
-  // blueprint once a reaction system is picked. Query-keyed by the system it was
-  // fetched FOR (the sync-setState-free invalidation shape): the state is only
-  // ever set from the fetch callback, and `reactionLocation` below derives to
-  // null whenever the stored system no longer matches the picked one — so an
-  // unpick needs no effect-body clear, and the net path stays honestly
-  // unavailable until real inputs exist (never a fake zero).
+  // blueprint once a reaction system is picked. Query-keyed by BOTH the system
+  // and the blueprint it was fetched FOR (the sync-setState-free invalidation
+  // shape): the state is only ever set from the fetch callback, and
+  // `reactionLocation` below derives to null whenever either key stops matching
+  // — so an unpick or a blueprint switch needs no effect-body clear, a prior
+  // blueprint's adjusted prices can never feed this one's EIV, and the net path
+  // stays honestly unavailable until real inputs exist (never a fake zero).
   const [fetchedReactionLocation, setFetchedReactionLocation] = useState<{
     systemId: number;
+    blueprintTypeId: number;
     costIndex: number | null;
     adjustedPrices: Map<number, number>;
   } | null>(null);
   const reactionLocation =
     structure.activityId === REACTION_ACTIVITY &&
     fetchedReactionLocation !== null &&
-    fetchedReactionLocation.systemId === reactionSystem?.systemId
+    fetchedReactionLocation.systemId === reactionSystem?.systemId &&
+    fetchedReactionLocation.blueprintTypeId === structure.blueprintTypeId
       ? fetchedReactionLocation
       : null;
   // The no-double-select rule holds in STATE, not just in the option lists: picking
@@ -738,6 +741,7 @@ export function PricingProvider({
         if (ignore || !res.ok) return;
         setFetchedReactionLocation({
           systemId: reactionSystemId,
+          blueprintTypeId: structure.blueprintTypeId,
           costIndex: res.data.costIndices.reaction ?? null,
           adjustedPrices: new Map(res.data.adjustedPrices.map((p) => [p.typeId, p.adjustedPrice])),
         });

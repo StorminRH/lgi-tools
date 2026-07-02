@@ -92,6 +92,14 @@ describe('parseFacilityTaxDraft', () => {
       expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
     }
   });
+
+  it('rejects non-decimal numeric forms Number() would otherwise admit', () => {
+    // '1e1' and '0xa' both evaluate to 10 (in-cap) via Number(), but a pasted or
+    // programmatic value in those forms is not a plain percent entry.
+    for (const draft of ['1e1', '0xa', '1.', '.5', '+1', ' 1 2 ']) {
+      expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
+    }
+  });
 });
 
 describe('computeJobInstallationFee', () => {

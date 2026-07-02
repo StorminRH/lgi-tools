@@ -74,12 +74,15 @@ export function effectiveFacilityTaxRate(enteredPct: number | null): number {
 // A facility-tax entry-field draft → the wire value, shared by every tax entry
 // surface (the structure builder + the corp completion editor): empty = null
 // (never entered — the fee path then assumes the NPC baseline), else a percent
-// inside the in-game cap. An entered 0 is a real 0% rate.
+// inside the in-game cap. An entered 0 is a real 0% rate. Plain decimals only —
+// Number() alone would also admit scientific/hex forms ('1e1', '0xa') that a
+// programmatic or pasted value could carry.
 export function parseFacilityTaxDraft(
   draft: string,
 ): { ok: true; value: number | null } | { ok: false } {
   const t = draft.trim();
   if (t === '') return { ok: true, value: null };
+  if (!/^\d+(\.\d+)?$/.test(t)) return { ok: false };
   const n = Number(t);
   if (!Number.isFinite(n) || n < 0 || n > MAX_FACILITY_TAX_PCT) return { ok: false };
   return { ok: true, value: n };
