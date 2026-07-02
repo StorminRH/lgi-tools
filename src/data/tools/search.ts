@@ -7,6 +7,7 @@ import { fuzzyMatch } from '@/search/match';
 import { TOOLS } from './registry';
 
 export const toolsSearchSource: SearchSource = {
+  id: 'tools',
   name: 'Tools',
   limit: 5,
   async search(query) {

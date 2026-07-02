@@ -9,6 +9,7 @@ import type { SearchResult, SearchSource } from '@/search';
 import { fuzzyMatch } from '@/search/match';
 
 export const recentsSearchSource: SearchSource = {
+  id: 'recents',
   name: 'Recent',
   limit: 5,
   showOnEmpty: true,
