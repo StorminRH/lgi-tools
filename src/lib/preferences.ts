@@ -91,6 +91,14 @@ const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
 // The known keys, for the API contract's enum and the server trust boundary.
 export const PREFERENCE_KEYS: readonly string[] = PREFERENCES.map((p) => p.key);
 
+// Registry lookup by key — for layers handed a preference REFERENCE (a
+// page-settings control key) rather than importing a def directly. Unknown keys
+// return undefined and the caller drops them; anti-drift (every spec key is a
+// registered preference) is the page-settings engine test's job.
+export function getPreferenceDef(key: string): PreferenceDef<unknown> | undefined {
+  return BY_KEY.get(key);
+}
+
 // Server trust boundary: is `value` a valid payload for this known `key`? The
 // route's enum already guarantees the key is known; this guarantees the value
 // matches that key's schema before it reaches the KV store.

@@ -98,3 +98,10 @@ export function Menu({
 // without reaching for the raw Base UI import (matching how `dialog.tsx` re-exports
 // its Close). Renders an `<a>`; pass `render={<Link … />}` to compose with Next.
 export const MenuLinkItem = Base.LinkItem;
+
+// The non-link action row (closes the menu on select by default) and the section
+// divider, re-exported on the same terms as MenuLinkItem. First consumer is the
+// account menu's global half; the Run-As selector (ACCOUNT.8) composes the same
+// parts.
+export const MenuItem = Base.Item;
+export const MenuSeparator = Base.Separator;

@@ -3,9 +3,15 @@
 import { CharacterPortrait } from '@/components/character-portrait';
 import { Chip } from '@/components/ui/chip';
 import { authClient } from '../auth-client';
+import { AccountMenu } from './AccountMenu';
 import { useAuth } from './AuthProvider';
 
-export function LoginButton() {
+// `variant` picks the signed-in cluster's shape: 'menu' (default) renders the
+// portrait as the account-menu trigger (the desktop header); 'flat' renders the
+// legacy portrait-link + Log out button — the hamburger footer's shape, where a
+// menu must never nest inside the NavMenu popup. Loading + signed-out render
+// identically in both.
+export function LoginButton({ variant = 'menu' }: { variant?: 'menu' | 'flat' }) {
   const { session, isAdmin: showAdminLink, loading } = useAuth();
 
   // Neutral placeholder until the session resolves — same footprint as the
@@ -44,6 +50,45 @@ export function LoginButton() {
     );
   }
 
+  if (variant === 'flat') {
+    return (
+      <div className="flex items-center gap-3">
+        {showAdminLink ? (
+          <a href="/admin" title="Open the admin dashboard">
+            <Chip tone="purple">Admin</Chip>
+          </a>
+        ) : null}
+        <a
+          href="/characters"
+          title={session.name}
+          aria-label={`${session.name} — manage your characters`}
+          className="flex items-center hover:opacity-80 transition-opacity"
+        >
+          <CharacterPortrait
+            characterId={session.characterId}
+            name={session.name}
+            size={32}
+            src={session.portraitUrl}
+            loading="eager"
+          />
+        </a>
+        <button
+          type="button"
+          onClick={() => {
+            // Clear the session, then hard-navigate home so cached server-component
+            // output that referenced the now-gone session is dropped.
+            void authClient.signOut().finally(() => {
+              window.location.href = '/';
+            });
+          }}
+          className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text px-2 py-1 transition-colors"
+        >
+          Log out
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3">
       {showAdminLink ? (
@@ -51,33 +96,7 @@ export function LoginButton() {
           <Chip tone="purple">Admin</Chip>
         </a>
       ) : null}
-      <a
-        href="/characters"
-        title={session.name}
-        aria-label={`${session.name} — manage your characters`}
-        className="flex items-center hover:opacity-80 transition-opacity"
-      >
-        <CharacterPortrait
-          characterId={session.characterId}
-          name={session.name}
-          size={32}
-          src={session.portraitUrl}
-          loading="eager"
-        />
-      </a>
-      <button
-        type="button"
-        onClick={() => {
-          // Clear the session, then hard-navigate home so cached server-component
-          // output that referenced the now-gone session is dropped.
-          void authClient.signOut().finally(() => {
-            window.location.href = '/';
-          });
-        }}
-        className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text px-2 py-1 transition-colors"
-      >
-        Log out
-      </button>
+      <AccountMenu session={session} />
     </div>
   );
 }

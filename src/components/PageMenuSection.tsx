@@ -1,0 +1,53 @@
+'use client';
+
+// The portrait menu's DYNAMIC half (ACCOUNT.5): the current route's
+// page-settings section, read from the ACCOUNT.4 slot (usePageSettings — the one
+// resolution path) and rendered as live segmented preference controls. Routes
+// with no spec (or no renderable section controls) render NOTHING — no
+// empty-state filler, no dangling divider.
+//
+// The rows are NON-item popup content (the nav-menu-login precedent), so
+// selecting a value deliberately does not close the menu — adjust, watch the
+// page change behind, adjust again. Every binding of a preference key shares
+// PreferencesProvider state, so the /sites on-page toggles and these rows stay
+// in sync live.
+//
+// Shared zone on purpose: it bridges the page-settings layer to the auth
+// feature's menu without either importing the other, and it is where ACCOUNT.7
+// mounts the per-surface character strip (spec.strip). No usePathname and no
+// Suspense here — PageMenuProvider already isolates the request-time read
+// (the #182 lesson).
+
+import { usePageSettings } from '@/components/PageMenuProvider';
+import { usePreference } from '@/components/PreferencesProvider';
+import { Segmented } from '@/components/ui/segmented';
+import { resolveMenuControls, type MenuControlModel } from '@/page-settings/controls';
+
+// Own component so usePreference is never called inside a map.
+function ControlRow({ model }: { model: MenuControlModel }) {
+  const [value, setValue] = usePreference(model.def);
+  return (
+    <div className="account-menu-control">
+      <span className="account-menu-control-label">{model.label}</span>
+      <Segmented options={model.options} value={value} onChange={setValue} label={model.label} />
+    </div>
+  );
+}
+
+export function PageMenuSection() {
+  const spec = usePageSettings();
+  const models = resolveMenuControls(spec);
+  if (models.length === 0) return null;
+
+  const title = spec?.title ?? 'Page settings';
+  return (
+    <div className="account-menu-section" role="group" aria-label={title}>
+      <div className="account-menu-group-label" aria-hidden="true">
+        {title}
+      </div>
+      {models.map((model) => (
+        <ControlRow key={model.key} model={model} />
+      ))}
+    </div>
+  );
+}

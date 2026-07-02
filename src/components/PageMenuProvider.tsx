@@ -2,9 +2,9 @@
 
 // The page-menu slot (ACCOUNT.4). A client provider, mounted once in the root
 // layout, that resolves the current route's page-settings spec and hands it to
-// whoever reads the slot — the portrait menu's dynamic half (ACCOUNT.5) and the
-// /dev/page-settings harness today. The global shell never imports a feature: it
-// reads the resolved spec through usePageSettings().
+// whoever reads the slot — the portrait menu's dynamic half (PageMenuSection,
+// ACCOUNT.5). The global shell never imports a feature: it reads the resolved
+// spec through usePageSettings().
 //
 // Provider-slot, NOT Next parallel routes — the page never pushes; the wiring
 // manifest maps route→spec and the slot resolves usePathname() against it.
@@ -60,9 +60,9 @@ export function PageMenuProvider({
   pathname,
   children,
 }: {
-  // Optional override for tests + the /dev harness, which resolve a sample route
-  // with no Next router mounted. Resolved synchronously; the live watcher is
-  // skipped. In the app it is omitted and the live pathname is used.
+  // Optional override for tests, which resolve a sample route with no Next
+  // router mounted. Resolved synchronously; the live watcher is skipped. In the
+  // app it is omitted and the live pathname is used.
   pathname?: string;
   children?: ReactNode;
 }) {
