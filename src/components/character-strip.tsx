@@ -55,6 +55,14 @@ export function CharacterStrip({
         {characters.map((character) => {
           const state = stripState(character, dimmedIds);
           const isLocked = state === 'locked';
+          // One phrase names the ACTION for both the accessible name and the
+          // tooltip — aria-label overrides title as the accessible name, so a
+          // name-only label would leave the Hide/Show verb unannounced.
+          const actionLabel = isLocked
+            ? `Reconnect ${character.name} to track`
+            : state === 'dimmed'
+              ? `Show ${character.name}`
+              : `Hide ${character.name}`;
           return (
             <button
               key={character.characterId}
@@ -68,16 +76,8 @@ export function CharacterStrip({
                 if (next !== null) onChange(next);
               }}
               aria-pressed={isLocked ? undefined : state === 'lit'}
-              aria-label={
-                isLocked ? `Reconnect ${character.name} to track` : character.name
-              }
-              title={
-                isLocked
-                  ? `Reconnect ${character.name} to track`
-                  : state === 'dimmed'
-                    ? `Show ${character.name}`
-                    : `Hide ${character.name}`
-              }
+              aria-label={actionLabel}
+              title={actionLabel}
               className={portraitButton({ state })}
             >
               <CharacterPortrait
