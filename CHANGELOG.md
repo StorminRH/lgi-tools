@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.16.1 — 2026-07-02
+
+#### Added
+- An account settings page, reached from the account menu's "Account settings" entry (no longer marked coming soon). It gathers account-wide settings in one place, and new settings will appear there as they ship.
+
+#### Changed
+- The corporation structure-sharing toggle moved from the Structures page to the new account settings page. It works exactly as before — Station Managers only, and turning sharing off still asks for confirmation before removing the shared structures, their rig fits, and facility taxes. The Structures page now links to account settings instead of hosting the toggle.
+
 ### v3.7.15.1 — 2026-07-02
 
 #### Added
