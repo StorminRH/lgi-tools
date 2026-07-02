@@ -9,7 +9,7 @@
 // presentation, focus management, click-outside-to-close, Enter-to-submit,
 // suggestion-click-to-submit, and error display all come for free.
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Callout } from './callout';
 
 type ParseOk<Params> = { ok: true; params: Params };
@@ -20,7 +20,10 @@ export type TerminalSearchProps<Params, Err> = {
   initialValue: string;
   placeholder?: string;
   parse: (input: string) => ParseResult<Params, Err>;
-  suggest: (input: string) => string[];
+  // Sync or async. An async suggest resolves latest-wins per keystroke; it
+  // must be identity-stable (useCallback) or the suggestion effect re-fires
+  // on every render.
+  suggest: (input: string) => string[] | Promise<string[]>;
   errorMessage: (error: Err) => string;
   onSubmit: (params: Params, raw: string) => void;
   onClear: () => void;
@@ -49,7 +52,29 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const inputId = useId();
 
-  const suggestions = useMemo(() => suggest(value), [value, suggest]);
+  // Suggestions land in state so `suggest` may be async (the system pickers
+  // dispatch through the search engine). Sync and async returns both resolve
+  // through the microtask below, latest-wins (the alive flag drops a stale
+  // resolution — and keeps setState out of the effect's synchronous body,
+  // which the react-hooks rules ban). An emptied input renders no
+  // suggestions via the derive below, so stale async state never flashes.
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  useEffect(() => {
+    if (value.trim().length === 0) return;
+    let alive = true;
+    Promise.resolve(suggest(value)).then(
+      (s) => {
+        if (alive) setSuggestions(s);
+      },
+      () => {
+        if (alive) setSuggestions([]);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [value, suggest]);
+  const visibleSuggestions = value.trim().length === 0 ? [] : suggestions;
 
   // Click outside / Esc to close the dropdown.
   useEffect(() => {
@@ -110,7 +135,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
     submitParsedString(s);
   };
 
-  const showDropdown = open && suggestions.length > 0 && error === null;
+  const showDropdown = open && visibleSuggestions.length > 0 && error === null;
 
   return (
     <div ref={wrapperRef} className="relative w-full">
@@ -142,7 +167,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
           role="listbox"
           className="absolute z-20 left-0 right-0 mt-1 max-h-[240px] overflow-y-auto bg-bg border border-border-idle shadow-lg"
         >
-          {suggestions.map((s) => (
+          {visibleSuggestions.map((s) => (
             <li key={s}>
               <button
                 type="button"

@@ -1,43 +1,31 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { loadSystems, matchSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { getLoadedSystems, loadSystems, matchSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { searchAll } from '@/search';
 
 // The read-only build-system search, shared by the two location slots (Build
-// at / React at). Wraps the eve-data universe index (loader + matchSystem) for
-// TerminalSearch: parse resolves free text to one system, suggest feeds the
-// dropdown. It carries NO selection state: the build slot layers its heavy
-// system loader (cost indices + adjusted prices) on top, while the reaction
-// slot only needs a system's name + security, so it just reads the matched
-// entry.
-
-const MAX_SUGGESTIONS = 10;
+// at / React at). ONE search path (3.7.13.2): `suggest` dispatches the scoped
+// systems source through the engine — searchAll(q, ctx, ['systems']) — while
+// `parse` (Enter-to-submit) and the deduce-lock lookups resolve exactly over
+// the SAME memoized index via the eve-data snapshot. It carries NO selection
+// state: the build slot layers its heavy system loader (cost indices +
+// adjusted prices) on top, while the reaction slot only needs a system's
+// name + security, so it just reads the matched entry.
 
 export type SystemParams = { system: SystemSearchEntry };
 export type SystemErr = { kind: 'not_found' };
 
-// Prefix matches first, then substring matches, capped — the terminal-search suggestions.
-export function suggestSystemNames(systems: SystemSearchEntry[], input: string): string[] {
-  const q = input.trim().toLowerCase();
-  if (q.length === 0) return [];
-  const starts: string[] = [];
-  const contains: string[] = [];
-  for (const s of systems) {
-    const name = s.name.toLowerCase();
-    if (name.startsWith(q)) starts.push(s.name);
-    else if (name.includes(q)) contains.push(s.name);
-  }
-  return [...starts, ...contains].slice(0, MAX_SUGGESTIONS);
-}
-
 export interface SystemSearch {
   systems: SystemSearchEntry[];
   parse: (input: string) => { ok: true; params: SystemParams } | { ok: false; error: SystemErr };
-  suggest: (input: string) => string[];
+  suggest: (input: string) => Promise<string[]>;
 }
 
 export function useSystemSearch(): SystemSearch {
-  const [systems, setSystems] = useState<SystemSearchEntry[]>([]);
+  // Seeded from the shared snapshot so a second mount (the reaction row, a
+  // route revisit) reads the already-loaded index synchronously.
+  const [systems, setSystems] = useState<SystemSearchEntry[]>(() => getLoadedSystems() ?? []);
 
   useEffect(() => {
     let alive = true;
@@ -46,7 +34,8 @@ export function useSystemSearch(): SystemSearch {
         if (alive) setSystems(s);
       })
       .catch(() => {
-        // index unavailable — the caller stays empty / gross-only
+        // index unavailable — parse stays empty for now; a later suggest
+        // keystroke retries the same memoized loader and heals it below
       });
     return () => {
       alive = false;
@@ -61,7 +50,15 @@ export function useSystemSearch(): SystemSearch {
     [systems],
   );
 
-  const suggest = useCallback((input: string): string[] => suggestSystemNames(systems, input), [systems]);
+  // Identity-stable (zero deps) — TerminalSearch's suggestion effect keys on
+  // it. The scoped dispatch loads the same memoized index parse reads, so a
+  // failed mount-time load heals on the first successful keystroke (no
+  // suggestions-work-but-Enter-fails split).
+  const suggest = useCallback(async (input: string): Promise<string[]> => {
+    const sections = await searchAll(input, { session: null, isAdmin: false, recents: [] }, ['systems']);
+    setSystems((prev) => (prev.length === 0 ? getLoadedSystems() ?? prev : prev));
+    return sections[0]?.results.map((r) => r.label) ?? [];
+  }, []);
 
   return { systems, parse, suggest };
 }
