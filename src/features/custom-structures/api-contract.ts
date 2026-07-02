@@ -3,6 +3,7 @@
 // parses it — a renamed field fails tsc on both sides. apiFetch only speaks
 // GET/POST, so delete is a POST sub-route, not an HTTP DELETE.
 import { z } from 'zod';
+import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import type { ApiEndpoint } from '@/lib/api-client';
 import type { CustomStructureRow } from './types';
 
@@ -16,6 +17,10 @@ export const MAX_STRUCTURE_FIT_LEN = 8000; // a generous clipboard ceiling
 
 const typeId = z.number().int().positive().max(PG_INT4_MAX);
 
+// Facility tax entry: a percent with decimals, bounded by the in-game cap
+// (0–10%). The bound lives once, in the fee leaf.
+const facilityTaxPct = z.number().min(0).max(MAX_FACILITY_TAX_PCT);
+
 // The shared response shape for the mutating endpoints below: the caller's full
 // saved-structure list, echoed back so the builder re-renders without a refetch
 // (the page provides the initial list server-side, so there is no GET endpoint).
@@ -25,6 +30,7 @@ const customStructureRowSchema = z.object({
   structureTypeId: z.number(),
   rigTypeIds: z.array(z.number()),
   systemId: z.number().nullable(),
+  taxPct: z.number().nullable(),
 }) satisfies z.ZodType<CustomStructureRow>;
 
 export const customStructuresResponseSchema = z.object({
@@ -44,6 +50,10 @@ export const createCustomStructureRequestSchema = z.object({
   // The optional system pin — null (the default) saves a portable structure.
   // The route confirms a non-null id is a real solar system.
   systemId: typeId.nullable().default(null),
+  // The optional facility tax — null (the default) means never entered, so the
+  // fee path assumes the 0.25% NPC baseline. Default-null is safe on create
+  // (there is no stored value to clobber).
+  taxPct: facilityTaxPct.nullable().default(null),
 });
 export type CreateCustomStructureRequest = z.input<typeof createCustomStructureRequestSchema>;
 
@@ -92,6 +102,27 @@ export const setCustomStructurePinEndpoint: ApiEndpoint<
   method: 'POST',
   path: '/api/account/custom-structures/set-pin',
   request: setCustomStructurePinRequestSchema,
+  response: customStructuresResponseSchema,
+};
+
+// ── POST /api/account/custom-structures/set-tax ──────────────────────────
+// Set or clear (null) the facility tax on one of the caller's own structures.
+// Ownership-scoped in the query like set-pin (a foreign id is a no-op). An
+// entered 0 is a real 0% rate, distinct from null/never-entered. Echoes back
+// the updated list.
+export const setCustomStructureTaxRequestSchema = z.object({
+  id: z.string().min(1).max(100),
+  taxPct: facilityTaxPct.nullable(),
+});
+export type SetCustomStructureTaxRequest = z.input<typeof setCustomStructureTaxRequestSchema>;
+
+export const setCustomStructureTaxEndpoint: ApiEndpoint<
+  SetCustomStructureTaxRequest,
+  CustomStructuresResponse
+> = {
+  method: 'POST',
+  path: '/api/account/custom-structures/set-tax',
+  request: setCustomStructureTaxRequestSchema,
   response: customStructuresResponseSchema,
 };
 

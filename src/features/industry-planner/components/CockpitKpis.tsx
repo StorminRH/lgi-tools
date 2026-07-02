@@ -8,6 +8,7 @@ import { formatPct } from '@/lib/format/number';
 import { formatBuildDuration, type BuildTimes } from '../build-time';
 import { selectNet, type MarginMode } from '../cockpit-margin';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
+import { REACTION_ACTIVITY } from '../structure-bonus';
 import { deriveMarginFigures, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure, NetMarginView } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
@@ -142,13 +143,17 @@ export function CockpitKpis({
   marginMode: MarginMode;
   setMarginMode: (m: MarginMode) => void;
 }) {
-  const { pricing, seeded, location, runs, buildTimes } = usePricing();
+  const { pricing, seeded, location, runs, buildTimes, reactionSystem, reactionNetAvailable } =
+    usePricing();
   const summary = pricing?.summary ?? null;
 
+  // The activity-matched fee source: a reaction blueprint's fee rides the
+  // reaction slot (or a build-slot refinery), not the build location alone.
+  const isReaction = structure.activityId === REACTION_ACTIVITY;
   const { net, netAvailable } = selectNet(
     pricing,
     structure.activityId,
-    location !== null,
+    isReaction ? reactionNetAvailable : location !== null,
     marginMode,
   );
   const { showNet, margin, marginPct, sign } = deriveMarginFigures(summary, net);
@@ -171,7 +176,17 @@ export function CockpitKpis({
           label={showNet ? 'Net margin' : 'Gross margin'}
           right={
             <span className="flex items-center gap-2">
-              {net && <FeeHover net={net} systemName={location?.systemName} />}
+              {/* The hover names the FEE-bearing system: the reaction system for a
+                  reaction blueprint (falling back to the build system when a
+                  build-slot refinery is the fee source). */}
+              {net && (
+                <FeeHover
+                  net={net}
+                  systemName={
+                    isReaction && reactionSystem ? reactionSystem.systemName : location?.systemName
+                  }
+                />
+              )}
               <GrossNetToggle showNet={showNet} netAvailable={netAvailable} setMode={setMarginMode} />
             </span>
           }

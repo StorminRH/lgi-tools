@@ -101,7 +101,9 @@ export async function getCorpStructuresForUserOnView(userId: string): Promise<Vi
 }
 
 // One corp-pulled structure flattened for the planner's build-location selector: the
-// stored row joined with the structure-manager's authored rig fit (empty when none).
+// stored row joined with the structure-manager's authored completion (rig fit, empty
+// when none; facility tax, null when never entered → the fee path assumes the 0.25%
+// NPC baseline).
 export interface AvailableCorpStructure {
   structureId: number;
   typeId: number;
@@ -109,6 +111,7 @@ export interface AvailableCorpStructure {
   securityClass: SecurityClass;
   name: string | null;
   rigTypeIds: number[];
+  taxPct: number | null;
 }
 
 // The corp-pulled structures the user may build in, flattened across their member
@@ -122,13 +125,15 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
   const out: AvailableCorpStructure[] = [];
   for (const corp of corporations) {
     for (const s of corp.structures) {
+      const completion = rigsByStructure.get(s.structureId);
       out.push({
         structureId: s.structureId,
         typeId: s.typeId,
         systemId: s.systemId,
         securityClass: s.securityClass,
         name: s.name,
-        rigTypeIds: rigsByStructure.get(s.structureId) ?? [],
+        rigTypeIds: completion?.rigTypeIds ?? [],
+        taxPct: completion?.taxPct ?? null,
       });
     }
   }
@@ -175,7 +180,11 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
       corporationName: names[String(corporationId)] ?? `Corporation ${corporationId}`,
       isStationManager: isStationManagerByCorp.get(corporationId) ?? false,
       sharingEnabled,
-      structures: rows.map((s) => ({ ...s, rigTypeIds: rigsByStructure.get(s.structureId) ?? [] })),
+      structures: rows.map((s) => ({
+        ...s,
+        rigTypeIds: rigsByStructure.get(s.structureId)?.rigTypeIds ?? [],
+        taxPct: rigsByStructure.get(s.structureId)?.taxPct ?? null,
+      })),
       lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
     };
   });

@@ -14,6 +14,7 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
       structureTypeId: customStructures.structureTypeId,
       rigTypeIds: customStructures.rigTypeIds,
       systemId: customStructures.systemId,
+      taxPct: customStructures.taxPct,
     })
     .from(customStructures)
     .where(eq(customStructures.userId, userId))
@@ -24,6 +25,7 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
     structureTypeId: r.structureTypeId,
     rigTypeIds: r.rigTypeIds ?? [],
     systemId: r.systemId,
+    taxPct: r.taxPct,
   }));
 }
 
@@ -37,7 +39,14 @@ export async function countCustomStructures(userId: string): Promise<number> {
 
 export async function createCustomStructure(
   userId: string,
-  input: { id: string; name: string; structureTypeId: number; rigTypeIds: number[]; systemId: number | null },
+  input: {
+    id: string;
+    name: string;
+    structureTypeId: number;
+    rigTypeIds: number[];
+    systemId: number | null;
+    taxPct: number | null;
+  },
 ): Promise<void> {
   await db.insert(customStructures).values({
     id: input.id,
@@ -46,6 +55,7 @@ export async function createCustomStructure(
     structureTypeId: input.structureTypeId,
     rigTypeIds: input.rigTypeIds,
     systemId: input.systemId,
+    taxPct: input.taxPct,
   });
 }
 
@@ -67,5 +77,18 @@ export async function setCustomStructurePin(
   await db
     .update(customStructures)
     .set({ systemId })
+    .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
+}
+
+// Ownership-scoped tax update (null = clear, back to the NPC-baseline
+// assumption) — the setCustomStructurePin twin.
+export async function setCustomStructureTax(
+  userId: string,
+  id: string,
+  taxPct: number | null,
+): Promise<void> {
+  await db
+    .update(customStructures)
+    .set({ taxPct })
     .where(and(eq(customStructures.userId, userId), eq(customStructures.id, id)));
 }

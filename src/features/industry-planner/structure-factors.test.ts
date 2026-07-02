@@ -21,6 +21,7 @@ const make = (over: Partial<AvailableStructure>): AvailableStructure => ({
   structureAttrs: {},
   rigAttrs: [],
   securityClass: null,
+  taxPct: null,
   ...over,
 });
 // An Engineering Complex carries manufacturing role attrs (2600 mat / 2602 time /

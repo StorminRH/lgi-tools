@@ -1,4 +1,11 @@
-import { computeNetMargin, type AdjustedPriceOf } from '@/data/industry-math/fees';
+import {
+  computeNetMargin,
+  DEFAULT_FEE_RATES,
+  effectiveFacilityTaxRate,
+  REACTION_SCC_SURCHARGE,
+  type AdjustedPriceOf,
+  type FeeRates,
+} from '@/data/industry-math/fees';
 import {
   computeBuildCost,
   computeMargin,
@@ -7,6 +14,7 @@ import {
 import type { DepthBand, PriceSource } from '@/data/market-prices/types';
 import { computeBatchMaterials, computeBatchMaterialsWithMe } from './build-batch';
 import type { ConfidenceInput } from './industry-styles';
+import { REACTION_ACTIVITY } from './structure-bonus';
 import type {
   BlueprintPricing,
   BlueprintStructure,
@@ -94,10 +102,13 @@ export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, Co
   return map;
 }
 
-// The manufacturing activity id — net margin is computed for manufacturing
-// blueprints only in v1 (reactions use a different SCC than the 4% default, so
-// their pages stay gross-only). The gate lives here so the math can never show a
-// manufacturing-rate net on a reaction, even if a caller passes fee inputs.
+// The manufacturing activity id. Net margin is computed for manufacturing AND
+// reaction top jobs (3.7.13.3) — each against its own cost index and facility
+// tax; reactions share the 4% SCC (the 2025-07 rework cut research only, so the
+// old "different SCC" rationale is gone — reactions were blocked on the missing
+// reaction-index seam, now live). The activity gate lives here so the math can
+// never fee a reaction at the manufacturing index: a reaction blueprint without
+// reaction fee inputs stays gross-only.
 // Exported so the hero gates the build-location selector on the same value.
 export const MANUFACTURING_ACTIVITY_ID = 1;
 
@@ -106,15 +117,30 @@ export interface AssembleOptions {
   // revenue (output units = quantityPerRun × runs), and the EIV base. Default 1.
   runs?: number;
   // Present once a build location is picked — the adapter feeds the net-margin
-  // leaf. `systemCostIndex` is the activity-matched index (null when the system
-  // has no stored index). `structureCostBonusPct` is the selected manufacturing
-  // structure's job-cost reduction (3.7.9.1.3, 0 with no structure). Omitted on
-  // the gross-only path (server seed / no location), so
+  // leaf. `systemCostIndex` is the BUILD system's manufacturing index (null when
+  // the system has no stored index). `structureCostBonusPct` is the selected
+  // manufacturing structure's job-cost reduction (3.7.9.1.3, 0 with no
+  // structure). `facilityTaxPct` is the build-slot structure's owner-entered
+  // facility tax PERCENT (3.7.13.3) — null/omitted = never entered, so the fee
+  // charges the 0.25% NPC baseline and byte-identical numbers. Omitted on the
+  // gross-only path (server seed / no location), so
   // `assemblePricing(structure, priceOf)` is byte-identical gross.
+  //
+  // `reaction` is the sibling for a REACTION blueprint's top job (3.7.13.3, the
+  // #187 seam live): the REACTION host system's 'reaction' index + the reaction
+  // host structure's entered tax. Absent ⇒ a reaction blueprint stays gross-only
+  // (the pre-3.7.13.3 behavior), even when the manufacturing keys are supplied —
+  // the gate's safety property: reactions can never fee at the manufacturing
+  // index.
   fee?: {
     adjustedPriceOf: AdjustedPriceOf;
     systemCostIndex: number | null;
     structureCostBonusPct?: number;
+    facilityTaxPct?: number | null;
+    reaction?: {
+      systemCostIndex: number | null;
+      facilityTaxPct?: number | null;
+    };
   };
   // Per-blueprint owned-ME lookup (3.7.5.2). Present only on the client once the
   // player's owned blueprints have loaded — it ME-reduces the cost-basis material
@@ -129,10 +155,10 @@ export interface AssembleOptions {
   structureMeFactorOf?: (blueprintTypeId: number) => number;
 }
 
-// Net margin for the FINAL build job only (3.5.2b "top job"). Null unless a
-// build location was supplied AND this is a manufacturing blueprint. The fee
-// covers the top job's installation fee; intermediate component jobs are not yet
-// charged — surfaced as "(excl. sub-job fees)" in the UI. Null-honesty is the
+// Net margin for the FINAL build job only (3.5.2b "top job"). Null unless fee
+// inputs were supplied AND this is a manufacturing or reaction blueprint (each
+// activity against its own index + facility tax; intermediate component jobs
+// are still not charged — the deferred full-tree walk). Null-honesty is the
 // leaf's: a null index nulls the install-fee total but keeps facility/SCC; a
 // missing adjusted price is flagged, never zeroed.
 function computeNet(
@@ -143,7 +169,32 @@ function computeNet(
   productSell: number | null,
   outputUnits: number,
 ): NetMarginView | null {
-  if (!fee || structure.activityId !== MANUFACTURING_ACTIVITY_ID) return null;
+  if (!fee) return null;
+  let systemCostIndex: number | null;
+  let enteredTaxPct: number | null;
+  let rates: FeeRates;
+  let structureCostBonusPct: number;
+  if (structure.activityId === MANUFACTURING_ACTIVITY_ID) {
+    systemCostIndex = fee.systemCostIndex;
+    enteredTaxPct = fee.facilityTaxPct ?? null;
+    rates = { ...DEFAULT_FEE_RATES, facilityTax: effectiveFacilityTaxRate(enteredTaxPct) };
+    structureCostBonusPct = fee.structureCostBonusPct ?? 0;
+  } else if (structure.activityId === REACTION_ACTIVITY && fee.reaction) {
+    systemCostIndex = fee.reaction.systemCostIndex;
+    enteredTaxPct = fee.reaction.facilityTaxPct ?? null;
+    rates = {
+      ...DEFAULT_FEE_RATES,
+      facilityTax: effectiveFacilityTaxRate(enteredTaxPct),
+      sccSurcharge: REACTION_SCC_SURCHARGE,
+    };
+    // Refineries carry no ISK cost bonus for reactions (game fact; the mfg-only
+    // structureCostBonusPct never applies here).
+    structureCostBonusPct = 0;
+  } else {
+    // A reaction blueprint without reaction fee inputs (gross-only, the safety
+    // gate), or an activity the fee path doesn't cover.
+    return null;
+  }
   // The top product's DIRECT ME0 inputs, scaled to `runs`. EIV scales linearly
   // with runs, so a per-run base × runs is the correct top-job EIV basis.
   const baseMaterials = (structure.buildTree[0]?.inputs ?? []).map((i) => ({
@@ -156,14 +207,17 @@ function computeNet(
     productQty: outputUnits,
     baseMaterials,
     adjustedPriceOf: fee.adjustedPriceOf,
-    systemCostIndex: fee.systemCostIndex,
-    structureCostBonusPct: fee.structureCostBonusPct,
+    systemCostIndex,
+    rates,
+    structureCostBonusPct,
   });
   return {
     netMargin: result.netMargin,
     netMarginPct: result.netMarginPct,
     netCost: result.netCost,
-    systemCostIndex: fee.systemCostIndex,
+    systemCostIndex,
+    facilityTaxRate: rates.facilityTax,
+    facilityTaxAssumed: enteredTaxPct === null,
     jobFee: result.jobFee,
     sellSide: result.sellSide,
   };

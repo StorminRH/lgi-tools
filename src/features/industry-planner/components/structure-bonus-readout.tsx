@@ -30,10 +30,22 @@ function Metric({ icon, title, value }: { icon: ReactNode; title: string; value:
 // the bonuses it actually hosts, so readouts never double up across the two slots;
 // the reaction contribution gets a tiny "rxn" marker only when it shares the line
 // with manufacturing parts (a lone-refinery build slot hosts both).
-export function StructureBonusReadout({ readout }: { readout: StructureReadout }) {
+//
+// `taxPct` is the slot structure's owner-ENTERED facility tax (3.7.13.3), shown
+// muted — a tax is a cost, not a bonus. Rendered only when entered (including a
+// real 0%); the unset 0.25%-assumed baseline stays out of the hero and lives in
+// the fee-breakdown hover instead.
+export function StructureBonusReadout({
+  readout,
+  taxPct,
+}: {
+  readout: StructureReadout;
+  taxPct?: number | null;
+}) {
   const mfg: StructureBonus | null = readout.mfg;
   const rxnTe = readout.rxn && readout.rxn.te > 0 ? readout.rxn.te : null;
-  if (mfg === null && rxnTe === null) return null;
+  const tax = taxPct ?? null;
+  if (mfg === null && rxnTe === null && tax === null) return null;
   return (
     <span className="inline-flex flex-wrap items-center gap-2.5">
       {mfg !== null && mfg.me > 0 && (
@@ -64,6 +76,14 @@ export function StructureBonusReadout({ readout }: { readout: StructureReadout }
             title={`Reaction TE −${pct(rxnTe)}`}
             value={pct(rxnTe)}
           />
+        </span>
+      )}
+      {tax !== null && (
+        <span
+          title={`Owner-set facility tax ${tax}%`}
+          className="font-mono text-[10px] leading-none text-muted"
+        >
+          tax {tax}%
         </span>
       )}
     </span>

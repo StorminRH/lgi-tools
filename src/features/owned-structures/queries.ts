@@ -213,35 +213,49 @@ export async function setCorpStructureSharing(
   revalidateTag(corpStructuresTag(corporationId), 'max');
 }
 
-// ── Authored rig fits (app-authored; survive the full-replace pull) ───────────────
+// ── Authored completions (app-authored; survive the full-replace pull) ────────────
 
-// The authored rig fits for a set of corps, keyed by structureId (globally unique in
-// EVE, so no cross-corp collision). A structure with no row contributes no rigs.
-export async function getCorpStructureRigs(
-  corporationIds: number[],
-): Promise<Map<number, number[]>> {
-  if (corporationIds.length === 0) return new Map();
-  const rows = await db
-    .select({ structureId: corpStructureRigs.structureId, rigTypeIds: corpStructureRigs.rigTypeIds })
-    .from(corpStructureRigs)
-    .where(inArray(corpStructureRigs.corporationId, corporationIds));
-  return new Map(rows.map((r) => [r.structureId, r.rigTypeIds]));
+// The authored completion (rig fit + facility tax) for a set of corps, keyed by
+// structureId (globally unique in EVE, so no cross-corp collision). A structure with
+// no row contributes no rigs and no tax (the fee path then assumes the NPC baseline).
+export interface CorpStructureCompletion {
+  rigTypeIds: number[];
+  taxPct: number | null;
 }
 
-// Record one structure's authored rig fit (the Station_Manager's input — ESI doesn't
-// expose a structure's rigs). Untouched by the full-replace pull (saveCorpStructures
-// never references this table), so the authored fit survives the hourly refresh.
+export async function getCorpStructureRigs(
+  corporationIds: number[],
+): Promise<Map<number, CorpStructureCompletion>> {
+  if (corporationIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      structureId: corpStructureRigs.structureId,
+      rigTypeIds: corpStructureRigs.rigTypeIds,
+      taxPct: corpStructureRigs.taxPct,
+    })
+    .from(corpStructureRigs)
+    .where(inArray(corpStructureRigs.corporationId, corporationIds));
+  return new Map(rows.map((r) => [r.structureId, { rigTypeIds: r.rigTypeIds, taxPct: r.taxPct }]));
+}
+
+// Record one structure's authored completion (the Station_Manager's input — ESI
+// exposes neither the rigs nor the profile tax). Untouched by the full-replace pull
+// (saveCorpStructures never references this table), so the authored values survive
+// the hourly refresh. `taxPct` is tri-state: undefined leaves the stored tax as-is
+// (a rig-only save can't clobber it), null clears it, a number sets it.
 export async function upsertCorpStructureRigs(
   corporationId: number,
   structureId: number,
   rigTypeIds: number[],
+  taxPct?: number | null,
 ): Promise<void> {
+  const taxSet = taxPct === undefined ? {} : { taxPct };
   await db
     .insert(corpStructureRigs)
-    .values({ corporationId, structureId, rigTypeIds, setAt: new Date() })
+    .values({ corporationId, structureId, rigTypeIds, ...taxSet, setAt: new Date() })
     .onConflictDoUpdate({
       target: [corpStructureRigs.corporationId, corpStructureRigs.structureId],
-      set: { rigTypeIds, setAt: new Date() },
+      set: { rigTypeIds, ...taxSet, setAt: new Date() },
     });
   revalidateTag(corpStructuresTag(corporationId), 'max');
 }

@@ -48,6 +48,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     structureTypeId: parsed.data.structureTypeId,
     rigTypeIds: parsed.data.rigTypeIds,
     systemId: parsed.data.systemId,
+    taxPct: parsed.data.taxPct,
   });
   const structures = await listCustomStructures(userId);
   return Response.json({ structures } satisfies CustomStructuresResponse, { status: 201 });

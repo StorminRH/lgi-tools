@@ -1,4 +1,5 @@
 import { MANUFACTURING_ACTIVITY_ID } from './build-pricing';
+import { REACTION_ACTIVITY } from './structure-bonus';
 import type { BlueprintPricing, NetMarginView } from './types';
 
 // Shared margin selection for the Cockpit — the one place the KPI margin tile
@@ -8,15 +9,19 @@ import type { BlueprintPricing, NetMarginView } from './types';
 export type MarginMode = 'gross' | 'net';
 
 // The net-margin view to use, honoring the user's gross/net preference. Net is
-// available only for a manufacturing blueprint with a build location picked; the
-// caller passes `hasLocation` so this stays free of the pricing-store hook.
+// available for a manufacturing blueprint with a build location picked, or a
+// reaction blueprint with a reaction fee source (3.7.13.3 — its own reaction
+// system, or a build-slot refinery). The caller passes the activity-matched
+// `hasFeeSource` so this stays free of the pricing-store hook.
 export function selectNet(
   pricing: BlueprintPricing | null,
   activityId: number,
-  hasLocation: boolean,
+  hasFeeSource: boolean,
   marginMode: MarginMode,
 ): { net: NetMarginView | null; netAvailable: boolean } {
-  const netAvailable = activityId === MANUFACTURING_ACTIVITY_ID && hasLocation;
+  const feeableActivity =
+    activityId === MANUFACTURING_ACTIVITY_ID || activityId === REACTION_ACTIVITY;
+  const netAvailable = feeableActivity && hasFeeSource;
   const net = netAvailable && marginMode === 'net' ? (pricing?.net ?? null) : null;
   return { net, netAvailable };
 }

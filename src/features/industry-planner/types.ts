@@ -165,6 +165,10 @@ export interface AvailableStructure {
   structureAttrs: AttrMap;
   rigAttrs: AttrMap[];
   securityClass: SecurityClass | null;
+  // The owner-set facility tax PERCENT (3.7.13.3): the authored completion for a
+  // corp structure, the builder entry for a custom one. Null = never entered —
+  // the fee path then assumes the 0.25% NPC baseline (labeled as assumed).
+  taxPct: number | null;
 }
 
 export interface AvailableStructuresResponse {
@@ -200,9 +204,10 @@ export interface BuildLocationData {
   adjustedPrices: { typeId: number; adjustedPrice: number }[];
 }
 
-// The net-margin view derived client-side once a build location is picked
-// (manufacturing blueprints only). Null on the gross-only path. Mirrors the
-// pure leaf's NetMargin, minus the gross fields already in `summary`.
+// The net-margin view derived client-side once fee inputs exist (manufacturing
+// and reaction blueprints, each against its own index + tax). Null on the
+// gross-only path. Mirrors the pure leaf's NetMargin, minus the gross fields
+// already in `summary`.
 export interface NetMarginView {
   netMargin: number | null;
   netMarginPct: number | null;
@@ -210,6 +215,12 @@ export interface NetMarginView {
   // The system cost index actually used (for the "System cost (x%)" ledger
   // label). Null when the system has no stored index.
   systemCostIndex: number | null;
+  // The facility-tax FRACTION actually charged (for the "Facility tax (x%)"
+  // ledger label) and whether it is the 0.25% NPC-baseline ASSUMPTION (no
+  // owner-entered tax on the fee-bearing structure) rather than an entered rate.
+  // 0.25% can be a real entered value, so the flag is threaded, never inferred.
+  facilityTaxRate: number;
+  facilityTaxAssumed: boolean;
   jobFee: {
     estimatedItemValue: number;
     jobGrossCost: number | null;

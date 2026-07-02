@@ -77,6 +77,7 @@ export async function GET(): Promise<Response> {
       structureAttrs: dogma.get(c.structureTypeId) ?? {},
       rigAttrs: c.rigTypeIds.map((r) => dogma.get(r) ?? {}),
       securityClass: null,
+      taxPct: c.taxPct,
     });
   }
   for (const s of corp) {
@@ -97,6 +98,7 @@ export async function GET(): Promise<Response> {
       structureAttrs: dogma.get(s.typeId) ?? {},
       rigAttrs: s.rigTypeIds.map((r) => dogma.get(r) ?? {}),
       securityClass: s.securityClass,
+      taxPct: s.taxPct,
     });
   }
   return Response.json({ structures } satisfies AvailableStructuresResponse);

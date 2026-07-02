@@ -14,7 +14,7 @@
 // Two tables, the same metadata + payload split as owned assets:
 //   - corp_structures       — one row per owned structure (replace-all per corp)
 //   - corp_structure_syncs  — one row per corp: the staleness stamp + held etags
-import { bigint, boolean, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, boolean, doublePrecision, integer, jsonb, pgEnum, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 
 // Postgres enum driven from the shared TS `as const` (the one-source-of-truth
@@ -83,21 +83,27 @@ export const corpStructureSharing = pgTable('corp_structure_sharing', {
   setAt: timestamp('set_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Authored rig fits for a corp's structures — APP-AUTHORED system-of-record. The
-// corp-structures ESI endpoint does NOT expose a structure's fitted rigs, so a
-// Station_Manager records them here to make the bonus exact; without a row a
-// structure contributes its type bonus only (empty rig set). MUST survive the hourly
-// full-replace pull: `saveCorpStructures` rewrites only corp_structures +
-// corp_structure_syncs and never touches this table, so a re-pull cannot clobber the
-// authored rigs. Wiped only when sharing is disabled. Keyed by (corporation_id,
-// structure_id); no FK to corp_structures (regenerable, replace-all) — same FK-less
-// posture as the rows above.
+// Authored COMPLETION of a corp's structures — APP-AUTHORED system-of-record for
+// what ESI does not expose about a structure: its fitted rigs AND its owner-set
+// facility tax (neither appears on any ESI route; the tax is a structure-profile
+// setting the API never surfaces). A Station_Manager records them here to make the
+// bonus and the job fee exact; without a row a structure contributes its type bonus
+// only (empty rig set) and the fee path assumes the 0.25% NPC-baseline tax. MUST
+// survive the hourly full-replace pull: `saveCorpStructures` rewrites only
+// corp_structures + corp_structure_syncs and never touches this table, so a re-pull
+// cannot clobber the authored values. Wiped only when sharing is disabled. Keyed by
+// (corporation_id, structure_id); no FK to corp_structures (regenerable,
+// replace-all) — same FK-less posture as the rows above.
 export const corpStructureRigs = pgTable(
   'corp_structure_rigs',
   {
     corporationId: bigint('corporation_id', { mode: 'number' }).notNull(),
     structureId: bigint('structure_id', { mode: 'number' }).notNull(),
     rigTypeIds: jsonb('rig_type_ids').$type<number[]>().default([]).notNull(),
+    // Facility tax PERCENT (0–10, decimals; 3.7.13.3). Null = never entered →
+    // the fee path assumes the 0.25% NPC baseline. `rig_type_ids` defaults [] so
+    // a tax-only structure upserts a legal row with no rigs.
+    taxPct: doublePrecision('tax_pct'),
     setAt: timestamp('set_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.corporationId, t.structureId] })],

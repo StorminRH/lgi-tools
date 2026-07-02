@@ -13,6 +13,7 @@ function structure(over: Partial<AvailableStructure>): AvailableStructure {
     structureAttrs: {},
     rigAttrs: [],
     securityClass: null,
+    taxPct: null,
     ...over,
   };
 }

@@ -6,7 +6,11 @@ import {
   setCorpStructureRigsRequestSchema,
 } from '@/features/owned-structures/api-contract';
 import { CORP_STRUCTURES_REQUIRED_ROLES } from '@/features/owned-structures/corp-sync-eligibility';
-import { getCorpStructures, upsertCorpStructureRigs } from '@/features/owned-structures/queries';
+import {
+  getCorpStructureRigs,
+  getCorpStructures,
+  upsertCorpStructureRigs,
+} from '@/features/owned-structures/queries';
 import { decideCorpAccess } from '@/features/auth/corp-access';
 import { getCurrentUserId } from '@/features/auth/session';
 import { userHoldsCorpRole } from '@/db/corp-structures-sync';
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const parsed = await parseJsonBody(request, setCorpStructureRigsRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const { corporationId, structureId, rigTypeIds } = parsed.data;
+  const { corporationId, structureId, rigTypeIds, taxPct } = parsed.data;
 
   const access = await decideCorpAccess({ userId, corporationId });
   if (!access.allowed) return new Response('Not a member of this corporation', { status: 403 });
@@ -47,6 +51,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('One or more rigs do not fit this structure', { status: 400 });
   }
 
-  await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds);
-  return Response.json({ structureId, rigTypeIds } satisfies CorpStructureRigsResponse);
+  await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds, taxPct);
+  const saved = (await getCorpStructureRigs([corporationId])).get(structureId);
+  return Response.json({
+    structureId,
+    rigTypeIds,
+    taxPct: saved?.taxPct ?? null,
+  } satisfies CorpStructureRigsResponse);
 }
