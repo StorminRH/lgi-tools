@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useCallback } from 'react';
 import { Pill } from '@/components/ui/pill';
 import { TerminalSearch } from '@/components/ui/terminal-search';
+import { formatSec } from '@/data/eve-data/systems-search';
 import { hostsReactions } from '../structure-factors';
 import type { AvailableStructure } from '../types';
 import { usePricing, type SelectedReactionSystem } from './PricingProvider';
 import { StructureBonusPills } from './structure-bonus-pills';
-import { formatSec, useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
+import { useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
 
 // The reaction group's SYSTEM row (3.7.12.2), ALWAYS visible — the mirror of the
 // "Build at" row above it, so the reaction side has its own independent system at all

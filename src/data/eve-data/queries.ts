@@ -28,6 +28,7 @@ import {
   type StructureRigOption,
   type StructureTypeOption,
 } from './structures';
+import type { SystemSearchEntry } from './systems-search';
 import {
   activitiesToRows,
   pickBuildTimeSeconds,
@@ -381,25 +382,30 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
 
 // ----- Universe / industry build-location helpers --------------------
 
-// Solar systems that hold at least one industry-capable NPC station — the only
-// places an NPC manufacturing job can be installed, so the build-location
-// selector only ever suggests these. Distinct systems (a system has many
-// stations), with name + security for the picker label. No security/region
-// filter: Pochven systems are included (3.5.1a), and since 3.7.2.2 widened the
-// universe to J-space, Thera (the one wormhole system with NPC stations) now
-// appears too — an additive new row; every prior K-space result is unchanged.
-export type IndustrySolarSystem = { id: number; name: string; security: number | null };
+// The system search index: EVERY persistent solar system (K-space, Pochven,
+// J-space — ~8.6k rows), name-sorted, with name + security for the picker
+// label. Universe-wide since 3.7.13.2: player structures make any system a
+// valid build location, so the old industry-capable-NPC-station gate hid every
+// system where only a structure can host the job (the per-system NPC station
+// list keeps its own gate in getIndustryStationsForSystem). Cached 'max'
+// (deploy-static SDE universe data, SDE-tagged). Fetched once by the lazy
+// systems search source on the client and matched client-side, so the index
+// never rides the initial bundle — mirrors the blueprint search index.
+export async function getSystemSearchIndex(): Promise<SystemSearchEntry[]> {
+  'use cache';
+  cacheLife('max');
+  cacheTag(BLUEPRINT_STRUCTURE_TAG);
 
-export async function getIndustrySolarSystems(): Promise<IndustrySolarSystem[]> {
-  return db
-    .selectDistinct({
-      id: eveSolarSystems.id,
-      name: eveSolarSystems.name,
-      security: eveSolarSystems.securityStatus,
-    })
-    .from(eveSolarSystems)
-    .innerJoin(eveNpcStations, eq(eveNpcStations.solarSystemId, eveSolarSystems.id))
-    .where(eq(eveNpcStations.industryCapable, true));
+  const systems = await withColdStartRetry(() =>
+    db
+      .select({
+        id: eveSolarSystems.id,
+        name: eveSolarSystems.name,
+        security: eveSolarSystems.securityStatus,
+      })
+      .from(eveSolarSystems),
+  );
+  return systems.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 // The industry-capable NPC stations in one system — the build-location picker's

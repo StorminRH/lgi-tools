@@ -1,51 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { apiFetch } from '@/lib/api-client';
-import { systemsEndpoint } from '../api-contract';
-import type { SystemSearchEntry } from '../types';
+import { loadSystems, matchSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 
-// The read-only build-system index search, shared by the primary build-location
-// control (Group A) and the reaction gap-filler (Group B) — both prefix/contains-match
-// the same NPC-industry system index. It carries NO selection state: A layers its heavy
-// system loader (cost indices + adjusted prices) on top, while B only needs a system's
-// name + security, so it just reads the matched entry.
+// The read-only build-system search, shared by the two location slots (Build
+// at / React at). Wraps the eve-data universe index (loader + matchSystem) for
+// TerminalSearch: parse resolves free text to one system, suggest feeds the
+// dropdown. It carries NO selection state: the build slot layers its heavy
+// system loader (cost indices + adjusted prices) on top, while the reaction
+// slot only needs a system's name + security, so it just reads the matched
+// entry.
 
 const MAX_SUGGESTIONS = 10;
 
-// Session-memoized lazy fetch of the system index — fetched once, never on the initial
-// bundle, retried on failure (mirrors the blueprint search source).
-let systemsPromise: Promise<SystemSearchEntry[]> | null = null;
-function loadSystems(): Promise<SystemSearchEntry[]> {
-  if (!systemsPromise) {
-    systemsPromise = apiFetch(systemsEndpoint)
-      .then((r) => {
-        if (!r.ok) throw new Error(`systems ${r.status}`);
-        return r.data.systems;
-      })
-      .catch((err) => {
-        systemsPromise = null; // let a later mount retry rather than cache a reject
-        throw err;
-      });
-  }
-  return systemsPromise;
-}
-
 export type SystemParams = { system: SystemSearchEntry };
 export type SystemErr = { kind: 'not_found' };
-
-// The display form of a system's security status, shared by both location slots.
-export function formatSec(sec: number | null): string {
-  return sec === null ? '—' : sec.toFixed(1);
-}
-
-// Pure matchers over an already-loaded index (unit-tested) — the hook just wires them
-// to its `systems` state. An exact name match wins, else the first prefix match.
-export function matchSystem(systems: SystemSearchEntry[], input: string): SystemSearchEntry | null {
-  const q = input.trim().toLowerCase();
-  const exact = systems.find((s) => s.name.toLowerCase() === q);
-  return exact ?? systems.find((s) => s.name.toLowerCase().startsWith(q)) ?? null;
-}
 
 // Prefix matches first, then substring matches, capped — the terminal-search suggestions.
 export function suggestSystemNames(systems: SystemSearchEntry[], input: string): string[] {

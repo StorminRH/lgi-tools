@@ -12,7 +12,6 @@ import type {
   OwnedAssetsResponse,
   OwnedBlueprintMeEntry,
   OwnedBlueprintsResponse,
-  SystemSearchEntry,
 } from './types';
 
 // Postgres 32-bit `integer` ceiling — system/blueprint ids are int4 columns.
@@ -38,27 +37,6 @@ export const blueprintsEndpoint: ApiEndpoint<null, BlueprintsResponse> = {
   path: '/api/industry/blueprints',
   request: null,
   response: blueprintsResponseSchema,
-};
-
-// ── GET /api/industry/systems ───────────────────────────────────────────
-// No user input; the route prerenders to a static JSON asset (the build-system
-// search index). Mirrors SystemSearchEntry; filtered client-side.
-export const systemSearchEntrySchema = z.object({
-  id: z.number(),
-  name: z.string(),
-  security: z.number().nullable(),
-}) satisfies z.ZodType<SystemSearchEntry>;
-
-export const systemsResponseSchema = z.object({
-  systems: z.array(systemSearchEntrySchema),
-});
-export type SystemsResponse = z.infer<typeof systemsResponseSchema>;
-
-export const systemsEndpoint: ApiEndpoint<null, SystemsResponse> = {
-  method: 'GET',
-  path: '/api/industry/systems',
-  request: null,
-  response: systemsResponseSchema,
 };
 
 // ── POST /api/industry/build-location ───────────────────────────────────

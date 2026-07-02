@@ -7,6 +7,7 @@ import { cn } from '@/components/ui/cn';
 import { Pill } from '@/components/ui/pill';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { toneTextClass } from '@/components/ui/tones';
+import { formatSec } from '@/data/eve-data/systems-search';
 import { apiFetch } from '@/lib/api-client';
 import { plannerBuildLocation } from '@/lib/preferences';
 import { buildLocationEndpoint } from '../api-contract';
@@ -15,7 +16,7 @@ import type { StructureReadout as StructureReadoutBonus } from '../structure-fac
 import type { AvailableStructure, IndustryStationView } from '../types';
 import { usePricing } from './PricingProvider';
 import { StructureBonusPills } from './structure-bonus-pills';
-import { formatSec, useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
+import { useSystemSearch, type SystemErr, type SystemParams } from './use-system-search';
 
 // The station's display label: its full in-game name (compacted) when ESI has
 // resolved one, else the station-operation label as a fallback.

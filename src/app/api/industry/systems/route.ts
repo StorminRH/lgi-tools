@@ -1,10 +1,12 @@
-import type { SystemsResponse } from '@/features/industry-planner/api-contract';
-import { getSystemSearchIndex } from '@/features/industry-planner/queries';
+import type { SystemsResponse } from '@/data/eve-data/api-contract';
+import { getSystemSearchIndex } from '@/data/eve-data/queries';
 
 // GET /api/industry/systems
-// No user input — returns the full cached build-system search index (every solar
-// system with an industry-capable NPC station) that feeds the lazy build-location
-// selector. Filtered client-side. (Validation invariant: no input to validate.)
+// No user input — returns the full cached universe system index (every
+// persistent solar system: K-space, Pochven, J-space) that feeds the lazy
+// systems search source; the build-location pickers and the structure-pin
+// control query it via searchAll(['systems']) and match client-side.
+// (Validation invariant: no input to validate.)
 // authz: public
 export async function GET(): Promise<Response> {
   const systems = await getSystemSearchIndex();

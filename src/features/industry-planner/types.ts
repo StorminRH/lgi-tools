@@ -170,16 +170,8 @@ export interface AvailableStructuresResponse {
 }
 
 // --- Build-location selector + net margin (3.5.2b) -----------------------
-
-// One searchable build system: the systems that hold ≥1 industry-capable NPC
-// station (the only NPC build locations). `security` is the −1.0..1.0 status,
-// null when unknown. Mirrors eve-data's IndustrySolarSystem; the wire shape for
-// /api/industry/systems.
-export interface SystemSearchEntry {
-  id: number;
-  name: string;
-  security: number | null;
-}
+// (The searchable system index — SystemSearchEntry — lives in the eve-data
+// slice since 3.7.13.2: the systems search source + every picker share it.)
 
 // One industry-capable NPC station in a system. `name` is the full in-game
 // station name (ESI-resolved); null when unresolved, so the picker falls back to

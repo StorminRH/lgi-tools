@@ -4,13 +4,11 @@ import {
   availableStructureSchema,
   blueprintIndexEntrySchema,
   buildLocationResponseSchema,
-  systemSearchEntrySchema,
 } from './api-contract';
 import type {
   AvailableStructure,
   BlueprintIndexEntry,
   BuildLocationData,
-  SystemSearchEntry,
 } from './types';
 
 describe('industry-planner contract', () => {
@@ -18,10 +16,6 @@ describe('industry-planner contract', () => {
     // The schema carries `satisfies z.ZodType<BlueprintIndexEntry>` (no extra
     // fields); this catches the reverse drift — a type field the schema lacks.
     expectTypeOf<z.infer<typeof blueprintIndexEntrySchema>>().toEqualTypeOf<BlueprintIndexEntry>();
-  });
-
-  it('pins the system search entry to SystemSearchEntry exactly (both directions)', () => {
-    expectTypeOf<z.infer<typeof systemSearchEntrySchema>>().toEqualTypeOf<SystemSearchEntry>();
   });
 
   it('pins the build-location response to BuildLocationData exactly (both directions)', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SystemSearchEntry } from '../types';
-import { matchSystem, suggestSystemNames } from './use-system-search';
+import type { SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { suggestSystemNames } from './use-system-search';
 
 const systems: SystemSearchEntry[] = [
   { id: 1, name: 'Jita', security: 0.9 },
@@ -8,24 +8,6 @@ const systems: SystemSearchEntry[] = [
   { id: 3, name: 'Amarr', security: 1.0 },
   { id: 4, name: 'New Caldari', security: 0.9 },
 ];
-
-describe('matchSystem', () => {
-  it('prefers an exact (case-insensitive) name match', () => {
-    expect(matchSystem(systems, 'jita')?.id).toBe(1);
-    expect(matchSystem(systems, '  AMARR ')?.id).toBe(3);
-  });
-
-  it('falls back to the first prefix match', () => {
-    // 'j' prefixes both Jita and Jarizza — the first in index order wins…
-    expect(matchSystem(systems, 'j')?.id).toBe(1);
-    // …while 'jar' is unambiguous and picks Jarizza.
-    expect(matchSystem(systems, 'jar')?.id).toBe(2);
-  });
-
-  it('returns null when nothing matches', () => {
-    expect(matchSystem(systems, 'zzz')).toBeNull();
-  });
-});
 
 describe('suggestSystemNames', () => {
   it('is empty for an empty query', () => {
