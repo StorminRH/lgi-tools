@@ -28,11 +28,13 @@ export interface CorpStructureSharingState {
   setAt: Date;
 }
 
-// One stored structure joined with its authored rig fit — the shape the structures
-// page + corp rig-completion editor consume (the rigs are empty until a Station_Manager
-// records them).
+// One stored structure joined with its authored completion — the shape the structures
+// page + corp completion editor consume (the rigs are empty and the tax null until a
+// Station_Manager records them; a null tax means the fee path assumes the 0.25% NPC
+// baseline).
 export interface CorpStructurePageStructure extends CorpStructureRow {
   rigTypeIds: number[];
+  taxPct: number | null;
 }
 
 // One member corp as the structures page renders it: the corp + its resolved name +

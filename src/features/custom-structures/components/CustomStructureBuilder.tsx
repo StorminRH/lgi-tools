@@ -14,6 +14,7 @@ import {
 } from '@/data/eve-data/constants';
 import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
 import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
+import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft } from '@/data/industry-math/fees';
 import { apiFetch } from '@/lib/api-client';
 import {
   createCustomStructureEndpoint,
@@ -22,6 +23,7 @@ import {
   MAX_CUSTOM_STRUCTURE_RIGS,
   parseStructureFitEndpoint,
   setCustomStructurePinEndpoint,
+  setCustomStructureTaxEndpoint,
 } from '../api-contract';
 import type { CustomStructureRow } from '../types';
 
@@ -57,6 +59,12 @@ export function CustomStructureBuilder({
   // and the saved row currently showing an inline pin picker.
   const [pin, setPin] = useState<SystemSearchEntry | null>(null);
   const [pinningId, setPinningId] = useState<string | null>(null);
+  // The optional facility tax for the structure being built (3.7.13.3, kept as
+  // the raw input string until save), and the saved row currently showing the
+  // inline tax editor + its draft.
+  const [taxDraft, setTaxDraft] = useState('');
+  const [taxingId, setTaxingId] = useState<string | null>(null);
+  const [rowTaxDraft, setRowTaxDraft] = useState('');
   const { systems, parse, suggest } = useSystemSearch();
 
   const typeName = useMemo(
@@ -100,11 +108,22 @@ export function CustomStructureBuilder({
 
   async function onSave() {
     if (structureTypeId === null || !name.trim() || busy) return;
+    const tax = parseFacilityTaxDraft(taxDraft);
+    if (!tax.ok) {
+      setError(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty).`);
+      return;
+    }
     setBusy(true);
     setError(null);
     const rigTypeIds = rigSlots.filter((x): x is number => x !== null);
     const res = await apiFetch(createCustomStructureEndpoint, {
-      body: { name: name.trim(), structureTypeId, rigTypeIds, systemId: pin?.id ?? null },
+      body: {
+        name: name.trim(),
+        structureTypeId,
+        rigTypeIds,
+        systemId: pin?.id ?? null,
+        taxPct: tax.value,
+      },
       cache: 'no-store',
     });
     setBusy(false);
@@ -116,6 +135,7 @@ export function CustomStructureBuilder({
     setName('');
     setPaste('');
     setPin(null);
+    setTaxDraft('');
     chooseStructure(null);
   }
 
@@ -141,6 +161,21 @@ export function CustomStructureBuilder({
     }
     setStructures(res.data.structures);
     setPinningId(null);
+  }
+
+  // Set or clear (null) a saved structure's facility tax — the onSetPin twin.
+  async function onSetTax(id: string, taxPct: number | null) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const res = await apiFetch(setCustomStructureTaxEndpoint, { body: { id, taxPct }, cache: 'no-store' });
+    setBusy(false);
+    if (!res.ok) {
+      setError('Could not update the tax — try again.');
+      return;
+    }
+    setStructures(res.data.structures);
+    setTaxingId(null);
   }
 
   // The pin's display name resolves from the loaded universe index; the raw id
@@ -253,6 +288,26 @@ export function CustomStructureBuilder({
           )}
         </div>
 
+        {/* The optional facility tax (3.7.13.3): the owner-set rate this imagined
+            structure would charge. Empty = never entered — the planner assumes
+            the 0.25% NPC baseline (labeled as assumed in the fee breakdown). */}
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] uppercase tracking-[0.12em] text-muted">
+            Facility tax % (optional)
+          </span>
+          <input
+            type="number"
+            min={0}
+            max={MAX_FACILITY_TAX_PCT}
+            step="0.01"
+            value={taxDraft}
+            onChange={(e) => setTaxDraft(e.target.value)}
+            placeholder="Empty = 0.25% assumed"
+            aria-label="Facility tax percent"
+            className={cn(inputClass, 'w-full max-w-[320px]')}
+          />
+        </label>
+
         {error && <p className="text-[11px] text-tone-red">{error}</p>}
 
         <button
@@ -292,7 +347,19 @@ export function CustomStructureBuilder({
                 ))}
                 {s.rigTypeIds.length === 0 && <span className="text-[10px] text-muted">no rigs</span>}
                 {s.systemId !== null && <Pill tone="blue">Pinned · {pinLabel(s.systemId)}</Pill>}
+                {s.taxPct !== null && <Pill tone="neutral">tax {s.taxPct}%</Pill>}
                 <span className="ml-auto flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTaxingId(taxingId === s.id ? null : s.id);
+                      setRowTaxDraft(s.taxPct === null ? '' : String(s.taxPct));
+                    }}
+                    disabled={busy}
+                    className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+                  >
+                    Tax…
+                  </button>
                   {s.systemId !== null ? (
                     <button
                       type="button"
@@ -333,6 +400,39 @@ export function CustomStructureBuilder({
                       onClear={() => setPinningId(null)}
                       errorLabel="System"
                     />
+                  </div>
+                )}
+                {/* Inline tax editor (the inline pin picker's twin). Setting an
+                    empty value clears the tax back to never-entered (the 0.25%
+                    NPC-baseline assumption). */}
+                {taxingId === s.id && (
+                  <div className="flex w-full max-w-[320px] items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={MAX_FACILITY_TAX_PCT}
+                      step="0.01"
+                      value={rowTaxDraft}
+                      onChange={(e) => setRowTaxDraft(e.target.value)}
+                      placeholder="Facility tax % — empty = 0.25% assumed"
+                      aria-label={`Facility tax percent for ${s.name}`}
+                      className={cn(inputClass, 'w-full')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tax = parseFacilityTaxDraft(rowTaxDraft);
+                        if (!tax.ok) {
+                          setError(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty).`);
+                          return;
+                        }
+                        onSetTax(s.id, tax.value);
+                      }}
+                      disabled={busy}
+                      className="text-[10px] uppercase tracking-[0.12em] text-tone-green hover:underline disabled:text-muted disabled:no-underline"
+                    >
+                      Set
+                    </button>
                   </div>
                 )}
               </li>

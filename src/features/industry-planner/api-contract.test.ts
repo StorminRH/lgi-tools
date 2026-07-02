@@ -30,4 +30,14 @@ describe('industry-planner contract', () => {
     expectTypeOf<z.infer<typeof availableStructureSchema>['groupId']>().toEqualTypeOf<number>();
     expectTypeOf<AvailableStructure['groupId']>().toEqualTypeOf<number>();
   });
+
+  it('carries a nullable taxPct on the available structure (schema ⇄ type)', () => {
+    // The groupId twin (3.7.13.3): the owner-set facility tax must survive the wire —
+    // dropping it from the schema would silently strip it and every structure would
+    // fall back to the 0.25% NPC-baseline assumption.
+    expectTypeOf<z.infer<typeof availableStructureSchema>['taxPct']>().toEqualTypeOf<
+      number | null
+    >();
+    expectTypeOf<AvailableStructure['taxPct']>().toEqualTypeOf<number | null>();
+  });
 });

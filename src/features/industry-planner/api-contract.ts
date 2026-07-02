@@ -191,6 +191,7 @@ export const availableStructureSchema = z.object({
   structureAttrs: attrMapSchema,
   rigAttrs: z.array(attrMapSchema),
   securityClass: z.enum(SECURITY_CLASSES).nullable(),
+  taxPct: z.number().nullable(),
 });
 
 export const availableStructuresResponseSchema = z.object({

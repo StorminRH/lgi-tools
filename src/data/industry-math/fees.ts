@@ -27,10 +27,12 @@ import { computeMargin, type MarginInput, type MaterialQty } from './profitabili
 // future per-user override (or a reaction/research consumer with a different SCC)
 // slots in by passing a different FeeRates — no rework.
 //
-// Rates verified against current EVE/ESI documentation 2026-06 (CCP changes
-// these; see the per-field provenance):
-//   facilityTax  0.25% — NPC station, Viridian 2023-06
-//   sccSurcharge 4%    — manufacturing, raised 0.75%→1.5%→4% in Version 21.06 (2024-06)
+// Rates verified against current EVE/ESI documentation 2026-06, re-verified
+// 2026-07 (CCP changes these; see the per-field provenance):
+//   facilityTax  0.25% — NPC station, Viridian 2023-06. Also the no-tax-entered
+//                default for player structures (and the in-game default profile
+//                value); a per-facility owner-set rate arrives via `rates`.
+//   sccSurcharge 4%    — manufacturing, raised 0.75%→1.5%→4% in Version 21.06 (2024-02)
 //   salesTax     7.5%  — base before Accounting, raised in Version 22.02 (2025-03-12)
 //   brokerFee    3%    — NPC station base before Broker Relations / standings
 // (Alpha clone tax 0.25% applies only to Alpha clones — we model Omega, so 0.)
@@ -47,6 +49,44 @@ export const DEFAULT_FEE_RATES: FeeRates = {
   salesTax: 0.075,
   brokerFee: 0.03,
 };
+
+// Reactions share the manufacturing SCC: Version 21.06 (2024-02) raised the
+// job-installation surcharge to 4%, and the 2025-07 Exploration & Industry
+// Balance Rework cut only ME/TE research to 2% — reactions went unmentioned,
+// i.e. unchanged. Named separately so the reaction consumer's provenance is
+// explicit rather than "happens to equal manufacturing".
+export const REACTION_SCC_SURCHARGE = 0.04;
+
+// In-game cap on a player structure's owner-set facility tax (0–10%, decimal
+// entry — Viridian 2023-06). Imported by the api-contract validators so the
+// bound lives once.
+export const MAX_FACILITY_TAX_PCT = 10;
+
+// Effective facility-tax FRACTION for a structure whose owner-set tax is
+// `enteredPct` (a percent, 0–MAX_FACILITY_TAX_PCT) or null when never entered.
+// Unset falls back to the NPC-station baseline, keeping fees byte-identical to
+// the pre-entry output. Strict null check: an entered 0 is a real 0% (a
+// genuinely free structure), not "unknown".
+export function effectiveFacilityTaxRate(enteredPct: number | null): number {
+  return enteredPct === null ? DEFAULT_FEE_RATES.facilityTax : enteredPct / 100;
+}
+
+// A facility-tax entry-field draft → the wire value, shared by every tax entry
+// surface (the structure builder + the corp completion editor): empty = null
+// (never entered — the fee path then assumes the NPC baseline), else a percent
+// inside the in-game cap. An entered 0 is a real 0% rate. Plain decimals only —
+// Number() alone would also admit scientific/hex forms ('1e1', '0xa') that a
+// programmatic or pasted value could carry.
+export function parseFacilityTaxDraft(
+  draft: string,
+): { ok: true; value: number | null } | { ok: false } {
+  const t = draft.trim();
+  if (t === '') return { ok: true, value: null };
+  if (!/^\d+(\.\d+)?$/.test(t)) return { ok: false };
+  const n = Number(t);
+  if (!Number.isFinite(n) || n < 0 || n > MAX_FACILITY_TAX_PCT) return { ok: false };
+  return { ok: true, value: n };
+}
 
 // CCP "adjusted price" for a type, or null when there's no usable adjusted price
 // (no row, or a stored NULL — the absent-vs-0.0 distinction the adjusted_prices

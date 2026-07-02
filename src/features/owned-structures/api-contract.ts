@@ -5,6 +5,7 @@
 // planner's build-location selector will fetch on view.
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
+import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
 import type { ApiEndpoint } from '@/lib/api-client';
 
 // ── GET /api/account/corp-structures (authz: auth) ───────────────────────
@@ -68,23 +69,30 @@ export const setCorpStructureSharingEndpoint: ApiEndpoint<
 };
 
 // ── POST /api/account/corp-structures/rigs (authz: auth + Station_Manager) ─────
-// Record the fitted rigs for one corp structure (ESI doesn't expose them). Same
-// member + Station_Manager gate as the sharing toggle. The structure/corp ids are
-// EVE item ids (int8, not int4-bounded); rig type ids are int4 SDE type ids, capped
-// at the 3 Upwell rig slots. An orphan structureId (not in the corp's pulled set) is
-// harmless — it's never joined and is wiped on disable. Echoes the saved fit.
+// Record the authored completion for one corp structure: its fitted rigs and its
+// owner-set facility tax (ESI exposes neither). Same member + Station_Manager gate
+// as the sharing toggle. The structure/corp ids are EVE item ids (int8, not
+// int4-bounded); rig type ids are int4 SDE type ids, capped at the 3 Upwell rig
+// slots. An orphan structureId (not in the corp's pulled set) is harmless — it's
+// never joined and is wiped on disable. Echoes the saved completion.
 const PG_INT4_MAX = 2_147_483_647;
 export const MAX_CORP_STRUCTURE_RIGS = 3;
 export const setCorpStructureRigsRequestSchema = z.object({
   corporationId: z.number().int().positive(),
   structureId: z.number().int().positive(),
   rigTypeIds: z.array(z.number().int().positive().max(PG_INT4_MAX)).max(MAX_CORP_STRUCTURE_RIGS),
+  // Facility tax percent, tri-state ON PURPOSE: undefined = leave the stored tax
+  // unchanged (a rig-only save must not clobber it), null = clear (back to the
+  // 0.25% NPC-baseline assumption), number = the entered rate (0–10%, decimals;
+  // an entered 0 is a real 0%).
+  taxPct: z.number().min(0).max(MAX_FACILITY_TAX_PCT).nullable().optional(),
 });
 export type SetCorpStructureRigsRequest = z.input<typeof setCorpStructureRigsRequestSchema>;
 
 export const corpStructureRigsResponseSchema = z.object({
   structureId: z.number(),
   rigTypeIds: z.array(z.number()),
+  taxPct: z.number().nullable(),
 });
 export type CorpStructureRigsResponse = z.infer<typeof corpStructureRigsResponseSchema>;
 

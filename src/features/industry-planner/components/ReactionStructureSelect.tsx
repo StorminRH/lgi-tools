@@ -14,9 +14,10 @@ import { useSystemSearch, type SystemErr, type SystemParams } from '@/components
 
 // The reaction group's SYSTEM row (3.7.12.2), ALWAYS visible — the mirror of the
 // Manufacturing group's row beside it, so the reaction side has its own independent
-// system at all times, pickable before or after the refinery. SECURITY-ONLY —
-// reactions carry no install fee, so this loads nothing; it just supplies the
-// security the refinery's reaction rigs scale against. `lockedTo` carries a locked
+// system at all times, pickable before or after the refinery. It supplies the
+// security the refinery's reaction rigs scale against, and for a REACTION
+// blueprint it also keys the provider's reaction build-location fetch (3.7.13.3)
+// so the top job fees against this system's reaction index. `lockedTo` carries a locked
 // refinery's name when its home system deduce-locks the row. Every state renders
 // at the same fixed 260×30 box, so picking never shifts the hero's plane.
 function ReactionSystemRow({
@@ -138,7 +139,10 @@ export function ReactionStructureSelect() {
           line, right of the title. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
         <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.16em] text-text">Reactions</span>
-        <StructureBonusReadout readout={reactionStructureReadout} />
+        <StructureBonusReadout
+          readout={reactionStructureReadout}
+          taxPct={reactionStructure?.taxPct ?? null}
+        />
       </div>
       <ReactionSystemRow
         lockedTo={lockedRefinery?.name ?? null}

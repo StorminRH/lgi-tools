@@ -5,11 +5,13 @@ import {
   type CorpStructureRigsResponse,
   setCorpStructureRigsRequestSchema,
 } from '@/features/owned-structures/api-contract';
-import { CORP_STRUCTURES_REQUIRED_ROLES } from '@/features/owned-structures/corp-sync-eligibility';
-import { getCorpStructures, upsertCorpStructureRigs } from '@/features/owned-structures/queries';
-import { decideCorpAccess } from '@/features/auth/corp-access';
+import {
+  getCorpStructureRigs,
+  getCorpStructures,
+  upsertCorpStructureRigs,
+} from '@/features/owned-structures/queries';
 import { getCurrentUserId } from '@/features/auth/session';
-import { userHoldsCorpRole } from '@/db/corp-structures-sync';
+import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
 // authz: auth
@@ -24,13 +26,10 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const parsed = await parseJsonBody(request, setCorpStructureRigsRequestSchema);
   if (!parsed.ok) return parsed.response;
-  const { corporationId, structureId, rigTypeIds } = parsed.data;
+  const { corporationId, structureId, rigTypeIds, taxPct } = parsed.data;
 
-  const access = await decideCorpAccess({ userId, corporationId });
-  if (!access.allowed) return new Response('Not a member of this corporation', { status: 403 });
-  if (!(await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
-    return new Response('Requires the Station Manager role', { status: 403 });
-  }
+  const denied = await stationManagerGate(userId, corporationId);
+  if (denied) return denied;
 
   // Validate the structure is one of this corp's pulled structures and that every rig
   // physically fits its type (group + size), mirroring the custom-structures route —
@@ -47,6 +46,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('One or more rigs do not fit this structure', { status: 400 });
   }
 
-  await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds);
-  return Response.json({ structureId, rigTypeIds } satisfies CorpStructureRigsResponse);
+  await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds, taxPct);
+  const saved = (await getCorpStructureRigs([corporationId])).get(structureId);
+  return Response.json({
+    structureId,
+    rigTypeIds,
+    taxPct: saved?.taxPct ?? null,
+  } satisfies CorpStructureRigsResponse);
 }

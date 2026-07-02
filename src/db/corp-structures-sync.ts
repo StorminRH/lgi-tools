@@ -12,6 +12,7 @@
 // viewer's corp membership (the 3.7.3 corp-access gate), not their own sync rows.
 import { after } from 'next/server';
 import { refreshStaleAffiliationsForUser } from '@/features/auth/affiliation';
+import { decideCorpAccess } from '@/features/auth/corp-access';
 import { memberCharacterIdsInCorp, memberCorpIds } from '@/features/auth/membership';
 import { getUserAffiliations } from '@/features/auth/queries';
 import {
@@ -101,7 +102,9 @@ export async function getCorpStructuresForUserOnView(userId: string): Promise<Vi
 }
 
 // One corp-pulled structure flattened for the planner's build-location selector: the
-// stored row joined with the structure-manager's authored rig fit (empty when none).
+// stored row joined with the structure-manager's authored completion (rig fit, empty
+// when none; facility tax, null when never entered → the fee path assumes the 0.25%
+// NPC baseline).
 export interface AvailableCorpStructure {
   structureId: number;
   typeId: number;
@@ -109,6 +112,7 @@ export interface AvailableCorpStructure {
   securityClass: SecurityClass;
   name: string | null;
   rigTypeIds: number[];
+  taxPct: number | null;
 }
 
 // The corp-pulled structures the user may build in, flattened across their member
@@ -122,13 +126,15 @@ export async function getAvailableCorpStructuresForUser(userId: string): Promise
   const out: AvailableCorpStructure[] = [];
   for (const corp of corporations) {
     for (const s of corp.structures) {
+      const completion = rigsByStructure.get(s.structureId);
       out.push({
         structureId: s.structureId,
         typeId: s.typeId,
         systemId: s.systemId,
         securityClass: s.securityClass,
         name: s.name,
-        rigTypeIds: rigsByStructure.get(s.structureId) ?? [],
+        rigTypeIds: completion?.rigTypeIds ?? [],
+        taxPct: completion?.taxPct ?? null,
       });
     }
   }
@@ -175,7 +181,11 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
       corporationName: names[String(corporationId)] ?? `Corporation ${corporationId}`,
       isStationManager: isStationManagerByCorp.get(corporationId) ?? false,
       sharingEnabled,
-      structures: rows.map((s) => ({ ...s, rigTypeIds: rigsByStructure.get(s.structureId) ?? [] })),
+      structures: rows.map((s) => ({
+        ...s,
+        rigTypeIds: rigsByStructure.get(s.structureId)?.rigTypeIds ?? [],
+        taxPct: rigsByStructure.get(s.structureId)?.taxPct ?? null,
+      })),
       lastRefreshedAt: freshnessByCorp.get(corporationId) ?? null,
     };
   });
@@ -203,4 +213,23 @@ export async function userHoldsCorpRole(
     if (roles !== null && requiredRoles.some((role) => roles.includes(role))) return true;
   }
   return false;
+}
+
+// The two-step Station_Manager gate shared by the corp-structure mutation routes
+// (sharing toggle + the rig/tax completion): membership first (decideCorpAccess —
+// fail-closed + audited; also refreshes affiliations), then the in-game role on
+// the freshly refreshed set. Returns the 403 Response to send, or null when the
+// caller may proceed. Lives here beside userHoldsCorpRole because it composes the
+// auth slice's access decision with this layer's role read — the same cross-slice
+// join reason the rest of the file exists.
+export async function stationManagerGate(
+  userId: string,
+  corporationId: number,
+): Promise<Response | null> {
+  const access = await decideCorpAccess({ userId, corporationId });
+  if (!access.allowed) return new Response('Not a member of this corporation', { status: 403 });
+  if (!(await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
+    return new Response('Requires the Station Manager role', { status: 403 });
+  }
+  return null;
 }

@@ -20,12 +20,21 @@ export interface FeeBreakdown {
   sellTotal: number | null;
 }
 
-// The system cost index is the one rate that varies per build system, so it's
-// surfaced in the label; the fixed taxes stay plain (their amounts carry the
-// substance, and hard-coding their rates here would drift from industry-math).
+// The system cost index and the facility tax are the two rates that vary per
+// build (per system / per structure), so both surface in their labels; the SCC
+// stays plain (its amount carries the substance, and hard-coding its rate here
+// would drift from industry-math). The rates come off the net view — never
+// re-derived — so the labels can't drift from what was actually charged.
 function systemCostLabel(systemCostIndex: number | null): string {
   if (systemCostIndex === null) return 'System cost';
   return `System cost (${(systemCostIndex * 100).toFixed(2)}%)`;
+}
+
+// "(0.25% assumed)" when no owner tax is entered on the fee-bearing structure —
+// the NPC-baseline assumption made visible — vs the entered "(1.50%)". The flag
+// is threaded, never inferred from the rate: an entered 0.25% is a real rate.
+function facilityTaxLabel(rate: number, assumed: boolean): string {
+  return `Facility tax (${(rate * 100).toFixed(2)}%${assumed ? ' assumed' : ''})`;
 }
 
 export function buildFeeBreakdown(net: NetMarginView): FeeBreakdown {
@@ -33,7 +42,7 @@ export function buildFeeBreakdown(net: NetMarginView): FeeBreakdown {
 
   const install: FeeLine[] = [
     { label: systemCostLabel(systemCostIndex), value: jobFee.jobGrossCost },
-    { label: 'Facility tax', value: jobFee.facilityTax },
+    { label: facilityTaxLabel(net.facilityTaxRate, net.facilityTaxAssumed), value: jobFee.facilityTax },
     { label: 'SCC surcharge', value: jobFee.sccSurcharge },
   ];
   const sell: FeeLine[] = [

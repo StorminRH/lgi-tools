@@ -49,7 +49,7 @@ function StructureReadout({
       </span>
     );
   }
-  return <StructureBonusReadout readout={readout} />;
+  return <StructureBonusReadout readout={readout} taxPct={selectedStructure.taxPct} />;
 }
 
 // The "build at" facility dropdown, per-source segmented (3.7.13.2): the
@@ -143,8 +143,9 @@ function BuildFacilitySelect({
 // system is picked. Picking a system loads its stations + cost indices +
 // adjusted prices and flips the hero/ledger to net margin; clearing returns to
 // gross. The station choice is display/future-score only — the fee math is
-// system-driven (flat NPC facility tax, per-system cost index), so it never
-// changes the numbers.
+// system + structure-driven (the per-system cost index, and the structure's
+// owner-set facility tax with the 0.25% NPC baseline assumed when unset), so an
+// NPC station pick never changes the numbers.
 
 export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) {
   const { location, setLocation, station, setStation, availableStructures, selectedStructure, setSelectedStructure, buildStructureReadout } =

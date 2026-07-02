@@ -34,9 +34,11 @@ import { clampTe, effectiveTeOf } from '../te-overrides';
 import { computeBuildTimes, type BuildTimes } from '../build-time';
 import {
   availableStructuresEndpoint,
+  buildLocationEndpoint,
   ownedAssetsEndpoint,
   ownedBlueprintsEndpoint,
 } from '../api-contract';
+import { REACTION_ACTIVITY } from '../structure-bonus';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
@@ -44,6 +46,8 @@ import {
   type PriceLite,
 } from '../build-pricing';
 import {
+  composeFeeInputs,
+  hostsReactions,
   structureFactorsFor,
   structureReadouts,
   type StructureFactors,
@@ -146,10 +150,11 @@ export interface SelectedStation {
 }
 
 // Group B's own build system (3.7.12.2) — the reaction gap-filler refinery's system.
-// SECURITY-ONLY: it scales B's reaction rigs, and that's all reactions need — the net
-// path fees only the top manufacturing job (in A), so B carries no cost index and needs
-// no build-location fetch. A corp refinery deduce-locks this from its home system; a
-// custom refinery picks it. Kept apart from `location` (A's system) so the two are
+// It scales B's reaction rigs AND, for a REACTION blueprint, keys the reaction
+// build-location fetch (3.7.13.3 — the #187 dead seam, live): the top reaction job
+// fees against THIS system's 'reaction' cost index, held in the provider's separate
+// `reactionLocation` state. A corp refinery deduce-locks this from its home system;
+// a custom refinery picks it. Kept apart from `location` (A's system) so the two are
 // independent.
 export interface SelectedReactionSystem {
   systemId: number;
@@ -186,14 +191,20 @@ interface PricingContextValue {
   // The derived per-node engine factors + per-activity bonus readout. Re-derives
   // when the selection or the build system's security changes.
   structureFactors: StructureFactors;
-  // The dedicated "react at" refinery (3.7.12.2) + its own system (security-only —
-  // reactions carry no install fee, so no build-location fetch). Always available; the
-  // routing derives roles: a lone refinery does the whole chain, and adding a build
-  // structure takes over just the manufacturing nodes. Live-only, like the build pick.
+  // The dedicated "react at" refinery (3.7.12.2) + its own system. Always available;
+  // the routing derives roles: a lone refinery does the whole chain, and adding a
+  // build structure takes over just the manufacturing nodes. Live-only, like the
+  // build pick. For a REACTION blueprint the system also drives the reaction
+  // build-location fetch (3.7.13.3), so the top reaction job fees against it.
   reactionStructure: AvailableStructure | null;
   setReactionStructure: (structure: AvailableStructure | null) => void;
   reactionSystem: SelectedReactionSystem | null;
   setReactionSystem: (system: SelectedReactionSystem | null) => void;
+  // Whether a REACTION blueprint has a fee source (3.7.13.3): the reaction slot's
+  // fetched location, or a build-slot refinery with a location picked. Gates the
+  // margin tile's Net toggle; always false on a manufacturing blueprint (whose
+  // gate is `location !== null`).
+  reactionNetAvailable: boolean;
   // Per-slot readout pills — the bonus each slot is actually contributing (a slot shows
   // a pill only for an activity it hosts).
   buildStructureReadout: StructureReadout;
@@ -353,6 +364,28 @@ export function PricingProvider({
   const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
   const [reactionSystem, setReactionSystem] = useState<SelectedReactionSystem | null>(null);
   const reactionSecurity = reactionSystem?.security ?? null;
+  // The REACTION system's fee inputs (3.7.13.3 — the #187 seam live): its 'reaction'
+  // cost index + the blueprint's adjusted prices, fetched below for a reaction
+  // blueprint once a reaction system is picked. Query-keyed by BOTH the system
+  // and the blueprint it was fetched FOR (the sync-setState-free invalidation
+  // shape): the state is only ever set from the fetch callback, and
+  // `reactionLocation` below derives to null whenever either key stops matching
+  // — so an unpick or a blueprint switch needs no effect-body clear, a prior
+  // blueprint's adjusted prices can never feed this one's EIV, and the net path
+  // stays honestly unavailable until real inputs exist (never a fake zero).
+  const [fetchedReactionLocation, setFetchedReactionLocation] = useState<{
+    systemId: number;
+    blueprintTypeId: number;
+    costIndex: number | null;
+    adjustedPrices: Map<number, number>;
+  } | null>(null);
+  const reactionLocation =
+    structure.activityId === REACTION_ACTIVITY &&
+    fetchedReactionLocation !== null &&
+    fetchedReactionLocation.systemId === reactionSystem?.systemId &&
+    fetchedReactionLocation.blueprintTypeId === structure.blueprintTypeId
+      ? fetchedReactionLocation
+      : null;
   // The no-double-select rule holds in STATE, not just in the option lists: picking
   // the reaction slot's refinery as the build structure vacates the reaction slot.
   // (Its dropdown filters that structure out, so leaving the state set would silently
@@ -426,6 +459,9 @@ export function PricingProvider({
   const ownedMeRef = useRef(ownedMe);
   const meOverridesRef = useRef(meOverrides);
   const structureFactorsRef = useRef(structureFactors);
+  const selectedStructureRef = useRef(selectedStructure);
+  const reactionStructureRef = useRef(reactionStructure);
+  const reactionLocationRef = useRef(reactionLocation);
   useEffect(() => {
     runsRef.current = runs;
     locationRef.current = location;
@@ -433,26 +469,32 @@ export function PricingProvider({
     ownedMeRef.current = ownedMe;
     meOverridesRef.current = meOverrides;
     structureFactorsRef.current = structureFactors;
+    selectedStructureRef.current = selectedStructure;
+    reactionStructureRef.current = reactionStructure;
+    reactionLocationRef.current = reactionLocation;
   });
 
   // THE one recompute, used by both the live-price path and the runs/location
   // path, so the streamed figure and every re-derived figure are computed by the
   // same assembler — no drift. Live batch wins over the seed per type; the fee
-  // inputs (adjusted prices + the manufacturing cost index) are supplied only
-  // when a location is picked, so with no location it's gross-only.
+  // inputs are supplied only when a fee source exists (the build location for
+  // manufacturing, the reaction location — or a build-slot refinery — for a
+  // reaction blueprint), so with neither it's gross-only.
   const assemble = useCallback(() => {
     const lookup = (typeId: number): PriceLite | undefined =>
       liveRef.current.get(typeId) ?? seedMapRef.current.get(typeId);
-    const loc = locationRef.current;
     const sf = structureFactorsRef.current;
-    const fee = loc
-      ? {
-          adjustedPriceOf: (id: number) => loc.adjustedPrices.get(id) ?? null,
-          systemCostIndex: loc.costIndices.manufacturing ?? null,
-          // The selected manufacturing structure's job-cost reduction (0 when none).
-          structureCostBonusPct: sf.structureCostBonusPct,
-        }
-      : undefined;
+    // Fee composition (3.7.13.3) — the routing rules (mfg tax reads the BUILD
+    // slot only; the reaction fee reads the reaction host with the build-slot-
+    // refinery fallback) live in the pure composeFeeInputs, tested beside the
+    // rest of the structure routing.
+    const fee = composeFeeInputs({
+      location: locationRef.current,
+      reactionLocation: reactionLocationRef.current,
+      buildStructure: selectedStructureRef.current,
+      reactionStructure: reactionStructureRef.current,
+      structureCostBonusPct: sf.structureCostBonusPct,
+    });
     // Owned-ME overlay + manual overrides: the cost basis is recomputed at each
     // buildable's effective ME (a manual override wins, else the owned ME). No owned
     // data and no overrides → meOf stays undefined → ME0 gross basis. With overrides
@@ -676,6 +718,41 @@ export function PricingProvider({
     };
   }, [structure, toRefresh]);
 
+  // Reaction build-location fetch (3.7.13.3, the #187 seam live): for a REACTION
+  // blueprint, the top job fees against the REACTION system's 'reaction' index, so
+  // picking a reaction system fetches that system's fee inputs. Provider-owned
+  // (not in the selector) because the system is set from TWO places — the search
+  // submit and the corp deduce-lock — and one effect covers both. Gated to
+  // reaction blueprints (a manufacturing build's reaction slot only scales rigs —
+  // no fetch). Failure or unmount leaves null: net stays honestly unavailable.
+  const reactionSystemId = reactionSystem?.systemId ?? null;
+  useEffect(() => {
+    // Unpicking needs no clear here: `reactionLocation` derives to null the
+    // moment the stored system stops matching (the query-keyed shape above).
+    if (structure.activityId !== REACTION_ACTIVITY || reactionSystemId === null) return;
+    let ignore = false;
+    const controller = new AbortController();
+    apiFetch(buildLocationEndpoint, {
+      body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (ignore || !res.ok) return;
+        setFetchedReactionLocation({
+          systemId: reactionSystemId,
+          blueprintTypeId: structure.blueprintTypeId,
+          costIndex: res.data.costIndices.reaction ?? null,
+          adjustedPrices: new Map(res.data.adjustedPrices.map((p) => [p.typeId, p.adjustedPrice])),
+        });
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, [structure, reactionSystemId]);
+
   // Available build structures (3.7.9.1.3): the caller's custom (and, next session,
   // corp) structures with resolved dogma, fetched once on open — per-user data
   // can't live in the static seed. Global to the user, so it doesn't refetch per
@@ -707,7 +784,21 @@ export function PricingProvider({
     if (!seeded || !pricingRef.current) return;
     const t = setTimeout(() => assemble(), 0);
     return () => clearTimeout(t);
-  }, [runs, location, ownedMe, meOverrides, structureFactors, seeded, assemble]);
+    // selectedStructure/reactionStructure ride along for the facility tax:
+    // structureFactors alone can miss a pick that resolves no bonus (the shared
+    // NO_STRUCTURE_FACTORS identity) whose tax must still apply.
+  }, [
+    runs,
+    location,
+    reactionLocation,
+    selectedStructure,
+    reactionStructure,
+    ownedMe,
+    meOverrides,
+    structureFactors,
+    seeded,
+    assemble,
+  ]);
 
   // The product's Market Score — pure, no fetch. Re-derives when runs change
   // (via output units), when the product's history lands, and when a price/depth
@@ -726,6 +817,14 @@ export function PricingProvider({
       ),
     [structure, runs, marketHistory, pricing],
   );
+
+  // Mirrors assemble()'s reaction fee-input presence so the Net toggle enables
+  // exactly when the fee math has something to compute (the reaction-slot fetch,
+  // or the build-slot-refinery fallback whose index rides on `location`).
+  const reactionNetAvailable =
+    structure.activityId === REACTION_ACTIVITY &&
+    (reactionLocation !== null ||
+      (!!selectedStructure && hostsReactions(selectedStructure.groupId) && location !== null));
 
   const value = useMemo<PricingContextValue>(
     () => ({
@@ -746,6 +845,7 @@ export function PricingProvider({
       setReactionStructure,
       reactionSystem,
       setReactionSystem,
+      reactionNetAvailable,
       buildStructureReadout,
       reactionStructureReadout,
       marketHistory,
@@ -781,6 +881,7 @@ export function PricingProvider({
       setReactionStructure,
       reactionSystem,
       setReactionSystem,
+      reactionNetAvailable,
       buildStructureReadout,
       reactionStructureReadout,
       marketHistory,

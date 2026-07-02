@@ -3,11 +3,9 @@ import {
   type CorpStructureSharingResponse,
   setCorpStructureSharingRequestSchema,
 } from '@/features/owned-structures/api-contract';
-import { CORP_STRUCTURES_REQUIRED_ROLES } from '@/features/owned-structures/corp-sync-eligibility';
 import { setCorpStructureSharing } from '@/features/owned-structures/queries';
-import { decideCorpAccess } from '@/features/auth/corp-access';
 import { getCurrentUserId, getSessionCharacterId } from '@/features/auth/session';
-import { userHoldsCorpRole } from '@/db/corp-structures-sync';
+import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
 // authz: auth
@@ -27,12 +25,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   const { corporationId, enabled } = parsed.data;
 
   // Membership first (fail-closed + audited; also refreshes affiliations), then the
-  // Station_Manager role on the freshly-refreshed set.
-  const access = await decideCorpAccess({ userId, corporationId });
-  if (!access.allowed) return new Response('Not a member of this corporation', { status: 403 });
-  if (!(await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
-    return new Response('Requires the Station Manager role', { status: 403 });
-  }
+  // Station_Manager role on the freshly-refreshed set — the shared two-step gate.
+  const denied = await stationManagerGate(userId, corporationId);
+  if (denied) return denied;
 
   await setCorpStructureSharing(corporationId, enabled, await getSessionCharacterId());
   return Response.json({ corporationId, enabled } satisfies CorpStructureSharingResponse);

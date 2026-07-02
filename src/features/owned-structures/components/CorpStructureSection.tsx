@@ -10,6 +10,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
+import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft } from '@/data/industry-math/fees';
 import { apiFetch } from '@/lib/api-client';
 import {
   MAX_CORP_STRUCTURE_RIGS,
@@ -140,7 +141,7 @@ function CorpCard({
         <div className="flex flex-col gap-3 p-4 max-w-[360px]">
           <p id={confirmLabelId} className="text-[12px] text-text">
             Stop sharing {corp.corporationName}’s structures? This removes the corporation’s structures and any
-            recorded rig fits. Turning sharing back on re-fetches them.
+            recorded rig fits and facility taxes. Turning sharing back on re-fetches them.
           </p>
           <div className="flex items-center justify-end gap-3">
             <DialogClose className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text">
@@ -185,13 +186,14 @@ function CorpStructureItem({
       </div>
       {canEdit ? (
         <CorpStructureRigEditor corporationId={corporationId} structure={structure} validRigs={validRigs} />
-      ) : structure.rigTypeIds.length > 0 ? (
+      ) : structure.rigTypeIds.length > 0 || structure.taxPct !== null ? (
         <div className="flex flex-wrap items-center gap-1.5">
           {structure.rigTypeIds.map((r) => (
             <Pill key={r} tone="blue">
               {rigName.get(r) ?? `Rig ${r}`}
             </Pill>
           ))}
+          {structure.taxPct !== null && <Pill tone="neutral">tax {structure.taxPct}%</Pill>}
         </div>
       ) : (
         <span className="text-[10px] text-muted">no rigs recorded</span>
@@ -213,22 +215,41 @@ function CorpStructureRigEditor({
   validRigs: StructureRigOption[];
 }) {
   const [slots, setSlots] = useState<(number | null)[]>(() => slotsFrom(structure.rigTypeIds));
+  // The owner-set facility tax (3.7.13.3), edited beside the rigs — kept as the
+  // raw input string until save. Empty = never entered: the planner then assumes
+  // the 0.25% NPC baseline (labeled as assumed in the fee breakdown).
+  const [taxDraft, setTaxDraft] = useState(structure.taxPct === null ? '' : String(structure.taxPct));
   const [busy, setBusy] = useState(false);
 
   async function onSave() {
     if (busy) return;
+    const tax = parseFacilityTaxDraft(taxDraft);
+    if (!tax.ok) {
+      toast.error(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty)`);
+      return;
+    }
     setBusy(true);
     const res = await apiFetch(setCorpStructureRigsEndpoint, {
       body: {
         corporationId,
         structureId: structure.structureId,
         rigTypeIds: slots.filter((x): x is number => x !== null),
+        // Explicit, never omitted: this editor always shows the full completion,
+        // so an empty field is a deliberate clear (the tri-state's undefined is
+        // for rig-only callers that must not clobber a stored tax).
+        taxPct: tax.value,
       },
       cache: 'no-store',
     });
     setBusy(false);
-    if (res.ok) toast.success('Rig fit saved');
-    else toast.error('Could not save the rig fit');
+    if (res.ok) {
+      // Adopt the echoed stored value so the field reflects the authoritative
+      // state (normalizes drafts like "01.50" and can't drift from the save).
+      setTaxDraft(res.data.taxPct === null ? '' : String(res.data.taxPct));
+      toast.success('Structure details saved');
+    } else {
+      toast.error('Could not save the structure details');
+    }
   }
 
   return (
@@ -240,13 +261,28 @@ function CorpStructureRigEditor({
         onSlotsChange={setSlots}
         disabled={busy}
       />
+      <label className="flex items-center gap-2">
+        <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Facility tax %</span>
+        <input
+          type="number"
+          min={0}
+          max={MAX_FACILITY_TAX_PCT}
+          step="0.01"
+          value={taxDraft}
+          onChange={(e) => setTaxDraft(e.target.value)}
+          placeholder="Empty = 0.25% assumed"
+          aria-label={`Facility tax percent for ${structure.name ?? `structure ${structure.structureId}`}`}
+          disabled={busy}
+          className="w-[180px] border border-border bg-bg px-2 py-1 font-mono text-[12px] text-text focus:border-border-active focus:outline-none"
+        />
+      </label>
       <button
         type="button"
         onClick={onSave}
         disabled={busy}
         className="self-start border border-tone-green px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-tone-green hover:bg-section disabled:border-border disabled:text-muted"
       >
-        Save rig fit
+        Save details
       </button>
     </div>
   );

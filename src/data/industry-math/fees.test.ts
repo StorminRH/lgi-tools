@@ -4,6 +4,10 @@ import {
   computeNetMargin,
   computeSellSideFees,
   DEFAULT_FEE_RATES,
+  effectiveFacilityTaxRate,
+  MAX_FACILITY_TAX_PCT,
+  parseFacilityTaxDraft,
+  REACTION_SCC_SURCHARGE,
   type AdjustedPriceOf,
 } from './fees';
 import type { MaterialQty } from './profitability';
@@ -39,10 +43,62 @@ describe('DEFAULT_FEE_RATES (verified 2026-06 — fail on silent rate drift)', (
   it('pins the current EVE rates', () => {
     expect(DEFAULT_FEE_RATES).toEqual({
       facilityTax: 0.0025, // 0.25% NPC station (Viridian 2023-06)
-      sccSurcharge: 0.04, // 4% manufacturing (Version 21.06, 2024-06)
+      sccSurcharge: 0.04, // 4% manufacturing (Version 21.06, 2024-02)
       salesTax: 0.075, // 7.5% base, no Accounting (Version 22.02, 2025-03-12)
       brokerFee: 0.03, // 3% NPC base, no Broker Relations/standings
     });
+  });
+
+  it('pins the reaction SCC (shares the 4% manufacturing rate; the 2025-07 rework cut research only)', () => {
+    expect(REACTION_SCC_SURCHARGE).toBe(0.04);
+  });
+
+  it('pins the player-structure facility-tax cap (0–10%, Viridian 2023-06)', () => {
+    expect(MAX_FACILITY_TAX_PCT).toBe(10);
+  });
+});
+
+describe('effectiveFacilityTaxRate', () => {
+  it('falls back to the NPC baseline when no tax was entered (the byte-identity guard)', () => {
+    expect(effectiveFacilityTaxRate(null)).toBe(DEFAULT_FEE_RATES.facilityTax);
+  });
+
+  it('converts an entered percent to a fraction', () => {
+    expect(effectiveFacilityTaxRate(1.5)).toBe(0.015);
+    expect(effectiveFacilityTaxRate(10)).toBe(0.1);
+    expect(effectiveFacilityTaxRate(0.35)).toBeCloseTo(0.0035, 12);
+  });
+
+  it('treats an entered 0 as a real 0% rate, not "unset"', () => {
+    expect(effectiveFacilityTaxRate(0)).toBe(0);
+  });
+});
+
+describe('parseFacilityTaxDraft', () => {
+  it('maps an empty draft to null (never entered — the NPC-baseline assumption)', () => {
+    expect(parseFacilityTaxDraft('')).toEqual({ ok: true, value: null });
+    expect(parseFacilityTaxDraft('   ')).toEqual({ ok: true, value: null });
+  });
+
+  it('parses in-cap percents, including a real 0 and decimals', () => {
+    expect(parseFacilityTaxDraft('0')).toEqual({ ok: true, value: 0 });
+    expect(parseFacilityTaxDraft('0.25')).toEqual({ ok: true, value: 0.25 });
+    expect(parseFacilityTaxDraft('1.5')).toEqual({ ok: true, value: 1.5 });
+    expect(parseFacilityTaxDraft('10')).toEqual({ ok: true, value: 10 });
+  });
+
+  it('rejects out-of-cap, negative, and non-numeric drafts', () => {
+    for (const draft of ['10.01', '12', '-1', 'abc', 'NaN', 'Infinity']) {
+      expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
+    }
+  });
+
+  it('rejects non-decimal numeric forms Number() would otherwise admit', () => {
+    // '1e1' and '0xa' both evaluate to 10 (in-cap) via Number(), but a pasted or
+    // programmatic value in those forms is not a plain percent entry.
+    for (const draft of ['1e1', '0xa', '1.', '.5', '+1', ' 1 2 ']) {
+      expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
+    }
   });
 });
 
