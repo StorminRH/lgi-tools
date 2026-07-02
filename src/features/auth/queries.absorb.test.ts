@@ -14,7 +14,13 @@ const { chain, state } = vi.hoisted(() => {
     calls: { delete: 0, update: 0 },
   };
   const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => void) => resolve(state.results.shift()),
+    // An Error queued as a result rejects that await — simulates a DB failure
+    // at an exact point in the sequence.
+    then: (resolve: (v: unknown) => void, reject: (e: unknown) => void) => {
+      const next = state.results.shift();
+      if (next instanceof Error) reject(next);
+      else resolve(next);
+    },
   };
   for (const method of ['set', 'where', 'select', 'from', 'limit', 'orderBy']) {
     chain[method] = () => chain;
@@ -146,6 +152,30 @@ describe('absorbLinkedCharacterOnProof', () => {
     expect(out).toEqual({ absorbed: true });
     expect(state.calls).toEqual({ delete: 0, update: 1 }); // the move only
     expect(state.results).toHaveLength(0);
+  });
+
+  it('still reports the absorb when source cleanup fails after the move committed', async () => {
+    oauthState.value = { link: { userId: 'user-b' } };
+    // awaits: absorb row-lookup → move update → reassign remaining (sibling) →
+    // stored-active → reconcile remaining THROWS. The move has committed by
+    // then, so the failure degrades to a logged cleanup error — never a
+    // masked no-absorb (which would drop the audit event and the UI note).
+    state.results = [
+      [{ userId: 'stray' }],
+      undefined,
+      [{ id: 'acc-other' }],
+      [{ activeCharacterId: 999 }],
+      new Error('transient db failure'),
+    ];
+    const out = await absorbLinkedCharacterOnProof(CHARACTER);
+    expect(out).toEqual({ absorbed: true });
+    expect(state.calls).toEqual({ delete: 0, update: 1 }); // the move only
+    expect(errorSpy).toHaveBeenCalledTimes(1); // the cleanup failure, logged
+    expect(vi.mocked(logUsageEvent)).toHaveBeenCalledWith({
+      action: 'auth_absorb',
+      characterId: CHARACTER,
+      metadata: { fromUserId: 'stray', toUserId: 'user-b', sourceDeleted: false },
+    });
   });
 
   it('degrades to no-absorb when the OAuth state is unavailable', async () => {
