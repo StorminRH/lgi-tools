@@ -1,4 +1,4 @@
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { LoadingLabel } from '@/components/ui/loading-label';
@@ -12,7 +12,9 @@ import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { CorpJobsBoard } from '@/features/industry-jobs/components/CorpJobsBoard';
 import { IndustryJobsPanel } from '@/features/industry-jobs/components/IndustryJobsPanel';
 import { canSyncCorpIndustryJobs } from '@/features/industry-jobs/corp-sync-eligibility';
+import { jobsPageSettings } from '@/features/industry-jobs/page-settings';
 import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';
+import { cookieNameFor, readPreferenceCookieValue, stripDimmedDef } from '@/lib/preferences';
 
 async function JobsContent() {
   // Session-gated (any signed-in pilot), the /characters precedent: signed
@@ -39,10 +41,22 @@ async function JobsContent() {
     )
     .map((character) => character.characterId);
 
+  // The strip's dimmed set, read from its ssrReadable cookie mirror inside the
+  // hole (the /sites initialView idiom) so a reload's first paint already hides
+  // dimmed cards. The strip governs only the personal panel — the corp board is
+  // corporation-keyed, no per-character participation there.
+  const stripDef = stripDimmedDef(jobsPageSettings.strip.surfaceId);
+  const initialDimmed = readPreferenceCookieValue(
+    (await cookies()).get(cookieNameFor(stripDef))?.value,
+    stripDef,
+  );
+
   return (
     <div className="flex flex-col gap-10">
       <IndustryJobsPanel
         characters={characters.map((character) => toPanelCharacter(character, canSyncIndustryJobs))}
+        strip={jobsPageSettings.strip}
+        initialDimmed={initialDimmed}
       />
       <CorpJobsBoard
         eligibleCharacterIds={corpEligibleCharacterIds}

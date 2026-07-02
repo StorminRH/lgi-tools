@@ -53,6 +53,9 @@ const {
   sitesView,
   plannerBuildLocation,
   PREFERENCE_KEYS,
+  STRIP_SURFACE_IDS,
+  stripDimmedDef,
+  stripDimmedKey,
   validatePreferenceValue,
   peekLocalPreference,
   writeLocalPreference,
@@ -205,5 +208,43 @@ describe('reconcilePreferences', () => {
     const { values, toSeed } = reconcilePreferences(new Map(), new Map());
     expect(values.has('sites.view')).toBe(false);
     expect(toSeed).toEqual([]);
+  });
+});
+
+// The per-surface strip dimmed sets (ACCOUNT.7): store-off-not-on — the stored
+// value is the DIMMED ids, so a key holding [] and an absent key both render
+// every character lit, and a newly linked alt defaults lit everywhere.
+describe('strip dimmed-set defs', () => {
+  it('registers one ssr-readable def per strip surface with the [] lit-by-default fallback', () => {
+    for (const id of STRIP_SURFACE_IDS) {
+      const def = stripDimmedDef(id);
+      expect(def.key).toBe(stripDimmedKey(id));
+      expect(PREFERENCE_KEYS).toContain(def.key);
+      expect(def.fallback).toEqual([]);
+      expect(def.ssrReadable).toBe(true);
+    }
+  });
+
+  it('returns stable def references (usePreference setter identity)', () => {
+    for (const id of STRIP_SURFACE_IDS) {
+      expect(stripDimmedDef(id)).toBe(stripDimmedDef(id));
+    }
+    expect(stripDimmedDef(undefined)).toBe(stripDimmedDef(undefined));
+  });
+
+  it('validates the wire value at the server trust boundary', () => {
+    const key = stripDimmedKey(STRIP_SURFACE_IDS[0]);
+    expect(validatePreferenceValue(key, [2114872920, 90000001])).toBe(true);
+    expect(validatePreferenceValue(key, [])).toBe(true);
+    expect(validatePreferenceValue(key, ['2114872920'])).toBe(false);
+    expect(validatePreferenceValue(key, [1.5])).toBe(false);
+    expect(validatePreferenceValue(key, [-1])).toBe(false);
+    expect(validatePreferenceValue(key, null)).toBe(false);
+  });
+
+  it('keeps the no-strip sentinel unregistered and unwritable', () => {
+    const sentinel = stripDimmedDef(undefined);
+    expect(PREFERENCE_KEYS).not.toContain(sentinel.key);
+    expect(validatePreferenceValue(sentinel.key, [])).toBe(false);
   });
 });

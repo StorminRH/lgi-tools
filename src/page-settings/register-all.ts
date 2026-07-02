@@ -10,6 +10,8 @@
 // The list is also exported (the src/purge/register-all.ts precedent) so the
 // anti-drift gate can audit every wired spec deterministically.
 
+import { jobsPageSettings } from '@/features/industry-jobs/page-settings';
+import { skillsPageSettings } from '@/features/skill-queue/page-settings';
 import { sitesPageSettings } from '@/features/wormhole-sites/page-settings';
 import { registerPageSettings } from '@/page-settings';
 import { accountPageSettings } from '@/page-settings/account';
@@ -18,6 +20,8 @@ import type { PageSettingsSpec } from '@/page-settings/types';
 export const PAGE_SETTINGS_SPECS: readonly PageSettingsSpec[] = [
   sitesPageSettings,
   accountPageSettings,
+  skillsPageSettings,
+  jobsPageSettings,
 ];
 
 for (const spec of PAGE_SETTINGS_SPECS) {

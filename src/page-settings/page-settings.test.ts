@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { PREFERENCE_KEYS } from '@/lib/preferences';
+import { PREFERENCE_KEYS, STRIP_SURFACE_IDS, stripDimmedKey } from '@/lib/preferences';
 import {
   __resetPageSettings,
   listPageSettings,
@@ -56,12 +56,33 @@ describe('the wired registry (PAGE_SETTINGS_SPECS)', () => {
     const sites = resolvePageSettings('/sites');
     expect(sites?.route).toBe('/sites');
     expect(resolvePageSettings('/sites/30002')).toBe(sites);
-    expect(resolvePageSettings('/skills')).toBeNull();
+    expect(resolvePageSettings('/characters')).toBeNull();
   });
 
   it('resolves the account settings page to its junction-owned spec', () => {
     for (const spec of PAGE_SETTINGS_SPECS) registerPageSettings(spec);
 
     expect(resolvePageSettings('/settings')?.route).toBe('/settings');
+  });
+
+  it('declares strips only for registered dimmed-set surfaces, each surface exactly once (anti-drift)', () => {
+    const declared = PAGE_SETTINGS_SPECS.flatMap((spec) =>
+      spec.strip !== undefined ? [spec.strip.surfaceId] : [],
+    );
+    // Bidirectional: every declared strip persists to a registered preference
+    // key, and every registered strip surface is declared by exactly one spec —
+    // a def with no declaring spec is dead config, a duplicate is a drift bug.
+    for (const surfaceId of declared) {
+      expect(PREFERENCE_KEYS).toContain(stripDimmedKey(surfaceId));
+    }
+    expect([...declared].sort()).toEqual([...STRIP_SURFACE_IDS].sort());
+  });
+
+  it('resolves the tracker surfaces to their strip-declaring specs; /sites declares none (D-7)', () => {
+    for (const spec of PAGE_SETTINGS_SPECS) registerPageSettings(spec);
+
+    expect(resolvePageSettings('/skills')?.strip?.surfaceId).toBe('skills');
+    expect(resolvePageSettings('/jobs')?.strip?.surfaceId).toBe('jobs');
+    expect(resolvePageSettings('/sites')?.strip).toBeUndefined();
   });
 });

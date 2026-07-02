@@ -9,6 +9,7 @@
 // renders nothing this session — ACCOUNT.5 reads it into the portrait menu,
 // ACCOUNT.6 maps a key to its control, ACCOUNT.7 renders the strip.
 
+import type { StripSurfaceId } from '@/lib/preferences';
 import type { FeatureControlId } from './feature-controls';
 
 // Where a control sits: the always-present global half of the menu, a per-page
@@ -41,11 +42,13 @@ export type SettingsControlRef =
       order?: number;
     };
 
-// The per-surface character strip (D-7, per-feature opt-in). Carried as a type
-// the spec CAN declare; the strip component is ACCOUNT.7. `surfaceId` is the key
-// its dimmed-set persists under.
-type CharacterStripSpec = {
-  surfaceId: string;
+// The per-surface character strip (D-7, per-feature opt-in). `surfaceId` names
+// the surface's dimmed-set preference (lib/preferences' STRIP_SURFACE_IDS —
+// type-only import, so declaring a strip for a surface with no registered
+// dimmed-set def is a compile error). Exported for the panels' prop seam
+// (ACCOUNT.7); features still import only spec types from this module.
+export type CharacterStripSpec = {
+  surfaceId: StripSurfaceId;
 };
 
 export type PageSettingsSpec = {

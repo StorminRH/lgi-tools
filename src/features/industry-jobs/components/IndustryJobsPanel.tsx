@@ -9,6 +9,8 @@
 // reload and no scheduler; the on-view fetch reconciles only the board's EXISTENCE. The
 // per-character card shell (portrait header, reconnect/as-of callouts, null/empty/rows
 // tristate) is the shared LiveCharacterCard; this slice supplies the row + summary.
+import { syncEligibleIds } from '@/components/character-strip-model';
+import { CharacterStripSection } from '@/components/character-strip-section';
 import {
   type CharacterCardContent,
   LiveCharacterCard,
@@ -18,6 +20,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import type { CharacterStripSpec } from '@/page-settings/types';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { JOB_STATUS_META, jobActivityLabel } from '../industry-jobs-styles';
@@ -25,7 +28,17 @@ import { jobProgress, summarizeJobs } from '../job-state';
 import type { CharacterJobsData } from '../types';
 import { useJobsLive } from '../use-jobs-live';
 
-export function IndustryJobsPanel({ characters }: { characters: PanelCharacter[] }) {
+export function IndustryJobsPanel({
+  characters,
+  strip,
+  initialDimmed,
+}: {
+  characters: PanelCharacter[];
+  // The page's spec.strip declaration (D-7 opt-in) + the cookie-read dimmed set
+  // for the first paint. Absent = no strip, no filtering — today's render.
+  strip?: CharacterStripSpec;
+  initialDimmed?: number[];
+}) {
   if (characters.length === 0) {
     return (
       <Card>
@@ -39,7 +52,7 @@ export function IndustryJobsPanel({ characters }: { characters: PanelCharacter[]
       </Card>
     );
   }
-  return <LiveJobs characters={characters} />;
+  return <LiveJobs characters={characters} strip={strip} initialDimmed={initialDimmed} />;
 }
 
 // The live half of one row: the cached board + its "as of" stamp. renderJobsCard reads
@@ -49,45 +62,58 @@ interface JobsLiveRow {
   lastSyncedAt: number | null;
 }
 
-function LiveJobs({ characters }: { characters: PanelCharacter[] }) {
-  const eligibleIds = characters
-    .filter((character) => !character.needsReconnect)
-    .map((character) => character.characterId);
+function LiveJobs({
+  characters,
+  strip,
+  initialDimmed,
+}: {
+  characters: PanelCharacter[];
+  strip?: CharacterStripSpec;
+  initialDimmed?: number[];
+}) {
+  // The sync ids derive from the FULL list — dimming is a render filter only
+  // (view-only pin): a dimmed character keeps its on-view refresh.
+  const eligibleIds = syncEligibleIds(characters);
   const { jobsByCharacter, names, now, loading } = useJobsLive(eligibleIds);
 
   return (
     <div className="w-full max-w-[760px] flex flex-col gap-6">
-      <div className="flex items-center">
-        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
-          {loading ? 'Loading…' : 'Synced from ESI on view'}
-        </span>
-      </div>
-
-      {characters.map((character) => {
-        const live = jobsByCharacter.get(character.characterId);
-        const row: JobsLiveRow | undefined =
-          live !== undefined ? { data: live.data, lastSyncedAt: live.lastRefreshedAt } : undefined;
-        const { isEmpty, subtitle, headerRight, rows } = renderJobsCard(row, names, now);
-        return (
-          <LiveCharacterCard
-            key={character.characterId}
-            character={character}
-            syncError={null}
-            lastSyncedAt={row?.lastSyncedAt}
-            hasData={(row?.data ?? null) !== null}
-            isEmpty={isEmpty}
-            syncing={false}
-            sectionLabel="Industry jobs"
-            scopePhrase="the industry scope"
-            noun="jobs"
-            subtitle={subtitle}
-            headerRight={headerRight}
-            emptyRowsText="No industry jobs running."
-          >
-            {rows}
-          </LiveCharacterCard>
-        );
-      })}
+      <CharacterStripSection
+        characters={characters}
+        strip={strip}
+        initialDimmed={initialDimmed}
+        loading={loading}
+      >
+        {(visible) =>
+          visible.map((character) => {
+            const live = jobsByCharacter.get(character.characterId);
+            const row: JobsLiveRow | undefined =
+              live !== undefined
+                ? { data: live.data, lastSyncedAt: live.lastRefreshedAt }
+                : undefined;
+            const { isEmpty, subtitle, headerRight, rows } = renderJobsCard(row, names, now);
+            return (
+              <LiveCharacterCard
+                key={character.characterId}
+                character={character}
+                syncError={null}
+                lastSyncedAt={row?.lastSyncedAt}
+                hasData={(row?.data ?? null) !== null}
+                isEmpty={isEmpty}
+                syncing={false}
+                sectionLabel="Industry jobs"
+                scopePhrase="the industry scope"
+                noun="jobs"
+                subtitle={subtitle}
+                headerRight={headerRight}
+                emptyRowsText="No industry jobs running."
+              >
+                {rows}
+              </LiveCharacterCard>
+            );
+          })
+        }
+      </CharacterStripSection>
     </div>
   );
 }
