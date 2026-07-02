@@ -2,23 +2,23 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
-import { Pill } from '@/components/ui/pill';
 import { TerminalSearch } from '@/components/ui/terminal-search';
-import { formatSec } from '@/data/eve-data/systems-search';
 import { hostsReactions } from '../structure-factors';
 import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
 import type { AvailableStructure } from '../types';
 import { usePricing, type SelectedReactionSystem } from './PricingProvider';
+import { SelectedSystemBox } from './SelectedSystemBox';
 import { StructureOptgroups } from './StructureOptgroups';
 import { StructureBonusReadout } from './structure-bonus-readout';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
 // The reaction group's SYSTEM row (3.7.12.2), ALWAYS visible — the mirror of the
-// "Build at" row above it, so the reaction side has its own independent system at all
-// times, pickable before or after the refinery. SECURITY-ONLY — reactions carry no
-// install fee, so this loads nothing; it just supplies the security the refinery's
-// reaction rigs scale against. `lockedTo` carries a corp refinery's name when its home
-// system deduce-locks the row.
+// Manufacturing group's row beside it, so the reaction side has its own independent
+// system at all times, pickable before or after the refinery. SECURITY-ONLY —
+// reactions carry no install fee, so this loads nothing; it just supplies the
+// security the refinery's reaction rigs scale against. `lockedTo` carries a locked
+// refinery's name when its home system deduce-locks the row. Every state renders
+// at the same fixed 260×30 box, so picking never shifts the hero's plane.
 function ReactionSystemRow({
   lockedTo,
   deducedSystem,
@@ -38,32 +38,22 @@ function ReactionSystemRow({
   );
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-2">
       <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
       {lockedTo ? (
         deducedSystem ? (
-          <>
-            <Pill tone="blue">
-              {deducedSystem.name} {formatSec(deducedSystem.security)}
-            </Pill>
-            <span className="text-[10px] tracking-[0.12em] uppercase text-muted">↳ locked to {lockedTo}</span>
-          </>
+          <SelectedSystemBox name={deducedSystem.name} security={deducedSystem.security} locked={lockedTo} />
         ) : (
-          <span className="text-[10px] tracking-[0.12em] uppercase text-muted">System unavailable</span>
+          <div className="flex h-[30px] w-[260px] shrink-0 items-center border border-border bg-bg px-2">
+            <span className="truncate text-[10px] uppercase tracking-[0.12em] text-muted">System unavailable</span>
+          </div>
         )
       ) : reactionSystem ? (
-        <>
-          <Pill tone="blue">
-            {reactionSystem.systemName} {formatSec(reactionSystem.security)}
-          </Pill>
-          <button
-            type="button"
-            onClick={() => setReactionSystem(null)}
-            className="text-[10px] tracking-[0.12em] uppercase text-muted hover:text-text"
-          >
-            Clear
-          </button>
-        </>
+        <SelectedSystemBox
+          name={reactionSystem.systemName}
+          security={reactionSystem.security}
+          onClear={() => setReactionSystem(null)}
+        />
       ) : (
         <div className="w-[260px] max-w-full">
           <TerminalSearch<SystemParams, SystemErr>
@@ -75,7 +65,6 @@ function ReactionSystemRow({
             onSubmit={onSubmit}
             onClear={() => setReactionSystem(null)}
             errorLabel="System"
-            hint="Pick the system reactions run in"
           />
         </div>
       )}
@@ -142,15 +131,20 @@ export function ReactionStructureSelect() {
     reactionStructure?.id ?? null,
   );
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-faint">React at</span>
+    <div className="flex flex-col justify-center gap-1.5">
+      {/* The group header carries the bonus readout on its own fixed-height
+          line, right of the title — mirrors the Manufacturing group. */}
+      <div className="flex min-h-4 min-w-0 items-center gap-2.5">
+        <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-faint">Reactions</span>
+        <StructureBonusReadout readout={reactionStructureReadout} />
+      </div>
       <ReactionSystemRow
         lockedTo={lockedRefinery?.name ?? null}
         deducedSystem={deducedSystem}
         reactionSystem={reactionSystem}
         setReactionSystem={setReactionSystem}
       />
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2">
         <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Station</span>
         <select
           value={reactionStructure ? `structure:${reactionStructure.id}` : ''}
@@ -167,17 +161,12 @@ export function ReactionStructureSelect() {
             );
           }}
           aria-label="Reaction refinery"
-          className="w-[260px] shrink-0 border border-border bg-bg px-2 py-1 font-mono text-[11px] text-text focus:border-border-active focus:outline-none"
+          className="h-[30px] w-[260px] shrink-0 border border-border bg-bg px-2 font-mono text-[11px] text-text focus:border-border-active focus:outline-none"
         >
           <option value="">— none —</option>
           <StructureOptgroups structures={refineries} />
           <option value="add-custom">+ Add custom structure…</option>
         </select>
-      </div>
-      {/* Fixed-height bonus slot, aligned under the controls — mirrors the build
-          group so a readout appearing never pushes the selects around. */}
-      <div className="flex min-h-4 items-center pl-[72px]">
-        <StructureBonusReadout readout={reactionStructureReadout} />
       </div>
     </div>
   );

@@ -96,12 +96,14 @@ function HeroSteppers({
   );
 }
 
-// The consolidated hero card: a single horizontal band — the item identity in the
-// top-left with its render scaled up beneath, the stacked ME/TE/Runs boxed
-// steppers, the square Run-As building-character frame (plus the reserved area
-// right of it), and the two-group location area (Build at / React at, each a
-// System search over a Station select). Clusters are self-contained flex children
-// so the band wraps cleanly on narrow viewports.
+// The consolidated hero card: the item identity (name + type) as a compact title
+// row, over ONE equal-height plane of elements — the item render in a square
+// frame (the building-character frame's exact twin), the stacked ME/TE/Runs boxed
+// steppers, the square Run-As frame, and the two location groups side by side
+// (Manufacturing, then Reactions; each a fixed-size System search over a Station
+// select, bonus readout beside the header). Every cluster centers on the same
+// 108px plane so nothing shifts as picks land; the band wraps cleanly on narrow
+// viewports.
 export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   const { runs } = usePricing();
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
@@ -111,48 +113,48 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   return (
     <div
       className={cn(
-        'mb-3.5 mt-3.5 flex flex-wrap items-stretch gap-3.5',
+        'mb-3.5 mt-3.5 flex flex-col gap-3',
         'rounded-md border border-border bg-section px-[18px] py-4',
       )}
     >
-      {/* Identity column: name + type pinned to the top-left, the render below
-          scaled up to fill the column. */}
-      <div className="flex min-w-0 max-w-[300px] flex-col gap-3">
-        <div className="min-w-0">
-          <div className="font-display text-[25px] font-bold uppercase leading-none tracking-[0.01em] text-name">
-            {structure.product.name}
-          </div>
-          <div className="mt-[5px] font-body text-[11px] leading-[1.4] text-muted">
-            {group ? `${group} · ` : ''}builds {formatQuantity(outputUnits)} unit
-            {outputUnits === 1 ? '' : 's'}
-          </div>
+      <div className="min-w-0">
+        <div className="font-display text-[25px] font-bold uppercase leading-none tracking-[0.01em] text-name">
+          {structure.product.name}
         </div>
-        <TypeIcon
-          typeId={structure.product.typeId}
-          variant="render"
-          size={96}
-          alt={structure.product.name}
-          mono={structure.product.name.slice(0, 2)}
-        />
+        <div className="mt-[5px] font-body text-[11px] leading-[1.4] text-muted">
+          {group ? `${group} · ` : ''}builds {formatQuantity(outputUnits)} unit
+          {outputUnits === 1 ? '' : 's'}
+        </div>
       </div>
 
-      <HeroSteppers blueprintTypeId={structure.blueprintTypeId} isManufacturing={isManufacturing} />
+      <div className="flex flex-wrap items-stretch gap-x-6 gap-y-3">
+        {/* The item render in the building-character frame's exact twin, so the
+            two squares bracket the steppers on one plane. */}
+        <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-[3px] border border-border p-2">
+          <TypeIcon
+            typeId={structure.product.typeId}
+            variant="render"
+            size={88}
+            alt={structure.product.name}
+            mono={structure.product.name.slice(0, 2)}
+          />
+        </div>
 
-      {/* The building character + the RESERVED area right of the frame: the seam
-          for the future Run-As skills/standings modification icons (ACCOUNT.8).
-          Deliberately empty — don't fill it. */}
-      <div className="flex items-center gap-2">
+        <HeroSteppers blueprintTypeId={structure.blueprintTypeId} isManufacturing={isManufacturing} />
+
+        {/* The building character. The gap between this frame and the location
+            groups is the RESERVED seam for the future Run-As skills/standings
+            modification icons (ACCOUNT.8) — don't crowd it. */}
         <RunAsFrame />
-        <div aria-hidden className="w-24 shrink-0" />
-      </div>
 
-      {/* Two stacked selector groups, always shown (a reaction root builds in a
-          refinery too): 'Build at' over 'React at', each a System search + Station
-          select. The routing derives roles — a lone refinery does everything;
-          adding a build structure takes over just the manufacturing nodes. */}
-      <div className="flex flex-col justify-center gap-3 sm:ml-auto">
-        <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
-        <ReactionStructureSelect />
+        {/* The two location groups side by side, always shown (a reaction root
+            builds in a refinery too). The routing derives roles — a lone
+            refinery does everything; adding a build structure takes over just
+            the manufacturing nodes. */}
+        <div className="flex flex-wrap gap-x-6 gap-y-3 sm:ml-auto">
+          <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
+          <ReactionStructureSelect />
+        </div>
       </div>
     </div>
   );

@@ -4,10 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePreference, usePreferencesReady } from '@/components/PreferencesProvider';
 import { cn } from '@/components/ui/cn';
-import { Pill } from '@/components/ui/pill';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { toneTextClass } from '@/components/ui/tones';
-import { formatSec } from '@/data/eve-data/systems-search';
 import { apiFetch } from '@/lib/api-client';
 import { plannerBuildLocation } from '@/lib/preferences';
 import { buildLocationEndpoint } from '../api-contract';
@@ -16,6 +14,7 @@ import type { StructureReadout as StructureReadoutBonus } from '../structure-fac
 import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
 import type { AvailableStructure, IndustryStationView } from '../types';
 import { usePricing } from './PricingProvider';
+import { SelectedSystemBox } from './SelectedSystemBox';
 import { StructureOptgroups } from './StructureOptgroups';
 import { StructureBonusReadout } from './structure-bonus-readout';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
@@ -42,7 +41,10 @@ function StructureReadout({
   // (3.7.9.1.5) carries its own security and shows a bonus with no planner location.
   if (readout.mfg === null && readout.rxn === null) {
     return (
-      <span className="text-[10px] text-muted">
+      <span
+        title="Select a build system to apply this structure's bonus"
+        className="min-w-0 truncate text-[10px] text-muted"
+      >
         Select a build system to apply this structure&apos;s bonus
       </span>
     );
@@ -115,7 +117,7 @@ function BuildFacilitySelect({
         value={facilityValue}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Build location"
-        className="w-[260px] shrink-0 border border-border bg-bg px-2 py-1 font-mono text-[11px] text-text focus:border-border-active focus:outline-none"
+        className="h-[30px] w-[260px] shrink-0 border border-border bg-bg px-2 font-mono text-[11px] text-text focus:border-border-active focus:outline-none"
       >
         <option value="">{stations.length > 0 ? `Any NPC station (${stations.length})` : '— none —'}</option>
         <StructureOptgroups structures={structures} />
@@ -303,69 +305,69 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
       : null;
 
   // The build SYSTEM control (drives the cost index + the security a custom
-  // structure's rigs scale against): locked to a corp structure's system → a search
-  // box until one is picked → a pill once picked.
-  const systemControl = lockedStructure ? (
-    <div className="flex items-center gap-2 flex-wrap">
+  // structure's rigs scale against). Every state — search box, picked, locked,
+  // unavailable — renders at the SAME fixed 260×30 box the station select uses,
+  // so picking or clearing a system never shifts the hero's plane.
+  const systemControl = (
+    <div className="flex items-center gap-2">
       <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
-      {deducedSystem ? (
-        <Pill tone="blue">
-          {deducedSystem.name} {formatSec(deducedSystem.security)}
-        </Pill>
-      ) : (
-        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">System unavailable for net margin</span>
-      )}
-      {/* No Clear while locked — the Location dropdown is the single source of truth
-          for where the build happens; changing it there unlocks the system. */}
-      <span className="text-[10px] tracking-[0.12em] uppercase text-muted">↳ locked to {lockedStructure.name}</span>
-    </div>
-  ) : location ? (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
-      <Pill tone="blue">
-        {location.systemName} {formatSec(location.security)}
-      </Pill>
-      <button
-        type="button"
-        onClick={() => {
-          setLocation(null);
-          setSavedLoc(null);
-        }}
-        className="text-[10px] tracking-[0.12em] uppercase text-muted hover:text-text"
-      >
-        Clear
-      </button>
-    </div>
-  ) : (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
-      <div className="w-[260px] max-w-full">
-        <TerminalSearch<SystemParams, SystemErr>
-          initialValue=""
-          placeholder="Build system — type a name"
-          parse={parse}
-          suggest={suggest}
-          errorMessage={() => 'No build system matches that name.'}
-          onSubmit={onSubmit}
+      {lockedStructure ? (
+        deducedSystem ? (
+          <SelectedSystemBox
+            name={deducedSystem.name}
+            security={deducedSystem.security}
+            // No Clear while locked — the Station dropdown is the single source
+            // of truth for where the build happens; changing it there unlocks.
+            locked={lockedStructure.name}
+          />
+        ) : (
+          <div className="flex h-[30px] w-[260px] shrink-0 items-center border border-border bg-bg px-2">
+            <span className="truncate text-[10px] uppercase tracking-[0.12em] text-muted">System unavailable</span>
+          </div>
+        )
+      ) : location ? (
+        <SelectedSystemBox
+          name={location.systemName}
+          security={location.security}
           onClear={() => {
             setLocation(null);
             setSavedLoc(null);
           }}
-          errorLabel="System"
-          hint="Pick a system for net margin"
         />
-        {fetchError && (
-          <div className={cn('mt-1 text-[10px]', toneTextClass('red'))}>
-            Couldn&apos;t load that system — try again.
-          </div>
-        )}
-      </div>
+      ) : (
+        <div className="w-[260px] max-w-full">
+          <TerminalSearch<SystemParams, SystemErr>
+            initialValue=""
+            placeholder="Build system — type a name"
+            parse={parse}
+            suggest={suggest}
+            errorMessage={() => 'No build system matches that name.'}
+            onSubmit={onSubmit}
+            onClear={() => {
+              setLocation(null);
+              setSavedLoc(null);
+            }}
+            errorLabel="System"
+          />
+          {fetchError && (
+            <div className={cn('mt-1 text-[10px]', toneTextClass('red'))}>
+              Couldn&apos;t load that system — try again.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-faint">Build at</span>
+    <div className="flex flex-col justify-center gap-1.5">
+      {/* The group header carries the bonus readout (or the pick-a-system
+          prompt) on its own fixed-height line, right of the title — beside the
+          controls it would push them; below them it would stretch the group. */}
+      <div className="flex min-h-4 min-w-0 items-center gap-2.5">
+        <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-faint">Manufacturing</span>
+        <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
+      </div>
       {systemControl}
       {visibleStructures !== null && (
         <BuildFacilitySelect
@@ -377,12 +379,6 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
           setStation={setStation}
         />
       )}
-      {/* Fixed-height bonus slot, aligned under the controls: the compact
-          gem/hourglass readout (or the pick-a-system prompt) lives here, so a
-          bonus appearing or vanishing never pushes the selects around. */}
-      <div className="flex min-h-4 items-center pl-[72px]">
-        <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
-      </div>
     </div>
   );
 }
