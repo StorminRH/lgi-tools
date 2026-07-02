@@ -6,6 +6,15 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.13.3 — 2026-07-02
+
+#### Added
+- Structures now carry their owner-set facility tax. Record it on a corp structure beside its rig fit (Station Manager only), or on a custom structure in the builder — with an inline edit on saved structures. Job fees then charge that structure's real rate, and the fee breakdown labels the rate in use, marking the standard 0.25% as "assumed" until a real one is entered.
+- Reaction blueprints now show net margin. Pick a reaction system (or build in a refinery), and the job is priced against that system's own reaction cost index and the hosting refinery's tax — the same install fee, surcharge, and sell-fee treatment manufacturing already gets.
+
+#### Changed
+- With no tax entered, nothing moves: every fee keeps the standard 0.25% station assumption, so existing plans price exactly as before.
+
 ### v3.7.13.2 — 2026-07-01
 
 #### Added
