@@ -11,6 +11,8 @@
 // callouts, null/empty/rows tristate) is the shared LiveCharacterCard; this slice
 // supplies the row + summary.
 import type { ReactNode } from 'react';
+import { syncEligibleIds } from '@/components/character-strip-model';
+import { CharacterStripSection } from '@/components/character-strip-section';
 import {
   type CharacterCardContent,
   LiveCharacterCard,
@@ -20,6 +22,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import type { CharacterStripSpec } from '@/page-settings/types';
 import { formatQuantity } from '@/lib/format/number';
 import { formatRemaining } from '@/lib/format/time';
 import type { SkillQueueEntry } from '../esi-projection';
@@ -32,12 +35,18 @@ export function SkillQueuePanel({
   characters,
   reconnectAction,
   reconnectReason,
+  strip,
+  initialDimmed,
 }: {
   characters: PanelCharacter[];
   // The in-place scope-grant control + its reason, composed by the page (app
   // layer) and forwarded to each per-character card's gate.
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
+  // The page's spec.strip declaration (D-7 opt-in) + the cookie-read dimmed set
+  // for the first paint. Absent = no strip, no filtering — today's render.
+  strip?: CharacterStripSpec;
+  initialDimmed?: number[];
 }) {
   if (characters.length === 0) {
     return (
@@ -57,6 +66,8 @@ export function SkillQueuePanel({
       characters={characters}
       reconnectAction={reconnectAction}
       reconnectReason={reconnectReason}
+      strip={strip}
+      initialDimmed={initialDimmed}
     />
   );
 }
@@ -72,51 +83,60 @@ function LiveQueues({
   characters,
   reconnectAction,
   reconnectReason,
+  strip,
+  initialDimmed,
 }: {
   characters: PanelCharacter[];
   reconnectAction?: ReactNode;
   reconnectReason?: ReactNode;
+  strip?: CharacterStripSpec;
+  initialDimmed?: number[];
 }) {
-  const eligibleIds = characters
-    .filter((character) => !character.needsReconnect)
-    .map((character) => character.characterId);
+  // The sync ids derive from the FULL list — dimming is a render filter only
+  // (view-only pin): a dimmed character keeps its on-view refresh.
+  const eligibleIds = syncEligibleIds(characters);
   const { skillsByCharacter, names, now, loading } = useSkillsLive(eligibleIds);
 
   return (
     <div className="w-full max-w-[760px] flex flex-col gap-6">
-      <div className="flex items-center">
-        <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
-          {loading ? 'Loading…' : 'Synced from ESI on view'}
-        </span>
-      </div>
-
-      {characters.map((character) => {
-        const live = skillsByCharacter.get(character.characterId);
-        const row: SkillsLiveRow | undefined =
-          live !== undefined ? { data: live.data, lastSyncedAt: live.lastRefreshedAt } : undefined;
-        const { isEmpty, subtitle, headerRight, rows } = renderQueueCard(row, names, now);
-        return (
-          <LiveCharacterCard
-            key={character.characterId}
-            character={character}
-            syncError={null}
-            lastSyncedAt={row?.lastSyncedAt}
-            hasData={(row?.data ?? null) !== null}
-            isEmpty={isEmpty}
-            syncing={false}
-            sectionLabel="Skill queue"
-            scopePhrase="the skill scopes"
-            noun="queue"
-            subtitle={subtitle}
-            headerRight={headerRight}
-            emptyRowsText="No skills in the training queue."
-            reconnectAction={reconnectAction}
-            reconnectReason={reconnectReason}
-          >
-            {rows}
-          </LiveCharacterCard>
-        );
-      })}
+      <CharacterStripSection
+        characters={characters}
+        strip={strip}
+        initialDimmed={initialDimmed}
+        loading={loading}
+      >
+        {(visible) =>
+          visible.map((character) => {
+            const live = skillsByCharacter.get(character.characterId);
+            const row: SkillsLiveRow | undefined =
+              live !== undefined
+                ? { data: live.data, lastSyncedAt: live.lastRefreshedAt }
+                : undefined;
+            const { isEmpty, subtitle, headerRight, rows } = renderQueueCard(row, names, now);
+            return (
+              <LiveCharacterCard
+                key={character.characterId}
+                character={character}
+                syncError={null}
+                lastSyncedAt={row?.lastSyncedAt}
+                hasData={(row?.data ?? null) !== null}
+                isEmpty={isEmpty}
+                syncing={false}
+                sectionLabel="Skill queue"
+                scopePhrase="the skill scopes"
+                noun="queue"
+                subtitle={subtitle}
+                headerRight={headerRight}
+                emptyRowsText="No skills in the training queue."
+                reconnectAction={reconnectAction}
+                reconnectReason={reconnectReason}
+              >
+                {rows}
+              </LiveCharacterCard>
+            );
+          })
+        }
+      </CharacterStripSection>
     </div>
   );
 }

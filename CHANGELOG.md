@@ -6,6 +6,12 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.17.1 — 2026-07-02
+
+#### Added
+- A character strip on the Skill Queues and Industry Jobs pages: your linked characters appear as a row of portraits above each tracker. Click a portrait to hide that character's cards on that page — the choice is saved per page, so a character hidden on one tracker still shows on the other, and a newly linked character always starts visible. Hiding is display-only; hidden characters keep syncing in the background.
+- A character that hasn't granted the page's required access now shows in the strip as locked, with a reconnect shortcut that takes you through EVE login and back to the same page.
+
 ### v3.7.16.1 — 2026-07-02
 
 #### Added

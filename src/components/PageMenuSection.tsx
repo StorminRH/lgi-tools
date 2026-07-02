@@ -13,10 +13,12 @@
 // in sync live.
 //
 // Shared zone on purpose: it bridges the page-settings layer to the auth
-// feature's menu without either importing the other, and it is where ACCOUNT.7
-// mounts the per-surface character strip (spec.strip). No usePathname and no
-// Suspense here — PageMenuProvider already isolates the request-time read
-// (the #182 lesson).
+// feature's menu without either importing the other. (The ACCOUNT.7 character
+// strip deliberately does NOT mount here — it renders on the page surface
+// itself, inside each strip-declaring panel, where the server-derived
+// per-surface character list lives; this menu half renders preference controls
+// only.) No usePathname and no Suspense here — PageMenuProvider already
+// isolates the request-time read (the #182 lesson).
 
 import { usePageSettings } from '@/components/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';

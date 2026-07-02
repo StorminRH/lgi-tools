@@ -1,4 +1,4 @@
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { LoadingLabel } from '@/components/ui/loading-label';
@@ -9,7 +9,9 @@ import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterBut
 import { toPanelCharacter } from '@/features/auth/panel-character';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import { SkillQueuePanel } from '@/features/skill-queue/components/SkillQueuePanel';
+import { skillsPageSettings } from '@/features/skill-queue/page-settings';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
+import { cookieNameFor, readPreferenceCookieValue, stripDimmedDef } from '@/lib/preferences';
 
 async function SkillsContent() {
   // Session-gated (any signed-in pilot), the /characters precedent: signed
@@ -22,6 +24,14 @@ async function SkillsContent() {
   }
 
   const characters = await listLinkedCharacters(session.user.id);
+  // The strip's dimmed set, read from its ssrReadable cookie mirror inside the
+  // hole (the /sites initialView idiom) so a reload's first paint already hides
+  // dimmed cards instead of flashing all-lit until the preferences GET resolves.
+  const stripDef = stripDimmedDef(skillsPageSettings.strip.surfaceId);
+  const initialDimmed = readPreferenceCookieValue(
+    (await cookies()).get(cookieNameFor(stripDef))?.value,
+    stripDef,
+  );
   // Per-character scope gate: each card that can't sync its skill queue blocks
   // itself behind an in-place grant, while granted characters still show. The
   // scope health is derived per character at the app layer (toPanelCharacter →
@@ -34,6 +44,8 @@ async function SkillsContent() {
         <LinkCharacterButton label="Grant skill access" emphasis="reconnect" callbackURL="/skills" />
       }
       reconnectReason="Skill access lets the site read this character's training queue and skills."
+      strip={skillsPageSettings.strip}
+      initialDimmed={initialDimmed}
     />
   );
 }

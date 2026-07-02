@@ -79,12 +79,50 @@ export const sitesDetailMode = define<'lightbox' | 'expand'>(
   'expand',
 );
 
+// ── The per-surface character-strip dimmed sets (ACCOUNT.7, D-7) ──
+// One def per strip-declaring surface, keyed `strip.<surfaceId>.dimmed`. The
+// stored value is the DIMMED characterIds (store-off-not-on): a character absent
+// from the array — e.g. a newly linked alt — is lit by default, never stored.
+// ssrReadable: dimming changes the initial card list, so the cookie mirror keeps
+// a reload from flashing all-lit while the server GET resolves (the sitesView
+// criterion). Adding a strip surface = one id here + the feature's spec.strip
+// declaration; the wire enum and validation grow automatically.
+
+export const STRIP_SURFACE_IDS = ['skills', 'jobs'] as const;
+export type StripSurfaceId = (typeof STRIP_SURFACE_IDS)[number];
+
+export function stripDimmedKey(surfaceId: string): string {
+  return `strip.${surfaceId}.dimmed`;
+}
+
+const stripDimmedSchema = z.array(z.number().int().positive());
+
+const STRIP_DIMMED_DEFS = Object.fromEntries(
+  STRIP_SURFACE_IDS.map((id) => [
+    id,
+    define<number[]>(stripDimmedKey(id), stripDimmedSchema, [], true),
+  ]),
+) as Record<StripSurfaceId, PreferenceDef<number[]>>;
+
+// A panel with no strip declaration still calls usePreference unconditionally
+// (rules of hooks); this sentinel def is never registered, so it always reads as
+// its [] fallback and the server rejects any write of its key (the
+// CharacterPortrait sentinel-id precedent — unreachable, never colliding).
+const STRIP_DIMMED_NONE = define<number[]>(stripDimmedKey('__none'), stripDimmedSchema, []);
+
+// Total resolver returning stable module-scope refs — usePreference's setter
+// identity keys off the def object, so this must never construct per call.
+export function stripDimmedDef(surfaceId?: StripSurfaceId): PreferenceDef<number[]> {
+  return surfaceId === undefined ? STRIP_DIMMED_NONE : STRIP_DIMMED_DEFS[surfaceId];
+}
+
 // The registry, in declaration order. The provider iterates it to seed and
 // reconcile the tiers; a setting added above is included here automatically.
 export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   sitesView,
   plannerBuildLocation,
   sitesDetailMode,
+  ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),
 ];
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
 
