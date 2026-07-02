@@ -6,6 +6,17 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.13.2 — 2026-07-01
+
+#### Added
+- The planner's build-system search now covers the whole universe — every wormhole, nullsec, and empire system is findable and selectable in both location groups, not just systems with NPC industry stations, so builds in player structures anywhere can finally be planned.
+- Custom structures can be pinned to a home system in the structure builder (with pin and unpin actions on saved structures). A pinned structure appears only in its own system's build list and locks the planner to that system when selected, exactly like a corp structure; unpinned structures stay available everywhere.
+- Both structure dropdowns carry a permanent "Add custom structure" entry that jumps to the structure builder.
+
+#### Changed
+- The planner hero was rebuilt as one aligned row: the item render and building-character portrait sit in matching square frames, the efficiency and run controls share one stepper style, and the two location groups sit side by side as Manufacturing and Reactions with their structure bonuses shown as compact percentages beside each header. The item name now sits centered above the card with a per-run output chip in the corner.
+- The structure lists are grouped by source — corp structures, custom structures, and NPC stations — and a structure tied to a system is listed only under that system.
+
 ### v3.7.12.2 — 2026-07-01
 
 #### Added
