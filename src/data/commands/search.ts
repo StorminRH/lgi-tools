@@ -107,6 +107,7 @@ const COMMANDS: CommandEntry[] = [
 ];
 
 export const commandsSearchSource: SearchSource = {
+  id: 'commands',
   name: 'Commands',
   limit: 5,
   async search(query, ctx) {

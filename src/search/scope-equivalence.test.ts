@@ -375,3 +375,56 @@ describe('full-scope search over the real manifest (characterization anchor)', (
     expect(out.map((s) => s.name)).toEqual(['Recent', 'Sites', 'Blueprints', 'Tools', 'Commands']);
   });
 });
+
+// The scoped-invariants suite (added with the scoping refactor). The anchor
+// suite above proves the default path unchanged; this one proves scoping is a
+// pure filter over it — same sections, same rows, same order, just fewer
+// sources consulted.
+
+const ALL_SOURCE_IDS = ['recents', 'sites', 'blueprints', 'tools', 'commands'] as const;
+
+const SECTION_NAME_BY_ID: Record<(typeof ALL_SOURCE_IDS)[number], string> = {
+  recents: 'Recent',
+  sites: 'Sites',
+  blueprints: 'Blueprints',
+  tools: 'Tools',
+  commands: 'Commands',
+};
+
+// The anchor's query/ctx pairs, reused so the scoped runs are compared
+// against exactly the behavior the characterization pinned.
+const MATRIX: readonly [string, () => SearchContext][] = [
+  ['', signedIn],
+  ['perimeter', signedOut],
+  ['legion', signedOut],
+  ['industry', signedOut],
+  ['log', signedOut],
+  ['log', signedIn],
+  ['admin', admin],
+  ['in', admin],
+];
+
+describe('scoped queries against the real manifest', () => {
+  it('an explicit all-ids scope equals the default full-scope run', async () => {
+    for (const [query, ctx] of MATRIX) {
+      expect(await searchAll(query, ctx(), ALL_SOURCE_IDS)).toEqual(await searchAll(query, ctx()));
+    }
+  });
+
+  it("a singleton scope returns exactly that source's slice of the full run", async () => {
+    for (const [query, ctx] of MATRIX) {
+      const full = await searchAll(query, ctx());
+      for (const id of ALL_SOURCE_IDS) {
+        const scoped = await searchAll(query, ctx(), [id]);
+        expect(scoped).toEqual(full.filter((s) => s.name === SECTION_NAME_BY_ID[id]));
+      }
+    }
+  });
+
+  it('a subset scope returns only that subset, in registration order', async () => {
+    const out = await searchAll('in', admin(), ['commands', 'sites']);
+    expect(out.map((s) => s.name)).toEqual(['Sites', 'Commands']);
+    const full = await searchAll('in', admin());
+    expect(out).toEqual(full.filter((s) => s.name === 'Sites' || s.name === 'Commands'));
+  });
+});

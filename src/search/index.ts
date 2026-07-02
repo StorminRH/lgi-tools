@@ -25,6 +25,10 @@
 //  - Lazy loading: large indexes (e.g. the Blueprints source) are registered
 //    via `registerLazySearchSource`, which memoizes the dynamic import so the
 //    cost only lands on the user's first matching keystroke.
+//  - Scoping: `searchAll` optionally takes a subset of source ids so an
+//    embedded consumer (a feature-level picker) can query just its sources
+//    through the same engine. Omitting the subset queries everything — the
+//    global command bar's full-scope behavior is the unchanged default.
 
 import type { useRouter } from 'next/navigation';
 import type { Session } from '@/features/auth/types';
@@ -78,6 +82,10 @@ export type SearchContext = {
 };
 
 export type SearchSource = {
+  // Stable machine identity, the key scoped queries filter on. Distinct from
+  // `name`, which is display copy (the dropdown section header) — retitling a
+  // section must never break a scoped caller.
+  id: string;
   name: string;
   search: (query: string, ctx: SearchContext) => Promise<SearchResult[]>;
   limit?: number;
@@ -89,6 +97,7 @@ export type SearchSource = {
 // industry-planner Blueprints source exports one of these for the manifest
 // to hand to `registerLazySearchSource`.
 export type LazySearchSource = {
+  id: string;
   name: string;
   limit?: number;
   showOnEmpty?: boolean;
@@ -129,6 +138,10 @@ export function registerLazySearchSource(meta: LazySearchSource): void {
   let loadPromise: Promise<SearchSource> | null = null;
 
   registerSearchSource({
+    // The wrapper's metadata wins over the loaded source's (same as `name`
+    // and `limit` today) — the loaded module restates them only to satisfy
+    // the SearchSource shape.
+    id: meta.id,
     name: meta.name,
     limit: meta.limit,
     showOnEmpty: meta.showOnEmpty,
@@ -162,12 +175,27 @@ export type SearchSection = {
   results: SearchResult[];
 };
 
+// `sourceIds` scopes the query to a subset of registered sources:
+//  - omitted/undefined → every registered source (the global command bar's
+//    full-scope behavior, unchanged);
+//  - an id subset → only those sources run, each with its own ranking and
+//    limit exactly as at full scope;
+//  - an empty array → no sources, resolves to [];
+//  - an unknown id simply matches nothing (no warning).
+// Section order stays registration order regardless of `sourceIds` order.
 export async function searchAll(
   query: string,
   ctx: SearchContext,
+  sourceIds?: readonly string[],
 ): Promise<SearchSection[]> {
   const trimmed = query.trim();
   const isEmpty = trimmed.length === 0;
+
+  // When unscoped, `active` IS the registry array — the default path filters
+  // nothing and stays byte-identical to the pre-scoping engine.
+  const active = sourceIds === undefined
+    ? sources
+    : sources.filter((s) => sourceIds.includes(s.id));
 
   // Promise.allSettled (not Promise.all) so one source's failure — e.g. a
   // transient network error inside a lazy source's `await import()` —
@@ -175,7 +203,7 @@ export async function searchAll(
   // Rejected sources are dropped from this query; the next keystroke
   // retries them. AbortError still propagates via the signal check below.
   const settled = await Promise.allSettled(
-    sources.map(async (s) => {
+    active.map(async (s) => {
       if (isEmpty && !s.showOnEmpty) {
         return { name: s.name, results: [] };
       }
@@ -202,7 +230,10 @@ export async function searchAll(
       // keystroke during fast typing.
       const isAbort = r.reason instanceof DOMException && r.reason.name === 'AbortError';
       if (!isAbort) {
-        console.warn(`searchAll: source "${sources[i].name}" failed`, r.reason);
+        // Index into `active`, not `sources` — under a scoped query the
+        // settled array only covers the filtered subset, and indexing the
+        // full registry would blame the wrong source.
+        console.warn(`searchAll: source "${active[i].name}" failed`, r.reason);
       }
     }
   }

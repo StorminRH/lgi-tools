@@ -38,6 +38,7 @@ function loadIndex(): Promise<BlueprintIndexEntry[]> {
 }
 
 export const blueprintsSource: SearchSource = {
+  id: 'blueprints',
   name: 'Blueprints',
   limit: 6,
   async search(query, ctx) {

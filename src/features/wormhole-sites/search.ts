@@ -32,6 +32,7 @@ const CLASS_ORDER: Record<string, number> = {
 };
 
 export const sitesSearchSource: SearchSource = {
+  id: 'sites',
   name: 'Sites',
   limit: 6,
   async search(query) {
