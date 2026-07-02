@@ -242,8 +242,14 @@ function CorpStructureRigEditor({
       cache: 'no-store',
     });
     setBusy(false);
-    if (res.ok) toast.success('Structure details saved');
-    else toast.error('Could not save the structure details');
+    if (res.ok) {
+      // Adopt the echoed stored value so the field reflects the authoritative
+      // state (normalizes drafts like "01.50" and can't drift from the save).
+      setTaxDraft(res.data.taxPct === null ? '' : String(res.data.taxPct));
+      toast.success('Structure details saved');
+    } else {
+      toast.error('Could not save the structure details');
+    }
   }
 
   return (
