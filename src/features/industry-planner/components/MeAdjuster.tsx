@@ -279,7 +279,9 @@ function EfficiencyField({
         e.stopPropagation();
         onRevert();
       }}
-      className="cursor-pointer font-mono text-[10px] leading-none text-isk hover:text-name"
+      // 13px (not the row's 10px): the ↺ was too easy to miss. Still narrower
+      // than its reserved w-3.5 slot, so growing it never pushes the boxes.
+      className="cursor-pointer font-mono text-[13px] leading-none text-isk hover:text-name"
     >
       ↺
     </button>

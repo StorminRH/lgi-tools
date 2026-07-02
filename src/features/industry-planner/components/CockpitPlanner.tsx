@@ -17,11 +17,12 @@ import { HeroCard } from './HeroCard';
 // consolidated tier build plan (with its collapsible raw-materials ledger). This
 // file owns the page head and composes the sections below it.
 
-// The lgi://industry breadcrumb + a terse right-aligned stat strip, with the
-// item's name CENTERED beneath them, over the hero card (the card itself
-// carries no title). The crumb's `industry` segment links back to the planner
-// index; the right strip pairs the product's category with the job-type chip
-// and the per-run output chip.
+// The page head, ONE bottom-aligned line resting on the hero card: the
+// lgi://industry breadcrumb left, the item's name CENTERED (the card itself
+// carries no title), and the terse stat strip right — the product's category,
+// the job-type chip, and the per-run output chip. The 1fr/auto/1fr grid keeps
+// the name on the true page center regardless of the side content's widths;
+// on narrow viewports the three stack instead.
 function PlannerHead({
   name,
   group,
@@ -34,21 +35,21 @@ function PlannerHead({
   perRun: string;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 pt-[26px] pb-1">
-      <div className="font-mono text-caption tracking-[0.08em] text-muted">
+    <header className="grid grid-cols-1 items-end gap-x-6 gap-y-2 pt-[26px] pb-1 sm:grid-cols-[1fr_auto_1fr]">
+      <div className="justify-self-start font-mono text-caption tracking-[0.08em] text-muted">
         <span className="text-isk">lgi://</span>
         <Link href="/industry" className="hover:text-isk">
           industry
         </Link>
       </div>
-      <div className="inline-flex items-center gap-[14px] pb-0.5 font-mono text-caption uppercase tracking-[0.08em] text-muted">
+      <h1 className="text-center font-display text-[25px] font-bold uppercase leading-none tracking-[0.01em] text-name">
+        {name}
+      </h1>
+      <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 font-mono text-caption uppercase tracking-[0.08em] text-muted">
         {group && <span>{group}</span>}
         <Pill tone="blue">{activity}</Pill>
         <Pill tone="neutral">{perRun} per Run</Pill>
       </div>
-      <h1 className="basis-full text-center font-display text-[25px] font-bold uppercase leading-none tracking-[0.01em] text-name">
-        {name}
-      </h1>
     </header>
   );
 }

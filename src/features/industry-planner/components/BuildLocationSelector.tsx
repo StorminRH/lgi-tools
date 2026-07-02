@@ -369,7 +369,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
           prompt) on its own fixed-height line, right of the title — beside the
           controls it would push them; below them it would stretch the group. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
-        <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.18em] text-faint">Manufacturing</span>
+        <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.16em] text-text">Manufacturing</span>
         <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
       </div>
       {systemControl}
