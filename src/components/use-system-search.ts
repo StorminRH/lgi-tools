@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLoadedSystems, loadSystems, matchSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
 import { searchAll } from '@/search';
 
@@ -27,12 +27,21 @@ export function useSystemSearch(): SystemSearch {
   // Seeded from the shared snapshot so a second mount (the reaction row, a
   // route revisit) reads the already-loaded index synchronously.
   const [systems, setSystems] = useState<SystemSearchEntry[]>(() => getLoadedSystems() ?? []);
+  // True once `systems` holds the loaded index — the mount-failure heal below
+  // runs only until then, so a warm picker enqueues no per-keystroke updates.
+  const healedRef = useRef(getLoadedSystems() !== null);
+  // Aborts the previous keystroke's engine dispatch when the next one fires —
+  // the same per-query cancellation the global search wires.
+  const ctrlRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let alive = true;
     loadSystems()
       .then((s) => {
-        if (alive) setSystems(s);
+        if (alive) {
+          healedRef.current = true;
+          setSystems(s);
+        }
       })
       .catch(() => {
         // index unavailable — parse stays empty for now; a later suggest
@@ -56,8 +65,21 @@ export function useSystemSearch(): SystemSearch {
   // failed mount-time load heals on the first successful keystroke (no
   // suggestions-work-but-Enter-fails split).
   const suggest = useCallback(async (input: string): Promise<string[]> => {
-    const sections = await searchAll(input, { session: null, isAdmin: false, recents: [] }, ['systems']);
-    setSystems((prev) => (prev.length === 0 ? getLoadedSystems() ?? prev : prev));
+    ctrlRef.current?.abort();
+    const ctrl = new AbortController();
+    ctrlRef.current = ctrl;
+    const sections = await searchAll(
+      input,
+      { session: null, isAdmin: false, recents: [], signal: ctrl.signal },
+      ['systems'],
+    );
+    if (!healedRef.current) {
+      const loaded = getLoadedSystems();
+      if (loaded !== null) {
+        healedRef.current = true;
+        setSystems(loaded);
+      }
+    }
     return sections[0]?.results.map((r) => r.label) ?? [];
   }, []);
 

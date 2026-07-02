@@ -130,12 +130,17 @@ export function CustomStructureBuilder({
   async function onSetPin(id: string, systemId: number | null) {
     if (busy) return;
     setBusy(true);
+    setError(null);
     const res = await apiFetch(setCustomStructurePinEndpoint, { body: { id, systemId }, cache: 'no-store' });
     setBusy(false);
-    if (res.ok) {
-      setStructures(res.data.structures);
-      setPinningId(null);
+    if (!res.ok) {
+      // The inline picker stays open for a retry — without this the failed
+      // attempt would be indistinguishable from a slow one.
+      setError('Could not update the pin — try again.');
+      return;
     }
+    setStructures(res.data.structures);
+    setPinningId(null);
   }
 
   // The pin's display name resolves from the loaded universe index; the raw id

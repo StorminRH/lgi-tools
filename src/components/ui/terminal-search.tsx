@@ -56,25 +56,30 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
   // dispatch through the search engine). Sync and async returns both resolve
   // through the microtask below, latest-wins (the alive flag drops a stale
   // resolution — and keeps setState out of the effect's synchronous body,
-  // which the react-hooks rules ban). An emptied input renders no
-  // suggestions via the derive below, so stale async state never flashes.
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  // which the react-hooks rules ban). Results are stored WITH the query they
+  // answered: the derive below renders only the current input's resolution,
+  // so neither an emptied input nor a rapid non-empty retype ever flashes a
+  // prior query's list while the next one is in flight.
+  const [suggestions, setSuggestions] = useState<{ query: string; items: string[] }>({
+    query: '',
+    items: [],
+  });
   useEffect(() => {
     if (value.trim().length === 0) return;
     let alive = true;
     Promise.resolve(suggest(value)).then(
       (s) => {
-        if (alive) setSuggestions(s);
+        if (alive) setSuggestions({ query: value, items: s });
       },
       () => {
-        if (alive) setSuggestions([]);
+        if (alive) setSuggestions({ query: value, items: [] });
       },
     );
     return () => {
       alive = false;
     };
   }, [value, suggest]);
-  const visibleSuggestions = value.trim().length === 0 ? [] : suggestions;
+  const visibleSuggestions = suggestions.query === value ? suggestions.items : [];
 
   // Click outside / Esc to close the dropdown.
   useEffect(() => {
