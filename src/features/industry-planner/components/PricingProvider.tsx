@@ -46,6 +46,7 @@ import {
   type PriceLite,
 } from '../build-pricing';
 import {
+  composeFeeInputs,
   hostsReactions,
   structureFactorsFor,
   structureReadouts,
@@ -479,40 +480,18 @@ export function PricingProvider({
   const assemble = useCallback(() => {
     const lookup = (typeId: number): PriceLite | undefined =>
       liveRef.current.get(typeId) ?? seedMapRef.current.get(typeId);
-    const loc = locationRef.current;
     const sf = structureFactorsRef.current;
-    const rxnLoc = reactionLocationRef.current;
-    const buildStructure = selectedStructureRef.current;
-    const rxnStructure = reactionStructureRef.current;
-    // Facility-tax routing (3.7.13.3). The mfg fee reads the BUILD slot only: a
-    // lone reaction-slot refinery "hosting the chain" (#187 ME routing) never
-    // lends its tax to the manufacturing fee, whose index comes from the BUILD
-    // system — tax and index must not straddle two systems. The reaction fee
-    // reads the reaction host (the refinery, else a build-slot refinery).
-    const buildIsRefinery = !!buildStructure && hostsReactions(buildStructure.groupId);
-    const reactionHost = rxnStructure ?? (buildIsRefinery ? buildStructure : null);
-    // Reaction fee inputs: the dedicated reaction-slot fetch, else the build
-    // system's own 'reaction' index when the build-slot structure is a refinery
-    // (already fetched with the location — the approved fallback).
-    const reaction = rxnLoc
-      ? { systemCostIndex: rxnLoc.costIndex, facilityTaxPct: reactionHost?.taxPct ?? null }
-      : buildIsRefinery && loc
-        ? { systemCostIndex: loc.costIndices.reaction ?? null, facilityTaxPct: buildStructure.taxPct }
-        : undefined;
-    // Adjusted prices are CCP-global (the same value whichever system fetched
-    // them), so either read's map answers for the blueprint's EIV base.
-    const fee =
-      loc || reaction
-        ? {
-            adjustedPriceOf: (id: number) =>
-              loc?.adjustedPrices.get(id) ?? rxnLoc?.adjustedPrices.get(id) ?? null,
-            systemCostIndex: loc?.costIndices.manufacturing ?? null,
-            // The selected manufacturing structure's job-cost reduction (0 when none).
-            structureCostBonusPct: sf.structureCostBonusPct,
-            facilityTaxPct: buildStructure?.taxPct ?? null,
-            reaction,
-          }
-        : undefined;
+    // Fee composition (3.7.13.3) — the routing rules (mfg tax reads the BUILD
+    // slot only; the reaction fee reads the reaction host with the build-slot-
+    // refinery fallback) live in the pure composeFeeInputs, tested beside the
+    // rest of the structure routing.
+    const fee = composeFeeInputs({
+      location: locationRef.current,
+      reactionLocation: reactionLocationRef.current,
+      buildStructure: selectedStructureRef.current,
+      reactionStructure: reactionStructureRef.current,
+      structureCostBonusPct: sf.structureCostBonusPct,
+    });
     // Owned-ME overlay + manual overrides: the cost basis is recomputed at each
     // buildable's effective ME (a manual override wins, else the owned ME). No owned
     // data and no overrides → meOf stays undefined → ME0 gross basis. With overrides

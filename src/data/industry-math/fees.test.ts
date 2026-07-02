@@ -6,6 +6,7 @@ import {
   DEFAULT_FEE_RATES,
   effectiveFacilityTaxRate,
   MAX_FACILITY_TAX_PCT,
+  parseFacilityTaxDraft,
   REACTION_SCC_SURCHARGE,
   type AdjustedPriceOf,
 } from './fees';
@@ -70,6 +71,26 @@ describe('effectiveFacilityTaxRate', () => {
 
   it('treats an entered 0 as a real 0% rate, not "unset"', () => {
     expect(effectiveFacilityTaxRate(0)).toBe(0);
+  });
+});
+
+describe('parseFacilityTaxDraft', () => {
+  it('maps an empty draft to null (never entered — the NPC-baseline assumption)', () => {
+    expect(parseFacilityTaxDraft('')).toEqual({ ok: true, value: null });
+    expect(parseFacilityTaxDraft('   ')).toEqual({ ok: true, value: null });
+  });
+
+  it('parses in-cap percents, including a real 0 and decimals', () => {
+    expect(parseFacilityTaxDraft('0')).toEqual({ ok: true, value: 0 });
+    expect(parseFacilityTaxDraft('0.25')).toEqual({ ok: true, value: 0.25 });
+    expect(parseFacilityTaxDraft('1.5')).toEqual({ ok: true, value: 1.5 });
+    expect(parseFacilityTaxDraft('10')).toEqual({ ok: true, value: 10 });
+  });
+
+  it('rejects out-of-cap, negative, and non-numeric drafts', () => {
+    for (const draft of ['10.01', '12', '-1', 'abc', 'NaN', 'Infinity']) {
+      expect(parseFacilityTaxDraft(draft)).toEqual({ ok: false });
+    }
   });
 });
 

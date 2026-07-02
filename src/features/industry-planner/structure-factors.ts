@@ -19,6 +19,7 @@
 
 import { SDE_REFINERY_GROUP_ID } from '@/data/eve-data/constants';
 import { systemSecurityClass } from '@/data/eve-data/security';
+import type { AssembleOptions } from './build-pricing';
 import {
   computeStructureBonus,
   MANUFACTURING_ACTIVITY,
@@ -163,6 +164,48 @@ export function structureFactorsFor(args: {
     manufacturingBonus,
     reactionBonus,
     active: true,
+  };
+}
+
+// The fee inputs for assemblePricing, composed from the two location fetches +
+// the two structure slots (3.7.13.3). Pure so the provider's assemble() stays a
+// thin shell and the routing rules are unit-testable:
+//   • The mfg fee reads the BUILD slot only — a lone reaction-slot refinery
+//     "hosting the chain" (the #187 ME routing) never lends its tax to the
+//     manufacturing fee, whose index comes from the BUILD system; tax and index
+//     must not straddle two systems.
+//   • The reaction fee reads the reaction host (the refinery, else a build-slot
+//     refinery) — its inputs are the dedicated reaction-slot fetch, else the
+//     build system's own 'reaction' index (already fetched with the location).
+//   • Adjusted prices are CCP-global (the same value whichever system fetched
+//     them), so either read's map answers for the blueprint's EIV base.
+// Neither source present ⇒ undefined ⇒ the gross-only path, byte-identical.
+export function composeFeeInputs(args: {
+  location: {
+    adjustedPrices: Map<number, number>;
+    costIndices: { manufacturing: number | null; reaction: number | null };
+  } | null;
+  reactionLocation: { costIndex: number | null; adjustedPrices: Map<number, number> } | null;
+  buildStructure: AvailableStructure | null;
+  reactionStructure: AvailableStructure | null;
+  structureCostBonusPct: number;
+}): AssembleOptions['fee'] {
+  const { location, reactionLocation, buildStructure, reactionStructure } = args;
+  const buildIsRefinery = !!buildStructure && hostsReactions(buildStructure.groupId);
+  const reactionHost = reactionStructure ?? (buildIsRefinery ? buildStructure : null);
+  const reaction = reactionLocation
+    ? { systemCostIndex: reactionLocation.costIndex, facilityTaxPct: reactionHost?.taxPct ?? null }
+    : buildIsRefinery && location
+      ? { systemCostIndex: location.costIndices.reaction ?? null, facilityTaxPct: buildStructure.taxPct }
+      : undefined;
+  if (!location && !reaction) return undefined;
+  return {
+    adjustedPriceOf: (id: number) =>
+      location?.adjustedPrices.get(id) ?? reactionLocation?.adjustedPrices.get(id) ?? null,
+    systemCostIndex: location?.costIndices.manufacturing ?? null,
+    structureCostBonusPct: args.structureCostBonusPct,
+    facilityTaxPct: buildStructure?.taxPct ?? null,
+    reaction,
   };
 }
 

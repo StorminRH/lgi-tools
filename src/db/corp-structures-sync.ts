@@ -12,6 +12,7 @@
 // viewer's corp membership (the 3.7.3 corp-access gate), not their own sync rows.
 import { after } from 'next/server';
 import { refreshStaleAffiliationsForUser } from '@/features/auth/affiliation';
+import { decideCorpAccess } from '@/features/auth/corp-access';
 import { memberCharacterIdsInCorp, memberCorpIds } from '@/features/auth/membership';
 import { getUserAffiliations } from '@/features/auth/queries';
 import {
@@ -212,4 +213,23 @@ export async function userHoldsCorpRole(
     if (roles !== null && requiredRoles.some((role) => roles.includes(role))) return true;
   }
   return false;
+}
+
+// The two-step Station_Manager gate shared by the corp-structure mutation routes
+// (sharing toggle + the rig/tax completion): membership first (decideCorpAccess —
+// fail-closed + audited; also refreshes affiliations), then the in-game role on
+// the freshly refreshed set. Returns the 403 Response to send, or null when the
+// caller may proceed. Lives here beside userHoldsCorpRole because it composes the
+// auth slice's access decision with this layer's role read — the same cross-slice
+// join reason the rest of the file exists.
+export async function stationManagerGate(
+  userId: string,
+  corporationId: number,
+): Promise<Response | null> {
+  const access = await decideCorpAccess({ userId, corporationId });
+  if (!access.allowed) return new Response('Not a member of this corporation', { status: 403 });
+  if (!(await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
+    return new Response('Requires the Station Manager role', { status: 403 });
+  }
+  return null;
 }

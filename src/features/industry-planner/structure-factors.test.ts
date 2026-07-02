@@ -6,7 +6,12 @@ import {
 } from '@/data/eve-data/constants';
 import type { AvailableStructure } from './types';
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
-import { hostsReactions, structureFactorsFor, structureReadouts } from './structure-factors';
+import {
+  composeFeeInputs,
+  hostsReactions,
+  structureFactorsFor,
+  structureReadouts,
+} from './structure-factors';
 
 // Synthetic structures with hand-built dogma (the precise bonus math is pinned in
 // structure-bonus.test.ts; here we test the activity/security MAPPING of the one
@@ -318,5 +323,72 @@ describe('structureReadouts — per-slot pills', () => {
     expect(build.rxn).toBeNull();
     expect(reaction.mfg).toBeNull();
     expect(reaction.rxn).toBeNull();
+  });
+});
+
+// The fee-composition routing (3.7.13.3): which slot's tax and which system's
+// index feed the fee — the rules the provider's assemble() delegates here.
+describe('composeFeeInputs', () => {
+  const location = (mfg: number | null, rxn: number | null) => ({
+    adjustedPrices: new Map([[34, 5]]),
+    costIndices: { manufacturing: mfg, reaction: rxn },
+  });
+  const rxnLocation = { costIndex: 0.02, adjustedPrices: new Map([[16656, 7]]) };
+  const compose = (over: Partial<Parameters<typeof composeFeeInputs>[0]>) =>
+    composeFeeInputs({
+      location: null,
+      reactionLocation: null,
+      buildStructure: null,
+      reactionStructure: null,
+      structureCostBonusPct: 0,
+      ...over,
+    });
+
+  it('returns undefined with no fee source (the gross-only path)', () => {
+    expect(compose({})).toBeUndefined();
+    // A reaction-slot refinery alone (no fetch landed, no location) is not a source.
+    expect(compose({ reactionStructure: make({ groupId: SDE_REFINERY_GROUP_ID }) })).toBeUndefined();
+  });
+
+  it('composes the mfg keys from the build location + the build slot structure tax', () => {
+    const fee = compose({
+      location: location(0.04, 0.01),
+      buildStructure: make({ taxPct: 1.5 }),
+      structureCostBonusPct: 3,
+    })!;
+    expect(fee.systemCostIndex).toBe(0.04);
+    expect(fee.facilityTaxPct).toBe(1.5);
+    expect(fee.structureCostBonusPct).toBe(3);
+    expect(fee.reaction).toBeUndefined(); // an EC hosts no reactions
+    expect(fee.adjustedPriceOf(34)).toBe(5);
+    expect(fee.adjustedPriceOf(99)).toBeNull();
+  });
+
+  it("never lends a lone reaction-slot refinery's tax to the manufacturing fee", () => {
+    const fee = compose({
+      location: location(0.04, 0.01),
+      reactionStructure: make({ groupId: SDE_REFINERY_GROUP_ID, taxPct: 2 }),
+    })!;
+    expect(fee.facilityTaxPct).toBeNull(); // build slot only — no straddling systems
+    expect(fee.reaction).toBeUndefined(); // no reaction fetch, build slot not a refinery
+  });
+
+  it('routes the reaction-slot fetch + the reaction host tax into the reaction key', () => {
+    const fee = compose({
+      reactionLocation: rxnLocation,
+      reactionStructure: make({ groupId: SDE_REFINERY_GROUP_ID, taxPct: 0.5 }),
+    })!;
+    expect(fee.reaction).toEqual({ systemCostIndex: 0.02, facilityTaxPct: 0.5 });
+    expect(fee.systemCostIndex).toBeNull(); // no build location needed on a reaction page
+    expect(fee.adjustedPriceOf(16656)).toBe(7); // falls back to the reaction fetch's map
+  });
+
+  it("falls back to the build system's reaction index for a build-slot refinery", () => {
+    const fee = compose({
+      location: location(0.04, 0.03),
+      buildStructure: make({ groupId: SDE_REFINERY_GROUP_ID, taxPct: 1 }),
+    })!;
+    expect(fee.reaction).toEqual({ systemCostIndex: 0.03, facilityTaxPct: 1 });
+    expect(fee.facilityTaxPct).toBe(1); // the refinery IS the build slot, so mfg reads it too
   });
 });
