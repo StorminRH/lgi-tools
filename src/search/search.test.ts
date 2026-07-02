@@ -302,6 +302,22 @@ describe('registerLazySearchSource', () => {
 });
 
 describe('searchAll scoping', () => {
+  it('reports a duplicate source id at registration time', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    registerSearchSource(makeSource('Sites', [ROW('1', 'one')]));
+    registerSearchSource(makeSource('Sites', [ROW('2', 'two')]));
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('duplicate source id "sites"'));
+    errorSpy.mockRestore();
+  });
+
+  it('does not report distinct source ids at registration time', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    registerSearchSource(makeSource('Sites', [ROW('1', 'one')]));
+    registerSearchSource(makeSource('Tools', [ROW('2', 'two')]));
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
   it('treats an explicit undefined scope like an omitted one', async () => {
     registerSearchSource(makeSource('Sites', [ROW('s', 'a-site')]));
     expect(await searchAll('a', makeCtx(), undefined)).toEqual(await searchAll('a', makeCtx()));

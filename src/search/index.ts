@@ -107,6 +107,14 @@ export type LazySearchSource = {
 const sources: SearchSource[] = [];
 
 export function registerSearchSource(source: SearchSource): void {
+  // A duplicated id would double-dispatch under a scoped query, so surface
+  // the registration mistake the moment it happens instead of at review
+  // time. Error-and-continue (matching the dispatcher's non-fatal warn
+  // posture): the registry still holds what the manifest actually
+  // registered, and the equivalence suite pins the known manifest's ids.
+  if (sources.some((s) => s.id === source.id)) {
+    console.error(`registerSearchSource: duplicate source id "${source.id}"`);
+  }
   sources.push(source);
 }
 
