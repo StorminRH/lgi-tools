@@ -31,6 +31,15 @@ describe('timeLeverRows', () => {
     expect(rows.skills).toBe('none applied');
   });
 
+  it("shows 'none applied' when the selected character's top-job factor is exactly identity (untrained)", () => {
+    const rows = timeLeverRows({
+      ...base,
+      buildCharacterName: 'Alice',
+      skillTimeFactors: { skillTimeFactorOf: () => 1, active: true },
+    });
+    expect(rows.skills).toBe('none applied');
+  });
+
   it("shows the structure's top-job time reduction when a structure applies", () => {
     const rows = timeLeverRows({ ...base, structureTeFactorOf: () => 0.85 });
     expect(rows.structure).toBe('−15.0% time');
