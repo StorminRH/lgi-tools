@@ -24,7 +24,7 @@ import { computeMarketScore, type MarketScore } from '@/data/industry-math/marke
 import { useLoadingToast } from '@/components/ui/loading-toast';
 import { usePreference } from '@/components/PreferencesProvider';
 import { resolveBuildCharacter, type BuildCharacter } from '@/components/run-as-state';
-import { accountCharactersEndpoint } from '@/features/auth/api-contract';
+import { useAccountCharacters } from '@/components/use-account-characters';
 import { apiFetch } from '@/lib/api-client';
 import { plannerBuildCharacter } from '@/lib/preferences';
 import {
@@ -195,10 +195,12 @@ interface PricingContextValue {
   // True while a stored selection awaits the roster read — the frame shows its
   // loading skeleton instead of flashing the active character's portrait.
   buildCharacterPending: boolean;
-  // The account's linked characters (the Run-As menu's rows), fetched once on
-  // open (the availableStructures pattern). null until the read settles; empty
-  // for a logged-out caller. needsReconnect rows are listed unfiltered — scope
-  // health never gates selection (Phase 3 decides how missing data degrades).
+  // The account's linked characters (the Run-As menu's rows), read by the
+  // shared useAccountCharacters hook keyed on the auth identity — refetches on
+  // sign-in / active-character change; a failed read settles empty (fail-open).
+  // null until the read settles; empty for a logged-out caller. needsReconnect
+  // rows are listed unfiltered — scope health never gates selection (Phase 3
+  // decides how missing data degrades).
   buildCharacters: BuildCharacter[] | null;
   // Persists the pick (user_preferences via the preference tier). null clears —
   // the Default row stores null, never the active id, so the mirror stays live.
@@ -388,13 +390,17 @@ export function PricingProvider({
   const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
   const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
   // The build character (ACCOUNT.8): the persisted preference id + the roster it
-  // resolves against. The preference value is a primitive, and the resolution is
-  // derived IN RENDER (never an effect dep — the .7 identity rule); the resolved
-  // character joins no compute path this session (see the context field's doc).
+  // resolves against. The roster read lives in the shared useAccountCharacters
+  // hook, keyed on the auth identity — so a planner mounted signed-out picks the
+  // roster up when the session lands, and a failed read settles empty (fail-open)
+  // rather than pending forever. The preference value is a primitive, and the
+  // resolution is derived IN RENDER (never an effect dep — the .7 identity rule);
+  // the resolved character joins no compute path this session (see the context
+  // field's doc).
   const [rawBuildCharacterId, setBuildCharacter] = usePreference(plannerBuildCharacter, {
     serverValue: initialBuildCharacterId,
   });
-  const [buildCharacters, setBuildCharacters] = useState<BuildCharacter[] | null>(null);
+  const buildCharacters = useAccountCharacters();
   const { character: buildCharacter, pending: buildCharacterPending } = resolveBuildCharacter(
     rawBuildCharacterId,
     buildCharacters,
@@ -804,26 +810,6 @@ export function PricingProvider({
       .then((res) => {
         if (ignore || !res.ok) return;
         setAvailableStructures(res.data.structures);
-      })
-      .catch(() => {});
-    return () => {
-      ignore = true;
-      controller.abort();
-    };
-  }, []);
-
-  // The account's linked characters (ACCOUNT.8) — the Run-As menu's rows and the
-  // whitelist the stored build-character id resolves against. Fetched once on
-  // open (the availableStructures shape above); global to the user, so it doesn't
-  // refetch per blueprint. Logged-out → empty list → the frame mirrors the anon
-  // state as before.
-  useEffect(() => {
-    let ignore = false;
-    const controller = new AbortController();
-    apiFetch(accountCharactersEndpoint, { cache: 'no-store', signal: controller.signal })
-      .then((res) => {
-        if (ignore || !res.ok) return;
-        setBuildCharacters(res.data.characters);
       })
       .catch(() => {});
     return () => {

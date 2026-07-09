@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '@/features/auth/types';
-import { resolveBuildCharacter, runAsView, type BuildCharacter } from './run-as-state';
+import {
+  deriveRoster,
+  resolveBuildCharacter,
+  runAsView,
+  type BuildCharacter,
+} from './run-as-state';
 
 const session: Session = {
   characterId: 90000001,
@@ -98,5 +103,38 @@ describe('resolveBuildCharacter', () => {
       character: brokenAlt,
       pending: false,
     });
+  });
+});
+
+describe('deriveRoster', () => {
+  const list = [alt];
+
+  it('is unresolved while the session is still loading', () => {
+    expect(deriveRoster({ loading: true, characterId: null }, null)).toBeNull();
+    expect(
+      deriveRoster({ loading: true, characterId: 90000001 }, { characterId: 90000001, list }),
+    ).toBeNull();
+  });
+
+  it('settles empty for anon without any fetch payload', () => {
+    expect(deriveRoster({ loading: false, characterId: null }, null)).toEqual([]);
+    // a stale payload from a prior signed-in identity is ignored
+    expect(
+      deriveRoster({ loading: false, characterId: null }, { characterId: 90000001, list }),
+    ).toEqual([]);
+  });
+
+  it('serves the payload fetched for the current identity', () => {
+    expect(
+      deriveRoster({ loading: false, characterId: 90000001 }, { characterId: 90000001, list }),
+    ).toBe(list);
+  });
+
+  it('nulls until the matching fetch lands — a prior identity payload is never served', () => {
+    expect(deriveRoster({ loading: false, characterId: 90000001 }, null)).toBeNull();
+    // signed in as a different active character than the payload was fetched for
+    expect(
+      deriveRoster({ loading: false, characterId: 90000002 }, { characterId: 90000001, list }),
+    ).toBeNull();
   });
 });

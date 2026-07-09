@@ -25,6 +25,23 @@ export function resolveBuildCharacter(
   };
 }
 
+// The roster the account-characters read yields for the CURRENT auth identity —
+// the useAccountCharacters hook's pure derivation (Humble Component). null =
+// still resolving (session unsettled, or the fetch for this identity hasn't
+// landed); [] = settled empty (anon, or a failed read failing OPEN so a saved
+// pick falls back to the mirror instead of loading forever). Keying the fetched
+// payload by the active characterId makes a sign-in or active-character switch
+// structurally unable to serve a stale roster: the derivation nulls until the
+// matching fetch lands.
+export function deriveRoster(
+  state: { loading: boolean; characterId: number | null },
+  fetched: { characterId: number; list: BuildCharacter[] } | null,
+): BuildCharacter[] | null {
+  if (state.loading) return null;
+  if (state.characterId === null) return [];
+  return fetched && fetched.characterId === state.characterId ? fetched.list : null;
+}
+
 // The Run-As frame's display state, derived from the auth session and (since
 // ACCOUNT.8) the resolved build-character selection. Extracted from the JSX
 // shell (Humble Component) so the branching is unit-tested while the frame stays
