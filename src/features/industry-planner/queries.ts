@@ -13,6 +13,7 @@ import {
   getIndustryStationsForSystem,
   getTypeAttributesBatch,
   getTypeLabels,
+  getTypeNames,
   type TypeLabel,
 } from '@/data/eve-data/queries';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
@@ -104,13 +105,22 @@ async function nodeTimeSkillsFor(
     requiredByBlueprint.set(bp, manufacturing.skills);
     for (const skill of manufacturing.skills) skillIds.add(skill.typeId);
   }
-  const skillAttrs = await getTypeAttributesBatch([...skillIds]);
+  const [skillAttrs, skillNames] = await Promise.all([
+    getTypeAttributesBatch([...skillIds]),
+    getTypeNames([...skillIds]),
+  ]);
   const nodeTimeSkills: BlueprintStructure['nodeTimeSkills'] = {};
   for (const [bp, skills] of requiredByBlueprint) {
     const timeSkills = skills.flatMap((skill) => {
       const pct = skillAttrs.get(skill.typeId)?.[DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL];
       return typeof pct === 'number' && pct !== 0
-        ? [{ skillTypeId: skill.typeId, timePctPerLevel: pct }]
+        ? [
+            {
+              skillTypeId: skill.typeId,
+              skillName: skillNames.get(skill.typeId) ?? `Skill ${skill.typeId}`,
+              timePctPerLevel: pct,
+            },
+          ]
         : [];
     });
     if (timeSkills.length > 0) nodeTimeSkills[bp] = timeSkills;

@@ -97,6 +97,12 @@
   --color-tone-teal:         #33cc88;
   --color-tone-blue:         #3399cc;
 
+  /* Reaction purple — the reaction-time counterpart to evb-bright on the
+   * planner's skill readouts (Ryan-directed, 3.7.19.1): the reaction hourglass
+   * wears this so it reads apart from the manufacturing one at a glance. Same
+   * hue as --color-tone-purple, named for its meaning. */
+  --color-reaction-purple:   #aa55ff;
+
   /* Chip — saturated EWAR/status chips. Text differs from toneHex (brighter);
    * orange text reuses --color-dps-mid. bg/border are translucent. */
   --color-chip-blue:          #6688ff;

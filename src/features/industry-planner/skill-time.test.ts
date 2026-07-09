@@ -4,8 +4,8 @@ import {
   INDUSTRY_SKILL_ID,
   NO_SKILL_FACTORS,
   REACTIONS_SKILL_ID,
+  skillTimeBreakdown,
   skillTimeFactorsFor,
-  skillTimeSummary,
 } from './skill-time';
 
 // bp 1 manufactures, bp 2 reacts, bp 3 is unknown to the maps.
@@ -105,22 +105,52 @@ describe('skillTimeFactorsFor', () => {
   });
 });
 
-describe('skillTimeSummary', () => {
-  it('reports the compound activity-wide reductions and the levels behind them', () => {
-    const s = skillTimeSummary(
-      levels({ [INDUSTRY_SKILL_ID]: 5, [ADVANCED_INDUSTRY_SKILL_ID]: 5, [REACTIONS_SKILL_ID]: 4 }),
-    );
-    // 1 − 0.8 × 0.85 = 0.32 compound manufacturing reduction.
-    expect(s.manufacturingPct).toBeCloseTo(32, 10);
-    expect(s.reactionPct).toBeCloseTo(16, 10);
-    expect(s.industryLevel).toBe(5);
-    expect(s.advancedIndustryLevel).toBe(5);
-    expect(s.reactionsLevel).toBe(4);
+describe('skillTimeBreakdown', () => {
+  it('lists the applied activity-wide skills with per-skill and compound reductions', () => {
+    const b = skillTimeBreakdown({
+      levels: levels({
+        [INDUSTRY_SKILL_ID]: 5,
+        [ADVANCED_INDUSTRY_SKILL_ID]: 4,
+        [REACTIONS_SKILL_ID]: 4,
+      }),
+      nodeTimeSkills: {},
+    });
+    expect(b.manufacturing.skills).toEqual([
+      { name: 'Industry', level: 5, reductionPct: 20 },
+      { name: 'Advanced Industry', level: 4, reductionPct: 12 },
+    ]);
+    // 1 − 0.8 × 0.88 = 0.296 compound manufacturing reduction.
+    expect(b.manufacturing.totalPct).toBeCloseTo(29.6, 10);
+    expect(b.reaction.skills).toEqual([{ name: 'Reactions', level: 4, reductionPct: 16 }]);
+    expect(b.reaction.totalPct).toBeCloseTo(16, 10);
+    expect(b.perItem).toEqual([]);
   });
 
-  it('reports zero reductions for an untrained character', () => {
-    const s = skillTimeSummary({});
-    expect(s.manufacturingPct).toBe(0);
-    expect(s.reactionPct).toBe(0);
+  it('omits untrained skills entirely and reports zero totals for an untrained character', () => {
+    const b = skillTimeBreakdown({ levels: {}, nodeTimeSkills: {} });
+    expect(b.manufacturing.skills).toEqual([]);
+    expect(b.manufacturing.totalPct).toBe(0);
+    expect(b.reaction.skills).toEqual([]);
+    expect(b.reaction.totalPct).toBe(0);
+  });
+
+  it('dedupes trained per-item skills across nodes, sorted by name, dropping untrained ones', () => {
+    const b = skillTimeBreakdown({
+      levels: levels({ 11441: 5, 81896: 4 }),
+      nodeTimeSkills: {
+        1: [
+          { skillTypeId: 11441, skillName: 'Plasma Physics', timePctPerLevel: -1 },
+          { skillTypeId: 11450, skillName: 'Gallente Starship Engineering', timePctPerLevel: -1 },
+        ],
+        7: [
+          { skillTypeId: 11441, skillName: 'Plasma Physics', timePctPerLevel: -1 },
+          { skillTypeId: 81896, skillName: 'Mutagenic Stabilization', timePctPerLevel: -2 },
+        ],
+      },
+    });
+    expect(b.perItem).toEqual([
+      { name: 'Mutagenic Stabilization', level: 4, reductionPct: 8 },
+      { name: 'Plasma Physics', level: 5, reductionPct: 5 },
+    ]);
   });
 });

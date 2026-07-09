@@ -52,32 +52,72 @@ function term(pctPerLevel: number, level: number): number {
   return 1 + (pctPerLevel * level) / 100;
 }
 
-// The hero indicator's compact readout: the ACTIVITY-WIDE reductions (the
-// per-item T2 terms vary per node and stay in the per-node closure / the KPI
-// hover) plus the levels behind them for the hover title. Percents are the
-// compound reduction, e.g. Industry V × Advanced Industry V ⇒ 32.
-export interface SkillTimeSummary {
-  manufacturingPct: number;
-  reactionPct: number;
-  industryLevel: number;
-  advancedIndustryLevel: number;
-  reactionsLevel: number;
+// One applied skill for the hero readout's popover: name, trained level, and
+// its own reduction (|pct/lvl|·level — the per-skill line, not the compound).
+export interface AppliedTimeSkill {
+  name: string;
+  level: number;
+  reductionPct: number;
 }
 
-export function skillTimeSummary(levels: Record<string, number>): SkillTimeSummary {
+// The hero readout's popover model: the applied skills listed per activity plus
+// the compound total effect. `manufacturing.totalPct` compounds the
+// ACTIVITY-WIDE skills only (Industry × Advanced Industry — what every mfg job
+// gets); the trained per-item T2 skills present in THIS plan are listed
+// separately since they apply only to jobs requiring them. Untrained skills
+// (level 0) are not "being applied" and are omitted.
+export interface SkillTimeBreakdown {
+  manufacturing: { skills: AppliedTimeSkill[]; totalPct: number };
+  perItem: AppliedTimeSkill[];
+  reaction: { skills: AppliedTimeSkill[]; totalPct: number };
+}
+
+export function skillTimeBreakdown(args: {
+  levels: Record<string, number>;
+  nodeTimeSkills: Record<
+    number,
+    { skillTypeId: number; skillName: string; timePctPerLevel: number }[]
+  >;
+}): SkillTimeBreakdown {
+  const { levels, nodeTimeSkills } = args;
   const levelOf = (skillTypeId: number): number => levels[String(skillTypeId)] ?? 0;
+  const applied = (name: string, pctPerLevel: number, level: number): AppliedTimeSkill[] =>
+    level > 0 ? [{ name, level, reductionPct: Math.abs(pctPerLevel) * level }] : [];
+
   const industryLevel = levelOf(INDUSTRY_SKILL_ID);
   const advancedIndustryLevel = levelOf(ADVANCED_INDUSTRY_SKILL_ID);
   const reactionsLevel = levelOf(REACTIONS_SKILL_ID);
-  const manufacturingFactor =
-    term(INDUSTRY_TIME_PCT_PER_LEVEL, industryLevel) *
-    term(ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL, advancedIndustryLevel);
+
+  const perItemById = new Map<number, AppliedTimeSkill>();
+  for (const skills of Object.values(nodeTimeSkills)) {
+    for (const skill of skills) {
+      const level = levelOf(skill.skillTypeId);
+      if (level === 0 || perItemById.has(skill.skillTypeId)) continue;
+      perItemById.set(skill.skillTypeId, {
+        name: skill.skillName,
+        level,
+        reductionPct: Math.abs(skill.timePctPerLevel) * level,
+      });
+    }
+  }
+
   return {
-    manufacturingPct: (1 - manufacturingFactor) * 100,
-    reactionPct: (1 - term(REACTIONS_TIME_PCT_PER_LEVEL, reactionsLevel)) * 100,
-    industryLevel,
-    advancedIndustryLevel,
-    reactionsLevel,
+    manufacturing: {
+      skills: [
+        ...applied('Industry', INDUSTRY_TIME_PCT_PER_LEVEL, industryLevel),
+        ...applied('Advanced Industry', ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL, advancedIndustryLevel),
+      ],
+      totalPct:
+        (1 -
+          term(INDUSTRY_TIME_PCT_PER_LEVEL, industryLevel) *
+            term(ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL, advancedIndustryLevel)) *
+        100,
+    },
+    perItem: [...perItemById.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    reaction: {
+      skills: applied('Reactions', REACTIONS_TIME_PCT_PER_LEVEL, reactionsLevel),
+      totalPct: (1 - term(REACTIONS_TIME_PCT_PER_LEVEL, reactionsLevel)) * 100,
+    },
   };
 }
 
