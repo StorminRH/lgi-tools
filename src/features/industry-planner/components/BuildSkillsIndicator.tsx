@@ -108,7 +108,7 @@ export function BuildSkillsIndicator({ structure }: { structure: BlueprintStruct
   if (!showMfg && !showRxn) return null;
 
   return (
-    <div className="absolute left-full top-1/2 ml-2 flex -translate-y-1/2 flex-col items-start gap-1.5">
+    <div className="absolute left-full top-1/2 ml-2 flex -translate-y-1/2 flex-col items-start gap-3">
       {showMfg && (
         <SkillMetric
           label={`${buildCharacter.name}'s manufacturing skills`}
