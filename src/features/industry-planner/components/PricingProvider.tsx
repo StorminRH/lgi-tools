@@ -43,6 +43,8 @@ import {
   ownedBlueprintsEndpoint,
 } from '../api-contract';
 import { REACTION_ACTIVITY } from '../structure-bonus';
+import { skillTimeFactorsFor, type SkillTimeFactors } from '../skill-time';
+import { useBuildCharacterSkillLevels } from '../use-build-character-skills';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
@@ -185,12 +187,12 @@ interface PricingContextValue {
   station: SelectedStation | null;
   setStation: (stationId: number | null, stationName: string | null) => void;
   // The BUILD CHARACTER (ACCOUNT.8) — the compute identity Phase 3's levers
-  // (skills→time, standings→cost) will read. Consumed by NO compute path this
-  // session: it joins none of the refs, the recompute deps, or assemble(); the
-  // Run-As frame is its only reader. Already validated — the stored preference id
-  // is resolved against the linked roster, so an unknown id can never appear here.
-  // null = unset ⇒ the frame mirrors the live active character (store-explicit-only)
-  // and Phase 3 applies no levers.
+  // read. The skills→time lever (3.7.19.1) is live: the character's trained
+  // levels feed skillTimeFactors, which joins ONLY the buildTimes memo — the
+  // cost/material paths (assemble(), the ledger) remain untouched. Already
+  // validated — the stored preference id is resolved against the linked roster,
+  // so an unknown id can never appear here. null = unset ⇒ the frame mirrors
+  // the live active character (store-explicit-only) and no levers apply.
   buildCharacter: BuildCharacter | null;
   // True while a stored selection awaits the roster read — the frame shows its
   // loading skeleton instead of flashing the active character's portrait.
@@ -216,6 +218,14 @@ interface PricingContextValue {
   // The derived per-node engine factors + per-activity bonus readout. Re-derives
   // when the selection or the build system's security changes.
   structureFactors: StructureFactors;
+  // The selected build character's trained ACTIVE skill levels (3.7.19.1), or
+  // null while unset / loading / fail-open — the indicator reads the raw map to
+  // name the applied levels.
+  buildCharacterSkillLevels: Record<string, number> | null;
+  // The derived per-node skills→time factors (identity when levels are null —
+  // the all-or-nothing fail-open). Joins ONLY the buildTimes memo; `active`
+  // drives the applied indicator + hover copy.
+  skillTimeFactors: SkillTimeFactors;
   // The dedicated "react at" refinery (3.7.12.2) + its own system. Always available;
   // the routing derives roles: a lone refinery does the whole chain, and adding a
   // build structure takes over just the manufacturing nodes. Live-only, like the
@@ -404,6 +414,13 @@ export function PricingProvider({
   const { character: buildCharacter, pending: buildCharacterPending } = resolveBuildCharacter(
     rawBuildCharacterId,
     buildCharacters,
+  );
+  // The selected character's trained levels (3.7.19.1) — query-keyed on the
+  // resolved id, fail-open to null (no selection / pending roster / never
+  // synced), so the factors below collapse to the identity in every degraded
+  // state and the time figures render the no-skill baseline.
+  const buildCharacterSkillLevels = useBuildCharacterSkillLevels(
+    buildCharacter?.characterId ?? null,
   );
   // The reaction slot's refinery + its own system (security-only). Live-only, reset
   // with the planner. Independent of `location` (the build slot's system).
@@ -617,6 +634,19 @@ export function PricingProvider({
     [structure.tree, structure.blueprintTypeId, runs, ownedMe, meOverrides, structureFactors],
   );
 
+  // The selected build character's per-node skills→time factors (3.7.19.1).
+  // Identity (×1) when levels are null — the all-or-nothing fail-open — so the
+  // time figures stay byte-identical to the no-character baseline.
+  const skillTimeFactors = useMemo<SkillTimeFactors>(
+    () =>
+      skillTimeFactorsFor({
+        levels: buildCharacterSkillLevels,
+        nodeActivityByBlueprint: structure.nodeActivityByBlueprint,
+        nodeTimeSkills: structure.nodeTimeSkills,
+      }),
+    [buildCharacterSkillLevels, structure],
+  );
+
   // The TE-adjusted build-time figures. Its OWN memo, separate from the cost
   // `assemble()` — TE never enters the cost path. Reads the shared ME ledger for
   // per-node batched runs, then applies effective TE per blueprint.
@@ -634,8 +664,11 @@ export function PricingProvider({
         // The selected structure's time factor by node activity (3.7.9.1.3);
         // a no-op (×1) when nothing is selected.
         structureTeFactorOf: structureFactors.structureTeFactorOf,
+        // The selected build character's skills factor (3.7.19.1); a no-op (×1)
+        // when no character is selected or its levels are unknown.
+        skillTimeFactorOf: skillTimeFactors.skillTimeFactorOf,
       }),
-    [structure, runs, ledger, ownedTe, teOverrides, structureFactors],
+    [structure, runs, ledger, ownedTe, teOverrides, structureFactors, skillTimeFactors],
   );
 
   // Every viewed price re-confirmed live on view — across the raw cost basis,
@@ -891,6 +924,8 @@ export function PricingProvider({
       selectedStructure,
       setSelectedStructure,
       structureFactors,
+      buildCharacterSkillLevels,
+      skillTimeFactors,
       reactionStructure,
       setReactionStructure,
       reactionSystem,
@@ -931,6 +966,8 @@ export function PricingProvider({
       selectedStructure,
       setSelectedStructure,
       structureFactors,
+      buildCharacterSkillLevels,
+      skillTimeFactors,
       reactionStructure,
       setReactionStructure,
       reactionSystem,

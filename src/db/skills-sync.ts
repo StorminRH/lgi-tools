@@ -14,6 +14,7 @@ import { after } from 'next/server';
 import { getTypeNames } from '@/data/eve-data/queries';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import {
+  getCharacterSkillLevels,
   getSkillsForCharacters,
   readCharacterSyncState,
   saveCharacterSkills,
@@ -87,4 +88,21 @@ export async function getSkillsForUserOnView(userId: string): Promise<ViewerSkil
   for (const [id, name] of nameMap) names[String(id)] = name;
 
   return { characters, names };
+}
+
+// The planner's on-view levels read (3.7.19.1): one character's trained active
+// levels, ownership-checked against the caller's linked characters. Every arm
+// fails open to null (not-owned, never-synced, pre-0039 row) — the skills→time
+// lever renders the no-skill baseline, never an error. Fires the same
+// stale-gated write-behind as the skills page, so planner views keep levels
+// fresh under the 120s gate with zero added latency.
+export async function getSkillLevelsForCharacterOnView(
+  userId: string,
+  characterId: number,
+): Promise<Record<string, number> | null> {
+  const linked = await listLinkedCharacters(userId);
+  if (!linked.some((character) => character.characterId === characterId)) return null;
+  const levels = await getCharacterSkillLevels(characterId);
+  after(() => refreshSkillsForUser(makeSkillsPort(), userId));
+  return levels;
 }

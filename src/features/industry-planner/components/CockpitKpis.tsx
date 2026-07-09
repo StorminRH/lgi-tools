@@ -9,6 +9,7 @@ import { formatBuildDuration, type BuildTimes } from '../build-time';
 import { selectNet, type MarginMode } from '../cockpit-margin';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import { REACTION_ACTIVITY } from '../structure-bonus';
+import { timeLeverRows } from '../time-lever-rows';
 import { deriveMarginFigures, marginToneClass } from '../industry-styles';
 import type { BlueprintStructure, NetMarginView } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
@@ -123,8 +124,8 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
         </div>
       </div>
       <p className="font-mono text-[9px] leading-snug tracking-[0.04em] text-faint">
-        Sequential — one job at a time. TE applied per blueprint; skills, structure, and parallel
-        slots not counted.
+        Sequential — one job at a time. TE applied per blueprint; structure and build-character
+        skills applied when selected; parallel slots not counted.
       </p>
     </KpiHelp>
   );
@@ -143,8 +144,18 @@ export function CockpitKpis({
   marginMode: MarginMode;
   setMarginMode: (m: MarginMode) => void;
 }) {
-  const { pricing, seeded, location, runs, buildTimes, reactionSystem, reactionNetAvailable } =
-    usePricing();
+  const {
+    pricing,
+    seeded,
+    location,
+    runs,
+    buildTimes,
+    reactionSystem,
+    reactionNetAvailable,
+    buildCharacter,
+    skillTimeFactors,
+    structureFactors,
+  } = usePricing();
   const summary = pricing?.summary ?? null;
 
   // The activity-matched fee source: a reaction blueprint's fee rides the
@@ -157,6 +168,15 @@ export function CockpitKpis({
     marginMode,
   );
   const { showNet, margin, marginPct, sign } = deriveMarginFigures(summary, net);
+
+  // The Build-time hover's honest lever rows — pure + tested in
+  // time-lever-rows.ts; this shell only threads the context values.
+  const leverRows = timeLeverRows({
+    topBlueprintTypeId: structure.blueprintTypeId,
+    buildCharacterName: buildCharacter?.name ?? null,
+    skillTimeFactors,
+    structureTeFactorOf: structureFactors.structureTeFactorOf,
+  });
 
   return (
     <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
@@ -219,7 +239,8 @@ export function CockpitKpis({
               <PopoverRow label="Time efficiency">
                 {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ''}
               </PopoverRow>
-              <PopoverRow label="Skills &amp; structure">none applied</PopoverRow>
+              <PopoverRow label="Skills">{leverRows.skills}</PopoverRow>
+              <PopoverRow label="Structure">{leverRows.structure}</PopoverRow>
             </KpiHelp>
           }
         />

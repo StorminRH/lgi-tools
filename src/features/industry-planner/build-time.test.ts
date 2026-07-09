@@ -124,10 +124,11 @@ describe('computeBuildTimes', () => {
     expect(withFactor.totalProduction).toBe(without.totalProduction);
   });
 
-  it('is byte-identical under any build character — the ACCOUNT.8 seam is unread', () => {
-    // The seam field is accepted where Phase 3's skills→time lever will land but
-    // consumed by nothing this session. When the lever arrives, this pin fails
-    // and gets consciously rewritten.
+  it('is byte-identical when the skill time factor is omitted or 1 — the unset build-character anchor', () => {
+    // The 3.7.19.1 rewrite of the ACCOUNT.8 "seam is unread" pin: the seam is now
+    // CONSUMED as a factor closure. No build character selected (or fail-open) ⇒
+    // the provider passes no factor / the identity — every output is today's
+    // no-skill baseline exactly.
     const args = {
       ...base,
       topJobSeconds: 18_000,
@@ -138,10 +139,50 @@ describe('computeBuildTimes', () => {
       structureTeFactorOf: () => 0.9,
     };
     const omitted = computeBuildTimes(args);
-    const unset = computeBuildTimes({ ...args, buildCharacterId: null });
-    const selected = computeBuildTimes({ ...args, buildCharacterId: 90000001 });
-    expect(unset).toEqual(omitted);
-    expect(selected).toEqual(omitted);
+    const identity = computeBuildTimes({ ...args, skillTimeFactorOf: () => 1 });
+    expect(identity).toEqual(omitted);
+    // The baseline's own values, so a regression in EITHER path fails loudly:
+    // top 18000 × 0.9 (TE10) × 0.9 = 14580s × 2 runs = 29160s = 8h 6m;
+    // node 18000 × 1 (TE0) × 0.9 = 16200s × 3 runs = 48600s; total 77760s = 21h 36m.
+    expect(omitted.topJob).toBe('8h 6m');
+    expect(omitted.totalProduction).toBe('21h 36m');
+  });
+
+  it('applies the build-character skill time factor to the top job and intermediates (hand-computed anchor)', () => {
+    // Industry V alone: 1 − 0.04·5 = 0.8 ⇒ 18000 × 0.8 = 14400s = 4h — the same
+    // figure the TE-20 anchor reaches via the other lever (deliberate symmetry).
+    const skillsOnly = computeBuildTimes({
+      ...base,
+      topJobSeconds: 18_000,
+      runs: 1,
+      skillTimeFactorOf: () => 0.8,
+    });
+    expect(skillsOnly.topJob).toBe('4h');
+
+    // Full stack, per-node: top (bp 1, TE 10, structure 0.9) with Industry V ×
+    // Advanced Industry V × one required −1%/lvl skill at V:
+    //   skill factor = 0.8 × 0.85 × 0.95 = 0.646
+    //   per-run = 18000 × 0.9 × 0.9 × 0.646 = 9418.68s (numeric pin — formatting
+    //   can't blur it); the node (bp 5, TE0) gets a different factor, proving the
+    //   closure is consulted per blueprint.
+    const r = computeBuildTimes({
+      ...base,
+      topJobSeconds: 18_000,
+      nodeJobSeconds: { 5: 18_000 },
+      runs: 1,
+      builds: ledger([[200, { runs: 2, blueprintTypeId: 5 }]]),
+      teOf: (bp: number) => (bp === 1 ? 10 : undefined),
+      structureTeFactorOf: () => 0.9,
+      skillTimeFactorOf: (bp: number) => (bp === 1 ? 0.8 * 0.85 * 0.95 : 0.8),
+    });
+    const top = r.breakdown[0];
+    expect(top.perRunSeconds).toBeCloseTo(9_418.68, 6);
+    // node: 18000 × 1 (TE0) × 0.9 × 0.8 = 12960s per run × 2 runs
+    const node = r.breakdown[1];
+    expect(node.perRunSeconds).toBeCloseTo(12_960, 6);
+    expect(node.totalSeconds).toBeCloseTo(25_920, 6);
+    // top formatted: round(9418.68) = 9419s = 2h 36m 59s → '2h 36m'
+    expect(r.topJob).toBe('2h 36m');
   });
 
   it('skips a degenerate intermediate with no base time without producing NaN', () => {
