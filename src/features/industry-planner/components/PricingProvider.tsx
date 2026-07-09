@@ -22,7 +22,11 @@ import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-vi
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore, type MarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
+import { usePreference } from '@/components/PreferencesProvider';
+import { resolveBuildCharacter, type BuildCharacter } from '@/components/run-as-state';
+import { accountCharactersEndpoint } from '@/features/auth/api-contract';
 import { apiFetch } from '@/lib/api-client';
+import { plannerBuildCharacter } from '@/lib/preferences';
 import {
   collectBlueprintTypeIds,
   collectRawTypeIds,
@@ -180,6 +184,25 @@ interface PricingContextValue {
   // The optional per-station refinement (display/future-score only).
   station: SelectedStation | null;
   setStation: (stationId: number | null, stationName: string | null) => void;
+  // The BUILD CHARACTER (ACCOUNT.8) — the compute identity Phase 3's levers
+  // (skills→time, standings→cost) will read. Consumed by NO compute path this
+  // session: it joins none of the refs, the recompute deps, or assemble(); the
+  // Run-As frame is its only reader. Already validated — the stored preference id
+  // is resolved against the linked roster, so an unknown id can never appear here.
+  // null = unset ⇒ the frame mirrors the live active character (store-explicit-only)
+  // and Phase 3 applies no levers.
+  buildCharacter: BuildCharacter | null;
+  // True while a stored selection awaits the roster read — the frame shows its
+  // loading skeleton instead of flashing the active character's portrait.
+  buildCharacterPending: boolean;
+  // The account's linked characters (the Run-As menu's rows), fetched once on
+  // open (the availableStructures pattern). null until the read settles; empty
+  // for a logged-out caller. needsReconnect rows are listed unfiltered — scope
+  // health never gates selection (Phase 3 decides how missing data degrades).
+  buildCharacters: BuildCharacter[] | null;
+  // Persists the pick (user_preferences via the preference tier). null clears —
+  // the Default row stores null, never the active id, so the mirror stays live.
+  setBuildCharacter: (id: number | null) => void;
   // The structures the caller can place this build in (3.7.9.1.4) — their custom
   // structures (and, next session, their corp's), fetched once on open. null until
   // the read settles; empty for a logged-out caller or one with none.
@@ -340,11 +363,16 @@ export function PricingProvider({
   structure,
   pricingPromise,
   historyPromise,
+  initialBuildCharacterId,
   children,
 }: {
   structure: BlueprintStructure;
   pricingPromise: Promise<BlueprintPricing | null>;
   historyPromise: Promise<MarketHistoryInputs[]>;
+  // The build-character preference's cookie value, read in the page's Suspense
+  // hole (the ssrReadable idiom) so a hard reload never flashes the active
+  // character while the server preference GET resolves.
+  initialBuildCharacterId: number | null;
   children: ReactNode;
 }) {
   const [pricing, setPricing] = useState<BlueprintPricing | null>(null);
@@ -359,6 +387,18 @@ export function PricingProvider({
   // (the owned-blueprints pattern), and the single selected structure over them.
   const [availableStructures, setAvailableStructures] = useState<AvailableStructure[] | null>(null);
   const [selectedStructure, setSelectedStructureState] = useState<AvailableStructure | null>(null);
+  // The build character (ACCOUNT.8): the persisted preference id + the roster it
+  // resolves against. The preference value is a primitive, and the resolution is
+  // derived IN RENDER (never an effect dep — the .7 identity rule); the resolved
+  // character joins no compute path this session (see the context field's doc).
+  const [rawBuildCharacterId, setBuildCharacter] = usePreference(plannerBuildCharacter, {
+    serverValue: initialBuildCharacterId,
+  });
+  const [buildCharacters, setBuildCharacters] = useState<BuildCharacter[] | null>(null);
+  const { character: buildCharacter, pending: buildCharacterPending } = resolveBuildCharacter(
+    rawBuildCharacterId,
+    buildCharacters,
+  );
   // The reaction slot's refinery + its own system (security-only). Live-only, reset
   // with the planner. Independent of `location` (the build slot's system).
   const [reactionStructure, setReactionStructure] = useState<AvailableStructure | null>(null);
@@ -772,6 +812,26 @@ export function PricingProvider({
     };
   }, []);
 
+  // The account's linked characters (ACCOUNT.8) — the Run-As menu's rows and the
+  // whitelist the stored build-character id resolves against. Fetched once on
+  // open (the availableStructures shape above); global to the user, so it doesn't
+  // refetch per blueprint. Logged-out → empty list → the frame mirrors the anon
+  // state as before.
+  useEffect(() => {
+    let ignore = false;
+    const controller = new AbortController();
+    apiFetch(accountCharactersEndpoint, { cache: 'no-store', signal: controller.signal })
+      .then((res) => {
+        if (ignore || !res.ok) return;
+        setBuildCharacters(res.data.characters);
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+      controller.abort();
+    };
+  }, []);
+
   // Recompute when runs, location, the owned-ME overlay, or a manual override
   // changes — independent of the one-shot refresh loop, which never fires onBatch
   // again once it finishes. Reads the latest pricing via a ref (not a dep) so it
@@ -837,6 +897,10 @@ export function PricingProvider({
       setLocation,
       station,
       setStation,
+      buildCharacter,
+      buildCharacterPending,
+      buildCharacters,
+      setBuildCharacter,
       availableStructures,
       selectedStructure,
       setSelectedStructure,
@@ -873,6 +937,10 @@ export function PricingProvider({
       setLocation,
       station,
       setStation,
+      buildCharacter,
+      buildCharacterPending,
+      buildCharacters,
+      setBuildCharacter,
       availableStructures,
       selectedStructure,
       setSelectedStructure,

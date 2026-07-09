@@ -14,6 +14,23 @@ import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { usePricing } from './PricingProvider';
 import { ReactionStructureSelect } from './ReactionStructureSelect';
 
+// The Run-As frame's context subscriber (the HeroSteppers pattern — HeroCard
+// itself stays context-free so the whole band doesn't re-render per price
+// batch). Threads the build-character selection between the pricing context and
+// the shared-zone frame.
+function RunAsSelector() {
+  const { buildCharacter, buildCharacterPending, buildCharacters, setBuildCharacter } =
+    usePricing();
+  return (
+    <RunAsFrame
+      buildCharacter={buildCharacter}
+      buildCharacterPending={buildCharacterPending}
+      buildCharacters={buildCharacters}
+      onSelect={setBuildCharacter}
+    />
+  );
+}
+
 // One stacked stepper row: a mono label (with the row's gem/hourglass glyph
 // directly after it) + its control. Shared by ME, TE and Runs so the three read
 // as a single vertical group of identical boxed controls.
@@ -135,8 +152,8 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
 
       {/* The building character. The gap between this frame and the location
           groups is the RESERVED seam for the future Run-As skills/standings
-          modification icons (ACCOUNT.8) — don't crowd it. */}
-      <RunAsFrame />
+          modification icons (Phase 3) — don't crowd it. */}
+      <RunAsSelector />
 
       {/* The two location groups side by side, always shown (a reaction root
           builds in a refinery too). The routing derives roles — a lone

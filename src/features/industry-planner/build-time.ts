@@ -67,6 +67,12 @@ export function computeBuildTimes(args: {
   // Complex's time bonus on manufacturing jobs, a Refinery's on reactions).
   // Omitted / returning 1 ⇒ the build-time figures are byte-identical to pre-3.7.9.
   structureTeFactorOf?: (blueprintTypeId: number) => number;
+  // The Run-As build character (the ACCOUNT.8 seam): the compute identity Phase
+  // 3's skills→time lever reads. UNREAD today — accepted so the seam and its
+  // byte-identical pin live where the lever lands; the provider does not pass it
+  // yet. Any value ⇒ output identical to omitted (test-pinned); when Phase 3
+  // consumes it, that pin fails and gets consciously rewritten.
+  buildCharacterId?: number | null;
 }): BuildTimes {
   const { topBlueprintTypeId, topProductTypeId, topJobSeconds, nodeJobSeconds, runs, builds, teOf, nameOf } =
     args;

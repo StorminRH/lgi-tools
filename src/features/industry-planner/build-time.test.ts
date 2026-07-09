@@ -124,6 +124,26 @@ describe('computeBuildTimes', () => {
     expect(withFactor.totalProduction).toBe(without.totalProduction);
   });
 
+  it('is byte-identical under any build character — the ACCOUNT.8 seam is unread', () => {
+    // The seam field is accepted where Phase 3's skills→time lever will land but
+    // consumed by nothing this session. When the lever arrives, this pin fails
+    // and gets consciously rewritten.
+    const args = {
+      ...base,
+      topJobSeconds: 18_000,
+      nodeJobSeconds: { 5: 18_000 },
+      runs: 2,
+      builds: ledger([[200, { runs: 3, blueprintTypeId: 5 }]]),
+      teOf: (bp: number) => (bp === 1 ? 10 : undefined),
+      structureTeFactorOf: () => 0.9,
+    };
+    const omitted = computeBuildTimes(args);
+    const unset = computeBuildTimes({ ...args, buildCharacterId: null });
+    const selected = computeBuildTimes({ ...args, buildCharacterId: 90000001 });
+    expect(unset).toEqual(omitted);
+    expect(selected).toEqual(omitted);
+  });
+
   it('skips a degenerate intermediate with no base time without producing NaN', () => {
     const r = computeBuildTimes({
       ...base,

@@ -6,6 +6,11 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.18.1 — 2026-07-09
+
+#### Added
+- The industry planner's building-character frame is now a selector: click it to pick any of your linked characters as the build character, saved across visits. "Default (active character)" keeps the frame following whoever you're signed in as. Picking a character doesn't change any planner numbers yet — applying that character's skills and standings to the math comes in an upcoming release.
+
 ### v3.7.17.1 — 2026-07-02
 
 #### Added

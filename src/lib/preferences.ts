@@ -70,6 +70,21 @@ export const plannerBuildLocation = define<{
   null,
 );
 
+// The planner's BUILD CHARACTER — the compute identity Phase 3's levers
+// (skills→time, standings→cost) will read (ACCOUNT.8). null = unset ⇒ the Run-As
+// frame mirrors the live active character; picking "Default" stores null again
+// (store-explicit-only), so the mirror keeps following whoever is active. The id
+// is validated against the linked-character roster client-side — an id no longer
+// on the account fails open to the mirror, never rendered. ssrReadable: the frame
+// renders on initial load, so the cookie keeps a hard reload from flashing the
+// active character while the server GET resolves (the strip criterion).
+export const plannerBuildCharacter = define<number | null>(
+  'planner.buildCharacterId',
+  z.number().int().positive().nullable(),
+  null,
+  true,
+);
+
 // /sites cards: the in-place downward expand vs the centred lightbox overlay.
 // NOT ssrReadable — it only changes post-click expand behaviour, never the
 // initial render, so there's no first-paint to keep in sync (no hydration flash).
@@ -121,6 +136,7 @@ export function stripDimmedDef(surfaceId?: StripSurfaceId): PreferenceDef<number
 export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   sitesView,
   plannerBuildLocation,
+  plannerBuildCharacter,
   sitesDetailMode,
   ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),
 ];
