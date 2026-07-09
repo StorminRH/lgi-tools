@@ -23,14 +23,19 @@ import {
 import { useAuth } from '@/features/auth/components/AuthProvider';
 import { runAsView, type BuildCharacter } from './run-as-state';
 
-// The 108px square is the hero band's plane — HeroCard's item render is its exact
-// twin, so the plain frame and the menu-trigger button must share one footprint.
+// Borderless column on the hero band's 108px plane (the item render keeps its
+// boxed square; this frame is heading / portrait / name, no box). The plain
+// frame and the menu-trigger button must share one footprint, and the column
+// centers vertically on the band like every other cluster.
 const FRAME_CLASSES =
-  'relative flex aspect-square w-[108px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-[3px] border border-border p-2';
+  'relative flex w-[108px] shrink-0 flex-col items-center justify-center gap-1.5 p-2';
 
-const CARET = (
-  <span aria-hidden className="absolute right-1 top-1 text-[10px] leading-none text-muted">
-    ▾
+// What the frame IS — the selector's heading, above the portrait in every state.
+// nowrap: the label is a touch wider than the 108px column and centers over it,
+// spilling harmlessly into the band's cluster gaps rather than wrapping tall.
+const HEADING = (
+  <span className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+    Build character
   </span>
 );
 
@@ -51,11 +56,12 @@ export function RunAsFrame({
   });
 
   if (view.kind !== 'present') {
-    // Loading / anon: the pre-selector frame, unchanged — an inert labelled
-    // square (role="img" so the aria-label is announced on a role-less div).
+    // Loading / anon: an inert labelled column, no menu (role="img" so the
+    // aria-label is announced on a role-less div). No caret — it appears only
+    // when the frame is actually openable.
     return (
       <div role="img" className={FRAME_CLASSES} aria-label="Building character">
-        {CARET}
+        {HEADING}
         {view.kind === 'loading' ? (
           <span aria-hidden className="size-16 rounded-full border border-border-idle bg-bg-deep" />
         ) : (
@@ -84,15 +90,18 @@ export function RunAsFrame({
       label={`Building as ${view.name} — choose build character`}
       trigger={
         <>
-          {CARET}
+          {HEADING}
           <CharacterPortrait
             characterId={view.characterId}
             name={view.name}
             src={view.portraitUrl}
             size={64}
           />
-          <span className="max-w-full truncate font-mono text-[9px] uppercase tracking-[0.08em] text-muted">
-            {view.name}
+          <span className="flex max-w-full items-center gap-1 font-mono text-[9px] uppercase tracking-[0.08em] text-muted">
+            <span className="truncate">{view.name}</span>
+            <span aria-hidden className="text-[10px] leading-none">
+              ▾
+            </span>
           </span>
         </>
       }

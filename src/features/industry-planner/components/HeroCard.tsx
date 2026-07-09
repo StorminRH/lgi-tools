@@ -136,8 +136,9 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
         'rounded-md border border-border bg-section px-[18px] py-4',
       )}
     >
-      {/* The item render in the building-character frame's exact twin, so the
-          two squares bracket the steppers on one plane. */}
+      {/* The item render's boxed square. The building-character column shares
+          its 108px width so the two brackets the steppers sit between stay on
+          one plane (the character side is borderless by design). */}
       <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-[3px] border border-border p-2">
         <TypeIcon
           typeId={structure.product.typeId}
