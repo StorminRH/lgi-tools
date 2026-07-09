@@ -1,10 +1,16 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
+import {
+  cookieNameFor,
+  plannerBuildCharacter,
+  readPreferenceCookieValue,
+} from '@/lib/preferences';
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
@@ -75,6 +81,15 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   // so it never delays the cost figures.
   const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
 
+  // The build-character preference's cookie mirror (ACCOUNT.8) — read here in
+  // the Suspense hole (never the static shell) and threaded as the hook's
+  // serverValue, so a hard reload renders the saved pick without flashing the
+  // active character while the preference GET resolves (the /skills strip idiom).
+  const initialBuildCharacterId = readPreferenceCookieValue(
+    (await cookies()).get(cookieNameFor(plannerBuildCharacter))?.value,
+    plannerBuildCharacter,
+  );
+
   return (
     <div className="w-full">
       {/* Entity-detail pages self-title: they open content-first (no visible
@@ -91,6 +106,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         structure={structure}
         pricingPromise={pricingPromise}
         historyPromise={historyPromise}
+        initialBuildCharacterId={initialBuildCharacterId}
       >
         <CockpitPlanner structure={structure} />
       </PricingProvider>

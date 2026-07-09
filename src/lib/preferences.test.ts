@@ -52,6 +52,7 @@ installDocumentShim();
 const {
   sitesView,
   plannerBuildLocation,
+  plannerBuildCharacter,
   PREFERENCE_KEYS,
   STRIP_SURFACE_IDS,
   stripDimmedDef,
@@ -132,6 +133,34 @@ describe('validatePreferenceValue', () => {
   it('lists every registry key', () => {
     expect(PREFERENCE_KEYS).toContain('sites.view');
     expect(PREFERENCE_KEYS).toContain('planner.buildLocation');
+    expect(PREFERENCE_KEYS).toContain('planner.buildCharacterId');
+  });
+});
+
+// The planner's build character (ACCOUNT.8): a nullable character id — null =
+// unset ⇒ the Run-As frame mirrors the live active character (store-explicit-only).
+describe('build-character def', () => {
+  it('registers an ssr-readable nullable id defaulting to unset', () => {
+    expect(plannerBuildCharacter.key).toBe('planner.buildCharacterId');
+    expect(plannerBuildCharacter.fallback).toBeNull();
+    expect(plannerBuildCharacter.ssrReadable).toBe(true);
+    expect(cookieNameFor(plannerBuildCharacter)).toBe('lgi_pref_planner_buildCharacterId');
+  });
+
+  it('validates the wire value at the server trust boundary', () => {
+    expect(validatePreferenceValue('planner.buildCharacterId', 2114872920)).toBe(true);
+    expect(validatePreferenceValue('planner.buildCharacterId', null)).toBe(true); // the Default row's clear
+    expect(validatePreferenceValue('planner.buildCharacterId', 0)).toBe(false);
+    expect(validatePreferenceValue('planner.buildCharacterId', -1)).toBe(false);
+    expect(validatePreferenceValue('planner.buildCharacterId', 1.5)).toBe(false);
+    expect(validatePreferenceValue('planner.buildCharacterId', '2114872920')).toBe(false);
+  });
+
+  it('round-trips through the local codec, including a stored null', () => {
+    writeLocalPreference(plannerBuildCharacter, 90000001);
+    expect(peekLocalPreference(plannerBuildCharacter)).toBe(90000001);
+    writeLocalPreference(plannerBuildCharacter, null);
+    expect(peekLocalPreference(plannerBuildCharacter)).toBeNull(); // present-and-null ≠ absent
   });
 });
 

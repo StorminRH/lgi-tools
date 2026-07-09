@@ -105,3 +105,11 @@ export const MenuLinkItem = Base.LinkItem;
 // parts.
 export const MenuItem = Base.Item;
 export const MenuSeparator = Base.Separator;
+
+// The pick-one-of-N rows (`role="menuitemradio"` + aria-checked for free),
+// re-exported on the same terms. First consumer is the Run-As build-character
+// selector (ACCOUNT.8). ⚠️ Unlike MenuItem, a RadioItem does NOT close the menu
+// on select by default — pass `closeOnClick` explicitly.
+export const MenuRadioGroup = Base.RadioGroup;
+export const MenuRadioItem = Base.RadioItem;
+export const MenuRadioItemIndicator = Base.RadioItemIndicator;
