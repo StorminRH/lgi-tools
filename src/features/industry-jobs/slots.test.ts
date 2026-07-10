@@ -193,6 +193,26 @@ describe('slotMetaTotals', () => {
     });
   });
 
+  it('does not admit a character on terminal corp jobs alone (freed slots)', () => {
+    // Character 7's only visible corp job is delivered — it occupies nothing,
+    // so it must not add their capacity to the denominator either.
+    const model = slotMetaTotals({
+      loading: false,
+      eligibleCharacterIds: [1],
+      characters: [
+        { characterId: 1, slots: { manufacturing: 2, science: 1, reactions: 1 } },
+        { characterId: 7, slots: { manufacturing: 3, science: 1, reactions: 1 } },
+      ],
+      personalJobsByCharacter: boards([[1, [job({ job_id: 51, activity_id: 1 })]]]),
+      corpJobs: [job({ job_id: 52, activity_id: 1, status: 'delivered', installer_id: 7 })],
+    });
+    expect(model).toEqual({
+      manufacturing: { used: 1, total: 2 },
+      science: { used: 0, total: 1 },
+      reactions: { used: 0, total: 1 },
+    });
+  });
+
   it('includes a personally-ineligible character who installed a visible corp job', () => {
     // Character 7 lacks the personal-jobs scope but their corp-installed job
     // is visible through a corp-eligible reader: the header must count it, or

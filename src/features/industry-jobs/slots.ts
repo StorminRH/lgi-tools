@@ -94,8 +94,11 @@ export type SlotMetaModel = Record<JobCategory, SlotUsage>;
 // eligible reader surfaces every member's jobs, so an installer can be
 // readable there while lacking the personal-jobs scope; dropping them would
 // leave the header counting fewer used slots than the corp section right
-// below it shows). A character with neither stays out — counting capacity
-// with no visible jobs would under-report usage. For a corp-only installer
+// below it shows). Only a corp job still OCCUPYING a slot admits its
+// installer — a delivered/cancelled one frees the slot and counts nothing,
+// so it must not add its installer's capacity either. A character with
+// neither stays out — counting capacity with no visible jobs would
+// under-report usage. For a corp-only installer
 // the personal board stays unreadable, so their personal jobs (if any) still
 // can't be counted — visible-jobs coverage is the invariant, not
 // omniscience. Capacity comes from the slots endpoint (base 1/1/1 for a
@@ -110,7 +113,9 @@ export function slotMetaTotals(args: {
   const eligible = new Set(args.eligibleCharacterIds);
   const corpInstallers = new Set<number>();
   for (const job of args.corpJobs) {
-    if (job.installer_id !== undefined) corpInstallers.add(job.installer_id);
+    if (job.installer_id !== undefined && jobOccupiesSlot(job.status)) {
+      corpInstallers.add(job.installer_id);
+    }
   }
   const characters = args.characters.filter(
     (character) =>
