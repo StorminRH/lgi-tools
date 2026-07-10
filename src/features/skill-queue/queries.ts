@@ -73,6 +73,20 @@ export async function getCharacterSkillLevels(
   return rows[0]?.skillLevels ?? null;
 }
 
+// The trained-levels map across the given characters (the slots readout's batch —
+// 3.7.24), composing the cached per-character reads like getSkillsForCharacters.
+// Unlike that map, a never-synced character is KEPT with a null value: null is the
+// meaningful fail-open signal downstream (base slot capacity), distinct from a
+// present map that simply lacks a skill (rank 0).
+export async function getSkillLevelsForCharacters(
+  characterIds: number[],
+): Promise<Map<number, Record<string, number> | null>> {
+  const entries = await Promise.all(
+    characterIds.map(async (id) => [id, await getCharacterSkillLevels(id)] as const),
+  );
+  return new Map(entries);
+}
+
 // Live (uncached) sync state for the staleness gate + etag replay (refresh path) and
 // the "as of" stamp (read path). Uncached on purpose: both need the true
 // last-refreshed time, not a cached view.

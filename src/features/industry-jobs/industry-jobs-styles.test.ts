@@ -36,6 +36,10 @@ describe('jobActivityPill', () => {
     }
   });
 
+  it('accepts activity 9 — what live ESI actually sends for reactions', () => {
+    expect(jobActivityPill(9)).toEqual({ label: 'RX', tone: 'green' });
+  });
+
   it('falls back to a neutral industry pill for unknown ids', () => {
     expect(jobActivityPill(999)).toEqual({ label: 'IND', tone: 'neutral' });
   });
@@ -46,6 +50,10 @@ describe('jobCategory', () => {
     expect(jobCategory(1)).toBe('manufacturing');
     expect(jobCategory(11)).toBe('reactions');
     for (const science of [3, 4, 5, 8]) expect(jobCategory(science)).toBe('science');
+  });
+
+  it('accepts activity 9 — what live ESI actually sends for reactions', () => {
+    expect(jobCategory(9)).toBe('reactions');
   });
 
   it('returns null for an untracked activity id', () => {

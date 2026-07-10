@@ -6,15 +6,12 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { SITE_URL } from '@/config/site-url';
-import { IndustryRow } from '@/features/industry-planner/components/IndustryRow';
 import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
-import { RecentlyViewed } from '@/features/industry-planner/components/RecentlyViewed';
-import { getBlueprintStructure } from '@/features/industry-planner/queries';
 import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
-import { CorpJobsBoard } from '@/features/industry-jobs/components/CorpJobsBoard';
-import { IndustryActiveJobs } from '@/features/industry-jobs/components/IndustryActiveJobs';
 import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
+import { PANEL_CLASS } from './dashboard-sections';
+import { IndustryDashboardGrid } from './IndustryDashboardGrid';
 
 export const metadata: Metadata = {
   title: 'Industry Planner',
@@ -31,75 +28,77 @@ export const metadata: Metadata = {
   },
 };
 
-const PANEL = 'border border-border rounded-[5px] bg-section overflow-hidden';
-
-// A frigate, a battlecruiser, and a capital — a quick spread of build depth,
-// shown as sample "favorites" until per-user favorites land. These are the
-// resolver's reference blueprints.
-const SAMPLE_FAVORITE_IDS = [691, 24699, 23758];
-
-// Sample favorites — real reference blueprints, shown as a preview of the
-// per-user favorites feature. Cached structure reads (no price dependency), so
-// this prerenders into the static shell.
-async function FavoritesList() {
-  const structures = (
-    await Promise.all(SAMPLE_FAVORITE_IDS.map((id) => getBlueprintStructure(id)))
-  ).filter((s) => s !== null);
-
-  if (structures.length === 0) return <EmptyState>No favorites yet.</EmptyState>;
-
+// Request-time region: reads the session + linked characters (both cache()-
+// deduped with the header's SlotMeta read) so the client section grid knows
+// which characters to keep synced and whether the corp gates apply. Signed-out
+// renders with no ids; the grid's sections then settle to their empty states.
+async function DashboardSections() {
+  const [characterIds, corp] = await Promise.all([activeJobCharacterIds(), corpJobsAccess()]);
   return (
-    <>
-      {structures.map((s) => (
-        <IndustryRow
-          key={s.blueprintTypeId}
-          name={s.product.name}
-          href={`/industry/${s.blueprintTypeId}`}
-          fav
+    <IndustryDashboardGrid
+      characterIds={characterIds}
+      corpEligibleCharacterIds={corp.eligibleCharacterIds}
+      hasLinkedCharacters={corp.hasLinkedCharacters}
+      reconnectAction={
+        <LinkCharacterButton
+          label="Grant corp jobs access"
+          emphasis="reconnect"
+          callbackURL="/industry"
         />
-      ))}
-    </>
+      }
+    />
   );
 }
 
-// Request-time region: reads the session + linked characters so the live
-// Active-jobs island knows which characters to keep synced. Signed-out renders
-// with no ids; the client island then shows the sign-in prompt. The corp board
-// (a separate read of the same linked characters, deduped within the request)
-// adds the pilot's corporation jobs beneath the personal board.
-async function ActiveJobsSection() {
+// The header's used/total slot readout reads the same per-character ids +
+// corp gates the section grid does (both cache()-deduped within the request),
+// so the header meta is its own small request-time <Suspense> hole feeding the
+// client island.
+async function SlotMeta() {
   const [characterIds, corp] = await Promise.all([activeJobCharacterIds(), corpJobsAccess()]);
   return (
-    <div className="flex flex-col gap-9">
-      <IndustryActiveJobs characterIds={characterIds} />
-      <CorpJobsBoard
-        eligibleCharacterIds={corp.eligibleCharacterIds}
-        hasLinkedCharacters={corp.hasLinkedCharacters}
-        reconnectAction={
-          <LinkCharacterButton
-            label="Grant corp jobs access"
-            emphasis="reconnect"
-            callbackURL="/industry"
-          />
-        }
-      />
+    <IndustrySlotMeta
+      characterIds={characterIds}
+      corpEligibleCharacterIds={corp.eligibleCharacterIds}
+    />
+  );
+}
+
+// The prerendered stand-in for the section grid: the four sections in the
+// preferred order, quiet placeholders where the data lands. The client grid
+// re-ranks once section data settles (empties sink as slim headers).
+function DashboardSkeleton() {
+  return (
+    <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 items-start">
+      {(
+        [
+          ['Recents', 'panel'],
+          ['Saved builds', 'panel'],
+          ['Active jobs', 'loading'],
+          ['Corporation industry jobs', 'loading'],
+        ] as const
+      ).map(([label, kind]) => (
+        <section key={label}>
+          <SectionLabel className="mb-3">{label}</SectionLabel>
+          {kind === 'panel' ? (
+            <div className={PANEL_CLASS}>
+              <EmptyState> </EmptyState>
+            </div>
+          ) : (
+            <LoadingLabel label="Loading…" />
+          )}
+        </section>
+      ))}
     </div>
   );
 }
 
-// The header's used-slot counts read the same per-character ids the active-jobs
-// board does (deduped within the request via activeJobCharacterIds' cache), so the
-// header meta is its own small request-time <Suspense> hole feeding the client island.
-async function SlotMeta() {
-  const characterIds = await activeJobCharacterIds();
-  return <IndustrySlotMeta characterIds={characterIds} />;
-}
-
-// Static shell — header, typed hint, and the recents/favorites scaffold
-// prerender; the recently-viewed list hydrates from localStorage, the slot
-// counts + active jobs are fetched client-side from /api/account/industry-jobs (Neon
-// stale-gated on-view), and the active-jobs character list is the request-time read
-// (a <Suspense> hole, shared by the header meta and the active-jobs section).
+// Static shell — header and typed hint prerender, plus the section-grid
+// skeleton as the <Suspense> fallback. The session + linked-character read is
+// ONE request-time hole feeding the client section grid (IndustryDashboardGrid),
+// which owns recents (localStorage), saved builds (/api/account/saved-plans),
+// and the personal + corp job boards (the existing Neon stale-gated on-view
+// reads) — and ranks populated sections above empty ones.
 export default function IndustryDashboardPage() {
   return (
     <PageShell>
@@ -116,41 +115,8 @@ export default function IndustryDashboardPage() {
       <div className="pb-16 flex flex-col gap-9">
         <IndustryTypedHint />
 
-        <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4">
-          <section>
-            <SectionLabel className="mb-3">Recents</SectionLabel>
-            <div className={PANEL}>
-              <RecentlyViewed />
-            </div>
-          </section>
-          <section>
-            <SectionLabel
-              className="mb-3"
-              meta={
-                <span className="font-mono text-[10px] tracking-[0.04em] text-muted">
-                  sign in to save — soon
-                </span>
-              }
-            >
-              Favorites
-            </SectionLabel>
-            <div className={PANEL}>
-              <Suspense fallback={<EmptyState>{' '}</EmptyState>}>
-                <FavoritesList />
-              </Suspense>
-            </div>
-          </section>
-        </div>
-
-        <Suspense
-          fallback={
-            <section>
-              <SectionLabel className="mb-3">Active jobs</SectionLabel>
-              <LoadingLabel />
-            </section>
-          }
-        >
-          <ActiveJobsSection />
+        <Suspense fallback={<DashboardSkeleton />}>
+          <DashboardSections />
         </Suspense>
       </div>
     </PageShell>

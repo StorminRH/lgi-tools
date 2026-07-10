@@ -15,6 +15,7 @@ import { getTypeNames } from '@/data/eve-data/queries';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import {
   getCharacterSkillLevels,
+  getSkillLevelsForCharacters,
   getSkillsForCharacters,
   readCharacterSyncState,
   saveCharacterSkills,
@@ -88,6 +89,31 @@ export async function getSkillsForUserOnView(userId: string): Promise<ViewerSkil
   for (const [id, name] of nameMap) names[String(id)] = name;
 
   return { characters, names };
+}
+
+// One character's trained levels for the wire; null = never synced / pre-0039
+// row — the fail-open signal (base slot capacity downstream), distinct from a
+// present map lacking a skill (rank 0).
+export interface ViewerSkillLevels {
+  characterId: number;
+  levels: Record<string, number> | null;
+}
+
+// The slots readout's batched on-view levels read (3.7.24): every linked
+// character's trained levels in one pass, mirroring getSkillsForUserOnView.
+// Fires exactly ONE write-behind per view; refreshSkillsForUser checks each
+// character's lastRefreshedAt against the 120s staleness gate BEFORE any token
+// vend or ESI call, so a re-view inside the window is a pure Neon read — there
+// is no unconditional N-character refresh storm.
+export async function getSkillLevelsForUserOnView(userId: string): Promise<ViewerSkillLevels[]> {
+  const linked = await listLinkedCharacters(userId);
+  const characterIds = linked.map((character) => character.characterId);
+  const levelsMap = await getSkillLevelsForCharacters(characterIds);
+  after(() => refreshSkillsForUser(makeSkillsPort(), userId));
+  return characterIds.map((characterId) => ({
+    characterId,
+    levels: levelsMap.get(characterId) ?? null,
+  }));
 }
 
 // The planner's on-view levels read (3.7.19.1): one character's trained active
