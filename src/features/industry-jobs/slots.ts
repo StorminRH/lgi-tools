@@ -87,13 +87,22 @@ export type SlotMetaModel = Record<JobCategory, SlotUsage>;
 // The header readout's view-model: null while any feed is still loading or
 // when no characters qualify (signed out / none linked — the readout renders
 // nothing, never errors); otherwise used/total per activity summed across the
-// JOB-ELIGIBLE characters only. The slots endpoint returns every linked
-// character, but the job boards cover only the scope-eligible ones — counting
-// a character's capacity without being able to see their jobs would
-// under-report usage, so both sides of the gauge cover the same
-// `eligibleCharacterIds` set. Capacity comes from the slots endpoint (base
-// 1/1/1 for a character with no synced skills); usage from the personal
-// boards plus installer-attributed corp jobs.
+// characters whose jobs the gauge can actually see. The slots endpoint
+// returns every linked character, but the job boards don't: a character is in
+// the gauge when their PERSONAL board is readable (`eligibleCharacterIds`) OR
+// they installed a VISIBLE corp job (corp boards are corporation-scoped — one
+// eligible reader surfaces every member's jobs, so an installer can be
+// readable there while lacking the personal-jobs scope; dropping them would
+// leave the header counting fewer used slots than the corp section right
+// below it shows). Only a corp job still OCCUPYING a slot admits its
+// installer — a delivered/cancelled one frees the slot and counts nothing,
+// so it must not add its installer's capacity either. A character with
+// neither stays out — counting capacity with no visible jobs would
+// under-report usage. For a corp-only installer
+// the personal board stays unreadable, so their personal jobs (if any) still
+// can't be counted — visible-jobs coverage is the invariant, not
+// omniscience. Capacity comes from the slots endpoint (base 1/1/1 for a
+// character with no synced skills).
 export function slotMetaTotals(args: {
   loading: boolean;
   eligibleCharacterIds: readonly number[];
@@ -102,7 +111,16 @@ export function slotMetaTotals(args: {
   corpJobs: readonly IndustryJob[];
 }): SlotMetaModel | null {
   const eligible = new Set(args.eligibleCharacterIds);
-  const characters = args.characters.filter((character) => eligible.has(character.characterId));
+  const corpInstallers = new Set<number>();
+  for (const job of args.corpJobs) {
+    if (job.installer_id !== undefined && jobOccupiesSlot(job.status)) {
+      corpInstallers.add(job.installer_id);
+    }
+  }
+  const characters = args.characters.filter(
+    (character) =>
+      eligible.has(character.characterId) || corpInstallers.has(character.characterId),
+  );
   if (args.loading || characters.length === 0) return null;
   const model: SlotMetaModel = {
     manufacturing: { used: 0, total: 0 },
