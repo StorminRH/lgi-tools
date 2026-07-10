@@ -12,7 +12,7 @@
 // doesn't poll forever; no manual refresh control (the live-surface
 // invariant).
 import { useEffect, useState } from 'react';
-import { apiFetch } from '@/lib/api-client';
+import { type ApiResult, apiFetch } from '@/lib/api-client';
 import { industrySlotsEndpoint, type IndustrySlotsResponse, type ViewerSlots } from './api-contract';
 
 const RECONCILE_DELAY_MS = 5_000;
@@ -35,23 +35,34 @@ export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } 
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     async function load(): Promise<void> {
-      const result = await apiFetch(industrySlotsEndpoint);
-      if (cancelled) return;
-      if (!result.ok) {
-        // A transient failure would otherwise blank the readout for the whole
-        // page view (response stays null = loading) — retry on the same
-        // bounded schedule.
-        retry();
-        return;
-      }
-      setResponse(result.data);
-      if (anyUnsynced(result.data.characters)) retry();
+      // A rejected fetch (network failure) must reach the failure path, not
+      // escape the effect — normalize it to null.
+      const result = await apiFetch(industrySlotsEndpoint).catch(() => null);
+      if (!cancelled) onResult(result);
     }
 
-    function retry(): void {
-      if (attempts >= MAX_RECONCILE_ATTEMPTS) return;
+    function onResult(result: ApiResult<IndustrySlotsResponse> | null): void {
+      if (result !== null && result.ok) {
+        setResponse(result.data);
+        if (anyUnsynced(result.data.characters)) retry();
+        return;
+      }
+      onFailure();
+    }
+
+    // A transient failure would otherwise blank the readout for the whole
+    // page view (response stays null = loading) — retry on the same bounded
+    // schedule; once attempts are exhausted, settle EMPTY (the readout hides,
+    // loading ends) rather than reporting loading forever.
+    function onFailure(): void {
+      if (!retry()) setResponse({ characters: [] });
+    }
+
+    function retry(): boolean {
+      if (attempts >= MAX_RECONCILE_ATTEMPTS) return false;
       attempts += 1;
       timer = setTimeout(() => void load(), RECONCILE_DELAY_MS);
+      return true;
     }
 
     void load();
