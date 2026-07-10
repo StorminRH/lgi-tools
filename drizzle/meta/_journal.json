@@ -281,6 +281,13 @@
       "when": 1783637454934,
       "tag": "0039_woozy_harrier",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1783655339742,
+      "tag": "0040_breezy_risque",
+      "breakpoints": true
     }
   ]
 }

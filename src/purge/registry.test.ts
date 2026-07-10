@@ -49,6 +49,7 @@ describe('purge registry gate', () => {
         'owned_assets',
         'owned_blueprint_syncs',
         'owned_blueprints',
+        'saved_plans',
         'session',
         'usage_logs',
         'user_preferences',
