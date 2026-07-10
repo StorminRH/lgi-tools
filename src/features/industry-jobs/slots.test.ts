@@ -173,8 +173,9 @@ describe('slotMetaTotals', () => {
   });
 
   it('excludes a character whose jobs the boards cannot see (scope-ineligible)', () => {
-    // Character 9 has trained slots but lacks the industry-job scopes: their
-    // jobs are invisible, so their capacity must not inflate the total.
+    // Character 9 has trained slots but lacks the industry-job scopes and has
+    // no visible corp jobs: nothing of theirs is countable, so their capacity
+    // must not inflate the total.
     const model = slotMetaTotals({
       loading: false,
       eligibleCharacterIds: [1],
@@ -189,6 +190,27 @@ describe('slotMetaTotals', () => {
       manufacturing: { used: 1, total: 2 },
       science: { used: 0, total: 1 },
       reactions: { used: 0, total: 1 },
+    });
+  });
+
+  it('includes a personally-ineligible character who installed a visible corp job', () => {
+    // Character 7 lacks the personal-jobs scope but their corp-installed job
+    // is visible through a corp-eligible reader: the header must count it, or
+    // it would show fewer used slots than the corp section below it.
+    const model = slotMetaTotals({
+      loading: false,
+      eligibleCharacterIds: [1],
+      characters: [
+        { characterId: 1, slots: { manufacturing: 2, science: 1, reactions: 1 } },
+        { characterId: 7, slots: { manufacturing: 3, science: 1, reactions: 1 } },
+      ],
+      personalJobsByCharacter: boards([[1, [job({ job_id: 41, activity_id: 1 })]]]),
+      corpJobs: [job({ job_id: 42, activity_id: 1, installer_id: 7 })],
+    });
+    expect(model).toEqual({
+      manufacturing: { used: 2, total: 5 },
+      science: { used: 0, total: 2 },
+      reactions: { used: 0, total: 2 },
     });
   });
 
