@@ -163,6 +163,20 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
     expect(rows[0].bestSell).toBe(5.5);
   });
 
+  it('rejects a present-but-invalid numeric field ("NaN") at the boundary', async () => {
+    // A field that exists but doesn't hold a finite number must fail the
+    // batch, not persist NaN/Infinity into the price columns.
+    const sell: Record<string, string> = {
+      weightedAverage: '5.5', max: 'NaN', min: '5.5', stddev: '0', median: '5.5',
+      volume: '100', orderCount: '3', percentile: '5.5',
+    };
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ '34': { buy: sell, sell } }), { status: 200 }),
+    );
+
+    await expect(fetchPricesFromFuzzwork([34])).rejects.toThrow(/boundary validation/);
+  });
+
   it('still rejects a side with a MISSING required field at the boundary', async () => {
     // The numeric tolerance must not swallow absence: a dropped field (here
     // sell.orderCount) means the response shape changed — reject the batch

@@ -25,9 +25,16 @@ const MAX_BATCH = 150;
 // sides are common; 2026-07-10 parity probe). A union (not z.coerce, which
 // would stringify undefined and let a MISSING required field through as
 // "undefined") accepts both shapes while a dropped field still rejects the
-// body at the boundary; `parseVolume`/`normalize` parse the string form.
-// The documented per-side fields are all required, keyed by type ID.
-const fuzzworkFieldSchema = z.union([z.string(), z.number()]).transform(String);
+// body at the boundary; the finite refine keeps a present-but-invalid value
+// ("", "NaN", "Infinity") from flowing through `normalize()` into the price
+// columns. `parseVolume`/`normalize` parse the string form. The documented
+// per-side fields are all required, keyed by type ID.
+const fuzzworkFieldSchema = z
+  .union([z.string(), z.number()])
+  .transform(String)
+  .refine((value) => value.trim() !== '' && Number.isFinite(Number(value)), {
+    message: 'Expected a finite numeric aggregate field',
+  });
 
 // Exported for testing.
 const fuzzworkSideSchema = z.object({
