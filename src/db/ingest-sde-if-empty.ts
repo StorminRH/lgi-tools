@@ -32,7 +32,10 @@ import {
 import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import { resolveAllTrees } from '../data/eve-data/tree-resolver';
+import { withAdvisoryLock } from './advisory-lock';
 import { resolveLockConnectionUrl } from './index';
+import { runScript } from './script-runtime';
+import { describeSdeStandDown, hasCompleteSdeData } from './sde-bootstrap';
 import { runSdePipeline } from './sde-pipeline';
 
 if (!readEnv('DATABASE_URL')) {
@@ -57,6 +60,61 @@ try {
 const client = postgres(lockUrl, { max: 2 });
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
+// Reads the SDE row-count sentinels + versions, then either bootstraps the full
+// pipeline (empty tables) or stands down with the resolver-only rebuild
+// (populated tables). Runs under the caller's held advisory lock.
+async function ingestUnderLock(db: ReturnType<typeof drizzle>): Promise<void> {
+  // "Populated" means EVERY SDE dataset is present — see hasCompleteSdeData for
+  // why each sentinel table is checked (a freshly migrated table would else
+  // ship empty until the next CCP drift).
+  const [{ rowCount, universeRowCount, jumpsRowCount }] = await db.execute<{
+    rowCount: string;
+    universeRowCount: string;
+    jumpsRowCount: string;
+  }>(sql`
+    SELECT
+      (SELECT COUNT(*) FROM type_dogma)::text AS "rowCount",
+      (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount",
+      (SELECT COUNT(*) FROM eve_system_jumps)::text AS "jumpsRowCount"
+  `);
+  const complete = hasCompleteSdeData({
+    typeDogma: Number(rowCount),
+    npcStations: Number(universeRowCount),
+    systemJumps: Number(jumpsRowCount),
+  });
+
+  const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
+  const remoteVersion = await getRemoteSdeVersion();
+
+  // Empty/incomplete tables — a fresh preview Neon or the first prod deploy
+  // shipping these tables. Bootstrap the full pipeline so the build can
+  // prerender SDE-backed static content.
+  if (!complete) {
+    console.log('Auto-ingesting SDE (eve-data tables empty or incomplete on this branch)…');
+    const summary = await runSdePipeline(db);
+    if (remoteVersion) {
+      await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
+    }
+    console.log('SDE pipeline complete.');
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+
+  // Tables are populated: never re-ingest at build time — just record why.
+  console.log(describeSdeStandDown(storedVersion, remoteVersion, rowCount));
+
+  // The SDE *data* is left as-is, but the resolver's ALGORITHM may have
+  // changed — its hash self-gates this to an instant no-op unless the math
+  // changed, in which case it rebuilds the flat materials + trees here at
+  // deploy time instead of waiting for the cron. (Lightweight; not a re-ingest.)
+  const resolve = await resolveAllTrees(db);
+  console.log(
+    resolve.skipped
+      ? 'Tree resolver: up to date (no rebuild).'
+      : `Tree resolver: rebuilt ${resolve.flatMaterialsWritten} flat-material rows across ${resolve.blueprintsResolved} blueprints.`,
+  );
+}
+
 async function main() {
   const db = drizzle(client);
 
@@ -74,99 +132,11 @@ async function main() {
     return;
   }
 
-  const reserved = await client.reserve();
-  let lockHeld = false;
-  try {
-    const lockResult = await reserved<{ got: boolean }[]>`
-      SELECT pg_try_advisory_lock(${LOCK_KEY_NUM}) AS got
-    `;
-    if (!lockResult[0].got) {
-      console.log('Skipping SDE auto-ingest (advisory lock held — another ingest in flight).');
-      return;
-    }
-    lockHeld = true;
-
-    // "Populated" means EVERY SDE dataset is present, not just the original
-    // type/blueprint set. Each new dataset gets a sentinel count ANDed in here so
-    // the first deploy that ships it force-runs a full ingest (the truncate+refill
-    // repopulates everything), instead of skipping because the older tables look
-    // current — otherwise the freshly migrated table ships empty until the next
-    // CCP drift. `eve_npc_stations` is the universe sentinel (3.5.1a);
-    // `eve_system_jumps` is the J-space/stargate sentinel (3.7.2.2) — its migration
-    // creates it empty, so the merge that first ships the widened universe sees a
-    // zero count and re-ingests, populating the wormhole systems, the per-system
-    // wormhole class, and the jump graph in one pass.
-    const [{ rowCount, universeRowCount, jumpsRowCount }] = await db.execute<{
-      rowCount: string;
-      universeRowCount: string;
-      jumpsRowCount: string;
-    }>(sql`
-      SELECT
-        (SELECT COUNT(*) FROM type_dogma)::text AS "rowCount",
-        (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount",
-        (SELECT COUNT(*) FROM eve_system_jumps)::text AS "jumpsRowCount"
-    `);
-    const hasRows =
-      Number(rowCount) > 0 &&
-      Number(universeRowCount) > 0 &&
-      Number(jumpsRowCount) > 0;
-
-    const storedVersion = await getSdeMetaValue(db, SDE_META_KEY_VERSION);
-    const remoteVersion = await getRemoteSdeVersion();
-
-    // Empty/incomplete tables — a fresh preview Neon or the first prod deploy
-    // shipping these tables. Bootstrap the full pipeline so the build can
-    // prerender SDE-backed static content.
-    if (!hasRows) {
-      console.log('Auto-ingesting SDE (eve-data tables empty or incomplete on this branch)…');
-      const summary = await runSdePipeline(db);
-      if (remoteVersion) {
-        await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
-      }
-      console.log('SDE pipeline complete.');
-      console.log(JSON.stringify(summary, null, 2));
-      return;
-    }
-
-    // Tables are populated: never re-ingest at build time. If CCP has drifted,
-    // the daily refresh-sde cron owns the re-ingest + cache revalidation (a
-    // mid-build pipeline run would load the DB and stall the prerender — the
-    // 3.6.27 deploy-timeout cause), so just record why we're standing down.
-    const drifted = remoteVersion !== null && storedVersion !== remoteVersion;
-    console.log(
-      drifted
-        ? `SDE re-ingest deferred to the daily cron (drift: stored=${storedVersion ?? '<none>'} remote=${remoteVersion}; ${rowCount} attribute rows present).`
-        : remoteVersion === null
-          ? `SDE ingest skipped (CCP SDE manifest unreachable; staying on stored version "${storedVersion}", ${rowCount} attribute rows present).`
-          : `SDE ingest skipped (already at SDE version "${storedVersion}", ${rowCount} attribute rows present).`,
-    );
-
-    // The SDE *data* is left as-is, but the resolver's ALGORITHM may have
-    // changed — its hash self-gates this to an instant no-op unless the math
-    // changed, in which case it rebuilds the flat materials + trees here at
-    // deploy time instead of waiting for the cron. (Lightweight; not a re-ingest.)
-    const resolve = await resolveAllTrees(db);
-    console.log(
-      resolve.skipped
-        ? 'Tree resolver: up to date (no rebuild).'
-        : `Tree resolver: rebuilt ${resolve.flatMaterialsWritten} flat-material rows across ${resolve.blueprintsResolved} blueprints.`,
-    );
-  } finally {
-    if (lockHeld) {
-      await reserved`SELECT pg_advisory_unlock(${LOCK_KEY_NUM})`;
-    }
-    reserved.release();
+  const outcome = await withAdvisoryLock(client, LOCK_KEY_NUM, () => ingestUnderLock(db));
+  if (outcome.busy) {
+    console.log('Skipping SDE auto-ingest (advisory lock held — another ingest in flight).');
   }
 }
 
-main()
-  .then(async () => {
-    await client.end();
-    process.exit(0);
-  })
-  .catch(async (err) => {
-    // Soft failure: log, close cleanly, exit 0. The build continues.
-    console.error('SDE auto-ingest failed (build continues):', err);
-    await client.end().catch(() => undefined);
-    process.exit(0);
-  });
+// Soft-fail: a failed ingest must not fail the build (per the header).
+runScript(main, { client, softFail: true });
