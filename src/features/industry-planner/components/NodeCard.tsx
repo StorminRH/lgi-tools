@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { QtyRing } from '@/components/ui/qty-ring';
-import { TypeIcon } from '@/components/ui/type-icon';
+import { TypeIcon, type TypeIconVariant } from '@/components/ui/type-icon';
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
 import { ProvenanceRows } from './MeAdjuster';
@@ -207,12 +207,13 @@ function QtyRingCell({
 // click-opens the ME/TE adjusters. The wrapping span stops the click/keys reaching the
 // card so opening the popover never drills the cascade.
 function BuildableIcon({
-  typeId,
+  icon,
   name,
   efficiency,
   detail,
 }: {
-  typeId: number;
+  // The rendition to show — the producing blueprint's `bp` icon for a buildable.
+  icon: { typeId: number; variant: TypeIconVariant };
   name: string;
   efficiency: NodeEfficiency;
   // The owned blueprint's owner/location, shown under the adjusters (owned only).
@@ -225,7 +226,7 @@ function BuildableIcon({
         side="bottom"
         openOnHover={false}
         triggerClassName={cn(FRAME, FRAME_TONE[efficiency.state], 'cursor-pointer')}
-        trigger={<TypeIcon typeId={typeId} size={30} mono={name.slice(0, 2)} />}
+        trigger={<TypeIcon typeId={icon.typeId} variant={icon.variant} size={30} mono={name.slice(0, 2)} />}
       >
         <PopoverHeading>Blueprint Research Adjusters</PopoverHeading>
         {efficiency.adjusters}
@@ -237,6 +238,7 @@ function BuildableIcon({
 
 export function NodeCard({
   typeId,
+  icon,
   name,
   label,
   qty,
@@ -251,6 +253,11 @@ export function NodeCard({
   onSelect,
 }: {
   typeId: number;
+  // The rendition the icon should show. Absent → the item's own `icon` (today's
+  // default). A buildable/reaction node passes its producing blueprint/formula
+  // in the `bp` rendition — the icon of what you run. TypeIcon stays
+  // domain-agnostic; this component just forwards the chosen variant.
+  icon?: { typeId: number; variant: TypeIconVariant };
   name: string;
   label: string;
   qty: number;
@@ -271,6 +278,9 @@ export function NodeCard({
   onSelect?: () => void;
 }) {
   const interactive = !!onSelect;
+  // Default to the item's own icon so callers that don't set `icon` (and every
+  // non-planner consumer) stay byte-identical to today.
+  const iconDesc = icon ?? { typeId, variant: 'icon' as const };
   return (
     <div
       role={interactive ? 'button' : undefined}
@@ -298,10 +308,10 @@ export function NodeCard({
       {/* The framed icon — a tinted click-popover for buildables, a plain (transparent
           frame) icon on the same footprint for raws/reactions. */}
       {efficiency ? (
-        <BuildableIcon typeId={typeId} name={name} efficiency={efficiency} detail={detail} />
+        <BuildableIcon icon={iconDesc} name={name} efficiency={efficiency} detail={detail} />
       ) : (
         <span className={cn(FRAME, 'border-transparent')}>
-          <TypeIcon typeId={typeId} size={30} mono={name.slice(0, 2)} />
+          <TypeIcon typeId={iconDesc.typeId} variant={iconDesc.variant} size={30} mono={name.slice(0, 2)} />
         </span>
       )}
       {/* Name + type. */}

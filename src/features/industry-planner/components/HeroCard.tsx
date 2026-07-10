@@ -143,7 +143,10 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
       <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-[3px] border border-border p-2">
         <TypeIcon
           typeId={structure.product.typeId}
-          variant="render"
+          // Ships/drones/structures serve a 3D render; everything else only an
+          // icon (a `render` request would 400). The renderable signal is
+          // computed from the product's SDE category in the structure builder.
+          variant={structure.product.renderable ? 'render' : 'icon'}
           size={88}
           alt={structure.product.name}
           mono={structure.product.name.slice(0, 2)}

@@ -30,7 +30,7 @@ import {
   type PriceLite,
 } from './build-pricing';
 import { toBuildTree } from './build-tree';
-import { classifyRaw } from './industry-styles';
+import { classifyRaw, isRenderableCategory } from './industry-styles';
 import type {
   BlueprintIndexEntry,
   BlueprintPricing,
@@ -200,6 +200,7 @@ export async function getBlueprintStructure(
         typeId: chosen.productTypeId,
         name: materialNames[chosen.productTypeId] ?? `Type ${chosen.productTypeId}`,
         quantityPerRun: chosen.quantity,
+        renderable: isRenderableCategory(labels.get(chosen.productTypeId)?.categoryName ?? ''),
       },
       tree,
       buildTree,

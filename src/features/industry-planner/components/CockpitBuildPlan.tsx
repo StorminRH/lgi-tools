@@ -14,7 +14,7 @@ import {
   type ConsolidatedItem,
   type ConsolidatedTier,
 } from '../build-consolidate';
-import { REACTION_NODE_LABEL } from '../industry-styles';
+import { nodeIcon, REACTION_NODE_LABEL } from '../industry-styles';
 import { nodeFrameState } from '../node-frame-state';
 import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
@@ -63,6 +63,7 @@ interface Focus {
 // popover (not the QTY ring). Clicking drills the cascade when the node has children.
 function TierRow({
   item,
+  icon,
   qty,
   value,
   efficiency,
@@ -75,6 +76,9 @@ function TierRow({
   onSelect,
 }: {
   item: ConsolidatedItem;
+  // The rendition this node's icon shows (producing `bp` for a buildable, the
+  // item `icon` for a raw).
+  icon: ReturnType<typeof nodeIcon>;
   qty: number;
   value: number | null;
   efficiency?: NodeEfficiency;
@@ -89,6 +93,7 @@ function TierRow({
   return (
     <NodeCard
       typeId={item.typeId}
+      icon={icon}
       name={item.name}
       label={item.label}
       qty={qty}
@@ -108,6 +113,7 @@ function TierRow({
 function TierColumn({
   tier,
   unitPriceOf,
+  iconFor,
   efficiencyFor,
   detailFor,
   ownedAssetFor,
@@ -118,6 +124,9 @@ function TierColumn({
 }: {
   tier: ConsolidatedTier;
   unitPriceOf: Map<number, number | null>;
+  // The rendition each node's icon shows — the producing blueprint/formula `bp`
+  // for a buildable, the item `icon` for a raw.
+  iconFor: (typeId: number) => ReturnType<typeof nodeIcon>;
   // The per-node ME/TE adjusters + icon-frame state for a buildable row; undefined
   // for raws/reactions (a plain, frameless icon).
   efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
@@ -173,6 +182,7 @@ function TierColumn({
             <TierRow
               key={item.typeId}
               item={item}
+              icon={iconFor(item.typeId)}
               qty={qty}
               value={valueOf(item.typeId, qty)}
               efficiency={efficiencyFor?.(item.typeId, item.name)}
@@ -239,6 +249,11 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   // The producing blueprint per buildable typeId — keys each row's adjusters to the
   // override maps. Undefined for raws (which never appear as tier rows).
   const blueprintOf = (typeId: number) => ledger.builds.get(typeId)?.blueprintTypeId;
+  // Each node's icon: a buildable/reaction shows the icon of WHAT YOU RUN — its
+  // producing blueprint or reaction formula (both serve the `bp` rendition) —
+  // while a raw keeps the item's own icon. `ledger.builds` is derived from the
+  // tree (no price dependency), so this is stable on the first render.
+  const iconFor = (typeId: number) => nodeIcon(blueprintOf(typeId), typeId);
   // The per-node icon-frame tone + popover adjusters for a buildable row — every
   // manufacturable buildable (owned, manual, or unowned), so the what-if is always
   // available behind the icon. The frame tone is the combined ME/TE state; the popover
@@ -384,6 +399,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             key={tier.depth}
             tier={tier}
             unitPriceOf={unitPriceOf}
+            iconFor={iconFor}
             efficiencyFor={efficiencyFor}
             detailFor={detailFor}
             ownedAssetFor={ownedAssetFor}

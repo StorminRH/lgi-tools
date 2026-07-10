@@ -23,6 +23,11 @@ export interface BlueprintProduct {
   typeId: number;
   name: string;
   quantityPerRun: number;
+  // Whether this product's SDE category serves a 3D `render` rendition
+  // (ships/drones/structures). Gates the hero image variant so a product that
+  // has no render (modules, charges, materials) requests its `icon` instead of
+  // 400ing on `/render`. Display-only — no bearing on any computed value.
+  renderable: boolean;
 }
 
 // --- Build-sequence tree -------------------------------------------------

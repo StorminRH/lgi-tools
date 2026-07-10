@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.27.1 — 2026-07-10
+
+#### Changed
+- In the planner's build plan, each component you build now shows the icon of the blueprint or reaction formula you run to make it, instead of the finished item — so a glance tells you what to produce at each step. Raw materials you buy still show the item's own icon.
+
+#### Fixed
+- The planner header now shows a product's 3D model only for items that actually have one (ships, drones, structures) and the item's icon for everything else. Modules and other items no longer trigger a failed image request on every planner open.
+
 ### v3.7.26.1 — 2026-07-10
 
 #### Changed
