@@ -57,19 +57,23 @@ export function KpiHead({ label, right }: { label: string; right?: ReactNode }) 
 }
 
 // A plain value tile (Input cost / Sell / Build time). Net margin and Market Score
-// compose KpiTile directly because they carry extra controls.
+// compose KpiTile directly because they carry extra controls. `right` rides the
+// label row (KpiHead's existing slot) for a small affordance like a
+// data-quality badge.
 export function SimpleTile({
   label,
   value,
   valueClass,
+  right,
 }: {
   label: string;
   value: ReactNode;
   valueClass?: string;
+  right?: ReactNode;
 }) {
   return (
     <KpiTile>
-      <KpiHead label={label} />
+      <KpiHead label={label} right={right} />
       <div className={cn(KPI_FIG, valueClass)}>{value}</div>
     </KpiTile>
   );

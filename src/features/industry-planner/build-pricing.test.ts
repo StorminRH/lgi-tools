@@ -576,6 +576,23 @@ describe('assemblePricing product depth (3.5.3b)', () => {
   });
 });
 
+describe('assemblePricing product sell figures (3.7.25.1)', () => {
+  it('threads the product pct5Sell from the lookup (the thin-order badge reference)', () => {
+    const pricing = assemblePricing(NET_STRUCTURE, (t) =>
+      t === 999 ? { ...NET_PRICES[999], pct5Sell: 1_050 } : NET_PRICES[t],
+    );
+    expect(pricing.product.bestSell).toBe(1_000);
+    expect(pricing.product.pct5Sell).toBe(1_050);
+  });
+
+  it('null pct5Sell (the Fuzzwork null-percentile shape) carries through as null', () => {
+    // NET_PRICES[999] pins pct5Sell: null — the badge no-ops on it by
+    // construction; nothing else in the payload reads the field.
+    const pricing = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
+    expect(pricing.product.pct5Sell).toBeNull();
+  });
+});
+
 describe('buildConfidenceInputs', () => {
   it('maps both priced raw rows and intermediates by typeId', () => {
     const structure: BlueprintStructure = {

@@ -51,11 +51,29 @@ export const ON_DEMAND_REFRESH_MAX_TYPE_IDS = 50;
 // near-touch depth ladder (3.5.3a). Each band's cumulative volume answers
 // "how far would dumping Q walk the price" for the 3.5.3b Market Score.
 //
-// Anchored to the best (touch), NOT pct5: pct5 is volume-weighted over 5% of
-// total side volume, so a far-out huge-volume order inflates that total and
-// collapses pct5 to the fake price — any pct5-anchored band would move with
-// it. Banding from the best is robust: a tiny 0.01-ISK spoof shifts the band
-// window negligibly (≥0.5% ≫ 0.01 ISK) and contributes ~0 volume, and a
-// far-out fake falls outside the near-touch bands (only ever under-stating
-// depth — the safe direction for a "can I dump this?" read).
+// Anchored to the DUST-FILTERED best (see BEST_DUST_VOLUME_DIVISOR), NOT pct5:
+// pct5 is volume-weighted over 5% of total side volume, so a far-out
+// huge-volume order inflates that total and collapses pct5 to the fake price —
+// any pct5-anchored band would move with it. Banding from the best is robust:
+// a tiny 0.01-ISK spoof shifts the band window negligibly (≥0.5% ≫ 0.01 ISK)
+// and contributes ~0 volume, and a far-out fake falls outside the near-touch
+// bands, under-stating depth — the safe direction for a "can I dump this?"
+// read. The one case that argument used to concede — a mid-gap sliver ask a
+// few percent under the real book, which windowed the bands around ITSELF and
+// excluded the real sell wall (over-stating scarcity AND letting the fake
+// price anchor the ladder) — is closed by the dust filter: a sliver never
+// becomes the anchor, so the bands window around a price with real volume
+// behind it (3.7.25.1).
 export const DEPTH_BANDS_PCT = [0.5, 1, 2, 5, 10] as const;
+
+// Dust threshold for the stored best price (3.7.25.1): the best is the lowest
+// ask / highest bid with REAL volume behind it — the front of the book is
+// walked until cumulative volume reaches ceil(side volume / this divisor)
+// (0.1% of side volume, min 1 unit), and the order that crosses that line is
+// the best. A healthy front order carries the threshold alone, so liquid books
+// are byte-identical to the raw touch; a 1-unit sliver anchoring a
+// multi-thousand-unit book is skipped. Calibration and the ruling live in the
+// 2026-07-02 best_sell hardening report (docs/margin-audit/): ~20% of liquid
+// products carried a divergent front order at any instant, the worst as
+// [1,1,1,1,1] ladders on 4,000–10,000-unit books.
+export const BEST_DUST_VOLUME_DIVISOR = BigInt(1000);

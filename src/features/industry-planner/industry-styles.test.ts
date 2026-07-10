@@ -4,6 +4,7 @@ import {
   aggregateConfidenceFromCounts,
   deriveMarginFigures,
   priceConfidence,
+  sellAnchorConfidence,
   type ConfidenceInput,
 } from './industry-styles';
 
@@ -199,6 +200,42 @@ describe('deriveMarginFigures', () => {
       sign: '',
       missingSystemCostIndex: false,
       missingAdjustedPriceCount: 0,
+    });
+  });
+});
+
+describe('sellAnchorConfidence', () => {
+  it('flags a best sell well under the 5%-percentile (ratio < 0.90)', () => {
+    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: 100 })).toEqual({
+      level: 'medium',
+      reasons: ['Price anchored by a thin order'],
+    });
+  });
+
+  it('stays silent at and above the threshold', () => {
+    expect(sellAnchorConfidence({ bestSell: 90, pct5Sell: 100 })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: 100, pct5Sell: 100 })).toBeNull();
+    // A best above pct5 (tiny/degenerate book) is not a thin-anchor signal.
+    expect(sellAnchorConfidence({ bestSell: 110, pct5Sell: 100 })).toBeNull();
+  });
+
+  it('is null-safe on missing or degenerate figures', () => {
+    expect(sellAnchorConfidence({ bestSell: null, pct5Sell: 100 })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: null })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: 0 })).toBeNull();
+    // A payload cached before the field existed carries undefined, not null —
+    // it must read as "no reference", never as a firing NaN ratio.
+    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: undefined })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: undefined, pct5Sell: 100 })).toBeNull();
+  });
+
+  it('fires on the ratio alone — a Fuzzwork-fallback-shaped row is judged the same way', () => {
+    // The fallback path stores the raw book bottom (no order book to filter),
+    // so a thin-anchored fallback row wears the badge purely by its figures —
+    // no source check involved.
+    expect(sellAnchorConfidence({ bestSell: 21_200_000, pct5Sell: 230_000_000 })).toEqual({
+      level: 'medium',
+      reasons: ['Price anchored by a thin order'],
     });
   });
 });

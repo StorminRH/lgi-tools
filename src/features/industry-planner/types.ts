@@ -253,6 +253,10 @@ export interface BlueprintPricing {
     name: string;
     quantityPerRun: number;
     bestSell: number | null;
+    // The Fuzzwork-style 5%-percentile beside the best (3.7.25.1) — the
+    // reference the thin-order honesty badge compares the revenue anchor
+    // against (bestSell / pct5Sell < 0.90 ⇒ "anchored by a thin order").
+    pct5Sell: number | null;
     staleAfterMs: number | null;
     // Near-touch order-book depth ladders (3.5.3b), carried so the client
     // Market Score can read the product's liquidity without a second fetch.

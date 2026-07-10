@@ -193,6 +193,34 @@ export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfi
   return reasons.length === 0 ? { level: 'high', reasons: [] } : { level: 'medium', reasons };
 }
 
+// Below this best_sell / pct5_sell ratio the product's revenue anchor reads as
+// "a thin order" (3.7.25.1): the lowest ask sits well under the volume-weighted
+// front of the book, so the headline price is unlikely to be tradable at
+// volume. Calibrated in the best_sell hardening report — at 0.90 this fires on
+// ~4% of products (~7% of liquid ones) pre-hardening, and post-hardening only
+// on rows the dust filter can't judge (small books, Fuzzwork-fallback rows,
+// rows not yet re-fetched).
+const THIN_SELL_ANCHOR_RATIO = 0.9;
+
+// The Sell·Jita honesty badge (3.7.25.1): null = no badge (healthy or
+// unknowable); otherwise the level + reason the PriceConfidence primitive
+// renders. Pure ratio test on the two stored sell figures — deliberately
+// source-agnostic, so a Fuzzwork-fallback row (raw book bottom, no order book
+// to dust-filter) and a stale pre-hardening row fire the same way.
+export function sellAnchorConfidence(product: {
+  bestSell: number | null | undefined;
+  pct5Sell: number | null | undefined;
+}): RowConfidence | null {
+  const { bestSell, pct5Sell } = product;
+  // Loose null checks on purpose: a pricing payload cached before this field
+  // existed reaches here with pct5Sell undefined, and that must read as "no
+  // reference" (no badge) — a strict null check would let undefined through
+  // to a NaN ratio, which fails the >= comparison and falsely fires.
+  if (bestSell == null || pct5Sell == null || pct5Sell <= 0) return null;
+  if (bestSell / pct5Sell >= THIN_SELL_ANCHOR_RATIO) return null;
+  return { level: 'medium', reasons: ['Price anchored by a thin order'] };
+}
+
 // The shortfall tallies behind an aggregate verdict. `total` is the row count
 // the share is taken over; `high` is the fully-trustworthy rows; the rest count
 // each shortfall independently (a row can be both stale and fallback).

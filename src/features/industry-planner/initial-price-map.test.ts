@@ -44,6 +44,7 @@ const pricing = (over: {
     name: 'Product',
     quantityPerRun: 1,
     bestSell: null,
+    pct5Sell: null,
     staleAfterMs: null,
     buyDepth: null,
     sellDepth: null,
@@ -88,12 +89,20 @@ describe('initialPriceMap — the client seed from the server snapshot', () => {
     const map = initialPriceMap(
       pricing({
         rows: [row(999, { unitBuy: 7 })], // self-recipe shape: the product also appears as a row
-        product: { typeId: 999, bestSell: 50, buyDepth: depth, sellDepth: depth, staleAfterMs: 5 },
+        product: {
+          typeId: 999,
+          bestSell: 50,
+          pct5Sell: 55,
+          buyDepth: depth,
+          sellDepth: depth,
+          staleAfterMs: 5,
+        },
       }),
     );
     expect(map.get(999)).toMatchObject({
       bestBuy: 7, // preserved from the row seed
       bestSell: 50,
+      pct5Sell: 55, // the thin-order badge's reference rides the seed too
       buyDepth: depth,
       sellDepth: depth,
       staleAfterMs: 5,

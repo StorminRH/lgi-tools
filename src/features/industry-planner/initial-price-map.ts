@@ -43,7 +43,7 @@ export function initialPriceMap(pricing: BlueprintPricing): Map<number, PriceLit
     bestBuy: map.get(pricing.product.typeId)?.bestBuy ?? null,
     bestSell: pricing.product.bestSell,
     pct5Buy: null,
-    pct5Sell: null,
+    pct5Sell: pricing.product.pct5Sell,
     buyVolume: null,
     sellVolume: null,
     buyDepth: pricing.product.buyDepth,
