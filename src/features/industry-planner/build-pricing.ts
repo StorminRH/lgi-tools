@@ -9,10 +9,15 @@ import {
 import {
   computeBuildCost,
   computeMargin,
+  type BuildCost,
   type PriceOf,
 } from '@/data/industry-math/profitability';
 import type { DepthBand, PriceSource } from '@/data/market-prices/types';
-import { computeBatchMaterials, computeBatchMaterialsWithMe } from './build-batch';
+import {
+  computeBatchMaterials,
+  computeBatchMaterialsWithMe,
+  computeMarginalMaterials,
+} from './build-batch';
 import type { ConfidenceInput } from './industry-styles';
 import { REACTION_ACTIVITY } from './structure-bonus';
 import type {
@@ -153,6 +158,13 @@ export interface AssembleOptions {
   // cost-basis materials alongside owned ME (one round at the end, in meAdjust);
   // omitted / returning 1 ⇒ the basis is byte-identical to the no-structure path.
   structureMeFactorOf?: (blueprintTypeId: number) => number;
+  // Cost basis for the SUMMARY (input cost + margin) — the Raw|Item toggle
+  // (3.7.21.1). 'batched' (default, byte-identical when absent) charges the
+  // whole-run empty-hangar buy list; 'marginal' charges only what the build
+  // consumes (fractional reaction runs, no batch ceiling). `rows` — the raw
+  // ledger — are ALWAYS the batched bill: the table stays the physical
+  // shopping list in both states, only the KPI summary switches.
+  basis?: 'batched' | 'marginal';
 }
 
 // Net margin for the FINAL build job only (3.5.2b "top job"). Null unless fee
@@ -223,6 +235,54 @@ function computeNet(
   };
 }
 
+// The two cost bills (3.7.21.1). The batched (Raw) bill is the whole-run buy
+// list scaled to `runs` — what you must buy from an empty hangar — not the
+// resolver's marginal flat list; re-derived per request from the tree, with an
+// owned-ME lookup reducing each buildable's quantities (absent one — server
+// seed / no owned data — it's the byte-identical ME0 basis). The rows (raw
+// ledger) ALWAYS price this bill, whichever basis the summary uses. The
+// summary's `buildCost` follows `opts.basis`: batched (default) reuses the
+// rows bill verbatim; marginal re-prices the fractional consumed bill (Item).
+function resolveCostBills(
+  structure: BlueprintStructure,
+  runs: number,
+  opts: AssembleOptions,
+  buyOf: PriceOf,
+): {
+  basis: 'batched' | 'marginal';
+  rowsCost: BuildCost;
+  buildCost: BuildCost;
+  bases: { batched: number; marginal: number };
+} {
+  const meOpts =
+    opts.meOf || opts.structureMeFactorOf
+      ? {
+          meOf: opts.meOf ?? (() => undefined),
+          topBlueprintTypeId: structure.blueprintTypeId,
+          structureMeFactorOf: opts.structureMeFactorOf,
+        }
+      : undefined;
+  const batchedMaterials = meOpts
+    ? computeBatchMaterialsWithMe(structure.tree, runs, meOpts)
+    : computeBatchMaterials(structure.tree, runs);
+  const rowsCost = computeBuildCost(batchedMaterials, buyOf);
+  // Both bases are always priced (the marginal walk is pure and cheap) so the
+  // input-cost popover can show the two figures side by side whichever view is
+  // active; the summary's buildCost follows `opts.basis`.
+  const marginalCost = computeBuildCost(
+    computeMarginalMaterials(structure.tree, runs, meOpts),
+    buyOf,
+  );
+  const basis = opts.basis ?? 'batched';
+  const buildCost = basis === 'marginal' ? marginalCost : rowsCost;
+  return {
+    basis,
+    rowsCost,
+    buildCost,
+    bases: { batched: rowsCost.total, marginal: marginalCost.total },
+  };
+}
+
 export function assemblePricing(
   structure: BlueprintStructure,
   priceOf: PriceLiteOf,
@@ -234,20 +294,7 @@ export function assemblePricing(
     return p ? { bestBuy: p.bestBuy, bestSell: p.bestSell } : undefined;
   };
 
-  // Cost basis is the whole-run batch total scaled to `runs` — what you must buy
-  // from an empty hangar to build `runs` runs — not the resolver's marginal flat
-  // list. Re-derived per request from the tree. With an owned-ME lookup the
-  // material quantities are reduced at each buildable's owned ME; without one
-  // (server seed / no owned data) this is the byte-identical ME0 cost basis.
-  const materials =
-    opts.meOf || opts.structureMeFactorOf
-      ? computeBatchMaterialsWithMe(structure.tree, runs, {
-          meOf: opts.meOf ?? (() => undefined),
-          topBlueprintTypeId: structure.blueprintTypeId,
-          structureMeFactorOf: opts.structureMeFactorOf,
-        })
-      : computeBatchMaterials(structure.tree, runs);
-  const buildCost = computeBuildCost(materials, buyOf);
+  const { basis, rowsCost, buildCost, bases } = resolveCostBills(structure, runs, opts, buyOf);
   const productPrice = priceOf(structure.product.typeId);
   // Output units = per-run yield × runs. Revenue is per output unit, never per
   // run — runs only drives the batch material walk above.
@@ -258,7 +305,7 @@ export function assemblePricing(
     productQty: outputUnits,
   });
 
-  const rows: MaterialCostRow[] = buildCost.perMaterial.map((c) => {
+  const rows: MaterialCostRow[] = rowsCost.perMaterial.map((c) => {
     const p = priceOf(c.typeId);
     return {
       typeId: c.typeId,
@@ -307,6 +354,8 @@ export function assemblePricing(
       sellDepth: productPrice?.sellDepth ?? null,
     },
     summary: {
+      basis,
+      bases,
       inputCost: buildCost.total,
       revenue: margin.revenue,
       margin: margin.margin,

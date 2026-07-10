@@ -10,8 +10,9 @@ import type { BlueprintPricing, BlueprintStructure, MaterialCostRow } from '../t
 // build-plan tier columns), rows most-expensive first. The columns flow as a CSS
 // multi-column layout so each packs to its own height — short categories tuck
 // under tall ones instead of leaving a grid-row gap. Reuses the already-batched,
-// already-priced `pricing.rows` (the same figures the margin reads, summing to
-// `summary.inputCost`) and the structure's category map, so nothing is recomputed.
+// already-priced `pricing.rows` (ALWAYS the Raw buy list, whichever basis the
+// summary shows — 3.7.21.1) and the structure's category map, so nothing is
+// recomputed.
 
 // Mirrors the build-plan TierRow grid/typography so the two read as one system.
 const ROW =

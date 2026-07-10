@@ -23,7 +23,7 @@
     "src/data/commands/search.ts:116-120|src/data/tools/search.ts:15-19",
     "src/data/eve-data/source.ts:101-114|src/data/eve-data/source.ts:326-344",
     "src/data/market-history/aggregate.ts:38-45|src/data/market-history/aggregate.ts:55-62",
-    "src/data/market-prices/use-refresh-on-view.ts:116-125|src/features/industry-planner/queries.ts:181-190",
+    "src/data/market-prices/use-refresh-on-view.ts:116-125|src/features/industry-planner/queries.ts:260-269",
     "src/db/backfill-users-if-empty.ts:115-132|src/db/ingest-sde-if-empty.ts:152-169|src/db/refresh-sde.ts:67-82",
     "src/db/ingest-sde.ts:18-30|src/db/refresh-prices.ts:94-106",
     "src/db/ingest-sde.ts:21-30|src/db/refresh-prices.ts:97-106|src/db/refresh-sde.ts:76-85",

@@ -247,23 +247,30 @@ export async function getBlueprintPricing(
   const priceMap = await getPrices(priceIds); // single WHERE type_id IN (...)
 
   // Same assembler the client uses after an on-demand refresh, so the streamed
-  // figure and the refreshed figure are computed identically.
-  return assemblePricing(structure, (typeId): PriceLite | undefined => {
-    const p = priceMap.get(typeId);
-    if (!p) return undefined;
-    return {
-      bestBuy: p.bestBuy,
-      bestSell: p.bestSell,
-      pct5Buy: p.pct5Buy,
-      pct5Sell: p.pct5Sell,
-      buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
-      sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
-      buyDepth: p.buyDepth,
-      sellDepth: p.sellDepth,
-      source: p.source,
-      staleAfterMs: p.staleAfter.getTime(),
-    };
-  });
+  // figure and the refreshed figure are computed identically. The seed is one
+  // shared 'use cache' snapshot, so it carries exactly one basis — the Item
+  // (marginal) default, so first paint matches what a default visitor keeps;
+  // a saved Raw preference re-assembles at hydration (the owned-ME settle class).
+  return assemblePricing(
+    structure,
+    (typeId): PriceLite | undefined => {
+      const p = priceMap.get(typeId);
+      if (!p) return undefined;
+      return {
+        bestBuy: p.bestBuy,
+        bestSell: p.bestSell,
+        pct5Buy: p.pct5Buy,
+        pct5Sell: p.pct5Sell,
+        buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
+        sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
+        buyDepth: p.buyDepth,
+        sellDepth: p.sellDepth,
+        source: p.source,
+        staleAfterMs: p.staleAfter.getTime(),
+      };
+    },
+    { basis: 'marginal' },
+  );
 }
 
 // Compact search index: one entry per blueprint, labelled by the published

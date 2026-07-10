@@ -73,13 +73,18 @@ export interface BatchLedger {
   // Raw-material typeId → whole-run total quantity.
   raws: Map<number, number>;
   // Buildable typeId → its whole run count, per-run yield, the ME applied to ITS
-  // inputs (0 on the ME0 path / for an unowned blueprint), and the producing
-  // blueprint's type id. Produced = runs × batch. The `me` carries the owned (or
+  // inputs (0 on the ME0 path / for an unowned blueprint), the producing
+  // blueprint's type id, and the aggregate demand the whole runs were ceiled
+  // from. Produced = runs × batch; surplus = runs × batch − required (what the
+  // forced whole runs leave in the hangar). The `me` carries the owned (or
   // manually overridden) level through to the build-plan's drill-down and per-node
   // readouts; `blueprintTypeId` keys each node's ME control back to the override
   // map — so tiers, the cascade, and the controls all read one source and can
   // never disagree.
-  builds: Map<number, { runs: number; batch: number; me: number; blueprintTypeId: number }>;
+  builds: Map<
+    number,
+    { runs: number; batch: number; me: number; blueprintTypeId: number; required: number }
+  >;
 }
 
 // `requestedRuns` defaults to 1 — one run of the blueprint, today's per-run cost basis.
@@ -116,11 +121,17 @@ export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLe
 
   for (const node of tree) walk(node.typeId, node.quantity * requestedRuns);
 
-  const builds = new Map<number, { runs: number; batch: number; me: number; blueprintTypeId: number }>();
+  const builds: BatchLedger['builds'] = new Map();
   for (const [typeId, entry] of ledger) {
     const recipe = recipes.get(typeId)!;
     // ME0 path: no owned-blueprint reduction is applied anywhere.
-    builds.set(typeId, { runs: entry.runs, batch: recipe.batch, me: 0, blueprintTypeId: recipe.blueprintTypeId });
+    builds.set(typeId, {
+      runs: entry.runs,
+      batch: recipe.batch,
+      me: 0,
+      blueprintTypeId: recipe.blueprintTypeId,
+      required: entry.required,
+    });
   }
 
   return { raws, builds };
@@ -185,6 +196,31 @@ function meAdjust(qty: number, runs: number, me: number, structureMult = 1): num
   return Math.max(runs, Math.ceil(roundTo2(qty * runs * mult)));
 }
 
+// The shared scaffolding of the topological (aggregate-then-resolve) walks:
+// buildable demand accumulates in `demand`, recipe-less leaves in `raws`, and
+// `ordered` visits parents before children (descending recipe height) so a
+// buildable's demand is fully aggregated before its runs are derived. The
+// batched ledger and the marginal walk differ only in HOW they turn demand
+// into runs (ceil vs fractional) — this is everything they share.
+function topologicalDemand(recipes: Map<number, Recipe>): {
+  demand: Map<number, number>;
+  raws: Map<number, number>;
+  addDemand: (typeId: number, qty: number) => void;
+  ordered: number[];
+} {
+  const heights = recipeHeights(recipes);
+  const demand = new Map<number, number>();
+  const raws = new Map<number, number>();
+  const addDemand = (typeId: number, qty: number) => {
+    if (recipes.has(typeId)) demand.set(typeId, (demand.get(typeId) ?? 0) + qty);
+    else raws.set(typeId, (raws.get(typeId) ?? 0) + qty);
+  };
+  const ordered = [...recipes.keys()].sort(
+    (a, b) => (heights.get(b) ?? 0) - (heights.get(a) ?? 0),
+  );
+  return { demand, raws, addDemand, ordered };
+}
+
 // Per-buildable-type graph height over the recipe DAG (raws = 0). Memoised; the
 // DAG is acyclic (the resolver guarantees it), so the recursion terminates.
 function recipeHeights(recipes: Map<number, Recipe>): Map<number, number> {
@@ -218,13 +254,7 @@ export function computeBatchLedgerWithMe(
   opts: MeOptions,
 ): BatchLedger {
   const recipes = flattenRecipes(tree);
-  const heights = recipeHeights(recipes);
-  const demand = new Map<number, number>();
-  const raws = new Map<number, number>();
-  const addDemand = (typeId: number, qty: number) => {
-    if (recipes.has(typeId)) demand.set(typeId, (demand.get(typeId) ?? 0) + qty);
-    else raws.set(typeId, (raws.get(typeId) ?? 0) + qty);
-  };
+  const { demand, raws, addDemand, ordered } = topologicalDemand(recipes);
 
   // Per-node structure material factor (3.7.9.1.3); 1 everywhere with no structure
   // selected, keeping the basis byte-identical.
@@ -239,11 +269,7 @@ export function computeBatchLedgerWithMe(
       node.typeId,
       meAdjust(node.quantity, requestedRuns, topMe, structureFactorOf(opts.topBlueprintTypeId)),
     );
-
-  const ordered = [...recipes.keys()].sort(
-    (a, b) => (heights.get(b) ?? 0) - (heights.get(a) ?? 0),
-  );
-  const builds = new Map<number, { runs: number; batch: number; me: number; blueprintTypeId: number }>();
+  const builds: BatchLedger['builds'] = new Map();
   for (const typeId of ordered) {
     const recipe = recipes.get(typeId)!;
     const required = demand.get(typeId) ?? 0;
@@ -251,7 +277,7 @@ export function computeBatchLedgerWithMe(
     // The ME of THIS buildable's own blueprint — applied to its inputs below, and
     // surfaced on the ledger so the drill-down + per-node readouts read it too.
     const me = opts.meOf(recipe.blueprintTypeId) ?? 0;
-    builds.set(typeId, { runs, batch: recipe.batch, me, blueprintTypeId: recipe.blueprintTypeId });
+    builds.set(typeId, { runs, batch: recipe.batch, me, blueprintTypeId: recipe.blueprintTypeId, required });
     const structureMult = structureFactorOf(recipe.blueprintTypeId);
     for (const input of recipe.inputs)
       addDemand(input.typeId, meAdjust(input.qty, runs, me, structureMult));
@@ -270,6 +296,44 @@ export function computeBatchMaterialsWithMe(
   return [...computeBatchLedgerWithMe(tree, requestedRuns, opts).raws.entries()].map(
     ([typeId, quantity]) => ({ typeId, quantity }),
   );
+}
+
+// Marginal ("Item" basis) raw-material totals: what `requestedRuns` runs of the
+// top blueprint actually CONSUME, with no batch rounding anywhere below the
+// root — the fractional twin of `computeBatchMaterials(WithMe)`. Each buildable
+// runs exactly demand ÷ yield (no ceil, no ≥1-per-run floor), so a hull that
+// needs 16 units out of a 200-unit reaction batch is charged 16, not 200.
+// Linear in `requestedRuns` by construction. ME (owned blueprint + structure)
+// applies as linear factors per `meFactor` — the same fractional-lens semantics
+// as `chainActualsFrom`; with no `opts` (or ME0 everywhere) the factors are ×1.
+// Only the requested runs themselves stay whole (they arrive as an integer).
+export function computeMarginalMaterials(
+  tree: TreeNode[],
+  requestedRuns = 1,
+  opts?: MeOptions,
+): { typeId: number; quantity: number }[] {
+  const recipes = flattenRecipes(tree);
+  const { demand, raws, addDemand, ordered } = topologicalDemand(recipes);
+
+  const meOf = opts?.meOf ?? (() => undefined);
+  const structureFactorOf = opts?.structureMeFactorOf ?? (() => 1);
+  const factorFor = (blueprintTypeId: number) =>
+    meFactor(meOf(blueprintTypeId) ?? 0) * structureFactorOf(blueprintTypeId);
+
+  // With no ceil the topological order is not load-bearing, but sharing the
+  // walk's shape keeps the two bases easy to compare side by side.
+  const topFactor = opts ? factorFor(opts.topBlueprintTypeId) : 1;
+  for (const node of tree) addDemand(node.typeId, node.quantity * requestedRuns * topFactor);
+
+  for (const typeId of ordered) {
+    const recipe = recipes.get(typeId)!;
+    const required = demand.get(typeId) ?? 0;
+    const runs = recipe.batch > 0 ? required / recipe.batch : 0;
+    const factor = factorFor(recipe.blueprintTypeId);
+    for (const input of recipe.inputs) addDemand(input.typeId, input.qty * runs * factor);
+  }
+
+  return [...raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
 }
 
 // Every blueprint type that produces something in this build — the top product's

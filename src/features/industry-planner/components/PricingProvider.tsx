@@ -26,7 +26,7 @@ import { usePreference } from '@/components/PreferencesProvider';
 import { resolveBuildCharacter, type BuildCharacter } from '@/components/run-as-state';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { apiFetch } from '@/lib/api-client';
-import { plannerBuildCharacter } from '@/lib/preferences';
+import { industryCostBasis, plannerBuildCharacter } from '@/lib/preferences';
 import {
   collectBlueprintTypeIds,
   collectRawTypeIds,
@@ -294,6 +294,11 @@ interface PricingContextValue {
   // The final-job and whole-tree build-time figures, TE-applied (readout only — TE
   // never touches the cost path). Recomputes on runs / ME / TE change.
   buildTimes: BuildTimes;
+  // The summary's cost basis — the Raw|Item toggle (3.7.21.1), persisted as the
+  // industry.costBasis preference. 'marginal' (Item) is the default; the rows /
+  // build plan stay batched regardless (only the KPI summary switches).
+  costBasis: 'batched' | 'marginal';
+  setCostBasis: (basis: 'batched' | 'marginal') => void;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -410,6 +415,10 @@ export function PricingProvider({
   const [rawBuildCharacterId, setBuildCharacter] = usePreference(plannerBuildCharacter, {
     serverValue: initialBuildCharacterId,
   });
+  // The input-cost basis (Raw|Item, 3.7.21.1). Item (marginal) is the fallback;
+  // a saved Raw re-assembles after the seed lands (the owned-ME settle class —
+  // the shared seed always carries the marginal default).
+  const [costBasis, setCostBasis] = usePreference(industryCostBasis);
   const buildCharacters = useAccountCharacters();
   const { character: buildCharacter, pending: buildCharacterPending } = resolveBuildCharacter(
     rawBuildCharacterId,
@@ -525,6 +534,7 @@ export function PricingProvider({
   const selectedStructureRef = useRef(selectedStructure);
   const reactionStructureRef = useRef(reactionStructure);
   const reactionLocationRef = useRef(reactionLocation);
+  const costBasisRef = useRef(costBasis);
   useEffect(() => {
     runsRef.current = runs;
     locationRef.current = location;
@@ -535,6 +545,7 @@ export function PricingProvider({
     selectedStructureRef.current = selectedStructure;
     reactionStructureRef.current = reactionStructure;
     reactionLocationRef.current = reactionLocation;
+    costBasisRef.current = costBasis;
   });
 
   // THE one recompute, used by both the live-price path and the runs/location
@@ -573,6 +584,9 @@ export function PricingProvider({
         // The structure material factor composes alongside owned ME; passed only
         // when a structure is active, so the gross seed path stays byte-identical.
         structureMeFactorOf: sf.active ? sf.structureMeFactorOf : undefined,
+        // The Raw|Item toggle (3.7.21.1) — switches the summary's cost basis;
+        // the rows stay batched inside the assembler.
+        basis: costBasisRef.current,
       }),
     );
   }, [structure]);
@@ -875,6 +889,7 @@ export function PricingProvider({
     ownedMe,
     meOverrides,
     structureFactors,
+    costBasis,
     seeded,
     assemble,
   ]);
@@ -947,6 +962,8 @@ export function PricingProvider({
       resetTeOverride,
       ledger,
       buildTimes,
+      costBasis,
+      setCostBasis,
     }),
     [
       pricing,
@@ -989,6 +1006,8 @@ export function PricingProvider({
       resetTeOverride,
       ledger,
       buildTimes,
+      costBasis,
+      setCostBasis,
     ],
   );
 

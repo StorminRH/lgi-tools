@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import flatMaterialsFixture from '@/data/eve-data/__fixtures__/blueprint-flat-materials.json';
 import treesFixture from '@/data/eve-data/__fixtures__/blueprint-trees.json';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import {
@@ -9,6 +10,7 @@ import {
   computeBatchLedgerWithMe,
   computeBatchMaterials,
   computeBatchMaterialsWithMe,
+  computeMarginalMaterials,
 } from './build-batch';
 
 // "Owns nothing" — every blueprint is unowned, so the ME-aware path falls back
@@ -58,13 +60,13 @@ describe('computeBatchLedger — raws + buildable run-counts from one walk', () 
 
   it('exposes the buildable ledger and the raw totals', () => {
     const { raws, builds } = computeBatchLedger(tree, 1);
-    expect(builds.get(100)).toEqual({ runs: 1, batch: 10, me: 0, blueprintTypeId: 1100 }); // ⌈5/10⌉ = 1 run, 10/run
+    expect(builds.get(100)).toEqual({ runs: 1, batch: 10, me: 0, blueprintTypeId: 1100, required: 5 }); // ⌈5/10⌉ = 1 run, 10/run
     expect(raws.get(200)).toBe(7);
   });
 
   it('scales the run count by requestedRuns', () => {
     const { builds, raws } = computeBatchLedger(tree, 3);
-    expect(builds.get(100)).toEqual({ runs: 2, batch: 10, me: 0, blueprintTypeId: 1100 }); // ⌈15/10⌉ = 2 runs
+    expect(builds.get(100)).toEqual({ runs: 2, batch: 10, me: 0, blueprintTypeId: 1100, required: 15 }); // ⌈15/10⌉ = 2 runs
     expect(raws.get(200)).toBe(14);
   });
 
@@ -146,7 +148,7 @@ describe('chainActualsFrom — focused build consumes marginal, not batched', ()
   const ledger = computeBatchLedger(tree, 1);
 
   it('the project cost basis rounds fuel blocks up to whole runs', () => {
-    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40, me: 0, blueprintTypeId: 120 }); // 80 produced
+    expect(ledger.builds.get(20)).toEqual({ runs: 2, batch: 40, me: 0, blueprintTypeId: 120, required: 50 }); // 80 produced
     expect(ledger.raws.get(30)).toBe(2); // 2 whole F runs × 1 G
   });
 
@@ -407,6 +409,138 @@ describe('computeBatchLedgerWithMe — structure material factor (3.7.9.1.3)', (
     expect(ledger.builds.get(200)?.runs).toBe(4);
     expect(ledger.raws.get(300)).toBe(4);
   });
+});
+
+describe('computeMarginalMaterials — fractional (Item) basis', () => {
+  // Product needs 5 of X (made 10/run, 7 R/run). Marginal charges the exact
+  // fraction consumed: 0.5 run × 7 = 3.5 R — where the batched basis bears a
+  // whole run's 7.
+  const tree: TreeNode[] = [
+    {
+      typeId: 100,
+      quantity: 5,
+      producedBy: { blueprintTypeId: 1100, quantityPerRun: 10, runsNeeded: 0.5 },
+      inputs: [{ typeId: 200, quantity: 7, inputs: [] }],
+    },
+  ];
+
+  it('charges the fraction of a run consumed — no ceil, no ≥1-per-run floor', () => {
+    expect(asMap(computeMarginalMaterials(tree))).toEqual({ 200: 3.5 });
+  });
+
+  it('is linear in requestedRuns (3 runs = exactly 3× one run)', () => {
+    expect(asMap(computeMarginalMaterials(tree, 3))).toEqual({ 200: 10.5 });
+  });
+
+  it('sums shared-component demand once (no double count)', () => {
+    // Two parents each need 300 of shared C (1000/run, 1 R/run): 600 total →
+    // 0.6 run → 0.6 R. A per-occurrence walk would give 0.3 + 0.3 = same here,
+    // but the aggregate must not become 2 × anything ceiled.
+    const sub = (): TreeNode => ({
+      typeId: 200,
+      quantity: 300,
+      producedBy: { blueprintTypeId: 1200, quantityPerRun: 1000, runsNeeded: 0.3 },
+      inputs: [{ typeId: 300, quantity: 1, inputs: [] }],
+    });
+    const shared: TreeNode[] = [
+      { typeId: 100, quantity: 1, producedBy: { blueprintTypeId: 1100, quantityPerRun: 1, runsNeeded: 1 }, inputs: [sub()] },
+      { typeId: 101, quantity: 1, producedBy: { blueprintTypeId: 1101, quantityPerRun: 1, runsNeeded: 1 }, inputs: [sub()] },
+    ];
+    expect(asMap(computeMarginalMaterials(shared))).toEqual({ 300: 0.6 });
+  });
+
+  it('applies owned ME as a LINEAR factor (no floor: 100 runs × qty 1 @ ME10 → 90)', () => {
+    // The batched meAdjust floors this at 100 (≥1 per run); the marginal lens is
+    // the un-rounded fraction — 10% off means 90.
+    const oneLevel: TreeNode[] = [{ typeId: 1, quantity: 1, inputs: [] }];
+    const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
+    expect(asMap(computeMarginalMaterials(oneLevel, 100, me10))).toEqual({ 1: 90 });
+  });
+
+  it('cascades a parent’s ME fractionally to its children', () => {
+    // Top ME10 cuts X demand 5 → 4.5 → 0.45 run × 7 = 3.15 R.
+    const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
+    const [only] = computeMarginalMaterials(tree, 1, me10);
+    expect(only.typeId).toBe(200);
+    expect(only.quantity).toBeCloseTo(3.15, 9);
+  });
+
+  it('composes the structure factor linearly with ME', () => {
+    // qty 200, ME10 + structure 0.95 → 200 × 0.9 × 0.95 = 171 exactly (no round/ceil).
+    const oneLevel: TreeNode[] = [{ typeId: 1, quantity: 200, inputs: [] }];
+    const opts = {
+      meOf: (bp: number) => (bp === 9000 ? 10 : undefined),
+      topBlueprintTypeId: 9000,
+      structureMeFactorOf: () => 0.95,
+    };
+    const [only] = computeMarginalMaterials(oneLevel, 1, opts);
+    expect(only.quantity).toBeCloseTo(171, 9);
+  });
+
+  it('unowned / reaction nodes (ME ≤ 0) get factor ×1 — identical to no opts', () => {
+    expect(asMap(computeMarginalMaterials(tree, 1, { meOf: () => 0, topBlueprintTypeId: 9000 }))).toEqual(
+      asMap(computeMarginalMaterials(tree, 1)),
+    );
+  });
+});
+
+describe('computeMarginalMaterials — resolver flat-materials cross-check', () => {
+  // The resolver's committed flat totals ARE the marginal basis (see the
+  // fixture's _meta): Math.round-ed per line at storage, with lines whose
+  // fractional total rounds to 0 dropped. The client-side marginal walk must
+  // reproduce them at ME0 / 1 run within that rounding: present key → ±1 after
+  // rounding; key absent from the fixture → the computed line rounds to 0.
+  const flat = flatMaterialsFixture as unknown as Record<
+    string,
+    { blueprintTypeId: number; outputTypeId: number; materials: Record<string, number> }
+  >;
+  const names = ['Rifter', 'Drake', 'Archon', 'Legion'] as const;
+
+  for (const name of names) {
+    it(`${name}: client marginal walk === resolver flat materials (±1, rounds-to-0 tolerant)`, () => {
+      const tree = (treesFixture as Record<string, TreeNode[]>)[name];
+      const expected = flat[name].materials;
+      const computed = computeMarginalMaterials(tree, 1);
+      for (const { typeId, quantity } of computed) {
+        const pinned = expected[String(typeId)];
+        if (pinned === undefined) {
+          expect(Math.round(quantity), `type ${typeId} missing from fixture`).toBe(0);
+        } else {
+          expect(Math.abs(Math.round(quantity) - pinned), `type ${typeId}`).toBeLessThanOrEqual(1);
+        }
+      }
+      // Completeness the other way: every pinned line is present in the walk.
+      const computedIds = new Set(computed.map((m) => m.typeId));
+      for (const key of Object.keys(expected)) {
+        expect(computedIds.has(Number(key)), `fixture type ${key} absent from walk`).toBe(true);
+      }
+    });
+  }
+
+  it('Legion: marginal Tritanium ≈ 1,766 where the batched basis bears 2,556', () => {
+    const legion = (treesFixture as Record<string, TreeNode[]>).Legion;
+    const marginal = asMap(computeMarginalMaterials(legion));
+    expect(Math.round(marginal[34])).toBe(1_766);
+    expect(asMap(computeBatchMaterials(legion))[34]).toBe(2_556);
+  });
+});
+
+describe('BatchLedger.required — surplus identity', () => {
+  // Every buildable's whole runs were ceiled FROM its aggregate demand, so
+  // produced (runs × batch) can never undershoot required, and demand is
+  // always positive — over every committed tree, both ledger variants.
+  const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
+
+  for (const [name, tree] of fixtures) {
+    it(`${name}: produced ≥ required > 0 for every buildable (both ledgers)`, () => {
+      for (const ledger of [computeBatchLedger(tree, 1), computeBatchLedgerWithMe(tree, 1, NO_OWNED)]) {
+        for (const [typeId, b] of ledger.builds) {
+          expect(b.required, `type ${typeId} required`).toBeGreaterThan(0);
+          expect(b.runs * b.batch, `type ${typeId} produced`).toBeGreaterThanOrEqual(b.required);
+        }
+      }
+    });
+  }
 });
 
 describe('collectBlueprintTypeIds', () => {

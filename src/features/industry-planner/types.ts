@@ -263,6 +263,13 @@ export interface BlueprintPricing {
     sellDepth: DepthBand[] | null;
   };
   summary: {
+    // Which cost basis inputCost/margin were computed on (the Raw|Item toggle,
+    // 3.7.21.1) — carried on the summary so the UI labels can never drift from
+    // the math. 'batched' = whole-run buy list; 'marginal' = consumed bill.
+    basis: 'batched' | 'marginal';
+    // Both bases' totals, always priced, so the input-cost popover can show
+    // Raw and Item side by side whichever view is active.
+    bases: { batched: number; marginal: number };
     inputCost: number;
     revenue: number | null;
     margin: number | null;

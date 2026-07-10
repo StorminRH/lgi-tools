@@ -76,6 +76,55 @@ describe('assemblePricing', () => {
   });
 });
 
+describe('assemblePricing — cost basis (Raw|Item toggle, 3.7.21.1)', () => {
+  // A tree with a forced batch so the bases genuinely diverge: the product
+  // needs 5 of intermediate X (made 10/run, 7 raw 34 per run). Batched charges
+  // the whole run (7 × 5 ISK = 35); marginal charges the consumed half run
+  // (3.5 × 5 = 17.5).
+  const structure: BlueprintStructure = {
+    ...STRUCTURE,
+    tree: [
+      {
+        typeId: 500,
+        quantity: 5,
+        producedBy: { blueprintTypeId: 1500, quantityPerRun: 10, runsNeeded: 0.5 },
+        inputs: [{ typeId: 34, quantity: 7, inputs: [] }],
+      },
+    ],
+  };
+  const priceOf = (typeId: number) => PRICES[typeId];
+
+  it('defaults to the batched basis, byte-identical with the option absent', () => {
+    const absent = assemblePricing(structure, priceOf);
+    const explicit = assemblePricing(structure, priceOf, { basis: 'batched' });
+    expect(explicit).toEqual(absent);
+    expect(absent.summary.basis).toBe('batched');
+    expect(absent.summary.inputCost).toBe(35);
+  });
+
+  it('marginal basis prices the consumed bill in the summary', () => {
+    const pricing = assemblePricing(structure, priceOf, { basis: 'marginal' });
+    expect(pricing.summary.basis).toBe('marginal');
+    expect(pricing.summary.inputCost).toBeCloseTo(17.5, 9);
+    // Revenue is basis-independent; margin moves with the cost.
+    const batched = assemblePricing(structure, priceOf);
+    expect(pricing.summary.revenue).toBe(batched.summary.revenue);
+  });
+
+  it('rows are ALWAYS the batched bill — the ledger table never switches', () => {
+    const batched = assemblePricing(structure, priceOf);
+    const marginal = assemblePricing(structure, priceOf, { basis: 'marginal' });
+    expect(marginal.rows).toEqual(batched.rows);
+    expect(marginal.rows[0]).toMatchObject({ typeId: 34, quantity: 7 });
+  });
+
+  it('scales linearly with runs on the marginal basis', () => {
+    const one = assemblePricing(structure, priceOf, { basis: 'marginal' });
+    const three = assemblePricing(structure, priceOf, { basis: 'marginal', runs: 3 });
+    expect(three.summary.inputCost).toBeCloseTo(one.summary.inputCost * 3, 9);
+  });
+});
+
 // A small build tree: product 999 (root) → intermediate 500 (buildable) → raw
 // 34; plus a raw 35 directly under the root. Two roots are exercised by the
 // dedup case below.
