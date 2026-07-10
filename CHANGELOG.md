@@ -6,6 +6,18 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.24.1 — 2026-07-10
+
+#### Added
+- The industry dashboard now shows your saved templates: the eight most relevant (favorites first, then most recently updated), each loading its full planner configuration in one click. Past eight, a link leads to a new Templates page listing every template with the same load, rename, favorite, and delete controls as the planner's Templates menu.
+- The dashboard's job-slot readout is now a real capacity gauge. Each activity — manufacturing, science, reactions — shows used and total slots summed across all your linked characters, with totals computed from each character's trained slot skills. Corporation jobs count against the pilot who installed them, matching how the game charges slots.
+
+#### Changed
+- The dashboard's four sections — Recents, Templates, Active jobs, Corporation jobs — now share one two-column layout and order themselves by relevance: sections with content rise to the top, empty ones sink to slim one-line headers. The sample favorites placeholder is gone.
+
+#### Fixed
+- Reaction jobs no longer vanish from the slot counts or show a generic activity tag in the jobs table. The live game API reports reactions under a different activity id than the game's static data, and both are now recognized.
+
 ### v3.7.23.1 — 2026-07-10
 
 #### Added

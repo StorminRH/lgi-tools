@@ -4,125 +4,25 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Popover } from '@/components/ui/popover';
 import { toast } from '@/components/ui/toast';
-import { TypeIcon } from '@/components/ui/type-icon';
-import { apiFetch, type ApiResult } from '@/lib/api-client';
+import { apiFetch } from '@/lib/api-client';
 import {
   createSavedPlanEndpoint,
-  deleteSavedPlanEndpoint,
-  favoriteSavedPlanEndpoint,
   MAX_SAVED_PLAN_NAME_LEN,
-  renameSavedPlanEndpoint,
-  savedPlansEndpoint,
   type SavedPlanRow,
-  type SavedPlansResponse,
 } from '../api-contract';
 import { captureTemplate } from '../template-manifest';
+import { useSavedPlans } from '../use-saved-plans';
 import { usePricing } from './PricingProvider';
+import { SavedPlanRowItem, savedPlanInputClass } from './SavedPlanRowItem';
 
 // Saved build templates (3.7.23): the PlannerHead's click-popover, cloned from
 // the multibuy panel idiom. Save captures the planner's full configuration
 // (captureTemplate — inputs only); the list spans ALL blueprints (favorites
 // first, the server's order); loading navigates to the template's own planner
-// page with ?plan=, where TemplateLoader replays it. Every mutating endpoint
+// page with ?plan=, where TemplateLoader replays it. The list state + row
+// mutations live in the shared useSavedPlans hook (3.7.24 — shared with the
+// dashboard's Templates section and /industry/templates); every mutating endpoint
 // echoes the full updated list, so the panel re-renders without a refetch.
-
-const inputClass =
-  'border border-border bg-bg px-2 py-1 font-mono text-[12px] text-text ' +
-  'placeholder:text-faint focus:border-border-active focus:outline-none';
-
-const actionClass =
-  'cursor-pointer font-mono text-[11px] text-faint transition-colors hover:text-name ' +
-  'disabled:cursor-not-allowed disabled:opacity-40';
-
-// One list row. Load is the row's primary action (the name button); the
-// side actions are favorite, rename (inline edit), and the two-step delete —
-// ✕ arms the row into a red "confirm?" and only the second press deletes.
-function TemplateRow({
-  row,
-  busy,
-  armed,
-  editing,
-  onLoad,
-  onFavorite,
-  onStartRename,
-  onCommitRename,
-  onDelete,
-}: {
-  row: SavedPlanRow;
-  busy: boolean;
-  armed: boolean;
-  editing: boolean;
-  onLoad: () => void;
-  onFavorite: () => void;
-  onStartRename: () => void;
-  onCommitRename: (name: string) => void;
-  onDelete: () => void;
-}) {
-  const [draft, setDraft] = useState(row.name);
-  return (
-    <li className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={onFavorite}
-        disabled={busy}
-        aria-label={row.favorite ? `Unfavorite ${row.name}` : `Favorite ${row.name}`}
-        aria-pressed={row.favorite}
-        className={`${actionClass} ${row.favorite ? 'text-isk hover:text-isk' : ''}`}
-      >
-        {row.favorite ? '★' : '☆'}
-      </button>
-      {editing ? (
-        <input
-          type="text"
-          value={draft}
-          maxLength={MAX_SAVED_PLAN_NAME_LEN}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onCommitRename(draft);
-          }}
-          onBlur={() => onCommitRename(draft)}
-          aria-label={`Rename ${row.name}`}
-          // Entering the inline edit is an explicit user action; focus follows it.
-          autoFocus
-          className={`${inputClass} h-6 min-w-0 flex-1`}
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={onLoad}
-          disabled={busy}
-          className="group/load flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left disabled:cursor-not-allowed"
-        >
-          <TypeIcon typeId={row.productTypeId} size={16} />
-          <span className="truncate font-mono text-[11px] text-text transition-colors group-hover/load:text-isk">
-            {row.name}
-          </span>
-          <span className="ml-auto shrink-0 truncate font-mono text-[10px] text-faint">
-            {row.productName}
-          </span>
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={onStartRename}
-        disabled={busy || editing}
-        aria-label={`Rename ${row.name}`}
-        className={actionClass}
-      >
-        ✎
-      </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        disabled={busy}
-        aria-label={armed ? `Confirm deleting ${row.name}` : `Delete ${row.name}`}
-        className={`${actionClass} ${armed ? 'text-tone-red hover:text-tone-red' : ''}`}
-      >
-        {armed ? 'confirm?' : '✕'}
-      </button>
-    </li>
-  );
-}
 
 export function TemplatesMenu({
   blueprintTypeId,
@@ -133,12 +33,11 @@ export function TemplatesMenu({
 }) {
   const ctx = usePricing();
   const router = useRouter();
-  const [plans, setPlans] = useState<SavedPlanRow[] | null>(null);
-  const [listFailed, setListFailed] = useState(false);
+  const { plans, listFailed, busyId, refresh, applyEcho, renameRow, favoriteRow, deleteRow } =
+    useSavedPlans();
   const [saveName, setSaveName] = useState('');
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
 
   // Refresh on every open (keeping the stale list up while the read runs);
@@ -149,26 +48,7 @@ export function TemplatesMenu({
       setArmedDeleteId(null);
       return;
     }
-    apiFetch(savedPlansEndpoint, { cache: 'no-store' })
-      .then((res) => {
-        setListFailed(!res.ok);
-        if (res.ok) setPlans(res.data.plans);
-      })
-      .catch(() => setListFailed(true));
-  };
-
-  // Shared completion for every mutating call: apply the echoed list on
-  // success, otherwise surface the endpoint-specific error copy.
-  const applyResult = (
-    res: ApiResult<SavedPlansResponse> | null,
-    errorFor: (status: number) => string,
-  ) => {
-    if (res?.ok) {
-      setPlans(res.data.plans);
-      return true;
-    }
-    toast.error(errorFor(res?.status ?? 0));
-    return false;
+    refresh();
   };
 
   const save = () => {
@@ -181,7 +61,7 @@ export function TemplatesMenu({
       .catch(() => null)
       .then((res) => {
         setSaving(false);
-        const ok = applyResult(res, (status) =>
+        const ok = applyEcho(res, (status) =>
           status === 401
             ? 'Sign in to save build templates'
             : status === 409
@@ -195,42 +75,18 @@ export function TemplatesMenu({
       });
   };
 
-  const mutateRow = (
-    id: string,
-    call: () => Promise<ApiResult<SavedPlansResponse>>,
-    failMsg: string,
-  ) => {
-    setBusyId(id);
-    call()
-      .catch(() => null)
-      .then((res) => {
-        setBusyId(null);
-        applyResult(res, () => failMsg);
-      });
-  };
-
   const commitRename = (row: SavedPlanRow, draft: string) => {
     setEditingId(null);
-    const name = draft.trim();
-    if (name === '' || name === row.name) return;
-    mutateRow(
-      row.id,
-      () => apiFetch(renameSavedPlanEndpoint, { body: { id: row.id, name } }),
-      "Couldn't rename the template",
-    );
+    renameRow(row, draft);
   };
 
-  const deleteRow = (row: SavedPlanRow) => {
+  const onDelete = (row: SavedPlanRow) => {
     if (armedDeleteId !== row.id) {
       setArmedDeleteId(row.id);
       return;
     }
     setArmedDeleteId(null);
-    mutateRow(
-      row.id,
-      () => apiFetch(deleteSavedPlanEndpoint, { body: { id: row.id } }),
-      "Couldn't delete the template",
-    );
+    deleteRow(row);
   };
 
   // The roster settles to [] for an anonymous visitor (null = still loading) —
@@ -275,7 +131,7 @@ export function TemplatesMenu({
           }}
           placeholder={`e.g. ${productName} weekly`}
           aria-label="Template name"
-          className={`${inputClass} h-7 min-w-0 flex-1`}
+          className={`${savedPlanInputClass} h-7 min-w-0 flex-1`}
         />
         <button
           type="button"
@@ -290,29 +146,20 @@ export function TemplatesMenu({
       {plans !== null && plans.length > 0 ? (
         <ul className="flex max-h-[264px] flex-col gap-1.5 overflow-y-auto">
           {plans.map((row) => (
-            <TemplateRow
+            <SavedPlanRowItem
               key={`${row.id}:${row.name}`}
               row={row}
               busy={busyId === row.id}
               armed={armedDeleteId === row.id}
               editing={editingId === row.id}
               onLoad={() => router.push(`/industry/${row.blueprintTypeId}?plan=${row.id}`)}
-              onFavorite={() =>
-                mutateRow(
-                  row.id,
-                  () =>
-                    apiFetch(favoriteSavedPlanEndpoint, {
-                      body: { id: row.id, favorite: !row.favorite },
-                    }),
-                  "Couldn't update the favorite",
-                )
-              }
+              onFavorite={() => favoriteRow(row)}
               onStartRename={() => {
                 setArmedDeleteId(null);
                 setEditingId(row.id);
               }}
               onCommitRename={(draft) => commitRename(row, draft)}
-              onDelete={() => deleteRow(row)}
+              onDelete={() => onDelete(row)}
             />
           ))}
         </ul>

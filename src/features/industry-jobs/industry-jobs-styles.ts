@@ -21,12 +21,21 @@ export function jobActivityLabel(activityId: number): string {
   return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
 }
 
+// Reactions answer to TWO activity ids: the live ESI industry-jobs endpoints
+// return 9 on real reaction jobs (esi-issues #997 carries a real corp payload
+// with activity_id 9; #894's table lists both "9 Reactions" and "11 Reactions")
+// while the SDE's industryActivities — and this repo's ACTIVITY_NAME_TO_ID —
+// say 11. Accept both so a live reaction job is never dropped or mislabeled.
+function isReaction(activityId: number): boolean {
+  return activityId === 9 || activityId === 11;
+}
+
 // Compact activity pill for the dense Active-jobs table (handoff §5): the three
 // in-game families — manufacturing (blue), the research/copy/invention group
 // (science, purple), and reactions (green). Unknown ids fall back to neutral.
 export function jobActivityPill(activityId: number): { label: string; tone: Tone } {
   if (activityId === 1) return { label: 'MFG', tone: 'blue' };
-  if (activityId === 11) return { label: 'RX', tone: 'green' };
+  if (isReaction(activityId)) return { label: 'RX', tone: 'green' };
   if (activityId === 3 || activityId === 4 || activityId === 5 || activityId === 8) {
     return { label: 'SCI', tone: 'purple' };
   }
@@ -39,7 +48,7 @@ export type JobCategory = 'manufacturing' | 'science' | 'reactions';
 // counts. Returns null for activities that don't map to a tracked family.
 export function jobCategory(activityId: number): JobCategory | null {
   if (activityId === 1) return 'manufacturing';
-  if (activityId === 11) return 'reactions';
+  if (isReaction(activityId)) return 'reactions';
   if (activityId === 3 || activityId === 4 || activityId === 5 || activityId === 8) {
     return 'science';
   }

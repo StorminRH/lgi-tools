@@ -36,6 +36,11 @@ import { useCorpJobsLive } from '../use-corp-jobs-live';
 
 type CorpEntry = CorpJobsResponse['corporations'][number];
 
+// The scope-missing gate copy, exported so the /industry dashboard coordinator
+// (which composes the gate itself around the rank model) shows the same words.
+export const CORP_ACCESS_REASON =
+  "Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here.";
+
 export function CorpJobsBoard({
   eligibleCharacterIds,
   hasLinkedCharacters,
@@ -55,11 +60,7 @@ export function CorpJobsBoard({
     <section>
       <SectionLabel className="mb-3">Corporation industry jobs</SectionLabel>
       {eligibleCharacterIds.length === 0 ? (
-        <AccessGate
-          blocked
-          reason="Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here."
-          action={reconnectAction}
-        >
+        <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
           {null}
         </AccessGate>
       ) : (
@@ -71,7 +72,6 @@ export function CorpJobsBoard({
 
 function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[] }) {
   const { corporations, names, now, loading } = useCorpJobsLive(eligibleCharacterIds);
-  const entityNames = useEntityNames(corporations);
 
   if (loading) return <LoadingLabel label="Loading…" />;
 
@@ -85,6 +85,24 @@ function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[]
     );
   }
 
+  return <CorpJobsList corporations={corporations} names={names} now={now} />;
+}
+
+// The corp boards themselves, presentational over live data — rendered by the
+// self-fetching board above (/jobs) and by the /industry dashboard coordinator
+// (3.7.24), which owns its own useCorpJobsLive read + loading/empty states.
+// Corp + installer names resolve here through /api/eve/names regardless of
+// which surface mounts it.
+export function CorpJobsList({
+  corporations,
+  names,
+  now,
+}: {
+  corporations: CorpEntry[];
+  names: Record<string, string>;
+  now: number;
+}) {
+  const entityNames = useEntityNames(corporations);
   return (
     <div className="flex flex-col gap-6">
       {corporations.map((corp) => (

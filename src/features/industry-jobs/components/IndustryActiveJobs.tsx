@@ -1,98 +1,42 @@
 'use client';
 
-// The /industry landing's live Active-jobs table (MIGRATE.B.2). Reads the personal job
-// boards from /api/account/industry-jobs (the board moved off the live Convex engine onto
-// a Neon stale-gated on-view read) and renders one unified table across all of the
-// viewer's characters with EVE-industry-blue progress bars. The character ids that drive
-// the on-view reconcile come from the server (Neon truth); each job's live "ready" +
-// progress is derived client-side from its absolute end_date against the render clock — a
-// finishing job flips to ready with no reload and no scheduler. No manual refresh control
-// (live-data policy): the board refreshes itself on view.
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingLabel } from '@/components/ui/loading-label';
+// The /industry dashboard's live Active-jobs table (MIGRATE.B.2), presentational
+// since 3.7.24: the dashboard coordinator owns the jobs read (useJobsLive → the
+// Neon stale-gated on-view read), the section chrome, and the loading/empty
+// states — this renders the unified cross-character table it is handed. Each
+// job's live "ready" + progress derives client-side from its absolute end_date
+// against the render clock — a finishing job flips to ready with no reload and
+// no scheduler.
+import { useEffect, useRef } from 'react';
 import { Pill } from '@/components/ui/pill';
-import { SectionLabel } from '@/components/ui/section-label';
 import { initials } from '@/lib/format/names';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { jobActivityPill } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
-import { useJobsLive } from '../use-jobs-live';
 
-function JobsSection({ meta, children }: { meta?: ReactNode; children: ReactNode }) {
+export function IndustryActiveJobs({
+  jobs,
+  names,
+  now,
+}: {
+  jobs: IndustryJob[];
+  names: Record<string, string>;
+  now: number;
+}) {
   return (
-    <section>
-      <SectionLabel className="mb-3" meta={meta}>
-        Active jobs
-      </SectionLabel>
-      {children}
-    </section>
-  );
-}
-
-export function IndustryActiveJobs({ characterIds }: { characterIds: number[] }) {
-  const { jobsByCharacter, names, now, loading } = useJobsLive(characterIds);
-
-  const jobs = useMemo<IndustryJob[]>(() => {
-    const all: IndustryJob[] = [];
-    for (const live of jobsByCharacter.values()) {
-      for (const job of live.data?.jobs ?? []) all.push(job);
-    }
-    return all.sort(
-      (a, b) => Date.parse(a.end_date) - Date.parse(b.end_date) || a.job_id - b.job_id,
-    );
-  }, [jobsByCharacter]);
-
-  if (loading) {
-    return (
-      <JobsSection>
-        <LoadingLabel label="Loading…" />
-      </JobsSection>
-    );
-  }
-
-  // No characters in the payload → signed out, or no character linked: the on-view read
-  // returns an empty roster. A signed-in pilot's linked characters are always present
-  // (even with no active jobs), so a populated roster falls through to the table below.
-  if (jobsByCharacter.size === 0) {
-    return (
-      <JobsSection>
-        <EmptyState>Sign in with EVE (top right) to track your industry jobs here.</EmptyState>
-      </JobsSection>
-    );
-  }
-
-  const completeCount = jobs.filter((job) => job.status === 'ready').length;
-  const inProgressCount = jobs.filter((job) => job.status === 'active').length;
-
-  const meta =
-    jobs.length > 0 ? (
-      <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-muted">
-        <b className="text-evb-bright font-semibold">{completeCount}</b> complete ·{' '}
-        <b className="text-evb-bright font-semibold">{inProgressCount}</b> in progress
-      </span>
-    ) : undefined;
-
-  return (
-    <JobsSection meta={meta}>
-      {jobs.length === 0 ? (
-        <EmptyState>No industry jobs running.</EmptyState>
-      ) : (
-        <div className="industry-jobs">
-          <div className="industry-jobs-head">
-            <span>Status</span>
-            <span>Runs</span>
-            <span>Blueprint</span>
-            <span>Activity</span>
-            <span>End date</span>
-          </div>
-          {jobs.map((job) => (
-            <JobRow key={job.job_id} job={job} names={names} now={now} />
-          ))}
-        </div>
-      )}
-    </JobsSection>
+    <div className="industry-jobs">
+      <div className="industry-jobs-head">
+        <span>Status</span>
+        <span>Runs</span>
+        <span>Blueprint</span>
+        <span>Activity</span>
+        <span>End date</span>
+      </div>
+      {jobs.map((job) => (
+        <JobRow key={job.job_id} job={job} names={names} now={now} />
+      ))}
+    </div>
   );
 }
 

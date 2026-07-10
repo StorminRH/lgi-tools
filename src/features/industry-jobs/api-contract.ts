@@ -68,3 +68,41 @@ export const corpIndustryJobsEndpoint: ApiEndpoint<null, CorpJobsResponse> = {
   request: null, // GET — no body
   response: corpJobsResponseSchema,
 };
+
+// ── GET /api/account/industry-slots (authz: auth) ─────────────────────────
+// Per linked character, the industry slot CAPACITY per activity — computed
+// server-side from the character's trained slot skills (1 base + Mass
+// Production/Advanced Mass Production, Laboratory Operation/Advanced
+// Laboratory Operation, Mass Reactions/Advanced Mass Reactions — see
+// slots.ts), so the wire stays slot-language, not skill-language. `synced` is
+// false when the character's skills have never synced: the slots are then the
+// base 1/1/1 fail-open, and the client treats it as the cold write-behind
+// signal (bounded reconcile re-fetches until it flips). Anonymous callers get
+// an empty
+// list. Used slots are NOT here — the client counts them from the job boards
+// it already reads (personal + installer-attributed corp jobs).
+const slotCapacitySchema = z.object({
+  manufacturing: z.number().int(),
+  science: z.number().int(),
+  reactions: z.number().int(),
+});
+
+const viewerSlotsSchema = z.object({
+  characterId: z.number(),
+  slots: slotCapacitySchema,
+  synced: z.boolean(),
+});
+
+const industrySlotsResponseSchema = z.object({
+  characters: z.array(viewerSlotsSchema),
+});
+
+export type ViewerSlots = z.infer<typeof viewerSlotsSchema>;
+export type IndustrySlotsResponse = z.infer<typeof industrySlotsResponseSchema>;
+
+export const industrySlotsEndpoint: ApiEndpoint<null, IndustrySlotsResponse> = {
+  method: 'GET',
+  path: '/api/account/industry-slots',
+  request: null, // GET — no body
+  response: industrySlotsResponseSchema,
+};
