@@ -172,8 +172,8 @@ export function BuildLocationSelector() {
       void applyBuildSystem(
         { systemId: system.id, systemName: system.name, security: system.security },
         { persist: true },
-      ).then((result) => {
-        if (result === 'failed') setFetchError(true);
+      ).then((outcome) => {
+        if (outcome.status === 'failed') setFetchError(true);
       });
     },
     [applyBuildSystem],

@@ -40,11 +40,11 @@ import type { MarginMode } from '../cockpit-margin';
 import type { NetMode } from '../multibuy';
 import {
   createBuildSystemApplier,
-  type ApplySystemResult,
+  type ApplySystemOutcome,
   type BuildSystemRef,
 } from '../build-system-apply';
 
-export type { ApplySystemResult, BuildSystemRef };
+export type { ApplySystemOutcome, BuildSystemRef };
 import { computeBuildTimes, type BuildTimes } from '../build-time';
 import {
   availableStructuresEndpoint,
@@ -128,7 +128,7 @@ export interface SelectedReactionSystem {
 }
 
 
-interface PricingContextValue {
+export interface PricingContextValue {
   pricing: BlueprintPricing | null;
   // True once the streamed price read has settled — distinguishes "still
   // loading" (false) from "resolved, but no pricing available" (true +
@@ -269,7 +269,7 @@ interface PricingContextValue {
   // independent counters would let a slow restore clobber a later apply).
   // Fetches the system's live build data, seeds `location`, and (persist) saves
   // the identifier to the planner.buildLocation preference.
-  applyBuildSystem: (sys: BuildSystemRef, opts: { persist: boolean }) => Promise<ApplySystemResult>;
+  applyBuildSystem: (sys: BuildSystemRef, opts: { persist: boolean }) => Promise<ApplySystemOutcome>;
   // Clears the picked system AND the saved preference (the selector's Clear).
   clearBuildLocation: () => void;
   // The saved planner.buildLocation identifier — read by the selector's

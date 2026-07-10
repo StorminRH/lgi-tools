@@ -16,16 +16,22 @@ export interface BuildSystemRef {
   security: number | null;
 }
 
-// The apply's settled outcome: 'superseded' means a later apply took over (the
-// generation guard) — callers stay silent on it; only 'failed' is an error.
-export type ApplySystemResult = 'applied' | 'failed' | 'superseded';
-
 // The slice of the build-location response the apply seeds state from.
 export interface BuildLocationData {
   stations: IndustryStationView[];
   costIndices: { manufacturing: number | null; reaction: number | null };
   adjustedPrices: { typeId: number; adjustedPrice: number }[];
 }
+
+// The apply's settled outcome: 'superseded' means a later apply took over (the
+// generation guard) — callers stay silent on it; only 'failed' is an error. An
+// 'applied' outcome carries the fetched data so a follow-up step (the template
+// loader's station validation) reads the winner's stations without racing a
+// re-render for fresh state.
+export type ApplySystemOutcome =
+  | { status: 'applied'; data: BuildLocationData }
+  | { status: 'failed' }
+  | { status: 'superseded' };
 
 export function createBuildSystemApplier(deps: {
   // Resolves the system's live build data; null = a non-OK response.
@@ -34,7 +40,7 @@ export function createBuildSystemApplier(deps: {
   onApplied: (sys: BuildSystemRef, data: BuildLocationData) => void;
   // Writes the saved-build-location preference ({ persist: true } applies only).
   onPersist: (sys: BuildSystemRef) => void;
-}): (sys: BuildSystemRef, opts: { persist: boolean }) => Promise<ApplySystemResult> {
+}): (sys: BuildSystemRef, opts: { persist: boolean }) => Promise<ApplySystemOutcome> {
   let gen = 0;
   let ctrl: AbortController | null = null;
   return async (sys, opts) => {
@@ -46,15 +52,15 @@ export function createBuildSystemApplier(deps: {
       const data = await deps.fetchLocation(sys.systemId, myCtrl.signal);
       // A later apply advanced the counter while this fetch was in flight —
       // even a successfully resolved response must not clobber the winner.
-      if (myGen !== gen) return 'superseded';
-      if (data === null) return 'failed';
+      if (myGen !== gen) return { status: 'superseded' };
+      if (data === null) return { status: 'failed' };
       deps.onApplied(sys, data);
       if (opts.persist) deps.onPersist(sys);
-      return 'applied';
+      return { status: 'applied', data };
     } catch {
       // A superseding apply aborts this controller — silent; a real network
       // failure is the caller's to surface.
-      return myCtrl.signal.aborted ? 'superseded' : 'failed';
+      return { status: myCtrl.signal.aborted ? 'superseded' : 'failed' };
     }
   };
 }

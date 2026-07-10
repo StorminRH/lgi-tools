@@ -28,7 +28,7 @@ describe('createBuildSystemApplier', () => {
   it('applies the fetched data and persists when asked', async () => {
     const deps = makeDeps(async () => DATA);
     const apply = createBuildSystemApplier(deps);
-    await expect(apply(JITA, { persist: true })).resolves.toBe('applied');
+    await expect(apply(JITA, { persist: true })).resolves.toEqual({ status: 'applied', data: DATA });
     expect(deps.onApplied).toHaveBeenCalledWith(JITA, DATA);
     expect(deps.onPersist).toHaveBeenCalledWith(JITA);
   });
@@ -36,7 +36,7 @@ describe('createBuildSystemApplier', () => {
   it('persist: false applies without writing the preference', async () => {
     const deps = makeDeps(async () => DATA);
     const apply = createBuildSystemApplier(deps);
-    await expect(apply(JITA, { persist: false })).resolves.toBe('applied');
+    await expect(apply(JITA, { persist: false })).resolves.toEqual({ status: 'applied', data: DATA });
     expect(deps.onApplied).toHaveBeenCalledOnce();
     expect(deps.onPersist).not.toHaveBeenCalled();
   });
@@ -44,7 +44,7 @@ describe('createBuildSystemApplier', () => {
   it('a non-OK response fails without touching state', async () => {
     const deps = makeDeps(async () => null);
     const apply = createBuildSystemApplier(deps);
-    await expect(apply(JITA, { persist: true })).resolves.toBe('failed');
+    await expect(apply(JITA, { persist: true })).resolves.toEqual({ status: 'failed' });
     expect(deps.onApplied).not.toHaveBeenCalled();
     expect(deps.onPersist).not.toHaveBeenCalled();
   });
@@ -54,7 +54,7 @@ describe('createBuildSystemApplier', () => {
       throw new Error('network down');
     });
     const apply = createBuildSystemApplier(deps);
-    await expect(apply(JITA, { persist: true })).resolves.toBe('failed');
+    await expect(apply(JITA, { persist: true })).resolves.toEqual({ status: 'failed' });
     expect(deps.onApplied).not.toHaveBeenCalled();
   });
 
@@ -75,14 +75,14 @@ describe('createBuildSystemApplier', () => {
 
     const slow = apply(JITA, { persist: true });
     const fast = apply(AMARR, { persist: true });
-    await expect(fast).resolves.toBe('applied');
+    await expect(fast).resolves.toEqual({ status: 'applied', data: DATA });
 
     // The superseding apply aborted the first controller.
     expect(seen[0]?.aborted).toBe(true);
     expect(seen[1]?.aborted).toBe(false);
 
     releaseFirst(DATA);
-    await expect(slow).resolves.toBe('superseded');
+    await expect(slow).resolves.toEqual({ status: 'superseded' });
 
     // Only the winner ever touched state or the preference.
     expect(deps.onApplied).toHaveBeenCalledOnce();
@@ -105,6 +105,6 @@ describe('createBuildSystemApplier', () => {
     await apply(AMARR, { persist: false });
     // The aborted fetch surfaces as a rejection (the fetch() contract).
     rejectFirst(new DOMException('aborted', 'AbortError'));
-    await expect(slow).resolves.toBe('superseded');
+    await expect(slow).resolves.toEqual({ status: 'superseded' });
   });
 });
