@@ -121,6 +121,18 @@ export const RIG_CAN_FIT_GROUP_ATTRS = [1298, 1299, 1300] as const; // canFitShi
 export const RIG_MFG_MATERIAL_ATTR = 2594; // nonzero ⇒ a manufacturing-efficiency rig
 export const RIG_REACTION_TIME_ATTR = 2713; // present ⇒ a reactor-efficiency rig
 
+// --- Per-item manufacturing time skills (3.7.19.1; verified, source-cited) ---
+// Dogma attr 1982 `manufactureTimePerLevel` — a signed percent-per-level
+// manufacturing-time modifier carried by the ~22 T2/T3 science and Advanced
+// Ship Construction skills (−1 on all but Mutagenic Stabilization's −2). The
+// game applies it only to jobs whose blueprint's manufacturing activity
+// REQUIRES that skill: "1% reduction in manufacturing time for all items
+// requiring <skill> per level" (in-game descriptions; EVE Uni Skills:Production;
+// Qoi IndustryFormulas §1: skillModifier = Π(1 − 0.01·Level(k)); local SDE
+// type_dogma sweep 2026-07-09). Read from the ingested dogma, never hardcoded
+// per-skill — the VALUE ships with the SDE, only the attribute id is pinned.
+export const DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL = 1982;
+
 // Revalidation tag for cached blueprint *structure* reads (the Industry
 // Planner's `'use cache'` tree + flat-materials view, and the blueprint search
 // index). `cacheLife('max')` already drops these on deploy, which covers the

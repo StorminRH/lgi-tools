@@ -147,6 +147,7 @@ export const MOCK_STRUCTURE: BlueprintStructure = {
   topJobSeconds: 240_000,
   nodeJobSeconds: {},
   nodeActivityByBlueprint: {},
+  nodeTimeSkills: {},
 };
 
 // --- Price-animation sample figures --------------------------------------

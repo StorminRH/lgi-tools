@@ -25,7 +25,11 @@ function makePort(overrides: Partial<SkillsPort> = {}): SkillsPort {
       async (): Promise<SkillsEsiRead> => ({ kind: 'fresh', body: [esiQueueEntry(34, 0)], etag: '"q"' }),
     ),
     readSkills: vi.fn(
-      async (): Promise<SkillsEsiRead> => ({ kind: 'fresh', body: { total_sp: 1_000 }, etag: '"s"' }),
+      async (): Promise<SkillsEsiRead> => ({
+        kind: 'fresh',
+        body: { total_sp: 1_000, skills: [{ skill_id: 3380, active_skill_level: 5 }] },
+        etag: '"s"',
+      }),
     ),
     readSyncState: vi.fn(async () => null),
     saveSkills: vi.fn(async () => {}),
@@ -77,7 +81,7 @@ describe('refreshSkillsForUser', () => {
     expect(save[0]).toBe(1);
     expect(save[1]).toEqual({
       queue: { entries: [esiQueueEntry(34, 0)], etag: '"q"' },
-      skills: { totalSp: 1_000, etag: '"s"' },
+      skills: { totalSp: 1_000, levels: { '3380': 5 }, etag: '"s"' },
     });
     expect(port.stampFresh).not.toHaveBeenCalled();
   });
@@ -88,7 +92,7 @@ describe('refreshSkillsForUser', () => {
       readSkills: vi.fn(
         async (): Promise<SkillsEsiRead> => ({
           kind: 'fresh',
-          body: { total_sp: 2_000, unallocated_sp: 50 },
+          body: { total_sp: 2_000, unallocated_sp: 50, skills: [] },
           etag: '"s"',
         }),
       ),
@@ -97,7 +101,7 @@ describe('refreshSkillsForUser', () => {
     await refreshSkillsForUser(port, 'u1');
 
     const save = vi.mocked(port.saveSkills).mock.calls[0];
-    expect(save[1].skills).toEqual({ totalSp: 2_000, unallocatedSp: 50, etag: '"s"' });
+    expect(save[1].skills).toEqual({ totalSp: 2_000, unallocatedSp: 50, levels: {}, etag: '"s"' });
   });
 
   it('replays held etags and only stamps freshness when BOTH halves 304', async () => {
@@ -196,11 +200,17 @@ describe('planSkillsPersist', () => {
   const unchanged: SkillsEsiRead = { kind: 'unchanged' };
   const error: SkillsEsiRead = { kind: 'error', code: 'esi_500' };
 
-  it('saves both halves when both reads are fresh', () => {
-    const plan = planSkillsPersist(fresh([esiQueueEntry(34, 0)], '"q"'), fresh({ total_sp: 10 }, '"s"'));
+  it('saves both halves when both reads are fresh, levels riding the skills half', () => {
+    const plan = planSkillsPersist(
+      fresh([esiQueueEntry(34, 0)], '"q"'),
+      fresh({ total_sp: 10, skills: [{ skill_id: 45746, active_skill_level: 3 }] }, '"s"'),
+    );
     expect(plan).toEqual({
       kind: 'save',
-      halves: { queue: { entries: [esiQueueEntry(34, 0)], etag: '"q"' }, skills: { totalSp: 10, etag: '"s"' } },
+      halves: {
+        queue: { entries: [esiQueueEntry(34, 0)], etag: '"q"' },
+        skills: { totalSp: 10, levels: { '45746': 3 }, etag: '"s"' },
+      },
     });
   });
 

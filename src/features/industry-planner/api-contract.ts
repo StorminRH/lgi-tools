@@ -165,6 +165,40 @@ export const ownedAssetsEndpoint: ApiEndpoint<
   response: ownedAssetsResponseSchema,
 };
 
+// ── POST /api/industry/skill-levels (authz: auth) ────────────────────────
+// Body: the selected build character. POST, not GET-with-query, because
+// apiFetch carries a body (the build-location precedent). The response is the
+// character's trained ACTIVE skill levels from the skills tracker's Neon store
+// — auth-gated: the user id comes from the session and the character must be
+// one of the caller's linked characters. `levels: null` is EVERY fail-open arm
+// (anonymous, not the caller's character, never synced, pre-column row) — the
+// planner renders the no-skill baseline, never an error. Validated in the
+// route handler.
+export const skillLevelsRequestSchema = z.object({
+  characterId: z.number().int().positive().max(PG_INT4_MAX),
+});
+
+export const skillLevelsResponseSchema = z.object({
+  // skill type id (string key, JSON-native) → active_skill_level.
+  levels: z.record(z.string(), z.number()).nullable(),
+});
+export type SkillLevelsResponse = z.infer<typeof skillLevelsResponseSchema>;
+
+// 400 arms mirror the build-location endpoint's shape.
+export type SkillLevelsBadRequest =
+  | { error: 'invalid_json' }
+  | { error: 'invalid_request'; issues: unknown[] };
+
+export const skillLevelsEndpoint: ApiEndpoint<
+  z.input<typeof skillLevelsRequestSchema>,
+  SkillLevelsResponse
+> = {
+  method: 'POST',
+  path: '/api/industry/skill-levels',
+  request: skillLevelsRequestSchema,
+  response: skillLevelsResponseSchema,
+};
+
 // ── GET /api/account/structures (authz: auth) ────────────────────────────
 // The structures the signed-in caller can place a build in — their custom
 // structures now (3.7.9.1.3), plus their corp's pulled structures next session

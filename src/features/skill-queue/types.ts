@@ -46,7 +46,13 @@ export type SkillsEsiRead =
 // to merge (the row already holds the unchanged half from a prior save).
 export interface SkillsSaveHalves {
   queue?: { entries: SkillQueueEntry[]; etag: string | null };
-  skills?: { totalSp: number; unallocatedSp?: number; etag: string | null };
+  skills?: {
+    totalSp: number;
+    unallocatedSp?: number;
+    // skill type id (string key) → active_skill_level (3.7.19.1).
+    levels: Record<string, number>;
+    etag: string | null;
+  };
 }
 
 // The injected I/O the refresh runs over: auth (character enumeration, token vend),

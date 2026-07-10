@@ -30,6 +30,7 @@ const STRUCTURE: BlueprintStructure = {
   topJobSeconds: null,
   nodeJobSeconds: {},
   nodeActivityByBlueprint: {},
+  nodeTimeSkills: {},
 };
 
 const PRICES: Record<number, PriceLite> = {
@@ -385,6 +386,7 @@ const FERNITE_STRUCTURE: BlueprintStructure = {
   topJobSeconds: null,
   nodeJobSeconds: {},
   nodeActivityByBlueprint: {},
+  nodeTimeSkills: {},
 };
 
 const lite = (p: Partial<PriceLite>): PriceLite => ({

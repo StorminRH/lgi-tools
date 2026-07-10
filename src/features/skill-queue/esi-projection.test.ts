@@ -49,20 +49,35 @@ describe('parseSkillQueueBody', () => {
 });
 
 describe('parseSkillsBody', () => {
-  it('projects the totals and drops the per-skill array', () => {
+  it('projects the totals and the per-skill ACTIVE levels (not trained)', () => {
     const body = {
       total_sp: 52_500_000,
       unallocated_sp: 150_000,
-      skills: [{ skill_id: 3339, trained_skill_level: 5, active_skill_level: 5, skillpoints_in_skill: 256000 }],
+      skills: [
+        { skill_id: 3380, trained_skill_level: 5, active_skill_level: 4, skillpoints_in_skill: 256000 },
+        { skill_id: 3388, trained_skill_level: 4, active_skill_level: 4, skillpoints_in_skill: 135765 },
+      ],
     };
-    expect(parseSkillsBody(body)).toEqual({ totalSp: 52_500_000, unallocatedSp: 150_000 });
+    expect(parseSkillsBody(body)).toEqual({
+      totalSp: 52_500_000,
+      unallocatedSp: 150_000,
+      levels: { '3380': 4, '3388': 4 },
+    });
   });
 
   it('omits unallocatedSp when ESI omits it', () => {
-    expect(parseSkillsBody({ total_sp: 5_000, skills: [] })).toEqual({ totalSp: 5_000 });
+    expect(parseSkillsBody({ total_sp: 5_000, skills: [] })).toEqual({ totalSp: 5_000, levels: {} });
   });
 
   it('returns null when total_sp is missing', () => {
     expect(parseSkillsBody({ skills: [] })).toBeNull();
+  });
+
+  it('returns null when the skills array is missing (contract mismatch)', () => {
+    expect(parseSkillsBody({ total_sp: 5_000 })).toBeNull();
+  });
+
+  it('returns null on a malformed skills entry', () => {
+    expect(parseSkillsBody({ total_sp: 5_000, skills: [{ skill_id: 3380 }] })).toBeNull();
   });
 });

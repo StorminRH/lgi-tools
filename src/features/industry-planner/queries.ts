@@ -1,13 +1,19 @@
 import { cacheLife, cacheTag } from 'next/cache';
-import { BLUEPRINT_STRUCTURE_TAG } from '@/data/eve-data/constants';
+import {
+  BLUEPRINT_STRUCTURE_TAG,
+  DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL,
+} from '@/data/eve-data/constants';
 import {
   getActivityByBlueprint,
+  getBlueprintActivities,
   getBlueprintActivityTimes,
   getBlueprintOutput,
   getBlueprintSearchRows,
   getBlueprintTree,
   getIndustryStationsForSystem,
+  getTypeAttributesBatch,
   getTypeLabels,
+  getTypeNames,
   type TypeLabel,
 } from '@/data/eve-data/queries';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
@@ -79,6 +85,49 @@ function bucketRawCategories(
   return { materialCategory, materialCategories };
 }
 
+// Per-node required MANUFACTURING skills that carry the per-item time modifier
+// (dogma attr 1982 `manufactureTimePerLevel`, e.g. −1%/lvl on the T2 science
+// skills) — the skills→time lever's per-item half. Reaction formulas' required
+// skills never carry the attr (it is manufacturing-only), so reaction nodes are
+// simply absent. The percent ships from the ingested dogma at full precision;
+// blueprints with no attr-carrying required skill are omitted so the client map
+// stays sparse. Extracted from getBlueprintStructure to keep its complexity in
+// budget (the bucketRawCategories precedent).
+async function nodeTimeSkillsFor(
+  blueprintTypeIds: number[],
+): Promise<BlueprintStructure['nodeTimeSkills']> {
+  const activitySets = await getBlueprintActivities(blueprintTypeIds);
+  const requiredByBlueprint = new Map<number, { typeId: number; level: number }[]>();
+  const skillIds = new Set<number>();
+  for (const [bp, set] of activitySets) {
+    const manufacturing = set.find((activity) => activity.name === 'manufacturing');
+    if (manufacturing === undefined || manufacturing.skills.length === 0) continue;
+    requiredByBlueprint.set(bp, manufacturing.skills);
+    for (const skill of manufacturing.skills) skillIds.add(skill.typeId);
+  }
+  const [skillAttrs, skillNames] = await Promise.all([
+    getTypeAttributesBatch([...skillIds]),
+    getTypeNames([...skillIds]),
+  ]);
+  const nodeTimeSkills: BlueprintStructure['nodeTimeSkills'] = {};
+  for (const [bp, skills] of requiredByBlueprint) {
+    const timeSkills = skills.flatMap((skill) => {
+      const pct = skillAttrs.get(skill.typeId)?.[DOGMA_ATTR_MANUFACTURE_TIME_PER_LEVEL];
+      return typeof pct === 'number' && pct !== 0
+        ? [
+            {
+              skillTypeId: skill.typeId,
+              skillName: skillNames.get(skill.typeId) ?? `Skill ${skill.typeId}`,
+              timePctPerLevel: pct,
+            },
+          ]
+        : [];
+    });
+    if (timeSkills.length > 0) nodeTimeSkills[bp] = timeSkills;
+  }
+  return nodeTimeSkills;
+}
+
 // Deploy-static blueprint structure: the nested tree, the flattened raw
 // materials (cost basis), and names for everything. No price dependency, so it
 // renders in the static shell. Cached `'max'` (build ID drops it on deploy,
@@ -111,10 +160,11 @@ export async function getBlueprintStructure(
     // top blueprint itself — so each node's base job time is available for the
     // whole-tree "total job time" the client sums, not just the final job.
     const blueprintIds = collectBlueprintIds(tree);
-    const [labels, activityByBlueprint, activityTimeMap] = await Promise.all([
+    const [labels, activityByBlueprint, activityTimeMap, nodeTimeSkills] = await Promise.all([
       getTypeLabels(labelIds),
       getActivityByBlueprint([...blueprintIds]),
       getBlueprintActivityTimes([blueprintId, ...blueprintIds]),
+      nodeTimeSkillsFor([blueprintId, ...blueprintIds]),
     ]);
     const topJobSeconds = activityTimeMap.get(blueprintId) ?? null;
     // blueprintTypeId → base seconds (ME0/TE0), one entry per producing blueprint.
@@ -160,6 +210,7 @@ export async function getBlueprintStructure(
       topJobSeconds,
       nodeJobSeconds,
       nodeActivityByBlueprint,
+      nodeTimeSkills,
     };
   });
 }

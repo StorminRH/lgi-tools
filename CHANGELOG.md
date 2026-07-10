@@ -6,6 +6,15 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.19.1 — 2026-07-09
+
+#### Added
+- The build character now means something: picking one applies that character's trained industry skills to the planner's job times. Industry and Advanced Industry speed up manufacturing jobs, Reactions speeds up reactions, and the per-item science and Advanced Ship Construction skills speed up the T2 jobs that require them — matching the in-game reductions exactly. With no build character selected, times stay exactly as before; a character whose skills haven't synced yet simply shows the unmodified baseline, never an error.
+- A small hourglass readout beside the build-character portrait shows the skill time reduction being applied (hover it for the character's relevant skill levels), and the Build time tile's hover now reports the real skill and structure reductions instead of a fixed "none applied".
+
+#### Fixed
+- The Build time hover previously claimed no structure bonus was applied even when a selected structure was reducing the shown time; it now reports the actual reduction.
+
 ### v3.7.18.1 — 2026-07-09
 
 #### Added

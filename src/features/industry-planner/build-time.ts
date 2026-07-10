@@ -3,8 +3,9 @@ import { formatRemaining } from '@/lib/format/time';
 // Manufacturing build time for the cockpit (3.7.5.6 applies Time Efficiency). CCP's
 // `time` is the base seconds for one run at TE0 with NO character skills,
 // structure/rig time bonuses, or implants; TE reduces it by `TE%` (research level ×
-// 2%, capped at 20%). Skills/structure stay unapplied (the tile's hover says so), so
-// a maxed, rigged builder still finishes faster than shown.
+// 2%, capped at 20%). Structure time bonuses (3.7.9.1.3) and the selected build
+// character's skills (3.7.19.1, skill-time.ts) enter as per-node factor closures;
+// implants stay unapplied.
 //
 // Two figures: the FINAL assembly job ("Build time") and the WHOLE-TREE sum across
 // every component + reaction job ("Total job time"). The total is a sequential sum
@@ -67,22 +68,22 @@ export function computeBuildTimes(args: {
   // Complex's time bonus on manufacturing jobs, a Refinery's on reactions).
   // Omitted / returning 1 ⇒ the build-time figures are byte-identical to pre-3.7.9.
   structureTeFactorOf?: (blueprintTypeId: number) => number;
-  // The Run-As build character (the ACCOUNT.8 seam): the compute identity Phase
-  // 3's skills→time lever reads. UNREAD today — accepted so the seam and its
-  // byte-identical pin live where the lever lands; the provider does not pass it
-  // yet. Any value ⇒ output identical to omitted (test-pinned); when Phase 3
-  // consumes it, that pin fails and gets consciously rewritten.
-  buildCharacterId?: number | null;
+  // The selected build character's per-node skills TIME factor (3.7.19.1 — the
+  // lever the ACCOUNT.8 seam was reserved for; skill-time.ts builds it from the
+  // character's trained levels). Omitted / returning 1 ⇒ byte-identical to the
+  // no-character baseline (test-pinned).
+  skillTimeFactorOf?: (blueprintTypeId: number) => number;
 }): BuildTimes {
   const { topBlueprintTypeId, topProductTypeId, topJobSeconds, nodeJobSeconds, runs, builds, teOf, nameOf } =
     args;
   const structureTeOf = args.structureTeFactorOf ?? (() => 1);
+  const skillTimeOf = args.skillTimeFactorOf ?? (() => 1);
   const wholeRuns = Math.max(0, Math.floor(runs));
   const topTe = teOf(topBlueprintTypeId) ?? 0;
   const topPerRun =
     topJobSeconds === null || topJobSeconds <= 0
       ? 0
-      : topJobSeconds * teFactor(topTe) * structureTeOf(topBlueprintTypeId);
+      : topJobSeconds * teFactor(topTe) * structureTeOf(topBlueprintTypeId) * skillTimeOf(topBlueprintTypeId);
   const topTotal = topPerRun * wholeRuns;
 
   // Each intermediate's TE-adjusted job time, biggest contributor first. A node with
@@ -92,7 +93,10 @@ export function computeBuildTimes(args: {
     const base = nodeJobSeconds[entry.blueprintTypeId] ?? 0;
     if (base <= 0) continue;
     const perRunSeconds =
-      base * teFactor(teOf(entry.blueprintTypeId) ?? 0) * structureTeOf(entry.blueprintTypeId);
+      base *
+      teFactor(teOf(entry.blueprintTypeId) ?? 0) *
+      structureTeOf(entry.blueprintTypeId) *
+      skillTimeOf(entry.blueprintTypeId);
     const totalSeconds = perRunSeconds * entry.runs;
     if (totalSeconds <= 0) continue;
     components.push({ typeId, name: nameOf(typeId), perRunSeconds, runs: entry.runs, totalSeconds });

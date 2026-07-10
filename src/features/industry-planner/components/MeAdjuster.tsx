@@ -54,13 +54,21 @@ function deriveAdjust(owned: Map<number, number> | null, overrides: Map<number, 
 
 // The glyph states: the node's ME/TE state tones, plus 'bonus' — the ISK-green
 // used when the gem/hourglass stand for a STRUCTURE's reduction percents in the
-// hero card's compact bonus readout (the green the old readout pills wore).
-type IconState = NodeMeState | 'bonus';
+// hero card's compact bonus readout (the green the old readout pills wore) —
+// and 'reaction' — the reaction-purple hourglass in the build-character skills
+// readout (3.7.19.1), telling reaction time apart from manufacturing time.
+type IconState = NodeMeState | 'bonus' | 'reaction';
 
 // Shared fill + glow for a filled efficiency glyph.
 function iconTone(state: Exclude<IconState, 'unowned'>): { fill: string; glow: string } {
   if (state === 'bonus') {
     return { fill: 'fill-[var(--color-isk)]', glow: 'drop-shadow-[0_0_4px_var(--color-isk)]' };
+  }
+  if (state === 'reaction') {
+    return {
+      fill: 'fill-[var(--color-reaction-purple)]',
+      glow: 'drop-shadow-[0_0_4px_var(--color-reaction-purple)]',
+    };
   }
   return state === 'manual'
     ? { fill: 'fill-[var(--color-dps-mid)]', glow: 'drop-shadow-[0_0_4px_var(--color-dps-mid)]' }

@@ -10,6 +10,7 @@ import { nodeMeState } from '../me-overrides';
 import { nodeTeState } from '../te-overrides';
 import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
+import { BuildSkillsIndicator } from './BuildSkillsIndicator';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
 import { usePricing } from './PricingProvider';
 import { ReactionStructureSelect } from './ReactionStructureSelect';
@@ -151,10 +152,14 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
 
       <HeroSteppers blueprintTypeId={structure.blueprintTypeId} isManufacturing={isManufacturing} />
 
-      {/* The building character. The gap between this frame and the location
-          groups is the RESERVED seam for the future Run-As skills/standings
-          modification icons (Phase 3) — don't crowd it. */}
-      <RunAsSelector />
+      {/* The building character. The gap right of the frame is the Phase-3
+          modification-icon seam: the skills→time indicator fills it now
+          (absolutely positioned — zero footprint, nothing reflows), and the
+          standings lever's icons join it later — don't crowd it otherwise. */}
+      <div className="relative flex shrink-0">
+        <RunAsSelector />
+        <BuildSkillsIndicator structure={structure} />
+      </div>
 
       {/* The two location groups side by side, always shown (a reaction root
           builds in a refinery too). The routing derives roles — a lone

@@ -27,6 +27,12 @@ export const characterSkills = pgTable('character_skills', {
   totalSp: bigint('total_sp', { mode: 'number' }).notNull(),
   unallocatedSp: bigint('unallocated_sp', { mode: 'number' }),
   queue: jsonb('queue').$type<SkillQueueEntry[]>().notNull().default([]),
+  // skill type id (string key, JSON-native) → active_skill_level, for the
+  // planner's skills→time lever (3.7.19.1). Nullable: null means the row
+  // predates the column (or its skills half hasn't re-fetched since) — readers
+  // fail open to the no-skill baseline. Populated by the first fresh /skills
+  // read after migration 0039's etag clear.
+  skillLevels: jsonb('skill_levels').$type<Record<string, number>>(),
 });
 
 // Per-character sync state — separate from the data row so the staleness gate and

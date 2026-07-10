@@ -54,6 +54,25 @@ export async function getSkillsForCharacters(
   return map;
 }
 
+// Cached per-character trained-levels read for the planner's skills→time lever
+// (3.7.19.1). Shares the character's skills tag, so the write-behind's revalidate
+// busts it together with the payload read. Null when the character has never
+// synced (no row) OR the row predates the skill_levels column (pre-0039) — both
+// fail open to the no-skill baseline downstream.
+export async function getCharacterSkillLevels(
+  characterId: number,
+): Promise<Record<string, number> | null> {
+  'use cache';
+  cacheLife('minutes');
+  cacheTag(skillsTag(characterId));
+  const rows = await db
+    .select({ skillLevels: characterSkills.skillLevels })
+    .from(characterSkills)
+    .where(eq(characterSkills.characterId, characterId))
+    .limit(1);
+  return rows[0]?.skillLevels ?? null;
+}
+
 // Live (uncached) sync state for the staleness gate + etag replay (refresh path) and
 // the "as of" stamp (read path). Uncached on purpose: both need the true
 // last-refreshed time, not a cached view.
@@ -96,10 +115,16 @@ export async function saveCharacterSkills(
         totalSp: skills.totalSp,
         unallocatedSp: skills.unallocatedSp ?? null,
         queue: queue.entries,
+        skillLevels: skills.levels,
       })
       .onConflictDoUpdate({
         target: characterSkills.characterId,
-        set: { totalSp: skills.totalSp, unallocatedSp: skills.unallocatedSp ?? null, queue: queue.entries },
+        set: {
+          totalSp: skills.totalSp,
+          unallocatedSp: skills.unallocatedSp ?? null,
+          queue: queue.entries,
+          skillLevels: skills.levels,
+        },
       });
     await db
       .insert(characterSkillSyncs)
@@ -117,7 +142,7 @@ export async function saveCharacterSkills(
   } else if (skills !== undefined) {
     await db
       .update(characterSkills)
-      .set({ totalSp: skills.totalSp, unallocatedSp: skills.unallocatedSp ?? null })
+      .set({ totalSp: skills.totalSp, unallocatedSp: skills.unallocatedSp ?? null, skillLevels: skills.levels })
       .where(eq(characterSkills.characterId, characterId));
     await db
       .update(characterSkillSyncs)

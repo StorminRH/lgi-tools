@@ -42,7 +42,7 @@ export function planSkillsPersist(
   if (skillsRead.kind === 'fresh') {
     const totals = parseSkillsBody(skillsRead.body);
     if (totals === null) return { kind: 'skip' };
-    halves.skills = { totalSp: totals.totalSp, etag: skillsRead.etag };
+    halves.skills = { totalSp: totals.totalSp, levels: totals.levels, etag: skillsRead.etag };
     if (totals.unallocatedSp !== undefined) halves.skills.unallocatedSp = totals.unallocatedSp;
   }
 

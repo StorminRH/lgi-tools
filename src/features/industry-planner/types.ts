@@ -97,6 +97,16 @@ export interface BlueprintStructure {
   // structure slot (an Engineering Complex's bonus only reaches manufacturing
   // nodes; a Refinery's only reaches reaction nodes).
   nodeActivityByBlueprint: Record<number, number>;
+  // blueprintTypeId → the required manufacturing skills that carry the per-item
+  // time modifier (dogma attr 1982, e.g. −1%/lvl on the T2 science skills), with
+  // the signed percent verbatim from the SDE and the skill's SDE name (for the
+  // hero readout's applied-skills popover). Sparse: blueprints with none (all
+  // T1, every reaction) are absent. The skills→time lever (skill-time.ts)
+  // multiplies (1 + pct·level/100) per entry for the selected build character.
+  nodeTimeSkills: Record<
+    number,
+    { skillTypeId: number; skillName: string; timePctPerLevel: number }[]
+  >;
 }
 
 export interface MaterialCostRow {
