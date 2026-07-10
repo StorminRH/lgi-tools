@@ -7,7 +7,8 @@ import {
 import { ON_DEMAND_REFRESH_LIMIT_PER_MINUTE } from "@/data/market-prices/constants";
 import { getLivePrices } from "@/data/market-prices/refresh-on-view";
 import { logUsageEvent } from "@/data/telemetry/queries";
-import { clientIdentifier, rateLimit, type RateLimitedBody } from "@/lib/rate-limit";
+import { rateLimitGuard } from "@/lib/rate-limit";
+import { parseJsonBody } from "@/lib/route-body";
 
 // POST /api/market-prices/refresh
 // Body: { typeIds: number[] }
@@ -32,36 +33,22 @@ import { clientIdentifier, rateLimit, type RateLimitedBody } from "@/lib/rate-li
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "invalid_json" } satisfies RefreshPricesBadRequest, {
-      status: 400,
-    });
-  }
+  const parsed = await parseJsonBody(request, refreshPricesRequestSchema, {
+    invalidJson: () =>
+      Response.json({ error: "invalid_json" } satisfies RefreshPricesBadRequest, { status: 400 }),
+    invalidBody: (error) =>
+      Response.json(
+        { error: "invalid_request", issues: error.issues } satisfies RefreshPricesBadRequest,
+        { status: 400 },
+      ),
+  });
+  if (!parsed.ok) return parsed.response;
 
-  const parsed = refreshPricesRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json(
-      { error: "invalid_request", issues: parsed.error.issues } satisfies RefreshPricesBadRequest,
-      { status: 400 },
-    );
-  }
-
-  const limit = await rateLimit(clientIdentifier(request.headers), {
+  const limit = await rateLimitGuard(request, {
     name: "market-prices-refresh",
     perMinute: ON_DEMAND_REFRESH_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) {
-    return Response.json(
-      { error: "rate_limited", retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      {
-        status: 429,
-        headers: { "Retry-After": String(limit.retryAfter) },
-      },
-    );
-  }
+  if (!limit.ok) return limit.response;
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
   const { prices, degraded } = await getLivePrices(typeIds);

@@ -3,7 +3,7 @@ import { telemetryRequestSchema } from '@/data/telemetry/api-contract';
 import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSessionCharacterId } from '@/features/auth/session';
-import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
+import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseJsonBody } from '@/lib/route-body';
 
 // Hard cap on serialised metadata to keep one bad payload from filling the
@@ -35,19 +35,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   }
 
-  const limit = await rateLimit(clientIdentifier(request.headers), {
+  const limit = await rateLimitGuard(request, {
     name: 'telemetry',
     perMinute: TELEMETRY_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) {
-    return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      {
-        status: 429,
-        headers: { 'Retry-After': String(limit.retryAfter) },
-      },
-    );
-  }
+  if (!limit.ok) return limit.response;
 
   // Fire-and-forget: read the id from the session and write the row without
   // blocking the response. Telemetry must never break a user flow, so any

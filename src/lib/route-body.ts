@@ -8,18 +8,31 @@ import type { z } from 'zod';
 // only zod's type), so any slice's route can use it.
 export type ParsedBody<T> = { ok: true; data: T } | { ok: false; response: Response };
 
+// Routes with a JSON error contract (the planner/market on-view family) override
+// the default plain-text 400s so their per-slice `satisfies` pins stay at the
+// call site; everything else takes the defaults.
+export interface ParseJsonBodyErrors {
+  invalidJson: () => Response;
+  invalidBody: (error: z.ZodError) => Response;
+}
+
 export async function parseJsonBody<S extends z.ZodTypeAny>(
   request: Request,
   schema: S,
+  errors?: ParseJsonBodyErrors,
 ): Promise<ParsedBody<z.infer<S>>> {
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return { ok: false, response: new Response('Invalid JSON', { status: 400 }) };
+    return {
+      ok: false,
+      response: errors ? errors.invalidJson() : new Response('Invalid JSON', { status: 400 }),
+    };
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
+    if (errors) return { ok: false, response: errors.invalidBody(parsed.error) };
     const issue = parsed.error.issues[0];
     const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
     return { ok: false, response: new Response(detail, { status: 400 }) };

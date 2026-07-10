@@ -5,7 +5,7 @@ const CHARACTER_ID = 1000000000;
 
 const getSessionCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
-const rateLimitMock = vi.fn();
+const rateLimitGuardMock = vi.fn();
 
 vi.mock('@/features/auth/session', async () => {
   const actual = await vi.importActual<typeof import('@/features/auth/session')>(
@@ -21,9 +21,10 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
+// The guard's own 429 construction + IP keying are pinned in
+// src/lib/rate-limit.test.ts; here we only drive its ok/denied union.
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: (...args: unknown[]) => rateLimitMock(...args),
-  clientIdentifier: () => 'test-ip',
+  rateLimitGuard: (...args: unknown[]) => rateLimitGuardMock(...args),
 }));
 
 async function importRoute() {
@@ -45,8 +46,8 @@ describe('POST /api/telemetry', () => {
     getSessionCharacterIdMock.mockResolvedValue(null);
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
-    rateLimitMock.mockReset();
-    rateLimitMock.mockResolvedValue({ ok: true, remaining: Number.POSITIVE_INFINITY });
+    rateLimitGuardMock.mockReset();
+    rateLimitGuardMock.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -98,7 +99,10 @@ describe('POST /api/telemetry', () => {
   });
 
   it('rate-limits a flooding caller with 429 + Retry-After and skips the write', async () => {
-    rateLimitMock.mockResolvedValue({ ok: false, retryAfter: 42 });
+    rateLimitGuardMock.mockResolvedValue({
+      ok: false,
+      response: new Response(null, { status: 429, headers: { 'Retry-After': '42' } }),
+    });
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
     expect(res.status).toBe(429);

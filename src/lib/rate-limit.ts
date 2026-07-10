@@ -121,6 +121,32 @@ export async function rateLimit(
   return { ok: false, retryAfter };
 }
 
+// Route-guard form of the limiter: keys on the client IP and, when over the
+// limit, hands back the exact 429 every rate-limited route returns as-is
+// (RateLimitedBody JSON + Retry-After header) — so a handler's happy path is
+// `if (!limit.ok) return limit.response;` instead of the repeated
+// clientIdentifier + Response.json construction. Same ok/response union shape
+// as parseJsonBody (src/lib/route-body.ts).
+export type RateLimitGuardResult = { ok: true } | { ok: false; response: Response };
+
+export async function rateLimitGuard(
+  request: Request,
+  options: RateLimitOptions,
+): Promise<RateLimitGuardResult> {
+  const limit = await rateLimit(clientIdentifier(request.headers), options);
+  if (limit.ok) return { ok: true };
+  return {
+    ok: false,
+    response: Response.json(
+      { error: "rate_limited", retryAfter: limit.retryAfter } satisfies RateLimitedBody,
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfter) },
+      },
+    ),
+  };
+}
+
 // Extracts the originating IP for rate-limit keying. `x-real-ip` is
 // platform-set on Vercel (the connecting client's address; a client can't
 // supply it) and must win: the leftmost `x-forwarded-for` entry is

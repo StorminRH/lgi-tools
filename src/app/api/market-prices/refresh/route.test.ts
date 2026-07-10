@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MarketPrice } from '@/data/market-prices/types';
 
 const getLivePricesMock = vi.fn();
-const rateLimitMock = vi.fn();
+const rateLimitGuardMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
 vi.mock('@/data/market-prices/refresh-on-view', () => ({
@@ -14,9 +14,10 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
+// The guard's own 429 construction + IP keying are pinned in
+// src/lib/rate-limit.test.ts; here we only drive its ok/denied union.
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimit: (...args: unknown[]) => rateLimitMock(...args),
-  clientIdentifier: (headers: Headers) => headers.get('x-forwarded-for') ?? 'anon',
+  rateLimitGuard: (...args: unknown[]) => rateLimitGuardMock(...args),
 }));
 
 function buildRequest(body: unknown, ip = '1.2.3.4'): NextRequest {
@@ -68,10 +69,10 @@ describe('POST /api/market-prices/refresh', () => {
   beforeEach(() => {
     vi.resetModules();
     getLivePricesMock.mockReset();
-    rateLimitMock.mockReset();
+    rateLimitGuardMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
-    rateLimitMock.mockResolvedValue({ ok: true, remaining: 19 });
+    rateLimitGuardMock.mockResolvedValue({ ok: true });
     getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
   });
 
@@ -192,8 +193,14 @@ describe('POST /api/market-prices/refresh', () => {
     expect(body.error).toBe('invalid_json');
   });
 
-  it('returns 429 with Retry-After header when the limiter denies', async () => {
-    rateLimitMock.mockResolvedValueOnce({ ok: false, retryAfter: 42 });
+  it('returns the guard 429 verbatim when the limiter denies', async () => {
+    rateLimitGuardMock.mockResolvedValueOnce({
+      ok: false,
+      response: Response.json(
+        { error: 'rate_limited', retryAfter: 42 },
+        { status: 429, headers: { 'Retry-After': '42' } },
+      ),
+    });
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ typeIds: [34] }));
     expect(res.status).toBe(429);
@@ -203,12 +210,14 @@ describe('POST /api/market-prices/refresh', () => {
     expect(getLivePricesMock).not.toHaveBeenCalled();
   });
 
-  it('keys the rate limit by the client IP from x-forwarded-for', async () => {
+  it('hands the request and the slice limit policy to the guard', async () => {
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34] }, '203.0.113.99'));
-    expect(rateLimitMock).toHaveBeenCalledWith(
-      '203.0.113.99',
-      expect.objectContaining({ name: 'market-prices-refresh' }),
+    expect(rateLimitGuardMock).toHaveBeenCalledTimes(1);
+    const [guardedRequest, options] = rateLimitGuardMock.mock.calls[0] as [Request, unknown];
+    expect(guardedRequest.headers.get('x-forwarded-for')).toBe('203.0.113.99');
+    expect(options).toEqual(
+      expect.objectContaining({ name: 'market-prices-refresh', perMinute: expect.any(Number) }),
     );
   });
 });

@@ -40,3 +40,35 @@ describe('parseJsonBody', () => {
     if (!r.ok) expect(await r.response.text()).toContain('body');
   });
 });
+
+describe('parseJsonBody with a JSON error contract', () => {
+  const errors = {
+    invalidJson: () => Response.json({ error: 'invalid_json' }, { status: 400 }),
+    invalidBody: (error: z.ZodError) =>
+      Response.json({ error: 'invalid_request', issues: error.issues }, { status: 400 }),
+  };
+
+  it('still returns typed data for a valid body', async () => {
+    const r = await parseJsonBody(req(JSON.stringify({ name: 'azbel', count: 2 })), schema, errors);
+    expect(r).toEqual({ ok: true, data: { name: 'azbel', count: 2 } });
+  });
+
+  it('returns the caller-built invalid_json envelope', async () => {
+    const r = await parseJsonBody(req('{not valid json'), schema, errors);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.response.status).toBe(400);
+      expect(await r.response.json()).toEqual({ error: 'invalid_json' });
+    }
+  });
+
+  it('hands the ZodError to the invalid-body envelope with every issue', async () => {
+    const r = await parseJsonBody(req(JSON.stringify({ name: '', count: 'x' })), schema, errors);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      const body = (await r.response.json()) as { error: string; issues: unknown[] };
+      expect(body.error).toBe('invalid_request');
+      expect(body.issues.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
