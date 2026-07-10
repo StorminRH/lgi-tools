@@ -63,7 +63,7 @@ function SkillMetric({
           <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
             {icon}
           </span>
-          −{value}
+          {value}
         </>
       }
       triggerClassName={`inline-flex cursor-pointer items-center gap-1 font-mono text-[10px] leading-none transition-opacity hover:opacity-80 data-[popup-open]:opacity-80 ${toneClass}`}
@@ -107,26 +107,37 @@ export function BuildSkillsIndicator({ structure }: { structure: BlueprintStruct
   const showRxn = activities.has(REACTION_ACTIVITY) && breakdown.reaction.skills.length > 0;
   if (!showMfg && !showRxn) return null;
 
+  // The headline never claims −0%: with no activity-wide reduction the only
+  // applied skills are per-item ones, so the headline reads the strongest of
+  // those as an "up to" (it reaches only the jobs requiring that skill — the
+  // panel's per-item section spells it out).
+  const activityWidePct = breakdown.manufacturing.totalPct;
+  const maxPerItemPct = breakdown.perItem.reduce((max, s) => Math.max(max, s.reductionPct), 0);
+  const mfgHeadline =
+    activityWidePct > 0 ? `−${pct(activityWidePct)}` : `up to −${pct(maxPerItemPct)}`;
+
   return (
     <div className="absolute left-full top-1/2 ml-2 flex -translate-y-1/2 flex-col items-start gap-3">
       {showMfg && (
         <SkillMetric
           label={`${buildCharacter.name}'s manufacturing skills`}
           icon={<HourglassIcon state="owned" />}
-          value={pct(breakdown.manufacturing.totalPct)}
+          value={mfgHeadline}
           toneClass="text-evb-bright"
         >
           <PopoverHeading>{buildCharacter.name} — manufacturing</PopoverHeading>
-          <div className="flex flex-col gap-1">
-            {breakdown.manufacturing.skills.map((skill) => (
-              <SkillLine key={skill.name} skill={skill} />
-            ))}
-            <TotalLine
-              label="All mfg jobs"
-              totalPct={breakdown.manufacturing.totalPct}
-              toneClass="text-evb-bright"
-            />
-          </div>
+          {breakdown.manufacturing.skills.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {breakdown.manufacturing.skills.map((skill) => (
+                <SkillLine key={skill.name} skill={skill} />
+              ))}
+              <TotalLine
+                label="All mfg jobs"
+                totalPct={activityWidePct}
+                toneClass="text-evb-bright"
+              />
+            </div>
+          )}
           {breakdown.perItem.length > 0 && (
             <div className="flex flex-col gap-1">
               <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">
@@ -146,7 +157,7 @@ export function BuildSkillsIndicator({ structure }: { structure: BlueprintStruct
         <SkillMetric
           label={`${buildCharacter.name}'s reaction skills`}
           icon={<HourglassIcon state="reaction" />}
-          value={pct(breakdown.reaction.totalPct)}
+          value={`−${pct(breakdown.reaction.totalPct)}`}
           toneClass="text-[var(--color-reaction-purple)]"
         >
           <PopoverHeading>{buildCharacter.name} — reactions</PopoverHeading>
