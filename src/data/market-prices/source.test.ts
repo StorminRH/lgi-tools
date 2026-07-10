@@ -104,9 +104,12 @@ describe('computeSide', () => {
   });
 
   it('matches Fuzzwork-style pct5 for a Tritanium-shaped orderbook', () => {
-    // Approximation of the cheapest end of Jita's Tritanium sell book.
-    // The crossed-orderbook outlier at 2.80 has small volume; the bulk
-    // of cheap volume sits at 2.93. Total ≈ 15.3B; 5% ≈ 765M.
+    // Approximation of the cheapest end of Jita's Tritanium sell book — the
+    // template for the KEPT side of the dust rule (3.7.25.1). The crossed
+    // outlier at 2.80 carries 50M units = 0.33% of the 15.27B-unit side, well
+    // past the 0.1% dust threshold (~15.3M units): that is REAL, tradable
+    // volume, so the hardened best keeps it. Contrast the sliver fixtures
+    // below, where a 1-unit anchor is skipped.
     const orders = [
       { price: 2.8, volume: BigInt(50_000_000) },
       { price: 2.85, volume: BigInt(120_000_000) },
@@ -120,6 +123,74 @@ describe('computeSide', () => {
     // matching Fuzzwork's ~2.93 for the real orderbook.
     expect(res.pct5).toBeGreaterThan(2.9);
     expect(res.pct5).toBeLessThan(2.95);
+  });
+
+  // The dust-filtered best (3.7.25.1) — the SKIPPED side of the rule. The
+  // adversarial shapes come straight from the hardening report's findings:
+  // 1-unit slivers anchoring 4,000–10,000-unit books ([1,1,1,1,1] ladders),
+  // the Ishtar-shaped mid-gap single sliver, and the buy-side highball twin.
+  // Healthy books are byte-identical by construction (every fixture above:
+  // the front order alone carries the 0.1% threshold).
+  describe('dust-filtered best', () => {
+    it('sell side: skips a run of 1-unit sliver asks and lands on the real book front', () => {
+      // Five 1-unit slivers ~10% under an 8,000-unit real book. Threshold =
+      // ceil(0.1% × 8,005) = 9 > 5 sliver units → the real front (100) is the
+      // order that carries cumulative volume across the line.
+      const orders = [
+        { price: 90.0, volume: BigInt(1) },
+        { price: 90.01, volume: BigInt(1) },
+        { price: 90.02, volume: BigInt(1) },
+        { price: 90.03, volume: BigInt(1) },
+        { price: 90.04, volume: BigInt(1) },
+        { price: 100, volume: BigInt(3_000) },
+        { price: 101, volume: BigInt(5_000) },
+      ];
+      const res = computeSide(orders, 'asc');
+      expect(res.best).toBe(100);
+      // pct5 is untouched by the filter: it still walks from the raw front.
+      // 5% of 8,005 = 401 (ceil): 5 units across the slivers + 396 @ 100.
+      const expectedPct5 = (90.0 + 90.01 + 90.02 + 90.03 + 90.04 + 396 * 100) / 401;
+      expect(res.pct5).toBeCloseTo(expectedPct5, 6);
+      expect(res.volume).toBe(BigInt(8_005));
+    });
+
+    it('sell side: corrects a mid-gap single sliver (Ishtar-shaped)', () => {
+      // One 1-unit ask ~5.6% under a 5,000-unit book — the ratio-0.94 class
+      // the report pinned as "the same disease in miniature". Threshold =
+      // ceil(0.1% × 5,001) = 6 > 1 → the sliver is skipped.
+      const orders = [
+        { price: 94.4, volume: BigInt(1) },
+        { price: 100, volume: BigInt(300) },
+        { price: 101, volume: BigInt(4_700) },
+      ];
+      const res = computeSide(orders, 'asc');
+      expect(res.best).toBe(100);
+    });
+
+    it('buy side: skips a 1-unit sliver highball bid over a real wall', () => {
+      // The buy-side twin (report §2.2's 35/280 sliver-highball class): a
+      // 1-unit bid above a 2,000-unit wall. A volume filter handles it the
+      // same way — never a pct5_buy clamp (pct5_buy is wall-diluted junk).
+      const orders = [
+        { price: 120, volume: BigInt(1) },
+        { price: 100, volume: BigInt(1_500) },
+        { price: 99.5, volume: BigInt(500) },
+      ];
+      const res = computeSide(orders, 'desc');
+      expect(res.best).toBe(100);
+    });
+
+    it('keeps the raw touch on a small book where dust cannot be told from real', () => {
+      // Side volume ≤ 1,000 → threshold = 1 → the front order always carries
+      // it, even a 1-unit ask. In a thin book a single hull IS the market;
+      // the <0.90 thin-order badge covers the honesty there, not the filter.
+      const orders = [
+        { price: 50, volume: BigInt(1) },
+        { price: 60, volume: BigInt(300) },
+      ];
+      const res = computeSide(orders, 'asc');
+      expect(res.best).toBe(50);
+    });
   });
 });
 
@@ -185,6 +256,33 @@ describe('computeDepth', () => {
     expect(bandPct(honest, 0.5)).toBe(1000);
     // The real liquidity is NOT hidden by the spoof (the failure mode pct5 has).
     expect(bandPct(attacked, 0.5)).toBeGreaterThan(900);
+  });
+
+  it('anchored to the dust-filtered best, the ladder captures the real book a sliver anchor excluded', () => {
+    // The Market Score cascade fix (3.7.25.1): bucketToRawPrice feeds
+    // computeDepth the best from computeSide, so the anchor is the hardened
+    // one. A 1-unit sliver ~10% under a 8,000-unit real book used to anchor
+    // the bands around ITSELF — every band excluded the real sell wall and
+    // the stored ladder collapsed to the sliver's own volume ([1,1,1,1,1]).
+    const orders = [
+      { price: 90, volume: BigInt(1) },
+      { price: 100, volume: BigInt(3_000) },
+      { price: 100.4, volume: BigInt(5_000) },
+    ];
+    // The old anchor (the raw touch = the sliver): the real book sits >10%
+    // above it, so every band counts only the sliver.
+    const sliverAnchored = computeDepth(orders, 'asc', 90)!;
+    expect(bandPct(sliverAnchored, 10)).toBe(1);
+
+    // The hardened anchor (what bucketToRawPrice now passes): the real front.
+    const hardenedBest = computeSide(orders, 'asc').best;
+    expect(hardenedBest).toBe(100);
+    const hardened = computeDepth(orders, 'asc', hardenedBest)!;
+    // Both real orders sit within 0.5% of 100, and the sliver — cheaper than
+    // every band ceiling — still counts its 1 unit: the full 8,001 sellable
+    // units are visible instead of 1.
+    expect(bandPct(hardened, 0.5)).toBe(8_001);
+    expect(bandPct(hardened, 10)).toBe(8_001);
   });
 
   it('under-states (never over-states) depth under a far-out whale order', () => {

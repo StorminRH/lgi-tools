@@ -349,6 +349,7 @@ export function assemblePricing(
       name: structure.product.name,
       quantityPerRun: structure.product.quantityPerRun,
       bestSell: productPrice?.bestSell ?? null,
+      pct5Sell: productPrice?.pct5Sell ?? null,
       staleAfterMs: productPrice?.staleAfterMs ?? null,
       buyDepth: productPrice?.buyDepth ?? null,
       sellDepth: productPrice?.sellDepth ?? null,

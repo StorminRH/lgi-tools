@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  BEST_DUST_VOLUME_DIVISOR,
   BULK_THRESHOLD,
   DEPTH_BANDS_PCT,
   ESI_REGION_ID_FORGE,
@@ -133,13 +134,24 @@ function absorbOrders(
   }
 }
 
-// 5%-percentile — the volume-weighted average price of the cheapest 5%
-// of side volume (Fuzzwork's definition; we match it so wormhole-sites
-// ISK totals don't drift when the source swaps). Buy side sorts
-// descending (best bid first); sell side sorts ascending (best ask first).
-// Walk the sorted list, accumulating price × units_taken until 5% of
-// total side volume is consumed; divide to get the average. Empty side
-// returns nulls; zero-volume side returns best for pct5.
+// Best + 5%-percentile for one side of the book.
+//
+// `best` is the DUST-FILTERED touch (3.7.25.1): the lowest ask / highest bid
+// with real volume behind it. The sorted book is walked front-to-back and the
+// best is the price of the order at which cumulative volume first reaches
+// ceil(side volume / BEST_DUST_VOLUME_DIVISOR) (0.1%, min 1 unit) — so a
+// healthy front order (carrying the threshold alone) keeps the raw touch
+// byte-identically, while a 1-unit sliver anchoring a deep book is skipped.
+// Applies to BOTH sides: on the buy side it filters sliver highball bids the
+// same way (a volume filter, never a pct5 clamp — pct5_buy is wall-diluted
+// and provably wrong as a guard; see the hardening report §2.2).
+//
+// `pct5` — the volume-weighted average price of the cheapest 5% of side
+// volume (Fuzzwork's definition; we match it so wormhole-sites ISK totals
+// don't drift when the source swaps) — is UNTOUCHED by the dust filter and
+// still walks from the raw front of the book. Buy side sorts descending
+// (best bid first); sell side sorts ascending (best ask first). Empty side
+// returns nulls; zero-volume side returns the raw touch for both.
 //
 // Exported for testing — the math is delicate enough that a direct
 // regression test is worth the extra surface.
@@ -153,12 +165,26 @@ export function computeSide(
   const sorted = [...orders].sort((a, b) =>
     direction === 'asc' ? a.price - b.price : b.price - a.price,
   );
-  const best = sorted[0].price;
 
   let totalVolume = BigInt(0);
   for (const o of sorted) totalVolume += o.volume;
   if (totalVolume === BigInt(0)) {
-    return { best, pct5: best, volume: BigInt(0) };
+    return { best: sorted[0].price, pct5: sorted[0].price, volume: BigInt(0) };
+  }
+
+  // Dust-filtered best: ceil-divide in bigint (no float), then take the price
+  // of the order that carries cumulative volume across the threshold. The
+  // threshold never exceeds totalVolume, so the walk always lands on an order.
+  const dustThreshold =
+    (totalVolume + BEST_DUST_VOLUME_DIVISOR - BigInt(1)) / BEST_DUST_VOLUME_DIVISOR;
+  let best = sorted[0].price;
+  let cumulative = BigInt(0);
+  for (const o of sorted) {
+    cumulative += o.volume;
+    if (cumulative >= dustThreshold) {
+      best = o.price;
+      break;
+    }
   }
 
   // Threshold = ceil(5% of total volume) — bigint math truncates by
@@ -190,9 +216,13 @@ export function computeSide(
 // counted in that band and every wider one. `best` comes from computeSide;
 // an empty side (best === null) has no depth.
 //
-// Anchored to `best`, not pct5 — see DEPTH_BANDS_PCT for the manipulation
-// argument. A buy order qualifies for band b when price ≥ best·(1−b/100); a
-// sell order when price ≤ best·(1+b/100). Volume accumulates as a Number, like
+// Anchored to `best` — the DUST-FILTERED best from computeSide (3.7.25.1),
+// not pct5 and not the raw touch; see DEPTH_BANDS_PCT for the manipulation
+// argument (the hardened anchor closes the mid-gap sliver case, where a
+// 1-unit ask under the real book used to window the bands around itself and
+// exclude the real sell wall). A buy order qualifies for band b when
+// price ≥ best·(1−b/100); a sell order when price ≤ best·(1+b/100). Volume
+// accumulates as a Number, like
 // computeSide's weighted sum (realistic cumulative volumes stay under
 // MAX_SAFE_INTEGER).
 //

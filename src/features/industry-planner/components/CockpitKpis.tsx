@@ -2,6 +2,7 @@
 
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
+import { PriceConfidence } from '@/components/ui/price-confidence';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
@@ -11,7 +12,7 @@ import type { CostBasis } from '../cost-basis-view';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import { timeLeverRows } from '../time-lever-rows';
-import { deriveMarginFigures, marginToneClass } from '../industry-styles';
+import { deriveMarginFigures, marginToneClass, sellAnchorConfidence } from '../industry-styles';
 import type { BlueprintStructure, NetMarginView } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
@@ -131,6 +132,30 @@ function InputCostTile() {
         <LivePrice value={summary ? formatIsk(summary.inputCost) : '—'} />
       </div>
     </KpiTile>
+  );
+}
+
+// The Sell·Jita tile (3.7.25.1): the revenue figure + the thin-order honesty
+// badge — when the product's lowest ask sits well under the volume-weighted
+// front of the book, the headline price is anchored by an order too small to
+// matter, and the badge says so. Self-contained on the pricing context (the
+// InputCostTile shape) so the KPI row stays a thin composition; the verdict
+// itself is the pure sellAnchorConfidence mapping.
+function SellTile() {
+  const { pricing } = usePricing();
+  const summary = pricing?.summary ?? null;
+  const thinAnchor = pricing ? sellAnchorConfidence(pricing.product) : null;
+  return (
+    <SimpleTile
+      label="Sell · Jita"
+      right={
+        thinAnchor && (
+          <PriceConfidence level={thinAnchor.level} reasons={thinAnchor.reasons} />
+        )
+      }
+      value={<LivePrice value={summary ? formatIsk(summary.revenue) : '—'} />}
+      valueClass="text-isk"
+    />
   );
 }
 
@@ -258,11 +283,7 @@ export function CockpitKpis({
   return (
     <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
       <InputCostTile />
-      <SimpleTile
-        label="Sell · Jita"
-        value={<LivePrice value={summary ? formatIsk(summary.revenue) : '—'} />}
-        valueClass="text-isk"
-      />
+      <SellTile />
 
       <KpiTile>
         <KpiHead
