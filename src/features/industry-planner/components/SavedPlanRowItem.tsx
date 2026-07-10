@@ -1,7 +1,7 @@
 'use client';
 
 // One saved-template list row, shared by the planner's TemplatesMenu popover
-// and the /industry/saved manager page (moved out of TemplatesMenu in 3.7.24,
+// and the /industry/templates manager page (moved out of TemplatesMenu in 3.7.24,
 // behavior unchanged). Load is the row's primary action (the name button); the
 // side actions are favorite, rename (inline edit), and the two-step delete —
 // ✕ arms the row into a red "confirm?" and only the second press deletes.
@@ -14,7 +14,7 @@ export const savedPlanInputClass =
   'placeholder:text-faint focus:border-border-active focus:outline-none';
 
 const actionClass =
-  'cursor-pointer font-mono text-[11px] text-faint transition-colors hover:text-name ' +
+  'cursor-pointer font-mono text-[16px] leading-none text-faint transition-colors hover:text-name ' +
   'disabled:cursor-not-allowed disabled:opacity-40';
 
 export function SavedPlanRowItem({
@@ -98,7 +98,7 @@ export function SavedPlanRowItem({
         aria-label={armed ? `Confirm deleting ${row.name}` : `Delete ${row.name}`}
         className={`${actionClass} ${armed ? 'text-tone-red hover:text-tone-red' : ''}`}
       >
-        {armed ? 'confirm?' : '✕'}
+        {armed ? <span className="text-[11px]">confirm?</span> : '✕'}
       </button>
     </li>
   );
