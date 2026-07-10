@@ -133,7 +133,7 @@ const MATERIAL_CATEGORY: Record<number, string> = {
 export const MOCK_STRUCTURE: BlueprintStructure = {
   blueprintTypeId: 11370,
   activityId: 1,
-  product: { typeId: WOLF, name: 'Wolf', quantityPerRun: 1 },
+  product: { typeId: WOLF, name: 'Wolf', quantityPerRun: 1, renderable: true },
   tree: [],
   buildTree: BUILD_TREE,
   buildNodeDisplay: BUILD_NODE_DISPLAY,

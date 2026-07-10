@@ -3,6 +3,8 @@ import {
   aggregateConfidence,
   aggregateConfidenceFromCounts,
   deriveMarginFigures,
+  isRenderableCategory,
+  nodeIcon,
   priceConfidence,
   regionalDiscountCallout,
   sellAnchorConfidence,
@@ -238,6 +240,35 @@ describe('sellAnchorConfidence', () => {
       level: 'medium',
       reasons: ['Price anchored by a thin order'],
     });
+  });
+});
+
+describe('nodeIcon', () => {
+  it('renders a buildable/reaction node as the producing type in the `bp` rendition', () => {
+    // Both a manufacturing blueprint and a reaction formula serve `bp` (a
+    // blueprint type has no `icon` rendition), so the producing typeId + `bp`
+    // covers both node kinds.
+    expect(nodeIcon(1186, 1185)).toEqual({ typeId: 1186, variant: 'bp' });
+    expect(nodeIcon(46175, 16666)).toEqual({ typeId: 46175, variant: 'bp' });
+  });
+
+  it('keeps a raw/leaf node on the item icon when there is no producing type', () => {
+    expect(nodeIcon(undefined, 34)).toEqual({ typeId: 34, variant: 'icon' });
+  });
+});
+
+describe('isRenderableCategory', () => {
+  it('is true for the categories that serve a 3D render', () => {
+    expect(isRenderableCategory('Ship')).toBe(true);
+    expect(isRenderableCategory('Drone')).toBe(true);
+    expect(isRenderableCategory('Structure')).toBe(true);
+  });
+
+  it('is false for categories that only serve an icon (would 400 on /render)', () => {
+    expect(isRenderableCategory('Module')).toBe(false);
+    expect(isRenderableCategory('Charge')).toBe(false);
+    expect(isRenderableCategory('Material')).toBe(false);
+    expect(isRenderableCategory('')).toBe(false);
   });
 });
 

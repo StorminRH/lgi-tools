@@ -5,6 +5,7 @@
 
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
+import type { TypeIconVariant } from '@/components/ui/type-icon';
 import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
 import type { PriceSource } from '@/data/market-prices/types';
 
@@ -139,6 +140,42 @@ export function classifyBuildNode(args: {
     return { label: REACTION_NODE_LABEL, tone: 'purple' };
   }
   return { label: groupName || categoryName || 'Manufacturing', tone: 'blue' };
+}
+
+// --- Type-icon renditions: which image each planner surface shows -------
+// The domain mapping onto the domain-agnostic TypeIcon variants. TypeIcon knows
+// only the EVE image server's rendition names (icon/render/bp/bpc); the choice
+// of which to request per node/hero lives here, keyed off in-game facts.
+//
+// Verified against images.evetech.net's per-type variations listing
+// (GET /types/{id}/) on 2026-07-10:
+//   • a producing blueprint (e.g. 1186) AND a reaction formula (e.g. 46175)
+//     both serve only `bp`/`bpc` — never `icon` (requesting `icon` on a
+//     blueprint type 400s);
+//   • a product/material serves `icon`; ships/drones/structures also serve
+//     `render`, everything else 400s on `/render`.
+
+// A buildable node shows the icon of WHAT YOU RUN — the producing blueprint or
+// reaction formula (both serve `bp`, so one variant covers both). A raw/leaf
+// with no producing type keeps the item's own `icon`. `bpc` is deliberately
+// unused for v1: ownership is already conveyed by the node's frame tone.
+export function nodeIcon(
+  producingBlueprintTypeId: number | undefined,
+  typeId: number,
+): { typeId: number; variant: TypeIconVariant } {
+  return producingBlueprintTypeId !== undefined
+    ? { typeId: producingBlueprintTypeId, variant: 'bp' }
+    : { typeId, variant: 'icon' };
+}
+
+// SDE categories whose products serve the `render` rendition (a 3D model).
+// Verified renderable: Ship (587, 3764), Drone (2454), Structure (35832).
+// Any other category degrades to `icon` — graceful, and never issues a
+// `/render` request that would 400 (the planner-hero fix).
+const RENDERABLE_CATEGORIES = new Set(['Ship', 'Drone', 'Structure']);
+
+export function isRenderableCategory(categoryName: string): boolean {
+  return RENDERABLE_CATEGORIES.has(categoryName);
 }
 
 // --- Price confidence: data quality → an abstract level + reasons ------

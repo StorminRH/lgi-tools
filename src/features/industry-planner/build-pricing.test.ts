@@ -16,7 +16,7 @@ import type { BlueprintStructure, BuildNode, BuildNodeDisplay } from './types';
 const STRUCTURE: BlueprintStructure = {
   blueprintTypeId: 1,
   activityId: 1,
-  product: { typeId: 999, name: 'Widget', quantityPerRun: 1 },
+  product: { typeId: 999, name: 'Widget', quantityPerRun: 1, renderable: false },
   tree: [
     { typeId: 34, quantity: 100, inputs: [] },
     { typeId: 35, quantity: 50, inputs: [] },
@@ -168,7 +168,7 @@ describe('collectIntermediateTypeIds', () => {
 describe('assemblePricing intermediate side-channel', () => {
   const structure: BlueprintStructure = {
     ...STRUCTURE,
-    product: { typeId: 999, name: 'Widget', quantityPerRun: 1 },
+    product: { typeId: 999, name: 'Widget', quantityPerRun: 1, renderable: false },
     buildTree: BUILD_TREE,
     buildNodeDisplay: DISPLAY,
   };
@@ -405,7 +405,7 @@ describe('assemblePricing net margin', () => {
 const FERNITE_STRUCTURE: BlueprintStructure = {
   blueprintTypeId: 46_206,
   activityId: 11,
-  product: { typeId: 16_673, name: 'Fernite Carbide', quantityPerRun: 10_000 },
+  product: { typeId: 16_673, name: 'Fernite Carbide', quantityPerRun: 10_000, renderable: false },
   tree: [
     { typeId: 4_246, quantity: 5, inputs: [] },
     { typeId: 16_656, quantity: 100, inputs: [] },
@@ -597,7 +597,7 @@ describe('buildConfidenceInputs', () => {
   it('maps both priced raw rows and intermediates by typeId', () => {
     const structure: BlueprintStructure = {
       ...STRUCTURE,
-      product: { typeId: 999, name: 'Widget', quantityPerRun: 1 },
+      product: { typeId: 999, name: 'Widget', quantityPerRun: 1, renderable: false },
       buildTree: BUILD_TREE,
       buildNodeDisplay: DISPLAY,
     };
