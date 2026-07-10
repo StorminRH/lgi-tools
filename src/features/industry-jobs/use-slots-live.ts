@@ -2,20 +2,26 @@
 
 // The client read for the header's slot-capacity half (3.7.24): one fetch of
 // /api/account/industry-slots on mount. No render clock — capacity doesn't
-// tick. One delayed reconcile mirrors use-jobs-live: a character with
-// synced:false means the skills write-behind is populating Neon behind the
-// response (its capacity arrived as the base 1/1/1 fail-open), so we re-fetch
-// ONCE to surface the real numbers without a reload (the live-surface
-// no-manual-refresh invariant).
+// tick. A character with synced:false means the skills write-behind is
+// populating Neon behind the response (its capacity arrived as the base 1/1/1
+// fail-open), so we keep re-fetching until every character reports synced —
+// unlike the jobs hooks' single reconcile, a first-ever skills sync walks two
+// ESI endpoints per character sequentially and takes tens of seconds for a
+// multi-character account (observed 67s for four), so one early re-fetch
+// misses it. Bounded so a character that can never sync (needs reconnect)
+// doesn't poll forever; no manual refresh control (the live-surface
+// invariant).
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { industrySlotsEndpoint, type IndustrySlotsResponse, type ViewerSlots } from './api-contract';
 
-const RECONCILE_DELAY_MS = 4_000;
+const RECONCILE_DELAY_MS = 5_000;
+// ~2 minutes of polling, then accept the fail-open capacity until a reload.
+const MAX_RECONCILE_ATTEMPTS = 24;
 
 // Whether any character's capacity is still the never-synced fail-open — the
-// signal that the skills write-behind hasn't populated Neon yet, so one
-// reconcile re-fetch is due (the anyEligibleCold shape from use-jobs-live).
+// signal that the skills write-behind hasn't populated Neon yet, so another
+// reconcile re-fetch is due.
 function anyUnsynced(characters: ViewerSlots[]): boolean {
   return characters.some((character) => !character.synced);
 }
@@ -25,7 +31,7 @@ export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } 
 
   useEffect(() => {
     let cancelled = false;
-    let reconciled = false;
+    let attempts = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     async function load(): Promise<void> {
@@ -36,8 +42,8 @@ export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } 
     }
 
     function scheduleReconcile(characters: ViewerSlots[]): void {
-      if (reconciled || !anyUnsynced(characters)) return;
-      reconciled = true;
+      if (attempts >= MAX_RECONCILE_ATTEMPTS || !anyUnsynced(characters)) return;
+      attempts += 1;
       timer = setTimeout(() => void load(), RECONCILE_DELAY_MS);
     }
 

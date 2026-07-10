@@ -77,7 +77,8 @@ export const corpIndustryJobsEndpoint: ApiEndpoint<null, CorpJobsResponse> = {
 // slots.ts), so the wire stays slot-language, not skill-language. `synced` is
 // false when the character's skills have never synced: the slots are then the
 // base 1/1/1 fail-open, and the client treats it as the cold write-behind
-// signal (one delayed reconcile re-fetch). Anonymous callers get an empty
+// signal (bounded reconcile re-fetches until it flips). Anonymous callers get
+// an empty
 // list. Used slots are NOT here — the client counts them from the job boards
 // it already reads (personal + installer-attributed corp jobs).
 const slotCapacitySchema = z.object({
