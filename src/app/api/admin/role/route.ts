@@ -1,11 +1,11 @@
-import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import {
   ADMIN_ACCESS_QUERY_MAX_LENGTH,
   adminRoleFormSchema,
 } from '@/features/auth/api-contract';
-import { auth } from '@/features/auth/auth';
 import { getUserById, setUserRole } from '@/features/auth/queries';
+import { requireAdmin } from '@/features/auth/route-guards';
+import { parseFormBody } from '@/lib/route-body';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { sanitiseUserText } from '@/lib/sanitise';
 
@@ -29,24 +29,26 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
 // of truth for who can mutate roles.
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.isAdmin) {
-    return new Response('Forbidden', { status: 403 });
-  }
-  const viewerUserId = session.user.id;
-  const actorCharacterId = session.characterId;
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate.response;
+  const viewerUserId = gate.session.user.id;
+  const actorCharacterId = gate.session.characterId;
 
-  const form = await request.formData();
-  const parsed = adminRoleFormSchema.safeParse({
-    userId: form.get('userId'),
-    nextRole: form.get('nextRole'),
-    q: form.get('q') ?? undefined,
-  });
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `Invalid ${issue.path.join('.') || 'field'}` : 'Invalid form';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseFormBody(
+    request,
+    adminRoleFormSchema,
+    (form) => ({
+      userId: form.get('userId'),
+      nextRole: form.get('nextRole'),
+      q: form.get('q') ?? undefined,
+    }),
+    (error) => {
+      const issue = error.issues[0];
+      const detail = issue ? `Invalid ${issue.path.join('.') || 'field'}` : 'Invalid form';
+      return new Response(detail, { status: 400 });
+    },
+  );
+  if (!parsed.ok) return parsed.response;
   const { userId, nextRole } = parsed.data;
 
   // Self-toggle guard. The UI disables this button on the viewer's own row,

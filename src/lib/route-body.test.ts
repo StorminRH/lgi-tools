@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { parseJsonBody } from './route-body';
+import { parseFormBody, parseJsonBody } from './route-body';
 
 const schema = z.object({ name: z.string().min(1), count: z.number() });
 const req = (body: string) =>
@@ -70,5 +70,50 @@ describe('parseJsonBody with a JSON error contract', () => {
       expect(body.error).toBe('invalid_request');
       expect(body.issues.length).toBeGreaterThanOrEqual(2);
     }
+  });
+});
+
+describe('parseFormBody', () => {
+  const formSchema = z.object({ characterId: z.coerce.number().int().positive() });
+  const formReq = (fields: Record<string, string>) => {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) form.set(k, v);
+    return new Request('http://test/api', { method: 'POST', body: form });
+  };
+  const invalid = () => new Response('Invalid character', { status: 400 });
+
+  it('returns the validated data from the picked fields', async () => {
+    const r = await parseFormBody(
+      formReq({ characterId: '90000001' }),
+      formSchema,
+      (form) => ({ characterId: form.get('characterId') }),
+      invalid,
+    );
+    expect(r).toEqual({ ok: true, data: { characterId: 90000001 } });
+  });
+
+  it('returns the caller-built 400 on a schema mismatch', async () => {
+    const r = await parseFormBody(
+      formReq({ characterId: 'not-a-number' }),
+      formSchema,
+      (form) => ({ characterId: form.get('characterId') }),
+      invalid,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.response.status).toBe(400);
+      expect(await r.response.text()).toBe('Invalid character');
+    }
+  });
+
+  it('hands the ZodError to the error builder for per-field copy', async () => {
+    const r = await parseFormBody(
+      formReq({}),
+      formSchema,
+      (form) => ({ characterId: form.get('characterId') }),
+      (error) => new Response(`Invalid ${error.issues[0]?.path.join('.') ?? 'form'}`, { status: 400 }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(await r.response.text()).toBe('Invalid characterId');
   });
 });

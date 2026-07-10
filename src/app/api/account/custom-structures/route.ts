@@ -12,7 +12,7 @@ import {
   listCustomStructures,
 } from '@/features/custom-structures/queries';
 import { validateCustomStructureSelection } from '@/features/custom-structures/validation';
-import { getCurrentUserId } from '@/features/auth/session';
+import { requireUserId } from '@/features/auth/route-guards';
 import { parseJsonBody } from '@/lib/route-body';
 
 // authz: auth
@@ -22,8 +22,9 @@ import { parseJsonBody } from '@/lib/route-body';
 // from the session, never the body; anonymous callers are rejected. Returns the
 // full updated list (the page reads the initial list server-side, so there is no GET).
 export async function POST(request: NextRequest): Promise<Response> {
-  const userId = await getCurrentUserId();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const gate = await requireUserId();
+  if (!gate.ok) return gate.response;
+  const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, createCustomStructureRequestSchema);
   if (!parsed.ok) return parsed.response;

@@ -10,7 +10,7 @@ import {
   getCorpStructures,
   upsertCorpStructureRigs,
 } from '@/features/owned-structures/queries';
-import { getCurrentUserId } from '@/features/auth/session';
+import { requireUserId } from '@/features/auth/route-guards';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -21,8 +21,9 @@ import { parseJsonBody } from '@/lib/route-body';
 // sharing toggle: the caller must be a member of the corp AND hold the Station_Manager
 // role. The user id comes from the session, never the body.
 export async function POST(request: NextRequest): Promise<Response> {
-  const userId = await getCurrentUserId();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const gate = await requireUserId();
+  if (!gate.ok) return gate.response;
+  const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, setCorpStructureRigsRequestSchema);
   if (!parsed.ok) return parsed.response;

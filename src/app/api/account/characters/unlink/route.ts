@@ -9,7 +9,9 @@ import {
   listLinkedCharacters,
   repointActiveToOldest,
 } from '@/features/auth/queries';
-import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
+import { requireSession } from '@/features/auth/route-guards';
+import { rateLimitGuard } from '@/lib/rate-limit';
+import { parseFormBody } from '@/lib/route-body';
 
 function redirectWithError(request: NextRequest, code: string): Response {
   const url = new URL('/characters', request.url);
@@ -28,31 +30,23 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected
   // at the cheapest point. Unlinking is rare and deliberate — 10/min is plenty
   // for a human and stops scripted hammering of the unlink + token deletion.
-  const limit = await rateLimit(clientIdentifier(request.headers), {
+  const limit = await rateLimitGuard(request, {
     name: 'account-unlink',
     perMinute: 10,
   });
-  if (!limit.ok) {
-    return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      {
-        status: 429,
-        headers: { 'Retry-After': String(limit.retryAfter) },
-      },
-    );
-  }
+  if (!limit.ok) return limit.response;
 
-  const h = await headers();
-  const session = await auth.api.getSession({ headers: h });
-  if (!session) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const gate = await requireSession();
+  if (!gate.ok) return gate.response;
+  const session = gate.session;
 
-  const form = await request.formData();
-  const parsed = unlinkCharacterFormSchema.safeParse({ characterId: form.get('characterId') });
-  if (!parsed.success) {
-    return new Response('Invalid character', { status: 400 });
-  }
+  const parsed = await parseFormBody(
+    request,
+    unlinkCharacterFormSchema,
+    (form) => ({ characterId: form.get('characterId') }),
+    () => new Response('Invalid character', { status: 400 }),
+  );
+  if (!parsed.ok) return parsed.response;
   const { characterId } = parsed.data;
 
   const linked = await listLinkedCharacters(session.user.id);
@@ -67,7 +61,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   try {
     await auth.api.unlinkAccount({
       body: { providerId: EVE_PROVIDER_ID, accountId: String(characterId) },
-      headers: h,
+      headers: await headers(),
     });
   } catch (err) {
     console.error('[account/unlink] unlinkAccount failed', err);

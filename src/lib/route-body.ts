@@ -16,6 +16,23 @@ export interface ParseJsonBodyErrors {
   invalidBody: (error: z.ZodError) => Response;
 }
 
+// Form-POST twin of parseJsonBody for the redirect-style admin/account forms:
+// the caller picks its fields off the FormData (each form posts a different
+// hidden-input set) and owns the 400 copy, so error texts stay per-route.
+export async function parseFormBody<S extends z.ZodTypeAny>(
+  request: Request,
+  schema: S,
+  pick: (form: FormData) => unknown,
+  invalid: (error: z.ZodError) => Response,
+): Promise<ParsedBody<z.infer<S>>> {
+  const form = await request.formData();
+  const parsed = schema.safeParse(pick(form));
+  if (!parsed.success) {
+    return { ok: false, response: invalid(parsed.error) };
+  }
+  return { ok: true, data: parsed.data };
+}
+
 export async function parseJsonBody<S extends z.ZodTypeAny>(
   request: Request,
   schema: S,

@@ -1,10 +1,9 @@
-import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { type PurgeCharacterResponse, purgeCharacterRequestSchema } from '@/features/auth/api-contract';
-import { auth } from '@/features/auth/auth';
 import { accountBelongsToUser, purgeOwnCharacter } from '@/features/auth/queries';
-import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
+import { requireSession } from '@/features/auth/route-guards';
+import { rateLimitGuard } from '@/lib/rate-limit';
 
 // POST-only. Purge one of the CALLER's OWN linked characters — the destructive
 // counterpart to unlink: it scrubs all of the character's derived data and revokes
@@ -15,21 +14,15 @@ import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-li
 export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected at
   // the cheapest point. A purge is a rare, deliberate action — 10/min is generous.
-  const limit = await rateLimit(clientIdentifier(request.headers), {
+  const limit = await rateLimitGuard(request, {
     name: 'account-purge-character',
     perMinute: 10,
   });
-  if (!limit.ok) {
-    return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
-    );
-  }
+  if (!limit.ok) return limit.response;
 
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const gate = await requireSession();
+  if (!gate.ok) return gate.response;
+  const session = gate.session;
 
   const parsed = purgeCharacterRequestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

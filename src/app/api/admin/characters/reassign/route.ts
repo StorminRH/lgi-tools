@@ -1,9 +1,9 @@
-import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminReassignFormSchema } from '@/features/auth/api-contract';
-import { auth } from '@/features/auth/auth';
 import { accountBelongsToUser, reassignCharacter } from '@/features/auth/queries';
+import { requireAdmin } from '@/features/auth/route-guards';
+import { parseFormBody } from '@/lib/route-body';
 
 // POST-only. Admin reassign — move a character from a standalone/other account
 // onto the acting admin's own account in one click (no OAuth re-login). Used to
@@ -13,20 +13,18 @@ import { accountBelongsToUser, reassignCharacter } from '@/features/auth/queries
 // character actually belongs to `fromUserId` first.
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.isAdmin) {
-    return new Response('Forbidden', { status: 403 });
-  }
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate.response;
+  const session = gate.session;
   const toUserId = session.user.id;
 
-  const form = await request.formData();
-  const parsed = adminReassignFormSchema.safeParse({
-    characterId: form.get('characterId'),
-    fromUserId: form.get('fromUserId'),
-  });
-  if (!parsed.success) {
-    return new Response('Invalid form', { status: 400 });
-  }
+  const parsed = await parseFormBody(
+    request,
+    adminReassignFormSchema,
+    (form) => ({ characterId: form.get('characterId'), fromUserId: form.get('fromUserId') }),
+    () => new Response('Invalid form', { status: 400 }),
+  );
+  if (!parsed.ok) return parsed.response;
   const { characterId, fromUserId } = parsed.data;
 
   if (fromUserId === toUserId) {
