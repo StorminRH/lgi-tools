@@ -91,6 +91,14 @@ export function loadToastFor(outcome: TemplateLoadOutcome): TemplateLoadToast {
   }
 }
 
+// Whether the live URL still points at the load this run handled. A stale
+// completion — the user navigated to another template (or away) while the
+// load was in flight — must not toast over the newer load or strip a plan
+// param that load hasn't consumed yet.
+export function urlStillOnPlan(search: string, planId: string): boolean {
+  return new URLSearchParams(search).get('plan') === planId;
+}
+
 // Remove the plan param from a location.search string, preserving every other
 // param (and their order). Returns '' when nothing remains so the caller can
 // append it to the pathname directly.

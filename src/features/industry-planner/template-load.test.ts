@@ -5,6 +5,7 @@ import {
   runTemplateLoad,
   stripPlanParam,
   templateGateOpen,
+  urlStillOnPlan,
   type TemplateLoadOutcome,
 } from './template-load';
 import { applyTemplate, captureTemplate } from './template-manifest';
@@ -217,6 +218,18 @@ describe('loadToastFor', () => {
       expect(t.message).toBe(message);
       expect(Number.isFinite(t.duration)).toBe(true);
     }
+  });
+});
+
+describe('urlStillOnPlan', () => {
+  it('matches only the live URL that still carries this load', () => {
+    expect(urlStillOnPlan('?plan=abc', 'abc')).toBe(true);
+    expect(urlStillOnPlan('?runs=3&plan=abc', 'abc')).toBe(true);
+    // A newer load took the URL — the stale completion must stand down.
+    expect(urlStillOnPlan('?plan=other', 'abc')).toBe(false);
+    // The param is gone (already consumed, or the user navigated away).
+    expect(urlStillOnPlan('', 'abc')).toBe(false);
+    expect(urlStillOnPlan('?runs=3', 'abc')).toBe(false);
   });
 });
 

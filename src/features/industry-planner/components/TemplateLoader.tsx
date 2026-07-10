@@ -12,6 +12,7 @@ import {
   stripPlanParam,
   TEMPLATE_APPLY_GATE_MS,
   templateGateOpen,
+  urlStillOnPlan,
 } from '../template-load';
 import { applyTemplate, type TemplateStructureView } from '../template-manifest';
 import { usePricing } from './PricingProvider';
@@ -31,10 +32,14 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
   const ctx = usePricing();
   const preferencesReady = usePreferencesReady();
   const planId = useSearchParams().get('plan');
-  // The 8s deadline is keyed to the plan param — "timed out" means "the window
-  // for THIS load elapsed", so a later load starts with a fresh deadline and
-  // no synchronous state reset. Set only inside the timeout callback (async).
-  const [timedOutFor, setTimedOutFor] = useState<string | null>(null);
+  // The 8s deadline is keyed to the load ATTEMPT, not the plan id — a deadline
+  // that fired for an earlier load of the same template must not open a later
+  // load's gate before its own fresh window elapses. The counter advances each
+  // time a plan param arrives; only a match between the fired attempt and the
+  // current one counts as timed out. Set only inside the timeout callback
+  // (async — never a synchronous set inside the effect).
+  const [timedOutAttempt, setTimedOutAttempt] = useState(0);
+  const attemptRef = useRef(0);
   // One apply per load request; re-armed when the param strips, so loading the
   // same template again from the menu replays it.
   const startedRef = useRef<string | null>(null);
@@ -44,7 +49,9 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
       startedRef.current = null;
       return;
     }
-    const timer = setTimeout(() => setTimedOutFor(planId), TEMPLATE_APPLY_GATE_MS);
+    attemptRef.current += 1;
+    const attempt = attemptRef.current;
+    const timer = setTimeout(() => setTimedOutAttempt(attempt), TEMPLATE_APPLY_GATE_MS);
     return () => clearTimeout(timer);
   }, [planId]);
 
@@ -58,7 +65,7 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
       preferencesReady,
       structuresSettled,
       rosterSettled,
-      timedOut: timedOutFor === planId,
+      timedOut: timedOutAttempt === attemptRef.current,
     });
     if (!open) return;
     // Claim the load BEFORE the async work — re-renders (and StrictMode's
@@ -77,6 +84,10 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
       },
       apply: (snapshot) => applyTemplate({ ctx, structure, fetchedStations: null }, snapshot),
     }).then((outcome) => {
+      // A stale completion — the user navigated to another template (or away)
+      // while this load was in flight — must not toast over the newer load or
+      // strip a plan param that load hasn't consumed yet.
+      if (!urlStillOnPlan(window.location.search, planId)) return;
       const view = loadToastFor(outcome);
       const show =
         view.type === 'success' ? toast.success : view.type === 'error' ? toast.error : toast;
@@ -85,15 +96,14 @@ export function TemplateLoader({ structure }: { structure: TemplateStructureView
         description: view.description,
         duration: view.duration,
       });
-      // Strip the param so a reload/share of the URL doesn't re-apply; reads
-      // the LIVE location so it's a no-op if the user already navigated away.
+      // Strip the param so a reload/share of the URL doesn't re-apply.
       window.history.replaceState(
         null,
         '',
         window.location.pathname + stripPlanParam(window.location.search) + window.location.hash,
       );
     });
-  }, [planId, preferencesReady, structuresSettled, rosterSettled, timedOutFor, ctx, structure]);
+  }, [planId, preferencesReady, structuresSettled, rosterSettled, timedOutAttempt, ctx, structure]);
 
   return null;
 }

@@ -10,6 +10,7 @@ import { getBlueprintStructure } from '@/features/industry-planner/queries';
 import {
   countSavedPlans,
   createSavedPlan,
+  deleteSavedPlan,
   listSavedPlans,
 } from '@/features/industry-planner/saved-plans-queries';
 import { parseJsonBody } from '@/lib/route-body';
@@ -46,14 +47,23 @@ export async function POST(request: NextRequest): Promise<Response> {
     return new Response('template limit reached', { status: 409 });
   }
 
+  const id = randomUUID();
   await createSavedPlan(userId, {
-    id: randomUUID(),
+    id,
     name: parsed.data.name,
     blueprintTypeId: parsed.data.snapshot.blueprintTypeId,
     productTypeId: structure.product.typeId,
     productName: structure.product.name,
     snapshot: parsed.data.snapshot,
   });
+  // The pre-check races concurrent saves (count-then-insert; the neon-http
+  // request path has no transaction to serialize it), so recount after the
+  // insert and roll this row back if the cap was breached — simultaneous
+  // saves converge at or under the cap instead of past it.
+  if ((await countSavedPlans(userId)) > MAX_SAVED_PLANS_PER_USER) {
+    await deleteSavedPlan(userId, id);
+    return new Response('template limit reached', { status: 409 });
+  }
   const plans = await listSavedPlans(userId);
   return Response.json({ plans } satisfies SavedPlansResponse, { status: 201 });
 }
