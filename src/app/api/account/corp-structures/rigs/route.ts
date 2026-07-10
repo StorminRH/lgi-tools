@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
-import { rigFitsStructure } from '@/data/eve-data/structures';
 import {
   type CorpStructureRigsResponse,
   setCorpStructureRigsRequestSchema,
@@ -10,6 +9,7 @@ import {
   getCorpStructures,
   upsertCorpStructureRigs,
 } from '@/features/owned-structures/queries';
+import { validateCorpStructureRigs } from '@/features/owned-structures/rig-validation';
 import { requireUserId } from '@/features/auth/route-guards';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
@@ -32,20 +32,19 @@ export async function POST(request: NextRequest): Promise<Response> {
   const denied = await stationManagerGate(userId, corporationId);
   if (denied) return denied;
 
-  // Validate the structure is one of this corp's pulled structures and that every rig
-  // physically fits its type (group + size), mirroring the custom-structures route —
-  // an unknown or wrong-slot rig would otherwise silently contribute a zero bonus.
-  const structure = (await getCorpStructures([corporationId]))
-    .get(corporationId)
-    ?.find((s) => s.structureId === structureId);
-  if (!structure) return new Response('Unknown structure for this corporation', { status: 400 });
-  const [types, rigs] = await Promise.all([getStructureTypes(), getStructureRigs()]);
-  const structureType = types.find((t) => t.typeId === structure.typeId);
-  if (!structureType) return new Response('Not an industry structure', { status: 400 });
-  const fittingRigIds = new Set(rigs.filter((r) => rigFitsStructure(r, structureType)).map((r) => r.typeId));
-  if (rigTypeIds.some((id) => !fittingRigIds.has(id))) {
-    return new Response('One or more rigs do not fit this structure', { status: 400 });
-  }
+  const [corpStructures, types, rigs] = await Promise.all([
+    getCorpStructures([corporationId]),
+    getStructureTypes(),
+    getStructureRigs(),
+  ]);
+  const check = validateCorpStructureRigs(
+    corpStructures.get(corporationId),
+    structureId,
+    rigTypeIds,
+    types,
+    rigs,
+  );
+  if (!check.ok) return new Response(check.reason, { status: 400 });
 
   await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds, taxPct);
   const saved = (await getCorpStructureRigs([corporationId])).get(structureId);

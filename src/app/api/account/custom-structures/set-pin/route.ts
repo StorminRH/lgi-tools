@@ -1,10 +1,10 @@
 import type { NextRequest } from 'next/server';
-import { solarSystemExists } from '@/data/eve-data/queries';
 import {
   setCustomStructurePinRequestSchema,
   type CustomStructuresResponse,
 } from '@/features/custom-structures/api-contract';
 import { listCustomStructures, setCustomStructurePin } from '@/features/custom-structures/queries';
+import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { requireUserId } from '@/features/auth/route-guards';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -22,9 +22,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   const parsed = await parseJsonBody(request, setCustomStructurePinRequestSchema);
   if (!parsed.ok) return parsed.response;
 
-  if (parsed.data.systemId !== null && !(await solarSystemExists(parsed.data.systemId))) {
-    return new Response('unknown system', { status: 400 });
-  }
+  const badPin = await rejectUnknownSystemPin(parsed.data.systemId);
+  if (badPin) return badPin;
 
   await setCustomStructurePin(userId, parsed.data.id, parsed.data.systemId);
   const structures = await listCustomStructures(userId);
