@@ -39,23 +39,34 @@ export function systemNameFrom(
 // each other). Returns null until the index lands (or for an unknown id);
 // callers render nothing until then. On a planner page the build-location
 // picker has usually loaded the index already, so this resolves immediately.
+const SYSTEM_NAME_RETRY_MS = 15_000;
+
 export function useSystemName(systemId: number | null): string | null {
   const [systems, setSystems] = useState<SystemSearchEntry[] | null>(() => getLoadedSystems());
+  // Bumped after a failed load to re-arm the effect — without it a single
+  // transient index-load failure would leave `systems` null (and the effect
+  // deps unchanged) for the rest of the mount, hiding a valid callout. The
+  // shared loader memoizes success and clears itself on failure, so each
+  // retry is a real attempt, and one that another consumer (a picker) has
+  // already healed resolves from the snapshot instantly.
+  const [attempt, setAttempt] = useState(0);
   const wanted = systemId !== null && systems === null;
   useEffect(() => {
     if (!wanted) return;
     let alive = true;
-    // Index unavailable → stay nameless; a remount or the pickers' own retry
-    // heals the shared loader.
+    let retry: ReturnType<typeof setTimeout> | undefined;
     loadSystems()
       .then((s) => {
         if (alive) setSystems(s);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (alive) retry = setTimeout(() => setAttempt((a) => a + 1), SYSTEM_NAME_RETRY_MS);
+      });
     return () => {
       alive = false;
+      clearTimeout(retry);
     };
-  }, [wanted]);
+  }, [wanted, attempt]);
   return systemNameFrom(systems, systemId);
 }
 

@@ -22,19 +22,23 @@ const MAX_BATCH = 150;
 // Fuzzwork's aggregates response shape. Numbers come back as stringified
 // decimals — EXCEPT on a side with zero orders, where every field is a
 // plain numeric 0 (observed live on station-scoped aggregates, where empty
-// sides are common; 2026-07-10 parity probe). Coerce so both shapes pass
-// the boundary; `parseVolume`/`normalize` parse the string form. Boundary
-// schema: the documented per-side fields are all required, keyed by type ID.
+// sides are common; 2026-07-10 parity probe). A union (not z.coerce, which
+// would stringify undefined and let a MISSING required field through as
+// "undefined") accepts both shapes while a dropped field still rejects the
+// body at the boundary; `parseVolume`/`normalize` parse the string form.
+// The documented per-side fields are all required, keyed by type ID.
+const fuzzworkFieldSchema = z.union([z.string(), z.number()]).transform(String);
+
 // Exported for testing.
 const fuzzworkSideSchema = z.object({
-  weightedAverage: z.coerce.string(),
-  max: z.coerce.string(),
-  min: z.coerce.string(),
-  stddev: z.coerce.string(),
-  median: z.coerce.string(),
-  volume: z.coerce.string(),
-  orderCount: z.coerce.string(),
-  percentile: z.coerce.string(),
+  weightedAverage: fuzzworkFieldSchema,
+  max: fuzzworkFieldSchema,
+  min: fuzzworkFieldSchema,
+  stddev: fuzzworkFieldSchema,
+  median: fuzzworkFieldSchema,
+  volume: fuzzworkFieldSchema,
+  orderCount: fuzzworkFieldSchema,
+  percentile: fuzzworkFieldSchema,
 });
 
 // Exported for testing.
