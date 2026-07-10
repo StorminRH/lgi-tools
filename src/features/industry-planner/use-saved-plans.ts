@@ -8,7 +8,7 @@
 // the echo without a refetch and never re-sort. Transient row UI (which row is
 // mid-rename, which delete is armed) stays in the components — this hook owns
 // only the data.
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from '@/components/ui/toast';
 import { apiFetch, type ApiResult } from '@/lib/api-client';
 import {
@@ -42,13 +42,19 @@ export function useSavedPlans(): SavedPlansState {
   const [plans, setPlans] = useState<SavedPlanRow[] | null>(null);
   const [listFailed, setListFailed] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Bumped every time a mutation echo lands. A refresh that started BEFORE the
+  // echo carries an older list — if the counter moved while its GET was in
+  // flight, its result is stale and must not overwrite the echo.
+  const echoSeq = useRef(0);
 
   // Keeps the stale list up while the read runs; a failure flags rather than
   // clears, so an open panel degrades instead of blanking. Stable identity so
   // a mount-fetch effect can depend on it.
   const refresh = useCallback(() => {
+    const seqAtStart = echoSeq.current;
     apiFetch(savedPlansEndpoint, { cache: 'no-store' })
       .then((res) => {
+        if (echoSeq.current !== seqAtStart) return; // a newer echo applied mid-flight
         setListFailed(!res.ok);
         if (res.ok) setPlans(res.data.plans);
       })
@@ -61,6 +67,7 @@ export function useSavedPlans(): SavedPlansState {
       toast.error(outcome.error);
       return false;
     }
+    echoSeq.current += 1;
     setPlans(outcome.plans);
     return true;
   };

@@ -36,13 +36,20 @@ export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } 
 
     async function load(): Promise<void> {
       const result = await apiFetch(industrySlotsEndpoint);
-      if (cancelled || !result.ok) return;
+      if (cancelled) return;
+      if (!result.ok) {
+        // A transient failure would otherwise blank the readout for the whole
+        // page view (response stays null = loading) — retry on the same
+        // bounded schedule.
+        retry();
+        return;
+      }
       setResponse(result.data);
-      scheduleReconcile(result.data.characters);
+      if (anyUnsynced(result.data.characters)) retry();
     }
 
-    function scheduleReconcile(characters: ViewerSlots[]): void {
-      if (attempts >= MAX_RECONCILE_ATTEMPTS || !anyUnsynced(characters)) return;
+    function retry(): void {
+      if (attempts >= MAX_RECONCILE_ATTEMPTS) return;
       attempts += 1;
       timer = setTimeout(() => void load(), RECONCILE_DELAY_MS);
     }

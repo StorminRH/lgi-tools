@@ -1,8 +1,9 @@
 'use client';
 
 // The /industry header's slot readout (reworked 3.7.24): used/total per
-// activity — manufacturing / science / reactions — summed across ALL the
-// viewer's characters. Capacity comes from /api/account/industry-slots (1 base
+// activity — manufacturing / science / reactions — summed across the viewer's
+// job-eligible characters (the same set the used counts can actually see, so
+// the gauge never mixes rosters). Capacity comes from /api/account/industry-slots (1 base
 // + the two slot skills per activity, base 1/1/1 fail-open for a character
 // with no synced skills); usage counts each character's personal board plus
 // the corp jobs they INSTALLED (how the game charges slots), deduped by
@@ -33,11 +34,13 @@ export function IndustrySlotMeta({
     () =>
       slotMetaTotals({
         loading: jobsLive.loading || corpLive.loading || slotsLive.loading,
+        eligibleCharacterIds: characterIds,
         characters: slotsLive.characters,
         personalJobsByCharacter: jobsLive.jobsByCharacter,
         corpJobs: flattenJobs(corpLive.corporations),
       }),
     [
+      characterIds,
       jobsLive.loading,
       jobsLive.jobsByCharacter,
       corpLive.loading,

@@ -85,24 +85,31 @@ export interface SlotUsage {
 export type SlotMetaModel = Record<JobCategory, SlotUsage>;
 
 // The header readout's view-model: null while any feed is still loading or
-// when the viewer has no characters (signed out / none linked — the readout
-// renders nothing, never errors); otherwise used/total per activity summed
-// across ALL the viewer's characters. Capacity comes from the slots endpoint
-// (base 1/1/1 for a character with no synced skills); usage from the personal
+// when no characters qualify (signed out / none linked — the readout renders
+// nothing, never errors); otherwise used/total per activity summed across the
+// JOB-ELIGIBLE characters only. The slots endpoint returns every linked
+// character, but the job boards cover only the scope-eligible ones — counting
+// a character's capacity without being able to see their jobs would
+// under-report usage, so both sides of the gauge cover the same
+// `eligibleCharacterIds` set. Capacity comes from the slots endpoint (base
+// 1/1/1 for a character with no synced skills); usage from the personal
 // boards plus installer-attributed corp jobs.
 export function slotMetaTotals(args: {
   loading: boolean;
+  eligibleCharacterIds: readonly number[];
   characters: ReadonlyArray<{ characterId: number; slots: SlotCapacity }>;
   personalJobsByCharacter: ReadonlyMap<number, { data: { jobs: IndustryJob[] } | null }>;
   corpJobs: readonly IndustryJob[];
 }): SlotMetaModel | null {
-  if (args.loading || args.characters.length === 0) return null;
+  const eligible = new Set(args.eligibleCharacterIds);
+  const characters = args.characters.filter((character) => eligible.has(character.characterId));
+  if (args.loading || characters.length === 0) return null;
   const model: SlotMetaModel = {
     manufacturing: { used: 0, total: 0 },
     science: { used: 0, total: 0 },
     reactions: { used: 0, total: 0 },
   };
-  for (const character of args.characters) {
+  for (const character of characters) {
     const personal =
       args.personalJobsByCharacter.get(character.characterId)?.data?.jobs ?? [];
     const used = countUsedSlots(character.characterId, personal, args.corpJobs);

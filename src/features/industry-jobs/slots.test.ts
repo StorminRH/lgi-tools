@@ -128,6 +128,7 @@ describe('slotMetaTotals', () => {
     expect(
       slotMetaTotals({
         loading: true,
+        eligibleCharacterIds: [1],
         characters: [{ characterId: 1, slots: { manufacturing: 1, science: 1, reactions: 1 } }],
         personalJobsByCharacter: boards([]),
         corpJobs: [],
@@ -139,6 +140,7 @@ describe('slotMetaTotals', () => {
     expect(
       slotMetaTotals({
         loading: false,
+        eligibleCharacterIds: [],
         characters: [],
         personalJobsByCharacter: boards([]),
         corpJobs: [],
@@ -152,6 +154,7 @@ describe('slotMetaTotals', () => {
     // 1/1/1) and runs one corp-installed reaction job (activity 9).
     const model = slotMetaTotals({
       loading: false,
+      eligibleCharacterIds: [1, 2],
       characters: [
         { characterId: 1, slots: { manufacturing: 8, science: 6, reactions: 3 } },
         { characterId: 2, slots: { manufacturing: 1, science: 1, reactions: 1 } },
@@ -167,5 +170,37 @@ describe('slotMetaTotals', () => {
       science: { used: 0, total: 7 },
       reactions: { used: 1, total: 4 },
     });
+  });
+
+  it('excludes a character whose jobs the boards cannot see (scope-ineligible)', () => {
+    // Character 9 has trained slots but lacks the industry-job scopes: their
+    // jobs are invisible, so their capacity must not inflate the total.
+    const model = slotMetaTotals({
+      loading: false,
+      eligibleCharacterIds: [1],
+      characters: [
+        { characterId: 1, slots: { manufacturing: 2, science: 1, reactions: 1 } },
+        { characterId: 9, slots: { manufacturing: 11, science: 11, reactions: 11 } },
+      ],
+      personalJobsByCharacter: boards([[1, [job({ job_id: 31, activity_id: 1 })]]]),
+      corpJobs: [],
+    });
+    expect(model).toEqual({
+      manufacturing: { used: 1, total: 2 },
+      science: { used: 0, total: 1 },
+      reactions: { used: 0, total: 1 },
+    });
+  });
+
+  it('is null when no eligible character remains after the roster filter', () => {
+    expect(
+      slotMetaTotals({
+        loading: false,
+        eligibleCharacterIds: [],
+        characters: [{ characterId: 9, slots: { manufacturing: 2, science: 1, reactions: 1 } }],
+        personalJobsByCharacter: boards([]),
+        corpJobs: [],
+      }),
+    ).toBeNull();
   });
 });
