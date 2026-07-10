@@ -99,6 +99,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         sellVolume: row.sellVolume?.toString() ?? null,
         buyDepth: row.buyDepth,
         sellDepth: row.sellDepth,
+        regionalDiscount: row.regionalDiscount,
         updatedAt: row.updatedAt.toISOString(),
         staleAfter: row.staleAfter.toISOString(),
         source: row.source,

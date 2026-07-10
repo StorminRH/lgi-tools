@@ -1,0 +1,1 @@
+ALTER TABLE "market_prices" ADD COLUMN "regional_discount" jsonb;

@@ -17,6 +17,37 @@ export const STALE_AFTER_TTL_MS = 24 * 60 * 60 * 1000;
 // implementations use it.
 export const ESI_REGION_ID_FORGE = 10000002;
 
+// Jita IV - Moon 4 - Caldari Navy Assembly Plant, the hub every stored price
+// describes (3.7.26.1). The region dump is still the fetch (one paginated
+// stream is cheaper than per-type calls at bulk size), but ONLY orders at
+// this station enter the stored book — both sides. The buy side is
+// hub-station-only by ruling (2026-07-10, diagnosis in docs/margin-audit/
+// hub-scoping-ruling-sheet.md): range-aware reachability was measured and
+// rejected — region-range lowball bid walls inflate the dust threshold past
+// the real Jita bids on ~12% of types and dilute pct5_buy on ~20%, and
+// Fuzzwork's station aggregates (the fallback source) are station-local
+// too, so this rule is also what keeps the two sources from flapping.
+// Hardcoded here rather than resolved from eve-data: this slice stays in
+// pure number space (see schema.ts header).
+export const JITA_44_STATION_ID = 60003760;
+
+// NPC-station ceiling for regional-discount candidates (3.7.26.1 ruling):
+// player-structure order books (location ids ~1e12) never anchor a callout —
+// a structure can be ACL-gated so the "opportunity" may not be dockable, and
+// every observed candidate in the calibration set was an NPC station anyway.
+export const NPC_STATION_ID_CEILING = 1e9;
+
+// Regional-discount callout gate (3.7.26.1): the best non-hub sell
+// opportunity is stored only when it beats the hub price by at least this
+// percentage AND carries at least this many units priced at-or-under the
+// hub best (per-station dust discipline applies first). Calibrated on the
+// 2026-07-10 fleet-wide candidate distribution (85 of 4,706 hub-priced
+// types fire at 15%/10 — the RLML class passes at −89%/19 units; 1-unit
+// relic-trade curiosities fail); ruled values, same review bar as the dust
+// divisor above.
+export const REGIONAL_DISCOUNT_MIN_PCT = 15;
+export const REGIONAL_DISCOUNT_MIN_UNITS = 10;
+
 // Stale-set size at which the ESI region-dump (one paginated stream of
 // every order in The Forge) becomes cheaper than fetching each type one
 // by one. Below the threshold the dispatcher uses the per-type endpoint;

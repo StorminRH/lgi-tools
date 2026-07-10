@@ -22,6 +22,7 @@ const PRICE_COLUMNS = {
   sellVolume: marketPrices.sellVolume,
   buyDepth: marketPrices.buyDepth,
   sellDepth: marketPrices.sellDepth,
+  regionalDiscount: marketPrices.regionalDiscount,
   source: marketPrices.source,
   updatedAt: marketPrices.updatedAt,
   staleAfter: marketPrices.staleAfter,

@@ -8,10 +8,11 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import type { DepthBand } from './types';
+import type { DepthBand, RegionalDiscount } from './types';
 
-// Live market prices keyed by Eve type ID. Region is fixed to Jita
-// (10000002) — set in phase 2. No FK to eve_types: this slice operates
+// Live market prices keyed by Eve type ID. Scope is fixed to the Jita 4-4
+// station book (3.7.26.1; The Forge region dump is still the fetch, the
+// station is the price). No FK to eve_types: this slice operates
 // in pure number space and must not depend on the eve-data slice's
 // schema being populated first.
 //
@@ -35,6 +36,11 @@ export const marketPrices = pgTable(
     // rows carry NULL until the next ESI refresh recomputes them.
     buyDepth: jsonb('buy_depth').$type<DepthBand[]>(),
     sellDepth: jsonb('sell_depth').$type<DepthBand[]>(),
+    // Best single non-hub sell opportunity (3.7.26.1). Nullable — no
+    // opportunity cleared the gate, the row predates the column, or the row
+    // came from the Fuzzwork fallback (no order book), which — like the
+    // depth columns above — nulls it on overwrite until the next ESI refresh.
+    regionalDiscount: jsonb('regional_discount').$type<RegionalDiscount>(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
     staleAfter: timestamp('stale_after', { withTimezone: true }).notNull(),
     source: text('source').notNull().default('fuzzwork'),

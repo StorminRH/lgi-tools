@@ -96,16 +96,21 @@ export async function persistPrices(
     sellVolume: r.sellVolume,
     buyDepth: r.buyDepth,
     sellDepth: r.sellDepth,
+    // `?? null`: the on-view coalescing cache can serve RawMarketPrice
+    // payloads serialized before this field existed (undefined, not null,
+    // for ~60s after a deploy) — drizzle rejects undefined in a multi-row
+    // insert, so normalize here at the write boundary.
+    regionalDiscount: r.regionalDiscount ?? null,
     updatedAt,
     staleAfter,
     source: r.source,
   }));
 
-  // Chunked upsert: 12 columns × the full ~6,000-type tracked set would push a
+  // Chunked upsert: 13 columns × the full ~6,000-type tracked set would push a
   // single multi-row insert past Postgres's 65,535 bind-parameter ceiling — the
   // two depth columns added in migration 0022 are what crossed it (10 cols used
-  // to fit). Batch like seedTrackedTypes (sde-pipeline.ts): 1,000 rows × 12 cols
-  // = 12k params per call. A ≤1,000-row refresh (the on-view path) stays one insert.
+  // to fit). Batch like seedTrackedTypes (sde-pipeline.ts): 1,000 rows × 13 cols
+  // = 13k params per call. A ≤1,000-row refresh (the on-view path) stays one insert.
   //
   // Splitting the insert trades whole-batch atomicity for staying under the wire
   // limit, which is safe here: each row is an independent, idempotent price with
@@ -131,6 +136,7 @@ export async function persistPrices(
           sellVolume: excluded('sell_volume'),
           buyDepth: excluded('buy_depth'),
           sellDepth: excluded('sell_depth'),
+          regionalDiscount: excluded('regional_discount'),
           updatedAt: excluded('updated_at'),
           staleAfter: excluded('stale_after'),
           source: excluded('source'),

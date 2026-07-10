@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import { chunk, dedupe } from '@/lib/array';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { JITA_44_STATION_ID } from './constants';
 import type { RawMarketPrice } from './types';
 
 // Fuzzwork fallback path. Retained as a circuit-breaker target for the ESI
@@ -14,26 +15,26 @@ import type { RawMarketPrice } from './types';
 // (and source-fallback.test.ts) deletes cleanly.
 const FUZZWORK_AGGREGATES = 'https://market.fuzzwork.co.uk/aggregates/';
 
-// Jita 4-4 region.
-const REGION_ID = 10000002;
-
 // Comma-joined IDs go in the URL. 150 keeps the URL under ~1.1KB
 // even at 6-digit type IDs — well under the 2KB safe-URL threshold.
 const MAX_BATCH = 150;
 
 // Fuzzwork's aggregates response shape. Numbers come back as stringified
-// decimals; we coerce in `parseVolume`/`normalize`. Boundary schema: the
-// documented per-side fields are all required strings, keyed by type ID.
+// decimals — EXCEPT on a side with zero orders, where every field is a
+// plain numeric 0 (observed live on station-scoped aggregates, where empty
+// sides are common; 2026-07-10 parity probe). Coerce so both shapes pass
+// the boundary; `parseVolume`/`normalize` parse the string form. Boundary
+// schema: the documented per-side fields are all required, keyed by type ID.
 // Exported for testing.
 const fuzzworkSideSchema = z.object({
-  weightedAverage: z.string(),
-  max: z.string(),
-  min: z.string(),
-  stddev: z.string(),
-  median: z.string(),
-  volume: z.string(),
-  orderCount: z.string(),
-  percentile: z.string(),
+  weightedAverage: z.coerce.string(),
+  max: z.coerce.string(),
+  min: z.coerce.string(),
+  stddev: z.coerce.string(),
+  median: z.coerce.string(),
+  volume: z.coerce.string(),
+  orderCount: z.coerce.string(),
+  percentile: z.coerce.string(),
 });
 
 // Exported for testing.
@@ -92,15 +93,21 @@ export function normalize(typeId: number, pair: FuzzworkPair): RawMarketPrice {
     pct5Sell: sellOrderCount > 0 ? Number.parseFloat(sell.percentile) : null,
     buyVolume: buyOrderCount > 0 ? parseVolume(buy.volume) : null,
     sellVolume: sellOrderCount > 0 ? parseVolume(sell.volume) : null,
-    // Fuzzwork serves aggregates, not an order book — no near-touch depth.
+    // Fuzzwork serves aggregates, not an order book — no near-touch depth
+    // and no regional-discount fold.
     buyDepth: null,
     sellDepth: null,
+    regionalDiscount: null,
     source: 'fuzzwork',
   };
 }
 
 async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
-  const url = `${FUZZWORK_AGGREGATES}?region=${REGION_ID}&types=${typeIds.join(',')}`;
+  // Station-scoped (3.7.26.1): both sources must describe the same Jita 4-4
+  // book, or prices would flap between semantics on every fallback. Their
+  // station buy aggregates are station-local bids — the same ruled buy scope
+  // as ours (verified in the 2026-07-10 parity probe).
+  const url = `${FUZZWORK_AGGREGATES}?station=${JITA_44_STATION_ID}&types=${typeIds.join(',')}`;
   const res = await fetchWithTimeout(url, {
     headers: { 'User-Agent': OUTBOUND_USER_AGENT },
   });

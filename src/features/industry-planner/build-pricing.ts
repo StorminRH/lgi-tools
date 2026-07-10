@@ -12,7 +12,7 @@ import {
   type BuildCost,
   type PriceOf,
 } from '@/data/industry-math/profitability';
-import type { DepthBand, PriceSource } from '@/data/market-prices/types';
+import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
 import {
   computeBatchMaterials,
   computeBatchMaterialsWithMe,
@@ -54,6 +54,10 @@ export interface PriceLite {
   // orders on that side / Fuzzwork fallback.
   buyDepth?: DepthBand[] | null;
   sellDepth?: DepthBand[] | null;
+  // Best non-hub sell opportunity (3.7.26.1) — optional like depth: only the
+  // product's Sell·Jita callout consumes it; material/intermediate lookups
+  // omit it. Null/absent = no callout (incl. payloads predating the field).
+  regionalDiscount?: RegionalDiscount | null;
   source: PriceSource | null;
   // Epoch millis of the row's stale_after — the staleness signal the client
   // uses to decide what to refresh. Null when there is no price row at all.
@@ -61,6 +65,41 @@ export interface PriceLite {
 }
 
 export type PriceLiteOf = (typeId: number) => PriceLite | undefined;
+
+// The product header's priced view — identity from the structure, sell-side
+// figures + depth + the regional-discount callout from the price row, every
+// field null-defaulted for the no-price-row case.
+function productView(
+  structure: BlueprintStructure,
+  p: PriceLite | undefined,
+): BlueprintPricing['product'] {
+  return {
+    typeId: structure.product.typeId,
+    name: structure.product.name,
+    quantityPerRun: structure.product.quantityPerRun,
+    bestSell: p?.bestSell ?? null,
+    pct5Sell: p?.pct5Sell ?? null,
+    staleAfterMs: p?.staleAfterMs ?? null,
+    buyDepth: p?.buyDepth ?? null,
+    sellDepth: p?.sellDepth ?? null,
+    regionalDiscount: p?.regionalDiscount ?? null,
+  };
+}
+
+// The per-type price fields every cascade row carries (confidence inputs, not
+// cost inputs) — one null-defaulting seam shared by the material rows and the
+// intermediate side-channel so the two can't drift.
+function rowPriceFields(p: PriceLite | undefined) {
+  return {
+    bestSell: p?.bestSell ?? null,
+    pct5Buy: p?.pct5Buy ?? null,
+    pct5Sell: p?.pct5Sell ?? null,
+    buyVolume: p?.buyVolume ?? null,
+    sellVolume: p?.sellVolume ?? null,
+    source: p?.source ?? null,
+    staleAfterMs: p?.staleAfterMs ?? null,
+  };
+}
 
 // The buildable intermediates in a build tree — every non-raw node except the
 // root products (the products are shown as block headers / the hero, not as
@@ -305,55 +344,28 @@ export function assemblePricing(
     productQty: outputUnits,
   });
 
-  const rows: MaterialCostRow[] = rowsCost.perMaterial.map((c) => {
-    const p = priceOf(c.typeId);
-    return {
-      typeId: c.typeId,
-      name: structure.materialNames[c.typeId] ?? `Type ${c.typeId}`,
-      quantity: c.quantity,
-      unitBuy: c.unitBuy,
-      extendedCost: c.extendedCost,
-      bestSell: p?.bestSell ?? null,
-      pct5Buy: p?.pct5Buy ?? null,
-      pct5Sell: p?.pct5Sell ?? null,
-      buyVolume: p?.buyVolume ?? null,
-      sellVolume: p?.sellVolume ?? null,
-      source: p?.source ?? null,
-      staleAfterMs: p?.staleAfterMs ?? null,
-    };
-  });
+  const rows: MaterialCostRow[] = rowsCost.perMaterial.map((c) => ({
+    typeId: c.typeId,
+    name: structure.materialNames[c.typeId] ?? `Type ${c.typeId}`,
+    quantity: c.quantity,
+    unitBuy: c.unitBuy,
+    extendedCost: c.extendedCost,
+    ...rowPriceFields(priceOf(c.typeId)),
+  }));
 
   const intermediatePrices: IntermediatePrice[] = collectIntermediateTypeIds(
     structure.buildTree,
     structure.buildNodeDisplay,
-  ).map((typeId) => {
-    const p = priceOf(typeId);
-    return {
-      typeId,
-      bestBuy: p?.bestBuy ?? null,
-      bestSell: p?.bestSell ?? null,
-      pct5Buy: p?.pct5Buy ?? null,
-      pct5Sell: p?.pct5Sell ?? null,
-      buyVolume: p?.buyVolume ?? null,
-      sellVolume: p?.sellVolume ?? null,
-      source: p?.source ?? null,
-      staleAfterMs: p?.staleAfterMs ?? null,
-    };
-  });
+  ).map((typeId) => ({
+    typeId,
+    bestBuy: priceOf(typeId)?.bestBuy ?? null,
+    ...rowPriceFields(priceOf(typeId)),
+  }));
 
   return {
     rows,
     intermediatePrices,
-    product: {
-      typeId: structure.product.typeId,
-      name: structure.product.name,
-      quantityPerRun: structure.product.quantityPerRun,
-      bestSell: productPrice?.bestSell ?? null,
-      pct5Sell: productPrice?.pct5Sell ?? null,
-      staleAfterMs: productPrice?.staleAfterMs ?? null,
-      buyDepth: productPrice?.buyDepth ?? null,
-      sellDepth: productPrice?.sellDepth ?? null,
-    },
+    product: productView(structure, productPrice),
     summary: {
       basis,
       bases,

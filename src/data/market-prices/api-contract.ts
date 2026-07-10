@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import type { ApiEndpoint } from '@/lib/api-client';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
-import type { DepthBand, PriceSource } from './types';
+import type { DepthBand, PriceSource, RegionalDiscount } from './types';
 
 // Postgres 32-bit `integer` ceiling. Matches the equivalent guard in
 // /api/sites/[id] — defined locally on each owner because both cap at the
@@ -25,6 +25,14 @@ export const wireDepthBandSchema = z.object({
   cumVolume: z.number(),
 }) satisfies z.ZodType<DepthBand>;
 
+// The regional-discount callout payload — plain numbers end to end.
+export const wireRegionalDiscountSchema = z.object({
+  systemId: z.number(),
+  price: z.number(),
+  units: z.number(),
+  pct: z.number(),
+}) satisfies z.ZodType<RegionalDiscount>;
+
 // One priced row as it crosses the wire: DB bigint volumes serialized as
 // strings, timestamps as ISO-8601 strings. The `satisfies` pin keeps the
 // enum inside PriceSource; the contract test pins exact equality.
@@ -38,6 +46,10 @@ export const wirePriceSchema = z.object({
   sellVolume: z.string().nullable(),
   buyDepth: z.array(wireDepthBandSchema).nullable(),
   sellDepth: z.array(wireDepthBandSchema).nullable(),
+  // `.optional()` on top of `.nullable()` is deliberate (the #203 lesson):
+  // a payload cached before this field existed must still validate — its
+  // absence reads as "no callout", never a contract failure.
+  regionalDiscount: wireRegionalDiscountSchema.nullable().optional(),
   updatedAt: z.string(),
   staleAfter: z.string(),
   source: z.enum(['esi', 'fuzzwork-fallback', 'fuzzwork']) satisfies z.ZodType<PriceSource>,

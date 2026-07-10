@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import {
-  BEST_DUST_VOLUME_DIVISOR,
   BULK_THRESHOLD,
-  DEPTH_BANDS_PCT,
   ESI_REGION_ID_FORGE,
+  JITA_44_STATION_ID,
   PAGE_CONCURRENCY,
   PER_TYPE_CONCURRENCY,
+  REGIONAL_DISCOUNT_MIN_PCT,
+  REGIONAL_DISCOUNT_MIN_UNITS,
 } from './constants';
 import {
   EsiBudgetExhaustedError,
@@ -15,24 +16,47 @@ import {
   esiUrl,
 } from '@/lib/esi';
 import { dedupe } from '@/lib/array';
+import {
+  computeDepth,
+  computeSide,
+  computeRegionalDiscount,
+  isDiscountEligibleLocation,
+  type OrderEntry,
+  type RemoteStationBook,
+} from './book-math';
 import { fetchPricesFromFuzzwork } from './source-fallback';
-import type { DepthBand, RawMarketPrice } from './types';
+import type { RawMarketPrice } from './types';
+
+// The book math moved to book-math.ts (3.7.26.1) so tests and one-off
+// diagnosis scripts can import it without this module's ESI-gate graph;
+// re-exported here so existing consumers keep their import path.
+export { computeDepth, computeSide } from './book-math';
 
 // ESI source dispatcher. Above BULK_THRESHOLD types stale at once, the
 // region-dump path streams every order in The Forge and filters in memory.
 // Below the threshold, per-type calls are cheaper. Either way, a Fuzzwork
 // fallback covers ESI degradation — preserving the per-row staleness
 // contract so the next cron tick gets a fresh attempt.
+//
+// The Forge is the FETCH scope; Jita 4-4 is the PRICE scope (3.7.26.1).
+// Every stored figure — best/pct5/volume/depth, both sides — describes the
+// orders at JITA_44_STATION_ID only; the rest of the region dump feeds the
+// regional-discount fold and is then dropped. See constants.ts for the
+// buy-side ruling.
 
 // ESI's /markets/{region}/orders/ response item shape — only the fields
 // we actually use. Boundary schema: ESI sends more keys; z.object ignores
 // the unknown ones, so an upstream addition can't break parsing, but a
 // changed/missing consumed field rejects the body at the boundary.
+// location_id routes hub vs remote (station ids and structure ids both fit
+// a JS number); system_id is carried onto remote books for the callout.
 const esiOrderSchema = z.object({
   type_id: z.number(),
   is_buy_order: z.boolean(),
   price: z.number(),
   volume_remain: z.number(),
+  location_id: z.number(),
+  system_id: z.number(),
 });
 const esiOrdersSchema = z.array(esiOrderSchema);
 
@@ -61,14 +85,14 @@ function filterRawByWantedType(body: unknown, wanted: Set<number>): unknown[] {
   });
 }
 
-interface OrderEntry {
-  price: number;
-  volume: bigint;
-}
-
+// Per-type accumulation while streaming the dump: the hub book (both sides,
+// the stored price) plus each eligible remote station's sell book (the
+// regional-discount fold's input). Remote BUY orders are dropped at absorb
+// time — the ruled buy scope is hub-station-only, so they can never matter.
 interface OrderBucket {
-  buyOrders: OrderEntry[];
-  sellOrders: OrderEntry[];
+  hubBuy: OrderEntry[];
+  hubSell: OrderEntry[];
+  remoteSell: Map<number, RemoteStationBook>;
 }
 
 // Bounded-concurrency worker pool. Workers pull from a shared index until
@@ -113,6 +137,11 @@ async function runConcurrent<T>(
 // Funnel ESI orders into per-type buckets, ignoring types we didn't ask
 // about. Mutates `buckets` in place. The region-dump path calls this once
 // per page; the per-type path passes the whole response as one "page."
+//
+// Routing (3.7.26.1 hub scoping): orders at Jita 4-4 land in the hub book —
+// the stored price. Sell orders elsewhere accumulate per eligible remote
+// station for the regional-discount fold. Buy orders elsewhere are dropped
+// (hub-station-only by ruling; see constants.ts).
 function absorbOrders(
   orders: EsiOrder[],
   wanted: Set<number>,
@@ -120,141 +149,49 @@ function absorbOrders(
 ): void {
   for (const o of orders) {
     if (!wanted.has(o.type_id)) continue;
+    const atHub = o.location_id === JITA_44_STATION_ID;
+    if (o.is_buy_order && !atHub) continue;
     let bucket = buckets.get(o.type_id);
     if (!bucket) {
-      bucket = { buyOrders: [], sellOrders: [] };
+      bucket = { hubBuy: [], hubSell: [], remoteSell: new Map() };
       buckets.set(o.type_id, bucket);
     }
     const entry: OrderEntry = {
       price: o.price,
       volume: BigInt(o.volume_remain),
     };
-    if (o.is_buy_order) bucket.buyOrders.push(entry);
-    else bucket.sellOrders.push(entry);
+    if (o.is_buy_order) bucket.hubBuy.push(entry);
+    else if (atHub) bucket.hubSell.push(entry);
+    else absorbRemoteSell(bucket, o, entry);
   }
 }
 
-// Best + 5%-percentile for one side of the book.
-//
-// `best` is the DUST-FILTERED touch (3.7.25.1): the lowest ask / highest bid
-// with real volume behind it. The sorted book is walked front-to-back and the
-// best is the price of the order at which cumulative volume first reaches
-// ceil(side volume / BEST_DUST_VOLUME_DIVISOR) (0.1%, min 1 unit) — so a
-// healthy front order (carrying the threshold alone) keeps the raw touch
-// byte-identically, while a 1-unit sliver anchoring a deep book is skipped.
-// Applies to BOTH sides: on the buy side it filters sliver highball bids the
-// same way (a volume filter, never a pct5 clamp — pct5_buy is wall-diluted
-// and provably wrong as a guard; see the hardening report §2.2).
-//
-// `pct5` — the volume-weighted average price of the cheapest 5% of side
-// volume (Fuzzwork's definition; we match it so wormhole-sites ISK totals
-// don't drift when the source swaps) — is UNTOUCHED by the dust filter and
-// still walks from the raw front of the book. Buy side sorts descending
-// (best bid first); sell side sorts ascending (best ask first). Empty side
-// returns nulls; zero-volume side returns the raw touch for both.
-//
-// Exported for testing — the math is delicate enough that a direct
-// regression test is worth the extra surface.
-export function computeSide(
-  orders: OrderEntry[],
-  direction: 'asc' | 'desc',
-): { best: number | null; pct5: number | null; volume: bigint | null } {
-  if (orders.length === 0) {
-    return { best: null, pct5: null, volume: null };
+// Accumulate one remote sell order onto its station's book. Ineligible
+// locations (player structures) never enter the fold's input.
+function absorbRemoteSell(
+  bucket: OrderBucket,
+  o: EsiOrder,
+  entry: OrderEntry,
+): void {
+  if (!isDiscountEligibleLocation(o.location_id)) return;
+  let book = bucket.remoteSell.get(o.location_id);
+  if (!book) {
+    book = { systemId: o.system_id, orders: [] };
+    bucket.remoteSell.set(o.location_id, book);
   }
-  const sorted = [...orders].sort((a, b) =>
-    direction === 'asc' ? a.price - b.price : b.price - a.price,
-  );
-
-  let totalVolume = BigInt(0);
-  for (const o of sorted) totalVolume += o.volume;
-  if (totalVolume === BigInt(0)) {
-    return { best: sorted[0].price, pct5: sorted[0].price, volume: BigInt(0) };
-  }
-
-  // Dust-filtered best: ceil-divide in bigint (no float), then take the price
-  // of the order that carries cumulative volume across the threshold. The
-  // threshold never exceeds totalVolume, so the walk always lands on an order.
-  const dustThreshold =
-    (totalVolume + BEST_DUST_VOLUME_DIVISOR - BigInt(1)) / BEST_DUST_VOLUME_DIVISOR;
-  let best = sorted[0].price;
-  let cumulative = BigInt(0);
-  for (const o of sorted) {
-    cumulative += o.volume;
-    if (cumulative >= dustThreshold) {
-      best = o.price;
-      break;
-    }
-  }
-
-  // Threshold = ceil(5% of total volume) — bigint math truncates by
-  // default, which on small volumes rounds the threshold down to zero;
-  // bump up by one when there's any remainder so a single tiny order
-  // still gets sampled.
-  const fivePct = totalVolume * BigInt(5);
-  const threshold =
-    fivePct % BigInt(100) === BigInt(0)
-      ? fivePct / BigInt(100)
-      : fivePct / BigInt(100) + BigInt(1);
-
-  let used = BigInt(0);
-  let weightedSum = 0;
-  for (const o of sorted) {
-    const remaining = threshold - used;
-    if (remaining <= BigInt(0)) break;
-    const take = o.volume < remaining ? o.volume : remaining;
-    weightedSum += o.price * Number(take);
-    used += take;
-  }
-  const pct5 = used > BigInt(0) ? weightedSum / Number(used) : best;
-  return { best, pct5, volume: totalVolume };
+  book.orders.push(entry);
 }
 
-// Near-touch depth ladder (3.5.3a): cumulative volume within each band of
-// DEPTH_BANDS_PCT measured from `best` on this side. One pass, no sort —
-// bands are nested, so an order within the tightest band it qualifies for is
-// counted in that band and every wider one. `best` comes from computeSide;
-// an empty side (best === null) has no depth.
-//
-// Anchored to `best` — the DUST-FILTERED best from computeSide (3.7.25.1),
-// not pct5 and not the raw touch; see DEPTH_BANDS_PCT for the manipulation
-// argument (the hardened anchor closes the mid-gap sliver case, where a
-// 1-unit ask under the real book used to window the bands around itself and
-// exclude the real sell wall). A buy order qualifies for band b when
-// price ≥ best·(1−b/100); a sell order when price ≤ best·(1+b/100). Volume
-// accumulates as a Number, like
-// computeSide's weighted sum (realistic cumulative volumes stay under
-// MAX_SAFE_INTEGER).
-//
-// Exported for testing — the manipulation-resistance is delicate enough that
-// direct adversarial fixtures (a 0.01-ISK spoof, a far-out whale order) are
-// worth the surface.
-export function computeDepth(
-  orders: OrderEntry[],
-  direction: 'asc' | 'desc',
-  best: number | null,
-): DepthBand[] | null {
-  if (best === null || orders.length === 0) return null;
-  const sums = DEPTH_BANDS_PCT.map(() => 0);
-  for (const o of orders) {
-    for (let i = 0; i < DEPTH_BANDS_PCT.length; i++) {
-      const band = DEPTH_BANDS_PCT[i];
-      const within =
-        direction === 'desc'
-          ? o.price >= best * (1 - band / 100)
-          : o.price <= best * (1 + band / 100);
-      if (within) sums[i] += Number(o.volume);
-    }
-  }
-  return DEPTH_BANDS_PCT.map((pct, i) => ({ pct, cumVolume: sums[i] }));
-}
-
+// Stored figures come from the HUB books only (the 3.7.26.1 price scope);
+// computeSide/computeDepth are unchanged — the pct5 walk stays Fuzzwork-
+// pinned, its input book is what shrank. The regional-discount fold runs
+// over what the scoping excluded.
 function bucketToRawPrice(
   typeId: number,
   bucket: OrderBucket,
 ): RawMarketPrice {
-  const buy = computeSide(bucket.buyOrders, 'desc');
-  const sell = computeSide(bucket.sellOrders, 'asc');
+  const buy = computeSide(bucket.hubBuy, 'desc');
+  const sell = computeSide(bucket.hubSell, 'asc');
   return {
     typeId,
     bestBuy: buy.best,
@@ -263,8 +200,12 @@ function bucketToRawPrice(
     pct5Sell: sell.pct5,
     buyVolume: buy.volume,
     sellVolume: sell.volume,
-    buyDepth: computeDepth(bucket.buyOrders, 'desc', buy.best),
-    sellDepth: computeDepth(bucket.sellOrders, 'asc', sell.best),
+    buyDepth: computeDepth(bucket.hubBuy, 'desc', buy.best),
+    sellDepth: computeDepth(bucket.hubSell, 'asc', sell.best),
+    regionalDiscount: computeRegionalDiscount(bucket.remoteSell, sell.best, {
+      minPct: REGIONAL_DISCOUNT_MIN_PCT,
+      minUnits: REGIONAL_DISCOUNT_MIN_UNITS,
+    }),
     source: 'esi',
   };
 }
@@ -277,7 +218,11 @@ function bucketsToRawPrices(
   typeIds: number[],
   buckets: Map<number, OrderBucket>,
 ): RawMarketPrice[] {
-  const emptyBucket: OrderBucket = { buyOrders: [], sellOrders: [] };
+  const emptyBucket: OrderBucket = {
+    hubBuy: [],
+    hubSell: [],
+    remoteSell: new Map(),
+  };
   return typeIds.map((typeId) =>
     bucketToRawPrice(typeId, buckets.get(typeId) ?? emptyBucket),
   );

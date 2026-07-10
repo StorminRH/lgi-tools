@@ -8,10 +8,28 @@ export interface DepthBand {
   cumVolume: number;
 }
 
-// Public-facing record returned by getPrices() and stored in the DB.
-// All four price columns are nullable: NULL means "no orders on that
-// side at the time of the last refresh."
-export interface MarketPrice {
+// The best single non-hub sell opportunity for a type (3.7.26.1) — computed
+// by the same ingest pass that scopes the stored book to Jita 4-4, from the
+// region orders the scoping filters out. All fields are plain numbers (this
+// rides a jsonb column; BigInt would throw at serialization). `pct` is the
+// discount vs the HUB best sell; `units` is the winning station's volume
+// priced at-or-under the hub best, after that station's own dust walk.
+// System id, never a station/structure id — the UI resolves it to a system
+// name from the SDE. NULL on a row means no opportunity cleared the gate
+// (or the row predates the field / came from the Fuzzwork fallback, which
+// has no order book to fold over).
+export interface RegionalDiscount {
+  systemId: number;
+  price: number;
+  units: number;
+  pct: number;
+}
+
+// The priced figures shared by the stored row (MarketPrice) and the
+// source-shaped row (RawMarketPrice) — one field list so the two can't
+// drift. All four price columns are nullable: NULL means "no orders on
+// that side at the time of the last refresh."
+interface PricedFigures {
   typeId: number;
   bestBuy: number | null;
   bestSell: number | null;
@@ -24,11 +42,19 @@ export interface MarketPrice {
   sellVolume: bigint | null;
   // Near-touch depth ladder per side (null = no orders there at last refresh).
   // Cumulative volume within DEPTH_BANDS_PCT of the best, for the 3.5.3b
-  // depth-absorption signal. See DEPTH_BANDS_PCT for why it's anchored to best.
+  // depth-absorption signal. See DEPTH_BANDS_PCT for why it's anchored to
+  // best. The Fuzzwork fallback has no order book, so it leaves these null.
   buyDepth: DepthBand[] | null;
   sellDepth: DepthBand[] | null;
+  // Best single non-hub sell opportunity (null = none cleared the gate, the
+  // row predates the field, or the row came from the book-less fallback).
+  regionalDiscount: RegionalDiscount | null;
   // Provenance of this row — ESI (happy path) vs the Fuzzwork fallback.
   source: PriceSource;
+}
+
+// Public-facing record returned by getPrices() and stored in the DB.
+export interface MarketPrice extends PricedFigures {
   updatedAt: Date;
   // Row-level expiry — the authoritative staleness signal (the bulk refresh
   // keys off `stale_after < NOW()`). A row can have a null price yet a future
@@ -47,18 +73,4 @@ export type PriceSource = 'esi' | 'fuzzwork-fallback' | 'fuzzwork';
 // Source-shaped record before persistence. Volume + source are populated
 // from the source response; updatedAt + staleAfter are set by the ingest
 // layer at write time.
-export interface RawMarketPrice {
-  typeId: number;
-  bestBuy: number | null;
-  bestSell: number | null;
-  pct5Buy: number | null;
-  pct5Sell: number | null;
-  buyVolume: bigint | null;
-  sellVolume: bigint | null;
-  // Near-touch depth ladder per side, computed from the order book the source
-  // already downloads (null = no orders on that side). The Fuzzwork fallback
-  // has no order-book, so it leaves these null.
-  buyDepth: DepthBand[] | null;
-  sellDepth: DepthBand[] | null;
-  source: PriceSource;
-}
+export type RawMarketPrice = PricedFigures;

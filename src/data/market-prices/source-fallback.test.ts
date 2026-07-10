@@ -78,6 +78,7 @@ describe('normalize', () => {
       sellVolume: BigInt(500_000),
       buyDepth: null,
       sellDepth: null,
+      regionalDiscount: null,
       source: 'fuzzwork',
     });
   });
@@ -125,6 +126,41 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
     expect(new Headers(init?.headers).get('User-Agent')).toBe(
       OUTBOUND_USER_AGENT,
     );
+  });
+
+  it('requests the Jita 4-4 STATION aggregate, not the region (3.7.26.1)', async () => {
+    // Both sources must describe the same hub book — a region-scoped fallback
+    // would flap every stored figure back to Forge semantics on ESI outages.
+    fetchSpy.mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    await fetchPricesFromFuzzwork([34, 35]);
+
+    const [url] = fetchSpy.mock.calls[0];
+    expect(String(url)).toContain('station=60003760');
+    expect(String(url)).not.toContain('region=');
+  });
+
+  it('accepts numeric fields on a zero-order side (station-scoped shape)', async () => {
+    // Observed live: a side with no orders comes back as plain numeric 0s
+    // instead of the documented strings — common on station aggregates where
+    // one side is often empty. The boundary must coerce, not reject, or one
+    // such type fails the whole fallback batch.
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          '34': {
+            buy: { weightedAverage: 0, max: 0, min: 0, stddev: 0, median: 0, volume: 0, orderCount: 0, percentile: 0 },
+            sell: { weightedAverage: '5.5', max: '6', min: '5.5', stddev: '0', median: '5.5', volume: '100', orderCount: '3', percentile: '5.5' },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const rows = await fetchPricesFromFuzzwork([34]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].bestBuy).toBeNull(); // orderCount 0 → side nulled
+    expect(rows[0].bestSell).toBe(5.5);
   });
 
   it('rejects a malformed aggregates body at the boundary', async () => {

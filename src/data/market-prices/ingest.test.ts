@@ -20,6 +20,7 @@ function row(typeId: number, source: RawMarketPrice['source']): RawMarketPrice {
     sellVolume: BigInt(1),
     buyDepth: null,
     sellDepth: null,
+    regionalDiscount: null,
     source,
   };
 }
@@ -64,6 +65,19 @@ describe('refreshPrices — source mix (3.0.10 O-1)', () => {
 });
 
 describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', () => {
+  it('writes null for a raw missing regionalDiscount — a pre-3.7.26.1 cached payload', async () => {
+    // The on-view coalescing cache serves RawMarketPrice objects serialized
+    // before the field existed for ~60s after a deploy. Drizzle rejects
+    // `undefined` in a multi-row insert, so the write boundary must normalize.
+    const stale = row(1, 'esi') as unknown as Record<string, unknown>;
+    delete stale.regionalDiscount;
+    const db = fakeDb();
+    await persistPrices(db as never, [stale as never]);
+    const values = db.insert.mock.results[0].value.values as ReturnType<typeof vi.fn>;
+    const [rows] = values.mock.calls[0];
+    expect(rows[0].regionalDiscount).toBeNull();
+  });
+
   it('upserts the rows and summarizes the source mix from the given meta', async () => {
     const db = fakeDb();
     const summary = await persistPrices(
