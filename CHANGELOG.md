@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.21.1 — 2026-07-09
+
+#### Added
+- The industry planner's Input cost tile now has a Raw | Item toggle. Item — the new default — counts only the materials one build actually consumes, while Raw remains the full empty-hangar shopping list including every whole reaction or component batch you'd be forced to run. Gross and net margin follow the selected view, so small T2 builds whose reaction batches dwarf a single hull no longer read as wildly unprofitable at one run. An info hover shows both figures side by side, and your choice is remembered.
+
+#### Fixed
+- The build plan's raw-ledger header now always sums to the shopping list it expands, rather than tracking the margin tile's basis.
+
 ### v3.7.19.1 — 2026-07-09
 
 #### Added
