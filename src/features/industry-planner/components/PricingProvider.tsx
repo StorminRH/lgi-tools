@@ -32,6 +32,7 @@ import {
   collectRawTypeIds,
   computeBatchLedgerWithMe,
   type BatchLedger,
+  type MeOptions,
 } from '../build-batch';
 import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
@@ -51,6 +52,7 @@ import {
   collectIntermediateTypeIds,
   type PriceLite,
 } from '../build-pricing';
+import { initialPriceMap } from '../initial-price-map';
 import {
   composeFeeInputs,
   hostsReactions,
@@ -77,58 +79,6 @@ import type {
 // price read fans out to all of them while the structure stays in the static
 // shell. Prices arrive via an un-awaited promise the server hands down (see
 // PricingSeeder), so the cascade structure never waits on the price read.
-
-// Live price map seeded from the server snapshot — the priced raw rows, the
-// product, and the buildable intermediates (so a refresh recomputes the same
-// shape the server produced). Each row carries its row-level stale_after, so
-// the client decides staleness and recomputes without re-reading the DB.
-function initialMap(pricing: BlueprintPricing): Map<number, PriceLite> {
-  const map = new Map<number, PriceLite>();
-  // Depth is product-only: the Market Score reads the product's ladders, so
-  // material/intermediate rows leave them null (the live refresh carries depth
-  // for every type, but only the product consumes it).
-  for (const r of pricing.rows) {
-    map.set(r.typeId, {
-      bestBuy: r.unitBuy,
-      bestSell: r.bestSell,
-      pct5Buy: r.pct5Buy,
-      pct5Sell: r.pct5Sell,
-      buyVolume: r.buyVolume,
-      sellVolume: r.sellVolume,
-      buyDepth: null,
-      sellDepth: null,
-      source: r.source,
-      staleAfterMs: r.staleAfterMs,
-    });
-  }
-  for (const ip of pricing.intermediatePrices) {
-    map.set(ip.typeId, {
-      bestBuy: ip.bestBuy,
-      bestSell: ip.bestSell,
-      pct5Buy: ip.pct5Buy,
-      pct5Sell: ip.pct5Sell,
-      buyVolume: ip.buyVolume,
-      sellVolume: ip.sellVolume,
-      buyDepth: null,
-      sellDepth: null,
-      source: ip.source,
-      staleAfterMs: ip.staleAfterMs,
-    });
-  }
-  map.set(pricing.product.typeId, {
-    bestBuy: map.get(pricing.product.typeId)?.bestBuy ?? null,
-    bestSell: pricing.product.bestSell,
-    pct5Buy: null,
-    pct5Sell: null,
-    buyVolume: null,
-    sellVolume: null,
-    buyDepth: pricing.product.buyDepth,
-    sellDepth: pricing.product.sellDepth,
-    source: null,
-    staleAfterMs: pricing.product.staleAfterMs,
-  });
-  return map;
-}
 
 // A picked build SYSTEM, client-only state (carries a Map, so it never crosses
 // the wire). Built by the build-location selector from the chosen system + the
@@ -291,6 +241,10 @@ interface PricingContextValue {
   // The ME-aware whole-run batch ledger (the build-batch ceil). One source for the
   // build plan's tiers + drill-down AND the build-time totals, so they can't drift.
   ledger: BatchLedger;
+  // The exact ME inputs the shared ledger was computed with — exposed so a
+  // consumer running its own walk (the multibuy export) can never drift from
+  // the ledger on ME/structure factors.
+  ledgerMeOpts: MeOptions;
   // The final-job and whole-tree build-time figures, TE-applied (readout only — TE
   // never touches the cost path). Recomputes on runs / ME / TE change.
   buildTimes: BuildTimes;
@@ -598,7 +552,7 @@ export function PricingProvider({
   const seed = useCallback((initial: BlueprintPricing | null) => {
     setSeeded(true);
     if (initial) {
-      seedMapRef.current = initialMap(initial);
+      seedMapRef.current = initialPriceMap(initial);
       setPricing((prev) => prev ?? initial);
     }
   }, []);
@@ -633,19 +587,26 @@ export function PricingProvider({
     [ownedDetail],
   );
 
+  // The exact ME inputs of the shared ledger, as one stable object — also handed
+  // to consumers that run their own walk off the same tree (the multibuy export),
+  // so they can never drift from the ledger on ME/structure factors.
+  const ledgerMeOpts = useMemo<MeOptions>(
+    () => ({
+      meOf: effectiveMeOf(ownedMe, meOverrides),
+      topBlueprintTypeId: structure.blueprintTypeId,
+      // The selected structure's material factor by node activity (3.7.9.1.3);
+      // a no-op (×1) when nothing is selected, so the tiers stay byte-identical.
+      structureMeFactorOf: structureFactors.structureMeFactorOf,
+    }),
+    [structure.blueprintTypeId, ownedMe, meOverrides, structureFactors],
+  );
+
   // The ME-aware batch ledger — computed ONCE here and shared (the build plan reads
   // it from context), so the cost tiers and the build-time totals read one source and
   // can't disagree, and the topological walk runs once per change, not twice.
   const ledger = useMemo<BatchLedger>(
-    () =>
-      computeBatchLedgerWithMe(structure.tree, runs, {
-        meOf: effectiveMeOf(ownedMe, meOverrides),
-        topBlueprintTypeId: structure.blueprintTypeId,
-        // The selected structure's material factor by node activity (3.7.9.1.3);
-        // a no-op (×1) when nothing is selected, so the tiers stay byte-identical.
-        structureMeFactorOf: structureFactors.structureMeFactorOf,
-      }),
-    [structure.tree, structure.blueprintTypeId, runs, ownedMe, meOverrides, structureFactors],
+    () => computeBatchLedgerWithMe(structure.tree, runs, ledgerMeOpts),
+    [structure.tree, runs, ledgerMeOpts],
   );
 
   // The selected build character's per-node skills→time factors (3.7.19.1).
@@ -961,6 +922,7 @@ export function PricingProvider({
       setTeOverride,
       resetTeOverride,
       ledger,
+      ledgerMeOpts,
       buildTimes,
       costBasis,
       setCostBasis,
@@ -1005,6 +967,7 @@ export function PricingProvider({
       setTeOverride,
       resetTeOverride,
       ledger,
+      ledgerMeOpts,
       buildTimes,
       costBasis,
       setCostBasis,

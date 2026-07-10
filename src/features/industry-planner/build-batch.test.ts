@@ -11,6 +11,7 @@ import {
   computeBatchMaterials,
   computeBatchMaterialsWithMe,
   computeMarginalMaterials,
+  computeMultibuyDemand,
 } from './build-batch';
 
 // "Owns nothing" — every blueprint is unowned, so the ME-aware path falls back
@@ -541,6 +542,217 @@ describe('BatchLedger.required — surplus identity', () => {
       }
     });
   }
+});
+
+describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)', () => {
+  // THE load-bearing multibuy guarantee: with every buildable in the build set
+  // and nothing owned, the buy list IS the live walk's raw frontier — same seed,
+  // same order, same meAdjust, so the export can never disagree with the ledger.
+  // Proven over every committed tree × several run counts × ME0 AND a nontrivial
+  // per-blueprint ME map (which also pins ME identity of the built portion).
+  const fixtures = Object.entries(treesFixture as Record<string, TreeNode[]>);
+  const flat = flatMaterialsFixture as unknown as Record<string, { blueprintTypeId: number }>;
+
+  for (const [name, tree] of fixtures) {
+    for (const runs of [1, 2, 3, 5]) {
+      it(`${name} @ ${runs} run(s): all-build, no owned ≡ computeBatchLedgerWithMe.raws`, () => {
+        const meVariants = [
+          NO_OWNED,
+          // Deterministic nontrivial ME spread keyed off the blueprint id.
+          { meOf: (bp: number) => bp % 11, topBlueprintTypeId: flat[name].blueprintTypeId },
+        ];
+        for (const opts of meVariants) {
+          const ledger = computeBatchLedgerWithMe(tree, runs, opts);
+          const buy = computeMultibuyDemand(tree, runs, opts, {
+            buildSet: new Set(ledger.builds.keys()),
+          });
+          expect(buy).toEqual(ledger.raws);
+        }
+      });
+    }
+  }
+
+  it('every emitted quantity is an integer, across all fixtures and run counts', () => {
+    for (const [, tree] of fixtures) {
+      for (const runs of [1, 2, 3, 5]) {
+        const ledger = computeBatchLedgerWithMe(tree, runs, NO_OWNED);
+        const buy = computeMultibuyDemand(tree, runs, NO_OWNED, {
+          buildSet: new Set(ledger.builds.keys()),
+        });
+        for (const [typeId, qty] of buy) {
+          expect(Number.isInteger(qty), `type ${typeId} @ ${runs} run(s)`).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('omitting ownedOf is identical to ownedOf that returns 0 (one code path)', () => {
+    const legion = (treesFixture as Record<string, TreeNode[]>).Legion;
+    const buildSet = new Set(computeBatchLedgerWithMe(legion, 1, NO_OWNED).builds.keys());
+    expect(computeMultibuyDemand(legion, 1, NO_OWNED, { buildSet })).toEqual(
+      computeMultibuyDemand(legion, 1, NO_OWNED, { buildSet, ownedOf: () => 0 }),
+    );
+  });
+});
+
+describe('computeMultibuyDemand — bought intermediates terminate the cascade (MECE)', () => {
+  // Product needs 5 of X (made 10/run, 7 raw R per run). Building X buys its
+  // raws; buying X lists X at its demand and NEVER its inputs — an intermediate
+  // and its inputs can't both appear for the same demand, by construction.
+  const tree: TreeNode[] = [
+    {
+      typeId: 100,
+      quantity: 5,
+      producedBy: { blueprintTypeId: 1100, quantityPerRun: 10, runsNeeded: 0.5 },
+      inputs: [{ typeId: 200, quantity: 7, inputs: [] }],
+    },
+  ];
+
+  it('building X buys the raw frontier', () => {
+    expect(computeMultibuyDemand(tree, 1, NO_OWNED, { buildSet: new Set([100]) })).toEqual(
+      new Map([[200, 7]]),
+    );
+  });
+
+  it('buying X lists X at its demand and none of its inputs', () => {
+    expect(computeMultibuyDemand(tree, 1, NO_OWNED, { buildSet: new Set() })).toEqual(
+      new Map([[100, 5]]),
+    );
+  });
+
+  it('a checked type nothing demands drops out (bought parent starves it)', () => {
+    // Product → A → C: buying A means C never receives demand, even though C is
+    // in the build set — the buy list is just A.
+    const nested: TreeNode[] = [
+      {
+        typeId: 100, // A
+        quantity: 2,
+        producedBy: { blueprintTypeId: 1100, quantityPerRun: 1, runsNeeded: 2 },
+        inputs: [
+          {
+            typeId: 200, // C
+            quantity: 300,
+            producedBy: { blueprintTypeId: 1200, quantityPerRun: 10, runsNeeded: 60 },
+            inputs: [{ typeId: 300, quantity: 7, inputs: [] }],
+          },
+        ],
+      },
+    ];
+    expect(computeMultibuyDemand(nested, 1, NO_OWNED, { buildSet: new Set([200]) })).toEqual(
+      new Map([[100, 2]]),
+    );
+  });
+});
+
+describe('computeMultibuyDemand — multi-depth demand aggregates once', () => {
+  // C is consumed at TWO depths: the product takes 5 directly (depth 1) and each
+  // of A's runs takes 300 (depth 2; product needs 2 A at 1/run). Bought, C must
+  // appear ONCE at the summed demand 5 + 600 = 605 — never one line per depth.
+  // Built, that 605 sum-then-ceils into ⌈605/10⌉ = 61 runs → 427 R.
+  const c = (qty: number): TreeNode => ({
+    typeId: 200,
+    quantity: qty,
+    producedBy: { blueprintTypeId: 1200, quantityPerRun: 10, runsNeeded: qty / 10 },
+    inputs: [{ typeId: 300, quantity: 7, inputs: [] }],
+  });
+  const tree: TreeNode[] = [
+    c(5), // depth 1: the product consumes C directly
+    {
+      typeId: 100, // A, depth 1; its runs consume C at depth 2
+      quantity: 2,
+      producedBy: { blueprintTypeId: 1100, quantityPerRun: 1, runsNeeded: 2 },
+      inputs: [c(300)],
+    },
+  ];
+
+  it('bought C is one line at the cross-depth sum (605), inputs absent', () => {
+    expect(computeMultibuyDemand(tree, 1, NO_OWNED, { buildSet: new Set([100]) })).toEqual(
+      new Map([[200, 605]]),
+    );
+  });
+
+  it('built C sum-then-ceils across depths (61 runs → 427 R)', () => {
+    expect(computeMultibuyDemand(tree, 1, NO_OWNED, { buildSet: new Set([100, 200]) })).toEqual(
+      new Map([[300, 427]]),
+    );
+  });
+});
+
+describe('computeMultibuyDemand — Archon fuel blocks (real multi-depth pin)', () => {
+  // Helium Fuel Blocks (4247) sit at several depths of the committed Archon tree
+  // (reactions AND component jobs burn them). Bought, they must be one line at
+  // exactly the aggregate demand the live ledger derived its runs from, and every
+  // raw the fuel-block runs would have consumed shrinks or disappears.
+  const archon = (treesFixture as Record<string, TreeNode[]>).Archon;
+  const base = computeBatchLedgerWithMe(archon, 1, NO_OWNED);
+  const FUEL_BLOCK = 4247;
+
+  it('the fixture really builds the fuel block (guard for fixture drift)', () => {
+    expect(base.builds.has(FUEL_BLOCK)).toBe(true);
+  });
+
+  it('bought fuel blocks are one aggregated line; the frontier never grows', () => {
+    const buildSet = new Set(base.builds.keys());
+    buildSet.delete(FUEL_BLOCK);
+    const buy = computeMultibuyDemand(archon, 1, NO_OWNED, { buildSet });
+    expect(buy.get(FUEL_BLOCK)).toBe(base.builds.get(FUEL_BLOCK)!.required);
+    // Raws only ever shrink when a buildable flips to bought…
+    for (const [typeId, qty] of buy) {
+      if (typeId === FUEL_BLOCK) continue;
+      expect(qty, `raw ${typeId}`).toBeLessThanOrEqual(base.raws.get(typeId) ?? 0);
+    }
+    // …and the fuel-block runs' own draw actually disappears somewhere.
+    const shrank = [...base.raws].some(([typeId, qty]) => (buy.get(typeId) ?? 0) < qty);
+    expect(shrank).toBe(true);
+  });
+});
+
+describe('computeMultibuyDemand — Remaining (owned subtraction, one code path)', () => {
+  // Product needs 5 of X per run (X made 10/run, 7 R per run) — at 3 requested
+  // runs, X demand is 15 → 2 whole X runs → 14 R from scratch.
+  const tree: TreeNode[] = [
+    {
+      typeId: 100,
+      quantity: 5,
+      producedBy: { blueprintTypeId: 1100, quantityPerRun: 10, runsNeeded: 0.5 },
+      inputs: [{ typeId: 200, quantity: 7, inputs: [] }],
+    },
+  ];
+  const all = { buildSet: new Set([100]) };
+
+  it('an owned intermediate reduces its runs THROUGH the ceil (7 owned: 2 → 1 run)', () => {
+    // net 15 − 7 = 8 → ⌈8/10⌉ = 1 run → 7 R, not 14.
+    const buy = computeMultibuyDemand(tree, 3, NO_OWNED, {
+      ...all,
+      ownedOf: (id) => (id === 100 ? 7 : 0),
+    });
+    expect(buy).toEqual(new Map([[200, 7]]));
+  });
+
+  it('owned ≥ demand: the intermediate vanishes AND no demand reaches its inputs', () => {
+    const buy = computeMultibuyDemand(tree, 3, NO_OWNED, {
+      ...all,
+      ownedOf: (id) => (id === 100 ? 15 : 0),
+    });
+    expect(buy).toEqual(new Map());
+  });
+
+  it('an owned BOUGHT intermediate nets its line (5 needed, 2 owned → buy 3)', () => {
+    const buy = computeMultibuyDemand(tree, 1, NO_OWNED, {
+      buildSet: new Set(),
+      ownedOf: (id) => (id === 100 ? 2 : 0),
+    });
+    expect(buy).toEqual(new Map([[100, 3]]));
+  });
+
+  it('owned raws net and clamp at 0 (the line drops out, never negative)', () => {
+    expect(
+      computeMultibuyDemand(tree, 1, NO_OWNED, { ...all, ownedOf: (id) => (id === 200 ? 3 : 0) }),
+    ).toEqual(new Map([[200, 4]]));
+    expect(
+      computeMultibuyDemand(tree, 1, NO_OWNED, { ...all, ownedOf: (id) => (id === 200 ? 999 : 0) }),
+    ).toEqual(new Map());
+  });
 });
 
 describe('collectBlueprintTypeIds', () => {

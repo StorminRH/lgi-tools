@@ -19,6 +19,7 @@ import { nodeFrameState } from '../node-frame-state';
 import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
 import { NodeAdjusters } from './MeAdjuster';
+import { MultibuyPanel } from './MultibuyPanel';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
 import { usePricing } from './PricingProvider';
 
@@ -338,28 +339,31 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
           <SectionLabel>Build plan</SectionLabel>
           <TraceMeta focus={focus} onClear={() => setFocus(null)} />
         </div>
-        <button
-          type="button"
-          onClick={() => setLedgerOpen((o) => !o)}
-          aria-expanded={ledgerOpen}
-          className="group inline-flex cursor-pointer items-baseline gap-2"
-        >
-          <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
-            <span className="tracking-normal text-isk">{'//'}</span>
-            Raw ledger
-          </span>
-          <span className="font-mono text-caption font-semibold tabular-nums text-isk">
-            {grandTotal !== null ? formatIsk(grandTotal) : '—'}
-          </span>
-          <span
-            className={cn(
-              'inline-block text-[10px] text-muted transition-transform',
-              ledgerOpen && 'rotate-180',
-            )}
+        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+          <MultibuyPanel structure={structure} />
+          <button
+            type="button"
+            onClick={() => setLedgerOpen((o) => !o)}
+            aria-expanded={ledgerOpen}
+            className="group inline-flex cursor-pointer items-baseline gap-2"
           >
-            ▾
-          </span>
-        </button>
+            <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+              <span className="tracking-normal text-isk">{'//'}</span>
+              Raw ledger
+            </span>
+            <span className="font-mono text-caption font-semibold tabular-nums text-isk">
+              {grandTotal !== null ? formatIsk(grandTotal) : '—'}
+            </span>
+            <span
+              className={cn(
+                'inline-block text-[10px] text-muted transition-transform',
+                ledgerOpen && 'rotate-180',
+              )}
+            >
+              ▾
+            </span>
+          </button>
+        </div>
       </div>
 
       {ledgerOpen && (

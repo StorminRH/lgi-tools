@@ -6,6 +6,12 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.22.1 — 2026-07-09
+
+#### Added
+- The build plan gains a Multibuy export: a panel that copies a shopping list straight to your clipboard, ready to paste into the in-game Multibuy window. Check the tiers you'll build yourself and the list becomes everything those jobs consume, bought as-is — an unchecked item is listed as the finished product instead of its ingredients, so the list never double-buys a component and its inputs. With all tiers checked it matches the raw ledger exactly.
+- The export has two modes: Total is the full from-scratch shopping list, while Remaining — the default when your characters' assets are linked — subtracts what you already own, including skipping the ingredients of any intermediate your hangars fully cover.
+
 ### v3.7.21.1 — 2026-07-09
 
 #### Added
