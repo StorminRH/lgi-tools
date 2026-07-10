@@ -6,6 +6,14 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.25.1 — 2026-07-10
+
+#### Changed
+- Market prices are now anchored to sell orders with real volume behind them. Previously a momentary one-unit lowball listing anywhere in the region could become an item's headline sell price — inflating the planner's revenue and margin, and at the same time making the Market Score read more optimistic, because the order-book depth measurement anchored to that same fake price. The cheapest sliver of each side of the book (under 0.1% of its volume) is now skipped before the best price is taken, on both the sell and buy sides. Healthy markets are unaffected, and prices refresh to the corrected values within a day.
+
+#### Added
+- The planner's Sell · Jita tile now carries a small data-quality badge when the product's lowest ask sits well below the volume-weighted front of its book, with the reason on hover: "Price anchored by a thin order." It covers what the volume filter can't judge — small markets, fallback price sources, and genuine dumping in progress — so a suspicious headline price is never presented without a warning.
+
 ### v3.7.24.1 — 2026-07-10
 
 #### Added
