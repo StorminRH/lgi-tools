@@ -1,14 +1,14 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { Pill } from '@/components/ui/pill';
 import { formatQuantity } from '@/lib/format/number';
 import { activityLabel } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
-import { CockpitKpis, type MarginMode } from './CockpitKpis';
+import { CockpitKpis } from './CockpitKpis';
 import { HeroCard } from './HeroCard';
+import { usePricing } from './PricingProvider';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
 // replaces the legacy hero + multi-view build plan. It lays the product economics
@@ -55,9 +55,10 @@ function PlannerHead({
 }
 
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
-  // Gross/Net is the user's preference, gated by an available net estimate. Lives
-  // here so the KPI margin tile reads one source of truth.
-  const [marginMode, setMarginMode] = useState<MarginMode>('net');
+  // Gross/Net is the user's preference, gated by an available net estimate.
+  // Provider-owned since 3.7.23.1 (template state); the KPI margin tile still
+  // reads the one source through these props.
+  const { marginMode, setMarginMode } = usePricing();
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
 
   return (

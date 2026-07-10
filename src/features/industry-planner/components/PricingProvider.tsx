@@ -22,11 +22,11 @@ import { useRefreshHistoryOnView } from '@/data/market-history/use-refresh-on-vi
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { computeMarketScore, type MarketScore } from '@/data/industry-math/market-score';
 import { useLoadingToast } from '@/components/ui/loading-toast';
-import { usePreference } from '@/components/PreferencesProvider';
+import { usePreference, usePreferencesReady } from '@/components/PreferencesProvider';
 import { resolveBuildCharacter, type BuildCharacter } from '@/components/run-as-state';
 import { useAccountCharacters } from '@/components/use-account-characters';
 import { apiFetch } from '@/lib/api-client';
-import { industryCostBasis, plannerBuildCharacter } from '@/lib/preferences';
+import { industryCostBasis, plannerBuildCharacter, plannerBuildLocation } from '@/lib/preferences';
 import {
   collectBlueprintTypeIds,
   collectRawTypeIds,
@@ -36,6 +36,15 @@ import {
 } from '../build-batch';
 import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
+import type { MarginMode } from '../cockpit-margin';
+import type { NetMode } from '../multibuy';
+import {
+  createBuildSystemApplier,
+  type ApplySystemResult,
+  type BuildSystemRef,
+} from '../build-system-apply';
+
+export type { ApplySystemResult, BuildSystemRef };
 import { computeBuildTimes, type BuildTimes } from '../build-time';
 import {
   availableStructuresEndpoint,
@@ -117,6 +126,7 @@ export interface SelectedReactionSystem {
   systemName: string;
   security: number | null;
 }
+
 
 interface PricingContextValue {
   pricing: BlueprintPricing | null;
@@ -253,6 +263,31 @@ interface PricingContextValue {
   // build plan stay batched regardless (only the KPI summary switches).
   costBasis: 'batched' | 'marginal';
   setCostBasis: (basis: 'batched' | 'marginal') => void;
+  // THE single build-system apply seam (3.7.23.1 — moved from the selector so
+  // ONE generation counter serializes every caller: the selector's submit, the
+  // lock/unlock transitions, the on-mount restore, and a template load; two
+  // independent counters would let a slow restore clobber a later apply).
+  // Fetches the system's live build data, seeds `location`, and (persist) saves
+  // the identifier to the planner.buildLocation preference.
+  applyBuildSystem: (sys: BuildSystemRef, opts: { persist: boolean }) => Promise<ApplySystemResult>;
+  // Clears the picked system AND the saved preference (the selector's Clear).
+  clearBuildLocation: () => void;
+  // The saved planner.buildLocation identifier — read by the selector's
+  // unlock-restore transition (leaving a locked structure returns to it).
+  savedBuildLocation: BuildSystemRef | null;
+  // Gross/Net margin view (lifted from CockpitPlanner, 3.7.23.1 — planner-
+  // configurable state lives on the provider so saved templates capture it).
+  // Net availability stays a render-time gate in the KPI tile.
+  marginMode: MarginMode;
+  setMarginMode: (mode: MarginMode) => void;
+  // The multibuy panel's scope (lifted from MultibuyPanel, 3.7.23.1): the net
+  // mode + the UNchecked tier depths (inverted — the default "build everything"
+  // is the empty set). The no-owned-stock fallback to Total stays a render-time
+  // derivation in the panel.
+  multibuyMode: NetMode;
+  setMultibuyMode: (mode: NetMode) => void;
+  multibuyUncheckedTiers: ReadonlySet<number>;
+  setMultibuyUncheckedTiers: (tiers: ReadonlySet<number>) => void;
 }
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -373,6 +408,21 @@ export function PricingProvider({
   // a saved Raw re-assembles after the seed lands (the owned-ME settle class —
   // the shared seed always carries the marginal default).
   const [costBasis, setCostBasis] = usePreference(industryCostBasis);
+  // The saved build-system identifier (planner.buildLocation) — provider-owned
+  // since 3.7.23.1 alongside applyBuildSystem below (one write seam, one
+  // restore). Only the id triple persists; live data is re-fetched on restore.
+  const [savedBuildLocation, setSavedBuildLocation] = usePreference(plannerBuildLocation);
+  const preferencesReady = usePreferencesReady();
+  // Gross/Net margin view + the multibuy panel's scope — lifted here (3.7.23.1)
+  // so every planner-configurable lives on the provider (the template rule).
+  const [marginMode, setMarginMode] = useState<MarginMode>('net');
+  const [multibuyMode, setMultibuyMode] = useState<NetMode>('Remaining');
+  const [multibuyUncheckedTiers, setMultibuyUncheckedTiersState] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const setMultibuyUncheckedTiers = useCallback((tiers: ReadonlySet<number>) => {
+    setMultibuyUncheckedTiersState(new Set(tiers));
+  }, []);
   const buildCharacters = useAccountCharacters();
   const { character: buildCharacter, pending: buildCharacterPending } = resolveBuildCharacter(
     rawBuildCharacterId,
@@ -574,6 +624,54 @@ export function PricingProvider({
     },
     [],
   );
+
+  // Load a system's live build data and seed the store (moved from the
+  // selector, 3.7.23.1). The generation/abort guard lives in the pure applier
+  // (build-system-apply.ts, tested there); every input here is stable, so ONE
+  // instance — one counter — serializes a manual pick, a lock deduce, the mount
+  // restore, and a template load (last-request-wins).
+  const applyBuildSystem = useMemo(
+    () =>
+      createBuildSystemApplier({
+        fetchLocation: async (systemId, signal) => {
+          const res = await apiFetch(buildLocationEndpoint, {
+            body: { systemId, blueprintId: structure.blueprintTypeId },
+            cache: 'no-store',
+            signal,
+          });
+          return res.ok ? res.data : null;
+        },
+        onApplied: (sys, data) =>
+          setLocation({
+            systemId: sys.systemId,
+            systemName: sys.systemName,
+            security: sys.security,
+            stations: data.stations,
+            costIndices: data.costIndices,
+            adjustedPrices: new Map(data.adjustedPrices.map((a) => [a.typeId, a.adjustedPrice])),
+          }),
+        onPersist: (sys) => setSavedBuildLocation(sys),
+      }),
+    [structure.blueprintTypeId, setLocation, setSavedBuildLocation],
+  );
+
+  // Clear the pick AND the saved preference — the selector's Clear affordance
+  // and a template's saved-null build system both land here.
+  const clearBuildLocation = useCallback(() => {
+    setLocation(null);
+    setSavedBuildLocation(null);
+  }, [setLocation, setSavedBuildLocation]);
+
+  // Restore the saved build system once the authoritative preference tier has
+  // settled: re-fetch its live data for THIS blueprint and seed the store. Runs
+  // once; skipped if something already picked (a manual pick — or a template
+  // apply — wins, and the generation guard covers the in-flight overlap).
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (!preferencesReady || restoredRef.current || location || !savedBuildLocation) return;
+    restoredRef.current = true;
+    void applyBuildSystem(savedBuildLocation, { persist: false });
+  }, [preferencesReady, savedBuildLocation, location, applyBuildSystem]);
 
   // Manual ME / TE override setters (what-if) — `set` clamps (ME 0–10, TE 0–20),
   // `reset` drops the entry so the node tracks its owned value again.
@@ -926,6 +1024,15 @@ export function PricingProvider({
       buildTimes,
       costBasis,
       setCostBasis,
+      applyBuildSystem,
+      clearBuildLocation,
+      savedBuildLocation,
+      marginMode,
+      setMarginMode,
+      multibuyMode,
+      setMultibuyMode,
+      multibuyUncheckedTiers,
+      setMultibuyUncheckedTiers,
     }),
     [
       pricing,
@@ -971,6 +1078,13 @@ export function PricingProvider({
       buildTimes,
       costBasis,
       setCostBasis,
+      applyBuildSystem,
+      clearBuildLocation,
+      savedBuildLocation,
+      marginMode,
+      multibuyMode,
+      multibuyUncheckedTiers,
+      setMultibuyUncheckedTiers,
     ],
   );
 
