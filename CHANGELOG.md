@@ -6,6 +6,12 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.23.1 — 2026-07-10
+
+#### Added
+- The industry planner can now save build templates. A Templates panel in the page head saves the planner's entire configuration under a name — runs, build and reaction locations, station, build character, ME/TE overrides, cost basis, margin view, and multibuy scope — and lists every template you've saved with favorites pinned first. Templates can be renamed, favorited, and deleted (with a confirm step) right from the panel.
+- Loading a template takes you to its blueprint and restores the full saved configuration in one step. Anything that no longer resolves — a structure that's gone or no longer shared, a character that's been unlinked — simply falls away, and a single notice summarizes what didn't apply while everything else loads normally.
+
 ### v3.7.22.1 — 2026-07-09
 
 #### Added
