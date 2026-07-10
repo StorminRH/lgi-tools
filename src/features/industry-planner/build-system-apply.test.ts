@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  createBuildSystemApplier,
-  type BuildLocationData,
-  type BuildSystemRef,
-} from './build-system-apply';
+import { createBuildSystemApplier, type BuildSystemRef } from './build-system-apply';
+import type { BuildLocationData } from './types';
 
 const JITA: BuildSystemRef = { systemId: 30000142, systemName: 'Jita', security: 0.9 };
 const AMARR: BuildSystemRef = { systemId: 30002187, systemName: 'Amarr', security: 1.0 };

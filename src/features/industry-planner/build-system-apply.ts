@@ -1,4 +1,4 @@
-import type { IndustryStationView } from './types';
+import type { BuildLocationData } from './types';
 
 // The build-system apply machinery (3.7.23.1) — moved out of the selector so the
 // provider owns ONE instance whose generation counter serializes every caller:
@@ -14,13 +14,6 @@ export interface BuildSystemRef {
   systemId: number;
   systemName: string;
   security: number | null;
-}
-
-// The slice of the build-location response the apply seeds state from.
-export interface BuildLocationData {
-  stations: IndustryStationView[];
-  costIndices: { manufacturing: number | null; reaction: number | null };
-  adjustedPrices: { typeId: number; adjustedPrice: number }[];
 }
 
 // The apply's settled outcome: 'superseded' means a later apply took over (the

@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import type { ApiEndpoint } from '@/lib/api-client';
+import { planSnapshotWireSchema } from './template-snapshot';
 import type {
   AssetHolding,
   AvailableStructuresResponse,
@@ -241,4 +242,108 @@ export const availableStructuresEndpoint: ApiEndpoint<null, AvailableStructuresR
   path: '/api/account/structures',
   request: null,
   response: availableStructuresResponseSchema as unknown as z.ZodType<AvailableStructuresResponse>,
+};
+
+// ── Saved build templates (3.7.23.1) ──────────────────────────────────────
+// A named, versioned snapshot of the planner's complete configuration (inputs
+// only — see template-snapshot.ts). Mutating endpoints echo the caller's full
+// updated list (the custom-structures posture) so the client re-renders
+// without a refetch; the GET feeds the planner and follows the fail-open read
+// posture (anonymous ⇒ a typed empty list, never an error).
+
+export const MAX_SAVED_PLAN_NAME_LEN = 80;
+export const MAX_SAVED_PLANS_PER_USER = 50;
+// A generous ceiling for one serialized snapshot — inputs only; a fully
+// configured plan today is well under 2 KB.
+export const MAX_SAVED_PLAN_SNAPSHOT_BYTES = 16_384;
+
+const savedPlanId = z.string().min(1).max(100);
+const savedPlanName = z.string().trim().min(1).max(MAX_SAVED_PLAN_NAME_LEN);
+
+const savedPlanRowSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  favorite: z.boolean(),
+  blueprintTypeId: z.number(),
+  productTypeId: z.number(),
+  productName: z.string(),
+  snapshot: planSnapshotWireSchema,
+  // ISO timestamp — drives the list's favorite-first / recently-updated order.
+  updatedAt: z.string(),
+});
+export type SavedPlanRow = z.infer<typeof savedPlanRowSchema>;
+
+export const savedPlansResponseSchema = z.object({
+  plans: z.array(savedPlanRowSchema),
+});
+export type SavedPlansResponse = z.infer<typeof savedPlansResponseSchema>;
+
+// ── GET /api/account/saved-plans ──────────────────────────────────────────
+export const listSavedPlansEndpoint: ApiEndpoint<null, SavedPlansResponse> = {
+  method: 'GET',
+  path: '/api/account/saved-plans',
+  request: null,
+  response: savedPlansResponseSchema,
+};
+
+// ── POST /api/account/saved-plans ─────────────────────────────────────────
+// Save the current configuration under a name. The snapshot is validated
+// SHALLOWLY here (version tag + blueprint anchor + byte cap — see
+// template-snapshot.ts for why deep validation waits until load); the route
+// confirms the blueprint resolves and enforces the per-user cap.
+export const createSavedPlanRequestSchema = z.object({
+  name: savedPlanName,
+  snapshot: planSnapshotWireSchema.refine(
+    (snap) => JSON.stringify(snap).length <= MAX_SAVED_PLAN_SNAPSHOT_BYTES,
+    'snapshot too large',
+  ),
+});
+export type CreateSavedPlanRequest = z.input<typeof createSavedPlanRequestSchema>;
+
+export const createSavedPlanEndpoint: ApiEndpoint<CreateSavedPlanRequest, SavedPlansResponse> = {
+  method: 'POST',
+  path: '/api/account/saved-plans',
+  request: createSavedPlanRequestSchema,
+  response: savedPlansResponseSchema,
+};
+
+// ── POST /api/account/saved-plans/rename ──────────────────────────────────
+export const renameSavedPlanRequestSchema = z.object({
+  id: savedPlanId,
+  name: savedPlanName,
+});
+export type RenameSavedPlanRequest = z.input<typeof renameSavedPlanRequestSchema>;
+
+export const renameSavedPlanEndpoint: ApiEndpoint<RenameSavedPlanRequest, SavedPlansResponse> = {
+  method: 'POST',
+  path: '/api/account/saved-plans/rename',
+  request: renameSavedPlanRequestSchema,
+  response: savedPlansResponseSchema,
+};
+
+// ── POST /api/account/saved-plans/favorite ────────────────────────────────
+export const favoriteSavedPlanRequestSchema = z.object({
+  id: savedPlanId,
+  favorite: z.boolean(),
+});
+export type FavoriteSavedPlanRequest = z.input<typeof favoriteSavedPlanRequestSchema>;
+
+export const favoriteSavedPlanEndpoint: ApiEndpoint<FavoriteSavedPlanRequest, SavedPlansResponse> = {
+  method: 'POST',
+  path: '/api/account/saved-plans/favorite',
+  request: favoriteSavedPlanRequestSchema,
+  response: savedPlansResponseSchema,
+};
+
+// ── POST /api/account/saved-plans/delete ──────────────────────────────────
+export const deleteSavedPlanRequestSchema = z.object({
+  id: savedPlanId,
+});
+export type DeleteSavedPlanRequest = z.input<typeof deleteSavedPlanRequestSchema>;
+
+export const deleteSavedPlanEndpoint: ApiEndpoint<DeleteSavedPlanRequest, SavedPlansResponse> = {
+  method: 'POST',
+  path: '/api/account/saved-plans/delete',
+  request: deleteSavedPlanRequestSchema,
+  response: savedPlansResponseSchema,
 };

@@ -1,6 +1,6 @@
 import { boolean, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { user } from '@/features/auth/schema';
-import type { PlanSnapshotV1 } from './template-snapshot';
+import type { PlanSnapshotWire } from './template-snapshot';
 
 // Per-user SAVED BUILD TEMPLATES (3.7.23.1) — a named snapshot of the planner's
 // complete configuration (inputs only, versioned; see template-snapshot.ts).
@@ -25,7 +25,7 @@ export const savedPlans = pgTable('saved_plans', {
   blueprintTypeId: integer('blueprint_type_id').notNull(),
   productTypeId: integer('product_type_id').notNull(),
   productName: text('product_name').notNull(),
-  snapshot: jsonb('snapshot').$type<PlanSnapshotV1>().notNull(),
+  snapshot: jsonb('snapshot').$type<PlanSnapshotWire>().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

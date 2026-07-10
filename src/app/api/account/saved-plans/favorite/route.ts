@@ -1,0 +1,27 @@
+import type { NextRequest } from 'next/server';
+import { getCurrentUserId } from '@/features/auth/session';
+import {
+  favoriteSavedPlanRequestSchema,
+  type SavedPlansResponse,
+} from '@/features/industry-planner/api-contract';
+import {
+  listSavedPlans,
+  setSavedPlanFavorite,
+} from '@/features/industry-planner/saved-plans-queries';
+import { parseJsonBody } from '@/lib/route-body';
+
+// authz: auth
+// POST /api/account/saved-plans/favorite — star/unstar one of the caller's OWN
+// templates (ownership-scoped like delete; a foreign id is a no-op). Echoes
+// the full updated list.
+export async function POST(request: NextRequest): Promise<Response> {
+  const userId = await getCurrentUserId();
+  if (!userId) return new Response('Unauthorized', { status: 401 });
+
+  const parsed = await parseJsonBody(request, favoriteSavedPlanRequestSchema);
+  if (!parsed.ok) return parsed.response;
+
+  await setSavedPlanFavorite(userId, parsed.data.id, parsed.data.favorite);
+  const plans = await listSavedPlans(userId);
+  return Response.json({ plans } satisfies SavedPlansResponse);
+}
