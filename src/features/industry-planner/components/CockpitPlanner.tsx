@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { Pill } from '@/components/ui/pill';
 import { formatQuantity } from '@/lib/format/number';
 import { activityLabel } from '../industry-styles';
 import type { BlueprintStructure } from '../types';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
-import { CockpitKpis, type MarginMode } from './CockpitKpis';
+import { CockpitKpis } from './CockpitKpis';
 import { HeroCard } from './HeroCard';
+import { usePricing } from './PricingProvider';
+import { TemplatesMenu } from './TemplatesMenu';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
 // replaces the legacy hero + multi-view build plan. It lays the product economics
@@ -18,29 +19,35 @@ import { HeroCard } from './HeroCard';
 // file owns the page head and composes the sections below it.
 
 // The page head, ONE bottom-aligned line resting on the hero card: the
-// lgi://industry breadcrumb left, the item's name CENTERED (the card itself
-// carries no title), and the terse stat strip right — the product's category,
-// the job-type chip, and the per-run output chip. The 1fr/auto/1fr grid keeps
-// the name on the true page center regardless of the side content's widths;
-// on narrow viewports the three stack instead.
+// lgi://industry breadcrumb + the saved-templates popover left, the item's
+// name CENTERED (the card itself carries no title), and the terse stat strip
+// right — the product's category, the job-type chip, and the per-run output
+// chip. The 1fr/auto/1fr grid keeps the name on the true page center
+// regardless of the side content's widths; on narrow viewports the three
+// stack instead.
 function PlannerHead({
   name,
   group,
   activity,
   perRun,
+  blueprintTypeId,
 }: {
   name: string;
   group: string;
   activity: string;
   perRun: string;
+  blueprintTypeId: number;
 }) {
   return (
     <header className="grid grid-cols-1 items-end gap-x-6 gap-y-2 pt-[26px] pb-1 sm:grid-cols-[1fr_auto_1fr]">
-      <div className="justify-self-start font-mono text-caption tracking-[0.08em] text-muted">
-        <span className="text-isk">lgi://</span>
-        <Link href="/industry" className="hover:text-isk">
-          industry
-        </Link>
+      <div className="inline-flex items-baseline gap-5 justify-self-start font-mono text-caption tracking-[0.08em] text-muted">
+        <span>
+          <span className="text-isk">lgi://</span>
+          <Link href="/industry" className="hover:text-isk">
+            industry
+          </Link>
+        </span>
+        <TemplatesMenu blueprintTypeId={blueprintTypeId} productName={name} />
       </div>
       <h1 className="text-center font-display text-[25px] font-bold uppercase leading-none tracking-[0.01em] text-name">
         {name}
@@ -55,9 +62,10 @@ function PlannerHead({
 }
 
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
-  // Gross/Net is the user's preference, gated by an available net estimate. Lives
-  // here so the KPI margin tile reads one source of truth.
-  const [marginMode, setMarginMode] = useState<MarginMode>('net');
+  // Gross/Net is the user's preference, gated by an available net estimate.
+  // Provider-owned since 3.7.23.1 (template state); the KPI margin tile still
+  // reads the one source through these props.
+  const { marginMode, setMarginMode } = usePricing();
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
 
   return (
@@ -67,6 +75,7 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
         group={group}
         activity={activityLabel(structure.activityId)}
         perRun={formatQuantity(structure.product.quantityPerRun)}
+        blueprintTypeId={structure.blueprintTypeId}
       />
       <HeroCard structure={structure} />
       <CockpitKpis structure={structure} marginMode={marginMode} setMarginMode={setMarginMode} />

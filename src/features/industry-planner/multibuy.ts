@@ -5,6 +5,12 @@ import type { TreeNode } from '@/data/eve-data/tree-resolver';
 // string. Pure — the demand cascade lives in build-batch.ts
 // (computeMultibuyDemand); this module only shapes its result for the user.
 
+// The panel's net mode: Total = the full shopping list, owned stock ignored;
+// Remaining = the same minus what the linked characters own. Lives here (not
+// the panel) since 3.7.23.1 — the state moved onto PricingProvider so saved
+// templates can capture it.
+export type NetMode = 'Total' | 'Remaining';
+
 // Each BUILDABLE type's one home tier = its minimum occurrence depth (roots =
 // depth 1, matching the build plan's "Tier N" columns — the first column the
 // user sees the item in). The displayed tiers repeat a type at every depth it's

@@ -14,6 +14,7 @@ import {
 import { CockpitPlanner } from '@/features/industry-planner/components/CockpitPlanner';
 import { PricingProvider } from '@/features/industry-planner/components/PricingProvider';
 import { RecordRecentBlueprint } from '@/features/industry-planner/components/RecordRecentBlueprint';
+import { TemplateLoader } from '@/features/industry-planner/components/TemplateLoader';
 import {
   getBlueprintPricing,
   getBlueprintStructure,
@@ -108,6 +109,9 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
         historyPromise={historyPromise}
         initialBuildCharacterId={initialBuildCharacterId}
       >
+        {/* The ?plan= replay slot — inside the provider (it drives the public
+            setters) and under the page Suspense (it reads searchParams). */}
+        <TemplateLoader structure={structure} />
         <CockpitPlanner structure={structure} />
       </PricingProvider>
     </div>

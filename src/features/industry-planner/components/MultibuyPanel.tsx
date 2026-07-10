@@ -1,12 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverRow } from '@/components/ui/popover';
 import { Segmented } from '@/components/ui/segmented';
 import { toast } from '@/components/ui/toast';
 import { computeMultibuyDemand } from '../build-batch';
-import { assignBuildTiers, buildMultibuyText, multibuyEntries } from '../multibuy';
+import { assignBuildTiers, buildMultibuyText, multibuyEntries, type NetMode } from '../multibuy';
 import type { BlueprintStructure } from '../types';
 import { KpiHelp } from './kpi-tile';
 import { usePricing } from './PricingProvider';
@@ -20,18 +20,22 @@ import { usePricing } from './PricingProvider';
 // (ledgerMeOpts), so the list can never disagree with the build plan. Read-only:
 // nothing here feeds back into pricing, times, or the displayed materials.
 
-type NetMode = 'Total' | 'Remaining';
 const NET_MODES = ['Total', 'Remaining'] as const satisfies readonly NetMode[];
 
 export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) {
-  const { runs, ledgerMeOpts, ownedAssets } = usePricing();
-
-  // Remaining is the default for anyone with owned stock (effectiveMode falls
-  // back to Total when there is none — signed out, no scopes, or empty hangars).
-  const [mode, setMode] = useState<NetMode>('Remaining');
-  // Tiers the user has UNchecked (they'll buy those tiers' items) — inverted so
-  // the default "build everything" is the empty set with no sync effect.
-  const [uncheckedTiers, setUncheckedTiers] = useState<ReadonlySet<number>>(new Set());
+  // The panel's scope state (net mode + unchecked tiers) is provider-owned
+  // since 3.7.23.1 (template state); Remaining stays the default for anyone
+  // with owned stock (effectiveMode falls back to Total when there is none —
+  // signed out, no scopes, or empty hangars).
+  const {
+    runs,
+    ledgerMeOpts,
+    ownedAssets,
+    multibuyMode: mode,
+    setMultibuyMode: setMode,
+    multibuyUncheckedTiers: uncheckedTiers,
+    setMultibuyUncheckedTiers: setUncheckedTiers,
+  } = usePricing();
 
   // Remaining needs owned stock to net. The overlay settles to an EMPTY map for
   // a logged-out caller or one owning none of this plan's items (null = not
@@ -67,12 +71,10 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
   }, [structure, runs, ledgerMeOpts, tierOf, uncheckedTiers, effectiveMode, ownedAssets]);
 
   const toggleTier = (depth: number, build: boolean) => {
-    setUncheckedTiers((prev) => {
-      const next = new Set(prev);
-      if (build) next.delete(depth);
-      else next.add(depth);
-      return next;
-    });
+    const next = new Set(uncheckedTiers);
+    if (build) next.delete(depth);
+    else next.add(depth);
+    setUncheckedTiers(next);
   };
 
   const copy = () => {

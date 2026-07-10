@@ -1,14 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePreference, usePreferencesReady } from '@/components/PreferencesProvider';
+import { useCallback, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { toneTextClass } from '@/components/ui/tones';
-import { apiFetch } from '@/lib/api-client';
-import { plannerBuildLocation } from '@/lib/preferences';
-import { buildLocationEndpoint } from '../api-contract';
 import { formatStationName } from '../format-station-name';
 import type { StructureReadout as StructureReadoutBonus } from '../structure-factors';
 import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
@@ -147,82 +143,40 @@ function BuildFacilitySelect({
 // owner-set facility tax with the 0.25% NPC baseline assumed when unset), so an
 // NPC station pick never changes the numbers.
 
-export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) {
-  const { location, setLocation, station, setStation, availableStructures, selectedStructure, setSelectedStructure, buildStructureReadout } =
-    usePricing();
-  // The persisted build-system identifier (F4). Only the id/name/security is
-  // saved; the live stations/indices/prices are re-fetched on restore. NOT
-  // ssrReadable — there's no static value to render, so no cookie/flash concern.
-  const [savedLoc, setSavedLoc] = usePreference(plannerBuildLocation);
-  const ready = usePreferencesReady();
+export function BuildLocationSelector() {
+  const {
+    location,
+    setLocation,
+    station,
+    setStation,
+    availableStructures,
+    selectedStructure,
+    setSelectedStructure,
+    buildStructureReadout,
+    applyBuildSystem,
+    clearBuildLocation,
+    savedBuildLocation,
+  } = usePricing();
   const { systems, parse, suggest } = useSystemSearch();
   // Surfaced when a build-location fetch fails (non-OK or network) so a pick that
-  // can't load doesn't silently leave the picker empty. Aborted (superseded)
-  // fetches stay silent.
+  // can't load doesn't silently leave the picker empty. Superseded applies (a
+  // faster later pick) stay silent — only a real failure surfaces.
   const [fetchError, setFetchError] = useState(false);
 
-  // Generation guard + abort so a rapid system switch applies only the last pick.
-  const genRef = useRef(0);
-  const ctrlRef = useRef<AbortController | null>(null);
-
-  // Load a system's live build data and seed the store. Shared by a manual pick
-  // (persist: true → save the identifier) and the on-mount restore (silent: a
-  // restore miss stays gross-only instead of flashing an error; persist: false to
-  // skip a redundant write-back). The generation/abort guard means a fast manual
-  // pick supersedes an in-flight restore.
-  const applySystem = useCallback(
-    (
-      sys: { id: number; name: string; security: number | null },
-      opts: { silent: boolean; persist: boolean },
-    ) => {
-      const gen = ++genRef.current;
-      ctrlRef.current?.abort();
-      const ctrl = new AbortController();
-      ctrlRef.current = ctrl;
-      setFetchError(false);
-      void (async () => {
-        try {
-          const res = await apiFetch(buildLocationEndpoint, {
-            body: { systemId: sys.id, blueprintId },
-            cache: 'no-store',
-            signal: ctrl.signal,
-          });
-          if (gen !== genRef.current) return; // superseded by a later pick
-          if (!res.ok) {
-            if (!opts.silent) setFetchError(true);
-            return;
-          }
-          setLocation({
-            systemId: sys.id,
-            systemName: sys.name,
-            security: sys.security,
-            stations: res.data.stations,
-            costIndices: res.data.costIndices,
-            adjustedPrices: new Map(
-              res.data.adjustedPrices.map((a) => [a.typeId, a.adjustedPrice]),
-            ),
-          });
-          if (opts.persist) {
-            setSavedLoc({ systemId: sys.id, systemName: sys.name, security: sys.security });
-          }
-        } catch {
-          // A superseding pick aborts this controller — stay silent then; a real
-          // network failure surfaces the error (unless this is a silent restore).
-          if (!ctrl.signal.aborted && !opts.silent) setFetchError(true);
-        }
-      })();
-    },
-    [blueprintId, setLocation, setSavedLoc],
-  );
-
+  // The fetch + seed + persist machinery lives on the provider (applyBuildSystem,
+  // 3.7.23.1 — one generation counter across every caller); this component only
+  // decides persist semantics per transition and surfaces submit failures.
   const onSubmit = useCallback(
     ({ system }: SystemParams) => {
-      applySystem(
-        { id: system.id, name: system.name, security: system.security },
-        { silent: false, persist: true },
-      );
+      setFetchError(false);
+      void applyBuildSystem(
+        { systemId: system.id, systemName: system.name, security: system.security },
+        { persist: true },
+      ).then((outcome) => {
+        if (outcome.status === 'failed') setFetchError(true);
+      });
     },
-    [applySystem],
+    [applyBuildSystem],
   );
 
   // Structure selection (lifted from the facility select). A LOCKED structure
@@ -256,36 +210,23 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
             costIndices: { manufacturing: null, reaction: null },
             adjustedPrices: new Map(),
           });
-          applySystem({ id: sys.id, name: sys.name, security: sys.security }, { silent: true, persist: false });
+          void applyBuildSystem(
+            { systemId: sys.id, systemName: sys.name, security: sys.security },
+            { persist: false },
+          );
         }
         return;
       }
       if (wasLocked) {
-        if (savedLoc) {
-          applySystem(
-            { id: savedLoc.systemId, name: savedLoc.systemName, security: savedLoc.security },
-            { silent: true, persist: false },
-          );
+        if (savedBuildLocation) {
+          void applyBuildSystem(savedBuildLocation, { persist: false });
         } else {
           setLocation(null);
         }
       }
     },
-    [selectedStructure, systems, applySystem, setSelectedStructure, savedLoc, setLocation],
+    [selectedStructure, systems, applyBuildSystem, setSelectedStructure, savedBuildLocation, setLocation],
   );
-
-  // Restore a previously-picked build system once the authoritative tier has
-  // settled (`ready`): re-fetch its live data for THIS blueprint and seed the
-  // store. Runs once; skipped if the user already picked (a manual pick wins).
-  const restored = useRef(false);
-  useEffect(() => {
-    if (!ready || restored.current || location || !savedLoc) return;
-    restored.current = true;
-    applySystem(
-      { id: savedLoc.systemId, name: savedLoc.systemName, security: savedLoc.security },
-      { silent: true, persist: false },
-    );
-  }, [ready, savedLoc, location, applySystem]);
 
   // A selected LOCKED structure (corp or pinned custom) locks the build system
   // to its own (deduce-and-lock). Derived, not stored. The deduced system's
@@ -330,10 +271,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
         <SelectedSystemBox
           name={location.systemName}
           security={location.security}
-          onClear={() => {
-            setLocation(null);
-            setSavedLoc(null);
-          }}
+          onClear={clearBuildLocation}
         />
       ) : (
         <div className="w-[260px] max-w-full">
@@ -344,10 +282,7 @@ export function BuildLocationSelector({ blueprintId }: { blueprintId: number }) 
             suggest={suggest}
             errorMessage={() => 'No build system matches that name.'}
             onSubmit={onSubmit}
-            onClear={() => {
-              setLocation(null);
-              setSavedLoc(null);
-            }}
+            onClear={clearBuildLocation}
             errorLabel="System"
           />
           {fetchError && (

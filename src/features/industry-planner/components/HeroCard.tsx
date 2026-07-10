@@ -166,7 +166,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
           refinery does everything; adding a build structure takes over just
           the manufacturing nodes. */}
       <div className="flex flex-wrap gap-x-6 gap-y-3 sm:ml-auto">
-        <BuildLocationSelector blueprintId={structure.blueprintTypeId} />
+        <BuildLocationSelector />
         <ReactionStructureSelect />
       </div>
     </div>

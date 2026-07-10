@@ -45,6 +45,7 @@ export function Popover({
   tone = 'neutral',
   side = 'bottom',
   openOnHover = true,
+  onOpenChange,
   triggerClassName,
   className,
 }: {
@@ -61,6 +62,9 @@ export function Popover({
   // Opens on hover in addition to press/focus (the info-icon default). Set false
   // for a click-only popover.
   openOnHover?: boolean;
+  // Open-state observer (Base UI's own callback) — for consumers that refresh
+  // their panel data on open. The popover stays uncontrolled.
+  onOpenChange?: (open: boolean) => void;
   // Classes for the trigger button (the glyph/badge styling lives at the call
   // site, like the abstract-tone pattern across the UI primitives).
   triggerClassName?: string;
@@ -69,7 +73,7 @@ export function Popover({
 }) {
   return (
     // Non-modal: no scroll-lock or focus-trap for a lightweight info panel.
-    <Base.Root modal={false}>
+    <Base.Root modal={false} onOpenChange={onOpenChange}>
       {/* delay/closeDelay match the old instant-open / 90ms-close feel; the
           trigger is a native, focusable <button> that opens on hover, press,
           and keyboard. */}

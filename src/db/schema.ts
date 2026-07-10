@@ -12,6 +12,7 @@ export * from '../features/owned-blueprints/schema';
 export * from '../features/owned-assets/schema';
 export * from '../features/owned-structures/schema';
 export * from '../features/custom-structures/schema';
+export * from '../features/industry-planner/schema';
 export * from '../features/skill-queue/schema';
 export * from '../features/industry-jobs/schema';
 export * from '../data/telemetry/schema';
