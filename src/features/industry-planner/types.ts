@@ -2,7 +2,7 @@ import type { Tone } from '@/components/ui/tones';
 import type { SecurityClass } from '@/data/eve-data/security';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import type { AttrMap } from '@/data/eve-data/types';
-import type { DepthBand, PriceSource } from '@/data/market-prices/types';
+import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
 
 // One searchable blueprint: its own type ID, plus the type ID and name of the
 // item it builds (the product, so the search dropdown can show the product's
@@ -265,6 +265,10 @@ export interface BlueprintPricing {
     // doesn't bust the gross seed for blueprints with no depth — both are null.
     buyDepth: DepthBand[] | null;
     sellDepth: DepthBand[] | null;
+    // Best non-hub sell opportunity (3.7.26.1) — the Sell·Jita tile's
+    // opportunity callout. Null = none cleared the ingest gate; readers must
+    // also tolerate `undefined` (a seed cached before the field existed).
+    regionalDiscount: RegionalDiscount | null;
   };
   summary: {
     // Which cost basis inputCost/margin were computed on (the Raw|Item toggle,

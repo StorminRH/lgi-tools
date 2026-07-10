@@ -23,6 +23,53 @@ export interface SystemSearch {
   suggest: (input: string) => Promise<string[]>;
 }
 
+// The pure half of useSystemName (the Humble split): resolve an id against
+// a possibly-unloaded index. Exported for testing.
+export function systemNameFrom(
+  systems: SystemSearchEntry[] | null,
+  systemId: number | null,
+): string | null {
+  if (systemId === null || systems === null) return null;
+  return systems.find((s) => s.id === systemId)?.name ?? null;
+}
+
+// Resolve ONE system id to its display name via the same session-memoized
+// universe index the pickers load — shared zone for the same reason as the
+// search hook (multiple features read system names; features can't import
+// each other). Returns null until the index lands (or for an unknown id);
+// callers render nothing until then. On a planner page the build-location
+// picker has usually loaded the index already, so this resolves immediately.
+const SYSTEM_NAME_RETRY_MS = 15_000;
+
+export function useSystemName(systemId: number | null): string | null {
+  const [systems, setSystems] = useState<SystemSearchEntry[] | null>(() => getLoadedSystems());
+  // Bumped after a failed load to re-arm the effect — without it a single
+  // transient index-load failure would leave `systems` null (and the effect
+  // deps unchanged) for the rest of the mount, hiding a valid callout. The
+  // shared loader memoizes success and clears itself on failure, so each
+  // retry is a real attempt, and one that another consumer (a picker) has
+  // already healed resolves from the snapshot instantly.
+  const [attempt, setAttempt] = useState(0);
+  const wanted = systemId !== null && systems === null;
+  useEffect(() => {
+    if (!wanted) return;
+    let alive = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    loadSystems()
+      .then((s) => {
+        if (alive) setSystems(s);
+      })
+      .catch(() => {
+        if (alive) retry = setTimeout(() => setAttempt((a) => a + 1), SYSTEM_NAME_RETRY_MS);
+      });
+    return () => {
+      alive = false;
+      clearTimeout(retry);
+    };
+  }, [wanted, attempt]);
+  return systemNameFrom(systems, systemId);
+}
+
 export function useSystemSearch(): SystemSearch {
   // Seeded from the shared snapshot so a second mount (the reaction row, a
   // route revisit) reads the already-loaded index synchronously.

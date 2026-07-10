@@ -41,6 +41,7 @@ function price(typeId: number, source: MarketPrice['source']): MarketPrice {
     sellVolume: BigInt(2_000_000),
     buyDepth: [{ pct: 0.5, cumVolume: 1000 }],
     sellDepth: [{ pct: 0.5, cumVolume: 2000 }],
+    regionalDiscount: null,
     source,
     updatedAt: new Date('2026-05-27T11:00:00Z'),
     staleAfter: new Date('2026-05-28T11:00:00Z'),

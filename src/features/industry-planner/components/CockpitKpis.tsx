@@ -3,7 +3,8 @@
 import { cn } from '@/components/ui/cn';
 import { LivePrice } from '@/components/ui/live-price';
 import { PriceConfidence } from '@/components/ui/price-confidence';
-import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
+import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
+import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
 import { formatBuildDuration, type BuildTimes } from '../build-time';
@@ -12,7 +13,13 @@ import type { CostBasis } from '../cost-basis-view';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import { timeLeverRows } from '../time-lever-rows';
-import { deriveMarginFigures, marginToneClass, sellAnchorConfidence } from '../industry-styles';
+import {
+  deriveMarginFigures,
+  marginToneClass,
+  regionalDiscountCallout,
+  sellAnchorConfidence,
+  type RegionalDiscountCallout,
+} from '../industry-styles';
 import type { BlueprintStructure, NetMarginView } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
@@ -135,22 +142,58 @@ function InputCostTile() {
   );
 }
 
+// The Sell·Jita opportunity callout (3.7.26.1): a cheaper sell book exists
+// outside Jita 4-4 and cleared the ingest gate. Renders only once the shared
+// system index resolves the name (system only, never a station) — an
+// OPPORTUNITY affordance, green against the amber thin-order warning beside
+// it; the two say different things and can show together.
+function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }) {
+  const systemName = useSystemName(callout.systemId);
+  if (!systemName) return null;
+  // "an 8%/11%/18%/80–89% discount" — the only integers ≤100 spoken with a vowel.
+  const article =
+    callout.pct === 8 || callout.pct === 11 || callout.pct === 18 || (callout.pct >= 80 && callout.pct <= 89)
+      ? 'an'
+      : 'a';
+  return (
+    <Popover
+      label="Regional discount available"
+      trigger={`−${callout.pct}%`}
+      triggerClassName="inline-flex h-[15px] cursor-help items-center rounded-full border border-isk-dim bg-bg px-1.5 font-mono text-[9px] font-bold tabular-nums text-isk hover:border-isk"
+    >
+      <PopoverHeading>Regional discount</PopoverHeading>
+      <p className="max-w-[240px] font-body text-[12.5px] leading-snug text-muted">
+        Available at <span className="text-text">{systemName}</span> for {article}{' '}
+        <span className="text-isk">{callout.pct}%</span> discount —{' '}
+        {callout.units.toLocaleString('en-US')} units.
+      </p>
+    </Popover>
+  );
+}
+
 // The Sell·Jita tile (3.7.25.1): the revenue figure + the thin-order honesty
 // badge — when the product's lowest ask sits well under the volume-weighted
 // front of the book, the headline price is anchored by an order too small to
-// matter, and the badge says so. Self-contained on the pricing context (the
-// InputCostTile shape) so the KPI row stays a thin composition; the verdict
-// itself is the pure sellAnchorConfidence mapping.
+// matter, and the badge says so. Since 3.7.26.1 the price is the Jita 4-4
+// book and the opportunity callout rides beside the badge (both can render).
+// Self-contained on the pricing context (the InputCostTile shape) so the KPI
+// row stays a thin composition; the verdicts are the pure mappers.
 function SellTile() {
   const { pricing } = usePricing();
   const summary = pricing?.summary ?? null;
   const thinAnchor = pricing ? sellAnchorConfidence(pricing.product) : null;
+  const discount = pricing ? regionalDiscountCallout(pricing.product) : null;
   return (
     <SimpleTile
       label="Sell · Jita"
       right={
-        thinAnchor && (
-          <PriceConfidence level={thinAnchor.level} reasons={thinAnchor.reasons} />
+        (thinAnchor || discount) && (
+          <span className="flex items-center gap-2">
+            {discount && <RegionalDiscountBadge callout={discount} />}
+            {thinAnchor && (
+              <PriceConfidence level={thinAnchor.level} reasons={thinAnchor.reasons} />
+            )}
+          </span>
         )
       }
       value={<LivePrice value={summary ? formatIsk(summary.revenue) : '—'} />}

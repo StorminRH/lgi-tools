@@ -48,6 +48,9 @@ export function initialPriceMap(pricing: BlueprintPricing): Map<number, PriceLit
     sellVolume: null,
     buyDepth: pricing.product.buyDepth,
     sellDepth: pricing.product.sellDepth,
+    // `?? null`: a seed cached before the field existed reads as "no callout"
+    // (the #203 posture), never undefined-poisoning the reassembled product.
+    regionalDiscount: pricing.product.regionalDiscount ?? null,
     source: null,
     staleAfterMs: pricing.product.staleAfterMs,
   });

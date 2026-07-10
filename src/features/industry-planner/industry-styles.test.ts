@@ -4,6 +4,7 @@ import {
   aggregateConfidenceFromCounts,
   deriveMarginFigures,
   priceConfidence,
+  regionalDiscountCallout,
   sellAnchorConfidence,
   type ConfidenceInput,
 } from './industry-styles';
@@ -237,5 +238,36 @@ describe('sellAnchorConfidence', () => {
       level: 'medium',
       reasons: ['Price anchored by a thin order'],
     });
+  });
+});
+
+describe('regionalDiscountCallout', () => {
+  it('shapes a stored discount for display (rounded pct, ids intact)', () => {
+    expect(
+      regionalDiscountCallout({
+        regionalDiscount: { systemId: 30000143, price: 28_000, pct: 89.0196, units: 19 },
+      }),
+    ).toEqual({ systemId: 30000143, pct: 89, units: 19 });
+  });
+
+  it('is silent with no stored discount', () => {
+    expect(regionalDiscountCallout({ regionalDiscount: null })).toBeNull();
+  });
+
+  it('is silent on a payload cached before the field existed (undefined, the #203 posture)', () => {
+    expect(regionalDiscountCallout({})).toBeNull();
+    expect(regionalDiscountCallout({ regionalDiscount: undefined })).toBeNull();
+  });
+
+  it('is silent on a malformed or degenerate object rather than rendering NaN', () => {
+    expect(
+      regionalDiscountCallout({ regionalDiscount: { systemId: 30000143, pct: undefined, units: 19 } }),
+    ).toBeNull();
+    expect(
+      regionalDiscountCallout({ regionalDiscount: { systemId: 30000143, pct: NaN, units: 19 } }),
+    ).toBeNull();
+    expect(
+      regionalDiscountCallout({ regionalDiscount: { systemId: 30000143, pct: 50, units: 0 } }),
+    ).toBeNull();
   });
 });

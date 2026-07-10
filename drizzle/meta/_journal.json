@@ -288,6 +288,13 @@
       "when": 1783655339742,
       "tag": "0040_breezy_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1783710760048,
+      "tag": "0041_mixed_bishop",
+      "breakpoints": true
     }
   ]
 }

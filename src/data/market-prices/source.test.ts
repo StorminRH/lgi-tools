@@ -20,15 +20,27 @@ vi.mock('./source-fallback', () => ({
 import { esiFetch } from '@/lib/esi';
 import { fetchPricesFromFuzzwork } from './source-fallback';
 
+const JITA_44 = 60003760;
+const JITA_SYSTEM = 30000142;
+
 interface SyntheticOrder {
   type_id: number;
   is_buy_order: boolean;
   price: number;
   volume_remain: number;
+  // Location defaults to Jita 4-4 (filled in ordersResponse) so hub-book
+  // behavior is the fixture baseline and remote placement is opt-in.
+  location_id?: number;
+  system_id?: number;
 }
 
 function ordersResponse(orders: SyntheticOrder[], xPages = '1'): Response {
-  return new Response(JSON.stringify(orders), {
+  const filled = orders.map((o) => ({
+    location_id: JITA_44,
+    system_id: JITA_SYSTEM,
+    ...o,
+  }));
+  return new Response(JSON.stringify(filled), {
     status: 200,
     headers: { 'X-Pages': xPages },
   });
@@ -45,6 +57,7 @@ function fuzzworkRow(typeId: number): RawMarketPrice {
     sellVolume: BigInt(100),
     buyDepth: null,
     sellDepth: null,
+    regionalDiscount: null,
     source: 'fuzzwork',
   };
 }
@@ -579,7 +592,14 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
       // a string — it would trip Zod if the skim ever let it reach the parser).
       return new Response(
         JSON.stringify([
-          { type_id: 1001, is_buy_order: false, price: 200, volume_remain: 5 },
+          {
+            type_id: 1001,
+            is_buy_order: false,
+            price: 200,
+            volume_remain: 5,
+            location_id: JITA_44,
+            system_id: JITA_SYSTEM,
+          },
           { type_id: 9999, is_buy_order: true, price: 'not-a-number', volume_remain: 1 },
         ]),
         { status: 200, headers: { 'X-Pages': '2' } },
@@ -620,6 +640,104 @@ describe('fetchPricesFromSource — bulk path (≥ BULK_THRESHOLD types)', () =>
     expect(result).toHaveLength(ids.length);
     expect(result.every((r) => r.source === 'fuzzwork-fallback')).toBe(true);
     expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledWith(ids);
+  });
+});
+
+describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)', () => {
+  const NIYABAINEN_STATION = 60000004;
+  const NIYABAINEN_SYSTEM = 30000143;
+
+  it('prices from the Jita 4-4 book only and surfaces the remote book as a discount', async () => {
+    // The RLML class end-to-end: a real hub book at 255k and a 19-unit remote
+    // front at 28k. Pre-3.7.26.1 the stored best was 28k (region-scoped);
+    // now the headline is the hub and the remote front becomes the callout.
+    vi.mocked(esiFetch).mockResolvedValue(
+      ordersResponse([
+        { type_id: 42, is_buy_order: false, price: 255_000, volume_remain: 5_000 },
+        { type_id: 42, is_buy_order: true, price: 20_000, volume_remain: 100 },
+        {
+          type_id: 42, is_buy_order: false, price: 28_000, volume_remain: 19,
+          location_id: NIYABAINEN_STATION, system_id: NIYABAINEN_SYSTEM,
+        },
+      ]),
+    );
+
+    const { prices } = await fetchPricesFromSource([42]);
+    const row = prices[0];
+    expect(row.bestSell).toBe(255_000);
+    expect(row.sellVolume).toBe(BigInt(5_000)); // hub volume only
+    expect(row.bestBuy).toBe(20_000);
+    expect(row.regionalDiscount).toEqual({
+      systemId: NIYABAINEN_SYSTEM,
+      price: 28_000,
+      units: 19,
+      pct: expect.closeTo(89.02, 1),
+    });
+  });
+
+  it('drops remote BUY orders entirely — the ruled hub-station-only scope', async () => {
+    // A region-reaching remote bid above the hub bid must not become
+    // best_buy, dilute pct5_buy, or count toward buy volume.
+    vi.mocked(esiFetch).mockResolvedValue(
+      ordersResponse([
+        { type_id: 42, is_buy_order: true, price: 100, volume_remain: 50 },
+        {
+          type_id: 42, is_buy_order: true, price: 150, volume_remain: 1_000_000,
+          location_id: NIYABAINEN_STATION, system_id: NIYABAINEN_SYSTEM,
+        },
+      ]),
+    );
+
+    const { prices } = await fetchPricesFromSource([42]);
+    expect(prices[0].bestBuy).toBe(100);
+    expect(prices[0].buyVolume).toBe(BigInt(50));
+  });
+
+  it('never anchors a discount on a player structure', async () => {
+    vi.mocked(esiFetch).mockResolvedValue(
+      ordersResponse([
+        { type_id: 42, is_buy_order: false, price: 1_000, volume_remain: 500 },
+        {
+          type_id: 42, is_buy_order: false, price: 100, volume_remain: 5_000,
+          location_id: 1_035_466_617_946, system_id: NIYABAINEN_SYSTEM,
+        },
+      ]),
+    );
+
+    const { prices } = await fetchPricesFromSource([42]);
+    expect(prices[0].bestSell).toBe(1_000);
+    expect(prices[0].regionalDiscount).toBeNull();
+  });
+
+  it('stores null when no remote opportunity clears the gate — the byte-identical anchor', async () => {
+    // A hub-only book: the row must look exactly like a pre-callout row
+    // (regionalDiscount null), so no-opportunity products render unchanged.
+    vi.mocked(esiFetch).mockResolvedValue(
+      ordersResponse([
+        { type_id: 42, is_buy_order: false, price: 1_000, volume_remain: 500 },
+      ]),
+    );
+
+    const { prices } = await fetchPricesFromSource([42]);
+    expect(prices[0].regionalDiscount).toBeNull();
+  });
+
+  it('an item with only remote sell orders goes null-priced with no discount', async () => {
+    // The ruled consequence (sheet §3): no hub book → no hub price, and with
+    // nothing to measure a discount against, no callout either.
+    vi.mocked(esiFetch).mockResolvedValue(
+      ordersResponse([
+        {
+          type_id: 42, is_buy_order: false, price: 100, volume_remain: 5_000,
+          location_id: NIYABAINEN_STATION, system_id: NIYABAINEN_SYSTEM,
+        },
+      ]),
+    );
+
+    const { prices } = await fetchPricesFromSource([42]);
+    expect(prices[0].bestSell).toBeNull();
+    expect(prices[0].sellVolume).toBeNull();
+    expect(prices[0].regionalDiscount).toBeNull();
   });
 });
 

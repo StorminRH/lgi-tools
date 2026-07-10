@@ -48,6 +48,7 @@ const pricing = (over: {
     staleAfterMs: null,
     buyDepth: null,
     sellDepth: null,
+    regionalDiscount: null,
     ...over.product,
   },
   summary: {

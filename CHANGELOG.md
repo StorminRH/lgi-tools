@@ -6,6 +6,16 @@ infrastructure work is intentionally excluded.
 
 ## v3.7 — Security Improvements / Industry Planner Upgrade
 
+### v3.7.26.1 — 2026-07-10
+
+#### Changed
+- Every stored market price now describes the Jita 4-4 station order book instead of the whole Forge region. Region-wide snapshots let a cheap order a few jumps out become an item's headline price — one launcher showed 28,000 ISK while the real Jita ask was 255,000 — and no volume filter could fix that, because the misleading orders were real, just elsewhere. Prices, order-book volumes, and depth now all reflect the market players actually trade at, and refresh to the corrected values within a day.
+- Buy prices count only bids placed at Jita 4-4 itself. Reachability-based alternatives were measured and rejected: they let region-wide lowball bid walls drag prices down on hundreds of items, and the fallback price source scopes its station data the same way, so the two sources now agree.
+- Wormhole site ISK totals now read "what this pays at Jita 4-4" — an aggregate shift of about a tenth of a percent.
+
+#### Added
+- A regional-discount callout on the planner's Sell · Jita tile: when the same item sells meaningfully cheaper at another station in the region — at least 15% below the Jita price with at least 10 units of real volume behind it — a green badge shows the discount, and its popover names the solar system, the discount, and the available units. The region's genuine bargains stay visible without corrupting the headline price; a scattering of one-unit curiosities does not qualify.
+
 ### v3.7.25.1 — 2026-07-10
 
 #### Changed

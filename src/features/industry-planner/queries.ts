@@ -19,6 +19,7 @@ import {
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
 import { getAdjustedPrices, getSystemCostIndices } from '@/data/industry-indices/queries';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
+import { toPlainPriceFigures } from '@/data/market-prices/narrow';
 import { getPrices } from '@/data/market-prices/queries';
 import { dedupe } from '@/lib/array';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
@@ -257,14 +258,7 @@ export async function getBlueprintPricing(
       const p = priceMap.get(typeId);
       if (!p) return undefined;
       return {
-        bestBuy: p.bestBuy,
-        bestSell: p.bestSell,
-        pct5Buy: p.pct5Buy,
-        pct5Sell: p.pct5Sell,
-        buyVolume: p.buyVolume === null ? null : Number(p.buyVolume),
-        sellVolume: p.sellVolume === null ? null : Number(p.sellVolume),
-        buyDepth: p.buyDepth,
-        sellDepth: p.sellDepth,
+        ...toPlainPriceFigures(p),
         source: p.source,
         staleAfterMs: p.staleAfter.getTime(),
       };

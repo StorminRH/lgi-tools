@@ -221,6 +221,39 @@ export function sellAnchorConfidence(product: {
   return { level: 'medium', reasons: ['Price anchored by a thin order'] };
 }
 
+// The Sell·Jita opportunity callout's display verdict (3.7.26.1): the stored
+// regional discount, validated for render. The gate thresholds live at ingest
+// (constants.ts) — this only decides "is there a well-formed discount to
+// show" and shapes the display numbers. Distinct from the thin-order badge
+// above (different tone, different meaning — both can render at once).
+export interface RegionalDiscountCallout {
+  systemId: number;
+  pct: number; // whole percent, rounded for display
+  units: number;
+}
+
+// Loose guards on purpose (the #203 posture): a payload cached before the
+// field existed reaches here with regionalDiscount undefined, and a malformed
+// or partial object must read as "no callout", never render NaN.
+export function regionalDiscountCallout(product: {
+  regionalDiscount?: {
+    systemId?: number | null;
+    price?: number | null;
+    pct?: number | null;
+    units?: number | null;
+  } | null;
+}): RegionalDiscountCallout | null {
+  const d = product.regionalDiscount;
+  if (d == null) return null;
+  if (typeof d.systemId !== 'number' || typeof d.pct !== 'number' || typeof d.units !== 'number') {
+    return null;
+  }
+  if (!Number.isFinite(d.pct) || d.pct <= 0 || !Number.isFinite(d.units) || d.units <= 0) {
+    return null;
+  }
+  return { systemId: d.systemId, pct: Math.round(d.pct), units: d.units };
+}
+
 // The shortfall tallies behind an aggregate verdict. `total` is the row count
 // the share is taken over; `high` is the fully-trustworthy rows; the rest count
 // each shortfall independently (a row can be both stale and fallback).
