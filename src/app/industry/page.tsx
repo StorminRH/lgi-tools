@@ -73,7 +73,7 @@ function DashboardSkeleton() {
       {(
         [
           ['Recents', 'panel'],
-          ['Saved builds', 'panel'],
+          ['Templates', 'panel'],
           ['Active jobs', 'loading'],
           ['Corporation industry jobs', 'loading'],
         ] as const
@@ -96,7 +96,7 @@ function DashboardSkeleton() {
 // Static shell — header and typed hint prerender, plus the section-grid
 // skeleton as the <Suspense> fallback. The session + linked-character read is
 // ONE request-time hole feeding the client section grid (IndustryDashboardGrid),
-// which owns recents (localStorage), saved builds (/api/account/saved-plans),
+// which owns recents (localStorage), templates (/api/account/saved-plans),
 // and the personal + corp job boards (the existing Neon stale-gated on-view
 // reads) — and ranks populated sections above empty ones.
 export default function IndustryDashboardPage() {

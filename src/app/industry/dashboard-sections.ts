@@ -43,7 +43,7 @@ export function recentsStatus(recent: readonly unknown[] | null): SectionStatus 
   return recent.length > 0 ? 'populated' : 'empty';
 }
 
-// Saved builds settle from /api/account/saved-plans: an anonymous viewer gets
+// Templates settle from /api/account/saved-plans: an anonymous viewer gets
 // {plans: []} (empty → the sunk header carries the sign-in hint), and a failed
 // read sinks with the error line rather than holding a spinner slot open.
 export function savedStatus(

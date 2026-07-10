@@ -104,14 +104,14 @@ export function IndustryDashboardGrid({
       hint: 'No blueprints viewed yet — search above and open one to start your history.',
     },
     saved: {
-      label: 'Saved builds',
+      label: 'Templates',
       meta:
         overflow > 0 ? (
           <Link
-            href="/industry/saved"
+            href="/industry/templates"
             className="font-mono text-[10px] tracking-[0.04em] text-muted no-underline transition-colors hover:text-name"
           >
-            → all saved builds ({(plans ?? []).length})
+            → all templates ({(plans ?? []).length})
           </Link>
         ) : undefined,
       body: (

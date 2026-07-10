@@ -2,7 +2,7 @@
 
 // The shared saved-plans list state (3.7.24) — one fetch + mutation surface
 // for every saved-templates consumer (the planner's TemplatesMenu popover, the
-// /industry dashboard's Saved section, the /industry/saved manager page).
+// /industry dashboard's Saved section, the /industry/templates manager page).
 // Every mutating endpoint echoes the full updated list in the server's order
 // (favorites first, then most recently updated), so consumers re-render from
 // the echo without a refetch and never re-sort. Transient row UI (which row is

@@ -54,12 +54,12 @@ describe('savedEmptyLine', () => {
   });
   it('prompts sign-in for the settled anonymous viewer', () => {
     expect(savedEmptyLine({ listFailed: false, signedOut: true })).toBe(
-      'Sign in to save builds from the planner',
+      'Sign in to save build templates',
     );
   });
   it('hints where saving lives for a signed-in empty list', () => {
     expect(savedEmptyLine({ listFailed: false, signedOut: false })).toBe(
-      'No saved builds yet — save one from the planner',
+      'No saved templates yet — save one from the planner',
     );
   });
 });

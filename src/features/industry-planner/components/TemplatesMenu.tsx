@@ -21,7 +21,7 @@ import { SavedPlanRowItem, savedPlanInputClass } from './SavedPlanRowItem';
 // first, the server's order); loading navigates to the template's own planner
 // page with ?plan=, where TemplateLoader replays it. The list state + row
 // mutations live in the shared useSavedPlans hook (3.7.24 — shared with the
-// dashboard's Saved section and /industry/saved); every mutating endpoint
+// dashboard's Templates section and /industry/templates); every mutating endpoint
 // echoes the full updated list, so the panel re-renders without a refetch.
 
 export function TemplatesMenu({

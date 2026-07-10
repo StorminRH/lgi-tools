@@ -1,5 +1,5 @@
-// View logic for the saved-builds surfaces (3.7.24): the dashboard section's
-// tile cut and the empty-state copy shared with the full /industry/saved page.
+// View logic for the template surfaces (3.7.24): the dashboard section's tile
+// cut and the empty-state copy shared with the full /industry/templates page.
 // The list arrives SERVER-ordered (favorites first, then most recently
 // updated) — consumers never re-sort, so the cut here is a plain slice.
 import type { SavedPlanRow } from './api-contract';
@@ -18,8 +18,8 @@ export function savedTiles(
 // until it settles).
 export function savedEmptyLine(args: { listFailed: boolean; signedOut: boolean }): string {
   if (args.listFailed) return "Couldn't load your saved templates";
-  if (args.signedOut) return 'Sign in to save builds from the planner';
-  return 'No saved builds yet — save one from the planner';
+  if (args.signedOut) return 'Sign in to save build templates';
+  return 'No saved templates yet — save one from the planner';
 }
 
 // The mutation-echo decision (every saved-plans endpoint echoes the full

@@ -1,6 +1,6 @@
 'use client';
 
-// The /industry/saved manager island (3.7.24): every saved build template with
+// The /industry/templates manager island (3.7.24): every saved build template with
 // load / rename / favorite / two-step delete, over the same shared hook + row
 // the planner popover uses (one CRUD path — the existing endpoints; every
 // mutation applies the server's echoed, favorites-first list). Load navigates
