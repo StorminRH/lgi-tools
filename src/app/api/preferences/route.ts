@@ -6,6 +6,7 @@ import {
 import { getPreferencesForUser, upsertPreference } from '@/data/preferences/queries';
 import { getCurrentUserId } from '@/features/auth/session';
 import { validatePreferenceValue } from '@/lib/preferences';
+import { parseJsonBody } from '@/lib/route-body';
 
 // Both handlers are scoped to the authenticated caller's own user rows; an
 // anonymous GET returns an empty set (the client falls back to localStorage) and
@@ -31,21 +32,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) return new Response('Unauthorized', { status: 401 });
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = putPreferenceRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const firstIssue = parsed.error.issues[0];
-    const detail = firstIssue
-      ? `${firstIssue.path.join('.') || 'body'}: ${firstIssue.message}`
-      : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request, putPreferenceRequestSchema);
+  if (!parsed.ok) return parsed.response;
 
   if (!validatePreferenceValue(parsed.data.key, parsed.data.value)) {
     return new Response('invalid value for key', { status: 400 });

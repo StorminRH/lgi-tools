@@ -13,6 +13,7 @@ import { auth } from '@/features/auth/auth';
 import { accountBelongsToUser } from '@/features/auth/queries';
 import { readEnv } from '@/lib/env';
 import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/lib/esi';
+import { parseJsonBody } from '@/lib/route-body';
 import {
   DEV_ESI_ENDPOINTS,
   devEsiReadRequestSchema,
@@ -32,19 +33,8 @@ export async function POST(req: Request): Promise<Response> {
     return new Response('Forbidden', { status: 403 });
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = devEsiReadRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, devEsiReadRequestSchema);
+  if (!parsed.ok) return parsed.response;
   const { characterId, endpoint, ifNoneMatch } = parsed.data;
 
   if (!(await accountBelongsToUser(session.user.id, characterId))) {

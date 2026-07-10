@@ -9,41 +9,21 @@
 // bearer-authenticated service.
 // authz: service
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
-import { connection } from 'next/server';
 import {
   eveTokenRequestSchema,
   type EveTokenErrorResponse,
   type EveTokenOkResponse,
 } from '@/features/auth/api-contract';
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
-import { readEnv } from '@/lib/env';
-import { bearerMatches } from '@/lib/service-auth';
+import { parseJsonBody } from '@/lib/route-body';
+import { requireServiceAuth } from '@/lib/service-auth';
 
 export async function POST(req: Request): Promise<Response> {
-  // Reads a secret + the DB per request — defer past prerender (Cache Components).
-  await connection();
+  const denied = await requireServiceAuth(req);
+  if (denied) return denied;
 
-  const secret = readEnv('CONVEX_SERVICE_SECRET');
-  if (!secret) {
-    return new Response('CONVEX_SERVICE_SECRET not configured', { status: 500 });
-  }
-  if (!bearerMatches(req.headers.get('authorization'), secret)) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = eveTokenRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, eveTokenRequestSchema);
+  if (!parsed.ok) return parsed.response;
 
   const result = await getFreshAccessTokenForCharacter(parsed.data.characterId);
   switch (result.kind) {

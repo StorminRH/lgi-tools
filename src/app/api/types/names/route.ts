@@ -9,21 +9,11 @@ import {
   type TypeNamesResponse,
 } from '@/data/eve-data/api-contract';
 import { getTypeNames } from '@/data/eve-data/queries';
+import { parseJsonBody } from '@/lib/route-body';
 
 export async function POST(req: Request): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = typeNamesRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, typeNamesRequestSchema);
+  if (!parsed.ok) return parsed.response;
 
   const names = await getTypeNames(parsed.data.typeIds);
   return Response.json({
