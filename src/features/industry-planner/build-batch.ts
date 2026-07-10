@@ -374,6 +374,97 @@ function meFactor(me: number): number {
 // theirs, …) to line up with `chainLevelsFrom`, so the build plan reads each lit
 // tier's actuals by `relativeDepth = tier.depth − focus.depth`. The focus itself
 // (relative depth 0) is omitted — it keeps showing its whole-run batch.
+// --- Multibuy export cascade (3.7.22.1) ----------------------------------
+//
+// The shopping list behind the planner's multibuy export: what to BUY so the
+// player can build the chain, given which buildables they intend to build
+// themselves (`buildSet`) and, optionally, what they already own (`ownedOf` —
+// the "use what I have" transform the header note anticipates). Same
+// aggregate-then-ceil topological walk as `computeBatchLedgerWithMe`; the only
+// differences are where a unit of demand TERMINATES (a buildable outside
+// `buildSet` is bought at its net demand instead of expanded into inputs) and
+// the owned-subtraction before each ceil. Net by construction: every unit of
+// demand ends exactly once — at a bought buildable or a raw — so the list can
+// never contain both an intermediate and its inputs for the same demand, and a
+// type consumed at several depths aggregates in its single demand entry.
+
+export interface MultibuyOptions {
+  // Buildable typeIds the player will BUILD; any buildable not in the set is
+  // bought at its net demand and its inputs are never demanded.
+  buildSet: Set<number>;
+  // Remaining mode: on-hand stock netted out before each ceil, so an owned
+  // intermediate reduces its run count and therefore its inputs' demand.
+  // Omitted = Total (build-from-scratch minimum).
+  ownedOf?: (typeId: number) => number;
+}
+
+// Seed the roots' demand — the top blueprint's ME (and its structure factor)
+// reduces the root nodes. Mirrors computeBatchLedgerWithMe's seed exactly
+// (extracted so the cascade stays under the complexity caps).
+function seedTopDemand(
+  tree: TreeNode[],
+  requestedRuns: number,
+  meOpts: MeOptions,
+  addDemand: (typeId: number, qty: number) => void,
+): void {
+  const structureFactorOf = meOpts.structureMeFactorOf ?? (() => 1);
+  const topMe = meOpts.meOf(meOpts.topBlueprintTypeId) ?? 0;
+  for (const node of tree)
+    addDemand(
+      node.typeId,
+      meAdjust(node.quantity, requestedRuns, topMe, structureFactorOf(meOpts.topBlueprintTypeId)),
+    );
+}
+
+// One built type's expansion: whole runs from its NET demand, then the same
+// ME-reduced per-input draw as computeBatchLedgerWithMe.
+function expandBuild(
+  recipe: Recipe,
+  net: number,
+  meOpts: MeOptions,
+  addDemand: (typeId: number, qty: number) => void,
+): void {
+  const runs = recipe.batch > 0 ? Math.ceil(net / recipe.batch) : 0;
+  const me = meOpts.meOf(recipe.blueprintTypeId) ?? 0;
+  const structureMult = (meOpts.structureMeFactorOf ?? (() => 1))(recipe.blueprintTypeId);
+  for (const input of recipe.inputs)
+    addDemand(input.typeId, meAdjust(input.qty, runs, me, structureMult));
+}
+
+// typeId → integer quantity to buy (bought intermediates + the raw frontier).
+export function computeMultibuyDemand(
+  tree: TreeNode[],
+  requestedRuns: number,
+  meOpts: MeOptions,
+  opts: MultibuyOptions,
+): Map<number, number> {
+  const recipes = flattenRecipes(tree);
+  const { demand, raws, addDemand, ordered } = topologicalDemand(recipes);
+  const ownedOf = opts.ownedOf ?? (() => 0);
+  seedTopDemand(tree, requestedRuns, meOpts, addDemand);
+
+  const buy = new Map<number, number>();
+  for (const typeId of ordered) {
+    // Owned stock covers demand before any runs are derived; net ≤ 0 means
+    // nothing to build OR buy, and no demand reaches this type's inputs.
+    const net = Math.max(0, (demand.get(typeId) ?? 0) - ownedOf(typeId));
+    if (net <= 0) continue;
+    if (!opts.buildSet.has(typeId)) {
+      // Bought: the cascade terminates here — its inputs are never demanded.
+      buy.set(typeId, net);
+      continue;
+    }
+    expandBuild(recipes.get(typeId)!, net, meOpts, addDemand);
+  }
+
+  // Raws net owned stock at buy time (clamped at 0; covered lines drop out).
+  for (const [typeId, qty] of raws) {
+    const net = Math.max(0, qty - ownedOf(typeId));
+    if (net > 0) buy.set(typeId, net);
+  }
+  return buy;
+}
+
 export function chainActualsFrom(
   tree: TreeNode[],
   focusTypeId: number,

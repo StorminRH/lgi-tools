@@ -14,7 +14,8 @@ export type SegmentedTone = Extract<Tone, 'green'>;
 // Abstract tone → active-segment token classes, the menu.tsx single-tone cva
 // pattern; add a richer tone when a real second consumer needs one.
 const segment = cva(
-  'font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 transition-colors',
+  'font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ' +
+    'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted',
   {
     variants: {
       tone: {
@@ -36,6 +37,7 @@ export function Segmented({
   onChange,
   label,
   tone = 'green',
+  disabledOptions,
   className,
 }: {
   options: readonly string[];
@@ -45,6 +47,9 @@ export function Segmented({
   // is being chosen (the house rule — a control is never unnamed).
   label: string;
   tone?: SegmentedTone;
+  // Segments rendered but not choosable (e.g. a mode needing data the viewer
+  // doesn't have) — discoverable, just disabled.
+  disabledOptions?: readonly string[];
   className?: string;
 }) {
   return (
@@ -58,6 +63,7 @@ export function Segmented({
           key={option}
           type="button"
           aria-pressed={value === option}
+          disabled={disabledOptions?.includes(option)}
           onClick={() => onChange(option)}
           className={segment({ tone, active: value === option })}
         >

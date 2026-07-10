@@ -1,0 +1,165 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverRow } from '@/components/ui/popover';
+import { Segmented } from '@/components/ui/segmented';
+import { toast } from '@/components/ui/toast';
+import { computeMultibuyDemand } from '../build-batch';
+import { assignBuildTiers, buildMultibuyText, multibuyEntries } from '../multibuy';
+import type { BlueprintStructure } from '../types';
+import { KpiHelp } from './kpi-tile';
+import { usePricing } from './PricingProvider';
+
+// The multibuy export (3.7.22.1): a click-popover panel in the build-plan header
+// that copies the in-game Multibuy shopping string. One Net toggle — Total (build
+// the checked chain from scratch, owned stock ignored) | Remaining (the same
+// minus owned) — plus per-tier scope checkboxes over the min-depth tier cut
+// (assignBuildTiers). Always net: both modes run the same cascade
+// (computeMultibuyDemand), fed the EXACT ME inputs of the shared ledger
+// (ledgerMeOpts), so the list can never disagree with the build plan. Read-only:
+// nothing here feeds back into pricing, times, or the displayed materials.
+
+type NetMode = 'Total' | 'Remaining';
+const NET_MODES = ['Total', 'Remaining'] as const satisfies readonly NetMode[];
+
+export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) {
+  const { runs, ledgerMeOpts, ownedAssets } = usePricing();
+
+  // Remaining is the default for anyone with owned stock (effectiveMode falls
+  // back to Total when there is none — signed out, no scopes, or empty hangars).
+  const [mode, setMode] = useState<NetMode>('Remaining');
+  // Tiers the user has UNchecked (they'll buy those tiers' items) — inverted so
+  // the default "build everything" is the empty set with no sync effect.
+  const [uncheckedTiers, setUncheckedTiers] = useState<ReadonlySet<number>>(new Set());
+
+  // Remaining needs owned stock to net. The overlay settles to an EMPTY map for
+  // a logged-out caller or one owning none of this plan's items (null = not
+  // settled yet) — in every no-stock case Remaining would equal Total, so it's
+  // disabled with a hint rather than offered as a distinction without one.
+  const remainingAvailable = (ownedAssets?.size ?? 0) > 0;
+  const effectiveMode: NetMode = remainingAvailable ? mode : 'Total';
+
+  // Every buildable's home tier (min occurrence depth) and the checkbox rows:
+  // one per tier that owns at least one buildable, with its type count.
+  const tierOf = useMemo(() => assignBuildTiers(structure.tree), [structure.tree]);
+  const tierRows = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const depth of tierOf.values()) counts.set(depth, (counts.get(depth) ?? 0) + 1);
+    return [...counts].sort(([a], [b]) => a - b);
+  }, [tierOf]);
+
+  const entries = useMemo(() => {
+    const buildSet = new Set<number>();
+    for (const [typeId, depth] of tierOf) if (!uncheckedTiers.has(depth)) buildSet.add(typeId);
+    const buy = computeMultibuyDemand(structure.tree, runs, ledgerMeOpts, {
+      buildSet,
+      ownedOf:
+        effectiveMode === 'Remaining' && ownedAssets
+          ? (typeId) => ownedAssets.get(typeId)?.ownedQty ?? 0
+          : undefined,
+    });
+    return multibuyEntries(
+      buy,
+      (typeId) => structure.materialNames[typeId] ?? `Type ${typeId}`,
+      (typeId) => tierOf.get(typeId),
+    );
+  }, [structure, runs, ledgerMeOpts, tierOf, uncheckedTiers, effectiveMode, ownedAssets]);
+
+  const toggleTier = (depth: number, build: boolean) => {
+    setUncheckedTiers((prev) => {
+      const next = new Set(prev);
+      if (build) next.delete(depth);
+      else next.add(depth);
+      return next;
+    });
+  };
+
+  const copy = () => {
+    const text = buildMultibuyText(entries);
+    if (!navigator.clipboard) {
+      toast.error('Clipboard unavailable — copy needs a secure (https) context');
+      return;
+    }
+    navigator.clipboard.writeText(text).then(
+      () => toast(`Copied ${entries.length} item${entries.length === 1 ? '' : 's'} to clipboard`),
+      () => toast.error('Copy failed — check the browser clipboard permission'),
+    );
+  };
+
+  return (
+    <Popover
+      label="Multibuy export"
+      openOnHover={false}
+      className="w-[320px]"
+      triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
+      trigger={
+        <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+          <span className="tracking-normal text-isk">{'//'}</span>
+          Multibuy
+          <span className="inline-block text-[10px] text-muted">▾</span>
+        </span>
+      }
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.16em] text-isk">
+          Multibuy export
+        </span>
+        <KpiHelp label="What the multibuy export copies">
+          <p className="font-body text-[12.5px] leading-snug text-muted">
+            Check the tiers you&rsquo;ll build yourself.
+          </p>
+          <PopoverRow label="Total">
+            the full shopping list, owned stock ignored
+          </PopoverRow>
+          <PopoverRow label="Remaining">
+            the same list minus what your linked characters already own
+          </PopoverRow>
+        </KpiHelp>
+      </div>
+
+      <Segmented
+        options={NET_MODES}
+        value={effectiveMode}
+        onChange={(next) => setMode(next as NetMode)}
+        label="Net mode"
+        disabledOptions={remainingAvailable ? undefined : ['Remaining']}
+      />
+      {!remainingAvailable && (
+        <p className="text-[10.5px] leading-snug text-muted">
+          No owned stock found for this plan — sign in with linked assets to use Remaining.
+        </p>
+      )}
+
+      <div className="flex flex-col gap-1.5">
+        {tierRows.map(([depth, count]) => (
+          <label key={depth} className="flex cursor-pointer items-center gap-2">
+            <Checkbox
+              checked={!uncheckedTiers.has(depth)}
+              onCheckedChange={(build) => toggleTier(depth, build)}
+              label={`Build tier ${depth}`}
+            />
+            <span className="font-mono text-[11px] text-text">Tier {depth}</span>
+            <span className="font-mono text-[10px] text-faint">
+              · {count} {count === 1 ? 'type' : 'types'}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={copy}
+          disabled={entries.length === 0}
+          className="rounded-[3px] border border-isk-dim bg-pill-green-bg px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-isk transition-colors hover:border-isk disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Copy
+        </button>
+        <span className="font-mono text-[10px] tabular-nums text-muted">
+          {entries.length} {entries.length === 1 ? 'item' : 'items'} · {effectiveMode}
+        </span>
+      </div>
+    </Popover>
+  );
+}
