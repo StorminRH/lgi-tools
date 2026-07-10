@@ -5,6 +5,7 @@ import {
   applyTemplate,
   captureTemplate,
   PREF_CLASSIFICATION,
+  SETTER_CLASSIFICATION,
   TEMPLATE_FIELD_KEYS,
   type ApplyCtx,
   type TemplateStructureView,
@@ -431,6 +432,22 @@ describe('applyTemplate per-field fail-open degrades', () => {
 describe('classification gates', () => {
   it('the manifest and the snapshot shape agree on the field set (both ways)', () => {
     expect([...TEMPLATE_FIELD_KEYS].sort()).toEqual(Object.keys(snapshotFieldSchemas).sort());
+  });
+
+  it('every snapshot-classified setter names a real manifest field (the runtime mirror of the tsc pin)', () => {
+    const fieldKeys = new Set<string>(TEMPLATE_FIELD_KEYS);
+    // Widened: today every mutator happens to classify as a field key, and the
+    // narrowed literal union would make the exemption comparisons a tsc error.
+    const classifications = Object.entries(SETTER_CLASSIFICATION) as [string, string][];
+    const bad = classifications.filter(
+      ([, cls]) => cls !== 'derived-or-account' && cls !== 'exempt' && !fieldKeys.has(cls),
+    );
+    expect(bad).toEqual([]);
+    // Every manifest field has at least one setter feeding it — a field no
+    // mutator can reach could never restore.
+    const reachable = new Set(classifications.map(([, cls]) => cls));
+    const unreachable = TEMPLATE_FIELD_KEYS.filter((k) => !reachable.has(k));
+    expect(unreachable).toEqual([]);
   });
 
   it('every planner-scoped preference key is classified (template field or conscious exemption)', () => {
