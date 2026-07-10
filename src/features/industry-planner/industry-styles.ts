@@ -208,11 +208,15 @@ const THIN_SELL_ANCHOR_RATIO = 0.9;
 // source-agnostic, so a Fuzzwork-fallback row (raw book bottom, no order book
 // to dust-filter) and a stale pre-hardening row fire the same way.
 export function sellAnchorConfidence(product: {
-  bestSell: number | null;
-  pct5Sell: number | null;
+  bestSell: number | null | undefined;
+  pct5Sell: number | null | undefined;
 }): RowConfidence | null {
   const { bestSell, pct5Sell } = product;
-  if (bestSell === null || pct5Sell === null || pct5Sell <= 0) return null;
+  // Loose null checks on purpose: a pricing payload cached before this field
+  // existed reaches here with pct5Sell undefined, and that must read as "no
+  // reference" (no badge) — a strict null check would let undefined through
+  // to a NaN ratio, which fails the >= comparison and falsely fires.
+  if (bestSell == null || pct5Sell == null || pct5Sell <= 0) return null;
   if (bestSell / pct5Sell >= THIN_SELL_ANCHOR_RATIO) return null;
   return { level: 'medium', reasons: ['Price anchored by a thin order'] };
 }

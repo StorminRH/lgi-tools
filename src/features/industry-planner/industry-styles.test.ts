@@ -223,6 +223,10 @@ describe('sellAnchorConfidence', () => {
     expect(sellAnchorConfidence({ bestSell: null, pct5Sell: 100 })).toBeNull();
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: null })).toBeNull();
     expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: 0 })).toBeNull();
+    // A payload cached before the field existed carries undefined, not null —
+    // it must read as "no reference", never as a firing NaN ratio.
+    expect(sellAnchorConfidence({ bestSell: 89, pct5Sell: undefined })).toBeNull();
+    expect(sellAnchorConfidence({ bestSell: undefined, pct5Sell: 100 })).toBeNull();
   });
 
   it('fires on the ratio alone — a Fuzzwork-fallback-shaped row is judged the same way', () => {
