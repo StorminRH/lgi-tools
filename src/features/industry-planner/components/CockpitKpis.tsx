@@ -7,6 +7,7 @@ import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
 import { formatBuildDuration, type BuildTimes } from '../build-time';
 import { selectNet, type MarginMode } from '../cockpit-margin';
+import type { CostBasis } from '../cost-basis-view';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import { timeLeverRows } from '../time-lever-rows';
@@ -54,6 +55,82 @@ function GrossNetToggle({
         Net
       </button>
     </span>
+  );
+}
+
+// The input-cost basis pair (Raw|Item, 3.7.21.1) — same visual family as
+// GrossNetToggle. Both states are always available (no gating): Raw is the
+// whole-run buy list, Item the consumed bill.
+function RawItemToggle({
+  basis,
+  setBasis,
+}: {
+  basis: CostBasis;
+  setBasis: (b: CostBasis) => void;
+}) {
+  const btn =
+    'px-2 py-0.5 font-mono text-[8.5px] uppercase tracking-[0.1em] cursor-pointer transition-colors';
+  const on = 'text-name bg-row-on';
+  return (
+    <span className="inline-flex overflow-hidden rounded-[3px] border border-border-soft">
+      <button
+        type="button"
+        onClick={() => setBasis('batched')}
+        aria-pressed={basis === 'batched'}
+        className={cn(btn, basis === 'batched' ? on : 'text-faint hover:text-muted')}
+      >
+        Raw
+      </button>
+      <button
+        type="button"
+        onClick={() => setBasis('marginal')}
+        aria-pressed={basis === 'marginal'}
+        className={cn(btn, basis === 'marginal' ? on : 'text-faint hover:text-muted')}
+      >
+        Item
+      </button>
+    </span>
+  );
+}
+
+// The Input-cost tile's "?" hover: both bases side by side, whichever view is
+// active, so the toggle never hides a number.
+function InputCostHelp({ bases }: { bases: { batched: number; marginal: number } | null }) {
+  return (
+    <KpiHelp label="How input cost is computed">
+      <PopoverHeading>Input cost</PopoverHeading>
+      <PopoverRow label="Raw">{bases ? formatIsk(bases.batched) : '—'}</PopoverRow>
+      <PopoverRow label="Item">{bases ? formatIsk(bases.marginal) : '—'}</PopoverRow>
+      <p className="max-w-[240px] font-body text-[11px] leading-snug text-muted">
+        Raw is the full production line, including the excess that whole batches produce.
+        Item is only what this build consumes.
+      </p>
+    </KpiHelp>
+  );
+}
+
+// The Input-cost tile (3.7.21.1): figure + Raw|Item toggle + the both-bases
+// popover. Self-contained on the pricing context so the KPI row stays a thin
+// composition; the toggle reflects the user's intent immediately while the
+// figure carries the summary's own basis stamp.
+function InputCostTile() {
+  const { pricing, costBasis, setCostBasis } = usePricing();
+  const summary = pricing?.summary ?? null;
+  return (
+    <KpiTile>
+      <KpiHead
+        label="Input cost"
+        right={
+          <span className="flex items-center gap-2">
+            <InputCostHelp bases={summary?.bases ?? null} />
+            <RawItemToggle basis={costBasis} setBasis={setCostBasis} />
+          </span>
+        }
+      />
+      <div className={cn(KPI_FIG, 'text-name')}>
+        <LivePrice value={summary ? formatIsk(summary.inputCost) : '—'} />
+      </div>
+    </KpiTile>
   );
 }
 
@@ -180,11 +257,7 @@ export function CockpitKpis({
 
   return (
     <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
-      <SimpleTile
-        label="Input cost"
-        value={<LivePrice value={summary ? formatIsk(summary.inputCost) : '—'} />}
-        valueClass="text-name"
-      />
+      <InputCostTile />
       <SimpleTile
         label="Sell · Jita"
         value={<LivePrice value={summary ? formatIsk(summary.revenue) : '—'} />}

@@ -6,6 +6,7 @@ import { cn } from '@/components/ui/cn';
 import { SectionLabel } from '@/components/ui/section-label';
 import { formatIsk } from '@/lib/format/isk';
 import { chainActualsFrom } from '../build-batch';
+import { batchedCostOfRows } from '../cost-basis-view';
 import {
   chainLevelsFrom,
   consolidateBuild,
@@ -321,7 +322,11 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     );
   }
 
-  const grandTotal = pricing?.summary.inputCost ?? null;
+  // The ledger's own total — the batched rows it expands to, NOT the summary's
+  // inputCost: under the Item basis (3.7.21.1) the summary is the marginal
+  // figure while this table stays the physical Raw buy list, and the header
+  // must sum to the list it opens.
+  const grandTotal = pricing ? batchedCostOfRows(pricing.rows) : null;
 
   return (
     <div className="mt-7">

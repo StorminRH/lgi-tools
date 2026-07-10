@@ -94,6 +94,18 @@ export const sitesDetailMode = define<'lightbox' | 'expand'>(
   'expand',
 );
 
+// The planner's input-cost basis — the Raw|Item toggle (3.7.21.1). 'batched'
+// (Raw) = the whole-run empty-hangar buy list; 'marginal' (Item, the default) =
+// only what the build consumes. NOT ssrReadable: the pricing seed is one shared
+// 'use cache' snapshot that always carries the marginal default, so there is no
+// per-visitor value the server could render — a saved 'batched' re-assembles at
+// hydration (the owned-ME settle class).
+export const industryCostBasis = define<'batched' | 'marginal'>(
+  'industry.costBasis',
+  z.enum(['batched', 'marginal']),
+  'marginal',
+);
+
 // ── The per-surface character-strip dimmed sets (ACCOUNT.7, D-7) ──
 // One def per strip-declaring surface, keyed `strip.<surfaceId>.dimmed`. The
 // stored value is the DIMMED characterIds (store-off-not-on): a character absent
@@ -138,6 +150,7 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   plannerBuildLocation,
   plannerBuildCharacter,
   sitesDetailMode,
+  industryCostBasis,
   ...STRIP_SURFACE_IDS.map((id) => STRIP_DIMMED_DEFS[id]),
 ];
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
