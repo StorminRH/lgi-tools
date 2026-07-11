@@ -40,8 +40,8 @@ export function LinkCharacterButton({
       onClick={() => startCharacterLink(callbackURL)}
       className={
         emphasis === 'reconnect'
-          ? 'font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-tone-orange transition-colors whitespace-nowrap'
-          : 'inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-1.5 border border-border-idle hover:border-border-active text-isk transition-colors'
+          ? 'font-mono text-label uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-tone-orange transition-colors whitespace-nowrap'
+          : 'inline-flex items-center gap-2 font-mono text-label uppercase tracking-[0.12em] px-3 py-1.5 border border-border-idle hover:border-border-active text-isk transition-colors'
       }
     >
       {label}

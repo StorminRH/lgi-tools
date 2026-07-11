@@ -8,7 +8,7 @@ export function SwitchCharacterForm({ characterId }: { characterId: number }) {
       <input type="hidden" name="characterId" value={characterId} />
       <button
         type="submit"
-        className="font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-text transition-colors whitespace-nowrap"
+        className="font-mono text-label uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-text transition-colors whitespace-nowrap"
       >
         Make active
       </button>
