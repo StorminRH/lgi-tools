@@ -55,7 +55,7 @@ describe('sitesSearchSource', () => {
       }),
     ]);
     const [result] = await sitesSearchSource.search('Reservoir', ctx);
-    expect(result.iconText).toBe('—'); // null class → em dash
-    expect(result.sub).toContain('42');
+    expect(result!.iconText).toBe('—'); // null class → em dash
+    expect(result!.sub).toContain('42');
   });
 });

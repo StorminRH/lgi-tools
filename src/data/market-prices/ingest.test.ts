@@ -73,8 +73,8 @@ describe('persistPrices — upsert already-fetched rows (3.2.4a write-behind)', 
     delete stale.regionalDiscount;
     const db = fakeDb();
     await persistPrices(db as never, [stale as never]);
-    const values = db.insert.mock.results[0].value.values as ReturnType<typeof vi.fn>;
-    const [rows] = values.mock.calls[0];
+    const values = db.insert.mock.results[0]!.value.values as ReturnType<typeof vi.fn>;
+    const [rows] = values.mock.calls[0]!;
     expect(rows[0].regionalDiscount).toBeNull();
   });
 

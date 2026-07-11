@@ -71,7 +71,7 @@ describe('assignBuildTiers — one home tier per buildable (min occurrence depth
   }
 
   it('Archon: Helium Fuel Blocks (4247) occur at multiple depths, homed at the shallowest', () => {
-    const archon = (treesFixture as Record<string, TreeNode[]>).Archon;
+    const archon = (treesFixture as Record<string, TreeNode[]>).Archon!;
     const depths = allDepths(archon).get(4247) ?? [];
     expect(new Set(depths).size).toBeGreaterThan(1); // genuinely multi-depth
     expect(assignBuildTiers(archon).get(4247)).toBe(Math.min(...depths));

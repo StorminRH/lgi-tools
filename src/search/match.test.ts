@@ -19,10 +19,10 @@ describe('fuzzyMatch', () => {
     // The matcher is case-insensitive; we just check that one F, another F,
     // an R, and a D were chosen — and that they appear in ascending order.
     expect(out!.matchIndices).toHaveLength(4);
-    const chars = out!.matchIndices.map((i) => target[i].toLowerCase());
+    const chars = out!.matchIndices.map((i) => target[i]!.toLowerCase());
     expect(chars).toEqual(['f', 'f', 'r', 'd']);
     for (let i = 1; i < out!.matchIndices.length; i++) {
-      expect(out!.matchIndices[i]).toBeGreaterThan(out!.matchIndices[i - 1]);
+      expect(out!.matchIndices[i]).toBeGreaterThan(out!.matchIndices[i - 1]!);
     }
   });
 

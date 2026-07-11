@@ -42,14 +42,14 @@ describe('decryptToken rejects untrusted input', () => {
   it('returns null when the ciphertext is tampered', async () => {
     const { encryptToken, decryptToken } = await load();
     const parts = encryptToken('secret-token').split(':');
-    parts[3] = (parts[3][0] === 'A' ? 'B' : 'A') + parts[3].slice(1);
+    parts[3] = (parts[3]![0] === 'A' ? 'B' : 'A') + parts[3]!.slice(1);
     expect(decryptToken(parts.join(':'))).toBeNull();
   });
 
   it('returns null when the auth tag is tampered', async () => {
     const { encryptToken, decryptToken } = await load();
     const parts = encryptToken('secret-token').split(':');
-    parts[2] = (parts[2][0] === 'A' ? 'B' : 'A') + parts[2].slice(1);
+    parts[2] = (parts[2]![0] === 'A' ? 'B' : 'A') + parts[2]!.slice(1);
     expect(decryptToken(parts.join(':'))).toBeNull();
   });
 

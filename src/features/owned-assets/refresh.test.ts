@@ -79,7 +79,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
     await refreshOwnedAssetsForUser(port, 'u1');
 
     expect(port.read).toHaveBeenCalledWith('/characters/1/assets/', 'token', []);
-    const save = vi.mocked(port.save).mock.calls[0];
+    const save = vi.mocked(port.save).mock.calls[0]!;
     expect(save[0]).toEqual({ ownerType: 'character', ownerId: 1 });
     expect(save[1]).toEqual([
       { type_id: 34, quantity: 1500, location_id: 60003760, location_flag: 'Hangar', location_type: 'station' },

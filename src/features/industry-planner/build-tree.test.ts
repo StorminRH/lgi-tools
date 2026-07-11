@@ -53,7 +53,7 @@ describe('toBuildTree', () => {
   it('roots the tree at the product with its inputs nested beneath', () => {
     const { buildTree, rootHeight } = build();
     expect(buildTree).toHaveLength(1);
-    const root = buildTree[0];
+    const root = buildTree[0]!;
     expect(root.typeId).toBe(1);
     expect(root.quantity).toBe(1);
     expect(root.inputs.map((n) => n.typeId).sort()).toEqual([2, 3, 4]);
@@ -61,12 +61,12 @@ describe('toBuildTree', () => {
   });
 
   it('multiplies quantities down by each parent run, on the marginal basis', () => {
-    const root = build().buildTree[0];
+    const root = build().buildTree[0]!;
     const byId = new Map(root.inputs.map((n) => [n.typeId, n]));
     // Component ×3, each run takes 100 minerals → 300.
-    expect(byId.get(2)!.inputs[0].quantity).toBe(300);
+    expect(byId.get(2)!.inputs[0]!.quantity).toBe(300);
     // Reaction needs 5 but yields 10/run → 0.5 runs × 4 moon goo = 2 (not a rounded-up 4).
-    expect(byId.get(3)!.inputs[0].quantity).toBe(2);
+    expect(byId.get(3)!.inputs[0]!.quantity).toBe(2);
   });
 
   it('labels every node from an in-game identifier — never an invented bucket', () => {

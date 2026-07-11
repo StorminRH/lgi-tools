@@ -32,7 +32,7 @@ describe('deriveJobsByCharacter', () => {
       names: {},
     };
     const map = deriveJobsByCharacter(response, NOW);
-    expect(map.get(5)?.data?.jobs[0].status).toBe('ready');
+    expect(map.get(5)?.data?.jobs[0]!.status).toBe('ready');
   });
 
   it('passes a never-synced character (data:null) through untouched', () => {
@@ -50,7 +50,7 @@ describe('deriveJobsByCharacter', () => {
       ],
       names: {},
     };
-    expect(deriveJobsByCharacter(response, NOW).get(1)?.data?.jobs[0].status).toBe('active');
+    expect(deriveJobsByCharacter(response, NOW).get(1)?.data?.jobs[0]!.status).toBe('active');
   });
 
   it('returns an empty map for a null response', () => {
@@ -73,9 +73,9 @@ describe('deriveCorpJobs', () => {
       names: {},
     };
     const corps = deriveCorpJobs(response, NOW);
-    expect(corps[0].data?.jobs[0].status).toBe('ready');
-    expect(corps[1].data).toBeNull();
-    expect(corps[1].syncError).toBe('needs_role');
+    expect(corps[0]!.data?.jobs[0]!.status).toBe('ready');
+    expect(corps[1]!.data).toBeNull();
+    expect(corps[1]!.syncError).toBe('needs_role');
   });
 
   it('returns an empty list for a null response', () => {

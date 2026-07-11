@@ -95,16 +95,16 @@ describe.skipIf(!reachable)('emitUniverseNeon executes against Postgres', () => 
   });
 
   it('writes the jump graph and every endpoint resolves to a system (FK integrity)', async () => {
-    const [{ jumps }] = await tdb.execute<{ jumps: number }>(
+    const { jumps } = (await tdb.execute<{ jumps: number }>(
       sql`SELECT COUNT(*)::int AS jumps FROM eve_system_jumps`,
-    );
+    ))[0]!;
     expect(jumps).toBe(2);
 
-    const [{ orphans }] = await tdb.execute<{ orphans: number }>(sql`
+    const { orphans } = (await tdb.execute<{ orphans: number }>(sql`
       SELECT COUNT(*)::int AS orphans FROM eve_system_jumps j
       WHERE NOT EXISTS (SELECT 1 FROM eve_solar_systems s WHERE s.id = j.from_system_id)
          OR NOT EXISTS (SELECT 1 FROM eve_solar_systems s WHERE s.id = j.to_system_id)
-    `);
+    `))[0]!;
     expect(orphans).toBe(0);
   });
 
@@ -117,9 +117,9 @@ describe.skipIf(!reachable)('emitUniverseNeon executes against Postgres', () => 
       systemJumpsWritten: 2,
       npcStationsWritten: 1,
     });
-    const [{ systems }] = await tdb.execute<{ systems: number }>(
+    const { systems } = (await tdb.execute<{ systems: number }>(
       sql`SELECT COUNT(*)::int AS systems FROM eve_solar_systems`,
-    );
+    ))[0]!;
     expect(systems).toBe(4);
   });
 });

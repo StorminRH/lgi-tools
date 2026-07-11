@@ -141,7 +141,7 @@ describe('getFreshAccessTokenForCharacter', () => {
       clientSecret: 'client-secret',
     });
     // Persisted both tokens as v1 ciphertext, not plaintext.
-    const persisted = h.updateSpy.mock.calls[0][0] as { accessToken: string; refreshToken: string };
+    const persisted = h.updateSpy.mock.calls[0]![0] as { accessToken: string; refreshToken: string };
     expect(persisted.refreshToken.startsWith('v1:')).toBe(true);
     expect(persisted.accessToken.startsWith('v1:')).toBe(true);
     expect(decryptToken(persisted.refreshToken)).toBe('new-refresh');
@@ -162,7 +162,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     h.updateReturning = [{ id: 'acc1' }]; // conditional NULL matched → we held the latest token
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
-    const cleared = h.updateSpy.mock.calls[0][0] as Record<string, unknown>;
+    const cleared = h.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
     expect(cleared.accessToken).toBeNull();
     expect(cleared.refreshToken).toBeNull();
     expect(cleared.accessTokenExpiresAt).toBeNull();

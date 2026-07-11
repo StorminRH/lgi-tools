@@ -33,11 +33,11 @@ describe('parseEveRss', () => {
   });
 
   it('takes the first category when an item has several', () => {
-    expect(parseEveRss(FEED)[0].category).toBe('community');
+    expect(parseEveRss(FEED)[0]!.category).toBe('community');
   });
 
   it('decodes single-encoded entities in titles', () => {
-    expect(parseEveRss(FEED)[1].title).toBe('Gallente Federation Day Gift & Special Offers');
+    expect(parseEveRss(FEED)[1]!.title).toBe('Gallente Federation Day Gift & Special Offers');
   });
 
   it('decodes CCP double-encoded entities (&amp;#39; -> apostrophe)', () => {
@@ -45,7 +45,7 @@ describe('parseEveRss', () => {
       <title>Patch Notes &amp;#39;26</title>
       <link>https://www.eveonline.com/news/view/patch</link>
     </item></channel></rss>`;
-    expect(parseEveRss(xml)[0].title).toBe("Patch Notes '26");
+    expect(parseEveRss(xml)[0]!.title).toBe("Patch Notes '26");
   });
 
   it('skips items missing a title or link', () => {
@@ -55,14 +55,14 @@ describe('parseEveRss', () => {
     </channel></rss>`;
     const items = parseEveRss(xml);
     expect(items).toHaveLength(1);
-    expect(items[0].title).toBe('Has both');
+    expect(items[0]!.title).toBe('Has both');
   });
 
   it('leaves publishedAt null for an unparseable date', () => {
     const xml = `<rss><channel><item>
       <title>No date</title><link>https://x/c</link><pubDate>not a date</pubDate>
     </item></channel></rss>`;
-    expect(parseEveRss(xml)[0].publishedAt).toBeNull();
+    expect(parseEveRss(xml)[0]!.publishedAt).toBeNull();
   });
 
   it('throws on input with no items', () => {
@@ -77,7 +77,7 @@ describe('parseEveRss', () => {
     </channel></rss>`;
     const items = parseEveRss(xml);
     expect(items).toHaveLength(1);
-    expect(items[0].title).toBe('Good');
-    expect(items[0].url).toBe('https://www.eveonline.com/news/view/ok');
+    expect(items[0]!.title).toBe('Good');
+    expect(items[0]!.url).toBe('https://www.eveonline.com/news/view/ok');
   });
 });

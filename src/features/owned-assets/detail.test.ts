@@ -69,8 +69,8 @@ describe('buildOwnedAssetDetail', () => {
       [34, summary([holding({ locationId: 1_036_000_000_001, locationFlag: 'Hangar', locationType: 'station' })])],
     ]);
     const [entry] = buildOwnedAssetDetail(map, {}, fmt);
-    expect(entry.heldBy[0].locationName).toBe('Upwell structure'); // not "F:..." → formatter not applied
-    expect(entry.heldBy[0].locationFlag).toBe(''); // 'Hangar' carries no division label
+    expect(entry!.heldBy[0]!.locationName).toBe('Upwell structure'); // not "F:..." → formatter not applied
+    expect(entry!.heldBy[0]!.locationFlag).toBe(''); // 'Hangar' carries no division label
   });
 
   it('names the kind of nested parent from the location flag, with a friendly corp division', () => {
@@ -99,8 +99,8 @@ describe('buildOwnedAssetDetail', () => {
       [35, summary([holding({ locationId: 30009999, locationType: 'solar_system' })])],
     ]);
     const [resolved, missed] = buildOwnedAssetDetail(map, { '30000142': 'Jita' }, fmt);
-    expect(resolved.heldBy[0].locationName).toBe('Jita'); // verbatim, no "F:" prefix
-    expect(missed.heldBy[0].locationName).toBe('Unknown location');
+    expect(resolved!.heldBy[0]!.locationName).toBe('Jita'); // verbatim, no "F:" prefix
+    expect(missed!.heldBy[0]!.locationName).toBe('Unknown location');
   });
 
   it('degrades an unknown (other) location type', () => {
@@ -108,7 +108,7 @@ describe('buildOwnedAssetDetail', () => {
       [34, summary([holding({ locationId: 555, locationType: 'other' })])],
     ]);
     const [entry] = buildOwnedAssetDetail(map, {}, fmt);
-    expect(entry.heldBy[0].locationName).toBe('Unknown location');
+    expect(entry!.heldBy[0]!.locationName).toBe('Unknown location');
   });
 
   it('falls back to honest owner labels when names miss', () => {
@@ -116,7 +116,7 @@ describe('buildOwnedAssetDetail', () => {
       [34, summary([holding({ ownerType: 'character', ownerId: 7 }), holding({ ownerType: 'corporation', ownerId: 88 })])],
     ]);
     const [entry] = buildOwnedAssetDetail(map, {}, fmt);
-    expect(entry.heldBy.map((h) => h.ownerName)).toEqual(['Character 7', 'Corporation 88']);
+    expect(entry!.heldBy.map((h) => h.ownerName)).toEqual(['Character 7', 'Corporation 88']);
   });
 
   it('emits one entry per type with its full held-by list and summed owned qty', () => {
@@ -124,8 +124,8 @@ describe('buildOwnedAssetDetail', () => {
       [34, summary([holding({ locationId: 60003760, quantity: 100 }), holding({ locationId: 60008494, quantity: 250 })])],
     ]);
     const [entry] = buildOwnedAssetDetail(map, {}, fmt);
-    expect(entry.ownedQty).toBe(350);
-    expect(entry.heldBy).toHaveLength(2);
-    expect(entry.heldBy.map((h) => h.quantity)).toEqual([100, 250]);
+    expect(entry!.ownedQty).toBe(350);
+    expect(entry!.heldBy).toHaveLength(2);
+    expect(entry!.heldBy.map((h) => h.quantity)).toEqual([100, 250]);
   });
 });

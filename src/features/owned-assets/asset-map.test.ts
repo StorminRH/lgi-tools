@@ -21,8 +21,8 @@ describe('buildOwnedAssetMap', () => {
     const summary = map.get(34);
     expect(summary?.ownedQty).toBe(350);
     expect(summary?.heldBy).toHaveLength(2);
-    expect(summary?.heldBy[0].locationId).toBe(60003760);
-    expect(summary?.heldBy[1].locationId).toBe(60008494);
+    expect(summary?.heldBy[0]!.locationId).toBe(60003760);
+    expect(summary?.heldBy[1]!.locationId).toBe(60008494);
   });
 
   it('merges holdings of one type across a character and a corporation owner', () => {
@@ -33,7 +33,7 @@ describe('buildOwnedAssetMap', () => {
     const summary = map.get(34);
     expect(summary?.ownedQty).toBe(500);
     expect(summary?.heldBy.map((h) => h.ownerType)).toEqual(['character', 'corporation']);
-    expect(summary?.heldBy[1].ownerId).toBe(98000001);
+    expect(summary?.heldBy[1]!.ownerId).toBe(98000001);
   });
 
   it('filters to the requested type ids when a filter is given', () => {

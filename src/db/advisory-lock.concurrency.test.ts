@@ -37,7 +37,7 @@ describe.skipIf(!HAS_DB)('advisory lock serialization (direct connection)', () =
         a<{ got: boolean }[]>`SELECT pg_try_advisory_lock(${TEST_LOCK_KEY}) AS got`,
         b<{ got: boolean }[]>`SELECT pg_try_advisory_lock(${TEST_LOCK_KEY}) AS got`,
       ]);
-      const winners = [ra.got, rb.got].filter(Boolean);
+      const winners = [ra!.got, rb!.got].filter(Boolean);
       expect(winners).toHaveLength(1);
     } finally {
       // Unlock from whichever session(s) hold it, then release.

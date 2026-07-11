@@ -70,12 +70,12 @@ describe('parseDevlog — structure', () => {
     const tree = parseDevlog(md);
     expect(tree.looseDocuments.map((d) => d.title)).toEqual(['Introduction', 'Building with AI']);
     expect(tree.folders.map((f) => f.title)).toEqual(['Services']);
-    expect(tree.folders[0].documents.map((d) => d.title)).toEqual(['Vercel']);
+    expect(tree.folders[0]!.documents.map((d) => d.title)).toEqual(['Vercel']);
   });
 
   it('assigns deterministic slugs and finds by slug', () => {
     const tree = parseDevlog(md);
-    expect(tree.looseDocuments[0].slug).toBe('introduction');
+    expect(tree.looseDocuments[0]!.slug).toBe('introduction');
     expect(findDocument(tree, 'vercel')?.title).toBe('Vercel');
     expect(flattenDocuments(tree)).toHaveLength(3);
   });
@@ -118,7 +118,7 @@ describe('parseDevlog — excerpts', () => {
 
   it('resolves a trailing <sup> reference to an inline excerpt block at that point', () => {
     const tree = parseDevlog(md);
-    const doc = tree.looseDocuments[0];
+    const doc = tree.looseDocuments[0]!;
     expect(doc.blocks[0]).toEqual({
       type: 'paragraph',
       tokens: [{ type: 'text', value: 'Prose that cites code.' }],
@@ -131,7 +131,7 @@ describe('parseDevlog — excerpts', () => {
 
   it('captures a nested-fence md excerpt whole (delimiter-bounded, not fence-counted)', () => {
     const tree = parseDevlog(md);
-    const ex = excerptBlocks(tree.looseDocuments[0].blocks)[0].excerpt;
+    const ex = excerptBlocks(tree.looseDocuments[0]!.blocks)[0]!.excerpt;
     expect(ex.code).toBe('## Not A Heading\ninner markdown:\n```js\nconst y = 1;\n```\ntrailing line');
   });
 
@@ -142,7 +142,7 @@ describe('parseDevlog — excerpts', () => {
 
   it('appends an unreferenced definition as a safety net (never dropped)', () => {
     const tree = parseDevlog(md);
-    const ids = excerptBlocks(tree.looseDocuments[0].blocks).map((b) => b.excerpt.id);
+    const ids = excerptBlocks(tree.looseDocuments[0]!.blocks).map((b) => b.excerpt.id);
     expect(ids).toEqual(['code-x', 'code-orphan']);
   });
 });
@@ -152,12 +152,12 @@ describe('documentSummary', () => {
     const tree = parseDevlog(
       ['## Doc', '', 'Start with a [link](https://x), then `code`, then **bold**.', '', 'Second para.'].join('\n'),
     );
-    expect(documentSummary(tree.looseDocuments[0])).toBe('Start with a link, then code, then bold.');
+    expect(documentSummary(tree.looseDocuments[0]!)).toBe('Start with a link, then code, then bold.');
   });
 
   it('truncates past the max with an ellipsis', () => {
     const tree = parseDevlog(['## Doc', '', 'x'.repeat(200)].join('\n'));
-    const summary = documentSummary(tree.looseDocuments[0], 20);
+    const summary = documentSummary(tree.looseDocuments[0]!, 20);
     expect(summary).toHaveLength(20);
     expect(summary.endsWith('…')).toBe(true);
   });
@@ -203,7 +203,7 @@ describe('parseDevlog — the real UNDER_THE_HOOD.md', () => {
     for (const doc of flattenDocuments(tree)) {
       doc.blocks.forEach((b, i) => {
         if (b.type === 'excerpt' && i > 0) {
-          const prev = doc.blocks[i - 1];
+          const prev = doc.blocks[i - 1]!;
           expect(prev.type === 'paragraph' || prev.type === 'excerpt').toBe(true);
         }
       });

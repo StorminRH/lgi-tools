@@ -151,7 +151,7 @@ describe('POST /api/market-prices/refresh', () => {
   it('deduplicates typeIds before passing to the engine', async () => {
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34, 34, 35] }));
-    const passed = getLivePricesMock.mock.calls[0][0] as number[];
+    const passed = getLivePricesMock.mock.calls[0]![0] as number[];
     expect(passed.sort()).toEqual([34, 35]);
   });
 

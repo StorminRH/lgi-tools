@@ -553,7 +553,7 @@ describe('assemblePricing product depth (3.5.3b)', () => {
     expect(noDepth.product.sellDepth).toBeNull();
 
     const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
-      t === 999 ? { ...NET_PRICES[999], buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
+      t === 999 ? { ...NET_PRICES[999]!, buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
     );
     expect(withDepth.product.buyDepth).toEqual(BUY_LADDER);
     expect(withDepth.product.sellDepth).toEqual(SELL_LADDER);
@@ -565,7 +565,7 @@ describe('assemblePricing product depth (3.5.3b)', () => {
     // product.{buy,sell}Depth differs.
     const base = assemblePricing(NET_STRUCTURE, (t) => NET_PRICES[t]);
     const withDepth = assemblePricing(NET_STRUCTURE, (t) =>
-      t === 999 ? { ...NET_PRICES[999], buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
+      t === 999 ? { ...NET_PRICES[999]!, buyDepth: BUY_LADDER, sellDepth: SELL_LADDER } : NET_PRICES[t],
     );
     expect(withDepth.summary).toEqual(base.summary);
     expect(withDepth.rows).toEqual(base.rows);
@@ -579,7 +579,7 @@ describe('assemblePricing product depth (3.5.3b)', () => {
 describe('assemblePricing product sell figures (3.7.25.1)', () => {
   it('threads the product pct5Sell from the lookup (the thin-order badge reference)', () => {
     const pricing = assemblePricing(NET_STRUCTURE, (t) =>
-      t === 999 ? { ...NET_PRICES[999], pct5Sell: 1_050 } : NET_PRICES[t],
+      t === 999 ? { ...NET_PRICES[999]!, pct5Sell: 1_050 } : NET_PRICES[t],
     );
     expect(pricing.product.bestSell).toBe(1_000);
     expect(pricing.product.pct5Sell).toBe(1_050);

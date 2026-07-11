@@ -96,8 +96,8 @@ describe('buildKpiCards', () => {
       sub: '30% via external referrers',
       delta: { pct: 100, direction: 'up' },
     });
-    expect(cards[1].value).toBe('10');
-    expect(cards[1].sub).toBe('4 new · 6 returning');
+    expect(cards[1]!.value).toBe('10');
+    expect(cards[1]!.sub).toBe('4 new · 6 returning');
   });
 
   it('shows the no-views placeholder when the page-view total is zero', () => {
@@ -109,8 +109,8 @@ describe('buildKpiCards', () => {
       prevUsers: null,
       prevGscTotals: null,
     });
-    expect(cards[0].sub).toBe('no page views this period');
-    expect(cards[0].delta).toBeNull();
+    expect(cards[0]!.sub).toBe('no page views this period');
+    expect(cards[0]!.delta).toBeNull();
   });
 
   it('degrades the GSC cards to a not-connected placeholder when GSC is off', () => {
@@ -137,6 +137,6 @@ describe('buildKpiCards', () => {
     });
     expect(cards[2]).toMatchObject({ value: '200', sub: '4.0% CTR' });
     expect(cards[3]).toMatchObject({ value: '5,000', sub: 'avg position 12.3' });
-    expect(cards[2].delta).toEqual({ pct: 100, direction: 'up' });
+    expect(cards[2]!.delta).toEqual({ pct: 100, direction: 'up' });
   });
 });

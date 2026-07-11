@@ -52,7 +52,7 @@ describe('fetchAffiliations', () => {
     const rows = await fetchAffiliations([101, 102, 101]); // 101 duplicated
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toContain('/characters/affiliation/');
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body)).toEqual([101, 102]); // deduped, order preserved
@@ -71,8 +71,8 @@ describe('fetchAffiliations', () => {
     await fetchAffiliations(ids);
 
     expect(fetchMock).toHaveBeenCalledTimes(2); // ceil(1500 / 1000)
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toHaveLength(1000);
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toHaveLength(500);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toHaveLength(1000);
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toHaveLength(500);
   });
 
   it('skips an all-or-nothing batch failure (404) but keeps surviving batches', async () => {

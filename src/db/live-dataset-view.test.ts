@@ -120,7 +120,7 @@ describe('getLiveDatasetOnView', () => {
     expect(refresh).toHaveBeenCalledWith('u1');
     // Name ids deduped before the SDE pass.
     expect(getTypeNamesArgs).toHaveLength(1);
-    expect([...getTypeNamesArgs[0]].sort((a, b) => a - b)).toEqual([100, 200]);
+    expect([...getTypeNamesArgs[0]!].sort((a, b) => a - b)).toEqual([100, 200]);
     expect(result.names).toEqual({ '100': 'Type #100', '200': 'Type #200' });
   });
 

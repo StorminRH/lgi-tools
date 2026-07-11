@@ -114,7 +114,7 @@ describe('computeBatchMaterials — Legion Hull oracle (regression)', () => {
   // totals are honest. Verified independently against the SDE and the operator's
   // production spreadsheet: if this fixture ever drifts, 1,000 / 2,556 are the
   // truth — reconcile, never regenerate-to-pass.
-  const legion = (treesFixture as Record<string, TreeNode[]>).Legion;
+  const legion = (treesFixture as Record<string, TreeNode[]>).Legion!;
   const totals = asMap(computeBatchMaterials(legion));
 
   it('Fullerite-C50 = 1,000 (Fulleroferrocene 2 runs × 200 + PPD 2 runs × 300)', () => {
@@ -461,7 +461,7 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
   it('cascades a parent’s ME fractionally to its children', () => {
     // Top ME10 cuts X demand 5 → 4.5 → 0.45 run × 7 = 3.15 R.
     const me10 = { meOf: (bp: number) => (bp === 9000 ? 10 : undefined), topBlueprintTypeId: 9000 };
-    const [only] = computeMarginalMaterials(tree, 1, me10);
+    const only = computeMarginalMaterials(tree, 1, me10)[0]!;
     expect(only.typeId).toBe(200);
     expect(only.quantity).toBeCloseTo(3.15, 9);
   });
@@ -474,7 +474,7 @@ describe('computeMarginalMaterials — fractional (Item) basis', () => {
       topBlueprintTypeId: 9000,
       structureMeFactorOf: () => 0.95,
     };
-    const [only] = computeMarginalMaterials(oneLevel, 1, opts);
+    const only = computeMarginalMaterials(oneLevel, 1, opts)[0]!;
     expect(only.quantity).toBeCloseTo(171, 9);
   });
 
@@ -499,8 +499,8 @@ describe('computeMarginalMaterials — resolver flat-materials cross-check', () 
 
   for (const name of names) {
     it(`${name}: client marginal walk === resolver flat materials (±1, rounds-to-0 tolerant)`, () => {
-      const tree = (treesFixture as Record<string, TreeNode[]>)[name];
-      const expected = flat[name].materials;
+      const tree = (treesFixture as Record<string, TreeNode[]>)[name]!;
+      const expected = flat[name]!.materials;
       const computed = computeMarginalMaterials(tree, 1);
       for (const { typeId, quantity } of computed) {
         const pinned = expected[String(typeId)];
@@ -519,9 +519,9 @@ describe('computeMarginalMaterials — resolver flat-materials cross-check', () 
   }
 
   it('Legion: marginal Tritanium ≈ 1,766 where the batched basis bears 2,556', () => {
-    const legion = (treesFixture as Record<string, TreeNode[]>).Legion;
+    const legion = (treesFixture as Record<string, TreeNode[]>).Legion!;
     const marginal = asMap(computeMarginalMaterials(legion));
-    expect(Math.round(marginal[34])).toBe(1_766);
+    expect(Math.round(marginal[34]!)).toBe(1_766);
     expect(asMap(computeBatchMaterials(legion))[34]).toBe(2_556);
   });
 });
@@ -559,7 +559,7 @@ describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)
         const meVariants = [
           NO_OWNED,
           // Deterministic nontrivial ME spread keyed off the blueprint id.
-          { meOf: (bp: number) => bp % 11, topBlueprintTypeId: flat[name].blueprintTypeId },
+          { meOf: (bp: number) => bp % 11, topBlueprintTypeId: flat[name]!.blueprintTypeId },
         ];
         for (const opts of meVariants) {
           const ledger = computeBatchLedgerWithMe(tree, runs, opts);
@@ -587,7 +587,7 @@ describe('computeMultibuyDemand — build-everything equivalence (the reuse pin)
   });
 
   it('omitting ownedOf is identical to ownedOf that returns 0 (one code path)', () => {
-    const legion = (treesFixture as Record<string, TreeNode[]>).Legion;
+    const legion = (treesFixture as Record<string, TreeNode[]>).Legion!;
     const buildSet = new Set(computeBatchLedgerWithMe(legion, 1, NO_OWNED).builds.keys());
     expect(computeMultibuyDemand(legion, 1, NO_OWNED, { buildSet })).toEqual(
       computeMultibuyDemand(legion, 1, NO_OWNED, { buildSet, ownedOf: () => 0 }),
@@ -683,7 +683,7 @@ describe('computeMultibuyDemand — Archon fuel blocks (real multi-depth pin)', 
   // (reactions AND component jobs burn them). Bought, they must be one line at
   // exactly the aggregate demand the live ledger derived its runs from, and every
   // raw the fuel-block runs would have consumed shrinks or disappears.
-  const archon = (treesFixture as Record<string, TreeNode[]>).Archon;
+  const archon = (treesFixture as Record<string, TreeNode[]>).Archon!;
   const base = computeBatchLedgerWithMe(archon, 1, NO_OWNED);
   const FUEL_BLOCK = 4247;
 

@@ -53,20 +53,20 @@ describe('consolidateBuild', () => {
   });
 
   it('tier 1 lists every direct input — buildables first, then raws', () => {
-    expect(tiers[0].items.map((i) => i.typeId)).toEqual([2, 3, 9]);
-    expect(tiers[0].items.map((i) => i.isRaw)).toEqual([false, false, true]);
+    expect(tiers[0]!.items.map((i) => i.typeId)).toEqual([2, 3, 9]);
+    expect(tiers[0]!.items.map((i) => i.isRaw)).toEqual([false, false, true]);
   });
 
   it('shows a raw at each depth it is consumed, with the per-tier amount', () => {
-    const rDepth1 = tiers[0].items.find((i) => i.typeId === 9);
-    const rDepth2 = tiers[1].items.find((i) => i.typeId === 9);
+    const rDepth1 = tiers[0]!.items.find((i) => i.typeId === 9);
+    const rDepth2 = tiers[1]!.items.find((i) => i.typeId === 9);
     expect(rDepth1?.quantity).toBe(5); // consumed directly by the product
     expect(rDepth2?.quantity).toBe(7); // 3 (Comp A) + 4 (Comp B)
   });
 
   it('sorts within a tier by type then name', () => {
     // depth 2: Raw Q (Gas) before Raw R (Mineral)
-    expect(tiers[1].items.map((i) => i.typeId)).toEqual([8, 9]);
+    expect(tiers[1]!.items.map((i) => i.typeId)).toEqual([8, 9]);
   });
 
   it('maps each buildable to its full downstream chain', () => {

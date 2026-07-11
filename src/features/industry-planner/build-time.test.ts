@@ -175,10 +175,10 @@ describe('computeBuildTimes', () => {
       structureTeFactorOf: () => 0.9,
       skillTimeFactorOf: (bp: number) => (bp === 1 ? 0.8 * 0.85 * 0.95 : 0.8),
     });
-    const top = r.breakdown[0];
+    const top = r.breakdown[0]!;
     expect(top.perRunSeconds).toBeCloseTo(9_418.68, 6);
     // node: 18000 × 1 (TE0) × 0.9 × 0.8 = 12960s per run × 2 runs
-    const node = r.breakdown[1];
+    const node = r.breakdown[1]!;
     expect(node.perRunSeconds).toBeCloseTo(12_960, 6);
     expect(node.totalSeconds).toBeCloseTo(25_920, 6);
     // top formatted: round(9418.68) = 9419s = 2h 36m 59s → '2h 36m'

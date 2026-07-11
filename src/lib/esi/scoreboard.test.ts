@@ -71,9 +71,9 @@ const h = vi.hoisted(() => {
       }
       case 'eval': {
         const [, , keys, args] = cmd;
-        const current = getVal(keys[0]);
+        const current = getVal(keys[0]!);
         if (current === null || Number(current) > Number(args[0])) {
-          setVal(keys[0], args[0], Number(args[1]));
+          setVal(keys[0]!, args[0]!, Number(args[1]));
         }
         return 1;
       }

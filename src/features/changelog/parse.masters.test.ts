@@ -63,15 +63,15 @@ describe('parseChangelogMasters', () => {
       '#### Changed',
       '- x',
     ].join('\n');
-    const [master] = parseChangelogMasters(md);
+    const master = parseChangelogMasters(md)[0]!;
     expect(master.version).toBe('3.7');
     expect(master.title).toBe('Security Improvements / Industry Planner Upgrade');
   });
 
   it('leaves a master with no heading bare', () => {
     const md = ['### v3.6.2 — 2026-06-02', '#### Added', '- a'].join('\n');
-    expect(parseChangelogMasters(md)[0].title).toBeNull();
-    expect(parseChangelogMasters(md)[0].summary).toEqual([]);
+    expect(parseChangelogMasters(md)[0]!.title).toBeNull();
+    expect(parseChangelogMasters(md)[0]!.summary).toEqual([]);
   });
 
   it('collects the prose under a master heading as its summary', () => {
@@ -84,7 +84,7 @@ describe('parseChangelogMasters', () => {
       '#### Changed',
       '- x',
     ].join('\n');
-    const [master] = parseChangelogMasters(md);
+    const master = parseChangelogMasters(md)[0]!;
     expect(master.title).toBe('Themed');
     expect(master.summary).toEqual(['A one-line summary of what this version did.']);
   });
@@ -102,7 +102,7 @@ describe('parseChangelogMasters', () => {
       '#### Added',
       '- a',
     ].join('\n');
-    const [master] = parseChangelogMasters(md);
+    const master = parseChangelogMasters(md)[0]!;
     expect(master.summary).toEqual([
       'First paragraph line one still first paragraph.',
       'Second paragraph.',
@@ -118,7 +118,7 @@ describe('parseChangelogMasters', () => {
       '- a',
       'stray prose after an entry is ignored',
     ].join('\n');
-    expect(parseChangelogMasters(md)[0].summary).toEqual([]);
+    expect(parseChangelogMasters(md)[0]!.summary).toEqual([]);
   });
 
   it('orders sub-versions newest-first within a master', () => {
@@ -133,7 +133,7 @@ describe('parseChangelogMasters', () => {
       '#### Added',
       '- a',
     ].join('\n');
-    expect(parseChangelogMasters(md)[0].subVersions.map((s) => s.version)).toEqual([
+    expect(parseChangelogMasters(md)[0]!.subVersions.map((s) => s.version)).toEqual([
       '3.6.2',
       '3.6.1',
       '3.6.0',
@@ -164,7 +164,7 @@ describe('parseChangelogMasters', () => {
     ].join('\n');
     const masters = parseChangelogMasters(md);
     expect(masters.map((m) => m.version)).toEqual(['3.6', '3.4']);
-    expect(masters[0].subVersions.map((s) => s.version)).toEqual(['3.6.2', '3.6.0']);
+    expect(masters[0]!.subVersions.map((s) => s.version)).toEqual(['3.6.2', '3.6.0']);
   });
 
   it('groups a 4-segment sub-version under its two-segment master', () => {
@@ -178,6 +178,6 @@ describe('parseChangelogMasters', () => {
     ].join('\n');
     const masters = parseChangelogMasters(md);
     expect(masters.map((m) => m.version)).toEqual(['3.0']);
-    expect(masters[0].subVersions.map((s) => s.version)).toEqual(['3.0.10', '3.0.3.1']);
+    expect(masters[0]!.subVersions.map((s) => s.version)).toEqual(['3.0.10', '3.0.3.1']);
   });
 });

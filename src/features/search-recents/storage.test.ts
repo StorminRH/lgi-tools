@@ -46,9 +46,9 @@ describe('search-recents storage', () => {
     pushRecent(row('1', 'one'));
     const out = readRecents();
     expect(out).toHaveLength(1);
-    expect(out[0].label).toBe('one');
-    expect(out[0].kind).toBe('recent');
-    expect(out[0].originKind).toBe('site');
+    expect(out[0]!.label).toBe('one');
+    expect(out[0]!.kind).toBe('recent');
+    expect(out[0]!.originKind).toBe('site');
   });
 
   it('preserves a typeId so a recent EVE-type row keeps its icon', () => {
@@ -64,8 +64,8 @@ describe('search-recents storage', () => {
     });
     const out = readRecents();
     expect(out).toHaveLength(1);
-    expect(out[0].typeId).toBe(587);
-    expect(out[0].originKind).toBe('blueprint');
+    expect(out[0]!.typeId).toBe(587);
+    expect(out[0]!.originKind).toBe('blueprint');
   });
 
   it('drops stale item recents that predate the typeId (so they never render "BP")', () => {
@@ -87,7 +87,7 @@ describe('search-recents storage', () => {
     );
     const out = readRecents();
     expect(out).toHaveLength(1);
-    expect(out[0].label).toBe('A Site');
+    expect(out[0]!.label).toBe('A Site');
   });
 
   it('floats the most recently pushed entry to the top', () => {
@@ -155,6 +155,6 @@ describe('search-recents storage', () => {
     );
     const out = readRecents();
     expect(out).toHaveLength(1);
-    expect(out[0].id).toBe('1');
+    expect(out[0]!.id).toBe('1');
   });
 });

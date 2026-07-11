@@ -63,7 +63,7 @@ const ANCHOR_BUY: Record<number, number> = {
 
 function priceOfFrom(buy: Record<number, number>): PriceOf {
   return (typeId): MaterialPrice | undefined =>
-    typeId in buy ? { bestBuy: buy[typeId], bestSell: null } : undefined;
+    typeId in buy ? { bestBuy: buy[typeId]!, bestSell: null } : undefined;
 }
 
 describe('computeBuildCost', () => {

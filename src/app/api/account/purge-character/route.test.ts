@@ -92,7 +92,7 @@ describe('POST /api/account/purge-character', () => {
     purgeOwnCharacterMock.mockResolvedValue({ accountEmptied: false });
     await POST(buildRequest({ characterId: 200 }));
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-    const logged = logUsageEventMock.mock.calls[0][0];
+    const logged = logUsageEventMock.mock.calls[0]![0];
     expect(logged).toEqual({ action: 'account_purge', metadata: { scope: 'character' } });
     expect(logged).not.toHaveProperty('characterId');
   });

@@ -53,7 +53,7 @@ describe('parseEsiHistory', () => {
 
   it('ignores unknown keys (upstream additions cannot break parsing)', () => {
     const rows = parseEsiHistory([{ ...sampleItem, donations: 7 }]);
-    expect(rows[0].volume).toBe(BigInt(6498537635));
+    expect(rows[0]!.volume).toBe(BigInt(6498537635));
   });
 
   it('throws EsiContractError on a non-array or a missing consumed field', () => {
@@ -94,7 +94,7 @@ describe('fetchHistoryFromSource', () => {
     expect(vi.mocked(esiFetch).mock.calls).toHaveLength(2);
     const r34 = results.find((r) => r.typeId === 34)!;
     expect(r34.source).toBe('esi');
-    expect(r34.rows[0].average).toBe(34);
+    expect(r34.rows[0]!.average).toBe(34);
     expect(r34.staleAfter.toISOString()).toBe('2026-06-15T11:05:00.000Z');
   });
 

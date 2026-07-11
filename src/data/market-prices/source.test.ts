@@ -382,7 +382,7 @@ describe('fetchPricesFromSource — per-type path (below BULK_THRESHOLD)', () =>
     expect(budgetExhausted).toBe(true);
     expect(vi.mocked(fetchPricesFromFuzzwork)).toHaveBeenCalledOnce();
     // All five typeIds present in the one Fuzzwork call (order may vary).
-    const calledWith = vi.mocked(fetchPricesFromFuzzwork).mock.calls[0][0];
+    const calledWith = vi.mocked(fetchPricesFromFuzzwork).mock.calls[0]![0];
     expect([...calledWith].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
   });
 
@@ -663,7 +663,7 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
     );
 
     const { prices } = await fetchPricesFromSource([42]);
-    const row = prices[0];
+    const row = prices[0]!;
     expect(row.bestSell).toBe(255_000);
     expect(row.sellVolume).toBe(BigInt(5_000)); // hub volume only
     expect(row.bestBuy).toBe(20_000);
@@ -689,8 +689,8 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
     );
 
     const { prices } = await fetchPricesFromSource([42]);
-    expect(prices[0].bestBuy).toBe(100);
-    expect(prices[0].buyVolume).toBe(BigInt(50));
+    expect(prices[0]!.bestBuy).toBe(100);
+    expect(prices[0]!.buyVolume).toBe(BigInt(50));
   });
 
   it('never anchors a discount on a player structure', async () => {
@@ -705,8 +705,8 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
     );
 
     const { prices } = await fetchPricesFromSource([42]);
-    expect(prices[0].bestSell).toBe(1_000);
-    expect(prices[0].regionalDiscount).toBeNull();
+    expect(prices[0]!.bestSell).toBe(1_000);
+    expect(prices[0]!.regionalDiscount).toBeNull();
   });
 
   it('stores null when no remote opportunity clears the gate — the byte-identical anchor', async () => {
@@ -719,7 +719,7 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
     );
 
     const { prices } = await fetchPricesFromSource([42]);
-    expect(prices[0].regionalDiscount).toBeNull();
+    expect(prices[0]!.regionalDiscount).toBeNull();
   });
 
   it('an item with only remote sell orders goes null-priced with no discount', async () => {
@@ -735,9 +735,9 @@ describe('fetchPricesFromSource — hub scoping + regional discount (3.7.26.1)',
     );
 
     const { prices } = await fetchPricesFromSource([42]);
-    expect(prices[0].bestSell).toBeNull();
-    expect(prices[0].sellVolume).toBeNull();
-    expect(prices[0].regionalDiscount).toBeNull();
+    expect(prices[0]!.bestSell).toBeNull();
+    expect(prices[0]!.sellVolume).toBeNull();
+    expect(prices[0]!.regionalDiscount).toBeNull();
   });
 });
 

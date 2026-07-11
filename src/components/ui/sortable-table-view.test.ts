@@ -29,17 +29,17 @@ describe('deriveSortHeaderCells', () => {
   };
 
   it('non-sortable column: no href, no indicator, right align maps to right classes', () => {
-    const [cell] = deriveSortHeaderCells({
+    const cell = deriveSortHeaderCells({
       ...base,
       columns: [{ key: 'x', label: 'X', sortable: false, align: 'right' }],
-    });
+    })[0]!;
     expect(cell.href).toBeNull();
     expect(cell.indicator).toBeNull();
     expect(cell.alignClass).toBe('justify-end text-right');
   });
 
   it('active column toggles direction and shows the current-direction glyph', () => {
-    const [cell] = deriveSortHeaderCells({ ...base, columns: [{ key: 'name', label: 'Name' }] });
+    const cell = deriveSortHeaderCells({ ...base, columns: [{ key: 'name', label: 'Name' }] })[0]!;
     expect(cell.isActive).toBe(true);
     expect(cell.indicator).toBe('▲'); // current dir asc
     expect(cell.href).toContain('dir=desc'); // clicking toggles to desc
@@ -54,8 +54,8 @@ describe('deriveSortHeaderCells', () => {
       ],
       defaultDirFor: (k) => (k === 'ehp' ? 'asc' : 'desc'),
     });
-    expect(cells[0].indicator).toBeNull();
-    expect(cells[0].href).toContain('dir=desc'); // no override → desc
-    expect(cells[1].href).toContain('dir=asc'); // override → asc
+    expect(cells[0]!.indicator).toBeNull();
+    expect(cells[0]!.href).toContain('dir=desc'); // no override → desc
+    expect(cells[1]!.href).toContain('dir=asc'); // override → asc
   });
 });
