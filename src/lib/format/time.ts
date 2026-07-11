@@ -22,10 +22,12 @@ export function formatIsoDay(date: Date): string {
 
 // Coarse "x ago" for live-ish readouts: floors to the largest of m/h/d/w/mo,
 // sub-minute and future timestamps read "just now". `now` is injectable for
-// tests; production passes the default wall clock.
-export function formatRelativeTime(date: Date | null, now: number = Date.now()): string {
+// tests; production reads the wall clock — but only for a non-null date, so a
+// null/shell render never touches `Date.now()` (the Cache Components prerender
+// rule: no clock read before request data).
+export function formatRelativeTime(date: Date | null, now?: number): string {
   if (!date) return '—';
-  const diffMs = now - date.getTime();
+  const diffMs = (now ?? Date.now()) - date.getTime();
   if (diffMs < 0) return 'just now';
   const minutes = Math.floor(diffMs / 60_000);
   if (minutes < 1) return 'just now';
