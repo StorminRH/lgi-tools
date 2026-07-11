@@ -8,10 +8,19 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from '@/components/ui/toast';
-import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
-import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft } from '@/data/industry-math/fees';
+import { type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
+import {
+  MAX_FACILITY_TAX_PCT,
+  parseFacilityTaxDraft,
+  taxDraftFromStored,
+} from '@/data/industry-math/fees';
 import { apiFetch } from '@/lib/api-client';
 import { MAX_CORP_STRUCTURE_RIGS, setCorpStructureRigsEndpoint } from '../api-contract';
+import {
+  deriveCorpCardView,
+  deriveCorpStructureItemView,
+  type CorpStructureItemView,
+} from '../corp-structure-view';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '../types';
 
 // The corp-structures section of the /structures page. For each member corp: the
@@ -53,28 +62,23 @@ function CorpCard({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
 }) {
+  const view = deriveCorpCardView(corp);
   return (
     <Card>
-      <SectionHeader
-        size="md"
-        label={corp.corporationName}
-        hint={corp.isStationManager ? (corp.sharingEnabled ? 'sharing on' : 'sharing off') : 'shared'}
-      />
+      <SectionHeader size="md" label={corp.corporationName} hint={view.hint} />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
-        {corp.isStationManager && (
+        {view.showManagerNote && (
           <p className="text-[11px] text-muted">
             Structure sharing is managed in{' '}
             <Link href="/settings" className="text-name underline hover:text-text">
               Account settings
             </Link>
-            {corp.sharingEnabled
-              ? '.'
-              : ' — turn it on to make this corporation’s structures selectable as build locations for every member.'}
+            {view.managerBlurb}
           </p>
         )}
 
-        {corp.sharingEnabled &&
-          (corp.structures.length === 0 ? (
+        {view.showStructures &&
+          (view.isEmpty ? (
             <EmptyState>No structures synced yet — they appear here after the next refresh.</EmptyState>
           ) : (
             <ul className="flex flex-col gap-2.5">
@@ -95,6 +99,20 @@ function CorpCard({
   );
 }
 
+// Read-only rig + tax pills for a member (non-manager) view.
+function CorpStructureReadonlyDetails({ view }: { view: CorpStructureItemView }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {view.rigLabels.map((r) => (
+        <Pill key={r.key} tone="blue">
+          {r.label}
+        </Pill>
+      ))}
+      {view.taxLabel !== null && <Pill tone="neutral">{view.taxLabel}</Pill>}
+    </div>
+  );
+}
+
 function CorpStructureItem({
   corporationId,
   structure,
@@ -108,28 +126,22 @@ function CorpStructureItem({
   structureTypes: StructureTypeOption[];
   structureRigs: StructureRigOption[];
 }) {
-  const typeOption = structureTypes.find((t) => t.typeId === structure.typeId) ?? null;
-  const typeName = typeOption?.name ?? `Type ${structure.typeId}`;
-  const validRigs = typeOption ? structureRigs.filter((r) => rigFitsStructure(r, typeOption)) : [];
-  const rigName = new Map(structureRigs.map((r) => [r.typeId, r.name]));
+  const view = deriveCorpStructureItemView(structure, { structureTypes, structureRigs });
 
   return (
     <li className="flex flex-col gap-2 border border-border bg-section px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[12px] text-text">{structure.name ?? typeName}</span>
-        <Pill tone="neutral">{typeName}</Pill>
+        <span className="font-mono text-[12px] text-text">{view.displayName}</span>
+        <Pill tone="neutral">{view.typeName}</Pill>
       </div>
       {canEdit ? (
-        <CorpStructureRigEditor corporationId={corporationId} structure={structure} validRigs={validRigs} />
-      ) : structure.rigTypeIds.length > 0 || structure.taxPct !== null ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {structure.rigTypeIds.map((r) => (
-            <Pill key={r} tone="blue">
-              {rigName.get(r) ?? `Rig ${r}`}
-            </Pill>
-          ))}
-          {structure.taxPct !== null && <Pill tone="neutral">tax {structure.taxPct}%</Pill>}
-        </div>
+        <CorpStructureRigEditor
+          corporationId={corporationId}
+          structure={structure}
+          validRigs={view.validRigs}
+        />
+      ) : view.hasDetails ? (
+        <CorpStructureReadonlyDetails view={view} />
       ) : (
         <span className="text-[10px] text-muted">no rigs recorded</span>
       )}
@@ -153,7 +165,7 @@ function CorpStructureRigEditor({
   // The owner-set facility tax (3.7.13.3), edited beside the rigs — kept as the
   // raw input string until save. Empty = never entered: the planner then assumes
   // the 0.25% NPC baseline (labeled as assumed in the fee breakdown).
-  const [taxDraft, setTaxDraft] = useState(structure.taxPct === null ? '' : String(structure.taxPct));
+  const [taxDraft, setTaxDraft] = useState(taxDraftFromStored(structure.taxPct));
   const [busy, setBusy] = useState(false);
 
   async function onSave() {
@@ -180,7 +192,7 @@ function CorpStructureRigEditor({
     if (res.ok) {
       // Adopt the echoed stored value so the field reflects the authoritative
       // state (normalizes drafts like "01.50" and can't drift from the save).
-      setTaxDraft(res.data.taxPct === null ? '' : String(res.data.taxPct));
+      setTaxDraft(taxDraftFromStored(res.data.taxPct));
       toast.success('Structure details saved');
     } else {
       toast.error('Could not save the structure details');

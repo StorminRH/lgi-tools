@@ -244,3 +244,14 @@ export function deriveEsiSourceStatus({
   }
   return { level: 'green', headline: 'ESI served every priced item this period' };
 }
+
+// Daily fallback-rate percentages for the ESI-source trend chart: the share of
+// each day's priced items served by the Fuzzwork fallback, as a whole percent.
+// A day with no refreshes (esi + fallback === 0) reads 0, never a divide-by-zero.
+export function fallbackRatePoints(
+  perDay: ReadonlyArray<{ esi: number; fallback: number }>,
+): number[] {
+  return perDay.map((p) =>
+    p.esi + p.fallback === 0 ? 0 : Math.round((p.fallback / (p.esi + p.fallback)) * 100),
+  );
+}

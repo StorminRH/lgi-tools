@@ -5,6 +5,7 @@ import {
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
+  fallbackRatePoints,
   fallbackSummary,
   formatAgo,
   formatPct,
@@ -308,5 +309,24 @@ describe('deriveEsiSourceStatus', () => {
       level: 'red',
       headline: 'degraded · Fuzzwork covered 80% of priced items',
     });
+  });
+});
+
+describe('fallbackRatePoints', () => {
+  it('computes the whole-percent fallback share per day', () => {
+    expect(
+      fallbackRatePoints([
+        { esi: 90, fallback: 10 }, // 10%
+        { esi: 3, fallback: 1 }, // 25%
+      ]),
+    ).toEqual([10, 25]);
+  });
+
+  it('reads 0 for a day with no refreshes (no divide-by-zero)', () => {
+    expect(fallbackRatePoints([{ esi: 0, fallback: 0 }])).toEqual([0]);
+  });
+
+  it('rounds to the nearest whole percent', () => {
+    expect(fallbackRatePoints([{ esi: 2, fallback: 1 }])).toEqual([33]); // 33.33 → 33
   });
 });

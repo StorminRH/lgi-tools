@@ -8,6 +8,7 @@ import {
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
+  fallbackRatePoints,
   fallbackSummary,
   PRICES_HEALTHY_OUTCOMES,
   refreshVolumeSummary,
@@ -31,6 +32,11 @@ import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { trendSeries } from './period';
 import { SectionUnavailable } from './SectionUnavailable';
 import { StatusRow } from './StatusRow';
+
+type Trend = ReturnType<typeof trendSeries>;
+type RefreshVolume = Awaited<ReturnType<typeof getRefreshVolume>>;
+type FallbackRate = Awaited<ReturnType<typeof getFallbackRate>>;
+type DegradationByCaller = Awaited<ReturnType<typeof getDegradationByCaller>>;
 
 // The is-anything-broken strip: one row per subsystem, reduced to a colored
 // dot + one-line readout. Status is anchored on "now" (latest run, current
@@ -73,6 +79,138 @@ function DurationTable({ rows }: { rows: CronOutcomeCount[] }) {
         </tbody>
       </table>
     </ChartBlock>
+  );
+}
+
+function PriceCronDetail({
+  refreshVolume,
+  priceOutcomes,
+  volumeTrend,
+}: {
+  refreshVolume: RefreshVolume;
+  priceOutcomes: CronOutcomeCount[];
+  volumeTrend: Trend;
+}) {
+  return (
+    <DetailBody>
+      <DetailCaption>{refreshVolumeSummary(refreshVolume)}</DetailCaption>
+      {refreshVolume.length > 0 && (
+        <ChartBlock label="Rows fetched by day">
+          <AdminTrendChart
+            points={volumeTrend.points}
+            labels={volumeTrend.labels}
+            unit="count"
+            ariaLabel="Rows fetched by day"
+          />
+        </ChartBlock>
+      )}
+      {priceOutcomes.length > 0 && (
+        <ChartBlock label="Runs by outcome">
+          <AdminBarChart
+            data={priceOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
+            ariaLabel="Price-cron runs by outcome"
+          />
+        </ChartBlock>
+      )}
+      <DurationTable rows={priceOutcomes} />
+    </DetailBody>
+  );
+}
+
+function SdeCronDetail({ sdeOutcomes }: { sdeOutcomes: CronOutcomeCount[] }) {
+  return (
+    <DetailBody>
+      {sdeOutcomes.length === 0 ? (
+        <DetailCaption>
+          No SDE cron runs in this range (it runs daily — pick a wider range to see history).
+        </DetailCaption>
+      ) : (
+        <>
+          <ChartBlock label="Runs by outcome">
+            <AdminBarChart
+              data={sdeOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
+              ariaLabel="SDE-cron runs by outcome"
+            />
+          </ChartBlock>
+          <DurationTable rows={sdeOutcomes} />
+        </>
+      )}
+    </DetailBody>
+  );
+}
+
+function GscSyncDetail({
+  gscConfigured,
+  lastSyncedAt,
+  gscOutcomes,
+}: {
+  gscConfigured: boolean;
+  lastSyncedAt: Date | null;
+  gscOutcomes: CronOutcomeCount[];
+}) {
+  return (
+    <DetailBody>
+      {!gscConfigured ? (
+        <DetailCaption>
+          Set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync Search Console data.
+        </DetailCaption>
+      ) : (
+        <>
+          <DetailCaption>
+            Google data lags ~2–3 days · last synced{' '}
+            {lastSyncedAt
+              ? `${lastSyncedAt.toISOString().replace('T', ' ').slice(0, 16)} UTC`
+              : 'never'}
+          </DetailCaption>
+          {gscOutcomes.length > 0 && (
+            <ChartBlock label="Sync runs by outcome">
+              <AdminBarChart
+                data={gscOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
+                ariaLabel="GSC sync runs by outcome"
+              />
+            </ChartBlock>
+          )}
+        </>
+      )}
+    </DetailBody>
+  );
+}
+
+function EsiSourceDetail({
+  fallback,
+  budgetExhaustions,
+  degradationByCaller,
+  fallbackTrend,
+}: {
+  fallback: FallbackRate;
+  budgetExhaustions: number;
+  degradationByCaller: DegradationByCaller;
+  fallbackTrend: Trend;
+}) {
+  return (
+    <DetailBody>
+      <DetailCaption>{fallbackSummary(fallback)}</DetailCaption>
+      <DetailCaption>{budgetSummary(budgetExhaustions)}</DetailCaption>
+      {fallback.perDay.length > 0 && (
+        <ChartBlock label="Fallback rate by day">
+          <AdminTrendChart
+            points={fallbackTrend.points}
+            labels={fallbackTrend.labels}
+            unit="percent"
+            ariaLabel="Fallback rate by day"
+          />
+        </ChartBlock>
+      )}
+      <DetailCaption>{degradationCallerSummary(degradationByCaller)}</DetailCaption>
+      {degradationByCaller.length > 0 && (
+        <ChartBlock label="Degradation events by caller">
+          <AdminBarChart
+            data={degradationByCaller.map((d) => ({ label: d.caller, value: d.count }))}
+            ariaLabel="Degradation events by caller"
+          />
+        </ChartBlock>
+      )}
+    </DetailBody>
   );
 }
 
@@ -138,9 +276,7 @@ export async function StatusStrip({ range }: { range: DateRange }) {
   );
   const fallbackTrend = trendSeries(
     fallback.perDay.map((p) => p.day),
-    fallback.perDay.map((p) =>
-      p.esi + p.fallback === 0 ? 0 : Math.round((p.fallback / (p.esi + p.fallback)) * 100),
-    ),
+    fallbackRatePoints(fallback.perDay),
   );
 
   return (
@@ -152,101 +288,32 @@ export async function StatusStrip({ range }: { range: DateRange }) {
       />
 
       <StatusRow name="Price cron" status={priceStatus}>
-        <DetailBody>
-          <DetailCaption>{refreshVolumeSummary(refreshVolume)}</DetailCaption>
-          {refreshVolume.length > 0 && (
-            <ChartBlock label="Rows fetched by day">
-              <AdminTrendChart
-                points={volumeTrend.points}
-                labels={volumeTrend.labels}
-                unit="count"
-                ariaLabel="Rows fetched by day"
-              />
-            </ChartBlock>
-          )}
-          {priceOutcomes.length > 0 && (
-            <ChartBlock label="Runs by outcome">
-              <AdminBarChart
-                data={priceOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
-                ariaLabel="Price-cron runs by outcome"
-              />
-            </ChartBlock>
-          )}
-          <DurationTable rows={priceOutcomes} />
-        </DetailBody>
+        <PriceCronDetail
+          refreshVolume={refreshVolume}
+          priceOutcomes={priceOutcomes}
+          volumeTrend={volumeTrend}
+        />
       </StatusRow>
 
       <StatusRow name="SDE cron" status={sdeStatus}>
-        <DetailBody>
-          {sdeOutcomes.length === 0 ? (
-            <DetailCaption>
-              No SDE cron runs in this range (it runs daily — pick a wider range to see history).
-            </DetailCaption>
-          ) : (
-            <>
-              <ChartBlock label="Runs by outcome">
-                <AdminBarChart
-                  data={sdeOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
-                  ariaLabel="SDE-cron runs by outcome"
-                />
-              </ChartBlock>
-              <DurationTable rows={sdeOutcomes} />
-            </>
-          )}
-        </DetailBody>
+        <SdeCronDetail sdeOutcomes={sdeOutcomes} />
       </StatusRow>
 
       <StatusRow name="GSC sync" status={gscStatus}>
-        <DetailBody>
-          {!gscConfigured ? (
-            <DetailCaption>
-              Set GSC_SERVICE_ACCOUNT_JSON and GSC_SITE_URL to sync Search Console data.
-            </DetailCaption>
-          ) : (
-            <>
-              <DetailCaption>
-                Google data lags ~2–3 days · last synced{' '}
-                {lastSyncedAt
-                  ? `${lastSyncedAt.toISOString().replace('T', ' ').slice(0, 16)} UTC`
-                  : 'never'}
-              </DetailCaption>
-              {gscOutcomes.length > 0 && (
-                <ChartBlock label="Sync runs by outcome">
-                  <AdminBarChart
-                    data={gscOutcomes.map((o) => ({ label: o.outcome, value: o.count }))}
-                    ariaLabel="GSC sync runs by outcome"
-                  />
-                </ChartBlock>
-              )}
-            </>
-          )}
-        </DetailBody>
+        <GscSyncDetail
+          gscConfigured={gscConfigured}
+          lastSyncedAt={lastSyncedAt}
+          gscOutcomes={gscOutcomes}
+        />
       </StatusRow>
 
       <StatusRow name="ESI source" status={esiStatus}>
-        <DetailBody>
-          <DetailCaption>{fallbackSummary(fallback)}</DetailCaption>
-          <DetailCaption>{budgetSummary(budgetExhaustions)}</DetailCaption>
-          {fallback.perDay.length > 0 && (
-            <ChartBlock label="Fallback rate by day">
-              <AdminTrendChart
-                points={fallbackTrend.points}
-                labels={fallbackTrend.labels}
-                unit="percent"
-                ariaLabel="Fallback rate by day"
-              />
-            </ChartBlock>
-          )}
-          <DetailCaption>{degradationCallerSummary(degradationByCaller)}</DetailCaption>
-          {degradationByCaller.length > 0 && (
-            <ChartBlock label="Degradation events by caller">
-              <AdminBarChart
-                data={degradationByCaller.map((d) => ({ label: d.caller, value: d.count }))}
-                ariaLabel="Degradation events by caller"
-              />
-            </ChartBlock>
-          )}
-        </DetailBody>
+        <EsiSourceDetail
+          fallback={fallback}
+          budgetExhaustions={budgetExhaustions}
+          degradationByCaller={degradationByCaller}
+          fallbackTrend={fallbackTrend}
+        />
       </StatusRow>
     </Card>
   );

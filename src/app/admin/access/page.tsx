@@ -14,7 +14,6 @@ import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
 import { RoleToggleForm } from '@/features/auth/components/RoleToggleForm';
 import { requireAdminPage } from '@/features/auth/route-guards';
 import {
-  CHARACTER_SEARCH_LIMIT,
   getUserByCharacterId,
   listAdminUsers,
   searchUsersByLinkedCharacterName,
@@ -22,6 +21,12 @@ import {
 } from '@/features/auth/queries';
 import { readEnv } from '@/lib/env';
 import { sanitiseUserText } from '@/lib/sanitise';
+import {
+  adminRoleBadge,
+  deriveAccessView,
+  deriveAuditRowView,
+  mergeAdminRows,
+} from './access-view';
 
 const MAX_QUERY_LENGTH = 200;
 
@@ -37,31 +42,18 @@ function sanitiseQuery(raw: string | string[] | undefined): string | undefined {
   return cleaned.length === 0 ? undefined : cleaned;
 }
 
-function formatDateTime(d: Date): string {
-  return d.toISOString().replace('T', ' ').slice(0, 16);
-}
-
 // Build the Admins list shown above the search results. Admin is per-user;
 // includes the env superadmin synthetically (resolved from their character id to
 // the owning user) when their DB role isn't already ADMIN — otherwise they'd be
 // invisible on the page they have authority over.
-async function buildAdminList(): Promise<
-  Array<{ user: AdminUser; isSuperadmin: boolean }>
-> {
+async function buildAdminList(): Promise<Array<{ user: AdminUser; isSuperadmin: boolean }>> {
   const dbAdmins = await listAdminUsers();
   const superId = Number(readEnv('SUPERADMIN_CHARACTER_ID'));
-  const haveSuperId = Number.isFinite(superId) && superId > 0;
   // Identify the superadmin by the USER that owns the env character id, not by a
-  // displayed character id: a pilot can now link several characters (3.4.2), so
-  // the row's shown character isn't necessarily the superadmin one.
-  const superUser = haveSuperId ? await getUserByCharacterId(superId) : null;
-  const superUserId = superUser?.userId ?? null;
-
-  const rows = dbAdmins.map(u => ({ user: u, isSuperadmin: u.userId === superUserId }));
-  if (superUser && !dbAdmins.some(a => a.userId === superUserId)) {
-    rows.unshift({ user: superUser, isSuperadmin: true });
-  }
-  return rows;
+  // displayed character id: a pilot can now link several characters (3.4.2).
+  const superUser =
+    Number.isFinite(superId) && superId > 0 ? await getUserByCharacterId(superId) : null;
+  return mergeAdminRows(dbAdmins, superUser);
 }
 
 function AdminUserRow({
@@ -77,13 +69,7 @@ function AdminUserRow({
   currentQuery: string | undefined;
   showToggle: boolean;
 }) {
-  const roleChip = isSuperadmin ? (
-    <Chip tone="purple">Superadmin</Chip>
-  ) : user.role === 'ADMIN' ? (
-    <Chip tone="purple">Admin</Chip>
-  ) : (
-    <Chip tone="blue">User</Chip>
-  );
+  const badge = adminRoleBadge({ isSuperadmin, role: user.role });
 
   return (
     <EntityRow
@@ -107,7 +93,7 @@ function AdminUserRow({
       chips={
         <span className="flex items-center gap-[6px]">
           <Pill tone="neutral">ID {user.characterId ?? '—'}</Pill>
-          {roleChip}
+          <Chip tone={badge.tone}>{badge.label}</Chip>
         </span>
       }
       trailing={
@@ -119,20 +105,31 @@ function AdminUserRow({
             currentQuery={currentQuery}
           />
         ) : (
-          <span className="text-[10px] text-muted whitespace-nowrap italic">
-            managed via env
-          </span>
+          <span className="text-[10px] text-muted whitespace-nowrap italic">managed via env</span>
         )
       }
     />
   );
 }
 
-function RoleChangeAudit({
-  audit,
-}: {
-  audit: Awaited<ReturnType<typeof getRoleChangeAudit>>;
-}) {
+function AuditRow({ view }: { view: ReturnType<typeof deriveAuditRowView> }) {
+  return (
+    <tr className="border-t border-border-soft">
+      <td className="py-1.5 text-text">{view.timestamp}</td>
+      <td className="py-1.5 text-text">{view.actorLabel}</td>
+      <td className="py-1.5 text-text">{view.targetLabel}</td>
+      <td className="py-1.5">
+        <span className="flex items-center gap-1.5">
+          <Pill tone={view.fromTone}>{view.fromLabel}</Pill>
+          <span className="text-muted">→</span>
+          <Pill tone={view.toTone}>{view.toLabel}</Pill>
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleChangeAudit>> }) {
   return (
     <Card>
       <SectionHeader
@@ -155,27 +152,7 @@ function RoleChangeAudit({
             </thead>
             <tbody>
               {audit.map((row, idx) => (
-                <tr
-                  key={`${row.timestamp.toISOString()}-${idx}`}
-                  className="border-t border-border-soft"
-                >
-                  <td className="py-1.5 text-text">{formatDateTime(row.timestamp)}</td>
-                  <td className="py-1.5 text-text">
-                    {row.actorName ?? `id ${row.actorCharacterId ?? '?'}`}
-                  </td>
-                  <td className="py-1.5 text-text">
-                    {row.targetName ?? `id ${row.targetCharacterId ?? '?'}`}
-                  </td>
-                  <td className="py-1.5">
-                    <span className="flex items-center gap-1.5">
-                      <Pill tone={row.from === 'ADMIN' ? 'purple' : 'blue'}>
-                        {row.from ?? '?'}
-                      </Pill>
-                      <span className="text-muted">→</span>
-                      <Pill tone={row.to === 'ADMIN' ? 'purple' : 'blue'}>{row.to ?? '?'}</Pill>
-                    </span>
-                  </td>
-                </tr>
+                <AuditRow key={`${row.timestamp.toISOString()}-${idx}`} view={deriveAuditRowView(row)} />
               ))}
             </tbody>
           </table>
@@ -185,11 +162,100 @@ function RoleChangeAudit({
   );
 }
 
-async function AccessContent({
-  searchParams,
+function AccessSearchForm({ query }: { query: string | undefined }) {
+  return (
+    <form method="GET" action="/admin/access" className="flex items-center gap-2">
+      <input
+        type="text"
+        name="q"
+        defaultValue={query ?? ''}
+        placeholder="Search by character name"
+        maxLength={MAX_QUERY_LENGTH}
+        className="flex-1 font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
+      />
+      <button
+        type="submit"
+        className="font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-isk transition-colors"
+      >
+        Search
+      </button>
+      {query ? (
+        <Link
+          href="/admin/access"
+          className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted px-2 py-1"
+        >
+          Clear
+        </Link>
+      ) : null}
+    </form>
+  );
+}
+
+function AdminsCard({
+  adminRows,
+  viewerUserId,
+  query,
 }: {
-  searchParams: Promise<{ q?: string | string[] }>;
+  adminRows: Array<{ user: AdminUser; isSuperadmin: boolean }>;
+  viewerUserId: string;
+  query: string | undefined;
 }) {
+  return (
+    <Card>
+      <SectionHeader size="md" label="Admins" hint={`${adminRows.length} with elevated access`} />
+      {adminRows.length === 0 ? (
+        <EmptyState>No admins currently configured.</EmptyState>
+      ) : (
+        adminRows.map(({ user, isSuperadmin }) => (
+          <AdminUserRow
+            key={user.userId}
+            user={user}
+            isSuperadmin={isSuperadmin}
+            viewerUserId={viewerUserId}
+            currentQuery={query}
+            showToggle={!isSuperadmin}
+          />
+        ))
+      )}
+    </Card>
+  );
+}
+
+function SearchResultsCard({
+  nonAdminMatches,
+  resultsHint,
+  query,
+  viewerUserId,
+}: {
+  nonAdminMatches: AdminUser[];
+  resultsHint: string;
+  query: string;
+  viewerUserId: string;
+}) {
+  return (
+    <Card>
+      <SectionHeader size="md" label="Search results" hint={resultsHint} />
+      {nonAdminMatches.length === 0 ? (
+        <EmptyState>
+          No non-admin characters match &ldquo;{query}&rdquo;. Any matching admins are listed above.
+        </EmptyState>
+      ) : (
+        nonAdminMatches.map((user) => (
+          <AdminUserRow
+            key={user.userId}
+            user={user}
+            isSuperadmin={false}
+            viewerUserId={viewerUserId}
+            currentQuery={query}
+            showToggle={true}
+          />
+        ))
+      )}
+    </Card>
+  );
+}
+
+async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: string | string[] }> }) {
   // Admin gate + viewer id come straight from the Better Auth session (the
   // shared Session type deliberately doesn't carry userId).
   const session = await requireAdminPage();
@@ -204,13 +270,7 @@ async function AccessContent({
     getRoleChangeAudit(lastNDaysRange(AUDIT_WINDOW_DAYS), 50),
   ]);
 
-  const adminUserIds = new Set(adminRows.map(r => r.user.userId));
-  // searchUsersByLinkedCharacterName fetches one row past the cap as a truncation
-  // probe; a full extra row means the match set was cut off (not naturally cap-sized).
-  const searchTruncated = searchResults.length > CHARACTER_SEARCH_LIMIT;
-  const nonAdminMatches = searchResults
-    .slice(0, CHARACTER_SEARCH_LIMIT)
-    .filter(u => !adminUserIds.has(u.userId));
+  const view = deriveAccessView({ adminRows, searchResults, query });
 
   return (
     <>
@@ -219,8 +279,8 @@ async function AccessContent({
         title="Access"
         subtitle={
           <>
-            {adminRows.length} admin{adminRows.length === 1 ? '' : 's'}
-            {query ? ` · search "${query}"` : ''}
+            {view.adminCount} admin{view.adminPlural}
+            {view.querySuffix}
           </>
         }
         meta={
@@ -234,82 +294,17 @@ async function AccessContent({
       />
 
       <div className="w-full flex flex-col gap-6">
-        <form method="GET" action="/admin/access" className="flex items-center gap-2">
-          <input
-            type="text"
-            name="q"
-            defaultValue={query ?? ''}
-            placeholder="Search by character name"
-            maxLength={MAX_QUERY_LENGTH}
-            className="flex-1 font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
-          />
-          <button
-            type="submit"
-            className="font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-isk transition-colors"
-          >
-            Search
-          </button>
-          {query ? (
-            <Link
-              href="/admin/access"
-              className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted px-2 py-1"
-            >
-              Clear
-            </Link>
-          ) : null}
-        </form>
+        <AccessSearchForm query={query} />
 
-        <Card>
-          <SectionHeader
-            size="md"
-            label="Admins"
-            hint={`${adminRows.length} with elevated access`}
-          />
-          {adminRows.length === 0 ? (
-            <EmptyState>No admins currently configured.</EmptyState>
-          ) : (
-            adminRows.map(({ user, isSuperadmin }) => (
-              <AdminUserRow
-                key={user.userId}
-                user={user}
-                isSuperadmin={isSuperadmin}
-                viewerUserId={viewerUserId}
-                currentQuery={query}
-                showToggle={!isSuperadmin}
-              />
-            ))
-          )}
-        </Card>
+        <AdminsCard adminRows={adminRows} viewerUserId={viewerUserId} query={query} />
 
         {query ? (
-          <Card>
-            <SectionHeader
-              size="md"
-              label="Search results"
-              hint={
-                `${nonAdminMatches.length} match${nonAdminMatches.length === 1 ? '' : 'es'}` +
-                (searchTruncated
-                  ? ` · showing first ${CHARACTER_SEARCH_LIMIT}, narrow your search`
-                  : '')
-              }
-            />
-            {nonAdminMatches.length === 0 ? (
-              <EmptyState>
-                No non-admin characters match &ldquo;{query}&rdquo;. Any matching admins are listed above.
-              </EmptyState>
-            ) : (
-              nonAdminMatches.map(user => (
-                <AdminUserRow
-                  key={user.userId}
-                  user={user}
-                  isSuperadmin={false}
-                  viewerUserId={viewerUserId}
-                  currentQuery={query}
-                  showToggle={true}
-                />
-              ))
-            )}
-          </Card>
+          <SearchResultsCard
+            nonAdminMatches={view.nonAdminMatches}
+            resultsHint={view.resultsHint}
+            query={query}
+            viewerUserId={viewerUserId}
+          />
         ) : null}
 
         <RoleChangeAudit audit={audit} />
@@ -319,9 +314,7 @@ async function AccessContent({
 }
 
 function AccessLoading() {
-  return (
-    <LoadingLabel />
-  );
+  return <LoadingLabel />;
 }
 
 // Per-user, session-gated: the content (auth check, redirect, DB reads) is a

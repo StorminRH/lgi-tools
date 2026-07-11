@@ -8,6 +8,7 @@ import {
   MAX_FACILITY_TAX_PCT,
   parseFacilityTaxDraft,
   REACTION_SCC_SURCHARGE,
+  taxDraftFromStored,
   type AdjustedPriceOf,
 } from './fees';
 import type { MaterialQty } from './profitability';
@@ -327,5 +328,18 @@ describe('computeNetMargin', () => {
     expect(net.incomplete).toBe(true);
     // Net margin is still computed on the partial EIV (a lower-bound fee).
     expect(net.netMargin).not.toBeNull();
+  });
+});
+
+describe('taxDraftFromStored', () => {
+  it('null (never entered) → empty draft', () => {
+    expect(taxDraftFromStored(null)).toBe('');
+  });
+
+  it('a stored percent → its string (round-trips with parseFacilityTaxDraft)', () => {
+    expect(taxDraftFromStored(0)).toBe('0');
+    expect(taxDraftFromStored(0.25)).toBe('0.25');
+    expect(taxDraftFromStored(5)).toBe('5');
+    expect(parseFacilityTaxDraft(taxDraftFromStored(1.5))).toEqual({ ok: true, value: 1.5 });
   });
 });

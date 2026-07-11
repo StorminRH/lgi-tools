@@ -27,9 +27,12 @@ import { savedEmptyLine, savedTiles } from '@/features/industry-planner/saved-pl
 import { useRecentBlueprints } from '@/features/industry-planner/use-recent-blueprints';
 import { useSavedPlans } from '@/features/industry-planner/use-saved-plans';
 import {
+  activeJobsHint,
   activeStatus,
+  corpHint,
   corpStatus,
   type DashboardSectionId,
+  deriveSectionRender,
   orderSections,
   PANEL_CLASS,
   recentsStatus,
@@ -47,6 +50,87 @@ interface SectionCell {
 }
 
 const countBadge = 'text-evb-bright font-semibold';
+
+// One section: its label + meta, then either the sunk one-line hint (confirmed
+// empty) or the body. The populated/empty/hint decision is `deriveSectionRender`.
+function DashboardSection({ status, cell }: { status: SectionStatus; cell: SectionCell }) {
+  const render = deriveSectionRender(status, cell.hint);
+  return (
+    <section>
+      <SectionLabel className="mb-3" meta={render.meta ? cell.meta : undefined}>
+        {cell.label}
+      </SectionLabel>
+      {render.hint !== null && <p className="text-[11px] text-muted">{render.hint}</p>}
+      {render.body && cell.body}
+    </section>
+  );
+}
+
+function RecentsPanel({ recent }: { recent: ReturnType<typeof useRecentBlueprints> }) {
+  return (
+    <div className={PANEL_CLASS}>
+      {recent === null ? <EmptyState> </EmptyState> : <RecentBlueprintRows recent={recent} />}
+    </div>
+  );
+}
+
+function TemplatesPanel({
+  plans,
+  tiles,
+}: {
+  plans: ReturnType<typeof useSavedPlans>['plans'];
+  tiles: ReturnType<typeof savedTiles>['tiles'];
+}) {
+  return (
+    <div className={PANEL_CLASS}>
+      {plans === null ? <EmptyState> </EmptyState> : <SavedBuildTiles plans={tiles} />}
+    </div>
+  );
+}
+
+function ActiveJobsPanel({
+  loading,
+  jobs,
+  names,
+  now,
+}: {
+  loading: boolean;
+  jobs: ReturnType<typeof flattenJobs>;
+  names: Record<string, string>;
+  now: number;
+}) {
+  if (loading) return <LoadingLabel label="Loading…" />;
+  return <IndustryActiveJobs jobs={jobs} names={names} now={now} />;
+}
+
+// The corp cell's populated/pending body: the scope-missing AccessGate (an
+// actionable relink CTA — ranked populated so it never sinks), the loading
+// label, or the corp boards over the coordinator's own live read.
+function CorpSectionBody({
+  eligibleCount,
+  loading,
+  corporations,
+  names,
+  now,
+  reconnectAction,
+}: {
+  eligibleCount: number;
+  loading: boolean;
+  corporations: Parameters<typeof CorpJobsList>[0]['corporations'];
+  names: Record<string, string>;
+  now: number;
+  reconnectAction: ReactNode;
+}) {
+  if (eligibleCount === 0) {
+    return (
+      <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
+        {null}
+      </AccessGate>
+    );
+  }
+  if (loading) return <LoadingLabel label="Loading…" />;
+  return <CorpJobsList corporations={corporations} names={names} now={now} />;
+}
 
 export function IndustryDashboardGrid({
   characterIds,
@@ -90,119 +174,74 @@ export function IndustryDashboardGrid({
     }),
   };
 
-  const { tiles, overflow } = savedTiles(plans ?? []);
+  const allPlans = plans ?? [];
+  const { tiles, overflow } = savedTiles(allPlans);
   const counts = jobCounts(jobs);
+
+  const savedMeta =
+    overflow > 0 ? (
+      <Link
+        href="/industry/templates"
+        className="font-mono text-[10px] tracking-[0.04em] text-muted no-underline transition-colors hover:text-name"
+      >
+        → all templates ({allPlans.length})
+      </Link>
+    ) : undefined;
+
+  const activeMeta =
+    jobs.length > 0 ? (
+      <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-muted">
+        <b className={countBadge}>{counts.complete}</b> complete ·{' '}
+        <b className={countBadge}>{counts.inProgress}</b> in progress
+      </span>
+    ) : undefined;
 
   const cells: Record<DashboardSectionId, SectionCell> = {
     recents: {
       label: 'Recents',
-      body: (
-        <div className={PANEL_CLASS}>
-          {recent === null ? <EmptyState> </EmptyState> : <RecentBlueprintRows recent={recent} />}
-        </div>
-      ),
+      body: <RecentsPanel recent={recent} />,
       hint: 'No blueprints viewed yet — search above and open one to start your history.',
     },
     saved: {
       label: 'Templates',
-      meta:
-        overflow > 0 ? (
-          <Link
-            href="/industry/templates"
-            className="font-mono text-[10px] tracking-[0.04em] text-muted no-underline transition-colors hover:text-name"
-          >
-            → all templates ({(plans ?? []).length})
-          </Link>
-        ) : undefined,
-      body: (
-        <div className={PANEL_CLASS}>
-          {plans === null ? <EmptyState> </EmptyState> : <SavedBuildTiles plans={tiles} />}
-        </div>
-      ),
+      meta: savedMeta,
+      body: <TemplatesPanel plans={plans} tiles={tiles} />,
       hint: savedEmptyLine({ listFailed, signedOut: !hasLinkedCharacters }),
     },
     active: {
       label: 'Active jobs',
-      meta:
-        jobs.length > 0 ? (
-          <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-muted">
-            <b className={countBadge}>{counts.complete}</b> complete ·{' '}
-            <b className={countBadge}>{counts.inProgress}</b> in progress
-          </span>
-        ) : undefined,
-      body: jobsLive.loading ? (
-        <LoadingLabel label="Loading…" />
-      ) : (
-        <IndustryActiveJobs jobs={jobs} names={jobsLive.names} now={jobsLive.now} />
+      meta: activeMeta,
+      body: (
+        <ActiveJobsPanel
+          loading={jobsLive.loading}
+          jobs={jobs}
+          names={jobsLive.names}
+          now={jobsLive.now}
+        />
       ),
-      hint:
-        jobsLive.jobsByCharacter.size === 0
-          ? 'Sign in with EVE (top right) to track your industry jobs here.'
-          : 'No industry jobs running.',
+      hint: activeJobsHint(jobsLive.jobsByCharacter.size),
     },
     corp: {
       label: 'Corporation industry jobs',
-      body: <CorpSectionBody
-        eligibleCount={corpEligibleCharacterIds.length}
-        loading={corpLive.loading}
-        corporations={corpLive.corporations}
-        names={corpLive.names}
-        now={corpLive.now}
-        reconnectAction={reconnectAction}
-      />,
-      // Silent when there are no linked characters — the Active section's
-      // sign-in hint already prompts; no double-prompt (today's null render).
-      hint: hasLinkedCharacters
-        ? 'No corporation industry jobs yet — they’ll appear here once a sync completes.'
-        : undefined,
+      body: (
+        <CorpSectionBody
+          eligibleCount={corpEligibleCharacterIds.length}
+          loading={corpLive.loading}
+          corporations={corpLive.corporations}
+          names={corpLive.names}
+          now={corpLive.now}
+          reconnectAction={reconnectAction}
+        />
+      ),
+      hint: corpHint(hasLinkedCharacters),
     },
   };
 
   return (
     <div className="grid grid-cols-1 min-[900px]:grid-cols-2 gap-4 items-start">
       {orderSections(status).map((id) => (
-        <section key={id}>
-          <SectionLabel className="mb-3" meta={status[id] === 'populated' ? cells[id].meta : undefined}>
-            {cells[id].label}
-          </SectionLabel>
-          {status[id] === 'empty' ? (
-            cells[id].hint !== undefined && (
-              <p className="text-[11px] text-muted">{cells[id].hint}</p>
-            )
-          ) : (
-            cells[id].body
-          )}
-        </section>
+        <DashboardSection key={id} status={status[id]} cell={cells[id]} />
       ))}
     </div>
   );
-}
-
-// The corp cell's populated/pending body: the scope-missing AccessGate (an
-// actionable relink CTA — ranked populated so it never sinks), the loading
-// label, or the corp boards over the coordinator's own live read.
-function CorpSectionBody({
-  eligibleCount,
-  loading,
-  corporations,
-  names,
-  now,
-  reconnectAction,
-}: {
-  eligibleCount: number;
-  loading: boolean;
-  corporations: Parameters<typeof CorpJobsList>[0]['corporations'];
-  names: Record<string, string>;
-  now: number;
-  reconnectAction: ReactNode;
-}) {
-  if (eligibleCount === 0) {
-    return (
-      <AccessGate blocked reason={CORP_ACCESS_REASON} action={reconnectAction}>
-        {null}
-      </AccessGate>
-    );
-  }
-  if (loading) return <LoadingLabel label="Loading…" />;
-  return <CorpJobsList corporations={corporations} names={names} now={now} />;
 }

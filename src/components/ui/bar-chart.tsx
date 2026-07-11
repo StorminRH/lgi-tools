@@ -1,33 +1,28 @@
 'use client';
 
-import { useRef } from 'react';
+import type { MouseEvent } from 'react';
 import { Bar } from '@visx/shape';
 import { scaleBand, scaleLinear } from '@visx/scale';
-import { useTooltip } from '@visx/tooltip';
 import { localPoint } from '@visx/event';
-import { cn } from './cn';
 import { type SparklineTone } from './sparkline';
 import { toneHex } from './tones';
-import { useCssomTooltip } from './use-cssom-tooltip';
+import { useChartHover } from './chart/use-chart-hover';
+import { ChartCanvas } from './chart/chart-canvas';
+import { ValueAxisGrid } from './chart/value-axis';
+import { HoverCaptureRect } from './chart/hover-layer';
 
 /**
  * Compact categorical bar chart — outcome distributions, a login-frequency
- * histogram, returning-vs-new, caller mix. The second viz primitive on `visx`,
- * built to the same house style as {@link Sparkline} (geometry/positioning stay
- * off inline `style` attributes):
- *  - Geometry is pure SVG presentation attributes + `className` — `Bar` renders
- *    a plain `<rect>`, never an inline `style`.
- *  - The tooltip is self-rendered (not `@visx/tooltip`'s components, which
- *    position via inline `style`); its position is set as `--tt-x` / `--tt-y`
- *    custom properties through the CSSOM and read by the shared
- *    `.sparkline-tooltip` rule in globals.css.
- *  - Draws from the canonical `toneHex` palette (tones.ts) and shares the
- *    tooltip CSS with Sparkline rather than forking them.
- * `scaleBand` has no `.invert()`, so hover is captured per-bar rather than by
- * inverting an x probe.
+ * histogram, returning-vs-new, caller mix. Shares the frame / hover / value-axis
+ * primitives in `./chart`; the categorical scale, bars, and per-bar hover are
+ * bar-specific (`scaleBand` has no `.invert()`, so hover is captured per-bar
+ * rather than by inverting an x probe).
  */
 
 export type BarDatum = { label: string; value: number };
+
+const formatNumber = (value: number): string => String(value);
+const identity = (label: string): string => label;
 
 type BarChartProps = {
   data: BarDatum[];
@@ -55,15 +50,11 @@ export function BarChart({
   width = 320,
   height = 150,
   className,
-  formatValue = (v) => String(v),
-  formatLabel = (s) => s,
+  formatValue = formatNumber,
+  formatLabel = identity,
   ariaLabel = 'Bar chart',
 }: BarChartProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const { tooltipOpen, tooltipLeft, tooltipTop, tooltipData, showTooltip, hideTooltip } =
-    useTooltip<BarDatum>();
-  const tooltipRef = useCssomTooltip(tooltipLeft, tooltipTop, tooltipOpen);
-
+  const hover = useChartHover<BarDatum>();
   const fill = toneHex[tone];
 
   if (data.length === 0) return null;
@@ -88,88 +79,73 @@ export function BarChart({
   // domain would otherwise produce fractional ticks like 0.5.
   const yTickValues = yScale.ticks(Y_TICKS).filter((t) => Number.isInteger(t));
 
-  const handleMove = (event: React.MouseEvent<SVGRectElement>, datum: BarDatum) => {
-    const point = localPoint(svgRef.current as Element, event.nativeEvent);
+  const handleMove = (event: MouseEvent<SVGRectElement>, datum: BarDatum) => {
+    const point = localPoint(hover.svgRef.current as Element, event.nativeEvent);
     if (!point) return;
     const bandX = xScale(datum.label) ?? 0;
-    showTooltip({
+    hover.showTooltip({
       tooltipData: datum,
       tooltipLeft: bandX + xScale.bandwidth() / 2,
       tooltipTop: yScale(datum.value),
     });
   };
 
+  const datum = hover.tooltipData;
+
   return (
-    <div className={cn('relative inline-block', className)}>
-      <svg
-        ref={svgRef}
-        width={width}
-        height={height}
-        role="img"
-        aria-label={ariaLabel}
-        className="block overflow-visible"
-      >
-        {yTickValues.map((t) => (
-          <g key={t}>
-            <line
-              x1={MARGIN.left}
-              x2={width - MARGIN.right}
-              y1={yScale(t)}
-              y2={yScale(t)}
-              className="stroke-[var(--color-border-soft)]"
-              strokeWidth={1}
-            />
+    <ChartCanvas
+      svgRef={hover.svgRef}
+      width={width}
+      height={height}
+      ariaLabel={ariaLabel}
+      className={className}
+      tooltipRef={hover.tooltipRef}
+      tooltipOpen={hover.tooltipOpen}
+      tooltip={
+        datum && (
+          <>
+            <span className="text-name">{formatValue(datum.value)}</span>
+            <span className="text-muted"> · {formatLabel(datum.label)}</span>
+          </>
+        )
+      }
+    >
+      <ValueAxisGrid
+        ticks={yTickValues}
+        y={yScale}
+        left={MARGIN.left}
+        right={width - MARGIN.right}
+        format={formatValue}
+      />
+
+      {data.map((d) => {
+        const bandX = xScale(d.label) ?? 0;
+        const barW = xScale.bandwidth();
+        const barY = yScale(d.value);
+        const barH = Math.max(0, innerBottom - barY);
+        return (
+          <g key={d.label}>
+            <Bar x={bandX} y={barY} width={barW} height={barH} fill={fill} fillOpacity={0.85} />
             <text
-              x={MARGIN.left - 6}
-              y={yScale(t)}
-              textAnchor="end"
-              dominantBaseline="central"
+              x={bandX + barW / 2}
+              y={height - 6}
+              textAnchor="middle"
               className="fill-[var(--color-muted)] font-mono text-[10px]"
             >
-              {formatValue(t)}
+              {formatLabel(d.label)}
             </text>
+            {/* Per-bar hover capture (full column); presentation attrs only. */}
+            <HoverCaptureRect
+              x={bandX}
+              y={MARGIN.top}
+              width={barW}
+              height={innerBottom - MARGIN.top}
+              onMove={(e) => handleMove(e, d)}
+              onLeave={hover.hideTooltip}
+            />
           </g>
-        ))}
-
-        {data.map((d) => {
-          const bandX = xScale(d.label) ?? 0;
-          const barW = xScale.bandwidth();
-          const barY = yScale(d.value);
-          const barH = Math.max(0, innerBottom - barY);
-          return (
-            <g key={d.label}>
-              <Bar x={bandX} y={barY} width={barW} height={barH} fill={fill} fillOpacity={0.85} />
-              <text
-                x={bandX + barW / 2}
-                y={height - 6}
-                textAnchor="middle"
-                className="fill-[var(--color-muted)] font-mono text-[10px]"
-              >
-                {formatLabel(d.label)}
-              </text>
-              {/* Per-bar hover capture (full column); presentation attrs only. */}
-              <rect
-                x={bandX}
-                y={MARGIN.top}
-                width={barW}
-                height={innerBottom - MARGIN.top}
-                fill="transparent"
-                onMouseMove={(e) => handleMove(e, d)}
-                onMouseLeave={hideTooltip}
-              />
-            </g>
-          );
-        })}
-      </svg>
-
-      {tooltipOpen && tooltipData && (
-        <div ref={tooltipRef} className="sparkline-tooltip" aria-hidden>
-          <div className="sparkline-tooltip-box font-mono">
-            <span className="text-name">{formatValue(tooltipData.value)}</span>
-            <span className="text-muted"> · {formatLabel(tooltipData.label)}</span>
-          </div>
-        </div>
-      )}
-    </div>
+        );
+      })}
+    </ChartCanvas>
   );
 }
