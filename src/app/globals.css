@@ -320,7 +320,7 @@ a:hover {
  * precedent); rgba glows are permitted (the hex ban is hex-only). */
 .feedback-btn {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-ui);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -440,7 +440,7 @@ a:hover {
   border: 1px solid var(--color-isk-dim);
   border-radius: 4px;
   padding: 4px 8px;
-  font-size: 10px;
+  font-size: var(--text-ui);
   box-shadow:
     0 0 0 1px rgba(61, 214, 140, 0.1),
     0 6px 20px -8px rgba(0, 0, 0, 0.6);
@@ -470,7 +470,7 @@ a:hover {
 .sites-rail-groups { display: flex; flex-direction: column; gap: 20px; }
 .sites-fl {
   display: block;
-  font-size: 9px;
+  font-size: var(--text-label);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -482,7 +482,7 @@ a:hover {
 .sites-cls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .sites-chip {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-ui);
   padding: 5px 10px;
   text-align: center;
   background: var(--color-surface-sunk);
@@ -513,7 +513,7 @@ a:hover {
   border: none;
   border-radius: 3px;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--text-ui);
   color: var(--color-muted);
   cursor: pointer;
   text-align: left;
@@ -529,13 +529,13 @@ a:hover {
 .sites-type.relic  .dot { background: var(--color-tone-purple); }
 .sites-type.data   .dot { background: var(--color-tone-blue); }
 .sites-type .tl { flex: 1; }
-.sites-type .count { font-size: 10px; color: var(--color-faint); }
+.sites-type .count { font-size: var(--text-ui); color: var(--color-faint); }
 
 .sites-reset {
   background: none;
   border: none;
   padding: 0;
-  font-size: 10px;
+  font-size: var(--text-ui);
   letter-spacing: 0.06em;
   color: var(--color-faint);
   text-decoration: underline;
@@ -570,21 +570,21 @@ a:hover {
 .sites-card-name {
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: 16.5px;
+  font-size: var(--text-lead);
   line-height: 1.15;
   letter-spacing: 0.01em;
   color: var(--color-name);
   min-width: 0;
 }
 .sites-card-val {
-  font-size: 12px;
+  font-size: var(--text-ui);
   font-weight: 600;
   color: var(--color-isk);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.sites-card-val i { font-style: normal; font-size: 9px; color: var(--color-muted); margin-left: 2px; }
-.sites-card-sub { font-size: 10.5px; color: var(--color-muted); letter-spacing: 0.04em; }
+.sites-card-val i { font-style: normal; font-size: var(--text-micro); color: var(--color-muted); margin-left: 2px; }
+.sites-card-sub { font-size: var(--text-micro); color: var(--color-muted); letter-spacing: 0.04em; }
 .sites-card-pills { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
 /* NPC hull-class mix strip — one representative ship icon per class present,
  * with the class label and total count. Sits below the pills in the summary. */
@@ -598,10 +598,10 @@ a:hover {
   border-top: 1px solid var(--color-border-soft);
 }
 .sites-card-ship { display: inline-flex; align-items: center; gap: 6px; }
-.sites-card-ship-label { font-size: 11px; letter-spacing: 0.02em; color: var(--color-name); }
+.sites-card-ship-label { font-size: var(--text-ui); letter-spacing: 0.02em; color: var(--color-name); }
 .sites-card-ship-count {
   font-family: var(--font-jb);
-  font-size: 11px;
+  font-size: var(--text-ui);
   color: var(--color-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -628,13 +628,13 @@ a:hover {
   border: none;
   padding: 4px 0;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-ui);
   letter-spacing: 0.03em;
   color: var(--color-muted);
   cursor: pointer;
   text-align: left;
 }
-.industry-hint .pr { color: var(--color-isk); font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.industry-hint .pr { color: var(--color-isk); font-weight: 700; font-size: var(--text-ui); flex-shrink: 0; }
 .industry-hint .txt { color: var(--color-text); transition: color 0.15s; white-space: nowrap; }
 .industry-hint:hover .txt { color: var(--color-name); }
 .industry-hint .cur {
@@ -647,7 +647,7 @@ a:hover {
 @keyframes industry-cur { 50% { opacity: 0; } }
 .industry-hint kbd {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-micro);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-muted);
@@ -676,7 +676,7 @@ a:hover {
   justify-content: center;
   font-family: var(--font-jb);
   font-weight: 800;
-  font-size: 10px;
+  font-size: var(--text-ui);
   border-radius: 3px;
 }
 .industry-mono { color: var(--color-isk); background: #0f1a14; border: 1px solid var(--color-isk-dim); }
@@ -698,7 +698,7 @@ a:hover {
   padding: 12px 16px;
 }
 .industry-jobs-head {
-  font-size: 9px;
+  font-size: var(--text-label);
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -710,19 +710,19 @@ a:hover {
 .industry-job-row { border-bottom: 1px solid var(--color-border-soft); }
 .industry-job-row:last-child { border-bottom: none; }
 .industry-job-row:hover { background: rgba(255, 255, 255, 0.014); }
-.industry-job-time { font-size: 11px; color: var(--color-name); font-variant-numeric: tabular-nums; margin-bottom: 6px; }
+.industry-job-time { font-size: var(--text-ui); color: var(--color-name); font-variant-numeric: tabular-nums; margin-bottom: 6px; }
 .industry-job-time.complete { color: var(--color-isk); font-weight: 600; letter-spacing: 0.04em; }
-.industry-job-runs { font-size: 11.5px; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.industry-job-runs { font-size: var(--text-ui); color: var(--color-text); font-variant-numeric: tabular-nums; }
 .industry-job-bp { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .industry-job-bp .name {
-  font-size: 12.5px;
+  font-size: var(--text-ui);
   font-weight: 600;
   color: var(--color-name);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.industry-job-end { font-size: 11px; color: var(--color-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.industry-job-end { font-size: var(--text-ui); color: var(--color-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* EVE-industry-blue progress bar (CSP-safe width via the --pct custom prop). */
 .industry-bar {
@@ -762,7 +762,7 @@ a:hover {
 .legal-prose { max-width: 760px; margin-inline: auto; }
 .legal-prose p {
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: var(--text-body);
   line-height: 1.72;
   letter-spacing: 0.01em;
   color: var(--color-text);
@@ -790,7 +790,7 @@ a:hover {
   position: relative;
   padding-left: 18px;
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: var(--text-body);
   line-height: 1.65;
   letter-spacing: 0.01em;
   color: var(--color-text);
@@ -807,7 +807,7 @@ a:hover {
 }
 .legal-note p {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-body);
   line-height: 1.7;
   letter-spacing: 0.02em;
   color: var(--color-muted);
@@ -820,7 +820,7 @@ a:hover {
 .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
 .contact-intro {
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: var(--text-body);
   line-height: 1.72;
   letter-spacing: 0.01em;
   color: var(--color-text);
@@ -846,13 +846,13 @@ a:hover {
 .contact-row:first-of-type { border-top: none; }
 .contact-row .k {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-label);
   font-weight: 500;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--color-muted);
 }
-.contact-row .v { font-family: var(--font-mono); font-size: 12.5px; color: var(--color-text); min-width: 0; }
+.contact-row .v { font-family: var(--font-mono); font-size: var(--text-ui); color: var(--color-text); min-width: 0; }
 .contact-row .v a {
   color: var(--color-isk);
   text-decoration: none;
@@ -860,7 +860,7 @@ a:hover {
   transition: border-color 0.15s;
 }
 .contact-row .v a:hover { border-bottom-color: var(--color-isk); }
-.contact-row .v .sub { display: block; font-size: 10.5px; color: var(--color-muted); margin-top: 4px; letter-spacing: 0.02em; }
+.contact-row .v .sub { display: block; font-size: var(--text-micro); color: var(--color-muted); margin-top: 4px; letter-spacing: 0.02em; }
 
 /* In-game identity row: a round portrait beside the name (the home-roster look),
    vertically centred against its label. Identity names are white links, not the
@@ -871,7 +871,7 @@ a:hover {
 .contact-row .v a.contact-id-name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--text-ui);
   line-height: 1.15;
   color: var(--color-name);
   border-bottom: none;
@@ -884,10 +884,10 @@ a:hover {
 .changelog { max-width: 820px; margin-inline: auto; }
 .changelog-entry { display: grid; grid-template-columns: 116px 1fr; gap: 0; }
 .changelog-rail { text-align: right; padding: 2px 26px 0 0; }
-.changelog-ver { font-family: var(--font-jb); font-weight: 800; font-size: 17px; letter-spacing: 0.01em; color: var(--color-name); }
+.changelog-ver { font-family: var(--font-jb); font-weight: 800; font-size: var(--text-lead); letter-spacing: 0.01em; color: var(--color-name); }
 .changelog-date {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-muted);
@@ -915,7 +915,7 @@ a:hover {
   position: relative;
   padding-left: 16px;
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: var(--text-body);
   line-height: 1.6;
   letter-spacing: 0.01em;
   color: var(--color-text);
@@ -945,7 +945,7 @@ a:hover {
 .changelog-master-ver {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 25px;
+  font-size: var(--text-stat);
   line-height: 1;
   letter-spacing: 0.01em;
   text-transform: uppercase;
@@ -954,14 +954,14 @@ a:hover {
 .changelog-master-dash {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 18px;
+  font-size: var(--text-lead);
   line-height: 1.2;
   color: var(--color-muted);
 }
 .changelog-master-title {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 18px;
+  font-size: var(--text-lead);
   line-height: 1.2;
   letter-spacing: 0.01em;
   color: var(--color-isk);
@@ -978,7 +978,7 @@ a:hover {
 .changelog-master-summary p {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 14.5px;
+  font-size: var(--text-body);
   line-height: 1.65;
   letter-spacing: 0.01em;
   color: var(--color-text);
@@ -994,7 +994,7 @@ a:hover {
   .changelog-changes { border-left: none; padding-left: 0; }
   .changelog-changes::before { display: none; }
   .changelog-master-head { gap: 4px; }
-  .changelog-master-ver { font-size: 22px; }
+  .changelog-master-ver { font-size: var(--text-stat); }
   .changelog-master-dash { display: none; }
 }
 
@@ -1040,7 +1040,7 @@ a:hover {
   color: var(--color-isk);
   font-weight: 700;
   font-family: var(--font-jb);
-  font-size: 13px;
+  font-size: var(--text-ui);
   flex-shrink: 0;
 }
 .ns-input {
@@ -1050,7 +1050,7 @@ a:hover {
   border: none;
   outline: none;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-ui);
   color: var(--color-name);
 }
 .ns-input::placeholder {
@@ -1060,7 +1060,7 @@ a:hover {
 .ns-kbd-hint,
 .ns-esc-hint {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-micro);
   color: var(--color-muted);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
@@ -1084,7 +1084,7 @@ a:hover {
   padding: 0 24px;
   border-right: 1px solid var(--color-border-soft);
   font-family: var(--font-mono);
-  font-size: var(--text-micro);
+  font-size: var(--text-ui);
   font-weight: 500;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -1134,7 +1134,7 @@ a:hover {
  * search bar fitting without overflow. The strip no longer clips (no
  * overflow-hidden), so this floor, not a clip, is what prevents overflow. */
 @media (max-width: 1380px) {
-  .nav-tool { padding: 0 10px; font-size: 10px; letter-spacing: 0.08em; }
+  .nav-tool { padding: 0 10px; font-size: var(--text-ui); letter-spacing: 0.08em; }
 }
 
 /* Tranquility status chip (NAV-TQ). A passive indicator: a coloured LED keyed
@@ -1232,7 +1232,7 @@ a:hover {
 .account-menu-item {
   padding: 12px 16px;
   font-family: var(--font-mono);
-  font-size: var(--text-micro);
+  font-size: var(--text-ui);
   font-weight: 500;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -1255,7 +1255,7 @@ a:hover {
 .account-menu-group-label {
   padding: 10px 16px 4px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-label);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--color-muted);
@@ -1269,7 +1269,7 @@ a:hover {
 }
 .account-menu-control-label {
   font-family: var(--font-mono);
-  font-size: var(--text-micro);
+  font-size: var(--text-label);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-muted);
@@ -1347,7 +1347,7 @@ a:hover {
 .dd-section + .dd-section { border-top: 1px solid var(--color-border-soft); padding-top: 8px; }
 
 .dd-section-label {
-  font-size: 9px;
+  font-size: var(--text-label);
   font-weight: 600;
   color: var(--color-muted);
   letter-spacing: 0.14em;
@@ -1409,7 +1409,7 @@ a:hover {
   justify-content: center;
   font-family: var(--font-jb);
   font-weight: 800;
-  font-size: 10px;
+  font-size: var(--text-ui);
   color: var(--color-isk);
   flex-shrink: 0;
 }
@@ -1435,7 +1435,7 @@ a:hover {
 .dd-name {
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 12.5px;
+  font-size: var(--text-ui);
   color: var(--color-name);
   white-space: nowrap;
   overflow: hidden;
@@ -1444,7 +1444,7 @@ a:hover {
 .dd-name .match { color: var(--color-isk); font-weight: 600; }
 .dd-sub {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--text-label);
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--color-muted);
@@ -1453,7 +1453,7 @@ a:hover {
   text-overflow: ellipsis;
 }
 .dd-return {
-  font-size: 10px;
+  font-size: var(--text-ui);
   color: var(--color-isk);
   opacity: 0;
   flex-shrink: 0;
@@ -1463,7 +1463,7 @@ a:hover {
 .dd-footer {
   padding: 9px 10px 3px;
   border-top: 1px solid var(--color-border-soft);
-  font-size: 9px;
+  font-size: var(--text-label);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-faint);
@@ -1475,7 +1475,7 @@ a:hover {
   border: 1px solid var(--color-border);
   border-radius: 2px;
   padding: 0 4px;
-  font-size: 9px;
+  font-size: var(--text-micro);
   color: var(--color-name);
   margin-right: 4px;
 }
@@ -1526,7 +1526,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   justify-content: center;
   font-family: var(--font-jb);
   font-weight: 800;
-  font-size: 11px;
+  font-size: var(--text-ui);
   color: var(--color-isk);
   background: #0f1a14;
   border-color: var(--color-isk-dim);
@@ -1810,7 +1810,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   gap: 8px;
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-muted);
@@ -1819,14 +1819,14 @@ details[data-collapsible][open] > summary [data-chevron] {
   border-radius: 6px;
   margin-bottom: 12px;
 }
-.devlog-rail-toggle::after { content: '▾'; margin-left: auto; font-size: 10px; }
+.devlog-rail-toggle::after { content: '▾'; margin-left: auto; font-size: var(--text-micro); }
 
 .devlog-nav { font-family: var(--font-mono); }
 .devlog-nav-loose { list-style: none; margin: 0 0 14px; padding: 0; }
 .devlog-nav-doc {
   display: block;
   padding: 5px 10px;
-  font-size: 12px;
+  font-size: var(--text-ui);
   letter-spacing: 0.01em;
   color: var(--color-muted);
   border-left: 2px solid transparent;
@@ -1846,7 +1846,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   gap: 7px;
   cursor: pointer;
   padding: 5px 8px;
-  font-size: 10.5px;
+  font-size: var(--text-label);
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--color-faint);
@@ -1855,7 +1855,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 .devlog-nav-chevron {
   display: inline-block;
   width: 8px;
-  font-size: 9px;
+  font-size: var(--text-micro);
   color: var(--color-faint);
   transition: transform 0.15s;
 }
@@ -1866,7 +1866,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 .devlog-doc-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 23px;
+  font-size: var(--text-h2);
   line-height: 1.1;
   letter-spacing: 0.01em;
   color: var(--color-name);
@@ -1874,7 +1874,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 }
 .devlog-prose p {
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: var(--text-body);
   line-height: 1.72;
   letter-spacing: 0.01em;
   color: var(--color-text);
@@ -1891,7 +1891,7 @@ details[data-collapsible][open] > summary [data-chevron] {
 .devlog-prose a:hover { border-bottom-color: var(--color-isk); }
 .devlog-prose code {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--text-ui);
   color: var(--color-name);
   background: var(--color-section);
   border: 1px solid var(--color-border);
@@ -1910,7 +1910,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   position: relative;
   padding-left: 18px;
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: var(--text-body);
   line-height: 1.65;
   letter-spacing: 0.01em;
   color: var(--color-text);
@@ -1922,7 +1922,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   padding: 2px 0 2px 16px;
   border-left: 2px solid var(--color-isk-dim);
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: var(--text-body);
   line-height: 1.7;
   color: var(--color-muted);
   font-style: italic;
@@ -1943,14 +1943,14 @@ details[data-collapsible][open] > summary [data-chevron] {
   cursor: pointer;
   padding: 7px 12px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-ui);
   letter-spacing: 0.02em;
 }
 .devlog-excerpt-summary:hover { background: var(--color-row-hover); }
 .devlog-excerpt-chevron {
   display: inline-block;
   width: 8px;
-  font-size: 9px;
+  font-size: var(--text-micro);
   color: var(--color-faint);
   transition: transform 0.15s;
 }
@@ -1963,7 +1963,7 @@ details[data-collapsible][open] > summary [data-chevron] {
   background: var(--color-bg-deep);
   overflow-x: auto;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--text-ui);
   line-height: 1.6;
   color: var(--color-text);
   tab-size: 2;
