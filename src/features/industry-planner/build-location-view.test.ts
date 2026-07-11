@@ -93,7 +93,7 @@ describe('deriveBuildLocationView', () => {
   });
 
   it('carries the current location stations and falls back to its system for segmentation', () => {
-    const loc = { ...seededBuildLocation(SYSTEMS[0]), stations: [station({ id: 60003760 })] };
+    const loc = { ...seededBuildLocation(SYSTEMS[0]!), stations: [station({ id: 60003760 })] };
     const view = deriveBuildLocationView(portable, [corpJita, portable], SYSTEMS, loc);
     // No lock → the picked location's system scopes the list (corpJita is in Jita).
     expect(view.lockedStructure).toBeNull();

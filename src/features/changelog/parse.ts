@@ -64,7 +64,7 @@ export function parseChangelog(md: string): ChangelogEntry[] {
 
     const entryMatch = line.match(ENTRY_HEADING);
     if (entryMatch) {
-      currentEntry = { version: entryMatch[1], date: entryMatch[2], groups: [] };
+      currentEntry = { version: entryMatch[1] ?? '', date: entryMatch[2] ?? '', groups: [] };
       currentGroup = null;
       entries.push(currentEntry);
       continue;
@@ -79,7 +79,7 @@ export function parseChangelog(md: string): ChangelogEntry[] {
 
     const bulletMatch = line.match(BULLET);
     if (bulletMatch && currentGroup) {
-      currentGroup.items.push(bulletMatch[1]);
+      currentGroup.items.push(bulletMatch[1] ?? '');
     }
   }
 
@@ -109,8 +109,8 @@ function collectMasterMeta(md: string): MasterMeta {
     const masterMatch = line.match(MASTER_HEADING);
     if (masterMatch) {
       flushPara();
-      master = masterVersionOf(masterMatch[1]);
-      titles.set(master, masterMatch[2]);
+      master = masterVersionOf(masterMatch[1] ?? '');
+      titles.set(master, masterMatch[2] ?? '');
     } else if (!master) {
       continue;
     } else if (line.startsWith('###')) {

@@ -71,7 +71,7 @@ describe('getLiveHistory — stale gate', () => {
     expect(inputs.get(34)?.latestDate).toBe('2026-06-13');
     // Write-behind scheduled; running it persists + busts the cache tag.
     expect(afterMock).toHaveBeenCalledOnce();
-    await afterMock.mock.calls[0][0]();
+    await afterMock.mock.calls[0]![0]();
     expect(persistHistoryMock).toHaveBeenCalledOnce();
     expect(revalidateTagMock).toHaveBeenCalledWith('market-history-34', 'max');
   });

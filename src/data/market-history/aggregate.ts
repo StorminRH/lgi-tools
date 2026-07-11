@@ -126,7 +126,8 @@ export function computeHistoryInputs(
   typeId: number,
   rows: HistoryDailyRow[],
 ): MarketHistoryInputs {
-  if (rows.length === 0) {
+  const [first] = rows;
+  if (first === undefined) {
     return {
       typeId,
       averageDailyVolume: HISTORY_ADV_WINDOWS.map((days) => ({ days, adv: null })),
@@ -136,7 +137,7 @@ export function computeHistoryInputs(
       latestDate: null,
     };
   }
-  let latestDate = rows[0].date;
+  let latestDate = first.date;
   for (const r of rows) if (r.date > latestDate) latestDate = r.date;
 
   return {

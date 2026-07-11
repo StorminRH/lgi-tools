@@ -102,7 +102,7 @@ describe('refreshCorpStructuresForUser', () => {
     await refreshCorpStructuresForUser(port, 'u1');
 
     expect(port.readStructures).toHaveBeenCalledWith(5000, 'token-2', []);
-    const save = vi.mocked(port.saveStructures).mock.calls[0];
+    const save = vi.mocked(port.saveStructures).mock.calls[0]!;
     // Owner key is the corporation ALONE — no userId reaches the save (the shared store).
     expect(save[0]).toBe(5000);
     // Sorted by structure id; services/state stripped by the projection.
@@ -161,8 +161,8 @@ describe('refreshCorpStructuresForUser', () => {
     await refreshCorpStructuresForUser(portB, 'userB');
 
     // userId never reaches the owner key — both users write corp 5000's shared row.
-    expect(vi.mocked(portA.saveStructures).mock.calls[0][0]).toBe(5000);
-    expect(vi.mocked(portB.saveStructures).mock.calls[0][0]).toBe(5000);
+    expect(vi.mocked(portA.saveStructures).mock.calls[0]![0]).toBe(5000);
+    expect(vi.mocked(portB.saveStructures).mock.calls[0]![0]).toBe(5000);
   });
 
   it("syncs each of the user's member corps once", async () => {

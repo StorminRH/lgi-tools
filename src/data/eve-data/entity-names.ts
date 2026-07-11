@@ -55,7 +55,7 @@ export async function resolveEntityNames(ids: number[]): Promise<Record<string, 
     { length: Math.min(RESOLVE_CONCURRENCY, unique.length) },
     async () => {
       while (cursor < unique.length) {
-        const id = unique[cursor++];
+        const id = unique[cursor++]!; // cursor < unique.length checked in the while condition
         try {
           const name = await fetchEntityName(id);
           if (name !== null) names[String(id)] = name;

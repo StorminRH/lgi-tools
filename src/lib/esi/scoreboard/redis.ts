@@ -72,10 +72,10 @@ export class RedisScoreboard implements EsiScoreboard {
     // Sum the current and previous minute buckets: CCP's fixed 60s window has
     // an unknown phase, and two buckets are a strict conservative superset.
     const selfCount =
-      (parseStoredInt(rows[0]) ?? 0) + (parseStoredInt(rows[1]) ?? 0);
-    const echo = parseStoredInt(rows[2]);
+      (parseStoredInt(rows[0] ?? null) ?? 0) + (parseStoredInt(rows[1] ?? null) ?? 0);
+    const echo = parseStoredInt(rows[2] ?? null);
     // The block value is its expiry as epoch seconds; surface time remaining.
-    const blockExpiry = parseStoredInt(rows[3]);
+    const blockExpiry = parseStoredInt(rows[3] ?? null);
     const blockRemaining =
       blockExpiry !== null ? blockExpiry - Math.floor(Date.now() / 1000) : null;
     return {

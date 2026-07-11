@@ -239,8 +239,7 @@ export async function searchAll(
   }
 
   const out: SearchSection[] = [];
-  for (let i = 0; i < settled.length; i++) {
-    const r = settled[i];
+  for (const [i, r] of settled.entries()) {
     if (r.status === 'fulfilled') {
       if (r.value.results.length > 0) out.push(r.value);
     } else {
@@ -255,7 +254,8 @@ export async function searchAll(
         // Index into `active`, not `sources` — under a scoped query the
         // settled array only covers the filtered subset, and indexing the
         // full registry would blame the wrong source.
-        console.warn(`searchAll: source "${active[i].name}" failed`, r.reason);
+        // settled.length === active.length (settled = allSettled of active.map), so active[i] exists.
+        console.warn(`searchAll: source "${active[i]!.name}" failed`, r.reason);
       }
     }
   }

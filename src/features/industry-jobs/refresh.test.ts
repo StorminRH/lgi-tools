@@ -70,7 +70,7 @@ describe('refreshJobsForUser', () => {
     await refreshJobsForUser(port, 'u1');
 
     expect(port.readJobs).toHaveBeenCalledWith(1, 'token', null);
-    const save = vi.mocked(port.saveJobs).mock.calls[0];
+    const save = vi.mocked(port.saveJobs).mock.calls[0]!;
     expect(save[0]).toBe(1);
     expect(save[1]).toEqual([esiJob(5)]);
     expect(save[2]).toBe('"j"');

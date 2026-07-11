@@ -449,10 +449,11 @@ export async function resolveActiveCharacter(
     }))
     .filter((r) => Number.isFinite(r.characterId));
 
-  if (linked.length === 0) return null;
+  const [first] = linked;
+  if (first === undefined) return null;
 
   const preferred = preferredId != null ? linked.find((r) => r.characterId === preferredId) : undefined;
-  const chosen = preferred ?? linked[0];
+  const chosen = preferred ?? first;
 
   if (preferredId != null && preferred === undefined) {
     void db
@@ -796,7 +797,8 @@ async function reconcileAfterCharacterRemoval(
     .where(eveAccountsForUser(userId))
     .orderBy(asc(account.createdAt));
 
-  if (remaining.length === 0) {
+  const [firstRemaining] = remaining;
+  if (firstRemaining === undefined) {
     await db.delete(user).where(eq(user.id, userId));
     return { accountEmptied: true };
   }
@@ -809,7 +811,7 @@ async function reconcileAfterCharacterRemoval(
   if (u?.email === syntheticEmail(characterId)) {
     await db
       .update(user)
-      .set({ email: syntheticEmail(Number(remaining[0].accountId)), updatedAt: new Date() })
+      .set({ email: syntheticEmail(Number(firstRemaining.accountId)), updatedAt: new Date() })
       .where(eq(user.id, userId));
   }
   if (u?.activeCharacterId === characterId) {

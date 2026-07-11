@@ -56,7 +56,7 @@ describe('search registry', () => {
     registerSearchSource(makeSource('Recent', [ROW('1', 'one')], { showOnEmpty: true }));
     const out = await searchAll('', makeCtx());
     expect(out).toHaveLength(1);
-    expect(out[0].name).toBe('Recent');
+    expect(out[0]!.name).toBe('Recent');
   });
 
   it('drops sections whose source produced zero results', async () => {
@@ -70,14 +70,14 @@ describe('search registry', () => {
     const rows = Array.from({ length: 8 }, (_, i) => ROW(String(i), `row-${i}`));
     registerSearchSource(makeSource('Sites', rows));
     const out = await searchAll('q', makeCtx());
-    expect(out[0].results).toHaveLength(5);
+    expect(out[0]!.results).toHaveLength(5);
   });
 
   it('respects an explicit per-source limit', async () => {
     const rows = Array.from({ length: 8 }, (_, i) => ROW(String(i), `row-${i}`));
     registerSearchSource(makeSource('Sites', rows, { limit: 2 }));
     const out = await searchAll('q', makeCtx());
-    expect(out[0].results).toHaveLength(2);
+    expect(out[0]!.results).toHaveLength(2);
   });
 
   it('preserves registration order across multiple sources', async () => {
@@ -239,7 +239,7 @@ describe('registerLazySearchSource', () => {
     const secondOut = await searchAll('a', makeCtx());
     expect(load).toHaveBeenCalledTimes(2);
     expect(secondOut).toHaveLength(1);
-    expect(secondOut[0].results[0].label).toBe('lazy-row');
+    expect(secondOut[0]!.results[0]!.label).toBe('lazy-row');
 
     warnSpy.mockRestore();
   });

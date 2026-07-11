@@ -97,7 +97,7 @@ describe('buildAvailableStructures', () => {
       taxPct: 0.5,
     });
     // An un-doged rig resolves to an empty attrs object, never a hole.
-    expect(rows[0].rigAttrs).toEqual([{ '2593': -2 }, {}]);
+    expect(rows[0]!.rigAttrs).toEqual([{ '2593': -2 }, {}]);
   });
 
   it('falls back a nameless corp structure to its type name', () => {
@@ -105,7 +105,7 @@ describe('buildAvailableStructures', () => {
     // name map derive from the same rows, so a row past the gate always has a
     // type name. Assert the reachable fallback.
     const [byType] = buildAvailableStructures([], [corp({ name: null })], STRUCTURE_TYPES, DOGMA);
-    expect(byType.name).toBe('Athanor');
+    expect(byType!.name).toBe('Athanor');
   });
 
   it('drops rows whose structure type is no longer a known industry structure (SDE drift)', () => {
@@ -120,8 +120,8 @@ describe('buildAvailableStructures', () => {
 
   it('resolves missing structure dogma to an empty attrs object', () => {
     const rows = buildAvailableStructures([custom()], [], STRUCTURE_TYPES, new Map());
-    expect(rows[0].structureAttrs).toEqual({});
-    expect(rows[0].rigAttrs).toEqual([{}]);
+    expect(rows[0]!.structureAttrs).toEqual({});
+    expect(rows[0]!.rigAttrs).toEqual([{}]);
   });
 
   it('merges custom before corp, preserving each source order', () => {

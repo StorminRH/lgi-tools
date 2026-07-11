@@ -80,7 +80,7 @@ async function mapBounded<T, R>(
     while (true) {
       const i = cursor++;
       if (i >= items.length) return;
-      results[i] = await worker(items[i]);
+      results[i] = await worker(items[i]!); // i < items.length guaranteed by the guard above
     }
   });
   await Promise.all(runners);
@@ -120,7 +120,8 @@ export async function getLivePrices(typeIds: number[]): Promise<LivePricesResult
   const freshRaws: RawMarketPrice[] = [];
 
   ids.forEach((id, i) => {
-    const { raw, budgetExhausted } = live[i];
+    // live is parallel to ids (mapBounded returns Array(ids.length)); i is the forEach index.
+    const { raw, budgetExhausted } = live[i]!;
     if (budgetExhausted) degraded.budgetExhausted = true;
     if (raw) {
       degraded.fetched++;

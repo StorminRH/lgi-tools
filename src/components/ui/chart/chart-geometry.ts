@@ -6,8 +6,10 @@
 
 /** Min/max of a non-empty list, in one pass. */
 export function extent(values: number[]): [number, number] {
-  let min = values[0];
-  let max = values[0];
+  // Documented for a non-empty list; on an empty array this preserves the prior
+  // behaviour (min/max stay undefined, returned as the [number, number] cast).
+  let min = values[0]!;
+  let max = values[0]!;
   for (const v of values) {
     if (v < min) min = v;
     if (v > max) max = v;
@@ -27,11 +29,10 @@ export function paddedDomain(values: number[]): [number, number] {
 
 /** Index of the datum whose x is closest to the probe x (linear scan; series are short). */
 export function nearestIndex(xs: number[], x: number): number {
-  if (xs.length === 0) return -1;
-  let best = 0;
-  let bestDist = Math.abs(xs[0] - x);
-  for (let i = 1; i < xs.length; i += 1) {
-    const dist = Math.abs(xs[i] - x);
+  let best = -1;
+  let bestDist = Infinity;
+  for (const [i, xi] of xs.entries()) {
+    const dist = Math.abs(xi - x);
     if (dist < bestDist) {
       bestDist = dist;
       best = i;
@@ -66,5 +67,6 @@ export function continuousHoverTarget<T>(
 ): { datum: T; index: number } | null {
   const index = nearestIndex(xs, probeX);
   if (index < 0) return null;
-  return { datum: data[index], index };
+  // `data` is parallel to `xs`, which nearestIndex just bounded, so index is valid.
+  return { datum: data[index]!, index };
 }

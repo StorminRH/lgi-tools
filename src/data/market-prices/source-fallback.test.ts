@@ -159,8 +159,8 @@ describe('fetchPricesFromFuzzwork outbound headers', () => {
 
     const rows = await fetchPricesFromFuzzwork([34]);
     expect(rows).toHaveLength(1);
-    expect(rows[0].bestBuy).toBeNull(); // orderCount 0 → side nulled
-    expect(rows[0].bestSell).toBe(5.5);
+    expect(rows[0]!.bestBuy).toBeNull(); // orderCount 0 → side nulled
+    expect(rows[0]!.bestSell).toBe(5.5);
   });
 
   it('rejects a present-but-invalid numeric field ("NaN") at the boundary', async () => {

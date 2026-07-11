@@ -73,7 +73,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
     expect(port.read).toHaveBeenCalledWith('/characters/1/blueprints/', 'token', []);
-    const save = vi.mocked(port.save).mock.calls[0];
+    const save = vi.mocked(port.save).mock.calls[0]!;
     expect(save[0]).toEqual({ ownerType: 'character', ownerId: 1 });
     expect(save[1]).toEqual([
       {

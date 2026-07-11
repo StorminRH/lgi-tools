@@ -70,7 +70,7 @@ describe('buildOwnedDetail', () => {
     const map: OwnedBlueprintMap = new Map([
       [200, summary({ ownerType: 'corporation', ownerId: 99, locationId: 1_036_000_000_001, locationFlag: 'CorpSAG1' })],
     ]);
-    const [entry] = buildOwnedDetail(map, [200], { '99': 'Test Corp' }, fmt);
+    const entry = buildOwnedDetail(map, [200], { '99': 'Test Corp' }, fmt)[0]!;
     expect(entry.ownerName).toBe('Test Corp');
     expect(entry.locationName).toBe('Upwell structure'); // not "F:..." → formatter not applied
     expect(entry.locationFlag).toBe('CorpSAG1');
@@ -82,9 +82,9 @@ describe('buildOwnedDetail', () => {
       [400, summary({ ownerType: 'corporation', ownerId: 88, locationId: 60000999 })],
     ]);
     const [char, corp] = buildOwnedDetail(map, [300, 400], {}, fmt); // empty names → all miss
-    expect(char.ownerName).toBe('Character 7');
-    expect(char.locationName).toBe('Unknown location');
-    expect(corp.ownerName).toBe('Corporation 88');
+    expect(char!.ownerName).toBe('Character 7');
+    expect(char!.locationName).toBe('Unknown location');
+    expect(corp!.ownerName).toBe('Corporation 88');
   });
 
   it('emits entries only for owned requested types, in the requested order', () => {

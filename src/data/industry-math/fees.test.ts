@@ -32,7 +32,7 @@ function toMaterials(map: Record<number, number>): MaterialQty[] {
 }
 
 function adjustedFrom(prices: Record<number, number>): AdjustedPriceOf {
-  return (typeId) => (typeId in prices ? prices[typeId] : null);
+  return (typeId) => (typeId in prices ? prices[typeId]! : null);
 }
 
 // Round adjusted prices, deliberately a DIFFERENT series from the build-cost buy

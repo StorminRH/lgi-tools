@@ -68,7 +68,7 @@ function sourceByTypeId(
   opts?: { throwFor?: number[] },
 ) {
   fetchPricesFromSourceMock.mockImplementation((ids: number[]) => {
-    const id = ids[0];
+    const id = ids[0]!;
     if (opts?.throwFor?.includes(id)) return Promise.reject(new Error('source down'));
     const r = byId[id] ?? { prices: [] };
     return Promise.resolve({ prices: r.prices, budgetExhausted: r.budgetExhausted ?? false });
@@ -135,9 +135,9 @@ describe('getLivePrices', () => {
     await getLivePrices([34, 35]);
 
     expect(afterMock).toHaveBeenCalledTimes(1);
-    await afterMock.mock.calls[0][0](); // run the scheduled callback
+    await afterMock.mock.calls[0]![0](); // run the scheduled callback
     expect(persistPricesMock).toHaveBeenCalledTimes(1);
-    const persisted = persistPricesMock.mock.calls[0][1] as RawMarketPrice[];
+    const persisted = persistPricesMock.mock.calls[0]![1] as RawMarketPrice[];
     expect(persisted.map((r) => r.typeId)).toEqual([34]);
   });
 

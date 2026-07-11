@@ -123,8 +123,8 @@ describe('TreeResolver — synthetic walker', () => {
     const bNode = tree.find((n) => n.typeId === 2);
     expect(bNode?.producedBy).toBeDefined();
     expect(bNode?.inputs).toHaveLength(1);
-    expect(bNode?.inputs[0].typeId).toBe(99);
-    expect(bNode?.inputs[0].inputs).toEqual([]); // leaf
+    expect(bNode?.inputs[0]!.typeId).toBe(99);
+    expect(bNode?.inputs[0]!.inputs).toEqual([]); // leaf
     // C (typeId 3) is a leaf
     const cNode = tree.find((n) => n.typeId === 3);
     expect(cNode?.producedBy).toBeUndefined();

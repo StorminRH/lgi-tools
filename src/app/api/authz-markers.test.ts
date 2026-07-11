@@ -65,7 +65,7 @@ describe('authz classification markers', () => {
         `(delete stale markers after re-classifying).`,
     ).toBeLessThan(2);
 
-    const cls = matches[0][1];
+    const cls = matches[0]![1]!;
     expect(
       VALID_CLASSES.has(cls),
       `${label(file)} has an invalid authz class "${cls}". ` +

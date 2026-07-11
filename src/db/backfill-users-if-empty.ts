@@ -98,13 +98,14 @@ async function backfillUnderLock(reserved: ReservedConnection): Promise<void> {
 }
 
 async function main() {
-  const [{ exists }] = await client<{ exists: boolean }[]>`
+  const [userTableRow] = await client<{ exists: boolean }[]>`
     SELECT EXISTS (
       SELECT 1 FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name = 'user'
     ) AS exists
   `;
-  if (!exists) {
+  if (!userTableRow) throw new Error('user table existence check returned no row');
+  if (!userTableRow.exists) {
     console.log('Skipping auth backfill ("user" table missing; migration pending).');
     return;
   }

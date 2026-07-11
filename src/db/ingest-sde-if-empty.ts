@@ -67,7 +67,7 @@ async function ingestUnderLock(db: ReturnType<typeof drizzle>): Promise<void> {
   // "Populated" means EVERY SDE dataset is present — see hasCompleteSdeData for
   // why each sentinel table is checked (a freshly migrated table would else
   // ship empty until the next CCP drift).
-  const [{ rowCount, universeRowCount, jumpsRowCount }] = await db.execute<{
+  const [countsRow] = await db.execute<{
     rowCount: string;
     universeRowCount: string;
     jumpsRowCount: string;
@@ -77,6 +77,8 @@ async function ingestUnderLock(db: ReturnType<typeof drizzle>): Promise<void> {
       (SELECT COUNT(*) FROM eve_npc_stations)::text AS "universeRowCount",
       (SELECT COUNT(*) FROM eve_system_jumps)::text AS "jumpsRowCount"
   `);
+  // A bare-aggregate SELECT always returns exactly one row.
+  const { rowCount, universeRowCount, jumpsRowCount } = countsRow!;
   const complete = hasCompleteSdeData({
     typeDogma: Number(rowCount),
     npcStations: Number(universeRowCount),
@@ -121,13 +123,14 @@ async function main() {
   // Migration order means the eve-data tables always exist when this runs —
   // kept the existence check for the case where this ever runs against a
   // pre-migration DB.
-  const [{ exists }] = await db.execute<{ exists: boolean }>(sql`
+  const [metaRow] = await db.execute<{ exists: boolean }>(sql`
     SELECT EXISTS (
       SELECT 1 FROM information_schema.tables
       WHERE table_schema = 'public' AND table_name = 'eve_data_meta'
     ) AS exists
   `);
-  if (!exists) {
+  if (!metaRow) throw new Error('eve_data_meta existence check returned no row');
+  if (!metaRow.exists) {
     console.log('Skipping SDE auto-ingest (eve_data_meta does not exist; migration pending).');
     return;
   }

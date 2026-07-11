@@ -127,7 +127,7 @@ function makeHarness({ absorb }: { absorb: boolean }) {
 type Harness = ReturnType<typeof makeHarness>;
 
 function cookiePairs(res: Response): string[] {
-  return res.headers.getSetCookie().map((c) => c.split(';')[0]);
+  return res.headers.getSetCookie().map((c) => c.split(';')[0]!);
 }
 
 async function post(

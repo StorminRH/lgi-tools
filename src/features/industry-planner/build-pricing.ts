@@ -113,7 +113,8 @@ export function collectIntermediateTypeIds(
   const out = new Set<number>();
   const rootIds = new Set(buildTree.map((r) => r.typeId));
   const walk = (node: BuildNode) => {
-    if (!rootIds.has(node.typeId) && display[node.typeId] && !display[node.typeId].isRaw) {
+    const d = display[node.typeId];
+    if (!rootIds.has(node.typeId) && d && !d.isRaw) {
       out.add(node.typeId);
     }
     for (const input of node.inputs) walk(input);

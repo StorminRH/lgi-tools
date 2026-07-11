@@ -8,6 +8,11 @@ Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
 v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
 
+### v3.8.1.2 — 2026-07-11
+
+#### Changed
+- The compiler now treats every lookup into a list or lookup table as possibly missing, so code that reads a slot which may not be there has to account for it before it can ship. This closes the last gap in the project's strict type checking, and from here new work is written to handle absent values from the start — fewer "undefined" surprises reaching players.
+
 ### v3.8.1.1 — 2026-07-11
 
 #### Changed

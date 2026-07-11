@@ -232,7 +232,7 @@ describe('engine.scan', () => {
     });
     expect(tick1).toEqual({ running: SCAN_DISPATCH_BATCH, idle: 1 });
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain('scan_batch_capped');
+    expect(warn.mock.calls[0]![0]).toContain('scan_batch_capped');
 
     await t.mutation(internal.engine.scan, {});
     const tick2Running = await t.run(async (ctx) =>
@@ -440,7 +440,7 @@ describe('engine.sweep', () => {
     const run1 = await t.mutation(internal.engine.sweep, {});
     expect(run1.deleted).toBe(SCAN_DISPATCH_BATCH);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain('overdue_batch_capped');
+    expect(warn.mock.calls[0]![0]).toContain('overdue_batch_capped');
     const remaining1 = await t.run((ctx) => ctx.db.query('syncSubjects').collect());
     expect(remaining1).toHaveLength(1);
 
@@ -473,6 +473,6 @@ describe('engine.sweep', () => {
     const counts = await t.mutation(internal.engine.sweep, {});
     expect(counts.dispatched).toBe(0);
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toContain('dropped_batch_capped');
+    expect(warn.mock.calls[0]![0]).toContain('dropped_batch_capped');
   });
 });

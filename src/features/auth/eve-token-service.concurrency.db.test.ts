@@ -91,7 +91,7 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
 
   async function readAccount() {
     const [row] = await seedDb.select().from(account).where(eq(account.id, 'acc1')).limit(1);
-    return row;
+    return row!;
   }
 
   async function rawRefreshToken(): Promise<string | null> {

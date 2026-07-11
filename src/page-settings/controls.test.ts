@@ -27,9 +27,9 @@ describe('resolveMenuControls', () => {
       ]),
     );
     expect(models.map((m) => m.key)).toEqual(['sites.view', 'sites.detailMode']);
-    expect(models[0].options).toEqual(['cards', 'table']);
-    expect(models[1].options).toEqual(['lightbox', 'expand']);
-    expect(models[0].def.key).toBe('sites.view');
+    expect(models[0]!.options).toEqual(['cards', 'table']);
+    expect(models[1]!.options).toEqual(['lightbox', 'expand']);
+    expect(models[0]!.def.key).toBe('sites.view');
   });
 
   it('derives display labels from the key, spacing camelCase', () => {
@@ -115,7 +115,7 @@ describe('resolvePageControls', () => {
   it('resolves an enum preference key at inline placement (D-8: one registry entry lights a page setting)', () => {
     const models = resolvePageControls(spec([{ key: 'sites.view', placement: 'inline' }]));
     expect(models).toHaveLength(1);
-    const model = models[0];
+    const model = models[0]!;
     expect(model.kind).toBe('preference');
     if (model.kind === 'preference') {
       expect(model.options).toEqual(['cards', 'table']);

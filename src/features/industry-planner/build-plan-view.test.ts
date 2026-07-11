@@ -46,7 +46,7 @@ describe('tierColumnView', () => {
       actualLevel: null,
       unitPriceOf: prices,
     });
-    expect(view.rows[0].value).toBeNull();
+    expect(view.rows[0]!.value).toBeNull();
     expect(view.subtotal).toBe(0);
   });
 
@@ -58,10 +58,10 @@ describe('tierColumnView', () => {
       unitPriceOf: prices,
     });
     const [a, b, c] = view.rows;
-    expect(a.selected).toBe(true);
-    expect(b.related).toBe(true);
-    expect(b.qty).toBe(3); // actual consumed, not the batch quantity
-    expect(c.faded).toBe(true);
+    expect(a!.selected).toBe(true);
+    expect(b!.related).toBe(true);
+    expect(b!.qty).toBe(3); // actual consumed, not the batch quantity
+    expect(c!.faded).toBe(true);
   });
 });
 

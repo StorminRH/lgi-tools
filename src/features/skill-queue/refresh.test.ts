@@ -77,7 +77,7 @@ describe('refreshSkillsForUser', () => {
 
     expect(port.readSkillQueue).toHaveBeenCalledWith(1, 'token', null);
     expect(port.readSkills).toHaveBeenCalledWith(1, 'token', null);
-    const save = vi.mocked(port.saveSkills).mock.calls[0];
+    const save = vi.mocked(port.saveSkills).mock.calls[0]!;
     expect(save[0]).toBe(1);
     expect(save[1]).toEqual({
       queue: { entries: [esiQueueEntry(34, 0)], etag: '"q"' },
@@ -100,7 +100,7 @@ describe('refreshSkillsForUser', () => {
 
     await refreshSkillsForUser(port, 'u1');
 
-    const save = vi.mocked(port.saveSkills).mock.calls[0];
+    const save = vi.mocked(port.saveSkills).mock.calls[0]!;
     expect(save[1].skills).toEqual({ totalSp: 2_000, unallocatedSp: 50, levels: {}, etag: '"s"' });
   });
 
@@ -136,7 +136,7 @@ describe('refreshSkillsForUser', () => {
 
     await refreshSkillsForUser(port, 'u1');
 
-    const save = vi.mocked(port.saveSkills).mock.calls[0];
+    const save = vi.mocked(port.saveSkills).mock.calls[0]!;
     expect(save[1]).toEqual({ queue: { entries: [esiQueueEntry(99, 0)], etag: '"q2"' } });
     expect(save[1].skills).toBeUndefined();
     expect(port.stampFresh).not.toHaveBeenCalled();

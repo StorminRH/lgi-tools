@@ -32,7 +32,7 @@ export type ResolveTypeId = (name: string) => number | undefined;
 // `[Azbel, Cap Production]` → "Azbel". Returns null if the line isn't a header.
 function parseHeaderName(line: string): string | null {
   const match = /^\[\s*([^,\]]+?)\s*,/.exec(line);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 // A rig line by name, independent of its position in the fit.
@@ -57,7 +57,8 @@ export function parseStructureFit(
   // The first non-empty line must be the structure header.
   const firstIdx = lines.findIndex((l) => l.trim().length > 0);
   if (firstIdx === -1) return null;
-  const structureName = parseHeaderName(lines[firstIdx].trim());
+  // firstIdx is a valid index (findIndex result, checked !== -1 above).
+  const structureName = parseHeaderName(lines[firstIdx]!.trim());
   if (structureName === null) return null;
   const structureTypeId = resolveTypeId(structureName);
   if (structureTypeId === undefined) return null;

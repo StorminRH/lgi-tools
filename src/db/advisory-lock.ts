@@ -25,7 +25,9 @@ export async function withAdvisoryLock<T>(
     const lockResult = await reserved<{ got: boolean }[]>`
       SELECT pg_try_advisory_lock(${lockKey}) AS got
     `;
-    if (!lockResult[0].got) {
+    const [lockRow] = lockResult;
+    if (!lockRow) throw new Error('advisory lock query returned no row');
+    if (!lockRow.got) {
       return { busy: true };
     }
     lockHeld = true;

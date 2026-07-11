@@ -11,7 +11,7 @@ const ITEM_RE = /<item\b[^>]*>([\s\S]*?)<\/item>/gi;
 
 function firstTag(block: string, name: string): string | null {
   const m = block.match(new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)<\\/${name}>`, 'i'));
-  return m ? m[1].trim() : null;
+  return m?.[1]?.trim() ?? null;
 }
 
 const NAMED_ENTITIES: Record<string, string> = {
@@ -25,7 +25,8 @@ const NAMED_ENTITIES: Record<string, string> = {
 function decodeOnce(s: string): string {
   return s.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (whole, body: string) => {
     const key = body.toLowerCase();
-    if (key in NAMED_ENTITIES) return NAMED_ENTITIES[key];
+    const named = NAMED_ENTITIES[key];
+    if (named !== undefined) return named;
     if (key.startsWith('#')) {
       const code = key.startsWith('#x')
         ? Number.parseInt(key.slice(2), 16)
@@ -61,7 +62,8 @@ export function parseEveRss(xml: string): EveNewsItem[] {
 
   const items: EveNewsItem[] = [];
   for (const match of xml.matchAll(ITEM_RE)) {
-    const block = match[1];
+    // ITEM_RE's capture group ([\s\S]*?) always participates, so match[1] is a string.
+    const block = match[1] ?? '';
     const title = firstTag(block, 'title');
     const link = firstTag(block, 'link');
     if (!title || !link) continue;

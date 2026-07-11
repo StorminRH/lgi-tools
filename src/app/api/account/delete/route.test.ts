@@ -66,7 +66,7 @@ describe('POST /api/account/delete', () => {
     getSessionMock.mockResolvedValue(SESSION);
     await POST(buildRequest());
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
-    const logged = logUsageEventMock.mock.calls[0][0];
+    const logged = logUsageEventMock.mock.calls[0]![0];
     expect(logged).toEqual({ action: 'account_purge', metadata: { scope: 'account' } });
     expect(logged).not.toHaveProperty('characterId');
   });

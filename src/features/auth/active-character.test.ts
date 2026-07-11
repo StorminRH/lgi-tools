@@ -69,7 +69,7 @@ describe('resolveActiveCharacter', () => {
     const result = await resolveActiveCharacter('u1', 999);
     expect(result).toEqual({ characterId: 100, name: 'Alice', portraitUrl: 'a' });
     expect(h.updateSpy).toHaveBeenCalledTimes(1);
-    expect(h.updateSpy.mock.calls[0][0]).toMatchObject({ activeCharacterId: 100 });
+    expect(h.updateSpy.mock.calls[0]![0]).toMatchObject({ activeCharacterId: 100 });
   });
 
   it('uses the oldest (first) account when no preferred id is set, without backfilling', async () => {
@@ -111,13 +111,13 @@ describe('repointActiveToOldest', () => {
   it('points the active character at the oldest remaining account', async () => {
     h.selectRows = [{ accountId: '300' }];
     expect(await repointActiveToOldest('u1')).toBe(300);
-    expect(h.updateSpy.mock.calls[0][0]).toMatchObject({ activeCharacterId: 300 });
+    expect(h.updateSpy.mock.calls[0]![0]).toMatchObject({ activeCharacterId: 300 });
   });
 
   it('clears the active character to null when none remain', async () => {
     h.selectRows = [];
     expect(await repointActiveToOldest('u1')).toBeNull();
-    expect(h.updateSpy.mock.calls[0][0]).toMatchObject({ activeCharacterId: null });
+    expect(h.updateSpy.mock.calls[0]![0]).toMatchObject({ activeCharacterId: null });
   });
 });
 
@@ -159,6 +159,6 @@ describe('listLinkedCharacters', () => {
     expect(result[0]).toMatchObject({ characterId: 100, name: 'Alice', hasRefreshToken: true });
     expect(result[1]).toMatchObject({ characterId: 200, name: 'Character 200', hasRefreshToken: false });
     // Missing profile portrait falls back to the EVE image-server URL.
-    expect(result[1].portraitUrl).toContain('/characters/200/portrait');
+    expect(result[1]!.portraitUrl).toContain('/characters/200/portrait');
   });
 });
