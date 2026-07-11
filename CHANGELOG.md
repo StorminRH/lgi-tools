@@ -4,6 +4,16 @@ Every notable change to LGI.tools, grouped by release and ship date — user-fac
 features and fixes alongside the internal, CI, and infrastructure work behind them.
 Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
+## v3.8 — Undock Checklist
+
+v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
+
+### v3.8.1.1 — 2026-07-11
+
+#### Changed
+- Warnings from the code checks now fail the build instead of passing silently, so a warning can no longer slip through the checks that run on every change.
+- The compiler now targets a 2022-era JavaScript baseline instead of the older 2017 one, matching the modern browsers the site already serves. Nothing about what ships to players changes.
+
 ## v3.7 — Safer Accounts, Sharper Build Math
 
 v3.7 tightened how LGI.tools handles your account. The app now asks EVE for the least it needs — read-only access to your public info, skills, and industry jobs, nothing that can change your characters — and each character shows exactly what it granted, with a one-click way to revoke it. Your account is bound to the character that created it, so a sold or transferred character can't reach the previous owner's data, and a new Danger zone lets you purge a single character, wipe your whole account, or sign out of every device at once. Corporation directors and station managers can opt in to share industry jobs and Upwell structures as build locations, always behind an explicit, revocable consent.
