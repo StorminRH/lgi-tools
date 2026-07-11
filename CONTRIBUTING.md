@@ -82,8 +82,8 @@ than introducing a new palette or typeface.
 
 ## Type scale
 
-Font sizes belong on the named scale, never as raw `text-[Npx]` at call sites
-(**lint-enforced**). The ladder is defined once as `--text-*` tokens in the
+Font sizes belong on the named scale, never as raw bracketed pixel values at call
+sites (**lint-enforced**). The ladder is defined once as `--text-*` tokens in the
 `@theme` block of `globals.css`, surfaced as Tailwind utilities and chosen by
 **role, not pixel count**:
 
