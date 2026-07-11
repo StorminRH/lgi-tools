@@ -13,7 +13,8 @@
     "scripts/validate-resolver-output.ts",
     "scripts/assert-route-classification.mjs",
     "scripts/ux-capture.mjs",
-    "drizzle.config.ts"
+    "drizzle.config.ts",
+    "neon.ts"
   ],
 
   "ignorePatterns": [

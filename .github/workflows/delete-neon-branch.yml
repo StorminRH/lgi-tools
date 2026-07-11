@@ -21,7 +21,7 @@ jobs:
       # outage) — so a green run does NOT prove the delete actually ran. This is
       # acceptable because cleanup is best-effort for rare, ephemeral manual-
       # preview branches; an orphaned one is cheap to remove by hand
-      # (`neonctl branches delete preview/<branch>`).
+      # (`neon branches delete preview/<branch>`).
       - name: Delete preview/<branch> in Neon
         continue-on-error: true
         uses: neondatabase/delete-branch-action@v3
