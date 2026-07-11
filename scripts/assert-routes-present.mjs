@@ -7,13 +7,10 @@
 // App Router paths (no route groups in this app, so the mapping is direct).
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { diffRoutes, discoveredKeys, isRouteFile } from './route-presence.mjs';
 
 const APP_DIR = 'src/app';
 const CLASSIFICATION_PATH = 'scripts/route-classification.json';
-
-const ROUTE_FILE = /^(page|route)\.(tsx?|jsx?)$/;
-const SITEMAP_FILE = /^sitemap\.(tsx?|jsx?)$/;
-const ROBOTS_FILE = /^robots\.(tsx?|jsx?)$/;
 
 function walk(dir, acc = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -24,30 +21,13 @@ function walk(dir, acc = []) {
   return acc;
 }
 
-// src/app-relative posix path → the route key the classification JSON uses.
-function routeKey(relPosix) {
-  const parts = relPosix.split('/');
-  const base = parts.pop();
-  const prefix = parts.length ? `/${parts.join('/')}` : '';
-  if (SITEMAP_FILE.test(base)) return `${prefix}/sitemap.xml`;
-  if (ROBOTS_FILE.test(base)) return `${prefix}/robots.txt`;
-  return prefix === '' ? '/' : prefix;
-}
-
-const routeFiles = walk(APP_DIR).filter((f) => {
-  const base = path.basename(f);
-  return ROUTE_FILE.test(base) || SITEMAP_FILE.test(base) || ROBOTS_FILE.test(base);
-});
-
-const discovered = new Set(
-  routeFiles.map((f) => routeKey(path.relative(APP_DIR, f).split(path.sep).join('/'))),
-);
+const routeFiles = walk(APP_DIR).filter((f) => isRouteFile(path.basename(f)));
+const discovered = discoveredKeys(routeFiles, APP_DIR);
 
 const classification = JSON.parse(readFileSync(CLASSIFICATION_PATH, 'utf8'));
 const classified = new Set(Object.keys(classification.routes ?? {}));
 
-const missing = [...discovered].filter((k) => !classified.has(k)).sort();
-const stale = [...classified].filter((k) => !discovered.has(k)).sort();
+const { missing, stale } = diffRoutes(discovered, classified);
 
 if (missing.length || stale.length) {
   if (missing.length) {

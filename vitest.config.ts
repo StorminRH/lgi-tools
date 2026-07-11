@@ -11,7 +11,11 @@ export default defineConfig({
     // Convex tests (convex/**/*.test.ts) run under the edge-runtime environment
     // via a per-file `// @vitest-environment edge-runtime` directive (convex-test
     // needs it); the default node environment stays in force for the src suite.
-    include: ['src/**/*.test.ts', 'convex/**/*.test.ts'],
+    // scripts/**/*.test.mjs cover the pure helpers extracted from the CLI/CI
+    // scripts (arg parsing, route-key derivation, fixture canonicalisation) —
+    // the entry scripts themselves run at import, so only their import-safe
+    // sibling modules are unit-tested.
+    include: ['src/**/*.test.ts', 'convex/**/*.test.ts', 'scripts/**/*.test.mjs'],
     coverage: {
       // fallow's `--coverage` ingests an Istanbul coverage map
       // (coverage-final.json) for exact per-function CRAP scoring and rejects
