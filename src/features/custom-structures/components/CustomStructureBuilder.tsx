@@ -12,9 +12,13 @@ import {
   SDE_ENGINEERING_COMPLEX_GROUP_ID,
   SDE_REFINERY_GROUP_ID,
 } from '@/data/eve-data/constants';
-import { rigFitsStructure, type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
+import { type StructureRigOption, type StructureTypeOption } from '@/data/eve-data/structures';
 import { formatSec, type SystemSearchEntry } from '@/data/eve-data/systems-search';
-import { MAX_FACILITY_TAX_PCT, parseFacilityTaxDraft } from '@/data/industry-math/fees';
+import {
+  MAX_FACILITY_TAX_PCT,
+  parseFacilityTaxDraft,
+  taxDraftFromStored,
+} from '@/data/industry-math/fees';
 import { apiFetch } from '@/lib/api-client';
 import {
   createCustomStructureEndpoint,
@@ -25,6 +29,16 @@ import {
   setCustomStructurePinEndpoint,
   setCustomStructureTaxEndpoint,
 } from '../api-contract';
+import {
+  buildCreateStructurePayload,
+  canReadFit,
+  deriveBuilderView,
+  deriveSavedRowView,
+  readyBuildInput,
+  resolveFitName,
+  slotsFromParsedFit,
+  type SavedStructureRowView,
+} from '../custom-structure-view';
 import type { CustomStructureRow } from '../types';
 
 const inputClass =
@@ -38,6 +52,318 @@ const STRUCTURE_GROUP_LABEL: Record<number, string> = {
   [SDE_REFINERY_GROUP_ID]: 'Refinery',
   [SDE_CITADEL_GROUP_ID]: 'Citadel',
 };
+
+// The system-search parse/suggest pair from `useSystemSearch`, forwarded to the
+// TerminalSearch inputs in the pin fields.
+type SystemParse = (input: string) => { ok: true; params: SystemParams } | { ok: false; error: SystemErr };
+type SystemSuggest = (input: string) => Promise<string[]>;
+
+// The optional system pin for the structure being built: shows a cleared Pill
+// once chosen, else the system search.
+function PinField({
+  pin,
+  parse,
+  suggest,
+  onPick,
+  onClear,
+}: {
+  pin: SystemSearchEntry | null;
+  parse: SystemParse;
+  suggest: SystemSuggest;
+  onPick: (system: SystemSearchEntry) => void;
+  onClear: () => void;
+}) {
+  if (pin) {
+    return (
+      <div className="flex items-center gap-2">
+        <Pill tone="blue">
+          {pin.name} {formatSec(pin.security)}
+        </Pill>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text"
+        >
+          Clear
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="w-full max-w-[320px]">
+      <TerminalSearch<SystemParams, SystemErr>
+        initialValue=""
+        placeholder="System name — leave empty for portable"
+        parse={parse}
+        suggest={suggest}
+        errorMessage={() => 'No system matches that name.'}
+        onSubmit={({ system }) => onPick(system)}
+        onClear={onClear}
+        errorLabel="System"
+        hint="Pinned structures show only in that system's build list"
+      />
+    </div>
+  );
+}
+
+// Pills summarising a saved structure: its rigs (or "no rigs"), pin, and tax.
+function StructureMetaPills({ view }: { view: SavedStructureRowView }) {
+  return (
+    <>
+      {view.rigLabels.map((r) => (
+        <Pill key={r.key} tone="blue">
+          {r.label}
+        </Pill>
+      ))}
+      {view.hasNoRigs && <span className="text-[10px] text-muted">no rigs</span>}
+      {view.pinLabel !== null && <Pill tone="blue">Pinned · {view.pinLabel}</Pill>}
+      {view.taxLabel !== null && <Pill tone="neutral">{view.taxLabel}</Pill>}
+    </>
+  );
+}
+
+// Inline facility-tax editor for a saved structure. Setting an empty value clears
+// the tax back to never-entered (the 0.25% NPC-baseline assumption).
+function InlineTaxEditor({
+  name,
+  draft,
+  onDraftChange,
+  busy,
+  onSet,
+  onError,
+}: {
+  name: string;
+  draft: string;
+  onDraftChange: (value: string) => void;
+  busy: boolean;
+  onSet: (taxPct: number | null) => void;
+  onError: (message: string) => void;
+}) {
+  return (
+    <div className="flex w-full max-w-[320px] items-center gap-2">
+      <input
+        type="number"
+        min={0}
+        max={MAX_FACILITY_TAX_PCT}
+        step="0.01"
+        value={draft}
+        onChange={(e) => onDraftChange(e.target.value)}
+        placeholder="Facility tax % — empty = 0.25% assumed"
+        aria-label={`Facility tax percent for ${name}`}
+        className={cn(inputClass, 'w-full')}
+      />
+      <button
+        type="button"
+        onClick={() => {
+          const tax = parseFacilityTaxDraft(draft);
+          if (!tax.ok) {
+            onError(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty).`);
+            return;
+          }
+          onSet(tax.value);
+        }}
+        disabled={busy}
+        className="text-[10px] uppercase tracking-[0.12em] text-tone-green hover:underline disabled:text-muted disabled:no-underline"
+      >
+        Set
+      </button>
+    </div>
+  );
+}
+
+function SavedStructureRow({
+  row,
+  view,
+  busy,
+  parse,
+  suggest,
+  showPinPicker,
+  showTaxEditor,
+  rowTaxDraft,
+  onRowTaxDraftChange,
+  onTogglePin,
+  onToggleTax,
+  onSetPin,
+  onSetTax,
+  onDelete,
+  onError,
+}: {
+  row: CustomStructureRow;
+  view: SavedStructureRowView;
+  busy: boolean;
+  parse: SystemParse;
+  suggest: SystemSuggest;
+  showPinPicker: boolean;
+  showTaxEditor: boolean;
+  rowTaxDraft: string;
+  onRowTaxDraftChange: (value: string) => void;
+  onTogglePin: () => void;
+  onToggleTax: () => void;
+  onSetPin: (systemId: number | null) => void;
+  onSetTax: (taxPct: number | null) => void;
+  onDelete: () => void;
+  onError: (message: string) => void;
+}) {
+  return (
+    <li className="flex flex-wrap items-center gap-2 border border-border bg-section px-3 py-2">
+      <span className="font-mono text-[12px] text-text">{view.name}</span>
+      <Pill tone="neutral">{view.typeLabel}</Pill>
+      <StructureMetaPills view={view} />
+      <span className="ml-auto flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onToggleTax}
+          disabled={busy}
+          className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+        >
+          Tax…
+        </button>
+        {view.isPinned ? (
+          <button
+            type="button"
+            onClick={() => onSetPin(null)}
+            disabled={busy}
+            className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+          >
+            Unpin
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onTogglePin}
+            disabled={busy}
+            className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+          >
+            Pin…
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={busy}
+          className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-tone-red disabled:text-muted"
+        >
+          Delete
+        </button>
+      </span>
+      {showPinPicker && (
+        <div className="w-full max-w-[320px]">
+          <TerminalSearch<SystemParams, SystemErr>
+            initialValue=""
+            placeholder="Pin to system — type a name"
+            parse={parse}
+            suggest={suggest}
+            errorMessage={() => 'No system matches that name.'}
+            onSubmit={({ system }) => onSetPin(system.id)}
+            onClear={onTogglePin}
+            errorLabel="System"
+          />
+        </div>
+      )}
+      {showTaxEditor && (
+        <InlineTaxEditor
+          name={row.name}
+          draft={rowTaxDraft}
+          onDraftChange={onRowTaxDraftChange}
+          busy={busy}
+          onSet={onSetTax}
+          onError={onError}
+        />
+      )}
+    </li>
+  );
+}
+
+function StructureTypeSelect({
+  value,
+  types,
+  onChange,
+}: {
+  value: number | null;
+  types: StructureTypeOption[];
+  onChange: (id: number | null) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Structure type</span>
+      <select
+        value={value ?? ''}
+        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
+        aria-label="Structure type"
+        className={cn(inputClass, 'w-full max-w-[320px]')}
+      >
+        <option value="">— pick a structure —</option>
+        {types.map((t) => (
+          <option key={t.typeId} value={t.typeId}>
+            {t.name} ({STRUCTURE_GROUP_LABEL[t.groupId] ?? 'Structure'})
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function SavedStructuresList({
+  structures,
+  view,
+  busy,
+  parse,
+  suggest,
+  pinningId,
+  taxingId,
+  rowTaxDraft,
+  onRowTaxDraftChange,
+  onTogglePin,
+  onToggleTax,
+  onSetPin,
+  onSetTax,
+  onDelete,
+  onError,
+}: {
+  structures: CustomStructureRow[];
+  view: (row: CustomStructureRow) => SavedStructureRowView;
+  busy: boolean;
+  parse: SystemParse;
+  suggest: SystemSuggest;
+  pinningId: string | null;
+  taxingId: string | null;
+  rowTaxDraft: string;
+  onRowTaxDraftChange: (value: string) => void;
+  onTogglePin: (id: string) => void;
+  onToggleTax: (id: string, taxPct: number | null) => void;
+  onSetPin: (id: string, systemId: number | null) => void;
+  onSetTax: (id: string, taxPct: number | null) => void;
+  onDelete: (id: string) => void;
+  onError: (message: string) => void;
+}) {
+  if (structures.length === 0) {
+    return <EmptyState>No custom structures yet — build one above.</EmptyState>;
+  }
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {structures.map((s) => (
+        <SavedStructureRow
+          key={s.id}
+          row={s}
+          view={view(s)}
+          busy={busy}
+          parse={parse}
+          suggest={suggest}
+          showPinPicker={pinningId === s.id && s.systemId === null}
+          showTaxEditor={taxingId === s.id}
+          rowTaxDraft={rowTaxDraft}
+          onRowTaxDraftChange={onRowTaxDraftChange}
+          onTogglePin={() => onTogglePin(s.id)}
+          onToggleTax={() => onToggleTax(s.id, s.taxPct)}
+          onSetPin={(systemId) => onSetPin(s.id, systemId)}
+          onSetTax={(taxPct) => onSetTax(s.id, taxPct)}
+          onDelete={() => onDelete(s.id)}
+          onError={onError}
+        />
+      ))}
+    </ul>
+  );
+}
 
 export function CustomStructureBuilder({
   structureTypes,
@@ -73,10 +399,13 @@ export function CustomStructureBuilder({
   );
   const rigName = useMemo(() => new Map(structureRigs.map((r) => [r.typeId, r.name])), [structureRigs]);
 
-  const structure = structureTypeId === null ? null : (structureTypes.find((t) => t.typeId === structureTypeId) ?? null);
-  // The rigs that fit the chosen structure (its group in the rig's canFitGroups +
-  // matching rig size) — the picker options.
-  const validRigs = structure ? structureRigs.filter((r) => rigFitsStructure(r, structure)) : [];
+  const { structure, validRigs, canSave } = deriveBuilderView({
+    structureTypeId,
+    structureTypes,
+    structureRigs,
+    name,
+    busy,
+  });
 
   function chooseStructure(id: number | null) {
     setStructureTypeId(id);
@@ -86,7 +415,7 @@ export function CustomStructureBuilder({
   }
 
   async function onParse() {
-    if (!paste.trim() || busy) return;
+    if (!canReadFit(paste, busy)) return;
     setBusy(true);
     setError(null);
     const res = await apiFetch(parseStructureFitEndpoint, { body: { fit: paste }, cache: 'no-store' });
@@ -101,13 +430,13 @@ export function CustomStructureBuilder({
       return;
     }
     setStructureTypeId(parsed.structureTypeId);
-    const slots = slotIndices.map((i) => parsed.rigTypeIds[i] ?? null);
-    setRigSlots(slots);
-    if (!name.trim()) setName(typeName.get(parsed.structureTypeId) ?? '');
+    setRigSlots(slotsFromParsedFit(parsed.rigTypeIds, slotIndices));
+    setName(resolveFitName(name, parsed.structureTypeId, typeName));
   }
 
   async function onSave() {
-    if (structureTypeId === null || !name.trim() || busy) return;
+    const ready = readyBuildInput(structureTypeId, name, busy);
+    if (!ready) return;
     const tax = parseFacilityTaxDraft(taxDraft);
     if (!tax.ok) {
       setError(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty).`);
@@ -115,15 +444,8 @@ export function CustomStructureBuilder({
     }
     setBusy(true);
     setError(null);
-    const rigTypeIds = rigSlots.filter((x): x is number => x !== null);
     const res = await apiFetch(createCustomStructureEndpoint, {
-      body: {
-        name: name.trim(),
-        structureTypeId,
-        rigTypeIds,
-        systemId: pin?.id ?? null,
-        taxPct: tax.value,
-      },
+      body: buildCreateStructurePayload({ ...ready, rigSlots, pin, taxValue: tax.value }),
       cache: 'no-store',
     });
     setBusy(false);
@@ -178,14 +500,14 @@ export function CustomStructureBuilder({
     setTaxingId(null);
   }
 
-  // The pin's display name resolves from the loaded universe index; the raw id
-  // is the fallback while the index is still fetching.
-  function pinLabel(systemId: number): string {
-    const sys = systems.find((s) => s.id === systemId);
-    return sys ? `${sys.name} ${formatSec(sys.security)}` : `System ${systemId}`;
+  function togglePinning(id: string) {
+    setPinningId(pinningId === id ? null : id);
   }
 
-  const canSave = structureTypeId !== null && name.trim().length > 0 && !busy;
+  function toggleTaxing(id: string, taxPct: number | null) {
+    setTaxingId(taxingId === id ? null : id);
+    setRowTaxDraft(taxDraftFromStored(taxPct));
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -206,29 +528,14 @@ export function CustomStructureBuilder({
           <button
             type="button"
             onClick={onParse}
-            disabled={!paste.trim() || busy}
+            disabled={!canReadFit(paste, busy)}
             className="self-start text-[10px] uppercase tracking-[0.12em] text-tone-blue hover:underline disabled:text-muted disabled:no-underline"
           >
             Read fit →
           </button>
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Structure type</span>
-          <select
-            value={structureTypeId ?? ''}
-            onChange={(e) => chooseStructure(e.target.value === '' ? null : Number(e.target.value))}
-            aria-label="Structure type"
-            className={cn(inputClass, 'w-full max-w-[320px]')}
-          >
-            <option value="">— pick a structure —</option>
-            {structureTypes.map((t) => (
-              <option key={t.typeId} value={t.typeId}>
-                {t.name} ({STRUCTURE_GROUP_LABEL[t.groupId] ?? 'Structure'})
-              </option>
-            ))}
-          </select>
-        </label>
+        <StructureTypeSelect value={structureTypeId} types={structureTypes} onChange={chooseStructure} />
 
         {structure && (
           <RigSupply
@@ -258,34 +565,13 @@ export function CustomStructureBuilder({
             this empty saves a portable structure (shown everywhere). */}
         <div className="flex flex-col gap-1">
           <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Pin to system (optional)</span>
-          {pin ? (
-            <div className="flex items-center gap-2">
-              <Pill tone="blue">
-                {pin.name} {formatSec(pin.security)}
-              </Pill>
-              <button
-                type="button"
-                onClick={() => setPin(null)}
-                className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text"
-              >
-                Clear
-              </button>
-            </div>
-          ) : (
-            <div className="w-full max-w-[320px]">
-              <TerminalSearch<SystemParams, SystemErr>
-                initialValue=""
-                placeholder="System name — leave empty for portable"
-                parse={parse}
-                suggest={suggest}
-                errorMessage={() => 'No system matches that name.'}
-                onSubmit={({ system }) => setPin(system)}
-                onClear={() => setPin(null)}
-                errorLabel="System"
-                hint="Pinned structures show only in that system's build list"
-              />
-            </div>
-          )}
+          <PinField
+            pin={pin}
+            parse={parse}
+            suggest={suggest}
+            onPick={setPin}
+            onClear={() => setPin(null)}
+          />
         </div>
 
         {/* The optional facility tax (3.7.13.3): the owner-set rate this imagined
@@ -329,116 +615,23 @@ export function CustomStructureBuilder({
         <span className="text-[10px] uppercase tracking-[0.12em] text-muted">
           Your structures ({structures.length})
         </span>
-        {structures.length === 0 ? (
-          <EmptyState>No custom structures yet — build one above.</EmptyState>
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {structures.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-wrap items-center gap-2 border border-border bg-section px-3 py-2"
-              >
-                <span className="font-mono text-[12px] text-text">{s.name}</span>
-                <Pill tone="neutral">{typeName.get(s.structureTypeId) ?? `Type ${s.structureTypeId}`}</Pill>
-                {s.rigTypeIds.map((r) => (
-                  <Pill key={r} tone="blue">
-                    {rigName.get(r) ?? `Rig ${r}`}
-                  </Pill>
-                ))}
-                {s.rigTypeIds.length === 0 && <span className="text-[10px] text-muted">no rigs</span>}
-                {s.systemId !== null && <Pill tone="blue">Pinned · {pinLabel(s.systemId)}</Pill>}
-                {s.taxPct !== null && <Pill tone="neutral">tax {s.taxPct}%</Pill>}
-                <span className="ml-auto flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTaxingId(taxingId === s.id ? null : s.id);
-                      setRowTaxDraft(s.taxPct === null ? '' : String(s.taxPct));
-                    }}
-                    disabled={busy}
-                    className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
-                  >
-                    Tax…
-                  </button>
-                  {s.systemId !== null ? (
-                    <button
-                      type="button"
-                      onClick={() => onSetPin(s.id, null)}
-                      disabled={busy}
-                      className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
-                    >
-                      Unpin
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setPinningId(pinningId === s.id ? null : s.id)}
-                      disabled={busy}
-                      className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
-                    >
-                      Pin…
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onDelete(s.id)}
-                    disabled={busy}
-                    className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-tone-red disabled:text-muted"
-                  >
-                    Delete
-                  </button>
-                </span>
-                {pinningId === s.id && s.systemId === null && (
-                  <div className="w-full max-w-[320px]">
-                    <TerminalSearch<SystemParams, SystemErr>
-                      initialValue=""
-                      placeholder="Pin to system — type a name"
-                      parse={parse}
-                      suggest={suggest}
-                      errorMessage={() => 'No system matches that name.'}
-                      onSubmit={({ system }) => onSetPin(s.id, system.id)}
-                      onClear={() => setPinningId(null)}
-                      errorLabel="System"
-                    />
-                  </div>
-                )}
-                {/* Inline tax editor (the inline pin picker's twin). Setting an
-                    empty value clears the tax back to never-entered (the 0.25%
-                    NPC-baseline assumption). */}
-                {taxingId === s.id && (
-                  <div className="flex w-full max-w-[320px] items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      max={MAX_FACILITY_TAX_PCT}
-                      step="0.01"
-                      value={rowTaxDraft}
-                      onChange={(e) => setRowTaxDraft(e.target.value)}
-                      placeholder="Facility tax % — empty = 0.25% assumed"
-                      aria-label={`Facility tax percent for ${s.name}`}
-                      className={cn(inputClass, 'w-full')}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const tax = parseFacilityTaxDraft(rowTaxDraft);
-                        if (!tax.ok) {
-                          setError(`Facility tax must be 0–${MAX_FACILITY_TAX_PCT}% (or empty).`);
-                          return;
-                        }
-                        onSetTax(s.id, tax.value);
-                      }}
-                      disabled={busy}
-                      className="text-[10px] uppercase tracking-[0.12em] text-tone-green hover:underline disabled:text-muted disabled:no-underline"
-                    >
-                      Set
-                    </button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        <SavedStructuresList
+          structures={structures}
+          view={(s) => deriveSavedRowView(s, { typeName, rigName, systems })}
+          busy={busy}
+          parse={parse}
+          suggest={suggest}
+          pinningId={pinningId}
+          taxingId={taxingId}
+          rowTaxDraft={rowTaxDraft}
+          onRowTaxDraftChange={setRowTaxDraft}
+          onTogglePin={togglePinning}
+          onToggleTax={toggleTaxing}
+          onSetPin={onSetPin}
+          onSetTax={onSetTax}
+          onDelete={onDelete}
+          onError={setError}
+        />
       </div>
     </div>
   );

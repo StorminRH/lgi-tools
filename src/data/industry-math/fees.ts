@@ -88,6 +88,14 @@ export function parseFacilityTaxDraft(
   return { ok: true, value: n };
 }
 
+// The inverse of the parse above: a stored tax value → the entry-field draft
+// that prefills its editor. null (never entered) → empty; a stored percent →
+// its string. Shared by the same two tax entry surfaces so their prefill and
+// their parse agree.
+export function taxDraftFromStored(taxPct: number | null): string {
+  return taxPct === null ? '' : String(taxPct);
+}
+
 // CCP "adjusted price" for a type, or null when there's no usable adjusted price
 // (no row, or a stored NULL — the absent-vs-0.0 distinction the adjusted_prices
 // table preserves). Mirrors PriceOf, but a single number per type. A returned 0
