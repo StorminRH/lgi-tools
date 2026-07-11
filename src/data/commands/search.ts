@@ -16,8 +16,8 @@
 
 import { signInOauth2Endpoint, signOutEndpoint } from '@/features/auth/api-contract';
 import { apiFetch } from '@/lib/api-client';
-import type { AppRouterInstance, SearchContext, SearchResult, SearchSource } from '@/search';
-import { fuzzyMatch } from '@/search/match';
+import type { AppRouterInstance, SearchContext, SearchSource } from '@/search';
+import { rankFuzzyResults } from '@/search/rank';
 
 type CommandEntry = {
   id: string;
@@ -111,23 +111,21 @@ export const commandsSearchSource: SearchSource = {
   name: 'Commands',
   limit: 5,
   async search(query, ctx) {
-    const matched = COMMANDS
-      .filter((c) => c.visible(ctx))
-      .map((c) => ({ cmd: c, match: fuzzyMatch(query, c.label) }))
-      .filter((row): row is { cmd: CommandEntry; match: NonNullable<typeof row.match> } => row.match !== null);
-
-    matched.sort((a, b) => b.match.score - a.match.score);
-
-    return matched.map<SearchResult>(({ cmd, match }) => ({
-      kind: 'command',
-      id: cmd.id,
-      label: cmd.label,
-      sub: cmd.sub,
-      href: cmd.href,
-      iconText: cmd.iconText,
-      iconTone: 'cmd',
-      matchIndices: match.matchIndices,
-      onSelect: cmd.onSelect,
-    }));
+    return rankFuzzyResults(
+      COMMANDS.filter((c) => c.visible(ctx)),
+      query,
+      (c) => c.label,
+      (cmd, match) => ({
+        kind: 'command',
+        id: cmd.id,
+        label: cmd.label,
+        sub: cmd.sub,
+        href: cmd.href,
+        iconText: cmd.iconText,
+        iconTone: 'cmd',
+        matchIndices: match.matchIndices,
+        onSelect: cmd.onSelect,
+      }),
+    );
   },
 };

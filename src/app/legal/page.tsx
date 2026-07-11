@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -15,6 +16,16 @@ export const metadata = {
 // below the page H1, above the "// label" SectionLabel sub-heads.
 const SECTION_HEAD =
   'font-display font-bold uppercase text-name text-[19px] leading-none tracking-[0.02em]';
+
+// One "// label" sub-head + its prose body — the reading column's repeated unit.
+function LegalSection({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <section className="mb-8">
+      <SectionLabel className="mb-3">{label}</SectionLabel>
+      {children}
+    </section>
+  );
+}
 
 export default function LegalPage() {
   return (
@@ -36,8 +47,7 @@ export default function LegalPage() {
             What the site itself records about your visit — no EVE sign-in required.
           </p>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">What we collect</SectionLabel>
+          <LegalSection label="What we collect">
             <p>
               <strong>LGI.tools (Lo-Gang Industries)</strong> records its own usage in our own{' '}
               <a href="https://neon.com/security" target="_blank" rel="noopener noreferrer">
@@ -69,28 +79,25 @@ export default function LegalPage() {
                 private Discord channel for the developer — not stored in our database.
               </li>
             </ul>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">What we don&apos;t collect</SectionLabel>
+          <LegalSection label="What we don't collect">
             <p>
               We do <strong>not</strong>{' '}
               record your IP address, the browser or device you&apos;re using, or any kind of device
               fingerprint.
             </p>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">How it&apos;s used &amp; opting out</SectionLabel>
+          <LegalSection label="How it's used & opting out">
             <p>
               This data is used only to understand how the site is used so we can make it better. To
               avoid being attributed by character, log out via the header and keep using the site —
               your visits are then recorded anonymously.
             </p>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">Performance telemetry</SectionLabel>
+          <LegalSection label="Performance telemetry">
             <p>
               Load time, layout shift, and other{' '}
               <a href="https://web.dev/articles/vitals" target="_blank" rel="noopener noreferrer">
@@ -100,7 +107,7 @@ export default function LegalPage() {
               surface slow pages we can fix. Performance only — no behavioural tracking, advertising
               profile, or cross-site identity.
             </p>
-          </section>
+          </LegalSection>
 
           <h2 className={`${SECTION_HEAD} mt-12 pt-10 border-t border-border-soft mb-3`}>
             EVE SSO Data
@@ -109,8 +116,7 @@ export default function LegalPage() {
             What we read from your EVE characters once you sign in, and how we protect it.
           </p>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">What signing in shares</SectionLabel>
+          <LegalSection label="What signing in shares">
             <p>
               When you sign in with <strong>EVE SSO</strong>, you grant LGI.tools read-only access to
               a small, fixed set of your character data. We read that data on our own servers and keep
@@ -120,10 +126,9 @@ export default function LegalPage() {
               below — we ask for the least access possible, all of it read-only, we store it
               encrypted, and we delete it when you&apos;re done.
             </p>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">The access we ask for</SectionLabel>
+          <LegalSection label="The access we ask for">
             <p>We request exactly four read-only scopes — nothing more:</p>
             <ul>
               <li>Read your public character info</li>
@@ -141,10 +146,9 @@ export default function LegalPage() {
               first. You can see exactly what each of your characters has granted on your{' '}
               <Link href="/characters">Characters</Link> page.
             </p>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">How long we keep it</SectionLabel>
+          <LegalSection label="How long we keep it">
             <p>
               Your synced EVE data is a <strong>regenerable cache</strong>, not a record we own — it
               can be rebuilt from EVE at any time. We delete a character&apos;s data when you{' '}
@@ -153,28 +157,25 @@ export default function LegalPage() {
               new owner stamp; we check it on every sign-in and purge the previous owner&apos;s data,
               so it never follows the character to its new pilot.
             </p>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">How it&apos;s stored</SectionLabel>
+          <LegalSection label="How it's stored">
             <p>
               Every call we make to EVE goes through a single gated path on our servers. Your access
               tokens are <strong>encrypted at rest</strong> (AES-256-GCM), and the long-lived refresh
               token <strong>never leaves our database</strong> — the live tools only ever receive
               short-lived access tokens.
             </p>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">We don&apos;t share it</SectionLabel>
+          <LegalSection label="We don't share it">
             <p>
               We never sell your EVE data or share it with third parties. For the anonymous usage data
               the site itself records, see <strong>Personal Data</strong> above.
             </p>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">You stay in control</SectionLabel>
+          <LegalSection label="You stay in control">
             <ul>
               <li>
                 See exactly what each character has granted on your{' '}
@@ -192,10 +193,9 @@ export default function LegalPage() {
                 <Link href="/characters">Characters</Link> page.
               </li>
             </ul>
-          </section>
+          </LegalSection>
 
-          <section className="mb-8">
-            <SectionLabel className="mb-3">Open-source licensing</SectionLabel>
+          <LegalSection label="Open-source licensing">
             <p>
               LGI.tools is open-source under the{' '}
               <a
@@ -216,7 +216,7 @@ export default function LegalPage() {
               , so every claim on this page is auditable. Issues, feature requests, and pull requests
               are welcome.
             </p>
-          </section>
+          </LegalSection>
 
           <div className="legal-note">
             <p>

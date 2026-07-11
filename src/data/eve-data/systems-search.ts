@@ -14,8 +14,9 @@
 // parse stays permanently empty.
 
 import { apiFetch } from '@/lib/api-client';
-import type { SearchResult, SearchSource } from '@/search';
-import { fuzzyMatch, type FuzzyMatch } from '@/search/match';
+import type { SearchSource } from '@/search';
+import { fuzzyMatch } from '@/search/match';
+import { rankFuzzyResults } from '@/search/rank';
 import { systemsEndpoint } from './api-contract';
 
 // One searchable solar system — the wire shape for /api/industry/systems.
@@ -109,20 +110,19 @@ export const systemsSource: SearchSource = {
     const index = await loadSystems();
     if (ctx.signal?.aborted) return [];
 
-    const matches: { entry: SystemSearchEntry; match: FuzzyMatch }[] = [];
-    for (const entry of index) {
-      const match = fuzzyMatch(query, entry.name);
-      if (match) matches.push({ entry, match });
-    }
-    matches.sort((a, b) => b.match.score - a.match.score);
-
-    return matches.slice(0, MAX_RESULTS).map<SearchResult>(({ entry, match }) => ({
-      kind: 'system',
-      id: `system:${entry.id}`,
-      label: entry.name,
-      sub: formatSec(entry.security),
-      href: '#',
-      matchIndices: match.matchIndices,
-    }));
+    return rankFuzzyResults(
+      index,
+      query,
+      (entry) => entry.name,
+      (entry, match) => ({
+        kind: 'system',
+        id: `system:${entry.id}`,
+        label: entry.name,
+        sub: formatSec(entry.security),
+        href: '#',
+        matchIndices: match.matchIndices,
+      }),
+      { limit: MAX_RESULTS },
+    );
   },
 };
