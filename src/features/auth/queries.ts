@@ -65,7 +65,7 @@ const adminUserColumns = {
   characterId: account.accountId,
 };
 
-function toAdminUser(row: {
+export function toAdminUser(row: {
   userId: string;
   name: string;
   portraitUrl: string | null;
@@ -231,6 +231,32 @@ export interface LinkedCharacter {
   affiliationRefreshedAt: Date | null;
 }
 
+// Shape one account→characters join row into a LinkedCharacter: fall back to a
+// synthesised name/portrait when the profile row is missing, and flag whether a
+// usable refresh token is still on file. Pure — the join lives in the query.
+export function toLinkedCharacter(r: {
+  accountId: string;
+  scope: string | null;
+  refreshToken: string | null;
+  createdAt: Date;
+  name: string | null;
+  portraitUrl: string | null;
+  corporationId: number | null;
+  affiliationRefreshedAt: Date | null;
+}): LinkedCharacter {
+  const characterId = Number(r.accountId);
+  return {
+    characterId,
+    name: r.name ?? `Character ${r.accountId}`,
+    portraitUrl: r.portraitUrl ?? portraitUrl(characterId),
+    scope: r.scope,
+    hasRefreshToken: r.refreshToken != null && r.refreshToken.length > 0,
+    linkedAt: r.createdAt,
+    corporationId: r.corporationId ?? null,
+    affiliationRefreshedAt: r.affiliationRefreshedAt ?? null,
+  };
+}
+
 // Every EVE character linked to a user, oldest first. The page's data source —
 // NOT Better Auth's /list-accounts, which carries neither name/portrait nor the
 // token presence this needs (and would leak no useful health signal).
@@ -251,21 +277,7 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
     .where(eveAccountsForUser(userId))
     .orderBy(asc(account.createdAt));
 
-  return rows
-    .map((r) => {
-      const characterId = Number(r.accountId);
-      return {
-        characterId,
-        name: r.name ?? `Character ${r.accountId}`,
-        portraitUrl: r.portraitUrl ?? portraitUrl(characterId),
-        scope: r.scope,
-        hasRefreshToken: r.refreshToken != null && r.refreshToken.length > 0,
-        linkedAt: r.createdAt,
-        corporationId: r.corporationId ?? null,
-        affiliationRefreshedAt: r.affiliationRefreshedAt ?? null,
-      };
-    })
-    .filter((r) => Number.isFinite(r.characterId));
+  return rows.map(toLinkedCharacter).filter((r) => Number.isFinite(r.characterId));
 }
 
 // ---------------------------------------------------------------------------
@@ -275,6 +287,27 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
 // (a sibling of name/portrait), so these reuse the same account→characters join
 // helpers as the linked-character readers above.
 // ---------------------------------------------------------------------------
+
+// One account→characters row shaped into the cached-affiliation record, loosely
+// coalescing every field to null (an un-refreshed character reads fail-closed).
+// Shared by the per-user and per-character affiliation reads. Pure.
+export function rowToCachedAffiliation(
+  characterId: number,
+  row: {
+    corporationId: number | null;
+    allianceId: number | null;
+    factionId: number | null;
+    refreshedAt: Date | null;
+  },
+): CachedAffiliation {
+  return {
+    characterId,
+    corporationId: row.corporationId ?? null,
+    allianceId: row.allianceId ?? null,
+    factionId: row.factionId ?? null,
+    refreshedAt: row.refreshedAt ?? null,
+  };
+}
 
 // A user's linked characters with their cached corp affiliation. The membership
 // helper (isUserCurrentMemberOfCorp) decides over this; an un-refreshed character
@@ -293,13 +326,7 @@ export async function getUserAffiliations(userId: string): Promise<CachedAffilia
     .where(eveAccountsForUser(userId));
 
   return rows
-    .map((r) => ({
-      characterId: Number(r.accountId),
-      corporationId: r.corporationId ?? null,
-      allianceId: r.allianceId ?? null,
-      factionId: r.factionId ?? null,
-      refreshedAt: r.refreshedAt ?? null,
-    }))
+    .map((r) => rowToCachedAffiliation(Number(r.accountId), r))
     .filter((r) => Number.isFinite(r.characterId));
 }
 
@@ -318,13 +345,7 @@ export async function getCharacterAffiliation(
     .where(eq(characters.characterId, characterId))
     .limit(1);
   if (!row) return null;
-  return {
-    characterId,
-    corporationId: row.corporationId ?? null,
-    allianceId: row.allianceId ?? null,
-    factionId: row.factionId ?? null,
-    refreshedAt: row.refreshedAt ?? null,
-  };
+  return rowToCachedAffiliation(characterId, row);
 }
 
 // Linked characters whose affiliation is missing or older than the TTL — the

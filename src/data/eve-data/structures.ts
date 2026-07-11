@@ -2,7 +2,12 @@
 // No DB / no next/cache import, so the enumeration's branching stays unit-testable
 // in isolation; the cached reads that USE these live in queries.ts.
 
-import { RIG_MFG_MATERIAL_ATTR, RIG_REACTION_TIME_ATTR } from './constants';
+import {
+  RIG_CAN_FIT_GROUP_ATTRS,
+  RIG_MFG_MATERIAL_ATTR,
+  RIG_REACTION_TIME_ATTR,
+  STRUCTURE_RIG_SIZE_ATTR,
+} from './constants';
 import type { AttrMap } from './types';
 
 export type StructureTypeOption = {
@@ -48,4 +53,28 @@ export function rigFitsStructure(
   structure: { groupId: number; rigSize: number | null },
 ): boolean {
   return rig.canFitGroups.includes(structure.groupId) && rig.rigSize === structure.rigSize;
+}
+
+// Shape raw type+dogma rows into the industry rigs the planner models: keep only
+// the industry-efficiency rigs (isIndustryRig), read each one's fittable
+// structure groups (canFitShipGroup01/02/03) and rig-size class, and return them
+// name-sorted. The cached DB read that feeds this lives in queries.ts.
+export function shapeStructureRigs(
+  rows: ReadonlyArray<{ id: number; name: string; attributes: unknown }>,
+): StructureRigOption[] {
+  const out: StructureRigOption[] = [];
+  for (const r of rows) {
+    const attrs = (r.attributes ?? {}) as AttrMap;
+    if (!isIndustryRig(attrs)) continue;
+    const canFitGroups = RIG_CAN_FIT_GROUP_ATTRS.map((a) => attrs[a]).filter(
+      (g): g is number => g !== undefined,
+    );
+    out.push({
+      typeId: r.id,
+      name: r.name,
+      canFitGroups,
+      rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null,
+    });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 }

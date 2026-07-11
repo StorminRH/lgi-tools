@@ -14,22 +14,30 @@ import {
 } from '@/db/schema';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
-  ACTIVITY_NAME_TO_ID,
   BLUEPRINT_STRUCTURE_TAG,
-  INDUSTRY_ACTIVITY_NAMES,
-  RIG_CAN_FIT_GROUP_ATTRS,
   SDE_INDUSTRY_STRUCTURE_GROUP_IDS,
   SDE_STRUCTURE_MODULE_CATEGORY_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
 import {
-  isIndustryRig,
+  shapeStructureRigs,
   type StructureRigOption,
   type StructureTypeOption,
 } from './structures';
+import {
+  collectSearchPending,
+  collectTrackedTypeIds,
+  pickBlueprintOutput,
+  pickProducingActivityId,
+  resolveSearchRows,
+  type BlueprintOutput,
+  type BlueprintSearchRow,
+} from './blueprint-shaping';
+// Re-exported so existing consumers of these types keep importing them from the
+// queries module; the definitions moved to blueprint-shaping.ts with the logic.
+export type { BlueprintOutput, BlueprintSearchRow };
 import type { SystemSearchEntry } from './systems-search';
 import {
-  activitiesToRows,
   pickBuildTimeSeconds,
   type BlueprintActivities,
   type TreeNode,
@@ -191,19 +199,9 @@ async function mapBlueprintActivities<T>(
 export async function getActivityByBlueprint(
   blueprintTypeIds: number[],
 ): Promise<Map<number, number>> {
-  return mapBlueprintActivities(blueprintTypeIds, (raw) => {
-    const activities = (raw ?? {}) as BlueprintActivities;
-    // The activity (1 or 11) that actually yields a product; prefer
-    // manufacturing (the lower id) — INDUSTRY_ACTIVITY_NAMES is ordered
-    // manufacturing-first.
-    for (const name of INDUSTRY_ACTIVITY_NAMES) {
-      const act = activities[name];
-      if (act?.products && act.products.length > 0) {
-        return ACTIVITY_NAME_TO_ID[name];
-      }
-    }
-    return null;
-  });
+  return mapBlueprintActivities(blueprintTypeIds, (raw) =>
+    pickProducingActivityId((raw ?? {}) as BlueprintActivities),
+  );
 }
 
 // The base build TIME (CCP SDE `time`, SECONDS for a single run — ME0/TE0, no
@@ -253,17 +251,7 @@ export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
       activities: industryBlueprints.activities,
     })
     .from(industryBlueprints);
-
-  const set = new Set<number>();
-  for (const r of rows) {
-    const { mats, prods } = activitiesToRows(
-      r.blueprintTypeId,
-      (r.activities ?? {}) as BlueprintActivities,
-    );
-    for (const m of mats) set.add(m.materialTypeId);
-    for (const p of prods) set.add(p.productTypeId);
-  }
-  return [...set];
+  return collectTrackedTypeIds(rows);
 }
 
 // The item a blueprint produces and how many per run, for the chosen industry
@@ -272,12 +260,6 @@ export async function listTrackedTypeIds(db: AnyPgDb): Promise<number[]> {
 // when the blueprint type is unpublished (a CCP test/dev artifact the in-game
 // client hides, e.g. the "Test Reaction Blueprint"). Reads the blueprint
 // `activities` JSONB so the Industry Planner never touches the raw table directly.
-export type BlueprintOutput = {
-  productTypeId: number;
-  quantity: number;
-  activityId: number;
-};
-
 export async function getBlueprintOutput(
   blueprintId: number,
 ): Promise<BlueprintOutput | null> {
@@ -297,18 +279,7 @@ export async function getBlueprintOutput(
     )
     .limit(1);
   if (!row) return null;
-  const activities = (row.activities ?? {}) as BlueprintActivities;
-  for (const name of INDUSTRY_ACTIVITY_NAMES) {
-    const product = activities[name]?.products?.[0];
-    if (product) {
-      return {
-        productTypeId: product.typeID,
-        quantity: product.quantity,
-        activityId: ACTIVITY_NAME_TO_ID[name],
-      };
-    }
-  }
-  return null;
+  return pickBlueprintOutput((row.activities ?? {}) as BlueprintActivities);
 }
 
 // One row per (blueprint, manufacturing/reaction product) where BOTH the
@@ -316,14 +287,7 @@ export async function getBlueprintOutput(
 // search index. Filtering published products drops the degenerate self-recipe
 // junk (those produce unpublished types); filtering published blueprints drops
 // CCP test/dev artifacts (e.g. the unpublished "Test Reaction Blueprint") that
-// the in-game client also hides.
-export type BlueprintSearchRow = {
-  blueprintTypeId: number;
-  activityId: number;
-  productTypeId: number;
-  name: string;
-};
-
+// the in-game client also hides. The flatten/join lives in blueprint-shaping.ts.
 export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
   const rows = await db
     .select({
@@ -334,46 +298,14 @@ export async function getBlueprintSearchRows(): Promise<BlueprintSearchRow[]> {
     .innerJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id))
     .where(eq(eveTypes.published, true));
 
-  const pending: Array<{
-    blueprintTypeId: number;
-    activityId: number;
-    productTypeId: number;
-  }> = [];
-  const productIds = new Set<number>();
-  for (const r of rows) {
-    const activities = (r.activities ?? {}) as BlueprintActivities;
-    for (const name of INDUSTRY_ACTIVITY_NAMES) {
-      for (const p of activities[name]?.products ?? []) {
-        pending.push({
-          blueprintTypeId: r.blueprintTypeId,
-          activityId: ACTIVITY_NAME_TO_ID[name],
-          productTypeId: p.typeID,
-        });
-        productIds.add(p.typeID);
-      }
-    }
-  }
+  const { pending, productIds } = collectSearchPending(rows);
   if (productIds.size === 0) return [];
 
   const nameRows = await db
     .select({ id: eveTypes.id, name: eveTypes.name })
     .from(eveTypes)
     .where(and(inArray(eveTypes.id, [...productIds]), eq(eveTypes.published, true)));
-  const nameById = new Map<number, string>();
-  for (const r of nameRows) nameById.set(r.id, r.name);
-
-  const out: BlueprintSearchRow[] = [];
-  for (const p of pending) {
-    const name = nameById.get(p.productTypeId);
-    if (name === undefined) continue; // unpublished product → drop
-    out.push({
-      blueprintTypeId: p.blueprintTypeId,
-      activityId: p.activityId,
-      productTypeId: p.productTypeId,
-      name,
-    });
-  }
-  return out;
+  return resolveSearchRows(pending, nameRows);
 }
 
 // ----- Universe / industry build-location helpers --------------------
@@ -520,21 +452,7 @@ export async function getStructureRigs(): Promise<StructureRigOption[]> {
           eq(eveTypes.published, true),
         ),
       );
-    const out: StructureRigOption[] = [];
-    for (const r of rows) {
-      const attrs = (r.attributes ?? {}) as AttrMap;
-      if (!isIndustryRig(attrs)) continue;
-      const canFitGroups = RIG_CAN_FIT_GROUP_ATTRS.map((a) => attrs[a]).filter(
-        (g): g is number => g !== undefined,
-      );
-      out.push({
-        typeId: r.id,
-        name: r.name,
-        canFitGroups,
-        rigSize: attrs[STRUCTURE_RIG_SIZE_ATTR] ?? null,
-      });
-    }
-    return out.sort((a, b) => a.name.localeCompare(b.name));
+    return shapeStructureRigs(rows);
   });
 }
 

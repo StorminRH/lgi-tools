@@ -8,19 +8,19 @@ import { useSystemName } from '@/components/use-system-search';
 import { formatIsk } from '@/lib/format/isk';
 import { formatPct } from '@/lib/format/number';
 import { formatBuildDuration, type BuildTimes } from '../build-time';
-import { selectNet, type MarginMode } from '../cockpit-margin';
+import {
+  cockpitMarginView,
+  indefiniteArticleForPct,
+  inputCostView,
+  sellTileView,
+  type CockpitMarginView,
+} from '../cockpit-kpis-view';
+import { type MarginMode } from '../cockpit-margin';
 import type { CostBasis } from '../cost-basis-view';
 import { buildFeeBreakdown, type FeeLine } from '../fee-breakdown';
-import { REACTION_ACTIVITY } from '../structure-bonus';
 import { timeLeverRows } from '../time-lever-rows';
-import {
-  deriveMarginFigures,
-  marginToneClass,
-  regionalDiscountCallout,
-  sellAnchorConfidence,
-  type RegionalDiscountCallout,
-} from '../industry-styles';
-import type { BlueprintStructure, NetMarginView } from '../types';
+import { marginToneClass, type RegionalDiscountCallout } from '../industry-styles';
+import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
 import { usePricing } from './PricingProvider';
@@ -123,20 +123,20 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
 // figure carries the summary's own basis stamp.
 function InputCostTile() {
   const { pricing, costBasis, setCostBasis } = usePricing();
-  const summary = pricing?.summary ?? null;
+  const view = inputCostView(pricing);
   return (
     <KpiTile>
       <KpiHead
         label="Input cost"
         right={
           <span className="flex items-center gap-2">
-            <InputCostHelp bases={summary?.bases ?? null} />
+            <InputCostHelp bases={view.bases} />
             <RawItemToggle basis={costBasis} setBasis={setCostBasis} />
           </span>
         }
       />
       <div className={cn(KPI_FIG, 'text-name')}>
-        <LivePrice value={summary ? formatIsk(summary.inputCost) : '—'} />
+        <LivePrice value={view.inputCost} />
       </div>
     </KpiTile>
   );
@@ -150,11 +150,7 @@ function InputCostTile() {
 function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }) {
   const systemName = useSystemName(callout.systemId);
   if (!systemName) return null;
-  // "an 8%/11%/18%/80–89% discount" — the only integers ≤100 spoken with a vowel.
-  const article =
-    callout.pct === 8 || callout.pct === 11 || callout.pct === 18 || (callout.pct >= 80 && callout.pct <= 89)
-      ? 'an'
-      : 'a';
+  const article = indefiniteArticleForPct(callout.pct);
   return (
     <Popover
       label="Regional discount available"
@@ -180,23 +176,21 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
 // row stays a thin composition; the verdicts are the pure mappers.
 function SellTile() {
   const { pricing } = usePricing();
-  const summary = pricing?.summary ?? null;
-  const thinAnchor = pricing ? sellAnchorConfidence(pricing.product) : null;
-  const discount = pricing ? regionalDiscountCallout(pricing.product) : null;
+  const view = sellTileView(pricing);
   return (
     <SimpleTile
       label="Sell · Jita"
       right={
-        (thinAnchor || discount) && (
+        view.hasBadge && (
           <span className="flex items-center gap-2">
-            {discount && <RegionalDiscountBadge callout={discount} />}
-            {thinAnchor && (
-              <PriceConfidence level={thinAnchor.level} reasons={thinAnchor.reasons} />
+            {view.discount && <RegionalDiscountBadge callout={view.discount} />}
+            {view.thinAnchor && (
+              <PriceConfidence level={view.thinAnchor.level} reasons={view.thinAnchor.reasons} />
             )}
           </span>
         )
       }
-      value={<LivePrice value={summary ? formatIsk(summary.revenue) : '—'} />}
+      value={<LivePrice value={view.revenue} />}
       valueClass="text-isk"
     />
   );
@@ -276,10 +270,105 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
   );
 }
 
+// The net-margin figure: the priced margin (toned) with its percent, or a
+// pricing-pending / unavailable placeholder before the estimate settles.
+function MarginFigure({
+  view,
+  summary,
+  seeded,
+}: {
+  view: CockpitMarginView;
+  summary: BlueprintPricing['summary'] | null;
+  seeded: boolean;
+}) {
+  if (!summary) {
+    return <div className={cn(KPI_FIG, 'text-muted')}>{seeded ? 'Pricing unavailable' : 'Calculating…'}</div>;
+  }
+  return (
+    <div className={cn(KPI_FIG, marginToneClass(view.marginPct))}>
+      <LivePrice value={`${view.sign}${formatIsk(view.margin)}`} />
+      {view.marginPct !== null && <span className="ml-1.5 text-[13px]">({formatPct(view.marginPct)})</span>}
+    </div>
+  );
+}
+
+// The net-margin tile: the Gross/Net toggle, the fee breakdown hover (net path
+// only), and the margin figure. All the source/label decisions come from the
+// pure cockpitMarginView.
+function NetMarginTile({
+  view,
+  pricing,
+  seeded,
+  setMarginMode,
+}: {
+  view: CockpitMarginView;
+  pricing: BlueprintPricing | null;
+  seeded: boolean;
+  setMarginMode: (m: MarginMode) => void;
+}) {
+  return (
+    <KpiTile>
+      <KpiHead
+        label={view.marginLabel}
+        right={
+          <span className="flex items-center gap-2">
+            {view.net && <FeeHover net={view.net} systemName={view.feeSystemName} />}
+            <GrossNetToggle showNet={view.showNet} netAvailable={view.netAvailable} setMode={setMarginMode} />
+          </span>
+        }
+      />
+      <MarginFigure view={view} summary={pricing?.summary ?? null} seeded={seeded} />
+    </KpiTile>
+  );
+}
+
+// The Build-time tile: the final-job time figure + the per-lever hover.
+function BuildTimeTile({
+  runs,
+  buildTimes,
+  leverRows,
+}: {
+  runs: number;
+  buildTimes: BuildTimes;
+  leverRows: ReturnType<typeof timeLeverRows>;
+}) {
+  return (
+    <KpiTile>
+      <KpiHead
+        label="Build time"
+        right={
+          <KpiHelp label="How build time is estimated">
+            <PopoverHeading>Build time — final job</PopoverHeading>
+            <PopoverRow label="Runs">×{runs}</PopoverRow>
+            {/* No owned/manual qualifier on a non-zero value: topTe is the effective TE
+                and can come from a manual override, so the bare percentage is honest. */}
+            <PopoverRow label="Time efficiency">
+              {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ''}
+            </PopoverRow>
+            <PopoverRow label="Skills">{leverRows.skills}</PopoverRow>
+            <PopoverRow label="Structure">{leverRows.structure}</PopoverRow>
+          </KpiHelp>
+        }
+      />
+      <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.topJob ?? '—'}</div>
+    </KpiTile>
+  );
+}
+
+// The Total-job-time tile: the whole-tree sequential production figure + hover.
+function TotalJobTile({ buildTimes }: { buildTimes: BuildTimes }) {
+  return (
+    <KpiTile>
+      <KpiHead label="Total job time" right={<TotalJobHover buildTimes={buildTimes} />} />
+      <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.totalProduction ?? '—'}</div>
+    </KpiTile>
+  );
+}
+
 // The Cockpit KPI tile row: input cost · sell · net margin (Gross/Net toggle) ·
 // market score (with "?" breakdown) · build time · total job time. All figures read
 // the live pricing store; the margin tile flips gross↔net and each figure flashes in
-// as prices land.
+// as prices land. The tiles are render shells over the pure cockpit-kpis-view.
 export function CockpitKpis({
   structure,
   marginMode,
@@ -301,21 +390,17 @@ export function CockpitKpis({
     skillTimeFactors,
     structureFactors,
   } = usePricing();
-  const summary = pricing?.summary ?? null;
 
-  // The activity-matched fee source: a reaction blueprint's fee rides the
-  // reaction slot (or a build-slot refinery), not the build location alone.
-  const isReaction = structure.activityId === REACTION_ACTIVITY;
-  const { net, netAvailable } = selectNet(
+  const margin = cockpitMarginView(
     pricing,
     structure.activityId,
-    isReaction ? reactionNetAvailable : location !== null,
+    location,
+    reactionSystem,
+    reactionNetAvailable,
     marginMode,
   );
-  const { showNet, margin, marginPct, sign } = deriveMarginFigures(summary, net);
 
-  // The Build-time hover's honest lever rows — pure + tested in
-  // time-lever-rows.ts; this shell only threads the context values.
+  // The Build-time hover's honest lever rows — pure + tested in time-lever-rows.ts.
   const leverRows = timeLeverRows({
     topBlueprintTypeId: structure.blueprintTypeId,
     buildCharacterName: buildCharacter?.name ?? null,
@@ -327,67 +412,10 @@ export function CockpitKpis({
     <div className="grid grid-cols-2 gap-3 min-[760px]:grid-cols-3 min-[1080px]:grid-cols-6">
       <InputCostTile />
       <SellTile />
-
-      <KpiTile>
-        <KpiHead
-          label={showNet ? 'Net margin' : 'Gross margin'}
-          right={
-            <span className="flex items-center gap-2">
-              {/* The hover names the FEE-bearing system: the reaction system for a
-                  reaction blueprint (falling back to the build system when a
-                  build-slot refinery is the fee source). */}
-              {net && (
-                <FeeHover
-                  net={net}
-                  systemName={
-                    isReaction && reactionSystem ? reactionSystem.systemName : location?.systemName
-                  }
-                />
-              )}
-              <GrossNetToggle showNet={showNet} netAvailable={netAvailable} setMode={setMarginMode} />
-            </span>
-          }
-        />
-        {summary ? (
-          <div className={cn(KPI_FIG, marginToneClass(marginPct))}>
-            <LivePrice value={`${sign}${formatIsk(margin)}`} />
-            {marginPct !== null && (
-              <span className="ml-1.5 text-[13px]">({formatPct(marginPct)})</span>
-            )}
-          </div>
-        ) : (
-          <div className={cn(KPI_FIG, 'text-muted')}>
-            {seeded ? 'Pricing unavailable' : 'Calculating…'}
-          </div>
-        )}
-      </KpiTile>
-
+      <NetMarginTile view={margin} pricing={pricing} seeded={seeded} setMarginMode={setMarginMode} />
       <MarketScorePanel structure={structure} />
-
-      <KpiTile>
-        <KpiHead
-          label="Build time"
-          right={
-            <KpiHelp label="How build time is estimated">
-              <PopoverHeading>Build time — final job</PopoverHeading>
-              <PopoverRow label="Runs">×{runs}</PopoverRow>
-              {/* No owned/manual qualifier on a non-zero value: topTe is the effective TE
-                  and can come from a manual override, so the bare percentage is honest. */}
-              <PopoverRow label="Time efficiency">
-                {buildTimes.topTe}%{buildTimes.topTe === 0 ? ' (unresearched)' : ''}
-              </PopoverRow>
-              <PopoverRow label="Skills">{leverRows.skills}</PopoverRow>
-              <PopoverRow label="Structure">{leverRows.structure}</PopoverRow>
-            </KpiHelp>
-          }
-        />
-        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.topJob ?? '—'}</div>
-      </KpiTile>
-
-      <KpiTile>
-        <KpiHead label="Total job time" right={<TotalJobHover buildTimes={buildTimes} />} />
-        <div className={cn(KPI_FIG, 'text-evb-bright')}>{buildTimes.totalProduction ?? '—'}</div>
-      </KpiTile>
+      <BuildTimeTile runs={runs} buildTimes={buildTimes} leverRows={leverRows} />
+      <TotalJobTile buildTimes={buildTimes} />
     </div>
   );
 }

@@ -2,7 +2,6 @@
   "clone_groups": [
     "src/app/dev/sandbox/industry/page.tsx:16-25|src/app/dev/sandbox/trees/flow/page.tsx:18-23",
     "src/app/dev/sandbox/prices/price-variants.tsx:119-125|src/app/dev/sandbox/prices/price-variants.tsx:48-56",
-    "src/app/dev/sandbox/trees/tree-shared.ts:17-26|src/features/industry-planner/components/BuildFlow.tsx:42-51",
     "src/app/industry/[id]/page.tsx:16-27|src/app/sites/[id]/page.tsx:72-86",
     "src/app/legal/page.tsx:110-127|src/app/legal/page.tsx:156-172",
     "src/components/ui/bar-chart.tsx:98-128|src/components/ui/trend-chart.tsx:121-151",
@@ -13,7 +12,6 @@
     "src/data/commands/search.ts:116-120|src/data/tools/search.ts:15-19",
     "src/data/eve-data/source.ts:101-114|src/data/eve-data/source.ts:326-344",
     "src/data/market-history/aggregate.ts:38-45|src/data/market-history/aggregate.ts:55-62",
-    "src/features/industry-planner/recent-blueprints.ts:47-54|src/features/search-recents/storage.ts:98-107",
     "src/features/wormhole-sites/queries.ts:268-288|src/features/wormhole-sites/queries.ts:418-441"
   ]
 }

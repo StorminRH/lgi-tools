@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/components/ui/cn';
 import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
-import type { MarketScore } from '@/data/industry-math/market-score';
-import { daysSinceHistoryDate, STALENESS_FLAG_DAYS } from '../market-score-inputs';
+import { marketScoreView } from '../market-score-inputs';
 import type { BlueprintStructure } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG } from './kpi-tile';
 import { usePricing } from './PricingProvider';
@@ -13,47 +12,11 @@ import { usePricing } from './PricingProvider';
 // liquidity axis beside net margin's "how much?". Numbers are PLAIN and
 // UNCOLORED (no tones, no confidence badge — that's a different, freshness-only
 // system): a single 0–100 score, a time-to-clear glance, and a "?" badge whose
-// hover reveals the full 3-signal breakdown.
-
-function days(n: number): string {
-  if (n < 1) return '<1 day';
-  const r = Math.round(n);
-  return `${r} day${r === 1 ? '' : 's'}`;
-}
-
-// Compact age label for the staleness flag (the /sites meta-strip idiom):
-// days under a week, weeks under a month, months beyond.
-function ageLabel(days: number): string {
-  if (days < 7) return `${days}d`;
-  if (days < 30) return `${Math.floor(days / 7)}w`;
-  return `${Math.floor(days / 30)}mo`;
-}
-
-const BAND_WORD = { steady: 'steady', moderate: 'moderate', spiky: 'spiky' } as const;
-
-// The concrete value shown in parentheses for each signal row (the bit derived
-// from the live score; the description beside it is fixed copy).
-function signalValues(score: MarketScore): {
-  liquidity: string;
-  stability: string;
-  demand: string;
-} {
-  return {
-    liquidity:
-      score.liquidity.timeToClearDays === null
-        ? 'clear time unknown'
-        : `≈ ${days(score.liquidity.timeToClearDays)} to clear`,
-    stability:
-      score.stability.swingPct === null ? 'swing unknown' : `${Math.round(score.stability.swingPct)}%`,
-    demand: score.consistency.band === null ? 'demand unknown' : BAND_WORD[score.consistency.band],
-  };
-}
+// hover reveals the full 3-signal breakdown. All the derived values come from
+// the pure marketScoreView; this shell only holds the mount clock.
 
 export function MarketScorePanel({ structure }: { structure: BlueprintStructure }) {
   const { marketScore, marketHistory, seeded } = usePricing();
-  const history = marketHistory.get(structure.product.typeId) ?? null;
-  const scoreText = marketScore.score === null ? '—' : String(marketScore.score);
-  const value = signalValues(marketScore);
 
   // Staleness flag — a flag, never a score change (the composite stays keyed to
   // latestDate). The clock starts null so the static prerender of this Client
@@ -69,21 +32,19 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
     const id = setTimeout(() => setNowMs(Date.now()), 0);
     return () => clearTimeout(id);
   }, []);
-  const staleDays = nowMs === null ? null : daysSinceHistoryDate(history?.latestDate ?? null, nowMs);
-  const staleAge =
-    staleDays !== null && staleDays >= STALENESS_FLAG_DAYS ? ageLabel(staleDays) : null;
+
+  const view = marketScoreView(marketScore, seeded, marketHistory.get(structure.product.typeId), nowMs);
 
   const breakdown = (
     <>
-      <PopoverHeading>
-        {marketScore.score === null ? 'Market score — no history yet' : 'Score blends 3 live signals'}
-      </PopoverHeading>
-      <PopoverRow label="Liquidity">how fast a batch sells ({value.liquidity})</PopoverRow>
-      <PopoverRow label="Price stability">recent swing in sell price ({value.stability})</PopoverRow>
-      <PopoverRow label="Demand depth">buy volume vs. listed supply ({value.demand})</PopoverRow>
-      {staleAge && history?.latestDate && (
+      <PopoverHeading>{view.breakdownHeading}</PopoverHeading>
+      <PopoverRow label="Liquidity">how fast a batch sells ({view.signals.liquidity})</PopoverRow>
+      <PopoverRow label="Price stability">recent swing in sell price ({view.signals.stability})</PopoverRow>
+      <PopoverRow label="Demand depth">buy volume vs. listed supply ({view.signals.demand})</PopoverRow>
+      {view.staleNote && (
         <p className="font-body text-[11px] leading-snug text-tone-orange">
-          Latest trade {history.latestDate} ({staleAge} ago) — reflects that period, not today.
+          Latest trade {view.staleNote.latestDate} ({view.staleNote.age} ago) — reflects that period, not
+          today.
         </p>
       )}
     </>
@@ -96,13 +57,13 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
         right={<KpiHelp label="How the Market Score is calculated">{breakdown}</KpiHelp>}
       />
       <div className={cn(KPI_FIG, 'text-name')}>
-        {seeded || marketScore.score !== null ? scoreText : '…'}
+        {view.scoreDisplay}
         <span className="ml-1 text-[13px] text-faint">/100</span>
       </div>
-      {staleAge && (
+      {view.staleAge && (
         <div className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-[9px] text-muted">
           <span aria-hidden className="h-[5px] w-[5px] rounded-full bg-tone-orange" />
-          history {staleAge} old
+          history {view.staleAge} old
         </div>
       )}
     </KpiTile>

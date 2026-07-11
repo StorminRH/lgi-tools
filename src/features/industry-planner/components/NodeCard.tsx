@@ -5,11 +5,11 @@ import { cn } from '@/components/ui/cn';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { QtyRing } from '@/components/ui/qty-ring';
 import { TypeIcon, type TypeIconVariant } from '@/components/ui/type-icon';
-import { formatIsk } from '@/lib/format/isk';
-import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
+import { formatQuantity } from '@/lib/format/number';
 import { ProvenanceRows } from './MeAdjuster';
 import type { NodeMeState } from '../me-overrides';
-import { ownedLedgerRow } from '../node-card-ledger';
+import { assetLedgerView, qtyRingView, ringQty, type LedgerCell } from '../node-card-ledger';
+import { nodeCardView } from '../node-card-view';
 import type { AssetHolding, OwnedComponentDetail } from '../types';
 
 // The build-plan node card (3.7.5.8 re-layout). Every node is the SAME shape — a
@@ -31,11 +31,6 @@ export interface NodeEfficiency {
   adjusters: ReactNode;
 }
 
-// A `min-h` floor keeps every card the same height whatever its name length (1 vs 2
-// lines) — the uniformity the layout is for; the icon + ring centre on the same line.
-const CARD =
-  'flex min-h-[72px] items-center gap-2.5 border-t border-border-soft first:border-t-0 px-3 py-2.5 text-left transition-opacity';
-
 // The icon frame: a fixed 40px box (mirrors the QTY ring) holding the 30px icon. The
 // 2.5px border matches the ring's stroke; its tone is the node's combined ME/TE state.
 // A transparent frame keeps raws/reactions on the identical footprint so icons align.
@@ -46,10 +41,23 @@ const FRAME_TONE: Record<NodeMeState, string> = {
   manual: 'border-[var(--color-dps-mid)]',
 };
 
-// Compact needed-quantity for the ring centre (sub-unit marginal shares → "<1").
-function ringQty(qty: number): string {
-  if (qty > 0 && qty < 0.5) return '<1';
-  return formatCompactQuantity(qty);
+// One owned/remaining ledger cell pair — the real qty·ISK when synced, else the
+// "—" placeholders (logged-out / owns-none).
+function LedgerCells({ cell }: { cell: LedgerCell | null }) {
+  if (cell) {
+    return (
+      <>
+        <span className="text-right text-name">{cell.qty}</span>
+        <span className="text-right text-isk">{cell.isk}</span>
+      </>
+    );
+  }
+  return (
+    <>
+      <span className="text-right text-faint">—</span>
+      <span className="text-right text-faint">—</span>
+    </>
+  );
 }
 
 // The needed / owned / remaining totals as an aligned three-column ledger (label · qty ·
@@ -57,37 +65,16 @@ function ringQty(qty: number): string {
 // from the caller's synced assets (3.7.7.2) when `ownedQty` is present, and stay "—"
 // placeholders when it is absent (a logged-out caller or one owning none of this type).
 function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | null; ownedQty?: number }) {
-  const isk = value !== null ? formatIsk(value) : '—';
-  const row = ownedQty !== undefined ? ownedLedgerRow(qty, ownedQty, value) : null;
+  const view = assetLedgerView(qty, value, ownedQty);
   return (
     <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 border-t border-border-soft pt-2 font-mono text-[11px] tabular-nums">
       <span className="text-muted">Total Needed</span>
-      <span className="text-right text-name">{formatQuantity(qty)}</span>
-      <span className="text-right text-isk">{isk}</span>
+      <span className="text-right text-name">{view.neededQty}</span>
+      <span className="text-right text-isk">{view.neededIsk}</span>
       <span className="text-muted">Total Owned</span>
-      {row ? (
-        <>
-          <span className="text-right text-name">{row.owned.qty}</span>
-          <span className="text-right text-isk">{row.owned.isk}</span>
-        </>
-      ) : (
-        <>
-          <span className="text-right text-faint">—</span>
-          <span className="text-right text-faint">—</span>
-        </>
-      )}
+      <LedgerCells cell={view.owned} />
       <span className="text-muted">Total Remaining</span>
-      {row ? (
-        <>
-          <span className="text-right text-name">{row.remaining.qty}</span>
-          <span className="text-right text-isk">{row.remaining.isk}</span>
-        </>
-      ) : (
-        <>
-          <span className="text-right text-faint">—</span>
-          <span className="text-right text-faint">—</span>
-        </>
-      )}
+      <LedgerCells cell={view.remaining} />
     </div>
   );
 }
@@ -135,6 +122,23 @@ function RingCheck() {
 // arc closes and a green check replaces the count. With no synced data (logged-out /
 // owning none) the ring is the empty placeholder and the held-by + owned/remaining rows
 // show "—".
+// The "held by" list or the empty placeholder — who holds this type's units.
+function HeldByList({ heldBy }: { heldBy?: AssetHolding[] }) {
+  if (heldBy && heldBy.length > 0) {
+    return (
+      <>
+        {heldBy.map((holding, i) => (
+          <HoldingLine
+            key={`${holding.ownerName}-${holding.locationName}-${holding.locationFlag}-${i}`}
+            holding={holding}
+          />
+        ))}
+      </>
+    );
+  }
+  return <div className="font-mono text-[10.5px] text-faint">No holdings tracked yet</div>;
+}
+
 function QtyRingCell({
   name,
   qty,
@@ -150,21 +154,7 @@ function QtyRingCell({
   // Where the units sit; absent/empty → "No holdings tracked yet".
   heldBy?: AssetHolding[];
 }) {
-  // progress 0 (and the default neutral tone) until we have the owned count → the empty-track
-  // placeholder, byte-identical to today; the green arc fills owned ÷ needed once synced.
-  const progress = ownedQty !== undefined && qty > 0 ? Math.min(ownedQty / qty, 1) : 0;
-  // The still-to-acquire count in the ring centre — the whole need when nothing is owned
-  // (so the placeholder is unchanged), shrinking toward 0 as stock accumulates.
-  const remaining = Math.max(0, qty - (ownedQty ?? 0));
-  // Fully owned: synced data present (ownedQty set), a real need (qty > 0 — so a degenerate
-  // zero-need node never shows a check over an empty ring), and nothing left to acquire.
-  const complete = ownedQty !== undefined && qty > 0 && remaining === 0;
-  const ringLabel =
-    ownedQty === undefined
-      ? `${name}: ${formatQuantity(qty)} needed`
-      : complete
-        ? `${name}: all ${formatQuantity(qty)} owned`
-        : `${name}: ${formatQuantity(remaining)} still needed`;
+  const view = qtyRingView(name, qty, ownedQty);
   return (
     // Stop the trigger's click/keys reaching the card so opening it never drills down.
     <span className="shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -174,11 +164,11 @@ function QtyRingCell({
         openOnHover={false}
         triggerClassName="flex items-center cursor-pointer"
         trigger={
-          <QtyRing progress={progress} tone={progress > 0 ? 'isk' : 'neutral'} className="h-10 w-10" label={ringLabel}>
-            {complete ? (
+          <QtyRing progress={view.progress} tone={view.tone} className="h-10 w-10" label={view.ringLabel}>
+            {view.complete ? (
               <RingCheck />
             ) : (
-              <span className="font-mono text-[10px] tabular-nums text-name">{ringQty(remaining)}</span>
+              <span className="font-mono text-[10px] tabular-nums text-name">{ringQty(view.remaining)}</span>
             )}
           </QtyRing>
         }
@@ -186,16 +176,7 @@ function QtyRingCell({
         <PopoverHeading>Asset Tracking</PopoverHeading>
         <div className="flex flex-col gap-1">
           <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">Item held by</div>
-          {heldBy && heldBy.length > 0 ? (
-            heldBy.map((holding, i) => (
-              <HoldingLine
-                key={`${holding.ownerName}-${holding.locationName}-${holding.locationFlag}-${i}`}
-                holding={holding}
-              />
-            ))
-          ) : (
-            <div className="font-mono text-[10.5px] text-faint">No holdings tracked yet</div>
-          )}
+          <HeldByList heldBy={heldBy} />
         </div>
         <AssetLedger qty={qty} value={value} ownedQty={ownedQty} />
       </Popover>
@@ -277,18 +258,15 @@ export function NodeCard({
   // Drill into this node's sub-tree; undefined when it has no children.
   onSelect?: () => void;
 }) {
-  const interactive = !!onSelect;
-  // Default to the item's own icon so callers that don't set `icon` (and every
-  // non-planner consumer) stay byte-identical to today.
-  const iconDesc = icon ?? { typeId, variant: 'icon' as const };
+  const view = nodeCardView({ onSelect, icon, typeId, selected, related, faded });
   return (
     <div
-      role={interactive ? 'button' : undefined}
-      tabIndex={interactive ? 0 : undefined}
-      aria-pressed={interactive ? selected : undefined}
+      role={view.role}
+      tabIndex={view.tabIndex}
+      aria-pressed={view.ariaPressed}
       onClick={onSelect}
       onKeyDown={
-        interactive
+        view.interactive
           ? (e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -297,21 +275,15 @@ export function NodeCard({
             }
           : undefined
       }
-      className={cn(
-        CARD,
-        faded && 'opacity-25',
-        related && 'bg-row-related',
-        selected && 'bg-isk-selected shadow-[inset_2px_0_0_var(--color-isk)]',
-        interactive && 'cursor-pointer hover:bg-row-hover',
-      )}
+      className={view.className}
     >
       {/* The framed icon — a tinted click-popover for buildables, a plain (transparent
           frame) icon on the same footprint for raws/reactions. */}
       {efficiency ? (
-        <BuildableIcon icon={iconDesc} name={name} efficiency={efficiency} detail={detail} />
+        <BuildableIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
       ) : (
         <span className={cn(FRAME, 'border-transparent')}>
-          <TypeIcon typeId={iconDesc.typeId} variant={iconDesc.variant} size={30} mono={name.slice(0, 2)} />
+          <TypeIcon typeId={view.iconDesc.typeId} variant={view.iconDesc.variant} size={30} mono={name.slice(0, 2)} />
         </span>
       )}
       {/* Name + type. */}

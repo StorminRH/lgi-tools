@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import treesFixture from '@/data/eve-data/__fixtures__/blueprint-trees.json';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
-import { assignBuildTiers, buildMultibuyText, multibuyEntries } from './multibuy';
+import {
+  assignBuildTiers,
+  buildMultibuyText,
+  hasOwnedStock,
+  multibuyBuildSet,
+  multibuyEntries,
+  pluralCount,
+  tierRowsFromTierOf,
+} from './multibuy';
 
 describe('assignBuildTiers — one home tier per buildable (min occurrence depth)', () => {
   it('a type consumed at two depths is assigned the shallower one', () => {
@@ -134,5 +142,52 @@ describe('buildMultibuyText — the in-game clipboard string', () => {
 
   it('empty list → empty string', () => {
     expect(buildMultibuyText([])).toBe('');
+  });
+});
+
+describe('tierRowsFromTierOf', () => {
+  it('counts buildables per tier, ascending by depth', () => {
+    // typeIds 10,11 at tier 1; 20 at tier 2.
+    const tierOf = new Map<number, number>([
+      [10, 1],
+      [11, 1],
+      [20, 2],
+    ]);
+    expect(tierRowsFromTierOf(tierOf)).toEqual([
+      [1, 2],
+      [2, 1],
+    ]);
+  });
+});
+
+describe('multibuyBuildSet', () => {
+  const tierOf = new Map<number, number>([
+    [10, 1],
+    [11, 1],
+    [20, 2],
+  ]);
+
+  it('includes every type whose tier is still checked', () => {
+    expect([...multibuyBuildSet(tierOf, new Set())].sort((a, b) => a - b)).toEqual([10, 11, 20]);
+  });
+
+  it('excludes types on an unchecked tier', () => {
+    expect([...multibuyBuildSet(tierOf, new Set([1]))]).toEqual([20]);
+  });
+});
+
+describe('hasOwnedStock', () => {
+  it('is false for null / empty overlays, true when any stock is present', () => {
+    expect(hasOwnedStock(null)).toBe(false);
+    expect(hasOwnedStock(new Map())).toBe(false);
+    expect(hasOwnedStock(new Map([[1, 5]]))).toBe(true);
+  });
+});
+
+describe('pluralCount', () => {
+  it('uses the singular for exactly one, the plural otherwise', () => {
+    expect(pluralCount(1, 'item', 'items')).toBe('1 item');
+    expect(pluralCount(0, 'item', 'items')).toBe('0 items');
+    expect(pluralCount(3, 'type', 'types')).toBe('3 types');
   });
 });

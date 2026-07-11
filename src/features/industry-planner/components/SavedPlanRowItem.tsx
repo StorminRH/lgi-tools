@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { MAX_SAVED_PLAN_NAME_LEN, type SavedPlanRow } from '../api-contract';
+import { savedPlanRowLabels } from '../saved-plans-view';
 
 export const savedPlanInputClass =
   'border border-border bg-bg px-2 py-1 font-mono text-[12px] text-text ' +
@@ -39,17 +40,18 @@ export function SavedPlanRowItem({
   onDelete: () => void;
 }) {
   const [draft, setDraft] = useState(row.name);
+  const labels = savedPlanRowLabels(row, armed);
   return (
     <li className="flex items-center gap-2">
       <button
         type="button"
         onClick={onFavorite}
         disabled={busy}
-        aria-label={row.favorite ? `Unfavorite ${row.name}` : `Favorite ${row.name}`}
+        aria-label={labels.favoriteAria}
         aria-pressed={row.favorite}
-        className={`${actionClass} ${row.favorite ? 'text-isk hover:text-isk' : ''}`}
+        className={`${actionClass} ${labels.favoriteClass}`}
       >
-        {row.favorite ? '★' : '☆'}
+        {labels.favoriteGlyph}
       </button>
       {editing ? (
         <input
@@ -95,8 +97,8 @@ export function SavedPlanRowItem({
         type="button"
         onClick={onDelete}
         disabled={busy}
-        aria-label={armed ? `Confirm deleting ${row.name}` : `Delete ${row.name}`}
-        className={`${actionClass} ${armed ? 'text-tone-red hover:text-tone-red' : ''}`}
+        aria-label={labels.deleteAria}
+        className={`${actionClass} ${labels.deleteClass}`}
       >
         {armed ? <span className="text-[11px]">confirm?</span> : '✕'}
       </button>

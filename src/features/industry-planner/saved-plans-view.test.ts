@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { SavedPlanRow } from './api-contract';
-import { echoOutcome, SAVED_TILES_MAX, savedEmptyLine, savedTiles } from './saved-plans-view';
+import {
+  echoOutcome,
+  SAVED_TILES_MAX,
+  savedEmptyLine,
+  savedPlanRowLabels,
+  savedPlansViewState,
+  savedTiles,
+  saveErrorCopy,
+  templatesEmptyLine,
+} from './saved-plans-view';
 
 function plan(id: string, favorite = false): SavedPlanRow {
   return {
@@ -61,5 +70,69 @@ describe('savedEmptyLine', () => {
     expect(savedEmptyLine({ listFailed: false, signedOut: false })).toBe(
       'No saved templates yet — save one from the planner',
     );
+  });
+});
+
+describe('savedPlansViewState', () => {
+  it('is blank while the first list read is still in flight', () => {
+    expect(savedPlansViewState(null, null, false)).toEqual({ kind: 'blank' });
+    // Settled-empty but the roster hasn't settled yet → still blank (avoids a flash).
+    expect(savedPlansViewState([], null, false)).toEqual({ kind: 'blank' });
+  });
+
+  it('is empty (with a cause line) for failed / signed-out / settled-empty lists', () => {
+    expect(savedPlansViewState([], [], true).kind).toBe('empty'); // listFailed
+    expect(savedPlansViewState([], [], false)).toEqual({
+      kind: 'empty',
+      line: 'Sign in to save build templates', // signed out (roster [])
+    });
+    expect(savedPlansViewState([], [{ id: 'c' }], false).kind).toBe('empty'); // settled empty, signed in
+  });
+
+  it('is a list when there are plans', () => {
+    expect(savedPlansViewState([plan('1')], [{ id: 'c' }], false)).toEqual({ kind: 'list' });
+  });
+});
+
+describe('templatesEmptyLine', () => {
+  it('reads the cause: failed, signed out, loading, or genuinely empty', () => {
+    expect(templatesEmptyLine({ listFailed: true, buildCharacters: [{}], plans: [] })).toBe(
+      "Couldn't load your saved templates",
+    );
+    expect(templatesEmptyLine({ listFailed: false, buildCharacters: [], plans: [] })).toBe(
+      'Sign in to save build templates',
+    );
+    expect(templatesEmptyLine({ listFailed: false, buildCharacters: [{}], plans: null })).toBe('Loading…');
+    expect(templatesEmptyLine({ listFailed: false, buildCharacters: [{}], plans: [] })).toBe(
+      'No saved templates yet',
+    );
+  });
+});
+
+describe('saveErrorCopy', () => {
+  it('names the anonymous and quota cases, else a generic failure', () => {
+    expect(saveErrorCopy(401)).toBe('Sign in to save build templates');
+    expect(saveErrorCopy(409)).toBe('Template limit reached — delete one first');
+    expect(saveErrorCopy(0)).toBe("Couldn't save the template");
+    expect(saveErrorCopy(500)).toBe("Couldn't save the template");
+  });
+});
+
+describe('savedPlanRowLabels', () => {
+  it('builds favorite/delete labels, glyphs, and state classes', () => {
+    const fav = savedPlanRowLabels({ name: 'Rifter', favorite: true }, false);
+    expect(fav.favoriteAria).toBe('Unfavorite Rifter');
+    expect(fav.favoriteGlyph).toBe('★');
+    expect(fav.favoriteClass).toContain('text-isk');
+    expect(fav.deleteAria).toBe('Delete Rifter');
+    expect(fav.deleteClass).toBe('');
+  });
+
+  it('reflects the un-favorited + armed-delete states', () => {
+    const armed = savedPlanRowLabels({ name: 'Rifter', favorite: false }, true);
+    expect(armed.favoriteAria).toBe('Favorite Rifter');
+    expect(armed.favoriteGlyph).toBe('☆');
+    expect(armed.deleteAria).toBe('Confirm deleting Rifter');
+    expect(armed.deleteClass).toContain('text-tone-red');
   });
 });

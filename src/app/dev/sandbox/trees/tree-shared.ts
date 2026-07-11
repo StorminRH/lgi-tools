@@ -4,6 +4,7 @@
 // no DOM — pure data.
 
 import { toneHex } from '@/components/ui/tones';
+import { sortInputs } from '@/features/industry-planner/build-tree-layout';
 import type { BuildNode, BuildNodeDisplay } from '@/features/industry-planner/types';
 
 export type Display = Record<number, BuildNodeDisplay>;
@@ -12,19 +13,10 @@ export type Display = Record<number, BuildNodeDisplay>;
 // shared map — single source of truth in tones.ts.
 export const TONE_HEX = toneHex;
 
-// Buildable items first, then by component-type label, then alphabetical —
-// matching the live BuildCascade ordering so the sandbox reads like the real tool.
-export function sortInputs(inputs: BuildNode[], display: Display): BuildNode[] {
-  return [...inputs].sort((a, b) => {
-    const da = display[a.typeId];
-    const db = display[b.typeId];
-    return (
-      Number(da.isRaw) - Number(db.isRaw) ||
-      da.label.localeCompare(db.label) ||
-      da.name.localeCompare(db.name)
-    );
-  });
-}
+// Node ordering (buildable-first, then by category label, then alphabetical) is
+// shared with the live BuildCascade — re-exported so the sandbox variants keep
+// importing it from here, but the one implementation now lives in the feature.
+export { sortInputs };
 
 export interface FlatRow {
   node: BuildNode;

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import type { DepthBand } from '@/data/market-prices/types';
+import type { MarketScore } from '@/data/industry-math/market-score';
 import {
   daysSinceHistoryDate,
   INSTANT_DUMP_BAND_PCT,
+  marketScoreView,
   SCORE_ADV_WINDOW_DAYS,
   SELL_WALL_BAND_PCT,
+  signalValues,
   STALENESS_FLAG_DAYS,
   toMarketScoreInputs,
 } from './market-score-inputs';
@@ -119,3 +122,81 @@ describe('daysSinceHistoryDate / STALENESS_FLAG_DAYS', () => {
     expect(daysSinceHistoryDate('2026-06-01', NOW)).toBeLessThan(STALENESS_FLAG_DAYS); // 13d
   });
 });
+
+// Minimal MarketScore for the view/signal tests — only the fields these read.
+function makeScore(over: {
+  score?: number | null;
+  timeToClearDays?: number | null;
+  swingPct?: number | null;
+  band?: 'steady' | 'moderate' | 'spiky' | null;
+}): MarketScore {
+  return {
+    score: over.score ?? null,
+    knownCount: 0,
+    liquidity: { timeToClearDays: over.timeToClearDays ?? null },
+    stability: { swingPct: over.swingPct ?? null },
+    consistency: { band: over.band ?? null },
+  } as unknown as MarketScore;
+}
+
+describe('signalValues', () => {
+  it('phrases the liquidity clear time, rounding to whole days (plural aware)', () => {
+    expect(signalValues(makeScore({ timeToClearDays: 1 })).liquidity).toBe('≈ 1 day to clear');
+    expect(signalValues(makeScore({ timeToClearDays: 2.4 })).liquidity).toBe('≈ 2 days to clear');
+    expect(signalValues(makeScore({ timeToClearDays: 0.3 })).liquidity).toBe('≈ <1 day to clear');
+  });
+
+  it('renders unknown signals honestly', () => {
+    const v = signalValues(makeScore({}));
+    expect(v).toEqual({ liquidity: 'clear time unknown', stability: 'swing unknown', demand: 'demand unknown' });
+  });
+
+  it('rounds the swing percent and maps the demand band word', () => {
+    const v = signalValues(makeScore({ swingPct: 12.6, band: 'spiky' }));
+    expect(v.stability).toBe('13%');
+    expect(v.demand).toBe('spiky');
+  });
+});
+
+describe('marketScoreView', () => {
+  const day = 86_400_000;
+
+  it('shows the score once seeded, and a placeholder before it settles', () => {
+    expect(marketScoreView(makeScore({ score: 72 }), false, null, null).scoreDisplay).toBe('72');
+    // Not seeded and score still null → the '…' placeholder, not '—'.
+    expect(marketScoreView(makeScore({ score: null }), false, null, null).scoreDisplay).toBe('…');
+    // Seeded with a genuinely-unknown score → the em dash.
+    expect(marketScoreView(makeScore({ score: null }), true, null, null).scoreDisplay).toBe('—');
+  });
+
+  it('picks the breakdown heading by whether a score exists', () => {
+    expect(marketScoreView(makeScore({ score: null }), true, null, null).breakdownHeading).toBe(
+      'Market score — no history yet',
+    );
+    expect(marketScoreView(makeScore({ score: 50 }), true, null, null).breakdownHeading).toBe(
+      'Score blends 3 live signals',
+    );
+  });
+
+  it('never flags staleness before the client clock is read (nowMs null)', () => {
+    const view = marketScoreView(makeScore({ score: 50 }), true, { latestDate: '2020-01-01' }, null);
+    expect(view.staleAge).toBeNull();
+    expect(view.staleNote).toBeNull();
+  });
+
+  it('flags staleness with an age label + note once the history is old enough', () => {
+    // At exactly 14 days the age label buckets to weeks ('2w'); a 5-day-old
+    // history under the threshold flags nothing (checked below).
+    const now = STALENESS_FLAG_DAYS * day + Date.parse('2026-01-01T00:00:00Z');
+    const view = marketScoreView(makeScore({ score: 50 }), true, { latestDate: '2026-01-01' }, now);
+    expect(view.staleAge).toBe('2w');
+    expect(view.staleNote).toEqual({ latestDate: '2026-01-01', age: '2w' });
+  });
+
+  it('does not flag fresh history under the threshold', () => {
+    const now = 3 * day + Date.parse('2026-01-01T00:00:00Z');
+    const view = marketScoreView(makeScore({ score: 50 }), true, { latestDate: '2026-01-01' }, now);
+    expect(view.staleAge).toBeNull();
+    expect(view.staleNote).toBeNull();
+  });
+})

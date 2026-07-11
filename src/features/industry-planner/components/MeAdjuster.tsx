@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
+import { arrowStep, parseEfficiencyInput, shownEfficiency, stepValue } from '../efficiency-input';
 import { effectiveMeOf, MAX_ME, nodeMeState, type NodeMeState } from '../me-overrides';
 import { MAX_TE } from '../te-overrides';
 import type { OwnedComponentDetail } from '../types';
@@ -213,7 +214,7 @@ function EfficiencyField({
   boxed?: boolean;
 }) {
   // Shown value: empty when unowned-and-unset, else the effective number.
-  const shown = d.state === 'unowned' && !d.isOverridden ? '' : String(d.effective);
+  const shown = shownEfficiency(d.state, d.isOverridden, d.effective);
   const [draft, setDraft] = useState(shown);
   // Reflect external changes (a revert / another field) without an effect — the
   // Stepper's adjust-state-during-render sync.
@@ -227,11 +228,11 @@ function EfficiencyField({
   const commit = (raw: string) => {
     setDraft(raw);
     if (raw === '') return; // cleared → revert handled on blur
-    const n = Number(raw);
-    if (Number.isInteger(n) && n >= 0 && n <= max) onCommit(n);
+    const n = parseEfficiencyInput(raw, max);
+    if (n !== null) onCommit(n);
   };
   const step = (delta: number) => {
-    const n = Math.min(max, Math.max(0, d.effective + delta));
+    const n = stepValue(d.effective, delta, max);
     onCommit(n);
     setDraft(String(n));
   };
@@ -247,16 +248,26 @@ function EfficiencyField({
     const onWheel = (e: WheelEvent) => {
       if (document.activeElement !== el) return;
       e.preventDefault();
-      const next = Math.min(max, Math.max(0, d.effective + (e.deltaY < 0 ? 1 : -1)));
+      const next = stepValue(d.effective, e.deltaY < 0 ? 1 : -1, max);
       onCommit(next);
       setDraft(String(next));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [d.effective, max, onCommit]);
-  // The typeable field + the ↺ revert, shared VERBATIM by the boxed and inline
-  // layouts (only the shell and the field's size classes differ) — one source so
-  // the two branches can't drift.
+  const onInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const delta = arrowStep(e.key);
+    if (delta !== 0) {
+      e.preventDefault();
+      step(delta);
+    }
+  };
+  const onInputBlur = () => {
+    if (draft === '' && d.isOverridden) onRevert();
+    setDraft(shown);
+  };
+  // The typeable field, shared VERBATIM by the boxed and inline layouts (only the
+  // shell + the field's size classes differ) — one source so the two can't drift.
   const inputProps: ComponentProps<'input'> = {
     ref: inputRef,
     type: 'text',
@@ -265,19 +276,8 @@ function EfficiencyField({
     placeholder: '–',
     'aria-label': `${name} ${ariaUnit}`,
     onChange: (e) => commit(e.target.value),
-    onKeyDown: (e) => {
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        step(1);
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        step(-1);
-      }
-    },
-    onBlur: () => {
-      if (draft === '' && d.isOverridden) onRevert();
-      setDraft(shown);
-    },
+    onKeyDown: onInputKeyDown,
+    onBlur: onInputBlur,
   };
   const revertButton = d.isOverridden ? (
     <button
@@ -294,52 +294,96 @@ function EfficiencyField({
       ↺
     </button>
   ) : null;
-  if (boxed) {
-    return (
-      <span
-        className="inline-flex items-center gap-1"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
-        <span className="inline-flex items-center overflow-hidden rounded-[3px] border border-border bg-bg">
-          <button
-            type="button"
-            aria-label={`Decrease ${name} ${ariaUnit}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              step(-1);
-            }}
-            className={BOX_BTN}
-          >
-            –
-          </button>
-          <input
-            {...inputProps}
-            className={cn(
-              'h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-[12px] outline-none',
-              'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
-              valueToneClass(d.state),
-            )}
-          />
-          <button
-            type="button"
-            aria-label={`Increase ${name} ${ariaUnit}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              step(1);
-            }}
-            className={BOX_BTN}
-          >
-            +
-          </button>
-        </span>
-        {/* Fixed slot for the ↺ — reserved even when it's absent, so an
-            override appearing never pushes the row's box out of line with its
-            siblings (the Runs row reserves a matching spacer). */}
-        <span className="inline-flex w-3.5 shrink-0 items-center justify-center">{revertButton}</span>
+  const shared = {
+    inputProps,
+    revertButton,
+    name,
+    ariaUnit,
+    toneClass: valueToneClass(d.state),
+    onStep: step,
+  };
+  return boxed ? (
+    <BoxedField {...shared} />
+  ) : (
+    <InlineField {...shared} icon={icon} steppers={steppers} />
+  );
+}
+
+interface FieldLayoutProps {
+  inputProps: ComponentProps<'input'>;
+  revertButton: ReactNode;
+  name: string;
+  ariaUnit: string;
+  toneClass: string;
+  onStep: (delta: number) => void;
+}
+
+// A step button that stops its click from reaching the node card (editing must
+// never drill the cascade) — shared by both layouts.
+function StepButton({
+  label,
+  glyph,
+  className,
+  onStep,
+}: {
+  label: string;
+  glyph: string;
+  className: string;
+  onStep: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onStep();
+      }}
+      className={className}
+    >
+      {glyph}
+    </button>
+  );
+}
+
+// The hero-card layout: a −/[value]/+ box visually identical to the Runs Stepper,
+// with a fixed ↺ slot so an appearing override never shifts the row.
+function BoxedField({ inputProps, revertButton, name, ariaUnit, toneClass, onStep }: FieldLayoutProps) {
+  return (
+    <span
+      className="inline-flex items-center gap-1"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <span className="inline-flex items-center overflow-hidden rounded-[3px] border border-border bg-bg">
+        <StepButton label={`Decrease ${name} ${ariaUnit}`} glyph="–" className={BOX_BTN} onStep={() => onStep(-1)} />
+        <input
+          {...inputProps}
+          className={cn(
+            'h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-[12px] outline-none',
+            'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+            toneClass,
+          )}
+        />
+        <StepButton label={`Increase ${name} ${ariaUnit}`} glyph="+" className={BOX_BTN} onStep={() => onStep(1)} />
       </span>
-    );
-  }
+      <span className="inline-flex w-3.5 shrink-0 items-center justify-center">{revertButton}</span>
+    </span>
+  );
+}
+
+// The inline (node-row / popover) layout: the icon, the field, and — with
+// `steppers` — the ▲/▼ buttons flanking it.
+function InlineField({
+  inputProps,
+  revertButton,
+  name,
+  ariaUnit,
+  toneClass,
+  onStep,
+  icon,
+  steppers,
+}: FieldLayoutProps & { icon: ReactNode; steppers: boolean }) {
   return (
     // Stop clicks/keys reaching the node card so editing never triggers its drill-down.
     <span
@@ -349,38 +393,18 @@ function EfficiencyField({
     >
       <span className="inline-flex h-3 w-3 shrink-0">{icon}</span>
       {steppers && (
-        <button
-          type="button"
-          aria-label={`Increase ${name} ${ariaUnit}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            step(1);
-          }}
-          className={STEP_BTN}
-        >
-          ▲
-        </button>
+        <StepButton label={`Increase ${name} ${ariaUnit}`} glyph="▲" className={STEP_BTN} onStep={() => onStep(1)} />
       )}
       <input
         {...inputProps}
         className={cn(
           'w-[22px] bg-transparent text-center font-mono text-[11px] tabular-nums outline-none',
           'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
-          valueToneClass(d.state),
+          toneClass,
         )}
       />
       {steppers && (
-        <button
-          type="button"
-          aria-label={`Decrease ${name} ${ariaUnit}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            step(-1);
-          }}
-          className={STEP_BTN}
-        >
-          ▼
-        </button>
+        <StepButton label={`Decrease ${name} ${ariaUnit}`} glyph="▼" className={STEP_BTN} onStep={() => onStep(-1)} />
       )}
       {revertButton}
     </span>

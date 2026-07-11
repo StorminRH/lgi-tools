@@ -24,6 +24,8 @@
 // the game actually applies). Implants also modify time (hardware attr 440);
 // deliberately out of scope this session.
 import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
+import { formatBonusPct } from './structure-bonus-view';
+import type { BlueprintStructure } from './types';
 
 export const INDUSTRY_SKILL_ID = 3380;
 export const INDUSTRY_TIME_PCT_PER_LEVEL = -4;
@@ -155,4 +157,42 @@ export function skillTimeFactorsFor(args: {
     },
     active: true,
   };
+}
+
+// The applied-build-skills hero readout's view (3.7.19.1): null in every
+// degraded state (no build character, the lever inactive, levels not loaded, or
+// nothing trained for the plan's activities), else the two show-flags, the
+// manufacturing headline (never a −0% claim — it reads the strongest per-item
+// skill as an "up to" when no activity-wide reduction applies), the character
+// name, and the breakdown to render. The component stays a render shell.
+export interface BuildSkillsView {
+  characterName: string;
+  breakdown: SkillTimeBreakdown;
+  showMfg: boolean;
+  showRxn: boolean;
+  mfgHeadline: string;
+}
+
+export function buildSkillsView(
+  buildCharacter: { name: string } | null,
+  skillTimeFactorsActive: boolean,
+  levels: Record<string, number> | null,
+  structure: BlueprintStructure,
+): BuildSkillsView | null {
+  if (buildCharacter === null || !skillTimeFactorsActive || levels === null) return null;
+  const breakdown = skillTimeBreakdown({ levels, nodeTimeSkills: structure.nodeTimeSkills });
+  const activities = new Set<number>([
+    structure.activityId,
+    ...Object.values(structure.nodeActivityByBlueprint),
+  ]);
+  const showMfg =
+    activities.has(MANUFACTURING_ACTIVITY) &&
+    (breakdown.manufacturing.skills.length > 0 || breakdown.perItem.length > 0);
+  const showRxn = activities.has(REACTION_ACTIVITY) && breakdown.reaction.skills.length > 0;
+  if (!showMfg && !showRxn) return null;
+  const activityWidePct = breakdown.manufacturing.totalPct;
+  const maxPerItemPct = breakdown.perItem.reduce((max, s) => Math.max(max, s.reductionPct), 0);
+  const mfgHeadline =
+    activityWidePct > 0 ? `−${formatBonusPct(activityWidePct)}` : `up to −${formatBonusPct(maxPerItemPct)}`;
+  return { characterName: buildCharacter.name, breakdown, showMfg, showRxn, mfgHeadline };
 }

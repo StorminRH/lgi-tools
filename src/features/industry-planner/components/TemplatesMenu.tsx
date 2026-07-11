@@ -1,19 +1,17 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Popover } from '@/components/ui/popover';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/lib/api-client';
-import {
-  createSavedPlanEndpoint,
-  MAX_SAVED_PLAN_NAME_LEN,
-  type SavedPlanRow,
-} from '../api-contract';
+import { createSavedPlanEndpoint, MAX_SAVED_PLAN_NAME_LEN } from '../api-contract';
+import { saveErrorCopy, templatesEmptyLine } from '../saved-plans-view';
 import { captureTemplate } from '../template-manifest';
+import { useManagedRowMenu } from '../use-managed-row-menu';
 import { useSavedPlans } from '../use-saved-plans';
 import { usePricing } from './PricingProvider';
-import { SavedPlanRowItem, savedPlanInputClass } from './SavedPlanRowItem';
+import { savedPlanInputClass } from './SavedPlanRowItem';
+import { SavedPlanRows } from './SavedPlanRows';
 
 // Saved build templates (3.7.23): the PlannerHead's click-popover, cloned from
 // the multibuy panel idiom. Save captures the planner's full configuration
@@ -32,20 +30,17 @@ export function TemplatesMenu({
   productName: string;
 }) {
   const ctx = usePricing();
-  const router = useRouter();
   const { plans, listFailed, busyId, refresh, applyEcho, renameRow, favoriteRow, deleteRow } =
     useSavedPlans();
   const [saveName, setSaveName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
+  const menu = useManagedRowMenu({ rename: renameRow, remove: deleteRow });
 
   // Refresh on every open (keeping the stale list up while the read runs);
   // closing resets the transient row states so a re-open starts clean.
   const onOpenChange = (open: boolean) => {
     if (!open) {
-      setEditingId(null);
-      setArmedDeleteId(null);
+      menu.reset();
       return;
     }
     refresh();
@@ -61,13 +56,7 @@ export function TemplatesMenu({
       .catch(() => null)
       .then((res) => {
         setSaving(false);
-        const ok = applyEcho(res, (status) =>
-          status === 401
-            ? 'Sign in to save build templates'
-            : status === 409
-              ? 'Template limit reached — delete one first'
-              : "Couldn't save the template",
-        );
+        const ok = applyEcho(res, saveErrorCopy);
         if (ok) {
           setSaveName('');
           toast.success(`Saved "${name}"`);
@@ -75,31 +64,11 @@ export function TemplatesMenu({
       });
   };
 
-  const commitRename = (row: SavedPlanRow, draft: string) => {
-    setEditingId(null);
-    renameRow(row, draft);
-  };
-
-  const onDelete = (row: SavedPlanRow) => {
-    if (armedDeleteId !== row.id) {
-      setArmedDeleteId(row.id);
-      return;
-    }
-    setArmedDeleteId(null);
-    deleteRow(row);
-  };
-
-  // The roster settles to [] for an anonymous visitor (null = still loading) —
-  // the same signed-out signal the multibuy panel derives, without importing
-  // the auth surface.
-  const signedOut = ctx.buildCharacters !== null && ctx.buildCharacters.length === 0;
-  const emptyLine = listFailed
-    ? "Couldn't load your saved templates"
-    : signedOut
-      ? 'Sign in to save build templates'
-      : plans === null
-        ? 'Loading…'
-        : 'No saved templates yet';
+  const emptyLine = templatesEmptyLine({
+    listFailed,
+    buildCharacters: ctx.buildCharacters,
+    plans,
+  });
 
   return (
     <Popover
@@ -145,23 +114,7 @@ export function TemplatesMenu({
 
       {plans !== null && plans.length > 0 ? (
         <ul className="flex max-h-[264px] flex-col gap-1.5 overflow-y-auto">
-          {plans.map((row) => (
-            <SavedPlanRowItem
-              key={`${row.id}:${row.name}`}
-              row={row}
-              busy={busyId === row.id}
-              armed={armedDeleteId === row.id}
-              editing={editingId === row.id}
-              onLoad={() => router.push(`/industry/${row.blueprintTypeId}?plan=${row.id}`)}
-              onFavorite={() => favoriteRow(row)}
-              onStartRename={() => {
-                setArmedDeleteId(null);
-                setEditingId(row.id);
-              }}
-              onCommitRename={(draft) => commitRename(row, draft)}
-              onDelete={() => onDelete(row)}
-            />
-          ))}
+          <SavedPlanRows plans={plans} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
         </ul>
       ) : (
         <p className="text-[10.5px] leading-snug text-muted">{emptyLine}</p>

@@ -31,6 +31,36 @@ export function assignBuildTiers(tree: TreeNode[]): Map<number, number> {
   return tiers;
 }
 
+// The checkbox rows: one per tier that owns at least one buildable, with its type
+// count, ascending by depth.
+export function tierRowsFromTierOf(tierOf: Map<number, number>): [number, number][] {
+  const counts = new Map<number, number>();
+  for (const depth of tierOf.values()) counts.set(depth, (counts.get(depth) ?? 0) + 1);
+  return [...counts].sort(([a], [b]) => a - b);
+}
+
+// The set of buildable type ids whose tier is still checked — the cascade builds
+// these from scratch (the rest are bought as-is).
+export function multibuyBuildSet(
+  tierOf: Map<number, number>,
+  uncheckedTiers: ReadonlySet<number>,
+): Set<number> {
+  const buildSet = new Set<number>();
+  for (const [typeId, depth] of tierOf) if (!uncheckedTiers.has(depth)) buildSet.add(typeId);
+  return buildSet;
+}
+
+// Whether the caller owns any of this plan's stock (Remaining needs it to net; an
+// empty/absent overlay means Remaining would equal Total).
+export function hasOwnedStock(ownedAssets: { size: number } | null): boolean {
+  return (ownedAssets?.size ?? 0) > 0;
+}
+
+// "3 items" / "1 item" — count with a plural-aware unit.
+export function pluralCount(n: number, singular: string, plural: string): string {
+  return `${n} ${n === 1 ? singular : plural}`;
+}
+
 export interface MultibuyEntry {
   name: string;
   qty: number;

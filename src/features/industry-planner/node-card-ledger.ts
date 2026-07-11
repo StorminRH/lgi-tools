@@ -7,11 +7,68 @@
 // needed qty), and falls back to '—' when the row is unpriced — matching the
 // "Total Needed" row's null-ISK contract.
 import { formatIsk } from '@/lib/format/isk';
-import { formatQuantity } from '@/lib/format/number';
+import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
 
 export interface LedgerCell {
   qty: string;
   isk: string;
+}
+
+// Compact needed-quantity for the ring centre (sub-unit marginal shares → "<1").
+export function ringQty(qty: number): string {
+  if (qty > 0 && qty < 0.5) return '<1';
+  return formatCompactQuantity(qty);
+}
+
+// The QTY ring's derived state: fill progress (owned ÷ needed, clamped), the
+// still-to-acquire count, whether the node is fully owned, the ring tone, and the
+// accessible label. Unowned (ownedQty absent) → the empty-track placeholder with
+// the whole need as the label, byte-identical to the pre-assets output.
+export interface QtyRingView {
+  progress: number;
+  remaining: number;
+  complete: boolean;
+  tone: 'isk' | 'neutral';
+  ringLabel: string;
+}
+
+export function qtyRingView(name: string, qty: number, ownedQty?: number): QtyRingView {
+  const progress = ownedQty !== undefined && qty > 0 ? Math.min(ownedQty / qty, 1) : 0;
+  const remaining = Math.max(0, qty - (ownedQty ?? 0));
+  // Fully owned needs synced data (ownedQty set), a real need (qty > 0, so a
+  // degenerate zero-need node never shows a check), and nothing left to acquire.
+  const complete = ownedQty !== undefined && qty > 0 && remaining === 0;
+  const ringLabel =
+    ownedQty === undefined
+      ? `${name}: ${formatQuantity(qty)} needed`
+      : complete
+        ? `${name}: all ${formatQuantity(qty)} owned`
+        : `${name}: ${formatQuantity(remaining)} still needed`;
+  return { progress, remaining, complete, tone: progress > 0 ? 'isk' : 'neutral', ringLabel };
+}
+
+// The asset ledger's rendered cells: the always-real Needed row (qty + ISK, ISK
+// '—' when unpriced) plus the Owned + Remaining cells, null when there's no
+// synced quantity (the "—" placeholders a logged-out / owns-none caller shows).
+export interface AssetLedgerView {
+  neededQty: string;
+  neededIsk: string;
+  owned: LedgerCell | null;
+  remaining: LedgerCell | null;
+}
+
+export function assetLedgerView(
+  qty: number,
+  value: number | null,
+  ownedQty?: number,
+): AssetLedgerView {
+  const row = ownedQty !== undefined ? ownedLedgerRow(qty, ownedQty, value) : null;
+  return {
+    neededQty: formatQuantity(qty),
+    neededIsk: value !== null ? formatIsk(value) : '—',
+    owned: row ? row.owned : null,
+    remaining: row ? row.remaining : null,
+  };
 }
 
 export function ownedLedgerRow(

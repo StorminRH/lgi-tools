@@ -1,4 +1,4 @@
-import type { MarketScoreInputs } from '@/data/industry-math/market-score';
+import type { MarketScore, MarketScoreInputs } from '@/data/industry-math/market-score';
 import { HISTORY_ADV_WINDOWS } from '@/data/market-history/constants';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import { DEPTH_BANDS_PCT } from '@/data/market-prices/constants';
@@ -55,6 +55,72 @@ export function daysSinceHistoryDate(latestDate: string | null, nowMs: number): 
   const day = Math.floor(parsed / 86_400_000);
   const today = Math.floor(nowMs / 86_400_000);
   return today - day;
+}
+
+// The time-to-clear phrase for the liquidity signal row.
+function daysPhrase(n: number): string {
+  if (n < 1) return '<1 day';
+  const r = Math.round(n);
+  return `${r} day${r === 1 ? '' : 's'}`;
+}
+
+// Compact age label for the staleness flag (the /sites meta-strip idiom): days
+// under a week, weeks under a month, months beyond.
+function ageLabel(days: number): string {
+  if (days < 7) return `${days}d`;
+  if (days < 30) return `${Math.floor(days / 7)}w`;
+  return `${Math.floor(days / 30)}mo`;
+}
+
+const BAND_WORD = { steady: 'steady', moderate: 'moderate', spiky: 'spiky' } as const;
+
+// The concrete value shown in parentheses for each Market Score signal row (the
+// live-derived bit; the description beside it is fixed copy).
+export function signalValues(score: MarketScore): {
+  liquidity: string;
+  stability: string;
+  demand: string;
+} {
+  return {
+    liquidity:
+      score.liquidity.timeToClearDays === null
+        ? 'clear time unknown'
+        : `≈ ${daysPhrase(score.liquidity.timeToClearDays)} to clear`,
+    stability:
+      score.stability.swingPct === null ? 'swing unknown' : `${Math.round(score.stability.swingPct)}%`,
+    demand: score.consistency.band === null ? 'demand unknown' : BAND_WORD[score.consistency.band],
+  };
+}
+
+// Everything the Market Score tile renders from, derived in one pure pass: the
+// display score (or the '…' placeholder before the seed settles), the three
+// signal values, the breakdown heading, and the staleness flag/note derived from
+// the caller's client clock (`nowMs` is null before the mount effect fills it,
+// so the static prerender never reads the wall clock).
+export function marketScoreView(
+  score: MarketScore,
+  seeded: boolean,
+  history: { latestDate: string | null } | null | undefined,
+  nowMs: number | null,
+): {
+  scoreDisplay: string;
+  signals: { liquidity: string; stability: string; demand: string };
+  breakdownHeading: string;
+  staleAge: string | null;
+  staleNote: { latestDate: string; age: string } | null;
+} {
+  const latestDate = history?.latestDate ?? null;
+  const staleDays = nowMs === null ? null : daysSinceHistoryDate(latestDate, nowMs);
+  const staleAge = staleDays !== null && staleDays >= STALENESS_FLAG_DAYS ? ageLabel(staleDays) : null;
+  const scoreText = score.score === null ? '—' : String(score.score);
+  return {
+    scoreDisplay: seeded || score.score !== null ? scoreText : '…',
+    signals: signalValues(score),
+    breakdownHeading:
+      score.score === null ? 'Market score — no history yet' : 'Score blends 3 live signals',
+    staleAge,
+    staleNote: staleAge !== null && latestDate !== null ? { latestDate, age: staleAge } : null,
+  };
 }
 
 // Cumulative volume at a given near-touch band, or null when the ladder is
