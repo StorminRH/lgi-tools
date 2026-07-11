@@ -18,6 +18,13 @@ export function MasterSection({ master }: { master: ChangelogMaster }) {
           </>
         )}
       </div>
+      {master.summary.length > 0 && (
+        <div className="changelog-master-summary">
+          {master.summary.map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
+        </div>
+      )}
       {master.subVersions.map((entry) => (
         <EntryCard key={`${entry.version}-${entry.date}`} entry={entry} />
       ))}
