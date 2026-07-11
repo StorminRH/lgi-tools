@@ -1,10 +1,20 @@
 # Changelog
 
-User-facing changes to LGI.tools, grouped by release and ship date. Each entry's
-changes are tagged Added, Changed, Fixed, or Removed. Internal cleanup, CI, and
-infrastructure work is intentionally excluded.
+Every notable change to LGI.tools, grouped by release and ship date — user-facing
+features and fixes alongside the internal, CI, and infrastructure work behind them.
+Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
-## v3.7 — Security Improvements / Industry Planner Upgrade
+## v3.7 — Safer Accounts, Sharper Build Math
+
+v3.7 tightened how LGI.tools handles your account. The app now asks EVE for the least it needs — read-only access to your public info, skills, and industry jobs, nothing that can change your characters — and each character shows exactly what it granted, with a one-click way to revoke it. Your account is bound to the character that created it, so a sold or transferred character can't reach the previous owner's data, and a new Danger zone lets you purge a single character, wipe your whole account, or sign out of every device at once. Corporation directors and station managers can opt in to share industry jobs and Upwell structures as build locations, always behind an explicit, revocable consent.
+
+The industry planner grew from a generic calculator into one that reflects what you actually own and can do. It factors your owned blueprints' material and time efficiency across a whole build, tracks which materials you already hold versus still need, applies your build character's trained skills to job times, and prices structure taxes and reaction costs — with a Raw | Item cost toggle so small Tech II builds stop reading as wildly unprofitable at one run. Build-location search now spans the entire EVE universe, saved templates and a one-click Multibuy export speed up repeat work, and every price is anchored to the real Jita 4-4 order book, with a warning when a headline number rests on thin volume.
+
+### v3.7.36.1 — 2026-07-11
+
+#### Changed
+- Each version on the changelog now opens with a short plain-language summary of what it delivered, and the older versions gained themed titles.
+- The changelog now records internal, infrastructure, and tooling work too, not only user-facing changes — from here on every notable change is documented, not just the ones you can see.
 
 ### v3.7.27.1 — 2026-07-10
 
@@ -234,6 +244,10 @@ infrastructure work is intentionally excluded.
 #### Changed
 - The changelog now groups its releases under a master version with a themed title, so related updates read as one chapter — each release still listed underneath with its own ship date.
 
+## v3.6 — A Smarter Planner and a Cleaner Site
+
+The planner grew up: a Market Score rating how easily a build will sell, a build-system picker with an itemized fee breakdown, and take-home (net) margin that subtracts EVE's job fees and sell taxes once you pick where to build — plus a corrected Tech II costing bug that had overstated some hulls by billions. Around it the whole site was refreshed with a live home dashboard and server status, a cleaner two-tab layout, a wormhole-site lightbox, remembered preferences, and broad accessibility work, as LGI.tools left public beta.
+
 ### v3.6.28 — 2026-06-24
 
 #### Changed
@@ -421,6 +435,10 @@ infrastructure work is intentionally excluded.
 - The planner now shows take-home profit: pick a build system and the margin switches from gross (materials only) to net, subtracting EVE job fees and sell-side taxes.
 - Net margin currently covers the final build job on manufacturing blueprints; reaction blueprints stay on gross margin for now.
 
+## v3.4 — Multiple Characters & Live Trackers
+
+Link more than one EVE character and switch between them from your portrait. Two signed-in tools arrived: Skill Queues — every character's live training queue with per-skill progress and completion times — and Industry Jobs, watching every character's running jobs with live progress bars and countdowns that stay current while the page is open.
+
 ### v3.4.10 — 2026-06-12
 
 #### Added
@@ -448,6 +466,10 @@ infrastructure work is intentionally excluded.
 #### Changed
 - Signing in with EVE prompts you to re-authorize once for the extra character access — skills, skill queue, and industry jobs — that upcoming tools need.
 
+## v3.3 — Real Game Data & the Flow View
+
+Build plans gained a flow view — tier columns grouped by build step that you zoom into part by part — and every item now shows its real in-game icon. Blueprint costs and material lists come straight from CCP's current game data, and build costs reflect whole production runs, since you can't run a fraction of a job, so totals match building from an empty hangar.
+
 ### v3.3.10 — 2026-06-08
 
 #### Changed
@@ -469,6 +491,10 @@ infrastructure work is intentionally excluded.
 #### Added
 - The blueprint build plan now opens in a flow view: a row of tier columns grouped by build step, where clicking any buildable part zooms into just that part's chain. The earlier views are still a click away.
 
+## v3.2 — Planner Dashboard & Mobile
+
+The planner became a dashboard — search any blueprint, revisit recent ones, and read a build three ways: consolidated totals, click-to-drill branches, or a raw-materials ledger. Prices refresh live the moment you open a blueprint or site, and the whole planner now works on a phone.
+
 ### v3.2.8 — 2026-06-02
 
 #### Changed
@@ -486,6 +512,10 @@ infrastructure work is intentionally excluded.
 #### Fixed
 - Pages no longer error on the first visit after the site has been idle — it now waits for the database to wake up and loads normally.
 
+## v3.1 — A Browsable, Shareable Planner
+
+The Industry Planner opened onto a browsable catalog of buildable items ranked by profit margin, with filters, sorting, and an interactive column view you can drill as deep as the build goes — every step carrying its own price-confidence indicator, and the drill path living in the address bar so any breakdown is shareable.
+
 ### v3.1.3 — 2026-05-31
 
 #### Added
@@ -499,6 +529,10 @@ infrastructure work is intentionally excluded.
 - The Industry Planner is now linked from the home page and top navigation, not just by direct link or search.
 - Blueprints and materials in the planner now show their real in-game icons.
 - The market-price pipeline is now monitored end to end, so fallbacks to the backup source and skipped refreshes get flagged and fixed faster.
+
+## v3.0 — The Industry Planner Arrives
+
+LGI.tools gained its second major tool. Search any blueprint to see its full material tree beside a live Jita build cost and profit margin, with prices streaming in as the tree renders and raw materials grouped by source. Rich link previews, a public sitemap, and a contact page rounded out the release.
 
 ### v3.0.10 — 2026-05-30
 
@@ -533,6 +567,10 @@ infrastructure work is intentionally excluded.
 - Tightened the platform's security and added abuse protection ahead of upcoming features.
 - The Legal page now lists two new things we record: the referring site's hostname and a random visitor ID in your browser. Still no IPs, user-agents, or third-party trackers.
 - New tools can now be switched from "Coming Soon" to live without a code change.
+
+## v2.9 — Launch: the Wormhole Site Database
+
+The first public LGI.tools: a browsable database of every wormhole combat, gas, ore, relic, and data site, each expandable to its enemy waves, NPC detail, electronic-warfare, and live Jita-priced resource values. Sign in with your EVE character, jump anywhere with ⌘K search, and share any site by its own link — open-source under the MIT License from day one.
 
 ### v2.9.7 — 2026-05-26
 

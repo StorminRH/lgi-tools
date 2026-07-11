@@ -34,6 +34,7 @@ describe('parseChangelogMasters', () => {
       {
         version: '3.6',
         title: null,
+        summary: [],
         subVersions: [
           { version: '3.6.2', date: '2026-06-02', groups: [{ type: 'Added', items: ['newer'] }] },
           { version: '3.6.1', date: '2026-06-01', groups: [{ type: 'Fixed', items: ['older'] }] },
@@ -70,6 +71,54 @@ describe('parseChangelogMasters', () => {
   it('leaves a master with no heading bare', () => {
     const md = ['### v3.6.2 — 2026-06-02', '#### Added', '- a'].join('\n');
     expect(parseChangelogMasters(md)[0].title).toBeNull();
+    expect(parseChangelogMasters(md)[0].summary).toEqual([]);
+  });
+
+  it('collects the prose under a master heading as its summary', () => {
+    const md = [
+      '## v3.7 — Themed',
+      '',
+      'A one-line summary of what this version did.',
+      '',
+      '### v3.7.0.1 — 2026-06-24',
+      '#### Changed',
+      '- x',
+    ].join('\n');
+    const [master] = parseChangelogMasters(md);
+    expect(master.title).toBe('Themed');
+    expect(master.summary).toEqual(['A one-line summary of what this version did.']);
+  });
+
+  it('keeps blank-separated summary paragraphs distinct and joins wrapped lines', () => {
+    const md = [
+      '## v3.6 — Themed',
+      '',
+      'First paragraph line one',
+      'still first paragraph.',
+      '',
+      'Second paragraph.',
+      '',
+      '### v3.6.1 — 2026-06-01',
+      '#### Added',
+      '- a',
+    ].join('\n');
+    const [master] = parseChangelogMasters(md);
+    expect(master.summary).toEqual([
+      'First paragraph line one still first paragraph.',
+      'Second paragraph.',
+    ]);
+  });
+
+  it('does not treat prose after the first entry as summary', () => {
+    const md = [
+      '## v3.6 — Themed',
+      '',
+      '### v3.6.1 — 2026-06-01',
+      '#### Added',
+      '- a',
+      'stray prose after an entry is ignored',
+    ].join('\n');
+    expect(parseChangelogMasters(md)[0].summary).toEqual([]);
   });
 
   it('orders sub-versions newest-first within a master', () => {

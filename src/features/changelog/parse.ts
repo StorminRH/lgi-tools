@@ -26,9 +26,12 @@ export type ChangelogEntry = {
 
 // A master version groups all its sub-versions (a `### vX.Y.Z` entry). New
 // masters carry a themed title; historical ones render as a bare version number.
+// A master may also carry a short plain-language summary — the prose paragraph(s)
+// written directly under its `## vX.Y — Title` heading, before the first entry.
 export type ChangelogMaster = {
   version: string;
   title: string | null;
+  summary: string[];
   subVersions: ChangelogEntry[];
 };
 
@@ -83,25 +86,66 @@ export function parseChangelog(md: string): ChangelogEntry[] {
   return entries;
 }
 
+// A master heading's optional theme title and summary prose, keyed by master
+// version. The summary is the paragraph(s) between a `## vX.Y — Title` heading and
+// its first `### …` entry: blank-line-separated prose, each paragraph a string.
+type MasterMeta = { titles: Map<string, string>; summaries: Map<string, string[]> };
+
+function collectMasterMeta(md: string): MasterMeta {
+  const titles = new Map<string, string>();
+  const summaries = new Map<string, string[]>();
+  let master: string | null = null;
+  let para: string[] = [];
+  const flushPara = () => {
+    if (master && para.length) {
+      const list = summaries.get(master) ?? [];
+      list.push(para.join(' '));
+      summaries.set(master, list);
+    }
+    para = [];
+  };
+  for (const rawLine of md.split('\n')) {
+    const line = rawLine.trim();
+    const masterMatch = line.match(MASTER_HEADING);
+    if (masterMatch) {
+      flushPara();
+      master = masterVersionOf(masterMatch[1]);
+      titles.set(master, masterMatch[2]);
+    } else if (!master) {
+      continue;
+    } else if (line.startsWith('###')) {
+      flushPara(); // an entry (or group) heading ends the summary region
+      master = null;
+    } else if (line === '') {
+      flushPara();
+    } else {
+      para.push(line);
+    }
+  }
+  flushPara();
+  return { titles, summaries };
+}
+
 // Groups the flat entries under their master version. The master grouping is
 // derived from each entry's version prefix, so historical entries need no
 // per-master heading; a `## vX.Y — …` heading only supplies the optional theme
-// title. Masters come out newest-first and sub-versions newest-first, both
-// straight from CHANGELOG.md's source order (an insertion-ordered Map). A themed
-// heading with no matching entries is inert — it never produces a master.
+// title and summary. Masters come out newest-first and sub-versions newest-first,
+// both straight from CHANGELOG.md's source order (an insertion-ordered Map). A
+// themed heading with no matching entries is inert — it never produces a master.
 export function parseChangelogMasters(md: string): ChangelogMaster[] {
-  const titles = new Map<string, string>();
-  for (const rawLine of md.split('\n')) {
-    const masterMatch = rawLine.trim().match(MASTER_HEADING);
-    if (masterMatch) titles.set(masterVersionOf(masterMatch[1]), masterMatch[2]);
-  }
+  const { titles, summaries } = collectMasterMeta(md);
 
   const masters = new Map<string, ChangelogMaster>();
   for (const entry of parseChangelog(md)) {
     const version = masterVersionOf(entry.version);
     let master = masters.get(version);
     if (!master) {
-      master = { version, title: titles.get(version) ?? null, subVersions: [] };
+      master = {
+        version,
+        title: titles.get(version) ?? null,
+        summary: summaries.get(version) ?? [],
+        subVersions: [],
+      };
       masters.set(version, master);
     }
     master.subVersions.push(entry);
