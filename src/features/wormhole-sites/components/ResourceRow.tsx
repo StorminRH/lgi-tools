@@ -6,13 +6,8 @@ import { PriceConfidence } from '@/components/ui/price-confidence';
 import { ResourceRow as ResourceRowPrimitive } from '@/components/ui/row';
 import { formatIsk } from '../format';
 import type { SiteResource, SiteType } from '../types';
-import { HACKING_DOT_TONE } from './wormhole-styles';
+import { deriveResourceRowView, resourceValueEligible } from './resource-row-view';
 import { resourceLiveIsk, useSiteLive } from './site-live-context';
-
-function formatM3(m3: number | null): string {
-  if (m3 == null) return '—';
-  return `${m3.toLocaleString()} m³`;
-}
 
 // The value cell. For a live-eligible resource it reads the shared site price
 // context: while its live confirmation is in flight a spinning badge sits beside
@@ -22,9 +17,8 @@ function formatM3(m3: number | null): string {
 // render their static seed as plain text.
 function ResourceValue({ resource }: { resource: SiteResource }) {
   const live = useSiteLive();
-  const eligible = resource.liveEligible && resource.typeId != null;
 
-  if (!eligible) {
+  if (!resourceValueEligible(resource)) {
     return <span>{formatIsk(resourceLiveIsk(resource, live))}</span>;
   }
 
@@ -45,47 +39,23 @@ export function SiteResourceRow({
   resource: SiteResource;
   siteType: SiteType;
 }) {
-  const value = <ResourceValue resource={resource} />;
-
-  if (siteType === 'relic' || siteType === 'data') {
-    return (
-      <ResourceRowPrimitive
-        colsClass="grid-cols-[1fr_auto]"
-        name={
-          <>
-            <Dot tone={HACKING_DOT_TONE[siteType]} />
-            {resource.resourceName}
-          </>
-        }
-        value={value}
-      />
+  const view = deriveResourceRowView(resource, siteType);
+  const name =
+    view.dotTone != null ? (
+      <>
+        <Dot tone={view.dotTone} />
+        {resource.resourceName}
+      </>
+    ) : (
+      resource.resourceName
     );
-  }
 
-  if (siteType === 'ore') {
-    const units = resource.units ?? 0;
-    const m3 = resource.volumeM3;
-    return (
-      <ResourceRowPrimitive
-        colsClass="grid-cols-[1fr_auto_auto]"
-        name={resource.resourceName}
-        meta={`${units.toLocaleString()} rocks · ${formatM3(m3)}`}
-        value={value}
-      />
-    );
-  }
-
-  // gas
-  const gasMeta =
-    resource.units != null
-      ? `${resource.units.toLocaleString()} units · ${formatM3(resource.volumeM3)}`
-      : formatM3(resource.volumeM3);
   return (
     <ResourceRowPrimitive
-      colsClass="grid-cols-[1fr_auto_auto]"
-      name={resource.resourceName}
-      meta={gasMeta}
-      value={value}
+      colsClass={view.colsClass}
+      name={name}
+      meta={view.meta ?? undefined}
+      value={<ResourceValue resource={resource} />}
     />
   );
 }

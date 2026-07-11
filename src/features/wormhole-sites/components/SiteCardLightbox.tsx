@@ -8,6 +8,22 @@ import type { SiteDetail } from '../types';
 import { SiteCardHeader } from './SiteCardHeader';
 import { SiteDetailsBody } from './SiteDetailsBody';
 
+// Collapse any in-place expansion left over from a live switch out of expand mode.
+function collapseDetails(card: Element) {
+  const details = card.querySelector<HTMLDetailsElement>('details');
+  if (details?.open) details.open = false;
+}
+
+// The card's summary element (with its card), or null before either is in the DOM.
+function findCardSummary(
+  anchor: HTMLElement | null,
+): { card: Element; summary: HTMLElement } | null {
+  const card = anchor?.closest('.sites-card');
+  if (!card) return null;
+  const summary = card.querySelector<HTMLElement>('details > summary');
+  return summary ? { card, summary } : null;
+}
+
 /**
  * Lightbox-mode expand for a catalogue site card. Rendered as a sibling of the
  * card's `<details>` (never inside it — a closed `<details>` hides its content
@@ -43,18 +59,16 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
       setOpen(false);
       return;
     }
-    const card = anchorRef.current?.closest('.sites-card');
-    const summary = card?.querySelector<HTMLElement>('details > summary');
-    const details = card?.querySelector('details');
-    if (!summary) return;
-    summaryRef.current = summary;
-    if (details?.open) details.open = false;
+    const found = findCardSummary(anchorRef.current);
+    if (!found) return;
+    summaryRef.current = found.summary;
+    collapseDetails(found.card);
     const onClick = (e: Event) => {
       e.preventDefault();
       setOpen(true);
     };
-    summary.addEventListener('click', onClick);
-    return () => summary.removeEventListener('click', onClick);
+    found.summary.addEventListener('click', onClick);
+    return () => found.summary.removeEventListener('click', onClick);
   }, [mode]);
 
   return (
