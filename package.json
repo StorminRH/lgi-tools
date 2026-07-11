@@ -76,6 +76,7 @@
   },
   "devDependencies": {
     "@edge-runtime/vm": "5.0.0",
+    "@neondatabase/config": "^0.4.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
