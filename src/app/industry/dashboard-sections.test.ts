@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeJobsHint,
   activeStatus,
+  corpHint,
   corpStatus,
   type DashboardSectionId,
+  deriveSectionRender,
   orderSections,
   PREFERRED_SECTION_ORDER,
   recentsStatus,
@@ -123,5 +126,37 @@ describe('corpStatus', () => {
     expect(
       corpStatus({ hasLinkedCharacters: true, eligibleCount: 1, loading: false, corpCount: 2 }),
     ).toBe('populated');
+  });
+});
+
+describe('deriveSectionRender', () => {
+  it('populated: meta shown, no hint, body shown', () => {
+    expect(deriveSectionRender('populated', 'unused hint')).toEqual({ meta: true, hint: null, body: true });
+  });
+
+  it('pending: no meta, no hint, body still shown (optimistic)', () => {
+    expect(deriveSectionRender('pending', 'h')).toEqual({ meta: false, hint: null, body: true });
+  });
+
+  it('empty with a hint: no meta, hint shown, no body', () => {
+    expect(deriveSectionRender('empty', 'the hint')).toEqual({ meta: false, hint: 'the hint', body: false });
+  });
+
+  it('empty without a hint: silent (no meta/hint/body)', () => {
+    expect(deriveSectionRender('empty', undefined)).toEqual({ meta: false, hint: null, body: false });
+  });
+});
+
+describe('activeJobsHint', () => {
+  it('empty roster prompts sign-in; a populated roster says no jobs', () => {
+    expect(activeJobsHint(0)).toContain('Sign in');
+    expect(activeJobsHint(3)).toBe('No industry jobs running.');
+  });
+});
+
+describe('corpHint', () => {
+  it('is silent without linked characters, else the sync line', () => {
+    expect(corpHint(false)).toBeUndefined();
+    expect(corpHint(true)).toContain('sync completes');
   });
 });

@@ -68,6 +68,37 @@ export function activeStatus(args: {
   return 'populated';
 }
 
+// What a section renders given its settled status: whether its meta shows (only
+// when populated), the hint to show (only when confirmed-empty AND it has one),
+// and whether to render the body. Keeps the grid's render map branch-free.
+export function deriveSectionRender(
+  status: SectionStatus,
+  hint: string | undefined,
+): { meta: boolean; hint: string | null; body: boolean } {
+  const isEmpty = status === 'empty';
+  return {
+    meta: status === 'populated',
+    hint: isEmpty && hint !== undefined ? hint : null,
+    body: !isEmpty,
+  };
+}
+
+// The Active-jobs empty hint: an empty roster is signed-out / no linked
+// character (prompt sign-in); a populated roster with no jobs just says so.
+export function activeJobsHint(rosterSize: number): string {
+  return rosterSize === 0
+    ? 'Sign in with EVE (top right) to track your industry jobs here.'
+    : 'No industry jobs running.';
+}
+
+// The Corp-jobs empty hint: silent when there are no linked characters (the
+// Active section's sign-in hint already prompts — no double-prompt).
+export function corpHint(hasLinkedCharacters: boolean): string | undefined {
+  return hasLinkedCharacters
+    ? 'No corporation industry jobs yet — they’ll appear here once a sync completes.'
+    : undefined;
+}
+
 // Corp jobs carries two app-side gates ahead of the data read:
 //  - no linked characters → empty AND silent (the active section's sign-in
 //    hint already prompts; no double-prompt — today's `return null` behavior).
