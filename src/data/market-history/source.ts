@@ -84,7 +84,7 @@ async function runConcurrent<T>(
     async () => {
       while (cursor < items.length) {
         const i = cursor++;
-        await worker(items[i]);
+        await worker(items[i]!); // cursor < items.length checked in the while condition
       }
     },
   );

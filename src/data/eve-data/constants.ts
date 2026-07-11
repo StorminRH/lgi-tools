@@ -5,7 +5,7 @@
 // truth for that translation. IDs per CCP/ESI industry docs:
 //   manufacturing 1, research_time 3, research_material 4, copying 5,
 //   invention 8, reaction 11.
-export const ACTIVITY_NAME_TO_ID: Record<string, number> = {
+export const ACTIVITY_NAME_TO_ID: Record<ActivityName, number> = {
   manufacturing: 1,
   research_time: 3,
   research_material: 4,
@@ -18,9 +18,10 @@ export const ACTIVITY_NAME_TO_ID: Record<string, number> = {
 // name list. Single source for iterating/typing the full activity set (the
 // `getBlueprintActivities` read + its `ActivityName` type) — distinct from
 // INDUSTRY_ACTIVITY_NAMES below, which is the narrow subset the resolver walks.
-// A co-located test pins this against ACTIVITY_NAME_TO_ID so the two can't drift
-// (ACTIVITY_NAME_TO_ID is typed Record<string, number>, so a missing key here
-// wouldn't surface at compile time).
+// A co-located test pins this against ACTIVITY_NAME_TO_ID so the two can't drift.
+// ACTIVITY_NAME_TO_ID is typed Record<ActivityName, number> (ActivityName is derived
+// from this list), so a missing key is now a compile error and finite-key lookups
+// come back as `number`, not `number | undefined`; the test still pins the IDs.
 export const ALL_ACTIVITY_NAMES = [
   'manufacturing',
   'research_time',

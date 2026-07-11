@@ -50,17 +50,18 @@ export function computeSide(
   orders: OrderEntry[],
   direction: 'asc' | 'desc',
 ): { best: number | null; pct5: number | null; volume: bigint | null } {
-  if (orders.length === 0) {
-    return { best: null, pct5: null, volume: null };
-  }
   const sorted = [...orders].sort((a, b) =>
     direction === 'asc' ? a.price - b.price : b.price - a.price,
   );
+  const front = sorted[0];
+  if (front === undefined) {
+    return { best: null, pct5: null, volume: null };
+  }
 
   let totalVolume = BigInt(0);
   for (const o of sorted) totalVolume += o.volume;
   if (totalVolume === BigInt(0)) {
-    return { best: sorted[0].price, pct5: sorted[0].price, volume: BigInt(0) };
+    return { best: front.price, pct5: front.price, volume: BigInt(0) };
   }
 
   // Dust-filtered best: ceil-divide in bigint (no float), then take the price
@@ -68,7 +69,7 @@ export function computeSide(
   // threshold never exceeds totalVolume, so the walk always lands on an order.
   const dustThreshold =
     (totalVolume + BEST_DUST_VOLUME_DIVISOR - BigInt(1)) / BEST_DUST_VOLUME_DIVISOR;
-  let best = sorted[0].price;
+  let best = front.price;
   let cumulative = BigInt(0);
   for (const o of sorted) {
     cumulative += o.volume;
@@ -128,16 +129,16 @@ export function computeDepth(
   if (best === null || orders.length === 0) return null;
   const sums = DEPTH_BANDS_PCT.map(() => 0);
   for (const o of orders) {
-    for (let i = 0; i < DEPTH_BANDS_PCT.length; i++) {
-      const band = DEPTH_BANDS_PCT[i];
+    for (const [i, band] of DEPTH_BANDS_PCT.entries()) {
       const within =
         direction === 'desc'
           ? o.price >= best * (1 - band / 100)
           : o.price <= best * (1 + band / 100);
-      if (within) sums[i] += Number(o.volume);
+      // `i` indexes the parallel `sums` (same length as DEPTH_BANDS_PCT), always in-bounds.
+      if (within) sums[i] = (sums[i] ?? 0) + Number(o.volume);
     }
   }
-  return DEPTH_BANDS_PCT.map((pct, i) => ({ pct, cumVolume: sums[i] }));
+  return DEPTH_BANDS_PCT.map((pct, i) => ({ pct, cumVolume: sums[i] ?? 0 }));
 }
 
 // Whether a remote sell book may anchor a regional-discount callout: NPC

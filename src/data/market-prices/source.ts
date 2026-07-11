@@ -123,7 +123,7 @@ async function runConcurrent<T>(
         const i = cursor++;
         if (i >= items.length) return;
         try {
-          await worker(items[i]);
+          await worker(items[i]!); // i < items.length guaranteed by the guard above
         } catch (err) {
           cancelled = true;
           throw err;

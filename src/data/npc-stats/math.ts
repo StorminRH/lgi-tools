@@ -129,14 +129,23 @@ function computeMissileDps(
   return { dps, alpha };
 }
 
-function omniLayerEhp(hp: number, passes: number[]): number {
+// The four EVE damage types (EM, Explosive, Kinetic, Thermal) as a fixed tuple —
+// every resist array in this file is exactly these four, so the shape is typed
+// rather than a bare number[] whose elements would each read as possibly-undefined.
+type ResistArray = readonly [number, number, number, number];
+
+// Pass-through = 1.0 on all four types: the "no resistance" default used when an
+// HP layer is absent (see computeHp).
+const NO_RESIST_PASSES: ResistArray = [1, 1, 1, 1];
+
+function omniLayerEhp(hp: number, passes: ResistArray): number {
   if (hp <= 0) return 0;
   const avg = (passes[0] + passes[1] + passes[2] + passes[3]) / 4;
   if (avg <= 0) return 0; // 100% resist on every damage type — infinite EHP, treat as 0 sentinel.
   return hp / avg;
 }
 
-function resistsToPct(passes: number[]): {
+function resistsToPct(passes: ResistArray): {
   em: number;
   exp: number;
   kin: number;
@@ -152,7 +161,7 @@ function resistsToPct(passes: number[]): {
   };
 }
 
-function shieldResistsArray(attrs: AttrMap, fallback: number): number[] {
+function shieldResistsArray(attrs: AttrMap, fallback: number): ResistArray {
   return [
     val(attrs, ATTR.shieldResEm, fallback),
     val(attrs, ATTR.shieldResExp, fallback),
@@ -161,7 +170,7 @@ function shieldResistsArray(attrs: AttrMap, fallback: number): number[] {
   ];
 }
 
-function armorResistsArray(attrs: AttrMap, fallback: number): number[] {
+function armorResistsArray(attrs: AttrMap, fallback: number): ResistArray {
   return [
     val(attrs, ATTR.armorResEm, fallback),
     val(attrs, ATTR.armorResExp, fallback),
@@ -178,8 +187,8 @@ function computeHp(attrs: AttrMap): CombatStats['hp'] {
   // (pass-through = 1.0). When the HP layer itself is 0 the snapshot also
   // reports 0 resists, so we use 1.0 (full pass-through, displayed as 0%
   // resist) only when HP > 0; otherwise zeros.
-  const shieldPasses = shieldHp > 0 ? shieldResistsArray(attrs, 1) : [1, 1, 1, 1];
-  const armorPasses = armorHp > 0 ? armorResistsArray(attrs, 1) : [1, 1, 1, 1];
+  const shieldPasses = shieldHp > 0 ? shieldResistsArray(attrs, 1) : NO_RESIST_PASSES;
+  const armorPasses = armorHp > 0 ? armorResistsArray(attrs, 1) : NO_RESIST_PASSES;
 
   // Snapshot's `ehp` excludes shield (every sleeper in the dataset is
   // armor-tanked; Drifters carry shield in raw SDE but the Sheet's calc tab
