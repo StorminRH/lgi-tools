@@ -42,7 +42,7 @@ export function Toaster() {
           // single colour utility lands on each toast — no Tailwind conflict.
           toast:
             'flex w-full items-center gap-2.5 rounded-[3px] border bg-bg-deep ' +
-            'px-3.5 py-2.5 font-mono text-[12px] tracking-[0.06em] ' +
+            'px-3.5 py-2.5 font-mono text-ui tracking-[0.06em] ' +
             'shadow-[0_0_18px_-7px_rgba(61,214,140,0.18),0_10px_30px_-10px_rgba(0,0,0,0.85)]',
           icon: 'relative flex h-4 w-4 shrink-0 items-center justify-center',
           content: 'flex flex-col gap-0.5',

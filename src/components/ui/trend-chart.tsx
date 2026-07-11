@@ -106,7 +106,7 @@ export function TrendChart({
                 x={xScale(xs[i] ?? 0)}
                 y={height - 6}
                 textAnchor="middle"
-                className="fill-[var(--color-muted)] font-mono text-[10px]"
+                className="fill-[var(--color-muted)] font-mono text-micro"
               >
                 {formatTick(labels[i] ?? '')}
               </text>

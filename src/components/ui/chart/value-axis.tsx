@@ -32,7 +32,7 @@ export function ValueAxisGrid({ ticks, y, left, right, format }: ValueAxisGridPr
             y={y(t)}
             textAnchor="end"
             dominantBaseline="central"
-            className="fill-[var(--color-muted)] font-mono text-[10px]"
+            className="fill-[var(--color-muted)] font-mono text-micro"
           >
             {format(t)}
           </text>

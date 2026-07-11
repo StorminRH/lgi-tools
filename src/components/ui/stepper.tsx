@@ -46,7 +46,7 @@ export function Stepper({
     setDraft(String(next));
   };
   const btn =
-    'h-7 w-[26px] text-[14px] leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
+    'h-7 w-[26px] text-ui leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
   return (
     <span
       className={cn(
@@ -70,7 +70,7 @@ export function Stepper({
           if (e.key === 'Enter') commit((e.target as HTMLInputElement).value);
         }}
         aria-label={ariaLabel}
-        className="h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-[12px] text-name outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-ui text-name outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <button type="button" onClick={() => step(1)} aria-label={`Increase ${ariaLabel}`} className={btn}>
         +
