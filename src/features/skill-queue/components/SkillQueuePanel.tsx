@@ -23,11 +23,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import type { CharacterStripSpec } from '@/page-settings/types';
-import { formatQuantity } from '@/lib/format/number';
 import { formatRemaining } from '@/lib/format/time';
 import type { SkillQueueEntry } from '../esi-projection';
-import { entryProgress, romanLevel, summarizeQueue } from '../progress';
-import { STATUS_META } from '../skill-queue-styles';
+import { romanLevel } from '../progress';
+import { entryRowModel, type QueueHeader, queueCardModel } from '../queue-view';
 import type { CharacterSkillData } from '../types';
 import { useSkillsLive } from '../use-skills-live';
 
@@ -72,13 +71,6 @@ export function SkillQueuePanel({
   );
 }
 
-// The live half of one row: the cached payload + its "as of" stamp. renderQueueCard
-// reads only `data`; lastSyncedAt feeds the card's as-of header.
-interface SkillsLiveRow {
-  data: CharacterSkillData | null;
-  lastSyncedAt: number | null;
-}
-
 function LiveQueues({
   characters,
   reconnectAction,
@@ -108,18 +100,15 @@ function LiveQueues({
         {(visible) =>
           visible.map((character) => {
             const live = skillsByCharacter.get(character.characterId);
-            const row: SkillsLiveRow | undefined =
-              live !== undefined
-                ? { data: live.data, lastSyncedAt: live.lastRefreshedAt }
-                : undefined;
-            const { isEmpty, subtitle, headerRight, rows } = renderQueueCard(row, names, now);
+            const data = live?.data ?? null;
+            const { isEmpty, subtitle, headerRight, rows } = renderQueueCard(data, names, now);
             return (
               <LiveCharacterCard
                 key={character.characterId}
                 character={character}
                 syncError={null}
-                lastSyncedAt={row?.lastSyncedAt}
-                hasData={(row?.data ?? null) !== null}
+                lastSyncedAt={live?.lastRefreshedAt}
+                hasData={data !== null}
                 isEmpty={isEmpty}
                 syncing={false}
                 sectionLabel="Skill queue"
@@ -142,39 +131,20 @@ function LiveQueues({
 }
 
 // One character's queue-card content: the SP subtitle, the "queue ends in" / paused
-// header slot, and the per-entry rows. The panel owns the card shell.
+// header slot, and the per-entry rows. The decisions live in queueCardModel (tested);
+// this shell wires them into the card-content slots.
 function renderQueueCard(
-  live: SkillsLiveRow | undefined,
+  data: CharacterSkillData | null,
   names: Record<string, string>,
   now: number,
 ): CharacterCardContent {
-  const data = live?.data ?? null;
-  const summary = data !== null ? summarizeQueue(data.entries, now) : null;
-
-  const subtitle = data !== null && (
-    <div className="text-[10px] text-muted tracking-[0.06em]">
-      {formatQuantity(data.totalSp)} SP
-      {data.unallocatedSp !== undefined && data.unallocatedSp > 0
-        ? ` · ${formatQuantity(data.unallocatedSp)} unallocated`
-        : ''}
-    </div>
-  );
-
-  const headerRight = summary !== null && (
-    <>
-      {summary.kind === 'active' && summary.finishesAt !== null && (
-        <span className="text-[10px] text-muted tracking-[0.06em] shrink-0">
-          queue ends in {formatRemaining(summary.finishesAt - now)}
-        </span>
-      )}
-      {summary.kind === 'paused' && <Pill tone="orange">Paused</Pill>}
-    </>
-  );
-
+  const model = queueCardModel(data, now);
   return {
-    isEmpty: data !== null && data.entries.length === 0,
-    subtitle,
-    headerRight,
+    isEmpty: model.isEmpty,
+    subtitle: model.subtitle !== null && (
+      <div className="text-[10px] text-muted tracking-[0.06em]">{model.subtitle}</div>
+    ),
+    headerRight: model.header !== null && <QueueHeaderSlot header={model.header} />,
     rows:
       data !== null &&
       data.entries.map((entry) => (
@@ -188,6 +158,17 @@ function renderQueueCard(
   };
 }
 
+function QueueHeaderSlot({ header }: { header: NonNullable<QueueHeader> }) {
+  if (header.kind === 'ends-in') {
+    return (
+      <span className="text-[10px] text-muted tracking-[0.06em] shrink-0">
+        queue ends in {formatRemaining(header.ms)}
+      </span>
+    );
+  }
+  return <Pill tone="orange">Paused</Pill>;
+}
+
 function QueueEntryRow({
   entry,
   name,
@@ -197,10 +178,7 @@ function QueueEntryRow({
   name: string | undefined;
   now: number;
 }) {
-  const progress = entryProgress(entry, now);
-  const meta = STATUS_META[progress.status];
-  const finish = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : null;
-
+  const model = entryRowModel(entry, now);
   return (
     <div className="border-t border-border-soft px-3.5 py-[6px]">
       <div className="grid grid-cols-[26px_minmax(0,1fr)_auto_auto] items-center gap-[6px] text-[12px]">
@@ -210,13 +188,13 @@ function QueueEntryRow({
           <span className="text-muted">{romanLevel(entry.finished_level)}</span>
         </span>
         <span className="text-[10px] text-muted shrink-0">
-          {progress.status === 'training' && finish !== null ? formatRemaining(finish - now) : ''}
+          {model.remainingMs !== null ? formatRemaining(model.remainingMs) : ''}
         </span>
-        <Pill tone={meta.tone}>{meta.label}</Pill>
+        <Pill tone={model.meta.tone}>{model.meta.label}</Pill>
       </div>
-      {progress.status === 'training' && (
+      {model.showBar && (
         <div className="mt-[4px]">
-          <ProgressBar pct={progress.pct} />
+          <ProgressBar pct={model.pct} />
         </div>
       )}
     </div>

@@ -18,6 +18,24 @@ export interface EnumeratedOwner {
   missingScopes: string[];
 }
 
+// A paged-owner key: a character or a corporation, by id. The shared owner shape the
+// paged owned-* slices (blueprints, assets) key their per-owner rows on — and the
+// owners the read side (resolveOwnedOwnersForUser) enumerates. Each slice keeps its
+// OWN Postgres enum (the one-source-of-truth rule) but the enum's TS type is this same
+// literal union, so the descriptor + port speak one type and the duplicate defs die.
+export interface OwnerKey {
+  ownerType: 'character' | 'corporation';
+  ownerId: number;
+}
+
+// The per-owner sync state the PAGED owned-* twins persist: the staleness stamp + the
+// per-page etags replayed so an unchanged owner returns a 304. Named for the paged
+// shape — distinct from a slice's own TState (jobs' single etag, skills' two).
+export interface PagedOwnerSyncState {
+  lastRefreshedAt: Date | null;
+  pageEtags: string[];
+}
+
 // One vended member candidate for a corporation: the character whose token would
 // read the corp endpoint, that already-vended token, and whether it holds a
 // required in-game role.

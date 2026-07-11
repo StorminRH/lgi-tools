@@ -14,10 +14,6 @@
     "src/data/eve-data/source.ts:101-114|src/data/eve-data/source.ts:326-344",
     "src/data/market-history/aggregate.ts:38-45|src/data/market-history/aggregate.ts:55-62",
     "src/features/industry-planner/recent-blueprints.ts:47-54|src/features/search-recents/storage.ts:98-107",
-    "src/features/wormhole-sites/queries.ts:268-288|src/features/wormhole-sites/queries.ts:418-441",
-    "src/db/industry-jobs-sync.ts:71-79|src/db/skills-sync.ts:73-81",
-    "src/features/industry-jobs/refresh.ts:44-50|src/features/skill-queue/refresh.ts:59-65",
-    "src/features/owned-assets/refresh.ts:33-37|src/features/owned-blueprints/refresh.ts:35-39",
-    "src/features/owned-assets/refresh.ts:46-50|src/features/owned-blueprints/refresh.ts:48-52"
+    "src/features/wormhole-sites/queries.ts:268-288|src/features/wormhole-sites/queries.ts:418-441"
   ]
 }

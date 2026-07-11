@@ -9,9 +9,6 @@
 // absolute end_date (no scheduler); the first-view cold cache is populated by the
 // client's auto-reconcile re-fetch, so the seam stays template-pure write-behind (never
 // awaits the refresh). The shared auth + ESI port wiring lives in owner-sync-port.ts.
-import { after } from 'next/server';
-import { getTypeNames } from '@/data/eve-data/queries';
-import { listLinkedCharacters } from '@/features/auth/queries';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
 import {
   getJobsForCharacters,
@@ -21,6 +18,7 @@ import {
 } from '@/features/industry-jobs/queries';
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
+import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 
 // The real port: the shared auth + ESI wiring (owner-sync-port.ts) plus this slice's
@@ -58,27 +56,16 @@ export interface ViewerJobsResult {
 
 // The on-view seam: read the current per-character boards + freshness immediately,
 // resolve the referenced type names from the SDE, and fire a stale-gated write-behind
-// refresh behind the response. A re-view inside the 300s window makes no ESI call (the
-// refresh's per-character staleness gate is the dedup). The cached payload + the uncached
-// sync-state stamp are read in parallel.
+// refresh behind the response (the shared getLiveDatasetOnView tail). A re-view inside
+// the 300s window makes no ESI call (the refresh's per-character staleness gate is the
+// dedup). The cached payload + the uncached sync-state stamp are read in parallel
+// (readCharacterOwners).
 export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsResult> {
-  const linked = await listLinkedCharacters(userId);
-  const characterIds = linked.map((character) => character.characterId);
-  const [dataMap, syncStates] = await Promise.all([
-    getJobsForCharacters(characterIds),
-    Promise.all(characterIds.map((id) => readCharacterJobSyncState(id))),
-  ]);
-  after(() => refreshJobsForUser(makeJobsPort(), userId));
-
-  const characters: ViewerJobs[] = characterIds.map((characterId, i) => ({
-    characterId,
-    data: dataMap.get(characterId) ?? null,
-    lastRefreshedAt: syncStates[i]?.lastRefreshedAt?.getTime() ?? null,
-  }));
-
-  const nameMap = await getTypeNames([...new Set(jobTypeIds(characters))]);
-  const names: Record<string, string> = {};
-  for (const [id, name] of nameMap) names[String(id)] = name;
-
-  return { characters, names };
+  const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
+    read: (uid) => readCharacterOwners(uid, getJobsForCharacters, readCharacterJobSyncState),
+    refresh: (uid) => refreshJobsForUser(makeJobsPort(), uid),
+    makeRow: characterRow,
+    nameIds: (viewerJobs) => jobTypeIds(viewerJobs),
+  });
+  return { characters: rows, names };
 }

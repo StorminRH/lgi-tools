@@ -7,6 +7,7 @@
 import { and, eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import type { IndustryJob } from './esi-projection';
 import {
   characterIndustryJobs,
@@ -45,14 +46,7 @@ async function getCharacterJobs(characterId: number): Promise<CharacterJobsData 
 export async function getJobsForCharacters(
   characterIds: number[],
 ): Promise<Map<number, CharacterJobsData>> {
-  const entries = await Promise.all(
-    characterIds.map(async (id) => [id, await getCharacterJobs(id)] as const),
-  );
-  const map = new Map<number, CharacterJobsData>();
-  for (const [id, data] of entries) {
-    if (data !== null) map.set(id, data);
-  }
-  return map;
+  return mapByIdDroppingNulls(characterIds, getCharacterJobs);
 }
 
 // Live (uncached) sync state for the staleness gate + etag replay (refresh path) and
@@ -137,14 +131,7 @@ export async function getCorpJobsForUser(
   userId: string,
   corporationIds: number[],
 ): Promise<Map<number, CharacterJobsData>> {
-  const entries = await Promise.all(
-    corporationIds.map(async (id) => [id, await getCorpJobs(userId, id)] as const),
-  );
-  const map = new Map<number, CharacterJobsData>();
-  for (const [id, data] of entries) {
-    if (data !== null) map.set(id, data);
-  }
-  return map;
+  return mapByIdDroppingNulls(corporationIds, (id) => getCorpJobs(userId, id));
 }
 
 // Every corp the user currently has a sync row for, with its freshness, held etag, and

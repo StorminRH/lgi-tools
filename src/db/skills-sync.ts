@@ -11,7 +11,6 @@
 // template-pure write-behind (never awaits the refresh). The shared auth + ESI port
 // wiring lives in owner-sync-port.ts (MIGRATE.D.2).
 import { after } from 'next/server';
-import { getTypeNames } from '@/data/eve-data/queries';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import {
   getCharacterSkillLevels,
@@ -23,6 +22,7 @@ import {
 } from '@/features/skill-queue/queries';
 import { refreshSkillsForUser } from '@/features/skill-queue/refresh';
 import type { CharacterSkillData, SkillsPort } from '@/features/skill-queue/types';
+import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 
 // The real port: the shared auth + ESI wiring (owner-sync-port.ts) plus this slice's
@@ -62,33 +62,24 @@ export interface ViewerSkillsResult {
 
 // The on-view seam: read the current per-character skills + freshness immediately,
 // resolve the queued skill names from the SDE, and fire a stale-gated write-behind
-// refresh behind the response. A re-view inside the 120s window makes no ESI call (the
-// refresh's per-character staleness gate is the dedup). The cached payload + the
-// uncached sync-state stamp are read in parallel.
+// refresh behind the response (the shared getLiveDatasetOnView tail). A re-view inside
+// the 120s window makes no ESI call (the refresh's per-character staleness gate is the
+// dedup). The cached payload + the uncached sync-state stamp are read in parallel
+// (readCharacterOwners).
 export async function getSkillsForUserOnView(userId: string): Promise<ViewerSkillsResult> {
-  const linked = await listLinkedCharacters(userId);
-  const characterIds = linked.map((character) => character.characterId);
-  const [dataMap, syncStates] = await Promise.all([
-    getSkillsForCharacters(characterIds),
-    Promise.all(characterIds.map((id) => readCharacterSyncState(id))),
-  ]);
-  after(() => refreshSkillsForUser(makeSkillsPort(), userId));
-
-  const characters: ViewerSkills[] = characterIds.map((characterId, i) => ({
-    characterId,
-    data: dataMap.get(characterId) ?? null,
-    lastRefreshedAt: syncStates[i]?.lastRefreshedAt?.getTime() ?? null,
-  }));
-
-  const skillIds = new Set<number>();
-  for (const character of characters) {
-    for (const entry of character.data?.entries ?? []) skillIds.add(entry.skill_id);
-  }
-  const nameMap = await getTypeNames([...skillIds]);
-  const names: Record<string, string> = {};
-  for (const [id, name] of nameMap) names[String(id)] = name;
-
-  return { characters, names };
+  const { rows, names } = await getLiveDatasetOnView<CharacterSkillData, ViewerSkills>(userId, {
+    read: (uid) => readCharacterOwners(uid, getSkillsForCharacters, readCharacterSyncState),
+    refresh: (uid) => refreshSkillsForUser(makeSkillsPort(), uid),
+    makeRow: characterRow,
+    nameIds: (viewerSkills) => {
+      const skillIds = new Set<number>();
+      for (const character of viewerSkills) {
+        for (const entry of character.data?.entries ?? []) skillIds.add(entry.skill_id);
+      }
+      return skillIds;
+    },
+  });
+  return { characters: rows, names };
 }
 
 // One character's trained levels for the wire; null = never synced / pre-0039

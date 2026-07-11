@@ -10,24 +10,6 @@ import type { ApiEndpoint } from '@/lib/api-client';
 import type { SdePipelineSummary } from '@/db/sde-pipeline';
 import type { SystemSearchEntry } from './systems-search';
 
-// ── POST /api/types/names (authz: none — public SDE read) ───────────────
-// Bulk type-id → name resolution (3.4.7). The skill-queue island enriches the
-// skill ids in a pilot's Convex docs from the Neon SDE at render time — SDE
-// data is never mirrored into Convex. Capped well above the worst case (a
-// 150-entry queue per character) but low enough to bound one query.
-
-export const TYPE_NAMES_MAX_IDS = 300;
-
-export const typeNamesRequestSchema = z.object({
-  typeIds: z.array(z.number().int().positive()).min(1).max(TYPE_NAMES_MAX_IDS),
-});
-
-// Keys are stringified type ids (JSON objects have string keys); ids the SDE
-// doesn't know are simply absent. A plain type, not a Zod schema: this route has
-// no typed apiFetch client, so nothing validates the response shape at runtime —
-// the handler pins it with `satisfies` instead.
-export type TypeNamesResponse = { names: Record<string, string> };
-
 // ── POST /api/eve/names (authz: none — public ESI read) ─────────────────
 // Bulk entity-id → name resolution for characters + corporations (3.7.3.4),
 // resolved through the one ESI gate's /universe/names. The merged active-jobs

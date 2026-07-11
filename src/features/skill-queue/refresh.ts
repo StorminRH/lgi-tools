@@ -11,7 +11,7 @@
 // skill-queue specific — it lives in planSkillsPersist below, which the engine treats
 // as an opaque save / stamp / skip verdict; refresh.test.ts pins the byte-identical
 // behaviour.
-import { type OwnerSyncDescriptor, runOwnerSync } from '@/lib/owner-sync';
+import { makeCharacterDescriptor, type OwnerSyncDescriptor, runOwnerSync } from '@/lib/owner-sync';
 import { parseSkillQueueBody, parseSkillsBody } from './esi-projection';
 import { isSkillsStale } from './staleness';
 import { canSyncSkillQueue } from './sync-eligibility';
@@ -56,18 +56,9 @@ interface SkillsSave {
 }
 
 function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, CharacterSkillSyncState, SkillsSave> {
-  return {
-    now: () => port.now(),
-    // Skills has no corp axis, so corporationId is unused — map it in as null.
-    enumerate: async (userId) =>
-      (await port.listCharacters(userId)).map((character) => ({ ...character, corporationId: null })),
-    vendToken: (characterId) => port.vendToken(characterId),
-    isStale: (state, now) => isSkillsStale(state?.lastRefreshedAt ?? null, now),
-    characterAxis: {
-      eligible: (owner) => canSyncSkillQueue(owner),
-      ownerOf: (characterId) => characterId,
-    },
-    readState: (characterId) => port.readSyncState(characterId),
+  return makeCharacterDescriptor(port, {
+    isStale: isSkillsStale,
+    eligible: canSyncSkillQueue,
     fetchAndPlan: async (characterId, accessToken, state) => {
       // Both endpoints in parallel, each replaying ITS OWN held etag.
       const [queueRead, skillsRead] = await Promise.all([
@@ -77,8 +68,7 @@ function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, Character
       return planSkillsPersist(queueRead, skillsRead);
     },
     save: (characterId, payload) => port.saveSkills(characterId, payload.halves),
-    stampFresh: (characterId) => port.stampFresh(characterId),
-  };
+  });
 }
 
 export async function refreshSkillsForUser(port: SkillsPort, userId: string): Promise<void> {

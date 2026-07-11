@@ -12,18 +12,8 @@
 // The owner axis collapses character + corporation into a single discriminated
 // pair: owner_type ∈ {character, corporation}, owner_id the character or
 // corporation id.
-import {
-  bigint,
-  bigserial,
-  index,
-  integer,
-  jsonb,
-  pgEnum,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-} from 'drizzle-orm/pg-core';
+import { bigint, bigserial, index, integer, pgEnum, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import { ownerSyncStateColumns } from '@/lib/db-columns';
 
 // Postgres enum driven from a TS `as const` (the one-source-of-truth invariant).
 // Its own enum, not the owned-blueprints one — features don't share, and a
@@ -80,11 +70,6 @@ export const ownedAssets = pgTable(
 // gate's own ETag cache is unauthenticated-only, so an authed reader holds them).
 export const ownedAssetSyncs = pgTable(
   'owned_asset_syncs',
-  {
-    ownerType: ownedAssetOwnerTypeEnum('owner_type').notNull(),
-    ownerId: bigint('owner_id', { mode: 'number' }).notNull(),
-    lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull(),
-    pageEtags: jsonb('page_etags').$type<string[]>().default([]).notNull(),
-  },
+  ownerSyncStateColumns(ownedAssetOwnerTypeEnum),
   (t) => [primaryKey({ columns: [t.ownerType, t.ownerId] })],
 );

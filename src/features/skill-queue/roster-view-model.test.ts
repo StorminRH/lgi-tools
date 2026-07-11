@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { PanelCharacter } from '@/components/live-character-card';
-import { buildRosterCard, type RosterLiveData } from './roster-view-model';
+import {
+  buildRosterCard,
+  idleTrainingText,
+  type RosterLiveData,
+  rosterFreeSp,
+  rosterSpFallback,
+  type RosterViewModel,
+} from './roster-view-model';
 
 const NOW = Date.parse('2026-06-11T12:00:00Z');
 
@@ -76,5 +83,37 @@ describe('buildRosterCard', () => {
     const vm = buildRosterCard(character, paused, {}, NOW);
     expect(vm.training.kind).toBe('paused');
     expect(vm.remainingLabel).toBeNull();
+  });
+});
+
+describe('roster card line helpers', () => {
+  const vm = (overrides: Partial<RosterViewModel>): RosterViewModel => ({
+    characterId: 1,
+    name: 'Pilot',
+    portraitUrl: '',
+    needsReconnect: false,
+    hasData: true,
+    totalSp: null,
+    unallocatedSp: null,
+    training: { kind: 'empty' },
+    currentSkillName: null,
+    remainingLabel: null,
+    ...overrides,
+  });
+
+  it('rosterSpFallback prompts a reconnect only when reauth is needed', () => {
+    expect(rosterSpFallback(vm({ needsReconnect: true }))).toBe('Reconnect to sync');
+    expect(rosterSpFallback(vm({ needsReconnect: false }))).toBe('No data yet');
+  });
+
+  it('rosterFreeSp returns the unallocated SP only when positive, else null', () => {
+    expect(rosterFreeSp(vm({ unallocatedSp: 405_000 }))).toBe(405_000);
+    expect(rosterFreeSp(vm({ unallocatedSp: 0 }))).toBeNull();
+    expect(rosterFreeSp(vm({ unallocatedSp: null }))).toBeNull();
+  });
+
+  it('idleTrainingText distinguishes the empty and complete states', () => {
+    expect(idleTrainingText('empty')).toBe('No skills queued');
+    expect(idleTrainingText('complete')).toBe('Training complete');
   });
 });

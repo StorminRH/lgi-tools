@@ -8,8 +8,6 @@
 // added latency). A direct mirror of src/db/industry-jobs-sync.ts, corp-keyed, with the
 // Director resolution (vend + roles read) supplied by the shared owner-sync-port.ts
 // wiring (MIGRATE.D.2).
-import { after } from 'next/server';
-import { getTypeNames } from '@/data/eve-data/queries';
 import { refreshCorpJobsForUser } from '@/features/industry-jobs/corp-refresh';
 import { jobTypeIds } from '@/features/industry-jobs/esi-projection';
 import {
@@ -21,6 +19,7 @@ import {
   stampCorpJobsFresh,
 } from '@/features/industry-jobs/queries';
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
+import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
 import { listCharactersWithHealth, readRolesFor, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 
 // The real corp port: the shared auth + ESI wiring (owner-sync-port.ts) plus this
@@ -67,21 +66,31 @@ export interface ViewerCorpJobsResult {
 // write-behind has populated. The cached boards + the uncached sync states are read in
 // parallel.
 export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCorpJobsResult> {
-  const syncStates = await listCorpJobSyncStates(userId);
-  const corporationIds = syncStates.map((state) => state.corporationId);
-  const dataMap = await getCorpJobsForUser(userId, corporationIds);
-  after(() => refreshCorpJobsForUser(makeCorpJobsPort(), userId));
-
-  const corporations: ViewerCorpJobs[] = syncStates.map((state) => ({
-    corporationId: state.corporationId,
-    data: dataMap.get(state.corporationId) ?? null,
-    lastRefreshedAt: state.lastRefreshedAt?.getTime() ?? null,
-    syncError: state.syncError,
-  }));
-
-  const nameMap = await getTypeNames([...new Set(jobTypeIds(corporations))]);
-  const names: Record<string, string> = {};
-  for (const [id, name] of nameMap) names[String(id)] = name;
-
-  return { corporations, names };
+  const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerCorpJobs>(userId, {
+    // The corp set is the user's sync rows (the board table is corp-keyed but not
+    // user-enumerable on its own), so the single sync-rows read IS the enumeration —
+    // no separate parallel state read.
+    read: async (uid) => {
+      const syncStates = await listCorpJobSyncStates(uid);
+      const owners: OwnerRow[] = syncStates.map((state) => ({
+        id: state.corporationId,
+        lastRefreshedAt: state.lastRefreshedAt,
+        syncError: state.syncError,
+      }));
+      const data = await getCorpJobsForUser(
+        uid,
+        owners.map((owner) => owner.id),
+      );
+      return { owners, data };
+    },
+    refresh: (uid) => refreshCorpJobsForUser(makeCorpJobsPort(), uid),
+    makeRow: (owner, data) => ({
+      corporationId: owner.id,
+      data,
+      lastRefreshedAt: owner.lastRefreshedAt?.getTime() ?? null,
+      syncError: owner.syncError ?? null,
+    }),
+    nameIds: (viewerCorpJobs) => jobTypeIds(viewerCorpJobs),
+  });
+  return { corporations: rows, names };
 }

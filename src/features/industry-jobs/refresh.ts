@@ -11,7 +11,7 @@
 // the next fresh body); a job's "ready" is derived client-side from its absolute
 // end_date — there is no scheduled completion flip. planJobsPersist (the single-read
 // save/stamp/skip decision) stays here; refresh.test.ts pins the byte-identical dance.
-import { type OwnerSyncDescriptor, runOwnerSync } from '@/lib/owner-sync';
+import { makeCharacterDescriptor, type OwnerSyncDescriptor, runOwnerSync } from '@/lib/owner-sync';
 import { type IndustryJob, parseIndustryJobsBody } from './esi-projection';
 import { isJobsStale } from './staleness';
 import { canSyncIndustryJobs } from './sync-eligibility';
@@ -41,25 +41,15 @@ interface JobsSave {
 }
 
 function makeDescriptor(port: JobsPort): OwnerSyncDescriptor<number, CharacterJobsSyncState, JobsSave> {
-  return {
-    now: () => port.now(),
-    // Personal jobs has no corp axis, so corporationId is unused — map it in as null.
-    enumerate: async (userId) =>
-      (await port.listCharacters(userId)).map((character) => ({ ...character, corporationId: null })),
-    vendToken: (characterId) => port.vendToken(characterId),
-    isStale: (state, now) => isJobsStale(state?.lastRefreshedAt ?? null, now),
-    characterAxis: {
-      eligible: (owner) => canSyncIndustryJobs(owner),
-      ownerOf: (characterId) => characterId,
-    },
-    readState: (characterId) => port.readSyncState(characterId),
+  return makeCharacterDescriptor(port, {
+    isStale: isJobsStale,
+    eligible: canSyncIndustryJobs,
     fetchAndPlan: async (characterId, accessToken, state) => {
       const read = await port.readJobs(characterId, accessToken, state?.jobsEtag ?? null);
       return planJobsPersist(read);
     },
     save: (characterId, payload) => port.saveJobs(characterId, payload.jobs, payload.etag),
-    stampFresh: (characterId) => port.stampFresh(characterId),
-  };
+  });
 }
 
 export async function refreshJobsForUser(port: JobsPort, userId: string): Promise<void> {

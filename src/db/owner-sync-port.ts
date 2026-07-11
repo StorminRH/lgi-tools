@@ -11,6 +11,7 @@ import { getUserAffiliations, listLinkedCharacters } from '@/features/auth/queri
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
 import { readEsiAuthed, readEsiPagedAuthed } from '@/lib/esi/authed-read';
+import type { OwnerKey } from '@/lib/owner-sync';
 
 // A linked character with derived scope health — the shape every per-owner refresh
 // enumerates. corporationId is always included (the corp axis needs it); character-only
@@ -20,13 +21,6 @@ export interface LinkedCharacterHealth {
   corporationId: number | null;
   hasRefreshToken: boolean;
   missingScopes: string[];
-}
-
-// A shared owner key: a character or a corporation, by id. Structurally matches each
-// owned-* slice's own OwnerKey.
-export interface OwnerKey {
-  ownerType: 'character' | 'corporation';
-  ownerId: number;
 }
 
 // The user's linked characters with the scope health the eligibility predicates read.

@@ -10,10 +10,10 @@
 import { useEffect, useRef } from 'react';
 import { Pill } from '@/components/ui/pill';
 import { initials } from '@/lib/format/names';
-import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { jobActivityPill } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
+import { activeJobStatusText, formatEndDate, jobRowModel } from '../job-view';
 
 export function IndustryActiveJobs({
   jobs,
@@ -49,10 +49,9 @@ function JobRow({
   names: Record<string, string>;
   now: number;
 }) {
-  const headlineId = job.product_type_id ?? job.blueprint_type_id;
+  const { headlineId, remainingMs } = jobRowModel(job, now);
   const name = names[String(headlineId)] ?? `Type #${headlineId}`;
   const activity = jobActivityPill(job.activity_id);
-  const end = Date.parse(job.end_date);
   const isComplete = job.status === 'ready';
 
   return (
@@ -61,11 +60,7 @@ function JobRow({
         {isComplete ? (
           <div className="industry-job-time complete">Complete ✓</div>
         ) : (
-          <div className="industry-job-time">
-            {job.status === 'active' && Number.isFinite(end)
-              ? formatRemaining(end - now)
-              : `${job.status.charAt(0).toUpperCase()}${job.status.slice(1)}`}
-          </div>
+          <div className="industry-job-time">{activeJobStatusText(job.status, remainingMs)}</div>
         )}
         <IndustryJobBar pct={isComplete ? 100 : jobProgress(job, now)} />
       </div>
@@ -94,12 +89,4 @@ function IndustryJobBar({ pct }: { pct: number }) {
       <span ref={ref} className="industry-bar-fill" aria-hidden />
     </div>
   );
-}
-
-// EVE's in-client end-date format (YYYY.MM.DD HH:MM), in the viewer's local tz.
-function formatEndDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
