@@ -105,7 +105,7 @@ function AdminUserRow({
             currentQuery={currentQuery}
           />
         ) : (
-          <span className="text-[10px] text-muted whitespace-nowrap italic">managed via env</span>
+          <span className="text-micro text-muted whitespace-nowrap italic">managed via env</span>
         )
       }
     />
@@ -141,9 +141,9 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
         <EmptyState>No role changes in the last {AUDIT_WINDOW_DAYS} days.</EmptyState>
       ) : (
         <div className="px-3.5 py-2">
-          <table className="w-full font-mono text-[12px]">
+          <table className="w-full font-mono text-ui">
             <thead>
-              <tr className="text-[10px] tracking-[0.12em] uppercase text-muted">
+              <tr className="text-label tracking-[0.12em] uppercase text-muted">
                 <th className="text-left py-1.5 font-normal">Timestamp (UTC)</th>
                 <th className="text-left py-1.5 font-normal">Actor</th>
                 <th className="text-left py-1.5 font-normal">Target</th>
@@ -171,18 +171,18 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
         defaultValue={query ?? ''}
         placeholder="Search by character name"
         maxLength={MAX_QUERY_LENGTH}
-        className="flex-1 font-mono text-[12px] px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
+        className="flex-1 font-mono text-ui px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
       />
       <button
         type="submit"
-        className="font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-isk transition-colors"
+        className="font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-isk transition-colors"
       >
         Search
       </button>
       {query ? (
         <Link
           href="/admin/access"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted px-2 py-1"
+          className="font-mono text-ui uppercase tracking-[0.12em] text-muted px-2 py-1"
         >
           Clear
         </Link>
@@ -286,7 +286,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
         meta={
           <a
             href="/admin"
-            className="font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
+            className="font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
           >
             ← Dashboard
           </a>

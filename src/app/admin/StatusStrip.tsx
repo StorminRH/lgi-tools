@@ -50,13 +50,13 @@ function DetailBody({ children }: { children: ReactNode }) {
 }
 
 function DetailCaption({ children }: { children: ReactNode }) {
-  return <div className="font-mono text-[11px] text-muted">{children}</div>;
+  return <div className="font-mono text-ui text-muted">{children}</div>;
 }
 
 function ChartBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">{label}</div>
+      <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">{label}</div>
       {children}
     </div>
   );
@@ -66,7 +66,7 @@ function DurationTable({ rows }: { rows: CronOutcomeCount[] }) {
   if (rows.length === 0) return null;
   return (
     <ChartBlock label="Average duration by outcome">
-      <table className="w-full font-mono text-[12px]">
+      <table className="w-full font-mono text-ui">
         <tbody>
           {rows.map((o) => (
             <tr key={o.outcome} className="border-t border-border-soft">

@@ -31,11 +31,11 @@ export function StatusRow({
             aria-hidden
             className={`size-2 rounded-full shrink-0 ${DOT_CLASS[status.level]}`}
           />
-          <span className="font-mono text-[12px] text-name w-[110px] shrink-0">{name}</span>
-          <span className="font-mono text-[12px] text-muted truncate">{status.headline}</span>
+          <span className="font-mono text-ui text-name w-[110px] shrink-0">{name}</span>
+          <span className="font-mono text-ui text-muted truncate">{status.headline}</span>
           <span
             data-chevron
-            className="ml-auto text-[10px] text-muted transition-transform inline-block shrink-0"
+            className="ml-auto text-micro text-muted transition-transform inline-block shrink-0"
           >
             ▾
           </span>

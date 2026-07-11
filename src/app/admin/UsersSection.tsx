@@ -30,7 +30,7 @@ export async function UsersSection({ range }: { range: DateRange }) {
         <EmptyState>No sign-ins in this range.</EmptyState>
       ) : (
         <div className="px-3.5 py-3">
-          <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
+          <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">
             Users by login count
           </div>
           <AdminBarChart
@@ -39,7 +39,7 @@ export async function UsersSection({ range }: { range: DateRange }) {
           />
         </div>
       )}
-      <div className="px-3.5 py-2 border-t border-border-soft font-mono text-[11px] text-muted">
+      <div className="px-3.5 py-2 border-t border-border-soft font-mono text-ui text-muted">
         Admin roles and the role-change audit live on{' '}
         <Link href="/admin/access" className="text-isk hover:text-name transition-colors">
           Access →
