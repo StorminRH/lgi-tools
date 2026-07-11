@@ -35,50 +35,10 @@ import {
 } from './queries';
 import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
-import { TOKEN_CRYPTO_VERSION, encryptToken } from './token-crypto';
+import { encryptToken } from './token-crypto';
+import { encryptAccountTokens } from './account-token-encryption';
+import { deriveSessionIdentity } from './session-identity';
 import type { CharacterRole } from './types';
-
-const CIPHERTEXT_PREFIX = `${TOKEN_CRYPTO_VERSION}:`;
-
-// Encrypt the EVE access/refresh tokens on an account write before it reaches
-// the DB. The create hook receives the full account; the update hook (re-login)
-// receives only the changed fields — so this only touches tokens that are
-// actually present, and skips a value that's already ciphertext (idempotent: it
-// must never double-encrypt). The dedicated key lives in token-crypto.ts.
-function encryptAccountTokens<
-  T extends {
-    providerId?: string;
-    accessToken?: string | null;
-    refreshToken?: string | null;
-  },
->(data: T): T {
-  // EVE is the ONLY provider today, so every account token reaching this hook is
-  // an EVE token encrypted under EVE_TOKEN_ENCRYPTION_KEY. We skip only a write
-  // that positively declares a non-EVE provider. The update path (re-login) often
-  // omits providerId — for an EVE-only app that correctly still encrypts, which is
-  // required (a re-login token refresh must not land plaintext). FORWARD-COMPAT: if
-  // a second OAuth provider is ever wired in, revisit this — its tokens would
-  // otherwise be encrypted under the EVE key and become unreadable. The fix then is
-  // a per-provider key (or a positive-EVE-only guard that still covers the
-  // providerId-absent EVE update path), not flipping this guard naively.
-  if (data.providerId != null && data.providerId !== EVE_PROVIDER_ID) return data;
-  const out: T = { ...data };
-  if (
-    typeof out.accessToken === 'string' &&
-    out.accessToken.length > 0 &&
-    !out.accessToken.startsWith(CIPHERTEXT_PREFIX)
-  ) {
-    out.accessToken = encryptToken(out.accessToken);
-  }
-  if (
-    typeof out.refreshToken === 'string' &&
-    out.refreshToken.length > 0 &&
-    !out.refreshToken.startsWith(CIPHERTEXT_PREFIX)
-  ) {
-    out.refreshToken = encryptToken(out.refreshToken);
-  }
-  return out;
-}
 
 // Same authz rule as the legacy isAdmin(): env-driven superadmin (keyed on the
 // active character id) OR the DB-driven per-user ADMIN role.
@@ -104,8 +64,8 @@ const options = {
   // Do not turn it on.
   databaseHooks: {
     account: {
-      create: { before: async (acct) => ({ data: encryptAccountTokens(acct) }) },
-      update: { before: async (acct) => ({ data: encryptAccountTokens(acct) }) },
+      create: { before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }) },
+      update: { before: async (acct) => ({ data: encryptAccountTokens(acct, encryptToken) }) },
     },
   },
   // Account-linking policy (3.4.2). Each EVE character is its own `account` row
@@ -275,24 +235,13 @@ export const auth = betterAuth({
     // isAdmin (computed server-side because superadmin reads an env var). Both
     // the server shim (session.ts) and the client (useSession) read these.
     customSession(async ({ user: u, session: s }) => {
-      const role = (u.role as CharacterRole) ?? 'USER';
       // Resolve the ACTIVE character (the one named by user.activeCharacterId, or
-      // the oldest linked account as a fallback) and derive identity from it, so
-      // the header portrait/name always match the active selection — independent
-      // of the `overrideUserInfo` churn that rewrites u.name/u.image to whichever
-      // character last signed in. One indexed lookup; name/portrait fall back to
-      // the user row only if the character's profile hasn't been written yet.
+      // the oldest linked account as a fallback) — one indexed lookup — then shape
+      // the enriched identity from it, so the header portrait/name always match the
+      // active selection independent of the `overrideUserInfo` churn that rewrites
+      // u.name/u.image to whichever character last signed in.
       const active = await resolveActiveCharacter(u.id, u.activeCharacterId ?? null);
-      const characterId = active?.characterId ?? null;
-      return {
-        user: u,
-        session: s,
-        characterId,
-        name: active?.name ?? u.name,
-        portraitUrl: active?.portraitUrl ?? u.image ?? '',
-        role,
-        isAdmin: computeIsAdmin(characterId, role),
-      };
+      return deriveSessionIdentity({ user: u, session: s, active, isAdmin: computeIsAdmin });
     }, options),
   ],
 });
