@@ -81,18 +81,18 @@ function LiveRoster() {
   }, []);
 
   if (state === 'loading') {
-    return <p className="text-[11px] text-muted">Loading characters…</p>;
+    return <p className="text-ui text-muted">Loading characters…</p>;
   }
   if (state === 'error') {
     return (
-      <p className="text-[11px] text-muted">
+      <p className="text-ui text-muted">
         Could not load your characters — reload the page to try again.
       </p>
     );
   }
   if (state.characters.length === 0) {
     return (
-      <p className="text-[11px] text-muted">
+      <p className="text-ui text-muted">
         No characters linked yet — add one below to see its skill queue here.
       </p>
     );

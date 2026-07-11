@@ -12,7 +12,7 @@ import { cn } from '@/components/ui/cn';
 // builder-only concern); the corp editor has a fixed structure and just supplies rigs.
 
 const inputClass =
-  'border border-border bg-bg px-2 py-1 font-mono text-[12px] text-text focus:border-border-active focus:outline-none';
+  'border border-border bg-bg px-2 py-1 font-mono text-ui text-text focus:border-border-active focus:outline-none';
 
 export function RigSupply({
   validRigs,
@@ -32,7 +32,7 @@ export function RigSupply({
   const slotIndices = Array.from({ length: maxSlots }, (_, i) => i);
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-[0.12em] text-muted">
+      <span className="text-label uppercase tracking-[0.12em] text-muted">
         Rigs ({validRigs.length} fit this structure)
       </span>
       <div className="flex flex-col gap-1.5">

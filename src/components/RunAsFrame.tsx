@@ -39,7 +39,7 @@ const FRAME_CLASSES =
 // nowrap: the label is a touch wider than the 108px column and centers over it,
 // spilling harmlessly into the band's cluster gaps rather than wrapping tall.
 const HEADING = (
-  <span className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
+  <span className="whitespace-nowrap font-mono text-label uppercase tracking-[0.14em] text-muted">
     Build character
   </span>
 );
@@ -57,11 +57,11 @@ function InertRunAsFrame({ loading }: { loading: boolean }) {
         <>
           <span
             aria-hidden
-            className="flex size-16 items-center justify-center rounded-full border border-border-idle text-[18px] text-muted"
+            className="flex size-16 items-center justify-center rounded-full border border-border-idle text-lead text-muted"
           >
             —
           </span>
-          <span className="text-[9px] uppercase tracking-[0.14em] text-muted">Sign in</span>
+          <span className="text-label uppercase tracking-[0.14em] text-muted">Sign in</span>
         </>
       )}
     </div>
@@ -83,7 +83,7 @@ function RunAsCharacterItems({ characters }: { characters: BuildCharacter[] | nu
         >
           <CharacterPortrait characterId={c.characterId} name={c.name} src={c.portraitUrl} size={28} />
           <span className="truncate">{c.name}</span>
-          <MenuRadioItemIndicator className="ml-auto pl-2 text-[10px] leading-none text-muted">
+          <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
             ✓
           </MenuRadioItemIndicator>
         </MenuRadioItem>
@@ -128,9 +128,9 @@ export function RunAsFrame({
             src={view.portraitUrl}
             size={64}
           />
-          <span className="flex max-w-full items-center gap-1 font-mono text-[9px] uppercase tracking-[0.08em] text-muted">
+          <span className="flex max-w-full items-center gap-1 font-mono text-label uppercase tracking-[0.08em] text-muted">
             <span className="truncate">{view.name}</span>
-            <span aria-hidden className="text-[10px] leading-none">
+            <span aria-hidden className="text-micro leading-none">
               ▾
             </span>
           </span>
@@ -149,7 +149,7 @@ export function RunAsFrame({
             the sentinel for "no explicit pick". */}
         <MenuRadioItem value={0} closeOnClick className="account-menu-item flex items-center">
           <span className="truncate">Default (active character)</span>
-          <MenuRadioItemIndicator className="ml-auto pl-2 text-[10px] leading-none text-muted">
+          <MenuRadioItemIndicator className="ml-auto pl-2 text-micro leading-none text-muted">
             ✓
           </MenuRadioItemIndicator>
         </MenuRadioItem>

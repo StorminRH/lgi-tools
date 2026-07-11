@@ -50,7 +50,7 @@ export function CharacterStrip({
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <span className="text-[10px] tracking-[0.12em] uppercase text-muted">Tracking</span>
+      <span className="text-label tracking-[0.12em] uppercase text-muted">Tracking</span>
       <div className="flex items-center gap-1.5">
         {characters.map((character) => {
           const state = stripState(character, dimmedIds);
@@ -94,7 +94,7 @@ export function CharacterStrip({
         <button
           type="button"
           onClick={() => startCharacterLink(window.location.pathname)}
-          className="font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-tone-orange transition-colors whitespace-nowrap"
+          className="font-mono text-ui uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-tone-orange transition-colors whitespace-nowrap"
         >
           Reconnect to track
         </button>

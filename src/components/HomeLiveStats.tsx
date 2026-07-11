@@ -65,7 +65,7 @@ export async function HomeLiveStats() {
               <dd
                 className={cn(
                   'order-1 font-jb font-semibold text-name tabular-nums',
-                  stat.compact ? 'text-[17px] leading-[26px]' : 'text-[26px] leading-none',
+                  stat.compact ? 'text-lead leading-[26px]' : 'text-stat leading-none',
                 )}
               >
                 {stat.value}

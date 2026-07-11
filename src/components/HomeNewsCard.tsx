@@ -37,7 +37,7 @@ export async function HomeNewsCard() {
                   className="block px-3.5 py-3 hover:bg-row-hover transition-colors no-underline group"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-[13px] text-name leading-[1.45] group-hover:text-isk transition-colors">
+                    <span className="text-ui text-name leading-[1.45] group-hover:text-isk transition-colors">
                       {item.title}
                     </span>
                     {item.category ? <Pill tone="blue">{item.category}</Pill> : null}

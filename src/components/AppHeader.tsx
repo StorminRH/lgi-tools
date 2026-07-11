@@ -27,7 +27,7 @@ export async function AppHeader() {
       <div className="flex items-center shrink-0 px-4 border-r border-border">
         <Link
           href="/"
-          className="font-jb font-extrabold text-[14px] tracking-[0.04em] uppercase text-name inline-flex items-center"
+          className="font-jb font-extrabold text-body tracking-[0.04em] uppercase text-name inline-flex items-center"
         >
           <span className="text-isk">[</span>
           <span className="px-[2px]">LGI</span>

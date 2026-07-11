@@ -22,7 +22,7 @@ export function HomeFeatureCards() {
               Wormhole Sites
             </div>
           </div>
-          <p className="body-copy text-[13px] text-text leading-[1.65] flex-1">
+          <p className="body-copy text-body text-text leading-[1.65] flex-1">
             Browse wormhole anomalies and signatures by class, site type, and ISK
             value. Live Jita prices on ore and gas resources.
           </p>
@@ -47,7 +47,7 @@ export function HomeFeatureCards() {
               Industry Planner
             </div>
           </div>
-          <p className="body-copy text-[13px] text-text leading-[1.65] flex-1">
+          <p className="body-copy text-body text-text leading-[1.65] flex-1">
             Manufacturing profitability for blueprints and reactions — build cost,
             margin, and price confidence at live Jita rates.
           </p>
