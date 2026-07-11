@@ -86,10 +86,29 @@ function localJsonlPathFor(name: SdeJsonlName): string {
   return join(JSONL_CACHE_DIR, `${name}.jsonl`);
 }
 
-// Stream the zip to a `.tmp` file then atomically rename. A mid-stream network
-// drop would otherwise leave a partial zip at `dest`, and Vercel reuses /tmp
-// across warm Lambda invocations — the next call would feed a corrupt archive
-// straight to yauzl. Atomic rename means a partial write never becomes `dest`.
+// Stream a web response body to a `.tmp` file then atomically rename onto `dest`,
+// removing the partial on failure. A mid-stream network drop would otherwise
+// leave a corrupt file at `dest`, and Vercel reuses /tmp across warm Lambda
+// invocations — the next call would feed that corrupt file straight to its
+// parser. Atomic rename means a partial write never becomes `dest`.
+async function streamToFileAtomic(
+  body: ReadableStream<Uint8Array>,
+  dest: string,
+): Promise<void> {
+  const tmp = `${dest}.tmp`;
+  try {
+    await pipeline(
+      Readable.fromWeb(body as unknown as NodeWebReadableStream<Uint8Array>),
+      createWriteStream(tmp),
+    );
+    await rename(tmp, dest);
+  } catch (err) {
+    await unlink(tmp).catch(() => undefined);
+    throw err;
+  }
+}
+
+// Stream the zip to a `.tmp` file then atomically rename (see streamToFileAtomic).
 async function downloadZipTo(dest: string): Promise<void> {
   const res = await fetchWithTimeout(
     CCP_SDE_LATEST_ZIP_URL,
@@ -101,17 +120,7 @@ async function downloadZipTo(dest: string): Promise<void> {
       `Fetch failed for SDE JSONL zip: ${res.status} ${res.statusText}`,
     );
   }
-  const tmp = `${dest}.tmp`;
-  try {
-    await pipeline(
-      Readable.fromWeb(res.body as unknown as NodeWebReadableStream<Uint8Array>),
-      createWriteStream(tmp),
-    );
-    await rename(tmp, dest);
-  } catch (err) {
-    await unlink(tmp).catch(() => undefined);
-    throw err;
-  }
+  await streamToFileAtomic(res.body, dest);
 }
 
 // Extract just the files we need out of the zip on disk, streaming each
@@ -325,23 +334,9 @@ async function downloadOne(name: SdeDumpName): Promise<string> {
   if (!res.ok || !res.body) {
     throw new Error(`Fetch failed for ${name}: ${res.status} ${res.statusText}`);
   }
-  // Write to .tmp and rename on success. A mid-stream network drop
-  // would otherwise leave a partial bz2 at `dest`, and Vercel reuses
-  // /tmp across warm Lambda invocations — the next call's
-  // `existsSync(dest)` would return true and feed the corrupt file
-  // straight to the CSV parser. Atomic rename means a partial write
-  // never becomes the cached path.
-  const tmp = `${dest}.tmp`;
-  try {
-    await pipeline(
-      Readable.fromWeb(res.body as unknown as NodeWebReadableStream<Uint8Array>),
-      createWriteStream(tmp),
-    );
-    await rename(tmp, dest);
-  } catch (err) {
-    await unlink(tmp).catch(() => undefined);
-    throw err;
-  }
+  // existsSync(dest) above would serve a corrupt partial from warm-Lambda /tmp
+  // reuse, so the write is atomic (see streamToFileAtomic).
+  await streamToFileAtomic(res.body, dest);
   return dest;
 }
 

@@ -77,6 +77,19 @@ export interface ViewerCorpStructuresResult {
 // work and every other member's view inside the window makes no ESI call (the
 // refresh's per-corp staleness gate is the dedup). A non-member's affiliation set
 // never includes the corp, so they read nothing.
+// Fire the stale-gated write-behind refresh for the user's corps behind the
+// response — shared by both on-view reads.
+function scheduleCorpStructuresRefresh(userId: string): void {
+  after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
+}
+
+// Each corp's last-refreshed epoch ms, keyed by corp id, for the freshness readout.
+function freshnessMapOf(
+  syncStates: { corporationId: number; lastRefreshedAt: Date }[],
+): Map<number, number> {
+  return new Map(syncStates.map((s) => [s.corporationId, s.lastRefreshedAt.getTime()]));
+}
+
 export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
   await refreshStaleAffiliationsForUser(userId);
   const affiliations = await getUserAffiliations(userId);
@@ -86,12 +99,12 @@ export async function getCorpStructuresForUserOnView(userId: string): Promise<Vi
     listCorpStructureSyncStates(corporationIds),
     readCorpStructureSharings(corporationIds),
   ]);
-  after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
+  scheduleCorpStructuresRefresh(userId);
 
   // Fail reads closed on consent (defense in depth): a corp that hasn't opted in
   // returns no structures even if a row survived a partial wipe — so this seam (and
   // the planner merge that reuses it) never exposes a disabled corp's catalogue.
-  const freshnessByCorp = new Map(syncStates.map((s) => [s.corporationId, s.lastRefreshedAt.getTime()]));
+  const freshnessByCorp = freshnessMapOf(syncStates);
   const corporations: ViewerCorpStructures[] = corporationIds.map((corporationId) => ({
     corporationId,
     structures: sharings.get(corporationId)?.enabled ? structuresByCorp.get(corporationId) ?? [] : [],
@@ -162,9 +175,9 @@ export async function getCorpStructuresPageData(userId: string): Promise<CorpStr
     getCorpStructureRigs(corporationIds),
     resolveEntityNames(corporationIds),
   ]);
-  after(() => refreshCorpStructuresForUser(makeCorpStructuresPort(), userId));
+  scheduleCorpStructuresRefresh(userId);
 
-  const freshnessByCorp = new Map(syncStates.map((s) => [s.corporationId, s.lastRefreshedAt.getTime()]));
+  const freshnessByCorp = freshnessMapOf(syncStates);
   const smFlags = await Promise.all(
     corporationIds.map(
       async (corporationId) =>
