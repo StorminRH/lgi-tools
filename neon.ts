@@ -21,17 +21,24 @@ export default defineConfig({
         postgres: { computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 2 } },
       };
     }
-    // A non-default branch that already exists on Neon: leave its live,
+    // Any non-default branch that already exists on Neon: leave its live,
     // possibly in-use settings alone.
     if (branch.exists) return {};
-    // A non-default branch being created (a manual preview): apply the cost
-    // guard — auto-expire a few days out so an abandoned preview cleans itself
-    // up, on cheap compute that scales to zero quickly when idle.
-    return {
-      ttl: '3d',
-      postgres: {
-        computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 1, suspendTimeout: '1m' },
-      },
-    };
+    // A brand-new preview branch: apply the cost guard — auto-expire a few days
+    // out so an abandoned preview cleans itself up, on cheap compute that scales
+    // to zero quickly when idle. Gated on the `preview/<branch>` naming the
+    // manual-preview flow uses (see the delete-neon-branch workflow), so the TTL
+    // only ever reaches ephemeral previews.
+    if (branch.name.startsWith('preview/')) {
+      return {
+        ttl: '3d',
+        postgres: {
+          computeSettings: { autoscalingLimitMinCu: 0.25, autoscalingLimitMaxCu: 1, suspendTimeout: '1m' },
+        },
+      };
+    }
+    // Any other new non-default branch (e.g. a future long-lived `staging`):
+    // no TTL — it must not silently auto-expire — and inherit project defaults.
+    return {};
   },
 });
