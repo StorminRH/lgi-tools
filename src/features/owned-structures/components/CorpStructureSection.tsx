@@ -68,7 +68,7 @@ function CorpCard({
       <SectionHeader size="md" label={corp.corporationName} hint={view.hint} />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         {view.showManagerNote && (
-          <p className="text-[11px] text-muted">
+          <p className="text-body text-muted">
             Structure sharing is managed in{' '}
             <Link href="/settings" className="text-name underline hover:text-text">
               Account settings
@@ -131,7 +131,7 @@ function CorpStructureItem({
   return (
     <li className="flex flex-col gap-2 border border-border bg-section px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-[12px] text-text">{view.displayName}</span>
+        <span className="font-mono text-ui text-text">{view.displayName}</span>
         <Pill tone="neutral">{view.typeName}</Pill>
       </div>
       {canEdit ? (
@@ -143,7 +143,7 @@ function CorpStructureItem({
       ) : view.hasDetails ? (
         <CorpStructureReadonlyDetails view={view} />
       ) : (
-        <span className="text-[10px] text-muted">no rigs recorded</span>
+        <span className="text-micro text-muted">no rigs recorded</span>
       )}
     </li>
   );
@@ -209,7 +209,7 @@ function CorpStructureRigEditor({
         disabled={busy}
       />
       <label className="flex items-center gap-2">
-        <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Facility tax %</span>
+        <span className="text-label uppercase tracking-[0.12em] text-muted">Facility tax %</span>
         <input
           type="number"
           min={0}
@@ -220,14 +220,14 @@ function CorpStructureRigEditor({
           placeholder="Empty = 0.25% assumed"
           aria-label={`Facility tax percent for ${structure.name ?? `structure ${structure.structureId}`}`}
           disabled={busy}
-          className="w-[180px] border border-border bg-bg px-2 py-1 font-mono text-[12px] text-text focus:border-border-active focus:outline-none"
+          className="w-[180px] border border-border bg-bg px-2 py-1 font-mono text-ui text-text focus:border-border-active focus:outline-none"
         />
       </label>
       <button
         type="button"
         onClick={onSave}
         disabled={busy}
-        className="self-start border border-tone-green px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-tone-green hover:bg-section disabled:border-border disabled:text-muted"
+        className="self-start border border-tone-green px-3 py-1.5 text-label uppercase tracking-[0.12em] text-tone-green hover:bg-section disabled:border-border disabled:text-muted"
       >
         Save details
       </button>
