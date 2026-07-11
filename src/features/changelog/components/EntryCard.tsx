@@ -1,5 +1,6 @@
 import { Pill } from '@/components/ui/pill';
 import type { PillTone } from '@/components/ui/tones';
+import { formatUtcDate } from '@/lib/format/time';
 import type { ChangeType, ChangelogEntry } from '../parse';
 
 // One node in the changelog timeline (handoff §6): the version + date in the
@@ -12,22 +13,12 @@ const TYPE_TONE: Record<ChangeType, PillTone> = {
   Removed: 'red',
 };
 
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-function formatDate(iso: string): string {
-  const [year, month, day] = iso.split('-').map(Number);
-  if (!year || !month || !day || month < 1 || month > 12) return iso;
-  return `${day} ${MONTHS[month - 1]} ${year}`;
-}
-
 export function EntryCard({ entry }: { entry: ChangelogEntry }) {
   return (
     <div className="changelog-entry">
       <div className="changelog-rail">
         <div className="changelog-ver">v{entry.version}</div>
-        <div className="changelog-date">{formatDate(entry.date)}</div>
+        <div className="changelog-date">{formatUtcDate(entry.date)}</div>
       </div>
       <div className="changelog-changes">
         {entry.groups.map((group) => (

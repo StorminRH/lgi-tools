@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
+import { formatIsoDay } from '@/lib/format/time';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { KpiRow } from './KpiRow';
 import { parseRange, RANGES, rangeFor, type RangeKey } from './period';
@@ -18,10 +19,6 @@ import { UsersSection } from './UsersSection';
 // engagement — every metric exactly once, no tabs. Role management lives on
 // /admin/access. Charts stay on one blue accent; green/amber/red are reserved
 // for status dots and KPI deltas.
-
-function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 function RangeSelector({ range }: { range: RangeKey }) {
   const linkBase =
@@ -76,12 +73,12 @@ async function AdminContent({
   return (
     <>
       <div className="print-only font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-1">
-        Admin report — {formatDate(range.from)} to {formatDate(range.to)}
+        Admin report — {formatIsoDay(range.from)} to {formatIsoDay(range.to)}
       </div>
       <PageHead
         crumb="admin"
         title="Admin"
-        subtitle={`${formatDate(range.from)} → ${formatDate(range.to)}`}
+        subtitle={`${formatIsoDay(range.from)} → ${formatIsoDay(range.to)}`}
         meta={
           <div className="flex items-center gap-3">
             <RangeSelector range={rangeKey} />
