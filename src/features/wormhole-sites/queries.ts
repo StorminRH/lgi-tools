@@ -462,5 +462,5 @@ export async function getPricedSiteDetail(id: number): Promise<SiteDetail | null
   // getSiteDetail carries its own cold-start retry; only the price overlay's
   // direct read needs one here (wrapping both would multiply the attempts).
   const [priced] = await withColdStartRetry(() => overlayLivePrices([raw]));
-  return priced;
+  return priced ?? null;
 }

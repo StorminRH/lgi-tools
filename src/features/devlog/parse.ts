@@ -69,9 +69,9 @@ function matchMark(re: RegExp, text: string, i: number, make: (m: RegExpExecArra
 
 function markAt(text: string, i: number) {
   const c = text[i];
-  if (c === '`') return matchMark(INLINE_CODE, text, i, (m) => ({ type: 'code', value: m[1] }));
-  if (c === '*' && text[i + 1] === '*') return matchMark(BOLD, text, i, (m) => ({ type: 'bold', value: m[1] }));
-  if (c === '[') return matchMark(LINK, text, i, (m) => ({ type: 'link', text: m[1], href: m[2] }));
+  if (c === '`') return matchMark(INLINE_CODE, text, i, (m) => ({ type: 'code', value: m[1] ?? '' }));
+  if (c === '*' && text[i + 1] === '*') return matchMark(BOLD, text, i, (m) => ({ type: 'bold', value: m[1] ?? '' }));
+  if (c === '[') return matchMark(LINK, text, i, (m) => ({ type: 'link', text: m[1] ?? '', href: m[2] ?? '' }));
   return null;
 }
 
@@ -119,10 +119,10 @@ function extractRefs(text: string): { clean: string; ids: string[] } {
 // trailing fence line, and surrounding blank lines; keep everything between verbatim.
 function finalizeBody(lines: string[]): string {
   const b = lines.slice();
-  while (b.length && b[0].trim() === '') b.shift();
-  if (b.length && b[0].startsWith('```')) b.shift();
-  while (b.length && b[b.length - 1].trim() === '') b.pop();
-  if (b.length && b[b.length - 1].startsWith('```')) b.pop();
+  while (b.length && b[0]?.trim() === '') b.shift();
+  if (b.length && b[0]?.startsWith('```')) b.shift();
+  while (b.length && b[b.length - 1]?.trim() === '') b.pop();
+  if (b.length && b[b.length - 1]?.startsWith('```')) b.pop();
   return b.join('\n');
 }
 
@@ -158,13 +158,15 @@ function splitEntries(md: string): Entry[] {
     if (!inExcerpts) {
       const dm = line.match(DOC_HEADING);
       if (dm) {
-        doc = { kind: 'doc', title: dm[1], body: [] };
+        // DOC_HEADING's title capture group is mandatory when the line matches.
+        doc = { kind: 'doc', title: dm[1]!, body: [] };
         entries.push(doc);
         continue;
       }
       const fm = line.match(FOLDER_HEADING);
       if (fm) {
-        entries.push({ kind: 'folder', title: fm[1] });
+        // FOLDER_HEADING's title capture group is mandatory when the line matches.
+        entries.push({ kind: 'folder', title: fm[1]! });
         doc = null;
         continue;
       }
@@ -247,11 +249,11 @@ function parseProse(lines: string[]): RawBlock[] {
       const isOrdered = Boolean(numbered);
       if (items.length && isOrdered !== ordered) flushList();
       ordered = isOrdered;
-      items.push((bullet ?? numbered)![1]);
+      items.push((bullet ?? numbered)![1] ?? '');
     } else if (quoted) {
       flushPara();
       flushList();
-      quote.push(quoted[1]);
+      quote.push(quoted[1] ?? '');
     } else {
       flushList();
       flushQuote();

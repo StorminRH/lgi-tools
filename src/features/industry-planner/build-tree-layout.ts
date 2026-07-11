@@ -35,8 +35,9 @@ export function formatNodeQty(quantity: number): string {
 // matching the live BuildCascade ordering. Shared with the dev tree sandbox.
 export function sortInputs(inputs: BuildNode[], display: Display): BuildNode[] {
   return [...inputs].sort((a, b) => {
-    const da = display[a.typeId];
-    const db = display[b.typeId];
+    // display carries every node in the tree being sorted (built alongside it).
+    const da = display[a.typeId]!;
+    const db = display[b.typeId]!;
     return (
       Number(da.isRaw) - Number(db.isRaw) ||
       da.label.localeCompare(db.label) ||
@@ -86,7 +87,8 @@ export function buildLevel(root: BuildNode, display: Display, maxDepth: number) 
       leaf += 1;
     } else {
       laid.children = kids.map((k) => place(k, depth + 1, laid));
-      laid.y = round((laid.children[0].y + laid.children[laid.children.length - 1].y) / 2);
+      // this branch runs only when kids.length > 0, and children = kids.map(...), so both ends exist.
+      laid.y = round((laid.children[0]!.y + laid.children[laid.children.length - 1]!.y) / 2);
     }
     nodes.push(laid);
     return laid;
@@ -109,9 +111,9 @@ export function chainTo(laid: Laid): number[] {
 // Walk a drill path from the tree root to the focused buildable node, stopping at
 // the first raw/leaf/missing step (the deepest still-drillable node reached).
 export function focusOf(tree: BuildNode[], display: Display, path: number[]): BuildNode {
-  let node = tree[0];
+  let node = tree[0]!; // the build tree always has a root
   for (const id of path) {
-    const next = node.inputs.find((n) => n.typeId === id && !display[n.typeId].isRaw && n.inputs.length > 0);
+    const next = node.inputs.find((n) => n.typeId === id && !display[n.typeId]!.isRaw && n.inputs.length > 0);
     if (!next) break;
     node = next;
   }
@@ -129,7 +131,7 @@ export function findPath(tree: BuildNode[], typeId: number): number[] | null {
     }
     return null;
   };
-  return dfs(tree[0], []);
+  return dfs(tree[0]!, []); // the build tree always has a root
 }
 
 // Truncate a node name to the box's char budget (SVG text has no auto-ellipsis).

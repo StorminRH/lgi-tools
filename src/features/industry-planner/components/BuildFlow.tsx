@@ -147,12 +147,14 @@ function FlowLevel({
         if (!n.parent) return null;
         const sx = n.parent.x + NODE_W;
         const mx = (sx + n.x) / 2;
+        // display carries every node in the laid-out tree.
+        const tone = display[n.node.typeId]!.tone;
         return (
           <path
             key={`e-${i}`}
             d={`M ${sx} ${n.parent.y} C ${mx} ${n.parent.y}, ${mx} ${n.y}, ${n.x} ${n.y}`}
             fill="none"
-            stroke={toneHex[display[n.node.typeId].tone]}
+            stroke={toneHex[tone]}
             strokeOpacity={0.5}
             strokeWidth={1.5}
           />
@@ -178,7 +180,7 @@ function FlowNode({
   onDrill: (chain: number[]) => void;
   onBackOut?: () => void;
 }) {
-  const d = display[laid.node.typeId];
+  const d = display[laid.node.typeId]!; // display carries every node in the laid-out tree
   const it = flowNodeInteract(laid, !!onBackOut);
   const onClick =
     it.action === 'back' ? onBackOut : it.action === 'drill' ? () => onDrill(chainTo(laid)) : undefined;

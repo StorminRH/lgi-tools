@@ -63,9 +63,10 @@ export function decryptToken(value: string): string | null {
   if (parts.length !== 4 || parts[0] !== TOKEN_CRYPTO_VERSION) return null;
   const k = key();
   try {
-    const iv = Buffer.from(parts[1], 'base64');
-    const tag = Buffer.from(parts[2], 'base64');
-    const ciphertext = Buffer.from(parts[3], 'base64');
+    // parts.length === 4 is checked above, so parts[1..3] are present.
+    const iv = Buffer.from(parts[1]!, 'base64');
+    const tag = Buffer.from(parts[2]!, 'base64');
+    const ciphertext = Buffer.from(parts[3]!, 'base64');
     const decipher = createDecipheriv(ALGORITHM, k, iv);
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
