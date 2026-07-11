@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isToolActive, TOOLS, visibleNavTools } from './registry';
+import { deriveNavToolItem, isToolActive, TOOLS, visibleNavTools } from './registry';
 
 const sites = TOOLS.find((t) => t.label === 'Wormhole Sites')!;
 
@@ -33,5 +33,40 @@ describe('isToolActive', () => {
 
   it('is inactive for a tool with no matchPrefix', () => {
     expect(isToolActive({ label: 'X', abbr: 'X', href: '/x' }, '/x')).toBe(false);
+  });
+});
+
+describe('deriveNavToolItem', () => {
+  it('renders a live tool as a link with its active state resolved', () => {
+    expect(deriveNavToolItem(sites, '/sites/30002')).toEqual({
+      kind: 'link',
+      label: 'Wormhole Sites',
+      href: '/sites',
+      active: true,
+      title: 'Wormhole Sites',
+    });
+    expect(deriveNavToolItem(sites, '/industry')).toEqual({
+      kind: 'link',
+      label: 'Wormhole Sites',
+      href: '/sites',
+      active: false,
+      title: 'Wormhole Sites',
+    });
+  });
+
+  it('renders a null-href tool as an inert "coming soon" span', () => {
+    expect(deriveNavToolItem({ label: 'Soon', abbr: 'SN', href: null }, '/x')).toEqual({
+      kind: 'soon',
+      label: 'Soon',
+      title: 'Soon — coming soon',
+    });
+  });
+
+  it('renders a nav-disabled tool as a plain inert span (its own label as title)', () => {
+    expect(deriveNavToolItem({ label: 'Held', abbr: 'HD', href: '/held', navDisabled: true }, '/x')).toEqual({
+      kind: 'soon',
+      label: 'Held',
+      title: 'Held',
+    });
   });
 });

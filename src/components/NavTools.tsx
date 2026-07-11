@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
-import { isToolActive, visibleNavTools } from '@/data/tools/registry';
+import { deriveNavToolItem, visibleNavTools } from '@/data/tools/registry';
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -28,28 +28,26 @@ function NavStrip({ pathname }: { pathname: string | null }) {
   return (
     <NavigationMenu label="Tools" className="nav-tools ml-auto border-l border-border-soft">
       {visibleNavTools().map((tool) => {
-        if (tool.href === null || tool.navDisabled) {
-          const title = tool.href === null ? `${tool.label} — coming soon` : tool.label;
+        const item = deriveNavToolItem(tool, pathname);
+        if (item.kind === 'soon') {
           return (
-            <NavigationMenuItem key={tool.label} className="flex items-stretch">
-              <span title={title} className="nav-tool soon">
-                {tool.label}
+            <NavigationMenuItem key={item.label} className="flex items-stretch">
+              <span title={item.title} className="nav-tool soon">
+                {item.label}
               </span>
             </NavigationMenuItem>
           );
         }
 
-        const active = isToolActive(tool, pathname);
-
         return (
-          <NavigationMenuItem key={tool.label} className="flex items-stretch">
+          <NavigationMenuItem key={item.label} className="flex items-stretch">
             <NavigationMenuLink
-              active={active}
-              title={tool.label}
-              className={cn('nav-tool', active && 'active')}
-              render={<Link href={tool.href} />}
+              active={item.active}
+              title={item.title}
+              className={cn('nav-tool', item.active && 'active')}
+              render={<Link href={item.href} />}
             >
-              {tool.label}
+              {item.label}
             </NavigationMenuLink>
           </NavigationMenuItem>
         );
