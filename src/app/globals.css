@@ -204,20 +204,22 @@
   --text-display: clamp(30px, 3.4vw, 42px); --text-display--line-height: 1.05; /* page titles / PageHead (Barlow) */
 
   /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ──
-   * The canonical four-family roster and its role map — the single source of
+   * The canonical three-family roster and its role map — the single source of
    * truth the "no stray family" check reads against (3.6.11 F1):
    *   --font-body    (Geist)         → body / content prose
    *   --font-display (Barlow Cond.)  → display: page titles / PageHead
-   *   --font-mono    (IBM Plex Mono) → UI + terminal chrome (breadcrumbs, nav
+   *   --font-mono    (JetBrains Mono)→ UI + terminal chrome (breadcrumbs, nav
    *                                    labels, readouts, toasts); the default face
-   *   --font-jb      (JetBrains Mono)→ the [Lo-Gang] wordmark + tabular numerals
-   *                                    that column-align in ISK/quantity tables
-   * JetBrains is the justified fourth family (same bar as a tones.ts entry): it
-   * is NOT a stray face — it carries the brand wordmark identity and the tabular
-   * figures that align numeric columns, a direct readability win. Folding it onto
-   * Plex would change the wordmark/nav look and lose that alignment, so it stays.
+   *   --font-jb      (JetBrains Mono)→ ALIAS of the same face, marking the
+   *                                    [Lo-Gang] wordmark + tabular numerals that
+   *                                    column-align in ISK/quantity tables
+   * JetBrains Mono is the single monospace face now (IBM Plex Mono was retired in
+   * 3.8.2.1): it carries both the default UI chrome and — via the --font-jb alias —
+   * the branded wordmark and tabular figures. The alias is kept (not folded) so the
+   * branded/tabular intent stays marked at its call sites and can re-split from the
+   * chrome face later without call-site archaeology.
    */
-  --font-mono:    var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono:    var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-display: var(--font-barlow), system-ui, sans-serif;
   --font-jb:      var(--font-jetbrains), ui-monospace, monospace;
   --font-body:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
@@ -258,7 +260,7 @@ a:hover {
 }
 
 /* Descriptive body copy — the only surfaces in a sans face (Geist) rather than
- * IBM Plex Mono: the tool-tile descriptions and the hero tagline (the /sites
+ * the mono face: the tool-tile descriptions and the hero tagline (the /sites
  * card descriptions adopt this in their own redesign). Bundles the approved
  * 0.01em tracking so the descriptive surfaces share one treatment. Kept
  * top-level (unlayered) so it wins over the `font-mono` / `tracking-*`

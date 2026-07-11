@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Barlow_Condensed, JetBrains_Mono, Geist } from "next/font/google";
+import { Barlow_Condensed, JetBrains_Mono, Geist } from "next/font/google";
 import { Suspense } from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -17,12 +17,6 @@ import { PageMenuProvider } from "@/components/PageMenuProvider";
 import { SITE_URL } from "@/config/site-url";
 import { readEnv } from "@/lib/env";
 
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
-
 const barlow = Barlow_Condensed({
   variable: "--font-barlow",
   subsets: ["latin"],
@@ -30,16 +24,19 @@ const barlow = Barlow_Condensed({
 });
 
 const jetBrainsMono = JetBrains_Mono({
-  // Distinct from the Tailwind `--font-jb` theme token (globals.css) so the token
-  // can reference this face instead of itself — the same next/font-var ≠
-  // theme-token split the other three families use.
+  // The mono face for the whole app: `--font-mono` (default UI/terminal chrome)
+  // and the `--font-jb` alias (branded wordmark + tabular figures) both resolve to
+  // this via the theme tokens in globals.css — kept distinct from the next/font var
+  // so a token references the face, not itself. Carries 500/600 (the mono
+  // mid-weights the chrome uses, previously served by IBM Plex Mono) on top of its
+  // own 700/800 for the wordmark and tabular version labels.
   variable: "--font-jetbrains",
   subsets: ["latin"],
-  weight: ["400", "700", "800"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 // Geist (variable font) — descriptive body copy only, via the .body-copy class
-// (see globals.css). Everything else stays IBM Plex Mono / Barlow / JetBrains.
+// (see globals.css). Everything else stays JetBrains Mono / Barlow.
 const geist = Geist({
   variable: "--font-geist",
   subsets: ["latin"],
@@ -84,7 +81,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plexMono.variable} ${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full`}
+      className={`${barlow.variable} ${jetBrainsMono.variable} ${geist.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
         {/* Sitewide dot-lattice backdrop (3.6.11 F1) — a fixed full-viewport
