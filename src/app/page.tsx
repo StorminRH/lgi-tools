@@ -91,7 +91,7 @@ async function RosterDemo({
   const roster = buildDemoRoster(params.demo === 'one');
   return (
     <div className="w-full max-w-[360px] mb-8 border border-border-soft p-3">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted mb-3">
+      <p className="font-mono text-label uppercase tracking-[0.12em] text-muted mb-3">
         Demo · sample data
       </p>
       <HomeRosterPanel demo={roster} />

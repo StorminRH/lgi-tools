@@ -11,7 +11,7 @@ export function SettingsControlRow({ model }: { model: MenuControlModel }) {
   const [value, setValue] = usePreference(model.def);
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-[11px] text-text">{model.label}</span>
+      <span className="text-ui text-text">{model.label}</span>
       <Segmented options={model.options} value={value} onChange={setValue} label={model.label} />
     </div>
   );

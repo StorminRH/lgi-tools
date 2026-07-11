@@ -15,7 +15,7 @@ export const metadata = {
 // Major-section heading inside the reading column — Barlow display, one tier
 // below the page H1, above the "// label" SectionLabel sub-heads.
 const SECTION_HEAD =
-  'font-display font-bold uppercase text-name text-[19px] leading-none tracking-[0.02em]';
+  'font-display font-bold uppercase text-name text-h3 leading-none tracking-[0.02em]';
 
 // One "// label" sub-head + its prose body — the reading column's repeated unit.
 function LegalSection({ label, children }: { label: ReactNode; children: ReactNode }) {
