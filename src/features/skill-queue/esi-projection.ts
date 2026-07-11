@@ -5,7 +5,7 @@
 // design — zod only.
 //
 // Wire shapes verified against the live ESI OpenAPI spec
-// (esi.evetech.net/meta/openapi.json) + the /dev/esi sandbox, 2026-06-11.
+// (esi.evetech.net/meta/openapi.json), 2026-06-11.
 // Entry keys stay snake_case: they are ESI's truth, stored verbatim.
 import { z } from 'zod';
 
