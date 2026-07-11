@@ -9,7 +9,7 @@ import type { StructureReadout } from '../structure-factors';
 // words, in their ISK-green bonus tone.
 function Metric({ icon, title, value }: { icon: ReactNode; title: string; value: string }) {
   return (
-    <span title={title} className="inline-flex items-center gap-1 font-mono text-[10px] leading-none text-isk">
+    <span title={title} className="inline-flex items-center gap-1 font-mono text-micro leading-none text-isk">
       <span aria-hidden className="inline-flex h-3 w-3 shrink-0">
         {icon}
       </span>
@@ -28,20 +28,20 @@ const BONUS_ROW: {
     <Metric icon={<HourglassIcon state="bonus" />} title={`Structure TE −${row.pct}`} value={row.pct} />
   ),
   cost: (row) => (
-    <span title={`Structure job cost −${row.pct}`} className="font-mono text-[10px] leading-none text-isk">
+    <span title={`Structure job cost −${row.pct}`} className="font-mono text-micro leading-none text-isk">
       cost −{row.pct}
     </span>
   ),
   'rxn-te': (row) => (
     <span className="inline-flex items-center gap-1">
       {row.withMarker && (
-        <span className="font-mono text-[9px] uppercase leading-none tracking-[0.1em] text-muted">rxn</span>
+        <span className="font-mono text-label uppercase leading-none tracking-[0.1em] text-muted">rxn</span>
       )}
       <Metric icon={<HourglassIcon state="bonus" />} title={`Reaction TE −${row.pct}`} value={row.pct} />
     </span>
   ),
   tax: (row) => (
-    <span title={`Owner-set facility tax ${row.taxPct}%`} className="font-mono text-[10px] leading-none text-muted">
+    <span title={`Owner-set facility tax ${row.taxPct}%`} className="font-mono text-micro leading-none text-muted">
       tax {row.taxPct}%
     </span>
   ),

@@ -11,11 +11,11 @@ import { MAX_SAVED_PLAN_NAME_LEN, type SavedPlanRow } from '../api-contract';
 import { savedPlanRowLabels } from '../saved-plans-view';
 
 export const savedPlanInputClass =
-  'border border-border bg-bg px-2 py-1 font-mono text-[12px] text-text ' +
+  'border border-border bg-bg px-2 py-1 font-mono text-ui text-text' +
   'placeholder:text-faint focus:border-border-active focus:outline-none';
 
 const actionClass =
-  'cursor-pointer font-mono text-[16px] leading-none text-faint transition-colors hover:text-name ' +
+  'cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name ' +
   'disabled:cursor-not-allowed disabled:opacity-40';
 
 export function SavedPlanRowItem({
@@ -76,10 +76,10 @@ export function SavedPlanRowItem({
           className="group/load flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left disabled:cursor-not-allowed"
         >
           <TypeIcon typeId={row.productTypeId} size={16} />
-          <span className="truncate font-mono text-[11px] text-text transition-colors group-hover/load:text-isk">
+          <span className="truncate font-mono text-ui text-text transition-colors group-hover/load:text-isk">
             {row.name}
           </span>
-          <span className="ml-auto shrink-0 truncate font-mono text-[10px] text-faint">
+          <span className="ml-auto shrink-0 truncate font-mono text-micro text-faint">
             {row.productName}
           </span>
         </button>
@@ -100,7 +100,7 @@ export function SavedPlanRowItem({
         aria-label={labels.deleteAria}
         className={`${actionClass} ${labels.deleteClass}`}
       >
-        {armed ? <span className="text-[11px]">confirm?</span> : '✕'}
+        {armed ? <span className="text-ui">confirm?</span> : '✕'}
       </button>
     </li>
   );

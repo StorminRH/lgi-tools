@@ -37,7 +37,7 @@ function GrossNetToggle({
   setMode: (m: MarginMode) => void;
 }) {
   const btn =
-    'px-2 py-0.5 font-mono text-[8.5px] uppercase tracking-[0.1em] cursor-pointer transition-colors';
+    'px-2 py-0.5 font-mono text-label uppercase tracking-[0.1em] cursor-pointer transition-colors';
   const on = 'text-name bg-row-on';
   return (
     <span className="inline-flex overflow-hidden rounded-[3px] border border-border-soft">
@@ -77,7 +77,7 @@ function RawItemToggle({
   setBasis: (b: CostBasis) => void;
 }) {
   const btn =
-    'px-2 py-0.5 font-mono text-[8.5px] uppercase tracking-[0.1em] cursor-pointer transition-colors';
+    'px-2 py-0.5 font-mono text-label uppercase tracking-[0.1em] cursor-pointer transition-colors';
   const on = 'text-name bg-row-on';
   return (
     <span className="inline-flex overflow-hidden rounded-[3px] border border-border-soft">
@@ -109,7 +109,7 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
       <PopoverHeading>Input cost</PopoverHeading>
       <PopoverRow label="Raw">{bases ? formatIsk(bases.batched) : '—'}</PopoverRow>
       <PopoverRow label="Item">{bases ? formatIsk(bases.marginal) : '—'}</PopoverRow>
-      <p className="max-w-[240px] font-body text-[11px] leading-snug text-muted">
+      <p className="max-w-[240px] font-body text-body leading-snug text-muted">
         Raw is the full production line, including the excess that whole batches produce.
         Item is only what this build consumes.
       </p>
@@ -155,10 +155,10 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
     <Popover
       label="Regional discount available"
       trigger={`−${callout.pct}%`}
-      triggerClassName="inline-flex h-[15px] cursor-help items-center rounded-full border border-isk-dim bg-bg px-1.5 font-mono text-[9px] font-bold tabular-nums text-isk hover:border-isk"
+      triggerClassName="inline-flex h-[15px] cursor-help items-center rounded-full border border-isk-dim bg-bg px-1.5 font-mono text-ui font-bold tabular-nums text-isk hover:border-isk"
     >
       <PopoverHeading>Regional discount</PopoverHeading>
-      <p className="max-w-[240px] font-body text-[12.5px] leading-snug text-muted">
+      <p className="max-w-[240px] font-body text-body leading-snug text-muted">
         Available at <span className="text-text">{systemName}</span> for {article}{' '}
         <span className="text-isk">{callout.pct}%</span> discount —{' '}
         {callout.units.toLocaleString('en-US')} units.
@@ -218,13 +218,13 @@ function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string 
   return (
     <KpiHelp label="Fee breakdown">
       <PopoverHeading>{`Fees${systemName ? ` · ${systemName}` : ''}`}</PopoverHeading>
-      <div className="flex flex-col gap-1 font-body text-[12px] leading-snug">
-        <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Install</div>
+      <div className="flex flex-col gap-1 font-body text-ui leading-snug">
+        <div className="font-mono text-label uppercase tracking-[0.12em] text-faint">Install</div>
         {fees.install.map(row)}
         {subtotal('Install fee', fees.installTotal)}
       </div>
-      <div className="flex flex-col gap-1 font-body text-[12px] leading-snug">
-        <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Sell</div>
+      <div className="flex flex-col gap-1 font-body text-ui leading-snug">
+        <div className="font-mono text-label uppercase tracking-[0.12em] text-faint">Sell</div>
         {fees.sell.map(row)}
         {subtotal('Sell fees', fees.sellTotal)}
       </div>
@@ -245,7 +245,7 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
           {buildTimes.breakdown.map((line) => (
             <div
               key={line.typeId}
-              className="flex items-baseline justify-between gap-3 font-mono text-[10px]"
+              className="flex items-baseline justify-between gap-3 font-mono text-ui"
             >
               <span className="truncate text-muted">{line.name}</span>
               <span className="shrink-0 whitespace-nowrap tabular-nums text-faint">
@@ -255,14 +255,14 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
             </div>
           ))}
         </div>
-        <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-[10px]">
+        <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-ui">
           <span className="uppercase tracking-[0.14em] text-muted">Total</span>
           <span className="tabular-nums font-semibold text-evb-bright">
             {buildTimes.totalProduction ?? '—'}
           </span>
         </div>
       </div>
-      <p className="font-mono text-[9px] leading-snug tracking-[0.04em] text-faint">
+      <p className="font-mono text-micro leading-snug tracking-[0.04em] text-faint">
         Sequential — one job at a time. TE applied per blueprint; structure and build-character
         skills applied when selected; parallel slots not counted.
       </p>
@@ -287,7 +287,7 @@ function MarginFigure({
   return (
     <div className={cn(KPI_FIG, marginToneClass(view.marginPct))}>
       <LivePrice value={`${view.sign}${formatIsk(view.margin)}`} />
-      {view.marginPct !== null && <span className="ml-1.5 text-[13px]">({formatPct(view.marginPct)})</span>}
+      {view.marginPct !== null && <span className="ml-1.5 text-ui">({formatPct(view.marginPct)})</span>}
     </div>
   );
 }

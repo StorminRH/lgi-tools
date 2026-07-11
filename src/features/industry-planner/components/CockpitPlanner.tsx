@@ -49,7 +49,7 @@ function PlannerHead({
         </span>
         <TemplatesMenu blueprintTypeId={blueprintTypeId} productName={name} />
       </div>
-      <h1 className="text-center font-display text-[25px] font-bold uppercase leading-none tracking-[0.01em] text-name">
+      <h1 className="text-center font-display text-display font-bold uppercase leading-none tracking-[0.01em] text-name">
         {name}
       </h1>
       <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 font-mono text-caption uppercase tracking-[0.08em] text-muted">

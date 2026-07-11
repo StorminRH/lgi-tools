@@ -67,7 +67,7 @@ function LedgerCells({ cell }: { cell: LedgerCell | null }) {
 function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | null; ownedQty?: number }) {
   const view = assetLedgerView(qty, value, ownedQty);
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 border-t border-border-soft pt-2 font-mono text-[11px] tabular-nums">
+    <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1 border-t border-border-soft pt-2 font-mono text-ui tabular-nums">
       <span className="text-muted">Total Needed</span>
       <span className="text-right text-name">{view.neededQty}</span>
       <span className="text-right text-isk">{view.neededIsk}</span>
@@ -84,10 +84,10 @@ function AssetLedger({ qty, value, ownedQty }: { qty: number; value: number | nu
 // quantity right-aligned. Mirrors the MeAdjuster ProvenanceRows idiom.
 function HoldingLine({ holding }: { holding: AssetHolding }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 font-mono text-[10.5px]">
+    <div className="flex items-baseline justify-between gap-3 font-mono text-ui">
       <span className="min-w-0">
         <span className="text-name">{holding.ownerName}</span>
-        <span className="block text-[9px] tracking-[0.04em] text-muted">
+        <span className="block text-micro tracking-[0.04em] text-muted">
           {holding.locationName}
           {holding.locationFlag ? ` · ${holding.locationFlag}` : ''}
         </span>
@@ -136,7 +136,7 @@ function HeldByList({ heldBy }: { heldBy?: AssetHolding[] }) {
       </>
     );
   }
-  return <div className="font-mono text-[10.5px] text-faint">No holdings tracked yet</div>;
+  return <div className="font-mono text-ui text-faint">No holdings tracked yet</div>;
 }
 
 function QtyRingCell({
@@ -168,14 +168,14 @@ function QtyRingCell({
             {view.complete ? (
               <RingCheck />
             ) : (
-              <span className="font-mono text-[10px] tabular-nums text-name">{ringQty(view.remaining)}</span>
+              <span className="font-mono text-ui tabular-nums text-name">{ringQty(view.remaining)}</span>
             )}
           </QtyRing>
         }
       >
         <PopoverHeading>Asset Tracking</PopoverHeading>
         <div className="flex flex-col gap-1">
-          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">Item held by</div>
+          <div className="font-mono text-label uppercase tracking-[0.14em] text-muted">Item held by</div>
           <HeldByList heldBy={heldBy} />
         </div>
         <AssetLedger qty={qty} value={value} ownedQty={ownedQty} />
@@ -288,10 +288,10 @@ export function NodeCard({
       )}
       {/* Name + type. */}
       <div className="flex min-w-0 flex-1 flex-col gap-px">
-        <span className="line-clamp-2 break-words font-mono text-[12.5px] font-medium leading-[1.28] text-name">
+        <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
           {name}
         </span>
-        <span className="truncate font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted">
+        <span className="truncate font-mono text-label uppercase tracking-[0.1em] text-muted">
           {label}
         </span>
       </div>

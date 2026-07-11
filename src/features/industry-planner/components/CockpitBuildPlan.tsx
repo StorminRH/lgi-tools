@@ -192,11 +192,11 @@ function TierColumn({
   const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
   return (
     <div className="min-w-0">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted">
+      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted">
         Tier {tier.depth}
         <span className="text-faint">· {tier.items.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
-        <span className="text-[11px] font-semibold tabular-nums tracking-normal text-isk">
+        <span className="text-ui font-semibold tabular-nums tracking-normal text-isk">
           {formatIsk(subtotal)}
         </span>
       </div>
@@ -221,13 +221,13 @@ function TierColumn({
 function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => void }) {
   if (!focus) {
     return (
-      <span className="font-mono text-[10px] text-muted">
+      <span className="font-mono text-ui text-muted">
         Consolidated · by tier · click a ▸ component to trace its sub-tree
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-2 font-mono text-[10px] text-muted">
+    <span className="inline-flex items-center gap-2 font-mono text-ui text-muted">
       <button
         type="button"
         onClick={onClear}
@@ -267,7 +267,7 @@ function RawLedgerToggle({
       <span className="font-mono text-caption font-semibold tabular-nums text-isk">
         {grandTotal !== null ? formatIsk(grandTotal) : '—'}
       </span>
-      <span className={cn('inline-block text-[10px] text-muted transition-transform', open && 'rotate-180')}>
+      <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>
         ▾
       </span>
     </button>
@@ -372,7 +372,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     return (
       <div className="mt-7">
         <SectionLabel>Build plan</SectionLabel>
-        <p className="mt-3 text-[11px] text-muted">
+        <p className="mt-3 text-ui text-muted">
           No build breakdown — this blueprint has no resolved inputs yet.
         </p>
       </div>

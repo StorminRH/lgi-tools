@@ -19,13 +19,13 @@ export function SelectedSystemBox({
 }) {
   return (
     <div className="flex h-[30px] w-[260px] shrink-0 items-center gap-2 border border-border bg-bg px-2">
-      <span className="min-w-0 truncate font-mono text-[11px] text-tone-blue">
+      <span className="min-w-0 truncate font-mono text-ui text-tone-blue">
         {name} {formatSec(security)}
       </span>
       {locked ? (
         <span
           title={`Locked to ${locked}`}
-          className="ml-auto shrink-0 font-mono text-[9px] uppercase tracking-[0.12em] text-muted"
+          className="ml-auto shrink-0 font-mono text-label uppercase tracking-[0.12em] text-muted"
         >
           locked
         </span>
@@ -33,7 +33,7 @@ export function SelectedSystemBox({
         <button
           type="button"
           onClick={onClear}
-          className="ml-auto shrink-0 cursor-pointer text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text"
+          className="ml-auto shrink-0 cursor-pointer text-label uppercase tracking-[0.12em] text-muted hover:text-text"
         >
           Clear
         </button>

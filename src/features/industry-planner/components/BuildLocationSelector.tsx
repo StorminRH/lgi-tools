@@ -45,7 +45,7 @@ function StructureReadout({
     return (
       <span
         title="Select a build system to apply this structure's bonus"
-        className="min-w-0 truncate text-[10px] text-muted"
+        className="min-w-0 truncate text-micro text-muted"
       >
         Select a system to apply its bonus
       </span>
@@ -105,14 +105,14 @@ function BuildFacilitySelect({
   };
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Station</span>
+      <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">Station</span>
       {/* Fixed width + shrink-0: a native select otherwise resizes to the selected
           option's text, so picking a structure would shift the control. */}
       <select
         value={facilityValueFor(selectedStructure, station)}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Build location"
-        className="h-[30px] w-[260px] shrink-0 border border-border bg-bg px-2 font-mono text-[11px] text-text focus:border-border-active focus:outline-none"
+        className="h-[30px] w-[260px] shrink-0 border border-border bg-bg px-2 font-mono text-ui text-text focus:border-border-active focus:outline-none"
       >
         <option value="">{stations.length > 0 ? `Any NPC station (${stations.length})` : '— none —'}</option>
         <StructureOptgroups structures={structures} />
@@ -147,7 +147,7 @@ function LockedSystemBox({
   }
   return (
     <div className="flex h-[30px] w-[260px] shrink-0 items-center border border-border bg-bg px-2">
-      <span className="truncate text-[10px] uppercase tracking-[0.12em] text-muted">System unavailable</span>
+      <span className="truncate text-label uppercase tracking-[0.12em] text-muted">System unavailable</span>
     </div>
   );
 }
@@ -187,7 +187,7 @@ function PickedOrSearchSystem({
         errorLabel="System"
       />
       {fetchError && (
-        <div className={cn('mt-1 text-[10px]', toneTextClass('red'))}>
+        <div className={cn('mt-1 text-micro', toneTextClass('red'))}>
           Couldn&apos;t load that system — try again.
         </div>
       )}
@@ -221,7 +221,7 @@ function BuildSystemControl({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">System</span>
+      <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">System</span>
       {lockedStructure ? (
         <LockedSystemBox deducedSystem={deducedSystem} lockedName={lockedStructure.name} />
       ) : (
@@ -324,7 +324,7 @@ export function BuildLocationSelector() {
           prompt) on its own fixed-height line, right of the title — beside the
           controls it would push them; below them it would stretch the group. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
-        <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.16em] text-text">Manufacturing</span>
+        <span className="shrink-0 font-mono text-label uppercase tracking-[0.16em] text-text">Manufacturing</span>
         <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
       </div>
       <BuildSystemControl

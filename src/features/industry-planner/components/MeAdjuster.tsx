@@ -139,8 +139,8 @@ export function HourglassIcon({ state }: { state: IconState }) {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{label}</span>
-      <span className="break-words text-right font-mono text-[10px] tracking-[0.04em] text-faint">{value}</span>
+      <span className="shrink-0 font-mono text-label uppercase tracking-[0.14em] text-muted">{label}</span>
+      <span className="break-words text-right font-mono text-micro tracking-[0.04em] text-faint">{value}</span>
     </div>
   );
 }
@@ -152,11 +152,11 @@ export function ProvenanceRows({ detail }: { detail: OwnedComponentDetail }) {
     <div className="flex flex-col gap-1 border-t border-border-soft pt-1.5">
       <DetailRow label={detail.ownerType === 'corporation' ? 'Corp' : 'Owner'} value={detail.ownerName} />
       <div className="flex items-baseline justify-between gap-3">
-        <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">At</span>
-        <span className="break-words text-right font-mono text-[10px] tracking-[0.04em] text-faint">
+        <span className="shrink-0 font-mono text-label uppercase tracking-[0.14em] text-muted">At</span>
+        <span className="break-words text-right font-mono text-micro tracking-[0.04em] text-faint">
           {detail.locationName}
           {/* The hangar / division the copy sits in — a faint sub-detail of the place. */}
-          <span className="block text-[9px] tracking-[0.04em] text-muted">{detail.locationFlag}</span>
+          <span className="block text-micro tracking-[0.04em] text-muted">{detail.locationFlag}</span>
         </span>
       </div>
     </div>
@@ -176,12 +176,12 @@ function valueToneClass(state: NodeMeState): string {
 // The up/down step buttons shown in the popover stepper layout (`steppers`). Small
 // hover-lit tap targets flanking the typeable field, the Stepper primitive's idiom.
 const STEP_BTN =
-  'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] text-[8px] leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
+  'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
 
 // The −/+ buttons of the boxed (hero) layout — the Runs Stepper's exact button
 // style, so the three hero rows read as one control family.
 const BOX_BTN =
-  'h-7 w-[26px] text-[14px] leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
+  'h-7 w-[26px] text-ui leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
 
 // One inline efficiency control: the icon + an editable number you scroll, arrow, or
 // type (clamped 0–max). The value's colour is the state; a ↺ appears only when it's a
@@ -289,7 +289,7 @@ function EfficiencyField({
       }}
       // 13px (not the row's 10px): the ↺ was too easy to miss. Still narrower
       // than its reserved w-3.5 slot, so growing it never pushes the boxes.
-      className="cursor-pointer font-mono text-[13px] leading-none text-isk hover:text-name"
+      className="cursor-pointer font-mono text-ui leading-none text-isk hover:text-name"
     >
       ↺
     </button>
@@ -360,7 +360,7 @@ function BoxedField({ inputProps, revertButton, name, ariaUnit, toneClass, onSte
         <input
           {...inputProps}
           className={cn(
-            'h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-[12px] outline-none',
+            'h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-ui outline-none',
             'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
             toneClass,
           )}
@@ -398,7 +398,7 @@ function InlineField({
       <input
         {...inputProps}
         className={cn(
-          'w-[22px] bg-transparent text-center font-mono text-[11px] tabular-nums outline-none',
+          'w-[22px] bg-transparent text-center font-mono text-ui tabular-nums outline-none',
           'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
           toneClass,
         )}
@@ -459,7 +459,7 @@ export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOver
 function AdjusterRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-5">
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{label}</span>
+      <span className="font-mono text-label uppercase tracking-[0.14em] text-muted">{label}</span>
       {children}
     </div>
   );
