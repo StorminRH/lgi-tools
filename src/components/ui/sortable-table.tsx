@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Fragment, type ReactNode } from 'react';
 import { cn } from './cn';
+import { deriveSortHeaderCells, type SortHeaderCellModel } from './sortable-table-view';
 
 export interface SortableColumn<Row> {
   key: string;
@@ -56,23 +57,37 @@ interface Props<Row> {
   emptyState?: ReactNode;
 }
 
-function buildSortHref(
-  basePath: string,
-  currentParams: Record<string, string | undefined>,
-  sortParam: string,
-  dirParam: string,
-  newSort: string,
-  newDir: 'asc' | 'desc',
-): string {
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(currentParams)) {
-    if (k === sortParam || k === dirParam) continue;
-    if (v) params.set(k, v);
+// Header cell — a sort link, or a plain label for a non-sortable column. The
+// active/href/indicator decisions live in `deriveSortHeaderCells`; this only
+// renders the model.
+function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
+  if (cell.href === null) {
+    return (
+      <span
+        className={cn(
+          'font-jb text-[9px] uppercase tracking-[0.12em] text-muted inline-flex items-center gap-1',
+          cell.alignClass,
+        )}
+      >
+        {cell.label}
+      </span>
+    );
   }
-  params.set(sortParam, newSort);
-  params.set(dirParam, newDir);
-  const qs = params.toString();
-  return qs ? `${basePath}?${qs}` : basePath;
+
+  return (
+    <Link
+      href={cell.href}
+      scroll={false}
+      className={cn(
+        'font-jb text-[9px] uppercase tracking-[0.12em] inline-flex items-center gap-1 transition-colors',
+        cell.alignClass,
+        cell.isActive ? 'text-name' : 'text-muted hover:text-text',
+      )}
+    >
+      <span>{cell.label}</span>
+      {cell.indicator && <span className="text-isk">{cell.indicator}</span>}
+    </Link>
+  );
 }
 
 export function SortableTable<Row>({
@@ -90,6 +105,17 @@ export function SortableTable<Row>({
   renderRow,
   emptyState,
 }: Props<Row>) {
+  const headerCells = deriveSortHeaderCells({
+    columns,
+    sortKey,
+    sortDir,
+    basePath,
+    currentParams,
+    sortParam,
+    dirParam,
+    defaultDirFor,
+  });
+
   const renderHeader = () => (
     <div
       className={cn(
@@ -97,50 +123,9 @@ export function SortableTable<Row>({
         gridColsClass,
       )}
     >
-      {columns.map((col) => {
-        const isActive = sortKey === col.key;
-        const sortable = col.sortable !== false;
-        const alignClass = col.align === 'right' ? 'justify-end text-right' : 'justify-start text-left';
-
-        if (!sortable) {
-          return (
-            <span
-              key={col.key}
-              className={cn(
-                'font-jb text-[9px] uppercase tracking-[0.12em] text-muted inline-flex items-center gap-1',
-                alignClass,
-              )}
-            >
-              {col.label}
-            </span>
-          );
-        }
-
-        // Toggle direction if already-active column; otherwise pick the column's
-        // default direction.
-        const nextDir: 'asc' | 'desc' = isActive
-          ? sortDir === 'asc' ? 'desc' : 'asc'
-          : defaultDirFor?.(col.key) ?? 'desc';
-
-        const href = buildSortHref(basePath, currentParams, sortParam, dirParam, col.key, nextDir);
-        const indicator = isActive ? (sortDir === 'asc' ? '▲' : '▼') : null;
-
-        return (
-          <Link
-            key={col.key}
-            href={href}
-            scroll={false}
-            className={cn(
-              'font-jb text-[9px] uppercase tracking-[0.12em] inline-flex items-center gap-1 transition-colors',
-              alignClass,
-              isActive ? 'text-name' : 'text-muted hover:text-text',
-            )}
-          >
-            <span>{col.label}</span>
-            {indicator && <span className="text-isk">{indicator}</span>}
-          </Link>
-        );
-      })}
+      {headerCells.map((cell) => (
+        <SortHeaderCell key={cell.key} cell={cell} />
+      ))}
     </div>
   );
 

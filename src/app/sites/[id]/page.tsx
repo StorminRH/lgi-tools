@@ -13,55 +13,12 @@ import {
   getPricedSiteDetail,
   getSiteSearchIndex,
 } from '@/features/wormhole-sites/queries';
-import type { SiteDetail } from '@/features/wormhole-sites/types';
+import { deriveSiteMeta } from '@/features/wormhole-sites/site-meta';
 
 // generateMetadata and the page body both need the priced site; React cache()
 // collapses them to one lookup per request (the underlying read is already
 // 'use cache'-backed, so this only dedupes within the render pass).
 const loadSite = cache(getPricedSiteDetail);
-
-const SITE_TYPE_LABEL: Record<string, string> = {
-  combat: 'Combat',
-  ore: 'Ore',
-  gas: 'Gas',
-  relic: 'Relic',
-  data: 'Data',
-};
-
-function formatIsk(value: number): string {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B ISK`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M ISK`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K ISK`;
-  return `${value} ISK`;
-}
-
-// Unique, descriptive meta description per site — built from the site's own data
-// so no two of the 69 pages share a generic snippet. Resource sites lead with
-// their harvestables and live value; wave-driven sites lead with loot + waves.
-function buildSiteDescription(
-  site: SiteDetail,
-  typeLabel: string,
-  classLabel: string | null,
-): string {
-  const kind = `${classLabel ? `${classLabel} ` : ''}${typeLabel.toLowerCase()} site`;
-  const isWaveDriven =
-    site.siteType === 'combat' || site.siteType === 'relic' || site.siteType === 'data';
-
-  if (isWaveDriven) {
-    const loot = site.blueLootIsk ?? 0;
-    const lootText =
-      loot > 0 ? `${formatIsk(loot)} estimated blue-loot value` : 'sleeper loot';
-    const waves = site.waves.length;
-    const waveText = waves > 0 ? `, ${waves} NPC wave${waves === 1 ? '' : 's'}` : '';
-    return `${site.name} is a ${kind} in Eve Online wormhole space — ${lootText}${waveText}, with full NPC and EWAR stats.`;
-  }
-
-  const names = site.resources.slice(0, 3).map((r) => r.resourceName);
-  const resourceText = names.length > 0 ? names.join(', ') : 'its resources';
-  const total = site.resourceValueIsk ?? 0;
-  const totalText = total > 0 ? ` — ${formatIsk(total)} at live Jita prices` : '';
-  return `${site.name} is a ${kind} in Eve Online wormhole space. Live Jita prices on ${resourceText}${totalText}, updated hourly.`;
-}
 
 // Prerender a static shell for all 69 catalogue sites (the catalogue is
 // deploy-static); the build ID invalidates them on deploy.
@@ -85,13 +42,7 @@ export async function generateMetadata({
   const site = await loadSite(id);
   if (!site) return {};
 
-  const typeLabel = SITE_TYPE_LABEL[site.siteType] ?? site.siteType;
-  const classLabel = site.wormholeClass ?? (site.siteType === 'gas' ? 'Wormhole' : null);
-  const title = [site.name, classLabel ? `${classLabel} ${typeLabel}` : typeLabel]
-    .filter(Boolean)
-    .join(' — ');
-
-  const description = buildSiteDescription(site, typeLabel, classLabel);
+  const { title, description } = deriveSiteMeta(site);
   const canonicalUrl = `${SITE_URL}/sites/${id}`;
 
   return {
