@@ -110,7 +110,7 @@ function NotFound() {
     <>
       <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
         <Breadcrumb crumb="access" />
-        <h1 className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase text-name">
+        <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase text-name">
           User not found
         </h1>
       </header>
@@ -179,7 +179,7 @@ async function UserDetailContent({
               className="rounded-[2px] border border-border-idle shrink-0"
             />
             <div className="min-w-0">
-              <h1 className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
+              <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
                 {targetUser.name}
               </h1>
               <span className="flex items-center gap-[6px]">

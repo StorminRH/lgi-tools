@@ -260,11 +260,11 @@ function RawLedgerToggle({
       aria-expanded={open}
       className="group inline-flex cursor-pointer items-baseline gap-2"
     >
-      <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+      <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
         <span className="tracking-normal text-isk">{'//'}</span>
         Raw ledger
       </span>
-      <span className="font-mono text-caption font-semibold tabular-nums text-isk">
+      <span className="font-mono text-ui font-semibold tabular-nums text-isk">
         {grandTotal !== null ? formatIsk(grandTotal) : '—'}
       </span>
       <span className={cn('inline-block text-micro text-muted transition-transform', open && 'rotate-180')}>

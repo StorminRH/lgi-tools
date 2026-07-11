@@ -40,7 +40,7 @@ function PlannerHead({
 }) {
   return (
     <header className="grid grid-cols-1 items-end gap-x-6 gap-y-2 pt-[26px] pb-1 sm:grid-cols-[1fr_auto_1fr]">
-      <div className="inline-flex items-baseline gap-5 justify-self-start font-mono text-caption tracking-[0.08em] text-muted">
+      <div className="inline-flex items-baseline gap-5 justify-self-start font-mono text-label tracking-[0.08em] text-muted">
         <span>
           <span className="text-isk">lgi://</span>
           <Link href="/industry" className="hover:text-isk">
@@ -52,7 +52,7 @@ function PlannerHead({
       <h1 className="text-center font-display text-display font-bold uppercase leading-none tracking-[0.01em] text-name">
         {name}
       </h1>
-      <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 font-mono text-caption uppercase tracking-[0.08em] text-muted">
+      <div className="inline-flex items-center gap-[14px] justify-self-end pb-0.5 font-mono text-label uppercase tracking-[0.08em] text-muted">
         {group && <span>{group}</span>}
         <Pill tone="blue">{activity}</Pill>
         <Pill tone="neutral">{perRun} per Run</Pill>

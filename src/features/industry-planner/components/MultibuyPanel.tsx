@@ -100,7 +100,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       className="w-[320px]"
       triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
       trigger={
-        <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
           <span className="tracking-normal text-isk">{'//'}</span>
           Multibuy
           <span className="inline-block text-micro text-muted">▾</span>

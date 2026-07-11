@@ -23,11 +23,11 @@ export async function AppHeader() {
   ]);
 
   return (
-    <header className="app-header flex items-stretch h-[50px] text-body border-b border-border bg-section">
+    <header className="app-header flex items-stretch h-[50px] text-ui border-b border-border bg-section">
       <div className="flex items-center shrink-0 px-4 border-r border-border">
         <Link
           href="/"
-          className="font-jb font-extrabold text-body tracking-[0.04em] uppercase text-name inline-flex items-center"
+          className="font-jb font-extrabold text-ui tracking-[0.04em] uppercase text-name inline-flex items-center"
         >
           <span className="text-isk">[</span>
           <span className="px-[2px]">LGI</span>

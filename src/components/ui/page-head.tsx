@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 // the crumb tail is muted.
 export function Breadcrumb({ crumb }: { crumb: string }) {
   return (
-    <div className="font-mono text-caption tracking-[0.08em] text-muted mb-2">
+    <div className="font-mono text-label tracking-[0.08em] text-muted mb-2">
       <span className="text-isk">lgi://</span>
       {crumb}
     </div>
@@ -14,7 +14,7 @@ export function Breadcrumb({ crumb }: { crumb: string }) {
 }
 
 // Shared inner-page header (the prototype's `.OGP-head`) — the breadcrumb over a
-// Barlow uppercase title (sized by the `--text-title` ladder token), with an
+// Barlow uppercase title (sized by the `--text-display` ladder token), with an
 // optional left `subtitle` line under the title and an optional right-aligned
 // `meta` slot. The ONE page-title system: every inner page (public + signed-in)
 // opens with this exact scaffold so titles can't drift page-to-page. The
@@ -38,17 +38,17 @@ export function PageHead({
     <header className="w-full pt-[34px] pb-5 flex items-end justify-between gap-x-6 gap-y-3 flex-wrap">
       <div>
         <Breadcrumb crumb={crumb} />
-        <h1 className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase text-name">
+        <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase text-name">
           {title}
         </h1>
         {subtitle != null && (
-          <p className="mt-2 font-mono text-caption tracking-[0.08em] uppercase text-muted">
+          <p className="mt-2 font-mono text-label tracking-[0.08em] uppercase text-muted">
             {subtitle}
           </p>
         )}
       </div>
       {meta != null && (
-        <div className="flex items-baseline gap-[18px] font-mono text-caption tracking-[0.08em] uppercase text-muted pb-[3px]">
+        <div className="flex items-baseline gap-[18px] font-mono text-label tracking-[0.08em] uppercase text-muted pb-[3px]">
           {meta}
         </div>
       )}

@@ -163,45 +163,28 @@
   --color-evb-border: #17293a;
   --color-evb-glow:   rgba(84, 182, 255, 0.45);
 
-  /* ── Typography scale ──
-   * Named sizes for the canonical type ladder. Existing ad-hoc `text-[Npx]`
-   * usages stay valid; new code references the named scale via Tailwind's
-   * `text-caption` / `text-micro` / … utilities. Tailwind v4 JIT only emits
-   * a utility class on first reference, so adding a new size here is
-   * inert until something actually uses it.
-   */
-  --text-caption:  10.5px; /* footers, freshness stamps, dense table chrome */
-  --text-micro:    11px;   /* pill labels, section meta, dense chip text */
-  --text-body:     13px;   /* primary body copy, page-header strip */
-  --text-title-sm: 20px;   /* card titles → HomeFeatureCards */
-  /* The page-title + hero tokens hold the EXACT clamp each consumer renders, so
-   * pointing a consumer at the token is visually identical and the size lives in
-   * one place (the 3.6 header consolidation finally migrated the raw `text-[..]`
-   * usages onto the named ladder):
-   *   --text-title  → PageHead's <h1> (and the admin entity-header name)
-   *   --text-hero   → the landing wordmark (HeroBanner)
-   * Change a title/hero size HERE, never at the call site. */
-  --text-title:    clamp(26px, 3.2vw, 36px); /* page titles → PageHead */
-  --text-hero:     clamp(44px, 6.5vw, 68px); /* landing wordmark → HeroBanner */
-
-  /* ── Type scale v2 (Variant 3 — JetBrains Mono chrome) [3.8.2.1] ──
-   * The larger, semantic ladder the type sweep migrates onto. Line-height is
-   * bundled per tier via Tailwind v4's `--text-*--line-height`, so the generated
-   * `text-<tier>` utility sets BOTH size and leading; an explicit `leading-*` at
-   * a call site still overrides it, and a bare `var(--text-*)` used in raw CSS
-   * below picks up SIZE ONLY (the modifier applies to the generated utility, not
-   * the bare custom property). During the migration these coexist with the legacy
-   * tokens above; `--text-micro`/`--text-body` are redefined to the new values and
-   * caption/title/title-sm retired in the final consolidation, once no stale
-   * consumer references them. Nothing but line-height is bundled — uppercase,
-   * tabular-nums, font-family, weight and tracking stay call-site concerns. */
+  /* ── Typography scale (Variant 3 — JetBrains Mono chrome) [3.8.2.1] ──
+   * The canonical, semantic type ladder. Line-height is bundled per tier via
+   * Tailwind v4's `--text-*--line-height`, so the generated `text-<tier>` utility
+   * sets BOTH size and leading; an explicit `leading-*` at a call site still
+   * overrides it, and a bare `var(--text-*)` used in raw CSS below picks up SIZE
+   * ONLY (the modifier applies to the generated utility, not the bare custom
+   * property). Nothing but line-height is bundled — uppercase, tabular-nums,
+   * font-family, weight and tracking stay call-site concerns. Adding a tier is
+   * inert until first referenced (v4 JIT emits the utility on first use).
+   *   --text-display → page titles / PageHead (and the admin entity-header name)
+   *   --text-hero    → the landing wordmark (HeroBanner) + the error/404 titles
+   * Change a size HERE, never at the call site. */
+  --text-micro:   10px;     --text-micro--line-height:   1.4;  /* dot sublabels, unit suffixes, superscripts, fine-print */
   --text-label:   11.5px;  --text-label--line-height:   1.4;  /* uppercase tracked labels, table headers, breadcrumbs */
   --text-ui:      13px;     --text-ui--line-height:      1.5;  /* nav, table cells, pills, buttons, form controls */
+  --text-body:    15.5px;  --text-body--line-height:    1.7;  /* prose, card descriptions, devlog text */
   --text-lead:    17px;     --text-lead--line-height:    1.6;  /* hero pitch line, section intros */
-  --text-h3:      19px;     --text-h3--line-height:      1.2;  /* card titles (HomeFeatureCards) */
+  --text-h3:      19px;     --text-h3--line-height:      1.2;  /* small headings: card titles, dialog/section sub-heads */
   --text-stat:    26px;     --text-stat--line-height:    1.1;  /* KPI numerals — + font-jb tabular-nums at call site */
   --text-h2:      26px;     --text-h2--line-height:      1.15; /* section headings — + font-display at call site */
   --text-display: clamp(30px, 3.4vw, 42px); --text-display--line-height: 1.05; /* page titles / PageHead (Barlow) */
+  --text-hero:    clamp(44px, 6.5vw, 68px); /* landing wordmark + error/404 titles */
 
   /* ── Fonts (provided by next/font in layout.tsx via CSS vars) ──
    * The canonical three-family roster and its role map — the single source of

@@ -16,7 +16,7 @@ export function LoadingLabel({
   className?: string;
 }) {
   return (
-    <span className={cn('font-mono text-caption tracking-[0.12em] uppercase text-muted', className)}>
+    <span className={cn('font-mono text-label tracking-[0.12em] uppercase text-muted', className)}>
       {label}
     </span>
   );
