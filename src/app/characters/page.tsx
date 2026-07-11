@@ -115,13 +115,13 @@ function CharacterRow({
           headerClassName="px-3.5 py-[6px]"
           header={
             <span className="flex items-center gap-2 min-w-0">
-              <span className="text-[10px] tracking-[0.08em] uppercase text-muted">
+              <span className="text-label tracking-[0.08em] uppercase text-muted">
                 Granted access
               </span>
               <Pill tone="neutral">{view.scopes.length}</Pill>
               <span
                 data-chevron
-                className="ml-auto text-[10px] text-muted transition-transform inline-block shrink-0"
+                className="ml-auto text-micro text-muted transition-transform inline-block shrink-0"
               >
                 ▾
               </span>
@@ -220,7 +220,7 @@ async function CharactersContent({
           <div className="px-3.5 py-3 border-t border-border-soft">
             <LinkCharacterButton label="Link another character" />
           </div>
-          <div className="px-3.5 py-2.5 border-t border-border-soft text-[11px] text-muted leading-relaxed">
+          <div className="px-3.5 py-2.5 border-t border-border-soft text-ui text-muted leading-relaxed">
             LGI.tools only reads the access shown above. To review or revoke it, visit your{' '}
             <a
               href={EVE_AUTHORIZED_APPS_URL}

@@ -51,8 +51,8 @@ function BarRow({ label, count, max }: { label: string; count: number; max: numb
   return (
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-[12px] text-text break-all">{label}</span>
-        <span className="font-mono text-[11px] text-muted tabular-nums shrink-0 ml-3">
+        <span className="font-mono text-ui text-text break-all">{label}</span>
+        <span className="font-mono text-ui text-muted tabular-nums shrink-0 ml-3">
           {count.toLocaleString()}
         </span>
       </div>
@@ -64,12 +64,12 @@ function BarRow({ label, count, max }: { label: string; count: number; max: numb
 function CollapsedDetailHeader({ label }: { label: string }) {
   return (
     <>
-      <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
+      <span className="font-mono text-label uppercase tracking-[0.12em] text-muted">
         {label}
       </span>
       <span
         data-chevron
-        className="text-[10px] text-muted transition-transform inline-block shrink-0"
+        className="text-micro text-muted transition-transform inline-block shrink-0"
       >
         ▾
       </span>
@@ -98,13 +98,13 @@ function GscTermRow({ term, max }: { term: GscTermStat; max: number }) {
   return (
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-[12px] text-text break-all">{term.key}</span>
-        <span className="font-mono text-[11px] text-muted tabular-nums shrink-0 ml-3">
+        <span className="font-mono text-ui text-text break-all">{term.key}</span>
+        <span className="font-mono text-ui text-muted tabular-nums shrink-0 ml-3">
           {term.clicks.toLocaleString()} clk
         </span>
       </div>
       <ProgressBar pct={pct} />
-      <div className="mt-1 font-mono text-[10px] text-muted tabular-nums">
+      <div className="mt-1 font-mono text-micro text-muted tabular-nums">
         {term.impressions.toLocaleString()} impr · {(term.ctr * 100).toFixed(1)}% CTR · pos{' '}
         {term.position.toFixed(1)}
       </div>
@@ -116,12 +116,12 @@ function GscSitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
   return (
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between mb-1">
-        <span className="font-mono text-[12px] text-text break-all">{sitemap.path}</span>
-        <span className="font-mono text-[11px] text-muted tabular-nums shrink-0 ml-3">
+        <span className="font-mono text-ui text-text break-all">{sitemap.path}</span>
+        <span className="font-mono text-ui text-muted tabular-nums shrink-0 ml-3">
           {sitemap.indexed.toLocaleString()} / {sitemap.submitted.toLocaleString()} indexed
         </span>
       </div>
-      <div className="font-mono text-[10px] text-muted">
+      <div className="font-mono text-micro text-muted">
         {sitemap.submitted === 0
           ? 'no URLs submitted'
           : `${pctLabel(sitemap.indexed, sitemap.submitted)} coverage`}{' '}
@@ -137,10 +137,10 @@ function GscUrlRow({ url }: { url: GscUrlStatus }) {
   return (
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between gap-3 mb-1">
-        <span className="font-mono text-[12px] text-text break-all">{url.url}</span>
+        <span className="font-mono text-ui text-text break-all">{url.url}</span>
         {url.verdict ? <Pill tone={verdictTone(url.verdict)}>{url.verdict}</Pill> : null}
       </div>
-      <div className="font-mono text-[10px] text-muted">
+      <div className="font-mono text-micro text-muted">
         {url.coverageState ?? 'unknown'}
         {url.lastCrawlTime ? ` · crawled ${formatIsoDay(url.lastCrawlTime)}` : ''}
       </div>
@@ -185,7 +185,7 @@ function GscPerformanceDetail({
   return (
     <>
       <div className="px-3.5 py-3">
-        <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">Clicks / day</div>
+        <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">Clicks / day</div>
         <AdminTrendChart
           points={view.clicksTrend.points}
           labels={view.clicksTrend.labels}
@@ -196,7 +196,7 @@ function GscPerformanceDetail({
       <Collapsible header={<CollapsedDetailHeader label="More search detail" />}>
         <div className="border-t border-border-soft">
           <div className="px-3.5 py-3">
-            <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
+            <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">
               Impressions / day
             </div>
             <AdminTrendChart
@@ -207,7 +207,7 @@ function GscPerformanceDetail({
             />
           </div>
           <div className="px-3.5 py-3">
-            <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
+            <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">
               Avg position / day (lower is better)
             </div>
             <AdminTrendChart
@@ -217,7 +217,7 @@ function GscPerformanceDetail({
               ariaLabel="Average search position by day"
             />
           </div>
-          <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+          <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
             Top pages in search
           </div>
           {topPages.length === 0 ? (
@@ -225,7 +225,7 @@ function GscPerformanceDetail({
           ) : (
             topPages.map((p) => <GscTermRow key={p.key} term={p} max={view.topPagesMax} />)
           )}
-          <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+          <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
             Indexing &amp; sitemap
           </div>
           {sitemaps.length === 0 ? (
@@ -235,7 +235,7 @@ function GscPerformanceDetail({
           )}
           {urls.length > 0 && (
             <>
-              <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+              <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
                 Page index status
               </div>
               {urls.map((u) => (
@@ -263,7 +263,7 @@ function GscPerformanceCardBody({
   return (
     <Card>
       <SectionHeader size="md" label="Search performance" hint="Google Search Console" />
-      <div className="px-3.5 py-2 font-mono text-[11px] text-muted border-b border-border-soft">
+      <div className="px-3.5 py-2 font-mono text-ui text-muted border-b border-border-soft">
         Google data lags ~2–3 days · last synced {view.asOf}
       </div>
       {view.hasTrend ? (
@@ -346,7 +346,7 @@ function ActivityCard({
         <EmptyState>No events in this range.</EmptyState>
       ) : (
         <div className="px-3.5 py-3">
-          <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">Events / day</div>
+          <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">Events / day</div>
           <AdminTrendChart
             points={trend.points}
             labels={trend.labels}
@@ -407,13 +407,13 @@ export async function TrafficSection({ range }: { range: DateRange }) {
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border-soft">
           <div className="bg-bg">
-            <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+            <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
               Top referrers
             </div>
             <BarList data={view.topReferrers} empty="No external referrers in this range." />
           </div>
           <div className="bg-bg">
-            <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+            <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
               Top entry pages
             </div>
             <BarList data={view.topEntryPages} empty="No session entry events in this range." />

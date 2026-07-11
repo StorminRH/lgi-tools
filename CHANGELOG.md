@@ -8,6 +8,15 @@ Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
 v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
 
+### v3.8.2.1 — 2026-07-11
+
+#### Changed
+- The interface type is larger and more readable across the whole site. Every text size now comes from one named scale instead of being hand-picked element by element, so labels, table cells, body copy, and headings stay consistent and can be tuned in one place. Layout, colors, and the terminal styling are unchanged — only the type grows.
+- The interface now uses a single monospaced typeface (JetBrains Mono) for its chrome, brand wordmark, and column-aligned numerals, replacing the previous two-font mono setup. It reads a touch larger at the same size and is one fewer font to download.
+
+#### Added
+- A new build check keeps future work on the shared type scale, the same way the project already routes colors through tokens.
+
 ### v3.8.1.3 — 2026-07-11
 
 #### Added

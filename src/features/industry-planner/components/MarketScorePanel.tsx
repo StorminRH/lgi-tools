@@ -42,7 +42,7 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
       <PopoverRow label="Price stability">recent swing in sell price ({view.signals.stability})</PopoverRow>
       <PopoverRow label="Demand depth">buy volume vs. listed supply ({view.signals.demand})</PopoverRow>
       {view.staleNote && (
-        <p className="font-body text-[11px] leading-snug text-tone-orange">
+        <p className="font-body text-body leading-snug text-tone-orange">
           Latest trade {view.staleNote.latestDate} ({view.staleNote.age} ago) — reflects that period, not
           today.
         </p>
@@ -58,10 +58,10 @@ export function MarketScorePanel({ structure }: { structure: BlueprintStructure 
       />
       <div className={cn(KPI_FIG, 'text-name')}>
         {view.scoreDisplay}
-        <span className="ml-1 text-[13px] text-faint">/100</span>
+        <span className="ml-1 text-ui text-faint">/100</span>
       </div>
       {view.staleAge && (
-        <div className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-[9px] text-muted">
+        <div className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-micro text-muted">
           <span aria-hidden className="h-[5px] w-[5px] rounded-full bg-tone-orange" />
           history {view.staleAge} old
         </div>

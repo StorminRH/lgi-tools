@@ -38,7 +38,7 @@ function RunAsSelector() {
 function StepperRow({ label, icon, children }: { label: string; icon?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+      <span className="inline-flex items-center gap-1.5 font-mono text-label uppercase tracking-[0.14em] text-muted">
         {label}
         {icon && (
           <span aria-hidden className="inline-flex h-3 w-3 shrink-0">

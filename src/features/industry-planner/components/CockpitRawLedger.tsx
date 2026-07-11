@@ -58,11 +58,11 @@ function groupByCategory(
 function CategoryColumn({ group }: { group: CategoryGroup }) {
   return (
     <div className="mb-4 break-inside-avoid">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted">
+      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted">
         {group.label}
         <span className="text-faint">· {group.rows.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
-        <span className="text-[11px] font-semibold tabular-nums tracking-normal text-isk">
+        <span className="text-ui font-semibold tabular-nums tracking-normal text-isk">
           {formatIsk(group.total)}
         </span>
       </div>
@@ -71,18 +71,18 @@ function CategoryColumn({ group }: { group: CategoryGroup }) {
           <div key={row.typeId} className={ROW}>
             <TypeIcon typeId={row.typeId} size={30} mono={row.name.slice(0, 2)} />
             <div className="flex min-w-0 flex-col gap-px">
-              <span className="line-clamp-2 break-words font-mono text-[12.5px] font-medium leading-[1.28] text-name">
+              <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
                 {row.name}
               </span>
-              <span className="truncate font-mono text-[9.5px] uppercase tracking-[0.1em] text-muted">
+              <span className="truncate font-mono text-label uppercase tracking-[0.1em] text-muted">
                 {row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
               </span>
             </div>
             <span className="flex flex-col items-end gap-px text-right">
-              <span className="whitespace-nowrap font-mono text-[11px] tabular-nums text-muted">
+              <span className="whitespace-nowrap font-mono text-ui tabular-nums text-muted">
                 × {formatQuantity(row.quantity)}
               </span>
-              <span className="whitespace-nowrap font-mono text-[11.5px] tabular-nums text-text">
+              <span className="whitespace-nowrap font-mono text-ui tabular-nums text-text">
                 {row.extendedCost !== null ? formatIsk(row.extendedCost) : '—'}
               </span>
             </span>
@@ -104,7 +104,7 @@ export function CockpitRawLedger({
   const groups = pricing ? groupByCategory(pricing, structure) : [];
 
   if (groups.length === 0) {
-    return <p className="font-body text-[11px] text-muted">No priced raw materials yet.</p>;
+    return <p className="font-body text-ui text-muted">No priced raw materials yet.</p>;
   }
 
   return (

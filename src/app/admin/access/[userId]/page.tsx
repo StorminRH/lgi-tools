@@ -110,7 +110,7 @@ function NotFound() {
     <>
       <header className="w-full max-w-[760px] mb-6 pb-4 border-b border-border-soft">
         <Breadcrumb crumb="access" />
-        <h1 className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase text-name">
+        <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase text-name">
           User not found
         </h1>
       </header>
@@ -120,7 +120,7 @@ function NotFound() {
         </Card>
         <Link
           href="/admin/access"
-          className="inline-block mt-4 font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
+          className="inline-block mt-4 font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
         >
           ← Access
         </Link>
@@ -179,7 +179,7 @@ async function UserDetailContent({
               className="rounded-[2px] border border-border-idle shrink-0"
             />
             <div className="min-w-0">
-              <h1 className="font-display font-bold text-title leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
+              <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
                 {targetUser.name}
               </h1>
               <span className="flex items-center gap-[6px]">
@@ -194,7 +194,7 @@ async function UserDetailContent({
           </div>
           <Link
             href="/admin/access"
-            className="font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors shrink-0"
+            className="font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors shrink-0"
           >
             ← Access
           </Link>
@@ -237,7 +237,7 @@ async function UserDetailContent({
             hint={`${sessionCount} active`}
           />
           <div className="flex items-center justify-between gap-3 px-3.5 py-3 border-t border-border-soft">
-            <span className="text-[11px] text-muted">
+            <span className="text-ui text-muted">
               Revoke all sign-ins for this account. May take a few minutes to fully apply.
             </span>
             <AdminForceLogoutForm

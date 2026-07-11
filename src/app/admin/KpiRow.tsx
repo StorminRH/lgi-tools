@@ -57,7 +57,7 @@ export async function KpiRow({ rangeKey, range }: { rangeKey: RangeKey; range: D
         ))}
       </div>
       {prev && rangeKey !== 'all' && (
-        <div className="mt-1.5 font-mono text-[10px] text-muted text-right">
+        <div className="mt-1.5 font-mono text-micro text-muted text-right">
           change vs the previous {RANGE_NOUN[rangeKey]}
         </div>
       )}

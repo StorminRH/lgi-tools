@@ -50,7 +50,7 @@ export function RosterCard({
       <CharacterPortrait characterId={vm.characterId} name={vm.name} size={38} src={vm.portraitUrl} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-display font-bold text-[13px] leading-tight text-name truncate">
+          <span className="font-display font-bold text-h3 leading-tight text-name truncate">
             {vm.name}
           </span>
           {vm.needsReconnect &&
@@ -65,11 +65,11 @@ export function RosterCard({
 
 function SpLine({ vm }: { vm: RosterViewModel }) {
   if (vm.totalSp === null) {
-    return <div className="font-mono text-[10px] leading-tight text-muted">{rosterSpFallback(vm)}</div>;
+    return <div className="font-mono text-micro leading-tight text-muted">{rosterSpFallback(vm)}</div>;
   }
   const free = rosterFreeSp(vm);
   return (
-    <div className="font-mono text-[10px] leading-tight text-muted">
+    <div className="font-mono text-micro leading-tight text-muted">
       {formatQuantity(vm.totalSp)} SP
       {free !== null && <span className="text-isk"> · {formatQuantity(free)} free</span>}
     </div>
@@ -78,11 +78,11 @@ function SpLine({ vm }: { vm: RosterViewModel }) {
 
 function TrainingLine({ vm }: { vm: RosterViewModel }) {
   if (!vm.hasData) {
-    return <div className="mt-1 text-[10px] text-empty">No queue synced yet</div>;
+    return <div className="mt-1 text-micro text-empty">No queue synced yet</div>;
   }
   const t = vm.training;
   if (t.kind === 'empty' || t.kind === 'complete') {
-    return <div className="mt-1 text-[10px] text-muted">{idleTrainingText(t.kind)}</div>;
+    return <div className="mt-1 text-micro text-muted">{idleTrainingText(t.kind)}</div>;
   }
   return <ActiveOrPausedLine vm={vm} training={t} />;
 }
@@ -105,7 +105,7 @@ function ActiveOrPausedLine({
 
   if (training.kind === 'paused') {
     return (
-      <div className="mt-1 flex items-center gap-2 text-[11px]">
+      <div className="mt-1 flex items-center gap-2 text-ui">
         <PauseGlyph />
         {skillLabel}
         <Pill tone="orange">Paused</Pill>
@@ -115,11 +115,11 @@ function ActiveOrPausedLine({
 
   return (
     <div className="mt-1">
-      <div className="flex items-center gap-2 text-[11px]">
+      <div className="flex items-center gap-2 text-ui">
         <PlayGlyph />
         {skillLabel}
         {vm.remainingLabel !== null && (
-          <span className="font-mono text-[10px] text-muted shrink-0">{vm.remainingLabel}</span>
+          <span className="font-mono text-micro text-muted shrink-0">{vm.remainingLabel}</span>
         )}
       </div>
       <div className="mt-1">

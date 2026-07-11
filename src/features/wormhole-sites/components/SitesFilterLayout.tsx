@@ -161,7 +161,7 @@ export function SitesFilterLayout({
                       type="button"
                       aria-pressed={detailMode === m}
                       onClick={() => setDetailMode(m)}
-                      className={`font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ${
+                      className={`font-mono text-ui tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ${
                         detailMode === m ? 'text-isk bg-pill-green-bg' : 'text-muted hover:text-name'
                       }`}
                     >
@@ -177,7 +177,7 @@ export function SitesFilterLayout({
                     type="button"
                     aria-pressed={view === v}
                     onClick={() => setView(v)}
-                    className={`font-mono text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ${
+                    className={`font-mono text-ui tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ${
                       view === v ? 'text-isk bg-pill-green-bg' : 'text-muted hover:text-name'
                     }`}
                   >
@@ -201,7 +201,7 @@ export function SitesFilterLayout({
                 return (
                   <section key={type} className="mb-12 last:mb-0">
                     <div className="w-full flex items-center gap-3.5 mb-5">
-                      <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted whitespace-nowrap">
+                      <span className="text-label font-semibold tracking-[0.18em] uppercase text-muted whitespace-nowrap">
                         {SITE_TYPE_LABEL[type]} Sites
                       </span>
                       <div className="flex-1 h-px bg-border" />

@@ -33,7 +33,7 @@ function FeedbackMeta({
   path: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 text-[10px] tracking-[0.08em] uppercase text-muted">
+    <div className="flex flex-col gap-1 text-label tracking-[0.08em] uppercase text-muted">
       {loading ? (
         <div>Submitting…</div>
       ) : session ? (
@@ -72,7 +72,7 @@ function FeedbackBody({
 }) {
   if (state.kind === 'success') {
     return (
-      <div role="status" aria-live="polite" className="py-6 text-center text-[12px] text-isk">
+      <div role="status" aria-live="polite" className="py-6 text-center text-ui text-isk">
         Thanks — your feedback was sent.
       </div>
     );
@@ -87,9 +87,9 @@ function FeedbackBody({
         maxLength={FEEDBACK_MESSAGE_MAX_LENGTH}
         placeholder="What's broken, missing, or weird? The more specific the better."
         rows={6}
-        className="bg-section border border-border text-text font-mono text-[12px] px-2.5 py-2 resize-none focus:outline-none focus:border-border-active disabled:opacity-50"
+        className="bg-section border border-border text-text font-mono text-ui px-2.5 py-2 resize-none focus:outline-none focus:border-border-active disabled:opacity-50"
       />
-      <div className="flex items-center justify-between text-[9px] tracking-[0.08em] uppercase text-muted">
+      <div className="flex items-center justify-between text-label tracking-[0.08em] uppercase text-muted">
         <span>{charsLeft} chars left</span>
         {state.kind === 'error' && (
           <span role="alert" className="text-pill-red-text normal-case tracking-normal">
@@ -197,7 +197,7 @@ export function FeedbackModal({
         <header className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
           <h2
             id={titleId}
-            className="font-display font-bold text-[16px] tracking-[0.06em] uppercase text-name"
+            className="font-display font-bold text-h3 tracking-[0.06em] uppercase text-name"
           >
             Send feedback
           </h2>
@@ -205,7 +205,7 @@ export function FeedbackModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-muted hover:text-text text-[14px] leading-none px-2 py-1"
+            className="text-muted hover:text-text text-ui leading-none px-2 py-1"
           >
             ×
           </button>

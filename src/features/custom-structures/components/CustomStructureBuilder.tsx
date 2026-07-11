@@ -42,7 +42,7 @@ import {
 import type { CustomStructureRow } from '../types';
 
 const inputClass =
-  'border border-border bg-bg px-2 py-1 font-mono text-[12px] text-text focus:border-border-active focus:outline-none';
+  'border border-border bg-bg px-2 py-1 font-mono text-ui text-text focus:border-border-active focus:outline-none';
 const slotIndices = Array.from({ length: MAX_CUSTOM_STRUCTURE_RIGS }, (_, i) => i);
 
 // The structure family label shown beside each type in the picker (the SDE group,
@@ -82,7 +82,7 @@ function PinField({
         <button
           type="button"
           onClick={onClear}
-          className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text"
+          className="text-label uppercase tracking-[0.12em] text-muted hover:text-text"
         >
           Clear
         </button>
@@ -115,7 +115,7 @@ function StructureMetaPills({ view }: { view: SavedStructureRowView }) {
           {r.label}
         </Pill>
       ))}
-      {view.hasNoRigs && <span className="text-[10px] text-muted">no rigs</span>}
+      {view.hasNoRigs && <span className="text-micro text-muted">no rigs</span>}
       {view.pinLabel !== null && <Pill tone="blue">Pinned · {view.pinLabel}</Pill>}
       {view.taxLabel !== null && <Pill tone="neutral">{view.taxLabel}</Pill>}
     </>
@@ -163,7 +163,7 @@ function InlineTaxEditor({
           onSet(tax.value);
         }}
         disabled={busy}
-        className="text-[10px] uppercase tracking-[0.12em] text-tone-green hover:underline disabled:text-muted disabled:no-underline"
+        className="text-label uppercase tracking-[0.12em] text-tone-green hover:underline disabled:text-muted disabled:no-underline"
       >
         Set
       </button>
@@ -206,7 +206,7 @@ function SavedStructureRow({
 }) {
   return (
     <li className="flex flex-wrap items-center gap-2 border border-border bg-section px-3 py-2">
-      <span className="font-mono text-[12px] text-text">{view.name}</span>
+      <span className="font-mono text-ui text-text">{view.name}</span>
       <Pill tone="neutral">{view.typeLabel}</Pill>
       <StructureMetaPills view={view} />
       <span className="ml-auto flex items-center gap-3">
@@ -214,7 +214,7 @@ function SavedStructureRow({
           type="button"
           onClick={onToggleTax}
           disabled={busy}
-          className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+          className="text-label uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
         >
           Tax…
         </button>
@@ -223,7 +223,7 @@ function SavedStructureRow({
             type="button"
             onClick={() => onSetPin(null)}
             disabled={busy}
-            className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+            className="text-label uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
           >
             Unpin
           </button>
@@ -232,7 +232,7 @@ function SavedStructureRow({
             type="button"
             onClick={onTogglePin}
             disabled={busy}
-            className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+            className="text-label uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
           >
             Pin…
           </button>
@@ -241,7 +241,7 @@ function SavedStructureRow({
           type="button"
           onClick={onDelete}
           disabled={busy}
-          className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-tone-red disabled:text-muted"
+          className="text-label uppercase tracking-[0.12em] text-muted hover:text-tone-red disabled:text-muted"
         >
           Delete
         </button>
@@ -285,7 +285,7 @@ function StructureTypeSelect({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Structure type</span>
+      <span className="text-label uppercase tracking-[0.12em] text-muted">Structure type</span>
       <select
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
@@ -514,7 +514,7 @@ export function CustomStructureBuilder({
       <div className="flex flex-col gap-3">
         {/* Paste an in-game fit to pre-fill, OR pick below. */}
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted">
+          <span className="text-label uppercase tracking-[0.12em] text-muted">
             Paste an in-game structure fit (optional)
           </span>
           <textarea
@@ -529,7 +529,7 @@ export function CustomStructureBuilder({
             type="button"
             onClick={onParse}
             disabled={!canReadFit(paste, busy)}
-            className="self-start text-[10px] uppercase tracking-[0.12em] text-tone-blue hover:underline disabled:text-muted disabled:no-underline"
+            className="self-start text-label uppercase tracking-[0.12em] text-tone-blue hover:underline disabled:text-muted disabled:no-underline"
           >
             Read fit →
           </button>
@@ -548,7 +548,7 @@ export function CustomStructureBuilder({
         )}
 
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Name</span>
+          <span className="text-label uppercase tracking-[0.12em] text-muted">Name</span>
           <input
             type="text"
             value={name}
@@ -564,7 +564,7 @@ export function CustomStructureBuilder({
             system's build list and locks the planner to it on select; leaving
             this empty saves a portable structure (shown everywhere). */}
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted">Pin to system (optional)</span>
+          <span className="text-label uppercase tracking-[0.12em] text-muted">Pin to system (optional)</span>
           <PinField
             pin={pin}
             parse={parse}
@@ -578,7 +578,7 @@ export function CustomStructureBuilder({
             structure would charge. Empty = never entered — the planner assumes
             the 0.25% NPC baseline (labeled as assumed in the fee breakdown). */}
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted">
+          <span className="text-label uppercase tracking-[0.12em] text-muted">
             Facility tax % (optional)
           </span>
           <input
@@ -594,14 +594,14 @@ export function CustomStructureBuilder({
           />
         </label>
 
-        {error && <p className="text-[11px] text-tone-red">{error}</p>}
+        {error && <p className="text-ui text-tone-red">{error}</p>}
 
         <button
           type="button"
           onClick={onSave}
           disabled={!canSave}
           className={cn(
-            'self-start border px-3 py-1.5 text-[11px] uppercase tracking-[0.12em]',
+            'self-start border px-3 py-1.5 text-label uppercase tracking-[0.12em]',
             canSave
               ? 'border-tone-green text-tone-green hover:bg-section'
               : 'border-border text-muted',
@@ -612,7 +612,7 @@ export function CustomStructureBuilder({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border-soft pt-4">
-        <span className="text-[10px] uppercase tracking-[0.12em] text-muted">
+        <span className="text-label uppercase tracking-[0.12em] text-muted">
           Your structures ({structures.length})
         </span>
         <SavedStructuresList

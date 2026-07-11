@@ -65,7 +65,7 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
     return (
       <span
         className={cn(
-          'font-jb text-[9px] uppercase tracking-[0.12em] text-muted inline-flex items-center gap-1',
+          'font-jb text-label uppercase tracking-[0.12em] text-muted inline-flex items-center gap-1',
           cell.alignClass,
         )}
       >
@@ -79,7 +79,7 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
       href={cell.href}
       scroll={false}
       className={cn(
-        'font-jb text-[9px] uppercase tracking-[0.12em] inline-flex items-center gap-1 transition-colors',
+        'font-jb text-label uppercase tracking-[0.12em] inline-flex items-center gap-1 transition-colors',
         cell.alignClass,
         cell.isActive ? 'text-name' : 'text-muted hover:text-text',
       )}
@@ -135,7 +135,7 @@ export function SortableTable<Row>({
         <div
           key={col.key}
           className={cn(
-            'font-mono text-[11px] text-text min-w-0',
+            'font-mono text-ui text-text min-w-0',
             col.align === 'right' ? 'text-right' : 'text-left',
           )}
         >
@@ -155,7 +155,7 @@ export function SortableTable<Row>({
       <div className="sortable-table border border-border bg-section min-w-[640px]">
         {renderHeader()}
         {rows.length === 0 ? (
-          <div className="px-3 py-6 text-center text-muted text-[11px]">{emptyState ?? 'No rows.'}</div>
+          <div className="px-3 py-6 text-center text-muted text-ui">{emptyState ?? 'No rows.'}</div>
         ) : (
           rows.map((row) => {
             const key = getRowKey(row);

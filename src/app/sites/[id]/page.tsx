@@ -82,7 +82,7 @@ function DeepLinkMetaView({
       <div className="w-full mb-4">
         <Link
           href={backHref}
-          className="text-[10px] tracking-[0.12em] uppercase text-muted"
+          className="text-label tracking-[0.12em] uppercase text-muted"
         >
           ← Return to full list
         </Link>

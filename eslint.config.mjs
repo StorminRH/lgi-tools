@@ -54,6 +54,30 @@ const hexColorSelectors = [
   },
 ];
 
+// Type-scale enforcement (3.8.2.1): raw bracketed pixel font sizes belong on the
+// named ladder — the `--text-*` scale in globals.css `@theme` (micro, label, ui,
+// body, lead, h3, stat, h2, display). Mirrors the hex-color ban: a plain className
+// Literal and an interpolated (cva/clsx/cn) TemplateElement. The regex matches only
+// a bracketed numeric px/rem/em value, so it never fires on clamp() or var()
+// arbitrary values, width brackets, or leading utilities. Deliberately NOT added to
+// the base "**/*.{ts,tsx}" block, so test files (arbitrary-value fixtures) fall
+// through to it exempt; the preview sandbox is exempted below. A justified one-off
+// opts out with an inline eslint-disable-next-line no-restricted-syntax comment.
+// (Prose here avoids literal bracket class tokens — Tailwind's content scanner
+// reads this file and would try to compile them.)
+const textSizeSelectors = [
+  {
+    selector: "Literal[value=/text-\\[[0-9.]+(px|rem|em)\\]/]",
+    message:
+      "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display), backed by the `--text-*` tokens in globals.css `@theme`. See CONTRIBUTING.md (Type scale).",
+  },
+  {
+    selector: "TemplateElement[value.raw=/text-\\[[0-9.]+(px|rem|em)\\]/]",
+    message:
+      "No raw arbitrary font sizes (template literal) — use the named type scale (the `--text-*` tokens in globals.css `@theme`). See CONTRIBUTING.md (Type scale).",
+  },
+];
+
 // Typed-API-call enforcement (3.4.T): a literal fetch('/api/…') bypasses the
 // shared contracts, so client code must go through apiFetch with the owning
 // slice's endpoint object instead. The selectors match only a string/template
@@ -179,6 +203,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
+        ...textSizeSelectors,
       ],
     },
   },
@@ -195,6 +220,7 @@ const eslintConfig = defineConfig([
         ...hexColorSelectors,
         ...apiFetchSelectors,
         ...processEnvSelectors,
+        ...textSizeSelectors,
       ],
     },
   },
@@ -210,6 +236,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
+        ...textSizeSelectors,
       ],
     },
   },

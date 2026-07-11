@@ -13,8 +13,8 @@ export function SectionHeader({
   size?: 'sm' | 'md';
 }) {
   const sizing =
-    size === 'md' ? 'px-3.5 py-2 text-[11px]' : 'px-3.5 py-[5px] text-[9px]';
-  const hintSizing = size === 'md' ? 'text-[10px]' : 'text-[9px]';
+    size === 'md' ? 'px-3.5 py-2 text-label' : 'px-3.5 py-[5px] text-micro';
+  const hintSizing = 'text-micro';
   return (
     <div
       className={`flex items-center justify-between bg-section border-b border-border-soft border-t border-t-border font-semibold tracking-[0.16em] uppercase text-muted ${sizing}`}

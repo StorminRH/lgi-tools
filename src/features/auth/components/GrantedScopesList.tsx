@@ -17,9 +17,9 @@ export function GrantedScopesList({ scopes }: { scopes: GrantedScope[] }): React
           className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3.5 py-[5px] border-t border-border-soft"
         >
           <span className="min-w-0">
-            <span className="block font-mono text-[11px] text-name truncate">{scope.id}</span>
+            <span className="block font-mono text-ui text-name truncate">{scope.id}</span>
             {scope.gloss ? (
-              <span className="block text-[10px] text-muted">{scope.gloss}</span>
+              <span className="block text-micro text-muted">{scope.gloss}</span>
             ) : null}
           </span>
           {scope.status === 'active' ? (
@@ -30,7 +30,7 @@ export function GrantedScopesList({ scopes }: { scopes: GrantedScope[] }): React
         </div>
       ))}
       {hasLegacy ? (
-        <div className="px-3.5 py-2 border-t border-border-soft text-[10px] text-muted">
+        <div className="px-3.5 py-2 border-t border-border-soft text-micro text-muted">
           Legacy — granted earlier, no longer used; safe to revoke.
         </div>
       ) : null}

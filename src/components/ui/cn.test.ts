@@ -24,4 +24,21 @@ describe('cn', () => {
     expect(result).toContain('text-[10px]'); // font-size survives (different group)
     expect(result).toContain('whitespace-nowrap');
   });
+
+  // Regression (3.8.2.1): the named type-scale tokens (text-ui/label/micro/…) must
+  // register as font-size, not text-color — otherwise twMerge conflates them with
+  // a tone color in one cn() call and drops one, so a pill silently loses its
+  // color (or its size). extendTailwindMerge in cn.ts registers them.
+  it('keeps a named type-scale size and a tone color together', () => {
+    const a = cn('text-[var(--color-isk)]', 'text-label');
+    expect(a).toContain('text-[var(--color-isk)]');
+    expect(a).toContain('text-label');
+
+    const b = cn('text-muted', 'text-ui');
+    expect(b).toContain('text-muted');
+    expect(b).toContain('text-ui');
+
+    // two named sizes still conflict → last wins
+    expect(cn('text-ui', 'text-label')).toBe('text-label');
+  });
 });

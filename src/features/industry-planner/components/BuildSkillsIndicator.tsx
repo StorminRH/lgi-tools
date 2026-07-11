@@ -16,7 +16,7 @@ const roman = (level: number) => ROMAN[level] ?? String(level);
 // the TotalJobHover row idiom, so every skills panel reads the same way.
 function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 font-mono text-[10px]">
+    <div className="flex items-baseline justify-between gap-3 font-mono text-micro">
       <span className="truncate text-muted">
         {skill.name} {roman(skill.level)}
       </span>
@@ -28,7 +28,7 @@ function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
 // Divider + compound total — the popover's bottom line, toned to its icon.
 function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: number; toneClass: string }) {
   return (
-    <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-[10px]">
+    <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-micro">
       <span className="uppercase tracking-[0.14em] text-muted">{label}</span>
       <span className={`tabular-nums font-semibold ${toneClass}`}>−{formatBonusPct(totalPct)} time</span>
     </div>
@@ -61,7 +61,7 @@ function SkillMetric({
           {value}
         </>
       }
-      triggerClassName={`inline-flex cursor-pointer items-center gap-1 font-mono text-[10px] leading-none transition-opacity hover:opacity-80 data-[popup-open]:opacity-80 ${toneClass}`}
+      triggerClassName={`inline-flex cursor-pointer items-center gap-1 font-mono text-micro leading-none transition-opacity hover:opacity-80 data-[popup-open]:opacity-80 ${toneClass}`}
     >
       {children}
     </Popover>
@@ -111,11 +111,11 @@ function MfgSkillMetric({
       )}
       {breakdown.perItem.length > 0 && (
         <div className="flex flex-col gap-1">
-          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Per-item</div>
+          <div className="font-mono text-label uppercase tracking-[0.12em] text-faint">Per-item</div>
           {breakdown.perItem.map((skill) => (
             <SkillLine key={skill.name} skill={skill} />
           ))}
-          <p className="font-mono text-[9px] leading-snug tracking-[0.04em] text-faint">
+          <p className="font-mono text-micro leading-snug tracking-[0.04em] text-faint">
             Applied on top of the total, only to jobs requiring the skill.
           </p>
         </div>

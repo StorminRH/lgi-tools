@@ -22,7 +22,7 @@ import { UsersSection } from './UsersSection';
 
 function RangeSelector({ range }: { range: RangeKey }) {
   const linkBase =
-    'font-mono text-[10px] uppercase tracking-[0.12em] px-3 py-1.5 border transition-colors';
+    'font-mono text-ui uppercase tracking-[0.12em] px-3 py-1.5 border transition-colors';
   const active = 'border-border-active text-isk bg-surface-sunk';
   const idle = 'border-border-idle text-muted hover:text-text hover:border-border-active';
   return (
@@ -42,7 +42,7 @@ function RangeSelector({ range }: { range: RangeKey }) {
 
 function GroupHeading({ children }: { children: ReactNode }) {
   return (
-    <h2 className="font-mono text-[11px] font-semibold tracking-[0.2em] uppercase text-muted mb-2">
+    <h2 className="font-mono text-label font-semibold tracking-[0.2em] uppercase text-muted mb-2">
       {children}
     </h2>
   );
@@ -50,7 +50,7 @@ function GroupHeading({ children }: { children: ReactNode }) {
 
 function SectionFallback() {
   return (
-    <div className="border-[1.5px] border-border bg-bg px-3.5 py-6 font-mono text-[11px] text-muted">
+    <div className="border-[1.5px] border-border bg-bg px-3.5 py-6 font-mono text-ui text-muted">
       Loading…
     </div>
   );
@@ -72,7 +72,7 @@ async function AdminContent({
 
   return (
     <>
-      <div className="print-only font-mono text-[10px] tracking-[0.12em] uppercase text-muted mb-1">
+      <div className="print-only font-mono text-label tracking-[0.12em] uppercase text-muted mb-1">
         Admin report — {formatIsoDay(range.from)} to {formatIsoDay(range.to)}
       </div>
       <PageHead
@@ -84,7 +84,7 @@ async function AdminContent({
             <RangeSelector range={rangeKey} />
             <Link
               href="/admin/access"
-              className="no-print font-mono text-[11px] uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
+              className="no-print font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
             >
               Access →
             </Link>

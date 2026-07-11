@@ -142,7 +142,7 @@ function renderQueueCard(
   return {
     isEmpty: model.isEmpty,
     subtitle: model.subtitle !== null && (
-      <div className="text-[10px] text-muted tracking-[0.06em]">{model.subtitle}</div>
+      <div className="text-micro text-muted tracking-[0.06em]">{model.subtitle}</div>
     ),
     headerRight: model.header !== null && <QueueHeaderSlot header={model.header} />,
     rows:
@@ -161,7 +161,7 @@ function renderQueueCard(
 function QueueHeaderSlot({ header }: { header: NonNullable<QueueHeader> }) {
   if (header.kind === 'ends-in') {
     return (
-      <span className="text-[10px] text-muted tracking-[0.06em] shrink-0">
+      <span className="text-micro text-muted tracking-[0.06em] shrink-0">
         queue ends in {formatRemaining(header.ms)}
       </span>
     );
@@ -181,13 +181,13 @@ function QueueEntryRow({
   const model = entryRowModel(entry, now);
   return (
     <div className="border-t border-border-soft px-3.5 py-[6px]">
-      <div className="grid grid-cols-[26px_minmax(0,1fr)_auto_auto] items-center gap-[6px] text-[12px]">
-        <span className="text-[10px] text-muted">{entry.queue_position + 1}</span>
+      <div className="grid grid-cols-[26px_minmax(0,1fr)_auto_auto] items-center gap-[6px] text-ui">
+        <span className="text-micro text-muted">{entry.queue_position + 1}</span>
         <span className="text-name truncate leading-[1.5]">
           {name ?? `Skill #${entry.skill_id}`}{' '}
           <span className="text-muted">{romanLevel(entry.finished_level)}</span>
         </span>
-        <span className="text-[10px] text-muted shrink-0">
+        <span className="text-micro text-muted shrink-0">
           {model.remainingMs !== null ? formatRemaining(model.remainingMs) : ''}
         </span>
         <Pill tone={model.meta.tone}>{model.meta.label}</Pill>

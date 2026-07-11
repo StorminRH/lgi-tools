@@ -22,14 +22,14 @@ export function JobRowFrame({
 }: JobRowFrameData & { barTone?: 'default' | 'evb'; footer?: ReactNode }) {
   return (
     <div className="border-t border-border-soft px-3.5 py-[6px]">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-[6px] text-[12px]">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-[6px] text-ui">
         <span className="text-name truncate leading-[1.5]">
           {headlineName}{' '}
           <span className="text-muted">
             ×{runs} · {activityLabel}
           </span>
         </span>
-        <span className="text-[10px] text-muted shrink-0">{remainingLabel}</span>
+        <span className="text-micro text-muted shrink-0">{remainingLabel}</span>
         <Pill tone={meta.tone}>{meta.label}</Pill>
       </div>
       {showBar && (

@@ -80,6 +80,27 @@ utilities), or in `tones.ts` for the SVG fills/strokes that read `toneHex`. The
 visual identity is the existing terminal/EVE aesthetic — build within it rather
 than introducing a new palette or typeface.
 
+## Type scale
+
+Font sizes belong on the named scale, never as raw bracketed pixel values at call
+sites (**lint-enforced**). The ladder is defined once as `--text-*` tokens in the
+`@theme` block of `globals.css`, surfaced as Tailwind utilities and chosen by
+**role, not pixel count**:
+
+- `text-micro` — dot sublabels, unit suffixes, fine-print
+- `text-label` — uppercase tracked labels, table/column headers, breadcrumbs
+- `text-ui` — nav, table cells, pills, buttons, form controls (the default tier)
+- `text-body` — prose, card descriptions, help text
+- `text-lead` — section intros / hero pitch line
+- `text-h3` / `text-h2` — small headings (card/dialog titles) and section headings
+- `text-stat` — KPI numerals (with `tabular-nums`); `text-display` — page titles /
+  PageHead; `text-hero` — the landing wordmark
+
+Each token bundles its line-height, so a `text-*` utility sets size **and** leading
+— add an explicit `leading-*` only to override it. A genuinely one-off size uses an
+inline `// eslint-disable-next-line no-restricted-syntax -- <reason>`; test fixtures
+and the `preview` sandbox are exempt.
+
 ## UI components & overlays
 
 Interactive UI is built on adopted libraries, each **wrapped once in

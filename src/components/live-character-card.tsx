@@ -110,7 +110,7 @@ export function LiveCharacterCard({
           src={character.portraitUrl}
         />
         <div className="min-w-0 flex-1">
-          <div className="font-display font-bold text-[15px] text-name truncate">
+          <div className="font-display font-bold text-h3 text-name truncate">
             {character.name}
           </div>
           {subtitle}

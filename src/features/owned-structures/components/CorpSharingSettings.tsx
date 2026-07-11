@@ -29,7 +29,7 @@ export function CorpSharingSettings({ corps }: { corps: SharingCorpView[] }) {
     <Card>
       <SectionHeader size="md" label="Structure sharing" hint="Station Manager" />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
-        <p className="text-[11px] text-muted">
+        <p className="text-body text-muted">
           Share a corporation’s structures as build locations for every member. Turning sharing
           off removes the corporation’s structures and any recorded rig fits and facility taxes.
         </p>
@@ -81,26 +81,26 @@ function SharingRow({ corp }: { corp: SharingCorpView }) {
           disabled={busy}
           label={`Share ${corp.corporationName}'s structures`}
         />
-        <span className="text-[11px] text-text">{corp.corporationName}</span>
-        <span className="text-[10px] uppercase tracking-[0.12em] text-muted">
+        <span className="text-ui text-text">{corp.corporationName}</span>
+        <span className="text-label uppercase tracking-[0.12em] text-muted">
           {enabled ? 'sharing on' : 'sharing off'}
         </span>
       </label>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen} labelledBy={confirmLabelId}>
         <div className="flex flex-col gap-3 p-4 max-w-[360px]">
-          <p id={confirmLabelId} className="text-[12px] text-text">
+          <p id={confirmLabelId} className="text-body text-text">
             Stop sharing {corp.corporationName}’s structures? This removes the corporation’s
             structures and any recorded rig fits and facility taxes. Turning sharing back on
             re-fetches them.
           </p>
           <div className="flex items-center justify-end gap-3">
-            <DialogClose className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text">
+            <DialogClose className="text-label uppercase tracking-[0.12em] text-muted hover:text-text">
               Keep sharing
             </DialogClose>
             <DialogClose
               onClick={() => void applySharing(false)}
-              className="text-[10px] uppercase tracking-[0.12em] text-tone-red hover:underline"
+              className="text-label uppercase tracking-[0.12em] text-tone-red hover:underline"
             >
               Stop sharing
             </DialogClose>

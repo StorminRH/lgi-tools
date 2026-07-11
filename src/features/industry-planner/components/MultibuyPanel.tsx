@@ -100,19 +100,19 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       className="w-[320px]"
       triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
       trigger={
-        <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
           <span className="tracking-normal text-isk">{'//'}</span>
           Multibuy
-          <span className="inline-block text-[10px] text-muted">▾</span>
+          <span className="inline-block text-micro text-muted">▾</span>
         </span>
       }
     >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.16em] text-isk">
+        <span className="font-mono text-label font-semibold uppercase tracking-[0.16em] text-isk">
           Multibuy export
         </span>
         <KpiHelp label="What the multibuy export copies">
-          <p className="font-body text-[12.5px] leading-snug text-muted">
+          <p className="font-body text-body leading-snug text-muted">
             Check the tiers you&rsquo;ll build yourself.
           </p>
           <PopoverRow label="Total">
@@ -132,7 +132,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
         disabledOptions={remainingAvailable ? undefined : ['Remaining']}
       />
       {!remainingAvailable && (
-        <p className="text-[10.5px] leading-snug text-muted">
+        <p className="text-micro leading-snug text-muted">
           No owned stock found for this plan — sign in with linked assets to use Remaining.
         </p>
       )}
@@ -145,8 +145,8 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
               onCheckedChange={(build) => toggleTier(depth, build)}
               label={`Build tier ${depth}`}
             />
-            <span className="font-mono text-[11px] text-text">Tier {depth}</span>
-            <span className="font-mono text-[10px] text-faint">· {pluralCount(count, 'type', 'types')}</span>
+            <span className="font-mono text-ui text-text">Tier {depth}</span>
+            <span className="font-mono text-micro text-faint">· {pluralCount(count, 'type', 'types')}</span>
           </label>
         ))}
       </div>
@@ -156,11 +156,11 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
           type="button"
           onClick={copy}
           disabled={entries.length === 0}
-          className="rounded-[3px] border border-isk-dim bg-pill-green-bg px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-isk transition-colors hover:border-isk disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-[3px] border border-isk-dim bg-pill-green-bg px-3 py-1.5 font-mono text-ui font-semibold uppercase tracking-[0.1em] text-isk transition-colors hover:border-isk disabled:cursor-not-allowed disabled:opacity-40"
         >
           Copy
         </button>
-        <span className="font-mono text-[10px] tabular-nums text-muted">
+        <span className="font-mono text-micro tabular-nums text-muted">
           {pluralCount(entries.length, 'item', 'items')} · {effectiveMode}
         </span>
       </div>

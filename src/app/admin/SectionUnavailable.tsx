@@ -7,7 +7,7 @@ export function SectionUnavailable({ label }: { label: string }) {
   return (
     <Card>
       <SectionHeader size="md" label={label} hint="unavailable" />
-      <div className="px-3.5 py-6 font-mono text-[11px] text-muted">
+      <div className="px-3.5 py-6 font-mono text-ui text-muted">
         This section couldn’t load — the rest of the dashboard is unaffected.
         Reload to try again.
       </div>

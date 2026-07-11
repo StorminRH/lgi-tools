@@ -32,12 +32,12 @@ export function EntityRow({
   return (
     <div
       className={cn(
-        'grid items-center gap-[6px] px-3.5 py-[5px] border-t border-border-soft text-[12px] hover:bg-[rgba(255,255,255,0.018)]',
+        'grid items-center gap-[6px] px-3.5 py-[5px] border-t border-border-soft text-ui hover:bg-[rgba(255,255,255,0.018)]',
         layout.colsClass,
         className,
       )}
     >
-      {layout.showLeading && <span className="text-[10px] text-muted">{leading}</span>}
+      {layout.showLeading && <span className="text-label text-muted">{leading}</span>}
       <RowName name={name} chips={chips} inline={layout.showInlineChips} />
       {layout.showTrailing && (
         <span className="flex items-center gap-2 shrink-0 justify-end">{trailing}</span>
@@ -92,15 +92,15 @@ export function ResourceRow({
   return (
     <div
       className={cn(
-        'grid items-center gap-[6px] px-3.5 py-[6px] border-t border-border-soft text-[12px] first:border-t-0 hover:bg-[rgba(255,255,255,0.018)]',
+        'grid items-center gap-[6px] px-3.5 py-[6px] border-t border-border-soft text-ui first:border-t-0 hover:bg-[rgba(255,255,255,0.018)]',
         colsClass,
         className,
       )}
     >
-      <span className="text-name text-[12px] flex items-center gap-[6px]">{name}</span>
-      {meta !== undefined && <span className="text-[10px] text-muted whitespace-nowrap">{meta}</span>}
+      <span className="text-name text-ui flex items-center gap-[6px]">{name}</span>
+      {meta !== undefined && <span className="text-label text-muted whitespace-nowrap">{meta}</span>}
       {value !== undefined && (
-        <span className="text-[11px] text-isk whitespace-nowrap font-medium">{value}</span>
+        <span className="text-ui text-isk whitespace-nowrap font-medium">{value}</span>
       )}
     </div>
   );
@@ -115,7 +115,7 @@ export function Stat({
   className?: string;
 }) {
   return (
-    <span className={cn('text-[10px] text-muted whitespace-nowrap', className)}>{children}</span>
+    <span className={cn('text-label text-muted whitespace-nowrap', className)}>{children}</span>
   );
 }
 
@@ -129,7 +129,7 @@ export function LabeledChipRow({
 }) {
   return (
     <div className="px-3.5 py-[5px] border-b border-border-soft bg-bg flex items-center gap-[7px] flex-wrap">
-      <span className="text-[9px] tracking-[0.12em] uppercase text-muted">{label}</span>
+      <span className="text-label tracking-[0.12em] uppercase text-muted">{label}</span>
       {children}
     </div>
   );

@@ -78,14 +78,14 @@ export function TemplatesMenu({
       className="w-[320px]"
       triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
       trigger={
-        <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
           <span className="tracking-normal text-isk">{'//'}</span>
           Templates
-          <span className="inline-block text-[10px] text-muted">▾</span>
+          <span className="inline-block text-micro text-muted">▾</span>
         </span>
       }
     >
-      <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.16em] text-isk">
+      <span className="font-mono text-label font-semibold uppercase tracking-[0.16em] text-isk">
         Saved templates
       </span>
 
@@ -106,7 +106,7 @@ export function TemplatesMenu({
           type="button"
           onClick={save}
           disabled={saveName.trim() === '' || saving}
-          className="rounded-[3px] border border-isk-dim bg-pill-green-bg px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-isk transition-colors hover:border-isk disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-[3px] border border-isk-dim bg-pill-green-bg px-3 py-1.5 font-mono text-ui font-semibold uppercase tracking-[0.1em] text-isk transition-colors hover:border-isk disabled:cursor-not-allowed disabled:opacity-40"
         >
           Save
         </button>
@@ -117,7 +117,7 @@ export function TemplatesMenu({
           <SavedPlanRows plans={plans} busyId={busyId} menu={menu} favoriteRow={favoriteRow} />
         </ul>
       ) : (
-        <p className="text-[10.5px] leading-snug text-muted">{emptyLine}</p>
+        <p className="text-micro leading-snug text-muted">{emptyLine}</p>
       )}
     </Popover>
   );

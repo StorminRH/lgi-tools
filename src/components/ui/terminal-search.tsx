@@ -168,7 +168,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"
-          className="h-[30px] w-full font-mono text-[11px] px-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
+          className="h-[30px] w-full font-mono text-ui px-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
         />
       </form>
 
@@ -188,7 +188,7 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
                   e.preventDefault();
                   handleSuggestionClick(s);
                 }}
-                className="w-full text-left font-mono text-[12px] px-3 py-1.5 text-text hover:bg-surface-raised focus:bg-surface-raised focus:outline-none transition-colors"
+                className="w-full text-left font-mono text-ui px-3 py-1.5 text-text hover:bg-surface-raised focus:bg-surface-raised focus:outline-none transition-colors"
               >
                 {s}
               </button>
@@ -223,7 +223,7 @@ function SearchFooter<Err extends { kind: string }>({
         </div>
       )}
       {!error && hint && (
-        <div className="mt-1 font-mono text-[9px] text-muted tracking-[0.12em] uppercase">
+        <div className="mt-1 font-mono text-label text-muted tracking-[0.12em] uppercase">
           {hint}
         </div>
       )}

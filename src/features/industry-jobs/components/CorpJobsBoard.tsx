@@ -160,8 +160,8 @@ function CorpGroupHeader({ corpId, label }: { corpId: number; label: string }) {
         className="w-7 h-7 rounded-[3px] border border-border-soft shrink-0"
       />
       <div className="min-w-0 flex-1">
-        <div className="font-display font-bold text-[15px] text-name truncate">{label}</div>
-        <div className="text-[10px] text-muted tracking-[0.06em]">Corporation industry jobs</div>
+        <div className="font-display font-bold text-h3 text-name truncate">{label}</div>
+        <div className="text-label text-muted tracking-[0.06em]">Corporation industry jobs</div>
       </div>
     </div>
   );
@@ -298,7 +298,7 @@ function JobRunner({
           />
         )}
       </span>
-      <span className="min-w-0 truncate text-[11px] text-muted">
+      <span className="min-w-0 truncate text-ui text-muted">
         {name} <span className="text-muted">· {corp.name}</span>
       </span>
     </span>

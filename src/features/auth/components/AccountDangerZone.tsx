@@ -40,12 +40,12 @@ export function AccountDangerZone({
     <Card>
       <SectionHeader
         size="md"
-        label={<span className="text-[13px] text-tone-red">Danger zone</span>}
+        label={<span className="text-ui text-tone-red">Danger zone</span>}
         hint={
           <Popover
             label="What purge and unlink do"
             trigger="?"
-            triggerClassName="grid h-4 w-4 place-items-center rounded-full border border-border text-[9px] text-muted hover:text-text"
+            triggerClassName="grid h-4 w-4 place-items-center rounded-full border border-border text-micro text-muted hover:text-text"
           >
             <PopoverHeading>Purge vs unlink</PopoverHeading>
             <PopoverRow label="Purge">
@@ -60,7 +60,7 @@ export function AccountDangerZone({
       />
       <div className="flex flex-col gap-4 px-3.5 py-3.5">
         <div className="flex flex-col gap-2.5">
-          <p className="text-[11px] leading-relaxed text-muted">
+          <p className="text-ui leading-relaxed text-muted">
             Purging a character clears what the site has stored for it and stops LGI.tools from
             accessing that character’s EVE data.
           </p>
@@ -188,7 +188,7 @@ function ConfirmFooter({
     <div className="flex items-center justify-end gap-3">
       <DialogClose
         disabled={busy}
-        className="text-[10px] uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+        className="text-label uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
       >
         Cancel
       </DialogClose>
@@ -196,7 +196,7 @@ function ConfirmFooter({
         type="button"
         onClick={onConfirm}
         disabled={disabled ?? busy}
-        className={`text-[10px] uppercase tracking-[0.12em] hover:underline disabled:text-muted ${confirmClassName}`}
+        className={`text-label uppercase tracking-[0.12em] hover:underline disabled:text-muted ${confirmClassName}`}
       >
         {busy ? busyLabel : confirmLabel}
       </button>
@@ -221,7 +221,7 @@ function DangerButton({
       ref={triggerRef}
       type="button"
       onClick={onClick}
-      className={`shrink-0 border border-tone-red px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-tone-red hover:bg-section ${className}`}
+      className={`shrink-0 border border-tone-red px-2 py-1 font-mono text-label uppercase tracking-[0.12em] text-tone-red hover:bg-section ${className}`}
     >
       {label}
     </button>
@@ -263,10 +263,10 @@ function PurgeCharacterControl({
 
   return (
     <div className="flex items-center justify-between gap-2 border border-border bg-section px-3 py-2">
-      <span className="min-w-0 truncate font-mono text-[12px] text-text">{characterName}</span>
+      <span className="min-w-0 truncate font-mono text-ui text-text">{characterName}</span>
       <DangerButton triggerRef={triggerRef} onClick={gate.request} label="Purge" />
       <ConfirmDialog gate={gate} labelId={labelId} triggerRef={triggerRef} className="max-w-[380px]">
-        <p id={labelId} className="text-[12px] text-text">
+        <p id={labelId} className="text-body text-text">
           {isOnlyCharacter ? (
             <>
               Purge {characterName}? This is your only character, so this also deletes your account —
@@ -280,7 +280,7 @@ function PurgeCharacterControl({
           )}
         </p>
         {gate.errored ? (
-          <p className="text-[11px] text-tone-red">Something went wrong. Please try again.</p>
+          <p className="text-ui text-tone-red">Something went wrong. Please try again.</p>
         ) : null}
         <ConfirmFooter
           busy={gate.busy}
@@ -315,23 +315,23 @@ function LogoutEverywhereControl() {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <p className="font-mono text-[12px] text-text">Log out everywhere</p>
-        <p className="text-[11px] text-muted">Ends every active session, including this device.</p>
+        <p className="font-mono text-ui text-text">Log out everywhere</p>
+        <p className="text-ui text-muted">Ends every active session, including this device.</p>
       </div>
       <button
         ref={triggerRef}
         type="button"
         onClick={gate.request}
-        className="shrink-0 border border-border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-text hover:bg-section"
+        className="shrink-0 border border-border px-2.5 py-1 font-mono text-label uppercase tracking-[0.12em] text-text hover:bg-section"
       >
         Log out everywhere
       </button>
       <ConfirmDialog gate={gate} labelId={labelId} triggerRef={triggerRef} className="max-w-[380px]">
-        <p id={labelId} className="text-[12px] text-text">
+        <p id={labelId} className="text-body text-text">
           Sign out on every device, including this one? You’ll need to sign in again here afterward.
         </p>
         {gate.errored ? (
-          <p className="text-[11px] text-tone-red">Something went wrong. Please try again.</p>
+          <p className="text-ui text-tone-red">Something went wrong. Please try again.</p>
         ) : null}
         <ConfirmFooter
           busy={gate.busy}
@@ -369,17 +369,17 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <p className="font-mono text-[12px] text-text">Delete account</p>
-        <p className="text-[11px] text-muted">
+        <p className="font-mono text-ui text-text">Delete account</p>
+        <p className="text-ui text-muted">
           Permanently removes your account and every character’s data.
         </p>
       </div>
       <DangerButton triggerRef={triggerRef} onClick={openDialog} label="Delete" className="px-2.5" />
       <ConfirmDialog gate={gate} labelId={labelId} triggerRef={triggerRef} className="max-w-[400px]">
-        <p id={labelId} className="text-[12px] text-text">
+        <p id={labelId} className="text-body text-text">
           Are you sure you want to do this? All of your saved data will be lost.
         </p>
-        <label className="flex items-start gap-2 text-[11px] text-text">
+        <label className="flex items-start gap-2 text-ui text-text">
           <input
             type="checkbox"
             checked={acknowledged}
@@ -390,7 +390,7 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
           <span>I understand my account and all of my saved data will be lost.</span>
         </label>
         {gate.errored ? (
-          <p className="text-[11px] text-tone-red">Something went wrong. Please try again.</p>
+          <p className="text-ui text-tone-red">Something went wrong. Please try again.</p>
         ) : null}
         <ConfirmFooter
           busy={gate.busy}

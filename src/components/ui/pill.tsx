@@ -29,8 +29,8 @@ const pillVariants = cva(
         blue:         'bg-surface-sunk text-tone-blue border-pill-blue-border',
       } satisfies Record<PillTone, string>,
       size: {
-        sm: 'text-[10.5px] px-[8px] py-[3px] tracking-[0.04em] rounded-[3px]',
-        md: 'text-[11px] px-[9px] py-[3px] tracking-[0.05em] rounded-[2px]',
+        sm: 'text-ui px-[8px] py-[3px] tracking-[0.04em] rounded-[3px]',
+        md: 'text-ui px-[9px] py-[3px] tracking-[0.05em] rounded-[2px]',
       },
     },
     defaultVariants: { tone: 'neutral', size: 'sm' },

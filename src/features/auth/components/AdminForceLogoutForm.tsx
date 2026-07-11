@@ -28,7 +28,7 @@ export function AdminForceLogoutForm({
         type="submit"
         disabled={disabled}
         title={disabled ? 'Use the normal sign-out for your own session' : undefined}
-        className="font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border-idle whitespace-nowrap"
+        className="font-mono text-label uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border-idle whitespace-nowrap"
       >
         Force logout
       </button>

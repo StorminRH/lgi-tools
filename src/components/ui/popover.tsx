@@ -21,7 +21,7 @@ export type PopoverTone = Extract<Tone, 'neutral' | 'green'>;
 // shadow uses rgba, which the hex-only lint rule permits). `neutral` is the
 // production "?" look (raised slate); `green` is the data-quality tint.
 const popup = cva(
-  'flex w-[272px] flex-col gap-3 rounded-[4px] border px-[14px] py-[12px] text-[11px] normal-case tracking-normal outline-none ' +
+  'flex w-[272px] flex-col gap-3 rounded-[4px] border px-[14px] py-[12px] text-ui normal-case tracking-normal outline-none ' +
     'origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 motion-reduce:transition-none ' +
     'data-[starting-style]:scale-95 data-[starting-style]:opacity-0 ' +
     'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
@@ -102,7 +102,7 @@ export function Popover({
 // itself supplies the chrome + gap-3 rhythm.
 export function PopoverHeading({ children }: { children: ReactNode }) {
   return (
-    <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.16em] text-isk">
+    <div className="font-mono text-label font-semibold uppercase tracking-[0.16em] text-isk">
       {children}
     </div>
   );
@@ -113,7 +113,7 @@ export function PopoverHeading({ children }: { children: ReactNode }) {
 // <PopoverRow label="Liquidity">how fast a batch sells (≈ 3 days to clear)</PopoverRow>.
 export function PopoverRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <p className="font-body text-[12.5px] leading-snug text-muted">
+    <p className="font-body text-body leading-snug text-muted">
       <span className="font-semibold text-text">{label}</span> — {children}
     </p>
   );
