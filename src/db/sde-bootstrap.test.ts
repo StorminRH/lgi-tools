@@ -66,11 +66,15 @@ describe('shouldReingestSde', () => {
     expect(shouldReingestSde('2026-05-01', '2026-05-08', false)).toBe(true);
   });
 
-  it('is a no-op when unforced and versions match', () => {
+  it('is a no-op ONLY when unforced and a reachable remote confirms the versions match', () => {
     expect(shouldReingestSde('2026-05-08', '2026-05-08', false)).toBe(false);
   });
 
-  it('is a no-op when unforced and the remote manifest is unreachable', () => {
-    expect(shouldReingestSde('2026-05-08', null, false)).toBe(false);
+  it('re-ingests when the remote manifest is unreachable — an unreachable remote cannot confirm no-drift, so the manual recovery path loads data rather than no-op on a possibly-empty DB', () => {
+    expect(shouldReingestSde('2026-05-08', null, false)).toBe(true);
+  });
+
+  it('re-ingests on a fresh/unversioned DB even when the remote is unreachable (both null)', () => {
+    expect(shouldReingestSde(null, null, false)).toBe(true);
   });
 });

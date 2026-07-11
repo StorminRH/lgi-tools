@@ -46,15 +46,17 @@ export function formatSdeVersions(
   return `SDE version stored=${storedVersion ?? '<none>'} remote=${remoteVersion ?? '<unreachable>'}`;
 }
 
-// The manual refresh's drift gate: re-ingest when forced, or when CCP's build
-// number is reachable and differs from ours. A no-drift, unforced run is a
-// no-op (an unreachable manifest with no --force is also a no-op — nothing
-// actionable to re-ingest toward).
+// The manual refresh's drift gate: re-ingest unless we can CONFIRM the stored
+// data already matches the current remote build (or --force). Only a reachable
+// remote whose version equals ours proves "no drift" — an unreachable manifest
+// can't, so the manual recovery path proceeds and loads data rather than
+// silently no-op'ing (which on a fresh/empty DB would leave it empty). This is
+// the exact negation of the deploy path's "confirmed match ⇒ stand down".
 export function shouldReingestSde(
   storedVersion: string | null,
   remoteVersion: string | null,
   force: boolean,
 ): boolean {
   if (force) return true;
-  return remoteVersion !== null && storedVersion !== remoteVersion;
+  return !(remoteVersion !== null && storedVersion === remoteVersion);
 }
