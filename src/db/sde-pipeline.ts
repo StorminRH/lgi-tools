@@ -119,5 +119,6 @@ export async function summarizeMarketPricesRowCount(
       COUNT(*) FILTER (WHERE best_buy IS NOT NULL OR best_sell IS NOT NULL)::text AS priced
     FROM market_prices
   `);
+  if (!row) throw new Error('market_prices count query returned no row');
   return { total: Number(row.total), priced: Number(row.priced) };
 }

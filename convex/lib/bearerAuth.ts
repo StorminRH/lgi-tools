@@ -20,6 +20,8 @@ export async function bearerMatches(
   // Both digests are 32 bytes; OR every byte difference so the loop count never
   // depends on where a mismatch first occurs.
   let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= provided[i] ^ expected[i];
+  // Both digests are fixed 32-byte SHA-256 outputs, so i is in-bounds for both;
+  // the assertions add no runtime work, keeping the loop branch-free / constant-time.
+  for (let i = 0; i < expected.length; i++) diff |= provided[i]! ^ expected[i]!;
   return diff === 0;
 }
