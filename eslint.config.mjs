@@ -5,8 +5,8 @@ import nextTs from "eslint-config-next/typescript";
 // Shared `no-restricted-syntax` selector sets. Factored out because flat config
 // REPLACES (does not merge) a rule's options for each matching file — so a
 // per-file exemption that lifts one ban must re-list every ban it still wants.
-// Keeping the CSP selectors in one const lets the tones.ts / sandbox exemptions
-// re-state them verbatim with no drift.
+// Keeping the CSP selectors in one const lets the tones.ts / preview-sandbox
+// exemptions re-state them verbatim with no drift.
 const cspSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
@@ -33,7 +33,7 @@ const cspSelectors = [
 // hex wherever it sits in the `[…]` chunk, in a className or cva/clsx string —
 // a TemplateElement when interpolated); and a whole-string hex constant like an
 // SVG `fill="#0d0f14"`. tones.ts (the JS source for SVG fills) and the
-// dev/preview sandboxes are exempted below. 3.3.9 routed every call-site color
+// preview sandbox are exempted below. 3.3.9 routed every call-site color
 // into a `--color-*` token; this keeps them there. (rgba is intentionally out
 // of scope — the rule bans hex only.)
 const hexColorSelectors = [
@@ -150,7 +150,7 @@ const eslintConfig = defineConfig([
   //     `script-src 'self' 'unsafe-inline'` safe. The `.ts`/`.tsx` glob also
   //     catches a direct `el.innerHTML = …` in a plain helper.
   //   • Color tokens (3.3.9) — raw hex must live in the token layer, not at call
-  //     sites. tones.ts and the dev/preview sandboxes are exempted just below.
+  //     sites. tones.ts and the preview sandbox are exempted just below.
   // See CONTRIBUTING.md (Security & CSP / Color tokens).
   {
     files: ["**/*.{ts,tsx}"],
@@ -213,11 +213,11 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // Dev/preview sandboxes are design scratchpads that intentionally try
-  // off-palette one-offs; exempt them from the hex-color ban, but keep every
-  // other ban.
+  // The preview sandbox is a design scratchpad that intentionally tries
+  // off-palette one-offs; exempt it from the hex-color ban, but keep every
+  // other ban. (The old dev sandbox tree was removed in #210.)
   {
-    files: ["src/app/dev/**/*.{ts,tsx}", "src/app/preview/**/*.{ts,tsx}"],
+    files: ["src/app/preview/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -240,7 +240,7 @@ const eslintConfig = defineConfig([
     "docs/**",
     // Gitignored local-only Claude Code state, incl. harness worktrees under
     // .claude/worktrees/** (a full repo copy whose prefixed paths bypass the
-    // per-file exemptions below — e.g. tones.ts, the dev/preview sandboxes).
+    // per-file exemptions below — e.g. tones.ts, the preview sandbox).
     ".claude/**",
     // Convex generated code (committed for CI typecheck, regenerated on deploy).
     "convex/_generated/**",
