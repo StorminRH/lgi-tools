@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { AnyPgDb } from '@/lib/db-types';
 import { readEnv } from '@/lib/env';
 import {
   INDUSTRY_ACTIVITY_NAMES,
@@ -16,8 +16,6 @@ import {
   industryBlueprints,
 } from './schema';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PostgresJsDatabase<any>;
 
 // Materialised tree node used both as the JSONB row in `blueprint_trees`
 // and as the in-memory representation walked by the resolver. `inputs`

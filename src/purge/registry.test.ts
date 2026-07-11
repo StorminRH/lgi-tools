@@ -13,7 +13,7 @@ import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import * as schema from '@/db/schema';
-import { DEFERRED_HOMES, findUnclaimed, isUserDataTable } from './coverage';
+import { NON_NEON_HOMES, findUnclaimed, isUserDataTable } from './coverage';
 import { PURGE_CONTRIBUTORS } from './register-all';
 
 // The schema barrel re-exports pgTable objects alongside enums + const arrays;
@@ -77,7 +77,7 @@ describe('purge registry gate', () => {
   });
 
   it('the deferred Convex characterOnline home is explicitly accounted for', () => {
-    expect(DEFERRED_HOMES.some((h) => h.home === 'convex:characterOnline')).toBe(true);
+    expect(NON_NEON_HOMES.some((h) => h.home === 'convex:characterOnline')).toBe(true);
   });
 
   // The gate's red path, proven on a synthetic schema so it stands independent of

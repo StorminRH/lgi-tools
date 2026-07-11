@@ -23,21 +23,10 @@ export const typeNamesRequestSchema = z.object({
 });
 
 // Keys are stringified type ids (JSON objects have string keys); ids the SDE
-// doesn't know are simply absent.
-const typeNamesResponseSchema = z.object({
-  names: z.record(z.string(), z.string()),
-});
-export type TypeNamesResponse = z.infer<typeof typeNamesResponseSchema>;
-
-export const typeNamesEndpoint: ApiEndpoint<
-  z.input<typeof typeNamesRequestSchema>,
-  TypeNamesResponse
-> = {
-  method: 'POST',
-  path: '/api/types/names',
-  request: typeNamesRequestSchema,
-  response: typeNamesResponseSchema,
-};
+// doesn't know are simply absent. A plain type, not a Zod schema: this route has
+// no typed apiFetch client, so nothing validates the response shape at runtime —
+// the handler pins it with `satisfies` instead.
+export type TypeNamesResponse = { names: Record<string, string> };
 
 // ── POST /api/eve/names (authz: none — public ESI read) ─────────────────
 // Bulk entity-id → name resolution for characters + corporations (3.7.3.4),

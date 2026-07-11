@@ -1,16 +1,8 @@
 import { inArray, lt, sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db as defaultDb } from '@/db';
 import { marketPrices } from '@/db/schema';
 import type { MarketPrice, PriceSource } from './types';
-
-// Accept either the strict default schema (CLI's `drizzle(client)`) or the
-// lazy proxy from `@/db` (which infers a wider generic). Same wrinkle as
-// cache.ts / ingest.ts — callers shouldn't have to know which one they're
-// holding. Helpers that get called from inside a db.transaction take an
-// explicit `db` so they run on the transaction connection.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PostgresJsDatabase<any>;
+import type { AnyPgDb } from '@/lib/db-types';
 
 const PRICE_COLUMNS = {
   typeId: marketPrices.typeId,

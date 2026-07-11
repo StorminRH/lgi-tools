@@ -1,21 +1,15 @@
 import { sql } from 'drizzle-orm';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { chunk } from '@/lib/array';
 import { UPSERT_CHUNK_SIZE } from './constants';
 import { adjustedPrices, industryCostIndices } from './schema';
 import { fetchAdjustedPrices, fetchCostIndices } from './source';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
+import type { AnyPgDb } from '@/lib/db-types';
 
 // EXCLUDED is the proposed-but-conflicted row inside ON CONFLICT.
 function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
-
-// Accept either driver, same wrinkle as market-prices: the cron passes a
-// postgres-js `drizzle(client)`. Only the shared insert/upsert query-builder
-// surface is used here.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PgDatabase<any, any, any>;
 
 // Per-dataset outcome. The two datasets refresh independently — one failing
 // (ESI 5xx, budget exhaustion, a contract mismatch) must not block the other —

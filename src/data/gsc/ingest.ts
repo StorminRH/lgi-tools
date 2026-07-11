@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import type postgres from 'postgres';
+import type { AnyPgDb } from '@/lib/db-types';
 import { GSC_WINDOW_DAYS, UPSERT_CHUNK_ROWS, isGscConfigured } from './constants';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import { inspectUrl, inspectionUrls, listSitemaps, querySearchAnalytics } from './source';
@@ -13,11 +13,6 @@ import type {
   SitemapApiEntry,
 } from './types';
 
-// Accept either driver, like market-prices. The cron wraps its raw postgres-js
-// client in `drizzle(client)`; these upserts use only the shared query-builder
-// surface (no interactive transaction).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PgDatabase<any, any, any>;
 type Sql = ReturnType<typeof postgres>;
 
 // EXCLUDED is the proposed-but-conflicted row inside ON CONFLICT.

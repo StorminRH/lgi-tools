@@ -1,13 +1,11 @@
 import { eq } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { BLUEPRINT_STRUCTURE_TAG, SDE_META_KEY_VERSION } from './constants';
 import { eveDataMeta } from './schema';
+import type { AnyPgDb } from '@/lib/db-types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PostgresJsDatabase<any>;
 
 // Single key/value store for SDE pipeline bookkeeping (data version, tree hash).
 // Shared by the request-path queries, the resolver, and the deploy/cron pipeline

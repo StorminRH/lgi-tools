@@ -1,7 +1,7 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { PgInsertValue, PgTable } from 'drizzle-orm/pg-core';
 import {
   eveConstellations,
   eveNpcStations,
@@ -12,6 +12,7 @@ import {
 } from './schema';
 import { intOrNull, localizedEn, numOrNull } from './coerce';
 import type { SdeJsonlPaths } from './source';
+import type { AnyPgDb } from '@/lib/db-types';
 
 // ===========================================================================
 // Universe parse core + Neon emitter (3.5.1a).
@@ -52,8 +53,6 @@ import type { SdeJsonlPaths } from './source';
 // coarse first-party SDE class (on the system row) and adjacency are here.
 // ===========================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PostgresJsDatabase<any>;
 
 // CCP region-ID bands: K-space 10000001–10000070 (incl. Pochven 10000070),
 // wormhole/J-space 11000001–11000033, then abyssal deadspace (ADR, instanced)
@@ -493,11 +492,10 @@ export async function emitUniverseNeon(
 
 async function insertChunked<T extends Record<string, unknown>>(
   tx: AnyPgDb,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  table: any,
+  table: PgTable,
   rows: T[],
 ): Promise<void> {
   for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-    await tx.insert(table).values(rows.slice(i, i + INSERT_BATCH));
+    await tx.insert(table).values(rows.slice(i, i + INSERT_BATCH) as PgInsertValue<PgTable>[]);
   }
 }

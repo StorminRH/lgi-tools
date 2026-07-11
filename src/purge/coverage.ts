@@ -37,9 +37,8 @@ export function findUnclaimed(
 // schema-reflection gate cannot see them. Declared here so every home is accounted
 // for — the same discipline as a retained-table exemption: an explicit, audited
 // entry per home, never a silent omission. Each carries how it is torn down. The
-// gate test pins this list. (Named DEFERRED_ historically — ACCOUNT.1 left
-// characterOnline's teardown owed to ACCOUNT.2, which has since shipped it.)
-export const DEFERRED_HOMES = [
+// gate test pins this list.
+export const NON_NEON_HOMES = [
   {
     home: 'convex:characterOnline',
     coveredBy:
