@@ -60,3 +60,20 @@ export function buildRosterCard(
     remainingLabel,
   };
 }
+
+// The SP line's fallback message when no totals have synced: a reconnect prompt when the
+// character needs reauth, else a neutral not-yet note.
+export function rosterSpFallback(vm: RosterViewModel): string {
+  return vm.needsReconnect ? 'Reconnect to sync' : 'No data yet';
+}
+
+// The unallocated SP to show in the "· N free" clause, or null when there is none — so
+// the card renders the clause on a single narrowed value.
+export function rosterFreeSp(vm: RosterViewModel): number | null {
+  return vm.unallocatedSp !== null && vm.unallocatedSp > 0 ? vm.unallocatedSp : null;
+}
+
+// The idle training-line copy for the two no-progress states.
+export function idleTrainingText(kind: 'empty' | 'complete'): string {
+  return kind === 'empty' ? 'No skills queued' : 'Training complete';
+}

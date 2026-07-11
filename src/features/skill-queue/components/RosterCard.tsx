@@ -10,8 +10,13 @@ import { CharacterPortrait } from '@/components/character-portrait';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { formatQuantity } from '@/lib/format/number';
-import { romanLevel } from '../progress';
-import type { RosterViewModel } from '../roster-view-model';
+import { type CurrentTraining, romanLevel } from '../progress';
+import {
+  idleTrainingText,
+  rosterFreeSp,
+  rosterSpFallback,
+  type RosterViewModel,
+} from '../roster-view-model';
 
 function PlayGlyph() {
   return (
@@ -60,18 +65,13 @@ export function RosterCard({
 
 function SpLine({ vm }: { vm: RosterViewModel }) {
   if (vm.totalSp === null) {
-    return (
-      <div className="font-mono text-[10px] leading-tight text-muted">
-        {vm.needsReconnect ? 'Reconnect to sync' : 'No data yet'}
-      </div>
-    );
+    return <div className="font-mono text-[10px] leading-tight text-muted">{rosterSpFallback(vm)}</div>;
   }
+  const free = rosterFreeSp(vm);
   return (
     <div className="font-mono text-[10px] leading-tight text-muted">
       {formatQuantity(vm.totalSp)} SP
-      {vm.unallocatedSp !== null && vm.unallocatedSp > 0 && (
-        <span className="text-isk"> · {formatQuantity(vm.unallocatedSp)} free</span>
-      )}
+      {free !== null && <span className="text-isk"> · {formatQuantity(free)} free</span>}
     </div>
   );
 }
@@ -81,19 +81,29 @@ function TrainingLine({ vm }: { vm: RosterViewModel }) {
     return <div className="mt-1 text-[10px] text-empty">No queue synced yet</div>;
   }
   const t = vm.training;
-  if (t.kind === 'empty') return <div className="mt-1 text-[10px] text-muted">No skills queued</div>;
-  if (t.kind === 'complete') {
-    return <div className="mt-1 text-[10px] text-muted">Training complete</div>;
+  if (t.kind === 'empty' || t.kind === 'complete') {
+    return <div className="mt-1 text-[10px] text-muted">{idleTrainingText(t.kind)}</div>;
   }
+  return <ActiveOrPausedLine vm={vm} training={t} />;
+}
 
+// The paused / actively-training states — both render the same skill label, differing in
+// the leading glyph and the paused pill vs the countdown + progress bar.
+function ActiveOrPausedLine({
+  vm,
+  training,
+}: {
+  vm: RosterViewModel;
+  training: Extract<CurrentTraining, { kind: 'paused' | 'training' }>;
+}) {
   const skillLabel = (
     <span className="text-name truncate flex-1 min-w-0">
-      {vm.currentSkillName ?? `Skill #${t.skillId}`}{' '}
-      <span className="text-muted">{romanLevel(t.level)}</span>
+      {vm.currentSkillName ?? `Skill #${training.skillId}`}{' '}
+      <span className="text-muted">{romanLevel(training.level)}</span>
     </span>
   );
 
-  if (t.kind === 'paused') {
+  if (training.kind === 'paused') {
     return (
       <div className="mt-1 flex items-center gap-2 text-[11px]">
         <PauseGlyph />
@@ -113,7 +123,7 @@ function TrainingLine({ vm }: { vm: RosterViewModel }) {
         )}
       </div>
       <div className="mt-1">
-        <ProgressBar pct={t.pct} tone="evb" />
+        <ProgressBar pct={training.pct} tone="evb" />
       </div>
     </div>
   );

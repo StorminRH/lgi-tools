@@ -36,9 +36,9 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesFor,
-    readAssets: readPagedEndpoint,
+    read: readPagedEndpoint,
     readSyncState: (owner) => readOwnerSyncState(owner),
-    saveAssets: (owner, rows, etags) => saveOwnedAssets(owner, rows, etags),
+    save: (owner, rows, etags) => saveOwnedAssets(owner, rows, etags),
     stampFresh: (owner) => stampOwnerFresh(owner),
   };
 }

@@ -61,19 +61,6 @@
       },
       {
         "files": [
-          "src/data/market-prices/use-refresh-on-view.ts",
-          "src/data/market-history/use-refresh-on-view.ts",
-          "src/features/wormhole-sites/components/site-live-context.ts",
-          "src/features/skill-queue/use-skills-live.ts",
-          "src/features/industry-jobs/use-jobs-live.ts",
-          "src/features/industry-jobs/use-corp-jobs-live.ts"
-        ],
-        "maxCrap": 9999,
-        "maxCognitive": 18,
-        "reason": "framework-convention: client-side React effect / live-context modules whose nesting is mandatory effect-cleanup correctness (AbortController, per-batch try/finally, unmount drain). Integration/visual-tested; the unit-tested halves are the server engines. use-skills-live's fetch/reconcile/tick effect is the skills on-view client half, use-jobs-live's is the personal industry-jobs half, and use-corp-jobs-live's is the corp industry-jobs half; their server engines (refresh.ts / corp-refresh.ts + planSkillsPersist / planJobsPersist / planCorpJobsPersist) are unit-tested."
-      },
-      {
-        "files": [
           "src/**/queries.ts",
           "src/data/eve-data/tree-resolver.ts",
           "src/features/industry-planner/blueprints-source.ts",

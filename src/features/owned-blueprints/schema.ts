@@ -12,18 +12,8 @@
 // The owner axis collapses the four Convex tables (char sync/data + corp sync/data)
 // into a single discriminated pair: owner_type ∈ {character, corporation}, owner_id
 // the character or corporation id.
-import {
-  bigint,
-  bigserial,
-  index,
-  integer,
-  jsonb,
-  pgEnum,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-} from 'drizzle-orm/pg-core';
+import { bigint, bigserial, index, integer, pgEnum, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import { ownerSyncStateColumns } from '@/lib/db-columns';
 
 // Postgres enum driven from a TS `as const` (the one-source-of-truth invariant).
 export const OWNED_BLUEPRINT_OWNER_TYPES = ['character', 'corporation'] as const;
@@ -71,11 +61,6 @@ export const ownedBlueprints = pgTable(
 // gate's own ETag cache is unauthenticated-only, so an authed reader holds them).
 export const ownedBlueprintSyncs = pgTable(
   'owned_blueprint_syncs',
-  {
-    ownerType: ownedBlueprintOwnerTypeEnum('owner_type').notNull(),
-    ownerId: bigint('owner_id', { mode: 'number' }).notNull(),
-    lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).notNull(),
-    pageEtags: jsonb('page_etags').$type<string[]>().default([]).notNull(),
-  },
+  ownerSyncStateColumns(ownedBlueprintOwnerTypeEnum),
   (t) => [primaryKey({ columns: [t.ownerType, t.ownerId] })],
 );

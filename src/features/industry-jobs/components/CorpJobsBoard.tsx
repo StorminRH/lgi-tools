@@ -21,18 +21,15 @@ import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
-import { Pill } from '@/components/ui/pill';
-import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionLabel } from '@/components/ui/section-label';
 import { ENTITY_NAMES_MAX_IDS, entityNamesEndpoint } from '@/data/eve-data/api-contract';
 import { apiFetch } from '@/lib/api-client';
 import { characterPortraitUrl, corporationLogoUrl } from '@/lib/eve-image';
-import { formatRemaining } from '@/lib/format/time';
 import type { CorpJobsResponse } from '../api-contract';
 import type { IndustryJob } from '../esi-projection';
-import { JOB_STATUS_META, jobActivityLabel } from '../industry-jobs-styles';
-import { jobProgress } from '../job-state';
+import { corpEntityIds, corpGroupState, jobRowFrameData, runnerName } from '../job-view';
 import { useCorpJobsLive } from '../use-corp-jobs-live';
+import { JobRowFrame } from './JobRowFrame';
 
 type CorpEntry = CorpJobsResponse['corporations'][number];
 
@@ -123,16 +120,7 @@ export function CorpJobsList({
 // /api/eve/names. Re-fetches only when the id set changes (keyed on content);
 // unresolved ids are simply absent (the row falls back to a generic label).
 function useEntityNames(corporations: CorpEntry[]): Record<string, string> {
-  const ids = useMemo(() => {
-    const set = new Set<number>();
-    for (const corp of corporations) {
-      set.add(corp.corporationId);
-      for (const job of corp.data?.jobs ?? []) {
-        if (job.installer_id !== undefined) set.add(job.installer_id);
-      }
-    }
-    return [...set].sort((a, b) => a - b).slice(0, ENTITY_NAMES_MAX_IDS);
-  }, [corporations]);
+  const ids = useMemo(() => corpEntityIds(corporations, ENTITY_NAMES_MAX_IDS), [corporations]);
 
   const [names, setNames] = useState<Record<string, string>>({});
   const idsKey = ids.join(',');
@@ -152,6 +140,75 @@ function useEntityNames(corporations: CorpEntry[]): Record<string, string> {
   return names;
 }
 
+interface CorpGroupBodyProps {
+  corp: CorpEntry;
+  corpLabel: string;
+  names: Record<string, string>;
+  entityNames: Record<string, string>;
+  now: number;
+}
+
+// The corp header (logo + name), and one notice card for the two gate states.
+function CorpGroupHeader({ corpId, label }: { corpId: number; label: string }) {
+  return (
+    <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
+      <img
+        src={corporationLogoUrl(corpId, 64)}
+        alt=""
+        width={28}
+        height={28}
+        className="w-7 h-7 rounded-[3px] border border-border-soft shrink-0"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="font-display font-bold text-[15px] text-name truncate">{label}</div>
+        <div className="text-[10px] text-muted tracking-[0.06em]">Corporation industry jobs</div>
+      </div>
+    </div>
+  );
+}
+
+function CorpNotice({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="p-3.5">
+      <Callout label={label}>{children}</Callout>
+    </div>
+  );
+}
+
+// The four render states of a corp group, keyed by its discriminant (config over a
+// branch ladder — keeps CorpGroup / CorpGroupBody trivial).
+const CORP_GROUP_BODY: Record<ReturnType<typeof corpGroupState>, (props: CorpGroupBodyProps) => ReactNode> = {
+  'needs-role': () => (
+    <CorpNotice label="Role needed">
+      No linked character holds the Factory Manager or Director role in this corporation, so its
+      industry jobs can’t be read. Granting more access can’t fix this — an in-game role change is
+      required.
+    </CorpNotice>
+  ),
+  'sync-error': () => (
+    <CorpNotice label="Sync trouble">
+      Couldn’t read this corporation’s jobs on the last sync — the next one will retry.
+    </CorpNotice>
+  ),
+  empty: () => <EmptyState>No corporation industry jobs running.</EmptyState>,
+  rows: ({ corp, corpLabel, names, entityNames, now }) =>
+    (corp.data?.jobs ?? []).map((job) => (
+      <CorpJobRow
+        key={job.job_id}
+        job={job}
+        corpId={corp.corporationId}
+        corpName={corpLabel}
+        names={names}
+        entityNames={entityNames}
+        now={now}
+      />
+    )),
+};
+
+function CorpGroupBody(props: CorpGroupBodyProps) {
+  return CORP_GROUP_BODY[corpGroupState(props.corp)](props);
+}
+
 function CorpGroup({
   corp,
   corpName,
@@ -166,53 +223,10 @@ function CorpGroup({
   now: number;
 }) {
   const label = corpName ?? `Corporation #${corp.corporationId}`;
-  const jobs = corp.data?.jobs ?? [];
-
   return (
     <Card>
-      <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
-        <img
-          src={corporationLogoUrl(corp.corporationId, 64)}
-          alt=""
-          width={28}
-          height={28}
-          className="w-7 h-7 rounded-[3px] border border-border-soft shrink-0"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="font-display font-bold text-[15px] text-name truncate">{label}</div>
-          <div className="text-[10px] text-muted tracking-[0.06em]">Corporation industry jobs</div>
-        </div>
-      </div>
-
-      {corp.syncError === 'needs_role' ? (
-        <div className="p-3.5">
-          <Callout label="Role needed">
-            No linked character holds the Factory Manager or Director role in this corporation, so
-            its industry jobs can’t be read. Granting more access can’t fix this — an in-game role
-            change is required.
-          </Callout>
-        </div>
-      ) : corp.data === null ? (
-        <div className="p-3.5">
-          <Callout label="Sync trouble">
-            Couldn’t read this corporation’s jobs on the last sync — the next one will retry.
-          </Callout>
-        </div>
-      ) : jobs.length === 0 ? (
-        <EmptyState>No corporation industry jobs running.</EmptyState>
-      ) : (
-        jobs.map((job) => (
-          <CorpJobRow
-            key={job.job_id}
-            job={job}
-            corpId={corp.corporationId}
-            corpName={label}
-            names={names}
-            entityNames={entityNames}
-            now={now}
-          />
-        ))
-      )}
+      <CorpGroupHeader corpId={corp.corporationId} label={label} />
+      <CorpGroupBody corp={corp} corpLabel={label} names={names} entityNames={entityNames} now={now} />
     </Card>
   );
 }
@@ -232,44 +246,21 @@ function CorpJobRow({
   entityNames: Record<string, string>;
   now: number;
 }) {
-  const meta = JOB_STATUS_META[job.status];
-  // The product is the headline where one exists (manufacturing, invention,
-  // reactions); research/copy jobs are about the blueprint itself.
-  const headlineId = job.product_type_id ?? job.blueprint_type_id;
-  const end = Date.parse(job.end_date);
   const installerId = job.installer_id;
-  const runnerName =
-    installerId !== undefined
-      ? (entityNames[String(installerId)] ?? `Pilot #${installerId}`)
-      : 'Unknown pilot';
-
   return (
-    <div className="border-t border-border-soft px-3.5 py-[6px]">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-[6px] text-[12px]">
-        <span className="text-name truncate leading-[1.5]">
-          {names[String(headlineId)] ?? `Type #${headlineId}`}{' '}
-          <span className="text-muted">
-            ×{job.runs} · {jobActivityLabel(job.activity_id)}
-          </span>
-        </span>
-        <span className="text-[10px] text-muted shrink-0">
-          {job.status === 'active' && Number.isFinite(end) ? `done in ${formatRemaining(end - now)}` : ''}
-        </span>
-        <Pill tone={meta.tone}>{meta.label}</Pill>
-      </div>
-      {(job.status === 'active' || job.status === 'paused') && (
-        <div className="mt-[4px]">
-          <ProgressBar pct={jobProgress(job, now)} tone="evb" />
+    <JobRowFrame
+      {...jobRowFrameData(job, names, now)}
+      barTone="evb"
+      footer={
+        <div className="mt-[5px]">
+          <JobRunner
+            portrait={installerId !== undefined ? characterPortraitUrl(installerId, 32) : undefined}
+            name={runnerName(installerId, entityNames)}
+            corp={{ logo: corporationLogoUrl(corpId, 32), name: corpName }}
+          />
         </div>
-      )}
-      <div className="mt-[5px]">
-        <JobRunner
-          portrait={installerId !== undefined ? characterPortraitUrl(installerId, 32) : undefined}
-          name={runnerName}
-          corp={{ logo: corporationLogoUrl(corpId, 32), name: corpName }}
-        />
-      </div>
-    </div>
+      }
+    />
   );
 }
 

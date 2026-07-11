@@ -77,8 +77,9 @@ export async function getCachedBlueprintCount(): Promise<number> {
   });
 }
 
-// Names only — the bulk type-name resolution behind POST /api/types/names.
-// Ids the SDE doesn't know are simply absent from the map.
+// Names only — bulk type-id → name resolution from the Neon SDE, resolving the
+// blueprint/product/skill ids on the live-tracker on-view responses and the planner
+// reads. Ids the SDE doesn't know are simply absent from the map.
 export async function getTypeNames(ids: number[]): Promise<Map<number, string>> {
   const out = new Map<number, string>();
   if (ids.length === 0) return out;

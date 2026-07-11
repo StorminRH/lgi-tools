@@ -9,8 +9,8 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { type BlueprintMapInput, type OwnedBlueprintMap, toOwnedBlueprintMap } from './blueprint-map';
 import type { OwnedBlueprint } from './esi-projection';
+import type { OwnerKey, PagedOwnerSyncState } from '@/lib/owner-sync';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
-import type { OwnerKey, OwnerSyncState } from './types';
 
 // One cache tag per owner so a refresh busts exactly that owner's cached read.
 export function ownedBlueprintsTag(owner: OwnerKey): string {
@@ -51,7 +51,7 @@ export async function getOwnedBlueprintMap(owners: OwnerKey[]): Promise<OwnedBlu
 
 // Live (uncached) sync state for the staleness gate + etag replay. Uncached on
 // purpose: the refresh needs the true last-refreshed time, not a cached view.
-export async function readOwnerSyncState(owner: OwnerKey): Promise<OwnerSyncState | null> {
+export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
     .select({
       lastRefreshedAt: ownedBlueprintSyncs.lastRefreshedAt,

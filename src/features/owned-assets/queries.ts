@@ -10,8 +10,8 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { type AssetMapInput, buildOwnedAssetMap, type OwnedAssetMap } from './asset-map';
 import type { OwnedAsset } from './esi-projection';
+import type { OwnerKey, PagedOwnerSyncState } from '@/lib/owner-sync';
 import { ownedAssets, ownedAssetSyncs } from './schema';
-import type { OwnerKey, OwnerSyncState } from './types';
 
 // One cache tag per owner so a refresh busts exactly that owner's cached read.
 export function ownedAssetsTag(owner: OwnerKey): string {
@@ -54,7 +54,7 @@ export async function getOwnedAssetMap(owners: OwnerKey[], typeIds: number[]): P
 
 // Live (uncached) sync state for the staleness gate + etag replay. Uncached on
 // purpose: the refresh needs the true last-refreshed time, not a cached view.
-export async function readOwnerSyncState(owner: OwnerKey): Promise<OwnerSyncState | null> {
+export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
     .select({
       lastRefreshedAt: ownedAssetSyncs.lastRefreshedAt,

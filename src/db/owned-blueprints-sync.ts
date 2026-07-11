@@ -35,9 +35,9 @@ function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
     listCharacters: listCharactersWithHealth,
     vendToken: vendTokenFor,
     readRoles: readRolesFor,
-    readBlueprints: readPagedEndpoint,
+    read: readPagedEndpoint,
     readSyncState: (owner) => readOwnerSyncState(owner),
-    saveBlueprints: (owner, rows, etags) => saveOwnedBlueprints(owner, rows, etags),
+    save: (owner, rows, etags) => saveOwnedBlueprints(owner, rows, etags),
     stampFresh: (owner) => stampOwnerFresh(owner),
   };
 }

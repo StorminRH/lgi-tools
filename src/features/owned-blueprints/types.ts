@@ -1,61 +1,13 @@
-// Shared types for the owned-blueprints Neon slice (MIGRATE.0). Kept I/O-free so
-// the refresh orchestration (refresh.ts) can depend on the port abstraction
-// WITHOUT importing the DB layer (queries.ts) or the auth slice — which it may
-// not (feature→feature is boundary-banned). The non-zone wrapper (src/db) builds
-// the real port; the orchestration is unit-tested against a fake one.
+// Shared types for the owned-blueprints Neon slice (MIGRATE.0). The paged-owned port,
+// owner key, sync-state, and read-result shapes are the shared owner-sync platform's
+// (src/lib/owner-sync, Family-2 generalization); this slice supplies only its projected
+// row (OwnedBlueprint). Kept I/O-free so the refresh orchestration (refresh.ts) can
+// depend on the port abstraction WITHOUT importing the DB layer (queries.ts) or the auth
+// slice — which it may not (feature→feature is boundary-banned). The non-zone wrapper
+// (src/db) builds the real port; the orchestration is unit-tested against a fake one.
+import type { OwnedDatasetPort } from '@/lib/owner-sync';
 import type { OwnedBlueprint } from './esi-projection';
-import type { OwnedBlueprintOwnerType } from './schema';
 
-// A blueprint owner: a character or a corporation, by id.
-export interface OwnerKey {
-  ownerType: OwnedBlueprintOwnerType;
-  ownerId: number;
-}
-
-// A linked character as the refresh enumerates it — identity, cached corp id, and
-// the scope health the eligibility predicates read.
-export interface RefreshCharacter {
-  characterId: number;
-  corporationId: number | null;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
-}
-
-// Per-owner sync state: the staleness stamp + the per-page etags to replay so an
-// unchanged owner returns a 304.
-export interface OwnerSyncState {
-  lastRefreshedAt: Date | null;
-  pageEtags: string[];
-}
-
-// The slice's own read result, decoupled from lib/esi's EsiPagedRead (the Neon
-// path's fixed TTL ignores the ESI cache window the gate returns).
-export type OwnedBlueprintsReadResult =
-  | { kind: 'fresh'; items: unknown[]; etags: string[] }
-  | { kind: 'unchanged' }
-  | { kind: 'error'; code: string };
-
-// The injected I/O the refresh runs over: auth (token vend, role read, character
-// enumeration), the ESI gate read, and Neon storage. The real implementations are
-// wired in src/db/owned-blueprints-sync.ts.
-export interface OwnedBlueprintsPort {
-  now(): Date;
-  // The user's linked characters with scope health + cached corp id.
-  listCharacters(userId: string): Promise<RefreshCharacter[]>;
-  // A fresh access token for a character, or null when unavailable / reauth-needed.
-  vendToken(characterId: number): Promise<string | null>;
-  // A character's in-game corp roles (for the Director gate), or null on failure.
-  readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
-  // Paginated authed blueprints read through the ESI gate.
-  readBlueprints(
-    basePath: string,
-    accessToken: string,
-    heldEtags: string[],
-  ): Promise<OwnedBlueprintsReadResult>;
-  // Live (uncached) per-owner sync state, or null if never synced.
-  readSyncState(owner: OwnerKey): Promise<OwnerSyncState | null>;
-  // Replace the owner's stored rows with a fresh set + new etags, stamp freshness.
-  saveBlueprints(owner: OwnerKey, rows: OwnedBlueprint[], etags: string[]): Promise<void>;
-  // Stamp freshness only (the 304 path), leaving stored rows + etags as-is.
-  stampFresh(owner: OwnerKey): Promise<void>;
-}
+// The injected I/O the refresh runs over — the shared paged-owned port over this
+// slice's row. The real implementation is wired in src/db/owned-blueprints-sync.ts.
+export type OwnedBlueprintsPort = OwnedDatasetPort<OwnedBlueprint>;

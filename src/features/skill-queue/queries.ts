@@ -6,6 +6,7 @@
 import { eq } from 'drizzle-orm';
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
+import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { characterSkills, characterSkillSyncs } from './schema';
 import type { CharacterSkillData, CharacterSkillSyncState, SkillsSaveHalves } from './types';
 
@@ -44,14 +45,7 @@ async function getCharacterSkills(characterId: number): Promise<CharacterSkillDa
 export async function getSkillsForCharacters(
   characterIds: number[],
 ): Promise<Map<number, CharacterSkillData>> {
-  const entries = await Promise.all(
-    characterIds.map(async (id) => [id, await getCharacterSkills(id)] as const),
-  );
-  const map = new Map<number, CharacterSkillData>();
-  for (const [id, data] of entries) {
-    if (data !== null) map.set(id, data);
-  }
-  return map;
+  return mapByIdDroppingNulls(characterIds, getCharacterSkills);
 }
 
 // Cached per-character trained-levels read for the planner's skills→time lever

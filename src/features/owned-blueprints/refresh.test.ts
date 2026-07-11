@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { refreshOwnedBlueprintsForUser } from './refresh';
-import type { OwnedBlueprintsPort, OwnedBlueprintsReadResult, OwnerSyncState, RefreshCharacter } from './types';
+import type { EnumeratedOwner, PagedOwnerReadResult, PagedOwnerSyncState } from '@/lib/owner-sync';
+import type { OwnedBlueprintsPort } from './types';
 
 const NOW = new Date('2026-06-27T12:00:00Z');
 const CHAR_BP_SCOPE = 'esi-characters.read_blueprints.v1';
@@ -26,17 +27,17 @@ function makePort(overrides: Partial<OwnedBlueprintsPort> = {}): OwnedBlueprints
     listCharacters: vi.fn(async () => []),
     vendToken: vi.fn(async () => 'token'),
     readRoles: vi.fn(async () => []),
-    readBlueprints: vi.fn(
-      async (): Promise<OwnedBlueprintsReadResult> => ({ kind: 'fresh', items: [], etags: [] }),
+    read: vi.fn(
+      async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [], etags: [] }),
     ),
     readSyncState: vi.fn(async () => null),
-    saveBlueprints: vi.fn(async () => {}),
+    save: vi.fn(async () => {}),
     stampFresh: vi.fn(async () => {}),
     ...overrides,
   };
 }
 
-const character = (id: number, extra: Partial<RefreshCharacter> = {}): RefreshCharacter => ({
+const character = (id: number, extra: Partial<EnumeratedOwner> = {}): EnumeratedOwner => ({
   characterId: id,
   corporationId: null,
   hasRefreshToken: true,
@@ -44,7 +45,7 @@ const character = (id: number, extra: Partial<RefreshCharacter> = {}): RefreshCh
   ...extra,
 });
 
-const fresh = (): OwnerSyncState => ({ lastRefreshedAt: new Date('2026-06-27T11:30:00Z'), pageEtags: [] });
+const fresh = (): PagedOwnerSyncState => ({ lastRefreshedAt: new Date('2026-06-27T11:30:00Z'), pageEtags: [] });
 
 describe('refreshOwnedBlueprintsForUser — character path', () => {
   it('makes no token vend and no ESI call when the owner is fresh (the staleness gate)', async () => {
@@ -56,23 +57,23 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
     expect(port.vendToken).not.toHaveBeenCalled();
-    expect(port.readBlueprints).not.toHaveBeenCalled();
-    expect(port.saveBlueprints).not.toHaveBeenCalled();
+    expect(port.read).not.toHaveBeenCalled();
+    expect(port.save).not.toHaveBeenCalled();
   });
 
   it('fetches and saves a stale owner, dropping item_id via the projection', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readSyncState: vi.fn(async () => null), // never synced → stale
-      readBlueprints: vi.fn(
-        async (): Promise<OwnedBlueprintsReadResult> => ({ kind: 'fresh', items: [esiBlueprint(34)], etags: ['"e1"'] }),
+      read: vi.fn(
+        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiBlueprint(34)], etags: ['"e1"'] }),
       ),
     });
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
-    expect(port.readBlueprints).toHaveBeenCalledWith('/characters/1/blueprints/', 'token', []);
-    const save = vi.mocked(port.saveBlueprints).mock.calls[0];
+    expect(port.read).toHaveBeenCalledWith('/characters/1/blueprints/', 'token', []);
+    const save = vi.mocked(port.save).mock.calls[0];
     expect(save[0]).toEqual({ ownerType: 'character', ownerId: 1 });
     expect(save[1]).toEqual([
       {
@@ -92,29 +93,29 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1)]),
       readSyncState: vi.fn(async () => ({ lastRefreshedAt: null, pageEtags: ['"held"'] })),
-      readBlueprints: vi.fn(async (): Promise<OwnedBlueprintsReadResult> => ({ kind: 'unchanged' })),
+      read: vi.fn(async (): Promise<PagedOwnerReadResult> => ({ kind: 'unchanged' })),
     });
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
-    expect(port.readBlueprints).toHaveBeenCalledWith('/characters/1/blueprints/', 'token', ['"held"']);
+    expect(port.read).toHaveBeenCalledWith('/characters/1/blueprints/', 'token', ['"held"']);
     expect(port.stampFresh).toHaveBeenCalledOnce();
-    expect(port.saveBlueprints).not.toHaveBeenCalled();
+    expect(port.save).not.toHaveBeenCalled();
   });
 
   it('refreshes several stale character owners (the parallel pass saves each one)', async () => {
     const port = makePort({
       listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
       readSyncState: vi.fn(async () => null), // all stale
-      readBlueprints: vi.fn(
-        async (): Promise<OwnedBlueprintsReadResult> => ({ kind: 'fresh', items: [esiBlueprint(34)], etags: [] }),
+      read: vi.fn(
+        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiBlueprint(34)], etags: [] }),
       ),
     });
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
     const saved = vi
-      .mocked(port.saveBlueprints)
+      .mocked(port.save)
       .mock.calls.map(([owner]) => owner.ownerId)
       .sort((a, b) => a - b);
     expect(saved).toEqual([1, 2, 3]);
@@ -128,7 +129,7 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
     expect(port.readSyncState).not.toHaveBeenCalled();
-    expect(port.readBlueprints).not.toHaveBeenCalled();
+    expect(port.read).not.toHaveBeenCalled();
   });
 });
 
@@ -140,16 +141,16 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
       readSyncState: vi.fn(async () => null), // stale
       vendToken: vi.fn(async (id: number) => `token-${id}`),
       readRoles: vi.fn(async (id: number) => (id === 2 ? ['Director'] : ['Accountant'])),
-      readBlueprints: vi.fn(
-        async (): Promise<OwnedBlueprintsReadResult> => ({ kind: 'fresh', items: [esiBlueprint(99)], etags: [] }),
+      read: vi.fn(
+        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiBlueprint(99)], etags: [] }),
       ),
     });
 
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
-    expect(port.readBlueprints).toHaveBeenCalledWith('/corporations/5000/blueprints/', 'token-2', []);
+    expect(port.read).toHaveBeenCalledWith('/corporations/5000/blueprints/', 'token-2', []);
     const corpSave = vi
-      .mocked(port.saveBlueprints)
+      .mocked(port.save)
       .mock.calls.find(([owner]) => owner.ownerType === 'corporation');
     expect(corpSave?.[0]).toEqual({ ownerType: 'corporation', ownerId: 5000 });
   });
@@ -164,7 +165,7 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
     await refreshOwnedBlueprintsForUser(port, 'u1');
 
     const corpRead = vi
-      .mocked(port.readBlueprints)
+      .mocked(port.read)
       .mock.calls.find(([path]) => path.includes('/corporations/'));
     expect(corpRead).toBeUndefined();
   });
