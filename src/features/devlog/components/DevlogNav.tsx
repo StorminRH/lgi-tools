@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import type { DevlogNavModel } from '../types';
+import { deriveActiveSlug } from './devlog-nav-view';
 import { NavTree } from './NavTree';
 
 // Highlights the active document from the URL. usePathname is request-time, so this
@@ -9,8 +10,5 @@ import { NavTree } from './NavTree';
 // shell shows the rail with no active state, then this streams the highlight in.
 export function DevlogNav({ model }: { model: DevlogNavModel }) {
   const pathname = usePathname();
-  const introSlug = model.looseDocuments[0]?.slug ?? null;
-  const match = pathname.match(/^\/devlog(?:\/([^/]+))?\/?$/);
-  const activeSlug = match ? (match[1] ?? introSlug) : null;
-  return <NavTree model={model} activeSlug={activeSlug} />;
+  return <NavTree model={model} activeSlug={deriveActiveSlug(pathname, model)} />;
 }

@@ -22,6 +22,8 @@ import {
   type LinkedCharacter,
 } from '@/features/auth/queries';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
+import { resolveErrorMessage } from '@/lib/error-copy';
+import { deriveUserDetailView } from './user-detail-view';
 
 // Friendly copy for the codes the admin routes can redirect back with. An
 // unrecognised code falls to the generic message rather than echoing an internal
@@ -31,11 +33,6 @@ const ERROR_MESSAGES: Record<string, string> = {
     "That's the user's only character — unlinking it would strand the account. Reassign it instead.",
   unlink_failed: 'Could not unlink that character. Please try again.',
 };
-
-function errorMessage(raw: string | string[] | undefined): string | null {
-  if (typeof raw !== 'string') return null;
-  return ERROR_MESSAGES[raw] ?? 'That action could not be completed.';
-}
 
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -157,11 +154,14 @@ async function UserDetailContent({
     getActiveSessionCount(userId),
   ]);
 
-  const error = errorMessage(rawError);
-  const isViewerSelf = userId === viewerUserId;
-  const isOnlyCharacter = characters.length <= 1;
-  const roleChip =
-    targetUser.role === 'ADMIN' ? <Chip tone="purple">Admin</Chip> : <Chip tone="blue">User</Chip>;
+  const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'That action could not be completed.');
+  const view = deriveUserDetailView({
+    targetUser,
+    charactersCount: characters.length,
+    sessionCount,
+    viewerUserId,
+    userId,
+  });
 
   return (
     <>
@@ -183,9 +183,12 @@ async function UserDetailContent({
                 {targetUser.name}
               </h1>
               <span className="flex items-center gap-[6px]">
-                <Pill tone="neutral">ID {targetUser.characterId ?? '—'}</Pill>
-                {roleChip}
-                {isViewerSelf ? <Chip tone="green">You</Chip> : null}
+                <Pill tone="neutral">ID {view.characterIdLabel}</Pill>
+                {view.identityChips.map((chip) => (
+                  <Chip key={chip.label} tone={chip.tone}>
+                    {chip.label}
+                  </Chip>
+                ))}
               </span>
             </div>
           </div>
@@ -220,8 +223,8 @@ async function UserDetailContent({
                 character={character}
                 userId={userId}
                 isActive={character.characterId === activeId}
-                isViewerSelf={isViewerSelf}
-                isOnlyCharacter={isOnlyCharacter}
+                isViewerSelf={view.isViewerSelf}
+                isOnlyCharacter={view.isOnlyCharacter}
               />
             ))
           )}
@@ -240,7 +243,7 @@ async function UserDetailContent({
             <AdminForceLogoutForm
               userId={userId}
               userName={targetUser.name}
-              disabled={isViewerSelf || sessionCount === 0}
+              disabled={view.forceLogoutDisabled}
             />
           </div>
         </Card>

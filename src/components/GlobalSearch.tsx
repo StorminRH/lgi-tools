@@ -24,12 +24,14 @@ import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { readRecents, pushRecent } from '@/features/search-recents/storage';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 import { TypeIcon } from '@/components/ui/type-icon';
+import { SEARCH_LISTBOX_ID, nextActiveIndex, searchOptionId } from '@/components/global-search-aria';
 import {
-  SEARCH_LISTBOX_ID,
-  nextActiveIndex,
-  searchActiveDescendantId,
-  searchOptionId,
-} from '@/components/global-search-aria';
+  deriveGlobalSearchView,
+  deriveSearchRowView,
+  isArrowKey,
+  sectionOffset,
+  splitMatchRuns,
+} from './global-search-view';
 
 type Props = {
   active: boolean;
@@ -137,32 +139,45 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
     router.push(result.href);
   }
 
+  const dismiss = () => {
+    setValue('');
+    inputRef.current?.blur();
+    onActiveChange(false);
+  };
+
+  const fireActive = () => {
+    const row = flatRows[activeIndex];
+    if (row) fireResult(row);
+  };
+
   function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Escape') {
       e.preventDefault();
-      setValue('');
-      inputRef.current?.blur();
-      onActiveChange(false);
+      dismiss();
       return;
     }
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (isArrowKey(e.key)) {
       e.preventDefault();
       setActiveIndex((i) => nextActiveIndex(i, e.key, flatRows.length));
       return;
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      const row = flatRows[activeIndex];
-      if (row) fireResult(row);
+      fireActive();
       return;
     }
   }
 
-  const showDropdown = active && sections.length > 0;
+  const view = deriveGlobalSearchView({
+    active,
+    sectionCount: sections.length,
+    activeIndex,
+    flatRowCount: flatRows.length,
+  });
 
   return (
     <div ref={wrapperRef} className="nav-host relative flex items-stretch">
-      <div className={`nav-search ${active ? 'active' : ''}`}>
+      <div className={view.wrapperClass}>
         <span className="ns-prompt">&gt;</span>
         <input
           ref={inputRef}
@@ -178,115 +193,176 @@ export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
           autoComplete="off"
           role="combobox"
           aria-haspopup="listbox"
-          aria-expanded={showDropdown}
-          aria-controls={showDropdown ? SEARCH_LISTBOX_ID : undefined}
+          aria-expanded={view.showDropdown}
+          aria-controls={view.ariaControls}
           aria-autocomplete="list"
-          aria-activedescendant={searchActiveDescendantId(activeIndex, flatRows.length, showDropdown)}
+          aria-activedescendant={view.ariaActivedescendant}
           className="ns-input"
           placeholder="Search tools, sites, resources…"
           onChange={(e) => setValue(e.target.value)}
           onFocus={() => onActiveChange(true)}
           onKeyDown={handleKey}
         />
-        {!active && <span className="ns-kbd-hint">⌘K</span>}
-        {active && <span className="ns-esc-hint">esc</span>}
+        <SearchHints active={active} />
       </div>
 
-      {showDropdown && (
-        <div id={SEARCH_LISTBOX_ID} className="dropdown" role="listbox">
-          {sections.map((section, sIdx) => {
-            // Compute the flat-index offset for this section so row-level
-            // activeIndex math matches keyboard navigation.
-            const before = sections
-              .slice(0, sIdx)
-              .reduce((sum, s) => sum + s.results.length, 0);
-            return (
-              <Fragment key={section.name}>
-                <div className="dd-section">
-                  <div className="dd-section-label">
-                    {section.name}
-                    {section.name === 'Sites' && section.results.length > 0 && (
-                      <span className="count">
-                        {section.results.length} match{section.results.length === 1 ? '' : 'es'}
-                      </span>
-                    )}
-                  </div>
-                  <div className="dd-grid">
-                    {section.results.map((row, rIdx) => {
-                      const flatIdx = before + rIdx;
-                      const isActiveRow = flatIdx === activeIndex;
-                      return (
-                        <button
-                          key={row.id}
-                          id={searchOptionId(flatIdx)}
-                          type="button"
-                          role="option"
-                          aria-selected={isActiveRow}
-                          disabled={row.disabled}
-                          className={`dd-row ${isActiveRow ? 'active' : ''} ${row.disabled ? 'disabled' : ''}`}
-                          onMouseEnter={() => setActiveIndex(flatIdx)}
-                          onMouseDown={(e) => {
-                            // Use onMouseDown so blur doesn't fire first and
-                            // close the dropdown before the click registers.
-                            e.preventDefault();
-                            fireResult(row);
-                          }}
-                        >
-                          {row.typeId ? (
-                            <TypeIcon
-                              typeId={row.typeId}
-                              size={22}
-                              mono={row.iconText ?? row.label.slice(0, 2)}
-                            />
-                          ) : (
-                            <span className={`dd-icon ${row.iconTone ?? ''}`}>{row.iconText}</span>
-                          )}
-                          <span className="dd-main">
-                            <span className="dd-name">{renderLabel(row.label, row.matchIndices)}</span>
-                            {row.sub && <span className="dd-sub">{row.sub}</span>}
-                          </span>
-                          <span className="dd-return">↵</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </Fragment>
-            );
-          })}
-          <div className="dd-footer">
-            <span>
-              Scope: <span className="text-isk">all</span> · sites · tools · commands
-            </span>
-            <span>
-              <span className="kbd">↑↓</span>
-              <span className="kbd">↵</span>
-              <span className="kbd">esc</span>
-            </span>
-          </div>
-        </div>
+      {view.showDropdown && (
+        <GlobalSearchDropdown
+          sections={sections}
+          activeIndex={activeIndex}
+          setActiveIndex={setActiveIndex}
+          fireResult={fireResult}
+        />
       )}
     </div>
   );
 }
 
-// Walk the label one char at a time. Characters whose index is in the
-// matchIndices set get wrapped in `<span class="match">` (green); the
-// rest render plain. Adjacent matched chars collapse into one span so
-// substring matches still render as a single highlighted run, not N
-// nested spans.
+function SearchHints({ active }: { active: boolean }) {
+  return (
+    <>
+      {!active && <span className="ns-kbd-hint">⌘K</span>}
+      {active && <span className="ns-esc-hint">esc</span>}
+    </>
+  );
+}
+
+function GlobalSearchDropdown({
+  sections,
+  activeIndex,
+  setActiveIndex,
+  fireResult,
+}: {
+  sections: SearchSection[];
+  activeIndex: number;
+  setActiveIndex: (i: number) => void;
+  fireResult: (result: SearchResult) => void;
+}) {
+  return (
+    <div id={SEARCH_LISTBOX_ID} className="dropdown" role="listbox">
+      {sections.map((section, sIdx) => (
+        <SearchSection
+          key={section.name}
+          section={section}
+          baseIndex={sectionOffset(sections, sIdx)}
+          activeIndex={activeIndex}
+          setActiveIndex={setActiveIndex}
+          fireResult={fireResult}
+        />
+      ))}
+      <div className="dd-footer">
+        <span>
+          Scope: <span className="text-isk">all</span> · sites · tools · commands
+        </span>
+        <span>
+          <span className="kbd">↑↓</span>
+          <span className="kbd">↵</span>
+          <span className="kbd">esc</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SearchSection({
+  section,
+  baseIndex,
+  activeIndex,
+  setActiveIndex,
+  fireResult,
+}: {
+  section: SearchSection;
+  baseIndex: number;
+  activeIndex: number;
+  setActiveIndex: (i: number) => void;
+  fireResult: (result: SearchResult) => void;
+}) {
+  return (
+    <div className="dd-section">
+      <div className="dd-section-label">
+        {section.name}
+        {section.name === 'Sites' && section.results.length > 0 && (
+          <span className="count">
+            {section.results.length} match{section.results.length === 1 ? '' : 'es'}
+          </span>
+        )}
+      </div>
+      <div className="dd-grid">
+        {section.results.map((row, rIdx) => (
+          <SearchRow
+            key={row.id}
+            row={row}
+            flatIdx={baseIndex + rIdx}
+            activeIndex={activeIndex}
+            setActiveIndex={setActiveIndex}
+            fireResult={fireResult}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SearchRow({
+  row,
+  flatIdx,
+  activeIndex,
+  setActiveIndex,
+  fireResult,
+}: {
+  row: SearchResult;
+  flatIdx: number;
+  activeIndex: number;
+  setActiveIndex: (i: number) => void;
+  fireResult: (result: SearchResult) => void;
+}) {
+  const isActiveRow = flatIdx === activeIndex;
+  const view = deriveSearchRowView(row, isActiveRow);
+  return (
+    <button
+      id={searchOptionId(flatIdx)}
+      type="button"
+      role="option"
+      aria-selected={isActiveRow}
+      disabled={row.disabled}
+      className={view.rowClass}
+      onMouseEnter={() => setActiveIndex(flatIdx)}
+      onMouseDown={(e) => {
+        // Use onMouseDown so blur doesn't fire first and
+        // close the dropdown before the click registers.
+        e.preventDefault();
+        fireResult(row);
+      }}
+    >
+      {row.typeId ? (
+        <TypeIcon typeId={row.typeId} size={22} mono={view.iconMono} />
+      ) : (
+        <span className={view.iconClass}>{row.iconText}</span>
+      )}
+      <span className="dd-main">
+        <span className="dd-name">{renderLabel(row.label, row.matchIndices)}</span>
+        {row.sub && <span className="dd-sub">{row.sub}</span>}
+      </span>
+      <span className="dd-return">↵</span>
+    </button>
+  );
+}
+
+// Walk the label into matched / unmatched runs (matched chars wrapped in
+// `<span class="match">`, green; adjacent matches collapse into one run) — see
+// {@link splitMatchRuns}.
 function renderLabel(label: string, indices?: number[]) {
-  if (!indices || indices.length === 0) return label;
-  const hit = new Set(indices);
-  const parts: React.ReactNode[] = [];
-  let i = 0;
-  while (i < label.length) {
-    const matched = hit.has(i);
-    let j = i;
-    while (j < label.length && hit.has(j) === matched) j++;
-    const slice = label.slice(i, j);
-    parts.push(matched ? <span key={i} className="match">{slice}</span> : slice);
-    i = j;
-  }
-  return <>{parts}</>;
+  return (
+    <>
+      {splitMatchRuns(label, indices).map((run, i) =>
+        run.matched ? (
+          <span key={i} className="match">
+            {run.text}
+          </span>
+        ) : (
+          <Fragment key={i}>{run.text}</Fragment>
+        ),
+      )}
+    </>
+  );
 }

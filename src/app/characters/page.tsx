@@ -22,7 +22,8 @@ import { SwitchCharacterForm } from '@/features/auth/components/SwitchCharacterF
 import { UnlinkCharacterForm } from '@/features/auth/components/UnlinkCharacterForm';
 import { EVE_AUTHORIZED_APPS_URL } from '@/features/auth/eve-sso';
 import { listLinkedCharacters, type LinkedCharacter } from '@/features/auth/queries';
-import { deriveCharacterHealth, listGrantedScopes } from '@/features/auth/scope-health';
+import { resolveErrorMessage } from '@/lib/error-copy';
+import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
 
 // Friendly copy for the failure codes the link callback (Better Auth) and the
 // unlink route can redirect back with. Whitelisted — an unrecognised code falls
@@ -35,9 +36,26 @@ const ERROR_MESSAGES: Record<string, string> = {
   "email_doesn't_match": 'Linking failed. Please try again.',
 };
 
-function errorMessage(raw: string | string[] | undefined): string | null {
-  if (typeof raw !== 'string') return null;
-  return ERROR_MESSAGES[raw] ?? 'Linking was cancelled or failed.';
+function CharacterRowActions({
+  characterId,
+  isActive,
+  isOnlyCharacter,
+  needsReconnect,
+}: {
+  characterId: number;
+  isActive: boolean;
+  isOnlyCharacter: boolean;
+  needsReconnect: boolean;
+}) {
+  return (
+    <span className="flex items-center gap-2 justify-end">
+      {needsReconnect ? (
+        <LinkCharacterButton label="Reconnect" emphasis="reconnect" />
+      ) : null}
+      {isActive ? null : <SwitchCharacterForm characterId={characterId} />}
+      <UnlinkCharacterForm characterId={characterId} disabled={isOnlyCharacter} />
+    </span>
+  );
 }
 
 function CharacterRow({
@@ -49,18 +67,9 @@ function CharacterRow({
   isActive: boolean;
   isOnlyCharacter: boolean;
 }) {
-  const health = deriveCharacterHealth({
-    scope: character.scope,
-    hasRefreshToken: character.hasRefreshToken,
-  });
-  const healthLabel = !health.needsReconnect
-    ? null
-    : character.hasRefreshToken
-      ? 'Missing scopes'
-      : 'Disconnected';
-  // Read-only: what this character has ACTUALLY granted, derived here in the app
-  // layer off the already-loaded grant string (no tokens, no new query).
-  const scopes = listGrantedScopes(character.scope);
+  // Health rollup, health-chip copy, and the granted-scope list — all derived off
+  // the already-loaded grant string (no tokens, no new query).
+  const view = deriveCharacterRowView(character);
 
   return (
     // The group owns the divider so the row and its granted-scope disclosure read
@@ -84,24 +93,23 @@ function CharacterRow({
           <span className="flex items-center gap-[6px]">
             <Pill tone="neutral">ID {character.characterId}</Pill>
             {isActive ? <Chip tone="green">Active</Chip> : null}
-            {healthLabel ? (
+            {view.healthLabel ? (
               <Chip tone="orange" className="normal-case">
-                {healthLabel}
+                {view.healthLabel}
               </Chip>
             ) : null}
           </span>
         }
         trailing={
-          <span className="flex items-center gap-2 justify-end">
-            {health.needsReconnect ? (
-              <LinkCharacterButton label="Reconnect" emphasis="reconnect" />
-            ) : null}
-            {isActive ? null : <SwitchCharacterForm characterId={character.characterId} />}
-            <UnlinkCharacterForm characterId={character.characterId} disabled={isOnlyCharacter} />
-          </span>
+          <CharacterRowActions
+            characterId={character.characterId}
+            isActive={isActive}
+            isOnlyCharacter={isOnlyCharacter}
+            needsReconnect={view.needsReconnect}
+          />
         }
       />
-      {scopes.length > 0 ? (
+      {view.scopes.length > 0 ? (
         <Collapsible
           className="border-b-0"
           headerClassName="px-3.5 py-[6px]"
@@ -110,7 +118,7 @@ function CharacterRow({
               <span className="text-[10px] tracking-[0.08em] uppercase text-muted">
                 Granted access
               </span>
-              <Pill tone="neutral">{scopes.length}</Pill>
+              <Pill tone="neutral">{view.scopes.length}</Pill>
               <span
                 data-chevron
                 className="ml-auto text-[10px] text-muted transition-transform inline-block shrink-0"
@@ -120,10 +128,36 @@ function CharacterRow({
             </span>
           }
         >
-          <GrantedScopesList scopes={scopes} />
+          <GrantedScopesList scopes={view.scopes} />
         </Collapsible>
       ) : null}
     </div>
+  );
+}
+
+function CharacterNotices({
+  absorbedCharacter,
+  error,
+}: {
+  absorbedCharacter: LinkedCharacter | undefined;
+  error: string | null;
+}) {
+  return (
+    <>
+      {absorbedCharacter ? (
+        <Card>
+          <Callout label="Character moved">
+            {absorbedCharacter.name} was already linked to a separate account, so LGI.tools
+            moved it into this one. Everything tracked for that character came along.
+          </Callout>
+        </Card>
+      ) : null}
+      {error ? (
+        <Card>
+          <Callout label="Heads up">{error}</Callout>
+        </Card>
+      ) : null}
+    </>
   );
 }
 
@@ -143,16 +177,14 @@ async function CharactersContent({
     searchParams,
     listLinkedCharacters(session.user.id),
   ]);
-  const error = errorMessage(rawError);
+  const error = resolveErrorMessage(rawError, ERROR_MESSAGES, 'Linking was cancelled or failed.');
   const isOnlyCharacter = characters.length <= 1;
   // The absorb-on-proof success note (ACCOUNT.3): the auth route appends
   // ?absorbed=<characterId> to the link-success redirect when "Add character"
-  // merged a stray duplicate account. Resolve it against the just-loaded
-  // roster — which doubles as the whitelist: a stale or forged id doesn't
-  // resolve, so nothing renders (the ERROR_MESSAGES fail-closed stance).
-  const absorbedId = typeof rawAbsorbed === 'string' ? Number(rawAbsorbed) : null;
-  const absorbedCharacter =
-    absorbedId !== null ? characters.find((c) => c.characterId === absorbedId) : undefined;
+  // merged a stray duplicate account. Resolved against the just-loaded roster —
+  // which doubles as the whitelist: a stale or forged id doesn't resolve, so
+  // nothing renders (the ERROR_MESSAGES fail-closed stance).
+  const absorbedCharacter = deriveAbsorbedCharacter(rawAbsorbed, characters);
 
   return (
     <>
@@ -165,19 +197,7 @@ async function CharactersContent({
       </div>
 
       <div className="w-full max-w-[760px] flex flex-col gap-6">
-        {absorbedCharacter ? (
-          <Card>
-            <Callout label="Character moved">
-              {absorbedCharacter.name} was already linked to a separate account, so LGI.tools
-              moved it into this one. Everything tracked for that character came along.
-            </Callout>
-          </Card>
-        ) : null}
-        {error ? (
-          <Card>
-            <Callout label="Heads up">{error}</Callout>
-          </Card>
-        ) : null}
+        <CharacterNotices absorbedCharacter={absorbedCharacter} error={error} />
 
         <Card>
           <SectionHeader

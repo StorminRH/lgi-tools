@@ -23,12 +23,12 @@ import {
   type ReactNode,
 } from 'react';
 import { getPreferencesEndpoint, putPreferenceEndpoint } from '@/data/preferences/api-contract';
+import { processPreferencesResponse } from '@/data/preferences/parse-server-preferences';
 import { authClient } from '@/features/auth/auth-client';
 import { apiFetch } from '@/lib/api-client';
 import {
   PREFERENCES,
   peekLocalPreference,
-  reconcilePreferences,
   writeLocalPreference,
   writePreferenceCookie,
   type PreferenceDef,
@@ -92,30 +92,17 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
         const res = await apiFetch(getPreferencesEndpoint);
         if (!alive) return;
 
-        const serverValues = new Map<string, unknown>();
-        if (res.ok) {
-          for (const def of PREFERENCES) {
-            const entry = res.data.preferences.find((p) => p.key === def.key);
-            if (!entry) continue;
-            const parsed = def.schema.safeParse(entry.value);
-            if (parsed.success) serverValues.set(def.key, parsed.data);
-          }
-        }
-
-        const { values: reconciled, toSeed } = reconcilePreferences(
-          serverValues,
-          readLocalValues(),
-        );
+        // Reconcile the tiers (parse + merge + decide what to seed) off the raw
+        // response; a failed read contributes no server values and seeds nothing.
+        const { reconciled, toSeed } = processPreferencesResponse(res, readLocalValues());
         setValues(reconciled);
         setReady(true);
 
-        // Carry an anon user's choices up to the server, once, only for keys the
-        // server has none — and only if the read actually succeeded (a failed read
-        // must not look like "server has nothing" and clobber real rows).
-        if (res.ok) {
-          for (const key of toSeed) {
-            void apiFetch(putPreferenceEndpoint, { body: { key, value: reconciled.get(key) } });
-          }
+        // Carry an anon user's choices up to the server, once, only for the keys
+        // the reconciliation flagged (empty on a failed read, so real rows are
+        // never clobbered).
+        for (const key of toSeed) {
+          void apiFetch(putPreferenceEndpoint, { body: { key, value: reconciled.get(key) } });
         }
       })();
     }, 0);

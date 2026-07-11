@@ -21,7 +21,12 @@ import {
   MenuSeparator,
 } from '@/components/ui/menu';
 import { useAuth } from '@/features/auth/components/AuthProvider';
-import { runAsView, type BuildCharacter } from './run-as-state';
+import {
+  buildRadioValue,
+  parseRadioSelection,
+  runAsView,
+  type BuildCharacter,
+} from './run-as-state';
 
 // Borderless column on the hero band's 108px plane (the item render keeps its
 // boxed square; this frame is heading / portrait / name, no box). The plain
@@ -38,6 +43,54 @@ const HEADING = (
     Build character
   </span>
 );
+
+// Loading / anon: an inert labelled column, no menu (role="img" so the aria-label
+// is announced on a role-less div). No caret — it appears only when the frame is
+// actually openable.
+function InertRunAsFrame({ loading }: { loading: boolean }) {
+  return (
+    <div role="img" className={FRAME_CLASSES} aria-label="Building character">
+      {HEADING}
+      {loading ? (
+        <span aria-hidden className="size-16 rounded-full border border-border-idle bg-bg-deep" />
+      ) : (
+        <>
+          <span
+            aria-hidden
+            className="flex size-16 items-center justify-center rounded-full border border-border-idle text-[18px] text-muted"
+          >
+            —
+          </span>
+          <span className="text-[9px] uppercase tracking-[0.14em] text-muted">Sign in</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+// The linked-character radio rows below the Default option. needsReconnect rows
+// are listed unfiltered — scope health never gates selection (Phase 3 decides how
+// missing data degrades).
+function RunAsCharacterItems({ characters }: { characters: BuildCharacter[] | null }) {
+  return (
+    <>
+      {(characters ?? []).map((c) => (
+        <MenuRadioItem
+          key={c.characterId}
+          value={c.characterId}
+          closeOnClick
+          className="account-menu-item flex items-center gap-2"
+        >
+          <CharacterPortrait characterId={c.characterId} name={c.name} src={c.portraitUrl} size={28} />
+          <span className="truncate">{c.name}</span>
+          <MenuRadioItemIndicator className="ml-auto pl-2 text-[10px] leading-none text-muted">
+            ✓
+          </MenuRadioItemIndicator>
+        </MenuRadioItem>
+      ))}
+    </>
+  );
+}
 
 export function RunAsFrame({
   buildCharacter,
@@ -56,35 +109,13 @@ export function RunAsFrame({
   });
 
   if (view.kind !== 'present') {
-    // Loading / anon: an inert labelled column, no menu (role="img" so the
-    // aria-label is announced on a role-less div). No caret — it appears only
-    // when the frame is actually openable.
-    return (
-      <div role="img" className={FRAME_CLASSES} aria-label="Building character">
-        {HEADING}
-        {view.kind === 'loading' ? (
-          <span aria-hidden className="size-16 rounded-full border border-border-idle bg-bg-deep" />
-        ) : (
-          <>
-            <span
-              aria-hidden
-              className="flex size-16 items-center justify-center rounded-full border border-border-idle text-[18px] text-muted"
-            >
-              —
-            </span>
-            <span className="text-[9px] uppercase tracking-[0.14em] text-muted">Sign in</span>
-          </>
-        )}
-      </div>
-    );
+    return <InertRunAsFrame loading={view.kind === 'loading'} />;
   }
 
   // Signed in: the whole frame is the menu trigger (a real button — its
   // aria-label carries the identity the old role="img" div announced). The rows
   // are menuitemradio (pick one of N); "Default" CLEARS the stored pick (writes
-  // null, never the active id) so the mirror keeps following the active
-  // character. needsReconnect rows are listed unfiltered — scope health never
-  // gates selection (Phase 3 decides how missing data degrades).
+  // null, never the active id) so the mirror keeps following the active character.
   return (
     <Menu
       label={`Building as ${view.name} — choose build character`}
@@ -111,8 +142,8 @@ export function RunAsFrame({
       sideOffset={4}
     >
       <MenuRadioGroup
-        value={buildCharacter?.characterId ?? 0}
-        onValueChange={(value) => onSelect(value === 0 ? null : (value as number))}
+        value={buildRadioValue(buildCharacter)}
+        onValueChange={(value) => onSelect(parseRadioSelection(value as number))}
       >
         {/* value 0 is unreachable as a character id (ids are positive ints) —
             the sentinel for "no explicit pick". */}
@@ -123,20 +154,7 @@ export function RunAsFrame({
           </MenuRadioItemIndicator>
         </MenuRadioItem>
         <MenuSeparator className="account-menu-separator" />
-        {(buildCharacters ?? []).map((c) => (
-          <MenuRadioItem
-            key={c.characterId}
-            value={c.characterId}
-            closeOnClick
-            className="account-menu-item flex items-center gap-2"
-          >
-            <CharacterPortrait characterId={c.characterId} name={c.name} src={c.portraitUrl} size={28} />
-            <span className="truncate">{c.name}</span>
-            <MenuRadioItemIndicator className="ml-auto pl-2 text-[10px] leading-none text-muted">
-              ✓
-            </MenuRadioItemIndicator>
-          </MenuRadioItem>
-        ))}
+        <RunAsCharacterItems characters={buildCharacters} />
       </MenuRadioGroup>
     </Menu>
   );
