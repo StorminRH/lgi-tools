@@ -6,6 +6,7 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
+import { parseNumericRouteId } from '@/lib/route-id';
 import {
   cookieNameFor,
   plannerBuildCharacter,
@@ -26,10 +27,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id: rawId } = await params;
-  // Require a bare digit string — Number.parseInt would otherwise accept
-  // "12abc" as 12 and resolve the wrong blueprint instead of 404-ing.
-  if (!/^\d+$/.test(rawId)) return {};
-  const id = Number.parseInt(rawId, 10);
+  const id = parseNumericRouteId(rawId);
+  if (id === null) return {};
 
   const structure = await getBlueprintStructure(id);
   if (!structure) return {};
@@ -69,8 +68,8 @@ export async function generateMetadata({
 async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = await params;
   // Require a bare digit string (see generateMetadata) — reject "12abc" → 404.
-  if (!/^\d+$/.test(rawId)) notFound();
-  const id = Number.parseInt(rawId, 10);
+  const id = parseNumericRouteId(rawId);
+  if (id === null) notFound();
 
   const structure = await getBlueprintStructure(id);
   if (!structure) notFound();

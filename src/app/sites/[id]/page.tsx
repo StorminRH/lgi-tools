@@ -6,6 +6,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';
+import { parseNumericRouteId } from '@/lib/route-id';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SiteMetaStrip } from '@/features/wormhole-sites/components/SiteMetaStrip';
 import {
@@ -75,10 +76,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id: rawId } = await params;
-  // Require a bare digit string — Number.parseInt would otherwise accept
-  // "12abc" as 12 and resolve the wrong entity instead of 404-ing.
-  if (!/^\d+$/.test(rawId)) return {};
-  const id = Number.parseInt(rawId, 10);
+  const id = parseNumericRouteId(rawId);
+  if (id === null) return {};
 
   // Use the priced read (same hourly-tagged cache the page body uses) so the
   // ISK in the description matches the page and its "live Jita prices" claim,
@@ -182,8 +181,8 @@ export default async function SiteDetailPage({
 }) {
   const { id: rawId } = await params;
   // Require a bare digit string (see generateMetadata) — reject "12abc" → 404.
-  if (!/^\d+$/.test(rawId)) notFound();
-  const id = Number.parseInt(rawId, 10);
+  const id = parseNumericRouteId(rawId);
+  if (id === null) notFound();
 
   const site = await loadSite(id);
   if (!site) notFound();
