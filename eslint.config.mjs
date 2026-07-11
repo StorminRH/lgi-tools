@@ -54,6 +54,28 @@ const hexColorSelectors = [
   },
 ];
 
+// Type-scale enforcement (3.8.2.1): raw `text-[Npx]` arbitrary font sizes belong
+// on the named ladder — the `--text-*` scale in globals.css `@theme`, surfaced as
+// `text-micro`/`label`/`ui`/`body`/`lead`/`h3`/`stat`/`h2`/`display`. Mirrors the
+// hex-color ban: a plain className Literal and an interpolated (cva/clsx/cn)
+// TemplateElement. Anchored on `text-[<number>(px|rem|em)]` so it never fires on
+// `text-[clamp(…)]`, `text-[var(…)]`, `w-[64px]`, or `leading-[…]`. Not added to
+// the base `**/*.{ts,tsx}` block, so test files (arbitrary-value fixtures) fall
+// through to it exempt; the preview sandbox is exempted below. A justified one-off
+// uses an inline `// eslint-disable-next-line no-restricted-syntax -- <reason>`.
+const textSizeSelectors = [
+  {
+    selector: "Literal[value=/text-\\[[0-9.]+(px|rem|em)\\]/]",
+    message:
+      "No raw text-[Npx] arbitrary font sizes — use the named scale (text-micro/label/ui/body/lead/h3/stat/h2/display, backed by `--text-*` in globals.css `@theme`). See CONTRIBUTING.md (Type scale).",
+  },
+  {
+    selector: "TemplateElement[value.raw=/text-\\[[0-9.]+(px|rem|em)\\]/]",
+    message:
+      "No raw text-[Npx] arbitrary font sizes (template literal) — use the named `--text-*` scale (globals.css `@theme`). See CONTRIBUTING.md (Type scale).",
+  },
+];
+
 // Typed-API-call enforcement (3.4.T): a literal fetch('/api/…') bypasses the
 // shared contracts, so client code must go through apiFetch with the owning
 // slice's endpoint object instead. The selectors match only a string/template
@@ -179,6 +201,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
+        ...textSizeSelectors,
       ],
     },
   },
@@ -195,6 +218,7 @@ const eslintConfig = defineConfig([
         ...hexColorSelectors,
         ...apiFetchSelectors,
         ...processEnvSelectors,
+        ...textSizeSelectors,
       ],
     },
   },
@@ -210,6 +234,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
+        ...textSizeSelectors,
       ],
     },
   },
