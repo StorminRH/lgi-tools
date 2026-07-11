@@ -25,7 +25,7 @@ interface NpcArgs {
   trigger?: boolean;
 }
 
-function npc(
+export function npc(
   order: number,
   {
     quantity,
@@ -61,7 +61,7 @@ function npc(
   };
 }
 
-function wave(
+export function wave(
   waveNumber: number,
   label: string,
   dpsTotal: number,
@@ -91,7 +91,7 @@ function wave(
   };
 }
 
-function resource(
+export function resource(
   order: number,
   kind: SiteResource['resourceKind'],
   name: string,

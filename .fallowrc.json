@@ -53,23 +53,7 @@
     "maxCyclomatic": 20,
     "maxCognitive": 15,
     "maxCrap": 30.0,
-    "thresholdOverrides": [
-      {
-        "files": ["src/features/auth/auth.ts"],
-        "maxCrap": 9999,
-        "reason": "framework-convention: the Better Auth provider/config object, exercised by the live auth flow rather than unit tests."
-      },
-      {
-        "files": ["src/components/telemetry/client.ts"],
-        "maxCrap": 9999,
-        "reason": "framework-convention: a client-side telemetry sender (sendBeacon/fetch over browser APIs) — fire-and-forget glue verified in the browser, not unit-tested."
-      },
-      {
-        "files": ["src/features/wormhole-sites/mock-data.ts"],
-        "maxCrap": 9999,
-        "reason": "intentional-policy: preview/mock fixture generators consumed only by the /preview sandbox (src/app/preview/cards), never production — fixtures aren't unit-tested."
-      }
-    ]
+    "thresholdOverrides": []
   },
 
   "duplicates": {
