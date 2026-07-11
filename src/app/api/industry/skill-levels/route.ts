@@ -6,6 +6,7 @@ import {
   type SkillLevelsBadRequest,
   type SkillLevelsResponse,
 } from '@/features/industry-planner/api-contract';
+import { parseJsonBody } from '@/lib/route-body';
 
 // POST /api/industry/skill-levels
 // Body: { characterId }
@@ -19,22 +20,16 @@ import {
 // `levels: null` (200): the planner fails open to the no-skill baseline.
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: 'invalid_json' } satisfies SkillLevelsBadRequest, {
-      status: 400,
-    });
-  }
-
-  const parsed = skillLevelsRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json(
-      { error: 'invalid_request', issues: parsed.error.issues } satisfies SkillLevelsBadRequest,
-      { status: 400 },
-    );
-  }
+  const parsed = await parseJsonBody(request, skillLevelsRequestSchema, {
+    invalidJson: () =>
+      Response.json({ error: 'invalid_json' } satisfies SkillLevelsBadRequest, { status: 400 }),
+    invalidBody: (error) =>
+      Response.json(
+        { error: 'invalid_request', issues: error.issues } satisfies SkillLevelsBadRequest,
+        { status: 400 },
+      ),
+  });
+  if (!parsed.ok) return parsed.response;
 
   const userId = await getCurrentUserId();
   if (!userId) {

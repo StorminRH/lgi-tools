@@ -8,22 +8,13 @@ import {
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
-import { logUsageEvent } from '@/data/telemetry/queries';
+import { cronLogger } from '@/data/telemetry/cron-logger';
 import { directClient } from '@/db';
+import { withAdvisoryLock } from '@/db/advisory-lock';
 import { runSdePipeline, summarizeMarketPricesRowCount } from '@/db/sde-pipeline';
 import { requireCronAuth } from '@/lib/cron';
 
-// Awaited fire-and-forget telemetry: failures swallowed so observability never
-// breaks the cron, awaited so the row lands before the serverless function
-// freezes on return (3.0.10 O-2/O-3).
-async function logSdeCronEvent(metadata: Record<string, unknown>): Promise<void> {
-  console.log(JSON.stringify({ scope: 'cron:sde', ...metadata }));
-  try {
-    await logUsageEvent({ action: 'cron_sde', metadata });
-  } catch (err) {
-    console.error('[cron:sde] telemetry write failed', err);
-  }
-}
+const logSdeCronEvent = cronLogger('cron:sde', 'cron_sde');
 
 // Vercel cron endpoint. Wired to "50 11 * * *" in vercel.json (daily
 // 11:50 UTC — right after EVE's 11:00 downtime and the prices/indices
@@ -84,23 +75,10 @@ export async function GET(req: Request): Promise<Response> {
     } satisfies CronRefreshSdeResponse);
   }
 
-  const reserved = await directClient.reserve();
-  let lockHeld = false;
-  try {
-    const lockResult = await reserved<{ got: boolean }[]>`
-      SELECT pg_try_advisory_lock(${LOCK_KEY_NUM}) AS got
-    `;
-    if (!lockResult[0].got) {
-      // O-3: a busy-skip (another ingest holds the lock) is distinct from a
-      // healthy run.
-      await logSdeCronEvent({ outcome: 'busy', durationMs: Date.now() - start });
-      return Response.json({
-        status: 'busy',
-        message: 'Another SDE ingest in flight',
-      } satisfies CronRefreshSdeResponse);
-    }
-    lockHeld = true;
-
+  // Drift confirmed — take the lock (via the shared scaffold) and run the
+  // pipeline. The version gate above ran BEFORE the lock so the no-drift and
+  // unreachable ticks never reserve a connection.
+  const outcome = await withAdvisoryLock(directClient, LOCK_KEY_NUM, async () => {
     const summary = await runSdePipeline(db);
     if (remoteVersion) {
       await setSdeMetaValue(db, SDE_META_KEY_VERSION, remoteVersion);
@@ -129,17 +107,16 @@ export async function GET(req: Request): Promise<Response> {
       summary,
       marketPrices,
     } satisfies CronRefreshSdeResponse);
-  } finally {
-    // Nest the unlock so reserved.release() is the OUTERMOST cleanup and always
-    // runs — if the unlock query itself threw (transient DB error), skipping
-    // release() would leak the connection AND leave the session-advisory lock
-    // held, wedging every later run at 'busy' until the pool recycled it.
-    try {
-      if (lockHeld) {
-        await reserved`SELECT pg_advisory_unlock(${LOCK_KEY_NUM})`;
-      }
-    } finally {
-      reserved.release();
-    }
+  });
+
+  if (outcome.busy) {
+    // O-3: a busy-skip (another ingest holds the lock) is distinct from a
+    // healthy run.
+    await logSdeCronEvent({ outcome: 'busy', durationMs: Date.now() - start });
+    return Response.json({
+      status: 'busy',
+      message: 'Another SDE ingest in flight',
+    } satisfies CronRefreshSdeResponse);
   }
+  return outcome.result;
 }

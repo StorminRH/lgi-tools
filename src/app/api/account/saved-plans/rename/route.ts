@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { getCurrentUserId } from '@/features/auth/session';
+import { requireUserId } from '@/features/auth/route-guards';
 import {
   renameSavedPlanRequestSchema,
   type SavedPlansResponse,
@@ -12,8 +12,9 @@ import { parseJsonBody } from '@/lib/route-body';
 // templates (the query's (userId, id) predicate makes a foreign id a no-op).
 // Echoes the full updated list.
 export async function POST(request: NextRequest): Promise<Response> {
-  const userId = await getCurrentUserId();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const gate = await requireUserId();
+  if (!gate.ok) return gate.response;
+  const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, renameSavedPlanRequestSchema);
   if (!parsed.ok) return parsed.response;

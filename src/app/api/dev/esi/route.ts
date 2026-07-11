@@ -7,12 +7,12 @@
 // route's own auth/validation failures are HTTP errors. Mirrors the /dev/esi
 // page gate: any session may read on preview/dev, production requires admin.
 // authz: admin
-import { headers } from 'next/headers';
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
-import { auth } from '@/features/auth/auth';
 import { accountBelongsToUser } from '@/features/auth/queries';
+import { requireSession } from '@/features/auth/route-guards';
 import { readEnv } from '@/lib/env';
 import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/lib/esi';
+import { parseJsonBody } from '@/lib/route-body';
 import {
   DEV_ESI_ENDPOINTS,
   devEsiReadRequestSchema,
@@ -24,27 +24,15 @@ import {
 export const maxDuration = 15;
 
 export async function POST(req: Request): Promise<Response> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const gate = await requireSession();
+  if (!gate.ok) return gate.response;
+  const session = gate.session;
   if (readEnv('VERCEL_ENV') === 'production' && !session.isAdmin) {
     return new Response('Forbidden', { status: 403 });
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = devEsiReadRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, devEsiReadRequestSchema);
+  if (!parsed.ok) return parsed.response;
   const { characterId, endpoint, ifNoneMatch } = parsed.data;
 
   if (!(await accountBelongsToUser(session.user.id, characterId))) {

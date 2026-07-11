@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { getCurrentUserId } from '@/features/auth/session';
+import { requireUserId } from '@/features/auth/route-guards';
 import {
   createSavedPlanRequestSchema,
   MAX_SAVED_PLANS_PER_USER,
@@ -34,8 +35,9 @@ export async function GET(): Promise<Response> {
 // resolve (it supplies the denormalized product columns the list renders), and
 // the per-user cap holds. Echoes the full updated list.
 export async function POST(request: NextRequest): Promise<Response> {
-  const userId = await getCurrentUserId();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const gate = await requireUserId();
+  if (!gate.ok) return gate.response;
+  const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, createSavedPlanRequestSchema);
   if (!parsed.ok) return parsed.response;

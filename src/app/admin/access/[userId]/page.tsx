@@ -1,6 +1,4 @@
-import { headers } from 'next/headers';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
@@ -15,7 +13,7 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { AdminForceLogoutForm } from '@/features/auth/components/AdminForceLogoutForm';
 import { AdminReassignCharacterForm } from '@/features/auth/components/AdminReassignCharacterForm';
 import { AdminUnlinkCharacterForm } from '@/features/auth/components/AdminUnlinkCharacterForm';
-import { auth } from '@/features/auth/auth';
+import { requireAdminPage } from '@/features/auth/route-guards';
 import {
   getActiveSessionCount,
   getStoredActiveCharacterId,
@@ -141,12 +139,9 @@ async function UserDetailContent({
   params: Promise<{ userId: string }>;
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
-  // Admin gate + viewer id come straight from the Better Auth session (isAdmin is
-  // computed server-side; the shared Session type doesn't carry userId).
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.isAdmin) {
-    redirect('/?auth_error=admin_required');
-  }
+  // Admin gate + viewer id come straight from the Better Auth session (the
+  // shared Session type deliberately doesn't carry userId).
+  const session = await requireAdminPage();
   const viewerUserId = session.user.id;
 
   const [{ userId }, { error: rawError }] = await Promise.all([params, searchParams]);

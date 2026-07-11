@@ -1,10 +1,9 @@
-import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { AccountDeleteResponse } from '@/features/auth/api-contract';
-import { auth } from '@/features/auth/auth';
 import { nukeAccount } from '@/features/auth/queries';
-import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
+import { requireSession } from '@/features/auth/route-guards';
+import { rateLimitGuard } from '@/lib/rate-limit';
 
 // POST-only. Nuke the CALLER's entire account — every linked character's derived
 // data scrubbed, each EVE grant revoked, then the user row deleted (its sessions,
@@ -13,21 +12,12 @@ import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-li
 // No user input — acts on the session user only (never a body-supplied id).
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  const limit = await rateLimit(clientIdentifier(request.headers), {
-    name: 'account-delete',
-    perMinute: 5,
-  });
-  if (!limit.ok) {
-    return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
-    );
-  }
+  const limit = await rateLimitGuard(request, { name: 'account-delete', perMinute: 5 });
+  if (!limit.ok) return limit.response;
 
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const gate = await requireSession();
+  if (!gate.ok) return gate.response;
+  const session = gate.session;
 
   await nukeAccount(session.user.id);
 

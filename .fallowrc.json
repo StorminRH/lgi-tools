@@ -60,18 +60,6 @@
         "reason": "intentional-policy: presentational components are covered by visual/preview review, not unit tests. CRAP's coverage weighting flags every untested component — a coverage expectation the repo has declined for this surface. Cyclomatic + cognitive stay universal, so a genuinely tangled component still fails."
       },
       {
-        "files": ["src/db/**", "scripts/**"],
-        "maxCrap": 9999,
-        "maxCognitive": 20,
-        "reason": "intentional-policy: deploy/CLI entry scripts (the `entry` set in this config). They run at build/deploy, gated by assert:routes, the migrations, and the SDE-pipeline tests — not unit coverage. CRAP off; cognitive raised to 20 to admit the mandatory advisory-lock try/finally nesting in ingest-sde-if-empty.ts (cog 16). Cyclomatic stays at 20."
-      },
-      {
-        "files": ["src/app/**/route.ts", "src/proxy.ts"],
-        "maxCrap": 9999,
-        "maxCognitive": 18,
-        "reason": "framework-convention: Next.js route handlers + middleware are a sequence of boundary guard clauses (parse -> Zod -> auth -> rate-limit -> dispatch); validation-at-the-boundary is an architecture invariant, and per policy they are unit-tested only for non-trivial logic. CRAP off; cognitive raised to 18 to admit the guard depth in contact/route.ts and dev/esi/route.ts (cog 17). Handlers with real logic get tests, not this."
-      },
-      {
         "files": [
           "src/data/market-prices/use-refresh-on-view.ts",
           "src/data/market-history/use-refresh-on-view.ts",

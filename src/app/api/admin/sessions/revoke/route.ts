@@ -1,9 +1,9 @@
-import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminRevokeSessionsFormSchema } from '@/features/auth/api-contract';
-import { auth } from '@/features/auth/auth';
 import { getUserById, revokeUserSessions } from '@/features/auth/queries';
+import { requireAdmin } from '@/features/auth/route-guards';
+import { parseFormBody } from '@/lib/route-body';
 
 // POST-only. Admin force-logout: deletes every session row for the target user,
 // pushing them to re-authenticate. With the session cookie cache on this isn't
@@ -12,16 +12,17 @@ import { getUserById, revokeUserSessions } from '@/features/auth/queries';
 // Independent gate — never trust a UI-level disable.
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.isAdmin) {
-    return new Response('Forbidden', { status: 403 });
-  }
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate.response;
+  const session = gate.session;
 
-  const form = await request.formData();
-  const parsed = adminRevokeSessionsFormSchema.safeParse({ userId: form.get('userId') });
-  if (!parsed.success) {
-    return new Response('Invalid form', { status: 400 });
-  }
+  const parsed = await parseFormBody(
+    request,
+    adminRevokeSessionsFormSchema,
+    (form) => ({ userId: form.get('userId') }),
+    () => new Response('Invalid form', { status: 400 }),
+  );
+  if (!parsed.ok) return parsed.response;
   const { userId } = parsed.data;
 
   if (userId === session.user.id) {

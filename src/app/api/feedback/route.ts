@@ -10,7 +10,8 @@ import {
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from '@/features/feedback/constants';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { readEnv } from '@/lib/env';
-import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
+import { rateLimitGuard } from '@/lib/rate-limit';
+import { parseJsonBody } from '@/lib/route-body';
 import { sanitiseUserText } from '@/lib/sanitise';
 
 // Per-IP rate limit. Feedback POSTs fan out to a Discord webhook, so an
@@ -54,33 +55,14 @@ function buildEmbed({
 // happen.
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
+  const parsed = await parseJsonBody(request, feedbackRequestSchema);
+  if (!parsed.ok) return parsed.response;
 
-  const parsed = feedbackRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const firstIssue = parsed.error.issues[0];
-    const detail = firstIssue ? `${firstIssue.path.join('.') || 'body'}: ${firstIssue.message}` : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
-
-  const limit = await rateLimit(clientIdentifier(request.headers), {
+  const limit = await rateLimitGuard(request, {
     name: 'feedback',
     perMinute: FEEDBACK_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) {
-    return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      {
-        status: 429,
-        headers: { 'Retry-After': String(limit.retryAfter) },
-      },
-    );
-  }
+  if (!limit.ok) return limit.response;
 
   const message = sanitiseUserText(parsed.data.message, FEEDBACK_MESSAGE_MAX_LENGTH);
   if (message.length === 0) {

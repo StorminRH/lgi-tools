@@ -1,10 +1,7 @@
 import type { NextRequest } from 'next/server';
-import {
-  sitesQuerySchema,
-  type SiteListApiItem,
-} from '@/features/wormhole-sites/api-contract';
-import { SITE_TYPES, WORMHOLE_CLASSES } from '@/features/wormhole-sites/schema';
+import type { SiteListApiItem } from '@/features/wormhole-sites/api-contract';
 import { listSites } from '@/features/wormhole-sites/queries';
+import { parseSitesQuery } from '@/features/wormhole-sites/sites-query';
 import type { ApiError, SiteListItem } from '@/features/wormhole-sites/types';
 
 function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiItem {
@@ -13,23 +10,12 @@ function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiIte
 
 // authz: public
 export async function GET(request: NextRequest): Promise<Response> {
-  const parsed = sitesQuerySchema.safeParse({
-    type: request.nextUrl.searchParams.get('type') ?? undefined,
-    class: request.nextUrl.searchParams.get('class') ?? undefined,
-  });
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const field = issue?.path.join('.') ?? 'query';
-    const expected =
-      field === 'type'
-        ? SITE_TYPES.join(', ')
-        : field === 'class'
-          ? WORMHOLE_CLASSES.join(', ')
-          : '';
-    return Response.json(
-      { error: `Invalid ${field}. Must be one of: ${expected}` } satisfies ApiError,
-      { status: 400 },
-    );
+  const parsed = parseSitesQuery(
+    request.nextUrl.searchParams.get('type'),
+    request.nextUrl.searchParams.get('class'),
+  );
+  if (!parsed.ok) {
+    return Response.json(parsed.error satisfies ApiError, { status: 400 });
   }
 
   const result: SiteListItem[] = await listSites({

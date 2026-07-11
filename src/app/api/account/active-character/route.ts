@@ -1,10 +1,10 @@
-import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { switchCharacterFormSchema } from '@/features/auth/api-contract';
-import { auth } from '@/features/auth/auth';
 import { accountBelongsToUser, setActiveCharacter } from '@/features/auth/queries';
-import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
+import { requireSession } from '@/features/auth/route-guards';
+import { rateLimitGuard } from '@/lib/rate-limit';
+import { parseFormBody } from '@/lib/route-body';
 
 // POST-only. Sets the signed-in pilot's active character. Any authenticated user
 // may switch among THEIR OWN linked characters — the ownership check is the real
@@ -15,30 +15,20 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected
   // at the cheapest point. Every accepted switch writes the DB; 30/min covers
   // any real pilot flipping characters and cuts a scripted loop off fast.
-  const limit = await rateLimit(clientIdentifier(request.headers), {
-    name: 'account-switch',
-    perMinute: 30,
-  });
-  if (!limit.ok) {
-    return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      {
-        status: 429,
-        headers: { 'Retry-After': String(limit.retryAfter) },
-      },
-    );
-  }
+  const limit = await rateLimitGuard(request, { name: 'account-switch', perMinute: 30 });
+  if (!limit.ok) return limit.response;
 
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  const gate = await requireSession();
+  if (!gate.ok) return gate.response;
+  const session = gate.session;
 
-  const form = await request.formData();
-  const parsed = switchCharacterFormSchema.safeParse({ characterId: form.get('characterId') });
-  if (!parsed.success) {
-    return new Response('Invalid character', { status: 400 });
-  }
+  const parsed = await parseFormBody(
+    request,
+    switchCharacterFormSchema,
+    (form) => ({ characterId: form.get('characterId') }),
+    () => new Response('Invalid character', { status: 400 }),
+  );
+  if (!parsed.ok) return parsed.response;
   const { characterId } = parsed.data;
 
   // The security-critical line: never trust the posted id. Only switch among the

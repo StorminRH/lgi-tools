@@ -3,7 +3,8 @@ import { telemetryRequestSchema } from '@/data/telemetry/api-contract';
 import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSessionCharacterId } from '@/features/auth/session';
-import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
+import { rateLimitGuard } from '@/lib/rate-limit';
+import { parseJsonBody } from '@/lib/route-body';
 
 // Hard cap on serialised metadata to keep one bad payload from filling the
 // table. 2KB is generous for page-view + search shapes; rejecting larger
@@ -20,19 +21,8 @@ const MAX_METADATA_BYTES = 2048;
 // insert, matching every other logUsageEvent caller.
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = telemetryRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request, telemetryRequestSchema);
+  if (!parsed.ok) return parsed.response;
 
   const safeMetadata = parsed.data.metadata ?? {};
   // Byte-cap is a separate concern from shape validation; Zod can't bound
@@ -45,19 +35,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   }
 
-  const limit = await rateLimit(clientIdentifier(request.headers), {
+  const limit = await rateLimitGuard(request, {
     name: 'telemetry',
     perMinute: TELEMETRY_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) {
-    return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      {
-        status: 429,
-        headers: { 'Retry-After': String(limit.retryAfter) },
-      },
-    );
-  }
+  if (!limit.ok) return limit.response;
 
   // Fire-and-forget: read the id from the session and write the row without
   // blocking the response. Telemetry must never break a user flow, so any

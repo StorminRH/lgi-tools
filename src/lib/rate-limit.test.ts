@@ -221,3 +221,59 @@ describe('clientIdentifier', () => {
     expect(clientIdentifier(new Headers())).toBe('unknown');
   });
 });
+
+describe('rateLimitGuard', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    limitMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const guardRequest = () =>
+    new Request('http://test/api', {
+      method: 'POST',
+      headers: { 'x-real-ip': '198.51.100.7' },
+    });
+
+  it('passes through when the caller is under the limit', async () => {
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
+    vi.stubEnv('NODE_ENV', 'production');
+    limitMock.mockResolvedValue({
+      success: true,
+      remaining: 4,
+      reset: Date.now() + 60_000,
+      pending: Promise.resolve(),
+    });
+
+    const { rateLimitGuard } = await importHelper();
+    const result = await rateLimitGuard(guardRequest(), { name: 'feedback', perMinute: 5 });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('returns the pinned 429 body and Retry-After header when over the limit', async () => {
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
+    vi.stubEnv('NODE_ENV', 'production');
+    limitMock.mockResolvedValue({
+      success: false,
+      remaining: 0,
+      reset: Date.now() + 30_500,
+      pending: Promise.resolve(),
+    });
+
+    const { rateLimitGuard } = await importHelper();
+    const result = await rateLimitGuard(guardRequest(), { name: 'feedback', perMinute: 5 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(429);
+      const body = (await result.response.json()) as { error: string; retryAfter: number };
+      expect(body.error).toBe('rate_limited');
+      expect(result.response.headers.get('Retry-After')).toBe(String(body.retryAfter));
+      expect(body.retryAfter).toBeGreaterThanOrEqual(1);
+    }
+  });
+});

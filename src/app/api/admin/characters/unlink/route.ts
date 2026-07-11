@@ -1,8 +1,8 @@
-import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminUnlinkFormSchema } from '@/features/auth/api-contract';
-import { auth } from '@/features/auth/auth';
+import { requireAdmin } from '@/features/auth/route-guards';
+import { parseFormBody } from '@/lib/route-body';
 import {
   accountBelongsToUser,
   deleteLinkedCharacter,
@@ -27,19 +27,17 @@ function redirectTo(request: NextRequest, userId: string, error?: string): Respo
 // Independent gate — never trust a UI-level disable.
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.isAdmin) {
-    return new Response('Forbidden', { status: 403 });
-  }
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate.response;
+  const session = gate.session;
 
-  const form = await request.formData();
-  const parsed = adminUnlinkFormSchema.safeParse({
-    userId: form.get('userId'),
-    characterId: form.get('characterId'),
-  });
-  if (!parsed.success) {
-    return new Response('Invalid form', { status: 400 });
-  }
+  const parsed = await parseFormBody(
+    request,
+    adminUnlinkFormSchema,
+    (form) => ({ userId: form.get('userId'), characterId: form.get('characterId') }),
+    () => new Response('Invalid form', { status: 400 }),
+  );
+  if (!parsed.ok) return parsed.response;
   const { userId, characterId } = parsed.data;
 
   if (!(await accountBelongsToUser(userId, characterId))) {

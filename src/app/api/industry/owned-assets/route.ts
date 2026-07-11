@@ -6,6 +6,7 @@ import {
 } from '@/features/industry-planner/api-contract';
 import type { OwnedAssetsResponse } from '@/features/industry-planner/types';
 import { getCurrentUserId } from '@/features/auth/session';
+import { parseJsonBody } from '@/lib/route-body';
 
 // POST /api/industry/owned-assets
 // Body: { typeIds } — the material/product types in the planned build whose owned
@@ -17,22 +18,16 @@ import { getCurrentUserId } from '@/features/auth/session';
 // requested — an un-held one is simply absent.
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: 'invalid_json' } satisfies OwnedAssetsBadRequest, {
-      status: 400,
-    });
-  }
-
-  const parsed = ownedAssetsRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json(
-      { error: 'invalid_request', issues: parsed.error.issues } satisfies OwnedAssetsBadRequest,
-      { status: 400 },
-    );
-  }
+  const parsed = await parseJsonBody(request, ownedAssetsRequestSchema, {
+    invalidJson: () =>
+      Response.json({ error: 'invalid_json' } satisfies OwnedAssetsBadRequest, { status: 400 }),
+    invalidBody: (error) =>
+      Response.json(
+        { error: 'invalid_request', issues: error.issues } satisfies OwnedAssetsBadRequest,
+        { status: 400 },
+      ),
+  });
+  if (!parsed.ok) return parsed.response;
 
   const userId = await getCurrentUserId();
   if (!userId) {

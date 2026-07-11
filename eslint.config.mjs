@@ -214,8 +214,8 @@ const eslintConfig = defineConfig([
     },
   },
   // Dev/preview sandboxes are design scratchpads that intentionally try
-  // off-palette one-offs; exempt them from the hex-color ban (the 3.3.10
-  // sandbox port will tokenize them), but keep every other ban.
+  // off-palette one-offs; exempt them from the hex-color ban, but keep every
+  // other ban.
   {
     files: ["src/app/dev/**/*.{ts,tsx}", "src/app/preview/**/*.{ts,tsx}"],
     rules: {

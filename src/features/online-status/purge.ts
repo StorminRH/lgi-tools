@@ -1,5 +1,5 @@
 // Convex characterOnline teardown — the purge contributor for the one user/character
-// data home that lives in Convex, not Neon (ACCOUNT.2; the DEFERRED_HOMES entry the
+// data home that lives in Convex, not Neon (ACCOUNT.2; the NON_NEON_HOMES entry the
 // ACCOUNT.1 gate forecast). The schema-reflection gate can't see a Convex table, so
 // this contributor claims NO Neon table — its job is purely to reach across to the
 // deployment and delete the live online docs that no later sync would orphan-clean

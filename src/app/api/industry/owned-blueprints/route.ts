@@ -6,6 +6,7 @@ import {
 } from '@/features/industry-planner/api-contract';
 import type { OwnedBlueprintsResponse } from '@/features/industry-planner/types';
 import { getCurrentUserId } from '@/features/auth/session';
+import { parseJsonBody } from '@/lib/route-body';
 
 // POST /api/industry/owned-blueprints
 // Body: { blueprintTypeIds } — the blueprints in the planned build.
@@ -19,22 +20,16 @@ import { getCurrentUserId } from '@/features/auth/session';
 // blueprints among those requested — an unowned one is simply absent.
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: 'invalid_json' } satisfies OwnedBlueprintsBadRequest, {
-      status: 400,
-    });
-  }
-
-  const parsed = ownedBlueprintsRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json(
-      { error: 'invalid_request', issues: parsed.error.issues } satisfies OwnedBlueprintsBadRequest,
-      { status: 400 },
-    );
-  }
+  const parsed = await parseJsonBody(request, ownedBlueprintsRequestSchema, {
+    invalidJson: () =>
+      Response.json({ error: 'invalid_json' } satisfies OwnedBlueprintsBadRequest, { status: 400 }),
+    invalidBody: (error) =>
+      Response.json(
+        { error: 'invalid_request', issues: error.issues } satisfies OwnedBlueprintsBadRequest,
+        { status: 400 },
+      ),
+  });
+  if (!parsed.ok) return parsed.response;
 
   const userId = await getCurrentUserId();
   if (!userId) {

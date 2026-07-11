@@ -46,6 +46,11 @@ import { blueprintFlatMaterials, blueprintTrees } from '@/data/eve-data/schema';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import type { CombatStats } from '@/data/npc-stats/types';
+import {
+  compareCanonical,
+  groupFlatByBlueprint,
+  sortTree,
+} from './resolver-fixtures';
 
 // Reference blueprints spanning the algorithm complexity spread (keys match the
 // committed flat-materials fixture). 691 Rifter (T1 frigate, no recursion),
@@ -69,25 +74,8 @@ const FLAT_FIXTURE = join(FIXTURE_DIR, 'blueprint-flat-materials.json');
 const TREES_FIXTURE = join(FIXTURE_DIR, 'blueprint-trees.json');
 const SLEEPER_FIXTURE = join(FIXTURE_DIR, 'npc-combat-stats.json');
 
-// ---- Canonicalisation ----------------------------------------------
-
-// Deterministic JSON with recursively sorted object keys; array order preserved
-// (callers pre-sort arrays whose order is not meaningful).
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
-}
-
-// Sort a tree's nodes (and every nested inputs[] array) by typeId so sibling
-// order from the source row stream doesn't register as a difference.
-function sortTree(nodes: TreeNode[]): TreeNode[] {
-  return [...nodes]
-    .map((n) => ({ ...n, inputs: sortTree(n.inputs) }))
-    .sort((a, b) => a.typeId - b.typeId);
-}
+// Canonicalisation + flat-material grouping live in ./resolver-fixtures (pure,
+// import-safe, unit-tested).
 
 // ---- DB reads (resolved output only) -------------------------------
 
@@ -104,17 +92,7 @@ async function readFlatMaterials(): Promise<Record<string, FlatMap>> {
     .from(blueprintFlatMaterials)
     .where(inArray(blueprintFlatMaterials.blueprintTypeId, ids));
 
-  const byBlueprint = new Map<number, FlatMap>();
-  for (const r of rows) {
-    const map = byBlueprint.get(r.blueprintTypeId) ?? {};
-    map[String(r.rawMaterialTypeId)] = Number(r.totalQuantity);
-    byBlueprint.set(r.blueprintTypeId, map);
-  }
-  const out: Record<string, FlatMap> = {};
-  for (const [name, bpId] of Object.entries(REFERENCE_BLUEPRINTS)) {
-    out[name] = byBlueprint.get(bpId) ?? {};
-  }
-  return out;
+  return groupFlatByBlueprint(rows, REFERENCE_BLUEPRINTS);
 }
 
 async function readTrees(): Promise<Record<string, TreeNode[]>> {
@@ -151,9 +129,8 @@ async function readSleeperStats(): Promise<Record<string, CombatStats>> {
 let failures = 0;
 
 function compare(label: string, expected: unknown, actual: unknown): void {
-  const e = stableStringify(expected);
-  const a = stableStringify(actual);
-  if (e === a) {
+  const { equal, expected: e, actual: a } = compareCanonical(expected, actual);
+  if (equal) {
     console.log(`  ${label}: PASS`);
     return;
   }
@@ -163,8 +140,90 @@ function compare(label: string, expected: unknown, actual: unknown): void {
   console.error(`    actual:   ${a.slice(0, 400)}${a.length > 400 ? '…' : ''}`);
 }
 
+// Compare each key with a (expected, actual) picker, prefixing the label.
+function compareAll(
+  prefix: string,
+  keys: string[],
+  pick: (key: string) => [unknown, unknown],
+): void {
+  for (const key of keys) {
+    const [expected, actual] = pick(key);
+    compare(`${prefix}:${key}`, expected, actual);
+  }
+}
+
 function readFixture<T>(path: string): T {
   return JSON.parse(readFileSync(path, 'utf8')) as T;
+}
+
+type FlatFixture = Record<string, { materials: FlatMap } | unknown>;
+
+// --capture: (re)write the trees + sleeper fixtures from the current DB, then
+// sanity-check the DB flat materials against the frozen committed fixture (never
+// rewritten). Aborts if the source DB isn't the expected pre-migration state.
+function runCapture(
+  flat: Record<string, FlatMap>,
+  trees: Record<string, TreeNode[]>,
+  sleeper: Record<string, CombatStats>,
+  flatFixture: FlatFixture,
+): void {
+  console.log('[capture] writing trees + sleeper fixtures from current DB');
+  writeFileSync(TREES_FIXTURE, JSON.stringify(trees, null, 2) + '\n');
+  writeFileSync(SLEEPER_FIXTURE, JSON.stringify(sleeper, null, 2) + '\n');
+  console.log(`  wrote ${TREES_FIXTURE}`);
+  console.log(`  wrote ${SLEEPER_FIXTURE}`);
+  console.log('[capture] sanity-checking DB flat materials against committed fixture');
+  compareAll('flat', Object.keys(REFERENCE_BLUEPRINTS), (name) => [
+    (flatFixture[name] as { materials: FlatMap }).materials,
+    flat[name],
+  ]);
+  if (failures > 0) {
+    console.error(
+      '[capture] DB flat materials DIVERGE from the committed fixture — ' +
+        'capture aborted; the source DB is not the expected pre-migration state.',
+    );
+    process.exit(1);
+  }
+  console.log('[capture] DONE');
+  process.exit(0);
+}
+
+// Default: check the DB output against all three committed fixtures.
+function runCheck(
+  flat: Record<string, FlatMap>,
+  trees: Record<string, TreeNode[]>,
+  sleeper: Record<string, CombatStats>,
+  flatFixture: FlatFixture,
+): void {
+  console.log('[check] flat materials (cost basis)');
+  compareAll('flat', Object.keys(REFERENCE_BLUEPRINTS), (name) => [
+    (flatFixture[name] as { materials: FlatMap }).materials,
+    flat[name],
+  ]);
+
+  console.log('[check] build trees');
+  const treesFixture = readFixture<Record<string, TreeNode[]>>(TREES_FIXTURE);
+  compareAll('tree', Object.keys(REFERENCE_BLUEPRINTS), (name) => [
+    sortTree(treesFixture[name] ?? []),
+    trees[name],
+  ]);
+
+  console.log('[check] sleeper combat stats');
+  const sleeperFixture = readFixture<Record<string, CombatStats>>(SLEEPER_FIXTURE);
+  compareAll('sleeper', SLEEPER_TYPE_IDS.map(String), (id) => [
+    sleeperFixture[id],
+    sleeper[id],
+  ]);
+
+  if (failures > 0) {
+    console.error(
+      `\n[check] FAILED — ${failures} divergence(s). Investigate (real CCP data ` +
+        `difference vs reshaping bug) and get operator sign-off before updating any fixture.`,
+    );
+    process.exit(1);
+  }
+  console.log('\n[check] PASSED — resolver output + sleeper stats match pre-migration.');
+  process.exit(0);
 }
 
 async function main(): Promise<void> {
@@ -179,59 +238,10 @@ async function main(): Promise<void> {
   // Flat materials: the committed fixture is keyed by name with a `materials`
   // object. It is the frozen pre-migration truth and is NEVER rewritten by this
   // script — even in capture mode we only assert the DB still matches it.
-  const flatFixture = readFixture<
-    Record<string, { materials: FlatMap } | unknown>
-  >(FLAT_FIXTURE);
+  const flatFixture = readFixture<FlatFixture>(FLAT_FIXTURE);
 
-  if (capture) {
-    console.log('[capture] writing trees + sleeper fixtures from current DB');
-    writeFileSync(TREES_FIXTURE, JSON.stringify(trees, null, 2) + '\n');
-    writeFileSync(SLEEPER_FIXTURE, JSON.stringify(sleeper, null, 2) + '\n');
-    console.log(`  wrote ${TREES_FIXTURE}`);
-    console.log(`  wrote ${SLEEPER_FIXTURE}`);
-    console.log('[capture] sanity-checking DB flat materials against committed fixture');
-    for (const name of Object.keys(REFERENCE_BLUEPRINTS)) {
-      const expected = (flatFixture[name] as { materials: FlatMap }).materials;
-      compare(`flat:${name}`, expected, flat[name]);
-    }
-    if (failures > 0) {
-      console.error(
-        '[capture] DB flat materials DIVERGE from the committed fixture — ' +
-          'capture aborted; the source DB is not the expected pre-migration state.',
-      );
-      process.exit(1);
-    }
-    console.log('[capture] DONE');
-    process.exit(0);
-  }
-
-  console.log('[check] flat materials (cost basis)');
-  for (const name of Object.keys(REFERENCE_BLUEPRINTS)) {
-    const expected = (flatFixture[name] as { materials: FlatMap }).materials;
-    compare(`flat:${name}`, expected, flat[name]);
-  }
-
-  console.log('[check] build trees');
-  const treesFixture = readFixture<Record<string, TreeNode[]>>(TREES_FIXTURE);
-  for (const name of Object.keys(REFERENCE_BLUEPRINTS)) {
-    compare(`tree:${name}`, sortTree(treesFixture[name] ?? []), trees[name]);
-  }
-
-  console.log('[check] sleeper combat stats');
-  const sleeperFixture = readFixture<Record<string, CombatStats>>(SLEEPER_FIXTURE);
-  for (const id of SLEEPER_TYPE_IDS) {
-    compare(`sleeper:${id}`, sleeperFixture[String(id)], sleeper[String(id)]);
-  }
-
-  if (failures > 0) {
-    console.error(
-      `\n[check] FAILED — ${failures} divergence(s). Investigate (real CCP data ` +
-        `difference vs reshaping bug) and get operator sign-off before updating any fixture.`,
-    );
-    process.exit(1);
-  }
-  console.log('\n[check] PASSED — resolver output + sleeper stats match pre-migration.');
-  process.exit(0);
+  if (capture) runCapture(flat, trees, sleeper, flatFixture);
+  else runCheck(flat, trees, sleeper, flatFixture);
 }
 
 main().catch((err) => {

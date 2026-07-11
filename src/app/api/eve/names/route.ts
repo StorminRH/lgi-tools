@@ -9,21 +9,11 @@ import {
   type EntityNamesResponse,
 } from '@/data/eve-data/api-contract';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
+import { parseJsonBody } from '@/lib/route-body';
 
 export async function POST(req: Request): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = entityNamesRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, entityNamesRequestSchema);
+  if (!parsed.ok) return parsed.response;
 
   const names = await resolveEntityNames(parsed.data.ids);
   return Response.json({ names } satisfies EntityNamesResponse);

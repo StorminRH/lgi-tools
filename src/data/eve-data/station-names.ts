@@ -1,10 +1,8 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { esiFetch, esiUrl } from '@/lib/esi';
 import { eveNpcStations } from './schema';
+import type { AnyPgDb } from '@/lib/db-types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PostgresJsDatabase<any>;
 
 // ESI's /universe/names/ resolves up to 1000 ids per POST.
 const NAMES_BATCH = 1000;

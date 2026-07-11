@@ -1,15 +1,9 @@
 import { and, eq, lt, sql } from 'drizzle-orm';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { chunk } from '@/lib/array';
 import { HISTORY_RETENTION_DAYS } from './constants';
 import { marketHistory, marketHistoryMeta } from './schema';
 import type { HistoryDailyRow, HistorySource } from './types';
-
-// Accept either driver: the request-path `@/db` proxy (neon-http) on the
-// on-view path, or a postgres-js `drizzle(client)` elsewhere. Both extend
-// Drizzle's PgDatabase; this uses only the shared insert/upsert/delete surface.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PgDatabase<any, any, any>;
+import type { AnyPgDb } from '@/lib/db-types';
 
 // Postgres caps a statement at 65535 bind params; 7 cols/row → ~9k rows max.
 // A type's series is ~409 rows, but chunk for safety/headroom.

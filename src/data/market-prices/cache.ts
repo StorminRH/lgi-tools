@@ -1,5 +1,4 @@
 import { count, desc } from 'drizzle-orm';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
 import type postgres from 'postgres';
@@ -8,13 +7,7 @@ import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { refreshPrices, type RefreshSummary } from './ingest';
 import { listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
-
-// Accept either driver: the sweep path passes a postgres-js `drizzle(client)`,
-// while `getCachedPricesFreshness` passes the request-path `@/db` proxy (now
-// neon-http). Both extend Drizzle's `PgDatabase`; these helpers use only the
-// shared query-builder surface (no interactive `.transaction`).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PgDatabase<any, any, any>;
+import type { AnyPgDb } from '@/lib/db-types';
 
 // postgres-js's Sql type — the raw client. refreshStalePrices takes it
 // directly and wraps it in `drizzle(client)`; the cron and the manual CLI

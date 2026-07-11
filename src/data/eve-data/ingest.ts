@@ -1,7 +1,7 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
+import type { PostgresJsDb } from '@/lib/db-types';
 import {
   blueprintFlatMaterials,
   blueprintTrees,
@@ -82,7 +82,7 @@ async function streamInsert<T extends Record<string, unknown>>(
 }
 
 export async function runIngest(
-  db: PostgresJsDatabase,
+  db: PostgresJsDb,
   opts: IngestOptions = {},
 ): Promise<IngestSummary> {
   const start = Date.now();

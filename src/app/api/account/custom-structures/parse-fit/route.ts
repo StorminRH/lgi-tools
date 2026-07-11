@@ -5,7 +5,7 @@ import {
   type ParseStructureFitResponse,
 } from '@/features/custom-structures/api-contract';
 import { parseStructureFit } from '@/features/industry-planner/structure-fit-parse';
-import { getCurrentUserId } from '@/features/auth/session';
+import { requireUserId } from '@/features/auth/route-guards';
 import { parseJsonBody } from '@/lib/route-body';
 
 // authz: auth
@@ -16,8 +16,8 @@ import { parseJsonBody } from '@/lib/route-body';
 // unknown lines (services, fighters, defensive rigs) drop; `parsed` is null when
 // the clipboard has no resolvable structure header.
 export async function POST(request: NextRequest): Promise<Response> {
-  const userId = await getCurrentUserId();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const gate = await requireUserId();
+  if (!gate.ok) return gate.response;
 
   const parsed = await parseJsonBody(request, parseStructureFitRequestSchema);
   if (!parsed.ok) return parsed.response;

@@ -5,7 +5,9 @@ import {
 } from '@/data/preferences/api-contract';
 import { getPreferencesForUser, upsertPreference } from '@/data/preferences/queries';
 import { getCurrentUserId } from '@/features/auth/session';
+import { requireUserId } from '@/features/auth/route-guards';
 import { validatePreferenceValue } from '@/lib/preferences';
+import { parseJsonBody } from '@/lib/route-body';
 
 // Both handlers are scoped to the authenticated caller's own user rows; an
 // anonymous GET returns an empty set (the client falls back to localStorage) and
@@ -28,24 +30,12 @@ export async function GET(): Promise<Response> {
 // match that key's schema (validatePreferenceValue — the server trust boundary,
 // so a forged body can't write garbage). 401 for anon, 204 on success.
 export async function POST(request: NextRequest): Promise<Response> {
-  const userId = await getCurrentUserId();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const gate = await requireUserId();
+  if (!gate.ok) return gate.response;
+  const userId = gate.userId;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = putPreferenceRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const firstIssue = parsed.error.issues[0];
-    const detail = firstIssue
-      ? `${firstIssue.path.join('.') || 'body'}: ${firstIssue.message}`
-      : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(request, putPreferenceRequestSchema);
+  if (!parsed.ok) return parsed.response;
 
   if (!validatePreferenceValue(parsed.data.key, parsed.data.value)) {
     return new Response('invalid value for key', { status: 400 });

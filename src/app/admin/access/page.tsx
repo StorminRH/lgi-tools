@@ -1,6 +1,4 @@
-import { headers } from 'next/headers';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { Card } from '@/components/ui/card';
@@ -14,7 +12,7 @@ import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
 import { RoleToggleForm } from '@/features/auth/components/RoleToggleForm';
-import { auth } from '@/features/auth/auth';
+import { requireAdminPage } from '@/features/auth/route-guards';
 import {
   CHARACTER_SEARCH_LIMIT,
   getUserByCharacterId,
@@ -192,13 +190,9 @@ async function AccessContent({
 }: {
   searchParams: Promise<{ q?: string | string[] }>;
 }) {
-  // Admin gate + viewer id come straight from the Better Auth session: isAdmin
-  // is computed server-side (its superadmin branch reads an env var), and the
-  // viewer's userId isn't carried on the shared Session type.
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.isAdmin) {
-    redirect('/?auth_error=admin_required');
-  }
+  // Admin gate + viewer id come straight from the Better Auth session (the
+  // shared Session type deliberately doesn't carry userId).
+  const session = await requireAdminPage();
   const viewerUserId = session.user.id;
 
   const raw = await searchParams;

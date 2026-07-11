@@ -4,7 +4,8 @@ import {
   setCorpStructureSharingRequestSchema,
 } from '@/features/owned-structures/api-contract';
 import { setCorpStructureSharing } from '@/features/owned-structures/queries';
-import { getCurrentUserId, getSessionCharacterId } from '@/features/auth/session';
+import { getSessionCharacterId } from '@/features/auth/session';
+import { requireUserId } from '@/features/auth/route-guards';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -17,8 +18,9 @@ import { parseJsonBody } from '@/lib/route-body';
 // opts the corp in; DISABLE wipes its stored structures, sync state, and authored
 // rigs. The user id comes from the session, never the body.
 export async function POST(request: NextRequest): Promise<Response> {
-  const userId = await getCurrentUserId();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const gate = await requireUserId();
+  if (!gate.ok) return gate.response;
+  const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, setCorpStructureSharingRequestSchema);
   if (!parsed.ok) return parsed.response;

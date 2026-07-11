@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
-import { getStructureRigs, getStructureTypes, solarSystemExists } from '@/data/eve-data/queries';
+import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import {
   createCustomStructureRequestSchema,
   MAX_CUSTOM_STRUCTURES_PER_USER,
@@ -11,8 +11,9 @@ import {
   createCustomStructure,
   listCustomStructures,
 } from '@/features/custom-structures/queries';
+import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { validateCustomStructureSelection } from '@/features/custom-structures/validation';
-import { getCurrentUserId } from '@/features/auth/session';
+import { requireUserId } from '@/features/auth/route-guards';
 import { parseJsonBody } from '@/lib/route-body';
 
 // authz: auth
@@ -22,8 +23,9 @@ import { parseJsonBody } from '@/lib/route-body';
 // from the session, never the body; anonymous callers are rejected. Returns the
 // full updated list (the page reads the initial list server-side, so there is no GET).
 export async function POST(request: NextRequest): Promise<Response> {
-  const userId = await getCurrentUserId();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const gate = await requireUserId();
+  if (!gate.ok) return gate.response;
+  const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, createCustomStructureRequestSchema);
   if (!parsed.ok) return parsed.response;
@@ -32,11 +34,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   const check = validateCustomStructureSelection(parsed.data, types, rigs);
   if (!check.ok) return new Response(check.reason, { status: 400 });
 
-  // The optional pin must reference a real solar system (the column is
-  // FK-less on purpose — the SDE tables are truncate-rebuilt on re-ingest).
-  if (parsed.data.systemId !== null && !(await solarSystemExists(parsed.data.systemId))) {
-    return new Response('unknown system', { status: 400 });
-  }
+  const badPin = await rejectUnknownSystemPin(parsed.data.systemId);
+  if (badPin) return badPin;
 
   if ((await countCustomStructures(userId)) >= MAX_CUSTOM_STRUCTURES_PER_USER) {
     return new Response('structure limit reached', { status: 409 });

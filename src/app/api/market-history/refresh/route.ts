@@ -6,7 +6,8 @@ import {
 } from '@/data/market-history/api-contract';
 import { ON_DEMAND_HISTORY_LIMIT_PER_MINUTE } from '@/data/market-history/constants';
 import { getLiveHistory } from '@/data/market-history/refresh-on-view';
-import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-limit';
+import { rateLimitGuard } from '@/lib/rate-limit';
+import { parseJsonBody } from '@/lib/route-body';
 
 // POST /api/market-history/refresh
 // Body: { typeIds: number[] }
@@ -33,33 +34,22 @@ import { clientIdentifier, rateLimit, type RateLimitedBody } from '@/lib/rate-li
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest): Promise<Response> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: 'invalid_json' } satisfies RefreshHistoryBadRequest, {
-      status: 400,
-    });
-  }
+  const parsed = await parseJsonBody(request, refreshHistoryRequestSchema, {
+    invalidJson: () =>
+      Response.json({ error: 'invalid_json' } satisfies RefreshHistoryBadRequest, { status: 400 }),
+    invalidBody: (error) =>
+      Response.json(
+        { error: 'invalid_request', issues: error.issues } satisfies RefreshHistoryBadRequest,
+        { status: 400 },
+      ),
+  });
+  if (!parsed.ok) return parsed.response;
 
-  const parsed = refreshHistoryRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json(
-      { error: 'invalid_request', issues: parsed.error.issues } satisfies RefreshHistoryBadRequest,
-      { status: 400 },
-    );
-  }
-
-  const limit = await rateLimit(clientIdentifier(request.headers), {
+  const limit = await rateLimitGuard(request, {
     name: 'market-history-refresh',
     perMinute: ON_DEMAND_HISTORY_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) {
-    return Response.json(
-      { error: 'rate_limited', retryAfter: limit.retryAfter } satisfies RateLimitedBody,
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
-    );
-  }
+  if (!limit.ok) return limit.response;
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
   const { inputs, degraded } = await getLiveHistory(typeIds);

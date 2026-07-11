@@ -1,5 +1,4 @@
 import { and, count, eq, inArray } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
 import {
@@ -40,11 +39,7 @@ import {
   type BlueprintActivitySet,
 } from './activities';
 import type { AttrMap, EveType } from './types';
-
-// Same wrinkle as market-prices queries — accept the lazy `@/db` proxy
-// or a transactional handle.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PostgresJsDatabase<any>;
+import type { AnyPgDb } from '@/lib/db-types';
 
 const TYPE_COLUMNS = {
   id: eveTypes.id,

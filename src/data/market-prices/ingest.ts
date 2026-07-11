@@ -1,9 +1,9 @@
 import { sql } from 'drizzle-orm';
-import type { PgDatabase } from 'drizzle-orm/pg-core';
 import { STALE_AFTER_TTL_MS } from './constants';
 import { marketPrices } from './schema';
 import { fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
+import type { AnyPgDb } from '@/lib/db-types';
 
 export interface RefreshSummary {
   requested: number;
@@ -23,13 +23,6 @@ export interface RefreshSummary {
 function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
-
-// Accept either driver: the cron/CLI path passes a postgres-js `drizzle(client)`,
-// the on-demand refresh route passes the request-path `@/db` proxy (now
-// neon-http). Both extend Drizzle's `PgDatabase` and this only uses the shared
-// insert/upsert query-builder surface.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PgDatabase<any, any, any>;
 
 export async function refreshPrices(
   db: AnyPgDb,

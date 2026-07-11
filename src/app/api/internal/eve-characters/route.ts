@@ -7,7 +7,7 @@
 // character id carries authority. The response holds no token material.
 // authz: service
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
-import { after, connection } from 'next/server';
+import { after } from 'next/server';
 import { refreshAffiliations } from '@/features/auth/affiliation';
 import {
   eveCharactersRequestSchema,
@@ -16,34 +16,15 @@ import {
 import { isAffiliationStale } from '@/features/auth/membership';
 import { listLinkedCharacters } from '@/features/auth/queries';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
-import { readEnv } from '@/lib/env';
-import { bearerMatches } from '@/lib/service-auth';
+import { parseJsonBody } from '@/lib/route-body';
+import { requireServiceAuth } from '@/lib/service-auth';
 
 export async function POST(req: Request): Promise<Response> {
-  // Reads a secret + the DB per request — defer past prerender (Cache Components).
-  await connection();
+  const denied = await requireServiceAuth(req);
+  if (denied) return denied;
 
-  const secret = readEnv('CONVEX_SERVICE_SECRET');
-  if (!secret) {
-    return new Response('CONVEX_SERVICE_SECRET not configured', { status: 500 });
-  }
-  if (!bearerMatches(req.headers.get('authorization'), secret)) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return new Response('Invalid JSON', { status: 400 });
-  }
-
-  const parsed = eveCharactersRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
-    return new Response(detail, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, eveCharactersRequestSchema);
+  if (!parsed.ok) return parsed.response;
 
   // An unknown userId simply has no linked characters — same response shape,
   // empty list; the caller's sync writes nothing.

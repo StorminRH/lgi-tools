@@ -14,81 +14,10 @@
 import { chromium } from 'playwright';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-
-const VIEWPORTS = {
-  desktop: { width: 1440, height: 900 },
-  mobile: { width: 390, height: 844 },
-};
+import { VIEWPORTS, assignSlugs, parseArgs, summariseResults } from './ux-capture-args.mjs';
 
 const OUT_DIR = path.resolve(process.cwd(), 'docs/ux-check/captures');
 const rel = (p) => path.relative(process.cwd(), p);
-
-// --- args -------------------------------------------------------------------
-// Positionals are route paths; `--flag=value` are options. No args → smoke `/`.
-function applyFlag(opts, key, value) {
-  if (key === 'base-url') opts.baseUrl = value;
-  else if (key === 'settle') {
-    const n = Number(value);
-    if (!Number.isNaN(n)) opts.settle = n; // allow --settle=0 (0 is valid, not "unset")
-  } else if (key === 'viewport' || key === 'viewports') {
-    opts.viewports = value
-      .split(',')
-      .map((v) => v.trim())
-      .filter((v) => v in VIEWPORTS);
-  } else console.error(`  (ignoring unknown flag --${key})`);
-}
-
-function parseArgs(argv) {
-  const routes = [];
-  const opts = {
-    // localhost, never 127.0.0.1: Next dev (Turbopack) blocks /_next/* dev
-    // assets cross-origin from a 127.0.0.1 Host (allowedDevOrigins), so the HMR
-    // handshake fails and pages silently render the SSR shell unhydrated — no
-    // client fetches, no errors. The server may still be *bound* to 127.0.0.1
-    // (`next dev -H 127.0.0.1`); only the browsed URL must be localhost.
-    baseUrl: process.env.UX_BASE_URL ?? 'http://localhost:3000',
-    viewports: ['desktop', 'mobile'],
-    settle: 1500,
-  };
-  for (const arg of argv) {
-    if (arg.startsWith('--')) {
-      const [key, value = ''] = arg.slice(2).split('=');
-      applyFlag(opts, key, value);
-    } else {
-      routes.push(arg.startsWith('/') ? arg : `/${arg}`);
-    }
-  }
-  if (routes.length === 0) {
-    routes.push('/');
-    console.error("ℹ no routes passed — capturing '/' as a smoke check.");
-    console.error('  normally you pass the routes this session touched, e.g.');
-    console.error('  pnpm ux-check /sites /sites/30002 /industry');
-  }
-  if (opts.viewports.length === 0) opts.viewports = ['desktop', 'mobile'];
-  return { routes, opts };
-}
-
-// `/` → home; `/sites/[id]` → sites-id; trailing/leading slashes collapsed.
-function slugify(route) {
-  const s = route.replace(/^\/+|\/+$/g, '').replace(/[^a-zA-Z0-9]+/g, '-');
-  return s || 'home';
-}
-
-// Pair each route with a unique filename slug. slugify() collapses every
-// separator run to one `-`, so routes differing only in punctuation (`/a/b` vs
-// `/a-b`) would otherwise share a file and silently overwrite each other —
-// disambiguate collisions with a numeric suffix.
-function assignSlugs(routes) {
-  const used = new Set();
-  return routes.map((route) => {
-    const base = slugify(route);
-    let slug = base;
-    let n = 2;
-    while (used.has(slug)) slug = `${base}-${n++}`;
-    used.add(slug);
-    return { route, slug };
-  });
-}
 
 // Poll the base URL until the dev server answers (the skill may have just
 // started it). Any HTTP response — even a redirect or a 500 — proves it's up.
@@ -138,23 +67,23 @@ async function captureNavOpen(page, slug, viewport) {
   }
 }
 
-async function captureRoute(context, baseUrl, route, slug, viewport, settle) {
-  const page = await context.newPage();
-  const diag = watchPage(page);
-  const url = new URL(route, baseUrl).href;
-
-  let loadError = null;
+// Navigate and let the page settle. Returns the load error message, or null.
+async function gotoAndSettle(page, url, settle) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     // Settle, not `networkidle`: Convex's persistent websocket means idle never
     // fires on live-sync pages. A fixed wait lets streamed Suspense holes resolve.
     await page.waitForTimeout(settle);
+    return null;
   } catch (err) {
-    loadError = err.message;
+    return err.message;
   }
+}
 
-  // Always close the page (finally), and don't let one route's screenshot
-  // failure abort the rest of the sweep — record it and move on.
+// Take the base screenshot (+ mobile nav-open shot). Returns the shot paths and a
+// screenshot error message if one occurred — one route's failure never aborts the
+// sweep.
+async function captureShots(page, slug, viewport) {
   const shots = [];
   try {
     const baseShot = path.join(OUT_DIR, `${slug}--${viewport}.png`);
@@ -164,13 +93,27 @@ async function captureRoute(context, baseUrl, route, slug, viewport, settle) {
       const navShot = await captureNavOpen(page, slug, viewport);
       if (navShot) shots.push(navShot);
     }
+    return { shots, shotError: null };
   } catch (err) {
-    loadError = loadError ?? `screenshot failed: ${err.message}`;
+    return { shots, shotError: `screenshot failed: ${err.message}` };
+  }
+}
+
+async function captureRoute(context, baseUrl, route, slug, viewport, settle) {
+  const page = await context.newPage();
+  const diag = watchPage(page);
+  const url = new URL(route, baseUrl).href;
+
+  const gotoError = await gotoAndSettle(page, url, settle);
+  let captured = { shots: [], shotError: null };
+  try {
+    captured = await captureShots(page, slug, viewport);
   } finally {
-    await page.close();
+    await page.close(); // always close the page
   }
 
-  return { route, viewport, url, screenshots: shots.map(rel), loadError, ...diag };
+  const loadError = gotoError ?? captured.shotError;
+  return { route, viewport, url, screenshots: captured.shots.map(rel), loadError, ...diag };
 }
 
 async function launchBrowser() {
@@ -202,12 +145,6 @@ async function runSweep(browser, routed, opts) {
   return results;
 }
 
-function networkFirst(r) {
-  return r.httpErrors[0]
-    ? `${r.httpErrors[0].status} ${r.httpErrors[0].url}`
-    : `${r.failedRequests[0].error} ${r.failedRequests[0].url}`;
-}
-
 function logFindings(label, rows) {
   if (rows.length === 0) return;
   console.log(`\n⚠ ${rows.length} ${label}:`);
@@ -215,24 +152,11 @@ function logFindings(label, rows) {
 }
 
 function printSummary(results, reportPath) {
-  const shotCount = results.reduce((n, r) => n + r.screenshots.length, 0);
+  const { shotCount, loadRows, consoleRows, networkRows } = summariseResults(results);
   console.log('');
   console.log(`Captured ${shotCount} screenshot(s) across ${results.length} route×viewport pair(s).`);
   console.log(`Report:  ${rel(reportPath)}`);
   console.log(`Dir:     ${rel(OUT_DIR)}/`);
-
-  const loadRows = results
-    .filter((r) => r.loadError)
-    .map((r) => `${r.route} [${r.viewport}]: ${r.loadError}`);
-  const consoleRows = results
-    .filter((r) => r.consoleErrors.length || r.pageErrors.length)
-    .map((r) => {
-      const msgs = [...r.consoleErrors, ...r.pageErrors];
-      return `${r.route} [${r.viewport}]: ${msgs.length} — ${msgs[0]}`;
-    });
-  const networkRows = results
-    .filter((r) => r.failedRequests.length || r.httpErrors.length)
-    .map((r) => `${r.route} [${r.viewport}]: ${r.failedRequests.length + r.httpErrors.length} — ${networkFirst(r)}`);
 
   logFindings('pair(s) failed to load cleanly', loadRows);
   logFindings('pair(s) with console/page errors', consoleRows);

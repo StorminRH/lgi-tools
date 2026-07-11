@@ -10,7 +10,6 @@
 //          src/app/api/cron/refresh-sde/route.ts (daily drift cron).
 
 import { sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { runIngest, type IngestSummary } from '@/data/eve-data/ingest';
 import { listTrackedTypeIds } from '@/data/eve-data/queries';
 import { resolveNpcStationNames } from '@/data/eve-data/station-names';
@@ -20,9 +19,13 @@ import {
 } from '@/data/eve-data/tree-resolver';
 import { listMissingTypeIds } from '@/data/market-prices/queries';
 import { marketPrices } from '@/data/market-prices/schema';
+import type { PostgresJsDb } from '@/lib/db-types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyPgDb = PostgresJsDatabase<any>;
+// Driver-CONCRETE (PostgresJsDb), not the shared dual-driver AnyPgDb: the
+// pipeline composes runIngest, which runs the TRUNCATE + bulk ingest in an
+// interactive transaction only postgres-js exposes. All three callers pass a
+// postgres-js `drizzle(client)`.
+
 
 export type SeedSummary = {
   tracked: number;
@@ -44,7 +47,7 @@ export type SdePipelineSummary = {
 // `ON CONFLICT DO NOTHING` preserves any existing rows verbatim, so
 // the 54 wormhole-site rows seeded by the wormhole-sites ingest stay
 // intact with their current prices.
-export async function seedTrackedTypes(db: AnyPgDb): Promise<SeedSummary> {
+export async function seedTrackedTypes(db: PostgresJsDb): Promise<SeedSummary> {
   const tracked = await listTrackedTypeIds(db);
   const missing = await listMissingTypeIds(db, tracked);
   if (missing.length === 0) {
@@ -92,7 +95,7 @@ export async function seedTrackedTypes(db: AnyPgDb): Promise<SeedSummary> {
 // the resolver short-circuits via `tree_resolver_hash` when nothing
 // upstream changed, and seeding `ON CONFLICT DO NOTHING` is a no-op
 // for rows that already exist.
-export async function runSdePipeline(db: AnyPgDb): Promise<SdePipelineSummary> {
+export async function runSdePipeline(db: PostgresJsDb): Promise<SdePipelineSummary> {
   const start = Date.now();
   const ingest = await runIngest(db);
   const resolve = await resolveAllTrees(db);
@@ -108,7 +111,7 @@ export async function runSdePipeline(db: AnyPgDb): Promise<SdePipelineSummary> {
 // to log a quick row-count summary post-pipeline (cron handler uses
 // this in its response body).
 export async function summarizeMarketPricesRowCount(
-  db: AnyPgDb,
+  db: PostgresJsDb,
 ): Promise<{ total: number; priced: number }> {
   const [row] = await db.execute<{ total: string; priced: string }>(sql`
     SELECT

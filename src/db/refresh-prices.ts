@@ -8,46 +8,8 @@ import { refreshStalePrices } from '../data/market-prices/cache';
 import { refreshPrices } from '../data/market-prices/ingest';
 import { getPrices } from '../data/market-prices/queries';
 import { resolveLockConnectionUrl } from './index';
-
-// Sanity trio: Tritanium / Pyerite / Mexallon. Always have deep
-// order books in Jita on both sides — a useful smoke-test default
-// when the operator passes explicit IDs.
-const DEFAULT_DEBUG_IDS = [34, 35, 36];
-
-function parseIds(arg: string): number[] {
-  const ids = arg
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    .map((s) => {
-      const n = Number.parseInt(s, 10);
-      if (!Number.isFinite(n)) throw new Error(`Invalid type ID: "${s}"`);
-      return n;
-    });
-  if (ids.length === 0) throw new Error('No type IDs supplied');
-  return ids;
-}
-
-type Mode =
-  | { kind: 'cached' }
-  | { kind: 'explicit'; ids: number[] };
-
-function parseArgs(argv: string[]): Mode {
-  // Recognized argv shapes:
-  //   (none)         → stale sweep (only rows past their TTL)
-  //   34,35,36       → explicit IDs, unconditional refresh
-  //   --debug        → explicit IDs (DEFAULT_DEBUG_IDS), unconditional
-  let debug = false;
-  let idsArg: string | undefined;
-  for (const a of argv) {
-    if (a === '--debug') debug = true;
-    else if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
-    else idsArg = a;
-  }
-  if (idsArg) return { kind: 'explicit', ids: parseIds(idsArg) };
-  if (debug) return { kind: 'explicit', ids: DEFAULT_DEBUG_IDS };
-  return { kind: 'cached' };
-}
+import { parseArgs } from './refresh-prices-args';
+import { runScript } from './script-runtime';
 
 const mode = parseArgs(process.argv.slice(2));
 
@@ -94,13 +56,4 @@ async function main() {
   }, null, 2));
 }
 
-main()
-  .then(async () => {
-    await client.end();
-    process.exit(0);
-  })
-  .catch(async (err) => {
-    console.error(err);
-    await client.end().catch(() => undefined);
-    process.exit(1);
-  });
+runScript(main, { client });
