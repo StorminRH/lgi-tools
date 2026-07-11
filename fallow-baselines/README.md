@@ -67,6 +67,21 @@ are warn-only kit convergence — coupling the jobs is exactly what the gate
 primitive avoids — and don't fail the audit. Pruned surgically, not via
 `--save-baseline`._
 
+_Planner brain extraction (3.7.31.1): the elimination program's Session C pulled
+every decision out of the 31 CRAP-shielded planner component functions and the
+block-4 query accessors into pure, unit-tested helpers (the Humble pattern) — new
+seams like `blueprint-shaping.ts`, `build-tree-layout.ts`, `build-plan-view.ts`,
+`cockpit-kpis-view.ts`, `structure-bonus-view.ts`, `efficiency-input.ts`, the
+`structure-slots`/`facility-value` slot model, and the shared `useManagedRowMenu`
+that dissolved the SavedPlansManager ↔ TemplatesMenu scaffold. That let the
+**queries / DB-accessor CRAP waiver block be deleted** (tree-resolver, eve-data
+queries, auth queries, recent-blueprints, blueprints-source, live-prices now pass
+the universal caps unwaivered) and **dropped two baselined clones** — the
+`tree-shared.ts` ↔ `BuildFlow.tsx` node-sort (now one shared `sortInputs`) and,
+incidentally, the `recent-blueprints.ts` ↔ `search-recents/storage.ts` localStorage
+parse (dissolved when its read split into a pure `parseRecentBlueprints`). Pruned
+surgically, not via `--save-baseline`._
+
 ### Regenerating
 
 After intentionally resolving (or accepting) duplication, refresh the baseline:
@@ -90,6 +105,6 @@ config, the telemetry client, mock fixtures) and runs with `coverage-gaps` off.
 The remaining `health.thresholdOverrides` in `.fallowrc.json` scope CRAP off
 exactly those layers, each with a documented reason; cyclomatic and cognitive
 still apply everywhere, so genuine complexity always surfaces. (The db/CLI-script
-and route-handler/middleware waivers were **removed** in 3.7.29.1 — that logic
-now moves into tested helpers with thin, low-complexity shells, so those layers
-pass CRAP unwaivered.)
+and route-handler/middleware waivers were **removed** in 3.7.29.1, and the
+queries / DB-accessor waiver in 3.7.31.1 — that logic now moves into tested
+helpers with thin, low-complexity shells, so those layers pass CRAP unwaivered.)

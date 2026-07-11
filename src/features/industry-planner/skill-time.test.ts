@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { BlueprintStructure } from './types';
 import {
   ADVANCED_INDUSTRY_SKILL_ID,
+  buildSkillsView,
   INDUSTRY_SKILL_ID,
   NO_SKILL_FACTORS,
   REACTIONS_SKILL_ID,
@@ -152,5 +154,76 @@ describe('skillTimeBreakdown', () => {
       { name: 'Mutagenic Stabilization', level: 4, reductionPct: 8 },
       { name: 'Plasma Physics', level: 5, reductionPct: 5 },
     ]);
+  });
+});
+
+describe('buildSkillsView', () => {
+  // A minimal structure — only the fields buildSkillsView reads.
+  const structure = (over: {
+    activityId?: number;
+    nodeActivityByBlueprint?: Record<number, number>;
+    nodeTimeSkills?: Record<number, { skillTypeId: number; skillName: string; timePctPerLevel: number }[]>;
+  }): BlueprintStructure =>
+    ({
+      activityId: over.activityId ?? 1,
+      nodeActivityByBlueprint: over.nodeActivityByBlueprint ?? { 1: 1 },
+      nodeTimeSkills: over.nodeTimeSkills ?? {},
+    }) as unknown as BlueprintStructure;
+
+  const character = { name: 'Ryan' };
+  const trainedIndustry = { [String(INDUSTRY_SKILL_ID)]: 5 };
+
+  it('is null with no build character', () => {
+    expect(buildSkillsView(null, true, trainedIndustry, structure({}))).toBeNull();
+  });
+
+  it('is null when the lever is inactive', () => {
+    expect(buildSkillsView(character, false, trainedIndustry, structure({}))).toBeNull();
+  });
+
+  it('is null when the levels map is not loaded', () => {
+    expect(buildSkillsView(character, true, null, structure({}))).toBeNull();
+  });
+
+  it('is null when nothing is trained for the plan activities', () => {
+    expect(buildSkillsView(character, true, {}, structure({}))).toBeNull();
+  });
+
+  it('shows manufacturing with an exact headline when an activity-wide skill is trained', () => {
+    const view = buildSkillsView(character, true, trainedIndustry, structure({}));
+    expect(view).not.toBeNull();
+    expect(view!.showMfg).toBe(true);
+    expect(view!.showRxn).toBe(false);
+    expect(view!.characterName).toBe('Ryan');
+    // Industry V = −4%/lvl × 5 = −20%.
+    expect(view!.mfgHeadline).toBe('−20%');
+  });
+
+  it('reads an "up to" headline from the strongest per-item skill when no activity-wide skill applies', () => {
+    const view = buildSkillsView(
+      character,
+      true,
+      { '81896': 4 }, // a per-item T2 skill trained to IV
+      structure({
+        nodeActivityByBlueprint: { 1: 1 },
+        nodeTimeSkills: { 1: [{ skillTypeId: 81896, skillName: 'Mutagenic Stabilization', timePctPerLevel: -2 }] },
+      }),
+    );
+    expect(view).not.toBeNull();
+    expect(view!.showMfg).toBe(true);
+    // −2%/lvl × 4 = −8%, phrased as an "up to" (applies only to jobs needing it).
+    expect(view!.mfgHeadline).toBe('up to −8.0%');
+  });
+
+  it('shows reactions when a reaction skill is trained for a reaction plan', () => {
+    const view = buildSkillsView(
+      character,
+      true,
+      { [String(REACTIONS_SKILL_ID)]: 5 },
+      structure({ activityId: 11, nodeActivityByBlueprint: { 2: 11 } }),
+    );
+    expect(view).not.toBeNull();
+    expect(view!.showRxn).toBe(true);
+    expect(view!.showMfg).toBe(false);
   });
 });

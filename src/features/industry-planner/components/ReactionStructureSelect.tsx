@@ -3,8 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 import { TerminalSearch } from '@/components/ui/terminal-search';
-import { hostsReactions } from '../structure-factors';
-import { isSystemLocked, visibleStructuresForSlot } from '../structure-slots';
+import { facilityValueFor, parseFacilityValue, structureById } from '../facility-value';
+import { deriveReactionSlotView, lockTransition } from '../structure-slots';
 import type { AvailableStructure } from '../types';
 import { usePricing, type SelectedReactionSystem } from './PricingProvider';
 import { SelectedSystemBox } from './SelectedSystemBox';
@@ -101,16 +101,21 @@ export function ReactionStructureSelect() {
   // system-first and refinery-first both work), but drops a system the OUTGOING
   // locked refinery had deduced — that one was never the user's choice, and
   // leaving it would render a ghost pick beside an empty refinery select.
+  // Picking a refinery: a LOCKED refinery (corp, or a pinned custom) carries its
+  // home system — deduce-and-lock it (synchronous: the row is security-only, no
+  // fetch). A portable (or cleared) pick keeps a USER-picked system (so
+  // system-first and refinery-first both work), but drops a system the OUTGOING
+  // locked refinery had deduced — a ghost pick beside an empty refinery select.
+  // The shared lockTransition classifies the change; the reaction slot dispatches
+  // its own setter (lock → the deduced system; unlock/unresolved → clear it).
   const onSelectRefinery = useCallback(
     (structure: AvailableStructure | null) => {
-      const prevLocked = reactionStructure !== null && isSystemLocked(reactionStructure);
+      const transition = lockTransition(reactionStructure, structure, systems);
       setReactionStructure(structure);
-      if (structure && isSystemLocked(structure)) {
-        const sys = systems.find((s) => s.id === structure.systemId);
-        setReactionSystem(
-          sys ? { systemId: sys.id, systemName: sys.name, security: sys.security } : null,
-        );
-      } else if (prevLocked) {
+      if (transition.kind === 'lock') {
+        const s = transition.system;
+        setReactionSystem({ systemId: s.id, systemName: s.name, security: s.security });
+      } else if (transition.kind !== 'none') {
         setReactionSystem(null);
       }
     },
@@ -119,17 +124,14 @@ export function ReactionStructureSelect() {
 
   if (availableStructures === null) return null;
 
-  const lockedRefinery =
-    reactionStructure !== null && isSystemLocked(reactionStructure) ? reactionStructure : null;
-  const deducedSystem = lockedRefinery ? systems.find((s) => s.id === lockedRefinery.systemId) ?? null : null;
-
   // Refineries only, excluding the build structure (no double-select), then
   // segmented against the row's effective system (a lock's own system wins).
-  const effectiveSystemId = lockedRefinery?.systemId ?? reactionSystem?.systemId ?? null;
-  const refineries = visibleStructuresForSlot(
-    availableStructures.filter((s) => hostsReactions(s.groupId) && s.id !== selectedStructure?.id),
-    effectiveSystemId,
-    reactionStructure?.id ?? null,
+  const { deducedSystem, refineries, taxPct, lockedTo } = deriveReactionSlotView(
+    reactionStructure,
+    availableStructures,
+    selectedStructure,
+    systems,
+    reactionSystem,
   );
   return (
     // FIXED group width, mirroring the Manufacturing group — see its note: an
@@ -139,13 +141,10 @@ export function ReactionStructureSelect() {
           line, right of the title. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
         <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.16em] text-text">Reactions</span>
-        <StructureBonusReadout
-          readout={reactionStructureReadout}
-          taxPct={reactionStructure?.taxPct ?? null}
-        />
+        <StructureBonusReadout readout={reactionStructureReadout} taxPct={taxPct} />
       </div>
       <ReactionSystemRow
-        lockedTo={lockedRefinery?.name ?? null}
+        lockedTo={lockedTo}
         deducedSystem={deducedSystem}
         reactionSystem={reactionSystem}
         setReactionSystem={setReactionSystem}
@@ -153,17 +152,15 @@ export function ReactionStructureSelect() {
       <div className="flex items-center gap-2">
         <span className="w-[64px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-muted">Station</span>
         <select
-          value={reactionStructure ? `structure:${reactionStructure.id}` : ''}
+          value={facilityValueFor(reactionStructure, null)}
           onChange={(e) => {
-            const v = e.target.value;
-            if (v === 'add-custom') {
+            const sel = parseFacilityValue(e.target.value);
+            if (sel.kind === 'add-custom') {
               router.push('/structures');
               return;
             }
             onSelectRefinery(
-              v.startsWith('structure:')
-                ? refineries.find((s) => s.id === v.slice('structure:'.length)) ?? null
-                : null,
+              sel.kind === 'structure' ? structureById(refineries, sel.id) : null,
             );
           }}
           aria-label="Reaction refinery"

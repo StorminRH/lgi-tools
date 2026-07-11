@@ -6,6 +6,13 @@ import { cn } from '@/components/ui/cn';
 import { SectionLabel } from '@/components/ui/section-label';
 import { formatIsk } from '@/lib/format/isk';
 import { chainActualsFrom } from '../build-batch';
+import {
+  isEfficiencyEligible,
+  levelAt,
+  tierColumnView,
+  unitPriceMap,
+  type TierRowView,
+} from '../build-plan-view';
 import { batchedCostOfRows } from '../cost-basis-view';
 import {
   chainLevelsFrom,
@@ -14,7 +21,7 @@ import {
   type ConsolidatedItem,
   type ConsolidatedTier,
 } from '../build-consolidate';
-import { nodeIcon, REACTION_NODE_LABEL } from '../industry-styles';
+import { nodeIcon } from '../industry-styles';
 import { nodeFrameState } from '../node-frame-state';
 import type { AssetHolding, BlueprintStructure, OwnedAssetEntry, OwnedComponentDetail } from '../types';
 import { CockpitRawLedger } from './CockpitRawLedger';
@@ -110,6 +117,45 @@ function TierRow({
   );
 }
 
+// One tier row wired to the caller's per-node closures: the icon rendition, the
+// efficiency adjusters, the owner detail, and the on-hand assets for its QTY ring.
+function TierRowSlot({
+  row,
+  depth,
+  iconFor,
+  efficiencyFor,
+  detailFor,
+  ownedAssetFor,
+  onToggle,
+}: {
+  row: TierRowView;
+  depth: number;
+  iconFor: (typeId: number) => ReturnType<typeof nodeIcon>;
+  efficiencyFor?: (typeId: number, name: string) => NodeEfficiency | undefined;
+  detailFor: (typeId: number) => OwnedComponentDetail | undefined;
+  ownedAssetFor: (typeId: number) => OwnedAssetEntry | undefined;
+  onToggle: (depth: number, item: ConsolidatedItem) => void;
+}) {
+  const { item } = row;
+  const { ownedQty, heldBy } = ownedAssetFor(item.typeId) ?? {};
+  return (
+    <TierRow
+      item={item}
+      icon={iconFor(item.typeId)}
+      qty={row.qty}
+      value={row.value}
+      efficiency={efficiencyFor?.(item.typeId, item.name)}
+      detail={detailFor(item.typeId)}
+      ownedQty={ownedQty}
+      heldBy={heldBy}
+      selected={row.selected}
+      related={row.related}
+      faded={row.faded}
+      onSelect={item.hasChildren ? () => onToggle(depth, item) : undefined}
+    />
+  );
+}
+
 function TierColumn({
   tier,
   unitPriceOf,
@@ -140,27 +186,10 @@ function TierColumn({
   onToggle: (depth: number, item: ConsolidatedItem) => void;
 }) {
   // `tier` carries whole-run batched quantities (runs already baked in by
-  // scaleTiersToBatched). A focused drill-down swaps the lit downstream cells'
-  // displayed quantity for the ACTUAL consumed amount (chainActualsFrom). The
-  // subtotal sums each row's DISPLAYED value, so the column header always equals
-  // the sum of its visible rows — batched when unfocused, the same actual/batched
-  // mix the rows show when a drill-down is active.
-  const valueOf = (typeId: number, qty: number): number | null => {
-    const unit = unitPriceOf.get(typeId) ?? null;
-    return unit !== null ? qty * unit : null;
-  };
-  // A lit downstream cell shows what the focused build actually consumes
-  // (marginal); every other cell shows the whole-run batch.
-  const displayQtyOf = (item: ConsolidatedItem): number => {
-    const selected = !!focus && focus.typeId === item.typeId && focus.depth === tier.depth;
-    const related = !selected && (inChain?.has(item.typeId) ?? false);
-    return (related ? actualLevel?.get(item.typeId) : undefined) ?? item.quantity;
-  };
-  const subtotal = tier.items.reduce(
-    (sum, item) => sum + (valueOf(item.typeId, displayQtyOf(item)) ?? 0),
-    0,
-  );
-
+  // scaleTiersToBatched); tierColumnView decides which cells the drill-down lights
+  // and their displayed quantity/value, and sums the subtotal from the visible
+  // rows so the column header always equals the sum of what it shows.
+  const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
   return (
     <div className="min-w-0">
       <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted">
@@ -172,30 +201,18 @@ function TierColumn({
         </span>
       </div>
       <Card>
-        {tier.items.map((item) => {
-          const selected = !!focus && focus.typeId === item.typeId && focus.depth === tier.depth;
-          const related = !selected && (inChain?.has(item.typeId) ?? false);
-          const faded = !!focus && !selected && !related;
-          const qty = displayQtyOf(item);
-          const asset = ownedAssetFor(item.typeId);
-          return (
-            <TierRow
-              key={item.typeId}
-              item={item}
-              icon={iconFor(item.typeId)}
-              qty={qty}
-              value={valueOf(item.typeId, qty)}
-              efficiency={efficiencyFor?.(item.typeId, item.name)}
-              detail={detailFor(item.typeId)}
-              ownedQty={asset?.ownedQty}
-              heldBy={asset?.heldBy}
-              selected={selected}
-              related={related}
-              faded={faded}
-              onSelect={item.hasChildren ? () => onToggle(tier.depth, item) : undefined}
-            />
-          );
-        })}
+        {rows.map((row) => (
+          <TierRowSlot
+            key={row.item.typeId}
+            row={row}
+            depth={tier.depth}
+            iconFor={iconFor}
+            efficiencyFor={efficiencyFor}
+            detailFor={detailFor}
+            ownedAssetFor={ownedAssetFor}
+            onToggle={onToggle}
+          />
+        ))}
       </Card>
     </div>
   );
@@ -222,6 +239,38 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
         Tracing <span className="text-name">{focus.name}</span> down its chain
       </span>
     </span>
+  );
+}
+
+// The raw-ledger toggle (styled like the section label): the recursed build-vs-buy
+// grand total, expanding the by-type bill below.
+function RawLedgerToggle({
+  grandTotal,
+  open,
+  onToggle,
+}: {
+  grandTotal: number | null;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="group inline-flex cursor-pointer items-baseline gap-2"
+    >
+      <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+        <span className="tracking-normal text-isk">{'//'}</span>
+        Raw ledger
+      </span>
+      <span className="font-mono text-caption font-semibold tabular-nums text-isk">
+        {grandTotal !== null ? formatIsk(grandTotal) : '—'}
+      </span>
+      <span className={cn('inline-block text-[10px] text-muted transition-transform', open && 'rotate-180')}>
+        ▾
+      </span>
+    </button>
   );
 }
 
@@ -262,7 +311,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
   // (can't be researched) get none → a plain, frameless icon.
   const efficiencyFor = (typeId: number, name: string): NodeEfficiency | undefined => {
     const bp = blueprintOf(typeId);
-    if (bp === undefined || structure.buildNodeDisplay[typeId]?.label === REACTION_NODE_LABEL) {
+    if (!isEfficiencyEligible(bp, structure.buildNodeDisplay[typeId]?.label)) {
       return undefined;
     }
     return {
@@ -303,17 +352,9 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     [focus, structure.tree, ledger],
   );
 
-  // Unit market price per type: raws at best buy (the cost basis), buildable
-  // intermediates at best sell (the build-vs-buy acquisition price). A type is
-  // either a raw or a buildable, so the keys never collide.
-  const unitPriceOf = useMemo(() => {
-    const m = new Map<number, number | null>();
-    if (pricing) {
-      for (const r of pricing.rows) m.set(r.typeId, r.unitBuy);
-      for (const ip of pricing.intermediatePrices) m.set(ip.typeId, ip.bestSell ?? ip.bestBuy);
-    }
-    return m;
-  }, [pricing]);
+  // Unit market price per type (raws at best buy, intermediates at best sell) —
+  // built in build-plan-view so the map logic is tested.
+  const unitPriceOf = useMemo(() => unitPriceMap(pricing), [pricing]);
 
   const chainLevels = useMemo(
     () => (focus ? chainLevelsFrom(focus.typeId, childrenOf) : null),
@@ -356,28 +397,11 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
         </div>
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
           <MultibuyPanel structure={structure} />
-          <button
-            type="button"
-            onClick={() => setLedgerOpen((o) => !o)}
-            aria-expanded={ledgerOpen}
-            className="group inline-flex cursor-pointer items-baseline gap-2"
-          >
-            <span className="inline-flex items-baseline gap-2 font-mono text-caption font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
-              <span className="tracking-normal text-isk">{'//'}</span>
-              Raw ledger
-            </span>
-            <span className="font-mono text-caption font-semibold tabular-nums text-isk">
-              {grandTotal !== null ? formatIsk(grandTotal) : '—'}
-            </span>
-            <span
-              className={cn(
-                'inline-block text-[10px] text-muted transition-transform',
-                ledgerOpen && 'rotate-180',
-              )}
-            >
-              ▾
-            </span>
-          </button>
+          <RawLedgerToggle
+            grandTotal={grandTotal}
+            open={ledgerOpen}
+            onToggle={() => setLedgerOpen((o) => !o)}
+          />
         </div>
       </div>
 
@@ -404,8 +428,8 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
             detailFor={detailFor}
             ownedAssetFor={ownedAssetFor}
             focus={focus}
-            inChain={focus && chainLevels ? (chainLevels.get(tier.depth - focus.depth) ?? null) : null}
-            actualLevel={focus && chainActuals ? (chainActuals.get(tier.depth - focus.depth) ?? null) : null}
+            inChain={levelAt(chainLevels, focus, tier.depth)}
+            actualLevel={levelAt(chainActuals, focus, tier.depth)}
             onToggle={toggleFocus}
           />
         ))}

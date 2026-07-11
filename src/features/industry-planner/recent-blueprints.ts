@@ -33,7 +33,7 @@ function safeStorage(): Storage | null {
   }
 }
 
-function isRecentBlueprint(value: unknown): value is RecentBlueprint {
+export function isRecentBlueprint(value: unknown): value is RecentBlueprint {
   if (typeof value !== 'object' || value === null) return false;
   const r = value as Record<string, unknown>;
   return (
@@ -43,10 +43,11 @@ function isRecentBlueprint(value: unknown): value is RecentBlueprint {
   );
 }
 
-export function readRecentBlueprints(): RecentBlueprint[] {
-  const store = safeStorage();
-  if (!store) return [];
-  const raw = store.getItem(STORAGE_KEY);
+// Parse a raw localStorage string into the recent list: a JSON array of valid
+// RecentBlueprint entries, foreign/malformed entries dropped, capped at
+// MAX_RECENT. Any parse failure (or a null/empty string) yields []. Pure — no
+// storage, so the validation is unit-testable without a DOM.
+export function parseRecentBlueprints(raw: string | null): RecentBlueprint[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -55,6 +56,12 @@ export function readRecentBlueprints(): RecentBlueprint[] {
   } catch {
     return [];
   }
+}
+
+export function readRecentBlueprints(): RecentBlueprint[] {
+  const store = safeStorage();
+  if (!store) return [];
+  return parseRecentBlueprints(store.getItem(STORAGE_KEY));
 }
 
 export function recordRecentBlueprint(entry: RecentBlueprint): void {

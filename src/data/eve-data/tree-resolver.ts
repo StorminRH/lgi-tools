@@ -385,16 +385,17 @@ export class TreeResolver {
 // invalidates the trees on the cron re-resolve path. Stored under
 // SDE_META_KEY_TREE_HASH; the resolver short-circuits when the stored value
 // matches (and trees are still present — see resolveAllTrees).
-export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
-  const all = await db
-    .select({
-      blueprintTypeId: industryBlueprints.blueprintTypeId,
-      activities: industryBlueprints.activities,
-      published: eveTypes.published,
-    })
-    .from(industryBlueprints)
-    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
-
+// The deterministic hash of the resolver-relevant SDE shape, given the raw
+// blueprint rows. Pure — the DB read lives in computeTreeResolverHash — so the
+// accumulation + sort + digest is unit-testable and stable across runs (the
+// algo version is folded in, so an intentional resolver change rotates it).
+export function hashResolverInputs(
+  rows: ReadonlyArray<{
+    blueprintTypeId: number;
+    activities: unknown;
+    published: boolean | null;
+  }>,
+): string {
   const refSet = new Set<number>(REFERENCE_BLUEPRINT_TYPE_IDS);
   let blueprintCount = 0;
   let matEdges = 0;
@@ -402,7 +403,7 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   const refSamples: string[] = [];
   const publishedSamples: string[] = [];
 
-  for (const r of all) {
+  for (const r of rows) {
     blueprintCount++;
     // Fold each blueprint's published flag into the hash: producer selection
     // depends on it, so a CCP publish/unpublish flip with no recipe edit must
@@ -443,6 +444,18 @@ export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
     .digest('hex');
 }
 
+export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
+  const all = await db
+    .select({
+      blueprintTypeId: industryBlueprints.blueprintTypeId,
+      activities: industryBlueprints.activities,
+      published: eveTypes.published,
+    })
+    .from(industryBlueprints)
+    .leftJoin(eveTypes, eq(industryBlueprints.blueprintTypeId, eveTypes.id));
+  return hashResolverInputs(all);
+}
+
 // True when blueprint_trees holds at least one row. runIngest truncates the
 // derived tables before the deploy/cron pipeline reaches the resolver, so the
 // hash gate alone is not enough to decide a skip is safe — see resolveAllTrees.
@@ -451,6 +464,87 @@ async function hasResolvedTrees(db: AnyPgDb): Promise<boolean> {
     sql`SELECT EXISTS (SELECT 1 FROM ${blueprintTrees}) AS exists`,
   );
   return exists;
+}
+
+export type FlatMaterialRow = {
+  blueprintTypeId: number;
+  rawMaterialTypeId: number;
+  totalQuantity: bigint;
+};
+
+// One blueprint's resolved flat materials, rounded to whole storage units at the
+// bigint column boundary (done once, here). A material whose marginal share
+// rounds to zero contributes nothing and is dropped.
+export function roundedFlatRows(
+  flat: Iterable<[number, number]>,
+  blueprintTypeId: number,
+): FlatMaterialRow[] {
+  const out: FlatMaterialRow[] = [];
+  for (const [rawType, qty] of flat) {
+    const rounded = Math.round(qty);
+    if (rounded <= 0) continue;
+    out.push({ blueprintTypeId, rawMaterialTypeId: rawType, totalQuantity: BigInt(rounded) });
+  }
+  return out;
+}
+
+// The hash-gate half of the resolve skip decision (pure): skip only when a
+// rebuild wasn't forced and a previously stored hash matches the current one.
+// The caller AND-combines this with a live presence check (a matching hash over
+// truncated tables must NOT skip) — kept in the rim so that DB read is
+// short-circuited away on the force/mismatch paths, exactly as before.
+export function hashGateSkips(args: {
+  forceRebuild: boolean;
+  hashBefore: string | null;
+  hashAfter: string;
+}): boolean {
+  return !args.forceRebuild && args.hashBefore !== null && args.hashBefore === args.hashAfter;
+}
+
+// EVE manufacturing is a strict DAG and buildIndexesFromActivities drops the
+// known degenerate self-recipes; any remaining cycle is a novel SDE shape the
+// filter doesn't cover — fail loudly (rolling back the transaction) rather than
+// persisting empty flat materials for the offending blueprints.
+export function assertNoResolverCycles(stats: { cycleWarnings: string[] }): void {
+  if (stats.cycleWarnings.length > 0) {
+    throw new Error(
+      `tree resolver detected ${stats.cycleWarnings.length} unexpected cycle(s); ` +
+        `first few: ${stats.cycleWarnings.slice(0, 5).join(' | ')}`,
+    );
+  }
+}
+
+// A streaming batched inserter: buffers rows and flushes to `sink` every
+// `batchSize`, so at most one batch per table is held in memory at a time (the
+// resolve writes ~63k flat rows). `written` is the running committed count.
+export function makeBatchInserter<T>(
+  batchSize: number,
+  sink: (batch: T[]) => Promise<void>,
+) {
+  let buffer: T[] = [];
+  let written = 0;
+  return {
+    async add(rows: readonly T[]): Promise<void> {
+      for (const row of rows) {
+        buffer.push(row);
+        if (buffer.length >= batchSize) {
+          await sink(buffer);
+          written += buffer.length;
+          buffer = [];
+        }
+      }
+    },
+    async flush(): Promise<void> {
+      if (buffer.length > 0) {
+        await sink(buffer);
+        written += buffer.length;
+        buffer = [];
+      }
+    },
+    written(): number {
+      return written;
+    },
+  };
 }
 
 // Top-level entry: rebuilds blueprint_trees + blueprint_flat_materials
@@ -470,13 +564,10 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
   // version-marker change with no recipe change) the hash would match while
   // the tables sit empty — skipping then would leave them empty until the next
   // forced rebuild. Re-checking presence keeps the no-op deploy path (no
-  // re-ingest, trees intact) fast while never persisting an empty result.
-  if (
-    !forceRebuild &&
-    hashBefore !== null &&
-    hashBefore === hashAfter &&
-    (await hasResolvedTrees(db))
-  ) {
+  // re-ingest, trees intact) fast while never persisting an empty result. The
+  // presence check stays AND-combined in the rim so it's short-circuited away
+  // when the hash gate already declined the skip.
+  if (hashGateSkips({ forceRebuild, hashBefore, hashAfter }) && (await hasResolvedTrees(db))) {
     return {
       blueprintsResolved: 0,
       flatMaterialsWritten: 0,
@@ -501,8 +592,6 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
   const FLAT_BATCH_SIZE = 1000;
   const TREE_BATCH_SIZE = 500;
   const computedAt = new Date();
-  let flatWritten = 0;
-  let treeWritten = 0;
 
   // TRUNCATE + writes + hash update all live in one transaction so a
   // mid-flight timeout (Vercel function killed at 300s, transient DB
@@ -511,7 +600,7 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
   // cron retries. Recovery becomes automatic: the hash isn't written
   // unless every batch committed, so the next invocation will see a
   // hash mismatch and re-run.
-  await db.transaction(async (tx) => {
+  const { flatWritten, treeWritten } = await db.transaction(async (tx) => {
     // Wipe + rewrite trees + flat materials. Cascade FKs handle the
     // ordering; everything that references industry_blueprints was
     // already truncated by runIngest if this is the deploy-time path.
@@ -521,73 +610,24 @@ export async function resolveAllTrees(db: AnyPgDb): Promise<ResolveSummary> {
       sql`TRUNCATE TABLE ${blueprintFlatMaterials}, ${blueprintTrees}`,
     );
 
-    let flatBatch: Array<{
-      blueprintTypeId: number;
-      rawMaterialTypeId: number;
-      totalQuantity: bigint;
-    }> = [];
-    let treeBatch: Array<{
-      blueprintTypeId: number;
-      treeJson: unknown;
-      computedAt: Date;
-    }> = [];
+    const flat = makeBatchInserter<FlatMaterialRow>(FLAT_BATCH_SIZE, (batch) =>
+      tx.insert(blueprintFlatMaterials).values(batch),
+    );
+    const tree = makeBatchInserter<{ blueprintTypeId: number; treeJson: TreeNode[]; computedAt: Date }>(
+      TREE_BATCH_SIZE,
+      (batch) => tx.insert(blueprintTrees).values(batch),
+    );
 
     for (const { id } of allBlueprintIds) {
-      const flat = resolver.flatForOneRun(id);
-      for (const [rawType, qty] of flat) {
-        // Fractional totals are rounded to whole units once here, at the
-        // storage boundary (the column is bigint). A material whose marginal
-        // share rounds to zero contributes nothing and is dropped.
-        const rounded = Math.round(qty);
-        if (rounded <= 0) continue;
-        flatBatch.push({
-          blueprintTypeId: id,
-          rawMaterialTypeId: rawType,
-          totalQuantity: BigInt(rounded),
-        });
-        if (flatBatch.length >= FLAT_BATCH_SIZE) {
-          await tx.insert(blueprintFlatMaterials).values(flatBatch);
-          flatWritten += flatBatch.length;
-          flatBatch = [];
-        }
-      }
-
-      const tree = resolver.treeForOneRun(id);
-      treeBatch.push({
-        blueprintTypeId: id,
-        treeJson: tree,
-        computedAt,
-      });
-      if (treeBatch.length >= TREE_BATCH_SIZE) {
-        await tx.insert(blueprintTrees).values(treeBatch);
-        treeWritten += treeBatch.length;
-        treeBatch = [];
-      }
+      await flat.add(roundedFlatRows(resolver.flatForOneRun(id), id));
+      await tree.add([{ blueprintTypeId: id, treeJson: resolver.treeForOneRun(id), computedAt }]);
     }
+    await flat.flush();
+    await tree.flush();
 
-    if (flatBatch.length > 0) {
-      await tx.insert(blueprintFlatMaterials).values(flatBatch);
-      flatWritten += flatBatch.length;
-    }
-    if (treeBatch.length > 0) {
-      await tx.insert(blueprintTrees).values(treeBatch);
-      treeWritten += treeBatch.length;
-    }
-
-    // EVE manufacturing is a strict DAG, and buildIndexesFromActivities drops
-    // the known degenerate self-recipes. Any remaining cycle is a novel
-    // SDE shape the filter doesn't cover — fail loudly (rolling back the
-    // TRUNCATE + writes) rather than silently persisting empty flat
-    // materials for the offending blueprints.
-    const { cycleWarnings } = resolver.stats();
-    if (cycleWarnings.length > 0) {
-      throw new Error(
-        `tree resolver detected ${cycleWarnings.length} unexpected cycle(s); ` +
-          `first few: ${cycleWarnings.slice(0, 5).join(' | ')}`,
-      );
-    }
-
+    assertNoResolverCycles(resolver.stats());
     await setSdeMetaValue(tx, SDE_META_KEY_TREE_HASH, hashAfter);
+    return { flatWritten: flat.written(), treeWritten: tree.written() };
   });
 
   const stats = resolver.stats();

@@ -4,14 +4,9 @@ import type { ReactNode } from 'react';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { HourglassIcon } from './MeAdjuster';
 import { usePricing } from './PricingProvider';
-import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from '../structure-bonus';
-import { skillTimeBreakdown, type AppliedTimeSkill } from '../skill-time';
+import { buildSkillsView, type AppliedTimeSkill, type SkillTimeBreakdown } from '../skill-time';
+import { formatBonusPct } from '../structure-bonus-view';
 import type { BlueprintStructure } from '../types';
-
-// The structure-bonus readout's percent style — small values keep a decimal.
-function pct(n: number): string {
-  return `${n < 10 ? n.toFixed(1) : Math.round(n)}%`;
-}
 
 // EVE renders trained levels as roman numerals — match the in-game reading.
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'] as const;
@@ -25,7 +20,7 @@ function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
       <span className="truncate text-muted">
         {skill.name} {roman(skill.level)}
       </span>
-      <span className="shrink-0 tabular-nums text-text">−{pct(skill.reductionPct)}</span>
+      <span className="shrink-0 tabular-nums text-text">−{formatBonusPct(skill.reductionPct)}</span>
     </div>
   );
 }
@@ -35,7 +30,7 @@ function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: nu
   return (
     <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-[10px]">
       <span className="uppercase tracking-[0.14em] text-muted">{label}</span>
-      <span className={`tabular-nums font-semibold ${toneClass}`}>−{pct(totalPct)} time</span>
+      <span className={`tabular-nums font-semibold ${toneClass}`}>−{formatBonusPct(totalPct)} time</span>
     </div>
   );
 }
@@ -87,92 +82,88 @@ function SkillMetric({
 // in EVERY degraded state (unset, pending roster, levels loading or fail-open,
 // nothing trained for the plan's activities) — the readout never claims an
 // effect the time figures don't carry.
+// The manufacturing hourglass metric + its skills panel (activity-wide skills
+// with a compound total, then the per-item T2 skills present in this plan).
+function MfgSkillMetric({
+  characterName,
+  breakdown,
+  headline,
+}: {
+  characterName: string;
+  breakdown: SkillTimeBreakdown;
+  headline: string;
+}) {
+  return (
+    <SkillMetric
+      label={`${characterName}'s manufacturing skills`}
+      icon={<HourglassIcon state="owned" />}
+      value={headline}
+      toneClass="text-evb-bright"
+    >
+      <PopoverHeading>{characterName} — manufacturing</PopoverHeading>
+      {breakdown.manufacturing.skills.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {breakdown.manufacturing.skills.map((skill) => (
+            <SkillLine key={skill.name} skill={skill} />
+          ))}
+          <TotalLine label="All mfg jobs" totalPct={breakdown.manufacturing.totalPct} toneClass="text-evb-bright" />
+        </div>
+      )}
+      {breakdown.perItem.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">Per-item</div>
+          {breakdown.perItem.map((skill) => (
+            <SkillLine key={skill.name} skill={skill} />
+          ))}
+          <p className="font-mono text-[9px] leading-snug tracking-[0.04em] text-faint">
+            Applied on top of the total, only to jobs requiring the skill.
+          </p>
+        </div>
+      )}
+    </SkillMetric>
+  );
+}
+
+// The reaction hourglass metric (reaction purple) + its skills panel.
+function RxnSkillMetric({
+  characterName,
+  breakdown,
+}: {
+  characterName: string;
+  breakdown: SkillTimeBreakdown;
+}) {
+  return (
+    <SkillMetric
+      label={`${characterName}'s reaction skills`}
+      icon={<HourglassIcon state="reaction" />}
+      value={`−${formatBonusPct(breakdown.reaction.totalPct)}`}
+      toneClass="text-[var(--color-reaction-purple)]"
+    >
+      <PopoverHeading>{characterName} — reactions</PopoverHeading>
+      <div className="flex flex-col gap-1">
+        {breakdown.reaction.skills.map((skill) => (
+          <SkillLine key={skill.name} skill={skill} />
+        ))}
+        <TotalLine
+          label="All reaction jobs"
+          totalPct={breakdown.reaction.totalPct}
+          toneClass="text-[var(--color-reaction-purple)]"
+        />
+      </div>
+    </SkillMetric>
+  );
+}
+
 export function BuildSkillsIndicator({ structure }: { structure: BlueprintStructure }) {
   const { buildCharacter, skillTimeFactors, buildCharacterSkillLevels } = usePricing();
-  if (buildCharacter === null || !skillTimeFactors.active || buildCharacterSkillLevels === null) {
-    return null;
-  }
-
-  const breakdown = skillTimeBreakdown({
-    levels: buildCharacterSkillLevels,
-    nodeTimeSkills: structure.nodeTimeSkills,
-  });
-  const activities = new Set<number>([
-    structure.activityId,
-    ...Object.values(structure.nodeActivityByBlueprint),
-  ]);
-  const showMfg =
-    activities.has(MANUFACTURING_ACTIVITY) &&
-    (breakdown.manufacturing.skills.length > 0 || breakdown.perItem.length > 0);
-  const showRxn = activities.has(REACTION_ACTIVITY) && breakdown.reaction.skills.length > 0;
-  if (!showMfg && !showRxn) return null;
-
-  // The headline never claims −0%: with no activity-wide reduction the only
-  // applied skills are per-item ones, so the headline reads the strongest of
-  // those as an "up to" (it reaches only the jobs requiring that skill — the
-  // panel's per-item section spells it out).
-  const activityWidePct = breakdown.manufacturing.totalPct;
-  const maxPerItemPct = breakdown.perItem.reduce((max, s) => Math.max(max, s.reductionPct), 0);
-  const mfgHeadline =
-    activityWidePct > 0 ? `−${pct(activityWidePct)}` : `up to −${pct(maxPerItemPct)}`;
-
+  const view = buildSkillsView(buildCharacter, skillTimeFactors.active, buildCharacterSkillLevels, structure);
+  if (view === null) return null;
   return (
     <div className="absolute left-full top-1/2 ml-2 flex -translate-y-1/2 flex-col items-start gap-3">
-      {showMfg && (
-        <SkillMetric
-          label={`${buildCharacter.name}'s manufacturing skills`}
-          icon={<HourglassIcon state="owned" />}
-          value={mfgHeadline}
-          toneClass="text-evb-bright"
-        >
-          <PopoverHeading>{buildCharacter.name} — manufacturing</PopoverHeading>
-          {breakdown.manufacturing.skills.length > 0 && (
-            <div className="flex flex-col gap-1">
-              {breakdown.manufacturing.skills.map((skill) => (
-                <SkillLine key={skill.name} skill={skill} />
-              ))}
-              <TotalLine
-                label="All mfg jobs"
-                totalPct={activityWidePct}
-                toneClass="text-evb-bright"
-              />
-            </div>
-          )}
-          {breakdown.perItem.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint">
-                Per-item
-              </div>
-              {breakdown.perItem.map((skill) => (
-                <SkillLine key={skill.name} skill={skill} />
-              ))}
-              <p className="font-mono text-[9px] leading-snug tracking-[0.04em] text-faint">
-                Applied on top of the total, only to jobs requiring the skill.
-              </p>
-            </div>
-          )}
-        </SkillMetric>
+      {view.showMfg && (
+        <MfgSkillMetric characterName={view.characterName} breakdown={view.breakdown} headline={view.mfgHeadline} />
       )}
-      {showRxn && (
-        <SkillMetric
-          label={`${buildCharacter.name}'s reaction skills`}
-          icon={<HourglassIcon state="reaction" />}
-          value={`−${pct(breakdown.reaction.totalPct)}`}
-          toneClass="text-[var(--color-reaction-purple)]"
-        >
-          <PopoverHeading>{buildCharacter.name} — reactions</PopoverHeading>
-          <div className="flex flex-col gap-1">
-            {breakdown.reaction.skills.map((skill) => (
-              <SkillLine key={skill.name} skill={skill} />
-            ))}
-            <TotalLine
-              label="All reaction jobs"
-              totalPct={breakdown.reaction.totalPct}
-              toneClass="text-[var(--color-reaction-purple)]"
-            />
-          </div>
-        </SkillMetric>
-      )}
+      {view.showRxn && <RxnSkillMetric characterName={view.characterName} breakdown={view.breakdown} />}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {
   SDE_REFINERY_GROUP_ID,
   STRUCTURE_RIG_SIZE_ATTR,
 } from './constants';
-import { isIndustryRig, rigFitsStructure } from './structures';
+import { isIndustryRig, rigFitsStructure, shapeStructureRigs } from './structures';
 import type { AttrMap } from './types';
 
 // Real SDE dogma shapes (verified against the local SDE this session).
@@ -99,5 +99,71 @@ describe('rigFitsStructure', () => {
 
   it('rejects a size mismatch even when the group fits (XL rig on an L structure)', () => {
     expect(rigFitsStructure(xlMfgRig, azbel)).toBe(false);
+  });
+});
+
+describe('shapeStructureRigs', () => {
+  it('keeps only industry rigs, reading canFitGroups + rigSize, name-sorted', () => {
+    const rows = [
+      // A manufacturing rig (nonzero 2594) with canFitShipGroup 1298/1299/1300.
+      {
+        id: 43920,
+        name: 'Standup L-Set Basic Small Ship Manufacturing Material Efficiency I',
+        attributes: {
+          [STRUCTURE_RIG_SIZE_ATTR]: 3,
+          [RIG_MFG_MATERIAL_ATTR]: -2,
+          1298: 1404,
+          1299: 1406,
+          1300: 1657,
+        } as AttrMap,
+      },
+      // A copy-optimization rig (2594 === 0) → dropped by isIndustryRig.
+      {
+        id: 99999,
+        name: 'Standup L-Set Copy Optimization',
+        attributes: { [STRUCTURE_RIG_SIZE_ATTR]: 3, [RIG_MFG_MATERIAL_ATTR]: 0 } as AttrMap,
+      },
+      // A reaction rig (reactor-time attr present) fitting Refineries only.
+      {
+        id: 46640,
+        name: 'Standup M-Set Reactor Efficiency I',
+        attributes: {
+          [STRUCTURE_RIG_SIZE_ATTR]: 2,
+          [RIG_REACTION_TIME_ATTR]: -20,
+          1298: 1406,
+        } as AttrMap,
+      },
+    ];
+    expect(shapeStructureRigs(rows)).toEqual([
+      // Name-sorted: 'Standup L-Set Basic…' < 'Standup M-Set Reactor…'.
+      {
+        typeId: 43920,
+        name: 'Standup L-Set Basic Small Ship Manufacturing Material Efficiency I',
+        canFitGroups: [1404, 1406, 1657],
+        rigSize: 3,
+      },
+      {
+        typeId: 46640,
+        name: 'Standup M-Set Reactor Efficiency I',
+        canFitGroups: [1406],
+        rigSize: 2,
+      },
+    ]);
+  });
+
+  it('drops undefined canFitGroup attrs and defaults a missing rig size to null', () => {
+    const [rig] = shapeStructureRigs([
+      {
+        id: 1,
+        name: 'Rig',
+        // Only one canFitShipGroup present; no rig-size attr.
+        attributes: { [RIG_MFG_MATERIAL_ATTR]: -1, 1298: 1406 } as AttrMap,
+      },
+    ]);
+    expect(rig).toEqual({ typeId: 1, name: 'Rig', canFitGroups: [1406], rigSize: null });
+  });
+
+  it('returns an empty array when no row is an industry rig', () => {
+    expect(shapeStructureRigs([{ id: 1, name: 'x', attributes: {} }])).toEqual([]);
   });
 });

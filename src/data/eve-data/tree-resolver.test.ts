@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   TreeResolver,
+  assertNoResolverCycles,
   buildIndexesFromActivities,
   computeHeights,
+  hashGateSkips,
+  hashResolverInputs,
+  makeBatchInserter,
   pickBuildTimeSeconds,
+  roundedFlatRows,
   type Indexes,
   type TreeNode,
 } from './tree-resolver';
@@ -587,5 +592,124 @@ describe('pickBuildTimeSeconds', () => {
     expect(pickBuildTimeSeconds({ manufacturing: { time: 0 } })).toBeNull();
     expect(pickBuildTimeSeconds({ manufacturing: { products: [{ typeID: 1, quantity: 1 }] } })).toBeNull();
     expect(pickBuildTimeSeconds({})).toBeNull();
+  });
+});
+
+describe('hashResolverInputs', () => {
+  const row = (
+    blueprintTypeId: number,
+    activities: unknown,
+    published: boolean | null = true,
+  ) => ({ blueprintTypeId, activities, published });
+
+  it('is deterministic regardless of input row order (samples are sorted)', () => {
+    const a = row(45, { reaction: { materials: [{ typeID: 1, quantity: 2 }], products: [{ typeID: 9, quantity: 1 }] } });
+    const b = row(46, { manufacturing: { materials: [{ typeID: 3, quantity: 4 }], products: [{ typeID: 8, quantity: 1 }] } });
+    expect(hashResolverInputs([a, b])).toBe(hashResolverInputs([b, a]));
+  });
+
+  it('changes when an edge count changes', () => {
+    const base = [row(45, { manufacturing: { materials: [{ typeID: 1, quantity: 2 }], products: [{ typeID: 9, quantity: 1 }] } })];
+    const more = [row(45, { manufacturing: { materials: [{ typeID: 1, quantity: 2 }, { typeID: 2, quantity: 1 }], products: [{ typeID: 9, quantity: 1 }] } })];
+    expect(hashResolverInputs(base)).not.toBe(hashResolverInputs(more));
+  });
+
+  it('changes when a blueprint flips published without any recipe change', () => {
+    const activities = { manufacturing: { materials: [{ typeID: 1, quantity: 2 }], products: [{ typeID: 9, quantity: 1 }] } };
+    expect(hashResolverInputs([row(45, activities, true)])).not.toBe(
+      hashResolverInputs([row(45, activities, false)]),
+    );
+  });
+
+  it('treats null published as published (matches the resolver fallback)', () => {
+    const activities = { manufacturing: { materials: [{ typeID: 1, quantity: 2 }], products: [{ typeID: 9, quantity: 1 }] } };
+    expect(hashResolverInputs([row(45, activities, null)])).toBe(
+      hashResolverInputs([row(45, activities, true)]),
+    );
+  });
+
+  it('returns a 64-char sha256 hex digest', () => {
+    expect(hashResolverInputs([])).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe('roundedFlatRows', () => {
+  it('rounds to whole units and drops materials that round to zero', () => {
+    const rows = roundedFlatRows(
+      new Map([
+        [34, 100.4],
+        [35, 0.3], // rounds to 0 → dropped
+        [36, 2.5], // rounds to 3 (half-up)
+      ]),
+      681,
+    );
+    expect(rows).toEqual([
+      { blueprintTypeId: 681, rawMaterialTypeId: 34, totalQuantity: BigInt(100) },
+      { blueprintTypeId: 681, rawMaterialTypeId: 36, totalQuantity: BigInt(3) },
+    ]);
+  });
+
+  it('returns an empty array when everything rounds to zero', () => {
+    expect(roundedFlatRows(new Map([[1, 0.2]]), 5)).toEqual([]);
+  });
+});
+
+describe('hashGateSkips', () => {
+  it('skips only when not forced, a prior hash exists, and hashes match', () => {
+    expect(hashGateSkips({ forceRebuild: false, hashBefore: 'x', hashAfter: 'x' })).toBe(true);
+  });
+
+  it('does not skip when forced', () => {
+    expect(hashGateSkips({ forceRebuild: true, hashBefore: 'x', hashAfter: 'x' })).toBe(false);
+  });
+
+  it('does not skip when there is no prior hash', () => {
+    expect(hashGateSkips({ forceRebuild: false, hashBefore: null, hashAfter: 'x' })).toBe(false);
+  });
+
+  it('does not skip when the hashes differ', () => {
+    expect(hashGateSkips({ forceRebuild: false, hashBefore: 'x', hashAfter: 'y' })).toBe(false);
+  });
+});
+
+describe('assertNoResolverCycles', () => {
+  it('does nothing when there are no cycle warnings', () => {
+    expect(() => assertNoResolverCycles({ cycleWarnings: [] })).not.toThrow();
+  });
+
+  it('throws listing the count and the first few warnings', () => {
+    expect(() =>
+      assertNoResolverCycles({ cycleWarnings: ['a', 'b', 'c', 'd', 'e', 'f'] }),
+    ).toThrow(/6 unexpected cycle\(s\); first few: a \| b \| c \| d \| e$/);
+  });
+});
+
+describe('makeBatchInserter', () => {
+  it('flushes every batchSize rows and the remainder on flush(), tracking the written count', async () => {
+    const batches: number[][] = [];
+    const inserter = makeBatchInserter<number>(2, async (batch) => {
+      batches.push([...batch]);
+    });
+    await inserter.add([1, 2, 3]); // one full batch [1,2] flushes; 3 buffered
+    expect(batches).toEqual([[1, 2]]);
+    expect(inserter.written()).toBe(2);
+    await inserter.add([4]); // buffer [3,4] hits size → flush
+    expect(batches).toEqual([[1, 2], [3, 4]]);
+    await inserter.flush(); // nothing buffered
+    expect(batches).toEqual([[1, 2], [3, 4]]);
+    await inserter.add([5]);
+    await inserter.flush(); // remainder
+    expect(batches).toEqual([[1, 2], [3, 4], [5]]);
+    expect(inserter.written()).toBe(5);
+  });
+
+  it('never calls the sink when nothing was added', async () => {
+    let calls = 0;
+    const inserter = makeBatchInserter<number>(2, async () => {
+      calls++;
+    });
+    await inserter.flush();
+    expect(calls).toBe(0);
+    expect(inserter.written()).toBe(0);
   });
 });
