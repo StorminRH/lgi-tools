@@ -37,7 +37,7 @@ function GrossNetToggle({
   setMode: (m: MarginMode) => void;
 }) {
   const btn =
-    'px-2 py-0.5 font-mono text-label uppercase tracking-[0.1em] cursor-pointer transition-colors';
+    'px-2 py-0.5 font-mono text-micro uppercase tracking-[0.1em] cursor-pointer transition-colors';
   const on = 'text-name bg-row-on';
   return (
     <span className="inline-flex overflow-hidden rounded-[3px] border border-border-soft">
@@ -77,7 +77,7 @@ function RawItemToggle({
   setBasis: (b: CostBasis) => void;
 }) {
   const btn =
-    'px-2 py-0.5 font-mono text-label uppercase tracking-[0.1em] cursor-pointer transition-colors';
+    'px-2 py-0.5 font-mono text-micro uppercase tracking-[0.1em] cursor-pointer transition-colors';
   const on = 'text-name bg-row-on';
   return (
     <span className="inline-flex overflow-hidden rounded-[3px] border border-border-soft">
