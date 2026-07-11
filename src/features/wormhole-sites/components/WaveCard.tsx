@@ -24,10 +24,10 @@ export function WaveCard({
       headerClassName="bg-bg border-t border-border border-b border-border py-[10px]"
       header={
         <>
-          <span className="text-[9px] font-bold tracking-[0.16em] uppercase text-text shrink-0">
+          <span className="text-label font-bold tracking-[0.16em] uppercase text-text shrink-0">
             {displayLabel}
           </span>
-          <span className="ml-auto text-[9px] font-semibold tracking-[0.08em] text-text">
+          <span className="ml-auto text-micro font-semibold tracking-[0.08em] text-text">
             DPS {formatDps(wave.dpsTotal)}
           </span>
         </>

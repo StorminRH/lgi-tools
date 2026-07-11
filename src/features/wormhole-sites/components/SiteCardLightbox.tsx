@@ -85,7 +85,7 @@ export function SiteCardLightbox({ site }: { site: SiteDetail }) {
             <div className="sticky top-0 z-10 flex justify-end bg-bg px-2 py-1.5">
               <DialogClose
                 aria-label="Close"
-                className="font-mono text-[15px] leading-none text-muted hover:text-name px-1.5 py-0.5"
+                className="font-mono text-ui leading-none text-muted hover:text-name px-1.5 py-0.5"
               >
                 ×
               </DialogClose>
