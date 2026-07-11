@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { Suspense, type ReactNode } from 'react';
+import { Suspense } from 'react';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
@@ -14,38 +14,48 @@ import {
   type SharingCorpView,
 } from '@/features/owned-structures/components/CorpSharingSettings';
 import { accountPageSettings } from '@/page-settings/account';
-import {
-  resolvePageControls,
-  type FeatureControlModel,
-  type MenuControlModel,
-} from '@/page-settings/controls';
+import { resolvePageControls } from '@/page-settings/controls';
 import { SettingsControlRow } from './settings-control-row';
+import {
+  deriveSettingsView,
+  settingsNeedsCorpSharing,
+  toManagerCorps,
+  type SettingsView,
+} from './settings-view';
 
 // The account-wide settings page (ACCOUNT.6), reached from the portrait menu.
 // Registry-rendered (D-8): the junction-owned '/settings' spec resolves through
 // the same presentation path as the menu, so lighting up an account-wide
 // preference is one spec ref — the page carries no per-setting code. Feature
-// controls resolve by id to the exhaustive switch below (a new id fails tsc
-// until it is mapped); their data is fetched here in app land so nothing
-// server-only leaks into the junction's client-imported graph.
+// controls resolve by id through an exhaustive switch (in settings-view.ts, so a
+// new id fails tsc until it is mapped); their data is fetched here in app land so
+// nothing server-only leaks into the junction's client-imported graph.
 
-// The feature control's section, or null when the viewer has nothing to
-// configure (fail-closed: a non-Station_Manager sees no sharing section at
-// all, never a disabled tease).
-function featureControlSection(
-  model: FeatureControlModel,
-  managerCorps: SharingCorpView[],
-): ReactNode | null {
-  switch (model.id) {
-    case 'corp-structure-sharing':
-      return managerCorps.length > 0 ? (
-        <CorpSharingSettings key={model.id} corps={managerCorps} />
-      ) : null;
-    default: {
-      const unmapped: never = model.id;
-      return unmapped;
-    }
-  }
+// The settings-page sections, rendered from the derived view. The render guards
+// live here so the request-time content shell stays a thin, branch-light hole.
+function SettingsSections({ view }: { view: SettingsView }) {
+  return (
+    <>
+      {view.preferenceModels.length > 0 ? (
+        <Card>
+          <SectionHeader size="md" label="Preferences" />
+          <div className="flex flex-col gap-3 px-3.5 py-3.5">
+            {view.preferenceModels.map((model) => (
+              <SettingsControlRow key={model.key} model={model} />
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
+      {view.featureSections.map((section) => (
+        <CorpSharingSettings key={section.id} corps={section.corps} />
+      ))}
+
+      {view.isEmpty ? (
+        <EmptyState>Nothing to configure yet.</EmptyState>
+      ) : null}
+    </>
+  );
 }
 
 // Session-gated: the whole content is a request-time dynamic hole (the
@@ -60,24 +70,10 @@ async function SettingsContent() {
   }
 
   const models = resolvePageControls(accountPageSettings);
-  const needsCorpSharing = models.some(
-    (m) => m.kind === 'feature' && m.id === 'corp-structure-sharing',
-  );
-  const managerCorps: SharingCorpView[] = needsCorpSharing
-    ? (await getCorpStructuresPageData(session.user.id))
-        .filter((corp) => corp.isStationManager)
-        .map((corp) => ({
-          corporationId: corp.corporationId,
-          corporationName: corp.corporationName,
-          sharingEnabled: corp.sharingEnabled,
-        }))
+  const managerCorps: SharingCorpView[] = settingsNeedsCorpSharing(models)
+    ? toManagerCorps(await getCorpStructuresPageData(session.user.id))
     : [];
-
-  const preferenceModels = models.filter((m): m is MenuControlModel => m.kind === 'preference');
-  const featureSections = models
-    .filter((m): m is FeatureControlModel => m.kind === 'feature')
-    .map((m) => featureControlSection(m, managerCorps))
-    .filter((section) => section !== null);
+  const view = deriveSettingsView(models, managerCorps);
 
   return (
     <>
@@ -90,22 +86,7 @@ async function SettingsContent() {
       </div>
 
       <div className="w-full max-w-[760px] flex flex-col gap-6">
-        {preferenceModels.length > 0 ? (
-          <Card>
-            <SectionHeader size="md" label="Preferences" />
-            <div className="flex flex-col gap-3 px-3.5 py-3.5">
-              {preferenceModels.map((model) => (
-                <SettingsControlRow key={model.key} model={model} />
-              ))}
-            </div>
-          </Card>
-        ) : null}
-
-        {featureSections}
-
-        {preferenceModels.length === 0 && featureSections.length === 0 ? (
-          <EmptyState>Nothing to configure yet.</EmptyState>
-        ) : null}
+        <SettingsSections view={view} />
       </div>
     </>
   );

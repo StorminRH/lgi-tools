@@ -15,12 +15,11 @@
 
 import type { ReactNode } from 'react';
 import { CharacterStrip } from '@/components/character-strip';
-import { visibleCharacters } from '@/components/character-strip-model';
+import { deriveStripView, stripPreferenceBinding } from '@/components/character-strip-view';
 import type { PanelCharacter } from '@/components/live-character-card';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { stripDimmedDef } from '@/lib/preferences';
 import type { CharacterStripSpec } from '@/page-settings/types';
 
 export function CharacterStripSection({
@@ -38,29 +37,30 @@ export function CharacterStripSection({
   loading: boolean;
   children: (visible: PanelCharacter[]) => ReactNode;
 }) {
-  const [dimmedIds, setDimmedIds] = usePreference(stripDimmedDef(strip?.surfaceId), {
-    serverValue: strip !== undefined ? initialDimmed : undefined,
+  const binding = stripPreferenceBinding(strip, initialDimmed);
+  const [dimmedIds, setDimmedIds] = usePreference(binding.def, {
+    serverValue: binding.serverValue,
   });
-  const visible = strip !== undefined ? visibleCharacters(characters, dimmedIds) : characters;
+  const view = deriveStripView(strip, characters, dimmedIds, loading);
 
   return (
     <>
-      {strip !== undefined && (
+      {view.hasStrip && (
         <CharacterStrip characters={characters} dimmedIds={dimmedIds} onChange={setDimmedIds} />
       )}
       <div className="flex items-center">
         <span className="text-[10px] tracking-[0.12em] uppercase text-muted">
-          {loading ? 'Loading…' : 'Synced from ESI on view'}
+          {view.syncCaption}
         </span>
       </div>
-      {strip !== undefined && visible.length === 0 && (
+      {view.showEmptyNotice && (
         <Card>
           <EmptyState>
             Every character is hidden here — tap a portrait above to show one.
           </EmptyState>
         </Card>
       )}
-      {children(visible)}
+      {children(view.visible)}
     </>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from './cn';
+import { clampStep, commitStepperValue } from './stepper-math';
 
 // A compact −/[value]/+ numeric stepper with a typeable middle field. Domain-
 // agnostic: the caller owns the value and is handed each committed number through
@@ -34,16 +35,13 @@ export function Stepper({
     setDraft(String(value));
   }
 
-  const clamp = (n: number) => Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, n));
   const commit = (raw: string) => {
     setDraft(raw);
-    const n = Number(raw);
-    if (raw !== '' && Number.isInteger(n) && n >= min && (max === undefined || n <= max)) {
-      onChange(n);
-    }
+    const n = commitStepperValue(raw, { min, max });
+    if (n !== null) onChange(n);
   };
   const step = (delta: number) => {
-    const next = clamp(value + delta);
+    const next = clampStep(value, delta, { min, max });
     onChange(next);
     setDraft(String(next));
   };

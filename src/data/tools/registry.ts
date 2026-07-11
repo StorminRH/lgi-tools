@@ -76,3 +76,28 @@ export function visibleNavTools(): Tool[] {
 export function isToolActive(tool: Tool, pathname: string | null): boolean {
   return pathname != null && !!tool.matchPrefix && pathname.startsWith(tool.matchPrefix);
 }
+
+export type NavToolItem =
+  | { kind: 'soon'; label: string; title: string }
+  | { kind: 'link'; label: string; href: string; active: boolean; title: string };
+
+// One header nav entry, derived once for both the desktop strip (NavTools) and
+// the mobile hamburger (NavMenu): a non-navigable tool renders as an inert "soon"
+// span (a null href reads "coming soon"); a live tool renders as a link with its
+// active state resolved from the pathname.
+export function deriveNavToolItem(tool: Tool, pathname: string | null): NavToolItem {
+  if (tool.href === null || tool.navDisabled) {
+    return {
+      kind: 'soon',
+      label: tool.label,
+      title: tool.href === null ? `${tool.label} — coming soon` : tool.label,
+    };
+  }
+  return {
+    kind: 'link',
+    label: tool.label,
+    href: tool.href,
+    active: isToolActive(tool, pathname),
+    title: tool.label,
+  };
+}

@@ -23,10 +23,15 @@ import {
   getTopSearches,
 } from '@/data/telemetry/queries';
 import type { DateRange } from '@/data/telemetry/types';
+import { formatIsoDay } from '@/lib/format/time';
 import { AdminTrendChart } from './charts';
 import { getLastSyncedAtShared } from './last-synced';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { trendSeries } from './period';
+import {
+  deriveGscPerformanceView,
+  deriveTrafficView,
+  type BarListData,
+} from './traffic-view';
 import { SectionUnavailable } from './SectionUnavailable';
 
 // Traffic & SEO: a two-column card grid. The left column is app-owned
@@ -34,10 +39,6 @@ import { SectionUnavailable } from './SectionUnavailable';
 // from its own Suspense holes so the external-data reads never gate the rest.
 // Every metric appears exactly once — the old Health/SEO tab duplication
 // (daily trend, entry pages) collapses to one card each here.
-
-function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 function pctLabel(part: number, total: number): string {
   if (total === 0) return '0%';
@@ -125,7 +126,7 @@ function GscSitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
           ? 'no URLs submitted'
           : `${pctLabel(sitemap.indexed, sitemap.submitted)} coverage`}{' '}
         · {sitemap.errors} errors · {sitemap.warnings} warnings
-        {sitemap.lastDownloaded ? ` · crawled ${formatDate(sitemap.lastDownloaded)}` : ''}
+        {sitemap.lastDownloaded ? ` · crawled ${formatIsoDay(sitemap.lastDownloaded)}` : ''}
         {sitemap.isPending ? ' · pending' : ''}
       </div>
     </div>
@@ -141,7 +142,7 @@ function GscUrlRow({ url }: { url: GscUrlStatus }) {
       </div>
       <div className="font-mono text-[10px] text-muted">
         {url.coverageState ?? 'unknown'}
-        {url.lastCrawlTime ? ` · crawled ${formatDate(url.lastCrawlTime)}` : ''}
+        {url.lastCrawlTime ? ` · crawled ${formatIsoDay(url.lastCrawlTime)}` : ''}
       </div>
     </div>
   );
@@ -168,6 +169,112 @@ function GscCardFallback({ label }: { label: string }) {
   );
 }
 
+// The expanded detail behind the "More search detail" collapsible: the
+// impressions/position trends and the top-pages, sitemap, and page-index lists.
+function GscPerformanceDetail({
+  view,
+  topPages,
+  sitemaps,
+  urls,
+}: {
+  view: ReturnType<typeof deriveGscPerformanceView>;
+  topPages: GscTermStat[];
+  sitemaps: GscSitemapStatus[];
+  urls: GscUrlStatus[];
+}) {
+  return (
+    <>
+      <div className="px-3.5 py-3">
+        <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">Clicks / day</div>
+        <AdminTrendChart
+          points={view.clicksTrend.points}
+          labels={view.clicksTrend.labels}
+          unit="count"
+          ariaLabel="Search clicks by day"
+        />
+      </div>
+      <Collapsible header={<CollapsedDetailHeader label="More search detail" />}>
+        <div className="border-t border-border-soft">
+          <div className="px-3.5 py-3">
+            <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
+              Impressions / day
+            </div>
+            <AdminTrendChart
+              points={view.impressionsTrend.points}
+              labels={view.impressionsTrend.labels}
+              unit="count"
+              ariaLabel="Search impressions by day"
+            />
+          </div>
+          <div className="px-3.5 py-3">
+            <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
+              Avg position / day (lower is better)
+            </div>
+            <AdminTrendChart
+              points={view.positionTrend.points}
+              labels={view.positionTrend.labels}
+              unit="position"
+              ariaLabel="Average search position by day"
+            />
+          </div>
+          <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+            Top pages in search
+          </div>
+          {topPages.length === 0 ? (
+            <EmptyState>No search-landing pages in this range.</EmptyState>
+          ) : (
+            topPages.map((p) => <GscTermRow key={p.key} term={p} max={view.topPagesMax} />)
+          )}
+          <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+            Indexing &amp; sitemap
+          </div>
+          {sitemaps.length === 0 ? (
+            <EmptyState>No sitemap data synced yet.</EmptyState>
+          ) : (
+            sitemaps.map((s) => <GscSitemapRow key={s.path} sitemap={s} />)
+          )}
+          {urls.length > 0 && (
+            <>
+              <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+                Page index status
+              </div>
+              {urls.map((u) => (
+                <GscUrlRow key={u.url} url={u} />
+              ))}
+            </>
+          )}
+        </div>
+      </Collapsible>
+    </>
+  );
+}
+
+function GscPerformanceCardBody({
+  view,
+  topPages,
+  sitemaps,
+  urls,
+}: {
+  view: ReturnType<typeof deriveGscPerformanceView>;
+  topPages: GscTermStat[];
+  sitemaps: GscSitemapStatus[];
+  urls: GscUrlStatus[];
+}) {
+  return (
+    <Card>
+      <SectionHeader size="md" label="Search performance" hint="Google Search Console" />
+      <div className="px-3.5 py-2 font-mono text-[11px] text-muted border-b border-border-soft">
+        Google data lags ~2–3 days · last synced {view.asOf}
+      </div>
+      {view.hasTrend ? (
+        <GscPerformanceDetail view={view} topPages={topPages} sitemaps={sitemaps} urls={urls} />
+      ) : (
+        <EmptyState>No Search Console data synced yet for this range.</EmptyState>
+      )}
+    </Card>
+  );
+}
+
 // Search performance: the clicks trend is the visible headline; impressions,
 // position, search-landing pages, and indexing state sit behind one
 // collapsed detail so the default view stays scannable.
@@ -186,100 +293,9 @@ async function GscPerformanceCard({ range }: { range: DateRange }) {
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Search performance" />;
 
   const [lastSyncedAt, trend, topPages, sitemaps, urls] = fetched;
-  const clicksTrend = trendSeries(
-    trend.map((d) => d.day),
-    trend.map((d) => d.clicks),
-  );
-  const impressionsTrend = trendSeries(
-    trend.map((d) => d.day),
-    trend.map((d) => d.impressions),
-  );
-  const positionTrend = trendSeries(
-    trend.map((d) => d.day),
-    trend.map((d) => Math.round(d.position * 10) / 10),
-  );
-  const topPagesMax = topPages.reduce((m, p) => Math.max(m, p.clicks), 0);
-  const asOf = lastSyncedAt
-    ? `${lastSyncedAt.toISOString().replace('T', ' ').slice(0, 16)} UTC`
-    : 'never';
+  const view = deriveGscPerformanceView({ lastSyncedAt, trend, topPages });
 
-  return (
-    <Card>
-      <SectionHeader size="md" label="Search performance" hint="Google Search Console" />
-      <div className="px-3.5 py-2 font-mono text-[11px] text-muted border-b border-border-soft">
-        Google data lags ~2–3 days · last synced {asOf}
-      </div>
-      {trend.length === 0 ? (
-        <EmptyState>No Search Console data synced yet for this range.</EmptyState>
-      ) : (
-        <>
-          <div className="px-3.5 py-3">
-            <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
-              Clicks / day
-            </div>
-            <AdminTrendChart
-              points={clicksTrend.points}
-              labels={clicksTrend.labels}
-              unit="count"
-              ariaLabel="Search clicks by day"
-            />
-          </div>
-          <Collapsible header={<CollapsedDetailHeader label="More search detail" />}>
-            <div className="border-t border-border-soft">
-              <div className="px-3.5 py-3">
-                <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
-                  Impressions / day
-                </div>
-                <AdminTrendChart
-                  points={impressionsTrend.points}
-                  labels={impressionsTrend.labels}
-                  unit="count"
-                  ariaLabel="Search impressions by day"
-                />
-              </div>
-              <div className="px-3.5 py-3">
-                <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
-                  Avg position / day (lower is better)
-                </div>
-                <AdminTrendChart
-                  points={positionTrend.points}
-                  labels={positionTrend.labels}
-                  unit="position"
-                  ariaLabel="Average search position by day"
-                />
-              </div>
-              <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
-                Top pages in search
-              </div>
-              {topPages.length === 0 ? (
-                <EmptyState>No search-landing pages in this range.</EmptyState>
-              ) : (
-                topPages.map((p) => <GscTermRow key={p.key} term={p} max={topPagesMax} />)
-              )}
-              <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
-                Indexing &amp; sitemap
-              </div>
-              {sitemaps.length === 0 ? (
-                <EmptyState>No sitemap data synced yet.</EmptyState>
-              ) : (
-                sitemaps.map((s) => <GscSitemapRow key={s.path} sitemap={s} />)
-              )}
-              {urls.length > 0 && (
-                <>
-                  <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
-                    Page index status
-                  </div>
-                  {urls.map((u) => (
-                    <GscUrlRow key={u.url} url={u} />
-                  ))}
-                </>
-              )}
-            </div>
-          </Collapsible>
-        </>
-      )}
-    </Card>
-  );
+  return <GscPerformanceCardBody view={view} topPages={topPages} sitemaps={sitemaps} urls={urls} />;
 }
 
 async function GscTopQueriesCard({ range }: { range: DateRange }) {
@@ -304,6 +320,45 @@ async function GscTopQueriesCard({ range }: { range: DateRange }) {
 
 // ── The section ─────────────────────────────────────────────────────────
 
+// A ranked bar list, or an empty-state line when there are no rows.
+function BarList({ data, empty }: { data: BarListData; empty: string }) {
+  if (data.rows.length === 0) return <EmptyState>{empty}</EmptyState>;
+  return (
+    <>
+      {data.rows.map((row) => (
+        <BarRow key={row.key} label={row.label} count={row.count} max={data.max} />
+      ))}
+    </>
+  );
+}
+
+function ActivityCard({
+  dailyCounts,
+  trend,
+}: {
+  dailyCounts: { day: string; totalEvents: number }[];
+  trend: ReturnType<typeof deriveTrafficView>['dailyTrend'];
+}) {
+  return (
+    <Card>
+      <SectionHeader size="md" label="Activity" hint={`${dailyCounts.length} days with events`} />
+      {dailyCounts.length === 0 ? (
+        <EmptyState>No events in this range.</EmptyState>
+      ) : (
+        <div className="px-3.5 py-3">
+          <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">Events / day</div>
+          <AdminTrendChart
+            points={trend.points}
+            labels={trend.labels}
+            unit="count"
+            ariaLabel="Daily events"
+          />
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export async function TrafficSection({ range }: { range: DateRange }) {
   const fetched = await loadSection('traffic', () =>
     Promise.all([
@@ -317,40 +372,18 @@ export async function TrafficSection({ range }: { range: DateRange }) {
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Traffic & SEO" />;
 
   const [dailyCounts, topPages, topReferrers, topEntryPages, topSearches] = fetched;
-  const dailyTrend = trendSeries(
-    dailyCounts.map((d) => d.day),
-    dailyCounts.map((d) => d.totalEvents),
-  );
-  const topPagesMax = topPages.reduce((m, r) => Math.max(m, r.count), 0);
-  const topReferrersMax = topReferrers.reduce((m, r) => Math.max(m, r.count), 0);
-  const topEntryPagesMax = topEntryPages.reduce((m, r) => Math.max(m, r.count), 0);
-  const topSearchesMax = topSearches.reduce((m, r) => Math.max(m, r.count), 0);
+  const view = deriveTrafficView({
+    dailyCounts,
+    topPages,
+    topReferrers,
+    topEntryPages,
+    topSearches,
+  });
 
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <SectionHeader
-            size="md"
-            label="Activity"
-            hint={`${dailyCounts.length} days with events`}
-          />
-          {dailyCounts.length === 0 ? (
-            <EmptyState>No events in this range.</EmptyState>
-          ) : (
-            <div className="px-3.5 py-3">
-              <div className="text-[10px] tracking-[0.16em] uppercase text-muted mb-2">
-                Events / day
-              </div>
-              <AdminTrendChart
-                points={dailyTrend.points}
-                labels={dailyTrend.labels}
-                unit="count"
-                ariaLabel="Daily events"
-              />
-            </div>
-          )}
-        </Card>
+        <ActivityCard dailyCounts={dailyCounts} trend={view.dailyTrend} />
 
         <Suspense fallback={<GscCardFallback label="Search performance" />}>
           <GscPerformanceCard range={range} />
@@ -358,13 +391,7 @@ export async function TrafficSection({ range }: { range: DateRange }) {
 
         <Card>
           <SectionHeader size="md" label="Top pages" hint={`${topPages.length} paths`} />
-          {topPages.length === 0 ? (
-            <EmptyState>No page-view events in this range.</EmptyState>
-          ) : (
-            topPages.map((row) => (
-              <BarRow key={row.path} label={row.path} count={row.count} max={topPagesMax} />
-            ))
-          )}
+          <BarList data={view.topPages} empty="No page-view events in this range." />
         </Card>
 
         <Suspense fallback={<GscCardFallback label="Top search queries" />}>
@@ -383,51 +410,18 @@ export async function TrafficSection({ range }: { range: DateRange }) {
             <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
               Top referrers
             </div>
-            {topReferrers.length === 0 ? (
-              <EmptyState>No external referrers in this range.</EmptyState>
-            ) : (
-              topReferrers.map((row) => (
-                <BarRow
-                  key={row.host}
-                  label={row.host}
-                  count={row.count}
-                  max={topReferrersMax}
-                />
-              ))
-            )}
+            <BarList data={view.topReferrers} empty="No external referrers in this range." />
           </div>
           <div className="bg-bg">
             <div className="px-3.5 py-2 text-[10px] tracking-[0.16em] uppercase text-muted border-b border-border-soft">
               Top entry pages
             </div>
-            {topEntryPages.length === 0 ? (
-              <EmptyState>No session entry events in this range.</EmptyState>
-            ) : (
-              topEntryPages.map((row) => (
-                <BarRow
-                  key={row.path}
-                  label={row.path}
-                  count={row.count}
-                  max={topEntryPagesMax}
-                />
-              ))
-            )}
+            <BarList data={view.topEntryPages} empty="No session entry events in this range." />
           </div>
         </div>
         <Collapsible header={<CollapsedDetailHeader label="Product usage · terminal searches" />}>
           <div className="border-t border-border-soft">
-            {topSearches.length === 0 ? (
-              <EmptyState>No terminal searches in this range.</EmptyState>
-            ) : (
-              topSearches.map((row) => (
-                <BarRow
-                  key={row.query}
-                  label={row.query}
-                  count={row.count}
-                  max={topSearchesMax}
-                />
-              ))
-            )}
+            <BarList data={view.topSearches} empty="No terminal searches in this range." />
           </div>
         </Collapsible>
       </Card>

@@ -26,8 +26,9 @@ export function Modal({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
+    if (open === el.open) return; // already in the desired state
+    if (open) el.showModal();
+    else el.close();
   }, [open]);
 
   useEffect(() => {

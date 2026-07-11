@@ -17,6 +17,12 @@ const RANGE_NOUN: Record<Exclude<RangeKey, 'all'>, string> = {
   '90d': '90 days',
 };
 
+// Run a query only when its gate is on, else resolve to null — keeps the fan-out
+// below a flat list instead of a wall of inline ternaries.
+function maybe<T>(cond: boolean, thunk: () => Promise<T>): Promise<T | null> {
+  return cond ? thunk() : Promise.resolve(null);
+}
+
 export async function KpiRow({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
   const prev = previousRange(rangeKey, range);
   const gsc = isGscConfigured();
@@ -25,10 +31,10 @@ export async function KpiRow({ rangeKey, range }: { rangeKey: RangeKey; range: D
     Promise.all([
       getSearchVsDirect(range),
       getReturningVsNew(range),
-      gsc ? getSearchTotals(range) : null,
-      prev ? getSearchVsDirect(prev) : null,
-      prev ? getReturningVsNew(prev) : null,
-      gsc && prev ? getSearchTotals(prev) : null,
+      maybe(gsc, () => getSearchTotals(range)),
+      maybe(prev != null, () => getSearchVsDirect(prev!)),
+      maybe(prev != null, () => getReturningVsNew(prev!)),
+      maybe(gsc && prev != null, () => getSearchTotals(prev!)),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Headline metrics" />;

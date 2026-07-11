@@ -55,11 +55,6 @@
     "maxCrap": 30.0,
     "thresholdOverrides": [
       {
-        "files": ["src/**/*.tsx"],
-        "maxCrap": 9999,
-        "reason": "intentional-policy: presentational components are covered by visual/preview review, not unit tests. CRAP's coverage weighting flags every untested component — a coverage expectation the repo has declined for this surface. Cyclomatic + cognitive stay universal, so a genuinely tangled component still fails."
-      },
-      {
         "files": ["src/features/auth/auth.ts"],
         "maxCrap": 9999,
         "reason": "framework-convention: the Better Auth provider/config object, exercised by the live auth flow rather than unit tests."

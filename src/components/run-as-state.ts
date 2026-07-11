@@ -69,3 +69,15 @@ export function runAsView(
   const { characterId, name, portraitUrl } = state.session;
   return { kind: 'present', characterId, name, portraitUrl };
 }
+
+// The radio group's current value: the selected build character's id, or the
+// sentinel 0 ("no explicit pick" — 0 is unreachable as a real character id).
+export function buildRadioValue(buildCharacter: BuildCharacter | null): number {
+  return buildCharacter?.characterId ?? 0;
+}
+
+// Maps a radio selection back to a stored pick: the 0 sentinel clears the pick
+// (so the frame mirrors the active character); any real id is the explicit pick.
+export function parseRadioSelection(value: number): number | null {
+  return value === 0 ? null : value;
+}

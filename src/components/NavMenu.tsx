@@ -6,7 +6,7 @@ import { Suspense } from 'react';
 import { LoginButton } from '@/features/auth/components/LoginButton';
 import { Menu, MenuLinkItem } from '@/components/ui/menu';
 import { cn } from '@/components/ui/cn';
-import { isToolActive, visibleNavTools } from '@/data/tools/registry';
+import { deriveNavToolItem, visibleNavTools } from '@/data/tools/registry';
 
 // Mobile-only hamburger (globals.css reveals the trigger below 1024px and hides
 // the inline tool strip + login cluster there). Built on the shared Base UI Menu
@@ -39,25 +39,24 @@ function NavMenuItems() {
   return (
     <>
       {visibleNavTools().map((tool) => {
-        if (tool.href === null || tool.navDisabled) {
+        const item = deriveNavToolItem(tool, pathname);
+        if (item.kind === 'soon') {
           return (
-            <span key={tool.label} className="nav-tool soon">
-              {tool.label}
+            <span key={item.label} className="nav-tool soon">
+              {item.label}
             </span>
           );
         }
 
-        const active = isToolActive(tool, pathname);
-
         return (
           <MenuLinkItem
-            key={tool.label}
+            key={item.label}
             closeOnClick
-            aria-current={active ? 'page' : undefined}
-            className={cn('nav-tool', active && 'active')}
-            render={<Link href={tool.href} />}
+            aria-current={item.active ? 'page' : undefined}
+            className={cn('nav-tool', item.active && 'active')}
+            render={<Link href={item.href} />}
           >
-            {tool.label}
+            {item.label}
           </MenuLinkItem>
         );
       })}

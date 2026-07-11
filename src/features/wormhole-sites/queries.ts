@@ -193,6 +193,27 @@ export async function listSites(filters: {
     : rows;
 }
 
+// Every NPC row for a set of waves, in one batched order-preserving fetch — empty
+// (no query) when there are no waves. Shared by the list and single-site details
+// reads so both project the identical NPC columns.
+async function loadNpcsForWaves(waveIds: number[]): Promise<NpcRow[]> {
+  if (waveIds.length === 0) return [];
+  return db
+    .select({
+      id: npcs.id,
+      waveId: npcs.waveId,
+      typeId: npcs.typeId,
+      orderInWave: npcs.orderInWave,
+      triggerLabel: npcs.triggerLabel,
+      quantity: npcs.quantity,
+      sleeperName: npcs.sleeperName,
+      sleeperClassCode: npcs.sleeperClassCode,
+    })
+    .from(npcs)
+    .where(inArray(npcs.waveId, waveIds))
+    .orderBy(npcs.orderInWave);
+}
+
 export async function listSiteDetails(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
@@ -265,23 +286,7 @@ export async function listSiteDetails(filters: {
 
     const waveIds = waveRows.map((w) => w.id);
 
-    const npcRows: NpcRow[] =
-      waveIds.length > 0
-        ? await db
-            .select({
-              id: npcs.id,
-              waveId: npcs.waveId,
-              typeId: npcs.typeId,
-              orderInWave: npcs.orderInWave,
-              triggerLabel: npcs.triggerLabel,
-              quantity: npcs.quantity,
-              sleeperName: npcs.sleeperName,
-              sleeperClassCode: npcs.sleeperClassCode,
-            })
-            .from(npcs)
-            .where(inArray(npcs.waveId, waveIds))
-            .orderBy(npcs.orderInWave)
-        : [];
+    const npcRows = await loadNpcsForWaves(waveIds);
 
     // One batched fetch of combat stats for every distinct NPC type across all
     // sites — same shape as the existing 4-round-trip pattern for listSiteDetails.
@@ -415,23 +420,7 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
 
     const waveIds = siteWaves.map((w) => w.id);
 
-    const allNpcs: NpcRow[] =
-      waveIds.length > 0
-        ? await db
-            .select({
-              id: npcs.id,
-              waveId: npcs.waveId,
-              typeId: npcs.typeId,
-              orderInWave: npcs.orderInWave,
-              triggerLabel: npcs.triggerLabel,
-              quantity: npcs.quantity,
-              sleeperName: npcs.sleeperName,
-              sleeperClassCode: npcs.sleeperClassCode,
-            })
-            .from(npcs)
-            .where(inArray(npcs.waveId, waveIds))
-            .orderBy(npcs.orderInWave)
-        : [];
+    const allNpcs = await loadNpcsForWaves(waveIds);
 
     const resources: SiteResource[] = resourceRows.map((r) => ({
       ...r,

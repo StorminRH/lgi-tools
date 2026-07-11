@@ -141,7 +141,7 @@ export async function getUserByCharacterId(characterId: number): Promise<AdminUs
     .select(adminUserColumns)
     .from(account)
     .innerJoin(user, eq(user.id, account.userId))
-    .where(and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId))))
+    .where(accountMatch(characterId))
     .limit(1);
 
   return row ? toAdminUser(row) : null;
@@ -211,6 +211,13 @@ const characterProfileJoin = eq(
 
 const eveAccountsForUser = (userId: string) =>
   and(eq(account.userId, userId), eq(account.providerId, EVE_PROVIDER_ID));
+
+// The account-row predicate for one EVE character — provider + character id (as a
+// string). A predicate helper, not a full accountByCharacter query, so each
+// caller keeps its own select/from/where/limit chain intact.
+function accountMatch(characterId: number) {
+  return and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId)));
+}
 
 export interface LinkedCharacter {
   characterId: number;
@@ -632,7 +639,7 @@ export async function absorbLinkedCharacterOnProof(
       .select({ userId: account.userId })
       .from(account)
       .where(
-        and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId))),
+        accountMatch(characterId),
       )
       .limit(1);
     if (!row) return { absorbed: false }; // fresh link — Better Auth creates it
@@ -700,7 +707,7 @@ export async function reconcileCharacterOwner(
   const [row] = await db
     .select({ userId: account.userId, ownerHash: account.ownerHash })
     .from(account)
-    .where(and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId))))
+    .where(accountMatch(characterId))
     .limit(1);
   // No row yet = this character's first link this request; Better Auth creates
   // the account row AFTER this callback, so there is nothing to compare. The
@@ -715,7 +722,7 @@ export async function reconcileCharacterOwner(
       .update(account)
       .set({ ownerHash: jwtOwnerHash, updatedAt: new Date() })
       .where(
-        and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId))),
+        accountMatch(characterId),
       );
     return;
   }

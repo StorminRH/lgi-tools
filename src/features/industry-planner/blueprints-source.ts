@@ -5,8 +5,8 @@
 // and memoized for the session.
 
 import { apiFetch } from '@/lib/api-client';
-import type { SearchResult, SearchSource } from '@/search';
-import { fuzzyMatch, type FuzzyMatch } from '@/search/match';
+import type { SearchSource } from '@/search';
+import { rankFuzzyResults } from '@/search/rank';
 import { blueprintsEndpoint } from './api-contract';
 import type { BlueprintIndexEntry } from './types';
 
@@ -49,24 +49,23 @@ export const blueprintsSource: SearchSource = {
     const index = await loadIndex();
     if (ctx.signal?.aborted) return [];
 
-    const matches: { entry: BlueprintIndexEntry; match: FuzzyMatch }[] = [];
-    for (const entry of index) {
-      const match = fuzzyMatch(query, entry.name);
-      if (match) matches.push({ entry, match });
-    }
-    matches.sort((a, b) => b.match.score - a.match.score);
-
-    return matches.slice(0, MAX_RESULTS).map<SearchResult>(({ entry, match }) => ({
-      kind: 'blueprint',
-      id: `blueprint:${entry.blueprintTypeId}`,
-      label: entry.name,
-      sub: 'Blueprint',
-      href: `/industry/${entry.blueprintTypeId}`,
-      // A blueprint always maps to a real product, so the row always renders that
-      // product's icon (TypeIcon). No generic 'BP' glyph — if the image ever 404s
-      // the fallback derives the monogram from the item name, never a flat "BP".
-      typeId: entry.productTypeId,
-      matchIndices: match.matchIndices,
-    }));
+    return rankFuzzyResults(
+      index,
+      query,
+      (entry) => entry.name,
+      (entry, match) => ({
+        kind: 'blueprint',
+        id: `blueprint:${entry.blueprintTypeId}`,
+        label: entry.name,
+        sub: 'Blueprint',
+        href: `/industry/${entry.blueprintTypeId}`,
+        // A blueprint always maps to a real product, so the row always renders that
+        // product's icon (TypeIcon). No generic 'BP' glyph — if the image ever 404s
+        // the fallback derives the monogram from the item name, never a flat "BP".
+        typeId: entry.productTypeId,
+        matchIndices: match.matchIndices,
+      }),
+      { limit: MAX_RESULTS },
+    );
   },
 };

@@ -1,3 +1,4 @@
+import { deriveDeltaBadge } from './delta-badge-view';
 import type { Delta } from './period';
 
 // One headline number on the dashboard's KPI row: label, big value, an
@@ -6,22 +7,19 @@ import type { Delta } from './period';
 // stay on the single blue accent.
 
 function DeltaBadge({ delta }: { delta: Delta }) {
-  if (delta.pct === null) {
-    // No previous-window denominator: the metric is new (or still zero).
-    return delta.direction === 'up' ? (
-      <span className="font-mono text-[11px] text-isk">new</span>
-    ) : (
-      <span className="font-mono text-[11px] text-muted">—</span>
-    );
+  const view = deriveDeltaBadge(delta);
+  if (view.kind === 'new') {
+    return <span className="font-mono text-[11px] text-isk">new</span>;
   }
-  if (delta.direction === 'flat') {
+  if (view.kind === 'none') {
+    return <span className="font-mono text-[11px] text-muted">—</span>;
+  }
+  if (view.kind === 'flat') {
     return <span className="font-mono text-[11px] text-muted tabular-nums">±0%</span>;
   }
-  const cls = delta.direction === 'up' ? 'text-isk' : 'text-tone-red';
-  const arrow = delta.direction === 'up' ? '▲' : '▼';
   return (
-    <span className={`font-mono text-[11px] tabular-nums ${cls}`}>
-      {arrow} {Math.abs(delta.pct)}%
+    <span className={`font-mono text-[11px] tabular-nums ${view.cls}`}>
+      {view.arrow} {view.pct}%
     </span>
   );
 }

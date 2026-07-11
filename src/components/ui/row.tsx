@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { deriveRowLayout } from './row-layout';
 
 /**
  * EntityRow — grid row (leading badge / name / optional chips / trailing stats).
@@ -27,34 +28,45 @@ export function EntityRow({
    *  the trailing stats keep a consistent right-aligned column across rows. */
   inlineChips?: boolean;
 }) {
-  const hasChipColumn = chips !== undefined && !inlineChips;
-  const defaultColsClass = hasChipColumn
-    ? 'grid-cols-[26px_minmax(0,1fr)_auto_auto]'
-    : 'grid-cols-[26px_minmax(0,1fr)_auto]';
+  const layout = deriveRowLayout({ leading, chips, trailing, colsClass, inlineChips });
   return (
     <div
       className={cn(
         'grid items-center gap-[6px] px-3.5 py-[5px] border-t border-border-soft text-[12px] hover:bg-[rgba(255,255,255,0.018)]',
-        colsClass ?? defaultColsClass,
+        layout.colsClass,
         className,
       )}
     >
-      {leading !== undefined && <span className="text-[10px] text-muted">{leading}</span>}
-      {inlineChips && chips !== undefined ? (
-        <span className="flex items-center gap-2 min-w-0">
-          <span className="text-name truncate leading-[1.5]">{name}</span>
-          <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
-        </span>
-      ) : (
-        <span className="text-name truncate leading-[1.5]">{name}</span>
-      )}
-      {trailing !== undefined && (
+      {layout.showLeading && <span className="text-[10px] text-muted">{leading}</span>}
+      <RowName name={name} chips={chips} inline={layout.showInlineChips} />
+      {layout.showTrailing && (
         <span className="flex items-center gap-2 shrink-0 justify-end">{trailing}</span>
       )}
-      {hasChipColumn && (
+      {layout.showChipColumn && (
         <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
       )}
     </div>
+  );
+}
+
+/** The name cell — chips beside the name when inlined, else the bare name. */
+function RowName({
+  name,
+  chips,
+  inline,
+}: {
+  name: ReactNode;
+  chips?: ReactNode;
+  inline: boolean;
+}) {
+  if (!inline) {
+    return <span className="text-name truncate leading-[1.5]">{name}</span>;
+  }
+  return (
+    <span className="flex items-center gap-2 min-w-0">
+      <span className="text-name truncate leading-[1.5]">{name}</span>
+      <span className="flex items-center gap-[4px] shrink-0">{chips}</span>
+    </span>
   );
 }
 

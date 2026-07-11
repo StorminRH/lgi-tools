@@ -31,6 +31,21 @@ function rowsInWindow(
   });
 }
 
+// The rows in a trailing window plus their total traded volume — null when the
+// window holds no rows ("no data" ≠ "zero"). The shared prologue of the two
+// volume statistics.
+function windowVolumeTotal(
+  rows: HistoryDailyRow[],
+  windowDays: number,
+  asOf: string,
+): { inWindow: HistoryDailyRow[]; total: number } | null {
+  const inWindow = rowsInWindow(rows, windowDays, asOf);
+  if (inWindow.length === 0) return null;
+  let total = 0;
+  for (const r of inWindow) total += Number(r.volume);
+  return { inWindow, total };
+}
+
 // Average daily volume over a trailing window: total units traded ÷ the window's
 // CALENDAR length, so traded-nothing days (no row) correctly pull the average
 // down. null when the window holds no rows ("no data" ≠ "zero").
@@ -39,11 +54,9 @@ export function averageDailyVolume(
   windowDays: number,
   asOf: string,
 ): number | null {
-  const inWindow = rowsInWindow(rows, windowDays, asOf);
-  if (inWindow.length === 0) return null;
-  let total = 0;
-  for (const r of inWindow) total += Number(r.volume);
-  return total / windowDays;
+  const w = windowVolumeTotal(rows, windowDays, asOf);
+  if (w === null) return null;
+  return w.total / windowDays;
 }
 
 // Coefficient of variation (stddev/mean) of daily volume over a trailing
@@ -56,10 +69,9 @@ export function volumeCoefficientOfVariation(
   windowDays: number,
   asOf: string,
 ): number | null {
-  const inWindow = rowsInWindow(rows, windowDays, asOf);
-  if (inWindow.length === 0) return null;
-  let total = 0;
-  for (const r of inWindow) total += Number(r.volume);
+  const w = windowVolumeTotal(rows, windowDays, asOf);
+  if (w === null) return null;
+  const { inWindow, total } = w;
   const mean = total / windowDays;
   if (mean === 0) return null;
   // Σ(v - mean)² over all calendar days: present days contribute (v - mean)²,

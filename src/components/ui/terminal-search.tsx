@@ -11,6 +11,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Callout } from './callout';
+import { deriveTerminalDropdown } from './terminal-search-view';
 
 type ParseOk<Params> = { ok: true; params: Params };
 type ParseErr<Err> = { ok: false; error: Err };
@@ -79,7 +80,6 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
       alive = false;
     };
   }, [value, suggest]);
-  const visibleSuggestions = suggestions.query === value ? suggestions.items : [];
 
   // Click outside / Esc to close the dropdown.
   useEffect(() => {
@@ -140,7 +140,12 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
     submitParsedString(s);
   };
 
-  const showDropdown = open && visibleSuggestions.length > 0 && error === null;
+  const { visibleSuggestions, showDropdown } = deriveTerminalDropdown(
+    suggestions,
+    value,
+    open,
+    error !== null,
+  );
 
   return (
     <div ref={wrapperRef} className="relative w-full">
@@ -192,17 +197,36 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
         </ul>
       )}
 
+      <SearchFooter error={error} hint={hint} errorLabel={errorLabel} errorMessage={errorMessage} />
+    </div>
+  );
+}
+
+// The error Callout, or the idle hint line when there's no error and a hint was
+// given — one or the other beneath the input.
+function SearchFooter<Err extends { kind: string }>({
+  error,
+  hint,
+  errorLabel,
+  errorMessage,
+}: {
+  error: Err | null;
+  hint?: string;
+  errorLabel: string;
+  errorMessage: (error: Err) => string;
+}) {
+  return (
+    <>
       {error && (
         <div className="mt-2">
           <Callout label={errorLabel}>{errorMessage(error)}</Callout>
         </div>
       )}
-
       {!error && hint && (
         <div className="mt-1 font-mono text-[9px] text-muted tracking-[0.12em] uppercase">
           {hint}
         </div>
       )}
-    </div>
+    </>
   );
 }
