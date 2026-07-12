@@ -8,6 +8,17 @@ Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
 v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
 
+### v3.8.2.5.1 — 2026-07-12
+
+#### Changed
+- The two search boxes now share one component. The header search (⌘K from any page) and the system-name pickers in the industry planner and structure builder open the same dark recessed dropdown as every other menu, and the header search field wears the engraved-well look to match. Typing, arrowing through results, selecting a result, and dismissing all behave the same across both.
+
+#### Fixed
+- On the structures page, clicking the empty area beside the Structure type, Name, or Facility tax fields no longer reaches across the row to focus that field or open its dropdown — only the field itself responds now.
+
+#### Removed
+- The last two hand-built search dropdowns and their leftover one-off styling, retired in favor of the shared combobox.
+
 ### v3.8.2.3.1 — 2026-07-12
 
 #### Changed
