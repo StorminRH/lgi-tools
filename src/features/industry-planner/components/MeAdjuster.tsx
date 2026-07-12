@@ -361,7 +361,7 @@ function BoxedField({ inputProps, revertButton, name, ariaUnit, toneClass, onSte
           {...inputProps}
           className={cn(
             'h-7 w-12 border-x border-border-soft bg-transparent text-center font-mono text-ui outline-none',
-            'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+            'placeholder:text-faint focus:placeholder:text-transparent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
             toneClass,
           )}
         />
@@ -399,7 +399,7 @@ function InlineField({
         {...inputProps}
         className={cn(
           'w-[22px] bg-transparent text-center font-mono text-ui tabular-nums outline-none',
-          'placeholder:text-faint [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
+          'placeholder:text-faint focus:placeholder:text-transparent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
           toneClass,
         )}
       />
