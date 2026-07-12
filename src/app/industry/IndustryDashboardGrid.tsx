@@ -13,6 +13,7 @@
 import Link from 'next/link';
 import { type ReactNode, useEffect, useMemo } from 'react';
 import { AccessGate } from '@/components/ui/access-gate';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { SectionLabel } from '@/components/ui/section-label';
@@ -34,7 +35,6 @@ import {
   type DashboardSectionId,
   deriveSectionRender,
   orderSections,
-  PANEL_CLASS,
   recentsStatus,
   savedStatus,
   type SectionStatus,
@@ -68,9 +68,9 @@ function DashboardSection({ status, cell }: { status: SectionStatus; cell: Secti
 
 function RecentsPanel({ recent }: { recent: ReturnType<typeof useRecentBlueprints> }) {
   return (
-    <div className={PANEL_CLASS}>
+    <Card className="overflow-hidden">
       {recent === null ? <EmptyState> </EmptyState> : <RecentBlueprintRows recent={recent} />}
-    </div>
+    </Card>
   );
 }
 
@@ -82,9 +82,9 @@ function TemplatesPanel({
   tiles: ReturnType<typeof savedTiles>['tiles'];
 }) {
   return (
-    <div className={PANEL_CLASS}>
+    <Card className="overflow-hidden">
       {plans === null ? <EmptyState> </EmptyState> : <SavedBuildTiles plans={tiles} />}
-    </div>
+    </Card>
   );
 }
 
