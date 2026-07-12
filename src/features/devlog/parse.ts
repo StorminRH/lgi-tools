@@ -13,7 +13,8 @@
 //     end of a paragraph in this doc)
 //   <!-- uth:code-excerpts:start --> … <!-- uth:code-excerpts:end --> per section:
 //     each `<!-- uth:code id="…" file="…" lines="…" lang="…" -->` header followed
-//     by a fenced block is one excerpt DEFINITION, keyed by id.
+//     by a fenced block is one excerpt DEFINITION, keyed by id. An optional
+//     `ref="<40-char commit sha>"` pins a GitHub permalink for the excerpt.
 //
 // The parser resolves each `<sup>` reference into an inline-collapsed excerpt block
 // where it sat; a definition that is never referenced is appended at the end of its
@@ -43,6 +44,9 @@ const ATTR_ID = /id="(code-[a-z0-9-]+)"/;
 const ATTR_FILE = /file="([^"]*)"/;
 const ATTR_LINES = /lines="([^"]*)"/;
 const ATTR_LANG = /lang="([^"]*)"/;
+const ATTR_REF = /ref="([^"]*)"/;
+
+const GITHUB_BLOB = 'https://github.com/StorminRH/lgi-tools/blob';
 
 // A whole `<sup><a href="#code-…">N</a></sup>` marker. Global so every reference on
 // a paragraph is captured (and stripped) in document order.
@@ -57,6 +61,41 @@ export function slugify(title: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+// The gutter's first line number: the first integer in a `lines` label, or 1 when
+// there isn't one. Only trusted as a true source line for a clean single range
+// (see isCleanSingleRange) — a multi-range/path-prefixed label falls back to a
+// relative 1..N gutter, so a stray digit in a path prefix never misleads.
+export function parseStartLine(lines: string): number {
+  const m = lines.match(/\d+/);
+  return m ? Number(m[0]) : 1;
+}
+
+// A `lines` label is a clean single range when it is exactly one line number or one
+// `start-end` pair — no comma multi-range, no semicolon, no path prefix. Gates both
+// the permalink `#L…` fragment and the absolute-line gutter, so the two agree.
+export function isCleanSingleRange(lines: string): boolean {
+  return /^\d+(?:-\d+)?$/.test(lines.trim());
+}
+
+// The `#L<start>-L<end>` (or `#L<n>` for a single line) permalink fragment, but only
+// for a clean single range; '' otherwise, so a multi-range excerpt links to the file
+// at the pinned SHA with no (rotting) line anchor.
+export function lineFragment(lines: string): string {
+  const clean = lines.trim();
+  if (!isCleanSingleRange(clean)) return '';
+  const [start, end] = clean.split('-');
+  return end && end !== start ? `#L${start}-L${end}` : `#L${start}`;
+}
+
+// A pinned-SHA GitHub permalink for an excerpt, or null when one can't be built:
+// both a `ref` (commit SHA) and a repo `file` path are required — an excerpt whose
+// `file` is prose ("GitHub PR #… review thread") must therefore carry no ref. The
+// line fragment is appended only for a clean single range (unpinned line links rot).
+export function githubUrl(excerpt: Pick<Excerpt, 'ref' | 'file' | 'lines'>): string | null {
+  if (!excerpt.ref || !excerpt.file) return null;
+  return `${GITHUB_BLOB}/${excerpt.ref}/${excerpt.file}${lineFragment(excerpt.lines)}`;
 }
 
 // Try to match one inline mark anchored at `i` (sticky regex). Returns the token
@@ -126,7 +165,7 @@ function finalizeBody(lines: string[]): string {
   return b.join('\n');
 }
 
-function parseAttrs(line: string): Omit<Excerpt, 'code'> | null {
+function parseAttrs(line: string): Omit<Excerpt, 'code' | 'tokens'> | null {
   const id = line.match(ATTR_ID)?.[1];
   if (!id) return null;
   return {
@@ -134,6 +173,7 @@ function parseAttrs(line: string): Omit<Excerpt, 'code'> | null {
     file: line.match(ATTR_FILE)?.[1] ?? '',
     lines: line.match(ATTR_LINES)?.[1] ?? '',
     lang: line.match(ATTR_LANG)?.[1] ?? '',
+    ref: line.match(ATTR_REF)?.[1] ?? '',
   };
 }
 
@@ -187,7 +227,7 @@ function collectExcerpts(body: string[]): {
   const order: string[] = [];
   const prose: string[] = [];
   let inExcerpts = false;
-  let attrs: Omit<Excerpt, 'code'> | null = null;
+  let attrs: Omit<Excerpt, 'code' | 'tokens'> | null = null;
   let bodyLines: string[] = [];
   const commit = () => {
     if (attrs) {

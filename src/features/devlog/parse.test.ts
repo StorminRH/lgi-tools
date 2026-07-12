@@ -5,8 +5,12 @@ import {
   documentSummary,
   findDocument,
   flattenDocuments,
+  githubUrl,
+  isCleanSingleRange,
+  lineFragment,
   parseDevlog,
   parseInline,
+  parseStartLine,
   slugify,
 } from './parse';
 import type { Block } from './types';
@@ -208,5 +212,77 @@ describe('parseDevlog — the real UNDER_THE_HOOD.md', () => {
         }
       });
     }
+  });
+});
+
+describe('parseDevlog — excerpt ref attribute', () => {
+  const md = [
+    '## Doc',
+    '',
+    'Cites code.<sup><a href="#code-r">1</a></sup>',
+    '',
+    '<!-- uth:code-excerpts:start -->',
+    '<!-- uth:code id="code-r" file="src/lib/cron.ts" lines="7-23" lang="ts" ref="5d16c056340da1fa70ad385dd7bab0b1140f7282" -->',
+    '```ts',
+    'export const x = 1;',
+    '```',
+    '<!-- uth:code id="code-n" file="a.ts" lines="1-2" lang="ts" -->',
+    '```ts',
+    'const y = 2;',
+    '```',
+    '<!-- uth:code-excerpts:end -->',
+  ].join('\n');
+
+  it('parses ref when present and defaults to empty otherwise', () => {
+    const byId = new Map(
+      excerptBlocks(parseDevlog(md).looseDocuments[0]!.blocks).map((b) => [b.excerpt.id, b.excerpt]),
+    );
+    expect(byId.get('code-r')!.ref).toBe('5d16c056340da1fa70ad385dd7bab0b1140f7282');
+    expect(byId.get('code-n')!.ref).toBe('');
+  });
+});
+
+describe('excerpt line + permalink helpers', () => {
+  it('parseStartLine returns the first integer, else 1', () => {
+    expect(parseStartLine('43-48')).toBe(43);
+    expect(parseStartLine('8-14,48-62')).toBe(8);
+    expect(parseStartLine('src/features/auth/queries.ts:750-759')).toBe(750);
+    expect(parseStartLine('convex/corpIndustryJobs.ts:238')).toBe(238);
+    expect(parseStartLine('')).toBe(1);
+    expect(parseStartLine('no digits here')).toBe(1);
+  });
+
+  it('isCleanSingleRange accepts a lone number or one hyphen range only', () => {
+    expect(isCleanSingleRange('238')).toBe(true);
+    expect(isCleanSingleRange('43-48')).toBe(true);
+    expect(isCleanSingleRange('9-9')).toBe(true);
+    expect(isCleanSingleRange('8-14,48-62')).toBe(false);
+    expect(isCleanSingleRange('10-16,23-45;60-80')).toBe(false);
+    expect(isCleanSingleRange('src/db/index.ts:17-103')).toBe(false);
+    expect(isCleanSingleRange('')).toBe(false);
+  });
+
+  it('lineFragment builds #L… only for a clean single range', () => {
+    expect(lineFragment('43-48')).toBe('#L43-L48');
+    expect(lineFragment('238')).toBe('#L238');
+    expect(lineFragment('9-9')).toBe('#L9');
+    expect(lineFragment('8-14,48-62')).toBe('');
+    expect(lineFragment('src/db/index.ts:17-103')).toBe('');
+    expect(lineFragment('')).toBe('');
+  });
+
+  it('githubUrl needs both ref and file; pins the SHA; fragments only clean ranges', () => {
+    const base = 'https://github.com/StorminRH/lgi-tools/blob';
+    expect(githubUrl({ ref: 'abc123', file: 'src/lib/cron.ts', lines: '7-23' })).toBe(
+      `${base}/abc123/src/lib/cron.ts#L7-L23`,
+    );
+    expect(githubUrl({ ref: 'abc123', file: 'x.ts', lines: '238' })).toBe(`${base}/abc123/x.ts#L238`);
+    expect(githubUrl({ ref: 'abc123', file: 'x.ts', lines: '9-9' })).toBe(`${base}/abc123/x.ts#L9`);
+    // multi-range / path-prefixed / empty lines → file at the pin, no fragment
+    expect(githubUrl({ ref: 'abc123', file: 'x.ts', lines: '8-14,48-62' })).toBe(`${base}/abc123/x.ts`);
+    expect(githubUrl({ ref: 'abc123', file: 'x.ts', lines: '' })).toBe(`${base}/abc123/x.ts`);
+    // missing ref or file → no link
+    expect(githubUrl({ ref: 'abc123', file: '', lines: '1-2' })).toBeNull();
+    expect(githubUrl({ ref: '', file: 'x.ts', lines: '1-2' })).toBeNull();
   });
 });

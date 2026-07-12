@@ -46,7 +46,7 @@ describe('renderBlock', () => {
   });
 
   it('renders an excerpt through CodeExcerpt with its excerpt payload', () => {
-    const excerpt: Excerpt = { id: 'a', file: 'f', lines: '1-2', lang: 'ts', code: 'x' };
+    const excerpt: Excerpt = { id: 'a', file: 'f', lines: '1-2', lang: 'ts', code: 'x', ref: '' };
     const el = block({ type: 'excerpt', excerpt });
     expect(el.type).toBe(CodeExcerpt);
     expect(el.props.excerpt).toBe(excerpt);

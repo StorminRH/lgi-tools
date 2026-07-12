@@ -19,6 +19,14 @@ v3.8 is the platform's undock checklist: a maturity pass before its next big too
 #### Removed
 - The last two hand-built search dropdowns and their leftover one-off styling, retired in favor of the shared combobox.
 
+### v3.8.2.4 — 2026-07-12
+
+#### Added
+- A "view on GitHub" link now appears above any dev-log code snapshot ("Under the Hood") that's pinned to a specific point in the project's history — it opens those exact lines on GitHub.
+
+#### Changed
+- The dev log's code snapshots now render with full syntax highlighting and line numbers, so they read like code in an editor. The colouring is prepared ahead of time, so pages stay just as fast and nothing extra loads in your browser.
+
 ### v3.8.2.3 — 2026-07-12
 
 #### Changed
