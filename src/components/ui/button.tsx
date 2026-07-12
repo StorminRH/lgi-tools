@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import type { ComponentPropsWithRef } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './cn';
 
@@ -47,7 +47,7 @@ export function Button({
   type = 'button',
   className,
   ...props
-}: VariantProps<typeof buttonVariants> & ComponentProps<'button'>) {
+}: VariantProps<typeof buttonVariants> & ComponentPropsWithRef<'button'>) {
   return (
     <button type={type} className={cn(buttonVariants({ variant, size }), className)} {...props} />
   );
