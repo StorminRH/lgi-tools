@@ -126,9 +126,19 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
         onValueChange={(next: string) => {
           setValue(next);
           setError(null);
+          // A new query invalidates any prior highlight; clear it here so a stale
+          // ref can't suppress the next Enter. Base UI doesn't reliably emit
+          // onItemHighlighted(undefined) when the list changes under it, so we
+          // don't depend on that callback alone.
+          highlightedRef.current = null;
         }}
         onItemHighlighted={(v: string | undefined) => {
           highlightedRef.current = v ?? null;
+        }}
+        onOpenChange={(open: boolean) => {
+          // A closed popup has no highlighted row; clear the ref so Enter after a
+          // dismiss always submits the typed value.
+          if (!open) highlightedRef.current = null;
         }}
         filter={null}
         mode="list"
