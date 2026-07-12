@@ -38,6 +38,7 @@ const track = cva(
 // The thumb — slides right when on (travel = inner track width − thumb width = 14px),
 // tinted bright (ISK / text) when on, muted when off.
 const thumb = cva(
+  // eslint-disable-next-line no-restricted-syntax -- inner switch-thumb indicator, sub-4px by design
   'block h-[12px] w-[12px] rounded-[1px] translate-x-0 data-[checked]:translate-x-[14px] ' +
     'transition-[translate,background-color] duration-150 motion-reduce:transition-none',
   {

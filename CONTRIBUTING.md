@@ -101,6 +101,35 @@ Each token bundles its line-height, so a `text-*` utility sets size **and** lead
 inline `// eslint-disable-next-line no-restricted-syntax -- <reason>`; test fixtures
 and the `preview` sandbox are exempt.
 
+## Radius scale
+
+Corner radii belong on two named tokens, never as raw bracketed pixel values at
+call sites (**lint-enforced**). Defined once in the `@theme` block of `globals.css`
+and chosen by **role**:
+
+- `rounded-ctl` (`--radius-ctl`, 4px) — buttons, inputs, selects, square pills,
+  controls, dropdown items
+- `rounded-card` (`--radius-card`, 6px) — cards, panels, dialogs, dropdown panels
+
+`rounded-full` stays for pill-shaped elements. A genuinely sub-4px inner indicator
+(a switch thumb, a checkbox fill) uses an inline
+`// eslint-disable-next-line no-restricted-syntax -- <reason>`; test fixtures and
+the `preview` sandbox are exempt. The elevation tokens (`--shadow-field-inset`,
+`--shadow-btn-bezel`, `--shadow-card-edge`, …) live in the same `@theme` block.
+
+## Component system
+
+Form fields and action buttons are shared primitives, not hand-styled per call
+site (**lint-enforced**):
+
+- **Button** (`@/components/ui/button`) — `variant` (primary / secondary / ghost /
+  danger) × `size` (md / sm). A link or anchor that must look like a button borrows
+  the exported `buttonVariants` as its `className` rather than restyling it.
+- **Input / Select / Textarea** (`@/components/ui/input`) — the engraved inset-well
+  fields. A raw `<select>` is banned (use `Select`, whose own native `<select>`
+  lives in the exempted `input.tsx`); an ad-hoc `inputClass`-style field constant is
+  banned (the primitives own the field look). The native checkbox stays native.
+
 ## UI components & overlays
 
 Interactive UI is built on adopted libraries, each **wrapped once in
