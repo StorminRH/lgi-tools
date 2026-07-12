@@ -21,7 +21,7 @@ export type PopoverTone = Extract<Tone, 'neutral' | 'green'>;
 // shadow uses rgba, which the hex-only lint rule permits). `neutral` is the
 // production "?" look (raised slate); `green` is the data-quality tint.
 const popup = cva(
-  'flex w-[272px] flex-col gap-3 rounded-[4px] border px-[14px] py-[12px] text-ui normal-case tracking-normal outline-none ' +
+  'flex w-[272px] flex-col gap-3 rounded-card border px-[14px] py-[12px] text-ui normal-case tracking-normal outline-none ' +
     'origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 motion-reduce:transition-none ' +
     'data-[starting-style]:scale-95 data-[starting-style]:opacity-0 ' +
     'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',

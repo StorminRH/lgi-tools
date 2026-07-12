@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { cn } from '@/components/ui/cn';
+import { Select } from '@/components/ui/input';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { toneTextClass } from '@/components/ui/tones';
 import {
@@ -108,11 +109,11 @@ function BuildFacilitySelect({
       <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">Station</span>
       {/* Fixed width + shrink-0: a native select otherwise resizes to the selected
           option's text, so picking a structure would shift the control. */}
-      <select
+      <Select
         value={facilityValueFor(selectedStructure, station)}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Build location"
-        className="h-[30px] w-[260px] shrink-0 border border-border bg-bg px-2 font-mono text-ui text-text focus:border-border-active focus:outline-none"
+        className="h-[30px] w-[260px] shrink-0"
       >
         <option value="">{stations.length > 0 ? `Any NPC station (${stations.length})` : '— none —'}</option>
         <StructureOptgroups structures={structures} />
@@ -126,7 +127,7 @@ function BuildFacilitySelect({
           </optgroup>
         )}
         <option value="add-custom">+ Add custom structure…</option>
-      </select>
+      </Select>
     </div>
   );
 }

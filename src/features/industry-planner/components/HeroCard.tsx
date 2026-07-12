@@ -140,7 +140,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
       {/* The item render's boxed square. The building-character column shares
           its 108px width so the two brackets the steppers sit between stay on
           one plane (the character side is borderless by design). */}
-      <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-[3px] border border-border p-2">
+      <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-ctl border border-border p-2">
         <TypeIcon
           typeId={structure.product.typeId}
           // Ships/drones/structures serve a 3D render; everything else only an

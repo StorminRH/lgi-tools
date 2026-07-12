@@ -32,7 +32,7 @@ const popup = cva(
   {
     variants: {
       tone: {
-        neutral: 'bg-section border border-border text-text font-mono rounded-[6px]',
+        neutral: 'bg-section border border-border text-text font-mono rounded-card',
       } satisfies Record<DialogTone, string>,
     },
     defaultVariants: { tone: 'neutral' },

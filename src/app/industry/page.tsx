@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
@@ -10,7 +11,6 @@ import { IndustryTypedHint } from '@/features/industry-planner/components/Indust
 import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
 import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
-import { PANEL_CLASS } from './dashboard-sections';
 import { IndustryDashboardGrid } from './IndustryDashboardGrid';
 
 export const metadata: Metadata = {
@@ -81,9 +81,9 @@ function DashboardSkeleton() {
         <section key={label}>
           <SectionLabel className="mb-3">{label}</SectionLabel>
           {kind === 'panel' ? (
-            <div className={PANEL_CLASS}>
+            <Card className="overflow-hidden">
               <EmptyState> </EmptyState>
-            </div>
+            </Card>
           ) : (
             <LoadingLabel label="Loading…" />
           )}

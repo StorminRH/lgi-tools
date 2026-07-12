@@ -20,7 +20,7 @@ export type CheckboxTone = Extract<Tone, 'green' | 'neutral'>;
 // pill surface + dim-ISK border (the Switch track's affirmative tone).
 const box = cva(
   'inline-flex h-[14px] w-[14px] shrink-0 cursor-pointer items-center justify-center ' +
-    'rounded-[2px] border outline-none transition-colors duration-150 ' +
+    'rounded-ctl border outline-none transition-colors duration-150 ' +
     'focus-visible:border-border-active motion-reduce:transition-none',
   {
     variants: {
@@ -37,6 +37,7 @@ const box = cva(
 
 // The inner fill block — only mounted while ticked (Base unmounts the
 // indicator when unchecked).
+// eslint-disable-next-line no-restricted-syntax -- inner checkbox-fill indicator, sub-4px by design
 const fill = cva('block h-[8px] w-[8px] rounded-[1px]', {
   variants: {
     tone: {

@@ -8,6 +8,19 @@ Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
 v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
 
+### v3.8.2.2.1 — 2026-07-11
+
+#### Added
+- New shared building blocks for the interface: one button — with primary, secondary, quiet, and destructive looks in two sizes — and one set of form fields (text box, dropdown, and multi-line box). Buttons, fields, cards, and panels across the site are now built from these instead of being styled one place at a time, so they stay consistent and can be adjusted in one place.
+- A set of shape-and-depth design tokens: two corner radii (one for controls, one for cards) plus the shadows behind the new engraved look, defined once and reused everywhere.
+- Build checks that keep future work on the shared radii, the shared dropdown, and the shared field styling — the same way the project already routes colors and text sizes through tokens.
+
+#### Changed
+- The interface picks up a subtle "inset instrument" look: form fields are engraved into dark wells, buttons carry a faint physical bezel, and cards gain a soft top-edge highlight. Corners across the site collapse from a spread of hand-picked pixel values to the two shared radii. Layout and colors are unchanged — only the component skins.
+
+#### Removed
+- The scattered hand-written field and button styling strings, and the floating feedback button's one-off green glow (it now uses the shared primary button).
+
 ### v3.8.2.1.1 — 2026-07-11
 
 #### Fixed

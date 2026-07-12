@@ -6,7 +6,7 @@ import type { ChipTone } from './tones';
 export type { ChipTone };
 
 const chipVariants = cva(
-  'inline-flex items-center font-mono text-label font-semibold px-[5px] py-px rounded-[2px] tracking-[0.08em] uppercase border leading-[1.5] shrink-0',
+  'inline-flex items-center font-mono text-label font-semibold px-[5px] py-px rounded-ctl tracking-[0.08em] uppercase border leading-[1.5] shrink-0',
   {
     variants: {
       tone: {

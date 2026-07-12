@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { FeedbackModal } from '@/features/feedback/components/FeedbackModal';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 
@@ -18,13 +19,13 @@ export function FeedbackButton() {
 
   return (
     <>
-      <button
-        type="button"
+      <Button
+        variant="primary"
         onClick={() => setOpen(true)}
-        className="feedback-btn fixed bottom-4 right-4 z-30 cursor-pointer"
+        className="fixed bottom-4 right-4 z-30"
       >
         Feedback
-      </button>
+      </Button>
       <FeedbackModal
         open={open}
         onClose={() => setOpen(false)}

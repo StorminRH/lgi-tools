@@ -157,7 +157,7 @@ function CorpGroupHeader({ corpId, label }: { corpId: number; label: string }) {
         alt=""
         width={28}
         height={28}
-        className="w-7 h-7 rounded-[3px] border border-border-soft shrink-0"
+        className="w-7 h-7 rounded-ctl border border-border-soft shrink-0"
       />
       <div className="min-w-0 flex-1">
         <div className="font-display font-bold text-h3 text-name truncate">{label}</div>

@@ -1,9 +1,12 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { CharacterPortrait } from '@/components/character-portrait';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
@@ -165,20 +168,17 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
 function AccessSearchForm({ query }: { query: string | undefined }) {
   return (
     <form method="GET" action="/admin/access" className="flex items-center gap-2">
-      <input
+      <Input
         type="text"
         name="q"
         defaultValue={query ?? ''}
         placeholder="Search by character name"
         maxLength={MAX_QUERY_LENGTH}
-        className="flex-1 font-mono text-ui px-3 py-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
+        className="flex-1"
       />
-      <button
-        type="submit"
-        className="font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-isk transition-colors"
-      >
+      <Button type="submit" variant="secondary" className="text-isk">
         Search
-      </button>
+      </Button>
       {query ? (
         <Link
           href="/admin/access"
@@ -286,7 +286,7 @@ async function AccessContent({ searchParams }: { searchParams: Promise<{ q?: str
         meta={
           <a
             href="/admin"
-            className="font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
+            className={cn(buttonVariants({ variant: 'secondary' }), 'text-muted hover:text-text')}
           >
             ← Dashboard
           </a>

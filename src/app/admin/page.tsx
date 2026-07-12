@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/components/ui/cn';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
@@ -84,7 +86,7 @@ async function AdminContent({
             <RangeSelector range={rangeKey} />
             <Link
               href="/admin/access"
-              className="no-print font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
+              className={cn(buttonVariants({ variant: 'secondary' }), 'no-print text-muted hover:text-text')}
             >
               Access →
             </Link>

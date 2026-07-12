@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { RigSupply } from '@/components/RigSupply';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from '@/components/ui/toast';
@@ -210,7 +212,7 @@ function CorpStructureRigEditor({
       />
       <label className="flex items-center gap-2">
         <span className="text-label uppercase tracking-[0.12em] text-muted">Facility tax %</span>
-        <input
+        <Input
           type="number"
           min={0}
           max={MAX_FACILITY_TAX_PCT}
@@ -220,17 +222,12 @@ function CorpStructureRigEditor({
           placeholder="Empty = 0.25% assumed"
           aria-label={`Facility tax percent for ${structure.name ?? `structure ${structure.structureId}`}`}
           disabled={busy}
-          className="w-[180px] border border-border bg-bg px-2 py-1 font-mono text-ui text-text focus:border-border-active focus:outline-none"
+          className="w-[180px]"
         />
       </label>
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={busy}
-        className="self-start border border-tone-green px-3 py-1.5 text-label uppercase tracking-[0.12em] text-tone-green hover:bg-section disabled:border-border disabled:text-muted"
-      >
+      <Button variant="primary" onClick={onSave} disabled={busy} className="self-start">
         Save details
-      </button>
+      </Button>
     </div>
   );
 }

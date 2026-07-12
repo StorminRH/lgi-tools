@@ -40,7 +40,7 @@ function GrossNetToggle({
     'px-2 py-0.5 font-mono text-micro uppercase tracking-[0.1em] cursor-pointer transition-colors';
   const on = 'text-name bg-row-on';
   return (
-    <span className="inline-flex overflow-hidden rounded-[3px] border border-border-soft">
+    <span className="inline-flex overflow-hidden rounded-ctl border border-border-soft">
       <button
         type="button"
         onClick={() => setMode('gross')}
@@ -80,7 +80,7 @@ function RawItemToggle({
     'px-2 py-0.5 font-mono text-micro uppercase tracking-[0.1em] cursor-pointer transition-colors';
   const on = 'text-name bg-row-on';
   return (
-    <span className="inline-flex overflow-hidden rounded-[3px] border border-border-soft">
+    <span className="inline-flex overflow-hidden rounded-ctl border border-border-soft">
       <button
         type="button"
         onClick={() => setBasis('batched')}

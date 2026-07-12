@@ -18,7 +18,7 @@ export function ProgressBar({ pct, tone = 'default' }: { pct: number; tone?: 'de
     // The EVE-industry-blue fill (gradient + glow) reused from the active-jobs
     // bar (`.industry-bar-fill`), a touch taller than the default telemetry bar.
     return (
-      <div className="h-[6px] overflow-hidden rounded-[2px] border border-evb-border bg-evb-track">
+      <div className="h-[6px] overflow-hidden rounded-ctl border border-evb-border bg-evb-track">
         <div ref={ref} className="industry-bar-fill" aria-hidden />
       </div>
     );

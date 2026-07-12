@@ -1,3 +1,4 @@
+import { Card } from '@/components/ui/card';
 import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
 import { LazySiteDetails } from './LazySiteDetails';
@@ -27,7 +28,10 @@ export function SiteCard({
   const liveResources = displayableResources(site.resources);
 
   return (
-    <div className="sites-card">
+    // `data-site-card` is the lightbox's DOM hook (it walks from the summary up to
+    // this element, then down to the <details>); `font="body"` keeps the card's
+    // Geist prose, `hover` the catalogue glow.
+    <Card font="body" hover data-site-card>
       <SiteLiveProvider resources={liveResources}>
         <details data-collapsible {...(defaultOpen ? { open: true } : {})}>
           <summary className="sites-card-summary list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none">
@@ -42,6 +46,6 @@ export function SiteCard({
         </details>
         {!defaultOpen && <SiteCardLightbox site={site} />}
       </SiteLiveProvider>
-    </div>
+    </Card>
   );
 }

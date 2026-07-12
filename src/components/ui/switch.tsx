@@ -18,7 +18,7 @@ export type SwitchTone = Extract<Tone, 'green' | 'neutral'>;
 // The track. Off = a sunk rail with an idle border; on = the ISK-green pill surface +
 // dim-ISK border (the affirmative tone).
 const track = cva(
-  'relative inline-flex h-[18px] w-[32px] shrink-0 cursor-pointer items-center rounded-[2px] ' +
+  'relative inline-flex h-[18px] w-[32px] shrink-0 cursor-pointer items-center rounded-ctl ' +
     'border px-[2px] outline-none transition-colors duration-150 ' +
     'focus-visible:border-border-active disabled:cursor-not-allowed disabled:opacity-50 ' +
     'motion-reduce:transition-none',
@@ -38,6 +38,7 @@ const track = cva(
 // The thumb — slides right when on (travel = inner track width − thumb width = 14px),
 // tinted bright (ISK / text) when on, muted when off.
 const thumb = cva(
+  // eslint-disable-next-line no-restricted-syntax -- inner switch-thumb indicator, sub-4px by design
   'block h-[12px] w-[12px] rounded-[1px] translate-x-0 data-[checked]:translate-x-[14px] ' +
     'transition-[translate,background-color] duration-150 motion-reduce:transition-none',
   {

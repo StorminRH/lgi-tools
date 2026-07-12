@@ -78,6 +78,48 @@ const textSizeSelectors = [
   },
 ];
 
+// Radius-scale enforcement (3.8.2.2): raw bracketed pixel radii belong on the two
+// named tokens — `--radius-ctl` / `--radius-card` in globals.css `@theme` (surfaced
+// as `rounded-ctl` / `rounded-card`). Mirrors the type-scale ban: a plain className
+// Literal and an interpolated (cva/clsx/cn) TemplateElement, matching only a
+// bracketed numeric px/rem/em value — so it never fires on `rounded-full` or a
+// `rounded-[var(…)]`. The two sub-4px inner indicators (the switch thumb, the
+// checkbox fill) opt out with an inline eslint-disable-next-line. (Prose here stays
+// unbracketed — Tailwind's content scanner reads this file.)
+const roundedSizeSelectors = [
+  {
+    selector: "Literal[value=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
+    message:
+      "No raw arbitrary radii — use the named radius tokens (rounded-ctl / rounded-card), backed by `--radius-ctl` / `--radius-card` in globals.css `@theme`. See CONTRIBUTING.md (Radius scale).",
+  },
+  {
+    selector: "TemplateElement[value.raw=/rounded-\\[[0-9.]+(px|rem|em)\\]/]",
+    message:
+      "No raw arbitrary radii (template literal) — use the named radius tokens (rounded-ctl / rounded-card). See CONTRIBUTING.md (Radius scale).",
+  },
+];
+
+// Component-system enforcement (3.8.2.2): styled form fields live on the shared
+// primitives, not hand-rolled. A raw <select> must be the Select primitive
+// (components/ui/input.tsx is the one exempted home); an `inputClass`-style
+// constant is the ad-hoc field string the Input/Select/Textarea primitives
+// replaced. Test files fall through exempt (they ride the src/** block, which
+// ignores tests).
+const selectElementSelectors = [
+  {
+    selector: "JSXOpeningElement[name.name='select']",
+    message:
+      "No raw <select> — use the Select primitive (@/components/ui/input), which owns the engraved field look. See CONTRIBUTING.md (Component system).",
+  },
+];
+const inputClassSelectors = [
+  {
+    selector: "VariableDeclarator[id.name=/[iI]nputClass$/]",
+    message:
+      "No ad-hoc field-style constants — the Input/Select/Textarea primitives (@/components/ui/input) own the field styling. See CONTRIBUTING.md (Component system).",
+  },
+];
+
 // Typed-API-call enforcement (3.4.T): a literal fetch('/api/…') bypasses the
 // shared contracts, so client code must go through apiFetch with the owning
 // slice's endpoint object instead. The selectors match only a string/template
@@ -204,6 +246,9 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
       ],
     },
   },
@@ -221,6 +266,9 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
       ],
     },
   },
@@ -237,6 +285,28 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
+      ],
+    },
+  },
+  // The Select primitive (input.tsx) is the sanctioned home for a raw <select> —
+  // the whole point of the ban is to funnel field markup here. Re-state every
+  // other ban without the <select> selector (replace semantics).
+  {
+    files: ["src/components/ui/input.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+        ...esiHostSelectors,
+        ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...inputClassSelectors,
       ],
     },
   },

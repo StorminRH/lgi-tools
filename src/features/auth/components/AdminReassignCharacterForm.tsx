@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+
 // Admin reassign control — moves a character onto the acting admin's own account
 // (the destination is fixed server-side to the caller). Pure HTML form with a
 // confirm() gate (bundled client JS — CSP-safe). `disabled` is set when viewing
@@ -31,14 +33,16 @@ export function AdminReassignCharacterForm({
     >
       <input type="hidden" name="characterId" value={characterId} />
       <input type="hidden" name="fromUserId" value={fromUserId} />
-      <button
+      <Button
         type="submit"
+        variant="secondary"
+        size="sm"
         disabled={disabled}
         title={disabled ? 'This character is already on your account' : undefined}
-        className="font-mono text-label uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-isk transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border-idle whitespace-nowrap"
+        className="text-isk whitespace-nowrap"
       >
         Reassign to me
-      </button>
+      </Button>
     </form>
   );
 }

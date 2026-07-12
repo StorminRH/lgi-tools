@@ -2,6 +2,7 @@
 
 import { type ReactNode, type RefObject, useId, useReducer, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogClose } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -217,14 +218,15 @@ function DangerButton({
   className?: string;
 }) {
   return (
-    <button
+    <Button
       ref={triggerRef}
-      type="button"
+      variant="danger"
+      size="sm"
       onClick={onClick}
-      className={`shrink-0 border border-tone-red px-2 py-1 font-mono text-label uppercase tracking-[0.12em] text-tone-red hover:bg-section ${className}`}
+      className={`shrink-0 ${className}`}
     >
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -318,14 +320,15 @@ function LogoutEverywhereControl() {
         <p className="font-mono text-ui text-text">Log out everywhere</p>
         <p className="text-ui text-muted">Ends every active session, including this device.</p>
       </div>
-      <button
+      <Button
         ref={triggerRef}
-        type="button"
+        variant="secondary"
+        size="sm"
         onClick={gate.request}
-        className="shrink-0 border border-border px-2.5 py-1 font-mono text-label uppercase tracking-[0.12em] text-text hover:bg-section"
+        className="shrink-0"
       >
         Log out everywhere
-      </button>
+      </Button>
       <ConfirmDialog gate={gate} labelId={labelId} triggerRef={triggerRef} className="max-w-[380px]">
         <p id={labelId} className="text-body text-text">
           Sign out on every device, including this one? You’ll need to sign in again here afterward.

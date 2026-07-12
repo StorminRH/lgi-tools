@@ -18,6 +18,7 @@
 // this zone may (the RunAsFrame edge).
 
 import { cva } from 'class-variance-authority';
+import { Button } from '@/components/ui/button';
 import { CharacterPortrait } from '@/components/character-portrait';
 import type { PanelCharacter } from '@/components/live-character-card';
 import { startCharacterLink } from '@/features/auth/components/LinkCharacterButton';
@@ -91,13 +92,14 @@ export function CharacterStrip({
         })}
       </div>
       {anyLocked && (
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => startCharacterLink(window.location.pathname)}
-          className="font-mono text-ui uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-tone-orange transition-colors whitespace-nowrap"
+          className="text-tone-orange whitespace-nowrap"
         >
           Reconnect to track
-        </button>
+        </Button>
       )}
     </div>
   );

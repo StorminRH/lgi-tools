@@ -14,11 +14,6 @@
 export type DashboardSectionId = 'recents' | 'saved' | 'active' | 'corp';
 export type SectionStatus = 'pending' | 'empty' | 'populated';
 
-// The dashboard's shared panel chrome — one definition for the grid cells and
-// the page's static-shell skeleton (this module is plain TS so both the client
-// coordinator and the server page can import it).
-export const PANEL_CLASS = 'border border-border rounded-[5px] bg-section overflow-hidden';
-
 export const PREFERRED_SECTION_ORDER: readonly DashboardSectionId[] = [
   'recents',
   'saved',

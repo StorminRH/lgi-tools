@@ -56,7 +56,7 @@ export function Segmented({
     <div
       role="group"
       aria-label={label}
-      className={cn('inline-flex border border-border-idle rounded-[3px] overflow-hidden', className)}
+      className={cn('inline-flex border border-border-idle rounded-ctl overflow-hidden', className)}
     >
       {options.map((option) => (
         <button

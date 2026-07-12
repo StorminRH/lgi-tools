@@ -45,7 +45,7 @@ export async function HomeLiveStats() {
         Live data
       </SectionLabel>
 
-      <div className="rounded-[6px] border border-border bg-section overflow-hidden">
+      <div className="rounded-card border border-border bg-section overflow-hidden">
         <dl className="grid grid-cols-2">
           {stats.map((stat, i) => (
             <div

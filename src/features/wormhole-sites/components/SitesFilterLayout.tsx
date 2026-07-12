@@ -154,7 +154,7 @@ export function SitesFilterLayout({
           <div>
             <div className="flex justify-end items-center gap-3 mb-4">
               {view === 'cards' && (
-                <div className="inline-flex border border-border-idle rounded-[3px] overflow-hidden">
+                <div className="inline-flex border border-border-idle rounded-ctl overflow-hidden">
                   {(['lightbox', 'expand'] as const).map((m) => (
                     <button
                       key={m}
@@ -170,7 +170,7 @@ export function SitesFilterLayout({
                   ))}
                 </div>
               )}
-              <div className="inline-flex border border-border-idle rounded-[3px] overflow-hidden">
+              <div className="inline-flex border border-border-idle rounded-ctl overflow-hidden">
                 {(['cards', 'table'] as const).map((v) => (
                   <button
                     key={v}
