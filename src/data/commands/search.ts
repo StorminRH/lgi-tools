@@ -122,7 +122,8 @@ export const commandsSearchSource: SearchSource = {
         sub: cmd.sub,
         href: cmd.href,
         iconText: cmd.iconText,
-        iconTone: 'cmd',
+        // Abstract tone (the search render maps it to tokens); commands read neutral.
+        iconTone: 'neutral',
         matchIndices: match.matchIndices,
         onSelect: cmd.onSelect,
       }),

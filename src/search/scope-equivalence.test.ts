@@ -163,7 +163,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
             {
               "href": "/sites/102",
               "iconText": "C1",
-              "iconTone": "cls-c1",
+              "iconTone": "green",
               "id": "site:102",
               "kind": "site",
               "label": "Perimeter Camp",
@@ -183,7 +183,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
             {
               "href": "/sites/101",
               "iconText": "C1",
-              "iconTone": "cls-c1",
+              "iconTone": "green",
               "id": "site:101",
               "kind": "site",
               "label": "Perimeter Ambush Point",
@@ -203,7 +203,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
             {
               "href": "/sites/104",
               "iconText": "C3",
-              "iconTone": "cls-c3",
+              "iconTone": "orange",
               "id": "site:104",
               "kind": "site",
               "label": "Ordinary Perimeter Deposit",
@@ -223,7 +223,7 @@ describe('full-scope search over the real manifest (characterization anchor)', (
             {
               "href": "/sites/103",
               "iconText": "C2",
-              "iconTone": "cls-c2",
+              "iconTone": "green-strong",
               "id": "site:103",
               "kind": "site",
               "label": "Forgotten Perimeter Coronation Platform",

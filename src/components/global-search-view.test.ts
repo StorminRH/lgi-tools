@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SearchResult, SearchSection } from '@/search';
-import {
-  deriveGlobalSearchView,
-  deriveSearchRowView,
-  isArrowKey,
-  sectionOffset,
-  splitMatchRuns,
-} from './global-search-view';
+import { pillToneClasses } from '@/components/ui/pill';
+import { flattenSections, searchIconClass, splitMatchRuns } from './global-search-view';
 
 const result = (over: Partial<SearchResult> = {}): SearchResult =>
   ({ id: 'x', label: 'Item', href: '/x', ...over }) as SearchResult;
@@ -34,66 +29,24 @@ describe('splitMatchRuns', () => {
   });
 });
 
-describe('isArrowKey', () => {
-  it('is true only for the vertical arrows', () => {
-    expect(isArrowKey('ArrowDown')).toBe(true);
-    expect(isArrowKey('ArrowUp')).toBe(true);
-    expect(isArrowKey('Enter')).toBe(false);
-  });
-});
-
-describe('sectionOffset', () => {
-  it('sums the result counts of the preceding sections', () => {
+describe('flattenSections', () => {
+  it('flattens section results into one continuous list', () => {
     const sections = [
-      { name: 'Sites', results: [result(), result()] },
-      { name: 'Tools', results: [result()] },
-      { name: 'Commands', results: [result(), result(), result()] },
+      { name: 'Sites', results: [result({ id: 'a' }), result({ id: 'b' })] },
+      { name: 'Tools', results: [result({ id: 'c' })] },
     ] as SearchSection[];
-    expect(sectionOffset(sections, 0)).toBe(0);
-    expect(sectionOffset(sections, 1)).toBe(2);
-    expect(sectionOffset(sections, 2)).toBe(3);
+    expect(flattenSections(sections).map((r) => r.id)).toEqual(['a', 'b', 'c']);
   });
 });
 
-describe('deriveGlobalSearchView', () => {
-  it('opens the dropdown only when active with sections', () => {
-    expect(
-      deriveGlobalSearchView({ active: true, sectionCount: 2, activeIndex: 0, flatRowCount: 4 })
-        .showDropdown,
-    ).toBe(true);
-    expect(
-      deriveGlobalSearchView({ active: false, sectionCount: 2, activeIndex: 0, flatRowCount: 4 })
-        .showDropdown,
-    ).toBe(false);
-    expect(
-      deriveGlobalSearchView({ active: true, sectionCount: 0, activeIndex: 0, flatRowCount: 0 })
-        .showDropdown,
-    ).toBe(false);
+describe('searchIconClass', () => {
+  it('resolves a known tone to its palette classes', () => {
+    expect(searchIconClass('green')).toBe(pillToneClasses.green);
+    expect(searchIconClass('magenta')).toBe(pillToneClasses.magenta);
   });
 
-  it('carries the active class and drops aria-controls when closed', () => {
-    const open = deriveGlobalSearchView({ active: true, sectionCount: 1, activeIndex: 0, flatRowCount: 1 });
-    expect(open.wrapperClass).toBe('nav-search active');
-    expect(open.ariaControls).toBeTypeOf('string');
-
-    const closed = deriveGlobalSearchView({ active: false, sectionCount: 0, activeIndex: 0, flatRowCount: 0 });
-    expect(closed.wrapperClass).toBe('nav-search ');
-    expect(closed.ariaControls).toBeUndefined();
-  });
-});
-
-describe('deriveSearchRowView', () => {
-  it('marks the active row and falls back for icon text/tone', () => {
-    const view = deriveSearchRowView(result({ label: 'Tritanium', disabled: true }), true);
-    expect(view.rowClass).toBe('dd-row active disabled');
-    expect(view.iconMono).toBe('Tr'); // first two chars when no iconText
-    expect(view.iconClass).toBe('dd-icon ');
-  });
-
-  it('uses explicit icon text and tone when present', () => {
-    const view = deriveSearchRowView(result({ iconText: 'WH', iconTone: 'green' }), false);
-    expect(view.rowClass).toBe('dd-row  ');
-    expect(view.iconMono).toBe('WH');
-    expect(view.iconClass).toBe('dd-icon green');
+  it('falls back to neutral for missing or legacy tones', () => {
+    expect(searchIconClass(undefined)).toBe(pillToneClasses.neutral);
+    expect(searchIconClass('cls-c1')).toBe(pillToneClasses.neutral);
   });
 });
