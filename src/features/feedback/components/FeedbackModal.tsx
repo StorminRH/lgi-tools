@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/input';
-import { Modal } from '@/components/ui/modal';
 import type { Session } from '@/features/auth/types';
 import { apiFetch } from '@/lib/api-client';
 import { feedbackEndpoint } from '../api-contract';
@@ -173,8 +173,6 @@ export function FeedbackModal({
     setMessage('');
     setState({ kind: 'idle' });
     /* eslint-enable react-hooks/set-state-in-effect */
-    // Focus the textarea once the dialog has opened.
-    queueMicrotask(() => textareaRef.current?.focus());
   }, [open]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -194,7 +192,15 @@ export function FeedbackModal({
   const disabled = state.kind === 'submitting';
 
   return (
-    <Modal open={open} onClose={onClose} labelledBy={titleId}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      labelledBy={titleId}
+      initialFocus={textareaRef}
+      className="w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)]"
+    >
       <form onSubmit={handleSubmit} className="flex flex-col">
         <header className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
           <h2
@@ -229,6 +235,6 @@ export function FeedbackModal({
           <FeedbackFooter state={state} disabled={disabled} message={message} onClose={onClose} />
         </footer>
       </form>
-    </Modal>
+    </Dialog>
   );
 }
