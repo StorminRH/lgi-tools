@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import type { CharacterRole } from '../types';
 import { deriveRoleToggle } from './role-toggle-view';
 
@@ -24,14 +25,15 @@ export function RoleToggleForm({
       {currentQuery ? (
         <input type="hidden" name="q" value={currentQuery} />
       ) : null}
-      <button
+      <Button
         type="submit"
+        variant="secondary"
+        size="sm"
         disabled={view.isSelf}
         title={view.isSelf ? "You can't change your own role" : undefined}
-        className="font-mono text-label uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border-idle"
       >
         {view.label}
-      </button>
+      </Button>
     </form>
   );
 }

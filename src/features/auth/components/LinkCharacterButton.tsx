@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
 import { authClient } from '../auth-client';
 
 // Kicks off the EVE OAuth handshake to attach ANOTHER character to the current
@@ -35,16 +36,15 @@ export function LinkCharacterButton({
   callbackURL?: string;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
+      size="sm"
       onClick={() => startCharacterLink(callbackURL)}
       className={
-        emphasis === 'reconnect'
-          ? 'font-mono text-label uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-tone-orange transition-colors whitespace-nowrap'
-          : 'inline-flex items-center gap-2 font-mono text-label uppercase tracking-[0.12em] px-3 py-1.5 border border-border-idle hover:border-border-active text-isk transition-colors'
+        emphasis === 'reconnect' ? 'text-tone-orange whitespace-nowrap' : 'text-isk'
       }
     >
       {label}
-    </button>
+    </Button>
   );
 }

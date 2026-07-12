@@ -1,5 +1,7 @@
 'use client';
 
+import { Button } from '@/components/ui/button';
+
 // Admin force-unlink control. Pure HTML form posting to
 // /api/admin/characters/unlink, with a confirm() gate in bundled client JS
 // (not an inline event handler — house style). The route is the real guard;
@@ -27,14 +29,16 @@ export function AdminUnlinkCharacterForm({
     >
       <input type="hidden" name="userId" value={userId} />
       <input type="hidden" name="characterId" value={characterId} />
-      <button
+      <Button
         type="submit"
+        variant="secondary"
+        size="sm"
         disabled={disabled}
         title={disabled ? "Can't unlink the user's only character — reassign it instead" : undefined}
-        className="font-mono text-label uppercase tracking-[0.12em] px-2 py-1 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border-idle whitespace-nowrap"
+        className="whitespace-nowrap"
       >
         Unlink
-      </button>
+      </Button>
     </form>
   );
 }
