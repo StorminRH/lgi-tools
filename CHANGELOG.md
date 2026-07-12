@@ -8,11 +8,15 @@ Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
 v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
 
-### v3.8.2.3.1 — 2026-07-11
+### v3.8.2.3.1 — 2026-07-12
 
 #### Changed
 - Every dropdown, menu, and pop-up panel now shares one look. The build-location, refinery, structure-type, and rig pickers open a consistent dark menu instead of the operating system's plain grey dropdown; the navigation and account menus and the small "?" help panels wear the same recessed surface. The feedback form now opens on the site's shared pop-up, and its message box takes the cursor the moment it opens.
 - The planner's quantity stepper now behaves like a standard number field: clearing it or entering an out-of-range value settles to the nearest valid whole number when you click away, rather than snapping back to the previous value.
+
+#### Fixed
+- A focused text field, dropdown, or the feedback and templates boxes now show a single green border instead of a doubled edge.
+- The material- and time-efficiency steppers' placeholder dash now clears as soon as you start typing, so it no longer sits under the cursor.
 
 #### Removed
 - Two leftover one-off building blocks, retired in favor of the shared components: the separate pop-up the feedback form used, and the hand-written stepper math behind the quantity control.
