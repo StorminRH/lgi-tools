@@ -284,7 +284,11 @@ function StructureTypeSelect({
   onChange: (id: number | null) => void;
 }) {
   return (
-    <label className="flex flex-col gap-1">
+    // A plain <div>, NOT a <label>: Base UI's Select renders its trigger button as
+    // the first labelable element, so a wrapping <label> forwards clicks on this
+    // heading (and its whitespace) to the trigger and springs the dropdown open.
+    // The Select is self-labelled via `ariaLabel`, so no association is lost.
+    <div className="flex flex-col gap-1">
       <span className="text-label uppercase tracking-[0.12em] text-muted">Structure type</span>
       <Select
         value={value == null ? '' : String(value)}
@@ -299,7 +303,7 @@ function StructureTypeSelect({
         ariaLabel="Structure type"
         className="w-full max-w-[320px]"
       />
-    </label>
+    </div>
   );
 }
 
@@ -512,8 +516,13 @@ export function CustomStructureBuilder({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        {/* Paste an in-game fit to pre-fill, OR pick below. */}
-        <label className="flex flex-col gap-1">
+        {/* Each field heading is a plain <div>, NOT a <label>: these labels are
+            full-width blocks but the controls inside are only ~320px, so a wrapping
+            <label> would forward clicks from the wide empty area to the far-left
+            control (focusing an input, or springing a Select open, from way across
+            the row). Every control is self-labelled via `aria-label`, so no
+            association is lost. Paste an in-game fit to pre-fill, OR pick below. */}
+        <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-[0.12em] text-muted">
             Paste an in-game structure fit (optional)
           </span>
@@ -533,7 +542,7 @@ export function CustomStructureBuilder({
           >
             Read fit →
           </button>
-        </label>
+        </div>
 
         <StructureTypeSelect value={structureTypeId} types={structureTypes} onChange={chooseStructure} />
 
@@ -547,7 +556,7 @@ export function CustomStructureBuilder({
           />
         )}
 
-        <label className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-[0.12em] text-muted">Name</span>
           <Input
             type="text"
@@ -558,7 +567,7 @@ export function CustomStructureBuilder({
             aria-label="Structure name"
             className="w-full max-w-[320px]"
           />
-        </label>
+        </div>
 
         {/* The optional system pin: a pinned structure appears only in that
             system's build list and locks the planner to it on select; leaving
@@ -577,7 +586,7 @@ export function CustomStructureBuilder({
         {/* The optional facility tax (3.7.13.3): the owner-set rate this imagined
             structure would charge. Empty = never entered — the planner assumes
             the 0.25% NPC baseline (labeled as assumed in the fee breakdown). */}
-        <label className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-[0.12em] text-muted">
             Facility tax % (optional)
           </span>
@@ -592,7 +601,7 @@ export function CustomStructureBuilder({
             aria-label="Facility tax percent"
             className="w-full max-w-[320px]"
           />
-        </label>
+        </div>
 
         {error && <p className="text-ui text-tone-red">{error}</p>}
 
