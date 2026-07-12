@@ -220,7 +220,8 @@
    * Two jobs, collapsing the old 1/2/3/4/5/6/11px spread. `--radius-*` generates
    * `rounded-*` utilities (rounded-ctl / rounded-card); registered in cn.ts so
    * tailwind-merge keeps them as first-class radius classes. Change a radius HERE,
-   * never as a `rounded-[Npx]` at the call site (lint-guarded). Sub-4px inner
+   * never as a raw rounded arbitrary pixel value at the call site (lint-guarded).
+   * Sub-4px inner
    * indicators (switch thumb, checkbox fill) are the only allowlisted exceptions. */
   --radius-ctl:  4px;  /* buttons, inputs, selects, square pills, controls, dropdown items */
   --radius-card: 6px;  /* cards, panels, dropdown panels, dialogs */
@@ -230,7 +231,7 @@
    * in cn.ts (else tailwind-merge misfiles them as shadow-COLOR and drops them when
    * a shadow-<color> meets them). Raw rgba here is idiomatic for the token layer —
    * the hex/rgba class-string lint scans .ts/.tsx, not @theme (like .dropdown /
-   * .feedback-btn / --color-row-*). The signature: fields engraved into dark inset
+   * .tool-tile / --color-row-*). The signature: fields engraved into dark inset
    * wells, buttons with a physical bezel, cards with a faint top-edge light. */
   --shadow-field-inset: inset 0 2px 6px rgba(0, 0, 0, 0.45);
   --shadow-field-focus: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--color-isk-dim);
@@ -328,32 +329,6 @@ a:hover {
  * styling lives in the stylesheet/token layer rather than on the element. */
 .hero-wordmark {
   text-shadow: 0 0 36px rgba(61, 214, 140, 0.12);
-}
-
-/* Floating feedback button (handoff §3) — a green-accented affordance fixed
- * bottom-right (positioning stays on the element). A dim green surface with a
- * multi-layer green glow at rest; hover fills solid ISK-green with dark-green
- * ink. Rich enough that scoped CSS is the right home (the .tool-tile / .nav-tool
- * precedent); rgba glows are permitted (the hex ban is hex-only). */
-.feedback-btn {
-  font-family: var(--font-mono);
-  font-size: var(--text-ui);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-isk);
-  background: var(--color-feedback-bg);
-  border: 1px solid var(--color-isk-dim);
-  border-radius: 3px;
-  padding: 8px 14px;
-  box-shadow: 0 0 0 1px rgba(61, 214, 140, 0.07), 0 4px 18px -6px rgba(61, 214, 140, 0.4);
-  transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
-}
-.feedback-btn:hover {
-  background: var(--color-isk);
-  color: var(--color-isk-ink);
-  border-color: var(--color-isk);
-  box-shadow: 0 6px 22px -6px rgba(61, 214, 140, 0.4);
 }
 
 /* Landing-grid tool tiles. Two variants: `.tool-tile-live` (interactive,

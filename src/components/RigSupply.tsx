@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@/components/ui/cn';
+import { Select } from '@/components/ui/input';
 
 // Shared rig-slot control: N dropdowns, each picking a rig that fits the chosen
 // structure. Lives in the `shared` zone (src/components/*.tsx) so BOTH the custom-
@@ -10,9 +10,6 @@ import { cn } from '@/components/ui/cn';
 // owns the structure context (which rigs fit, how many slots) and the slot state. The
 // builder's fit-paste box stays in the builder (it pre-fills the structure TYPE, a
 // builder-only concern); the corp editor has a fixed structure and just supplies rigs.
-
-const inputClass =
-  'border border-border bg-bg px-2 py-1 font-mono text-ui text-text focus:border-border-active focus:outline-none';
 
 export function RigSupply({
   validRigs,
@@ -37,7 +34,7 @@ export function RigSupply({
       </span>
       <div className="flex flex-col gap-1.5">
         {slotIndices.map((i) => (
-          <select
+          <Select
             key={i}
             value={slots[i] ?? ''}
             disabled={disabled}
@@ -47,7 +44,7 @@ export function RigSupply({
               onSlotsChange(next);
             }}
             aria-label={`Rig slot ${i + 1}`}
-            className={cn(inputClass, 'w-full max-w-[420px]')}
+            className="w-full max-w-[420px]"
           >
             <option value="">— rig slot {i + 1}: none —</option>
             {validRigs.map((r) => (
@@ -55,7 +52,7 @@ export function RigSupply({
                 {r.name}
               </option>
             ))}
-          </select>
+          </Select>
         ))}
       </div>
     </div>
