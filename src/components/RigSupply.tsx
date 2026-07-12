@@ -1,6 +1,6 @@
 'use client';
 
-import { Select } from '@/components/ui/input';
+import { Select, type SelectOption } from '@/components/ui/select';
 
 // Shared rig-slot control: N dropdowns, each picking a rig that fits the chosen
 // structure. Lives in the `shared` zone (src/components/*.tsx) so BOTH the custom-
@@ -27,33 +27,31 @@ export function RigSupply({
   disabled?: boolean;
 }) {
   const slotIndices = Array.from({ length: maxSlots }, (_, i) => i);
+  const rigOptions: SelectOption[] = validRigs.map((r) => ({ value: String(r.typeId), label: r.name }));
   return (
     <div className="flex flex-col gap-1">
       <span className="text-label uppercase tracking-[0.12em] text-muted">
         Rigs ({validRigs.length} fit this structure)
       </span>
       <div className="flex flex-col gap-1.5">
-        {slotIndices.map((i) => (
-          <Select
-            key={i}
-            value={slots[i] ?? ''}
-            disabled={disabled}
-            onChange={(e) => {
-              const next = [...slots];
-              next[i] = e.target.value === '' ? null : Number(e.target.value);
-              onSlotsChange(next);
-            }}
-            aria-label={`Rig slot ${i + 1}`}
-            className="w-full max-w-[420px]"
-          >
-            <option value="">— rig slot {i + 1}: none —</option>
-            {validRigs.map((r) => (
-              <option key={r.typeId} value={r.typeId}>
-                {r.name}
-              </option>
-            ))}
-          </Select>
-        ))}
+        {slotIndices.map((i) => {
+          const slot = slots[i];
+          return (
+            <Select
+              key={i}
+              value={slot == null ? '' : String(slot)}
+              disabled={disabled}
+              onValueChange={(v) => {
+                const next = [...slots];
+                next[i] = v === '' ? null : Number(v);
+                onSlotsChange(next);
+              }}
+              items={[{ value: '', label: `— rig slot ${i + 1}: none —` }, ...rigOptions]}
+              ariaLabel={`Rig slot ${i + 1}`}
+              className="w-full max-w-[420px]"
+            />
+          );
+        })}
       </div>
     </div>
   );

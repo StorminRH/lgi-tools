@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react';
 import { RigSupply } from '@/components/RigSupply';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Input, Select, Textarea } from '@/components/ui/input';
+import { Input, Textarea } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Pill } from '@/components/ui/pill';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
@@ -286,18 +287,18 @@ function StructureTypeSelect({
     <label className="flex flex-col gap-1">
       <span className="text-label uppercase tracking-[0.12em] text-muted">Structure type</span>
       <Select
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-        aria-label="Structure type"
+        value={value == null ? '' : String(value)}
+        onValueChange={(v) => onChange(v === '' ? null : Number(v))}
+        items={[
+          { value: '', label: '— pick a structure —' },
+          ...types.map((t) => ({
+            value: String(t.typeId),
+            label: `${t.name} (${STRUCTURE_GROUP_LABEL[t.groupId] ?? 'Structure'})`,
+          })),
+        ]}
+        ariaLabel="Structure type"
         className="w-full max-w-[320px]"
-      >
-        <option value="">— pick a structure —</option>
-        {types.map((t) => (
-          <option key={t.typeId} value={t.typeId}>
-            {t.name} ({STRUCTURE_GROUP_LABEL[t.groupId] ?? 'Structure'})
-          </option>
-        ))}
-      </Select>
+      />
     </label>
   );
 }

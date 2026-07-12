@@ -4,6 +4,7 @@ import { Popover as Base } from '@base-ui/react/popover';
 import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { panelSurface } from './dropdown-panel';
 import type { Tone } from './tones';
 
 // The platform's one hover/tap/focus help-panel primitive — the idiomatic Base
@@ -18,8 +19,11 @@ import type { Tone } from './tones';
 export type PopoverTone = Extract<Tone, 'neutral' | 'green'>;
 
 // Abstract tone → token classes (no raw hex at the call site; the green-glow
-// shadow uses rgba, which the hex-only lint rule permits). `neutral` is the
-// production "?" look (raised slate); `green` is the data-quality tint.
+// shadow uses rgba, which the hex-only lint rule permits). `neutral` wears the
+// shared dropdown-panel SURFACE (from dropdown-panel.ts) so the "?" help panels
+// match the Select popup and the menus; `green` is the data-quality tint, kept as
+// its own semantic look. The base keeps the popover's content padding + open/close
+// animation (the shared surface is colours/border/shadow only).
 const popup = cva(
   'flex w-[272px] flex-col gap-3 rounded-card border px-[14px] py-[12px] text-ui normal-case tracking-normal outline-none ' +
     'origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 motion-reduce:transition-none ' +
@@ -28,7 +32,7 @@ const popup = cva(
   {
     variants: {
       tone: {
-        neutral: 'bg-tooltip text-text border-border shadow-[0_10px_28px_-10px_rgba(0,0,0,0.55)]',
+        neutral: `${panelSurface} text-text`,
         green:
           'bg-section text-text border-isk-dim ' +
           'shadow-[0_0_0_1px_rgba(61,214,140,0.12),0_8px_24px_-8px_rgba(61,214,140,0.2)]',
