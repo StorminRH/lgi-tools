@@ -12,6 +12,7 @@ vi.mock('next/cache', () => ({
 }));
 
 vi.mock('@/lib/esi', () => ({
+  EsiContractError: class EsiContractError extends Error {},
   EsiServerError: class EsiServerError extends Error {},
   esiFetch: h.esiFetch,
   esiUrl: (path: string) => `https://esi.example${path}`,
