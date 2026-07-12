@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from 'react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Pill } from '@/components/ui/pill';
 import type { Session } from '@/features/auth/types';
 import { apiFetch } from '@/lib/api-client';
 import { feedbackEndpoint } from '../api-contract';
@@ -79,7 +80,7 @@ function FeedbackBody({
   }
   return (
     <>
-      <textarea
+      <Textarea
         ref={textareaRef}
         value={message}
         onChange={onMessageChange}
@@ -87,7 +88,7 @@ function FeedbackBody({
         maxLength={FEEDBACK_MESSAGE_MAX_LENGTH}
         placeholder="What's broken, missing, or weird? The more specific the better."
         rows={6}
-        className="bg-section border border-border text-text font-mono text-ui px-2.5 py-2 resize-none focus:outline-none focus:border-border-active disabled:opacity-50"
+        className="resize-none disabled:opacity-50"
       />
       <div className="flex items-center justify-between text-label tracking-[0.08em] uppercase text-muted">
         <span>{charsLeft} chars left</span>
@@ -115,23 +116,24 @@ function FeedbackFooter({
 }) {
   if (state.kind === 'success') {
     return (
-      <button type="button" onClick={onClose} className="inline-flex">
-        <Pill tone="neutral">Close</Pill>
-      </button>
+      <Button variant="secondary" size="sm" onClick={onClose}>
+        Close
+      </Button>
     );
   }
   return (
     <>
-      <button type="button" onClick={onClose} disabled={disabled} className="inline-flex disabled:opacity-50">
-        <Pill tone="neutral">Cancel</Pill>
-      </button>
-      <button
+      <Button variant="secondary" size="sm" onClick={onClose} disabled={disabled}>
+        Cancel
+      </Button>
+      <Button
         type="submit"
+        variant="primary"
+        size="sm"
         disabled={disabled || message.trim().length === 0}
-        className="inline-flex disabled:opacity-50"
       >
-        <Pill tone="green">{state.kind === 'submitting' ? 'Sending…' : 'Send'}</Pill>
-      </button>
+        {state.kind === 'submitting' ? 'Sending…' : 'Send'}
+      </Button>
     </>
   );
 }
