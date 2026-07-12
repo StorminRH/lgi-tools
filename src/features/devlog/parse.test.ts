@@ -271,18 +271,22 @@ describe('excerpt line + permalink helpers', () => {
     expect(lineFragment('')).toBe('');
   });
 
-  it('githubUrl needs both ref and file; pins the SHA; fragments only clean ranges', () => {
+  it('githubUrl needs a full commit SHA + file; pins the SHA; fragments only clean ranges', () => {
     const base = 'https://github.com/StorminRH/lgi-tools/blob';
-    expect(githubUrl({ ref: 'abc123', file: 'src/lib/cron.ts', lines: '7-23' })).toBe(
-      `${base}/abc123/src/lib/cron.ts#L7-L23`,
+    const sha = '5d16c056340da1fa70ad385dd7bab0b1140f7282';
+    expect(githubUrl({ ref: sha, file: 'src/lib/cron.ts', lines: '7-23' })).toBe(
+      `${base}/${sha}/src/lib/cron.ts#L7-L23`,
     );
-    expect(githubUrl({ ref: 'abc123', file: 'x.ts', lines: '238' })).toBe(`${base}/abc123/x.ts#L238`);
-    expect(githubUrl({ ref: 'abc123', file: 'x.ts', lines: '9-9' })).toBe(`${base}/abc123/x.ts#L9`);
+    expect(githubUrl({ ref: sha, file: 'x.ts', lines: '238' })).toBe(`${base}/${sha}/x.ts#L238`);
+    expect(githubUrl({ ref: sha, file: 'x.ts', lines: '9-9' })).toBe(`${base}/${sha}/x.ts#L9`);
     // multi-range / path-prefixed / empty lines → file at the pin, no fragment
-    expect(githubUrl({ ref: 'abc123', file: 'x.ts', lines: '8-14,48-62' })).toBe(`${base}/abc123/x.ts`);
-    expect(githubUrl({ ref: 'abc123', file: 'x.ts', lines: '' })).toBe(`${base}/abc123/x.ts`);
-    // missing ref or file → no link
-    expect(githubUrl({ ref: 'abc123', file: '', lines: '1-2' })).toBeNull();
+    expect(githubUrl({ ref: sha, file: 'x.ts', lines: '8-14,48-62' })).toBe(`${base}/${sha}/x.ts`);
+    expect(githubUrl({ ref: sha, file: 'x.ts', lines: '' })).toBe(`${base}/${sha}/x.ts`);
+    // missing file → no link
+    expect(githubUrl({ ref: sha, file: '', lines: '1-2' })).toBeNull();
+    // non-pinned refs (empty, branch name, abbreviated sha) → no link (they would drift)
     expect(githubUrl({ ref: '', file: 'x.ts', lines: '1-2' })).toBeNull();
+    expect(githubUrl({ ref: 'main', file: 'x.ts', lines: '1-2' })).toBeNull();
+    expect(githubUrl({ ref: '5d16c05', file: 'x.ts', lines: '1-2' })).toBeNull();
   });
 });

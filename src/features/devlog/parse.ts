@@ -47,6 +47,9 @@ const ATTR_LANG = /lang="([^"]*)"/;
 const ATTR_REF = /ref="([^"]*)"/;
 
 const GITHUB_BLOB = 'https://github.com/StorminRH/lgi-tools/blob';
+// A full 40-char commit SHA. A branch name or abbreviated ref would build a MOVING
+// link that drifts off the snapshot, so only a pinned SHA earns a permalink.
+const COMMIT_SHA = /^[0-9a-f]{40}$/i;
 
 // A whole `<sup><a href="#code-…">N</a></sup>` marker. Global so every reference on
 // a paragraph is captured (and stripped) in document order.
@@ -89,13 +92,15 @@ export function lineFragment(lines: string): string {
   return end && end !== start ? `#L${start}-L${end}` : `#L${start}`;
 }
 
-// A pinned-SHA GitHub permalink for an excerpt, or null when one can't be built:
-// both a `ref` (commit SHA) and a repo `file` path are required — an excerpt whose
-// `file` is prose ("GitHub PR #… review thread") must therefore carry no ref. The
-// line fragment is appended only for a clean single range (unpinned line links rot).
+// A pinned-SHA GitHub permalink for an excerpt, or null when one can't be built: a
+// full 40-char commit `ref` and a repo `file` path are both required — a branch name
+// or abbreviated ref is rejected (it would drift off the snapshot), and an excerpt
+// whose `file` is prose ("GitHub PR #… review thread") must carry no ref. The line
+// fragment is appended only for a clean single range (unpinned line links rot).
 export function githubUrl(excerpt: Pick<Excerpt, 'ref' | 'file' | 'lines'>): string | null {
-  if (!excerpt.ref || !excerpt.file) return null;
-  return `${GITHUB_BLOB}/${excerpt.ref}/${excerpt.file}${lineFragment(excerpt.lines)}`;
+  const ref = excerpt.ref.trim();
+  if (!COMMIT_SHA.test(ref) || !excerpt.file) return null;
+  return `${GITHUB_BLOB}/${ref}/${excerpt.file}${lineFragment(excerpt.lines)}`;
 }
 
 // Try to match one inline mark anchored at `i` (sticky regex). Returns the token
