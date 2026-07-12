@@ -30,9 +30,16 @@ export function Stepper({
   return (
     <NumberField.Root
       value={value}
-      // Empty-blur emits null; snap it to the floor so the committed value stays a
-      // number (the field's own text can briefly read empty until the next edit).
-      onValueChange={(next) => onChange(next ?? min)}
+      // Live-commit typed and stepped numbers, but SKIP the transient null Base UI
+      // emits while the field is being cleared — coercing that to min here would
+      // repopulate the field before the user types a replacement (breaking the
+      // clear-and-retype flow).
+      onValueChange={(next) => {
+        if (next !== null) onChange(next);
+      }}
+      // On blur/commit an empty field settles to the floor; a committed number passes
+      // straight through. (Only commit — never a mid-edit change — reaches here.)
+      onValueCommitted={(next) => onChange(next ?? min)}
       min={min}
       max={max}
       step={1}
