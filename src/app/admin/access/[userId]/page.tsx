@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { buttonVariants } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
+import { cn } from '@/components/ui/cn';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { Breadcrumb } from '@/components/ui/page-head';
@@ -69,7 +71,7 @@ function CharacterAdminRow({
           height={28}
           loading="lazy"
           decoding="async"
-          className="rounded-[2px] border border-border-idle"
+          className="rounded-ctl border border-border-idle"
         />
       }
       name={character.name}
@@ -120,7 +122,7 @@ function NotFound() {
         </Card>
         <Link
           href="/admin/access"
-          className="inline-block mt-4 font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors"
+          className={cn(buttonVariants({ variant: 'secondary' }), 'mt-4 text-muted hover:text-text')}
         >
           ← Access
         </Link>
@@ -176,7 +178,7 @@ async function UserDetailContent({
               height={40}
               loading="lazy"
               decoding="async"
-              className="rounded-[2px] border border-border-idle shrink-0"
+              className="rounded-ctl border border-border-idle shrink-0"
             />
             <div className="min-w-0">
               <h1 className="font-display font-bold text-display leading-none tracking-[0.01em] uppercase mb-1 truncate text-name">
@@ -194,7 +196,7 @@ async function UserDetailContent({
           </div>
           <Link
             href="/admin/access"
-            className="font-mono text-ui uppercase tracking-[0.12em] px-3 py-2 border border-border-idle hover:border-border-active text-muted hover:text-text transition-colors shrink-0"
+            className={cn(buttonVariants({ variant: 'secondary' }), 'text-muted hover:text-text shrink-0')}
           >
             ← Access
           </Link>
