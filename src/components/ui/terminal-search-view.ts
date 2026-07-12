@@ -1,17 +1,13 @@
-// The dropdown read for the terminal-search input: which suggestions to show and
-// whether the list is open. Suggestions are stored WITH the query they answered,
-// so a stale resolution (from a since-changed input) shows nothing rather than
-// flashing a prior query's list; the dropdown only opens when the input is open,
-// has current-query results, and isn't showing an error.
+// The suggestion read for the terminal-search input: which suggestions to show.
+// Suggestions are stored WITH the query they answered, so a stale resolution (from
+// a since-changed input) shows nothing rather than flashing a prior query's list;
+// suggestions are also withheld while the input is showing a parse error. Open/
+// closed state is owned by the underlying Combobox, so it isn't derived here.
 export function deriveTerminalDropdown(
   suggestions: { query: string; items: string[] },
   value: string,
-  open: boolean,
   hasError: boolean,
-): { visibleSuggestions: string[]; showDropdown: boolean } {
-  const visibleSuggestions = suggestions.query === value ? suggestions.items : [];
-  return {
-    visibleSuggestions,
-    showDropdown: open && visibleSuggestions.length > 0 && !hasError,
-  };
+): { visibleSuggestions: string[] } {
+  const visibleSuggestions = suggestions.query === value && !hasError ? suggestions.items : [];
+  return { visibleSuggestions };
 }

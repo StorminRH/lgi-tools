@@ -1,16 +1,22 @@
 'use client';
 
-// Domain-agnostic terminal-style search input. Owns the visual shell (input
-// + autocomplete dropdown + inline error Callout); the caller supplies the
-// vocabulary via four callbacks (parse / format / suggest / errorMessage).
+// Domain-agnostic terminal-style search input. Owns the visual shell (the field
+// well + autocomplete dropdown + inline error Callout); the caller supplies the
+// vocabulary via four callbacks (parse / suggest / errorMessage / onSubmit).
 //
-// Future features (sleeper lookup, killmail browsing, fits browser, …)
-// reuse this primitive by writing their own ~50-line parser file. The
-// presentation, focus management, click-outside-to-close, Enter-to-submit,
-// suggestion-click-to-submit, and error display all come for free.
+// Future features (sleeper lookup, killmail browsing, fits browser, …) reuse this
+// primitive by writing their own ~50-line parser file. The presentation, focus
+// management, click-outside-to-close, Enter-to-submit, suggestion-select-to-submit,
+// and error display all come for free.
+//
+// Built on the shared Combobox primitive (Base UI Autocomplete), so the listbox,
+// keyboard navigation, focus, and dismiss behaviour are the library's, not
+// hand-rolled. Results come from the caller's `suggest`, so the combobox does no
+// filtering of its own (`filter={null}`); the input text is controlled here.
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Callout } from './callout';
+import * as Combobox from './combobox';
 import { deriveTerminalDropdown } from './terminal-search-view';
 
 type ParseOk<Params> = { ok: true; params: Params };
@@ -48,10 +54,11 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
 }: TerminalSearchProps<Params, Err>) {
   const [value, setValue] = useState(initialValue);
   const [error, setError] = useState<Err | null>(null);
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
   const inputId = useId();
+  // The currently keyboard-highlighted suggestion, tracked so Enter picks it when
+  // one is highlighted and otherwise submits the typed value (the Combobox never
+  // auto-highlights, so an un-arrowed Enter always parses what was typed).
+  const highlightedRef = useRef<string | null>(null);
 
   // Suggestions land in state so `suggest` may be async (the system pickers
   // dispatch through the search engine). Sync and async returns both resolve
@@ -81,46 +88,24 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
     };
   }, [value, suggest]);
 
-  // Click outside / Esc to close the dropdown.
-  useEffect(() => {
-    if (!open) return;
-    const onDocClick = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDocClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
   const submitParsedString = (raw: string) => {
     const trimmed = raw.trim();
     if (trimmed.length === 0) {
       setError(null);
-      setOpen(false);
       onClear();
       return;
     }
     const result = parse(trimmed);
     if (result.ok) {
       setError(null);
-      setOpen(false);
       onSubmit(result.params, trimmed);
     } else {
       // The `empty` discriminant is the parser's signal for clear; everything
-      // else is a real error to surface in the Callout. Cast through unknown
-      // because the primitive can't know the consumer's error union shape.
+      // else is a real error to surface in the Callout. Cast because the
+      // primitive can't know the consumer's error union shape.
       const err = result.error;
       if ((err as { kind: string }).kind === ('empty' as EmptyKind)) {
         setError(null);
-        setOpen(false);
         onClear();
       } else {
         setError(err);
@@ -128,74 +113,65 @@ export function TerminalSearch<Params, Err extends { kind: string }>({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    submitParsedString(value);
-  };
-
-  const handleSuggestionClick = (s: string) => {
-    setValue(s);
-    setOpen(false);
-    inputRef.current?.blur();
-    submitParsedString(s);
-  };
-
-  const { visibleSuggestions, showDropdown } = deriveTerminalDropdown(
-    suggestions,
-    value,
-    open,
-    error !== null,
-  );
+  const { visibleSuggestions } = deriveTerminalDropdown(suggestions, value, error !== null);
 
   return (
-    <div ref={wrapperRef} className="relative w-full">
-      <form onSubmit={handleSubmit} autoComplete="off">
-        <label htmlFor={inputId} className="sr-only">
-          {placeholder ?? 'Filter'}
-        </label>
-        <input
-          ref={inputRef}
+    <div className="relative w-full">
+      <label htmlFor={inputId} className="sr-only">
+        {placeholder ?? 'Filter'}
+      </label>
+      <Combobox.Root
+        items={visibleSuggestions}
+        value={value}
+        onValueChange={(next: string) => {
+          setValue(next);
+          setError(null);
+        }}
+        onItemHighlighted={(v: string | undefined) => {
+          highlightedRef.current = v ?? null;
+        }}
+        filter={null}
+        mode="list"
+      >
+        <Combobox.Field
           id={inputId}
           type="text"
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setError(null);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
           placeholder={placeholder}
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"
-          className="h-[30px] w-full font-mono text-ui px-2 bg-bg border border-border text-text placeholder:text-muted focus:outline-none focus:border-border-active"
+          autoComplete="off"
+          className="h-[30px] w-full"
+          onKeyDown={(e) => {
+            // Enter submits the typed value unless a suggestion is keyboard-
+            // highlighted — in which case its own onClick (fired on Enter) submits
+            // it, so we stay out of the way to avoid a double submit.
+            if (e.key === 'Enter' && highlightedRef.current === null) {
+              e.preventDefault();
+              submitParsedString(value);
+            }
+          }}
         />
-      </form>
-
-      {showDropdown && (
-        <ul
-          role="listbox"
-          className="absolute z-20 left-0 right-0 mt-1 max-h-[240px] overflow-y-auto bg-bg border border-border-idle shadow-lg"
-        >
-          {visibleSuggestions.map((s) => (
-            <li key={s}>
-              <button
-                type="button"
-                onMouseDown={(e) => {
-                  // Use onMouseDown (not onClick) so the input doesn't blur first
-                  // — that would have closed the dropdown via the outside-click
-                  // listener before the click fired.
-                  e.preventDefault();
-                  handleSuggestionClick(s);
-                }}
-                className="w-full text-left font-mono text-ui px-3 py-1.5 text-text hover:bg-surface-raised focus:bg-surface-raised focus:outline-none transition-colors"
-              >
-                {s}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        {visibleSuggestions.length > 0 && (
+          <Combobox.Panel className="max-h-[240px] w-[var(--anchor-width)] overflow-y-auto" sideOffset={4}>
+            <Combobox.List>
+              {visibleSuggestions.map((s) => (
+                <Combobox.Item
+                  key={s}
+                  value={s}
+                  onClick={() => {
+                    setValue(s);
+                    submitParsedString(s);
+                  }}
+                  className="w-full px-2.5 py-2 text-ui font-mono text-text"
+                >
+                  {s}
+                </Combobox.Item>
+              ))}
+            </Combobox.List>
+          </Combobox.Panel>
+        )}
+      </Combobox.Root>
 
       <SearchFooter error={error} hint={hint} errorLabel={errorLabel} errorMessage={errorMessage} />
     </div>
