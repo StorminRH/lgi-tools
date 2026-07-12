@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Input, Select, Textarea } from './input';
+import { Input, Textarea } from './input';
 
 // Node-env, no RTL: calling a component returns a React element whose props/tree
 // we inspect directly. We test the prop-forwarding contract and the prompt branch
@@ -27,16 +27,6 @@ describe('Input', () => {
   it('shows the prompt glyph only when asked', () => {
     expect(kids(Input({ prompt: true })).some((c) => c?.props?.children === '>')).toBe(true);
     expect(kids(Input({})).some((c) => c?.props?.children === '>')).toBe(false);
-  });
-});
-
-describe('Select', () => {
-  it('forwards its options and value to a native select in the well', () => {
-    const el = Select({ value: 'a', children: 'OPTIONS', 'aria-label': 'Structure' });
-    expect(el.props.className).toContain('bg-bg-deep');
-    const select = kids(el).find((c) => c?.type === 'select');
-    expect(select?.props?.value).toBe('a');
-    expect(select?.props?.children).toBe('OPTIONS');
   });
 });
 

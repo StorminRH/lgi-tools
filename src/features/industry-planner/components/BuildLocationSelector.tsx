@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { cn } from '@/components/ui/cn';
-import { Select } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { toneTextClass } from '@/components/ui/tones';
 import {
@@ -19,7 +19,7 @@ import { lockTransition, type LockSystem } from '../structure-slots';
 import type { AvailableStructure, IndustryStationView } from '../types';
 import { usePricing, type SelectedLocation } from './PricingProvider';
 import { SelectedSystemBox } from './SelectedSystemBox';
-import { StructureOptgroups } from './StructureOptgroups';
+import { structureOptionGroups } from './structure-options';
 import { StructureBonusReadout } from './structure-bonus-readout';
 import {
   useSystemSearch,
@@ -107,27 +107,30 @@ function BuildFacilitySelect({
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">Station</span>
-      {/* Fixed width + shrink-0: a native select otherwise resizes to the selected
-          option's text, so picking a structure would shift the control. */}
+      {/* Fixed width + shrink-0 keeps the control from shifting as the selected
+          label changes, so the hero plane never reflows. */}
       <Select
         value={facilityValueFor(selectedStructure, station)}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Build location"
+        onValueChange={onChange}
+        items={[
+          {
+            value: '',
+            label: stations.length > 0 ? `Any NPC station (${stations.length})` : '— none —',
+          },
+          ...structureOptionGroups(structures),
+          ...(stations.length > 0
+            ? [
+                {
+                  group: 'NPC stations',
+                  options: stations.map((s) => ({ value: `station:${s.id}`, label: stationLabel(s) })),
+                },
+              ]
+            : []),
+          { value: 'add-custom', label: '+ Add custom structure…' },
+        ]}
+        ariaLabel="Build location"
         className="h-[30px] w-[260px] shrink-0"
-      >
-        <option value="">{stations.length > 0 ? `Any NPC station (${stations.length})` : '— none —'}</option>
-        <StructureOptgroups structures={structures} />
-        {stations.length > 0 && (
-          <optgroup label="NPC stations">
-            {stations.map((s) => (
-              <option key={s.id} value={`station:${s.id}`}>
-                {stationLabel(s)}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        <option value="add-custom">+ Add custom structure…</option>
-      </Select>
+      />
     </div>
   );
 }

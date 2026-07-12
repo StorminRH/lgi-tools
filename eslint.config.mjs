@@ -100,16 +100,17 @@ const roundedSizeSelectors = [
 ];
 
 // Component-system enforcement (3.8.2.2): styled form fields live on the shared
-// primitives, not hand-rolled. A raw <select> must be the Select primitive
-// (components/ui/input.tsx is the one exempted home); an `inputClass`-style
-// constant is the ad-hoc field string the Input/Select/Textarea primitives
-// replaced. Test files fall through exempt (they ride the src/** block, which
-// ignores tests).
+// primitives, not hand-rolled. A raw <select> is fully banned — the Select
+// primitive (components/ui/select.tsx, 3.8.2.3) is a Base UI overlay, so nothing in
+// the tree renders a native <select> and the ban carries no exemption. An
+// `inputClass`-style constant is the ad-hoc field string the Input/Select/Textarea
+// primitives replaced. Test files fall through exempt (they ride the src/** block,
+// which ignores tests).
 const selectElementSelectors = [
   {
     selector: "JSXOpeningElement[name.name='select']",
     message:
-      "No raw <select> — use the Select primitive (@/components/ui/input), which owns the engraved field look. See CONTRIBUTING.md (Component system).",
+      "No raw <select> — use the Select primitive (@/components/ui/select), which owns the engraved field + dropdown-panel look. See CONTRIBUTING.md (Component system).",
   },
 ];
 const inputClassSelectors = [
@@ -287,25 +288,6 @@ const eslintConfig = defineConfig([
         ...textSizeSelectors,
         ...roundedSizeSelectors,
         ...selectElementSelectors,
-        ...inputClassSelectors,
-      ],
-    },
-  },
-  // The Select primitive (input.tsx) is the sanctioned home for a raw <select> —
-  // the whole point of the ban is to funnel field markup here. Re-state every
-  // other ban without the <select> selector (replace semantics).
-  {
-    files: ["src/components/ui/input.tsx"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...cspSelectors,
-        ...hexColorSelectors,
-        ...apiFetchSelectors,
-        ...processEnvSelectors,
-        ...esiHostSelectors,
-        ...textSizeSelectors,
-        ...roundedSizeSelectors,
         ...inputClassSelectors,
       ],
     },

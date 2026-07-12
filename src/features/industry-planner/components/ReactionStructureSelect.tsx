@@ -2,14 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
-import { Select } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { facilityValueFor, parseFacilityValue, structureById } from '../facility-value';
 import { deriveReactionSlotView, lockTransition } from '../structure-slots';
 import type { AvailableStructure } from '../types';
 import { usePricing, type SelectedReactionSystem } from './PricingProvider';
 import { SelectedSystemBox } from './SelectedSystemBox';
-import { StructureOptgroups } from './StructureOptgroups';
+import { structureOptionGroups } from './structure-options';
 import { StructureBonusReadout } from './structure-bonus-readout';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
 
@@ -154,23 +154,22 @@ export function ReactionStructureSelect() {
         <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">Station</span>
         <Select
           value={facilityValueFor(reactionStructure, null)}
-          onChange={(e) => {
-            const sel = parseFacilityValue(e.target.value);
+          onValueChange={(v) => {
+            const sel = parseFacilityValue(v);
             if (sel.kind === 'add-custom') {
               router.push('/structures');
               return;
             }
-            onSelectRefinery(
-              sel.kind === 'structure' ? structureById(refineries, sel.id) : null,
-            );
+            onSelectRefinery(sel.kind === 'structure' ? structureById(refineries, sel.id) : null);
           }}
-          aria-label="Reaction refinery"
+          items={[
+            { value: '', label: '— none —' },
+            ...structureOptionGroups(refineries),
+            { value: 'add-custom', label: '+ Add custom structure…' },
+          ]}
+          ariaLabel="Reaction refinery"
           className="h-[30px] w-[260px] shrink-0"
-        >
-          <option value="">— none —</option>
-          <StructureOptgroups structures={refineries} />
-          <option value="add-custom">+ Add custom structure…</option>
-        </Select>
+        />
       </div>
     </div>
   );
