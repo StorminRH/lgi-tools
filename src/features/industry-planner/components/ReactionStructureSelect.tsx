@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
+import { Select } from '@/components/ui/input';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { facilityValueFor, parseFacilityValue, structureById } from '../facility-value';
 import { deriveReactionSlotView, lockTransition } from '../structure-slots';
@@ -151,7 +152,7 @@ export function ReactionStructureSelect() {
       />
       <div className="flex items-center gap-2">
         <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">Station</span>
-        <select
+        <Select
           value={facilityValueFor(reactionStructure, null)}
           onChange={(e) => {
             const sel = parseFacilityValue(e.target.value);
@@ -164,12 +165,12 @@ export function ReactionStructureSelect() {
             );
           }}
           aria-label="Reaction refinery"
-          className="h-[30px] w-[260px] shrink-0 border border-border bg-bg px-2 font-mono text-ui text-text focus:border-border-active focus:outline-none"
+          className="h-[30px] w-[260px] shrink-0"
         >
           <option value="">— none —</option>
           <StructureOptgroups structures={refineries} />
           <option value="add-custom">+ Add custom structure…</option>
-        </select>
+        </Select>
       </div>
     </div>
   );

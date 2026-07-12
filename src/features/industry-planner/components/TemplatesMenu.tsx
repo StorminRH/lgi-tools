@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Popover } from '@/components/ui/popover';
 import { toast } from '@/components/ui/toast';
 import { apiFetch } from '@/lib/api-client';
@@ -10,7 +12,6 @@ import { captureTemplate } from '../template-manifest';
 import { useManagedRowMenu } from '../use-managed-row-menu';
 import { useSavedPlans } from '../use-saved-plans';
 import { usePricing } from './PricingProvider';
-import { savedPlanInputClass } from './SavedPlanRowItem';
 import { SavedPlanRows } from './SavedPlanRows';
 
 // Saved build templates (3.7.23): the PlannerHead's click-popover, cloned from
@@ -90,7 +91,7 @@ export function TemplatesMenu({
       </span>
 
       <div className="flex items-center gap-2">
-        <input
+        <Input
           type="text"
           value={saveName}
           maxLength={MAX_SAVED_PLAN_NAME_LEN}
@@ -100,16 +101,17 @@ export function TemplatesMenu({
           }}
           placeholder={`e.g. ${productName} weekly`}
           aria-label="Template name"
-          className={`${savedPlanInputClass} h-7 min-w-0 flex-1`}
+          size="sm"
+          className="h-7 min-w-0 flex-1"
         />
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
           onClick={save}
           disabled={saveName.trim() === '' || saving}
-          className="rounded-[3px] border border-isk-dim bg-pill-green-bg px-3 py-1.5 font-mono text-ui font-semibold uppercase tracking-[0.1em] text-isk transition-colors hover:border-isk disabled:cursor-not-allowed disabled:opacity-40"
         >
           Save
-        </button>
+        </Button>
       </div>
 
       {plans !== null && plans.length > 0 ? (

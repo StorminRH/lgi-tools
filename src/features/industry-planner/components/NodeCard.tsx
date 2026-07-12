@@ -34,7 +34,7 @@ export interface NodeEfficiency {
 // The icon frame: a fixed 40px box (mirrors the QTY ring) holding the 30px icon. The
 // 2.5px border matches the ring's stroke; its tone is the node's combined ME/TE state.
 // A transparent frame keeps raws/reactions on the identical footprint so icons align.
-const FRAME = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] border-[2.5px]';
+const FRAME = 'flex h-10 w-10 shrink-0 items-center justify-center rounded-card border-[2.5px]';
 const FRAME_TONE: Record<NodeMeState, string> = {
   unowned: 'border-border-soft',
   owned: 'border-evb-bright',

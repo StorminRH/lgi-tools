@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverRow } from '@/components/ui/popover';
 import { Segmented } from '@/components/ui/segmented';
@@ -152,14 +153,9 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={copy}
-          disabled={entries.length === 0}
-          className="rounded-[3px] border border-isk-dim bg-pill-green-bg px-3 py-1.5 font-mono text-ui font-semibold uppercase tracking-[0.1em] text-isk transition-colors hover:border-isk disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button variant="primary" size="sm" onClick={copy} disabled={entries.length === 0}>
           Copy
-        </button>
+        </Button>
         <span className="font-mono text-micro tabular-nums text-muted">
           {pluralCount(entries.length, 'item', 'items')} · {effectiveMode}
         </span>

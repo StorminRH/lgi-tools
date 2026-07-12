@@ -176,7 +176,7 @@ function valueToneClass(state: NodeMeState): string {
 // The up/down step buttons shown in the popover stepper layout (`steppers`). Small
 // hover-lit tap targets flanking the typeable field, the Stepper primitive's idiom.
 const STEP_BTN =
-  'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
+  'inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-ctl text-micro leading-none text-muted hover:bg-isk-hover-strong hover:text-isk cursor-pointer';
 
 // The −/+ buttons of the boxed (hero) layout — the Runs Stepper's exact button
 // style, so the three hero rows read as one control family.
@@ -355,7 +355,7 @@ function BoxedField({ inputProps, revertButton, name, ariaUnit, toneClass, onSte
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      <span className="inline-flex items-center overflow-hidden rounded-[3px] border border-border bg-bg">
+      <span className="inline-flex items-center overflow-hidden rounded-ctl border border-border bg-bg">
         <StepButton label={`Decrease ${name} ${ariaUnit}`} glyph="–" className={BOX_BTN} onStep={() => onStep(-1)} />
         <input
           {...inputProps}

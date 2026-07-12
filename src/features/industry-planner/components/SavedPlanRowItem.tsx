@@ -6,13 +6,10 @@
 // side actions are favorite, rename (inline edit), and the two-step delete —
 // ✕ arms the row into a red "confirm?" and only the second press deletes.
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
 import { TypeIcon } from '@/components/ui/type-icon';
 import { MAX_SAVED_PLAN_NAME_LEN, type SavedPlanRow } from '../api-contract';
 import { savedPlanRowLabels } from '../saved-plans-view';
-
-export const savedPlanInputClass =
-  'border border-border bg-bg px-2 py-1 font-mono text-ui text-text' +
-  'placeholder:text-faint focus:border-border-active focus:outline-none';
 
 const actionClass =
   'cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name ' +
@@ -54,7 +51,7 @@ export function SavedPlanRowItem({
         {labels.favoriteGlyph}
       </button>
       {editing ? (
-        <input
+        <Input
           type="text"
           value={draft}
           maxLength={MAX_SAVED_PLAN_NAME_LEN}
@@ -66,7 +63,8 @@ export function SavedPlanRowItem({
           aria-label={`Rename ${row.name}`}
           // Entering the inline edit is an explicit user action; focus follows it.
           autoFocus
-          className={`${savedPlanInputClass} h-6 min-w-0 flex-1`}
+          size="sm"
+          className="h-6 min-w-0 flex-1"
         />
       ) : (
         <button
