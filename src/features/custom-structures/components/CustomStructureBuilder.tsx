@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { RigSupply } from '@/components/RigSupply';
-import { cn } from '@/components/ui/cn';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Input, Select, Textarea } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
 import { TerminalSearch } from '@/components/ui/terminal-search';
 import { useSystemSearch, type SystemErr, type SystemParams } from '@/components/use-system-search';
@@ -41,8 +42,6 @@ import {
 } from '../custom-structure-view';
 import type { CustomStructureRow } from '../types';
 
-const inputClass =
-  'border border-border bg-bg px-2 py-1 font-mono text-ui text-text focus:border-border-active focus:outline-none';
 const slotIndices = Array.from({ length: MAX_CUSTOM_STRUCTURE_RIGS }, (_, i) => i);
 
 // The structure family label shown beside each type in the picker (the SDE group,
@@ -141,7 +140,7 @@ function InlineTaxEditor({
 }) {
   return (
     <div className="flex w-full max-w-[320px] items-center gap-2">
-      <input
+      <Input
         type="number"
         min={0}
         max={MAX_FACILITY_TAX_PCT}
@@ -150,7 +149,7 @@ function InlineTaxEditor({
         onChange={(e) => onDraftChange(e.target.value)}
         placeholder="Facility tax % — empty = 0.25% assumed"
         aria-label={`Facility tax percent for ${name}`}
-        className={cn(inputClass, 'w-full')}
+        className="w-full"
       />
       <button
         type="button"
@@ -286,11 +285,11 @@ function StructureTypeSelect({
   return (
     <label className="flex flex-col gap-1">
       <span className="text-label uppercase tracking-[0.12em] text-muted">Structure type</span>
-      <select
+      <Select
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
         aria-label="Structure type"
-        className={cn(inputClass, 'w-full max-w-[320px]')}
+        className="w-full max-w-[320px]"
       >
         <option value="">— pick a structure —</option>
         {types.map((t) => (
@@ -298,7 +297,7 @@ function StructureTypeSelect({
             {t.name} ({STRUCTURE_GROUP_LABEL[t.groupId] ?? 'Structure'})
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 }
@@ -517,13 +516,13 @@ export function CustomStructureBuilder({
           <span className="text-label uppercase tracking-[0.12em] text-muted">
             Paste an in-game structure fit (optional)
           </span>
-          <textarea
+          <Textarea
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
             rows={3}
             placeholder={'[Azbel, My Build Azbel]\nStandup L-Set Equipment Manufacturing Efficiency II\n…'}
             aria-label="Structure fit"
-            className={cn(inputClass, 'resize-y leading-[1.5]')}
+            className="leading-[1.5]"
           />
           <button
             type="button"
@@ -549,14 +548,14 @@ export function CustomStructureBuilder({
 
         <label className="flex flex-col gap-1">
           <span className="text-label uppercase tracking-[0.12em] text-muted">Name</span>
-          <input
+          <Input
             type="text"
             value={name}
             maxLength={MAX_CUSTOM_STRUCTURE_NAME_LEN}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Null ME Azbel"
             aria-label="Structure name"
-            className={cn(inputClass, 'w-full max-w-[320px]')}
+            className="w-full max-w-[320px]"
           />
         </label>
 
@@ -581,7 +580,7 @@ export function CustomStructureBuilder({
           <span className="text-label uppercase tracking-[0.12em] text-muted">
             Facility tax % (optional)
           </span>
-          <input
+          <Input
             type="number"
             min={0}
             max={MAX_FACILITY_TAX_PCT}
@@ -590,25 +589,15 @@ export function CustomStructureBuilder({
             onChange={(e) => setTaxDraft(e.target.value)}
             placeholder="Empty = 0.25% assumed"
             aria-label="Facility tax percent"
-            className={cn(inputClass, 'w-full max-w-[320px]')}
+            className="w-full max-w-[320px]"
           />
         </label>
 
         {error && <p className="text-ui text-tone-red">{error}</p>}
 
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={!canSave}
-          className={cn(
-            'self-start border px-3 py-1.5 text-label uppercase tracking-[0.12em]',
-            canSave
-              ? 'border-tone-green text-tone-green hover:bg-section'
-              : 'border-border text-muted',
-          )}
-        >
+        <Button variant="primary" onClick={onSave} disabled={!canSave} className="self-start">
           Save structure
-        </button>
+        </Button>
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border-soft pt-4">
