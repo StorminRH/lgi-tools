@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { readDevlogSource } from './load';
 import {
   documentSummary,
   findDocument,
@@ -14,6 +13,10 @@ import {
   slugify,
 } from './parse';
 import type { Block } from './types';
+
+// Assembled from the per-document files under content/devlog/ exactly as the loader
+// does, then parsed — the durable guard that segmentation didn't disturb the tree.
+const realTree = parseDevlog(await readDevlogSource());
 
 const excerptBlocks = (blocks: Block[]) =>
   blocks.filter((b): b is Extract<Block, { type: 'excerpt' }> => b.type === 'excerpt');
@@ -171,9 +174,8 @@ describe('documentSummary', () => {
   });
 });
 
-describe('parseDevlog — the real UNDER_THE_HOOD.md', () => {
-  const md = readFileSync(join(process.cwd(), 'UNDER_THE_HOOD.md'), 'utf8');
-  const tree = parseDevlog(md);
+describe('parseDevlog — the real dev log source', () => {
+  const tree = realTree;
 
   it('matches the locked nav tree exactly', () => {
     expect(tree.looseDocuments.map((d) => d.title)).toEqual(['Introduction', 'Building with AI']);

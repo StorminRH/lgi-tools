@@ -1,4 +1,4 @@
-// Curated parser for the "Under the Hood" dev log (UNDER_THE_HOOD.md). Like the
+// Curated parser for the "Under the Hood" dev log (content/devlog/). Like the
 // changelog parser, this is deliberately not a general markdown library: the
 // source is a fixed, hand-maintained format, so a small typed parser that renders
 // to React elements is safer than a library that invites arbitrary syntax (and

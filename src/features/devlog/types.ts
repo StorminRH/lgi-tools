@@ -1,4 +1,4 @@
-// The parsed shape of the "Under the Hood" dev log (UNDER_THE_HOOD.md). A
+// The parsed shape of the "Under the Hood" dev log (content/devlog/). A
 // dedicated, curated model — like the changelog's — not a general markdown AST:
 // the source uses a fixed handful of constructs (headings as a two-level
 // folder/document tree, a few inline marks, bullet lists, blockquotes, and

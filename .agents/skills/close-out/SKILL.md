@@ -49,10 +49,11 @@ If more sessions remain on the branch, stop after Step 1 — no PR. Otherwise re
 - One PR → `main`, plain-English title/body written for external/forking devs,
   with a filled test plan (what you verified and how).
 - If the work is user-facing, bump `APP_VERSION` (`src/config/app-version.ts`)
-  and add a `CHANGELOG.md` entry under its master version (grouping is derived from
-  the version prefix — no per-entry markup). When the entry is the first release of
-  a new master version, also add its themed `## vX.Y — Title` heading. The exact
-  format is in `docs/PR_REVIEW.md`; the parser is strict — confirm it still parses.
+  and add an entry to its master file `content/changelog/vX.Y.md` (grouping is derived
+  from the version prefix — no per-entry markup). When the entry is the first release
+  of a new master version, create that file starting with its themed `## vX.Y — Title`
+  heading (the loader auto-sorts it newest-first). The exact format is in
+  `docs/PR_REVIEW.md`; the parser is strict — confirm it still parses.
 - Confirm CI is green (test/typecheck/lint/fallow, semgrep, Vercel) before leaning
   on Greptile.
 

@@ -1,7 +1,7 @@
 /* Tailwind content scan — explicit allowlist, not root auto-detection (3.8.2.2).
  * `source(none)` turns OFF Tailwind v4's automatic project-root crawl, which
- * scanned config + doc files too (eslint.config.mjs, CONTRIBUTING.md,
- * UNDER_THE_HOOD.md). A bracketed utility written inside a COMMENT in one of
+ * scanned config + doc files too (eslint.config.mjs, CONTRIBUTING.md, the
+ * content/ prose tree). A bracketed utility written inside a COMMENT in one of
  * those became a real class candidate and generated invalid CSS that 500'd every
  * page (the 3.8.2.1 footgun). Every live UI class lives under src/; nothing
  * outside it renders utilities (verified). Paths are relative to this file

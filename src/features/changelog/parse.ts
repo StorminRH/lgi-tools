@@ -1,5 +1,5 @@
-// Tiny markdown parser for the restricted CHANGELOG.md format (a version
-// timeline):
+// Tiny markdown parser for the restricted changelog format (content/changelog/*.md,
+// reassembled by the loader — a version timeline):
 //   ### v<version> — <YYYY-MM-DD>   → new entry
 //   #### <Added|Changed|Fixed|Removed>  → a change-type group in the entry
 //   - <line>                        → a bullet under the current group
@@ -130,7 +130,7 @@ function collectMasterMeta(md: string): MasterMeta {
 // derived from each entry's version prefix, so historical entries need no
 // per-master heading; a `## vX.Y — …` heading only supplies the optional theme
 // title and summary. Masters come out newest-first and sub-versions newest-first,
-// both straight from CHANGELOG.md's source order (an insertion-ordered Map). A
+// both straight from the changelog's source order (an insertion-ordered Map). A
 // themed heading with no matching entries is inert — it never produces a master.
 export function parseChangelogMasters(md: string): ChangelogMaster[] {
   const { titles, summaries } = collectMasterMeta(md);

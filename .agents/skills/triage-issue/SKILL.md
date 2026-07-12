@@ -62,7 +62,8 @@ removed" / "Y is broken" — check:
   finders is ideal for "find every instance of this across the repo"). The gap
   between "the 4 spots they found" and "the ~21 spots that actually exist" is
   exactly what makes triage worth doing.
-- Repo context that reframes it: `AGENTS.md`, auto-memory, recent `CHANGELOG.md`.
+- Repo context that reframes it: `AGENTS.md`, auto-memory, the recent changelog
+  (`content/changelog/`).
 
 Land on two verdicts:
 
