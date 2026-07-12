@@ -8,6 +8,14 @@ Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
 v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
 
+### v3.8.2.5.0 — 2026-07-12
+
+#### Changed
+- Coding-agent setup is now kept local instead of being published with the application, so Claude Code and Codex can each use purpose-built instructions and workflows without exposing operator-specific configuration in the public repository.
+
+#### Removed
+- The previously tracked agent skills and Codex hook configuration, which are now maintained as ignored local tooling alongside the existing Claude Code setup.
+
 ### v3.8.2.5 — 2026-07-12
 
 #### Changed
