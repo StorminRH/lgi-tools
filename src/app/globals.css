@@ -234,7 +234,10 @@
    * .tool-tile / --color-row-*). The signature: fields engraved into dark inset
    * wells, buttons with a physical bezel, cards with a faint top-edge light. */
   --shadow-field-inset: inset 0 2px 6px rgba(0, 0, 0, 0.45);
-  --shadow-field-focus: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--color-isk-dim);
+  /* Focus keeps the engraved inset; the green comes from the well border turning
+   * ISK-sub — a SINGLE edge. (An extra `0 0 0 1px` outer ring here read as a
+   * doubled border on the fields, the Select trigger, and the templates input.) */
+  --shadow-field-focus: inset 0 2px 6px rgba(0, 0, 0, 0.45);
   --shadow-btn-bezel:   0 1px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --shadow-card-edge:   inset 0 1px 0 rgba(255, 255, 255, 0.025);
   --shadow-dd:          inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 10px 26px rgba(0, 0, 0, 0.5);
