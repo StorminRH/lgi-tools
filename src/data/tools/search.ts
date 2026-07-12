@@ -22,7 +22,8 @@ export const toolsSearchSource: SearchSource = {
         sub: tool.description,
         href: tool.href ?? '#',
         iconText: tool.abbr,
-        iconTone: 'tool',
+        // Abstract tone (the search render maps it to tokens); tools read ISK-green.
+        iconTone: 'green',
         matchIndices: match.matchIndices,
         disabled: tool.href === null,
       }),

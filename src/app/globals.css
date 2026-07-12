@@ -455,8 +455,9 @@ a:hover {
  * A persistent left filter rail (Class chips + Type rows) beside a 2-col card
  * grid. Filtering is client-side multi-select (SitesFilterLayout); these are
  * the resting + selected styles. The class-chip selected palette mirrors the
- * search dropdown's `.dd-icon.cls-*` identity colors; the type-row dot tones
- * follow the handoff. Literal hex / rgba are permitted in the stylesheet (the
+ * shared wormhole-class identity tones (the same CLASS_TONE the search-result
+ * icon badges resolve through); the type-row dot tones follow the handoff.
+ * Literal hex / rgba are permitted in the stylesheet (the
  * lint ban is hex-in-TS/TSX only). */
 .sites-rail-layout {
   display: grid;
@@ -1007,59 +1008,13 @@ a:hover {
   margin: 8px 0 8px 12px;
 }
 
+/* Layout hook only — the search box now wears the shared field WELL (skin, radius,
+ * padding, focus) via the Combobox primitive, and its `>` prompt + ⌘K/esc hint +
+ * dropdown are Tailwind on that primitive. This class carries just the flex
+ * container the mobile reflow below still targets. */
 .nav-search {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 14px;
-  background: var(--color-surface-sunk);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  width: 480px;
-  flex-shrink: 0;
-}
-/* On focus the search adopts the shared ISK-green ring + soft bloom from the
- * tool-tile / resource-card hover vocabulary (--color-card-glow-*), so it lights
- * up like every other interactive surface. The resting box keeps main's recessed
- * (--color-surface-sunk) look — this glow is the only nav change kept. */
-.nav-search.active {
-  border-color: var(--color-card-glow-border);
-  box-shadow:
-    0 0 0 1px var(--color-card-glow-ring),
-    0 8px 26px -10px var(--color-card-glow-shadow);
-}
-
-.ns-prompt {
-  color: var(--color-isk);
-  font-weight: 700;
-  font-family: var(--font-jb);
-  font-size: var(--text-ui);
-  flex-shrink: 0;
-}
-.ns-input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: var(--font-mono);
-  font-size: var(--text-ui);
-  color: var(--color-name);
-}
-.ns-input::placeholder {
-  color: var(--color-muted);
-  font-style: italic;
-}
-.ns-kbd-hint,
-.ns-esc-hint {
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  color: var(--color-muted);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  padding: 1px 5px;
   flex-shrink: 0;
 }
 
@@ -1102,8 +1057,8 @@ a:hover {
  * would suppress the hover but also drop the tooltip the other cells keep.
  * The exclusion uses :where() (zero specificity) so the hover rule stays at the
  * same specificity as .nav-tool.active below — the later active rule then wins
- * on hover, keeping the active cell's green rule at full opacity (same
- * active-beats-hover-by-source-order pattern as .dd-row.active). */
+ * on hover, keeping the active cell's green rule at full opacity (the standard
+ * later-same-specificity-rule-wins pattern). */
 .nav-tool:where(:not(.soon)):hover {
   color: var(--color-name);
   background: var(--color-row-hover);
@@ -1311,162 +1266,6 @@ a:hover {
 @media (max-width: 900px) {
   .sites-grid { grid-template-columns: 1fr; }
 }
-
-/* ── Dropdown panel — "Grid" card layout (3.6.10) ──
- * A floating rounded panel wider than the search box so its results lay out as a
- * multi-column card grid (one card per result), keeping the existing cross-source
- * sections. Widening the dropdown is fine — the header chrome (the search box,
- * wordmark, nav cells) is untouched. */
-.dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  width: min(640px, 92vw);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-active);
-  border-radius: var(--radius-card);
-  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.58);
-  padding: 7px;
-  z-index: 30;
-}
-
-.dd-section { padding: 2px 2px 6px; }
-.dd-section + .dd-section { border-top: 1px solid var(--color-border-soft); padding-top: 8px; }
-
-.dd-section-label {
-  font-size: var(--text-label);
-  font-weight: 600;
-  color: var(--color-muted);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 4px 8px 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.dd-section-label .count { color: var(--color-muted); font-weight: 400; }
-
-/* Auto-fill card grid: width is spent on more columns, never on stretching one
- * row, so name↔value stay close inside each card. */
-.dd-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 4px;
-}
-
-.dd-row {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 8px 10px;
-  width: 100%;
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-ctl);
-  background: var(--color-section);
-  cursor: pointer;
-  transition: background 0.13s, border-color 0.13s;
-  text-align: left;
-  font-family: inherit;
-  color: inherit;
-}
-.dd-row:hover {
-  background: rgba(255, 255, 255, 0.045);
-}
-.dd-row.active {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--color-border-active);
-}
-.dd-row.disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-.dd-row.disabled:hover {
-  background: var(--color-section);
-  border-color: var(--color-border-soft);
-}
-
-.dd-icon {
-  width: 22px;
-  height: 22px;
-  border-radius: 3px;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-jb);
-  font-weight: 800;
-  font-size: var(--text-ui);
-  color: var(--color-isk);
-  flex-shrink: 0;
-}
-.dd-icon.cls-c1 { background: #0f2218; color: #3dd68c; border-color: #1a3a28; }
-.dd-icon.cls-c2 { background: #0f2218; color: #44dd99; border-color: #1a3a28; }
-.dd-icon.cls-c3 { background: #1f1508; color: #d68c3d; border-color: #3a2510; }
-.dd-icon.cls-c4 { background: #1a0a1a; color: #cc55cc; border-color: #3a103a; }
-.dd-icon.cls-c5 { background: #1a0a0a; color: var(--color-tone-red); border-color: #3a1010; }
-.dd-icon.cls-c6 { background: #100a1a; color: #aa55ff; border-color: #2a1040; }
-.dd-icon.cls-none { background: var(--color-surface-raised); color: var(--color-muted); border-color: var(--color-border); }
-.dd-icon.cmd { background: var(--color-surface-sunk); color: var(--color-muted); border-color: var(--color-border); }
-.dd-icon.tool { background: var(--color-surface-sunk); color: var(--color-isk); border-color: var(--color-isk-dim); }
-
-/* Card body: name over sub (the value cluster the mock shows is omitted — the
- * search index carries no per-result sell/margin). */
-.dd-main {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
-}
-.dd-name {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: var(--text-ui);
-  color: var(--color-name);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.dd-name .match { color: var(--color-isk); font-weight: 600; }
-.dd-sub {
-  font-family: var(--font-mono);
-  font-size: var(--text-label);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.dd-return {
-  font-size: var(--text-ui);
-  color: var(--color-isk);
-  opacity: 0;
-  flex-shrink: 0;
-}
-.dd-row.active .dd-return { opacity: 1; }
-
-.dd-footer {
-  padding: 9px 10px 3px;
-  border-top: 1px solid var(--color-border-soft);
-  font-size: var(--text-label);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--color-faint);
-  display: flex;
-  justify-content: space-between;
-}
-.kbd {
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  padding: 0 4px;
-  font-size: var(--text-micro);
-  color: var(--color-name);
-  margin-right: 4px;
-}
-/* end global-search block */
 
 /* ── Sortable table block (v2.9.7) ─────────────────────────────────────
  * Generic primitive lives in src/components/ui/sortable-table.tsx; the

@@ -7,7 +7,7 @@ import type { SearchResult, SearchSource } from '@/search';
 import { fuzzyMatch, type FuzzyMatch } from '@/search/match';
 import { formatIskCompact } from '@/lib/format/isk';
 import type { SiteSearchEntry } from './queries';
-import { SITE_TYPE_LABEL } from './components/wormhole-styles';
+import { CLASS_TONE, SITE_TYPE_LABEL } from './components/wormhole-styles';
 
 let SITE_INDEX: SiteSearchEntry[] = [];
 
@@ -15,9 +15,10 @@ export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
 }
 
+// The result-icon badge colour, as an abstract tone (the render layer maps it to
+// tokens). The wormhole-class → tone knowledge stays here in the sites feature.
 function iconTone(entry: SiteSearchEntry): string {
-  if (entry.wormholeClass) return `cls-${entry.wormholeClass.toLowerCase()}`;
-  return 'cls-none';
+  return entry.wormholeClass ? CLASS_TONE[entry.wormholeClass] : 'neutral';
 }
 
 function primaryIsk(entry: SiteSearchEntry): number | null {

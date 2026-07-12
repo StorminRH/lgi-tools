@@ -1,5 +1,5 @@
 import type { SearchResult, SearchSection } from '@/search';
-import { SEARCH_LISTBOX_ID, searchActiveDescendantId } from '@/components/global-search-aria';
+import { pillToneClasses, type PillTone } from '@/components/ui/pill';
 
 // Splits a label into matched / unmatched runs for highlight rendering. Adjacent
 // matched chars collapse into one run so a substring match renders as a single
@@ -23,38 +23,18 @@ export function splitMatchRuns(
   return runs;
 }
 
-export function isArrowKey(key: string): boolean {
-  return key === 'ArrowDown' || key === 'ArrowUp';
+// The engine's sections flattened to one list, fed to the combobox as its item
+// model so keyboard navigation runs continuously across the whole result set
+// (the rows are still rendered grouped below it — the flat list matches the old
+// cross-group flat-index navigation).
+export function flattenSections(sections: SearchSection[]): SearchResult[] {
+  return sections.flatMap((section) => section.results);
 }
 
-// The flat-row index the first result of section `sIdx` occupies — so per-row
-// activeIndex math lines up with keyboard navigation across the whole list.
-export function sectionOffset(sections: SearchSection[], sIdx: number): number {
-  return sections.slice(0, sIdx).reduce((sum, s) => sum + s.results.length, 0);
-}
-
-// The input's derived read: whether the dropdown is open, the wrapper class, and
-// the aria wiring (all keyed off `active` + whether there are any sections).
-export function deriveGlobalSearchView(input: {
-  active: boolean;
-  sectionCount: number;
-  activeIndex: number;
-  flatRowCount: number;
-}) {
-  const showDropdown = input.active && input.sectionCount > 0;
-  return {
-    showDropdown,
-    wrapperClass: `nav-search ${input.active ? 'active' : ''}`,
-    ariaControls: showDropdown ? SEARCH_LISTBOX_ID : undefined,
-    ariaActivedescendant: searchActiveDescendantId(input.activeIndex, input.flatRowCount, showDropdown),
-  };
-}
-
-// A result row's derived class + icon strings.
-export function deriveSearchRowView(row: SearchResult, isActiveRow: boolean) {
-  return {
-    rowClass: `dd-row ${isActiveRow ? 'active' : ''} ${row.disabled ? 'disabled' : ''}`,
-    iconMono: row.iconText ?? row.label.slice(0, 2),
-    iconClass: `dd-icon ${row.iconTone ?? ''}`,
-  };
+// A result icon badge's colour classes, resolved from the (abstract) iconTone the
+// source emitted. Unknown / legacy tones (e.g. an old localStorage recent stored
+// under the retired `cls-*` scheme) fall back to neutral.
+export function searchIconClass(iconTone?: string): string {
+  const tone: PillTone = iconTone && iconTone in pillToneClasses ? (iconTone as PillTone) : 'neutral';
+  return pillToneClasses[tone];
 }

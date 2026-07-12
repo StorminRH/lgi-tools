@@ -10,24 +10,29 @@ export type { PillTone };
 // FilterBar and any other interactive pill consumer that needs more click
 // target + readability. Radius lives per-size so the sm polish (3px) doesn't
 // restyle the untouched md pills.
+// Tone → color classes (bg + text + border) from the shared palette tokens. The
+// one place the abstract tone becomes concrete colors; reused by any tone-colored
+// surface that isn't a pill shape (e.g. the global-search result icon badges).
+export const pillToneClasses = {
+  neutral:      'bg-surface-raised text-text border-border-idle',
+  green:        'bg-pill-green-bg text-isk border-isk-dim',
+  'green-strong':'bg-pill-green-bg text-tone-green-strong border-isk-dim',
+  orange:       'bg-pill-orange-bg text-tone-orange border-pill-orange-border',
+  'orange-soft':'bg-pill-orange-soft-bg text-tone-orange-soft border-pill-orange-soft-border',
+  red:          'bg-pill-red-bg text-pill-red-text border-pill-red-border',
+  'red-soft':   'bg-pill-red-soft-bg text-tone-red-soft border-pill-red-soft-border',
+  magenta:      'bg-pill-magenta-bg text-tone-magenta border-pill-magenta-border',
+  purple:       'bg-pill-purple-bg text-tone-purple border-pill-purple-border',
+  yellow:       'bg-pill-yellow-bg text-tone-yellow border-pill-yellow-border',
+  teal:         'bg-pill-teal-bg text-tone-teal border-pill-teal-border',
+  blue:         'bg-surface-sunk text-tone-blue border-pill-blue-border',
+} satisfies Record<PillTone, string>;
+
 const pillVariants = cva(
   'font-mono font-semibold border inline-flex items-center',
   {
     variants: {
-      tone: {
-        neutral:      'bg-surface-raised text-text border-border-idle',
-        green:        'bg-pill-green-bg text-isk border-isk-dim',
-        'green-strong':'bg-pill-green-bg text-tone-green-strong border-isk-dim',
-        orange:       'bg-pill-orange-bg text-tone-orange border-pill-orange-border',
-        'orange-soft':'bg-pill-orange-soft-bg text-tone-orange-soft border-pill-orange-soft-border',
-        red:          'bg-pill-red-bg text-pill-red-text border-pill-red-border',
-        'red-soft':   'bg-pill-red-soft-bg text-tone-red-soft border-pill-red-soft-border',
-        magenta:      'bg-pill-magenta-bg text-tone-magenta border-pill-magenta-border',
-        purple:       'bg-pill-purple-bg text-tone-purple border-pill-purple-border',
-        yellow:       'bg-pill-yellow-bg text-tone-yellow border-pill-yellow-border',
-        teal:         'bg-pill-teal-bg text-tone-teal border-pill-teal-border',
-        blue:         'bg-surface-sunk text-tone-blue border-pill-blue-border',
-      } satisfies Record<PillTone, string>,
+      tone: pillToneClasses,
       size: {
         sm: 'text-ui px-[8px] py-[3px] tracking-[0.04em] rounded-ctl',
         md: 'text-ui px-[9px] py-[3px] tracking-[0.05em] rounded-ctl',
