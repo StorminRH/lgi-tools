@@ -35,7 +35,7 @@ export function Input({
   trailing,
   className,
   ...props
-}: FieldSize & { prompt?: boolean; trailing?: ReactNode } & ComponentProps<'input'>) {
+}: FieldSize & { prompt?: boolean; trailing?: ReactNode } & Omit<ComponentProps<'input'>, 'size'>) {
   return (
     <div className={cn(fieldVariants({ size }), focusWell, 'flex items-center gap-1.5', className)}>
       {prompt ? (
@@ -56,7 +56,7 @@ export function Select({
   className,
   children,
   ...props
-}: FieldSize & ComponentProps<'select'>) {
+}: FieldSize & Omit<ComponentProps<'select'>, 'size'>) {
   return (
     <div className={cn(fieldVariants({ size }), focusWell, 'relative flex items-center', className)}>
       <select className={cn(fieldText, innerControl, 'cursor-pointer appearance-none pr-5')} {...props}>
