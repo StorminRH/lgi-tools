@@ -49,7 +49,7 @@ export function Modal({
       aria-labelledby={labelledBy}
       onClick={handleBackdropClick}
       className={cn(
-        'bg-section border border-border text-text font-mono p-0 m-auto rounded-[6px] backdrop:bg-black/60',
+        'bg-section border border-border text-text font-mono p-0 m-auto rounded-card backdrop:bg-black/60',
         'w-[min(560px,calc(100vw-2rem))] max-h-[calc(100vh-2rem)]',
         className,
       )}

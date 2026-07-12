@@ -50,7 +50,7 @@ export function Stepper({
   return (
     <span
       className={cn(
-        'inline-flex items-center overflow-hidden rounded-[3px] border border-border bg-bg',
+        'inline-flex items-center overflow-hidden rounded-ctl border border-border bg-bg',
         className,
       )}
     >

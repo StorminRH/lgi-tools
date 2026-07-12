@@ -15,7 +15,7 @@ import type { Tone } from './tones';
 // health and passing the result down). Knowing only `blocked` keeps this a
 // primitive any future scoped surface (assets, owned blueprints, corp) can
 // reuse with different data.
-const gateVariants = cva('font-mono border rounded-[6px] px-3.5 py-3.5 flex flex-col gap-2.5', {
+const gateVariants = cva('font-mono border rounded-card px-3.5 py-3.5 flex flex-col gap-2.5', {
   variants: {
     // Mirrors pill.tsx's tone → token mapping so the palette has one home and no
     // new colour tokens are introduced. The tone drives the title (inherited
