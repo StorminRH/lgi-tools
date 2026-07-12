@@ -10,7 +10,9 @@ import { cn } from './cn';
 // is a Base UI overlay and lives in its own file (select.tsx); it wears this same
 // well as its closed trigger via the exported `fieldVariants`/`fieldText`/`focusWell`.
 export const fieldVariants = cva(
-  'bg-bg-deep border border-border-soft shadow-field-inset rounded-ctl',
+  // `field-own-focus` opts the field out of the global keyboard focus ring — the
+  // ISK-sub well border is its focus indicator, so the ring would just double it.
+  'bg-bg-deep border border-border-soft shadow-field-inset rounded-ctl field-own-focus',
   {
     variants: {
       size: { md: 'px-2 py-1', sm: 'px-2 py-0.5' },
@@ -21,7 +23,7 @@ export const fieldVariants = cva(
 
 export const fieldText = 'text-ui font-mono text-text placeholder:text-muted';
 export const focusWell = 'focus-within:border-isk-sub focus-within:shadow-field-focus';
-const innerControl = 'w-full bg-transparent outline-none border-0';
+const innerControl = 'w-full bg-transparent outline-none border-0 field-own-focus';
 
 export type FieldSize = VariantProps<typeof fieldVariants>;
 
