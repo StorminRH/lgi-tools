@@ -14,6 +14,12 @@ export type InlineToken =
   | { type: 'code'; value: string }
   | { type: 'bold'; value: string };
 
+// Serialized syntax-highlight tokens for one excerpt: lines → tokens, each a slice
+// of text with an optional theme color. Deliberately a plain JSON shape (no Shiki
+// class objects) so loadDevlog's cached tree crosses the RSC boundary intact and
+// the client renders them as JSX spans — never innerHTML.
+export type ExcerptTokens = { content: string; color?: string }[][];
+
 // One curated code excerpt, a point-in-time snapshot. `file`/`lines` are a display
 // label only (e.g. `src/db/index.ts:20-24`); the parser never reads the repo.
 // `file` may be an external reference ("GitHub PR #180 review thread") and `lines`
@@ -24,6 +30,12 @@ export type Excerpt = {
   lines: string;
   lang: string;
   code: string;
+  // A pinned 40-char commit SHA (the header's optional `ref=` attribute) for the
+  // GitHub permalink; '' when the excerpt has no ref. Display/link only.
+  ref: string;
+  // Server-side syntax highlighting, attached by loadDevlog after parse (absent on
+  // the raw parser output). Only the theme's token colors are consumed.
+  tokens?: ExcerptTokens;
 };
 
 // A document's ordered content. An `excerpt` block is an inline-collapsed code

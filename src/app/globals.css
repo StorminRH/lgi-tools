@@ -1755,6 +1755,33 @@ details[data-collapsible][open] > summary [data-chevron] {
   tab-size: 2;
 }
 .devlog-excerpt-code code { font-family: inherit; white-space: pre; }
+/* "view on GitHub" toolbar, above the code and outside <summary> (so it never
+   toggles the details). Sits on the header surface; the code's border-top divides
+   it from the snapshot below. */
+.devlog-excerpt-permalink {
+  display: flex;
+  padding: 8px 14px 6px;
+  font-size: var(--text-label);
+}
+.devlog-excerpt-permalink a { color: var(--color-isk); }
+/* One highlighted line: a sticky, non-selectable line-number gutter + the tokens.
+   min-width:max-content keeps long lines at full width so the <pre> scrolls
+   horizontally; the gutter stays pinned left (opaque, so code scrolls under it) and
+   is excluded from copy. */
+.devlog-excerpt-line { display: flex; align-items: baseline; min-width: max-content; }
+.devlog-excerpt-gutter {
+  position: sticky;
+  left: 0;
+  flex: 0 0 auto;
+  min-width: 3ch;
+  padding-right: 14px;
+  text-align: right;
+  user-select: none;
+  color: var(--color-faint);
+  font-size: var(--text-label);
+  background: var(--color-bg-deep);
+}
+.devlog-excerpt-code-line { white-space: pre; }
 
 @media (min-width: 861px) {
   .devlog-rail { position: sticky; top: 24px; }

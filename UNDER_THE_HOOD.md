@@ -39,6 +39,12 @@ The softer side of this is documentation. [PR #162](https://github.com/StorminRH
 That is the discipline around the whole project. I am not trying to pretend I hand-wrote a professional-grade application from scratch. I am trying to understand good design well enough to direct AI toward it, then build enough rails that bad output gets caught before it becomes part of the system. When something breaks through those rails, I treat that as a process failure and add a stronger boundary the next time.
 
 <!-- uth:code-excerpts:start -->
+<!-- Editor note: each snapshot below is defined by a header carrying id (required),
+     file, lines, lang, and an OPTIONAL ref="<40-char commit sha>". A ref turns the
+     file:lines label into a pinned GitHub permalink — add it only when `file` is a real
+     repository path (never a prose label like a PR review thread), and the precise
+     #Lx-Ly anchor is emitted only for a single clean line range. Keep each snapshot to
+     about 30 lines; longer context belongs behind the permalink. -->
 <!-- uth:code id="code-ai-verify-package" file="package.json" lines="43-50" lang="json" -->
 ```json
 "test": "vitest run",
@@ -564,7 +570,7 @@ That is the pattern Neon forced into the architecture. The database is durable, 
 The better rule is more specific: put durable relational state in Neon, keep schemas owned by their feature slices, use HTTP for request-path work, use direct unpooled sessions only when a job truly needs session semantics, and make dangerous paths fail loudly when the environment is wrong.
 
 <!-- uth:code-excerpts:start -->
-<!-- uth:code id="code-neon-schema" file="src/db/schema.ts" lines="3-20" lang="ts" -->
+<!-- uth:code id="code-neon-schema" file="src/db/schema.ts" lines="3-20" lang="ts" ref="5d16c056340da1fa70ad385dd7bab0b1140f7282" -->
 ```ts id="r6v2bk"
 // Feature tables live alongside their feature in `src/features/<name>/schema.ts`
 // and are re-exported from here so drizzle-kit sees them all in one place.
@@ -5621,7 +5627,7 @@ Looking back, corporation data is where “least privilege” stopped being only
 That is exactly the kind of boundary AI will flatten if the repo lets it. “Fetch corp data” is too vague. The code has to make the safer question unavoidable: which corporation, which member, which role, which consent state, which storage key, and which teardown rule?
 
 <!-- uth:code-excerpts:start -->
-<!-- uth:code id="code-corp-affiliation-schema" file="src/features/auth/schema.ts" lines="24-41" lang="ts" -->
+<!-- uth:code id="code-corp-affiliation-schema" file="src/features/auth/schema.ts" lines="24-41" lang="ts" ref="5d16c056340da1fa70ad385dd7bab0b1140f7282" -->
 ```ts
 export const characters = pgTable('characters', {
   characterId: bigint('character_id', { mode: 'number' }).primaryKey(),
@@ -6166,7 +6172,7 @@ export async function searchAll(query: string, ctx: SearchContext): Promise<Sear
 }
 ```
 
-<!-- uth:code id="code-search-manifest" file="src/search/register-all.ts" lines="3-22" lang="ts" -->
+<!-- uth:code id="code-search-manifest" file="src/search/register-all.ts" lines="3-22" lang="ts" ref="5d16c056340da1fa70ad385dd7bab0b1140f7282" -->
 ```ts id="bv8c9t"
 // Search-source wiring manifest. Lives in the unclassified src/search/ layer
 // ABOVE the data and feature slices. Registration order = dropdown section order.
