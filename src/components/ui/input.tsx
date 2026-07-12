@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps, ComponentPropsWithRef, ReactNode } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './cn';
 
@@ -75,7 +75,7 @@ export function Textarea({
   size,
   className,
   ...props
-}: FieldSize & ComponentProps<'textarea'>) {
+}: FieldSize & ComponentPropsWithRef<'textarea'>) {
   return (
     <textarea
       className={cn(
