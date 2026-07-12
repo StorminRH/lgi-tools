@@ -8,6 +8,14 @@ Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
 v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
 
+### v3.8.2.1.1 — 2026-07-11
+
+#### Fixed
+- The changelog's version-chapter headings now show the chapter title at the same size as its version number, so each heading reads as one balanced line instead of a large version beside a small title.
+
+#### Changed
+- The styling build now scans only the application's own source for class names, rather than the whole project. This closes a hole where a bracketed example class written inside a comment in a configuration or documentation file could be mistaken for a real style and break the page.
+
 ### v3.8.2.1 — 2026-07-11
 
 #### Changed
