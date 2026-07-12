@@ -41,4 +41,27 @@ describe('cn', () => {
     // two named sizes still conflict → last wins
     expect(cn('text-ui', 'text-label')).toBe('text-label');
   });
+
+  // Regression (3.8.2.2): the named shadow tokens (shadow-field-inset/btn-bezel/…)
+  // must register as box-shadow, not shadow-COLOR. Unregistered, twMerge files them
+  // as shadow colors, so a `shadow-<color>` in the same cn() call drops the token
+  // (and shadow-none can't override it). cn.ts registers them in the shadow group.
+  it('keeps a named elevation token and a shadow color together', () => {
+    const a = cn('shadow-btn-bezel', 'shadow-red-500');
+    expect(a).toContain('shadow-btn-bezel'); // box-shadow token survives…
+    expect(a).toContain('shadow-red-500'); // …alongside the shadow color (different group)
+
+    // two named box-shadows conflict → last wins
+    expect(cn('shadow-card-edge', 'shadow-dd')).toBe('shadow-dd');
+    // and shadow-none overrides a named token
+    expect(cn('shadow-field-inset', 'shadow-none')).toBe('shadow-none');
+  });
+
+  // Regression (3.8.2.2): the named radius tokens (rounded-ctl/rounded-card) must
+  // register as border-radius so they dedupe/override correctly against other
+  // rounded-* classes rather than both surviving.
+  it('resolves named radius tokens against other radii — last wins', () => {
+    expect(cn('rounded-ctl', 'rounded-card')).toBe('rounded-card');
+    expect(cn('rounded-ctl', 'rounded-full')).toBe('rounded-full');
+  });
 });

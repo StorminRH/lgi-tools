@@ -10,6 +10,13 @@ export type { ClassValue };
 // pill silently loses its color (or its size). Registering them in the font-size
 // group keeps size and color as separate, both-surviving groups. Keep this list
 // in sync with the `--text-*` scale in globals.css.
+//
+// The named radius/shadow tokens (--radius-* / --shadow-*, 3.8.2.2) need the same
+// treatment: the shadow tokens misfile into the `shadow-COLOR` group by default,
+// so `shadow-btn-bezel` is silently dropped when a `shadow-<color>` meets it in a
+// cn() call, and `shadow-none` can't override them. Registering under the real
+// `shadow`/`rounded` groups keeps box-shadow and radius overriding correctly.
+// Keep both lists in sync with the `--radius-*`/`--shadow-*` tokens in globals.css.
 const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
@@ -26,6 +33,19 @@ const twMerge = extendTailwindMerge({
             'h2',
             'display',
             'hero',
+          ],
+        },
+      ],
+      rounded: [{ rounded: ['ctl', 'card'] }],
+      shadow: [
+        {
+          shadow: [
+            'field-inset',
+            'field-focus',
+            'btn-bezel',
+            'card-edge',
+            'dd',
+            'card-hover',
           ],
         },
       ],

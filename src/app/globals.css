@@ -215,6 +215,31 @@
   --font-display: var(--font-barlow), system-ui, sans-serif;
   --font-jb:      var(--font-jetbrains), ui-monospace, monospace;
   --font-body:    var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+
+  /* ── Radii (3.8.2.2 "Inset Instrument") ──
+   * Two jobs, collapsing the old 1/2/3/4/5/6/11px spread. `--radius-*` generates
+   * `rounded-*` utilities (rounded-ctl / rounded-card); registered in cn.ts so
+   * tailwind-merge keeps them as first-class radius classes. Change a radius HERE,
+   * never as a `rounded-[Npx]` at the call site (lint-guarded). Sub-4px inner
+   * indicators (switch thumb, checkbox fill) are the only allowlisted exceptions. */
+  --radius-ctl:  4px;  /* buttons, inputs, selects, square pills, controls, dropdown items */
+  --radius-card: 6px;  /* cards, panels, dropdown panels, dialogs */
+
+  /* ── Elevation (3.8.2.2 "Inset Instrument") ──
+   * `--shadow-*` generates `shadow-*` utilities (shadow-field-inset, …); registered
+   * in cn.ts (else tailwind-merge misfiles them as shadow-COLOR and drops them when
+   * a shadow-<color> meets them). Raw rgba here is idiomatic for the token layer —
+   * the hex/rgba class-string lint scans .ts/.tsx, not @theme (like .dropdown /
+   * .feedback-btn / --color-row-*). The signature: fields engraved into dark inset
+   * wells, buttons with a physical bezel, cards with a faint top-edge light. */
+  --shadow-field-inset: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shadow-field-focus: inset 0 2px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--color-isk-dim);
+  --shadow-btn-bezel:   0 1px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-card-edge:   inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  --shadow-dd:          inset 0 1px 0 rgba(255, 255, 255, 0.02), 0 10px 26px rgba(0, 0, 0, 0.5);
+  /* Card's opt-in hover — reproduces the .sites-card:hover ring/lift exactly so the
+   * wormhole-site cards don't regress when they move onto the Card primitive. */
+  --shadow-card-hover:  0 0 0 1px var(--color-card-glow-ring), 0 8px 26px -10px var(--color-card-glow-shadow);
 }
 
 /* The deep base lives on <html> so it propagates to the canvas BEHIND the fixed
@@ -1329,7 +1354,7 @@ a:hover {
   width: min(640px, 92vw);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border-active);
-  border-radius: 11px;
+  border-radius: var(--radius-card);
   box-shadow: 0 22px 50px rgba(0, 0, 0, 0.58);
   padding: 7px;
   z-index: 30;
@@ -1366,7 +1391,7 @@ a:hover {
   padding: 8px 10px;
   width: 100%;
   border: 1px solid var(--color-border-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-ctl);
   background: var(--color-section);
   cursor: pointer;
   transition: background 0.13s, border-color 0.13s;
