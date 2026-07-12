@@ -4,6 +4,7 @@ import { Menu as Base } from '@base-ui/react/menu';
 import { cva } from 'class-variance-authority';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
+import { panelSurface } from './dropdown-panel';
 import type { Tone } from './tones';
 
 // The platform's one click/tap-toggled dropdown-menu primitive — the idiomatic
@@ -19,12 +20,14 @@ import type { Tone } from './tones';
 
 export type MenuTone = Extract<Tone, 'neutral'>;
 
-// Abstract tone → token classes. Intentionally structural — this primitive's
-// surface is supplied by the call site's `className` (the nav panel's look lives
-// in globals.css `.nav-menu-panel`), matching the codebase's call-site-styling
-// philosophy. The base owns layout (vertical stack) + focus reset; add a richer
-// tone when a real second consumer needs one.
-const popup = cva('flex flex-col outline-none', {
+// Abstract tone → token classes. The base owns the shared dropdown-panel SURFACE
+// (bg-deep well + idle border + the dd shadow, from dropdown-panel.ts) so every menu
+// matches the Select popup and the Popover. The call site's `className` supplies only
+// structure — the per-panel min-width, the header-flush `border-top: none`, and the
+// row rules (globals.css `.nav-menu-panel` / `.account-menu-panel` / `.run-as-menu-panel`).
+// Menus stay square with full-width rows, so they take the surface atom, not the full
+// dropdownPanel (which adds card radius + a 5px inset the Select popup wants).
+const popup = cva(`flex flex-col outline-none ${panelSurface}`, {
   variants: {
     tone: {
       neutral: '',

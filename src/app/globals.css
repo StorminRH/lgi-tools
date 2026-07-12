@@ -1178,10 +1178,9 @@ a:hover {
 .nav-menu-icon { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; }
 .nav-menu-panel {
   min-width: 224px;
-  background: var(--color-section);
-  border: 1px solid var(--color-border);
+  /* Surface (bg/border/shadow) comes from the Menu primitive's shared panel; this
+   * keeps only the header-flush override so the panel meets the header seam. */
   border-top: none;
-  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.55);
 }
 /* the link rows, restacked vertically into full-width tap targets */
 .nav-menu-panel .nav-tool {
@@ -1205,10 +1204,8 @@ a:hover {
  * line. Desktop-only by construction: the login cluster is hidden <1024px. */
 .account-menu-panel {
   min-width: 240px;
-  background: var(--color-section);
-  border: 1px solid var(--color-border);
+  /* Surface comes from the shared Menu panel; keep only the header-flush override. */
   border-top: none;
-  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.55);
 }
 .account-menu-item {
   padding: 12px 16px;
@@ -1224,7 +1221,7 @@ a:hover {
 .account-menu-item[data-highlighted],
 .account-menu-item:hover {
   color: var(--color-name);
-  background: var(--color-row-hover);
+  background: var(--color-row-active);
 }
 .account-menu-separator {
   border-top: 1px solid var(--color-border-soft);
@@ -1257,15 +1254,11 @@ a:hover {
 }
 
 /* Run-As build-character menu (ACCOUNT.8) — the planner hero frame's dropdown.
- * Same surface as .account-menu-panel but with its FULL border: that panel drops
- * flush under .app-header (border-top: none), while this one anchors to a
- * mid-page trigger and needs all four edges. Rows reuse .account-menu-item /
- * .account-menu-separator. */
+ * Wears the shared Menu panel surface; unlike the header-flush hamburger/account
+ * panels it keeps ALL four border edges (no `border-top: none` override) because it
+ * anchors to a mid-page trigger. Rows reuse .account-menu-item / .account-menu-separator. */
 .run-as-menu-panel {
   min-width: 240px;
-  background: var(--color-section);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 12px 28px -10px rgba(0, 0, 0, 0.55);
 }
 
 /* Mobile nav (<1024px). Below here the inline tool strip + login cluster don't
