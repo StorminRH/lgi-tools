@@ -37,8 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# claude code (kept local-only, not tracked in the repo)
+# coding-agent configuration (kept local-only, not tracked in the repo)
 .claude/
+.agents/
+.codex/
+.agent-local/
 CLAUDE.md
 AGENTS.md
 
