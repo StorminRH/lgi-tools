@@ -946,14 +946,14 @@ a:hover {
 .changelog-master-dash {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--text-lead);
+  font-size: var(--text-h2);
   line-height: 1.2;
   color: var(--color-muted);
 }
 .changelog-master-title {
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: var(--text-lead);
+  font-size: var(--text-h2);
   line-height: 1.2;
   letter-spacing: 0.01em;
   color: var(--color-isk);
