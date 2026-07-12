@@ -19,7 +19,7 @@ v3.8 is the platform's undock checklist: a maturity pass before its next big too
 #### Removed
 - The last two hand-built search dropdowns and their leftover one-off styling, retired in favor of the shared combobox.
 
-### v3.8.2.3.1 — 2026-07-12
+### v3.8.2.3 — 2026-07-12
 
 #### Changed
 - Every dropdown, menu, and pop-up panel now shares one look. The build-location, refinery, structure-type, and rig pickers open a consistent dark menu instead of the operating system's plain grey dropdown; the navigation and account menus and the small "?" help panels wear the same recessed surface. The feedback form now opens on the site's shared pop-up, and its message box takes the cursor the moment it opens.
@@ -32,7 +32,7 @@ v3.8 is the platform's undock checklist: a maturity pass before its next big too
 #### Removed
 - Two leftover one-off building blocks, retired in favor of the shared components: the separate pop-up the feedback form used, and the hand-written stepper math behind the quantity control.
 
-### v3.8.2.2.1 — 2026-07-11
+### v3.8.2.2 — 2026-07-11
 
 #### Added
 - New shared building blocks for the interface: one button — with primary, secondary, quiet, and destructive looks in two sizes — and one set of form fields (text box, dropdown, and multi-line box). Buttons, fields, cards, and panels across the site are now built from these instead of being styled one place at a time, so they stay consistent and can be adjusted in one place.
