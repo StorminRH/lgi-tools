@@ -18,7 +18,7 @@ function collapseDetails(card: Element) {
 function findCardSummary(
   anchor: HTMLElement | null,
 ): { card: Element; summary: HTMLElement } | null {
-  const card = anchor?.closest('.sites-card');
+  const card = anchor?.closest('[data-site-card]');
   if (!card) return null;
   const summary = card.querySelector<HTMLElement>('details > summary');
   return summary ? { card, summary } : null;

@@ -561,22 +561,11 @@ a:hover {
 }
 .sites-reset:hover { color: var(--color-isk); }
 
-/* Site card — restyled collapsed summary (the expanded SiteDetailsBody stays
- * below, full-bleed). All site cards get the standard ISK-green ring-glow on
- * hover (the .tool-tile-live vocabulary). */
-.sites-card {
-  background: var(--color-section);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  font-family: var(--font-body);
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.sites-card:hover {
-  border-color: var(--color-card-glow-border);
-  box-shadow:
-    0 0 0 1px var(--color-card-glow-ring),
-    0 8px 26px -10px var(--color-card-glow-shadow);
-}
+/* Site card layout parts. The card chrome (section fill, border, radius, the
+ * ISK-green ring-glow on hover, body font) now lives in the shared
+ * <Card font="body" hover> primitive (3.8.2.2); these flat classes style the
+ * collapsed summary's inner layout and are applied directly by SiteCard /
+ * SiteCardHeader, not as descendants of a `.sites-card`. */
 .sites-card-summary {
   display: flex;
   flex-direction: column;
