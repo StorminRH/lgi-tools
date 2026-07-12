@@ -8,6 +8,11 @@ Each entry's changes are tagged Added, Changed, Fixed, or Removed.
 
 v3.8 is the platform's undock checklist: a maturity pass before its next big tool, rather than a new feature of its own. It works through the things that make the site sturdier and easier to grow — firmer foundations under the hood, a refreshed interface, better discoverability on the web, and deeper operational tooling — so the next release starts from solid ground.
 
+### v3.8.2.5.0.1 — 2026-07-12
+
+#### Fixed
+- Deployments no longer fail when the shared EVE status service is temporarily unreachable. The navigation shows its existing neutral offline state and checks again shortly instead of blocking every static page from building.
+
 ### v3.8.2.5.0 — 2026-07-12
 
 #### Changed
