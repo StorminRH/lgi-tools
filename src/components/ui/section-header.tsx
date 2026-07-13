@@ -17,7 +17,7 @@ export function SectionHeader({
   const hintSizing = 'text-micro';
   return (
     <div
-      className={`flex items-center justify-between bg-section border-b border-border-soft border-t border-t-border font-semibold tracking-[0.16em] uppercase text-muted ${sizing}`}
+      className={`flex items-center justify-between bg-section border-b border-border-soft border-t border-t-border font-semibold tracking-display uppercase text-muted ${sizing}`}
     >
       <span>{label}</span>
       {hint && <span className={`${hintSizing} font-normal text-muted`}>{hint}</span>}

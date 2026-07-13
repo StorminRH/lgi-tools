@@ -25,8 +25,8 @@ export type DialogTone = Extract<Tone, 'neutral'>;
 // not `transition-[transform,...]` (Tailwind v4 emits `translate`/`scale` as
 // separate properties, so a constant centre-translate composes with the scale).
 const popup = cva(
-  'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 outline-none ' +
-    'transition-[scale,opacity] duration-200 ease-[cubic-bezier(0.2,0.85,0.25,1)] ' +
+  'fixed left-1/2 top-1/2 z-overlay -translate-x-1/2 -translate-y-1/2 outline-none ' +
+    'transition-[scale,opacity] duration-panel ease-panel ' +
     'data-[starting-style]:scale-[0.92] data-[starting-style]:opacity-0 ' +
     'data-[ending-style]:scale-[0.92] data-[ending-style]:opacity-0 motion-reduce:transition-none',
   {
@@ -71,7 +71,7 @@ export function Dialog({
   return (
     <Base.Root open={open} onOpenChange={(next) => onOpenChange?.(next)} modal>
       <Base.Portal>
-        <Base.Backdrop className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none" />
+        <Base.Backdrop className="fixed inset-0 z-overlay bg-black/60 backdrop-blur-sm transition-opacity duration-panel data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 motion-reduce:transition-none" />
         <Base.Popup
           aria-labelledby={labelledBy}
           finalFocus={finalFocus}
@@ -86,6 +86,7 @@ export function Dialog({
 }
 
 // Re-exported so consumers compose the dialog's close affordance through
-// `@/components/ui/dialog` without reaching for the raw Base UI import. (Add
-// `Title`/`Description` re-exports here if a future consumer needs them.)
+// `@/components/ui/dialog` without reaching for the raw Base UI import.
 export const DialogClose = Base.Close;
+export const DialogTitle = Base.Title;
+export const DialogDescription = Base.Description;

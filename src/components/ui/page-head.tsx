@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 // the crumb tail is muted.
 export function Breadcrumb({ crumb }: { crumb: string }) {
   return (
-    <div className="font-mono text-label tracking-[0.08em] text-muted mb-2">
+    <div className="font-mono text-label tracking-label text-muted mb-2">
       <span className="text-isk">lgi://</span>
       {crumb}
     </div>
@@ -42,13 +42,13 @@ export function PageHead({
           {title}
         </h1>
         {subtitle != null && (
-          <p className="mt-2 font-mono text-label tracking-[0.08em] uppercase text-muted">
+          <p className="mt-2 font-mono text-label tracking-label uppercase text-muted">
             {subtitle}
           </p>
         )}
       </div>
       {meta != null && (
-        <div className="flex items-baseline gap-[18px] font-mono text-label tracking-[0.08em] uppercase text-muted pb-[3px]">
+        <div className="flex items-baseline gap-[18px] font-mono text-label tracking-label uppercase text-muted pb-[3px]">
           {meta}
         </div>
       )}

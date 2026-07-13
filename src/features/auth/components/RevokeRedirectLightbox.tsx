@@ -44,7 +44,7 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
   return (
     <Dialog open={open} labelledBy={labelId}>
       <div className="flex max-w-[420px] flex-col gap-3 p-5">
-        <p id={labelId} className="font-mono text-label uppercase tracking-[0.12em] text-tone-red">
+        <p id={labelId} className="font-mono text-label uppercase tracking-wide text-tone-red">
           Account data removed
         </p>
         <p className="text-body leading-relaxed text-text">
@@ -56,7 +56,7 @@ export function RevokeRedirectLightbox({ open }: { open: boolean }) {
         <button
           type="button"
           onClick={handoff}
-          className="self-start text-label uppercase tracking-[0.12em] text-tone-blue hover:underline"
+          className="self-start text-label uppercase tracking-wide text-tone-blue hover:underline"
         >
           Go now
         </button>

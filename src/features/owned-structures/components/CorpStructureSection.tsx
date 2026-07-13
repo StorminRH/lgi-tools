@@ -211,7 +211,7 @@ function CorpStructureRigEditor({
         disabled={busy}
       />
       <label className="flex items-center gap-2">
-        <span className="text-label uppercase tracking-[0.12em] text-muted">Facility tax %</span>
+        <span className="text-label uppercase tracking-wide text-muted">Facility tax %</span>
         <Input
           type="number"
           min={0}

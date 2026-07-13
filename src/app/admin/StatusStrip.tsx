@@ -56,7 +56,7 @@ function DetailCaption({ children }: { children: ReactNode }) {
 function ChartBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">{label}</div>
+      <div className="text-label tracking-display uppercase text-muted mb-2">{label}</div>
       {children}
     </div>
   );

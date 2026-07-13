@@ -182,7 +182,7 @@ export function IndustryDashboardGrid({
     overflow > 0 ? (
       <Link
         href="/industry/templates"
-        className="font-mono text-micro tracking-[0.04em] text-muted no-underline transition-colors hover:text-name"
+        className="font-mono text-micro tracking-copy text-muted no-underline transition-colors hover:text-name"
       >
         → all templates ({allPlans.length})
       </Link>
@@ -190,7 +190,7 @@ export function IndustryDashboardGrid({
 
   const activeMeta =
     jobs.length > 0 ? (
-      <span className="font-mono text-label tracking-[0.08em] uppercase text-muted">
+      <span className="font-mono text-label tracking-label uppercase text-muted">
         <b className={countBadge}>{counts.complete}</b> complete ·{' '}
         <b className={countBadge}>{counts.inProgress}</b> in progress
       </span>

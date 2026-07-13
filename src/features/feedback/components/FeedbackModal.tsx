@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/input';
 import type { Session } from '@/features/auth/types';
 import { apiFetch } from '@/lib/api-client';
@@ -34,7 +35,7 @@ function FeedbackMeta({
   path: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 text-label tracking-[0.08em] uppercase text-muted">
+    <div className="flex flex-col gap-1 text-label tracking-label uppercase text-muted">
       {loading ? (
         <div>Submitting…</div>
       ) : session ? (
@@ -79,7 +80,11 @@ function FeedbackBody({
     );
   }
   return (
-    <>
+    <Field
+      label="Feedback"
+      hint={`${charsLeft} chars left`}
+      error={state.kind === 'error' ? state.message : undefined}
+    >
       <Textarea
         ref={textareaRef}
         value={message}
@@ -90,15 +95,7 @@ function FeedbackBody({
         rows={6}
         className="resize-none disabled:opacity-50"
       />
-      <div className="flex items-center justify-between text-label tracking-[0.08em] uppercase text-muted">
-        <span>{charsLeft} chars left</span>
-        {state.kind === 'error' && (
-          <span role="alert" className="text-pill-red-text normal-case tracking-normal">
-            {state.message}
-          </span>
-        )}
-      </div>
-    </>
+    </Field>
   );
 }
 
@@ -205,7 +202,7 @@ export function FeedbackModal({
         <header className="px-4 py-3 border-b border-border flex items-center justify-between gap-2">
           <h2
             id={titleId}
-            className="font-display font-bold text-h3 tracking-[0.06em] uppercase text-name"
+            className="font-display font-bold text-h3 tracking-ui uppercase text-name"
           >
             Send feedback
           </h2>

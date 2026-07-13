@@ -86,7 +86,7 @@ export function Menu({
           align={align}
           sideOffset={sideOffset}
           anchor={anchor}
-          className="z-50"
+          className="z-dropdown"
         >
           <Base.Popup aria-label={label} className={cn(popup({ tone }), className)}>
             {children}

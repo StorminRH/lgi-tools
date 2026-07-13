@@ -65,7 +65,7 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
     return (
       <span
         className={cn(
-          'font-jb text-label uppercase tracking-[0.12em] text-muted inline-flex items-center gap-1',
+          'font-jb text-label uppercase tracking-wide text-muted inline-flex items-center gap-1',
           cell.alignClass,
         )}
       >
@@ -79,7 +79,7 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
       href={cell.href}
       scroll={false}
       className={cn(
-        'font-jb text-label uppercase tracking-[0.12em] inline-flex items-center gap-1 transition-colors',
+        'font-jb text-label uppercase tracking-wide inline-flex items-center gap-1 transition-colors',
         cell.alignClass,
         cell.isActive ? 'text-name' : 'text-muted hover:text-text',
       )}

@@ -28,4 +28,4 @@ export const dropdownItem =
 
 // A section heading above a group of rows.
 export const dropdownGroupLabel =
-  'px-2.5 pt-2 pb-1 text-label uppercase tracking-[0.14em] text-faint';
+  'px-2.5 pt-2 pb-1 text-label uppercase tracking-emphasis text-faint';

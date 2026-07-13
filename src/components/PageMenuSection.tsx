@@ -22,7 +22,7 @@
 
 import { usePageSettings } from '@/components/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';
-import { Segmented } from '@/components/ui/segmented';
+import { SegmentedControl } from '@/components/ui/segmented';
 import { resolveMenuControls, type MenuControlModel } from '@/page-settings/controls';
 
 // Own component so usePreference is never called inside a map.
@@ -31,7 +31,12 @@ function ControlRow({ model }: { model: MenuControlModel }) {
   return (
     <div className="account-menu-control">
       <span className="account-menu-control-label">{model.label}</span>
-      <Segmented options={model.options} value={value} onChange={setValue} label={model.label} />
+      <SegmentedControl
+        options={model.options.map((option) => ({ value: option, label: option }))}
+        value={value}
+        onChange={setValue}
+        label={model.label}
+      />
     </div>
   );
 }

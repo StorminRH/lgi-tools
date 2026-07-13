@@ -82,7 +82,7 @@ function SharingRow({ corp }: { corp: SharingCorpView }) {
           label={`Share ${corp.corporationName}'s structures`}
         />
         <span className="text-ui text-text">{corp.corporationName}</span>
-        <span className="text-label uppercase tracking-[0.12em] text-muted">
+        <span className="text-label uppercase tracking-wide text-muted">
           {enabled ? 'sharing on' : 'sharing off'}
         </span>
       </label>
@@ -95,12 +95,12 @@ function SharingRow({ corp }: { corp: SharingCorpView }) {
             re-fetches them.
           </p>
           <div className="flex items-center justify-end gap-3">
-            <DialogClose className="text-label uppercase tracking-[0.12em] text-muted hover:text-text">
+            <DialogClose className="text-label uppercase tracking-wide text-muted hover:text-text">
               Keep sharing
             </DialogClose>
             <DialogClose
               onClick={() => void applySharing(false)}
-              className="text-label uppercase tracking-[0.12em] text-tone-red hover:underline"
+              className="text-label uppercase tracking-wide text-tone-red hover:underline"
             >
               Stop sharing
             </DialogClose>

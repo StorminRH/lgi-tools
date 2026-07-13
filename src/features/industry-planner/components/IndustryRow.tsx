@@ -26,7 +26,7 @@ export function IndustryRow({
       <span className="min-w-0">
         <span className="block text-ui font-semibold text-name truncate">{name}</span>
         {group && (
-          <span className="block text-micro text-muted mt-0.5 tracking-[0.04em] truncate">
+          <span className="block text-micro text-muted mt-0.5 tracking-copy truncate">
             {group}
           </span>
         )}

@@ -58,7 +58,7 @@ function groupByCategory(
 function CategoryColumn({ group }: { group: CategoryGroup }) {
   return (
     <div className="mb-4 break-inside-avoid">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted">
+      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-display text-muted">
         {group.label}
         <span className="text-faint">· {group.rows.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
@@ -74,7 +74,7 @@ function CategoryColumn({ group }: { group: CategoryGroup }) {
               <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
                 {row.name}
               </span>
-              <span className="truncate font-mono text-label uppercase tracking-[0.1em] text-muted">
+              <span className="truncate font-mono text-label uppercase tracking-control text-muted">
                 {row.unitBuy !== null ? `${formatIsk(row.unitBuy)} / unit` : 'no price'}
               </span>
             </div>

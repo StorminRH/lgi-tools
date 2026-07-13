@@ -209,7 +209,7 @@ function SearchFooter<Err extends { kind: string }>({
         </div>
       )}
       {!error && hint && (
-        <div className="mt-1 font-mono text-label text-muted tracking-[0.12em] uppercase">
+        <div className="mt-1 font-mono text-label text-muted tracking-wide uppercase">
           {hint}
         </div>
       )}

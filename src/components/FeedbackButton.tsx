@@ -22,7 +22,7 @@ export function FeedbackButton() {
       <Button
         variant="primary"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-30"
+        className="fixed bottom-4 right-4 z-dropdown"
       >
         Feedback
       </Button>

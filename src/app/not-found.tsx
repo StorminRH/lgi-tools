@@ -14,10 +14,10 @@ export default function NotFound() {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-6 py-20 gap-8 text-center">
       <header className="flex flex-col items-center gap-3 max-w-[640px]">
-        <div className="font-mono text-label text-muted tracking-[0.18em] uppercase">
+        <div className="font-mono text-label text-muted tracking-eyebrow uppercase">
           404 · Signature lost
         </div>
-        <h1 className="font-display font-bold text-hero leading-none tracking-[0.04em] uppercase text-name">
+        <h1 className="font-display font-bold text-hero leading-none tracking-copy uppercase text-name">
           Nothing on D-Scan
         </h1>
         <p className="text-body text-text leading-relaxed">

@@ -67,7 +67,7 @@ export function AccessGate({
 
   return (
     <div className={cn(gateVariants({ tone }), className)}>
-      <div className="text-label font-semibold tracking-[0.12em] uppercase">{title}</div>
+      <div className="text-label font-semibold tracking-wide uppercase">{title}</div>
       <p className="text-ui text-text leading-[1.55]">{reason}</p>
       <div className="flex items-center gap-2">{action}</div>
     </div>

@@ -49,7 +49,7 @@ export function CharacterStripSection({
         <CharacterStrip characters={characters} dimmedIds={dimmedIds} onChange={setDimmedIds} />
       )}
       <div className="flex items-center">
-        <span className="text-label tracking-[0.12em] uppercase text-muted">
+        <span className="text-label tracking-wide uppercase text-muted">
           {view.syncCaption}
         </span>
       </div>

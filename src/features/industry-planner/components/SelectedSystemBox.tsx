@@ -25,7 +25,7 @@ export function SelectedSystemBox({
       {locked ? (
         <span
           title={`Locked to ${locked}`}
-          className="ml-auto shrink-0 font-mono text-label uppercase tracking-[0.12em] text-muted"
+          className="ml-auto shrink-0 font-mono text-label uppercase tracking-wide text-muted"
         >
           locked
         </span>
@@ -33,7 +33,7 @@ export function SelectedSystemBox({
         <button
           type="button"
           onClick={onClear}
-          className="ml-auto shrink-0 cursor-pointer text-label uppercase tracking-[0.12em] text-muted hover:text-text"
+          className="ml-auto shrink-0 cursor-pointer text-label uppercase tracking-wide text-muted hover:text-text"
         >
           Clear
         </button>

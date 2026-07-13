@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverRow } from '@/components/ui/popover';
-import { Segmented } from '@/components/ui/segmented';
+import { SegmentedControl } from '@/components/ui/segmented';
 import { toast } from '@/components/ui/toast';
 import { computeMultibuyDemand } from '../build-batch';
 import {
@@ -101,7 +101,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       className="w-[320px]"
       triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
       trigger={
-        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-display text-muted group-hover:text-name">
           <span className="tracking-normal text-isk">{'//'}</span>
           Multibuy
           <span className="inline-block text-micro text-muted">▾</span>
@@ -109,7 +109,7 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
       }
     >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-label font-semibold uppercase tracking-[0.16em] text-isk">
+        <span className="font-mono text-label font-semibold uppercase tracking-display text-isk">
           Multibuy export
         </span>
         <KpiHelp label="What the multibuy export copies">
@@ -125,12 +125,15 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
         </KpiHelp>
       </div>
 
-      <Segmented
-        options={NET_MODES}
+      <SegmentedControl
+        options={NET_MODES.map((option) => ({
+          value: option,
+          label: option,
+          disabled: option === 'Remaining' && !remainingAvailable,
+        }))}
         value={effectiveMode}
         onChange={(next) => setMode(next as NetMode)}
         label="Net mode"
-        disabledOptions={remainingAvailable ? undefined : ['Remaining']}
       />
       {!remainingAvailable && (
         <p className="text-micro leading-snug text-muted">

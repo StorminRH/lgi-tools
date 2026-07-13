@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { RigSupply } from '@/components/RigSupply';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Field } from '@/components/ui/field';
 import { Input, Textarea } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Pill } from '@/components/ui/pill';
@@ -82,7 +83,7 @@ function PinField({
         <button
           type="button"
           onClick={onClear}
-          className="text-label uppercase tracking-[0.12em] text-muted hover:text-text"
+          className="text-label uppercase tracking-wide text-muted hover:text-text"
         >
           Clear
         </button>
@@ -163,7 +164,7 @@ function InlineTaxEditor({
           onSet(tax.value);
         }}
         disabled={busy}
-        className="text-label uppercase tracking-[0.12em] text-tone-green hover:underline disabled:text-muted disabled:no-underline"
+        className="text-label uppercase tracking-wide text-tone-green hover:underline disabled:text-muted disabled:no-underline"
       >
         Set
       </button>
@@ -214,7 +215,7 @@ function SavedStructureRow({
           type="button"
           onClick={onToggleTax}
           disabled={busy}
-          className="text-label uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+          className="text-label uppercase tracking-wide text-muted hover:text-text disabled:text-muted"
         >
           Tax…
         </button>
@@ -223,7 +224,7 @@ function SavedStructureRow({
             type="button"
             onClick={() => onSetPin(null)}
             disabled={busy}
-            className="text-label uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+            className="text-label uppercase tracking-wide text-muted hover:text-text disabled:text-muted"
           >
             Unpin
           </button>
@@ -232,7 +233,7 @@ function SavedStructureRow({
             type="button"
             onClick={onTogglePin}
             disabled={busy}
-            className="text-label uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
+            className="text-label uppercase tracking-wide text-muted hover:text-text disabled:text-muted"
           >
             Pin…
           </button>
@@ -241,7 +242,7 @@ function SavedStructureRow({
           type="button"
           onClick={onDelete}
           disabled={busy}
-          className="text-label uppercase tracking-[0.12em] text-muted hover:text-tone-red disabled:text-muted"
+          className="text-label uppercase tracking-wide text-muted hover:text-tone-red disabled:text-muted"
         >
           Delete
         </button>
@@ -289,7 +290,7 @@ function StructureTypeSelect({
     // heading (and its whitespace) to the trigger and springs the dropdown open.
     // The Select is self-labelled via `ariaLabel`, so no association is lost.
     <div className="flex flex-col gap-1">
-      <span className="text-label uppercase tracking-[0.12em] text-muted">Structure type</span>
+      <span className="text-label uppercase tracking-wide text-muted">Structure type</span>
       <Select
         value={value == null ? '' : String(value)}
         onValueChange={(v) => onChange(v === '' ? null : Number(v))}
@@ -516,16 +517,12 @@ export function CustomStructureBuilder({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        {/* Each field heading is a plain <div>, NOT a <label>: these labels are
-            full-width blocks but the controls inside are only ~320px, so a wrapping
-            <label> would forward clicks from the wide empty area to the far-left
-            control (focusing an input, or springing a Select open, from way across
-            the row). Every control is self-labelled via `aria-label`, so no
-            association is lost. Paste an in-game fit to pre-fill, OR pick below. */}
-        <div className="flex flex-col gap-1">
-          <span className="text-label uppercase tracking-[0.12em] text-muted">
-            Paste an in-game structure fit (optional)
-          </span>
+        {/* Field owns the textarea label association without wrapping the whole row,
+            so clicks do not leak into the separate actions below. */}
+        <Field
+          label="Paste an in-game structure fit (optional)"
+          hint="Use the in-game Copy to Clipboard format."
+        >
           <Textarea
             value={paste}
             onChange={(e) => setPaste(e.target.value)}
@@ -534,11 +531,13 @@ export function CustomStructureBuilder({
             aria-label="Structure fit"
             className="leading-[1.5]"
           />
+        </Field>
+        <div className="flex flex-col gap-1">
           <button
             type="button"
             onClick={onParse}
             disabled={!canReadFit(paste, busy)}
-            className="self-start text-label uppercase tracking-[0.12em] text-tone-blue hover:underline disabled:text-muted disabled:no-underline"
+            className="self-start text-label uppercase tracking-wide text-tone-blue hover:underline disabled:text-muted disabled:no-underline"
           >
             Read fit →
           </button>
@@ -557,7 +556,7 @@ export function CustomStructureBuilder({
         )}
 
         <div className="flex flex-col gap-1">
-          <span className="text-label uppercase tracking-[0.12em] text-muted">Name</span>
+          <span className="text-label uppercase tracking-wide text-muted">Name</span>
           <Input
             type="text"
             value={name}
@@ -573,7 +572,7 @@ export function CustomStructureBuilder({
             system's build list and locks the planner to it on select; leaving
             this empty saves a portable structure (shown everywhere). */}
         <div className="flex flex-col gap-1">
-          <span className="text-label uppercase tracking-[0.12em] text-muted">Pin to system (optional)</span>
+          <span className="text-label uppercase tracking-wide text-muted">Pin to system (optional)</span>
           <PinField
             pin={pin}
             parse={parse}
@@ -587,7 +586,7 @@ export function CustomStructureBuilder({
             structure would charge. Empty = never entered — the planner assumes
             the 0.25% NPC baseline (labeled as assumed in the fee breakdown). */}
         <div className="flex flex-col gap-1">
-          <span className="text-label uppercase tracking-[0.12em] text-muted">
+          <span className="text-label uppercase tracking-wide text-muted">
             Facility tax % (optional)
           </span>
           <Input
@@ -611,7 +610,7 @@ export function CustomStructureBuilder({
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border-soft pt-4">
-        <span className="text-label uppercase tracking-[0.12em] text-muted">
+        <span className="text-label uppercase tracking-wide text-muted">
           Your structures ({structures.length})
         </span>
         <SavedStructuresList

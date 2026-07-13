@@ -27,6 +27,7 @@ import { useAuth } from '@/features/auth/components/AuthProvider';
 import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/type-icon';
 import * as Combobox from '@/components/ui/combobox';
+import { Kbd } from '@/components/ui/kbd';
 import { flattenSections, searchIconClass, splitMatchRuns } from './global-search-view';
 
 type Props = {
@@ -198,7 +199,7 @@ function SearchRowIcon({ row }: { row: SearchResult }) {
   return (
     <span
       className={cn(
-        'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-ctl border font-mono text-ui font-bold',
+        'flex size-icon-lg shrink-0 items-center justify-center rounded-ctl border font-mono text-ui font-bold',
         searchIconClass(row.iconTone),
       )}
     >
@@ -260,17 +261,15 @@ function renderLabel(label: string, indices?: number[]) {
 }
 
 function SearchFooter() {
-  const kbd =
-    'rounded-ctl border border-border bg-surface-raised px-1.5 py-px font-mono text-micro text-muted';
   return (
-    <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-[0.1em] text-faint">
+    <div className="mt-1 flex items-center justify-between border-t border-border-soft px-2.5 pb-1 pt-2 text-label uppercase tracking-control text-faint">
       <span>
         Scope: <span className="text-isk">all</span> · sites · tools · commands
       </span>
       <span className="flex gap-1">
-        <span className={kbd}>↑↓</span>
-        <span className={kbd}>↵</span>
-        <span className={kbd}>esc</span>
+        <Kbd>↑↓</Kbd>
+        <Kbd>↵</Kbd>
+        <Kbd>esc</Kbd>
       </span>
     </div>
   );

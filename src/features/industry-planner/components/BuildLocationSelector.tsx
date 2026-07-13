@@ -106,7 +106,7 @@ function BuildFacilitySelect({
   };
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">Station</span>
+      <span className="w-[64px] shrink-0 text-label uppercase tracking-wide text-muted">Station</span>
       {/* Fixed width + shrink-0 keeps the control from shifting as the selected
           label changes, so the hero plane never reflows. */}
       <Select
@@ -151,7 +151,7 @@ function LockedSystemBox({
   }
   return (
     <div className="flex h-[30px] w-[260px] shrink-0 items-center border border-border bg-bg px-2">
-      <span className="truncate text-label uppercase tracking-[0.12em] text-muted">System unavailable</span>
+      <span className="truncate text-label uppercase tracking-wide text-muted">System unavailable</span>
     </div>
   );
 }
@@ -225,7 +225,7 @@ function BuildSystemControl({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">System</span>
+      <span className="w-[64px] shrink-0 text-label uppercase tracking-wide text-muted">System</span>
       {lockedStructure ? (
         <LockedSystemBox deducedSystem={deducedSystem} lockedName={lockedStructure.name} />
       ) : (
@@ -328,7 +328,7 @@ export function BuildLocationSelector() {
           prompt) on its own fixed-height line, right of the title — beside the
           controls it would push them; below them it would stretch the group. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
-        <span className="shrink-0 font-mono text-label uppercase tracking-[0.16em] text-text">Manufacturing</span>
+        <span className="shrink-0 font-mono text-label uppercase tracking-display text-text">Manufacturing</span>
         <StructureReadout selectedStructure={selectedStructure} readout={buildStructureReadout} />
       </div>
       <BuildSystemControl

@@ -17,7 +17,7 @@ export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }
       <div className="overflow-x-auto">
         <table className="w-full font-mono text-ui tabular-nums">
           <thead>
-            <tr className="text-label tracking-[0.16em] uppercase text-muted text-left">
+            <tr className="text-label tracking-display uppercase text-muted text-left">
               <th scope="col" className="px-3.5 py-2 font-medium">
                 Metric
               </th>

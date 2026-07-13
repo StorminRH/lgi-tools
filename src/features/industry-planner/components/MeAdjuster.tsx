@@ -139,8 +139,8 @@ export function HourglassIcon({ state }: { state: IconState }) {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className="shrink-0 font-mono text-label uppercase tracking-[0.14em] text-muted">{label}</span>
-      <span className="break-words text-right font-mono text-micro tracking-[0.04em] text-faint">{value}</span>
+      <span className="shrink-0 font-mono text-label uppercase tracking-emphasis text-muted">{label}</span>
+      <span className="break-words text-right font-mono text-micro tracking-copy text-faint">{value}</span>
     </div>
   );
 }
@@ -152,11 +152,11 @@ export function ProvenanceRows({ detail }: { detail: OwnedComponentDetail }) {
     <div className="flex flex-col gap-1 border-t border-border-soft pt-1.5">
       <DetailRow label={detail.ownerType === 'corporation' ? 'Corp' : 'Owner'} value={detail.ownerName} />
       <div className="flex items-baseline justify-between gap-3">
-        <span className="shrink-0 font-mono text-label uppercase tracking-[0.14em] text-muted">At</span>
-        <span className="break-words text-right font-mono text-micro tracking-[0.04em] text-faint">
+        <span className="shrink-0 font-mono text-label uppercase tracking-emphasis text-muted">At</span>
+        <span className="break-words text-right font-mono text-micro tracking-copy text-faint">
           {detail.locationName}
           {/* The hangar / division the copy sits in — a faint sub-detail of the place. */}
-          <span className="block text-micro tracking-[0.04em] text-muted">{detail.locationFlag}</span>
+          <span className="block text-micro tracking-copy text-muted">{detail.locationFlag}</span>
         </span>
       </div>
     </div>
@@ -459,7 +459,7 @@ export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOver
 function AdjusterRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-5">
-      <span className="font-mono text-label uppercase tracking-[0.14em] text-muted">{label}</span>
+      <span className="font-mono text-label uppercase tracking-emphasis text-muted">{label}</span>
       {children}
     </div>
   );

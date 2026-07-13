@@ -34,8 +34,7 @@ const cspSelectors = [
 // a TemplateElement when interpolated); and a whole-string hex constant like an
 // SVG `fill="#0d0f14"`. tones.ts (the JS source for SVG fills) and the
 // preview sandbox are exempted below. 3.3.9 routed every call-site color
-// into a `--color-*` token; this keeps them there. (rgba is intentionally out
-// of scope — the rule bans hex only.)
+// into a `--color-*` token; this keeps them there.
 const hexColorSelectors = [
   {
     selector: "Literal[value=/\\[[^\\]]*#[0-9a-fA-F]{3,8}/]",
@@ -51,6 +50,21 @@ const hexColorSelectors = [
     selector: "Literal[value=/^#[0-9a-fA-F]{3,8}$/]",
     message:
       "No raw hex color constants — SVG fills/strokes read from tones.ts (toneHex) or a Tailwind `fill-…`/`stroke-…` utility backed by a `--color-*` token. See CONTRIBUTING.md (Color tokens).",
+  },
+];
+
+// Alpha colors follow the same boundary as hex colors, but have only one
+// sanctioned home: the globals.css token layer.
+const rgbaColorSelectors = [
+  {
+    selector: "Literal[value=/rgba\\s*\\(/]",
+    message:
+      "No raw rgba() colors at call sites — define the exact alpha color in globals.css `@theme` and consume its named token utility. See CONTRIBUTING.md (Color tokens).",
+  },
+  {
+    selector: "TemplateElement[value.raw=/rgba\\s*\\(/]",
+    message:
+      "No raw rgba() colors at call sites (template literal) — define the exact alpha color in globals.css `@theme` and consume its named token utility. See CONTRIBUTING.md (Color tokens).",
   },
 ];
 
@@ -245,6 +259,7 @@ const eslintConfig = defineConfig([
         "error",
         ...cspSelectors,
         ...hexColorSelectors,
+        ...rgbaColorSelectors,
         ...apiFetchSelectors,
       ],
     },
@@ -262,6 +277,7 @@ const eslintConfig = defineConfig([
         "error",
         ...cspSelectors,
         ...hexColorSelectors,
+        ...rgbaColorSelectors,
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
@@ -283,6 +299,7 @@ const eslintConfig = defineConfig([
         "error",
         ...cspSelectors,
         ...hexColorSelectors,
+        ...rgbaColorSelectors,
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...textSizeSelectors,
@@ -301,6 +318,7 @@ const eslintConfig = defineConfig([
       "no-restricted-syntax": [
         "error",
         ...cspSelectors,
+        ...rgbaColorSelectors,
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
@@ -311,15 +329,15 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // The preview sandbox is a design scratchpad that intentionally tries
-  // off-palette one-offs; exempt it from the hex-color ban, but keep every
-  // other ban. (The old dev sandbox tree was removed in #210.)
+  // Preview pages may intentionally try off-palette hex one-offs, but alpha
+  // colors still use the shared token layer. Re-state every other ban.
   {
     files: ["src/app/preview/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",
         ...cspSelectors,
+        ...rgbaColorSelectors,
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,

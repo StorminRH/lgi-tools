@@ -17,7 +17,7 @@ export function ServerStatus({ status }: { status: ServerStatusValue }) {
   return (
     <span
       aria-label={ariaLabel}
-      className={`status-chip flex items-center gap-2 px-3 h-full font-mono text-label uppercase tracking-[0.1em] whitespace-nowrap ${
+      className={`status-chip flex items-center gap-2 px-3 h-full font-mono text-label uppercase tracking-control whitespace-nowrap ${
         reachable ? 'text-isk' : 'text-muted'
       }`}
     >
