@@ -22,6 +22,7 @@
 // display label only — the parser never reads the repo.
 
 import type { ContentNavModel } from '@/components/ui/content-browser';
+import { isIsoCalendarDate } from '@/lib/iso-date';
 import type {
   Block,
   DevlogDocument,
@@ -195,8 +196,7 @@ function extractDocumentMetadata(title: string, body: string[]): { updated: stri
   const markerIndex = body.findIndex((line) => line.trim() !== '');
   const match = markerIndex >= 0 ? body[markerIndex]!.trim().match(UPDATED_META) : null;
   const updated = match?.[1];
-  const parsed = updated ? new Date(`${updated}T00:00:00.000Z`) : null;
-  if (!updated || !parsed || Number.isNaN(parsed.getTime()) || !parsed.toISOString().startsWith(updated)) {
+  if (!updated || !isIsoCalendarDate(updated)) {
     throw new Error(
       `Devlog document "${title}" must start with <!-- updated: YYYY-MM-DD --> using a real date`,
     );

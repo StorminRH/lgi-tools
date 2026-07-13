@@ -75,4 +75,10 @@ describe('parseChangelog', () => {
   it('returns [] for input that has no entry headings', () => {
     expect(parseChangelog('# Just a title\n\nSome words.\n- a stray bullet')).toEqual([]);
   });
+
+  it('rejects a calendar-invalid release date', () => {
+    expect(() => parseChangelog('### v3.8.3.1 — 2026-02-30')).toThrow(
+      'Changelog entry 3.8.3.1 has an invalid date: 2026-02-30',
+    );
+  });
 });
