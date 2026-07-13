@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { JsonLd } from '@/components/JsonLd';
+import { buildDevlogArticleJsonLd } from '@/features/devlog/article-json-ld';
 import { DocumentView } from '@/features/devlog/components/DocumentView';
 import { loadDevlog } from '@/features/devlog/load';
 import { documentSummary, findDocument, flattenDocuments, introDocument } from '@/features/devlog/parse';
+import { buildPageMetadata } from '@/lib/page-metadata';
 
 // Every document except the Introduction (which lands at /devlog) is prerendered by
 // slug (generateStaticParams enumerates them all); an unknown slug falls through to
@@ -25,11 +28,11 @@ export async function generateMetadata({
   const { slug } = await params;
   const doc = findDocument(await loadDevlog(), slug);
   if (!doc) return {};
-  return {
+  return buildPageMetadata({
     title: `${doc.title} — Under the Hood`,
     description: documentSummary(doc),
-    alternates: { canonical: `/devlog/${doc.slug}` },
-  };
+    canonical: `/devlog/${doc.slug}`,
+  });
 }
 
 export default async function DevlogDocumentPage({
@@ -40,5 +43,10 @@ export default async function DevlogDocumentPage({
   const { slug } = await params;
   const doc = findDocument(await loadDevlog(), slug);
   if (!doc) notFound();
-  return <DocumentView title={doc.title} blocks={doc.blocks} />;
+  return (
+    <>
+      <JsonLd data={buildDevlogArticleJsonLd(doc, `/devlog/${doc.slug}`)} />
+      <DocumentView title={doc.title} blocks={doc.blocks} />
+    </>
+  );
 }

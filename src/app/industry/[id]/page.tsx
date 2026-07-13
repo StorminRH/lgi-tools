@@ -4,9 +4,11 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
+import { JsonLd } from '@/components/JsonLd';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
 import { loadNumericRouteEntity, parseNumericRouteId } from '@/lib/route-id';
+import { buildBreadcrumbList } from '@/lib/structured-data';
 import {
   cookieNameFor,
   plannerBuildCharacter,
@@ -72,6 +74,11 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   if (!structure) notFound();
 
   const pricingPromise = getBlueprintPricing(id);
+  const breadcrumbJsonLd = buildBreadcrumbList([
+    { name: 'Home', url: `${SITE_URL}/` },
+    { name: 'Industry Planner', url: `${SITE_URL}/industry` },
+    { name: structure.product.name, url: `${SITE_URL}/industry/${id}` },
+  ]);
   // Warm seed of the product's history-derived score inputs (cached), started
   // in parallel and NOT awaited — handed to PricingProvider, which resolves it
   // in its own <Suspense> and refreshes it on view. Off the hero/margin path,
@@ -89,6 +96,7 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="w-full">
+      <JsonLd data={breadcrumbJsonLd} />
       {/* Entity-detail pages self-title: they open content-first (no visible
           PageHead), so the page title lives in this sr-only <h1> for a11y/SEO.
           PageHead is the list/section header; the detail is its own surface. */}

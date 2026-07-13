@@ -4,13 +4,14 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { EVE_AUTHORIZED_APPS_URL } from '@/features/auth/eve-sso';
+import { buildPageMetadata } from '@/lib/page-metadata';
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: 'Privacy',
   description:
     'How LGI.tools handles your data — anonymous site usage, and the EVE character data you grant via EVE SSO.',
-  alternates: { canonical: '/legal' },
-};
+  canonical: '/legal',
+});
 
 // Major-section heading inside the reading column — Barlow display, one tier
 // below the page H1, above the "// label" SectionLabel sub-heads.
