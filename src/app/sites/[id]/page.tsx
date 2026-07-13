@@ -53,13 +53,11 @@ export async function generateMetadata({
       description,
       url: canonicalUrl,
       type: 'website',
-      images: ['/logo.png'],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/logo.png'],
     },
   };
 }

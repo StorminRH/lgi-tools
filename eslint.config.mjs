@@ -7,12 +7,15 @@ import nextTs from "eslint-config-next/typescript";
 // per-file exemption that lifts one ban must re-list every ban it still wants.
 // Keeping the CSP selectors in one const lets the tones.ts / preview-sandbox
 // exemptions re-state them verbatim with no drift.
-const cspSelectors = [
+const inlineStyleSelectors = [
   {
     selector: "JSXAttribute[name.name='style']",
     message:
       "No inline `style` attributes — house style. Prefer Tailwind classes for static values, or a CSS custom property set via ref.style.setProperty in an effect for runtime-dynamic ones (inline styles are CSP-permitted but not the default). See CONTRIBUTING.md (Security & CSP).",
   },
+];
+
+const rawHtmlSelectors = [
   {
     selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
     message:
@@ -25,6 +28,8 @@ const cspSelectors = [
       "No raw `innerHTML`/`outerHTML` writes — same XSS risk as dangerouslySetInnerHTML under the `'unsafe-inline'` CSP. Use safe DOM APIs (textContent, createElement) instead. See CONTRIBUTING.md (Security & CSP).",
   },
 ];
+
+const cspSelectors = [...inlineStyleSelectors, ...rawHtmlSelectors];
 
 // Raw color literals belong in the token layer (the `@theme` block in
 // globals.css and tones.ts), not hardcoded at call sites. Two shapes: a hex
@@ -341,6 +346,28 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
+      ],
+    },
+  },
+  // Satori requires JSX style objects in generated Open Graph image routes.
+  // Lift only that selector, only for the framework's opengraph-image file
+  // convention, and re-state every other production-source restriction because
+  // flat-config rule options replace rather than merge.
+  {
+    files: ["src/app/**/opengraph-image.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...rawHtmlSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+        ...esiHostSelectors,
+        ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
       ],
     },
   },

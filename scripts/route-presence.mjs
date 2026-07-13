@@ -6,9 +6,15 @@ import path from 'node:path';
 const ROUTE_FILE = /^(page|route)\.(tsx?|jsx?)$/;
 const SITEMAP_FILE = /^sitemap\.(tsx?|jsx?)$/;
 const ROBOTS_FILE = /^robots\.(tsx?|jsx?)$/;
+const SOCIAL_IMAGE_FILE = /^(opengraph-image|twitter-image)\.(tsx?|jsx?)$/;
 
 export function isRouteFile(base) {
-  return ROUTE_FILE.test(base) || SITEMAP_FILE.test(base) || ROBOTS_FILE.test(base);
+  return (
+    ROUTE_FILE.test(base) ||
+    SITEMAP_FILE.test(base) ||
+    ROBOTS_FILE.test(base) ||
+    SOCIAL_IMAGE_FILE.test(base)
+  );
 }
 
 // src/app-relative posix path → the route key the classification JSON uses.
@@ -19,6 +25,8 @@ export function routeKey(relPosix) {
   const prefix = parts.length ? `/${parts.join('/')}` : '';
   if (SITEMAP_FILE.test(base)) return `${prefix}/sitemap.xml`;
   if (ROBOTS_FILE.test(base)) return `${prefix}/robots.txt`;
+  const socialImage = base.match(SOCIAL_IMAGE_FILE);
+  if (socialImage) return `${prefix}/${socialImage[1]}`;
   return prefix === '' ? '/' : prefix;
 }
 

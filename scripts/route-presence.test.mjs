@@ -2,8 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { diffRoutes, discoveredKeys, isRouteFile, routeKey } from './route-presence.mjs';
 
 describe('isRouteFile', () => {
-  it('accepts page/route/sitemap/robots files across ts+js', () => {
-    for (const base of ['page.tsx', 'route.ts', 'page.jsx', 'route.js', 'sitemap.ts', 'robots.tsx']) {
+  it('accepts page/route and supported metadata files across ts+js', () => {
+    for (const base of [
+      'page.tsx',
+      'route.ts',
+      'page.jsx',
+      'route.js',
+      'sitemap.ts',
+      'robots.tsx',
+      'opengraph-image.tsx',
+      'twitter-image.js',
+    ]) {
       expect(isRouteFile(base)).toBe(true);
     }
   });
@@ -29,6 +38,12 @@ describe('routeKey', () => {
     expect(routeKey('sitemap.ts')).toBe('/sitemap.xml');
     expect(routeKey('robots.tsx')).toBe('/robots.txt');
     expect(routeKey('docs/sitemap.ts')).toBe('/docs/sitemap.xml');
+  });
+
+  it('maps social-image metadata files to their served paths', () => {
+    expect(routeKey('opengraph-image.tsx')).toBe('/opengraph-image');
+    expect(routeKey('sites/[id]/opengraph-image.tsx')).toBe('/sites/[id]/opengraph-image');
+    expect(routeKey('docs/twitter-image.js')).toBe('/docs/twitter-image');
   });
 });
 
