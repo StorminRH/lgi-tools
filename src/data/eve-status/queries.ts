@@ -4,37 +4,31 @@ import { ESI_STATUS_PATH, EVE_STATUS_TAG } from './constants';
 import { parseServerStatus } from './parse';
 import type { ServerStatus } from './types';
 
+const LIVE_STATUS_CACHE = { stale: 30, revalidate: 60, expire: 300 };
+const OFFLINE_STATUS_CACHE = { stale: 30, revalidate: 5, expire: 300 };
+
 // Cached read of Tranquility's status (online player count + VIP flag) for the
-// nav, fetched through the shared ESI gate. Like the EVE-news accessor, this
-// THROWS on any failure rather than returning a sentinel: `'use cache'` caches
-// the return value, so a caught "offline" would pin the nav offline for the
-// whole window. By throwing, a failed background revalidation lets Next serve
-// the last-good cached count (stale-while-revalidate); getNavServerStatus turns
-// the cold-miss/outage throw into the offline state for display.
+// nav, fetched through the shared ESI gate. Failure becomes the neutral offline
+// state INSIDE the cache boundary: Cache Components can fill this entry during
+// prerender, so letting a cold-miss error escape would make every static route's
+// build depend on the scoreboard being reachable. The failure entry revalidates
+// quickly, while expire stays at five minutes so the cache remains prerenderable.
 //
 // Non-interactive (the gate's default): the dot is render-driven across every
 // route, so it must fail closed and never claim the scarce interactive trickle.
 // A 4xx returns a non-ok Response (we raise it as EsiServerError); 5xx/420/
 // budget-refusal/timeout already throw inside the gate.
-export async function getServerStatus(): Promise<
-  Extract<ServerStatus, { players: number }>
-> {
-  'use cache';
-  cacheLife({ stale: 30, revalidate: 60, expire: 300 });
-  cacheTag(EVE_STATUS_TAG);
-  const res = await esiFetch(esiUrl(ESI_STATUS_PATH));
-  if (!res.ok) throw new EsiServerError(res.status);
-  return parseServerStatus(await res.json());
-}
-
-// Non-throwing wrapper for the nav's Promise.all. A thrown status (cold miss,
-// TQ downtime, ESI unreachable, budget exhausted) becomes the neutral offline
-// state. Deliberately NOT cached — caching here would store the offline state
-// and defeat the stale-while-revalidate contract above.
 export async function getNavServerStatus(): Promise<ServerStatus> {
+  'use cache';
+  cacheTag(EVE_STATUS_TAG);
+  let status: ServerStatus;
   try {
-    return await getServerStatus();
+    const res = await esiFetch(esiUrl(ESI_STATUS_PATH));
+    if (!res.ok) throw new EsiServerError(res.status);
+    status = parseServerStatus(await res.json());
   } catch {
-    return { state: 'offline' };
+    status = { state: 'offline' };
   }
+  cacheLife(status.state === 'offline' ? OFFLINE_STATUS_CACHE : LIVE_STATUS_CACHE);
+  return status;
 }
