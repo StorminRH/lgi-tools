@@ -9,7 +9,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { formatIsoDay } from '@/lib/format/time';
 import { getSession, isAdmin } from '@/features/auth/session';
-import { KpiRow } from './KpiRow';
+import { MetricsSection } from './MetricsSection';
 import { parseRange, RANGES, rangeFor, type RangeKey } from './period';
 import { PrintButton } from './PrintButton';
 import { StatusStrip } from './StatusStrip';
@@ -97,7 +97,7 @@ async function AdminContent({
 
       <div className="w-full flex flex-col gap-8">
         <Suspense fallback={<SectionFallback />}>
-          <KpiRow rangeKey={rangeKey} range={range} />
+          <MetricsSection rangeKey={rangeKey} range={range} />
         </Suspense>
 
         <section>
@@ -110,7 +110,7 @@ async function AdminContent({
         <section>
           <GroupHeading>Traffic &amp; SEO</GroupHeading>
           <Suspense fallback={<SectionFallback />}>
-            <TrafficSection range={range} />
+            <TrafficSection rangeKey={rangeKey} range={range} />
           </Suspense>
         </section>
 

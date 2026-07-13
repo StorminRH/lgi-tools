@@ -10,7 +10,10 @@ export type DeltaBadgeView =
   | { kind: 'flat' }
   | { kind: 'change'; cls: string; arrow: string; pct: number };
 
-export function deriveDeltaBadge(delta: Delta): DeltaBadgeView {
+// `invert` is for metrics where lower is better (search-result position): the
+// ▲/▼ arrow always follows the numeric direction, but the good/bad colour flips
+// — a falling position is an improvement (green), a rising one is worse (red).
+export function deriveDeltaBadge(delta: Delta, invert = false): DeltaBadgeView {
   if (delta.pct === null) {
     return delta.direction === 'up' ? { kind: 'new' } : { kind: 'none' };
   }
@@ -18,9 +21,10 @@ export function deriveDeltaBadge(delta: Delta): DeltaBadgeView {
     return { kind: 'flat' };
   }
   const up = delta.direction === 'up';
+  const good = invert ? !up : up;
   return {
     kind: 'change',
-    cls: up ? 'text-isk' : 'text-tone-red',
+    cls: good ? 'text-isk' : 'text-tone-red',
     arrow: up ? '▲' : '▼',
     pct: Math.abs(delta.pct),
   };
