@@ -87,13 +87,16 @@ function verdictTone(verdict: string | null): PillTone {
 // share so the row is readable at rest.
 function GscTermRow({ term, max, total }: { term: GscTermStat; max: number; total: number }) {
   const pct = max === 0 ? 0 : Math.max(2, Math.round((term.clicks / max) * 100));
-  const share = total === 0 ? 0 : Math.round((term.clicks / total) * 100);
+  // Only show a share when the total-clicks denominator is real. GSC dimensions
+  // sync independently, so a partial sync can leave query/page rows with a missing
+  // 'total' row (total = 0) — printing 0% next to a row that has clicks would lie.
+  const share = total > 0 ? Math.round((term.clicks / total) * 100) : null;
   return (
     <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
       <div className="flex items-center justify-between mb-1">
         <span className="font-mono text-ui text-text break-all">{term.key}</span>
         <span className="font-mono text-ui text-muted tabular-nums shrink-0 ml-3">
-          {term.clicks.toLocaleString()} clk · {share}%
+          {term.clicks.toLocaleString()} clk{share === null ? '' : ` · ${share}%`}
         </span>
       </div>
       <ProgressBar pct={pct} />
@@ -354,22 +357,36 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
       {!activity.hasData ? (
         <EmptyState>No events in this range.</EmptyState>
       ) : (
-        // Fixed-width chart (like the rest of the admin substrate) scrolls inside
-        // the card on a narrow viewport instead of overflowing the page.
-        <div className="px-3.5 py-3 overflow-x-auto">
-          <AdminDailyChart
-            points={activity.points}
-            average={activity.average}
-            labels={activity.labels}
-            weekend={activity.weekend}
-            referenceLine={activity.referenceLine}
-            eventMarkers={activity.eventMarkers}
-            endValue={activity.endValue}
-            endDelta={activity.endDelta}
-            unit="count"
-            ariaLabel="Events per day with a 7-day average and prior-period reference"
-          />
-        </div>
+        <>
+          {/* Current value + week-over-week delta, ALWAYS visible outside the
+              scroller — the fixed-width chart's own end label sits off-screen on a
+              narrow card, so the at-rest readout lives here. */}
+          <div className="px-3.5 pt-1 flex items-baseline gap-2">
+            <span className="font-mono text-lead text-name tabular-nums">
+              {activity.endValue.toLocaleString()}
+            </span>
+            <span className="font-mono text-micro text-muted uppercase tracking-[0.12em]">
+              latest day
+            </span>
+            {activity.endDelta && <DeltaBadge delta={activity.endDelta} />}
+          </div>
+          {/* Fixed-width chart (like the rest of the admin substrate) scrolls inside
+              the card on a narrow viewport instead of overflowing the page. */}
+          <div className="px-3.5 py-3 overflow-x-auto">
+            <AdminDailyChart
+              points={activity.points}
+              average={activity.average}
+              labels={activity.labels}
+              weekend={activity.weekend}
+              referenceLine={activity.referenceLine}
+              eventMarkers={activity.eventMarkers}
+              endValue={activity.endValue}
+              endDelta={activity.endDelta}
+              unit="count"
+              ariaLabel="Events per day with a 7-day average and prior-period reference"
+            />
+          </div>
+        </>
       )}
     </Card>
   );
