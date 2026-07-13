@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { cacheLife } from 'next/cache';
 import { SITE_URL } from '@/config/site-url';
+import { toChangelogDocuments } from '@/features/changelog/browser';
+import { loadChangelog } from '@/features/changelog/load';
 import { loadDevlog } from '@/features/devlog/load';
 import { flattenDocuments, introDocument } from '@/features/devlog/parse';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
@@ -30,6 +32,17 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  const changelogRoutes: MetadataRoute.Sitemap = toChangelogDocuments(
+    await loadChangelog(),
+  )
+    .slice(1)
+    .map(({ slug }) => ({
+      url: `${SITE_URL}/changelog/${slug}`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.3,
+    }));
+
   const tree = await loadDevlog();
   const introSlug = introDocument(tree)?.slug;
   const devlogRoutes: MetadataRoute.Sitemap = flattenDocuments(tree).map((d) => ({
@@ -39,7 +52,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     priority: d.slug === introSlug ? 0.4 : 0.3,
   }));
 
-  return [...staticRoutes, ...siteRoutes, ...devlogRoutes];
+  return [...staticRoutes, ...siteRoutes, ...changelogRoutes, ...devlogRoutes];
 }
 
 export default function sitemap(): Promise<MetadataRoute.Sitemap> {

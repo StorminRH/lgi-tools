@@ -1,4 +1,4 @@
-// The parsed shape of the "Under the Hood" dev log (UNDER_THE_HOOD.md). A
+// The parsed shape of the "Under the Hood" dev log (content/devlog/). A
 // dedicated, curated model — like the changelog's — not a general markdown AST:
 // the source uses a fixed handful of constructs (headings as a two-level
 // folder/document tree, a few inline marks, bullet lists, blockquotes, and
@@ -66,9 +66,3 @@ export type DevlogTree = {
   looseDocuments: DevlogDocument[];
   folders: DevlogFolder[];
 };
-
-// The trimmed tree the file-browser rail needs — titles + slugs only, so the
-// client nav never carries any document's (large) content.
-export type NavDoc = { slug: string; title: string };
-export type NavFolder = { slug: string; title: string; documents: NavDoc[] };
-export type DevlogNavModel = { looseDocuments: NavDoc[]; folders: NavFolder[] };

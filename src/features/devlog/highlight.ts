@@ -25,7 +25,7 @@ import type { DevlogDocument, DevlogTree, Excerpt, ExcerptTokens } from './types
 
 const THEME = 'github-dark-default';
 
-// The distinct `lang="…"` values across UNDER_THE_HOOD.md (ts/tsx/json/js/md/yaml/
+// The distinct `lang="…"` values across the dev log (content/devlog/) (ts/tsx/json/js/md/yaml/
 // jsonc/dotenv/css), plus the grammars' own aliases, are all covered by these nine
 // modules. An unknown or empty lang falls back to plaintext (see tokenize).
 type Highlighter = Awaited<ReturnType<typeof createHighlighterCore>>;

@@ -1,7 +1,7 @@
 /* Tailwind content scan — explicit allowlist, not root auto-detection (3.8.2.2).
  * `source(none)` turns OFF Tailwind v4's automatic project-root crawl, which
- * scanned config + doc files too (eslint.config.mjs, CONTRIBUTING.md,
- * UNDER_THE_HOOD.md). A bracketed utility written inside a COMMENT in one of
+ * scanned config + doc files too (eslint.config.mjs, CONTRIBUTING.md, the
+ * content/ prose tree). A bracketed utility written inside a COMMENT in one of
  * those became a real class candidate and generated invalid CSS that 500'd every
  * page (the 3.8.2.1 footgun). Every live UI class lives under src/; nothing
  * outside it renders utilities (verified). Paths are relative to this file
@@ -876,7 +876,7 @@ a:hover {
 
 /* Changelog — a version timeline: version + date in a left rail, an ISK-green
  * node dot on the connecting line, and change-type-tagged groups. */
-.changelog { max-width: 820px; margin-inline: auto; }
+.changelog { max-width: 820px; }
 .changelog-entry { display: grid; grid-template-columns: 116px 1fr; gap: 0; }
 .changelog-rail { text-align: right; padding: 2px 26px 0 0; }
 .changelog-ver { font-family: var(--font-jb); font-weight: 800; font-size: var(--text-lead); letter-spacing: 0.01em; color: var(--color-name); }
@@ -1578,19 +1578,19 @@ details[data-collapsible][open] > summary [data-chevron] {
 
 /* Dev log (/devlog) — a file-browser rail beside a reading column, with code
  * excerpts as inline collapsibles. Prose mirrors the legal page's measure. */
-.devlog-layout {
+.content-browser-layout {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
   gap: 40px;
   align-items: start;
 }
-.devlog-content { min-width: 0; }
+.content-browser-content { min-width: 0; }
 
-/* The rail: a persistent left column on desktop; a collapsible "Documents"
- * disclosure on narrow screens (the summary is hidden on desktop, so the
- * always-open <details> just renders the tree). */
-.devlog-rail { min-width: 0; }
-.devlog-rail-toggle {
+/* The shared content-browser rail: a persistent left column on desktop; a
+ * collapsible disclosure on narrow screens (the summary is hidden on desktop,
+ * so the always-open <details> just renders the tree). */
+.content-browser-rail { min-width: 0; }
+.content-browser-rail-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1605,11 +1605,11 @@ details[data-collapsible][open] > summary [data-chevron] {
   border-radius: 6px;
   margin-bottom: 12px;
 }
-.devlog-rail-toggle::after { content: '▾'; margin-left: auto; font-size: var(--text-micro); }
+.content-browser-rail-toggle::after { content: '▾'; margin-left: auto; font-size: var(--text-micro); }
 
-.devlog-nav { font-family: var(--font-mono); }
-.devlog-nav-loose { list-style: none; margin: 0 0 14px; padding: 0; }
-.devlog-nav-doc {
+.content-browser-nav { font-family: var(--font-mono); }
+.content-browser-nav-items { list-style: none; margin: 0 0 14px; padding: 0; }
+.content-browser-nav-item {
   display: block;
   padding: 5px 10px;
   font-size: var(--text-ui);
@@ -1619,14 +1619,14 @@ details[data-collapsible][open] > summary [data-chevron] {
   text-decoration: none;
   transition: color 0.12s, background 0.12s, border-color 0.12s;
 }
-.devlog-nav-doc:hover { color: var(--color-text); background: var(--color-row-hover); }
-.devlog-nav-doc-active {
+.content-browser-nav-item:hover { color: var(--color-text); background: var(--color-row-hover); }
+.content-browser-nav-item-active {
   color: var(--color-isk);
   border-left-color: var(--color-isk);
   background: var(--color-row-hover);
 }
-.devlog-nav-folder { margin-bottom: 4px; }
-.devlog-nav-folder-summary {
+.content-browser-nav-group { margin-bottom: 4px; }
+.content-browser-nav-group-summary {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -1637,15 +1637,15 @@ details[data-collapsible][open] > summary [data-chevron] {
   text-transform: uppercase;
   color: var(--color-faint);
 }
-.devlog-nav-folder-summary:hover { color: var(--color-muted); }
-.devlog-nav-chevron {
+.content-browser-nav-group-summary:hover { color: var(--color-muted); }
+.content-browser-nav-chevron {
   display: inline-block;
   width: 8px;
   font-size: var(--text-micro);
   color: var(--color-faint);
   transition: transform 0.15s;
 }
-.devlog-nav-folder-docs { list-style: none; margin: 0 0 6px; padding: 0 0 0 15px; }
+.content-browser-nav-group-items { list-style: none; margin: 0 0 6px; padding: 0 0 0 15px; }
 
 /* Prose — the legal page's reading measure and tone. */
 .devlog-prose { max-width: 768px; }
@@ -1784,9 +1784,15 @@ details[data-collapsible][open] > summary [data-chevron] {
 .devlog-excerpt-code-line { white-space: pre; }
 
 @media (min-width: 861px) {
-  .devlog-rail { position: sticky; top: 24px; }
-  .devlog-rail-toggle { display: none; }
+  .content-browser-rail { position: sticky; top: 24px; }
+  .content-browser-rail-body {
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+  }
+  .content-browser-rail-toggle { display: none; }
 }
 @media (max-width: 860px) {
-  .devlog-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .content-browser-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
 }

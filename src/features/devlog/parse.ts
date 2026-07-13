@@ -1,4 +1,4 @@
-// Curated parser for the "Under the Hood" dev log (UNDER_THE_HOOD.md). Like the
+// Curated parser for the "Under the Hood" dev log (content/devlog/). Like the
 // changelog parser, this is deliberately not a general markdown library: the
 // source is a fixed, hand-maintained format, so a small typed parser that renders
 // to React elements is safer than a library that invites arbitrary syntax (and
@@ -21,11 +21,11 @@
 // document (a safety net so no snapshot is silently dropped). `file`/`lines` are a
 // display label only — the parser never reads the repo.
 
+import type { ContentNavModel } from '@/components/ui/content-browser';
 import type {
   Block,
   DevlogDocument,
   DevlogFolder,
-  DevlogNavModel,
   DevlogTree,
   Excerpt,
   InlineToken,
@@ -415,14 +415,14 @@ export function documentSummary(doc: DevlogDocument, max = 155): string {
 
 // Strip document content down to the titles + slugs the file-browser rail renders,
 // so the client nav never serializes any document's blocks.
-export function toNavModel(tree: DevlogTree): DevlogNavModel {
+export function toNavModel(tree: DevlogTree): ContentNavModel {
   const doc = (d: DevlogDocument) => ({ slug: d.slug, title: d.title });
   return {
-    looseDocuments: tree.looseDocuments.map(doc),
-    folders: tree.folders.map((f) => ({
+    items: tree.looseDocuments.map(doc),
+    groups: tree.folders.map((f) => ({
       slug: f.slug,
       title: f.title,
-      documents: f.documents.map(doc),
+      items: f.documents.map(doc),
     })),
   };
 }
