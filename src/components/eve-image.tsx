@@ -60,6 +60,13 @@ export function eveImageUrl(
   family: EveImageFamily,
   { src, width }: ImageLoaderProps,
 ): string {
+  // `src` is always an absolute CCP URL here. A falsy `src` never reaches this
+  // loader: next/image short-circuits an empty/blob/data src to `unoptimized`
+  // and returns the raw src without invoking the loader (next's get-img-props —
+  // the `if (!src)` branch plus `generateImgAttrs`' `unoptimized` early-return).
+  // So an id-less portrait degrades to a harmless broken image, as the plain
+  // `<img>` did, and no empty-src guard is needed. Re-check that path if next is
+  // bumped past 16.2.6.
   const url = new URL(src);
   url.searchParams.set('size', String(snapEveImageSize(family, width)));
   return url.toString();
