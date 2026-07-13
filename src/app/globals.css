@@ -876,7 +876,7 @@ a:hover {
 
 /* Changelog — a version timeline: version + date in a left rail, an ISK-green
  * node dot on the connecting line, and change-type-tagged groups. */
-.changelog { max-width: 820px; margin-inline: auto; }
+.changelog { max-width: 820px; }
 .changelog-entry { display: grid; grid-template-columns: 116px 1fr; gap: 0; }
 .changelog-rail { text-align: right; padding: 2px 26px 0 0; }
 .changelog-ver { font-family: var(--font-jb); font-weight: 800; font-size: var(--text-lead); letter-spacing: 0.01em; color: var(--color-name); }

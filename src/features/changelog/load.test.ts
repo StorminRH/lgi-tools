@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { toChangelogDocuments } from './browser';
 import { readChangelogSource } from './load';
-import { parseChangelogMasters } from './parse';
+import { parseChangelog, parseChangelogMasters } from './parse';
 
 // The durable guard that the per-master split reassembles in the changelog's own order:
 // the preamble leads (so the newest master keeps its themed title) and masters come out
@@ -22,5 +23,12 @@ describe('readChangelogSource', () => {
     ]);
     // The preamble file is read first, so the leading master still carries its title.
     expect(masters[0]?.title).toBe('Undock Checklist');
+  });
+
+  it('projects every real entry into exactly one browser document', async () => {
+    const source = await readChangelogSource();
+    const entries = parseChangelog(source);
+    const documents = toChangelogDocuments(parseChangelogMasters(source));
+    expect(documents.flatMap((document) => document.master.subVersions)).toEqual(entries);
   });
 });
