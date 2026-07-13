@@ -22,6 +22,7 @@
 // display label only — the parser never reads the repo.
 
 import type { ContentNavModel } from '@/components/ui/content-browser';
+import { isIsoCalendarDate } from '@/lib/iso-date';
 import type {
   Block,
   DevlogDocument,
@@ -33,6 +34,7 @@ import type {
 
 const DOC_HEADING = /^##\s+(.+?)\s*$/;
 const FOLDER_HEADING = /^#\s+(.+?)\s*$/;
+const UPDATED_META = /^<!--\s*updated:\s*(\d{4}-\d{2}-\d{2})\s*-->$/;
 const BULLET = /^\s*[-*]\s+(.*)$/;
 const NUMBERED = /^\s*\d+\.\s+(.*)$/;
 const QUOTE = /^\s*>\s?(.*)$/;
@@ -189,6 +191,19 @@ type RawBlock =
   | { k: 'quote'; text: string };
 
 type Entry = { kind: 'folder'; title: string } | { kind: 'doc'; title: string; body: string[] };
+
+function extractDocumentMetadata(title: string, body: string[]): { updated: string; body: string[] } {
+  const markerIndex = body.findIndex((line) => line.trim() !== '');
+  const match = markerIndex >= 0 ? body[markerIndex]!.trim().match(UPDATED_META) : null;
+  const updated = match?.[1];
+  if (!updated || !isIsoCalendarDate(updated)) {
+    throw new Error(
+      `Devlog document "${title}" must start with <!-- updated: YYYY-MM-DD --> using a real date`,
+    );
+  }
+
+  return { updated, body: body.filter((_line, index) => index !== markerIndex) };
+}
 
 // Split the whole doc into ordered folder markers and documents (with their body
 // lines). Excerpt-block-aware: a `#`/`##` inside an excerpt definition is not a
@@ -376,10 +391,12 @@ export function parseDevlog(md: string): DevlogTree {
       folders.push(folder);
       continue;
     }
-    const { excerpts, order, prose } = collectExcerpts(entry.body);
+    const metadata = extractDocumentMetadata(entry.title, entry.body);
+    const { excerpts, order, prose } = collectExcerpts(metadata.body);
     const doc: DevlogDocument = {
       slug: slug(entry.title),
       title: entry.title,
+      updated: metadata.updated,
       blocks: resolveDocument(parseProse(prose), excerpts, order),
     };
     (folder ? folder.documents : looseDocuments).push(doc);

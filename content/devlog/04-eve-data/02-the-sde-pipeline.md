@@ -1,4 +1,5 @@
 ## The SDE Pipeline
+<!-- updated: 2026-06-30 -->
 
 The SDE pipeline is the quieter half of EVE integration. ESI is live and budgeted; the SDE is bulk, static, and heavy. It is the game’s reference dump: types, groups, categories, dogma attributes, blueprints, map data, stations, and the raw facts that the planner and combat calculations stand on.
 
@@ -351,4 +352,3 @@ console.log(
 const resolve = await resolveAllTrees(db);
 ```
 <!-- uth:code-excerpts:end -->
-

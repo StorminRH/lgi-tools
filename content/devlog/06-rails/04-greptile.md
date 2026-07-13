@@ -1,4 +1,5 @@
 ## Greptile
+<!-- updated: 2026-06-30 -->
 
 Greptile is the rail that made me most uncomfortable at first.
 
@@ -128,4 +129,3 @@ P2 — The `.returning({ id: account.id })` result is awaited but never captured
 P2 — The file header says contributors are listed in tier order, but the imports open with a durable contributor followed by a credential contributor. The `PURGE_CONTRIBUTORS` array is correctly ordered; the comment is misleading relative to the import order.
 ```
 <!-- uth:code-excerpts:end -->
-

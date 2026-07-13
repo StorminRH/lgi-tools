@@ -1,4 +1,5 @@
 ## Borrowed vs. Built
+<!-- updated: 2026-06-30 -->
 
 A lot of this project starts with other people’s work.
 
@@ -149,4 +150,3 @@ export const industryBlueprints = pgTable('industry_blueprints', {
 });
 ```
 <!-- uth:code-excerpts:end -->
-

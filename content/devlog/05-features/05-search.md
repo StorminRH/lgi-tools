@@ -1,4 +1,5 @@
 ## Search
+<!-- updated: 2026-07-12 -->
 
 Search started as a convenience feature and turned into an architectural boundary.
 
@@ -399,4 +400,3 @@ function isStoredRecent(value: unknown): value is StoredRecent {
 }
 ```
 <!-- uth:code-excerpts:end -->
-

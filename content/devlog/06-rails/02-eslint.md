@@ -1,4 +1,5 @@
 ## ESLint
+<!-- updated: 2026-06-30 -->
 
 ESLint is the fastest rail in the repo.
 
@@ -363,4 +364,3 @@ describe('api contract imports', () => {
     FALLOW_AUDIT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
 ```
 <!-- uth:code-excerpts:end -->
-

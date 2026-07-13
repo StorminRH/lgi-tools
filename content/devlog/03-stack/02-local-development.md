@@ -1,4 +1,5 @@
 ## Local Development
+<!-- updated: 2026-06-30 -->
 
 Local development started as a convenience and ended up becoming part of the architecture.
 
@@ -151,4 +152,3 @@ NEXT_PUBLIC_CONVEX_URL=
 CONVEX_DEPLOYMENT=
 ```
 <!-- uth:code-excerpts:end -->
-

@@ -51,6 +51,7 @@ export type Block =
 export type DevlogDocument = {
   slug: string;
   title: string;
+  updated: string;
   blocks: Block[];
 };
 

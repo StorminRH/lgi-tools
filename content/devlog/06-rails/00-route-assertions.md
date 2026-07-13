@@ -1,4 +1,5 @@
 ## Route Assertions
+<!-- updated: 2026-06-30 -->
 
 Route assertions are where the repo turns “the page still works” into the wrong standard.
 
@@ -208,4 +209,3 @@ describe('authz classification markers', () => {
 });
 ```
 <!-- uth:code-excerpts:end -->
-

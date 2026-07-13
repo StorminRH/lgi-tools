@@ -1,3 +1,5 @@
+import { isIsoCalendarDate } from '@/lib/iso-date';
+
 // Tiny markdown parser for the restricted changelog format (content/changelog/*.md,
 // reassembled by the loader — a version timeline):
 //   ### v<version> — <YYYY-MM-DD>   → new entry
@@ -41,6 +43,18 @@ const ENTRY_HEADING = /^###\s+v?([\d.]+)\s+[—-]\s+(\d{4}-\d{2}-\d{2})\s*$/;
 const GROUP_HEADING = /^####\s+(Added|Changed|Fixed|Removed)\s*$/;
 const BULLET = /^-\s+(.+)$/;
 
+function parseEntryHeading(line: string): Pick<ChangelogEntry, 'version' | 'date'> | null {
+  const match = line.match(ENTRY_HEADING);
+  if (!match) return null;
+
+  const version = match[1] ?? '';
+  const date = match[2] ?? '';
+  if (!isIsoCalendarDate(date)) {
+    throw new Error(`Changelog entry ${version} has an invalid date: ${date}`);
+  }
+  return { version, date };
+}
+
 // `## v3.7 — Security Improvements / Industry Planner Upgrade` — an opt-in master
 // theme heading. The version capture is `[\d.]+` like ENTRY_HEADING, so
 // `## v3.7.0 — …` still themes master 3.7 once masterVersionOf collapses it.
@@ -62,9 +76,9 @@ export function parseChangelog(md: string): ChangelogEntry[] {
   for (const rawLine of md.split('\n')) {
     const line = rawLine.trim();
 
-    const entryMatch = line.match(ENTRY_HEADING);
-    if (entryMatch) {
-      currentEntry = { version: entryMatch[1] ?? '', date: entryMatch[2] ?? '', groups: [] };
+    const entryHeading = parseEntryHeading(line);
+    if (entryHeading) {
+      currentEntry = { ...entryHeading, groups: [] };
       currentGroup = null;
       entries.push(currentEntry);
       continue;

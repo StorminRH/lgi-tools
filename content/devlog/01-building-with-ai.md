@@ -1,4 +1,5 @@
 ## Building with AI
+<!-- updated: 2026-06-30 -->
 
 This project was built with AI. Not partially, not as autocomplete, and not as a small productivity boost. The web app exists because AI made it possible for me to build something I could not have built by hand.
 
@@ -181,4 +182,3 @@ it.each(ROUTE_FILES)('%s declares exactly one valid authz class', (file) => {
 });
 ```
 <!-- uth:code-excerpts:end -->
-

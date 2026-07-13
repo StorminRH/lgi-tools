@@ -6,7 +6,7 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import { SITE_URL } from '@/config/site-url';
-import { parseNumericRouteId } from '@/lib/route-id';
+import { loadNumericRouteEntity, parseNumericRouteId } from '@/lib/route-id';
 import {
   cookieNameFor,
   plannerBuildCharacter,
@@ -26,12 +26,9 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id: rawId } = await params;
-  const id = parseNumericRouteId(rawId);
-  if (id === null) return {};
-
-  const structure = await getBlueprintStructure(id);
-  if (!structure) return {};
+  const result = await loadNumericRouteEntity(params, getBlueprintStructure);
+  if (!result) return {};
+  const { id, entity: structure } = result;
 
   const title = `${structure.product.name} — Industry Planner`;
   const description = `Live Jita build cost and profit margin for ${structure.product.name} in Eve Online — full recursive material tree with hourly-updated prices.`;

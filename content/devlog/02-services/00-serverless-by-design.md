@@ -1,4 +1,5 @@
 ## Serverless by Design
+<!-- updated: 2026-06-30 -->
 
 Before the individual services make sense, the runtime model needs a little setup.
 
@@ -182,4 +183,3 @@ jobs:
           api_key: ${{ secrets.NEON_API_KEY }}
 ```
 <!-- uth:code-excerpts:end -->
-

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { displayableResources } from '../resource-display';
 import type { SiteDetail } from '../types';
@@ -6,6 +7,22 @@ import { SiteCardHeader } from './SiteCardHeader';
 import { SiteCardLightbox } from './SiteCardLightbox';
 import { SiteDetailsBody } from './SiteDetailsBody';
 import { SiteLiveProvider } from './SiteResourcesLive';
+
+function CatalogueCardExtras({ site }: { site: SiteDetail }) {
+  return (
+    <>
+      <div className="border-t border-border-idle px-3 py-2 text-right">
+        <Link
+          href={`/sites/${site.id}`}
+          className="font-mono text-label tracking-label uppercase text-muted hover:text-name"
+        >
+          View full page →
+        </Link>
+      </div>
+      <SiteCardLightbox site={site} />
+    </>
+  );
+}
 
 /**
  * Top-level card renderer for a single SiteDetail. Owns the card chrome and the
@@ -44,7 +61,7 @@ export function SiteCard({
             <LazySiteDetails site={site} zoom />
           )}
         </details>
-        {!defaultOpen && <SiteCardLightbox site={site} />}
+        {!defaultOpen && <CatalogueCardExtras site={site} />}
       </SiteLiveProvider>
     </Card>
   );

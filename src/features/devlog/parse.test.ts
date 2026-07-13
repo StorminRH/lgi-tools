@@ -54,16 +54,19 @@ describe('parseInline', () => {
 describe('parseDevlog — structure', () => {
   const md = [
     '## Introduction',
+    '<!-- updated: 2026-06-30 -->',
     '',
     'Landing prose.',
     '',
     '## Building with AI',
+    '<!-- updated: 2026-07-12 -->',
     '',
     'Loose second doc.',
     '',
     '# Services',
     '',
     '## Vercel',
+    '<!-- updated: 2026-07-01 -->',
     '',
     'A point about the host.',
     '',
@@ -100,9 +103,32 @@ describe('parseDevlog — structure', () => {
   });
 });
 
+describe('parseDevlog — document metadata', () => {
+  it('parses the committed update date without rendering the marker', () => {
+    const document = parseDevlog(
+      ['## Dated', '<!-- updated: 2026-07-12 -->', '', 'Visible prose.'].join('\n'),
+    ).looseDocuments[0]!;
+    expect(document.updated).toBe('2026-07-12');
+    expect(documentSummary(document)).toBe('Visible prose.');
+  });
+
+  it('rejects a missing update date', () => {
+    expect(() => parseDevlog(['## Undated', '', 'Prose.'].join('\n'))).toThrow(
+      /must start with <!-- updated/,
+    );
+  });
+
+  it('rejects a malformed or impossible update date', () => {
+    expect(() =>
+      parseDevlog(['## Invalid', '<!-- updated: 2026-02-30 -->', '', 'Prose.'].join('\n')),
+    ).toThrow(/using a real date/);
+  });
+});
+
 describe('parseDevlog — excerpts', () => {
   const md = [
     '## Doc',
+    '<!-- updated: 2026-07-12 -->',
     '',
     'Prose that cites code.<sup><a href="#code-x">1</a></sup>',
     '',
@@ -157,20 +183,20 @@ describe('parseDevlog — excerpts', () => {
 describe('documentSummary', () => {
   it('flattens the first paragraph (links/code/bold → their text)', () => {
     const tree = parseDevlog(
-      ['## Doc', '', 'Start with a [link](https://x), then `code`, then **bold**.', '', 'Second para.'].join('\n'),
+      ['## Doc', '<!-- updated: 2026-07-12 -->', '', 'Start with a [link](https://x), then `code`, then **bold**.', '', 'Second para.'].join('\n'),
     );
     expect(documentSummary(tree.looseDocuments[0]!)).toBe('Start with a link, then code, then bold.');
   });
 
   it('truncates past the max with an ellipsis', () => {
-    const tree = parseDevlog(['## Doc', '', 'x'.repeat(200)].join('\n'));
+    const tree = parseDevlog(['## Doc', '<!-- updated: 2026-07-12 -->', '', 'x'.repeat(200)].join('\n'));
     const summary = documentSummary(tree.looseDocuments[0]!, 20);
     expect(summary).toHaveLength(20);
     expect(summary.endsWith('…')).toBe(true);
   });
 
   it('falls back when the document has no paragraph', () => {
-    expect(documentSummary({ slug: 'e', title: 'E', blocks: [] })).toMatch(/behind-the-scenes/);
+    expect(documentSummary({ slug: 'e', title: 'E', updated: '2026-07-12', blocks: [] })).toMatch(/behind-the-scenes/);
   });
 });
 
@@ -188,6 +214,12 @@ describe('parseDevlog — the real dev log source', () => {
       ['Lessons', 3],
     ]);
     expect(flattenDocuments(tree)).toHaveLength(29);
+  });
+
+  it('carries a real update date on every document', () => {
+    const dates = flattenDocuments(tree).map((document) => document.updated);
+    expect(dates.every((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))).toBe(true);
+    expect(new Set(dates).size).toBeGreaterThanOrEqual(2);
   });
 
   it('resolves every excerpt with a display label and non-empty code', () => {
@@ -220,6 +252,7 @@ describe('parseDevlog — the real dev log source', () => {
 describe('parseDevlog — excerpt ref attribute', () => {
   const md = [
     '## Doc',
+    '<!-- updated: 2026-07-12 -->',
     '',
     'Cites code.<sup><a href="#code-r">1</a></sup>',
     '',

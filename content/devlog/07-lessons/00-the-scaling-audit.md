@@ -1,4 +1,5 @@
 ## The Scaling Audit
+<!-- updated: 2026-06-30 -->
 
 The scaling audit changed how I think about the whole project.
 
@@ -197,4 +198,3 @@ async function captureBodyForCache(res: Response): Promise<string | null> {
 }
 ```
 <!-- uth:code-excerpts:end -->
-

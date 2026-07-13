@@ -1,4 +1,5 @@
 ## Market Prices & Indices
+<!-- updated: 2026-06-30 -->
 
 Market prices are not static game data, and they are not private character data. They sit in the middle.
 
@@ -548,4 +549,3 @@ export async function GET(req: Request): Promise<Response> {
 }
 ```
 <!-- uth:code-excerpts:end -->
-

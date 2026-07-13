@@ -1,4 +1,5 @@
 ## Corps & Roles
+<!-- updated: 2026-07-12 -->
 
 Corporation data looks like character data until the first permission question shows up.
 
@@ -475,4 +476,3 @@ export async function GET(): Promise<Response> {
 }
 ```
 <!-- uth:code-excerpts:end -->
-

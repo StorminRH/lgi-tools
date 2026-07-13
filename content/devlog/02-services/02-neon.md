@@ -1,4 +1,5 @@
 ## Neon
+<!-- updated: 2026-07-12 -->
 
 Neon is the boring part of LGI.tools on purpose: it is Postgres.
 
@@ -169,4 +170,3 @@ describe('request-path db (Neon HTTP driver)', () => {
 });
 ```
 <!-- uth:code-excerpts:end -->
-
