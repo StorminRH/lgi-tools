@@ -26,4 +26,21 @@ describe('deriveDeltaBadge', () => {
       pct: 8,
     });
   });
+
+  it('inverts the colour for lower-is-better metrics but keeps the numeric arrow', () => {
+    // A falling position is an improvement: green, but still a ▼ (numeric down).
+    expect(deriveDeltaBadge({ pct: -8, direction: 'down' }, true)).toEqual({
+      kind: 'change',
+      cls: 'text-isk',
+      arrow: '▼',
+      pct: 8,
+    });
+    // A rising position is worse: red, still a ▲.
+    expect(deriveDeltaBadge({ pct: 12, direction: 'up' }, true)).toEqual({
+      kind: 'change',
+      cls: 'text-tone-red',
+      arrow: '▲',
+      pct: 12,
+    });
+  });
 });

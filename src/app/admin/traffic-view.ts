@@ -1,34 +1,29 @@
 import { trendSeries } from './period';
 
-// A ranked list rendered as label + count bars: the rows (label doubles as the
-// React key here — paths/hosts/queries are unique) and the max count for the
-// proportional fill.
-export type BarListData = { rows: { key: string; label: string; count: number }[]; max: number };
+// A ranked list as DistributionBars rows: the label doubles as the React key
+// (paths/hosts/queries are unique). DistributionBars computes the share/fill and
+// the ordering, so the view only reshapes.
+export type BarRows = { key: string; label: string; count: number }[];
 
-function barList<T extends { count: number }>(items: T[], keyOf: (t: T) => string): BarListData {
-  const rows = items.map((it) => ({ key: keyOf(it), label: keyOf(it), count: it.count }));
-  const max = rows.reduce((m, r) => Math.max(m, r.count), 0);
-  return { rows, max };
+function barRows<T extends { count: number }>(items: T[], keyOf: (t: T) => string): BarRows {
+  return items.map((it) => ({ key: keyOf(it), label: keyOf(it), count: it.count }));
 }
 
-// The app-owned telemetry half of the traffic section: the daily-events trend
-// plus the four ranked lists, each pre-reduced to its fill max.
+// The app-owned telemetry half of the traffic section: the four ranked lists,
+// each pre-reduced to its fill max. (The daily-events trend moved to
+// activity-view's deriveActivityView, which adds the moving average, reference
+// line, and markers the AnnotatedDailyChart draws.)
 export function deriveTrafficView(input: {
-  dailyCounts: { day: string; totalEvents: number }[];
   topPages: { path: string; count: number }[];
   topReferrers: { host: string; count: number }[];
   topEntryPages: { path: string; count: number }[];
   topSearches: { query: string; count: number }[];
 }) {
   return {
-    dailyTrend: trendSeries(
-      input.dailyCounts.map((d) => d.day),
-      input.dailyCounts.map((d) => d.totalEvents),
-    ),
-    topPages: barList(input.topPages, (r) => r.path),
-    topReferrers: barList(input.topReferrers, (r) => r.host),
-    topEntryPages: barList(input.topEntryPages, (r) => r.path),
-    topSearches: barList(input.topSearches, (r) => r.query),
+    topPages: barRows(input.topPages, (r) => r.path),
+    topReferrers: barRows(input.topReferrers, (r) => r.host),
+    topEntryPages: barRows(input.topEntryPages, (r) => r.path),
+    topSearches: barRows(input.topSearches, (r) => r.query),
   };
 }
 

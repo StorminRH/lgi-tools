@@ -2,12 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { deriveGscPerformanceView, deriveTrafficView, formatSyncedAt } from './traffic-view';
 
 describe('deriveTrafficView', () => {
-  it('builds the daily trend and pre-reduces each list to its fill max', () => {
+  it('reshapes each list into keyed distribution rows', () => {
     const view = deriveTrafficView({
-      dailyCounts: [
-        { day: '2026-07-01', totalEvents: 3 },
-        { day: '2026-07-02', totalEvents: 7 },
-      ],
       topPages: [
         { path: '/a', count: 10 },
         { path: '/b', count: 4 },
@@ -16,31 +12,22 @@ describe('deriveTrafficView', () => {
       topEntryPages: [{ path: '/land', count: 2 }],
       topSearches: [{ query: 'ore', count: 9 }],
     });
-    expect(view.dailyTrend.labels).toEqual(['2026-07-01', '2026-07-02']);
-    expect(view.dailyTrend.points).toEqual([
-      { x: 0, y: 3 },
-      { x: 1, y: 7 },
+    expect(view.topPages).toEqual([
+      { key: '/a', label: '/a', count: 10 },
+      { key: '/b', label: '/b', count: 4 },
     ]);
-    expect(view.topPages).toEqual({
-      rows: [
-        { key: '/a', label: '/a', count: 10 },
-        { key: '/b', label: '/b', count: 4 },
-      ],
-      max: 10,
-    });
-    expect(view.topReferrers.rows[0]).toEqual({ key: 'g.com', label: 'g.com', count: 5 });
-    expect(view.topSearches.max).toBe(9);
+    expect(view.topReferrers[0]).toEqual({ key: 'g.com', label: 'g.com', count: 5 });
+    expect(view.topSearches).toEqual([{ key: 'ore', label: 'ore', count: 9 }]);
   });
 
-  it('gives an empty list a zero max', () => {
+  it('maps an empty list to an empty array', () => {
     const view = deriveTrafficView({
-      dailyCounts: [],
       topPages: [],
       topReferrers: [],
       topEntryPages: [],
       topSearches: [],
     });
-    expect(view.topPages).toEqual({ rows: [], max: 0 });
+    expect(view.topPages).toEqual([]);
   });
 });
 
