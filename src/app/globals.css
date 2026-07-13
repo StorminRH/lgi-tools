@@ -1785,6 +1785,12 @@ details[data-collapsible][open] > summary [data-chevron] {
 
 @media (min-width: 861px) {
   .content-browser-rail { position: sticky; top: 24px; }
+  .content-browser-rail-body {
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+  }
   .content-browser-rail-toggle { display: none; }
 }
 @media (max-width: 860px) {
