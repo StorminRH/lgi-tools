@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { EveImage } from '@/components/eve-image';
 import { buttonVariants } from '@/components/ui/button';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
@@ -64,7 +65,9 @@ function CharacterAdminRow({
     <EntityRow
       colsClass="grid-cols-[36px_minmax(0,1fr)_auto_auto]"
       leading={
-        <img
+        <EveImage
+          source="eve"
+          family="character-portrait"
           src={character.portraitUrl}
           alt={character.name}
           width={28}
@@ -171,12 +174,14 @@ async function UserDetailContent({
         <Breadcrumb crumb="access" />
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <img
+            <EveImage
+              source="eve"
+              family="character-portrait"
               src={targetUser.portraitUrl}
               alt={targetUser.name}
               width={40}
               height={40}
-              loading="lazy"
+              preload
               decoding="async"
               className="rounded-ctl border border-border-idle shrink-0"
             />

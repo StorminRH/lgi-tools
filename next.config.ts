@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
   // (used by the login chip and admin dashboard) and will serve type icons,
   // blueprint art, and ship renders for the 3.1 Industry Planner visual pass.
   images: {
+    // Every rendered image is fixed-size today. Keep Next's 1x/2x candidates
+    // on CCP's supported ladder so the custom EveImage loader can pass each
+    // requested width through exactly; unsupported defaults such as 48/96
+    // would need snapping and trigger Next's missing-loader-width warning.
+    imageSizes: [32, 64, 128, 256, 512],
     remotePatterns: [
       {
         protocol: "https",

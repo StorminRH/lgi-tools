@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { QtyRing } from '@/components/ui/qty-ring';
-import { TypeIcon, type TypeIconVariant } from '@/components/ui/type-icon';
+import { TypeIcon, type TypeIconVariant } from '@/components/type-icon';
 import { formatQuantity } from '@/lib/format/number';
 import { ProvenanceRows } from './MeAdjuster';
 import type { NodeMeState } from '../me-overrides';

@@ -25,7 +25,7 @@ import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { readRecents, pushRecent } from '@/features/search-recents/storage';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 import { cn } from '@/components/ui/cn';
-import { TypeIcon } from '@/components/ui/type-icon';
+import { TypeIcon } from '@/components/type-icon';
 import * as Combobox from '@/components/ui/combobox';
 import { flattenSections, searchIconClass, splitMatchRuns } from './global-search-view';
 

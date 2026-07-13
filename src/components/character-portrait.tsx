@@ -14,6 +14,7 @@
 // beside it. House style: className-only, no JSX style.
 import { deriveOnlineState } from '@/features/online-status/online-state';
 import { characterPortraitUrl } from '@/lib/eve-image';
+import { EveImage } from './eve-image';
 import { cn } from './ui/cn';
 import { StatusDot } from './ui/status-dot';
 import { useOnlineFlag } from './OnlineStatusProvider';
@@ -37,7 +38,8 @@ export function CharacterPortrait({
   size,
   src,
   className,
-  loading = 'lazy',
+  loading,
+  preload = false,
 }: {
   // The character's id, used to read its online dot from context and (absent a
   // `src`) to build the image URL. Optional for the rare portrait that only
@@ -50,8 +52,10 @@ export function CharacterPortrait({
   // image is resolved from the character id at a crisp 128px rendition.
   src?: string;
   className?: string;
-  // 'eager' for an always-above-the-fold portrait (the nav); defaults to 'lazy'.
+  // Optional explicit browser loading mode; omitted to use next/image's lazy default.
   loading?: 'lazy' | 'eager';
+  // Preload only a single, known above-the-fold portrait on the current surface.
+  preload?: boolean;
 }) {
   // The hook must run unconditionally; a sentinel id never collides with a real
   // character, so an id-less portrait simply reads `unknown` → no dot.
@@ -60,12 +64,15 @@ export function CharacterPortrait({
 
   return (
     <span className={cn('relative inline-block shrink-0', SIZE_CLASS[size], className)}>
-      <img
+      <EveImage
+        source="eve"
+        family="character-portrait"
         src={imageSrc}
         alt={name}
         width={size}
         height={size}
-        loading={loading}
+        loading={preload ? undefined : loading}
+        preload={preload}
         decoding="async"
         className="size-full rounded-full border border-border-idle object-cover"
       />

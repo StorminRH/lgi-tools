@@ -1,6 +1,7 @@
 'use client';
 
 import { CharacterPortrait } from '@/components/character-portrait';
+import { EveImage } from '@/components/eve-image';
 import { Chip } from '@/components/ui/chip';
 import { authClient } from '../auth-client';
 import { AccountMenu } from './AccountMenu';
@@ -32,9 +33,10 @@ function SignedOutButton() {
       className="inline-flex items-center hover:opacity-80 transition-opacity"
     >
       {/* CCP's official "Log in with EVE Online" SSO button (served locally from
-          /public). Intrinsic 270×45, height-fit to the header; the <img> alt is
+          /public). Intrinsic 270×45, height-fit to the header; its alt text is
           the button's accessible name. */}
-      <img
+      <EveImage
+        source="static"
         src="/eve-sso-login-black-large.png"
         alt="Log in with EVE Online"
         width={270}
@@ -72,7 +74,7 @@ function SignedInCluster({
             name={session.name}
             size={32}
             src={session.portraitUrl}
-            loading="eager"
+            preload
           />
         </a>
         <button

@@ -16,6 +16,7 @@
 //  - role-insufficient (`needs_role`) → a distinct notice: granting more access can't fix
 //    an in-game role.
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { EveImage } from '@/components/eve-image';
 import { AccessGate } from '@/components/ui/access-gate';
 import { Callout } from '@/components/ui/callout';
 import { Card } from '@/components/ui/card';
@@ -152,7 +153,9 @@ interface CorpGroupBodyProps {
 function CorpGroupHeader({ corpId, label }: { corpId: number; label: string }) {
   return (
     <div className="flex items-center gap-3 px-3.5 py-3 border-b border-border-soft">
-      <img
+      <EveImage
+        source="eve"
+        family="corporation-logo"
         src={corporationLogoUrl(corpId, 64)}
         alt=""
         width={28}
@@ -280,7 +283,9 @@ function JobRunner({
   return (
     <span className="flex items-center gap-2 min-w-0">
       <span className="relative shrink-0">
-        <img
+        <EveImage
+          source="eve"
+          family={portrait === undefined ? 'corporation-logo' : 'character-portrait'}
           src={portrait ?? corp.logo}
           alt=""
           width={24}
@@ -288,7 +293,9 @@ function JobRunner({
           className="w-6 h-6 rounded-full border border-border-soft"
         />
         {portrait !== undefined && (
-          <img
+          <EveImage
+            source="eve"
+            family="corporation-logo"
             src={corp.logo}
             alt=""
             title={corp.name}
