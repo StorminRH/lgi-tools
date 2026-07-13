@@ -3,8 +3,8 @@ import { documentSummary } from './parse';
 import type { DevlogDocument } from './types';
 
 export function buildDevlogArticleJsonLd(document: DevlogDocument, canonicalPath: string) {
-  const canonicalUrl = `${SITE_URL}${canonicalPath}`;
-  const organization = { '@id': `${SITE_URL}/#organization` };
+  const canonicalUrl = new URL(canonicalPath, SITE_URL).toString();
+  const organization = { '@id': new URL('/#organization', SITE_URL).toString() };
 
   return {
     '@context': 'https://schema.org',

@@ -1,12 +1,13 @@
 import { ImageResponse } from 'next/og';
 import { toneHex } from '@/components/ui/tones';
-import { socialCardFonts } from './_social-card/fonts';
+import { loadSocialCardFonts } from './_social-card/fonts';
 
 export const alt = 'LGI.tools — Eve Online tools for wormhole pilots';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
-export default function Image() {
+export default async function Image() {
+  const fonts = await loadSocialCardFonts();
   return new ImageResponse(
     <div
       style={{
@@ -69,6 +70,6 @@ export default function Image() {
         </div>
       </div>
     </div>,
-    { ...size, fonts: socialCardFonts },
+    { ...size, fonts },
   );
 }

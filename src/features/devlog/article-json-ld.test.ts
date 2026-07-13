@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildDevlogArticleJsonLd } from './article-json-ld';
 import type { DevlogDocument } from './types';
+
+vi.mock('@/config/site-url', () => ({ SITE_URL: 'https://lgi.tools/' }));
 
 describe('buildDevlogArticleJsonLd', () => {
   it('uses the committed document date for publication and modification', () => {

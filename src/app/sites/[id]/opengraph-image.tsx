@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { notFound } from 'next/navigation';
 import { toneHex } from '@/components/ui/tones';
-import { socialCardFonts } from '@/app/_social-card/fonts';
+import { loadSocialCardFonts } from '@/app/_social-card/fonts';
 import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { deriveSiteSocialCardContent } from '@/features/wormhole-sites/site-social-card';
 import { parseNumericRouteId } from '@/lib/route-id';
@@ -17,6 +17,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const site = await getPricedSiteDetail(id);
   if (!site) notFound();
   const card = deriveSiteSocialCardContent(site);
+  const fonts = await loadSocialCardFonts();
 
   return new ImageResponse(
     <div
@@ -89,6 +90,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         </div>
       </div>
     </div>,
-    { ...size, fonts: socialCardFonts },
+    { ...size, fonts },
   );
 }
