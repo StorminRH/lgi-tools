@@ -21,8 +21,8 @@ const IMAGE_FAMILY: Record<TypeIconVariant, EveImageFamily> = {
   bpc: 'type-bpc',
 };
 
-// The monogram fallback ignores image width/height attributes,
-// attributes — so its box is sized by a class. Keyed by the display sizes the
+// The monogram fallback ignores image width/height attributes — so its box is
+// sized by a class. Keyed by the display sizes the
 // app actually uses; extend when a new size ships. Unknown sizes fall back to
 // the row-icon size.
 const FALLBACK_SIZE_CLASS: Record<number, string> = {
