@@ -7,6 +7,8 @@ import { cn } from '@/components/ui/cn';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
+import { SegmentedControl } from '@/components/ui/segmented';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatIsoDay } from '@/lib/format/time';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { MetricsSection } from './MetricsSection';
@@ -23,22 +25,17 @@ import { UsersSection } from './UsersSection';
 // for status dots and KPI deltas.
 
 function RangeSelector({ range }: { range: RangeKey }) {
-  const linkBase =
-    'font-mono text-ui uppercase tracking-[0.12em] px-3 py-1.5 border transition-colors';
-  const active = 'border-border-active text-isk bg-surface-sunk';
-  const idle = 'border-border-idle text-muted hover:text-text hover:border-border-active';
   return (
-    <div className="no-print flex items-center gap-2">
-      {RANGES.map((r) => (
-        <a
-          key={r}
-          href={`/admin?range=${r}`}
-          className={`${linkBase} ${r === range ? active : idle}`}
-        >
-          {r === 'all' ? 'All' : r}
-        </a>
-      ))}
-    </div>
+    <SegmentedControl
+      className="no-print"
+      label="Reporting range"
+      value={range}
+      options={RANGES.map((option) => ({
+        value: option,
+        label: option === 'all' ? 'All' : option,
+        href: `/admin?range=${option}`,
+      }))}
+    />
   );
 }
 
@@ -52,8 +49,16 @@ function GroupHeading({ children }: { children: ReactNode }) {
 
 function SectionFallback() {
   return (
-    <div className="border-[1.5px] border-border bg-bg px-3.5 py-6 font-mono text-ui text-muted">
-      Loading…
+    <div className="rounded-card border border-border bg-section shadow-card-edge">
+      {[0, 1, 2].map((row) => (
+        <div
+          key={row}
+          className="flex items-center justify-between gap-3 border-b border-border-soft px-4 py-3 last:border-b-0"
+        >
+          <Skeleton className={row === 1 ? 'h-3 w-3/5' : 'h-3 w-2/5'} />
+          <Skeleton className="h-3 w-16" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -74,7 +79,7 @@ async function AdminContent({
 
   return (
     <>
-      <div className="print-only font-mono text-label tracking-[0.12em] uppercase text-muted mb-1">
+      <div className="print-only font-mono text-label tracking-wide uppercase text-muted mb-1">
         Admin report — {formatIsoDay(range.from)} to {formatIsoDay(range.to)}
       </div>
       <PageHead

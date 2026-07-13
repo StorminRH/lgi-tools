@@ -26,16 +26,14 @@ export type PopoverTone = Extract<Tone, 'neutral' | 'green'>;
 // animation (the shared surface is colours/border/shadow only).
 const popup = cva(
   'flex w-[272px] flex-col gap-3 rounded-card border px-[14px] py-[12px] text-ui normal-case tracking-normal outline-none ' +
-    'origin-[var(--transform-origin)] transition-[opacity,transform] duration-150 motion-reduce:transition-none ' +
+    'origin-[var(--transform-origin)] transition-[opacity,transform] duration-fast motion-reduce:transition-none ' +
     'data-[starting-style]:scale-95 data-[starting-style]:opacity-0 ' +
     'data-[ending-style]:scale-95 data-[ending-style]:opacity-0',
   {
     variants: {
       tone: {
         neutral: `${panelSurface} text-text`,
-        green:
-          'bg-section text-text border-isk-dim ' +
-          'shadow-[0_0_0_1px_rgba(61,214,140,0.12),0_8px_24px_-8px_rgba(61,214,140,0.2)]',
+        green: 'bg-section text-text border-isk-dim shadow-popover-green',
       } satisfies Record<PopoverTone, string>,
     },
     defaultVariants: { tone: 'neutral' },
@@ -92,7 +90,7 @@ export function Popover({
         {trigger}
       </Base.Trigger>
       <Base.Portal>
-        <Base.Positioner side={side} sideOffset={8} className="z-50">
+        <Base.Positioner side={side} sideOffset={8} className="z-dropdown">
           <Base.Popup aria-label={label} className={cn(popup({ tone }), className)}>
             {children}
           </Base.Popup>
@@ -106,7 +104,7 @@ export function Popover({
 // itself supplies the chrome + gap-3 rhythm.
 export function PopoverHeading({ children }: { children: ReactNode }) {
   return (
-    <div className="font-mono text-label font-semibold uppercase tracking-[0.16em] text-isk">
+    <div className="font-mono text-label font-semibold uppercase tracking-display text-isk">
       {children}
     </div>
   );

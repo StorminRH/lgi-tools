@@ -36,8 +36,8 @@ export async function HomeLiveStats() {
       <SectionLabel
         className="mb-4"
         meta={
-          <span className="inline-flex items-center gap-2 font-mono text-label uppercase tracking-[0.12em] text-muted">
-            <span className="size-[6px] rounded-full bg-isk shadow-[0_0_8px_var(--color-card-glow-shadow)]" />
+          <span className="inline-flex items-center gap-2 font-mono text-label uppercase tracking-wide text-muted">
+            <span className="size-[6px] rounded-full bg-isk shadow-home-live" />
             Updated on demand
           </span>
         }
@@ -59,7 +59,7 @@ export async function HomeLiveStats() {
               {/* DOM order is <dt> then <dd> — valid <dl> semantics and natural
                   reading order ("label, value"); `order` flips the visual so the
                   value still sits on top. */}
-              <dt className="order-2 font-mono text-label uppercase tracking-[0.1em] text-muted">
+              <dt className="order-2 font-mono text-label uppercase tracking-control text-muted">
                 {stat.label}
               </dt>
               <dd
@@ -75,7 +75,7 @@ export async function HomeLiveStats() {
         </dl>
 
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-border-soft bg-bg-deep/40">
-          <span className="font-mono text-label uppercase tracking-[0.12em] text-muted">
+          <span className="font-mono text-label uppercase tracking-wide text-muted">
             EVE SDE
           </span>
           <span className="text-right font-mono text-micro text-muted">

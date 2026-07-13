@@ -29,7 +29,7 @@ function SkillLine({ skill }: { skill: AppliedTimeSkill }) {
 function TotalLine({ label, totalPct, toneClass }: { label: string; totalPct: number; toneClass: string }) {
   return (
     <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-micro">
-      <span className="uppercase tracking-[0.14em] text-muted">{label}</span>
+      <span className="uppercase tracking-emphasis text-muted">{label}</span>
       <span className={`tabular-nums font-semibold ${toneClass}`}>−{formatBonusPct(totalPct)} time</span>
     </div>
   );
@@ -111,11 +111,11 @@ function MfgSkillMetric({
       )}
       {breakdown.perItem.length > 0 && (
         <div className="flex flex-col gap-1">
-          <div className="font-mono text-label uppercase tracking-[0.12em] text-faint">Per-item</div>
+          <div className="font-mono text-label uppercase tracking-wide text-faint">Per-item</div>
           {breakdown.perItem.map((skill) => (
             <SkillLine key={skill.name} skill={skill} />
           ))}
-          <p className="font-mono text-micro leading-snug tracking-[0.04em] text-faint">
+          <p className="font-mono text-micro leading-snug tracking-copy text-faint">
             Applied on top of the total, only to jobs requiring the skill.
           </p>
         </div>

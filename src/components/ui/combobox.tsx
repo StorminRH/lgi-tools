@@ -78,7 +78,7 @@ export function Panel({
 }) {
   return (
     <Autocomplete.Portal>
-      <Autocomplete.Positioner side="bottom" align={align} sideOffset={sideOffset} className="z-50">
+      <Autocomplete.Positioner side="bottom" align={align} sideOffset={sideOffset} className="z-dropdown">
         <Autocomplete.Popup className={cn(dropdownPanel, className)}>{children}</Autocomplete.Popup>
       </Autocomplete.Positioner>
     </Autocomplete.Portal>

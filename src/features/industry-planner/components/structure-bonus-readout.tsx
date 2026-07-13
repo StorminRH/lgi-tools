@@ -35,7 +35,7 @@ const BONUS_ROW: {
   'rxn-te': (row) => (
     <span className="inline-flex items-center gap-1">
       {row.withMarker && (
-        <span className="font-mono text-label uppercase leading-none tracking-[0.1em] text-muted">rxn</span>
+        <span className="font-mono text-label uppercase leading-none tracking-control text-muted">rxn</span>
       )}
       <Metric icon={<HourglassIcon state="bonus" />} title={`Reaction TE −${row.pct}`} value={row.pct} />
     </span>

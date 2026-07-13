@@ -146,7 +146,7 @@ function RoleChangeAudit({ audit }: { audit: Awaited<ReturnType<typeof getRoleCh
         <div className="px-3.5 py-2">
           <table className="w-full font-mono text-ui">
             <thead>
-              <tr className="text-label tracking-[0.12em] uppercase text-muted">
+              <tr className="text-label tracking-wide uppercase text-muted">
                 <th className="text-left py-1.5 font-normal">Timestamp (UTC)</th>
                 <th className="text-left py-1.5 font-normal">Actor</th>
                 <th className="text-left py-1.5 font-normal">Target</th>
@@ -182,7 +182,7 @@ function AccessSearchForm({ query }: { query: string | undefined }) {
       {query ? (
         <Link
           href="/admin/access"
-          className="font-mono text-ui uppercase tracking-[0.12em] text-muted px-2 py-1"
+          className="font-mono text-ui uppercase tracking-wide text-muted px-2 py-1"
         >
           Clear
         </Link>

@@ -54,7 +54,7 @@ function pctLabel(part: number, total: number): string {
 function CollapsedDetailHeader({ label }: { label: string }) {
   return (
     <>
-      <span className="font-mono text-label uppercase tracking-[0.12em] text-muted">
+      <span className="font-mono text-label uppercase tracking-wide text-muted">
         {label}
       </span>
       <span
@@ -211,7 +211,7 @@ function GscPerformanceDetail({
           </MultiplesCell>
         ))}
       </MultiplesGrid>
-      <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-y border-border-soft">
+      <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-y border-border-soft">
         Top pages in search
       </div>
       {topPages.length === 0 ? (
@@ -221,7 +221,7 @@ function GscPerformanceDetail({
           <GscTermRow key={p.key} term={p} max={view.topPagesMax} total={totalClicks} />
         ))
       )}
-      <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+      <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-b border-border-soft">
         Indexing &amp; sitemap
       </div>
       {sitemaps.length === 0 ? (
@@ -231,7 +231,7 @@ function GscPerformanceDetail({
       )}
       {urls.length > 0 && (
         <>
-          <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+          <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-b border-border-soft">
             Page index status
           </div>
           {urls.map((u) => (
@@ -365,7 +365,7 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
             <span className="font-mono text-lead text-name tabular-nums">
               {activity.endValue.toLocaleString()}
             </span>
-            <span className="font-mono text-micro text-muted uppercase tracking-[0.12em]">
+            <span className="font-mono text-micro text-muted uppercase tracking-wide">
               latest day
             </span>
             {activity.endDelta && <DeltaBadge delta={activity.endDelta} />}
@@ -460,7 +460,7 @@ export async function TrafficSection({
         />
         {searchVsDirect.referred + searchVsDirect.direct > 0 && (
           <div className="px-3.5 py-3 border-b border-border-soft">
-            <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">
+            <div className="text-label tracking-display uppercase text-muted mb-2">
               Referred vs direct page views
             </div>
             <StackedShareBar
@@ -474,7 +474,7 @@ export async function TrafficSection({
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border-soft">
           <div className="bg-bg">
-            <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+            <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-b border-border-soft">
               Top referrers
             </div>
             <BarList
@@ -484,7 +484,7 @@ export async function TrafficSection({
             />
           </div>
           <div className="bg-bg">
-            <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
+            <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-b border-border-soft">
               Top entry pages
             </div>
             <BarList

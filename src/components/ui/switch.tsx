@@ -19,7 +19,7 @@ export type SwitchTone = Extract<Tone, 'green' | 'neutral'>;
 // dim-ISK border (the affirmative tone).
 const track = cva(
   'relative inline-flex h-[18px] w-[32px] shrink-0 cursor-pointer items-center rounded-ctl ' +
-    'border px-[2px] outline-none transition-colors duration-150 ' +
+    'border px-[2px] outline-none transition-colors duration-fast ' +
     'focus-visible:border-border-active disabled:cursor-not-allowed disabled:opacity-50 ' +
     'motion-reduce:transition-none',
   {
@@ -40,7 +40,7 @@ const track = cva(
 const thumb = cva(
   // eslint-disable-next-line no-restricted-syntax -- inner switch-thumb indicator, sub-4px by design
   'block h-[12px] w-[12px] rounded-[1px] translate-x-0 data-[checked]:translate-x-[14px] ' +
-    'transition-[translate,background-color] duration-150 motion-reduce:transition-none',
+    'transition-[translate,background-color] duration-fast motion-reduce:transition-none',
   {
     variants: {
       tone: {

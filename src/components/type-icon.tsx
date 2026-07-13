@@ -26,7 +26,7 @@ const IMAGE_FAMILY: Record<TypeIconVariant, EveImageFamily> = {
 // app actually uses; extend when a new size ships. Unknown sizes fall back to
 // the row-icon size.
 const FALLBACK_SIZE_CLASS: Record<number, string> = {
-  22: 'w-[22px] h-[22px]',
+  22: 'size-icon-lg',
   32: 'w-[32px] h-[32px]',
   64: 'w-[64px] h-[64px]',
   88: 'w-[88px] h-[88px]',

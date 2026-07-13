@@ -93,7 +93,7 @@ export function Select({
         <Base.Icon className="shrink-0 text-muted">▾</Base.Icon>
       </Base.Trigger>
       <Base.Portal>
-        <Base.Positioner side="bottom" sideOffset={4} alignItemWithTrigger={false} className="z-50">
+        <Base.Positioner side="bottom" sideOffset={4} alignItemWithTrigger={false} className="z-dropdown">
           <Base.Popup
             aria-label={ariaLabel}
             className={cn(dropdownPanel, 'max-h-80 overflow-y-auto')}

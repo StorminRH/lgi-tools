@@ -192,7 +192,7 @@ function TierColumn({
   const { rows, subtotal } = tierColumnView(tier, { focus, inChain, actualLevel, unitPriceOf });
   return (
     <div className="min-w-0">
-      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted">
+      <div className="mb-2 flex items-center gap-2 whitespace-nowrap font-mono text-label font-semibold uppercase tracking-display text-muted">
         Tier {tier.depth}
         <span className="text-faint">· {tier.items.length}</span>
         <span className="h-0 flex-1 border-b border-dotted border-border-idle" />
@@ -231,7 +231,7 @@ function TraceMeta({ focus, onClear }: { focus: Focus | null; onClear: () => voi
       <button
         type="button"
         onClick={onClear}
-        className="cursor-pointer uppercase tracking-[0.12em] text-muted hover:text-name"
+        className="cursor-pointer uppercase tracking-wide text-muted hover:text-name"
       >
         ✕ Clear
       </button>
@@ -260,7 +260,7 @@ function RawLedgerToggle({
       aria-expanded={open}
       className="group inline-flex cursor-pointer items-baseline gap-2"
     >
-      <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+      <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-display text-muted group-hover:text-name">
         <span className="tracking-normal text-isk">{'//'}</span>
         Raw ledger
       </span>

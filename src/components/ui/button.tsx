@@ -8,7 +8,7 @@ import { cn } from './cn';
 // second source of truth (it can't be a <button>). The bezel (--shadow-btn-bezel)
 // gives every intent except `ghost` a subtle physical raise.
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center font-mono uppercase tracking-[0.06em] text-ui ' +
+  'inline-flex items-center justify-center font-mono uppercase tracking-ui text-ui ' +
     'rounded-ctl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ' +
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-isk-sub',
   {

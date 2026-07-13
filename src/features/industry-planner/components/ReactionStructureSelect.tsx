@@ -41,13 +41,13 @@ function ReactionSystemRow({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">System</span>
+      <span className="w-[64px] shrink-0 text-label uppercase tracking-wide text-muted">System</span>
       {lockedTo ? (
         deducedSystem ? (
           <SelectedSystemBox name={deducedSystem.name} security={deducedSystem.security} locked={lockedTo} />
         ) : (
           <div className="flex h-[30px] w-[260px] shrink-0 items-center border border-border bg-bg px-2">
-            <span className="truncate text-label uppercase tracking-[0.12em] text-muted">System unavailable</span>
+            <span className="truncate text-label uppercase tracking-wide text-muted">System unavailable</span>
           </div>
         )
       ) : reactionSystem ? (
@@ -141,7 +141,7 @@ export function ReactionStructureSelect() {
       {/* The group header carries the bonus readout on its own fixed-height
           line, right of the title. */}
       <div className="flex min-h-4 min-w-0 items-center gap-2.5">
-        <span className="shrink-0 font-mono text-label uppercase tracking-[0.16em] text-text">Reactions</span>
+        <span className="shrink-0 font-mono text-label uppercase tracking-display text-text">Reactions</span>
         <StructureBonusReadout readout={reactionStructureReadout} taxPct={taxPct} />
       </div>
       <ReactionSystemRow
@@ -151,7 +151,7 @@ export function ReactionStructureSelect() {
         setReactionSystem={setReactionSystem}
       />
       <div className="flex items-center gap-2">
-        <span className="w-[64px] shrink-0 text-label uppercase tracking-[0.12em] text-muted">Station</span>
+        <span className="w-[64px] shrink-0 text-label uppercase tracking-wide text-muted">Station</span>
         <Select
           value={facilityValueFor(reactionStructure, null)}
           onValueChange={(v) => {

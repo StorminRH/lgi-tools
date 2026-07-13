@@ -51,7 +51,7 @@ export function CharacterStrip({
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <span className="text-label tracking-[0.12em] uppercase text-muted">Tracking</span>
+      <span className="text-label tracking-wide uppercase text-muted">Tracking</span>
       <div className="flex items-center gap-1.5">
         {characters.map((character) => {
           const state = stripState(character, dimmedIds);

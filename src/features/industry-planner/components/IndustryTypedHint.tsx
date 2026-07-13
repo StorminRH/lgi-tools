@@ -7,6 +7,7 @@
 // `data-search-input` contract. Under reduced motion the text is shown at once
 // and the cursor doesn't blink (the keyframe is gated off in globals.css).
 import { useEffect, useMemo, useState } from 'react';
+import { Kbd } from '@/components/ui/kbd';
 
 const HINT = 'search for any blueprint or reaction to get started';
 const STEP_MS = 26;
@@ -55,7 +56,13 @@ export function IndustryTypedHint() {
       <span className="pr">{'>'}</span>
       <span className="txt">{HINT.slice(0, shown)}</span>
       <span className="cur" aria-hidden="true" />
-      <kbd className={done ? 'show' : undefined}>⌘K</kbd>
+      <Kbd
+        className={
+          `tracking-wide uppercase transition-opacity duration-fast motion-reduce:transition-none ${done ? 'opacity-100' : 'opacity-0'}`
+        }
+      >
+        ⌘K
+      </Kbd>
     </button>
   );
 }

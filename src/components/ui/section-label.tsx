@@ -21,7 +21,7 @@ export function SectionLabel({
     <div
       className={cn('flex items-baseline gap-2', meta != null && 'justify-between', className)}
     >
-      <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold tracking-[0.16em] uppercase text-muted">
+      <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold tracking-display uppercase text-muted">
         <span className="text-isk tracking-normal">{'//'}</span>
         {children}
       </span>

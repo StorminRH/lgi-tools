@@ -41,7 +41,7 @@ export function nodeCardView(args: {
       CARD,
       args.faded && 'opacity-25',
       args.related && 'bg-row-related',
-      args.selected && 'bg-isk-selected shadow-[inset_2px_0_0_var(--color-isk)]',
+      args.selected && 'bg-isk-selected shadow-selected-rail',
       interactive && 'cursor-pointer hover:bg-row-hover',
     ),
   };

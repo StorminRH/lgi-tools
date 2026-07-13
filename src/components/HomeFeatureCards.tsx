@@ -32,7 +32,7 @@ export function HomeFeatureCards() {
               <Pill tone="teal">Gas</Pill>
               <Pill tone="yellow">Ore</Pill>
             </div>
-            <span className="font-mono text-label tracking-[0.06em] text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
+            <span className="font-mono text-label tracking-ui text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
               open →
             </span>
           </div>
@@ -58,7 +58,7 @@ export function HomeFeatureCards() {
               <Pill tone="purple">T3</Pill>
               <Pill tone="teal">Reactions</Pill>
             </div>
-            <span className="font-mono text-label tracking-[0.06em] text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
+            <span className="font-mono text-label tracking-ui text-isk whitespace-nowrap transition-transform group-hover:translate-x-[2px]">
               open →
             </span>
           </div>

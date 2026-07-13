@@ -30,7 +30,7 @@ export function RigSupply({
   const rigOptions: SelectOption[] = validRigs.map((r) => ({ value: String(r.typeId), label: r.name }));
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-label uppercase tracking-[0.12em] text-muted">
+      <span className="text-label uppercase tracking-wide text-muted">
         Rigs ({validRigs.length} fit this structure)
       </span>
       <div className="flex flex-col gap-1.5">

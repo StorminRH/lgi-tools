@@ -79,14 +79,14 @@ export function TemplatesMenu({
       className="w-[320px]"
       triggerClassName="group inline-flex cursor-pointer items-baseline gap-2"
       trigger={
-        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-[0.16em] text-muted group-hover:text-name">
+        <span className="inline-flex items-baseline gap-2 font-mono text-label font-semibold uppercase tracking-display text-muted group-hover:text-name">
           <span className="tracking-normal text-isk">{'//'}</span>
           Templates
           <span className="inline-block text-micro text-muted">▾</span>
         </span>
       }
     >
-      <span className="font-mono text-label font-semibold uppercase tracking-[0.16em] text-isk">
+      <span className="font-mono text-label font-semibold uppercase tracking-display text-isk">
         Saved templates
       </span>
 

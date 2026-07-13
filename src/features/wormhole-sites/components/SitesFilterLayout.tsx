@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { usePreference } from '@/components/PreferencesProvider';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHead } from '@/components/ui/page-head';
+import { SegmentedControl } from '@/components/ui/segmented';
 import { sitesDetailMode, sitesView } from '@/lib/preferences';
 import { matchesClassFilter, matchesFilter } from '../site-filter';
 import type { SiteType, WormholeClass } from '../types';
@@ -22,6 +23,14 @@ import { SITE_TYPE_LABEL } from './wormhole-styles';
 const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
 const CLASS_CHIPS: WormholeClass[] = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
 const TYPE_ROWS: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
+const DETAIL_OPTIONS = [
+  { value: 'lightbox', label: 'Lightbox' },
+  { value: 'expand', label: 'Expand' },
+] as const;
+const VIEW_OPTIONS = [
+  { value: 'cards', label: 'Cards' },
+  { value: 'table', label: 'Table' },
+] as const;
 
 export interface SiteFilterMeta {
   id: number;
@@ -154,37 +163,19 @@ export function SitesFilterLayout({
           <div>
             <div className="flex justify-end items-center gap-3 mb-4">
               {view === 'cards' && (
-                <div className="inline-flex border border-border-idle rounded-ctl overflow-hidden">
-                  {(['lightbox', 'expand'] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      aria-pressed={detailMode === m}
-                      onClick={() => setDetailMode(m)}
-                      className={`font-mono text-ui tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ${
-                        detailMode === m ? 'text-isk bg-pill-green-bg' : 'text-muted hover:text-name'
-                      }`}
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  label="Site detail behavior"
+                  value={detailMode}
+                  onChange={(next) => setDetailMode(next as typeof detailMode)}
+                  options={DETAIL_OPTIONS}
+                />
               )}
-              <div className="inline-flex border border-border-idle rounded-ctl overflow-hidden">
-                {(['cards', 'table'] as const).map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    aria-pressed={view === v}
-                    onClick={() => setView(v)}
-                    className={`font-mono text-ui tracking-[0.1em] uppercase px-3 py-1.5 transition-colors ${
-                      view === v ? 'text-isk bg-pill-green-bg' : 'text-muted hover:text-name'
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl
+                label="Sites view"
+                value={view}
+                onChange={(next) => setView(next as typeof view)}
+                options={VIEW_OPTIONS}
+              />
             </div>
 
             {filteredCount === 0 ? (
@@ -201,7 +192,7 @@ export function SitesFilterLayout({
                 return (
                   <section key={type} className="mb-12 last:mb-0">
                     <div className="w-full flex items-center gap-3.5 mb-5">
-                      <span className="text-label font-semibold tracking-[0.18em] uppercase text-muted whitespace-nowrap">
+                      <span className="text-label font-semibold tracking-eyebrow uppercase text-muted whitespace-nowrap">
                         {SITE_TYPE_LABEL[type]} Sites
                       </span>
                       <div className="flex-1 h-px bg-border" />

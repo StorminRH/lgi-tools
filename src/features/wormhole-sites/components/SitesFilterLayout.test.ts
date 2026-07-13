@@ -31,11 +31,13 @@ describe('SitesFilterLayout a11y', () => {
     expect(html).toContain('aria-pressed="false"');
   });
 
-  it('labels the rail filter groups', () => {
+  it('labels every filter and segmented-control group', () => {
     const html = markup();
-    expect((html.match(/role="group"/g) ?? []).length).toBe(2);
+    expect((html.match(/role="group"/g) ?? []).length).toBe(4);
     expect(html).toContain('aria-label="Filter by class"');
     expect(html).toContain('aria-label="Filter by site type"');
+    expect(html).toContain('aria-label="Site detail behavior"');
+    expect(html).toContain('aria-label="Sites view"');
   });
 
   it('makes the result count a polite live region', () => {

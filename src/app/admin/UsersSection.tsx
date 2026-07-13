@@ -38,7 +38,7 @@ export async function UsersSection({ range }: { range: DateRange }) {
       />
       {totalUsers > 0 && (
         <div className="px-3.5 py-3 border-b border-border-soft">
-          <div className="text-label tracking-[0.16em] uppercase text-muted mb-2">
+          <div className="text-label tracking-display uppercase text-muted mb-2">
             New vs returning
           </div>
           <StackedShareBar
@@ -54,7 +54,7 @@ export async function UsersSection({ range }: { range: DateRange }) {
         <EmptyState>No sign-ins in this range.</EmptyState>
       ) : (
         <div className="pt-1">
-          <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted">
+          <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted">
             Users by login count
           </div>
           <DistributionBars

@@ -37,7 +37,7 @@ function GrossNetToggle({
   setMode: (m: MarginMode) => void;
 }) {
   const btn =
-    'px-2 py-0.5 font-mono text-micro uppercase tracking-[0.1em] cursor-pointer transition-colors';
+    'px-2 py-0.5 font-mono text-micro uppercase tracking-control cursor-pointer transition-colors';
   const on = 'text-name bg-row-on';
   return (
     <span className="inline-flex overflow-hidden rounded-ctl border border-border-soft">
@@ -77,7 +77,7 @@ function RawItemToggle({
   setBasis: (b: CostBasis) => void;
 }) {
   const btn =
-    'px-2 py-0.5 font-mono text-micro uppercase tracking-[0.1em] cursor-pointer transition-colors';
+    'px-2 py-0.5 font-mono text-micro uppercase tracking-control cursor-pointer transition-colors';
   const on = 'text-name bg-row-on';
   return (
     <span className="inline-flex overflow-hidden rounded-ctl border border-border-soft">
@@ -219,12 +219,12 @@ function FeeHover({ net, systemName }: { net: NetMarginView; systemName: string 
     <KpiHelp label="Fee breakdown">
       <PopoverHeading>{`Fees${systemName ? ` · ${systemName}` : ''}`}</PopoverHeading>
       <div className="flex flex-col gap-1 font-body text-ui leading-snug">
-        <div className="font-mono text-label uppercase tracking-[0.12em] text-faint">Install</div>
+        <div className="font-mono text-label uppercase tracking-wide text-faint">Install</div>
         {fees.install.map(row)}
         {subtotal('Install fee', fees.installTotal)}
       </div>
       <div className="flex flex-col gap-1 font-body text-ui leading-snug">
-        <div className="font-mono text-label uppercase tracking-[0.12em] text-faint">Sell</div>
+        <div className="font-mono text-label uppercase tracking-wide text-faint">Sell</div>
         {fees.sell.map(row)}
         {subtotal('Sell fees', fees.sellTotal)}
       </div>
@@ -256,13 +256,13 @@ function TotalJobHover({ buildTimes }: { buildTimes: BuildTimes }) {
           ))}
         </div>
         <div className="mt-1.5 flex items-baseline justify-between gap-3 border-t border-border-soft pt-1.5 font-mono text-ui">
-          <span className="uppercase tracking-[0.14em] text-muted">Total</span>
+          <span className="uppercase tracking-emphasis text-muted">Total</span>
           <span className="tabular-nums font-semibold text-evb-bright">
             {buildTimes.totalProduction ?? '—'}
           </span>
         </div>
       </div>
-      <p className="font-mono text-micro leading-snug tracking-[0.04em] text-faint">
+      <p className="font-mono text-micro leading-snug tracking-copy text-faint">
         Sequential — one job at a time. TE applied per blueprint; structure and build-character
         skills applied when selected; parallel slots not counted.
       </p>

@@ -6,8 +6,8 @@ export type { DotTone };
 const dotVariants = cva('inline-block w-[6px] h-[6px] rounded-full shrink-0', {
   variants: {
     tone: {
-      orange: 'bg-tone-orange-soft shadow-[0_0_4px_var(--color-dot-orange-glow)]',
-      blue:   'bg-tone-blue shadow-[0_0_4px_var(--color-dot-blue-glow)]',
+      orange: 'bg-tone-orange-soft shadow-dot-orange',
+      blue:   'bg-tone-blue shadow-dot-blue',
     } satisfies Record<DotTone, string>,
   },
 });

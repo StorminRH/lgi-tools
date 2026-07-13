@@ -87,7 +87,7 @@ function HoldingLine({ holding }: { holding: AssetHolding }) {
     <div className="flex items-baseline justify-between gap-3 font-mono text-ui">
       <span className="min-w-0">
         <span className="text-name">{holding.ownerName}</span>
-        <span className="block text-micro tracking-[0.04em] text-muted">
+        <span className="block text-micro tracking-copy text-muted">
           {holding.locationName}
           {holding.locationFlag ? ` · ${holding.locationFlag}` : ''}
         </span>
@@ -103,7 +103,7 @@ function RingCheck() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="h-[18px] w-[18px] stroke-isk"
+      className="size-icon-md stroke-isk"
       fill="none"
       strokeWidth={3}
       strokeLinecap="round"
@@ -175,7 +175,7 @@ function QtyRingCell({
       >
         <PopoverHeading>Asset Tracking</PopoverHeading>
         <div className="flex flex-col gap-1">
-          <div className="font-mono text-label uppercase tracking-[0.14em] text-muted">Item held by</div>
+          <div className="font-mono text-label uppercase tracking-emphasis text-muted">Item held by</div>
           <HeldByList heldBy={heldBy} />
         </div>
         <AssetLedger qty={qty} value={value} ownedQty={ownedQty} />
@@ -291,7 +291,7 @@ export function NodeCard({
         <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
           {name}
         </span>
-        <span className="truncate font-mono text-label uppercase tracking-[0.1em] text-muted">
+        <span className="truncate font-mono text-label uppercase tracking-control text-muted">
           {label}
         </span>
       </div>

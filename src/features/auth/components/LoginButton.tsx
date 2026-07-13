@@ -86,7 +86,7 @@ function SignedInCluster({
               window.location.href = '/';
             });
           }}
-          className="font-mono text-label uppercase tracking-[0.12em] text-muted hover:text-text px-2 py-1 transition-colors"
+          className="font-mono text-label uppercase tracking-wide text-muted hover:text-text px-2 py-1 transition-colors"
         >
           Log out
         </button>

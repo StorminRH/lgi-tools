@@ -1,10 +1,11 @@
 'use client';
 
-import { type ReactNode, type RefObject, useId, useReducer, useRef, useState } from 'react';
+import { type RefObject, useReducer, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Dialog, DialogClose } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -135,76 +136,6 @@ function useConfirmGate() {
   };
 }
 
-type Gate = ReturnType<typeof useConfirmGate>;
-
-// The confirm dialog shell, driven by a gate. Escape / outside-press funnel to the
-// gate's cancel (a no-op while the call is running, so the dialog can't close
-// mid-flight). The body (copy + any extra controls + footer) is the children.
-function ConfirmDialog({
-  gate,
-  labelId,
-  triggerRef,
-  className,
-  children,
-}: {
-  gate: Gate;
-  labelId: string;
-  triggerRef: RefObject<HTMLButtonElement | null>;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <Dialog
-      open={gate.open}
-      onOpenChange={(next) => {
-        if (!next) gate.cancel();
-      }}
-      labelledBy={labelId}
-      finalFocus={triggerRef}
-    >
-      <div className={`flex flex-col gap-3 p-4 ${className ?? ''}`}>{children}</div>
-    </Dialog>
-  );
-}
-
-// The destructive confirm footer: a Cancel close + the confirm button (disabled
-// while the call is in flight). `confirmClassName` lets the neutral log-out action
-// use text colour instead of red.
-function ConfirmFooter({
-  busy,
-  disabled,
-  confirmLabel,
-  busyLabel,
-  onConfirm,
-  confirmClassName = 'text-tone-red',
-}: {
-  busy: boolean;
-  disabled?: boolean;
-  confirmLabel: string;
-  busyLabel: string;
-  onConfirm: () => void;
-  confirmClassName?: string;
-}) {
-  return (
-    <div className="flex items-center justify-end gap-3">
-      <DialogClose
-        disabled={busy}
-        className="text-label uppercase tracking-[0.12em] text-muted hover:text-text disabled:text-muted"
-      >
-        Cancel
-      </DialogClose>
-      <button
-        type="button"
-        onClick={onConfirm}
-        disabled={disabled ?? busy}
-        className={`text-label uppercase tracking-[0.12em] hover:underline disabled:text-muted ${confirmClassName}`}
-      >
-        {busy ? busyLabel : confirmLabel}
-      </button>
-    </div>
-  );
-}
-
 // A red destructive trigger button (Purge / Delete) that opens its gate's dialog.
 function DangerButton({
   triggerRef,
@@ -243,7 +174,6 @@ function PurgeCharacterControl({
 }) {
   const router = useRouter();
   const gate = useConfirmGate();
-  const labelId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   async function onConfirm() {
@@ -267,9 +197,13 @@ function PurgeCharacterControl({
     <div className="flex items-center justify-between gap-2 border border-border bg-section px-3 py-2">
       <span className="min-w-0 truncate font-mono text-ui text-text">{characterName}</span>
       <DangerButton triggerRef={triggerRef} onClick={gate.request} label="Purge" />
-      <ConfirmDialog gate={gate} labelId={labelId} triggerRef={triggerRef} className="max-w-[380px]">
-        <p id={labelId} className="text-body text-text">
-          {isOnlyCharacter ? (
+      <ConfirmDialog
+        open={gate.open}
+        onOpenChange={(next) => {
+          if (!next) gate.cancel();
+        }}
+        title="Purge character"
+        consequence={isOnlyCharacter ? (
             <>
               Purge {characterName}? This is your only character, so this also deletes your account —
               all of your saved data will be lost.
@@ -280,24 +214,20 @@ function PurgeCharacterControl({
               stops LGI.tools from accessing its EVE data.
             </>
           )}
-        </p>
-        {gate.errored ? (
-          <p className="text-ui text-tone-red">Something went wrong. Please try again.</p>
-        ) : null}
-        <ConfirmFooter
-          busy={gate.busy}
-          confirmLabel="Purge character"
-          busyLabel="Purging…"
-          onConfirm={() => void onConfirm()}
-        />
-      </ConfirmDialog>
+        busy={gate.busy}
+        error={gate.errored ? 'Something went wrong. Please try again.' : undefined}
+        confirmLabel="Purge character"
+        busyLabel="Purging…"
+        onConfirm={() => void onConfirm()}
+        finalFocus={triggerRef}
+        className="w-[min(380px,calc(100vw-2rem))]"
+      />
     </div>
   );
 }
 
 function LogoutEverywhereControl() {
   const gate = useConfirmGate();
-  const labelId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   async function onConfirm() {
@@ -329,28 +259,28 @@ function LogoutEverywhereControl() {
       >
         Log out everywhere
       </Button>
-      <ConfirmDialog gate={gate} labelId={labelId} triggerRef={triggerRef} className="max-w-[380px]">
-        <p id={labelId} className="text-body text-text">
-          Sign out on every device, including this one? You’ll need to sign in again here afterward.
-        </p>
-        {gate.errored ? (
-          <p className="text-ui text-tone-red">Something went wrong. Please try again.</p>
-        ) : null}
-        <ConfirmFooter
-          busy={gate.busy}
-          confirmLabel="Sign out everywhere"
-          busyLabel="Signing out…"
-          onConfirm={() => void onConfirm()}
-          confirmClassName="text-text"
-        />
-      </ConfirmDialog>
+      <ConfirmDialog
+        open={gate.open}
+        onOpenChange={(next) => {
+          if (!next) gate.cancel();
+        }}
+        title="Log out everywhere"
+        consequence="Sign out on every device, including this one? You’ll need to sign in again here afterward."
+        busy={gate.busy}
+        error={gate.errored ? 'Something went wrong. Please try again.' : undefined}
+        confirmLabel="Sign out everywhere"
+        busyLabel="Signing out…"
+        onConfirm={() => void onConfirm()}
+        finalFocus={triggerRef}
+        tone="neutral"
+        className="w-[min(380px,calc(100vw-2rem))]"
+      />
     </div>
   );
 }
 
 function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
   const gate = useConfirmGate();
-  const labelId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const canConfirm = isDeleteAcknowledged(acknowledged) && !gate.busy;
@@ -378,30 +308,33 @@ function DeleteAccountControl({ onEmptied }: { onEmptied: () => void }) {
         </p>
       </div>
       <DangerButton triggerRef={triggerRef} onClick={openDialog} label="Delete" className="px-2.5" />
-      <ConfirmDialog gate={gate} labelId={labelId} triggerRef={triggerRef} className="max-w-[400px]">
-        <p id={labelId} className="text-body text-text">
-          Are you sure you want to do this? All of your saved data will be lost.
-        </p>
+      <ConfirmDialog
+        open={gate.open}
+        onOpenChange={(next) => {
+          if (!next) gate.cancel();
+        }}
+        title="Delete account"
+        consequence="Are you sure you want to do this? All of your saved data will be lost."
+        busy={gate.busy}
+        error={gate.errored ? 'Something went wrong. Please try again.' : undefined}
+        confirmLabel="Delete account"
+        busyLabel="Deleting…"
+        confirmDisabled={!canConfirm}
+        onConfirm={() => void onConfirm()}
+        finalFocus={triggerRef}
+        className="w-[min(400px,calc(100vw-2rem))]"
+      >
         <label className="flex items-start gap-2 text-ui text-text">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={acknowledged}
-            onChange={(e) => setAcknowledged(e.target.checked)}
+            onCheckedChange={setAcknowledged}
+            label="Acknowledge permanent account deletion"
+            tone="red"
             disabled={gate.busy}
-            className="mt-0.5 h-3.5 w-3.5 accent-tone-red"
+            className="mt-0.5"
           />
           <span>I understand my account and all of my saved data will be lost.</span>
         </label>
-        {gate.errored ? (
-          <p className="text-ui text-tone-red">Something went wrong. Please try again.</p>
-        ) : null}
-        <ConfirmFooter
-          busy={gate.busy}
-          disabled={!canConfirm}
-          confirmLabel="Delete account"
-          busyLabel="Deleting…"
-          onConfirm={() => void onConfirm()}
-        />
       </ConfirmDialog>
     </div>
   );

@@ -32,7 +32,7 @@ export function EntityRow({
   return (
     <div
       className={cn(
-        'grid items-center gap-[6px] px-3.5 py-[5px] border-t border-border-soft text-ui hover:bg-[rgba(255,255,255,0.018)]',
+        'grid items-center gap-[6px] px-3.5 py-[5px] border-t border-border-soft text-ui hover:bg-row-hover',
         layout.colsClass,
         className,
       )}
@@ -92,7 +92,7 @@ export function ResourceRow({
   return (
     <div
       className={cn(
-        'grid items-center gap-[6px] px-3.5 py-[6px] border-t border-border-soft text-ui first:border-t-0 hover:bg-[rgba(255,255,255,0.018)]',
+        'grid items-center gap-[6px] px-3.5 py-[6px] border-t border-border-soft text-ui first:border-t-0 hover:bg-row-hover',
         colsClass,
         className,
       )}
@@ -129,7 +129,7 @@ export function LabeledChipRow({
 }) {
   return (
     <div className="px-3.5 py-[5px] border-b border-border-soft bg-bg flex items-center gap-[7px] flex-wrap">
-      <span className="text-label tracking-[0.12em] uppercase text-muted">{label}</span>
+      <span className="text-label tracking-wide uppercase text-muted">{label}</span>
       {children}
     </div>
   );

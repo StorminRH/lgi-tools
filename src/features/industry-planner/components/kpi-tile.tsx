@@ -9,7 +9,7 @@ import { Popover } from '@/components/ui/popover';
 // it without a circular import (CockpitKpis renders MarketScorePanel).
 
 export const KPI_FIG = 'mt-2.5 text-stat font-semibold leading-[1.02] tabular-nums';
-const KPI_LABEL = 'font-mono text-label font-semibold uppercase tracking-[0.14em] text-muted';
+const KPI_LABEL = 'font-mono text-label font-semibold uppercase tracking-emphasis text-muted';
 
 export function KpiTile({
   span2,

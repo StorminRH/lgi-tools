@@ -115,7 +115,7 @@ function CharacterRow({
           headerClassName="px-3.5 py-[6px]"
           header={
             <span className="flex items-center gap-2 min-w-0">
-              <span className="text-label tracking-[0.08em] uppercase text-muted">
+              <span className="text-label tracking-label uppercase text-muted">
                 Granted access
               </span>
               <Pill tone="neutral">{view.scopes.length}</Pill>

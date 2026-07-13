@@ -29,7 +29,7 @@ export function MultiplesCell({
 }) {
   return (
     <div className="bg-bg px-3 py-3 flex flex-col gap-1.5">
-      <div className="text-label tracking-[0.14em] uppercase text-muted">{title}</div>
+      <div className="text-label tracking-emphasis uppercase text-muted">{title}</div>
       <div className="flex items-baseline gap-2">
         <span className="font-mono text-lead text-name tabular-nums">{value}</span>
         {delta}

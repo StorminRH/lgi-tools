@@ -34,7 +34,7 @@ const pillVariants = cva(
     variants: {
       tone: pillToneClasses,
       size: {
-        sm: 'text-ui px-[8px] py-[3px] tracking-[0.04em] rounded-ctl',
+        sm: 'text-ui px-[8px] py-[3px] tracking-copy rounded-ctl',
         md: 'text-ui px-[9px] py-[3px] tracking-[0.05em] rounded-ctl',
       },
     },
