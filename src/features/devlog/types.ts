@@ -66,9 +66,3 @@ export type DevlogTree = {
   looseDocuments: DevlogDocument[];
   folders: DevlogFolder[];
 };
-
-// The trimmed tree the file-browser rail needs — titles + slugs only, so the
-// client nav never carries any document's (large) content.
-export type NavDoc = { slug: string; title: string };
-export type NavFolder = { slug: string; title: string; documents: NavDoc[] };
-export type DevlogNavModel = { looseDocuments: NavDoc[]; folders: NavFolder[] };
