@@ -1,4 +1,5 @@
 ## Live Trackers
+<!-- updated: 2026-06-30 -->
 
 The live tracker work is where I had to unlearn one of my early assumptions.
 
@@ -628,4 +629,3 @@ async function syncOwner<TOwner, TState, TSave>(
 }
 ```
 <!-- uth:code-excerpts:end -->
-

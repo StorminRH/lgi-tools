@@ -1,4 +1,5 @@
 ## Characters & Accounts
+<!-- updated: 2026-06-30 -->
 
 Account work in LGI.tools is not just “add login.”
 
@@ -571,4 +572,3 @@ export async function nukeAccount(userId: string): Promise<void> {
 }
 ```
 <!-- uth:code-excerpts:end -->
-

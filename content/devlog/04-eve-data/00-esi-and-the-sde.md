@@ -1,4 +1,5 @@
 ## ESI and the SDE
+<!-- updated: 2026-06-30 -->
 
 This is where LGI.tools stops being a generic web app and becomes an EVE tool.
 
@@ -204,4 +205,3 @@ export async function readEsiPagedAuthed(
 }
 ```
 <!-- uth:code-excerpts:end -->
-

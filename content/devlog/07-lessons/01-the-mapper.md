@@ -1,4 +1,5 @@
 ## The Mapper
+<!-- updated: 2026-06-30 -->
 
 The mapper is the feature the architecture has been circling around, but it is not finished in this repo yet.
 
@@ -168,4 +169,3 @@ const SYNC_REFS = {
 } satisfies Record<SyncDataset, unknown>;
 ```
 <!-- uth:code-excerpts:end -->
-

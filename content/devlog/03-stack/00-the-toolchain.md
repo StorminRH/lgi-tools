@@ -1,4 +1,5 @@
 ## The Toolchain
+<!-- updated: 2026-06-30 -->
 
 The service sections explain where LGI.tools runs. This section is about what the app is written with, and why those choices matter.
 
@@ -309,4 +310,3 @@ const processEnvSelectors = [
 }
 ```
 <!-- uth:code-excerpts:end -->
-

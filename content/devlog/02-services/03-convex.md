@@ -1,4 +1,5 @@
 ## Convex
+<!-- updated: 2026-06-30 -->
 
 Convex is the service in the stack that needs the most explanation, because it does not map cleanly to the older “app server plus database” picture.
 
@@ -261,4 +262,3 @@ export function isRunningFresh(
 }
 ```
 <!-- uth:code-excerpts:end -->
-

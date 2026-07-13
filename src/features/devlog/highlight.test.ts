@@ -23,6 +23,7 @@ describe('rebuildTree', () => {
         {
           slug: 'd',
           title: 'D',
+          updated: '2026-07-12',
           blocks: [
             { type: 'excerpt', excerpt: shared },
             { type: 'paragraph', tokens: [] },
@@ -34,7 +35,14 @@ describe('rebuildTree', () => {
         {
           slug: 'f',
           title: 'F',
-          documents: [{ slug: 'e', title: 'E', blocks: [{ type: 'excerpt', excerpt: shared }] }],
+          documents: [
+            {
+              slug: 'e',
+              title: 'E',
+              updated: '2026-07-12',
+              blocks: [{ type: 'excerpt', excerpt: shared }],
+            },
+          ],
         },
       ],
     };
@@ -58,7 +66,14 @@ describe('rebuildTree', () => {
   it('keeps the original excerpt when its id is absent from the map', () => {
     const orphan = ex('code-o');
     const tree: DevlogTree = {
-      looseDocuments: [{ slug: 'd', title: 'D', blocks: [{ type: 'excerpt', excerpt: orphan }] }],
+      looseDocuments: [
+        {
+          slug: 'd',
+          title: 'D',
+          updated: '2026-07-12',
+          blocks: [{ type: 'excerpt', excerpt: orphan }],
+        },
+      ],
       folders: [],
     };
     expect(excerptBlocks(rebuildTree(tree, new Map()).looseDocuments[0]!.blocks)[0]!.excerpt).toBe(orphan);
@@ -95,6 +110,7 @@ describe('highlightTree', () => {
         {
           slug: 'd',
           title: 'D',
+          updated: '2026-07-12',
           blocks: [
             { type: 'excerpt', excerpt: shared },
             { type: 'excerpt', excerpt: shared },

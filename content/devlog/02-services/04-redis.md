@@ -1,4 +1,5 @@
 ## Redis
+<!-- updated: 2026-06-30 -->
 
 Redis is a small tool with a big temptation.
 
@@ -193,4 +194,3 @@ export class RedisScoreboard implements EsiScoreboard {
 ```
 
 <!-- uth:code-excerpts:end -->
-

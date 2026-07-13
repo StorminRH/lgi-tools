@@ -1,4 +1,5 @@
 ## The ESI Gate
+<!-- updated: 2026-06-30 -->
 
 ESI is CCP’s live API for EVE Online. It is how LGI.tools reaches outside its own database and asks the game what is true right now: market orders, character data, corporation data, industry jobs, skills, affiliations, structures, and all the other moving pieces that cannot come from the static data export.
 
@@ -342,4 +343,3 @@ const esiHostSelectors = [
 ];
 ```
 <!-- uth:code-excerpts:end -->
-

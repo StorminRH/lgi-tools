@@ -7,52 +7,81 @@ import { loadDevlog } from '@/features/devlog/load';
 import { flattenDocuments, introDocument } from '@/features/devlog/parse';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 
-// The catalogue (69 rows) only changes on deploy, so the sitemap is cached into
-// the prerendered shell and the build ID invalidates it on each deploy — no
-// per-request work. `use cache` can't sit directly on the route export, so the
-// body lives in this helper; `new Date()` is captured inside the cache scope
-// (the build/revalidation time), which `use cache` permits.
-async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
-  'use cache';
-  cacheLife('max');
-  const now = new Date();
+type SitemapInputs = {
+  sites: { id: number }[];
+  changelog: { slug: string; updated: string }[];
+  devlog: { slug: string; updated: string }[];
+  introSlug: string | undefined;
+};
 
+export function buildSitemapEntries({
+  sites,
+  changelog,
+  devlog,
+  introSlug,
+}: SitemapInputs): MetadataRoute.Sitemap {
+  const latestChangelogDate = changelog[0]?.updated;
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${SITE_URL}/`, lastModified: now, changeFrequency: 'weekly', priority: 1.0 },
-    { url: `${SITE_URL}/sites`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
-    { url: `${SITE_URL}/changelog`, lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
-    { url: `${SITE_URL}/legal`, lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${SITE_URL}/`, changeFrequency: 'weekly', priority: 1.0 },
+    { url: `${SITE_URL}/sites`, changeFrequency: 'weekly', priority: 0.9 },
+    {
+      url: `${SITE_URL}/changelog`,
+      ...(latestChangelogDate ? { lastModified: latestChangelogDate } : {}),
+      changeFrequency: 'monthly',
+      priority: 0.4,
+    },
+    { url: `${SITE_URL}/legal`, changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${SITE_URL}/contact`, changeFrequency: 'yearly', priority: 0.2 },
   ];
 
-  const sites = await getSiteSearchIndex();
   const siteRoutes: MetadataRoute.Sitemap = sites.map((s) => ({
     url: `${SITE_URL}/sites/${s.id}`,
-    lastModified: now,
     changeFrequency: 'weekly',
     priority: 0.7,
   }));
 
-  const changelogRoutes: MetadataRoute.Sitemap = toChangelogDocuments(
-    await loadChangelog(),
-  )
+  const changelogRoutes: MetadataRoute.Sitemap = changelog
     .slice(1)
-    .map(({ slug }) => ({
+    .map(({ slug, updated }) => ({
       url: `${SITE_URL}/changelog/${slug}`,
-      lastModified: now,
+      lastModified: updated,
       changeFrequency: 'monthly',
       priority: 0.3,
     }));
 
-  const tree = await loadDevlog();
-  const introSlug = introDocument(tree)?.slug;
-  const devlogRoutes: MetadataRoute.Sitemap = flattenDocuments(tree).map((d) => ({
+  const devlogRoutes: MetadataRoute.Sitemap = devlog.map((d) => ({
     url: d.slug === introSlug ? `${SITE_URL}/devlog` : `${SITE_URL}/devlog/${d.slug}`,
-    lastModified: now,
+    lastModified: d.updated,
     changeFrequency: 'monthly',
     priority: d.slug === introSlug ? 0.4 : 0.3,
   }));
 
   return [...staticRoutes, ...siteRoutes, ...changelogRoutes, ...devlogRoutes];
+}
+
+// The catalogue and repo content only change on deploy, so the sitemap is
+// cached into the prerendered shell and the build ID invalidates it — no
+// request-time reads. `use cache` can't sit directly on the route export.
+async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
+  'use cache';
+  cacheLife('max');
+
+  const [sites, changelogMasters, tree] = await Promise.all([
+    getSiteSearchIndex(),
+    loadChangelog(),
+    loadDevlog(),
+  ]);
+  const changelog = toChangelogDocuments(changelogMasters).flatMap(({ slug, master }) => {
+    const updated = master.subVersions[0]?.date;
+    return updated ? [{ slug, updated }] : [];
+  });
+
+  return buildSitemapEntries({
+    sites,
+    changelog,
+    devlog: flattenDocuments(tree),
+    introSlug: introDocument(tree)?.slug,
+  });
 }
 
 export default function sitemap(): Promise<MetadataRoute.Sitemap> {

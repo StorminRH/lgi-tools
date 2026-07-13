@@ -1,4 +1,5 @@
 ## Wormhole Sites
+<!-- updated: 2026-06-30 -->
 
 The wormhole sites tool is the first feature that made LGI.tools feel useful instead of theoretical.
 
@@ -567,4 +568,3 @@ export async function GET(
 }
 ```
 <!-- uth:code-excerpts:end -->
-

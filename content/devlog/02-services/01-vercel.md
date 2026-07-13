@@ -1,4 +1,5 @@
 ## Vercel
+<!-- updated: 2026-06-30 -->
 
 Vercel is the front door for LGI.tools.
 
@@ -151,4 +152,3 @@ export async function requireCronAuth(req: Request): Promise<Response | null> {
 }
 ```
 <!-- uth:code-excerpts:end -->
-

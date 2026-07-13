@@ -1,4 +1,5 @@
 ## Admin & Telemetry
+<!-- updated: 2026-06-30 -->
 
 Admin and telemetry started as a reporting problem, but they turned into a boundary problem.
 
@@ -580,4 +581,3 @@ export async function POST(request: NextRequest): Promise<Response> {
 }
 ```
 <!-- uth:code-excerpts:end -->
-

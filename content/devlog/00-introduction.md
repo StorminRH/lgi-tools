@@ -1,4 +1,5 @@
 ## Introduction
+<!-- updated: 2026-06-30 -->
 
 This dev log has three jobs.
 
@@ -13,4 +14,3 @@ Why build this when great tools already exist? The honest answer is that I built
 The rest of this log gets technical, but the structure is meant to build up gradually. I start with the broad shape of the system, then move into the services it runs on, then the stack it is written with, then the EVE-specific data layer and features. When a section makes a technical claim, I tie it back to the relevant files in the repository with inline file references. Those citations are there so the document stays honest. If the code changes, the explanation should change with it.
 
 Treat this as a snapshot of my current understanding, not a permanent specification. The project is still moving, and this log will move with it.
-

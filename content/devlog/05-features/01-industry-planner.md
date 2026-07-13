@@ -1,4 +1,5 @@
 ## Industry Planner
+<!-- updated: 2026-06-30 -->
 
 The Industry Planner is where the earlier architecture stops being abstract.
 
@@ -562,4 +563,3 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
 }
 ```
 <!-- uth:code-excerpts:end -->
-

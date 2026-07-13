@@ -1,4 +1,5 @@
 ## TypeScript
+<!-- updated: 2026-06-30 -->
 
 TypeScript is one of the places where the “built with AI” part of this project becomes very practical.
 
@@ -332,4 +333,3 @@ export function fetchWithTimeout(
 }
 ```
 <!-- uth:code-excerpts:end -->
-

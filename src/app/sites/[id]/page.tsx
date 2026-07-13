@@ -6,14 +6,16 @@ import { JsonLd } from '@/components/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';
-import { parseNumericRouteId } from '@/lib/route-id';
+import { loadNumericRouteEntity, parseNumericRouteId } from '@/lib/route-id';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SiteMetaStrip } from '@/features/wormhole-sites/components/SiteMetaStrip';
+import { RelatedSites } from '@/features/wormhole-sites/components/RelatedSites';
 import {
   getPricedSiteDetail,
   getSiteSearchIndex,
 } from '@/features/wormhole-sites/queries';
 import { deriveSiteMeta } from '@/features/wormhole-sites/site-meta';
+import { selectRelatedSites } from '@/features/wormhole-sites/related-sites';
 
 // generateMetadata and the page body both need the priced site; React cache()
 // collapses them to one lookup per request (the underlying read is already
@@ -32,15 +34,12 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id: rawId } = await params;
-  const id = parseNumericRouteId(rawId);
-  if (id === null) return {};
-
   // Use the priced read (same hourly-tagged cache the page body uses) so the
   // ISK in the description matches the page and its "live Jita prices" claim,
   // rather than freezing at the deploy-time structural snapshot.
-  const site = await loadSite(id);
-  if (!site) return {};
+  const result = await loadNumericRouteEntity(params, loadSite);
+  if (!result) return {};
+  const { id, entity: site } = result;
 
   const { title, description } = deriveSiteMeta(site);
   const canonicalUrl = `${SITE_URL}/sites/${id}`;
@@ -137,6 +136,7 @@ export default async function SiteDetailPage({
 
   const site = await loadSite(id);
   if (!site) notFound();
+  const relatedSites = selectRelatedSites(await getSiteSearchIndex(), id);
 
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
@@ -165,6 +165,7 @@ export default async function SiteDetailPage({
         </Suspense>
         <div className="w-full">
           <SiteCard site={site} defaultOpen />
+          <RelatedSites sites={relatedSites} />
         </div>
       </div>
     </PageShell>

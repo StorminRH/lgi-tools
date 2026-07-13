@@ -1,4 +1,5 @@
 ## Fallow
+<!-- updated: 2026-06-30 -->
 
 ESLint catches sharp edges while I am working. TypeScript catches type mistakes. Tests catch behavior I remembered to pin down.
 
@@ -228,4 +229,3 @@ That is the part I care about most: evidence. I do not need a model to guess whe
 }
 ```
 <!-- uth:code-excerpts:end -->
-
