@@ -1,29 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { cn } from './cn';
+import { EveImage, type EveImageFamily } from './eve-image';
+import { cn } from './ui/cn';
 
 // Renders an item image from the EVE image server, with a graceful fallback.
 // It bakes in the `images.evetech.net` host and the server's rendition
 // variants (`icon`/`render` plus the `bp`/`bpc` blueprint renditions), so it's
 // EVE-specific — not a generic image element. It knows nothing about prices.
-// A plain <img> by design — the image host is already allowed by `img-src`, so
-// this never touches next/image (no optimizer, no `remotePatterns`, no
-// optimization billing or abuse vector). On a 404 it swaps to a tone-styled
-// monogram rather than leaving a broken-image element. (Relocating it out of
-// the UI primitives folder can wait for a second host or consumer.)
+// EveImage sends requests directly to CCP's discrete image sizes without using
+// Vercel's optimizer. On a 404 this swaps to a tone-styled monogram rather than
+// leaving a broken image.
 
 export type TypeIconVariant = 'icon' | 'render' | 'bp' | 'bpc';
 
-// The image server only serves a fixed ladder of sizes. We request the
-// smallest one at least 2× the display size (retina), capped at the max.
-const SUPPORTED_SIZES = [32, 64, 128, 256, 512] as const;
-function requestSize(displaySize: number): number {
-  const target = displaySize * 2;
-  return SUPPORTED_SIZES.find((s) => s >= target) ?? 512;
-}
+const IMAGE_FAMILY: Record<TypeIconVariant, EveImageFamily> = {
+  icon: 'type-icon',
+  render: 'type-render',
+  bp: 'type-bp',
+  bpc: 'type-bpc',
+};
 
-// The monogram fallback is a <span>, which (unlike <img>) ignores width/height
+// The monogram fallback ignores image width/height attributes,
 // attributes — so its box is sized by a class. Keyed by the display sizes the
 // app actually uses; extend when a new size ships. Unknown sizes fall back to
 // the row-icon size.
@@ -73,9 +71,11 @@ export function TypeIcon({
   }
 
   return (
-    <img
+    <EveImage
+      source="eve"
+      family={IMAGE_FAMILY[variant]}
       className={cn('type-icon', className)}
-      src={`https://images.evetech.net/types/${typeId}/${variant}?size=${requestSize(size)}`}
+      src={`https://images.evetech.net/types/${typeId}/${variant}`}
       width={size}
       height={size}
       alt={alt}

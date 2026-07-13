@@ -4,7 +4,7 @@
 // to show, the a11y props for an interactive card, and the tone/state classes.
 
 import { cn } from '@/components/ui/cn';
-import type { TypeIconVariant } from '@/components/ui/type-icon';
+import type { TypeIconVariant } from '@/components/type-icon';
 
 // A `min-h` floor keeps every card the same height whatever its name length; the
 // icon + ring centre on the same line — the uniformity the layout is for.

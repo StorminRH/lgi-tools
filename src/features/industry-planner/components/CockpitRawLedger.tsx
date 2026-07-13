@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { TypeIcon } from '@/components/ui/type-icon';
+import { TypeIcon } from '@/components/type-icon';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import type { BlueprintPricing, BlueprintStructure, MaterialCostRow } from '../types';

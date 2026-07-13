@@ -7,7 +7,7 @@
 // ✕ arms the row into a red "confirm?" and only the second press deletes.
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { TypeIcon } from '@/components/ui/type-icon';
+import { TypeIcon } from '@/components/type-icon';
 import { MAX_SAVED_PLAN_NAME_LEN, type SavedPlanRow } from '../api-contract';
 import { savedPlanRowLabels } from '../saved-plans-view';
 

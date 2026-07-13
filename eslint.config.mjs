@@ -190,19 +190,38 @@ const eslintConfig = defineConfig([
   // peel fields off with `{ waveId: _waveId, ...rest }` without warnings.
   {
     rules: {
-      // EVE images (character portraits, type icons) render via plain <img>,
-      // not next/image. The old CSP dropped next/image's injected inline
-      // `style="color:transparent"` attribute; that no longer applies (OOB.1.1
-      // added `'unsafe-inline'` to style-src), but the codebase still uses plain
-      // <img> — a next/image migration is deferred. See CONTRIBUTING.md
-      // (Security & CSP).
-      "@next/next/no-img-element": "off",
+      // EveImage is the only rendered-image seam. The shared wrapper keeps
+      // next/image's layout/loading behavior while its custom loader sends EVE
+      // requests directly to CCP (never Vercel's optimizer).
+      "@next/next/no-img-element": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
           caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
+  // Keep the billed Next image optimizer structurally unreachable from feature
+  // code. The one ignored module owns both allowed paths: CCP's custom loader
+  // and explicit unoptimized delivery for the local EVE SSO asset. This is a
+  // dedicated rule block, so it cannot replace any no-restricted-syntax bans.
+  {
+    files: ["src/**/*.{ts,tsx,mts}"],
+    ignores: ["src/components/eve-image.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/image",
+              message:
+                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
+            },
+          ],
         },
       ],
     },

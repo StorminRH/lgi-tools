@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { RunAsFrame } from '@/components/RunAsFrame';
 import { cn } from '@/components/ui/cn';
 import { Stepper } from '@/components/ui/stepper';
-import { TypeIcon } from '@/components/ui/type-icon';
+import { TypeIcon } from '@/components/type-icon';
 import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
 import { nodeMeState } from '../me-overrides';
 import { nodeTeState } from '../te-overrides';

@@ -30,7 +30,7 @@ export function AccountMenu({ session }: { session: Session }) {
           name={session.name}
           size={32}
           src={session.portraitUrl}
-          loading="eager"
+          preload
         />
       }
       triggerClassName="flex items-center cursor-pointer transition-opacity hover:opacity-80 data-[popup-open]:opacity-80"

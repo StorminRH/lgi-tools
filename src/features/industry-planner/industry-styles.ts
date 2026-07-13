@@ -5,7 +5,7 @@
 
 import type { ConfidenceLevel } from '@/components/ui/price-confidence';
 import { toneTextClass, type Tone } from '@/components/ui/tones';
-import type { TypeIconVariant } from '@/components/ui/type-icon';
+import type { TypeIconVariant } from '@/components/type-icon';
 import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
 import type { PriceSource } from '@/data/market-prices/types';
 
