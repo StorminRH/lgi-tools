@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { cache, Suspense } from 'react';
 import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
@@ -16,13 +15,14 @@ import { listSiteDetails } from '@/features/wormhole-sites/queries';
 import { siteClassSet } from '@/features/wormhole-sites/site-filter';
 import { parseSortDir, parseSortKey } from '@/features/wormhole-sites/sort';
 import type { SiteDetail } from '@/features/wormhole-sites/types';
+import { buildPageMetadata } from '@/lib/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Wormhole Sites — Live Jita Loot & Resource Values',
   description:
-    'All 69 Eve Online wormhole sites — combat, ore, gas, relic, and data — filterable by class and type, with live Jita prices on ore and gas resources and full NPC wave breakdowns.',
-  alternates: { canonical: '/sites' },
-};
+    'Eve Online wormhole sites — combat, ore, gas, relic, and data — filterable by class and type, with live Jita prices on ore and gas resources and full NPC wave breakdowns.',
+  canonical: '/sites',
+});
 
 // Only the table's sort survives in the URL; the Class/Type filters and the
 // Cards/Table toggle are client-side state (SitesFilterLayout).

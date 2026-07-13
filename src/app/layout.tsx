@@ -44,7 +44,7 @@ const geist = Geist({
 
 const DEFAULT_DESCRIPTION =
   "Lo-Gang Industries — Eve Online tools for wormhole pilots. " +
-  "Browse all 69 wormhole sites with live Jita prices on ore and gas resources.";
+  "Browse wormhole sites with live Jita prices on ore and gas resources.";
 
 const googleVerification = readEnv("GOOGLE_SITE_VERIFICATION");
 
@@ -62,13 +62,11 @@ export const metadata: Metadata = {
     title: "LGI.tools",
     description: DEFAULT_DESCRIPTION,
     url: SITE_URL,
-    images: [{ url: "/logo.png", width: 1200, height: 630, alt: "LGI.tools" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "LGI.tools",
     description: DEFAULT_DESCRIPTION,
-    images: ["/logo.png"],
   },
   ...(googleVerification ? { verification: { google: googleVerification } } : {}),
 };

@@ -1,12 +1,13 @@
 import { EmptyState } from '@/components/ui/empty-state';
 import { MasterSection } from '@/features/changelog/components/MasterSection';
 import { loadChangelog } from '@/features/changelog/load';
+import { buildPageMetadata } from '@/lib/page-metadata';
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: 'Changelog',
   description: 'User-facing changes to LGI.tools, grouped by release and tagged by change type.',
-  alternates: { canonical: '/changelog' },
-};
+  canonical: '/changelog',
+});
 
 export default async function ChangelogPage() {
   const master = (await loadChangelog())[0];

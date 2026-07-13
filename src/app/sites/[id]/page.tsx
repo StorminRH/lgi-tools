@@ -16,6 +16,7 @@ import {
 } from '@/features/wormhole-sites/queries';
 import { deriveSiteMeta } from '@/features/wormhole-sites/site-meta';
 import { selectRelatedSites } from '@/features/wormhole-sites/related-sites';
+import { buildBreadcrumbList } from '@/lib/structured-data';
 
 // generateMetadata and the page body both need the priced site; React cache()
 // collapses them to one lookup per request (the underlying read is already
@@ -53,13 +54,11 @@ export async function generateMetadata({
       description,
       url: canonicalUrl,
       type: 'website',
-      images: ['/logo.png'],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/logo.png'],
     },
   };
 }
@@ -138,15 +137,11 @@ export default async function SiteDetailPage({
   if (!site) notFound();
   const relatedSites = selectRelatedSites(await getSiteSearchIndex(), id);
 
-  const breadcrumbJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
-      { '@type': 'ListItem', position: 2, name: 'Wormhole Sites', item: `${SITE_URL}/sites` },
-      { '@type': 'ListItem', position: 3, name: site.name, item: `${SITE_URL}/sites/${id}` },
-    ],
-  };
+  const breadcrumbJsonLd = buildBreadcrumbList([
+    { name: 'Home', url: `${SITE_URL}/` },
+    { name: 'Wormhole Sites', url: `${SITE_URL}/sites` },
+    { name: site.name, url: `${SITE_URL}/sites/${id}` },
+  ]);
 
   return (
     <PageShell>

@@ -1,4 +1,3 @@
-import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { HomeDashboard } from '@/components/HomeDashboard';
 import { HomeRosterPanel } from '@/components/HomeRosterPanel';
@@ -8,18 +7,18 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
 import { buildDemoRoster } from '@/features/skill-queue/roster-demo-data';
 import { readEnv } from '@/lib/env';
+import { buildPageMetadata } from '@/lib/page-metadata';
 
-export const metadata: Metadata = {
-  title: {
-    absolute: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
-  },
+export const metadata = buildPageMetadata({
+  title: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
   description:
-    'Browse all 69 Eve Online wormhole sites by class, type, and ISK value, with live Jita prices on ore and gas resources. Free tools for wormhole pilots.',
+    'Browse Eve Online wormhole sites by class, type, and ISK value, with live Jita prices on ore and gas resources. Free tools for wormhole pilots.',
   // Next normalizes the root canonical to the bare origin (`https://lgi.tools`)
   // under `trailingSlash: false` — Google treats that as identical to
   // `https://lgi.tools/`, the form URL Inspection displays.
-  alternates: { canonical: '/' },
-};
+  canonical: '/',
+  absoluteTitle: true,
+});
 
 // WebSite + Organization structured data for the homepage — associates the
 // brand, site, and logo for search engines, and anchors future schema by @id.

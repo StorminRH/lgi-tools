@@ -7,6 +7,7 @@ import {
 } from '@/features/changelog/browser';
 import { MasterSection } from '@/features/changelog/components/MasterSection';
 import { loadChangelog } from '@/features/changelog/load';
+import { buildPageMetadata } from '@/lib/page-metadata';
 
 async function olderChangelogDocuments(): Promise<ChangelogDocument[]> {
   return toChangelogDocuments(await loadChangelog()).slice(1);
@@ -30,12 +31,12 @@ export async function generateMetadata({
   if (!document) notFound();
   const { master } = document;
   const masterName = master.title ? `v${master.version} — ${master.title}` : `v${master.version}`;
-  return {
+  return buildPageMetadata({
     title: `${masterName} — Changelog`,
     description:
       master.summary[0] ?? `User-facing changes to LGI.tools in the v${master.version} releases.`,
-    alternates: { canonical: `/changelog/${document.slug}` },
-  };
+    canonical: `/changelog/${document.slug}`,
+  });
 }
 
 export default async function ChangelogMasterPage({

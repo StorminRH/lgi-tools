@@ -1,14 +1,14 @@
-import type { Metadata } from 'next';
 import { CharacterPortrait } from '@/components/character-portrait';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
+import { buildPageMetadata } from '@/lib/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Contact',
   description: 'Reach the developer of LGI.tools — bug reports, ideas, and data corrections.',
-  alternates: { canonical: '/contact' },
-};
+  canonical: '/contact',
+});
 
 // The maintainer's public identity, shown in the "In-game" panel. The portrait
 // is served by the EVE image server (a CSP-allowed host); names link to EVE Who.
