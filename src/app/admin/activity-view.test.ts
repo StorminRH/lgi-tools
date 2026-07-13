@@ -71,6 +71,22 @@ describe('deriveActivityView', () => {
     expect(emptyPrior.referenceLine).toBeNull();
   });
 
+  it('divides the prior total by the range length, not the clamped series length', () => {
+    // Data starts mid-range, so the filled series clamps to 4 days — but the prior
+    // window is a full 7 days, so the reference must divide 70 by 7 (=10), not 4.
+    const view = deriveActivityView({
+      range: { from: new Date('2026-07-06T00:00:00Z'), to: new Date('2026-07-13T00:00:00Z') },
+      dailyCounts: [
+        { day: '2026-07-10', totalEvents: 20 },
+        { day: '2026-07-13', totalEvents: 5 },
+      ],
+      prevDailyCounts: [{ day: '2026-06-30', totalEvents: 70 }],
+      markers: [],
+    });
+    expect(view.labels.length).toBe(4); // series clamped
+    expect(view.referenceLine).toEqual({ value: 10, label: 'prior avg' });
+  });
+
   it('maps in-range markers to their day index and drops out-of-range ones', () => {
     const view = deriveActivityView({
       range,

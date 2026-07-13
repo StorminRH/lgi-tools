@@ -171,18 +171,21 @@ function GscPerformanceDetail({
   view,
   cells,
   topPages,
+  totalClicks,
   sitemaps,
   urls,
 }: {
   view: ReturnType<typeof deriveGscPerformanceView>;
   cells: ReturnType<typeof deriveGscMultiples>;
   topPages: GscTermStat[];
+  // All search clicks in the range (the 'total' dimension) — the honest share
+  // denominator, so a row's % is its share of ALL clicks, not the top-10 subtotal.
+  totalClicks: number;
   sitemaps: GscSitemapStatus[];
   urls: GscUrlStatus[];
 }) {
   const trends = [view.clicksTrend, view.impressionsTrend, view.positionTrend] as const;
   const units = ['count', 'count', 'position'] as const;
-  const topPagesTotal = topPages.reduce((sum, p) => sum + p.clicks, 0);
   return (
     <>
       <MultiplesGrid>
@@ -212,7 +215,7 @@ function GscPerformanceDetail({
         <EmptyState>No search-landing pages in this range.</EmptyState>
       ) : (
         topPages.map((p) => (
-          <GscTermRow key={p.key} term={p} max={view.topPagesMax} total={topPagesTotal} />
+          <GscTermRow key={p.key} term={p} max={view.topPagesMax} total={totalClicks} />
         ))
       )}
       <div className="px-3.5 py-2 text-label tracking-[0.16em] uppercase text-muted border-b border-border-soft">
@@ -241,12 +244,14 @@ function GscPerformanceCardBody({
   view,
   cells,
   topPages,
+  totalClicks,
   sitemaps,
   urls,
 }: {
   view: ReturnType<typeof deriveGscPerformanceView>;
   cells: ReturnType<typeof deriveGscMultiples>;
   topPages: GscTermStat[];
+  totalClicks: number;
   sitemaps: GscSitemapStatus[];
   urls: GscUrlStatus[];
 }) {
@@ -261,6 +266,7 @@ function GscPerformanceCardBody({
           view={view}
           cells={cells}
           topPages={topPages}
+          totalClicks={totalClicks}
           sitemaps={sitemaps}
           urls={urls}
         />
@@ -299,6 +305,7 @@ async function GscPerformanceCard({ rangeKey, range }: { rangeKey: RangeKey; ran
       view={view}
       cells={cells}
       topPages={topPages}
+      totalClicks={totals.clicks}
       sitemaps={sitemaps}
       urls={urls}
     />
@@ -308,11 +315,13 @@ async function GscPerformanceCard({ rangeKey, range }: { rangeKey: RangeKey; ran
 async function GscTopQueriesCard({ range }: { range: DateRange }) {
   if (!isGscConfigured()) return <GscNotConnectedCard label="Top search queries" />;
 
-  const topQueries = await loadSection('top-search-queries', () => getTopQueries(range, 10));
-  if (topQueries === SECTION_LOAD_FAILED) return <SectionUnavailable label="Top search queries" />;
+  const fetched = await loadSection('top-search-queries', () =>
+    Promise.all([getTopQueries(range, 10), getSearchTotals(range)]),
+  );
+  if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Top search queries" />;
 
+  const [topQueries, totals] = fetched;
   const max = topQueries.reduce((m, q) => Math.max(m, q.clicks), 0);
-  const total = topQueries.reduce((sum, q) => sum + q.clicks, 0);
 
   return (
     <Card>
@@ -320,7 +329,8 @@ async function GscTopQueriesCard({ range }: { range: DateRange }) {
       {topQueries.length === 0 ? (
         <EmptyState>No search queries in this range.</EmptyState>
       ) : (
-        topQueries.map((q) => <GscTermRow key={q.key} term={q} max={max} total={total} />)
+        // Share denominator is ALL search clicks, not the top-10 subtotal.
+        topQueries.map((q) => <GscTermRow key={q.key} term={q} max={max} total={totals.clicks} />)
       )}
     </Card>
   );
@@ -344,7 +354,9 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
       {!activity.hasData ? (
         <EmptyState>No events in this range.</EmptyState>
       ) : (
-        <div className="px-3.5 py-3">
+        // Fixed-width chart (like the rest of the admin substrate) scrolls inside
+        // the card on a narrow viewport instead of overflowing the page.
+        <div className="px-3.5 py-3 overflow-x-auto">
           <AdminDailyChart
             points={activity.points}
             average={activity.average}

@@ -77,13 +77,15 @@ export function deriveActivityView(input: {
   const points = series.values.map((y, x) => ({ x, y }));
 
   // Reference = the prior equal-length window's average daily events; suppressed
-  // (null) when that window holds no data — no misleading NaN/zero line.
+  // (null) when that window holds no data — no misleading NaN/zero line. Divide
+  // by the prior window's own calendar length (= the range length), NOT the
+  // current filled series length, which can be clamped shorter than the range.
   const prevTotal = prevDailyCounts
     ? prevDailyCounts.reduce((sum, d) => sum + d.totalEvents, 0)
     : 0;
   const referenceLine =
     prevDailyCounts && prevTotal > 0
-      ? { value: prevTotal / series.values.length, label: 'prior avg' }
+      ? { value: prevTotal / rangeDayCount(range), label: 'prior avg' }
       : null;
 
   // Deploy markers → their ordinal index in the filled series (out-of-range days
