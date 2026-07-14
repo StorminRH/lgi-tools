@@ -192,6 +192,30 @@ async function recordInvalidGrant(
   return reflectStoredToken(characterId);
 }
 
+async function deferInvalidGrantConfirmation(
+  row: LoadedAccountRow,
+  characterId: number,
+  refreshCiphertext: string,
+): Promise<FreshTokenResult> {
+  const deferredAt = new Date();
+  const deferred = await db
+    .update(account)
+    .set({
+      refreshTokenInvalidGrantFirstAt: deferredAt,
+      updatedAt: deferredAt,
+    })
+    .where(
+      and(
+        eq(account.id, row.id),
+        eq(account.refreshToken, refreshCiphertext),
+        eq(account.refreshTokenInvalidGrantCount, 1),
+      ),
+    )
+    .returning({ id: account.id });
+
+  return deferred.length > 0 ? { kind: 'upstream_error' } : reflectStoredToken(characterId);
+}
+
 // Revoke a character's EVE grant at CCP (RFC 7009), BEST-EFFORT. Reads the stored
 // refresh-token ciphertext, decrypts it, and revokes it at EVE's SSO endpoint so
 // the renewal path is closed upstream — not just dropped from local custody. NEVER
@@ -259,9 +283,15 @@ export async function getFreshAccessTokenForCharacter(
 
   if (result.kind !== 'ok') logTokenRefreshFailure(characterId, result.failureClass);
 
-  // Any failure that did not prove the refresh token dead: keep custody intact
-  // and let the caller retry. We do NOT touch the row.
-  if (result.kind === 'retryable') return { kind: 'upstream_error' };
+  // Any failure that did not prove the refresh token dead keeps custody intact.
+  // If this was the post-grace confirmation attempt, re-arm the quiet period so
+  // an outage cannot make every subsequent vend call EVE immediately. The CAS
+  // still yields to a concurrent successful refresh or OAuth relink.
+  if (result.kind === 'retryable') {
+    return row.refreshTokenInvalidGrantCount === 1
+      ? deferInvalidGrantConfirmation(row, characterId, refreshCiphertext)
+      : { kind: 'upstream_error' };
+  }
 
   // A first invalid_grant records a strike while preserving custody. Only a
   // second invalid_grant after the quiet period clears the tokens. Both writes

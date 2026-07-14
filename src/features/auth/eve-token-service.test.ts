@@ -493,7 +493,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     ['provider_5xx', 'eve_token_refresh_provider_5xx'],
     ['unexpected', 'eve_token_refresh_unexpected'],
   ] as const)(
-    'preserves custody and emits the %s failure action for a retryable refresh',
+    'preserves custody, re-arms grace, and emits the %s action during confirmation',
     async (failureClass, action) => {
       h.selectRows = [
         {
@@ -511,7 +511,10 @@ describe('getFreshAccessTokenForCharacter', () => {
       h.refreshEveTokenMock.mockResolvedValue({ kind: 'retryable', failureClass });
 
       expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
-      expect(h.updateSpy).not.toHaveBeenCalled();
+      const deferred = h.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+      expect(deferred.refreshTokenInvalidGrantFirstAt).toEqual(expect.any(Date));
+      expect(deferred).not.toHaveProperty('accessToken');
+      expect(deferred).not.toHaveProperty('refreshToken');
       expect(h.logUsageEventMock).toHaveBeenCalledWith({
         action,
         characterId: CHAR_ID,
@@ -520,6 +523,27 @@ describe('getFreshAccessTokenForCharacter', () => {
       expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
     },
   );
+
+  it('leaves strike state untouched for a retryable failure before any invalid_grant', async () => {
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        refreshTokenInvalidGrantCount: 0,
+        refreshTokenInvalidGrantFirstAt: null,
+        scope: null,
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'retryable',
+      failureClass: 'connection',
+    });
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+    expect(h.updateSpy).not.toHaveBeenCalled();
+  });
 
   it('does not let a rejected telemetry write fail a vend', async () => {
     h.selectRows = [

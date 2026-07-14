@@ -205,6 +205,23 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
     expect(results.map((r) => r.kind).sort()).toEqual(['ok', 'reauth_required']);
   });
 
+  it('re-arms grace after an ambiguous confirmation failure and suppresses the next vend', async () => {
+    const originalFirstAt = new Date(Date.now() - INVALID_GRANT_CONFIRMATION_GRACE_MS);
+    await seedAccount('RT0', 'old-access', past(), 1, originalFirstAt);
+    fetchSpy.mockResolvedValue(new Response('provider unavailable', { status: 503 }));
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+
+    const row = await readAccount();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(row.refreshToken).not.toBeNull();
+    expect(row.refreshTokenInvalidGrantCount).toBe(1);
+    expect(row.refreshTokenInvalidGrantFirstAt?.getTime()).toBeGreaterThan(
+      originalFirstAt.getTime(),
+    );
+  });
+
   it('does not clobber a fresh token a re-auth wrote mid-vend (success write finds 0 rows → reflects)', async () => {
     await seedAccount('RT0', 'old-access', past());
 
