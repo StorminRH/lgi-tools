@@ -6,6 +6,11 @@ const deleteEsiSnapshotMock = vi.fn(async (_id: number) => {});
 const saveOwnedAssetsMock = vi.fn(
   async (_owner: unknown, _rows: unknown, _etags: unknown, _snapshotId?: unknown) => {},
 );
+const emitDomainEventMock = vi.fn();
+
+vi.mock('@/data/domain-events/queries', () => ({
+  emitDomainEvent: (input: unknown) => emitDomainEventMock(input),
+}));
 
 vi.mock('@/data/esi-snapshots/crypto', () => ({
   encryptSnapshotBody: (body: unknown[]) => encryptSnapshotBodyMock(body),
@@ -61,6 +66,7 @@ describe('saveOwnedAssetsFromSource', () => {
     insertEsiSnapshotMock.mockClear();
     deleteEsiSnapshotMock.mockClear();
     saveOwnedAssetsMock.mockReset();
+    emitDomainEventMock.mockReset();
     saveOwnedAssetsMock.mockResolvedValue(undefined);
   });
 
@@ -70,6 +76,7 @@ describe('saveOwnedAssetsFromSource', () => {
     await save({ ownerType: 'character', ownerId: 7 }, rows, ['"etag"'], source);
 
     expect(insertEsiSnapshotMock).not.toHaveBeenCalled();
+    expect(emitDomainEventMock).not.toHaveBeenCalled();
     expect(saveOwnedAssetsMock).toHaveBeenCalledWith(
       { ownerType: 'character', ownerId: 7 },
       rows,
@@ -100,6 +107,16 @@ describe('saveOwnedAssetsFromSource', () => {
       ['"fallback"'],
       44,
     );
+    expect(emitDomainEventMock).toHaveBeenCalledWith({
+      eventType: 'esi_snapshot_pulled',
+      metadata: {
+        snapshotId: 44,
+        dataset: 'owned_assets',
+        ownerType: 'corporation',
+        ownerId: 5000,
+        itemCount: 1,
+      },
+    });
   });
 
   it('removes an orphan snapshot when the existing derived save fails', async () => {
@@ -111,5 +128,6 @@ describe('saveOwnedAssetsFromSource', () => {
     ).rejects.toThrow('derived save failed');
 
     expect(deleteEsiSnapshotMock).toHaveBeenCalledWith(44);
+    expect(emitDomainEventMock).not.toHaveBeenCalled();
   });
 });

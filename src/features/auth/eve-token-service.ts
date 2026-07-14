@@ -17,6 +17,7 @@
 // writes below.
 
 import { and, eq, isNull, or } from 'drizzle-orm';
+import { emitDomainEvent } from '@/data/domain-events/queries';
 import { db } from '@/db';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
@@ -182,6 +183,15 @@ async function recordInvalidGrant(
     .returning({ id: account.id });
 
   if (recorded.length > 0) {
+    emitDomainEvent({
+      eventType: 'eve_token_state_changed',
+      metadata: {
+        characterId,
+        from: confirming ? 'suspect' : 'usable',
+        to: confirming ? 'reauth_required' : 'suspect',
+        reason: 'invalid_grant',
+      },
+    });
     return confirming ? { kind: 'reauth_required' } : { kind: 'upstream_error' };
   }
   void logUsageEvent({
@@ -327,6 +337,18 @@ export async function getFreshAccessTokenForCharacter(
     .returning({ id: account.id });
 
   if (written.length === 0) return reflectStoredToken(characterId);
+
+  if (row.refreshTokenInvalidGrantCount === 1) {
+    emitDomainEvent({
+      eventType: 'eve_token_state_changed',
+      metadata: {
+        characterId,
+        from: 'suspect',
+        to: 'usable',
+        reason: 'refresh_recovered',
+      },
+    });
+  }
 
   return { kind: 'ok', accessToken: result.access_token, expiresAt, characterId, scopes };
 }

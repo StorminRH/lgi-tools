@@ -1,5 +1,6 @@
 import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
+import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
@@ -56,6 +57,13 @@ export function tableGrowthKey(table: RegisteredTable): string {
 // Test-only accounting for every durable Postgres table. This module is never
 // imported by the DB proxy or a runtime route; the gate consumes it directly.
 export const TABLE_GROWTH_STORIES = [
+  {
+    kind: 'pruned',
+    table: schema.domainEvents,
+    retentionDays: DOMAIN_EVENT_RETENTION_DAYS,
+    retentionConstant: 'DOMAIN_EVENT_RETENTION_DAYS',
+    prunedBy: 'daily /api/cron/refresh-gsc housekeeping',
+  },
   {
     kind: 'pruned',
     table: schema.usageLogs,

@@ -13,6 +13,7 @@ import {
   markEsiRefreshJobSucceeded,
   recoverStaleRunningJobs,
 } from '@/data/esi-refresh-jobs/queries';
+import { emitDomainEvent } from '@/data/domain-events/queries';
 import type { EsiRefreshWorkerSummary } from '@/data/esi-refresh-jobs/api-contract';
 import type {
   EsiRefreshDataset,
@@ -31,6 +32,22 @@ type RefreshJobRunner = (
   userId: string,
   target: OwnerSyncTarget,
 ) => Promise<OwnerSyncResult>;
+
+type RecordedJobStatus =
+  | 'succeeded'
+  | 'failed_retryable'
+  | 'failed_permanent'
+  | 'dead_lettered';
+
+type ProcessJobOutcome =
+  | {
+      status: RecordedJobStatus;
+      attemptCount: number;
+      failureCode: string | null;
+    }
+  | { status: 'deferred_for_budget' };
+
+type EsiRefreshWorkerCounts = Omit<EsiRefreshWorkerSummary, 'status' | 'durationMs'>;
 
 const RUNNERS: Record<EsiRefreshDataset, RefreshJobRunner> = {
   skills: runSkillsRefreshJob,
@@ -64,16 +81,16 @@ async function recordRetryableFailure(
   job: EsiRefreshJob,
   code: string,
   now: Date,
-): Promise<'failed_retryable' | 'dead_lettered'> {
+): Promise<ProcessJobOutcome> {
   const attemptCount = job.attemptCount + 1;
   if (attemptCount < ESI_REFRESH_JOB_MAX_ATTEMPTS) {
     await markEsiRefreshJobRetryable(job.id, attemptCount, code, retryAt(attemptCount, now), now);
-    return 'failed_retryable';
+    return { status: 'failed_retryable', attemptCount, failureCode: code };
   }
 
   await markEsiRefreshJobDeadLettered(job.id, attemptCount, code, now);
   await alertDeadLetter(job, attemptCount, code);
-  return 'dead_lettered';
+  return { status: 'dead_lettered', attemptCount, failureCode: code };
 }
 
 async function alertDeadLetter(
@@ -96,7 +113,7 @@ async function alertDeadLetter(
 async function processJob(
   job: EsiRefreshJob,
   now: Date,
-): Promise<'succeeded' | 'deferred_for_budget' | 'failed_retryable' | 'failed_permanent' | 'dead_lettered'> {
+): Promise<ProcessJobOutcome> {
   let result: OwnerSyncResult;
   try {
     result = await RUNNERS[job.dataset](job.userId, targetOf(job));
@@ -107,16 +124,68 @@ async function processJob(
   switch (result.kind) {
     case 'succeeded':
       await markEsiRefreshJobSucceeded(job.id, now);
-      return 'succeeded';
+      return { status: 'succeeded', attemptCount: job.attemptCount, failureCode: null };
     case 'deferred_for_budget':
       await markEsiRefreshJobDeferred(job.id, result.error, now);
-      return 'deferred_for_budget';
+      return { status: 'deferred_for_budget' };
     case 'failed_retryable':
       return recordRetryableFailure(job, result.code, now);
     case 'failed_permanent':
       await markEsiRefreshJobPermanent(job.id, result.code, now);
-      return 'failed_permanent';
+      return {
+        status: 'failed_permanent',
+        attemptCount: job.attemptCount,
+        failureCode: result.code,
+      };
   }
+}
+
+function emitJobStatus(
+  job: EsiRefreshJob,
+  status: RecordedJobStatus,
+  attemptCount: number,
+  failureCode: string | null,
+): void {
+  emitDomainEvent({
+    eventType: 'esi_refresh_job_status_changed',
+    metadata: {
+      jobId: job.id,
+      dataset: job.dataset,
+      ownerType: job.ownerType,
+      ownerId: job.ownerId,
+      status,
+      attemptCount,
+      failureCode,
+    },
+  });
+}
+
+// One owner for the status-to-summary mapping and the rule that only persisted
+// completion/failure transitions enter the ledger. Budget deferral stays live
+// queue state, so it contributes to the drain summary but emits no finish event.
+function recordProcessedOutcome(
+  counts: EsiRefreshWorkerCounts,
+  job: EsiRefreshJob,
+  outcome: ProcessJobOutcome,
+): void {
+  switch (outcome.status) {
+    case 'deferred_for_budget':
+      counts.deferredForBudget += 1;
+      return;
+    case 'succeeded':
+      counts.succeeded += 1;
+      break;
+    case 'failed_retryable':
+      counts.failedRetryable += 1;
+      break;
+    case 'failed_permanent':
+      counts.failedPermanent += 1;
+      break;
+    case 'dead_lettered':
+      counts.deadLettered += 1;
+      break;
+  }
+  emitJobStatus(job, outcome.status, outcome.attemptCount, outcome.failureCode);
 }
 
 export async function drainEsiRefreshJobs(
@@ -126,6 +195,12 @@ export async function drainEsiRefreshJobs(
     new Date(now.getTime() - ESI_REFRESH_STALE_RUNNING_MS),
     now,
   );
+  for (const job of recovery.retryable) {
+    emitJobStatus(job, 'failed_retryable', job.attemptCount, 'worker_interrupted');
+  }
+  for (const job of recovery.deadLettered) {
+    emitJobStatus(job, 'dead_lettered', job.attemptCount, 'worker_interrupted');
+  }
   await Promise.all(
     recovery.deadLettered.map((job) =>
       alertDeadLetter(job, job.attemptCount, 'worker_interrupted'),
@@ -145,11 +220,7 @@ export async function drainEsiRefreshJobs(
   for (const job of jobs) {
     try {
       const outcome = await processJob(job, now);
-      if (outcome === 'succeeded') counts.succeeded += 1;
-      if (outcome === 'deferred_for_budget') counts.deferredForBudget += 1;
-      if (outcome === 'failed_retryable') counts.failedRetryable += 1;
-      if (outcome === 'failed_permanent') counts.failedPermanent += 1;
-      if (outcome === 'dead_lettered') counts.deadLettered += 1;
+      recordProcessedOutcome(counts, job, outcome);
     } catch (error) {
       console.error(
         JSON.stringify({

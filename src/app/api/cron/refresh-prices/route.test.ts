@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const refreshStalePricesMock = vi.fn();
 const logUsageEventMock = vi.fn();
+const emitDomainEventMock = vi.fn();
 const alertMock = vi.fn();
 const revalidateTagMock = vi.fn();
 
@@ -12,6 +13,10 @@ vi.mock('@/data/market-prices/cache', () => ({
 
 vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
+}));
+
+vi.mock('@/data/domain-events/queries', () => ({
+  emitDomainEvent: (input: unknown) => emitDomainEventMock(input),
 }));
 
 vi.mock('@/lib/alerts', () => ({
@@ -53,6 +58,7 @@ describe('GET /api/cron/refresh-prices', () => {
     vi.resetModules();
     refreshStalePricesMock.mockReset();
     logUsageEventMock.mockReset();
+    emitDomainEventMock.mockReset();
     alertMock.mockReset();
     revalidateTagMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
@@ -86,6 +92,7 @@ describe('GET /api/cron/refresh-prices', () => {
       action: 'cron_prices',
       metadata: expect.objectContaining({ outcome: 'skipped', reason: 'empty-set' }),
     });
+    expect(emitDomainEventMock).not.toHaveBeenCalled();
     expect(alertMock).not.toHaveBeenCalled();
   });
 
@@ -114,6 +121,18 @@ describe('GET /api/cron/refresh-prices', () => {
     expect(logUsageEventMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ action: 'price_source_degraded' }),
     );
+    expect(emitDomainEventMock).toHaveBeenCalledWith({
+      eventType: 'price_refresh_finished',
+      metadata: {
+        outcome: 'completed',
+        fetched: 10,
+        written: 10,
+        esiCount: 10,
+        fuzzworkFallbackCount: 0,
+        budgetExhausted: false,
+        durationMs: expect.any(Number),
+      },
+    });
     expect(alertMock).not.toHaveBeenCalled();
   });
 
@@ -138,6 +157,18 @@ describe('GET /api/cron/refresh-prices', () => {
         esiCount: 6,
         fuzzworkFallbackCount: 4,
         budgetExhausted: true,
+      },
+    });
+    expect(emitDomainEventMock).toHaveBeenCalledWith({
+      eventType: 'price_refresh_finished',
+      metadata: {
+        outcome: 'degraded',
+        fetched: 10,
+        written: 10,
+        esiCount: 6,
+        fuzzworkFallbackCount: 4,
+        budgetExhausted: true,
+        durationMs: expect.any(Number),
       },
     });
     expect(alertMock).toHaveBeenCalledWith({

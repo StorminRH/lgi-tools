@@ -11,13 +11,21 @@ const mocks = vi.hoisted(() => ({
   markRetryable: vi.fn(async () => {}),
   markSucceeded: vi.fn(async () => {}),
   recover: vi.fn<
-    () => Promise<{ recovered: number; deadLettered: EsiRefreshJob[] }>
-  >(async () => ({ recovered: 0, deadLettered: [] })),
+    () => Promise<{
+      recovered: number;
+      retryable: EsiRefreshJob[];
+      deadLettered: EsiRefreshJob[];
+    }>
+  >(async () => ({ recovered: 0, retryable: [], deadLettered: [] })),
+  emitDomainEvent: vi.fn(),
   runAssets: vi.fn(),
   runBlueprints: vi.fn(),
   runCharacterJobs: vi.fn(),
   runCorporationJobs: vi.fn(),
   runSkills: vi.fn(),
+}));
+vi.mock('@/data/domain-events/queries', () => ({
+  emitDomainEvent: mocks.emitDomainEvent,
 }));
 
 vi.mock('@/data/esi-refresh-jobs/queries', () => ({
@@ -75,7 +83,7 @@ function job(
 describe('drainEsiRefreshJobs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.recover.mockResolvedValue({ recovered: 2, deadLettered: [] });
+    mocks.recover.mockResolvedValue({ recovered: 0, retryable: [], deadLettered: [] });
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -124,7 +132,7 @@ describe('drainEsiRefreshJobs', () => {
       failedRetryable: 1,
       failedPermanent: 1,
       deadLettered: 1,
-      recovered: 2,
+      recovered: 0,
     });
     expect(mocks.markSucceeded).toHaveBeenCalledWith(1, NOW);
     expect(mocks.markDeferred).toHaveBeenCalledWith(2, budgetError, NOW);
@@ -144,11 +152,66 @@ describe('drainEsiRefreshJobs', () => {
       attemptCount: 5,
       failureCode: 'connection',
     });
+    expect(mocks.emitDomainEvent.mock.calls.map(([event]) => event)).toEqual([
+      {
+        eventType: 'esi_refresh_job_status_changed',
+        metadata: {
+          jobId: 1,
+          dataset: 'skills',
+          ownerType: 'character',
+          ownerId: 1001,
+          status: 'succeeded',
+          attemptCount: 0,
+          failureCode: null,
+        },
+      },
+      {
+        eventType: 'esi_refresh_job_status_changed',
+        metadata: {
+          jobId: 3,
+          dataset: 'corporation_industry_jobs',
+          ownerType: 'corporation',
+          ownerId: 9001,
+          status: 'failed_retryable',
+          attemptCount: 1,
+          failureCode: 'esi_server_error',
+        },
+      },
+      {
+        eventType: 'esi_refresh_job_status_changed',
+        metadata: {
+          jobId: 4,
+          dataset: 'owned_blueprints',
+          ownerType: 'character',
+          ownerId: 1001,
+          status: 'failed_permanent',
+          attemptCount: 0,
+          failureCode: 'scope_missing',
+        },
+      },
+      {
+        eventType: 'esi_refresh_job_status_changed',
+        metadata: {
+          jobId: 5,
+          dataset: 'owned_assets',
+          ownerType: 'character',
+          ownerId: 1001,
+          status: 'dead_lettered',
+          attemptCount: 5,
+          failureCode: 'connection',
+        },
+      },
+    ]);
   });
 
   it('alerts recovered dead letters and continues after one outcome write fails', async () => {
     const interrupted = job(8, 'owned_blueprints', 5);
-    mocks.recover.mockResolvedValue({ recovered: 1, deadLettered: [interrupted] });
+    const retryable = { ...job(7, 'skills', 3), status: 'failed_retryable' as const };
+    mocks.recover.mockResolvedValue({
+      recovered: 2,
+      retryable: [retryable],
+      deadLettered: [interrupted],
+    });
     mocks.claim.mockResolvedValue([job(9, 'skills'), job(10, 'skills')]);
     mocks.runSkills.mockResolvedValue({
       kind: 'succeeded',
@@ -164,7 +227,7 @@ describe('drainEsiRefreshJobs', () => {
       claimed: 2,
       succeeded: 1,
       deadLettered: 1,
-      recovered: 1,
+      recovered: 2,
     });
     expect(mocks.markSucceeded).toHaveBeenCalledTimes(2);
     expect(mocks.alertDeadLetter).toHaveBeenCalledWith({
@@ -177,5 +240,29 @@ describe('drainEsiRefreshJobs', () => {
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('"jobId":9'),
     );
+    expect(mocks.emitDomainEvent).toHaveBeenCalledWith({
+      eventType: 'esi_refresh_job_status_changed',
+      metadata: {
+        jobId: 7,
+        dataset: 'skills',
+        ownerType: 'character',
+        ownerId: 1001,
+        status: 'failed_retryable',
+        attemptCount: 3,
+        failureCode: 'worker_interrupted',
+      },
+    });
+    expect(mocks.emitDomainEvent).toHaveBeenCalledWith({
+      eventType: 'esi_refresh_job_status_changed',
+      metadata: {
+        jobId: 8,
+        dataset: 'owned_blueprints',
+        ownerType: 'character',
+        ownerId: 1001,
+        status: 'dead_lettered',
+        attemptCount: 5,
+        failureCode: 'worker_interrupted',
+      },
+    });
   });
 });
