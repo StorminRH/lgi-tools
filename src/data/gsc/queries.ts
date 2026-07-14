@@ -141,8 +141,26 @@ export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
   }));
 }
 
-// Latest stored row for every URL. DISTINCT ON follows PostgreSQL's required
-// key-first ordering, then takes the newest inspection date for that URL.
+export function mergeCurrentUrlCoverage(
+  sitemapUrls: string[],
+  storedRows: GscUrlStatus[],
+): GscUrlStatus[] {
+  const storedByUrl = new Map(storedRows.map((row) => [row.url, row]));
+  return sitemapUrls.map(
+    (url) =>
+      storedByUrl.get(url) ?? {
+        inspectionDate: null,
+        url,
+        verdict: null,
+        coverageState: null,
+        lastCrawlTime: null,
+      },
+  );
+}
+
+// Latest stored row for every current sitemap URL. DISTINCT ON follows
+// PostgreSQL's required key-first ordering, then takes the newest inspection
+// date. The merge keeps never-inspected and repeatedly-failing URLs visible.
 export async function getLatestUrlCoverage(sitemapUrls: string[]): Promise<GscUrlStatus[]> {
   if (sitemapUrls.length === 0) return [];
   const rows = await db
@@ -156,22 +174,22 @@ export async function getLatestUrlCoverage(sitemapUrls: string[]): Promise<GscUr
     .from(gscUrlInspection)
     .where(inArray(gscUrlInspection.url, sitemapUrls))
     .orderBy(gscUrlInspection.url, desc(gscUrlInspection.inspectionDate));
-  return rows.map((r) => ({
-    inspectionDate: r.inspectionDate,
-    url: r.url,
-    verdict: r.verdict,
-    coverageState: r.coverageState,
-    lastCrawlTime: r.lastCrawlTime,
-  }));
+  return mergeCurrentUrlCoverage(
+    sitemapUrls,
+    rows.map((r) => ({
+      inspectionDate: r.inspectionDate,
+      url: r.url,
+      verdict: r.verdict,
+      coverageState: r.coverageState,
+      lastCrawlTime: r.lastCrawlTime,
+    })),
+  );
 }
 
-// Daily coverage counts within the selected admin range. PASS is the only
-// indexed verdict; every other Google verdict (and null) remains not indexed.
-export async function getCoverageTrend(
-  range: GscRange,
-  sitemapUrls: string[],
-): Promise<GscCoverageDailyPoint[]> {
-  if (sitemapUrls.length === 0) return [];
+// Daily coverage counts within the selected admin range. Each stored row carries
+// that day's expected sitemap size, so normal sitemap growth never erases older
+// complete days. Partial days stay absent until retries fill the expected count.
+export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDailyPoint[]> {
   const indexed = sql<number>`count(*) filter (
     where ${gscUrlInspection.verdict} = 'PASS'
   )`.mapWith(Number);
@@ -181,14 +199,9 @@ export async function getCoverageTrend(
   const rows = await db
     .select({ day: gscUrlInspection.inspectionDate, indexed, notIndexed })
     .from(gscUrlInspection)
-    .where(
-      and(
-        between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)),
-        inArray(gscUrlInspection.url, sitemapUrls),
-      ),
-    )
+    .where(between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)))
     .groupBy(gscUrlInspection.inspectionDate)
-    .having(sql`count(*) = ${sitemapUrls.length}`)
+    .having(sql`count(*) = max(${gscUrlInspection.sitemapUrlCount})`)
     .orderBy(gscUrlInspection.inspectionDate);
   return rows.map((row) => ({
     day: row.day,

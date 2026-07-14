@@ -54,7 +54,7 @@ function CoverageTable({ rows }: { rows: GscCoverageRow[] }) {
               </td>
               <td className="px-3.5 py-2 font-mono text-ui text-muted">{row.reason}</td>
               <td className="px-3.5 py-2 font-mono text-ui text-muted whitespace-nowrap">
-                {row.inspectionDate}
+                {row.inspectionDate ?? 'Never'}
               </td>
               <td className="px-3.5 py-2 font-mono text-ui text-muted whitespace-nowrap">
                 {row.lastCrawlTime ? formatIsoDay(row.lastCrawlTime) : 'Unknown'}
@@ -84,7 +84,7 @@ export async function GscCoverageSection({ range }: { range: GscRange }) {
     const sitemapUrls = (await getSitemapEntries()).map(({ url }) => url);
     return Promise.all([
       getLatestUrlCoverage(sitemapUrls),
-      getCoverageTrend(range, sitemapUrls),
+      getCoverageTrend(range),
     ]);
   });
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Index coverage" />;

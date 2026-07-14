@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  getCoverageTrend,
   getLatestUrlCoverage,
+  mergeCurrentUrlCoverage,
   toDateStr,
   toSearchTotals,
 } from './queries';
@@ -38,13 +38,35 @@ describe('toSearchTotals', () => {
 });
 
 describe('coverage queries without a current sitemap', () => {
-  it('return no latest state or trends without querying Postgres', async () => {
-    const range = {
-      from: new Date('2026-06-01T00:00:00Z'),
-      to: new Date('2026-06-30T00:00:00Z'),
+  it('returns no latest state without querying Postgres', async () => {
+    await expect(getLatestUrlCoverage([])).resolves.toEqual([]);
+  });
+});
+
+describe('mergeCurrentUrlCoverage', () => {
+  it('keeps current URLs without a stored inspection visible as unknown', () => {
+    const stored = {
+      inspectionDate: '2026-07-13',
+      url: 'https://lgi.tools/',
+      verdict: 'PASS',
+      coverageState: 'Submitted and indexed',
+      lastCrawlTime: null,
     };
 
-    await expect(getLatestUrlCoverage([])).resolves.toEqual([]);
-    await expect(getCoverageTrend(range, [])).resolves.toEqual([]);
+    expect(
+      mergeCurrentUrlCoverage(
+        ['https://lgi.tools/', 'https://lgi.tools/new'],
+        [stored],
+      ),
+    ).toEqual([
+      stored,
+      {
+        inspectionDate: null,
+        url: 'https://lgi.tools/new',
+        verdict: null,
+        coverageState: null,
+        lastCrawlTime: null,
+      },
+    ]);
   });
 });

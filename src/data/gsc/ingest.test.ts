@@ -104,10 +104,12 @@ describe('indexStatusToRecord', () => {
         googleCanonical: 'https://lgi.tools/',
       },
       SYNCED,
+      111,
     );
     expect(rec).toMatchObject({
       inspectionDate: '2026-06-04',
       url: 'https://lgi.tools/',
+      sitemapUrlCount: 111,
       verdict: 'PASS',
       coverageState: 'Submitted and indexed',
       googleCanonical: 'https://lgi.tools/',
@@ -118,9 +120,10 @@ describe('indexStatusToRecord', () => {
   });
 
   it('stores an unknown row when Google omits indexStatusResult', () => {
-    expect(indexStatusToRecord('https://lgi.tools/sites/3', null, SYNCED)).toMatchObject({
+    expect(indexStatusToRecord('https://lgi.tools/sites/3', null, SYNCED, 111)).toMatchObject({
       inspectionDate: '2026-06-04',
       url: 'https://lgi.tools/sites/3',
+      sitemapUrlCount: 111,
       verdict: null,
       coverageState: null,
       lastCrawlTime: null,
@@ -170,7 +173,7 @@ describe('daily inspection orchestration', () => {
     const urls = Array.from({ length: 12 }, (_, index) => `https://lgi.tools/sites/${index}`);
     let active = 0;
     let maxActive = 0;
-    const result = await inspectUrlsInBatches(urls, SYNCED, async (url) => {
+    const result = await inspectUrlsInBatches(urls, SYNCED, 12, async (url) => {
       active++;
       maxActive = Math.max(maxActive, active);
       await Promise.resolve();
@@ -181,6 +184,7 @@ describe('daily inspection orchestration', () => {
 
     expect(maxActive).toBe(5);
     expect(result.records).toHaveLength(11);
+    expect(result.records.every((row) => row.sitemapUrlCount === 12)).toBe(true);
     expect(result.records.find((row) => row.url.endsWith('/9'))?.verdict).toBeNull();
     expect(result.errors).toEqual([
       'url-inspection https://lgi.tools/sites/7: quota hiccup',

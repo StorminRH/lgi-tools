@@ -96,11 +96,13 @@ export function indexStatusToRecord(
   url: string,
   status: IndexStatusApiResult | null,
   syncedAt: Date,
+  sitemapUrlCount: number,
   inspectionDate = dateStr(syncedAt),
 ): UrlInspectionRecord {
   return {
     inspectionDate,
     url,
+    sitemapUrlCount,
     verdict: status?.verdict ?? null,
     coverageState: status?.coverageState ?? null,
     robotsTxtState: status?.robotsTxtState ?? null,
@@ -191,6 +193,7 @@ export async function upsertUrlInspectionRecords(
         googleCanonical: excluded('google_canonical'),
         userCanonical: excluded('user_canonical'),
         crawledAs: excluded('crawled_as'),
+        sitemapUrlCount: excluded('sitemap_url_count'),
         syncedAt: excluded('synced_at'),
       },
     });
@@ -202,6 +205,7 @@ export async function upsertUrlInspectionRecords(
 export async function inspectUrlsInBatches(
   urls: string[],
   syncedAt: Date,
+  sitemapUrlCount: number,
   inspect: (url: string) => Promise<IndexStatusApiResult | null> = inspectUrl,
 ): Promise<InspectionBatchResult> {
   const records: UrlInspectionRecord[] = [];
@@ -212,7 +216,10 @@ export async function inspectUrlsInBatches(
         { ok: true; record: UrlInspectionRecord } | { ok: false; error: string }
       > => {
         try {
-          return { ok: true, record: indexStatusToRecord(url, await inspect(url), syncedAt) };
+          return {
+            ok: true,
+            record: indexStatusToRecord(url, await inspect(url), syncedAt, sitemapUrlCount),
+          };
         } catch (err) {
           return { ok: false, error: `url-inspection ${url}: ${errText(err)}` };
         }
@@ -336,7 +343,7 @@ async function syncUrlInspections(
       urls,
       stored.map((row) => row.url),
     );
-    const result = await inspectUrlsInBatches(missing, syncedAt);
+    const result = await inspectUrlsInBatches(missing, syncedAt, urls.length);
 
     await upsertUrlInspectionRecords(db, result.records);
     return { count: result.records.length, errors: result.errors };

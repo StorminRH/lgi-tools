@@ -25,7 +25,7 @@ describe('deriveGscCoverageView', () => {
           lastCrawlTime: null,
         },
         {
-          inspectionDate: '2026-07-12',
+          inspectionDate: null,
           url: 'https://lgi.tools/unknown',
           verdict: null,
           coverageState: null,

@@ -109,7 +109,7 @@ export interface GscSitemapStatus {
 }
 
 export interface GscUrlStatus {
-  inspectionDate: string;
+  inspectionDate: string | null;
   url: string;
   verdict: string | null;
   coverageState: string | null;
