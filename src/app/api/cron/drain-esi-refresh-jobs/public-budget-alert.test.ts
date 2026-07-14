@@ -48,6 +48,7 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
       count: 3,
     });
     expect(mocks.alert).toHaveBeenCalledWith({ count: 3, windowMinutes: 15 });
+    expect(mocks.hasAlert).toHaveBeenCalledWith(mocks.count.mock.calls[0]![0]);
     expect(mocks.claim).toHaveBeenCalledWith({ count: 3, windowMinutes: 15 });
     expect(mocks.claim.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.alert.mock.invocationCallOrder[0]!,

@@ -8,7 +8,6 @@ import { alertPublicEsiBudgetExhaustion, isOpsAlertConfigured } from '@/lib/aler
 
 export const PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES = 15;
 export const PUBLIC_ESI_BUDGET_ALERT_THRESHOLD = 3;
-export const PUBLIC_ESI_BUDGET_ALERT_CLAIM_MINUTES = 5;
 
 export type PublicBudgetAlertResult =
   | { status: 'below-threshold'; count: number }
@@ -22,21 +21,20 @@ export async function maybeAlertPublicEsiBudgetExhaustion(
   const since = new Date(
     now.getTime() - PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES * 60_000,
   );
-  const activeClaimSince = new Date(
-    now.getTime() - PUBLIC_ESI_BUDGET_ALERT_CLAIM_MINUTES * 60_000,
-  );
   const count = await countPublicEsiBudgetExhaustionsSince(since);
   if (count < PUBLIC_ESI_BUDGET_ALERT_THRESHOLD) {
     return { status: 'below-threshold', count };
   }
-  if (await hasPublicEsiBudgetAlertSince(since, activeClaimSince)) {
+  if (await hasPublicEsiBudgetAlertSince(since)) {
     return { status: 'already-alerted', count };
   }
   if (!isOpsAlertConfigured()) return { status: 'unconfigured', count };
 
   // Claim before delivery so concurrent runs cannot duplicate the webhook. A
-  // failed or abandoned claim expires automatically; delivery never depends on
-  // a compensating delete succeeding before the next retry.
+  // pending claim covers the complete aggregation window: if delivery succeeds
+  // but completion is interrupted, the same window still cannot post twice.
+  // Failed claims expire with their triggering window, so fresh exhaustion can
+  // alert later without depending on a compensating delete.
   const claimId = await claimPublicEsiBudgetAlert({
     count,
     windowMinutes: PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES,

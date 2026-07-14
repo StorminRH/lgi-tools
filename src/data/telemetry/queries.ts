@@ -316,23 +316,17 @@ export async function countPublicEsiBudgetExhaustionsSince(since: Date): Promise
   return Number(row?.n ?? 0);
 }
 
-export async function hasPublicEsiBudgetAlertSince(
-  since: Date,
-  activeClaimSince: Date,
-): Promise<boolean> {
+export async function hasPublicEsiBudgetAlertSince(since: Date): Promise<boolean> {
   const [row] = await db
     .select({ n: count() })
     .from(usageLogs)
     .where(
-      or(
-        and(
-          gte(usageLogs.timestamp, since),
-          eq(usageLogs.action, 'public_esi_budget_alerted'),
-        ),
-        and(
-          gte(usageLogs.timestamp, activeClaimSince),
-          eq(usageLogs.action, 'public_esi_budget_alert_claimed'),
-        ),
+      and(
+        gte(usageLogs.timestamp, since),
+        inArray(usageLogs.action, [
+          'public_esi_budget_alert_claimed',
+          'public_esi_budget_alerted',
+        ]),
       ),
     );
   return Number(row?.n ?? 0) > 0;

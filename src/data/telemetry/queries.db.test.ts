@@ -269,16 +269,16 @@ describe.skipIf(!reachable)('admin telemetry analytics queries execute against P
   it('counts only public on-demand exhaustion events and finds the alert marker', async () => {
     const since = new Date('2020-01-03T00:00:00Z');
     await expect(countPublicEsiBudgetExhaustionsSince(since)).resolves.toBe(2);
-    await expect(hasPublicEsiBudgetAlertSince(since, since)).resolves.toBe(true);
+    await expect(hasPublicEsiBudgetAlertSince(since)).resolves.toBe(true);
   });
 
   it('keeps only active claims and promotes a delivered claim', async () => {
     const since = new Date(Date.now() - 60_000);
     const claimId = await claimPublicEsiBudgetAlert({ count: 3, windowMinutes: 15 });
 
-    await expect(hasPublicEsiBudgetAlertSince(since, since)).resolves.toBe(true);
-    await expect(hasPublicEsiBudgetAlertSince(since, new Date())).resolves.toBe(false);
+    await expect(hasPublicEsiBudgetAlertSince(since)).resolves.toBe(true);
+    await expect(hasPublicEsiBudgetAlertSince(new Date())).resolves.toBe(false);
     await completePublicEsiBudgetAlertClaim(claimId);
-    await expect(hasPublicEsiBudgetAlertSince(since, new Date())).resolves.toBe(true);
+    await expect(hasPublicEsiBudgetAlertSince(since)).resolves.toBe(true);
   });
 });
