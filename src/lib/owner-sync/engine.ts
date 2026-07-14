@@ -1,3 +1,4 @@
+import { EsiBudgetExhaustedError } from '@/lib/esi';
 import { classifyCorpDirector } from './director';
 import type {
   CorpMemberCandidate,
@@ -5,6 +6,9 @@ import type {
   EnumeratedOwner,
   OwnerAxis,
   OwnerSyncDescriptor,
+  OwnerSyncResult,
+  OwnerSyncRunOptions,
+  OwnerSyncTarget,
 } from './types';
 
 // The token-resolution outcome for one owner, before the fetch: a usable token, a
@@ -12,26 +16,39 @@ import type {
 type TokenOutcome =
   | { kind: 'token'; accessToken: string }
   | { kind: 'needs_role' }
-  | { kind: 'skip' };
+  | { kind: 'skip'; retryable: boolean };
 
 // Run one user's per-owner sync: the character pass THEN the corp pass, in series at
 // the top level (a character is both a char-owner and a corp member, so serialising
 // the passes avoids vending the same token concurrently). Within each pass the owners
-// are independent and refresh in parallel. Each owner is best-effort — the slice's
-// port swallows ESI budget / 5xx to soft outcomes, so one owner's miss never aborts
-// the pass. A character-only slice supplies no corpAxis; a corp-only slice supplies
-// no characterAxis.
+// are independent and refresh in parallel. Each owner reports a structured outcome;
+// budget deferrals may additionally enqueue through the optional callback. A
+// character-only slice supplies no corpAxis; a corp-only slice supplies no characterAxis.
 export async function runOwnerSync<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   userId: string,
-): Promise<void> {
+  options: OwnerSyncRunOptions = {},
+): Promise<OwnerSyncResult[]> {
   const owners = await descriptor.enumerate(userId);
+  const results: OwnerSyncResult[] = [];
   if (descriptor.characterAxis !== undefined) {
-    await runCharacterPass(descriptor, descriptor.characterAxis, owners);
+    results.push(
+      ...(await runCharacterPass(descriptor, descriptor.characterAxis, owners, options)),
+    );
   }
   if (descriptor.corpAxis !== undefined) {
-    await runCorpPass(descriptor, descriptor.corpAxis, userId, owners);
+    results.push(
+      ...(await runCorpPass(descriptor, descriptor.corpAxis, userId, owners, options)),
+    );
   }
+  return results;
+}
+
+function targetMatches(candidate: OwnerSyncTarget, requested: OwnerSyncTarget | undefined): boolean {
+  return (
+    requested === undefined ||
+    (candidate.ownerType === requested.ownerType && candidate.ownerId === requested.ownerId)
+  );
 }
 
 // Character owners: each scope-eligible character syncs its OWN data with its own
@@ -40,13 +57,19 @@ async function runCharacterPass<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   axis: OwnerAxis<TOwner>,
   owners: EnumeratedOwner[],
-): Promise<void> {
-  await Promise.all(
+  options: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
+  return Promise.all(
     owners
       .filter((owner) => axis.eligible(owner))
-      .map((owner) =>
-        syncOwner(descriptor, axis.ownerOf(owner.characterId), () =>
-          resolveCharacterToken(descriptor, owner.characterId),
+      .map((owner) => ({ owner, key: axis.ownerOf(owner.characterId) }))
+      .filter(({ key }) => targetMatches(descriptor.identityOf(key), options.target))
+      .map(({ owner, key }) =>
+        syncOwner(
+          descriptor,
+          key,
+          () => resolveCharacterToken(descriptor, owner.characterId),
+          options,
         ),
       ),
   );
@@ -60,7 +83,8 @@ async function runCorpPass<TOwner, TState, TSave>(
   axis: CorpOwnerAxis<TOwner>,
   userId: string,
   owners: EnumeratedOwner[],
-): Promise<void> {
+  options: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
   const byCorp = new Map<number, EnumeratedOwner[]>();
   for (const owner of owners) {
     if (!axis.eligible(owner) || owner.corporationId === null) continue;
@@ -69,12 +93,21 @@ async function runCorpPass<TOwner, TState, TSave>(
     byCorp.set(owner.corporationId, members);
   }
 
-  await Promise.all(
-    [...byCorp].map(([corporationId, members]) =>
-      syncOwner(descriptor, axis.ownerOf(userId, corporationId), () =>
-        resolveCorpToken(descriptor, axis, members),
+  return Promise.all(
+    [...byCorp]
+      .map(([corporationId, members]) => ({
+        members,
+        key: axis.ownerOf(userId, corporationId),
+      }))
+      .filter(({ key }) => targetMatches(descriptor.identityOf(key), options.target))
+      .map(({ key, members }) =>
+        syncOwner(
+          descriptor,
+          key,
+          () => resolveCorpToken(descriptor, axis, members),
+          options,
+        ),
       ),
-    ),
   );
 }
 
@@ -85,35 +118,55 @@ async function syncOwner<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   owner: TOwner,
   resolveToken: () => Promise<TokenOutcome>,
-): Promise<void> {
-  // Consent gate, FIRST — before the state read, the staleness check, and any vend.
-  // A descriptor that opts out (returns false) is skipped with zero I/O: no readState,
-  // no token vend, no roles read, no fetch. Absent ⇒ always proceed (every other slice).
-  if (descriptor.precondition !== undefined && !(await descriptor.precondition(owner))) return;
+  options: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult> {
+  const target = descriptor.identityOf(owner);
+  try {
+    // Consent gate, FIRST — before the state read, the staleness check, and any vend.
+    // A descriptor that opts out (returns false) is skipped with zero I/O: no readState,
+    // no token vend, no roles read, no fetch. Absent ⇒ always proceed (every other slice).
+    if (descriptor.precondition !== undefined && !(await descriptor.precondition(owner))) {
+      return { kind: 'failed_permanent', target, code: 'precondition_failed' };
+    }
 
-  const state = await descriptor.readState(owner);
-  if (!descriptor.isStale(state, descriptor.now())) return;
+    const state = await descriptor.readState(owner);
+    if (!descriptor.isStale(state, descriptor.now())) {
+      return { kind: 'succeeded', target };
+    }
 
-  const token = await resolveToken();
-  if (token.kind === 'skip') return;
-  if (token.kind === 'needs_role') {
-    await descriptor.saveGateState?.(owner);
-    return;
-  }
-
-  const verdict = await descriptor.fetchAndPlan(owner, token.accessToken, state);
-  switch (verdict.kind) {
-    case 'skip':
-      return;
-    case 'stamp':
-      await descriptor.stampFresh(owner);
-      return;
-    case 'needs_role':
+    const token = await resolveToken();
+    if (token.kind === 'skip') {
+      return token.retryable
+        ? { kind: 'failed_retryable', target, code: 'owner_temporarily_unavailable' }
+        : { kind: 'failed_permanent', target, code: 'token_unavailable' };
+    }
+    if (token.kind === 'needs_role') {
       await descriptor.saveGateState?.(owner);
-      return;
-    case 'save':
-      await descriptor.save(owner, verdict);
-      return;
+      return { kind: 'failed_permanent', target, code: 'needs_role' };
+    }
+
+    const verdict = await descriptor.fetchAndPlan(owner, token.accessToken, state);
+    switch (verdict.kind) {
+      case 'skip': {
+        const code = verdict.code ?? 'refresh_skipped';
+        return code === 'esi_server_error'
+          ? { kind: 'failed_retryable', target, code }
+          : { kind: 'failed_permanent', target, code };
+      }
+      case 'stamp':
+        await descriptor.stampFresh(owner);
+        return { kind: 'succeeded', target };
+      case 'needs_role':
+        await descriptor.saveGateState?.(owner);
+        return { kind: 'failed_permanent', target, code: 'needs_role' };
+      case 'save':
+        await descriptor.save(owner, verdict);
+        return { kind: 'succeeded', target };
+    }
+  } catch (error) {
+    if (!(error instanceof EsiBudgetExhaustedError)) throw error;
+    await options.onBudgetDeferred?.(target, error);
+    return { kind: 'deferred_for_budget', target, error };
   }
 }
 
@@ -122,7 +175,9 @@ async function resolveCharacterToken<TOwner, TState, TSave>(
   characterId: number,
 ): Promise<TokenOutcome> {
   const accessToken = await descriptor.vendToken(characterId);
-  return accessToken === null ? { kind: 'skip' } : { kind: 'token', accessToken };
+  return accessToken === null
+    ? { kind: 'skip', retryable: false }
+    : { kind: 'token', accessToken };
 }
 
 // Vend each member's token and read its in-game roles (in parallel — distinct
@@ -147,7 +202,7 @@ async function resolveCorpToken<TOwner, TState, TSave>(
   );
   const candidates = resolved.filter((candidate): candidate is CorpMemberCandidate => candidate !== null);
   const resolution = classifyCorpDirector(candidates);
-  if (resolution.kind === 'unavailable') return { kind: 'skip' };
+  if (resolution.kind === 'unavailable') return { kind: 'skip', retryable: true };
   if (resolution.kind === 'needs_role') return { kind: 'needs_role' };
   return { kind: 'token', accessToken: resolution.accessToken };
 }

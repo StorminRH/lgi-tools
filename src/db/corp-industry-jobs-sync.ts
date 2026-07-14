@@ -19,8 +19,10 @@ import {
   stampCorpJobsFresh,
 } from '@/features/industry-jobs/queries';
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
 import { listCharactersWithHealth, readRolesFor, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
 // The real corp port: the shared auth + ESI wiring (owner-sync-port.ts) plus this
 // slice's own corp-keyed Neon read/save/stamp + the graceful needs_role drop. Corp
@@ -83,7 +85,12 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
       );
       return { owners, data };
     },
-    refresh: (uid) => refreshCorpJobsForUser(makeCorpJobsPort(), uid),
+    refresh: (uid) =>
+      refreshCorpJobsForUser(
+        makeCorpJobsPort(),
+        uid,
+        enqueueBudgetDeferral('corporation_industry_jobs', uid),
+      ),
     makeRow: (owner, data) => ({
       corporationId: owner.id,
       data,
@@ -93,4 +100,12 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
     nameIds: (viewerCorpJobs) => jobTypeIds(viewerCorpJobs),
   });
   return { corporations: rows, names };
+}
+
+export async function runCorporationIndustryJobsRefreshJob(
+  userId: string,
+  target: OwnerSyncTarget,
+): Promise<OwnerSyncResult> {
+  const results = await refreshCorpJobsForUser(makeCorpJobsPort(), userId, { target });
+  return targetedOwnerResult(target, results);
 }

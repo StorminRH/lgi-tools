@@ -15,7 +15,7 @@ describe('planRead', () => {
   });
 
   it('skips on an error by default', () => {
-    expect(planRead<Read, { rows: number[] }>({ kind: 'error', code: 'esi_500' }, project)).toEqual({ kind: 'skip' });
+    expect(planRead<Read, { rows: number[] }>({ kind: 'error', code: 'esi_500' }, project)).toEqual({ kind: 'skip', code: 'esi_500' });
   });
 
   it('routes an error through mapError when supplied (corp jobs 403 → needs_role)', () => {
@@ -26,7 +26,7 @@ describe('planRead', () => {
   });
 
   it('skips a fresh body that fails projection (contract mismatch)', () => {
-    expect(planRead<Read, { rows: number[] }>({ kind: 'fresh', items: [] }, project)).toEqual({ kind: 'skip' });
+    expect(planRead<Read, { rows: number[] }>({ kind: 'fresh', items: [] }, project)).toEqual({ kind: 'skip', code: 'contract_error' });
   });
 
   it('saves the projected payload on a fresh body', () => {

@@ -2,6 +2,7 @@ import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
+import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { HISTORY_RETENTION_DAYS } from '@/data/market-history/constants';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import {
@@ -105,6 +106,14 @@ export const TABLE_GROWTH_STORIES = [
     retentionConstant: 'SNAPSHOT_RETENTION_DAYS',
     prunedBy: 'daily /api/cron/refresh-gsc housekeeping, preserving latest and referenced',
     alsoPurgeManagedBy: 'esi-snapshots',
+  },
+  {
+    kind: 'pruned',
+    table: schema.esiRefreshJobs,
+    retentionDays: ESI_REFRESH_JOB_RETENTION_DAYS,
+    retentionConstant: 'ESI_REFRESH_JOB_RETENTION_DAYS',
+    prunedBy: 'daily /api/cron/refresh-gsc housekeeping; dead letters retained',
+    alsoPurgeManagedBy: 'esi-refresh-jobs',
   },
 
   { kind: 'purge-managed', table: schema.session, purgeContributor: 'auth' },

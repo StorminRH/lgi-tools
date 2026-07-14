@@ -25,6 +25,8 @@ export class EsiBudgetExhaustedError extends Error {
   constructor(
     public readonly remaining: number,
     public readonly reason: EsiBudgetExhaustedReason = 'error_budget',
+    public readonly retryAfterSeconds: number | null = null,
+    public readonly resource: string | null = null,
   ) {
     super(
       `ESI error budget exhausted (${reason}): ${remaining} remaining (floor ${ESI_BUDGET_FLOOR})`,

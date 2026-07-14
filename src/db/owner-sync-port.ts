@@ -78,7 +78,8 @@ export async function readRolesFor(characterId: number, accessToken: string): Pr
     const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
     return read.kind === 'fresh' ? extractRoles(read.body) : null;
   } catch (error) {
-    if (error instanceof EsiBudgetExhaustedError || error instanceof EsiServerError) return null;
+    if (error instanceof EsiBudgetExhaustedError) throw error;
+    if (error instanceof EsiServerError) return null;
     throw error;
   }
 }
@@ -96,11 +97,11 @@ export type AuthedPagedRead =
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
-// Map an ESI gate throw to a soft 'error' code; rethrow anything else. Budget exhaustion
-// (420) and 5xx throw out of esiFetch — the per-owner caller's best-effort skip swallows
-// them so one owner's miss never aborts the pass.
+// Map an ESI gate throw to the owner-sync outcome seam. Budget exhaustion is
+// rethrown so the engine can enqueue the exact owner; 5xx becomes a retryable
+// soft code so one owner's miss never aborts the pass.
 function esiThrowToError(error: unknown): { kind: 'error'; code: string } {
-  if (error instanceof EsiBudgetExhaustedError) return { kind: 'error', code: 'budget_exhausted' };
+  if (error instanceof EsiBudgetExhaustedError) throw error;
   if (error instanceof EsiServerError) return { kind: 'error', code: 'esi_server_error' };
   throw error;
 }

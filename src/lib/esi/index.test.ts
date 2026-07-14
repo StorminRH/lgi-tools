@@ -204,14 +204,19 @@ describe('esiFetch', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns a 429 to the caller, then blocks the route until Retry-After elapses', async () => {
+  it('throws a metadata-rich 429 deferral, then blocks the route until Retry-After elapses', async () => {
     vi.useFakeTimers();
     fetchSpy.mockResolvedValueOnce(
       mockResponse(429, { 'Retry-After': '30' }),
     );
 
-    const res = await esiFetch(TEST_URL);
-    expect(res.status).toBe(429);
+    const immediate = await esiFetch(TEST_URL).catch((error: unknown) => error);
+    expect(immediate).toBeInstanceOf(EsiBudgetExhaustedError);
+    expect(immediate).toMatchObject({
+      reason: 'rate_limited',
+      retryAfterSeconds: 30,
+      resource: '/markets/{n}/orders',
+    });
 
     // Same route (different query) refuses pre-dispatch...
     const blocked = await esiFetch(
@@ -219,6 +224,7 @@ describe('esiFetch', () => {
     ).catch((e: unknown) => e);
     expect(blocked).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((blocked as EsiBudgetExhaustedError).reason).toBe('rate_limited');
+    expect((blocked as EsiBudgetExhaustedError).retryAfterSeconds).toBe(30);
 
     // ...a different route still dispatches...
     fetchSpy.mockResolvedValueOnce(mockResponse(200));

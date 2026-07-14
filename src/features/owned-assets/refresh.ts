@@ -11,15 +11,24 @@
 // and resolves a corp Director among the member characters. The aggregate-at-write
 // summing is the only owned-assets specific — it lives in parseAssetsBody, not here;
 // refresh.test.ts pins the byte-identical behaviour.
-import { makeOwnedDescriptor, runOwnerSync } from '@/lib/owner-sync';
+import {
+  makeOwnedDescriptor,
+  runOwnerSync,
+  type OwnerSyncResult,
+  type OwnerSyncRunOptions,
+} from '@/lib/owner-sync';
 import { CORP_ASSETS_REQUIRED_ROLES, canSyncCorpAssets } from './corp-sync-eligibility';
 import { parseAssetsBody } from './esi-projection';
 import { isAssetsStale } from './staleness';
 import { canSyncAssets } from './sync-eligibility';
 import type { OwnedAssetsPort } from './types';
 
-export async function refreshOwnedAssetsForUser(port: OwnedAssetsPort, userId: string): Promise<void> {
-  await runOwnerSync(
+export function refreshOwnedAssetsForUser(
+  port: OwnedAssetsPort,
+  userId: string,
+  options?: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
+  return runOwnerSync(
     makeOwnedDescriptor(port, {
       resource: 'assets',
       isStale: isAssetsStale,
@@ -29,5 +38,6 @@ export async function refreshOwnedAssetsForUser(port: OwnedAssetsPort, userId: s
       parse: parseAssetsBody,
     }),
     userId,
+    options,
   );
 }

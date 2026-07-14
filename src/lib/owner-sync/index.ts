@@ -10,4 +10,12 @@ export { planRead } from './plan';
 // The slices consume the descriptor type + the shared owned-owner types from the
 // barrel; the remaining component types (OwnerAxis, CorpOwnerAxis, PersistVerdict) stay
 // in ./types for the engine's own use — re-export them here when a consumer needs them.
-export type { EnumeratedOwner, OwnerKey, OwnerSyncDescriptor, PagedOwnerSyncState } from './types';
+export type {
+  EnumeratedOwner,
+  OwnerKey,
+  OwnerSyncDescriptor,
+  OwnerSyncResult,
+  OwnerSyncRunOptions,
+  OwnerSyncTarget,
+  PagedOwnerSyncState,
+} from './types';

@@ -17,6 +17,7 @@ import { onlineStatusPurgeContributor } from '@/features/online-status/purge';
 import { skillQueuePurgeContributor } from '@/features/skill-queue/purge';
 import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
+import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
 import type { PurgeContributor } from './types';
 
@@ -27,6 +28,7 @@ export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   ownedAssetsPurgeContributor,
   ownedBlueprintsPurgeContributor,
   esiSnapshotsPurgeContributor,
+  esiRefreshJobsPurgeContributor,
   onlineStatusPurgeContributor,
   telemetryPurgeContributor,
   preferencesPurgeContributor,

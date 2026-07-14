@@ -82,6 +82,7 @@ export function makeOwnedDescriptor<TRow>(
   return {
     now: () => port.now(),
     enumerate: (userId) => port.listCharacters(userId),
+    identityOf: (owner) => owner,
     vendToken: (characterId) => port.vendToken(characterId),
     isStale: (state, now) => spec.isStale(state?.lastRefreshedAt ?? null, now),
     characterAxis: {

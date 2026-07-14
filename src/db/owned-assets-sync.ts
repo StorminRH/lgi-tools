@@ -27,7 +27,7 @@ import {
 } from '@/data/esi-snapshots/queries';
 import { snapshotRequestHash } from '@/data/esi-snapshots/request-hash';
 import type { EsiSnapshotSource } from '@/data/esi-snapshots/types';
-import type { OwnerKey } from '@/lib/owner-sync';
+import type { OwnerKey, OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
 import {
   listCharactersWithHealth,
   readPagedEndpoint,
@@ -35,6 +35,7 @@ import {
   resolveOwnedOwnersForUser,
   vendTokenFor,
 } from './owner-sync-port';
+import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
 // The real port: the shared auth + ESI wiring (owner-sync-port.ts) plus this slice's
 // own Neon read/save/stamp. Assets is a paginated read (readPagedEndpoint); the
@@ -98,7 +99,21 @@ export async function getOwnedAssetDetailOnView(
 ): Promise<OwnedAssetDetailEntry[]> {
   const owners = await resolveOwnedOwnersForUser(userId);
   const map = await getOwnedAssetMap(owners, requestedTypeIds);
-  after(() => refreshOwnedAssetsForUser(makeOwnedAssetsPort(), userId));
+  after(() =>
+    refreshOwnedAssetsForUser(
+      makeOwnedAssetsPort(),
+      userId,
+      enqueueBudgetDeferral('owned_assets', userId),
+    ),
+  );
   const names = await resolveEntityNames(collectAssetNameIds(map));
   return buildOwnedAssetDetail(map, names, formatStationName);
+}
+
+export async function runOwnedAssetsRefreshJob(
+  userId: string,
+  target: OwnerSyncTarget,
+): Promise<OwnerSyncResult> {
+  const results = await refreshOwnedAssetsForUser(makeOwnedAssetsPort(), userId, { target });
+  return targetedOwnerResult(target, results);
 }

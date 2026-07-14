@@ -11,6 +11,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/drain-esi-refresh-jobs",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/refresh-affiliations",
       "schedule": "20 11 * * *"
     },

@@ -47,6 +47,7 @@ export function makeCharacterDescriptor<TState extends { lastRefreshedAt: Date |
     // Character-only slices have no corp axis, so corporationId is unused — map it null.
     enumerate: async (userId) =>
       (await base.listCharacters(userId)).map((character) => ({ ...character, corporationId: null })),
+    identityOf: (characterId) => ({ ownerType: 'character', ownerId: characterId }),
     vendToken: (characterId) => base.vendToken(characterId),
     isStale: (state, now) => spec.isStale(state?.lastRefreshedAt ?? null, now),
     characterAxis: {

@@ -96,8 +96,8 @@ describe('planCorpJobsPersist', () => {
     ['saves a fresh body', { kind: 'fresh', body: [], etag: 'e1' }, { kind: 'save', jobs: [], etag: 'e1' }],
     ['stamps on a 304', { kind: 'unchanged' }, { kind: 'stamp' }],
     ['needs_role on a 403', { kind: 'error', code: 'esi_403' }, { kind: 'needs_role' }],
-    ['skips a transient error', { kind: 'error', code: 'esi_server_error' }, { kind: 'skip' }],
-    ['skips budget exhaustion', { kind: 'error', code: 'budget_exhausted' }, { kind: 'skip' }],
+    ['skips a transient error', { kind: 'error', code: 'esi_server_error' }, { kind: 'skip', code: 'esi_server_error' }],
+    ['skips budget exhaustion', { kind: 'error', code: 'budget_exhausted' }, { kind: 'skip', code: 'budget_exhausted' }],
   ];
   it.each(cases)('%s', (_label, read, expected) => {
     expect(planCorpJobsPersist(read)).toEqual(expected);
@@ -106,6 +106,7 @@ describe('planCorpJobsPersist', () => {
   it('skips a fresh body that fails the contract parse', () => {
     expect(planCorpJobsPersist({ kind: 'fresh', body: { not: 'an array' }, etag: 'e' })).toEqual({
       kind: 'skip',
+      code: 'contract_error',
     });
   });
 });

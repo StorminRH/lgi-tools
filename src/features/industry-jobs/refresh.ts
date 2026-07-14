@@ -11,7 +11,13 @@
 // the next fresh body); a job's "ready" is derived client-side from its absolute
 // end_date — there is no scheduled completion flip. planJobsPersist (the single-read
 // save/stamp/skip decision) stays here; refresh.test.ts pins the byte-identical dance.
-import { makeCharacterDescriptor, type OwnerSyncDescriptor, runOwnerSync } from '@/lib/owner-sync';
+import {
+  makeCharacterDescriptor,
+  type OwnerSyncDescriptor,
+  type OwnerSyncResult,
+  type OwnerSyncRunOptions,
+  runOwnerSync,
+} from '@/lib/owner-sync';
 import { type IndustryJob, parseIndustryJobsBody } from './esi-projection';
 import { isJobsStale } from './staleness';
 import { canSyncIndustryJobs } from './sync-eligibility';
@@ -24,13 +30,13 @@ import type { CharacterJobsSyncState, JobsEsiRead, JobsPort } from './types';
 export type JobsPersistPlan =
   | { kind: 'save'; jobs: IndustryJob[]; etag: string | null }
   | { kind: 'stamp' }
-  | { kind: 'skip' };
+  | { kind: 'skip'; code?: string };
 
 export function planJobsPersist(read: JobsEsiRead): JobsPersistPlan {
-  if (read.kind === 'error') return { kind: 'skip' };
+  if (read.kind === 'error') return { kind: 'skip', code: read.code };
   if (read.kind === 'unchanged') return { kind: 'stamp' };
   const jobs = parseIndustryJobsBody(read.body);
-  if (jobs === null) return { kind: 'skip' }; // contract mismatch — keep stored data
+  if (jobs === null) return { kind: 'skip', code: 'contract_error' };
   return { kind: 'save', jobs, etag: read.etag };
 }
 
@@ -52,6 +58,10 @@ function makeDescriptor(port: JobsPort): OwnerSyncDescriptor<number, CharacterJo
   });
 }
 
-export async function refreshJobsForUser(port: JobsPort, userId: string): Promise<void> {
-  await runOwnerSync(makeDescriptor(port), userId);
+export function refreshJobsForUser(
+  port: JobsPort,
+  userId: string,
+  options?: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
+  return runOwnerSync(makeDescriptor(port), userId, options);
 }

@@ -16,9 +16,9 @@
 // its own held ETag and the raw 304 passes straight through.
 //
 // 5xx / 420 / budget-exhaustion throw out of esiFetch (EsiServerError /
-// EsiBudgetExhaustedError) — the per-owner caller catches them and skips that
-// owner, the same best-effort posture as the affiliation refresh. A 4xx (403 a
-// missing role, 404 a vanished owner) is a soft 'error' result, not a throw.
+// EsiBudgetExhaustedError) — the per-owner engine turns budget refusals into
+// durable deferrals and 5xx into retryable outcomes. A 4xx (403 a missing role,
+// 404 a vanished owner) is a soft 'error' result, not a throw.
 import { esiFetch, esiUrl } from './index';
 import type { EsiPageResponseHeaders, EsiResponseHeaders } from './response-metadata';
 

@@ -11,7 +11,13 @@
 // skill-queue specific — it lives in planSkillsPersist below, which the engine treats
 // as an opaque save / stamp / skip verdict; refresh.test.ts pins the byte-identical
 // behaviour.
-import { makeCharacterDescriptor, type OwnerSyncDescriptor, runOwnerSync } from '@/lib/owner-sync';
+import {
+  makeCharacterDescriptor,
+  type OwnerSyncDescriptor,
+  type OwnerSyncResult,
+  type OwnerSyncRunOptions,
+  runOwnerSync,
+} from '@/lib/owner-sync';
 import { parseSkillQueueBody, parseSkillsBody } from './esi-projection';
 import { isSkillsStale } from './staleness';
 import { canSyncSkillQueue } from './sync-eligibility';
@@ -25,23 +31,24 @@ import type { CharacterSkillSyncState, SkillsEsiRead, SkillsPort, SkillsSaveHalv
 export type SkillsPersistPlan =
   | { kind: 'save'; halves: SkillsSaveHalves }
   | { kind: 'stamp' }
-  | { kind: 'skip' };
+  | { kind: 'skip'; code?: string };
 
 export function planSkillsPersist(
   queueRead: SkillsEsiRead,
   skillsRead: SkillsEsiRead,
 ): SkillsPersistPlan {
-  if (queueRead.kind === 'error' || skillsRead.kind === 'error') return { kind: 'skip' };
+  if (queueRead.kind === 'error') return { kind: 'skip', code: queueRead.code };
+  if (skillsRead.kind === 'error') return { kind: 'skip', code: skillsRead.code };
 
   const halves: SkillsSaveHalves = {};
   if (queueRead.kind === 'fresh') {
     const entries = parseSkillQueueBody(queueRead.body);
-    if (entries === null) return { kind: 'skip' }; // contract mismatch — keep stored data
+    if (entries === null) return { kind: 'skip', code: 'contract_error' };
     halves.queue = { entries, etag: queueRead.etag };
   }
   if (skillsRead.kind === 'fresh') {
     const totals = parseSkillsBody(skillsRead.body);
-    if (totals === null) return { kind: 'skip' };
+    if (totals === null) return { kind: 'skip', code: 'contract_error' };
     halves.skills = { totalSp: totals.totalSp, levels: totals.levels, etag: skillsRead.etag };
     if (totals.unallocatedSp !== undefined) halves.skills.unallocatedSp = totals.unallocatedSp;
   }
@@ -71,6 +78,10 @@ function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, Character
   });
 }
 
-export async function refreshSkillsForUser(port: SkillsPort, userId: string): Promise<void> {
-  await runOwnerSync(makeDescriptor(port), userId);
+export function refreshSkillsForUser(
+  port: SkillsPort,
+  userId: string,
+  options?: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
+  return runOwnerSync(makeDescriptor(port), userId, options);
 }

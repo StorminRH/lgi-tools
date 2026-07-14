@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { EsiBudgetExhaustedError } from '@/lib/esi';
 import { runOwnerSync } from './engine';
 import type { CorpOwnerAxis, EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
 
@@ -31,6 +32,13 @@ function makeDescriptor(
   return {
     now: () => NOW,
     enumerate: vi.fn(async () => []),
+    identityOf: (value) => {
+      const [kind, first, second] = value.split(':');
+      return {
+        ownerType: kind === 'corp' ? 'corporation' : 'character',
+        ownerId: Number(kind === 'corp' ? second : first),
+      };
+    },
     vendToken: vi.fn(async (characterId: number) => `tok-${characterId}`),
     isStale: vi.fn(() => true),
     readState: vi.fn(async () => null),
@@ -142,6 +150,50 @@ describe('runOwnerSync — the per-owner dance', () => {
     expect(d.save).toHaveBeenCalledTimes(3);
   });
 
+  it('runs only the requested deferred owner', async () => {
+    const d = makeDescriptor({ enumerate: vi.fn(async () => [owner(1), owner(2)]) });
+
+    const results = await runOwnerSync(d, 'u', {
+      target: { ownerType: 'character', ownerId: 2 },
+    });
+
+    expect(d.fetchAndPlan).toHaveBeenCalledTimes(1);
+    expect(d.fetchAndPlan).toHaveBeenCalledWith('char:2', 'tok-2', null);
+    expect(results).toEqual([
+      { kind: 'succeeded', target: { ownerType: 'character', ownerId: 2 } },
+    ]);
+  });
+
+  it('reports budget metadata and enqueues the exact owner through the callback', async () => {
+    const error = new EsiBudgetExhaustedError(
+      17,
+      'rate_limited',
+      900,
+      '/characters/1/skills/',
+    );
+    const onBudgetDeferred = vi.fn(async () => {});
+    const d = makeDescriptor({
+      enumerate: vi.fn(async () => [owner(1)]),
+      fetchAndPlan: vi.fn(async () => {
+        throw error;
+      }),
+    });
+
+    const results = await runOwnerSync(d, 'u', { onBudgetDeferred });
+
+    expect(onBudgetDeferred).toHaveBeenCalledWith(
+      { ownerType: 'character', ownerId: 1 },
+      error,
+    );
+    expect(results).toEqual([
+      {
+        kind: 'deferred_for_budget',
+        target: { ownerType: 'character', ownerId: 1 },
+        error,
+      },
+    ]);
+  });
+
   it('records the gate state on a needs_role verdict when saveGateState is defined', async () => {
     const saveGateState = vi.fn(async () => {});
     const d = makeDescriptor({
@@ -209,10 +261,17 @@ describe('runOwnerSync — the corporation pass', () => {
       corpAxis: corpAxis(readRoles),
     });
 
-    await runOwnerSync(d, 'u');
+    const results = await runOwnerSync(d, 'u');
 
     expect(readRoles).not.toHaveBeenCalled();
     expect(d.fetchAndPlan).not.toHaveBeenCalled();
+    expect(results).toEqual([
+      {
+        kind: 'failed_retryable',
+        target: { ownerType: 'corporation', ownerId: 5000 },
+        code: 'owner_temporarily_unavailable',
+      },
+    ]);
   });
 
   it('reads no roles for a fresh corp (stale gate before director resolution)', async () => {
