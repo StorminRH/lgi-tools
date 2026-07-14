@@ -8,12 +8,13 @@
 // stays boundary-legal (feature → lib) and its fake-port tests pass unchanged.
 import { planRead } from './plan';
 import type { EnumeratedOwner, OwnerKey, OwnerSyncDescriptor, PagedOwnerSyncState } from './types';
+import type { EsiResponseHeaders } from '../esi/response-metadata';
 
 // The slice's own paged read result, decoupled from lib/esi's EsiPagedRead (the Neon
 // path's fixed TTL ignores the ESI cache window the gate returns). The db wiring's
 // AuthedPagedRead is structurally this — assigned through the port.
 export type PagedOwnerReadResult =
-  | { kind: 'fresh'; items: unknown[]; etags: string[] }
+  | { kind: 'fresh'; items: unknown[]; etags: string[]; responseHeaders: EsiResponseHeaders }
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
@@ -34,7 +35,12 @@ export interface OwnedDatasetPort<TRow> {
   // Live (uncached) per-owner sync state, or null if never synced.
   readSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null>;
   // Replace the owner's stored rows with a fresh set + new etags, stamp freshness.
-  save(owner: OwnerKey, rows: TRow[], etags: string[]): Promise<void>;
+  save(
+    owner: OwnerKey,
+    rows: TRow[],
+    etags: string[],
+    source: { endpoint: string; items: unknown[]; responseHeaders: EsiResponseHeaders },
+  ): Promise<void>;
   // Stamp freshness only (the 304 path), leaving stored rows + etags as-is.
   stampFresh(owner: OwnerKey): Promise<void>;
 }
@@ -59,6 +65,7 @@ export interface OwnedDatasetSpec<TRow> {
 interface OwnedSave<TRow> {
   rows: TRow[];
   etags: string[];
+  source: { endpoint: string; items: unknown[]; responseHeaders: EsiResponseHeaders };
 }
 
 // Both owner types share the identical row shape + cache; only the path differs.
@@ -92,10 +99,20 @@ export function makeOwnedDescriptor<TRow>(
       const read = await port.read(basePathFor(spec.resource, owner), accessToken, state?.pageEtags ?? []);
       return planRead(read, (fresh) => {
         const rows = spec.parse(fresh.items);
-        return rows === null ? null : { rows, etags: fresh.etags };
+        return rows === null
+          ? null
+          : {
+              rows,
+              etags: fresh.etags,
+              source: {
+                endpoint: basePathFor(spec.resource, owner),
+                items: fresh.items,
+                responseHeaders: fresh.responseHeaders,
+              },
+            };
       });
     },
-    save: (owner, payload) => port.save(owner, payload.rows, payload.etags),
+    save: (owner, payload) => port.save(owner, payload.rows, payload.etags, payload.source),
     stampFresh: (owner) => port.stampFresh(owner),
   };
 }

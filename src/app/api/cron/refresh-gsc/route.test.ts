@@ -6,6 +6,7 @@ const pruneInspectionsMock = vi.fn();
 const pruneUsageMock = vi.fn();
 const pruneAuditMock = vi.fn();
 const pruneVerificationMock = vi.fn();
+const pruneSnapshotsMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const getSitemapEntriesMock = vi.fn();
 
@@ -26,6 +27,10 @@ vi.mock('@/data/telemetry/queries', () => ({
 vi.mock('@/features/auth/queries', () => ({
   pruneCorpAccessAudit: (...args: unknown[]) => pruneAuditMock(...args),
   pruneExpiredVerifications: (...args: unknown[]) => pruneVerificationMock(...args),
+}));
+
+vi.mock('@/db/esi-snapshot-retention', () => ({
+  pruneEsiSnapshots: (...args: unknown[]) => pruneSnapshotsMock(...args),
 }));
 
 vi.mock('@/db', () => ({ db: {}, directClient: {} }));
@@ -51,6 +56,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     pruneUsageMock.mockReset();
     pruneAuditMock.mockReset();
     pruneVerificationMock.mockReset();
+    pruneSnapshotsMock.mockReset();
     logUsageEventMock.mockReset();
     getSitemapEntriesMock.mockReset();
     syncGscMock.mockResolvedValue({
@@ -67,6 +73,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     pruneInspectionsMock.mockResolvedValue(undefined);
     pruneAuditMock.mockResolvedValue(undefined);
     pruneVerificationMock.mockResolvedValue(undefined);
+    pruneSnapshotsMock.mockResolvedValue(undefined);
     logUsageEventMock.mockResolvedValue(undefined);
     getSitemapEntriesMock.mockResolvedValue([{ url: 'https://lgi.tools/' }]);
     vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -90,6 +97,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     expect(pruneInspectionsMock).toHaveBeenCalledOnce();
     expect(pruneAuditMock).toHaveBeenCalledOnce();
     expect(pruneVerificationMock).toHaveBeenCalledOnce();
+    expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
   });
 
   it('runs every prune before an upstream sitemap failure escapes', async () => {
@@ -105,6 +113,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     expect(pruneInspectionsMock).toHaveBeenCalledOnce();
     expect(pruneAuditMock).toHaveBeenCalledOnce();
     expect(pruneVerificationMock).toHaveBeenCalledOnce();
+    expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
     expect(syncGscMock).not.toHaveBeenCalled();
   });
 });

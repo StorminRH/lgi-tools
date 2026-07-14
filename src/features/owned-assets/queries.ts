@@ -75,6 +75,7 @@ export async function saveOwnedAssets(
   owner: OwnerKey,
   rows: OwnedAsset[],
   etags: string[],
+  snapshotId: number | null = null,
 ): Promise<void> {
   const now = new Date();
   await db
@@ -90,6 +91,7 @@ export async function saveOwnedAssets(
         locationId: r.location_id,
         locationFlag: r.location_flag,
         locationType: r.location_type,
+        snapshotId,
       })),
     );
   }

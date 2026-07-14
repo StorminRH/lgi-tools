@@ -28,7 +28,12 @@ function makePort(overrides: Partial<OwnedBlueprintsPort> = {}): OwnedBlueprints
     vendToken: vi.fn(async () => 'token'),
     readRoles: vi.fn(async () => []),
     read: vi.fn(
-      async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [], etags: [] }),
+      async (): Promise<PagedOwnerReadResult> => ({
+        kind: 'fresh',
+        items: [],
+        etags: [],
+        responseHeaders: [],
+      }),
     ),
     readSyncState: vi.fn(async () => null),
     save: vi.fn(async () => {}),
@@ -66,7 +71,12 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
       listCharacters: vi.fn(async () => [character(1)]),
       readSyncState: vi.fn(async () => null), // never synced → stale
       read: vi.fn(
-        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiBlueprint(34)], etags: ['"e1"'] }),
+        async (): Promise<PagedOwnerReadResult> => ({
+          kind: 'fresh',
+          items: [esiBlueprint(34)],
+          etags: ['"e1"'],
+          responseHeaders: [],
+        }),
       ),
     });
 
@@ -108,7 +118,12 @@ describe('refreshOwnedBlueprintsForUser — character path', () => {
       listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
       readSyncState: vi.fn(async () => null), // all stale
       read: vi.fn(
-        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiBlueprint(34)], etags: [] }),
+        async (): Promise<PagedOwnerReadResult> => ({
+          kind: 'fresh',
+          items: [esiBlueprint(34)],
+          etags: [],
+          responseHeaders: [],
+        }),
       ),
     });
 
@@ -142,7 +157,12 @@ describe('refreshOwnedBlueprintsForUser — corporation path', () => {
       vendToken: vi.fn(async (id: number) => `token-${id}`),
       readRoles: vi.fn(async (id: number) => (id === 2 ? ['Director'] : ['Accountant'])),
       read: vi.fn(
-        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiBlueprint(99)], etags: [] }),
+        async (): Promise<PagedOwnerReadResult> => ({
+          kind: 'fresh',
+          items: [esiBlueprint(99)],
+          etags: [],
+          responseHeaders: [],
+        }),
       ),
     });
 

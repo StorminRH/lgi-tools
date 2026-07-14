@@ -18,3 +18,4 @@ export * from '../features/industry-jobs/schema';
 export * from '../data/telemetry/schema';
 export * from '../data/gsc/schema';
 export * from '../data/preferences/schema';
+export * from '../data/esi-snapshots/schema';

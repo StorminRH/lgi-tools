@@ -30,6 +30,7 @@ const REQUIRED_ENV = {
   EVE_CLIENT_ID: required,
   EVE_CLIENT_SECRET: required,
   EVE_TOKEN_ENCRYPTION_KEY: required,
+  ESI_SNAPSHOT_ENCRYPTION_KEY: required,
   CONVEX_SERVICE_SECRET: required,
   CRON_SECRET: required,
   DISCORD_WEBHOOK_URL: required,

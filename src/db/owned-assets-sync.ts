@@ -19,6 +19,15 @@ import {
 import { getOwnedAssetMap, readOwnerSyncState, saveOwnedAssets, stampOwnerFresh } from '@/features/owned-assets/queries';
 import { refreshOwnedAssetsForUser } from '@/features/owned-assets/refresh';
 import type { OwnedAssetsPort } from '@/features/owned-assets/types';
+import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
+import { encryptSnapshotBody } from '@/data/esi-snapshots/crypto';
+import {
+  deleteEsiSnapshot,
+  insertEsiSnapshot,
+} from '@/data/esi-snapshots/queries';
+import { snapshotRequestHash } from '@/data/esi-snapshots/request-hash';
+import type { EsiSnapshotSource } from '@/data/esi-snapshots/types';
+import type { OwnerKey } from '@/lib/owner-sync';
 import {
   listCharactersWithHealth,
   readPagedEndpoint,
@@ -38,9 +47,42 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
     readRoles: readRolesFor,
     read: readPagedEndpoint,
     readSyncState: (owner) => readOwnerSyncState(owner),
-    save: (owner, rows, etags) => saveOwnedAssets(owner, rows, etags),
+    save: saveOwnedAssetsFromSource,
     stampFresh: (owner) => stampOwnerFresh(owner),
   };
+}
+
+export async function saveOwnedAssetsFromSource(
+  owner: OwnerKey,
+  rows: Parameters<typeof saveOwnedAssets>[1],
+  etags: string[],
+  source: EsiSnapshotSource,
+): Promise<void> {
+  if (owner.ownerType === 'character') {
+    await saveOwnedAssets(owner, rows, etags);
+    return;
+  }
+  const snapshotId = await insertEsiSnapshot({
+    ownerType: owner.ownerType,
+    ownerId: owner.ownerId,
+    endpoint: source.endpoint,
+    requestHash: snapshotRequestHash(source.endpoint, ESI_COMPATIBILITY_DATE),
+    etag: source.responseHeaders.find((headers) => headers.page === 1)?.etag ?? etags[0] ?? null,
+    responseHeaders: source.responseHeaders,
+    fetchedAt: new Date(),
+    sourceVersion: ESI_COMPATIBILITY_DATE,
+    bodyCiphertext: encryptSnapshotBody(source.items),
+  });
+  try {
+    await saveOwnedAssets(owner, rows, etags, snapshotId);
+  } catch (error) {
+    try {
+      await deleteEsiSnapshot(snapshotId);
+    } catch (cleanupError) {
+      console.warn('[esi-snapshots] orphan cleanup failed', cleanupError);
+    }
+    throw error;
+  }
 }
 
 // The on-view seam: resolve the owned-asset detail for the requested types
