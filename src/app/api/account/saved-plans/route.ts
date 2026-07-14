@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { getCurrentUserId } from '@/features/auth/session';
 import { requireUserId } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import {
   createSavedPlanRequestSchema,
   MAX_SAVED_PLANS_PER_USER,
@@ -37,6 +38,7 @@ export async function GET(): Promise<Response> {
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireUserId();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, createSavedPlanRequestSchema);

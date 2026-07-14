@@ -57,6 +57,7 @@ const VERBATIM_ENV = {
   UPSTASH_REDIS_REST_TOKEN: verbatim,
   GOOGLE_SITE_VERIFICATION: verbatim,
   VERCEL_ENV: verbatim,
+  VERCEL_URL: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,
 } as const;
 

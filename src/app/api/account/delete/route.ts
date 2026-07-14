@@ -3,6 +3,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import type { AccountDeleteResponse } from '@/features/auth/api-contract';
 import { nukeAccount } from '@/features/auth/queries';
 import { requireSession } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
 // POST-only. Nuke the CALLER's entire account — every linked character's derived
@@ -17,6 +18,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const gate = await requireSession();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const session = gate.session;
 
   await nukeAccount(session.user.id);

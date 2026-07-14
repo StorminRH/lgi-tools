@@ -1,8 +1,34 @@
-import { describe, expect, it } from 'vitest';
-import { resolveExpiresAt } from './characterSync';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resolveExpiresAt, vendCharacterToken } from './characterSync';
 
 const NOW = 1_700_000_000_000;
 const FALLBACK = 60_000;
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('vendCharacterToken', () => {
+  it('sends both the owning user and character identifiers', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({ accessToken: 'fresh-token' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await vendCharacterToken(
+      { siteUrl: 'https://app.test', secret: 'service-secret' },
+      'user-1',
+      90000001,
+    );
+
+    expect(result).toEqual({ kind: 'token', accessToken: 'fresh-token' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://app.test/api/internal/eve-token',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ userId: 'user-1', characterId: 90000001 }),
+      }),
+    );
+  });
+});
 
 describe('resolveExpiresAt', () => {
   it('returns the earliest present window', () => {

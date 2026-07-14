@@ -10,6 +10,7 @@ import {
   repointActiveToOldest,
 } from '@/features/auth/queries';
 import { requireSession } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseFormBody } from '@/lib/route-body';
 
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const gate = await requireSession();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const session = gate.session;
 
   const parsed = await parseFormBody(

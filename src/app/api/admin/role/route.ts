@@ -5,6 +5,7 @@ import {
 } from '@/features/auth/api-contract';
 import { getUserById, setUserRole } from '@/features/auth/queries';
 import { requireAdmin } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { sanitiseUserText } from '@/lib/sanitise';
@@ -31,6 +32,7 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const viewerUserId = gate.session.user.id;
   const actorCharacterId = gate.session.characterId;
 

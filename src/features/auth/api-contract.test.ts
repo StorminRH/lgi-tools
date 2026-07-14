@@ -26,14 +26,19 @@ describe('eve-token contract', () => {
     }>();
   });
 
-  it('accepts a positive integer characterId', () => {
-    expect(eveTokenRequestSchema.safeParse({ characterId: 2117053828 }).success).toBe(true);
+  it('accepts an owning user id and positive integer characterId', () => {
+    expect(eveTokenRequestSchema.safeParse({
+      userId: 'eve-user-2117053828',
+      characterId: 2117053828,
+    }).success).toBe(true);
   });
 
-  it('rejects missing, non-integer, and non-positive characterIds', () => {
+  it('rejects missing or malformed ownership identifiers', () => {
     expect(eveTokenRequestSchema.safeParse({}).success).toBe(false);
-    expect(eveTokenRequestSchema.safeParse({ characterId: 1.5 }).success).toBe(false);
-    expect(eveTokenRequestSchema.safeParse({ characterId: 0 }).success).toBe(false);
-    expect(eveTokenRequestSchema.safeParse({ characterId: '123' }).success).toBe(false);
+    expect(eveTokenRequestSchema.safeParse({ userId: '', characterId: 123 }).success).toBe(false);
+    expect(eveTokenRequestSchema.safeParse({ userId: 'user 1', characterId: 123 }).success).toBe(false);
+    expect(eveTokenRequestSchema.safeParse({ userId: 'user-1', characterId: 1.5 }).success).toBe(false);
+    expect(eveTokenRequestSchema.safeParse({ userId: 'user-1', characterId: 0 }).success).toBe(false);
+    expect(eveTokenRequestSchema.safeParse({ userId: 'user-1', characterId: '123' }).success).toBe(false);
   });
 });

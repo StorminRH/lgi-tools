@@ -58,11 +58,15 @@ export type TokenVend =
   | { kind: 'reauth' }
   | { kind: 'unavailable' };
 
-export async function vendCharacterToken(env: SyncEnv, characterId: number): Promise<TokenVend> {
+export async function vendCharacterToken(
+  env: SyncEnv,
+  userId: string,
+  characterId: number,
+): Promise<TokenVend> {
   const res = await fetchWithTimeout(`${env.siteUrl}/api/internal/eve-token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.secret}` },
-    body: JSON.stringify({ characterId }),
+    body: JSON.stringify({ userId, characterId }),
   });
   if (res.status === 404) return { kind: 'skip' };
   if (res.status === 409) return { kind: 'reauth' };

@@ -3,6 +3,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminRevokeSessionsFormSchema } from '@/features/auth/api-contract';
 import { getUserById, revokeUserSessions } from '@/features/auth/queries';
 import { requireAdmin } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 
 // POST-only. Admin force-logout: deletes every session row for the target user,
@@ -14,6 +15,7 @@ import { parseFormBody } from '@/lib/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const session = gate.session;
 
   const parsed = await parseFormBody(

@@ -66,7 +66,7 @@ export const syncUser = internalAction({
     // Sequential by design — gentle on the shared `char-online` token bucket.
     for (const character of characters) {
       const heldEtag = heldByCharacter.get(character.characterId) ?? null;
-      const outcome = await syncOnlineCharacter(env, character, heldEtag, rl);
+      const outcome = await syncOnlineCharacter(env, userId, character, heldEtag, rl);
       if (outcome.kind === 'skip') continue;
       results.push(outcome.result);
       if (outcome.kind === 'stop') {
@@ -91,6 +91,7 @@ export const syncUser = internalAction({
 // throw is genuinely transient and rethrown for the retrier.
 async function syncOnlineCharacter(
   env: SyncEnv,
+  userId: string,
   character: SyncCharacter,
   heldEtag: string | null,
   rl: RlSnapshot,
@@ -103,7 +104,7 @@ async function syncOnlineCharacter(
     return { kind: 'result', result: errorResult(characterId, 'reauth_required', heldEtag) };
   }
 
-  const vend = await vendCharacterToken(env, characterId);
+  const vend = await vendCharacterToken(env, userId, characterId);
   if (vend.kind === 'skip') return { kind: 'skip' };
   if (vend.kind === 'reauth') {
     return { kind: 'result', result: errorResult(characterId, 'reauth_required', heldEtag) };

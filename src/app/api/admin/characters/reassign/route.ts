@@ -3,6 +3,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminReassignFormSchema } from '@/features/auth/api-contract';
 import { accountBelongsToUser, reassignCharacter } from '@/features/auth/queries';
 import { requireAdmin } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 
 // POST-only. Admin reassign — move a character from a standalone/other account
@@ -15,6 +16,7 @@ import { parseFormBody } from '@/lib/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const session = gate.session;
   const toUserId = session.user.id;
 
