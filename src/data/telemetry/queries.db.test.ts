@@ -11,6 +11,7 @@ import {
 } from '@/db/test-support/db-coverage-harness';
 import { characters } from '@/features/auth/schema';
 import {
+  claimPublicEsiBudgetAlert,
   countPublicEsiBudgetExhaustionsSince,
   getBudgetExhaustionCount,
   getDailyCounts,
@@ -30,6 +31,7 @@ import {
   getTopReferrers,
   getTopSearches,
   hasPublicEsiBudgetAlertSince,
+  releasePublicEsiBudgetAlertClaim,
 } from './queries';
 import { usageLogs } from './schema';
 
@@ -268,5 +270,14 @@ describe.skipIf(!reachable)('admin telemetry analytics queries execute against P
     const since = new Date('2020-01-03T00:00:00Z');
     await expect(countPublicEsiBudgetExhaustionsSince(since)).resolves.toBe(2);
     await expect(hasPublicEsiBudgetAlertSince(since)).resolves.toBe(true);
+  });
+
+  it('releases the exact alert claim after a failed delivery', async () => {
+    const since = new Date(Date.now() - 60_000);
+    const claimId = await claimPublicEsiBudgetAlert({ count: 3, windowMinutes: 15 });
+
+    await expect(hasPublicEsiBudgetAlertSince(since)).resolves.toBe(true);
+    await releasePublicEsiBudgetAlertClaim(claimId);
+    await expect(hasPublicEsiBudgetAlertSince(since)).resolves.toBe(false);
   });
 });

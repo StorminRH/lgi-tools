@@ -49,6 +49,27 @@ export async function logUsageEvent(input: LogEventInput): Promise<void> {
   });
 }
 
+export async function claimPublicEsiBudgetAlert(
+  metadata: Record<string, unknown>,
+): Promise<number> {
+  const [row] = await db
+    .insert(usageLogs)
+    .values({
+      action: 'public_esi_budget_alerted',
+      characterId: null,
+      metadata,
+    })
+    .returning({ id: usageLogs.id });
+  if (!row) throw new Error('Failed to create public ESI budget alert claim');
+  return row.id;
+}
+
+export async function releasePublicEsiBudgetAlertClaim(id: number): Promise<void> {
+  await db
+    .delete(usageLogs)
+    .where(and(eq(usageLogs.id, id), eq(usageLogs.action, 'public_esi_budget_alerted')));
+}
+
 // Bound the otherwise-unbounded usage_logs table (one row per page view plus
 // each ESI/degradation/cron event): drop rows past the retention window. Hosted
 // on the daily GSC cron. Idempotent — a re-run only deletes newly-aged rows — so

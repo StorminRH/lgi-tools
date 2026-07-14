@@ -1,7 +1,8 @@
 import {
+  claimPublicEsiBudgetAlert,
   countPublicEsiBudgetExhaustionsSince,
   hasPublicEsiBudgetAlertSince,
-  logUsageEvent,
+  releasePublicEsiBudgetAlertClaim,
 } from '@/data/telemetry/queries';
 import { alertPublicEsiBudgetExhaustion, isOpsAlertConfigured } from '@/lib/alerts';
 
@@ -29,16 +30,25 @@ export async function maybeAlertPublicEsiBudgetExhaustion(
   }
   if (!isOpsAlertConfigured()) return { status: 'unconfigured', count };
 
-  // Claim the window before delivery. A failed marker write leaves the alert
-  // retryable; a successful webhook can never be followed by a missing marker
-  // that permits a duplicate delivery on the next cron run.
-  await logUsageEvent({
-    action: 'public_esi_budget_alerted',
-    metadata: { count, windowMinutes: PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES },
-  });
-  await alertPublicEsiBudgetExhaustion({
+  // Claim before delivery so a successful webhook always has its marker. If
+  // delivery rejects, compensate by releasing this exact row so the next cron
+  // can retry the still-active window without reopening delivered alerts.
+  const claimId = await claimPublicEsiBudgetAlert({
     count,
     windowMinutes: PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES,
   });
+  try {
+    const posted = await alertPublicEsiBudgetExhaustion({
+      count,
+      windowMinutes: PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES,
+    });
+    if (!posted) {
+      await releasePublicEsiBudgetAlertClaim(claimId);
+      return { status: 'unconfigured', count };
+    }
+  } catch (error) {
+    await releasePublicEsiBudgetAlertClaim(claimId);
+    throw error;
+  }
   return { status: 'alerted', count };
 }
