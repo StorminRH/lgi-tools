@@ -14,6 +14,7 @@ import {
   type EsiReport,
   type EsiScoreboard,
   type PreDispatchState,
+  normalizeEsiPath,
 } from './scoreboard';
 
 // The ESI gate engine: everything esiFetch (index.ts) orchestrates — the
@@ -256,11 +257,13 @@ export async function consultPreDispatch(
 // throws. With it, honor a 429 Retry-After block and the error-budget floor.
 export function enforceBudget(
   pre: PreDispatchState | null,
+  url: string,
   opts?: EsiFetchOptions,
 ): void {
+  const resource = normalizeEsiPath(url);
   if (pre === null) {
     if (opts?.interactive !== true) {
-      throw new EsiBudgetExhaustedError(0, 'scoreboard_unavailable');
+      throw new EsiBudgetExhaustedError(0, 'scoreboard_unavailable', null, resource);
     }
     const now = Date.now();
     if (now - trickleWindowStart >= 60_000) {
@@ -268,16 +271,26 @@ export function enforceBudget(
       trickleCount = 0;
     }
     if (trickleCount >= TRICKLE_MAX_PER_MINUTE) {
-      throw new EsiBudgetExhaustedError(0, 'trickle_capped');
+      throw new EsiBudgetExhaustedError(0, 'trickle_capped', null, resource);
     }
     trickleCount += 1;
     return;
   }
   if (pre.blockedRetryAfter !== null) {
-    throw new EsiBudgetExhaustedError(pre.effectiveRemaining, 'rate_limited');
+    throw new EsiBudgetExhaustedError(
+      pre.effectiveRemaining,
+      'rate_limited',
+      pre.blockedRetryAfter,
+      resource,
+    );
   }
   if (pre.effectiveRemaining < ESI_BUDGET_FLOOR) {
-    throw new EsiBudgetExhaustedError(pre.effectiveRemaining, 'error_budget');
+    throw new EsiBudgetExhaustedError(
+      pre.effectiveRemaining,
+      'error_budget',
+      null,
+      resource,
+    );
   }
 }
 
@@ -342,12 +355,19 @@ async function captureEtagToStore(
   };
 }
 
-// 420 ("you hit the limit, back off now") and 5xx abort the call — the report
-// has already fed the mirror by the time we reach here. 2xx/3xx/4xx (incl. 429,
-// whose Retry-After block gates the NEXT call) fall through to the caller.
-function throwIfErrorStatus(res: Response): void {
+// 420, 429, and 5xx abort the call after the report has fed the mirror. A 429
+// carries Retry-After metadata so owner refreshes can resume through the queue.
+function throwIfErrorStatus(url: string, res: Response): void {
   if (res.status === 420) {
-    throw new EsiBudgetExhaustedError(0, 'esi_420');
+    throw new EsiBudgetExhaustedError(0, 'esi_420', null, normalizeEsiPath(url));
+  }
+  if (res.status === 429) {
+    throw new EsiBudgetExhaustedError(
+      parseIntHeader(res.headers, 'X-Ratelimit-Remaining') ?? 0,
+      'rate_limited',
+      parseIntHeader(res.headers, 'Retry-After'),
+      normalizeEsiPath(url),
+    );
   }
   if (res.status >= 500) {
     throw new EsiServerError(res.status);
@@ -382,7 +402,7 @@ export async function dispatch(
       );
     }
 
-    throwIfErrorStatus(res);
+    throwIfErrorStatus(url, res);
     return res;
   }
 }

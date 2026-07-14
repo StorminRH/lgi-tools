@@ -81,6 +81,7 @@
     "/api/admin/role": "dynamic",
     "/api/admin/sessions/revoke": "dynamic",
     "/api/auth/[...all]": "dynamic",
+    "/api/cron/drain-esi-refresh-jobs": "dynamic",
     "/api/cron/refresh-affiliations": "dynamic",
     "/api/cron/refresh-gsc": "dynamic",
     "/api/cron/refresh-industry-indices": "dynamic",

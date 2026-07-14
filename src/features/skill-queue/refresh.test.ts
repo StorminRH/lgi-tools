@@ -224,12 +224,12 @@ describe('planSkillsPersist', () => {
   });
 
   it('skips on an ESI error on either half', () => {
-    expect(planSkillsPersist(error, fresh({ total_sp: 1 }, '"s"'))).toEqual({ kind: 'skip' });
-    expect(planSkillsPersist(fresh([], '"q"'), error)).toEqual({ kind: 'skip' });
+    expect(planSkillsPersist(error, fresh({ total_sp: 1 }, '"s"'))).toEqual({ kind: 'skip', code: 'esi_500' });
+    expect(planSkillsPersist(fresh([], '"q"'), error)).toEqual({ kind: 'skip', code: 'esi_500' });
   });
 
   it('skips on a contract mismatch in a fresh body', () => {
-    expect(planSkillsPersist(fresh({ not: 'an array' }, '"q"'), unchanged)).toEqual({ kind: 'skip' });
-    expect(planSkillsPersist(unchanged, fresh({ wrong: 'shape' }, '"s"'))).toEqual({ kind: 'skip' });
+    expect(planSkillsPersist(fresh({ not: 'an array' }, '"q"'), unchanged)).toEqual({ kind: 'skip', code: 'contract_error' });
+    expect(planSkillsPersist(unchanged, fresh({ wrong: 'shape' }, '"s"'))).toEqual({ kind: 'skip', code: 'contract_error' });
   });
 });

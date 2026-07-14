@@ -18,9 +18,9 @@ export function planRead<TRead extends ReadResult, TSave extends object>(
   mapError?: (code: string) => PersistVerdict<TSave>,
 ): PersistVerdict<TSave> {
   if (read.kind === 'unchanged') return { kind: 'stamp' };
-  if (read.kind === 'error') return mapError?.(read.code) ?? { kind: 'skip' };
+  if (read.kind === 'error') return mapError?.(read.code) ?? { kind: 'skip', code: read.code };
   const payload = onFresh(read as Extract<TRead, { kind: 'fresh' }>);
-  if (payload === null) return { kind: 'skip' };
+  if (payload === null) return { kind: 'skip', code: 'contract_error' };
   // kind LAST so a payload that happens to carry its own `kind` can't clobber the
   // 'save' discriminant (no current slice does, but the engine is a reused primitive).
   return { ...payload, kind: 'save' };

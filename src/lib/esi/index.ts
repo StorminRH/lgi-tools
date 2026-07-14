@@ -82,7 +82,7 @@ export async function esiFetch(
   const wantEtag = isEtagEligible(init);
 
   const pre = await consultPreDispatch(sb, url, wantEtag);
-  enforceBudget(pre, opts);
+  enforceBudget(pre, url, opts);
 
   // Non-null only when this call's pre-dispatch actually consulted the shared
   // scoreboard — a report never goes where a check didn't come from.

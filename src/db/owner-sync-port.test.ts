@@ -43,12 +43,14 @@ describe('readRolesFor', () => {
     );
   });
 
-  it('returns null for a soft ESI result or a transient gate failure', async () => {
+  it('returns null for soft ESI failures but preserves budget deferrals', async () => {
     readEsiAuthedMock.mockResolvedValueOnce({ kind: 'error', code: 'esi_403' });
     await expect(readRolesFor(9001, 'access-token')).resolves.toBeNull();
 
     readEsiAuthedMock.mockRejectedValueOnce(new EsiBudgetExhaustedError(19));
-    await expect(readRolesFor(9001, 'access-token')).resolves.toBeNull();
+    await expect(readRolesFor(9001, 'access-token')).rejects.toBeInstanceOf(
+      EsiBudgetExhaustedError,
+    );
 
     readEsiAuthedMock.mockRejectedValueOnce(new EsiServerError(503));
     await expect(readRolesFor(9001, 'access-token')).resolves.toBeNull();

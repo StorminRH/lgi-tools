@@ -12,7 +12,12 @@
 // is the slice's saveNeedsRole). An ESI 403 on the board read (role revoked mid-run)
 // maps to the SAME needs_role state via planCorpJobsPersist below; refresh.test.ts pins
 // the byte-identical behaviour. The client derives "ready" from each job's end_date.
-import { type OwnerSyncDescriptor, runOwnerSync } from '@/lib/owner-sync';
+import {
+  type OwnerSyncDescriptor,
+  type OwnerSyncResult,
+  type OwnerSyncRunOptions,
+  runOwnerSync,
+} from '@/lib/owner-sync';
 import { CORP_INDUSTRY_JOBS_REQUIRED_ROLES, canSyncCorpIndustryJobs } from './corp-sync-eligibility';
 import { type IndustryJob, parseIndustryJobsBody } from './esi-projection';
 import { isJobsStale } from './staleness';
@@ -27,18 +32,20 @@ export type CorpJobsPersistPlan =
   | { kind: 'save'; jobs: IndustryJob[]; etag: string | null }
   | { kind: 'stamp' }
   | { kind: 'needs_role' }
-  | { kind: 'skip' };
+  | { kind: 'skip'; code?: string };
 
 export function planCorpJobsPersist(read: JobsEsiRead): CorpJobsPersistPlan {
   if (read.kind === 'error') {
     // A 403 means the in-game role check failed server-side (role revoked since
     // resolution) — the same graceful needs_role state, not a transient retry. Every
     // other error keeps the stored board and retries on the next view (no stamp).
-    return read.code === 'esi_403' ? { kind: 'needs_role' } : { kind: 'skip' };
+    return read.code === 'esi_403'
+      ? { kind: 'needs_role' }
+      : { kind: 'skip', code: read.code };
   }
   if (read.kind === 'unchanged') return { kind: 'stamp' };
   const jobs = parseIndustryJobsBody(read.body);
-  if (jobs === null) return { kind: 'skip' }; // contract mismatch — keep stored board
+  if (jobs === null) return { kind: 'skip', code: 'contract_error' };
   return { kind: 'save', jobs, etag: read.etag };
 }
 
@@ -59,6 +66,7 @@ function makeDescriptor(port: CorpJobsPort): OwnerSyncDescriptor<CorpOwner, Corp
   return {
     now: () => port.now(),
     enumerate: (userId) => port.listMembers(userId),
+    identityOf: (owner) => ({ ownerType: 'corporation', ownerId: owner.corporationId }),
     vendToken: (characterId) => port.vendToken(characterId),
     isStale: (state, now) => isJobsStale(state?.lastRefreshedAt ?? null, now),
     corpAxis: {
@@ -78,6 +86,10 @@ function makeDescriptor(port: CorpJobsPort): OwnerSyncDescriptor<CorpOwner, Corp
   };
 }
 
-export async function refreshCorpJobsForUser(port: CorpJobsPort, userId: string): Promise<void> {
-  await runOwnerSync(makeDescriptor(port), userId);
+export function refreshCorpJobsForUser(
+  port: CorpJobsPort,
+  userId: string,
+  options?: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
+  return runOwnerSync(makeDescriptor(port), userId, options);
 }

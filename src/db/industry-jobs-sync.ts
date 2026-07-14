@@ -18,8 +18,10 @@ import {
 } from '@/features/industry-jobs/queries';
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
 // The real port: the shared auth + ESI wiring (owner-sync-port.ts) plus this slice's
 // own Neon read/save/stamp. Jobs reads one single-page endpoint (readSingleEndpoint).
@@ -63,9 +65,22 @@ export interface ViewerJobsResult {
 export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
     read: (uid) => readCharacterOwners(uid, getJobsForCharacters, readCharacterJobSyncState),
-    refresh: (uid) => refreshJobsForUser(makeJobsPort(), uid),
+    refresh: (uid) =>
+      refreshJobsForUser(
+        makeJobsPort(),
+        uid,
+        enqueueBudgetDeferral('character_industry_jobs', uid),
+      ),
     makeRow: characterRow,
     nameIds: (viewerJobs) => jobTypeIds(viewerJobs),
   });
   return { characters: rows, names };
+}
+
+export async function runCharacterIndustryJobsRefreshJob(
+  userId: string,
+  target: OwnerSyncTarget,
+): Promise<OwnerSyncResult> {
+  const results = await refreshJobsForUser(makeJobsPort(), userId, { target });
+  return targetedOwnerResult(target, results);
 }

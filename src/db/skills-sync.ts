@@ -22,8 +22,10 @@ import {
 } from '@/features/skill-queue/queries';
 import { refreshSkillsForUser } from '@/features/skill-queue/refresh';
 import type { CharacterSkillData, SkillsPort } from '@/features/skill-queue/types';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
+import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
 // The real port: the shared auth + ESI wiring (owner-sync-port.ts) plus this slice's
 // own Neon read/save/stamp. Skills reads two single-page endpoints (readSingleEndpoint).
@@ -69,7 +71,8 @@ export interface ViewerSkillsResult {
 export async function getSkillsForUserOnView(userId: string): Promise<ViewerSkillsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterSkillData, ViewerSkills>(userId, {
     read: (uid) => readCharacterOwners(uid, getSkillsForCharacters, readCharacterSyncState),
-    refresh: (uid) => refreshSkillsForUser(makeSkillsPort(), uid),
+    refresh: (uid) =>
+      refreshSkillsForUser(makeSkillsPort(), uid, enqueueBudgetDeferral('skills', uid)),
     makeRow: characterRow,
     nameIds: (viewerSkills) => {
       const skillIds = new Set<number>();
@@ -100,7 +103,9 @@ export async function getSkillLevelsForUserOnView(userId: string): Promise<Viewe
   const linked = await listLinkedCharacters(userId);
   const characterIds = linked.map((character) => character.characterId);
   const levelsMap = await getSkillLevelsForCharacters(characterIds);
-  after(() => refreshSkillsForUser(makeSkillsPort(), userId));
+  after(() =>
+    refreshSkillsForUser(makeSkillsPort(), userId, enqueueBudgetDeferral('skills', userId)),
+  );
   return characterIds.map((characterId) => ({
     characterId,
     levels: levelsMap.get(characterId) ?? null,
@@ -120,6 +125,16 @@ export async function getSkillLevelsForCharacterOnView(
   const linked = await listLinkedCharacters(userId);
   if (!linked.some((character) => character.characterId === characterId)) return null;
   const levels = await getCharacterSkillLevels(characterId);
-  after(() => refreshSkillsForUser(makeSkillsPort(), userId));
+  after(() =>
+    refreshSkillsForUser(makeSkillsPort(), userId, enqueueBudgetDeferral('skills', userId)),
+  );
   return levels;
+}
+
+export async function runSkillsRefreshJob(
+  userId: string,
+  target: OwnerSyncTarget,
+): Promise<OwnerSyncResult> {
+  const results = await refreshSkillsForUser(makeSkillsPort(), userId, { target });
+  return targetedOwnerResult(target, results);
 }

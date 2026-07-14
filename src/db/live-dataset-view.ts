@@ -28,7 +28,7 @@ export interface LiveDatasetView<TData, TRow> {
   // (readCharacterOwners); the corp slice's single sync-rows read IS the enumeration.
   read(userId: string): Promise<{ owners: OwnerRow[]; data: Map<number, TData> }>;
   // The stale-gated write-behind, fired via after() — never awaited on the response path.
-  refresh(userId: string): void | Promise<void>;
+  refresh(userId: string): void | Promise<unknown>;
   // Build one owner's wire row from its state + cached payload (null until first sync).
   makeRow(owner: OwnerRow, data: TData | null): TRow;
   // The type/skill ids the built rows reference, for the one SDE name pass.

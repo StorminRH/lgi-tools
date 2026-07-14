@@ -9,6 +9,14 @@ export interface PriceSourceDegradation {
   budgetExhausted: boolean;
 }
 
+export interface EsiRefreshDeadLetter {
+  jobId: number;
+  dataset: string;
+  resource: string;
+  attemptCount: number;
+  failureCode: string;
+}
+
 // Best-effort ops alert when the price source degrades to Fuzzwork (3.0.10
 // O-1). Reads DISCORD_ALERT_WEBHOOK_URL — a dedicated ops channel, separate
 // from the feedback webhook. If it is unset, returns silently: the alert sits
@@ -48,4 +56,28 @@ export async function alertPriceSourceDegradation(
   };
 
   await postDiscordWebhook(url, { embeds: [embed] });
+}
+
+export async function alertEsiRefreshDeadLetter(
+  info: EsiRefreshDeadLetter,
+): Promise<void> {
+  const url = readEnv('DISCORD_ALERT_WEBHOOK_URL');
+  if (!url) return;
+
+  await postDiscordWebhook(url, {
+    embeds: [
+      {
+        title: 'Deferred ESI refresh dead-lettered',
+        description: `Job ${info.jobId} exhausted its retry budget and needs operator review.`,
+        fields: [
+          { name: 'Dataset', value: info.dataset, inline: true },
+          { name: 'Attempts', value: String(info.attemptCount), inline: true },
+          { name: 'Resource', value: info.resource },
+          { name: 'Failure', value: info.failureCode },
+        ],
+        footer: { text: `LGI.tools v${APP_VERSION}` },
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  });
 }

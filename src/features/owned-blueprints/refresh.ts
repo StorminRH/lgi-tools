@@ -11,15 +11,24 @@
 // series, and resolves a corp Director among the member characters. Per-owner specifics
 // stay here: the resource path segment, the eligibility scopes, the Director role, and
 // the blueprint projection. refresh.test.ts pins the byte-identical behaviour.
-import { makeOwnedDescriptor, runOwnerSync } from '@/lib/owner-sync';
+import {
+  makeOwnedDescriptor,
+  runOwnerSync,
+  type OwnerSyncResult,
+  type OwnerSyncRunOptions,
+} from '@/lib/owner-sync';
 import { CORP_BLUEPRINTS_REQUIRED_ROLES, canSyncCorpBlueprints } from './corp-sync-eligibility';
 import { parseBlueprintsBody } from './esi-projection';
 import { isBlueprintsStale } from './staleness';
 import { canSyncBlueprints } from './sync-eligibility';
 import type { OwnedBlueprintsPort } from './types';
 
-export async function refreshOwnedBlueprintsForUser(port: OwnedBlueprintsPort, userId: string): Promise<void> {
-  await runOwnerSync(
+export function refreshOwnedBlueprintsForUser(
+  port: OwnedBlueprintsPort,
+  userId: string,
+  options?: OwnerSyncRunOptions,
+): Promise<OwnerSyncResult[]> {
+  return runOwnerSync(
     makeOwnedDescriptor(port, {
       resource: 'blueprints',
       isStale: isBlueprintsStale,
@@ -29,5 +38,6 @@ export async function refreshOwnedBlueprintsForUser(port: OwnedBlueprintsPort, u
       parse: parseBlueprintsBody,
     }),
     userId,
+    options,
   );
 }

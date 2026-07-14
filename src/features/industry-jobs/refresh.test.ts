@@ -160,10 +160,10 @@ describe('planJobsPersist', () => {
   });
 
   it('skips on an ESI error', () => {
-    expect(planJobsPersist(error)).toEqual({ kind: 'skip' });
+    expect(planJobsPersist(error)).toEqual({ kind: 'skip', code: 'esi_500' });
   });
 
   it('skips on a contract mismatch in a fresh body', () => {
-    expect(planJobsPersist(freshRead({ not: 'an array' }, '"j"'))).toEqual({ kind: 'skip' });
+    expect(planJobsPersist(freshRead({ not: 'an array' }, '"j"'))).toEqual({ kind: 'skip', code: 'contract_error' });
   });
 });

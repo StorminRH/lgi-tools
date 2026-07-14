@@ -19,6 +19,7 @@ import {
 import { getOwnedBlueprintMap, readOwnerSyncState, saveOwnedBlueprints, stampOwnerFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
 import {
   listCharactersWithHealth,
   readPagedEndpoint,
@@ -26,6 +27,7 @@ import {
   resolveOwnedOwnersForUser,
   vendTokenFor,
 } from './owner-sync-port';
+import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
 
 // The real port: the shared auth + ESI wiring (owner-sync-port.ts) plus this slice's
 // own Neon read/save/stamp. Blueprints is a paginated read (readPagedEndpoint).
@@ -54,7 +56,23 @@ export async function getOwnedBlueprintDetailOnView(
 ): Promise<OwnedBlueprintDetailEntry[]> {
   const owners = await resolveOwnedOwnersForUser(userId);
   const map = await getOwnedBlueprintMap(owners);
-  after(() => refreshOwnedBlueprintsForUser(makeOwnedBlueprintsPort(), userId));
+  after(() =>
+    refreshOwnedBlueprintsForUser(
+      makeOwnedBlueprintsPort(),
+      userId,
+      enqueueBudgetDeferral('owned_blueprints', userId),
+    ),
+  );
   const names = await resolveEntityNames(collectDetailNameIds(map, requestedTypeIds));
   return buildOwnedDetail(map, requestedTypeIds, names, formatStationName);
+}
+
+export async function runOwnedBlueprintsRefreshJob(
+  userId: string,
+  target: OwnerSyncTarget,
+): Promise<OwnerSyncResult> {
+  const results = await refreshOwnedBlueprintsForUser(makeOwnedBlueprintsPort(), userId, {
+    target,
+  });
+  return targetedOwnerResult(target, results);
 }

@@ -64,7 +64,30 @@ export type PersistVerdict<TSave> =
   | ({ kind: 'save' } & TSave)
   | { kind: 'stamp' }
   | { kind: 'needs_role' }
-  | { kind: 'skip' };
+  | { kind: 'skip'; code?: string };
+
+export interface OwnerSyncTarget {
+  ownerType: 'character' | 'corporation';
+  ownerId: number;
+}
+
+export type OwnerSyncResult =
+  | { kind: 'succeeded'; target: OwnerSyncTarget }
+  | {
+      kind: 'deferred_for_budget';
+      target: OwnerSyncTarget;
+      error: import('../esi').EsiBudgetExhaustedError;
+    }
+  | { kind: 'failed_retryable'; target: OwnerSyncTarget; code: string }
+  | { kind: 'failed_permanent'; target: OwnerSyncTarget; code: string };
+
+export interface OwnerSyncRunOptions {
+  target?: OwnerSyncTarget;
+  onBudgetDeferred?(
+    target: OwnerSyncTarget,
+    error: import('../esi').EsiBudgetExhaustedError,
+  ): Promise<void>;
+}
 
 // The character-owner axis (absent for corp-only slices like corp jobs).
 export interface OwnerAxis<TOwner> {
@@ -95,6 +118,8 @@ export interface OwnerSyncDescriptor<TOwner, TState, TSave> {
   now(): Date;
   // The user's linked characters (the slice's port.listCharacters / listMembers).
   enumerate(userId: string): Promise<EnumeratedOwner[]>;
+  // Stable owner identity used by targeted deferred-job retries.
+  identityOf(owner: TOwner): OwnerSyncTarget;
   // An optional per-owner gate read FIRST in syncOwner — before readState, the
   // staleness check, and any token vend. Returns false ⇒ the owner is skipped
   // entirely: no state read, no vend / roles read, no fetch, no save. Absent ⇒ the
