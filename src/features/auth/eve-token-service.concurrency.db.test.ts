@@ -9,17 +9,20 @@ import {
   schemaUrl,
   setupDisposableSchema,
 } from '@/db/test-support/db-coverage-harness';
-import { getFreshAccessTokenForCharacter } from './eve-token-service';
+import {
+  getFreshAccessTokenForCharacter,
+  INVALID_GRANT_CONFIRMATION_GRACE_MS,
+} from './eve-token-service';
 import { account } from './schema';
 import { decryptToken, encryptToken } from './token-crypto';
 
 // Proves the token-vend compare-and-swap against the REAL local Docker Postgres
 // (postgres-js): the conditional `WHERE refresh_token = <ciphertext as read>` is
 // the load-bearing claim, and a mocked rowCount can't prove it actually matches
-// 0 rows under genuine concurrency. Covers the two orderings the design hinges on
-// — a raced loser's NULL committing before the winner's write (the winner's
-// IS NULL arm must repair it), and a re-auth replacing the token mid-vend (the
-// in-flight vend must not clobber it). Skips cleanly when no DB is reachable.
+// 0 rows under genuine concurrency. Covers the orderings the design hinges on:
+// rotation winning over a first strike, a confirming NULL landing before the
+// winner's write (whose IS NULL arm must repair it), and re-auth replacing the
+// token mid-vend without being clobbered. Skips cleanly when no DB is reachable.
 
 const SCHEMA = 'test_token_vend_cov';
 const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
@@ -76,7 +79,13 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
     fetchSpy.mockRestore();
   });
 
-  async function seedAccount(refreshPlain: string, accessPlain: string, expiresAt: Date) {
+  async function seedAccount(
+    refreshPlain: string,
+    accessPlain: string,
+    expiresAt: Date,
+    invalidGrantCount = 0,
+    invalidGrantFirstAt: Date | null = null,
+  ) {
     await seedDb.insert(account).values({
       id: 'acc1',
       accountId: String(CHAR_ID),
@@ -85,6 +94,8 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
       accessToken: encryptToken(accessPlain),
       refreshToken: encryptToken(refreshPlain),
       accessTokenExpiresAt: expiresAt,
+      refreshTokenInvalidGrantCount: invalidGrantCount,
+      refreshTokenInvalidGrantFirstAt: invalidGrantFirstAt,
       scope: 'publicData',
     });
   }
@@ -133,13 +144,21 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
     // Custody survives and exactly one rotation persisted — never NULL, never double.
     expect(row.refreshToken).not.toBeNull();
     expect(decryptToken(row.refreshToken as string)).toBe('RT1');
+    expect(row.refreshTokenInvalidGrantCount).toBe(0);
+    expect(row.refreshTokenInvalidGrantFirstAt).toBeNull();
     // At least the winner got a usable token (the loser is ok-via-reflect or a
     // transient reauth depending on which write committed first).
     expect([r1.kind, r2.kind]).toContain('ok');
   });
 
-  it("repairs a row a raced loser nulled: the winner's IS NULL arm restores the token", async () => {
-    await seedAccount('RT0', 'old-access', past());
+  it("repairs a confirmed-dead row: the concurrent winner's IS NULL arm restores custody", async () => {
+    await seedAccount(
+      'RT0',
+      'old-access',
+      past(),
+      1,
+      new Date(Date.now() - INVALID_GRANT_CONFIRMATION_GRACE_MS),
+    );
 
     let entered = 0;
     let bothEntered!: () => void;
@@ -156,8 +175,8 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
       entered += 1;
       if (entered === 2) bothEntered();
       if (n === 0) {
-        // Loser: only return invalid_grant once BOTH vends have read RT0, so the
-        // winner is guaranteed to hold RT0 (not a post-null NULL) when it writes.
+        // Loser: only confirm invalid_grant once BOTH vends have read strike 1,
+        // so the winner is guaranteed to hold RT0 when it writes.
         await both;
         return new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 });
       }
@@ -179,9 +198,28 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
 
     const row = await readAccount();
     expect(row.refreshToken).not.toBeNull();
-    // The winner's IS NULL arm repaired the loser's premature null.
+    // The winner's IS NULL arm repaired the confirming loser's null.
     expect(decryptToken(row.refreshToken as string)).toBe('RT1');
+    expect(row.refreshTokenInvalidGrantCount).toBe(0);
+    expect(row.refreshTokenInvalidGrantFirstAt).toBeNull();
     expect(results.map((r) => r.kind).sort()).toEqual(['ok', 'reauth_required']);
+  });
+
+  it('re-arms grace after an ambiguous confirmation failure and suppresses the next vend', async () => {
+    const originalFirstAt = new Date(Date.now() - INVALID_GRANT_CONFIRMATION_GRACE_MS);
+    await seedAccount('RT0', 'old-access', past(), 1, originalFirstAt);
+    fetchSpy.mockResolvedValue(new Response('provider unavailable', { status: 503 }));
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+
+    const row = await readAccount();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(row.refreshToken).not.toBeNull();
+    expect(row.refreshTokenInvalidGrantCount).toBe(1);
+    expect(row.refreshTokenInvalidGrantFirstAt?.getTime()).toBeGreaterThan(
+      originalFirstAt.getTime(),
+    );
   });
 
   it('does not clobber a fresh token a re-auth wrote mid-vend (success write finds 0 rows → reflects)', async () => {

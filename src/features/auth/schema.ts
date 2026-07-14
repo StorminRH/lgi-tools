@@ -3,6 +3,7 @@ import {
   bigserial,
   boolean,
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
@@ -109,6 +110,10 @@ export const account = pgTable(
     idToken: text('id_token'),
     accessTokenExpiresAt: timestamp('access_token_expires_at'),
     refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+    refreshTokenInvalidGrantCount: integer('refresh_token_invalid_grant_count')
+      .default(0)
+      .notNull(),
+    refreshTokenInvalidGrantFirstAt: timestamp('refresh_token_invalid_grant_first_at'),
     scope: text('scope'),
     // The EVE JWT `owner` claim (CharacterOwnerHash) for this character — stable
     // for one human across logins, changes only when the character is transferred

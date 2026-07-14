@@ -26,6 +26,11 @@ export const SERVER_USAGE_ACTIONS = [
   'cron_gsc', // daily Google-Search-Console sync outcome — synced / skipped / failed (3.3.3)
   'cron_sync_sweeper', // 15-min sync-engine watchdog — dispatched>0 means the Convex scan lagged (3.4.9)
   'cron_affiliations', // nightly corp-affiliation refresh outcome — busy / refreshed (3.7.3.2)
+  'eve_token_refresh_invalid_grant', // EVE rejected the submitted refresh token as invalid / expired / revoked
+  'eve_token_refresh_timeout', // the EVE SSO refresh request exceeded the shared outbound timeout
+  'eve_token_refresh_connection', // the EVE SSO refresh request failed before an HTTP response
+  'eve_token_refresh_provider_5xx', // EVE SSO returned a provider-side 5xx response
+  'eve_token_refresh_unexpected', // any other non-success or malformed EVE SSO refresh response
   'eve_token_refresh_race', // a vend hit invalid_grant on a token a concurrent vend had already rotated — the signal EVE has enabled invalidating refresh-token rotation (OOB-AUTH)
   'account_purge', // a self-service character-purge or account-nuke completed (ACCOUNT.2). IDENTITY-FREE (D-6): logged with NO character id; metadata carries only { scope: 'character' | 'account' }
   'auth_absorb', // "Add character" absorbed a stray duplicate account via the OAuth proof (ACCOUNT.3). Audit trail for a disputed move; metadata carries { fromUserId, toUserId, sourceDeleted }

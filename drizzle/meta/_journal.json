@@ -316,6 +316,13 @@
       "when": 1783988760547,
       "tag": "0044_tricky_lorna_dane",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1783999075898,
+      "tag": "0045_gorgeous_bishop",
+      "breakpoints": true
     }
   ]
 }

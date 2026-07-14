@@ -249,29 +249,68 @@ describe('refreshEveToken', () => {
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ error: 'invalid_grant' }), { status: 400 }),
     );
-    expect(await refreshEveToken(input)).toEqual({ kind: 'dead' });
+    expect(await refreshEveToken(input)).toEqual({
+      kind: 'dead',
+      failureClass: 'invalid_grant',
+    });
   });
 
   it('treats a non-invalid_grant 400 as retryable (never destroys custody on our-side errors)', async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ error: 'invalid_request' }), { status: 400 }),
     );
-    expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
+    expect(await refreshEveToken(input)).toEqual({
+      kind: 'retryable',
+      failureClass: 'unexpected',
+    });
   });
 
   it('treats a 400 with a missing/non-JSON body as retryable, not dead', async () => {
     fetchSpy.mockResolvedValueOnce(new Response('not json', { status: 400 }));
-    expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
+    expect(await refreshEveToken(input)).toEqual({
+      kind: 'retryable',
+      failureClass: 'unexpected',
+    });
   });
 
-  it('treats a 5xx as retryable', async () => {
+  it('classifies a 5xx as a retryable provider failure', async () => {
     fetchSpy.mockResolvedValueOnce(new Response('upstream', { status: 503 }));
-    expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
+    expect(await refreshEveToken(input)).toEqual({
+      kind: 'retryable',
+      failureClass: 'provider_5xx',
+    });
   });
 
-  it('treats a network/timeout error as retryable', async () => {
-    fetchSpy.mockRejectedValueOnce(new Error('aborted'));
-    expect(await refreshEveToken(input)).toEqual({ kind: 'retryable' });
+  it('classifies the shared outbound timeout separately from connection failures', async () => {
+    fetchSpy.mockRejectedValueOnce(new DOMException('signal timed out', 'TimeoutError'));
+    expect(await refreshEveToken(input)).toEqual({
+      kind: 'retryable',
+      failureClass: 'timeout',
+    });
+  });
+
+  it('classifies another thrown fetch error as a retryable connection failure', async () => {
+    fetchSpy.mockRejectedValueOnce(new TypeError('fetch failed'));
+    expect(await refreshEveToken(input)).toEqual({
+      kind: 'retryable',
+      failureClass: 'connection',
+    });
+  });
+
+  it('classifies a non-5xx HTTP failure such as 429 as unexpected', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('rate limited', { status: 429 }));
+    expect(await refreshEveToken(input)).toEqual({
+      kind: 'retryable',
+      failureClass: 'unexpected',
+    });
+  });
+
+  it('classifies malformed success JSON as unexpected instead of throwing', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('not json', { status: 200 }));
+    expect(await refreshEveToken(input)).toEqual({
+      kind: 'retryable',
+      failureClass: 'unexpected',
+    });
   });
 });
 
