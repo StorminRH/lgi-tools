@@ -4,10 +4,11 @@ import {
   normalizeEsiPath,
   resolveRetryAfter,
 } from './keys';
+import { effectiveRemaining } from './budget';
 import {
-  ESI_ERROR_CEILING,
   ETAG_TTL_SECONDS,
   type CachedEtagMeta,
+  type EsiBudgetSnapshot,
   type EsiReport,
   type EsiScoreboard,
   type PreDispatchState,
@@ -30,25 +31,38 @@ export class MemoryScoreboard implements EsiScoreboard {
     this.echo = { value, expiresAt: now + ttlSeconds * 1000 };
   }
 
-  async preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState> {
-    const now = Date.now();
+  private budgetState(now: number): Omit<EsiBudgetSnapshot, 'source'> {
     const minute = epochMinute();
     const selfCount =
       (this.errorCounts.get(minute) ?? 0) + (this.errorCounts.get(minute - 1) ?? 0);
     const echo =
       this.echo !== null && this.echo.expiresAt > now ? this.echo.value : null;
+    return {
+      effectiveRemaining: effectiveRemaining(echo, selfCount),
+      selfCount,
+      echo,
+    };
+  }
+
+  async preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState> {
+    const now = Date.now();
+    const budget = this.budgetState(now);
     const block = this.blocks.get(normalizeEsiPath(url));
     const meta = wantEtag ? this.metas.get(url) : undefined;
     return {
-      effectiveRemaining: Math.min(
-        echo ?? ESI_ERROR_CEILING,
-        ESI_ERROR_CEILING - selfCount,
-      ),
+      effectiveRemaining: budget.effectiveRemaining,
       blockedRetryAfter:
         block !== undefined && block.expiresAt > now
           ? Math.ceil((block.expiresAt - now) / 1000)
           : null,
       etag: meta !== undefined && meta.expiresAt > now ? meta.meta : null,
+    };
+  }
+
+  async budgetSnapshot(): Promise<EsiBudgetSnapshot> {
+    return {
+      ...this.budgetState(Date.now()),
+      source: 'process-local',
     };
   }
 
@@ -100,4 +114,10 @@ export class MemoryScoreboard implements EsiScoreboard {
     if (entry === undefined || entry.expiresAt <= Date.now()) return null;
     return entry.body;
   }
+}
+
+export function readMemoryBudgetSnapshot(
+  scoreboard: MemoryScoreboard,
+): Promise<EsiBudgetSnapshot> {
+  return scoreboard.budgetSnapshot();
 }

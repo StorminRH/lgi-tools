@@ -53,6 +53,13 @@ export interface PreDispatchState {
   etag: CachedEtagMeta | null;
 }
 
+export interface EsiBudgetSnapshot {
+  effectiveRemaining: number;
+  selfCount: number;
+  echo: number | null;
+  source: 'shared' | 'process-local';
+}
+
 // Everything the gate observed about one ESI response, pre-parsed. The
 // scoreboard turns it into key writes; it never touches Response objects.
 export interface EsiReport {
@@ -75,6 +82,7 @@ export interface EsiReport {
 
 export interface EsiScoreboard {
   preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState>;
+  budgetSnapshot(): Promise<EsiBudgetSnapshot>;
   report(report: EsiReport): Promise<void>;
   getCachedBody(url: string): Promise<string | null>;
 }

@@ -3,22 +3,15 @@ import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { isGscConfigured } from '@/data/gsc/constants';
 import {
-  budgetSummary,
-  degradationCallerSummary,
   deriveCronStatus,
   deriveEsiSourceStatus,
   deriveGscStatus,
-  fallbackRatePoints,
-  fallbackSummary,
   PRICES_HEALTHY_OUTCOMES,
   refreshVolumeSummary,
   SDE_HEALTHY_OUTCOMES,
   SDE_NEUTRAL_OUTCOMES,
 } from '@/data/telemetry/health-metrics';
 import {
-  getBudgetExhaustionCount,
-  getDegradationByCaller,
-  getFallbackRate,
   getGscCronOutcomes,
   getLastCronRuns,
   getPriceCronOutcomes,
@@ -27,6 +20,10 @@ import {
 } from '@/data/telemetry/queries';
 import type { CronOutcomeCount, DateRange, UsageAction } from '@/data/telemetry/types';
 import { AdminBarChart, AdminTrendChart } from './charts';
+import {
+  getBudgetExhaustionCountShared,
+  getFallbackRateShared,
+} from './esi-source-shared';
 import { getLastSyncedAtShared } from './last-synced';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { trendSeries } from './period';
@@ -35,8 +32,6 @@ import { StatusRow } from './StatusRow';
 
 type Trend = ReturnType<typeof trendSeries>;
 type RefreshVolume = Awaited<ReturnType<typeof getRefreshVolume>>;
-type FallbackRate = Awaited<ReturnType<typeof getFallbackRate>>;
-type DegradationByCaller = Awaited<ReturnType<typeof getDegradationByCaller>>;
 
 // The is-anything-broken strip: one row per subsystem, reduced to a colored
 // dot + one-line readout. Status is anchored on "now" (latest run, current
@@ -176,44 +171,6 @@ function GscSyncDetail({
   );
 }
 
-function EsiSourceDetail({
-  fallback,
-  budgetExhaustions,
-  degradationByCaller,
-  fallbackTrend,
-}: {
-  fallback: FallbackRate;
-  budgetExhaustions: number;
-  degradationByCaller: DegradationByCaller;
-  fallbackTrend: Trend;
-}) {
-  return (
-    <DetailBody>
-      <DetailCaption>{fallbackSummary(fallback)}</DetailCaption>
-      <DetailCaption>{budgetSummary(budgetExhaustions)}</DetailCaption>
-      {fallback.perDay.length > 0 && (
-        <ChartBlock label="Fallback rate by day">
-          <AdminTrendChart
-            points={fallbackTrend.points}
-            labels={fallbackTrend.labels}
-            unit="percent"
-            ariaLabel="Fallback rate by day"
-          />
-        </ChartBlock>
-      )}
-      <DetailCaption>{degradationCallerSummary(degradationByCaller)}</DetailCaption>
-      {degradationByCaller.length > 0 && (
-        <ChartBlock label="Degradation events by caller">
-          <AdminBarChart
-            data={degradationByCaller.map((d) => ({ label: d.caller, value: d.count }))}
-            ariaLabel="Degradation events by caller"
-          />
-        </ChartBlock>
-      )}
-    </DetailBody>
-  );
-}
-
 export async function StatusStrip({ range }: { range: DateRange }) {
   const gscConfigured = isGscConfigured();
   const fetched = await loadSection('system-health', () =>
@@ -222,9 +179,8 @@ export async function StatusStrip({ range }: { range: DateRange }) {
       getPriceCronOutcomes(range),
       getSdeCronOutcomes(range),
       getGscCronOutcomes(range),
-      getFallbackRate(range),
-      getBudgetExhaustionCount(range),
-      getDegradationByCaller(range),
+      getFallbackRateShared(range),
+      getBudgetExhaustionCountShared(range),
       getRefreshVolume(range),
       gscConfigured ? getLastSyncedAtShared() : Promise.resolve(null),
     ]),
@@ -238,7 +194,6 @@ export async function StatusStrip({ range }: { range: DateRange }) {
     gscOutcomes,
     fallback,
     budgetExhaustions,
-    degradationByCaller,
     refreshVolume,
     lastSyncedAt,
   ] = fetched;
@@ -274,10 +229,6 @@ export async function StatusStrip({ range }: { range: DateRange }) {
     refreshVolume.map((p) => p.day),
     refreshVolume.map((p) => p.fetched),
   );
-  const fallbackTrend = trendSeries(
-    fallback.perDay.map((p) => p.day),
-    fallbackRatePoints(fallback.perDay),
-  );
 
   return (
     <Card>
@@ -307,14 +258,7 @@ export async function StatusStrip({ range }: { range: DateRange }) {
         />
       </StatusRow>
 
-      <StatusRow name="ESI source" status={esiStatus}>
-        <EsiSourceDetail
-          fallback={fallback}
-          budgetExhaustions={budgetExhaustions}
-          degradationByCaller={degradationByCaller}
-          fallbackTrend={fallbackTrend}
-        />
-      </StatusRow>
+      <StatusRow name="ESI source" status={esiStatus} />
     </Card>
   );
 }

@@ -1,7 +1,7 @@
 import { readEnv } from '@/lib/env';
-import { MemoryScoreboard } from './memory';
-import { RedisScoreboard } from './redis';
-import type { EsiScoreboard } from './types';
+import { MemoryScoreboard, readMemoryBudgetSnapshot } from './memory';
+import { RedisScoreboard, readRedisBudgetSnapshot } from './redis';
+import type { EsiBudgetSnapshot, EsiScoreboard } from './types';
 
 // Shared ESI budget scoreboard (3.4.5, Decision Record 11). CCP's limits are
 // per-IP / per-app — shared across every serverless instance we run — so the
@@ -16,6 +16,7 @@ export {
   ESI_ERROR_CEILING,
   BODY_CACHE_MAX_BYTES,
   type CachedEtagMeta,
+  type EsiBudgetSnapshot,
   type EsiReport,
   type EsiScoreboard,
   type PreDispatchState,
@@ -43,7 +44,7 @@ let erroredMissingEnvProd = false;
 // need no Upstash account. Unconfigured in production → null: the gate
 // fails closed, and the one-time error makes the misconfigured deploy
 // diagnosable from runtime logs.
-export function resolveScoreboard(): EsiScoreboard | null {
+function resolveConcreteScoreboard(): RedisScoreboard | MemoryScoreboard | null {
   const url = redisUrl();
   const token = redisToken();
   if (url && token) {
@@ -72,6 +73,18 @@ export function resolveScoreboard(): EsiScoreboard | null {
     erroredMissingEnvProd = true;
   }
   return null;
+}
+
+export function resolveScoreboard(): EsiScoreboard | null {
+  return resolveConcreteScoreboard();
+}
+
+export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null> {
+  const scoreboard = resolveConcreteScoreboard();
+  if (scoreboard === null) return null;
+  return scoreboard instanceof RedisScoreboard
+    ? await readRedisBudgetSnapshot(scoreboard)
+    : await readMemoryBudgetSnapshot(scoreboard);
 }
 
 // Reset module state between Vitest cases. Not for runtime callers.

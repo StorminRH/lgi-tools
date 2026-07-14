@@ -15,6 +15,7 @@ import {
 import { db } from '@/db';
 import { characters } from '@/features/auth/schema';
 import { usageLogs } from './schema';
+import { inRange, jsonInt } from './sql';
 import type {
   CronLastRun,
   CronOutcomeCount,
@@ -81,10 +82,6 @@ export async function completePublicEsiBudgetAlertClaim(id: number): Promise<voi
 export async function pruneUsageLogs(retentionDays: number, now: Date = new Date()): Promise<void> {
   const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
   await db.delete(usageLogs).where(lt(usageLogs.timestamp, cutoff));
-}
-
-function inRange(range: DateRange) {
-  return between(usageLogs.timestamp, range.from, range.to);
 }
 
 export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
@@ -237,10 +234,6 @@ export async function getRoleChangeAudit(
 // absent key yields SQL NULL (safe). Filtered sums are `coalesce(...,0)` so a
 // zero-match window reads as 0, not NULL. All division/bucketing is deferred
 // to the caller (health-metrics.ts) — these queries only emit raw counts.
-
-function jsonInt(key: string) {
-  return sql<number>`nullif(${usageLogs.metadata} ->> ${key}, 'null')::int`;
-}
 
 // ESI vs Fuzzwork-fallback source split over `cron_prices` refreshed rows,
 // with a per-day series for the fallback-rate trend. The caller turns these

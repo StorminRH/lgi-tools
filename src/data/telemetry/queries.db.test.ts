@@ -34,6 +34,12 @@ import {
   hasPublicEsiBudgetAlertForWindow,
 } from './queries';
 import { usageLogs } from './schema';
+import {
+  getHistorySourceSplit,
+  getPriceSourceSplit,
+  getTopCostlyEndpoints,
+  getWriteBehindOutcomes,
+} from './cost-queries';
 
 // Executes every admin-consumed telemetry query against the local Docker Postgres
 // (postgres-js) and asserts none throws — the coverage that would have caught the
@@ -129,6 +135,26 @@ const cases: QueryCase[] = [
       expect(d.referred).toBeGreaterThan(0);
       expect(d.direct).toBeGreaterThan(0);
     },
+  },
+  {
+    name: 'getPriceSourceSplit',
+    run: () => getPriceSourceSplit(RANGE),
+    check: (r) => expect((r as { requested: number }).requested).toBeGreaterThan(0),
+  },
+  {
+    name: 'getHistorySourceSplit',
+    run: () => getHistorySourceSplit(RANGE),
+    check: (r) => expect((r as { staleStored: number }).staleStored).toBeGreaterThan(0),
+  },
+  {
+    name: 'getWriteBehindOutcomes',
+    run: () => getWriteBehindOutcomes(RANGE),
+    check: expectNonEmptyArray,
+  },
+  {
+    name: 'getTopCostlyEndpoints',
+    run: () => getTopCostlyEndpoints(RANGE, 5),
+    check: expectNonEmptyArray,
   },
 ];
 
@@ -245,6 +271,41 @@ describe.skipIf(!reachable)('admin telemetry analytics queries execute against P
           windowMinutes: 15,
           windowStartedAt: '2020-01-03T12:00:00.000Z',
         },
+      },
+      {
+        id: 13,
+        action: 'market_price_refresh',
+        characterId: null,
+        timestamp: IN_RANGE,
+        metadata: { requested: 10, returned: 9, cacheHits: 2, esiCount: 6, fuzzworkFallbackCount: 1 },
+      },
+      {
+        id: 14,
+        action: 'market_history_refresh',
+        characterId: null,
+        timestamp: IN_RANGE,
+        metadata: { requested: 10, freshEsi: 2, warmStored: 6, staleStored: 1, missing: 1 },
+      },
+      {
+        id: 15,
+        action: 'market_price_write_behind',
+        characterId: null,
+        timestamp: IN_RANGE,
+        metadata: { outcome: 'failed', attempted: 2, written: 0, durationMs: 25 },
+      },
+      {
+        id: 16,
+        action: 'market_history_write_behind',
+        characterId: null,
+        timestamp: IN_RANGE,
+        metadata: { outcome: 'partial', attempted: 2, written: 1, durationMs: 30 },
+      },
+      {
+        id: 17,
+        action: 'owned_data_read',
+        characterId: CHAR_OLD,
+        timestamp: IN_RANGE,
+        metadata: { endpoint: '/api/account/skills', returned: 4, outcome: 'succeeded', durationMs: 40 },
       },
     ]);
   });

@@ -129,6 +129,7 @@ import {
   __resetScoreboardForTests,
   ESI_ERROR_CEILING,
   normalizeEsiPath,
+  readEsiBudgetSnapshot,
   resolveScoreboard,
   type EsiReport,
   type EsiScoreboard,
@@ -234,6 +235,20 @@ describe('RedisScoreboard', () => {
       effectiveRemaining: ESI_ERROR_CEILING,
       blockedRetryAfter: null,
       etag: null,
+    });
+  });
+
+  it('reads the global budget without consulting route or ETag state', async () => {
+    const sb = redisScoreboard();
+    seed(`lgi:esi:err:count:${currentMinute()}`, '35');
+    seed(`lgi:esi:err:count:${currentMinute() - 1}`, '10');
+    seed(ECHO_KEY, '70');
+
+    await expect(sb.budgetSnapshot()).resolves.toEqual({
+      effectiveRemaining: 55,
+      selfCount: 45,
+      echo: 70,
+      source: 'shared',
     });
   });
 
@@ -465,14 +480,21 @@ describe('resolveScoreboard fallback selection', () => {
 
     // Singleton: state persists across resolves.
     expect(resolveScoreboard()).toBe(sb);
+    await expect(readEsiBudgetSnapshot()).resolves.toEqual({
+      effectiveRemaining: 0,
+      selfCount: 2,
+      echo: 0,
+      source: 'process-local',
+    });
   });
 
-  it('returns null in production and logs the misconfiguration once', () => {
+  it('returns null in production and logs the misconfiguration once', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(resolveScoreboard()).toBeNull();
     expect(resolveScoreboard()).toBeNull();
+    await expect(readEsiBudgetSnapshot()).resolves.toBeNull();
     expect(errorSpy).toHaveBeenCalledTimes(1);
   });
 });

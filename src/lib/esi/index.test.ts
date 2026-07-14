@@ -348,6 +348,12 @@ describe('esiFetch', () => {
           blockedRetryAfter: null,
           etag: { etag: '"abc"', expires: null, contentType: null },
         }),
+        budgetSnapshot: vi.fn().mockResolvedValue({
+          effectiveRemaining: 100,
+          selfCount: 0,
+          echo: null,
+          source: 'process-local',
+        }),
         report: vi.fn().mockResolvedValue(undefined),
         getCachedBody: vi.fn().mockResolvedValue(null),
       };
@@ -456,6 +462,12 @@ describe('esiFetch', () => {
             contentType: 'application/json',
           },
         }),
+        budgetSnapshot: vi.fn().mockResolvedValue({
+          effectiveRemaining: 100,
+          selfCount: 0,
+          echo: null,
+          source: 'process-local',
+        }),
         report: vi.fn().mockResolvedValue(undefined),
         getCachedBody,
       };
@@ -512,6 +524,12 @@ describe('esiFetch', () => {
       const preDispatch = vi.fn().mockRejectedValue(new Error('redis down'));
       const fake: EsiScoreboard = {
         preDispatch,
+        budgetSnapshot: vi.fn().mockResolvedValue({
+          effectiveRemaining: 100,
+          selfCount: 0,
+          echo: null,
+          source: 'process-local',
+        }),
         report: vi.fn().mockResolvedValue(undefined),
         getCachedBody: vi.fn().mockResolvedValue(null),
       };

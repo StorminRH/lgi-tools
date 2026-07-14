@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatIsoDay } from '@/lib/format/time';
 import { getSession, isAdmin } from '@/features/auth/session';
 import { MetricsSection } from './MetricsSection';
+import { OpsSection } from './OpsSection';
 import { parseRange, RANGES, rangeFor, type RangeKey } from './period';
 import { PrintButton } from './PrintButton';
 import { StatusStrip } from './StatusStrip';
@@ -109,6 +110,13 @@ async function AdminContent({
           <GroupHeading>System health</GroupHeading>
           <Suspense fallback={<SectionFallback />}>
             <StatusStrip range={range} />
+          </Suspense>
+        </section>
+
+        <section>
+          <GroupHeading>ESI &amp; ops</GroupHeading>
+          <Suspense fallback={<SectionFallback />}>
+            <OpsSection rangeKey={rangeKey} range={range} />
           </Suspense>
         </section>
 
