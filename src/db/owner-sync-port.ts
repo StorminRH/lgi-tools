@@ -12,6 +12,7 @@ import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
 import { readEsiAuthed, readEsiPagedAuthed } from '@/lib/esi/authed-read';
 import type { OwnerKey } from '@/lib/owner-sync';
+import type { EsiResponseHeaders } from '@/lib/esi/response-metadata';
 
 // A linked character with derived scope health — the shape every per-owner refresh
 // enumerates. corporationId is always included (the corp axis needs it); character-only
@@ -91,7 +92,7 @@ export type AuthedSingleRead =
   | { kind: 'error'; code: string };
 
 export type AuthedPagedRead =
-  | { kind: 'fresh'; items: unknown[]; etags: string[] }
+  | { kind: 'fresh'; items: unknown[]; etags: string[]; responseHeaders: EsiResponseHeaders }
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
@@ -129,7 +130,14 @@ export async function readPagedEndpoint(
 ): Promise<AuthedPagedRead> {
   try {
     const read = await readEsiPagedAuthed(basePath, accessToken, heldEtags);
-    if (read.kind === 'fresh') return { kind: 'fresh', items: read.items, etags: read.etags };
+    if (read.kind === 'fresh') {
+      return {
+        kind: 'fresh',
+        items: read.items,
+        etags: read.etags,
+        responseHeaders: read.responseHeaders,
+      };
+    }
     if (read.kind === 'unchanged') return { kind: 'unchanged' };
     return { kind: 'error', code: read.code };
   } catch (error) {

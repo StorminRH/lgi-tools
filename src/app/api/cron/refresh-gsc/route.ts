@@ -1,4 +1,5 @@
 import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
+import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ADVISORY_LOCK_GSC_SYNC, GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { syncGsc } from '@/data/gsc/ingest';
 import { pruneGscSearchAnalytics, pruneGscUrlInspections } from '@/data/gsc/queries';
@@ -6,6 +7,7 @@ import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { logUsageEvent, pruneUsageLogs } from '@/data/telemetry/queries';
 import { db, directClient } from '@/db';
 import { runCronJob } from '@/db/cron-gate';
+import { pruneEsiSnapshots } from '@/db/esi-snapshot-retention';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
@@ -83,6 +85,10 @@ export async function GET(req: Request): Promise<Response> {
       await swallow(
         '[cron:gsc] expired verification prune failed',
         pruneExpiredVerifications(db, VERIFICATION_RETENTION_DAYS),
+      );
+      await swallow(
+        '[cron:gsc] ESI snapshot prune failed',
+        pruneEsiSnapshots(db, SNAPSHOT_RETENTION_DAYS),
       );
 
       // The fetch + upserts run on the directClient pool; the lock stays on the

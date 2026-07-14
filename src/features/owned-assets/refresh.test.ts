@@ -27,7 +27,12 @@ function makePort(overrides: Partial<OwnedAssetsPort> = {}): OwnedAssetsPort {
     vendToken: vi.fn(async () => 'token'),
     readRoles: vi.fn(async () => []),
     read: vi.fn(
-      async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [], etags: [] }),
+      async (): Promise<PagedOwnerReadResult> => ({
+        kind: 'fresh',
+        items: [],
+        etags: [],
+        responseHeaders: [],
+      }),
     ),
     readSyncState: vi.fn(async () => null),
     save: vi.fn(async () => {}),
@@ -72,6 +77,7 @@ describe('refreshOwnedAssetsForUser — character path', () => {
           kind: 'fresh',
           items: [esiAsset(34, 1000), esiAsset(34, 500)],
           etags: ['"e1"'],
+          responseHeaders: [],
         }),
       ),
     });
@@ -106,7 +112,12 @@ describe('refreshOwnedAssetsForUser — character path', () => {
       listCharacters: vi.fn(async () => [character(1), character(2), character(3)]),
       readSyncState: vi.fn(async () => null), // all stale
       read: vi.fn(
-        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiAsset(34)], etags: [] }),
+        async (): Promise<PagedOwnerReadResult> => ({
+          kind: 'fresh',
+          items: [esiAsset(34)],
+          etags: [],
+          responseHeaders: [],
+        }),
       ),
     });
 
@@ -140,7 +151,12 @@ describe('refreshOwnedAssetsForUser — corporation path', () => {
       vendToken: vi.fn(async (id: number) => `token-${id}`),
       readRoles: vi.fn(async (id: number) => (id === 2 ? ['Director'] : ['Accountant'])),
       read: vi.fn(
-        async (): Promise<PagedOwnerReadResult> => ({ kind: 'fresh', items: [esiAsset(99)], etags: [] }),
+        async (): Promise<PagedOwnerReadResult> => ({
+          kind: 'fresh',
+          items: [esiAsset(99)],
+          etags: [],
+          responseHeaders: [],
+        }),
       ),
     });
 

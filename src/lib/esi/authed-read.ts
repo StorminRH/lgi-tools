@@ -20,6 +20,7 @@
 // owner, the same best-effort posture as the affiliation refresh. A 4xx (403 a
 // missing role, 404 a vanished owner) is a soft 'error' result, not a throw.
 import { esiFetch, esiUrl } from './index';
+import type { EsiPageResponseHeaders, EsiResponseHeaders } from './response-metadata';
 
 // Latest X-Ratelimit-* numbers seen this run — the token-bucket group usage the
 // Convex live engine schedules against. Mutated in place as reads land. Supplied
@@ -72,11 +73,24 @@ export async function readEsiAuthed(
 // bookkeeping. A multi-page 304 fast path is a deferred optimization.
 export type EsiPagedRead =
   | { kind: 'unchanged'; expiresAt: number | null }
-  | { kind: 'fresh'; items: unknown[]; etags: string[]; expiresAt: number | null }
+  | {
+      kind: 'fresh';
+      items: unknown[];
+      etags: string[];
+      expiresAt: number | null;
+      responseHeaders: EsiResponseHeaders;
+    }
   | { kind: 'error'; code: string };
 
 type PageFetch =
-  | { kind: 'fresh'; body: unknown; etag: string | null; expiresAt: number | null; xPages: number }
+  | {
+      kind: 'fresh';
+      body: unknown;
+      etag: string | null;
+      expiresAt: number | null;
+      xPages: number;
+      responseHeaders: EsiPageResponseHeaders;
+    }
   | { kind: 'unchanged'; expiresAt: number | null; xPages: number }
   | { kind: 'error'; code: string };
 
@@ -99,7 +113,21 @@ async function fetchPage(
   const xPages = intHeader(res, 'X-Pages') ?? 1;
   if (res.status === 304) return { kind: 'unchanged', expiresAt, xPages };
   if (res.status === 200) {
-    return { kind: 'fresh', body: (await res.json()) as unknown, etag: res.headers.get('ETag'), expiresAt, xPages };
+    const etagValue = res.headers.get('ETag');
+    return {
+      kind: 'fresh',
+      body: (await res.json()) as unknown,
+      etag: etagValue,
+      expiresAt,
+      xPages,
+      responseHeaders: {
+        page,
+        cacheControl: res.headers.get('Cache-Control'),
+        etag: etagValue,
+        lastModified: res.headers.get('Last-Modified'),
+        xPages,
+      },
+    };
   }
   return { kind: 'error', code: `esi_${res.status}` };
 }
@@ -139,6 +167,7 @@ export async function readEsiPagedAuthed(
 function finalizeFresh(pages: PageFetch[]): EsiPagedRead {
   const items: unknown[] = [];
   const etags: string[] = [];
+  const responseHeaders: EsiPageResponseHeaders[] = [];
   const windows: Array<number | null> = [];
   let allEtags = true;
   for (const page of pages) {
@@ -149,6 +178,7 @@ function finalizeFresh(pages: PageFetch[]): EsiPagedRead {
     items.push(...page.body);
     if (page.etag === null) allEtags = false;
     else etags.push(page.etag);
+    responseHeaders.push(page.responseHeaders);
     windows.push(page.expiresAt);
   }
   const present = windows.filter((w): w is number => w !== null);
@@ -157,6 +187,7 @@ function finalizeFresh(pages: PageFetch[]): EsiPagedRead {
     items,
     etags: allEtags ? etags : [],
     expiresAt: present.length > 0 ? Math.min(...present) : null,
+    responseHeaders,
   };
 }
 

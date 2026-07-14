@@ -123,7 +123,18 @@ describe('readEsiPagedAuthed', () => {
   });
 
   it('returns the single page flattened with its etag', async () => {
-    fetchSpy.mockResolvedValueOnce(mockResponse(200, { ETag: '"p1"', 'X-Pages': '1' }, [{ type_id: 10 }]));
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(
+        200,
+        {
+          'Cache-Control': 'private, max-age=3600',
+          ETag: '"p1"',
+          'Last-Modified': 'Tue, 14 Jul 2026 12:00:00 GMT',
+          'X-Pages': '1',
+        },
+        [{ type_id: 10 }],
+      ),
+    );
 
     const read = await readEsiPagedAuthed('/characters/1/blueprints/', TOKEN, []);
 
@@ -131,6 +142,15 @@ describe('readEsiPagedAuthed', () => {
     if (read.kind !== 'fresh') return;
     expect(read.items).toEqual([{ type_id: 10 }]);
     expect(read.etags).toEqual(['"p1"']);
+    expect(read.responseHeaders).toEqual([
+      {
+        page: 1,
+        cacheControl: 'private, max-age=3600',
+        etag: '"p1"',
+        lastModified: 'Tue, 14 Jul 2026 12:00:00 GMT',
+        xPages: 1,
+      },
+    ]);
   });
 
   it('short-circuits a single-page 304 to unchanged when the held etag still matches', async () => {
@@ -153,6 +173,7 @@ describe('readEsiPagedAuthed', () => {
     expect(read.kind).toBe('fresh');
     if (read.kind !== 'fresh') return;
     expect(read.items).toEqual([{ type_id: 1 }, { type_id: 2 }]);
+    expect(read.responseHeaders.map((headers) => headers.page)).toEqual([1, 2]);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     // Page 2 is requested with the ?page= cursor appended.
     expect(String(fetchSpy.mock.calls[1][0])).toContain('page=2');

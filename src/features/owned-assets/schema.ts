@@ -14,6 +14,7 @@
 // corporation id.
 import { bigint, bigserial, index, integer, pgEnum, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
 import { ownerSyncStateColumns } from '@/lib/db-columns';
+import { esiSnapshots } from '@/data/esi-snapshots/schema';
 
 // Postgres enum driven from a TS `as const` (the one-source-of-truth invariant).
 // Its own enum, not the owned-blueprints one — features don't share, and a
@@ -58,8 +59,12 @@ export const ownedAssets = pgTable(
     // second migration + a full re-sync next session.
     locationFlag: text('location_flag').notNull(),
     locationType: text('location_type').notNull(),
+    snapshotId: bigint('snapshot_id', { mode: 'number' }).references(() => esiSnapshots.id),
   },
-  (t) => [index('owned_assets_owner_idx').on(t.ownerType, t.ownerId, t.typeId)],
+  (t) => [
+    index('owned_assets_owner_idx').on(t.ownerType, t.ownerId, t.typeId),
+    index('owned_assets_snapshot_idx').on(t.snapshotId),
+  ],
 );
 
 // Per-owner sync state — separate from the data rows so an owner with ZERO
