@@ -1,8 +1,9 @@
-import { and, between, desc, eq, sql } from 'drizzle-orm';
+import { and, between, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
   GscDailyPoint,
+  GscCoverageDailyPoint,
   GscRange,
   GscSitemapStatus,
   GscTermStat,
@@ -45,6 +46,14 @@ function ctr(clicks: number, impressions: number): number {
   return impressions > 0 ? clicks / impressions : 0;
 }
 
+export function toSearchTotals(
+  row: { clicks: number; impressions: number; position: number } | undefined,
+): GscTotals {
+  const clicks = Number(row?.clicks ?? 0);
+  const impressions = Number(row?.impressions ?? 0);
+  return { clicks, impressions, ctr: ctr(clicks, impressions), position: Number(row?.position ?? 0) };
+}
+
 // Daily site totals for the trend charts — one row per day (each carries GSC's
 // own daily position, so no weighting needed here).
 export async function getSearchTrend(range: GscRange): Promise<GscDailyPoint[]> {
@@ -72,9 +81,7 @@ export async function getSearchTotals(range: GscRange): Promise<GscTotals> {
     .select({ clicks: sumClicks, impressions: sumImpressions, position: weightedPosition })
     .from(gscSearchAnalytics)
     .where(and(eq(gscSearchAnalytics.dimension, 'total'), inRange(range)));
-  const clicks = Number(row?.clicks ?? 0);
-  const impressions = Number(row?.impressions ?? 0);
-  return { clicks, impressions, ctr: ctr(clicks, impressions), position: Number(row?.position ?? 0) };
+  return toSearchTotals(row);
 }
 
 async function getTopTerms(
@@ -134,22 +141,75 @@ export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
   }));
 }
 
-// Current per-URL inspection snapshot (not range-bound).
-export async function getUrlInspection(): Promise<GscUrlStatus[]> {
+export function mergeCurrentUrlCoverage(
+  sitemapUrls: string[],
+  storedRows: GscUrlStatus[],
+): GscUrlStatus[] {
+  const storedByUrl = new Map(storedRows.map((row) => [row.url, row]));
+  return sitemapUrls.map(
+    (url) =>
+      storedByUrl.get(url) ?? {
+        inspectionDate: null,
+        url,
+        verdict: null,
+        coverageState: null,
+        lastCrawlTime: null,
+      },
+  );
+}
+
+// Latest stored row for every current sitemap URL. DISTINCT ON follows
+// PostgreSQL's required key-first ordering, then takes the newest inspection
+// date. The merge keeps never-inspected and repeatedly-failing URLs visible.
+export async function getLatestUrlCoverage(sitemapUrls: string[]): Promise<GscUrlStatus[]> {
+  if (sitemapUrls.length === 0) return [];
   const rows = await db
-    .select({
+    .selectDistinctOn([gscUrlInspection.url], {
+      inspectionDate: gscUrlInspection.inspectionDate,
       url: gscUrlInspection.url,
       verdict: gscUrlInspection.verdict,
       coverageState: gscUrlInspection.coverageState,
       lastCrawlTime: gscUrlInspection.lastCrawlTime,
     })
     .from(gscUrlInspection)
-    .orderBy(gscUrlInspection.url);
-  return rows.map((r) => ({
-    url: r.url,
-    verdict: r.verdict,
-    coverageState: r.coverageState,
-    lastCrawlTime: r.lastCrawlTime,
+    .where(inArray(gscUrlInspection.url, sitemapUrls))
+    .orderBy(gscUrlInspection.url, desc(gscUrlInspection.inspectionDate));
+  return mergeCurrentUrlCoverage(
+    sitemapUrls,
+    rows.map((r) => ({
+      inspectionDate: r.inspectionDate,
+      url: r.url,
+      verdict: r.verdict,
+      coverageState: r.coverageState,
+      lastCrawlTime: r.lastCrawlTime,
+    })),
+  );
+}
+
+// Daily coverage counts within the selected admin range. Each stored row carries
+// that day's expected sitemap size, so normal sitemap growth never erases older
+// complete days. Partial days stay absent until retries fill the expected count.
+export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDailyPoint[]> {
+  const indexed = sql<number>`count(*) filter (
+    where ${gscUrlInspection.verdict} = 'PASS'
+  )`.mapWith(Number);
+  const notIndexed = sql<number>`count(*) filter (
+    where ${gscUrlInspection.verdict} is distinct from 'PASS'
+  )`.mapWith(Number);
+  const rows = await db
+    .select({ day: gscUrlInspection.inspectionDate, indexed, notIndexed })
+    .from(gscUrlInspection)
+    .where(between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)))
+    .groupBy(gscUrlInspection.inspectionDate)
+    .having(
+      sql`bool_and(${gscUrlInspection.sitemapUrlCount} is not null)
+        and count(*) = max(${gscUrlInspection.sitemapUrlCount})`,
+    )
+    .orderBy(gscUrlInspection.inspectionDate);
+  return rows.map((row) => ({
+    day: row.day,
+    indexed: Number(row.indexed),
+    notIndexed: Number(row.notIndexed),
   }));
 }
 

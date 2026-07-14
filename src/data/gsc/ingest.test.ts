@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { indexStatusToRecord, searchRowsToRecords, sitemapToRecord, syncGsc } from './ingest';
+import {
+  indexStatusToRecord,
+  inspectUrlsInBatches,
+  missingInspectionUrls,
+  prepareInspectionUrls,
+  searchRowsToRecords,
+  sitemapToRecord,
+  syncGsc,
+} from './ingest';
 
 const SYNCED = new Date('2026-06-04T09:00:00.000Z');
 
@@ -96,9 +104,12 @@ describe('indexStatusToRecord', () => {
         googleCanonical: 'https://lgi.tools/',
       },
       SYNCED,
+      111,
     );
     expect(rec).toMatchObject({
+      inspectionDate: '2026-06-04',
       url: 'https://lgi.tools/',
+      sitemapUrlCount: 111,
       verdict: 'PASS',
       coverageState: 'Submitted and indexed',
       googleCanonical: 'https://lgi.tools/',
@@ -106,6 +117,79 @@ describe('indexStatusToRecord', () => {
       userCanonical: null,
     });
     expect(rec.lastCrawlTime?.toISOString()).toBe('2026-06-01T12:00:00.000Z');
+  });
+
+  it('stores an unknown row when Google omits indexStatusResult', () => {
+    expect(indexStatusToRecord('https://lgi.tools/sites/3', null, SYNCED, 111)).toMatchObject({
+      inspectionDate: '2026-06-04',
+      url: 'https://lgi.tools/sites/3',
+      sitemapUrlCount: 111,
+      verdict: null,
+      coverageState: null,
+      lastCrawlTime: null,
+    });
+  });
+});
+
+describe('prepareInspectionUrls', () => {
+  it('validates, deduplicates, and sorts sitemap URLs for the configured property', () => {
+    expect(
+      prepareInspectionUrls(
+        [
+          'https://lgi.tools/sites/3',
+          'https://lgi.tools/',
+          'https://lgi.tools/sites/3',
+        ],
+        'sc-domain:lgi.tools',
+      ),
+    ).toEqual(['https://lgi.tools/', 'https://lgi.tools/sites/3']);
+  });
+
+  it('rejects URLs outside the configured property', () => {
+    expect(() =>
+      prepareInspectionUrls(['https://example.com/'], 'https://lgi.tools/'),
+    ).toThrow('does not belong to GSC property');
+  });
+
+  it('skips the entire inspection surface above the 500-URL ceiling', () => {
+    const urls = Array.from({ length: 501 }, (_, index) => `https://lgi.tools/sites/${index}`);
+    expect(() => prepareInspectionUrls(urls, 'sc-domain:lgi.tools')).toThrow(
+      'sitemap URL count 501 exceeds safe limit 500',
+    );
+  });
+});
+
+describe('daily inspection orchestration', () => {
+  it('removes URLs already stored for the UTC day', () => {
+    expect(
+      missingInspectionUrls(
+        ['https://lgi.tools/', 'https://lgi.tools/sites'],
+        ['https://lgi.tools/'],
+      ),
+    ).toEqual(['https://lgi.tools/sites']);
+  });
+
+  it('runs at most five requests together and keeps failures retryable', async () => {
+    const urls = Array.from({ length: 12 }, (_, index) => `https://lgi.tools/sites/${index}`);
+    let active = 0;
+    let maxActive = 0;
+    const result = await inspectUrlsInBatches(urls, SYNCED, 12, async (url) => {
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await Promise.resolve();
+      active--;
+      if (url.endsWith('/7')) throw new Error('quota hiccup');
+      return url.endsWith('/9') ? null : { verdict: 'PASS' };
+    });
+
+    expect(maxActive).toBe(5);
+    expect(result.records).toHaveLength(11);
+    expect(result.records.every((row) => row.sitemapUrlCount === 12)).toBe(true);
+    expect(result.records.find((row) => row.url.endsWith('/9'))?.verdict).toBeNull();
+    expect(result.errors).toEqual([
+      'url-inspection https://lgi.tools/sites/7: quota hiccup',
+    ]);
+    expect(result.records.some((row) => row.url.endsWith('/7'))).toBe(false);
   });
 });
 
@@ -116,7 +200,7 @@ describe('syncGsc', () => {
     for (const k of keys) delete process.env[k];
     try {
       // The not-configured path returns before touching the client.
-      const summary = await syncGsc({} as unknown as Parameters<typeof syncGsc>[0]);
+      const summary = await syncGsc({} as unknown as Parameters<typeof syncGsc>[0], []);
       expect(summary.status).toBe('skipped');
       expect(summary.reason).toBe('not_configured');
       expect(summary.searchRows).toBe(0);

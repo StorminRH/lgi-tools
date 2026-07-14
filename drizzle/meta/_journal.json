@@ -295,6 +295,27 @@
       "when": 1783710760048,
       "tag": "0041_mixed_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1783985194548,
+      "tag": "0042_tiny_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1783986469946,
+      "tag": "0043_canonical-site-ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1783988760547,
+      "tag": "0044_tricky_lorna_dane",
+      "breakpoints": true
     }
   ]
 }

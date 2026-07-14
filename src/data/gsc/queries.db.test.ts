@@ -10,14 +10,16 @@ import {
   setupDisposableSchema,
 } from '@/db/test-support/db-coverage-harness';
 import {
+  getCoverageTrend,
   getLastSyncedAt,
+  getLatestUrlCoverage,
   getSearchTotals,
   getSearchTrend,
   getSitemapStatus,
   getTopGscPages,
   getTopQueries,
-  getUrlInspection,
 } from './queries';
+import { indexStatusToRecord, upsertUrlInspectionRecords } from './ingest';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 
 // Executes every admin-consumed GSC query against the local Docker Postgres
@@ -33,6 +35,11 @@ const RANGE = {
   from: new Date('2020-01-01T00:00:00Z'),
   to: new Date('2020-01-08T00:00:00Z'),
 };
+const CURRENT_SITEMAP_URLS = [
+  'https://lgi.tools/',
+  'https://lgi.tools/sites',
+  'https://lgi.tools/new',
+];
 const SYNCED_AT = new Date('2020-01-02T06:00:00Z');
 
 interface QueryCase {
@@ -62,7 +69,45 @@ const cases: QueryCase[] = [
   { name: 'getTopQueries', run: () => getTopQueries(RANGE), check: expectNonEmptyArray },
   { name: 'getTopGscPages', run: () => getTopGscPages(RANGE), check: expectNonEmptyArray },
   { name: 'getSitemapStatus', run: () => getSitemapStatus(), check: expectNonEmptyArray },
-  { name: 'getUrlInspection', run: () => getUrlInspection(), check: expectNonEmptyArray },
+  {
+    name: 'getLatestUrlCoverage',
+    run: () => getLatestUrlCoverage(CURRENT_SITEMAP_URLS),
+    check: (result) => {
+      expect(result).toEqual([
+        expect.objectContaining({
+          inspectionDate: '2020-01-04',
+          url: 'https://lgi.tools/',
+          verdict: 'PASS',
+          coverageState: 'Submitted and indexed',
+        }),
+        expect.objectContaining({
+          inspectionDate: '2020-01-03',
+          url: 'https://lgi.tools/sites',
+          verdict: 'NEUTRAL',
+          coverageState: 'Crawled - currently not indexed',
+        }),
+        {
+          inspectionDate: null,
+          url: 'https://lgi.tools/new',
+          verdict: null,
+          coverageState: null,
+          lastCrawlTime: null,
+        },
+      ]);
+    },
+  },
+  {
+    name: 'getCoverageTrend',
+    run: () => getCoverageTrend(RANGE),
+    check: (result) => {
+      expect(result).toEqual([
+        { day: '2020-01-01', indexed: 0, notIndexed: 2 },
+        { day: '2020-01-02', indexed: 0, notIndexed: 2 },
+        { day: '2020-01-03', indexed: 1, notIndexed: 1 },
+        { day: '2020-01-05', indexed: 0, notIndexed: 1 },
+      ]);
+    },
+  },
   {
     name: 'getLastSyncedAt',
     run: () => getLastSyncedAt(),
@@ -102,10 +147,76 @@ describe.skipIf(!reachable)('admin GSC analytics queries execute against Postgre
     ]);
     await seedDb.insert(gscUrlInspection).values([
       {
+        inspectionDate: '2020-01-01',
         url: 'https://lgi.tools/',
+        sitemapUrlCount: 2,
+        verdict: 'FAIL',
+        coverageState: 'Blocked by robots.txt',
+        syncedAt: new Date('2020-01-01T06:00:00Z'),
+      },
+      {
+        inspectionDate: '2020-01-01',
+        url: 'https://lgi.tools/sites',
+        sitemapUrlCount: 2,
+        verdict: 'NEUTRAL',
+        coverageState: 'Discovered - currently not indexed',
+        syncedAt: new Date('2020-01-01T06:00:00Z'),
+      },
+      {
+        inspectionDate: '2020-01-02',
+        url: 'https://lgi.tools/',
+        sitemapUrlCount: 2,
+        verdict: 'FAIL',
+        coverageState: 'Blocked by robots.txt',
+        syncedAt: SYNCED_AT,
+      },
+      {
+        inspectionDate: '2020-01-03',
+        url: 'https://lgi.tools/',
+        sitemapUrlCount: 2,
         verdict: 'PASS',
         coverageState: 'Submitted and indexed',
         lastCrawlTime: new Date('2020-01-02T03:00:00Z'),
+        syncedAt: SYNCED_AT,
+      },
+      {
+        inspectionDate: '2020-01-02',
+        url: 'https://lgi.tools/sites',
+        sitemapUrlCount: 2,
+        verdict: 'NEUTRAL',
+        coverageState: 'Crawled - currently not indexed',
+        syncedAt: SYNCED_AT,
+      },
+      {
+        inspectionDate: '2020-01-03',
+        url: 'https://lgi.tools/sites',
+        sitemapUrlCount: 2,
+        verdict: 'NEUTRAL',
+        coverageState: 'Crawled - currently not indexed',
+        syncedAt: SYNCED_AT,
+      },
+      {
+        inspectionDate: '2020-01-04',
+        url: 'https://lgi.tools/',
+        sitemapUrlCount: 2,
+        verdict: 'PASS',
+        coverageState: 'Submitted and indexed',
+        syncedAt: SYNCED_AT,
+      },
+      {
+        inspectionDate: '2020-01-05',
+        url: 'https://lgi.tools/retired',
+        sitemapUrlCount: 1,
+        verdict: 'FAIL',
+        coverageState: 'Not found (404)',
+        syncedAt: SYNCED_AT,
+      },
+      {
+        inspectionDate: '2020-01-06',
+        url: 'https://lgi.tools/legacy',
+        sitemapUrlCount: null,
+        verdict: 'PASS',
+        coverageState: 'Submitted and indexed',
         syncedAt: SYNCED_AT,
       },
     ]);
@@ -123,6 +234,28 @@ describe.skipIf(!reachable)('admin GSC analytics queries execute against Postgre
 
   it.each(cases)('$name executes and returns a plausible shape', async ({ run, check }) => {
     check(await run());
+  });
+
+  it('upserts on the inspection-date and URL composite key', async () => {
+    const seedDb = drizzlePg(adminClient);
+    const before = await seedDb.select().from(gscUrlInspection);
+    await upsertUrlInspectionRecords(seedDb, [
+      indexStatusToRecord(
+        'https://lgi.tools/',
+        { verdict: 'FAIL', coverageState: 'Re-evaluating' },
+        new Date('2020-01-03T12:00:00Z'),
+        2,
+      ),
+    ]);
+
+    const rows = await seedDb.select().from(gscUrlInspection);
+    expect(rows).toHaveLength(before.length);
+    expect(
+      rows.find(
+        (row) =>
+          row.inspectionDate === '2020-01-03' && row.url === 'https://lgi.tools/',
+      ),
+    ).toMatchObject({ verdict: 'FAIL', coverageState: 'Re-evaluating' });
   });
 
   it('getLastSyncedAt returns null when nothing has synced', async () => {
