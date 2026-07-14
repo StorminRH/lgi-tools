@@ -4,6 +4,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
+import { getSitemapEntries } from '@/app/sitemap';
 import { isGscConfigured } from '@/data/gsc/constants';
 import { getCoverageTrend, getLatestUrlCoverage } from '@/data/gsc/queries';
 import type { GscRange } from '@/data/gsc/types';
@@ -79,9 +80,13 @@ export async function GscCoverageSection({ range }: { range: GscRange }) {
     );
   }
 
-  const fetched = await loadSection('gsc-coverage', () =>
-    Promise.all([getLatestUrlCoverage(), getCoverageTrend(range)]),
-  );
+  const fetched = await loadSection('gsc-coverage', async () => {
+    const sitemapUrls = (await getSitemapEntries()).map(({ url }) => url);
+    return Promise.all([
+      getLatestUrlCoverage(sitemapUrls),
+      getCoverageTrend(range, sitemapUrls),
+    ]);
+  });
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Index coverage" />;
 
   const [latest, trend] = fetched;

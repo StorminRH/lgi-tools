@@ -1,4 +1,4 @@
-import { and, between, desc, eq, sql } from 'drizzle-orm';
+import { and, between, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
@@ -46,6 +46,14 @@ function ctr(clicks: number, impressions: number): number {
   return impressions > 0 ? clicks / impressions : 0;
 }
 
+export function toSearchTotals(
+  row: { clicks: number; impressions: number; position: number } | undefined,
+): GscTotals {
+  const clicks = Number(row?.clicks ?? 0);
+  const impressions = Number(row?.impressions ?? 0);
+  return { clicks, impressions, ctr: ctr(clicks, impressions), position: Number(row?.position ?? 0) };
+}
+
 // Daily site totals for the trend charts — one row per day (each carries GSC's
 // own daily position, so no weighting needed here).
 export async function getSearchTrend(range: GscRange): Promise<GscDailyPoint[]> {
@@ -73,9 +81,7 @@ export async function getSearchTotals(range: GscRange): Promise<GscTotals> {
     .select({ clicks: sumClicks, impressions: sumImpressions, position: weightedPosition })
     .from(gscSearchAnalytics)
     .where(and(eq(gscSearchAnalytics.dimension, 'total'), inRange(range)));
-  const clicks = Number(row?.clicks ?? 0);
-  const impressions = Number(row?.impressions ?? 0);
-  return { clicks, impressions, ctr: ctr(clicks, impressions), position: Number(row?.position ?? 0) };
+  return toSearchTotals(row);
 }
 
 async function getTopTerms(
@@ -137,7 +143,8 @@ export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
 
 // Latest stored row for every URL. DISTINCT ON follows PostgreSQL's required
 // key-first ordering, then takes the newest inspection date for that URL.
-export async function getLatestUrlCoverage(): Promise<GscUrlStatus[]> {
+export async function getLatestUrlCoverage(sitemapUrls: string[]): Promise<GscUrlStatus[]> {
+  if (sitemapUrls.length === 0) return [];
   const rows = await db
     .selectDistinctOn([gscUrlInspection.url], {
       inspectionDate: gscUrlInspection.inspectionDate,
@@ -147,6 +154,7 @@ export async function getLatestUrlCoverage(): Promise<GscUrlStatus[]> {
       lastCrawlTime: gscUrlInspection.lastCrawlTime,
     })
     .from(gscUrlInspection)
+    .where(inArray(gscUrlInspection.url, sitemapUrls))
     .orderBy(gscUrlInspection.url, desc(gscUrlInspection.inspectionDate));
   return rows.map((r) => ({
     inspectionDate: r.inspectionDate,
@@ -159,7 +167,11 @@ export async function getLatestUrlCoverage(): Promise<GscUrlStatus[]> {
 
 // Daily coverage counts within the selected admin range. PASS is the only
 // indexed verdict; every other Google verdict (and null) remains not indexed.
-export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDailyPoint[]> {
+export async function getCoverageTrend(
+  range: GscRange,
+  sitemapUrls: string[],
+): Promise<GscCoverageDailyPoint[]> {
+  if (sitemapUrls.length === 0) return [];
   const indexed = sql<number>`count(*) filter (
     where ${gscUrlInspection.verdict} = 'PASS'
   )`.mapWith(Number);
@@ -170,9 +182,13 @@ export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDail
     .select({ day: gscUrlInspection.inspectionDate, indexed, notIndexed })
     .from(gscUrlInspection)
     .where(
-      between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)),
+      and(
+        between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)),
+        inArray(gscUrlInspection.url, sitemapUrls),
+      ),
     )
     .groupBy(gscUrlInspection.inspectionDate)
+    .having(sql`count(*) = ${sitemapUrls.length}`)
     .orderBy(gscUrlInspection.inspectionDate);
   return rows.map((row) => ({
     day: row.day,
