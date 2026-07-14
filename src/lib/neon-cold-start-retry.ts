@@ -38,21 +38,23 @@ export function configureNeonColdStartMetricSink(
   metricSink = sink;
 }
 
-function emitMetric(metric: NeonColdStartMetric): void {
+async function emitMetric(metric: NeonColdStartMetric): Promise<void> {
   if (!metricSink) return;
   try {
-    void Promise.resolve(metricSink(metric)).catch((error) => {
-      console.error('[neon-cold-start-retry] telemetry write failed', error);
-    });
+    await metricSink(metric);
   } catch (error) {
     console.error('[neon-cold-start-retry] telemetry write failed', error);
   }
 }
 
-function retryDelayFor(error: unknown, attempt: number, totalDelayMs: number): number {
+async function retryDelayFor(
+  error: unknown,
+  attempt: number,
+  totalDelayMs: number,
+): Promise<number> {
   if (!isNeonColdStartError(error)) throw error;
   if (attempt >= MAX_ATTEMPTS) {
-    emitMetric({ outcome: 'exhausted', attempts: attempt, totalDelayMs });
+    await emitMetric({ outcome: 'exhausted', attempts: attempt, totalDelayMs });
     throw error;
   }
   return BASE_DELAY_MS * 2 ** (attempt - 1);
@@ -99,11 +101,11 @@ export async function withColdStartRetry<T>(read: () => Promise<T>): Promise<T> 
     try {
       const result = await read();
       if (attempt > 1) {
-        emitMetric({ outcome: 'recovered', attempts: attempt, totalDelayMs });
+        await emitMetric({ outcome: 'recovered', attempts: attempt, totalDelayMs });
       }
       return result;
     } catch (err) {
-      const delayMs = retryDelayFor(err, attempt, totalDelayMs);
+      const delayMs = await retryDelayFor(err, attempt, totalDelayMs);
       totalDelayMs += delayMs;
       const summary = err instanceof Error ? err.message.split('\n')[0] : String(err);
       console.warn(

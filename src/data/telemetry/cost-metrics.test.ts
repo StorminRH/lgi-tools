@@ -8,7 +8,7 @@ vi.mock('./queries', () => ({
 }));
 vi.mock('next/server', () => ({ after: (callback: () => unknown) => afterMock(callback) }));
 
-import { emitCostMetric, observeCostPromise, startCostTimer } from './cost-metrics';
+import { emitCostMetric, observeCostPromise, recordCostMetric, startCostTimer } from './cost-metrics';
 
 describe('cost metrics', () => {
   beforeEach(() => {
@@ -48,13 +48,21 @@ describe('cost metrics', () => {
     });
   });
 
-  it('falls back to a direct contained write when lifecycle scheduling is unavailable', async () => {
+  it('does not detach a write when lifecycle scheduling is unavailable', () => {
     afterMock.mockImplementationOnce(() => {
       throw new Error('outside request scope');
     });
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(() => emitCostMetric('market_price_refresh', { requested: 1 })).not.toThrow();
-    await vi.waitFor(() => expect(logUsageEventMock).toHaveBeenCalledOnce());
+    expect(logUsageEventMock).not.toHaveBeenCalled();
+  });
+
+  it('provides an awaitable writer for non-request lifecycle owners', async () => {
+    await recordCostMetric('neon_cold_start_retry', { outcome: 'recovered' });
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'neon_cold_start_retry',
+      metadata: { outcome: 'recovered' },
+    });
   });
 });

@@ -86,6 +86,30 @@ describe('withColdStartRetry', () => {
     expect(sink).toHaveBeenCalledWith({ outcome: 'recovered', attempts: 2, totalDelayMs: 500 });
   });
 
+  it('keeps a recovered read alive until its metric sink settles', async () => {
+    let finishMetric: (() => void) | undefined;
+    const sink = vi.fn(
+      () => new Promise<void>((resolve) => {
+        finishMetric = resolve;
+      }),
+    );
+    configureNeonColdStartMetricSink(sink);
+    const read = vi.fn().mockRejectedValueOnce(neonError(COLD_START)).mockResolvedValue('rows');
+    const result = withColdStartRetry(read);
+
+    await vi.advanceTimersByTimeAsync(500);
+    let settled = false;
+    void result.finally(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(sink).toHaveBeenCalledOnce();
+    expect(settled).toBe(false);
+
+    finishMetric?.();
+    await expect(result).resolves.toBe('rows');
+  });
+
   it('rethrows a non-transient error immediately with one attempt', async () => {
     const sqlError = neonError('relation "x" does not exist', { code: '42P01' });
     const read = vi.fn().mockRejectedValue(sqlError);
