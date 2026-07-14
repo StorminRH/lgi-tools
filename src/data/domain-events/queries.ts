@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { lt } from 'drizzle-orm';
 import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
@@ -6,18 +7,25 @@ import { domainEvents } from './schema';
 import type { DomainEventInput } from './types';
 
 async function insertDomainEvent(input: DomainEventInput): Promise<void> {
-  await db.insert(domainEvents).values({
-    eventType: input.eventType,
-    metadata: input.metadata,
-  });
+  try {
+    await db.insert(domainEvents).values({
+      eventType: input.eventType,
+      metadata: input.metadata,
+    });
+  } catch (error) {
+    console.error('[domain-events] ledger write failed', error);
+  }
 }
 
 // Ledger writes are always additive and best-effort. A failed audit insert is
 // observable in runtime logs but can never fail the domain operation it records.
+// Next's request-lifetime primitive keeps the insert alive after a response.
 export function emitDomainEvent(input: DomainEventInput): void {
-  void insertDomainEvent(input).catch((error) => {
-    console.error('[domain-events] ledger write failed', error);
-  });
+  try {
+    after(() => insertDomainEvent(input));
+  } catch (error) {
+    console.error('[domain-events] ledger scheduling failed', error);
+  }
 }
 
 export async function pruneDomainEvents(

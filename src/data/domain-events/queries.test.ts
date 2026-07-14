@@ -3,8 +3,13 @@ import { DOMAIN_EVENT_TYPES } from './types';
 import type { DomainEventInput } from './types';
 
 const h = vi.hoisted(() => ({
+  after: vi.fn(),
   insert: vi.fn(),
   values: vi.fn(),
+}));
+
+vi.mock('next/server', () => ({
+  after: (callback: () => unknown) => h.after(callback),
 }));
 
 vi.mock('@/db', () => ({
@@ -72,6 +77,8 @@ const events = [
 
 describe('domain event ledger', () => {
   beforeEach(() => {
+    h.after.mockReset();
+    h.after.mockImplementation((callback: () => unknown) => callback());
     h.insert.mockClear();
     h.values.mockReset();
     h.values.mockResolvedValue(undefined);
@@ -101,6 +108,23 @@ describe('domain event ledger', () => {
         error,
       ),
     );
+    consoleError.mockRestore();
+  });
+
+  it('logs a rejected request-lifetime schedule without throwing', () => {
+    const error = new Error('request context unavailable');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    h.after.mockImplementationOnce(() => {
+      throw error;
+    });
+
+    expect(() => emitDomainEvent(events[0])).not.toThrow();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      '[domain-events] ledger scheduling failed',
+      error,
+    );
+    expect(h.insert).not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
 });
