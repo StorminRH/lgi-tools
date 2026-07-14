@@ -1,10 +1,16 @@
 import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
-import { ADVISORY_LOCK_GSC_SYNC } from '@/data/gsc/constants';
+import { ADVISORY_LOCK_GSC_SYNC, GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { syncGsc } from '@/data/gsc/ingest';
+import { pruneGscSearchAnalytics, pruneGscUrlInspections } from '@/data/gsc/queries';
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { logUsageEvent, pruneUsageLogs } from '@/data/telemetry/queries';
-import { directClient } from '@/db';
+import { db, directClient } from '@/db';
 import { runCronJob } from '@/db/cron-gate';
+import {
+  CORP_ACCESS_AUDIT_RETENTION_DAYS,
+  VERIFICATION_RETENTION_DAYS,
+} from '@/features/auth/constants';
+import { pruneCorpAccessAudit, pruneExpiredVerifications } from '@/features/auth/queries';
 import { swallow } from '@/lib/cron';
 import { getSitemapEntries } from '@/app/sitemap';
 
@@ -19,7 +25,7 @@ import { getSitemapEntries } from '@/app/sitemap';
 // Runs under the shared cron gate's advisory lock, which skips an overlapping
 // run of itself — under Vercel's at-least-once cron delivery a duplicate
 // dispatch would otherwise double-pull the quota'd GSC API. The daily
-// usage_logs prune piggybacks on the same lock, so the table stays bounded with
+// retention prunes piggyback on the same lock, so the tables stay bounded with
 // no extra cron slot.
 //
 // Logging the sync OUTCOME to usage_logs is cron observability — same as
@@ -53,19 +59,37 @@ export async function GET(req: Request): Promise<Response> {
       } satisfies CronRefreshGscResponse);
     },
     work: async () => {
+      // Daily housekeeping runs inside the lock so a duplicate cron cannot race
+      // the same retention sweep. Each prune is swallowed independently so one
+      // hiccup neither prevents the remaining tables pruning nor fails the sync.
+      // It runs before sitemap/GSC work so an upstream outage cannot suspend
+      // unrelated retention policies.
+      await swallow(
+        '[cron:gsc] usage_logs prune failed',
+        pruneUsageLogs(USAGE_LOG_RETENTION_DAYS),
+      );
+      await swallow(
+        '[cron:gsc] search analytics prune failed',
+        pruneGscSearchAnalytics(db, GSC_RETENTION_DAYS),
+      );
+      await swallow(
+        '[cron:gsc] URL inspection prune failed',
+        pruneGscUrlInspections(db, GSC_RETENTION_DAYS),
+      );
+      await swallow(
+        '[cron:gsc] corp access audit prune failed',
+        pruneCorpAccessAudit(db, CORP_ACCESS_AUDIT_RETENTION_DAYS),
+      );
+      await swallow(
+        '[cron:gsc] expired verification prune failed',
+        pruneExpiredVerifications(db, VERIFICATION_RETENTION_DAYS),
+      );
+
       // The fetch + upserts run on the directClient pool; the lock stays on the
       // gate's reserved connection. The GSC HTTP calls happen with no
       // transaction open.
       const sitemapUrls = (await getSitemapEntries()).map((entry) => entry.url);
       const summary = await syncGsc(directClient, sitemapUrls);
-
-      // Daily housekeeping: bound the unbounded usage_logs table. Inside the lock
-      // so it runs once a day even if a duplicate cron fires; swallowed so a prune
-      // hiccup never fails the sync.
-      await swallow(
-        '[cron:gsc] usage_logs prune failed',
-        pruneUsageLogs(USAGE_LOG_RETENTION_DAYS),
-      );
 
       // Structured boundary line (runtime logs) + durable telemetry row. `outcome`
       // mirrors the price cron so a skipped/failed/partial run is distinguishable

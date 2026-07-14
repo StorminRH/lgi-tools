@@ -140,6 +140,9 @@ export const account = pgTable(
   ],
 );
 
+// Better Auth stores short-lived OAuth state here because this deployment uses
+// its database-backed state strategy. Successful callbacks consume their row;
+// abandoned flows are pruned one day after expiry by daily housekeeping.
 export const verification = pgTable(
   'verification',
   {
@@ -171,10 +174,11 @@ export const jwks = pgTable('jwks', {
 // corp-access gate (corp-access.ts), allow AND deny. A security/authz audit trail,
 // NOT analytics telemetry: it lives on its own table so its retention is decoupled
 // from the 180-day usage_logs prune — denials (unauthorized-access attempts) must
-// outlive analytics. Append-only; deliberately NO foreign keys on user_id /
-// character_id so the trail survives the user or character row being deleted
-// (the ids are recorded provenance, the same FK-less posture as the role_change
-// audit's JSONB ids). `character_id` is the linked pilot whose fresh affiliation
+// outlive analytics. Append-only between 400-day retention sweeps; deliberately
+// NO foreign keys on user_id / character_id so the trail survives the user or
+// character row being deleted (the ids are recorded provenance, the same FK-less
+// posture as the role_change audit's JSONB ids). `character_id` is the linked pilot
+// whose fresh affiliation
 // granted access — NULL on a deny. `reason` is plain text (the gate owns the
 // vocabulary) so a new reason needs no migration, like usage_logs.action. Records
 // no tokens/secrets.

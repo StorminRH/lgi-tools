@@ -59,9 +59,9 @@ export const gscSitemaps = pgTable('gsc_sitemaps', {
   syncedAt: timestamp('synced_at', { withTimezone: true }).notNull(),
 });
 
-// One inspection result per sitemap URL per UTC day. History is intentionally
-// retained so every dashboard horizon remains truthful; the latest-state read
-// uses the URL/date index rather than overwriting prior observations.
+// One inspection result per sitemap URL per UTC day. The 400-day retained
+// history covers every fixed dashboard horizon; the latest-state read uses the
+// URL/date index rather than overwriting prior observations.
 export const gscUrlInspection = pgTable(
   'gsc_url_inspection',
   {

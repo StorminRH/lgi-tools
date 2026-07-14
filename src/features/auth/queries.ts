@@ -3,13 +3,14 @@ import { and, asc, eq, gt, ilike, isNull, lt, notExists, or, sql } from 'drizzle
 import { alias } from 'drizzle-orm/pg-core';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { db } from '@/db';
+import type { AnyPgDb } from '@/lib/db-types';
 import { runPurge } from '@/purge/orchestrator';
 import type { AffiliationRow } from './affiliation-source';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
 import { revokeCharacterToken } from './eve-token-service';
 import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
 import { classifyOwnerReconcile } from './owner-reconcile';
-import { account, characters, corpAccessAudit, session, user } from './schema';
+import { account, characters, corpAccessAudit, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import type { Character, CharacterRole } from './types';
 
@@ -409,6 +410,24 @@ export async function recordCorpAccessDecision(entry: {
   reason: string;
 }): Promise<void> {
   await db.insert(corpAccessAudit).values(entry);
+}
+
+export async function pruneCorpAccessAudit(
+  database: AnyPgDb,
+  retentionDays: number,
+  now: Date = new Date(),
+): Promise<void> {
+  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+  await database.delete(corpAccessAudit).where(lt(corpAccessAudit.decidedAt, cutoff));
+}
+
+export async function pruneExpiredVerifications(
+  database: AnyPgDb,
+  retentionDays: number,
+  now: Date = new Date(),
+): Promise<void> {
+  const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+  await database.delete(verification).where(lt(verification.expiresAt, cutoff));
 }
 
 export interface ActiveCharacter {

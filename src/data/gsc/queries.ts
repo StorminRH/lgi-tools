@@ -1,5 +1,6 @@
-import { and, between, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, between, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
+import type { AnyPgDb } from '@/lib/db-types';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
   GscDailyPoint,
@@ -22,6 +23,30 @@ import type {
 // Exported for the date-string unit test.
 export function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+function retentionCutoff(retentionDays: number, now: Date): string {
+  return toDateStr(new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000));
+}
+
+export async function pruneGscSearchAnalytics(
+  database: AnyPgDb,
+  retentionDays: number,
+  now: Date = new Date(),
+): Promise<void> {
+  await database
+    .delete(gscSearchAnalytics)
+    .where(lt(gscSearchAnalytics.date, retentionCutoff(retentionDays, now)));
+}
+
+export async function pruneGscUrlInspections(
+  database: AnyPgDb,
+  retentionDays: number,
+  now: Date = new Date(),
+): Promise<void> {
+  await database
+    .delete(gscUrlInspection)
+    .where(lt(gscUrlInspection.inspectionDate, retentionCutoff(retentionDays, now)));
 }
 
 function inRange(range: GscRange) {
