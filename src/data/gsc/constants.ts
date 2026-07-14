@@ -24,8 +24,14 @@ export const URL_INSPECTION_ENDPOINT =
 
 // GSC data lags ~2–3 days and finalizes late, so each daily run re-pulls a
 // trailing window and upserts (self-healing). 90 days covers the dashboard's
-// widest fixed horizon; the `all` horizon aggregates whatever has accumulated.
+// widest fixed horizon; the `all` horizon aggregates whatever retained history
+// has accumulated.
 export const GSC_WINDOW_DAYS = 90;
+
+// Stored Search Analytics and URL Inspection history stays substantially wider
+// than every fixed dashboard range while remaining bounded. The daily GSC cron
+// prunes both tables to this horizon after each sync attempt.
+export const GSC_RETENTION_DAYS = 400;
 
 // Search Analytics returns at most 25,000 rows per request; we page on startRow.
 export const SEARCH_ANALYTICS_ROW_LIMIT = 25000;

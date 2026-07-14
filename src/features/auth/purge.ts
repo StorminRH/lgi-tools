@@ -8,7 +8,8 @@
 // Claims also cover `session` (torn down by the user-row cascade in the identity
 // reconcile / a full account-nuke — sessions are per-user, not per-character) so
 // the gate sees a home for it. `corp_access_audit` is the declared-retained
-// exemption: the FK-less authz trail (3.7.3.3) must outlive the user it records.
+// exemption: the FK-less authz trail (3.7.3.3) outlives the user it records and
+// ages out only through its separate 400-day retention policy.
 //
 // Implemented WITHOUT importing queries.ts — that would close a
 // queries → orchestrator → register-all → purge → queries cycle. The account delete
@@ -28,7 +29,7 @@ export const authPurgeContributor: PurgeContributor = {
     {
       table: corpAccessAudit,
       reason:
-        'FK-less corp-access authz trail (3.7.3.3) — denials/decisions must outlive the user or character they record, so it is deliberately never purged.',
+        'FK-less corp-access authz trail (3.7.3.3) — denials/decisions outlive the user or character they record, so personal-data teardown retains them; the separate 400-day retention policy ages them out.',
     },
   ],
   async purgeCharacter({ userId, characterId }) {
