@@ -39,7 +39,7 @@ export async function generateMetadata({
   // ISK in the description matches the page and its "live Jita prices" claim,
   // rather than freezing at the deploy-time structural snapshot.
   const result = await loadNumericRouteEntity(params, loadSite);
-  if (!result) return {};
+  if (!result) notFound();
   const { id, entity: site } = result;
 
   const { title, description } = deriveSiteMeta(site);
