@@ -6,6 +6,7 @@ import {
 } from '@/data/market-history/api-contract';
 import { ON_DEMAND_HISTORY_LIMIT_PER_MINUTE } from '@/data/market-history/constants';
 import { getLiveHistory } from '@/data/market-history/refresh-on-view';
+import { emitCostMetric } from '@/data/telemetry/cost-metrics';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -52,7 +53,16 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!limit.ok) return limit.response;
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
-  const { inputs, degraded } = await getLiveHistory(typeIds);
+  const startedAt = Date.now();
+  const { inputs, degraded, metrics } = await getLiveHistory(typeIds, (result) => {
+    emitCostMetric('market_history_write_behind', { ...result });
+  });
+
+  emitCostMetric('market_history_refresh', {
+    ...metrics,
+    budgetExhausted: degraded.budgetExhausted,
+    durationMs: Date.now() - startedAt,
+  });
 
   if (degraded.budgetExhausted) {
     console.warn(

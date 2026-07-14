@@ -1,6 +1,7 @@
 import { getJobsForUserOnView } from '@/db/industry-jobs-sync';
 import { getCurrentUserId } from '@/features/auth/session';
 import type { JobsResponse } from '@/features/industry-jobs/api-contract';
+import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 
 // GET /api/account/industry-jobs
 //
@@ -17,6 +18,10 @@ export async function GET(): Promise<Response> {
   if (!userId) {
     return Response.json({ characters: [], names: {} } satisfies JobsResponse);
   }
-  const result = await getJobsForUserOnView(userId);
+  const result = await measureOwnedDataRead({
+    endpoint: '/api/account/industry-jobs',
+    read: () => getJobsForUserOnView(userId),
+    returned: (value) => value.characters.length,
+  });
   return Response.json(result satisfies JobsResponse);
 }

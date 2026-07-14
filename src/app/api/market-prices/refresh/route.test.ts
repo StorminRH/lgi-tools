@@ -4,14 +4,14 @@ import type { MarketPrice } from '@/data/market-prices/types';
 
 const getLivePricesMock = vi.fn();
 const rateLimitGuardMock = vi.fn();
-const logUsageEventMock = vi.fn();
+const emitCostMetricMock = vi.fn();
 
 vi.mock('@/data/market-prices/refresh-on-view', () => ({
   getLivePrices: (...args: unknown[]) => getLivePricesMock(...args),
 }));
 
-vi.mock('@/data/telemetry/queries', () => ({
-  logUsageEvent: (input: unknown) => logUsageEventMock(input),
+vi.mock('@/data/telemetry/cost-metrics', () => ({
+  emitCostMetric: (...args: unknown[]) => emitCostMetricMock(...args),
 }));
 
 // The guard's own 429 construction + IP keying are pinned in
@@ -58,6 +58,13 @@ function cleanResult(rows: MarketPrice[]) {
       fuzzworkFallbackCount: 0,
       budgetExhausted: false,
     },
+    metrics: {
+      requested: rows.length,
+      returned: rows.length,
+      cacheHits: 0,
+      esiCount: rows.length,
+      fuzzworkFallbackCount: 0,
+    },
   };
 }
 
@@ -70,8 +77,7 @@ describe('POST /api/market-prices/refresh', () => {
     vi.resetModules();
     getLivePricesMock.mockReset();
     rateLimitGuardMock.mockReset();
-    logUsageEventMock.mockReset();
-    logUsageEventMock.mockResolvedValue(undefined);
+    emitCostMetricMock.mockReset();
     rateLimitGuardMock.mockResolvedValue({ ok: true });
     getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
   });
@@ -84,7 +90,7 @@ describe('POST /api/market-prices/refresh', () => {
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ typeIds: [34] }));
     expect(res.status).toBe(200);
-    expect(getLivePricesMock).toHaveBeenCalledWith([34]);
+    expect(getLivePricesMock).toHaveBeenCalledWith([34], expect.any(Function));
     const body = await res.json();
     expect(body.prices[0].typeId).toBe(34);
     expect(body.prices[0].buyVolume).toBe('1000000');
@@ -115,37 +121,63 @@ describe('POST /api/market-prices/refresh', () => {
         fuzzworkFallbackCount: 2,
         budgetExhausted: false,
       },
+      metrics: {
+        requested: 3,
+        returned: 3,
+        cacheHits: 0,
+        esiCount: 1,
+        fuzzworkFallbackCount: 2,
+      },
     });
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34, 35, 36] }));
-    expect(logUsageEventMock).toHaveBeenCalledWith({
-      action: 'price_source_degraded',
-      metadata: {
+    expect(emitCostMetricMock).toHaveBeenCalledWith(
+      'price_source_degraded',
+      {
         caller: 'on-demand',
         fetched: 3,
         esiCount: 1,
         fuzzworkFallbackCount: 2,
         budgetExhausted: false,
       },
-    });
+    );
   });
 
   it('emits degradation telemetry when the ESI error budget was exhausted', async () => {
     getLivePricesMock.mockResolvedValue({
       prices: new Map([[34, price(34, 'esi')]]),
       degraded: { fetched: 1, esiCount: 1, fuzzworkFallbackCount: 0, budgetExhausted: true },
+      metrics: {
+        requested: 1,
+        returned: 1,
+        cacheHits: 0,
+        esiCount: 1,
+        fuzzworkFallbackCount: 0,
+      },
     });
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34] }));
-    expect(logUsageEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'price_source_degraded' }),
+    expect(emitCostMetricMock).toHaveBeenCalledWith(
+      'price_source_degraded',
+      expect.any(Object),
     );
   });
 
-  it('does not emit degradation telemetry on a clean all-ESI read', async () => {
+  it('emits only the normal cost metric on a clean all-ESI read', async () => {
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34] }));
-    expect(logUsageEventMock).not.toHaveBeenCalled();
+    expect(emitCostMetricMock).toHaveBeenCalledTimes(1);
+    expect(emitCostMetricMock).toHaveBeenCalledWith(
+      'market_price_refresh',
+      expect.objectContaining({
+        requested: 1,
+        returned: 1,
+        cacheHits: 0,
+        esiCount: 1,
+        fuzzworkFallbackCount: 0,
+        budgetExhausted: false,
+      }),
+    );
   });
 
   it('deduplicates typeIds before passing to the engine', async () => {

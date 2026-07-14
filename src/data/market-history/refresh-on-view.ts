@@ -26,20 +26,57 @@ export interface HistoryDegradation {
   budgetExhausted: boolean;
 }
 
+export interface LiveHistoryMetrics {
+  requested: number;
+  freshEsi: number;
+  warmStored: number;
+  staleStored: number;
+  missing: number;
+}
+
+export interface HistoryWriteBehindResult {
+  outcome: 'succeeded' | 'partial' | 'failed';
+  attempted: number;
+  written: number;
+  durationMs: number;
+}
+
+function notifyWriteBehind(
+  observer: ((result: HistoryWriteBehindResult) => void) | undefined,
+  result: HistoryWriteBehindResult,
+): void {
+  try {
+    observer?.(result);
+  } catch (err) {
+    console.error('[market-history/refresh-on-view] write-behind observer failed', err);
+  }
+}
+
 export interface LiveHistoryResult {
   // Freshest inputs per type: freshly fetched where stale, the stored series
   // otherwise. Types with neither are absent (caller treats as "no history").
   inputs: Map<number, MarketHistoryInputs>;
   degraded: HistoryDegradation;
+  metrics: LiveHistoryMetrics;
 }
 
 // On-view read. Serves warm types from the stored rows untouched, fetches only
 // stale/missing types from ESI, returns the freshest inputs, and persists the
 // freshly fetched series as the new seed behind the response (never blocking it).
-export async function getLiveHistory(typeIds: number[]): Promise<LiveHistoryResult> {
+export async function getLiveHistory(
+  typeIds: number[],
+  onWriteBehind?: (result: HistoryWriteBehindResult) => void,
+): Promise<LiveHistoryResult> {
   const ids = dedupe(typeIds);
   const degraded: HistoryDegradation = { fetched: 0, budgetExhausted: false };
-  if (ids.length === 0) return { inputs: new Map(), degraded };
+  const metrics: LiveHistoryMetrics = {
+    requested: ids.length,
+    freshEsi: 0,
+    warmStored: 0,
+    staleStored: 0,
+    missing: 0,
+  };
+  if (ids.length === 0) return { inputs: new Map(), degraded, metrics };
 
   const meta = await getHistoryMeta(ids);
   const now = Date.now();
@@ -58,11 +95,19 @@ export async function getLiveHistory(typeIds: number[]): Promise<LiveHistoryResu
   // Freshly fetched rows win; stored rows seed warm types and back-fill any
   // stale type whose fetch failed.
   const freshByType = new Map(results.map((r) => [r.typeId, r.rows]));
+  const staleSet = new Set(staleIds);
   const stored = await getStoredHistory(ids);
   const inputs = new Map<number, MarketHistoryInputs>();
   for (const id of ids) {
     const rows = freshByType.get(id) ?? stored.get(id) ?? [];
-    if (rows.length > 0) inputs.set(id, computeHistoryInputs(id, rows));
+    if (rows.length > 0) {
+      inputs.set(id, computeHistoryInputs(id, rows));
+      if (freshByType.has(id)) metrics.freshEsi++;
+      else if (staleSet.has(id)) metrics.staleStored++;
+      else metrics.warmStored++;
+    } else {
+      metrics.missing++;
+    }
   }
 
   // Write-behind: persist the freshly fetched series after the response is sent
@@ -71,16 +116,27 @@ export async function getLiveHistory(typeIds: number[]): Promise<LiveHistoryResu
   // A failure here must never surface.
   if (results.length > 0) {
     after(async () => {
+      const startedAt = Date.now();
+      let succeeded = 0;
+      let written = 0;
       for (const r of results) {
         try {
-          await persistHistory(db, r.typeId, r.rows, r.staleAfter, r.source);
+          const summary = await persistHistory(db, r.typeId, r.rows, r.staleAfter, r.source);
+          succeeded++;
+          written += summary.written;
           revalidateTag(historyTag(r.typeId), 'max');
         } catch (err) {
           console.error('[market-history/refresh-on-view] write-behind failed', err);
         }
       }
+      notifyWriteBehind(onWriteBehind, {
+        outcome: succeeded === results.length ? 'succeeded' : succeeded === 0 ? 'failed' : 'partial',
+        attempted: results.length,
+        written,
+        durationMs: Date.now() - startedAt,
+      });
     });
   }
 
-  return { inputs, degraded };
+  return { inputs, degraded, metrics };
 }

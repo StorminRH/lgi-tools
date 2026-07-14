@@ -45,12 +45,13 @@ describe('getLiveHistory — stale gate', () => {
     getHistoryMetaMock.mockResolvedValue(new Map([[34, { staleAfter: future }]]));
     getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-13', 30)]]));
 
-    const { inputs, degraded } = await getLiveHistory([34]);
+    const { inputs, degraded, metrics } = await getLiveHistory([34]);
 
     expect(fetchHistoryFromSourceMock).not.toHaveBeenCalled();
     expect(degraded.fetched).toBe(0);
     expect(inputs.get(34)?.latestDate).toBe('2026-06-13');
     expect(afterMock).not.toHaveBeenCalled();
+    expect(metrics).toEqual({ requested: 1, freshEsi: 0, warmStored: 1, staleStored: 0, missing: 0 });
   });
 
   it('fetches a stale type, returns the fresh series, and persists write-behind', async () => {
@@ -63,7 +64,8 @@ describe('getLiveHistory — stale gate', () => {
       budgetExhausted: false,
     });
 
-    const { inputs, degraded } = await getLiveHistory([34]);
+    const observer = vi.fn();
+    const { inputs, degraded, metrics } = await getLiveHistory([34], observer);
 
     expect(fetchHistoryFromSourceMock).toHaveBeenCalledWith([34]);
     expect(degraded.fetched).toBe(1);
@@ -74,6 +76,13 @@ describe('getLiveHistory — stale gate', () => {
     await afterMock.mock.calls[0]![0]();
     expect(persistHistoryMock).toHaveBeenCalledOnce();
     expect(revalidateTagMock).toHaveBeenCalledWith('market-history-34', 'max');
+    expect(metrics).toEqual({ requested: 1, freshEsi: 1, warmStored: 0, staleStored: 0, missing: 0 });
+    expect(observer).toHaveBeenCalledWith({
+      outcome: 'succeeded',
+      attempted: 1,
+      written: 0,
+      durationMs: expect.any(Number),
+    });
   });
 
   it('fetches a missing type (no meta row)', async () => {
@@ -89,16 +98,47 @@ describe('getLiveHistory — stale gate', () => {
     expect(inputs.get(34)?.latestDate).toBe('2026-06-13');
   });
 
+  it('does not let a write-behind observer failure escape', async () => {
+    getHistoryMetaMock.mockResolvedValue(new Map());
+    getStoredHistoryMock.mockResolvedValue(new Map());
+    fetchHistoryFromSourceMock.mockResolvedValue({
+      results: [
+        { typeId: 34, rows: series('2026-06-13', 3), staleAfter: new Date(), source: 'esi' },
+      ],
+      budgetExhausted: false,
+    });
+    const observer = vi.fn(() => {
+      throw new Error('observer failed');
+    });
+
+    await getLiveHistory([34], observer);
+    await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
+
+    expect(observer).toHaveBeenCalledTimes(1);
+    expect(persistHistoryMock).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to the stored series when a stale type fails to fetch', async () => {
     const past = new Date(Date.now() - 1000);
     getHistoryMetaMock.mockResolvedValue(new Map([[34, { staleAfter: past }]]));
     getStoredHistoryMock.mockResolvedValue(new Map([[34, series('2026-06-10', 5)]]));
     fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: true });
 
-    const { inputs, degraded } = await getLiveHistory([34]);
+    const { inputs, degraded, metrics } = await getLiveHistory([34]);
     expect(degraded.budgetExhausted).toBe(true);
     // No fresh result → serve the stored seed rather than dropping the type.
     expect(inputs.get(34)?.latestDate).toBe('2026-06-10');
+    expect(metrics.staleStored).toBe(1);
     expect(afterMock).not.toHaveBeenCalled();
+  });
+
+  it('classifies a type with no fresh or stored series as missing', async () => {
+    getHistoryMetaMock.mockResolvedValue(new Map());
+    getStoredHistoryMock.mockResolvedValue(new Map());
+    fetchHistoryFromSourceMock.mockResolvedValue({ results: [], budgetExhausted: false });
+
+    const { metrics } = await getLiveHistory([34]);
+
+    expect(metrics).toEqual({ requested: 1, freshEsi: 0, warmStored: 0, staleStored: 0, missing: 1 });
   });
 });

@@ -6,7 +6,7 @@ import {
 } from "@/data/market-prices/api-contract";
 import { ON_DEMAND_REFRESH_LIMIT_PER_MINUTE } from "@/data/market-prices/constants";
 import { getLivePrices } from "@/data/market-prices/refresh-on-view";
-import { logUsageEvent } from "@/data/telemetry/queries";
+import { emitCostMetric } from "@/data/telemetry/cost-metrics";
 import { rateLimitGuard } from "@/lib/rate-limit";
 import { parseJsonBody } from "@/lib/route-body";
 
@@ -51,25 +51,29 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!limit.ok) return limit.response;
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
-  const { prices, degraded } = await getLivePrices(typeIds);
+  const startedAt = Date.now();
+  const { prices, degraded, metrics } = await getLivePrices(typeIds, (result) => {
+    emitCostMetric("market_price_write_behind", { ...result });
+  });
+
+  emitCostMetric("market_price_refresh", {
+    ...metrics,
+    budgetExhausted: degraded.budgetExhausted,
+    durationMs: Date.now() - startedAt,
+  });
 
   if (degraded.fuzzworkFallbackCount > 0 || degraded.budgetExhausted) {
     // O-1 + S-2: surface ESI degradation on the public path via telemetry. A
     // spike of these with caller:'on-demand' is how the deferred amplification
-    // concern would show. Fire-and-forget (no added latency); no Discord alert
+    // concern would show. Lifecycle-safe after-response write; no Discord alert
     // from this public surface so it can't be driven to post to Discord.
-    void logUsageEvent({
-      action: "price_source_degraded",
-      metadata: {
-        caller: "on-demand",
-        fetched: degraded.fetched,
-        esiCount: degraded.esiCount,
-        fuzzworkFallbackCount: degraded.fuzzworkFallbackCount,
-        budgetExhausted: degraded.budgetExhausted,
-      },
-    }).catch((err) =>
-      console.error("[market-prices/refresh] telemetry write failed", err),
-    );
+    emitCostMetric("price_source_degraded", {
+      caller: "on-demand",
+      fetched: degraded.fetched,
+      esiCount: degraded.esiCount,
+      fuzzworkFallbackCount: degraded.fuzzworkFallbackCount,
+      budgetExhausted: degraded.budgetExhausted,
+    });
   }
 
   return Response.json({

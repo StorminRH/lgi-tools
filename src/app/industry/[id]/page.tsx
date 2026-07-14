@@ -6,6 +6,12 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { JsonLd } from '@/components/JsonLd';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
+import {
+  elapsedCostTimer,
+  emitCostMetric,
+  observeCostPromise,
+  startCostTimer,
+} from '@/data/telemetry/cost-metrics';
 import { SITE_URL } from '@/config/site-url';
 import { loadNumericRouteEntity, parseNumericRouteId } from '@/lib/route-id';
 import { buildBreadcrumbList } from '@/lib/structured-data';
@@ -65,15 +71,29 @@ export async function generateMetadata({
 // the hero margin and every cascade row. So prices + confidence stream in
 // while the build structure never waits on them (the 3.0.5.1 lesson).
 async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
+  const plannerTimer = startCostTimer();
   const { id: rawId } = await params;
   // Require a bare digit string (see generateMetadata) — reject "12abc" → 404.
   const id = parseNumericRouteId(rawId);
   if (id === null) notFound();
 
+  const structureTimer = startCostTimer();
   const structure = await getBlueprintStructure(id);
   if (!structure) notFound();
+  emitCostMetric('planner_open_timing', {
+    stage: 'structure',
+    blueprintId: id,
+    outcome: 'succeeded',
+    durationMs: elapsedCostTimer(structureTimer),
+  });
 
-  const pricingPromise = getBlueprintPricing(id);
+  const pricingTimer = startCostTimer();
+  const pricingPromise = observeCostPromise(
+    getBlueprintPricing(id),
+    'planner_open_timing',
+    { stage: 'pricing', blueprintId: id },
+    pricingTimer,
+  );
   const breadcrumbJsonLd = buildBreadcrumbList([
     { name: 'Home', url: `${SITE_URL}/` },
     { name: 'Industry Planner', url: `${SITE_URL}/industry` },
@@ -83,7 +103,13 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
   // in parallel and NOT awaited — handed to PricingProvider, which resolves it
   // in its own <Suspense> and refreshes it on view. Off the hero/margin path,
   // so it never delays the cost figures.
-  const historyPromise = getMarketHistoryInputs([structure.product.typeId]);
+  const historyTimer = startCostTimer();
+  const historyPromise = observeCostPromise(
+    getMarketHistoryInputs([structure.product.typeId]),
+    'planner_open_timing',
+    { stage: 'history', blueprintId: id },
+    historyTimer,
+  );
 
   // The build-character preference's cookie mirror (ACCOUNT.8) — read here in
   // the Suspense hole (never the static shell) and threaded as the hook's
@@ -93,6 +119,12 @@ async function PlannerContent({ params }: { params: Promise<{ id: string }> }) {
     (await cookies()).get(cookieNameFor(plannerBuildCharacter))?.value,
     plannerBuildCharacter,
   );
+  emitCostMetric('planner_open_timing', {
+    stage: 'shell',
+    blueprintId: id,
+    outcome: 'succeeded',
+    durationMs: elapsedCostTimer(plannerTimer),
+  });
 
   return (
     <div className="w-full">

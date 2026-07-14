@@ -11,6 +11,9 @@ import {
 } from '@/db/test-support/db-coverage-harness';
 import { characters } from '@/features/auth/schema';
 import {
+  claimPublicEsiBudgetAlert,
+  completePublicEsiBudgetAlertClaim,
+  countPublicEsiBudgetExhaustionsInWindow,
   getBudgetExhaustionCount,
   getDailyCounts,
   getDegradationByCaller,
@@ -28,6 +31,7 @@ import {
   getTopPages,
   getTopReferrers,
   getTopSearches,
+  hasPublicEsiBudgetAlertForWindow,
 } from './queries';
 import { usageLogs } from './schema';
 
@@ -189,6 +193,7 @@ describe.skipIf(!reachable)('admin telemetry analytics queries execute against P
           outcome: 'refreshed',
           esiCount: 100,
           fuzzworkFallbackCount: 5,
+          budgetExhausted: true,
           fetched: 200,
           written: 180,
           durationMs: 1500,
@@ -216,6 +221,31 @@ describe.skipIf(!reachable)('admin telemetry analytics queries execute against P
         metadata: { outcome: 'synced', durationMs: 800 },
       },
       { id: 9, action: 'auth_login', characterId: CHAR_OLD, timestamp: IN_RANGE, metadata: {} },
+      {
+        id: 10,
+        action: 'price_source_degraded',
+        characterId: null,
+        timestamp: IN_RANGE,
+        metadata: { caller: 'on-demand', budgetExhausted: true },
+      },
+      {
+        id: 11,
+        action: 'market_history_refresh',
+        characterId: null,
+        timestamp: IN_RANGE,
+        metadata: { budgetExhausted: true },
+      },
+      {
+        id: 12,
+        action: 'public_esi_budget_alerted',
+        characterId: null,
+        timestamp: IN_RANGE,
+        metadata: {
+          count: 3,
+          windowMinutes: 15,
+          windowStartedAt: '2020-01-03T12:00:00.000Z',
+        },
+      },
     ]);
   });
 
@@ -233,5 +263,34 @@ describe.skipIf(!reachable)('admin telemetry analytics queries execute against P
 
   it.each(cases)('$name executes and returns a plausible shape', async ({ run, check }) => {
     check(await run());
+  });
+
+  it('uses the cron outcome for fallback volume and one degradation row per budget incident', async () => {
+    await expect(getFallbackRate(RANGE)).resolves.toMatchObject({ esi: 100, fallback: 5 });
+    await expect(getBudgetExhaustionCount(RANGE)).resolves.toBe(2);
+  });
+
+  it('counts only public on-demand exhaustion events and finds the alert marker', async () => {
+    const since = new Date('2020-01-03T00:00:00Z');
+    await expect(
+      countPublicEsiBudgetExhaustionsInWindow(since, new Date('2020-01-04T00:00:00Z')),
+    ).resolves.toBe(2);
+    await expect(
+      hasPublicEsiBudgetAlertForWindow('2020-01-03T12:00:00.000Z'),
+    ).resolves.toBe(true);
+  });
+
+  it('keeps only active claims and promotes a delivered claim', async () => {
+    const windowStartedAt = new Date().toISOString();
+    const claimId = await claimPublicEsiBudgetAlert({
+      count: 3,
+      windowMinutes: 15,
+      windowStartedAt,
+    });
+
+    await expect(hasPublicEsiBudgetAlertForWindow(windowStartedAt)).resolves.toBe(true);
+    await expect(hasPublicEsiBudgetAlertForWindow('another-window')).resolves.toBe(false);
+    await completePublicEsiBudgetAlertClaim(claimId);
+    await expect(hasPublicEsiBudgetAlertForWindow(windowStartedAt)).resolves.toBe(true);
   });
 });

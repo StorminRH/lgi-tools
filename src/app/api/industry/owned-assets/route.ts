@@ -7,6 +7,7 @@ import {
 import type { OwnedAssetsResponse } from '@/features/industry-planner/types';
 import { getCurrentUserId } from '@/features/auth/session';
 import { parseJsonBody } from '@/lib/route-body';
+import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 
 // POST /api/industry/owned-assets
 // Body: { typeIds } — the material/product types in the planned build whose owned
@@ -34,7 +35,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json({ assets: [] } satisfies OwnedAssetsResponse);
   }
 
-  const assets = await getOwnedAssetDetailOnView(userId, parsed.data.typeIds);
+  const typeIds = Array.from(new Set(parsed.data.typeIds));
+  const assets = await measureOwnedDataRead({
+    endpoint: '/api/industry/owned-assets',
+    requested: typeIds.length,
+    read: () => getOwnedAssetDetailOnView(userId, typeIds),
+    returned: (value) => value.length,
+  });
 
   return Response.json({ assets } satisfies OwnedAssetsResponse);
 }

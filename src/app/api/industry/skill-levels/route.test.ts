@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getCurrentUserIdMock = vi.fn();
 const getSkillLevelsForCharacterOnViewMock = vi.fn();
+const measureOwnedDataReadMock = vi.fn();
 
 vi.mock('@/features/auth/session', () => ({
   getCurrentUserId: () => getCurrentUserIdMock(),
@@ -16,6 +17,11 @@ vi.mock('@/features/auth/session', () => ({
 vi.mock('@/db/skills-sync', () => ({
   getSkillLevelsForCharacterOnView: (userId: string, characterId: number) =>
     getSkillLevelsForCharacterOnViewMock(userId, characterId),
+}));
+
+vi.mock('@/app/api/owned-data-telemetry', () => ({
+  measureOwnedDataRead: (input: { read: () => Promise<unknown> }) =>
+    measureOwnedDataReadMock(input),
 }));
 
 import { POST } from './route';
@@ -32,6 +38,8 @@ describe('POST /api/industry/skill-levels', () => {
   beforeEach(() => {
     getCurrentUserIdMock.mockReset();
     getSkillLevelsForCharacterOnViewMock.mockReset();
+    measureOwnedDataReadMock.mockReset();
+    measureOwnedDataReadMock.mockImplementation((input: { read: () => Promise<unknown> }) => input.read());
   });
 
   it('returns 400 invalid_json for a non-JSON body', async () => {

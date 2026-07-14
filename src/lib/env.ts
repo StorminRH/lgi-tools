@@ -59,6 +59,7 @@ const VERBATIM_ENV = {
   GOOGLE_SITE_VERIFICATION: verbatim,
   VERCEL_ENV: verbatim,
   VERCEL_URL: verbatim,
+  NEXT_RUNTIME: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,
 } as const;
 
