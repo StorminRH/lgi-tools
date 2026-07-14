@@ -3606,7 +3606,7 @@
           "name": "sitemap_url_count",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "verdict": {
           "name": "verdict",

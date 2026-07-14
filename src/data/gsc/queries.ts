@@ -201,7 +201,10 @@ export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDail
     .from(gscUrlInspection)
     .where(between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)))
     .groupBy(gscUrlInspection.inspectionDate)
-    .having(sql`count(*) = max(${gscUrlInspection.sitemapUrlCount})`)
+    .having(
+      sql`bool_and(${gscUrlInspection.sitemapUrlCount} is not null)
+        and count(*) = max(${gscUrlInspection.sitemapUrlCount})`,
+    )
     .orderBy(gscUrlInspection.inspectionDate);
   return rows.map((row) => ({
     day: row.day,

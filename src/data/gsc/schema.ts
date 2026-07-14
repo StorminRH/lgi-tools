@@ -67,7 +67,8 @@ export const gscUrlInspection = pgTable(
   {
     inspectionDate: date('inspection_date').notNull(),
     url: text('url').notNull(),
-    sitemapUrlCount: integer('sitemap_url_count').notNull(),
+    // Null only on legacy rows whose pre-migration daily completeness is unknowable.
+    sitemapUrlCount: integer('sitemap_url_count'),
     verdict: text('verdict'),
     coverageState: text('coverage_state'),
     robotsTxtState: text('robots_txt_state'),

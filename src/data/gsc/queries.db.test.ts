@@ -211,6 +211,14 @@ describe.skipIf(!reachable)('admin GSC analytics queries execute against Postgre
         coverageState: 'Not found (404)',
         syncedAt: SYNCED_AT,
       },
+      {
+        inspectionDate: '2020-01-06',
+        url: 'https://lgi.tools/legacy',
+        sitemapUrlCount: null,
+        verdict: 'PASS',
+        coverageState: 'Submitted and indexed',
+        syncedAt: SYNCED_AT,
+      },
     ]);
   });
 
