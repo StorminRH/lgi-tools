@@ -3,10 +3,8 @@
 // CONVEX_SERVICE_SECRET bearer and asks for a fresh short-lived EVE access token
 // for one character. The response carries ONLY the access token — the refresh
 // token is never read into this file, so it cannot leak to the caller. Per-user
-// ownership of the character is enforced upstream by construction: the Convex
-// action only requests tokens for characters /api/internal/eve-characters
-// returned for the userId it authenticated. This endpoint trusts the
-// bearer-authenticated service.
+// ownership of the character is rechecked here after service authentication so
+// a caller cannot turn a character id from another enumeration into a token.
 // authz: service
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 import {
@@ -15,6 +13,7 @@ import {
   type EveTokenOkResponse,
 } from '@/features/auth/api-contract';
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
+import { accountBelongsToUser } from '@/features/auth/queries';
 import { parseJsonBody } from '@/lib/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';
 
@@ -24,6 +23,13 @@ export async function POST(req: Request): Promise<Response> {
 
   const parsed = await parseJsonBody(req, eveTokenRequestSchema);
   if (!parsed.ok) return parsed.response;
+
+  if (!(await accountBelongsToUser(parsed.data.userId, parsed.data.characterId))) {
+    return Response.json(
+      { error: 'not_found' } satisfies EveTokenErrorResponse,
+      { status: 404 },
+    );
+  }
 
   const result = await getFreshAccessTokenForCharacter(parsed.data.characterId);
   switch (result.kind) {

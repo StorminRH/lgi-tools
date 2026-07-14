@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminUnlinkFormSchema } from '@/features/auth/api-contract';
 import { requireAdmin } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 import {
   accountBelongsToUser,
@@ -29,6 +30,7 @@ function redirectTo(request: NextRequest, userId: string, error?: string): Respo
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireAdmin();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const session = gate.session;
 
   const parsed = await parseFormBody(

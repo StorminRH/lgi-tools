@@ -6,6 +6,7 @@ import {
 import { setCorpStructureSharing } from '@/features/owned-structures/queries';
 import { getSessionCharacterId } from '@/features/auth/session';
 import { requireUserId } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -20,6 +21,7 @@ import { parseJsonBody } from '@/lib/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireUserId();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, setCorpStructureSharingRequestSchema);

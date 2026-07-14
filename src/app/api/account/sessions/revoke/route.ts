@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import type { SessionsRevokeResponse } from '@/features/auth/api-contract';
 import { revokeUserSessions } from '@/features/auth/queries';
 import { requireSession } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
 // POST-only. Log the CALLER out everywhere — revoke all of their sessions. Acts on
@@ -19,6 +20,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const gate = await requireSession();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const session = gate.session;
 
   const revoked = await revokeUserSessions(session.user.id);

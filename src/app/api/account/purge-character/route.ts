@@ -3,6 +3,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { type PurgeCharacterResponse, purgeCharacterRequestSchema } from '@/features/auth/api-contract';
 import { accountBelongsToUser, purgeOwnCharacter } from '@/features/auth/queries';
 import { requireSession } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
 // POST-only. Purge one of the CALLER's OWN linked characters — the destructive
@@ -22,6 +23,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const gate = await requireSession();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const session = gate.session;
 
   const parsed = purgeCharacterRequestSchema.safeParse(await request.json().catch(() => null));

@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   createSavedPlanMock: vi.fn(),
   deleteSavedPlanMock: vi.fn(),
   listSavedPlansMock: vi.fn(),
+  logUsageEventMock: vi.fn(),
 }));
 
 vi.mock('@/features/auth/session', () => ({
@@ -24,6 +25,9 @@ vi.mock('@/features/industry-planner/saved-plans-queries', () => ({
   createSavedPlan: (...args: unknown[]) => h.createSavedPlanMock(...args),
   deleteSavedPlan: (...args: unknown[]) => h.deleteSavedPlanMock(...args),
   listSavedPlans: (...args: unknown[]) => h.listSavedPlansMock(...args),
+}));
+vi.mock('@/data/telemetry/queries', () => ({
+  logUsageEvent: (...args: unknown[]) => h.logUsageEventMock(...args),
 }));
 
 import type { NextRequest } from 'next/server';
@@ -43,10 +47,13 @@ const planRow = {
 
 const VALID_BODY = { name: 'Hulk batch', snapshot: { v: 1, blueprintTypeId: 22548 } };
 
-function makeRequest(body: unknown): NextRequest {
+function makeRequest(body: unknown, origin?: string): NextRequest {
   return new Request('http://localhost:3000/api/account/saved-plans', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(origin ? { Origin: origin } : {}),
+    },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   }) as unknown as NextRequest;
 }
@@ -61,6 +68,7 @@ beforeEach(() => {
   h.createSavedPlanMock.mockReset().mockResolvedValue(undefined);
   h.deleteSavedPlanMock.mockReset().mockResolvedValue(undefined);
   h.listSavedPlansMock.mockReset().mockResolvedValue([planRow]);
+  h.logUsageEventMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe('GET /api/account/saved-plans', () => {
@@ -145,5 +153,27 @@ describe('POST /api/account/saved-plans', () => {
       }),
     );
     expect(h.deleteSavedPlanMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps a cross-origin mutation successful when telemetry fails', async () => {
+    h.countSavedPlansMock
+      .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER - 1)
+      .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER);
+    h.logUsageEventMock.mockRejectedValueOnce(new Error('telemetry unavailable'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const res = await POST(makeRequest(VALID_BODY, 'https://foreign.example/private'));
+
+    expect(res.status).toBe(201);
+    expect(h.createSavedPlanMock).toHaveBeenCalledTimes(1);
+    expect(h.logUsageEventMock).toHaveBeenCalledWith({
+      action: 'cross_origin_mutation',
+      metadata: {
+        route: '/api/account/saved-plans',
+        offendingOrigin: 'https://foreign.example',
+        source: 'origin',
+      },
+    });
+    await vi.waitFor(() => expect(consoleError).toHaveBeenCalled());
   });
 });

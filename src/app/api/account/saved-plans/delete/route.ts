@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { requireUserId } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import {
   deleteSavedPlanRequestSchema,
   type SavedPlansResponse,
@@ -15,6 +16,7 @@ import { parseJsonBody } from '@/lib/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireUserId();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, deleteSavedPlanRequestSchema);

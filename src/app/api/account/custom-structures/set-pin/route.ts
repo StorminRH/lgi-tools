@@ -6,6 +6,7 @@ import {
 import { listCustomStructures, setCustomStructurePin } from '@/features/custom-structures/queries';
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { requireUserId } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseJsonBody } from '@/lib/route-body';
 
 // authz: auth
@@ -17,6 +18,7 @@ import { parseJsonBody } from '@/lib/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireUserId();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, setCustomStructurePinRequestSchema);

@@ -46,7 +46,7 @@ function stubFetch(opts: {
   token?: () => Response;
   esi?: (url: string) => Response;
 }) {
-  const fn = vi.fn(async (input: string | URL | Request) => {
+  const fn = vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
     if (url.endsWith('/api/internal/eve-characters')) {
       return jsonResponse({ characters: opts.characters ?? [eligible()] });
@@ -122,13 +122,20 @@ describe('onlineStatusSync.syncUser', () => {
   it('reads /online and stores online:true with its etag', async () => {
     const t = convexTest(schema, modules);
     await seedSubject(t);
-    stubFetch({ esi: () => jsonResponse({ online: true }, RL) });
+    const fetchFn = stubFetch({ esi: () => jsonResponse({ online: true }, RL) });
 
     await run(t);
 
     const doc = await readDoc(t);
     expect(doc?.online).toBe(true);
     expect(doc?.etag).toBe('o1');
+    const tokenCall = fetchFn.mock.calls.find(([url]) =>
+      String(url).endsWith('/api/internal/eve-token'),
+    );
+    expect(JSON.parse(String(tokenCall?.[1]?.body))).toEqual({
+      userId: USER,
+      characterId: 101,
+    });
   });
 
   it('stores online:false for an offline character', async () => {

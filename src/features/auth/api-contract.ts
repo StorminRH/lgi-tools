@@ -7,11 +7,16 @@ import { z } from 'zod';
 import type { ApiEndpoint } from '@/lib/api-client';
 import { CHARACTER_ROLES } from './schema';
 
+// Better Auth ids are opaque strings — nanoid for new logins, `eve-user-<id>`
+// for backfilled pilots; the charset gate keeps junk out.
+const userIdField = z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/);
+
 // ── POST /api/internal/eve-token (authz: service) ───────────────────────
 // The Convex action → token-vend boundary. The response carries ONLY the
 // access token; the refresh token never appears on this wire.
 
 export const eveTokenRequestSchema = z.object({
+  userId: userIdField,
   characterId: z.number().int().positive(),
 });
 
@@ -36,10 +41,6 @@ export interface EveTokenErrorResponse {
 // data. Ownership is enforced by construction: the action only ever acts on
 // the characters this endpoint returns for that userId — no client-posted
 // character id carries authority anywhere in the sync flow.
-
-// Better Auth ids are opaque strings — nanoid for new logins, `eve-user-<id>`
-// for backfilled pilots; the charset gate keeps junk out.
-const userIdField = z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/);
 
 export const eveCharactersRequestSchema = z.object({
   userId: userIdField,

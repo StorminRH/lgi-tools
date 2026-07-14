@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSession } from '@/features/auth/session';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { APP_VERSION } from '@/config/app-version';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
@@ -73,6 +74,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (path.length === 0 || !path.startsWith('/')) {
     return new Response('path must start with /', { status: 400 });
   }
+
+  requireSameOrigin(request);
 
   const session = await getSession();
   const authorName = session

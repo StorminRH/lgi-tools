@@ -6,6 +6,7 @@ import {
 import { getPreferencesForUser, upsertPreference } from '@/data/preferences/queries';
 import { getCurrentUserId } from '@/features/auth/session';
 import { requireUserId } from '@/features/auth/route-guards';
+import { requireSameOrigin } from '@/features/auth/same-origin';
 import { validatePreferenceValue } from '@/lib/preferences';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -32,6 +33,7 @@ export async function GET(): Promise<Response> {
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireUserId();
   if (!gate.ok) return gate.response;
+  requireSameOrigin(request);
   const userId = gate.userId;
 
   const parsed = await parseJsonBody(request, putPreferenceRequestSchema);
