@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isNeonColdStartError, withColdStartRetry } from './neon-cold-start-retry';
+import {
+  configureNeonColdStartMetricSink,
+  isNeonColdStartError,
+  withColdStartRetry,
+} from './neon-cold-start-retry';
 
 type ErrorExtras = { code?: string; cause?: unknown; sourceError?: unknown };
 
@@ -55,6 +59,7 @@ describe('withColdStartRetry', () => {
   });
 
   afterEach(() => {
+    configureNeonColdStartMetricSink(null);
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -67,6 +72,8 @@ describe('withColdStartRetry', () => {
   });
 
   it('retries a transient failure and succeeds', async () => {
+    const sink = vi.fn();
+    configureNeonColdStartMetricSink(sink);
     const read = vi
       .fn()
       .mockRejectedValueOnce(drizzleWrapped(neonError(COLD_START)))
@@ -76,6 +83,7 @@ describe('withColdStartRetry', () => {
     await expect(result).resolves.toBe('rows');
     expect(read).toHaveBeenCalledTimes(2);
     expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(sink).toHaveBeenCalledWith({ outcome: 'recovered', attempts: 2, totalDelayMs: 500 });
   });
 
   it('rethrows a non-transient error immediately with one attempt', async () => {
@@ -88,6 +96,8 @@ describe('withColdStartRetry', () => {
   });
 
   it('exhausts 4 attempts on the designed backoff and rethrows the last error', async () => {
+    const sink = vi.fn();
+    configureNeonColdStartMetricSink(sink);
     const errors = [1, 2, 3, 4].map((n) => neonError(`${COLD_START} #${n}`));
     let call = 0;
     const read = vi.fn(() => Promise.reject(errors[call++]));
@@ -112,5 +122,18 @@ describe('withColdStartRetry', () => {
 
     await rejection;
     expect(console.warn).toHaveBeenCalledTimes(3);
+    expect(sink).toHaveBeenCalledWith({ outcome: 'exhausted', attempts: 4, totalDelayMs: 3500 });
+  });
+
+  it('isolates a failing telemetry sink from a recovered read', async () => {
+    configureNeonColdStartMetricSink(() => {
+      throw new Error('telemetry down');
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const read = vi.fn().mockRejectedValueOnce(neonError(COLD_START)).mockResolvedValue('rows');
+    const result = withColdStartRetry(read);
+    await vi.advanceTimersByTimeAsync(500);
+    await expect(result).resolves.toBe('rows');
+    expect(console.error).toHaveBeenCalledOnce();
   });
 });

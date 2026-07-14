@@ -6,7 +6,7 @@ vi.mock('@/lib/discord', () => ({
   postDiscordWebhook: (...args: unknown[]) => postDiscordWebhookMock(...args),
 }));
 
-import { alertPriceSourceDegradation } from './alerts';
+import { alertPriceSourceDegradation, alertPublicEsiBudgetExhaustion } from './alerts';
 
 const INFO = { fetched: 10, esiCount: 6, fuzzworkFallbackCount: 4, budgetExhausted: true };
 
@@ -33,5 +33,24 @@ describe('alertPriceSourceDegradation', () => {
     const [url, payload] = postDiscordWebhookMock.mock.calls[0] as [string, { embeds: unknown[] }];
     expect(url).toBe('https://discord.test/webhook');
     expect(Array.isArray(payload.embeds)).toBe(true);
+  });
+});
+
+describe('alertPublicEsiBudgetExhaustion', () => {
+  beforeEach(() => {
+    postDiscordWebhookMock.mockReset();
+    postDiscordWebhookMock.mockResolvedValue(new Response(null, { status: 204 }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('reports whether an alert was actually posted', async () => {
+    vi.stubEnv('DISCORD_ALERT_WEBHOOK_URL', '');
+    await expect(alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 })).resolves.toBe(false);
+    vi.stubEnv('DISCORD_ALERT_WEBHOOK_URL', 'https://discord.test/webhook');
+    await expect(alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 })).resolves.toBe(true);
+    expect(postDiscordWebhookMock).toHaveBeenCalledOnce();
   });
 });

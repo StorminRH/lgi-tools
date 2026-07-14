@@ -1,6 +1,7 @@
 import { getSkillsForUserOnView } from '@/db/skills-sync';
 import { getCurrentUserId } from '@/features/auth/session';
 import type { SkillsResponse } from '@/features/skill-queue/api-contract';
+import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 
 // GET /api/account/skills
 //
@@ -16,6 +17,10 @@ export async function GET(): Promise<Response> {
   if (!userId) {
     return Response.json({ characters: [], names: {} } satisfies SkillsResponse);
   }
-  const result = await getSkillsForUserOnView(userId);
+  const result = await measureOwnedDataRead({
+    endpoint: '/api/account/skills',
+    read: () => getSkillsForUserOnView(userId),
+    returned: (value) => value.characters.length,
+  });
   return Response.json(result satisfies SkillsResponse);
 }

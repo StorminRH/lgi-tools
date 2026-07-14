@@ -5,9 +5,11 @@ import {
   countDistinct,
   desc,
   eq,
+  gte,
   inArray,
   isNotNull,
   lt,
+  or,
   sql,
 } from 'drizzle-orm';
 import { db } from '@/db';
@@ -252,12 +254,9 @@ export async function getFallbackRate(range: DateRange): Promise<FallbackRateDat
   };
 }
 
-// Count of runs that recorded `budgetExhausted: true` — the ESI error-budget
-// floor was hit and the sweep fell back. Counted across both the cron outcome
-// rows and the dedicated degradation rows (deduped by the caller is overkill —
-// these answer "how often did we hit the floor", a frequency, not a unique set).
-// Scoped to the two actions that actually emit the flag so a future action
-// reusing the metadata key can't silently inflate the count.
+// Count one canonical degradation row per price refresh whose ESI budget was
+// exhausted. A degraded cron also writes a cron_prices outcome row, so counting
+// both actions would double the same incident.
 export async function getBudgetExhaustionCount(range: DateRange): Promise<number> {
   const [row] = await db
     .select({ n: count() })
@@ -265,11 +264,45 @@ export async function getBudgetExhaustionCount(range: DateRange): Promise<number
     .where(
       and(
         inRange(range),
-        inArray(usageLogs.action, ['cron_prices', 'price_source_degraded']),
+        eq(usageLogs.action, 'price_source_degraded'),
         eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true'),
       ),
     );
   return Number(row?.n ?? 0);
+}
+
+export async function countPublicEsiBudgetExhaustionsSince(since: Date): Promise<number> {
+  const budgetExhausted = eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true');
+  const [row] = await db
+    .select({ n: count() })
+    .from(usageLogs)
+    .where(
+      and(
+        gte(usageLogs.timestamp, since),
+        or(
+          and(
+            eq(usageLogs.action, 'price_source_degraded'),
+            eq(sql`${usageLogs.metadata} ->> 'caller'`, 'on-demand'),
+            budgetExhausted,
+          ),
+          and(eq(usageLogs.action, 'market_history_refresh'), budgetExhausted),
+        ),
+      ),
+    );
+  return Number(row?.n ?? 0);
+}
+
+export async function hasPublicEsiBudgetAlertSince(since: Date): Promise<boolean> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(usageLogs)
+    .where(
+      and(
+        gte(usageLogs.timestamp, since),
+        eq(usageLogs.action, 'public_esi_budget_alerted'),
+      ),
+    );
+  return Number(row?.n ?? 0) > 0;
 }
 
 // Degradation events grouped by caller (`cron` vs `on-demand`). `caller` only

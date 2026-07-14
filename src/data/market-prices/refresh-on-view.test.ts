@@ -81,7 +81,7 @@ beforeEach(() => {
   persistPricesMock.mockReset();
   afterMock.mockReset();
   revalidateTagMock.mockReset();
-  persistPricesMock.mockResolvedValue(undefined);
+  persistPricesMock.mockResolvedValue({ written: 1 });
   getPricesMock.mockResolvedValue(new Map());
 });
 
@@ -90,13 +90,14 @@ describe('getLivePrices', () => {
     getPricesMock.mockResolvedValue(new Map([[34, seed(34)]]));
     sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
 
-    const { prices, degraded } = await getLivePrices([34]);
+    const { prices, degraded, metrics } = await getLivePrices([34]);
 
     const row = prices.get(34)!;
     expect(row.source).toBe('esi');
     expect(row.bestBuy).toBe(10); // live, not the seed's 1
     expect(row.staleAfter.getTime() - row.updatedAt.getTime()).toBe(STALE_AFTER_TTL_MS);
     expect(degraded).toMatchObject({ fetched: 1, esiCount: 1, fuzzworkFallbackCount: 0 });
+    expect(metrics).toMatchObject({ requested: 1, returned: 1, esiCount: 1 });
   });
 
   it('falls back to the seed when a live fetch throws', async () => {
@@ -139,6 +140,36 @@ describe('getLivePrices', () => {
     expect(persistPricesMock).toHaveBeenCalledTimes(1);
     const persisted = persistPricesMock.mock.calls[0]![1] as RawMarketPrice[];
     expect(persisted.map((r) => r.typeId)).toEqual([34]);
+  });
+
+  it('reports the asynchronous write-behind outcome through the optional observer', async () => {
+    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
+    persistPricesMock.mockResolvedValue({ written: 1 });
+    const observer = vi.fn();
+
+    await getLivePrices([34], observer);
+    await afterMock.mock.calls[0]![0]();
+
+    expect(observer).toHaveBeenCalledWith({
+      outcome: 'succeeded',
+      attempted: 1,
+      written: 1,
+      durationMs: expect.any(Number),
+    });
+  });
+
+  it('does not turn an observer failure into a write-behind failure', async () => {
+    sourceByTypeId({ 34: { prices: [raw(34, 'esi')] } });
+    persistPricesMock.mockResolvedValue({ written: 1 });
+    const observer = vi.fn(() => {
+      throw new Error('observer failed');
+    });
+
+    await getLivePrices([34], observer);
+    await expect(afterMock.mock.calls[0]![0]()).resolves.toBeUndefined();
+
+    expect(observer).toHaveBeenCalledTimes(1);
+    expect(persistPricesMock).toHaveBeenCalledTimes(1);
   });
 
   it('tallies esi vs fuzzwork-fallback and budget exhaustion across items', async () => {

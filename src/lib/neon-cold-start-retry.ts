@@ -22,6 +22,42 @@ const BASE_DELAY_MS = 500;
 // Guard against pathological/cyclic cause chains while walking.
 const MAX_CHAIN_DEPTH = 10;
 
+export interface NeonColdStartMetric {
+  outcome: 'recovered' | 'exhausted';
+  attempts: number;
+  totalDelayMs: number;
+}
+
+type NeonColdStartMetricSink = (metric: NeonColdStartMetric) => void | Promise<void>;
+
+let metricSink: NeonColdStartMetricSink | null = null;
+
+export function configureNeonColdStartMetricSink(
+  sink: NeonColdStartMetricSink | null,
+): void {
+  metricSink = sink;
+}
+
+function emitMetric(metric: NeonColdStartMetric): void {
+  if (!metricSink) return;
+  try {
+    void Promise.resolve(metricSink(metric)).catch((error) => {
+      console.error('[neon-cold-start-retry] telemetry write failed', error);
+    });
+  } catch (error) {
+    console.error('[neon-cold-start-retry] telemetry write failed', error);
+  }
+}
+
+function retryDelayFor(error: unknown, attempt: number, totalDelayMs: number): number {
+  if (!isNeonColdStartError(error)) throw error;
+  if (attempt >= MAX_ATTEMPTS) {
+    emitMetric({ outcome: 'exhausted', attempts: attempt, totalDelayMs });
+    throw error;
+  }
+  return BASE_DELAY_MS * 2 ** (attempt - 1);
+}
+
 // The neon-http driver (@neondatabase/serverless) has exactly three
 // `NeonDbError` constructions on the query path; two are connection-class:
 // - fetch rejection → message `Error connecting to database: ${err}` (the
@@ -58,12 +94,17 @@ export function isNeonColdStartError(err: unknown): boolean {
 // so a recovered build is visible in the Vercel build logs. Non-matching
 // errors rethrow immediately; exhaustion rethrows the last error.
 export async function withColdStartRetry<T>(read: () => Promise<T>): Promise<T> {
+  let totalDelayMs = 0;
   for (let attempt = 1; ; attempt++) {
     try {
-      return await read();
+      const result = await read();
+      if (attempt > 1) {
+        emitMetric({ outcome: 'recovered', attempts: attempt, totalDelayMs });
+      }
+      return result;
     } catch (err) {
-      if (attempt >= MAX_ATTEMPTS || !isNeonColdStartError(err)) throw err;
-      const delayMs = BASE_DELAY_MS * 2 ** (attempt - 1);
+      const delayMs = retryDelayFor(err, attempt, totalDelayMs);
+      totalDelayMs += delayMs;
       const summary = err instanceof Error ? err.message.split('\n')[0] : String(err);
       console.warn(
         `[neon-cold-start-retry] attempt ${attempt}/${MAX_ATTEMPTS} failed (${summary}); retrying in ${delayMs}ms`,

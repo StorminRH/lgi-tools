@@ -7,6 +7,7 @@ import {
 import type { OwnedBlueprintsResponse } from '@/features/industry-planner/types';
 import { getCurrentUserId } from '@/features/auth/session';
 import { parseJsonBody } from '@/lib/route-body';
+import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 
 // POST /api/industry/owned-blueprints
 // Body: { blueprintTypeIds } — the blueprints in the planned build.
@@ -36,7 +37,13 @@ export async function POST(request: NextRequest): Promise<Response> {
     return Response.json({ blueprints: [] } satisfies OwnedBlueprintsResponse);
   }
 
-  const blueprints = await getOwnedBlueprintDetailOnView(userId, parsed.data.blueprintTypeIds);
+  const blueprintTypeIds = Array.from(new Set(parsed.data.blueprintTypeIds));
+  const blueprints = await measureOwnedDataRead({
+    endpoint: '/api/industry/owned-blueprints',
+    requested: blueprintTypeIds.length,
+    read: () => getOwnedBlueprintDetailOnView(userId, blueprintTypeIds),
+    returned: (value) => value.length,
+  });
 
   return Response.json({ blueprints } satisfies OwnedBlueprintsResponse);
 }

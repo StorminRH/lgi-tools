@@ -3,10 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   drain: vi.fn(),
   runCron: vi.fn(),
+  alert: vi.fn(),
 }));
 
 vi.mock('@/db/cron-gate', () => ({ runCronJob: mocks.runCron }));
 vi.mock('@/db/esi-refresh-worker', () => ({ drainEsiRefreshJobs: mocks.drain }));
+vi.mock('./public-budget-alert', () => ({
+  maybeAlertPublicEsiBudgetExhaustion: mocks.alert,
+}));
 
 import { GET, maxDuration } from './route';
 
@@ -24,6 +28,7 @@ describe('GET /api/cron/drain-esi-refresh-jobs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.drain.mockResolvedValue(COUNTS);
+    mocks.alert.mockResolvedValue({ status: 'below-threshold', count: 0 });
     mocks.runCron.mockImplementation(
       ({ work }: { work: () => Promise<Response> }) => work(),
     );
@@ -47,6 +52,7 @@ describe('GET /api/cron/drain-esi-refresh-jobs', () => {
       durationMs: expect.any(Number),
     });
     expect(mocks.drain).toHaveBeenCalledOnce();
+    expect(mocks.alert).toHaveBeenCalledOnce();
     expect(console.log).toHaveBeenCalledWith(
       expect.stringContaining('"scope":"cron:esi-refresh-jobs"'),
     );

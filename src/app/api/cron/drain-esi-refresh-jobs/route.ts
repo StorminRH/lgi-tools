@@ -2,6 +2,8 @@ import { ADVISORY_LOCK_ESI_REFRESH_QUEUE } from '@/data/esi-refresh-jobs/constan
 import type { EsiRefreshWorkerSummary } from '@/data/esi-refresh-jobs/api-contract';
 import { runCronJob } from '@/db/cron-gate';
 import { drainEsiRefreshJobs } from '@/db/esi-refresh-worker';
+import { swallow } from '@/lib/cron';
+import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
 export const maxDuration = 300;
 
@@ -28,6 +30,10 @@ export async function GET(req: Request): Promise<Response> {
         durationMs: Date.now() - started,
       } satisfies EsiRefreshWorkerSummary),
     work: async () => {
+      await swallow(
+        '[cron:esi-refresh-jobs] public ESI budget alert failed',
+        maybeAlertPublicEsiBudgetExhaustion(),
+      );
       const counts = await drainEsiRefreshJobs();
       const summary = {
         status: 'drained',

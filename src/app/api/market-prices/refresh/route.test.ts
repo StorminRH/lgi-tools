@@ -58,6 +58,13 @@ function cleanResult(rows: MarketPrice[]) {
       fuzzworkFallbackCount: 0,
       budgetExhausted: false,
     },
+    metrics: {
+      requested: rows.length,
+      returned: rows.length,
+      cacheHits: 0,
+      esiCount: rows.length,
+      fuzzworkFallbackCount: 0,
+    },
   };
 }
 
@@ -84,7 +91,7 @@ describe('POST /api/market-prices/refresh', () => {
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ typeIds: [34] }));
     expect(res.status).toBe(200);
-    expect(getLivePricesMock).toHaveBeenCalledWith([34]);
+    expect(getLivePricesMock).toHaveBeenCalledWith([34], expect.any(Function));
     const body = await res.json();
     expect(body.prices[0].typeId).toBe(34);
     expect(body.prices[0].buyVolume).toBe('1000000');
@@ -115,6 +122,13 @@ describe('POST /api/market-prices/refresh', () => {
         fuzzworkFallbackCount: 2,
         budgetExhausted: false,
       },
+      metrics: {
+        requested: 3,
+        returned: 3,
+        cacheHits: 0,
+        esiCount: 1,
+        fuzzworkFallbackCount: 2,
+      },
     });
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34, 35, 36] }));
@@ -134,6 +148,13 @@ describe('POST /api/market-prices/refresh', () => {
     getLivePricesMock.mockResolvedValue({
       prices: new Map([[34, price(34, 'esi')]]),
       degraded: { fetched: 1, esiCount: 1, fuzzworkFallbackCount: 0, budgetExhausted: true },
+      metrics: {
+        requested: 1,
+        returned: 1,
+        cacheHits: 0,
+        esiCount: 1,
+        fuzzworkFallbackCount: 0,
+      },
     });
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34] }));
@@ -142,10 +163,21 @@ describe('POST /api/market-prices/refresh', () => {
     );
   });
 
-  it('does not emit degradation telemetry on a clean all-ESI read', async () => {
+  it('emits only the normal cost metric on a clean all-ESI read', async () => {
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34] }));
-    expect(logUsageEventMock).not.toHaveBeenCalled();
+    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(logUsageEventMock).toHaveBeenCalledWith({
+      action: 'market_price_refresh',
+      metadata: expect.objectContaining({
+        requested: 1,
+        returned: 1,
+        cacheHits: 0,
+        esiCount: 1,
+        fuzzworkFallbackCount: 0,
+        budgetExhausted: false,
+      }),
+    });
   });
 
   it('deduplicates typeIds before passing to the engine', async () => {

@@ -17,6 +17,11 @@ export interface EsiRefreshDeadLetter {
   failureCode: string;
 }
 
+export interface PublicEsiBudgetExhaustion {
+  count: number;
+  windowMinutes: number;
+}
+
 // Best-effort ops alert when the price source degrades to Fuzzwork (3.0.10
 // O-1). Reads DISCORD_ALERT_WEBHOOK_URL — a dedicated ops channel, separate
 // from the feedback webhook. If it is unset, returns silently: the alert sits
@@ -80,4 +85,23 @@ export async function alertEsiRefreshDeadLetter(
       },
     ],
   });
+}
+
+export async function alertPublicEsiBudgetExhaustion(
+  info: PublicEsiBudgetExhaustion,
+): Promise<boolean> {
+  const url = readEnv('DISCORD_ALERT_WEBHOOK_URL');
+  if (!url) return false;
+
+  await postDiscordWebhook(url, {
+    embeds: [
+      {
+        title: 'Public ESI refreshes are repeatedly budget-blocked',
+        description: `${info.count} public refresh requests hit the shared ESI gate in the last ${info.windowMinutes} minutes. Stored data or the existing price fallback kept responses available.`,
+        footer: { text: `LGI.tools v${APP_VERSION}` },
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  });
+  return true;
 }

@@ -2,6 +2,7 @@ import { getSkillLevelsForUserOnView } from '@/db/skills-sync';
 import { getCurrentUserId } from '@/features/auth/session';
 import type { IndustrySlotsResponse } from '@/features/industry-jobs/api-contract';
 import { slotCapacity } from '@/features/industry-jobs/slots';
+import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 
 // GET /api/account/industry-slots
 //
@@ -20,7 +21,11 @@ export async function GET(): Promise<Response> {
   if (!userId) {
     return Response.json({ characters: [] } satisfies IndustrySlotsResponse);
   }
-  const perCharacter = await getSkillLevelsForUserOnView(userId);
+  const perCharacter = await measureOwnedDataRead({
+    endpoint: '/api/account/industry-slots',
+    read: () => getSkillLevelsForUserOnView(userId),
+    returned: (value) => value.length,
+  });
   return Response.json({
     characters: perCharacter.map(({ characterId, levels }) => ({
       characterId,

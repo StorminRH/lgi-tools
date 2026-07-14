@@ -7,6 +7,7 @@ import {
   type SkillLevelsResponse,
 } from '@/features/industry-planner/api-contract';
 import { parseJsonBody } from '@/lib/route-body';
+import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 
 // POST /api/industry/skill-levels
 // Body: { characterId }
@@ -35,6 +36,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!userId) {
     return Response.json({ levels: null } satisfies SkillLevelsResponse);
   }
-  const levels = await getSkillLevelsForCharacterOnView(userId, parsed.data.characterId);
+  const levels = await measureOwnedDataRead({
+    endpoint: '/api/industry/skill-levels',
+    requested: 1,
+    read: () => getSkillLevelsForCharacterOnView(userId, parsed.data.characterId),
+    returned: (value) => (value === null ? 0 : 1),
+  });
   return Response.json({ levels } satisfies SkillLevelsResponse);
 }
