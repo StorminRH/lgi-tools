@@ -33,6 +33,7 @@ import { decryptToken, encryptToken } from './token-crypto';
 // Refresh proactively when the stored access token has under a minute of life
 // left, so a vended token always carries usable headroom for the caller's call.
 export const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
+export const INVALID_GRANT_CONFIRMATION_GRACE_MS = 5 * 60 * 1000;
 
 const TOKEN_REFRESH_FAILURE_ACTIONS = {
   invalid_grant: 'eve_token_refresh_invalid_grant',
@@ -73,6 +74,8 @@ function loadAccountRow(characterId: number) {
       accessToken: account.accessToken,
       refreshToken: account.refreshToken,
       accessTokenExpiresAt: account.accessTokenExpiresAt,
+      refreshTokenInvalidGrantCount: account.refreshTokenInvalidGrantCount,
+      refreshTokenInvalidGrantFirstAt: account.refreshTokenInvalidGrantFirstAt,
       scope: account.scope,
     })
     .from(account)
@@ -83,6 +86,36 @@ function loadAccountRow(characterId: number) {
     .then((rows) => rows[0]);
 }
 
+type LoadedAccountRow = NonNullable<Awaited<ReturnType<typeof loadAccountRow>>>;
+
+function hasActiveInvalidGrantGrace(row: LoadedAccountRow): boolean {
+  const firstAt = row.refreshTokenInvalidGrantFirstAt;
+  return (
+    row.refreshTokenInvalidGrantCount === 1 &&
+    firstAt !== null &&
+    Date.now() - firstAt.getTime() < INVALID_GRANT_CONFIRMATION_GRACE_MS
+  );
+}
+
+function readCachedToken(
+  row: LoadedAccountRow,
+  characterId: number,
+  scopes: string[],
+): FreshTokenResult | null {
+  if (
+    row.refreshTokenInvalidGrantCount === 1 ||
+    !row.accessToken ||
+    !row.accessTokenExpiresAt ||
+    row.accessTokenExpiresAt.getTime() - Date.now() <= ACCESS_TOKEN_REFRESH_SKEW_MS
+  ) {
+    return null;
+  }
+  const accessToken = decryptToken(row.accessToken);
+  return accessToken === null
+    ? null
+    : { kind: 'ok', accessToken, expiresAt: row.accessTokenExpiresAt, characterId, scopes };
+}
+
 // A conditional write affected 0 rows: a concurrent vend rotated this account's
 // refresh token (or a re-auth replaced it) between our read and our write. Don't
 // clobber the winner and don't null a possibly-valid account — re-read and hand
@@ -91,7 +124,9 @@ function loadAccountRow(characterId: number) {
 async function reflectStoredToken(characterId: number): Promise<FreshTokenResult> {
   const row = await loadAccountRow(characterId);
   if (!row) return { kind: 'not_found' };
-  if (row.refreshToken === null || !row.accessToken || !row.accessTokenExpiresAt) {
+  if (row.refreshToken === null) return { kind: 'reauth_required' };
+  if (row.refreshTokenInvalidGrantCount === 1) return { kind: 'upstream_error' };
+  if (!row.accessToken || !row.accessTokenExpiresAt) {
     return { kind: 'reauth_required' };
   }
   const access = decryptToken(row.accessToken);
@@ -110,6 +145,51 @@ async function reflectStoredToken(characterId: number): Promise<FreshTokenResult
     characterId,
     scopes: parseScopes(row.scope),
   };
+}
+
+async function recordInvalidGrant(
+  row: LoadedAccountRow,
+  characterId: number,
+  refreshCiphertext: string,
+): Promise<FreshTokenResult> {
+  const confirming = row.refreshTokenInvalidGrantCount === 1;
+  const invalidGrantAt = new Date();
+  const recorded = await db
+    .update(account)
+    .set(
+      confirming
+        ? {
+            accessToken: null,
+            refreshToken: null,
+            accessTokenExpiresAt: null,
+            refreshTokenExpiresAt: null,
+            refreshTokenInvalidGrantCount: 2,
+            updatedAt: invalidGrantAt,
+          }
+        : {
+            refreshTokenInvalidGrantCount: 1,
+            refreshTokenInvalidGrantFirstAt: invalidGrantAt,
+            updatedAt: invalidGrantAt,
+          },
+    )
+    .where(
+      and(
+        eq(account.id, row.id),
+        eq(account.refreshToken, refreshCiphertext),
+        eq(account.refreshTokenInvalidGrantCount, confirming ? 1 : 0),
+      ),
+    )
+    .returning({ id: account.id });
+
+  if (recorded.length > 0) {
+    return confirming ? { kind: 'reauth_required' } : { kind: 'upstream_error' };
+  }
+  void logUsageEvent({
+    action: 'eve_token_refresh_race',
+    characterId,
+    metadata: { signal: 'concurrent_invalid_grant' },
+  }).catch((err) => console.error('[eve-token] telemetry write failed', err));
+  return reflectStoredToken(characterId);
 }
 
 // Revoke a character's EVE grant at CCP (RFC 7009), BEST-EFFORT. Reads the stored
@@ -147,35 +227,29 @@ export async function getFreshAccessTokenForCharacter(
   const row = await loadAccountRow(characterId);
   if (!row) return { kind: 'not_found' };
 
-  // CAS key: the encrypted bytes EXACTLY AS READ. Both conditional writes below
+  // CAS key: the encrypted bytes EXACTLY AS READ. Conditional writes below
   // compare this verbatim — NEVER encryptToken(...), which mints a fresh IV every
   // call and would never match. Do not "tidy" this into a re-encrypt.
   const refreshCiphertext = row.refreshToken;
 
-  // A null, legacy-plaintext, or tampered refresh token all decrypt to null —
-  // we can't mint anything, so the pilot must reconnect this character.
-  const refreshToken = refreshCiphertext ? decryptToken(refreshCiphertext) : null;
-  if (refreshToken === null || refreshCiphertext === null) return { kind: 'reauth_required' };
+  if (refreshCiphertext === null) return { kind: 'reauth_required' };
+
+  // A first invalid_grant starts a quiet period before the one confirmation
+  // attempt. Suppression happens before cached-token handling so every vend in
+  // the window reflects the strike consistently and never calls EVE or emits a
+  // fabricated provider-failure event.
+  if (hasActiveInvalidGrantGrace(row)) return { kind: 'upstream_error' };
+
+  // A legacy-plaintext or tampered refresh token decrypts to null — we can't
+  // mint anything, so the pilot must reconnect this character.
+  const refreshToken = decryptToken(refreshCiphertext);
+  if (refreshToken === null) return { kind: 'reauth_required' };
 
   const scopes = parseScopes(row.scope);
 
   // A still-valid stored access token is handed back without touching EVE.
-  if (
-    row.accessToken &&
-    row.accessTokenExpiresAt &&
-    row.accessTokenExpiresAt.getTime() - Date.now() > ACCESS_TOKEN_REFRESH_SKEW_MS
-  ) {
-    const cached = decryptToken(row.accessToken);
-    if (cached !== null) {
-      return {
-        kind: 'ok',
-        accessToken: cached,
-        expiresAt: row.accessTokenExpiresAt,
-        characterId,
-        scopes,
-      };
-    }
-  }
+  const cached = readCachedToken(row, characterId, scopes);
+  if (cached !== null) return cached;
 
   const result = await refreshEveToken({
     refreshToken,
@@ -189,42 +263,18 @@ export async function getFreshAccessTokenForCharacter(
   // and let the caller retry. We do NOT touch the row.
   if (result.kind === 'retryable') return { kind: 'upstream_error' };
 
-  // Dead refresh token: drop custody so the next vend short-circuits to
-  // reauth_required and the alt-management UI can surface "reconnect" — but ONLY
-  // if the stored refresh token is STILL the one we just used. Conditional on the
-  // ciphertext as read: 0 rows means a concurrent vend already rotated it, so the
-  // token we got invalid_grant on is stale, the account is fine, and nulling would
-  // force a needless reauth. That 0-row case is the smoking-gun signal that EVE
-  // has begun invalidating rotated refresh tokens.
-  if (result.kind === 'dead') {
-    const nulled = await db
-      .update(account)
-      .set({
-        accessToken: null,
-        refreshToken: null,
-        accessTokenExpiresAt: null,
-        refreshTokenExpiresAt: null,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(account.id, row.id), eq(account.refreshToken, refreshCiphertext)))
-      .returning({ id: account.id });
-
-    if (nulled.length === 0) {
-      void logUsageEvent({
-        action: 'eve_token_refresh_race',
-        characterId,
-        metadata: { signal: 'concurrent_invalid_grant' },
-      }).catch((err) => console.error('[eve-token] telemetry write failed', err));
-      return reflectStoredToken(characterId);
-    }
-    return { kind: 'reauth_required' };
-  }
+  // A first invalid_grant records a strike while preserving custody. Only a
+  // second invalid_grant after the quiet period clears the tokens. Both writes
+  // are conditional on the exact ciphertext AND the strike state we read, so two
+  // simultaneous failures cannot advance the state twice and a concurrent
+  // rotation/re-auth always wins.
+  if (result.kind === 'dead') return recordInvalidGrant(row, characterId, refreshCiphertext);
 
   // Success: persist the rotated refresh token + the fresh access token, both
   // re-encrypted. EVE rotates refresh tokens, so we always store the returned one.
   // Conditional so a concurrent winner is never clobbered — but the `IS NULL` arm
-  // REPAIRS a row a raced loser nulled (its dead-branch NULL landed before this
-  // write), so custody self-heals rather than being lost. 0 rows means the slot
+  // REPAIRS a row a confirming loser nulled before this write, so custody
+  // self-heals rather than being lost. 0 rows means the slot
   // already holds a DIFFERENT token (a rotation winner, or a re-auth written
   // mid-vend); don't overwrite it — reflect what's stored.
   const expiresAt = new Date(Date.now() + result.expires_in * 1000);
@@ -234,6 +284,8 @@ export async function getFreshAccessTokenForCharacter(
       accessToken: encryptToken(result.access_token),
       refreshToken: encryptToken(result.refresh_token),
       accessTokenExpiresAt: expiresAt,
+      refreshTokenInvalidGrantCount: 0,
+      refreshTokenInvalidGrantFirstAt: null,
       updatedAt: new Date(),
     })
     .where(

@@ -76,6 +76,21 @@ const options = {
   // link with `email_doesn't_match`. We do NOT set updateUserInfoOnLink, so
   // linking an alt never overwrites the main user row's name/image.
   account: {
+    additionalFields: {
+      refreshTokenInvalidGrantCount: {
+        type: 'number',
+        required: false,
+        defaultValue: 0,
+        input: false,
+        returned: false,
+      },
+      refreshTokenInvalidGrantFirstAt: {
+        type: 'date',
+        required: false,
+        input: false,
+        returned: false,
+      },
+    },
     accountLinking: { allowDifferentEmails: true },
   },
   user: {

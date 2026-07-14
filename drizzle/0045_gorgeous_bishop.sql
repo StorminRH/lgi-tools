@@ -1,0 +1,2 @@
+ALTER TABLE "account" ADD COLUMN "refresh_token_invalid_grant_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "account" ADD COLUMN "refresh_token_invalid_grant_first_at" timestamp;

@@ -49,7 +49,10 @@ vi.mock('./eve-sso', async (importOriginal) => {
 // Real crypto with a deterministic key, so we can assert ciphertext shape.
 const VALID_KEY = Buffer.alloc(32, 9).toString('base64');
 
-import { getFreshAccessTokenForCharacter } from './eve-token-service';
+import {
+  getFreshAccessTokenForCharacter,
+  INVALID_GRANT_CONFIRMATION_GRACE_MS,
+} from './eve-token-service';
 import { decryptToken, encryptToken } from './token-crypto';
 
 const CHAR_ID = 90000001;
@@ -70,6 +73,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
 });
 
@@ -148,7 +152,9 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(decryptToken(persisted.accessToken)).toBe('new-access');
   });
 
-  it('nulls token custody and returns reauth_required on a genuinely dead refresh token (1 row)', async () => {
+  it('records a first invalid_grant strike while preserving custody', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-13T20:00:00.000Z'));
     h.selectRows = [
       {
         id: 'acc1',
@@ -162,19 +168,111 @@ describe('getFreshAccessTokenForCharacter', () => {
       kind: 'dead',
       failureClass: 'invalid_grant',
     });
-    h.updateReturning = [{ id: 'acc1' }]; // conditional NULL matched → we held the latest token
+    h.updateReturning = [{ id: 'acc1' }];
 
-    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
-    const cleared = h.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
-    expect(cleared.accessToken).toBeNull();
-    expect(cleared.refreshToken).toBeNull();
-    expect(cleared.accessTokenExpiresAt).toBeNull();
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+    const strike = h.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    expect(strike).not.toHaveProperty('accessToken');
+    expect(strike).not.toHaveProperty('refreshToken');
+    expect(strike.refreshTokenInvalidGrantCount).toBe(1);
+    expect(strike.refreshTokenInvalidGrantFirstAt).toEqual(
+      new Date('2026-07-13T20:00:00.000Z'),
+    );
     expect(h.logUsageEventMock).toHaveBeenCalledWith({
       action: 'eve_token_refresh_invalid_grant',
       characterId: CHAR_ID,
       metadata: { failureClass: 'invalid_grant' },
     });
     expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('suppresses provider calls at 4:59 without emitting refresh-failure telemetry', async () => {
+    const now = new Date('2026-07-13T20:05:00.000Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('still-valid-access'),
+        refreshToken: encryptToken('stored-refresh'),
+        accessTokenExpiresAt: future(),
+        refreshTokenInvalidGrantCount: 1,
+        refreshTokenInvalidGrantFirstAt: new Date(
+          now.getTime() - INVALID_GRANT_CONFIRMATION_GRACE_MS + 1000,
+        ),
+        scope: null,
+      },
+    ];
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+    expect(h.refreshEveTokenMock).not.toHaveBeenCalled();
+    expect(h.updateSpy).not.toHaveBeenCalled();
+    expect(h.logUsageEventMock).not.toHaveBeenCalled();
+  });
+
+  it('confirms invalid_grant at exactly 5:00 and clears custody', async () => {
+    const now = new Date('2026-07-13T20:05:00.000Z');
+    const firstAt = new Date(now.getTime() - INVALID_GRANT_CONFIRMATION_GRACE_MS);
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        refreshTokenInvalidGrantCount: 1,
+        refreshTokenInvalidGrantFirstAt: firstAt,
+        scope: null,
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'dead',
+      failureClass: 'invalid_grant',
+    });
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
+    expect(h.refreshEveTokenMock).toHaveBeenCalledTimes(1);
+    const cleared = h.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    expect(cleared.accessToken).toBeNull();
+    expect(cleared.refreshToken).toBeNull();
+    expect(cleared.accessTokenExpiresAt).toBeNull();
+    expect(cleared.refreshTokenInvalidGrantCount).toBe(2);
+    expect(cleared).not.toHaveProperty('refreshTokenInvalidGrantFirstAt');
+  });
+
+  it('forces a post-window refresh and resets the strike on success', async () => {
+    const now = new Date('2026-07-13T20:05:00.000Z');
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('still-valid-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: future(),
+        refreshTokenInvalidGrantCount: 1,
+        refreshTokenInvalidGrantFirstAt: new Date(
+          now.getTime() - INVALID_GRANT_CONFIRMATION_GRACE_MS,
+        ),
+        scope: 'publicData',
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'ok',
+      access_token: 'recovered-access',
+      refresh_token: 'recovered-refresh',
+      expires_in: 1200,
+    });
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toMatchObject({
+      kind: 'ok',
+      accessToken: 'recovered-access',
+    });
+    expect(h.refreshEveTokenMock).toHaveBeenCalledTimes(1);
+    const persisted = h.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
+    expect(persisted.refreshTokenInvalidGrantCount).toBe(0);
+    expect(persisted.refreshTokenInvalidGrantFirstAt).toBeNull();
   });
 
   it('reflects the winner\'s token when the success write loses the race (0 rows)', async () => {
@@ -210,7 +308,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(h.logUsageEventMock).not.toHaveBeenCalled();
   });
 
-  it('on a dead refresh that lost the race (0 rows), logs the race signal and reflects the winner', async () => {
+  it('on a lost first-strike CAS, logs the race signal and reflects a fresh winner', async () => {
     h.selectRows = [
       {
         id: 'acc1',
@@ -224,13 +322,15 @@ describe('getFreshAccessTokenForCharacter', () => {
       kind: 'dead',
       failureClass: 'invalid_grant',
     });
-    h.updateReturning = []; // 0 rows: a concurrent winner rotated before our NULL landed
+    h.updateReturning = []; // 0 rows: a concurrent winner rotated before our strike landed
     h.rereadRows = [
       {
         id: 'acc1',
         accessToken: encryptToken('winner-access'),
         refreshToken: encryptToken('winner-refresh'),
         accessTokenExpiresAt: future(),
+        refreshTokenInvalidGrantCount: 0,
+        refreshTokenInvalidGrantFirstAt: null,
         scope: null,
       },
     ];
@@ -248,7 +348,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     );
   });
 
-  it('returns reauth_required when a lost-race re-read finds the account genuinely tokenless', async () => {
+  it('reflects upstream_error when a lost first-strike CAS re-reads strike 1', async () => {
     h.selectRows = [
       {
         id: 'acc1',
@@ -264,7 +364,90 @@ describe('getFreshAccessTokenForCharacter', () => {
     });
     h.updateReturning = [];
     h.rereadRows = [
-      { id: 'acc1', accessToken: null, refreshToken: null, accessTokenExpiresAt: null, scope: null },
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        refreshTokenInvalidGrantCount: 1,
+        refreshTokenInvalidGrantFirstAt: new Date(),
+        scope: null,
+      },
+    ];
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+    expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('on a lost confirmation CAS, logs the race signal and reflects a fresh winner', async () => {
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        refreshTokenInvalidGrantCount: 1,
+        refreshTokenInvalidGrantFirstAt: new Date(
+          Date.now() - INVALID_GRANT_CONFIRMATION_GRACE_MS,
+        ),
+        scope: null,
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'dead',
+      failureClass: 'invalid_grant',
+    });
+    h.updateReturning = [];
+    h.rereadRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('winner-access'),
+        refreshToken: encryptToken('winner-refresh'),
+        accessTokenExpiresAt: future(),
+        refreshTokenInvalidGrantCount: 0,
+        refreshTokenInvalidGrantFirstAt: null,
+        scope: null,
+      },
+    ];
+
+    expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toMatchObject({
+      kind: 'ok',
+      accessToken: 'winner-access',
+    });
+    expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns reauth_required when a lost-race re-read finds the account genuinely tokenless', async () => {
+    h.selectRows = [
+      {
+        id: 'acc1',
+        accessToken: encryptToken('old-access'),
+        refreshToken: encryptToken('old-refresh'),
+        accessTokenExpiresAt: past(),
+        refreshTokenInvalidGrantCount: 1,
+        refreshTokenInvalidGrantFirstAt: new Date(
+          Date.now() - INVALID_GRANT_CONFIRMATION_GRACE_MS,
+        ),
+        scope: null,
+      },
+    ];
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'dead',
+      failureClass: 'invalid_grant',
+    });
+    h.updateReturning = [];
+    h.rereadRows = [
+      {
+        id: 'acc1',
+        accessToken: null,
+        refreshToken: null,
+        accessTokenExpiresAt: null,
+        refreshTokenInvalidGrantCount: 2,
+        refreshTokenInvalidGrantFirstAt: new Date(
+          Date.now() - INVALID_GRANT_CONFIRMATION_GRACE_MS,
+        ),
+        scope: null,
+      },
     ];
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
@@ -318,6 +501,10 @@ describe('getFreshAccessTokenForCharacter', () => {
           accessToken: encryptToken('old-access'),
           refreshToken: encryptToken('old-refresh'),
           accessTokenExpiresAt: past(),
+          refreshTokenInvalidGrantCount: 1,
+          refreshTokenInvalidGrantFirstAt: new Date(
+            Date.now() - INVALID_GRANT_CONFIRMATION_GRACE_MS,
+          ),
           scope: null,
         },
       ];

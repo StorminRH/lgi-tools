@@ -15,12 +15,16 @@ describe('encryptAccountTokens', () => {
     );
     expect(out.accessToken).toBe('ENC(at)');
     expect(out.refreshToken).toBe('ENC(rt)');
+    expect(out.refreshTokenInvalidGrantCount).toBe(0);
+    expect(out.refreshTokenInvalidGrantFirstAt).toBeNull();
   });
 
   it('still encrypts when providerId is absent (the EVE re-login update path)', () => {
     const out = encryptAccountTokens({ accessToken: 'at', refreshToken: 'rt' }, enc);
     expect(out.accessToken).toBe('ENC(at)');
     expect(out.refreshToken).toBe('ENC(rt)');
+    expect(out.refreshTokenInvalidGrantCount).toBe(0);
+    expect(out.refreshTokenInvalidGrantFirstAt).toBeNull();
   });
 
   it('returns the data untouched for a positively non-EVE provider', () => {
@@ -35,6 +39,8 @@ describe('encryptAccountTokens', () => {
     const out = encryptAccountTokens({ accessToken: '', refreshToken: 'rt' }, enc);
     expect(out.accessToken).toBe('');
     expect(out.refreshToken).toBe('ENC(rt)');
+    expect(out.refreshTokenInvalidGrantCount).toBe(0);
+    expect(out.refreshTokenInvalidGrantFirstAt).toBeNull();
   });
 
   it('is idempotent — leaves an already-ciphertext value alone', () => {
@@ -47,12 +53,21 @@ describe('encryptAccountTokens', () => {
     const out = encryptAccountTokens({ accessToken: null, refreshToken: undefined }, enc);
     expect(out.accessToken).toBeNull();
     expect(out.refreshToken).toBeUndefined();
+    expect(out).not.toHaveProperty('refreshTokenInvalidGrantCount');
+    expect(out).not.toHaveProperty('refreshTokenInvalidGrantFirstAt');
   });
 
   it('handles access and refresh independently', () => {
     const out = encryptAccountTokens({ accessToken: 'at', refreshToken: null }, enc);
     expect(out.accessToken).toBe('ENC(at)');
     expect(out.refreshToken).toBeNull();
+    expect(out).not.toHaveProperty('refreshTokenInvalidGrantCount');
+    expect(out).not.toHaveProperty('refreshTokenInvalidGrantFirstAt');
+  });
+
+  it('leaves strike state untouched on an unrelated account update', () => {
+    const out = encryptAccountTokens({ scope: 'publicData', refreshToken: undefined }, enc);
+    expect(out).toEqual({ scope: 'publicData', refreshToken: undefined });
   });
 
   it('does not mutate the input object when it encrypts', () => {
