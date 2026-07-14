@@ -16,6 +16,9 @@ const permissiveScoreboard = {
   async preDispatch() {
     return { effectiveRemaining: 1000, blockedRetryAfter: null, etag: null };
   },
+  async budgetSnapshot() {
+    return { effectiveRemaining: 1000, selfCount: 0, echo: null, source: 'process-local' as const };
+  },
   async report() {},
   async getCachedBody() {
     return null;

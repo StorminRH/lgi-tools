@@ -59,3 +59,8 @@ export type DomainEventInput = {
     metadata: DomainEventMetadataByType[TEvent];
   };
 }[DomainEventType];
+
+export type DomainEventRow = DomainEventInput & {
+  id: number;
+  occurredAt: Date;
+};

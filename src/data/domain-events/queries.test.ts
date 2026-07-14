@@ -6,6 +6,10 @@ const h = vi.hoisted(() => ({
   after: vi.fn(),
   insert: vi.fn(),
   values: vi.fn(),
+  select: vi.fn(),
+  from: vi.fn(),
+  orderBy: vi.fn(),
+  limit: vi.fn(),
 }));
 
 vi.mock('next/server', () => ({
@@ -15,10 +19,11 @@ vi.mock('next/server', () => ({
 vi.mock('@/db', () => ({
   db: {
     insert: h.insert.mockImplementation(() => ({ values: h.values })),
+    select: h.select.mockImplementation(() => ({ from: h.from })),
   },
 }));
 
-import { emitDomainEvent } from './queries';
+import { emitDomainEvent, listRecentDomainEvents } from './queries';
 
 const events = [
   {
@@ -82,6 +87,9 @@ describe('domain event ledger', () => {
     h.insert.mockClear();
     h.values.mockReset();
     h.values.mockResolvedValue(undefined);
+    h.from.mockReturnValue({ orderBy: h.orderBy });
+    h.orderBy.mockReturnValue({ limit: h.limit });
+    h.limit.mockResolvedValue([]);
   });
 
   it('keeps the closed vocabulary aligned with every typed metadata shape', async () => {
@@ -126,5 +134,19 @@ describe('domain event ledger', () => {
     );
     expect(h.insert).not.toHaveBeenCalled();
     consoleError.mockRestore();
+  });
+
+  it('lists recent events in the database-provided order and limit', async () => {
+    const rows = [
+      {
+        id: 9,
+        occurredAt: new Date('2026-07-14T12:00:00Z'),
+        ...events[0],
+      },
+    ];
+    h.limit.mockResolvedValueOnce(rows);
+
+    await expect(listRecentDomainEvents(12)).resolves.toEqual(rows);
+    expect(h.limit).toHaveBeenCalledWith(12);
   });
 });

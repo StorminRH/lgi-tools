@@ -1,7 +1,7 @@
 import { readEnv } from '@/lib/env';
-import { MemoryScoreboard } from './memory';
-import { RedisScoreboard } from './redis';
-import type { EsiScoreboard } from './types';
+import { createMemoryScoreboard, readMemoryBudgetSnapshot } from './memory';
+import { createRedisScoreboard, readRedisBudgetSnapshot } from './redis';
+import type { EsiBudgetSnapshot, EsiScoreboard } from './types';
 
 // Shared ESI budget scoreboard (3.4.5, Decision Record 11). CCP's limits are
 // per-IP / per-app — shared across every serverless instance we run — so the
@@ -16,6 +16,7 @@ export {
   ESI_ERROR_CEILING,
   BODY_CACHE_MAX_BYTES,
   type CachedEtagMeta,
+  type EsiBudgetSnapshot,
   type EsiReport,
   type EsiScoreboard,
   type PreDispatchState,
@@ -33,8 +34,12 @@ function redisToken(): string | undefined {
   return readEnv('KV_REST_API_TOKEN') ?? readEnv('UPSTASH_REDIS_REST_TOKEN');
 }
 
-const redisScoreboards = new Map<string, RedisScoreboard>();
-let memoryScoreboard: MemoryScoreboard | null = null;
+type ResolvedScoreboard =
+  | { backend: 'redis'; scoreboard: ReturnType<typeof createRedisScoreboard> }
+  | { backend: 'memory'; scoreboard: ReturnType<typeof createMemoryScoreboard> };
+
+const redisScoreboards = new Map<string, ReturnType<typeof createRedisScoreboard>>();
+let memoryScoreboard: ReturnType<typeof createMemoryScoreboard> | null = null;
 let warnedMissingEnvDev = false;
 let erroredMissingEnvProd = false;
 
@@ -43,15 +48,15 @@ let erroredMissingEnvProd = false;
 // need no Upstash account. Unconfigured in production → null: the gate
 // fails closed, and the one-time error makes the misconfigured deploy
 // diagnosable from runtime logs.
-export function resolveScoreboard(): EsiScoreboard | null {
+function resolveConcreteScoreboard(): ResolvedScoreboard | null {
   const url = redisUrl();
   const token = redisToken();
   if (url && token) {
     const cached = redisScoreboards.get(url);
-    if (cached) return cached;
-    const created = new RedisScoreboard(url, token);
+    if (cached) return { backend: 'redis', scoreboard: cached };
+    const created = createRedisScoreboard(url, token);
     redisScoreboards.set(url, created);
-    return created;
+    return { backend: 'redis', scoreboard: created };
   }
 
   if (process.env.NODE_ENV !== 'production') {
@@ -61,8 +66,8 @@ export function resolveScoreboard(): EsiScoreboard | null {
       );
       warnedMissingEnvDev = true;
     }
-    memoryScoreboard ??= new MemoryScoreboard();
-    return memoryScoreboard;
+    memoryScoreboard ??= createMemoryScoreboard();
+    return { backend: 'memory', scoreboard: memoryScoreboard };
   }
 
   if (!erroredMissingEnvProd) {
@@ -72,6 +77,18 @@ export function resolveScoreboard(): EsiScoreboard | null {
     erroredMissingEnvProd = true;
   }
   return null;
+}
+
+export function resolveScoreboard(): EsiScoreboard | null {
+  return resolveConcreteScoreboard()?.scoreboard ?? null;
+}
+
+export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null> {
+  const scoreboard = resolveConcreteScoreboard();
+  if (scoreboard === null) return null;
+  return scoreboard.backend === 'redis'
+    ? await readRedisBudgetSnapshot(scoreboard.scoreboard)
+    : await readMemoryBudgetSnapshot(scoreboard.scoreboard);
 }
 
 // Reset module state between Vitest cases. Not for runtime callers.

@@ -14,3 +14,8 @@ export const esiRefreshWorkerSummarySchema = z.object({
 });
 
 export type EsiRefreshWorkerSummary = z.infer<typeof esiRefreshWorkerSummarySchema>;
+
+export const retryEsiRefreshJobFormSchema = z.object({
+  jobId: z.coerce.number().int().positive(),
+  range: z.string().optional(),
+});

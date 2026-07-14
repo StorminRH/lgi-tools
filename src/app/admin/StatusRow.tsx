@@ -23,25 +23,33 @@ export function StatusRow({
   status: SubsystemStatus;
   children?: ReactNode;
 }) {
-  return (
-    <Collapsible
-      header={
-        <span className="flex items-center gap-3 min-w-0 flex-1 py-1">
-          <span
-            aria-hidden
-            className={`size-2 rounded-full shrink-0 ${DOT_CLASS[status.level]}`}
-          />
-          <span className="font-mono text-ui text-name w-[110px] shrink-0">{name}</span>
-          <span className="font-mono text-ui text-muted truncate">{status.headline}</span>
-          <span
-            data-chevron
-            className="ml-auto text-micro text-muted transition-transform inline-block shrink-0"
-          >
-            ▾
-          </span>
+  const header = (
+    <span className="flex items-center gap-3 min-w-0 flex-1 py-1">
+      <span
+        aria-hidden
+        className={`size-2 rounded-full shrink-0 ${DOT_CLASS[status.level]}`}
+      />
+      <span className="font-mono text-ui text-name w-[110px] shrink-0">{name}</span>
+      <span className="font-mono text-ui text-muted truncate">{status.headline}</span>
+      {children && (
+        <span
+          data-chevron
+          className="ml-auto text-micro text-muted transition-transform inline-block shrink-0"
+        >
+          ▾
         </span>
-      }
-    >
+      )}
+    </span>
+  );
+  if (!children) {
+    return (
+      <div className="border-b border-border-soft last:border-b-0 px-3.5 py-[7px]">
+        {header}
+      </div>
+    );
+  }
+  return (
+    <Collapsible header={header}>
       {children}
     </Collapsible>
   );

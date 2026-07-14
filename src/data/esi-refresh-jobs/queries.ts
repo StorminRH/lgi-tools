@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import {
@@ -9,9 +9,23 @@ import {
 import { esiRefreshJobs } from './schema';
 import type {
   EnqueueEsiRefreshJobInput,
+  DeadLetterRow,
   EsiRefreshJob,
+  EsiRefreshQueueStat,
   EsiRefreshJobStatus,
+  RequeueDeadLetterOutcome,
 } from './types';
+
+const UNIQUE_VIOLATION = '23505';
+
+function isUniqueViolation(error: unknown): boolean {
+  let node = error;
+  for (let depth = 0; depth < 5 && node instanceof Error; depth++) {
+    if ((node as { code?: unknown }).code === UNIQUE_VIOLATION) return true;
+    node = (node as { cause?: unknown }).cause;
+  }
+  return false;
+}
 
 function idempotencyKey(input: EnqueueEsiRefreshJobInput): string {
   return [
@@ -151,6 +165,98 @@ export async function claimDueEsiRefreshJobs(
     if (rows[0] !== undefined) claimed.push(rows[0]);
   }
   return claimed;
+}
+
+export async function getEsiRefreshQueueStats(): Promise<EsiRefreshQueueStat[]> {
+  const oldestCreatedAt = sql`min(${esiRefreshJobs.createdAt})`.mapWith(
+    esiRefreshJobs.createdAt,
+  );
+  const rows = await db
+    .select({
+      status: esiRefreshJobs.status,
+      count: count(),
+      oldestCreatedAt,
+    })
+    .from(esiRefreshJobs)
+    .groupBy(esiRefreshJobs.status)
+    .orderBy(asc(esiRefreshJobs.status));
+  return rows.map((row) => ({
+    status: row.status,
+    count: Number(row.count),
+    oldestCreatedAt: row.oldestCreatedAt,
+  }));
+}
+
+export async function listDeadLetteredJobs(limit: number): Promise<DeadLetterRow[]> {
+  return await db
+    .select({
+      id: esiRefreshJobs.id,
+      dataset: esiRefreshJobs.dataset,
+      ownerType: esiRefreshJobs.ownerType,
+      ownerId: esiRefreshJobs.ownerId,
+      resource: esiRefreshJobs.resource,
+      budgetReason: esiRefreshJobs.budgetReason,
+      lastErrorCode: esiRefreshJobs.lastErrorCode,
+      attemptCount: esiRefreshJobs.attemptCount,
+      createdAt: esiRefreshJobs.createdAt,
+      finishedAt: esiRefreshJobs.finishedAt,
+    })
+    .from(esiRefreshJobs)
+    .where(eq(esiRefreshJobs.status, 'dead_lettered'))
+    .orderBy(desc(esiRefreshJobs.finishedAt), desc(esiRefreshJobs.id))
+    .limit(limit);
+}
+
+export async function requeueDeadLetteredJob(
+  id: number,
+  now = new Date(),
+): Promise<RequeueDeadLetterOutcome> {
+  try {
+    // One statement keeps classification and mutation atomic on both request
+    // drivers. The production neon-http driver does not support callback
+    // transactions; the partial unique index remains the final race authority.
+    const nowIso = now.toISOString();
+    const result = await db.execute<{ outcome: RequeueDeadLetterOutcome['outcome'] }>(sql`
+      with target as (
+        select status, idempotency_key
+        from ${esiRefreshJobs}
+        where ${esiRefreshJobs.id} = ${id}
+      ), updated as (
+        update ${esiRefreshJobs}
+        set status = 'queued',
+            attempt_count = 0,
+            next_attempt_at = ${nowIso}::timestamptz,
+            budget_reason = null,
+            budget_remaining = null,
+            retry_after_seconds = null,
+            last_error_code = null,
+            updated_at = ${nowIso}::timestamptz,
+            finished_at = null
+        where ${esiRefreshJobs.id} = ${id}
+          and ${esiRefreshJobs.status} = 'dead_lettered'
+          and not exists (
+            select 1 from ${esiRefreshJobs} live
+            where live.idempotency_key = (select idempotency_key from target)
+              and live.status in ('queued', 'running', 'deferred_for_budget', 'failed_retryable')
+          )
+        returning 'requeued'::text as outcome
+      )
+      select outcome from updated
+      union all
+      select case
+        when (select status from target) = 'dead_lettered' then 'superseded'
+        else 'not_found'
+      end as outcome
+      where not exists (select 1 from updated)
+      limit 1
+    `);
+    const rows = Array.isArray(result) ? result : result.rows;
+    const outcome = rows[0]?.outcome ?? 'not_found';
+    return { outcome };
+  } catch (error) {
+    if (isUniqueViolation(error)) return { outcome: 'superseded' };
+    throw error;
+  }
 }
 
 async function finishJob(

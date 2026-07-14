@@ -1,10 +1,10 @@
 import { after } from 'next/server';
-import { lt } from 'drizzle-orm';
+import { desc, lt } from 'drizzle-orm';
 import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import { DOMAIN_EVENT_RETENTION_DAYS } from './constants';
 import { domainEvents } from './schema';
-import type { DomainEventInput } from './types';
+import type { DomainEventInput, DomainEventRow } from './types';
 
 async function insertDomainEvent(input: DomainEventInput): Promise<void> {
   try {
@@ -26,6 +26,17 @@ export function emitDomainEvent(input: DomainEventInput): void {
   } catch (error) {
     console.error('[domain-events] ledger scheduling failed', error);
   }
+}
+
+export async function listRecentDomainEvents(limit: number): Promise<DomainEventRow[]> {
+  const rows = await db
+    .select()
+    .from(domainEvents)
+    .orderBy(desc(domainEvents.occurredAt), desc(domainEvents.id))
+    .limit(limit);
+  // The closed typed writer is the only production insertion path, so the
+  // stored eventType/metadata pair is a DomainEventInput by construction.
+  return rows as DomainEventRow[];
 }
 
 export async function pruneDomainEvents(

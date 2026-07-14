@@ -16,6 +16,7 @@ export const SERVER_USAGE_ACTIONS = [
   'admin_character_unlink', // admin force-unlinked a character from any user
   'admin_force_logout', // admin revoked all of a user's sessions
   'admin_character_reassign', // admin moved a character onto their own account
+  'admin_esi_job_requeued', // admin returned a dead-lettered ESI refresh job to the normal queue
   'feedback_submitted',
   'cross_origin_mutation', // log-only signal for a browser mutation from a foreign origin
   // 3.0.10 observability:

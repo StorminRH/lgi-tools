@@ -4,11 +4,14 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   enqueueEsiRefreshJob,
+  getEsiRefreshQueueStats,
   pruneEsiRefreshJobs,
   recoverStaleRunningJobs,
+  requeueDeadLetteredJob,
 } from '@/data/esi-refresh-jobs/queries';
 import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { EsiBudgetExhaustedError } from '@/lib/esi';
+import { db } from '@/db';
 import {
   canReachDb,
   dropDisposableSchema,
@@ -30,9 +33,13 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
   beforeAll(async () => {
     client = postgres(schemaUrl(baseUrl, SCHEMA), { max: 2, onnotice: () => {} });
     await setupDisposableSchema(client, SCHEMA, ['esi_refresh_jobs']);
+    process.env.LOCAL_DB_DRIVER = 'postgres-js';
+    process.env.DATABASE_URL = schemaUrl(baseUrl, SCHEMA);
   });
 
   afterAll(async () => {
+    const proxyClient = (db as unknown as { $client: ReturnType<typeof postgres> }).$client;
+    await proxyClient.end({ timeout: 5 }).catch(() => {});
     await dropDisposableSchema(client, SCHEMA);
     await client.end({ timeout: 5 }).catch(() => {});
   });
@@ -89,6 +96,90 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
       { key: 'boundary-success' },
       { key: 'old-dead-letter' },
     ]);
+  });
+
+  it('keeps a dead letter superseded when its idempotency key already has a live job', async () => {
+    const database = drizzlePg(client);
+    await database.delete(esiRefreshJobs);
+    const [deadLetter] = await database
+      .insert(esiRefreshJobs)
+      .values([
+        terminalJob('same-key', 'dead_lettered', OLD),
+        {
+          ...terminalJob('same-key', 'succeeded', NOW),
+          status: 'queued' as const,
+          finishedAt: null,
+        },
+      ])
+      .returning({ id: esiRefreshJobs.id });
+    if (!deadLetter) throw new Error('expected the dead-letter fixture');
+
+    const result = await requeueDeadLetteredJob(deadLetter.id, NOW);
+    const rows = await database
+      .select({ status: esiRefreshJobs.status, attemptCount: esiRefreshJobs.attemptCount })
+      .from(esiRefreshJobs)
+      .orderBy(asc(esiRefreshJobs.status));
+
+    expect(result).toEqual({ outcome: 'superseded' });
+    expect(rows).toEqual([
+      { status: 'queued', attemptCount: 0 },
+      { status: 'dead_lettered', attemptCount: 0 },
+    ]);
+  });
+
+  it('decodes the grouped oldest-created aggregate as a Date', async () => {
+    const database = drizzlePg(client);
+    await database.delete(esiRefreshJobs);
+    await database.insert(esiRefreshJobs).values([
+      {
+        ...terminalJob('older-queued', 'succeeded', OLD),
+        status: 'queued',
+        finishedAt: null,
+      },
+      {
+        ...terminalJob('newer-queued', 'succeeded', NOW),
+        status: 'queued',
+        finishedAt: null,
+      },
+    ]);
+
+    const rows = await getEsiRefreshQueueStats();
+
+    expect(rows).toEqual([{ status: 'queued', count: 2, oldestCreatedAt: OLD }]);
+    expect(rows[0]?.oldestCreatedAt).toBeInstanceOf(Date);
+  });
+
+  it('requeues a dead letter with every retry field reset', async () => {
+    const database = drizzlePg(client);
+    await database.delete(esiRefreshJobs);
+    const [deadLetter] = await database
+      .insert(esiRefreshJobs)
+      .values({
+        ...terminalJob('retry-me', 'dead_lettered', OLD),
+        attemptCount: 5,
+        budgetReason: 'rate_limited',
+        budgetRemaining: 3,
+        retryAfterSeconds: 900,
+        lastErrorCode: 'provider_5xx',
+      })
+      .returning({ id: esiRefreshJobs.id });
+    if (!deadLetter) throw new Error('expected the retry fixture');
+
+    await expect(requeueDeadLetteredJob(deadLetter.id, NOW)).resolves.toEqual({
+      outcome: 'requeued',
+    });
+    const [row] = await database.select().from(esiRefreshJobs);
+    expect(row).toMatchObject({
+      status: 'queued',
+      attemptCount: 0,
+      nextAttemptAt: NOW,
+      budgetReason: null,
+      budgetRemaining: null,
+      retryAfterSeconds: null,
+      lastErrorCode: null,
+      updatedAt: NOW,
+      finishedAt: null,
+    });
   });
 
   it('counts interrupted runs and dead-letters the fifth interruption', async () => {

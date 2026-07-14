@@ -14,12 +14,13 @@ import {
   resolveRetryAfter,
   WRITE_IF_LOWER_LUA,
 } from './keys';
+import { effectiveRemaining } from './budget';
 import {
   ERROR_COUNT_TTL_SECONDS,
-  ESI_ERROR_CEILING,
   ETAG_TTL_SECONDS,
   GROUP_STATE_TTL_SECONDS,
   type EsiReport,
+  type EsiBudgetSnapshot,
   type EsiScoreboard,
   type PreDispatchState,
 } from './types';
@@ -30,9 +31,28 @@ const REDIS_TIMEOUT_MS = 1500;
 
 type Pipeline = ReturnType<Redis['pipeline']>;
 
+function queueBudgetReads(pipeline: Pipeline, minute: number): void {
+  pipeline.get(keyErrorCount(minute));
+  pipeline.get(keyErrorCount(minute - 1));
+  pipeline.get(KEY_ERROR_ECHO);
+}
+
+function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'source'> {
+  // Sum the current and previous minute buckets: CCP's fixed 60s window has
+  // an unknown phase, and two buckets are a strict conservative superset.
+  const selfCount =
+    (parseStoredInt(rows[0] ?? null) ?? 0) + (parseStoredInt(rows[1] ?? null) ?? 0);
+  const echo = parseStoredInt(rows[2] ?? null);
+  return {
+    effectiveRemaining: effectiveRemaining(echo, selfCount),
+    selfCount,
+    echo,
+  };
+}
+
 // Upstash Redis (REST over plain fetch, so it runs anywhere the gate runs —
 // Vercel functions today, Convex actions later). The shared, real scoreboard.
-export class RedisScoreboard implements EsiScoreboard {
+class RedisScoreboard implements EsiScoreboard {
   private readonly redis: Redis;
 
   constructor(url: string, token: string) {
@@ -62,30 +82,32 @@ export class RedisScoreboard implements EsiScoreboard {
   async preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState> {
     const minute = epochMinute();
     const pipeline = this.redis.pipeline();
-    pipeline.get(keyErrorCount(minute));
-    pipeline.get(keyErrorCount(minute - 1));
-    pipeline.get(KEY_ERROR_ECHO);
+    queueBudgetReads(pipeline, minute);
     pipeline.get(keyBlock(normalizeEsiPath(url)));
     if (wantEtag) pipeline.get(keyEtagMeta(url));
     const rows = await pipeline.exec<(string | null)[]>();
 
-    // Sum the current and previous minute buckets: CCP's fixed 60s window has
-    // an unknown phase, and two buckets are a strict conservative superset.
-    const selfCount =
-      (parseStoredInt(rows[0] ?? null) ?? 0) + (parseStoredInt(rows[1] ?? null) ?? 0);
-    const echo = parseStoredInt(rows[2] ?? null);
+    const budget = budgetFromRows(rows);
     // The block value is its expiry as epoch seconds; surface time remaining.
     const blockExpiry = parseStoredInt(rows[3] ?? null);
     const blockRemaining =
       blockExpiry !== null ? blockExpiry - Math.floor(Date.now() / 1000) : null;
     return {
-      effectiveRemaining: Math.min(
-        echo ?? ESI_ERROR_CEILING,
-        ESI_ERROR_CEILING - selfCount,
-      ),
+      effectiveRemaining: budget.effectiveRemaining,
       blockedRetryAfter:
         blockRemaining !== null && blockRemaining > 0 ? blockRemaining : null,
       etag: wantEtag ? parseStoredMeta(rows[4] ?? null) : null,
+    };
+  }
+
+  async budgetSnapshot(): Promise<EsiBudgetSnapshot> {
+    const minute = epochMinute();
+    const pipeline = this.redis.pipeline();
+    queueBudgetReads(pipeline, minute);
+    const rows = await pipeline.exec<(string | null)[]>();
+    return {
+      ...budgetFromRows(rows),
+      source: 'shared',
     };
   }
 
@@ -185,4 +207,14 @@ export class RedisScoreboard implements EsiScoreboard {
   async getCachedBody(url: string): Promise<string | null> {
     return await this.redis.get<string>(keyEtagBody(url));
   }
+}
+
+export function createRedisScoreboard(url: string, token: string): RedisScoreboard {
+  return new RedisScoreboard(url, token);
+}
+
+export function readRedisBudgetSnapshot(
+  scoreboard: RedisScoreboard,
+): Promise<EsiBudgetSnapshot> {
+  return scoreboard.budgetSnapshot();
 }
