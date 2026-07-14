@@ -295,14 +295,18 @@ export async function getBudgetExhaustionCount(range: DateRange): Promise<number
   return Number(row?.n ?? 0);
 }
 
-export async function countPublicEsiBudgetExhaustionsSince(since: Date): Promise<number> {
+export async function countPublicEsiBudgetExhaustionsInWindow(
+  from: Date,
+  to: Date,
+): Promise<number> {
   const budgetExhausted = eq(sql`${usageLogs.metadata} ->> 'budgetExhausted'`, 'true');
   const [row] = await db
     .select({ n: count() })
     .from(usageLogs)
     .where(
       and(
-        gte(usageLogs.timestamp, since),
+        gte(usageLogs.timestamp, from),
+        lt(usageLogs.timestamp, to),
         or(
           and(
             eq(usageLogs.action, 'price_source_degraded'),
@@ -316,17 +320,19 @@ export async function countPublicEsiBudgetExhaustionsSince(since: Date): Promise
   return Number(row?.n ?? 0);
 }
 
-export async function hasPublicEsiBudgetAlertSince(since: Date): Promise<boolean> {
+export async function hasPublicEsiBudgetAlertForWindow(
+  windowStartedAt: string,
+): Promise<boolean> {
   const [row] = await db
     .select({ n: count() })
     .from(usageLogs)
     .where(
       and(
-        gte(usageLogs.timestamp, since),
         inArray(usageLogs.action, [
           'public_esi_budget_alert_claimed',
           'public_esi_budget_alerted',
         ]),
+        eq(sql`${usageLogs.metadata} ->> 'windowStartedAt'`, windowStartedAt),
       ),
     );
   return Number(row?.n ?? 0) > 0;

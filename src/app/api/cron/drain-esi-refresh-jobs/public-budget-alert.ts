@@ -1,8 +1,8 @@
 import {
   claimPublicEsiBudgetAlert,
   completePublicEsiBudgetAlertClaim,
-  countPublicEsiBudgetExhaustionsSince,
-  hasPublicEsiBudgetAlertSince,
+  countPublicEsiBudgetExhaustionsInWindow,
+  hasPublicEsiBudgetAlertForWindow,
 } from '@/data/telemetry/queries';
 import { alertPublicEsiBudgetExhaustion, isOpsAlertConfigured } from '@/lib/alerts';
 
@@ -18,26 +18,30 @@ export type PublicBudgetAlertResult =
 export async function maybeAlertPublicEsiBudgetExhaustion(
   now: Date = new Date(),
 ): Promise<PublicBudgetAlertResult> {
-  const since = new Date(
-    now.getTime() - PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES * 60_000,
+  const windowMs = PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES * 60_000;
+  const windowEndedAt = new Date(Math.floor(now.getTime() / windowMs) * windowMs);
+  const windowStartedAt = new Date(windowEndedAt.getTime() - windowMs);
+  const windowStartedAtIso = windowStartedAt.toISOString();
+  const count = await countPublicEsiBudgetExhaustionsInWindow(
+    windowStartedAt,
+    windowEndedAt,
   );
-  const count = await countPublicEsiBudgetExhaustionsSince(since);
   if (count < PUBLIC_ESI_BUDGET_ALERT_THRESHOLD) {
     return { status: 'below-threshold', count };
   }
-  if (await hasPublicEsiBudgetAlertSince(since)) {
+  if (await hasPublicEsiBudgetAlertForWindow(windowStartedAtIso)) {
     return { status: 'already-alerted', count };
   }
   if (!isOpsAlertConfigured()) return { status: 'unconfigured', count };
 
-  // Claim before delivery so concurrent runs cannot duplicate the webhook. A
-  // pending claim covers the complete aggregation window: if delivery succeeds
-  // but completion is interrupted, the same window still cannot post twice.
-  // Failed claims expire with their triggering window, so fresh exhaustion can
-  // alert later without depending on a compensating delete.
+  // Claim this exact completed window before delivery. Pending and delivered
+  // claims suppress only that fixed window, so an interrupted completion cannot
+  // duplicate it and a failed delivery cannot block the next window.
   const claimId = await claimPublicEsiBudgetAlert({
     count,
     windowMinutes: PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES,
+    windowStartedAt: windowStartedAtIso,
+    windowEndedAt: windowEndedAt.toISOString(),
   });
   const posted = await alertPublicEsiBudgetExhaustion({
     count,

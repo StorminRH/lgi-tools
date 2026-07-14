@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/data/telemetry/queries', () => ({
   claimPublicEsiBudgetAlert: mocks.claim,
   completePublicEsiBudgetAlertClaim: mocks.complete,
-  countPublicEsiBudgetExhaustionsSince: mocks.count,
-  hasPublicEsiBudgetAlertSince: mocks.hasAlert,
+  countPublicEsiBudgetExhaustionsInWindow: mocks.count,
+  hasPublicEsiBudgetAlertForWindow: mocks.hasAlert,
 }));
 vi.mock('@/lib/alerts', () => ({
   alertPublicEsiBudgetExhaustion: mocks.alert,
@@ -43,13 +43,23 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
 
   it('alerts once at the threshold and records the aggregation marker', async () => {
     mocks.count.mockResolvedValue(3);
-    await expect(maybeAlertPublicEsiBudgetExhaustion()).resolves.toEqual({
+    const now = new Date('2026-07-14T13:17:00.000Z');
+    await expect(maybeAlertPublicEsiBudgetExhaustion(now)).resolves.toEqual({
       status: 'alerted',
       count: 3,
     });
+    expect(mocks.count).toHaveBeenCalledWith(
+      new Date('2026-07-14T13:00:00.000Z'),
+      new Date('2026-07-14T13:15:00.000Z'),
+    );
     expect(mocks.alert).toHaveBeenCalledWith({ count: 3, windowMinutes: 15 });
-    expect(mocks.hasAlert).toHaveBeenCalledWith(mocks.count.mock.calls[0]![0]);
-    expect(mocks.claim).toHaveBeenCalledWith({ count: 3, windowMinutes: 15 });
+    expect(mocks.hasAlert).toHaveBeenCalledWith('2026-07-14T13:00:00.000Z');
+    expect(mocks.claim).toHaveBeenCalledWith({
+      count: 3,
+      windowMinutes: 15,
+      windowStartedAt: '2026-07-14T13:00:00.000Z',
+      windowEndedAt: '2026-07-14T13:15:00.000Z',
+    });
     expect(mocks.claim.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.alert.mock.invocationCallOrder[0]!,
     );
@@ -64,6 +74,19 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
       count: 5,
     });
     expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it('does not let a prior pending claim suppress the next completed window', async () => {
+    mocks.count.mockResolvedValue(3);
+    mocks.hasAlert.mockImplementation((windowStartedAt: string) =>
+      Promise.resolve(windowStartedAt === '2026-07-14T13:00:00.000Z'),
+    );
+
+    await expect(
+      maybeAlertPublicEsiBudgetExhaustion(new Date('2026-07-14T13:31:00.000Z')),
+    ).resolves.toEqual({ status: 'alerted', count: 3 });
+    expect(mocks.hasAlert).toHaveBeenCalledWith('2026-07-14T13:15:00.000Z');
+    expect(mocks.alert).toHaveBeenCalledOnce();
   });
 
   it('does not claim or post a window when alerts are unconfigured', async () => {
