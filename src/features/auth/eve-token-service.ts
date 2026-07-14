@@ -19,14 +19,28 @@
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { db } from '@/db';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import type { UsageAction } from '@/data/telemetry/types';
 import { requireEnv } from '@/lib/env';
-import { EVE_PROVIDER_ID, refreshEveToken, revokeEveRefreshToken } from './eve-sso';
+import {
+  EVE_PROVIDER_ID,
+  refreshEveToken,
+  revokeEveRefreshToken,
+  type RefreshFailureClass,
+} from './eve-sso';
 import { account } from './schema';
 import { decryptToken, encryptToken } from './token-crypto';
 
 // Refresh proactively when the stored access token has under a minute of life
 // left, so a vended token always carries usable headroom for the caller's call.
 export const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
+
+const TOKEN_REFRESH_FAILURE_ACTIONS = {
+  invalid_grant: 'eve_token_refresh_invalid_grant',
+  timeout: 'eve_token_refresh_timeout',
+  connection: 'eve_token_refresh_connection',
+  provider_5xx: 'eve_token_refresh_provider_5xx',
+  unexpected: 'eve_token_refresh_unexpected',
+} as const satisfies Record<RefreshFailureClass, UsageAction>;
 
 export type FreshTokenResult =
   | { kind: 'ok'; accessToken: string; expiresAt: Date; characterId: number; scopes: string[] }
@@ -40,6 +54,14 @@ export type FreshTokenResult =
 function parseScopes(scope: string | null): string[] {
   const trimmed = scope?.trim();
   return trimmed ? trimmed.split(/\s+/) : [];
+}
+
+function logTokenRefreshFailure(characterId: number, failureClass: RefreshFailureClass): void {
+  void logUsageEvent({
+    action: TOKEN_REFRESH_FAILURE_ACTIONS[failureClass],
+    characterId,
+    metadata: { failureClass },
+  }).catch((err) => console.error('[eve-token] telemetry write failed', err));
 }
 
 // The one account read, shared by the top of the vend and the lost-race re-read,
@@ -161,8 +183,10 @@ export async function getFreshAccessTokenForCharacter(
     clientSecret: requireEnv('EVE_CLIENT_SECRET'),
   });
 
-  // Transient upstream/network failure: keep custody intact and let the caller
-  // retry. We do NOT touch the row.
+  if (result.kind !== 'ok') logTokenRefreshFailure(characterId, result.failureClass);
+
+  // Any failure that did not prove the refresh token dead: keep custody intact
+  // and let the caller retry. We do NOT touch the row.
   if (result.kind === 'retryable') return { kind: 'upstream_error' };
 
   // Dead refresh token: drop custody so the next vend short-circuits to

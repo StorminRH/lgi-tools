@@ -158,7 +158,10 @@ describe('getFreshAccessTokenForCharacter', () => {
         scope: null,
       },
     ];
-    h.refreshEveTokenMock.mockResolvedValue({ kind: 'dead' });
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'dead',
+      failureClass: 'invalid_grant',
+    });
     h.updateReturning = [{ id: 'acc1' }]; // conditional NULL matched → we held the latest token
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
@@ -166,7 +169,12 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(cleared.accessToken).toBeNull();
     expect(cleared.refreshToken).toBeNull();
     expect(cleared.accessTokenExpiresAt).toBeNull();
-    expect(h.logUsageEventMock).not.toHaveBeenCalled();
+    expect(h.logUsageEventMock).toHaveBeenCalledWith({
+      action: 'eve_token_refresh_invalid_grant',
+      characterId: CHAR_ID,
+      metadata: { failureClass: 'invalid_grant' },
+    });
+    expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
   });
 
   it('reflects the winner\'s token when the success write loses the race (0 rows)', async () => {
@@ -212,7 +220,10 @@ describe('getFreshAccessTokenForCharacter', () => {
         scope: null,
       },
     ];
-    h.refreshEveTokenMock.mockResolvedValue({ kind: 'dead' });
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'dead',
+      failureClass: 'invalid_grant',
+    });
     h.updateReturning = []; // 0 rows: a concurrent winner rotated before our NULL landed
     h.rereadRows = [
       {
@@ -226,7 +237,12 @@ describe('getFreshAccessTokenForCharacter', () => {
 
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access' });
-    expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
+    expect(h.logUsageEventMock).toHaveBeenCalledWith({
+      action: 'eve_token_refresh_invalid_grant',
+      characterId: CHAR_ID,
+      metadata: { failureClass: 'invalid_grant' },
+    });
     expect(h.logUsageEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'eve_token_refresh_race', characterId: CHAR_ID }),
     );
@@ -242,15 +258,18 @@ describe('getFreshAccessTokenForCharacter', () => {
         scope: null,
       },
     ];
-    h.refreshEveTokenMock.mockResolvedValue({ kind: 'dead' });
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'dead',
+      failureClass: 'invalid_grant',
+    });
     h.updateReturning = [];
     h.rereadRows = [
       { id: 'acc1', accessToken: null, refreshToken: null, accessTokenExpiresAt: null, scope: null },
     ];
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
-    // Telemetry still fires (it was a 0-row dead); the re-read just found no token.
-    expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
+    // The class event and race signal both fire; the re-read just found no token.
+    expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
   });
 
   it('returns reauth_required when a lost-race re-read finds an expired token (mirrors the skew guard)', async () => {
@@ -285,7 +304,37 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'reauth_required' });
   });
 
-  it('preserves custody (no DB write) and returns upstream_error on a transient failure', async () => {
+  it.each([
+    ['timeout', 'eve_token_refresh_timeout'],
+    ['connection', 'eve_token_refresh_connection'],
+    ['provider_5xx', 'eve_token_refresh_provider_5xx'],
+    ['unexpected', 'eve_token_refresh_unexpected'],
+  ] as const)(
+    'preserves custody and emits the %s failure action for a retryable refresh',
+    async (failureClass, action) => {
+      h.selectRows = [
+        {
+          id: 'acc1',
+          accessToken: encryptToken('old-access'),
+          refreshToken: encryptToken('old-refresh'),
+          accessTokenExpiresAt: past(),
+          scope: null,
+        },
+      ];
+      h.refreshEveTokenMock.mockResolvedValue({ kind: 'retryable', failureClass });
+
+      expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
+      expect(h.updateSpy).not.toHaveBeenCalled();
+      expect(h.logUsageEventMock).toHaveBeenCalledWith({
+        action,
+        characterId: CHAR_ID,
+        metadata: { failureClass },
+      });
+      expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('does not let a rejected telemetry write fail a vend', async () => {
     h.selectRows = [
       {
         id: 'acc1',
@@ -295,9 +344,18 @@ describe('getFreshAccessTokenForCharacter', () => {
         scope: null,
       },
     ];
-    h.refreshEveTokenMock.mockResolvedValue({ kind: 'retryable' });
+    h.refreshEveTokenMock.mockResolvedValue({
+      kind: 'retryable',
+      failureClass: 'connection',
+    });
+    h.logUsageEventMock.mockRejectedValueOnce(new Error('telemetry unavailable'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(await getFreshAccessTokenForCharacter(CHAR_ID)).toEqual({ kind: 'upstream_error' });
-    expect(h.updateSpy).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(consoleSpy).toHaveBeenCalledWith(
+      '[eve-token] telemetry write failed',
+      expect.any(Error),
+    ));
+    consoleSpy.mockRestore();
   });
 });

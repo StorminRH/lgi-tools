@@ -205,12 +205,28 @@ interface RefreshTokenInput {
 
 // Outcome of a refresh-token grant. Distinguishing the three cases is the whole
 // point: `dead` means the refresh token is gone (the pilot must reconnect, so
-// the caller nulls custody); `retryable` is a transient upstream/network blip
-// (custody is preserved untouched, the caller surfaces a retryable error).
+// the caller nulls custody); `retryable` means the response did not prove the
+// token dead, so custody is preserved and the caller surfaces a retryable error.
+export type RefreshFailureClass =
+  | 'invalid_grant'
+  | 'timeout'
+  | 'connection'
+  | 'provider_5xx'
+  | 'unexpected';
+
 export type RefreshResult =
   | { kind: 'ok'; access_token: string; refresh_token: string; expires_in: number }
-  | { kind: 'dead' }
-  | { kind: 'retryable' };
+  | { kind: 'dead'; failureClass: 'invalid_grant' }
+  | { kind: 'retryable'; failureClass: Exclude<RefreshFailureClass, 'invalid_grant'> };
+
+function isTimeoutError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'TimeoutError'
+  );
+}
 
 // Exchange a stored refresh token for a fresh access token. Pure HTTP — no DB,
 // no crypto; persistence + re-encryption live in eve-token-service.ts so this
@@ -231,10 +247,13 @@ export async function refreshEveToken({
       EVE_TOKEN_URL,
       buildTokenRequestInit(body, clientId, clientSecret),
     );
-  } catch {
+  } catch (error) {
     // Network error or the fetch-with-timeout abort firing — transient. Never
     // destroy custody on a blip.
-    return { kind: 'retryable' };
+    return {
+      kind: 'retryable',
+      failureClass: isTimeoutError(error) ? 'timeout' : 'connection',
+    };
   }
 
   // A 400 carries an OAuth error body. ONLY `invalid_grant` means the refresh
@@ -246,13 +265,16 @@ export async function refreshEveToken({
   if (res.status === 400) {
     const errBody = eveTokenErrorSchema.safeParse(await res.json().catch(() => null));
     return errBody.success && errBody.data.error === 'invalid_grant'
-      ? { kind: 'dead' }
-      : { kind: 'retryable' };
+      ? { kind: 'dead', failureClass: 'invalid_grant' }
+      : { kind: 'retryable', failureClass: 'unexpected' };
   }
-  if (!res.ok) return { kind: 'retryable' };
+  if (res.status >= 500 && res.status <= 599) {
+    return { kind: 'retryable', failureClass: 'provider_5xx' };
+  }
+  if (!res.ok) return { kind: 'retryable', failureClass: 'unexpected' };
 
-  const parsed = eveTokenResponseSchema.safeParse(await res.json());
-  if (!parsed.success) return { kind: 'retryable' };
+  const parsed = eveTokenResponseSchema.safeParse(await res.json().catch(() => null));
+  if (!parsed.success) return { kind: 'retryable', failureClass: 'unexpected' };
 
   return {
     kind: 'ok',
