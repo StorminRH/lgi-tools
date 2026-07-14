@@ -1,8 +1,9 @@
-import { and, asc, eq, inArray, lt, lte } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import {
   ESI_REFRESH_JOB_RETENTION_DAYS,
+  ESI_REFRESH_JOB_MAX_ATTEMPTS,
   LIVE_ESI_REFRESH_JOB_STATUSES,
 } from './constants';
 import { esiRefreshJobs } from './schema';
@@ -66,18 +67,41 @@ export async function enqueueEsiRefreshJob(
   return existing[0].id;
 }
 
-export async function recoverStaleRunningJobs(cutoff: Date, now = new Date()): Promise<number> {
-  const recovered = await db
+export async function recoverStaleRunningJobs(
+  cutoff: Date,
+  now = new Date(),
+  database: AnyPgDb = db,
+): Promise<{ recovered: number; deadLettered: EsiRefreshJob[] }> {
+  const deadLettered = await database
+    .update(esiRefreshJobs)
+    .set({
+      status: 'dead_lettered',
+      attemptCount: sql`${esiRefreshJobs.attemptCount} + 1`,
+      updatedAt: now,
+      finishedAt: now,
+      retryAfterSeconds: null,
+      lastErrorCode: 'worker_interrupted',
+    })
+    .where(
+      and(
+        eq(esiRefreshJobs.status, 'running'),
+        lt(esiRefreshJobs.updatedAt, cutoff),
+        gte(esiRefreshJobs.attemptCount, ESI_REFRESH_JOB_MAX_ATTEMPTS - 1),
+      ),
+    )
+    .returning();
+  const retryable = await database
     .update(esiRefreshJobs)
     .set({
       status: 'failed_retryable',
+      attemptCount: sql`${esiRefreshJobs.attemptCount} + 1`,
       nextAttemptAt: now,
       updatedAt: now,
       lastErrorCode: 'worker_interrupted',
     })
     .where(and(eq(esiRefreshJobs.status, 'running'), lt(esiRefreshJobs.updatedAt, cutoff)))
     .returning({ id: esiRefreshJobs.id });
-  return recovered.length;
+  return { recovered: deadLettered.length + retryable.length, deadLettered };
 }
 
 export async function claimDueEsiRefreshJobs(

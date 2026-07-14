@@ -10,7 +10,9 @@ const mocks = vi.hoisted(() => ({
   markPermanent: vi.fn(async () => {}),
   markRetryable: vi.fn(async () => {}),
   markSucceeded: vi.fn(async () => {}),
-  recover: vi.fn(async () => 0),
+  recover: vi.fn<
+    () => Promise<{ recovered: number; deadLettered: EsiRefreshJob[] }>
+  >(async () => ({ recovered: 0, deadLettered: [] })),
   runAssets: vi.fn(),
   runBlueprints: vi.fn(),
   runCharacterJobs: vi.fn(),
@@ -73,7 +75,8 @@ function job(
 describe('drainEsiRefreshJobs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.recover.mockResolvedValue(2);
+    mocks.recover.mockResolvedValue({ recovered: 2, deadLettered: [] });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   it('processes each dataset serially and records every lifecycle outcome', async () => {
@@ -141,5 +144,38 @@ describe('drainEsiRefreshJobs', () => {
       attemptCount: 5,
       failureCode: 'connection',
     });
+  });
+
+  it('alerts recovered dead letters and continues after one outcome write fails', async () => {
+    const interrupted = job(8, 'owned_blueprints', 5);
+    mocks.recover.mockResolvedValue({ recovered: 1, deadLettered: [interrupted] });
+    mocks.claim.mockResolvedValue([job(9, 'skills'), job(10, 'skills')]);
+    mocks.runSkills.mockResolvedValue({
+      kind: 'succeeded',
+      target: { ownerType: 'character', ownerId: 1001 },
+    });
+    mocks.markSucceeded
+      .mockRejectedValueOnce(new Error('database write failed'))
+      .mockResolvedValueOnce(undefined);
+
+    const result = await drainEsiRefreshJobs(NOW);
+
+    expect(result).toMatchObject({
+      claimed: 2,
+      succeeded: 1,
+      deadLettered: 1,
+      recovered: 1,
+    });
+    expect(mocks.markSucceeded).toHaveBeenCalledTimes(2);
+    expect(mocks.alertDeadLetter).toHaveBeenCalledWith({
+      jobId: 8,
+      dataset: 'owned_blueprints',
+      resource: '/esi/owned_blueprints',
+      attemptCount: 5,
+      failureCode: 'worker_interrupted',
+    });
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining('"jobId":9'),
+    );
   });
 });

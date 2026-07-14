@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   enqueueEsiRefreshJob,
   pruneEsiRefreshJobs,
+  recoverStaleRunningJobs,
 } from '@/data/esi-refresh-jobs/queries';
 import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { EsiBudgetExhaustedError } from '@/lib/esi';
@@ -89,6 +90,44 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
       { key: 'old-dead-letter' },
     ]);
   });
+
+  it('counts interrupted runs and dead-letters the fifth interruption', async () => {
+    const database = drizzlePg(client);
+    await database.delete(esiRefreshJobs);
+    await database.insert(esiRefreshJobs).values([
+      runningJob('retry-interrupted', 2, new Date('2026-07-14T11:00:00Z')),
+      runningJob('dead-interrupted', 4, new Date('2026-07-14T11:00:00Z')),
+      runningJob('still-running', 4, new Date('2026-07-14T11:55:00Z')),
+    ]);
+
+    const result = await recoverStaleRunningJobs(
+      new Date('2026-07-14T11:50:00Z'),
+      NOW,
+      database,
+    );
+    const rows = await database
+      .select({
+        key: esiRefreshJobs.idempotencyKey,
+        status: esiRefreshJobs.status,
+        attemptCount: esiRefreshJobs.attemptCount,
+      })
+      .from(esiRefreshJobs)
+      .orderBy(asc(esiRefreshJobs.idempotencyKey));
+
+    expect(result.recovered).toBe(2);
+    expect(result.deadLettered).toHaveLength(1);
+    expect(result.deadLettered[0]).toMatchObject({
+      idempotencyKey: 'dead-interrupted',
+      status: 'dead_lettered',
+      attemptCount: 5,
+      lastErrorCode: 'worker_interrupted',
+    });
+    expect(rows).toEqual([
+      { key: 'dead-interrupted', status: 'dead_lettered', attemptCount: 5 },
+      { key: 'retry-interrupted', status: 'failed_retryable', attemptCount: 3 },
+      { key: 'still-running', status: 'running', attemptCount: 4 },
+    ]);
+  });
 });
 
 function terminalJob(
@@ -108,5 +147,21 @@ function terminalJob(
     createdAt: finishedAt,
     updatedAt: finishedAt,
     finishedAt,
+  };
+}
+
+function runningJob(idempotencyKey: string, attemptCount: number, updatedAt: Date) {
+  return {
+    dataset: 'owned_blueprints' as const,
+    userId: 'user-1',
+    ownerType: 'character' as const,
+    ownerId: 1001,
+    resource: '/characters/1001/blueprints/',
+    idempotencyKey,
+    status: 'running' as const,
+    attemptCount,
+    nextAttemptAt: updatedAt,
+    createdAt: updatedAt,
+    updatedAt,
   };
 }

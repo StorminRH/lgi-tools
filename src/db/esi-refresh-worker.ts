@@ -72,6 +72,15 @@ async function recordRetryableFailure(
   }
 
   await markEsiRefreshJobDeadLettered(job.id, attemptCount, code, now);
+  await alertDeadLetter(job, attemptCount, code);
+  return 'dead_lettered';
+}
+
+async function alertDeadLetter(
+  job: EsiRefreshJob,
+  attemptCount: number,
+  failureCode: string,
+): Promise<void> {
   await swallow(
     '[esi-refresh-worker] dead-letter alert failed',
     alertEsiRefreshDeadLetter({
@@ -79,10 +88,9 @@ async function recordRetryableFailure(
       dataset: job.dataset,
       resource: job.resource,
       attemptCount,
-      failureCode: code,
+      failureCode,
     }),
   );
-  return 'dead_lettered';
 }
 
 async function processJob(
@@ -114,9 +122,14 @@ async function processJob(
 export async function drainEsiRefreshJobs(
   now = new Date(),
 ): Promise<Omit<EsiRefreshWorkerSummary, 'status' | 'durationMs'>> {
-  const recovered = await recoverStaleRunningJobs(
+  const recovery = await recoverStaleRunningJobs(
     new Date(now.getTime() - ESI_REFRESH_STALE_RUNNING_MS),
     now,
+  );
+  await Promise.all(
+    recovery.deadLettered.map((job) =>
+      alertDeadLetter(job, job.attemptCount, 'worker_interrupted'),
+    ),
   );
   const jobs = await claimDueEsiRefreshJobs(ESI_REFRESH_JOB_BATCH_SIZE, now);
   const counts = {
@@ -125,17 +138,28 @@ export async function drainEsiRefreshJobs(
     deferredForBudget: 0,
     failedRetryable: 0,
     failedPermanent: 0,
-    deadLettered: 0,
-    recovered,
+    deadLettered: recovery.deadLettered.length,
+    recovered: recovery.recovered,
   };
 
   for (const job of jobs) {
-    const outcome = await processJob(job, now);
-    if (outcome === 'succeeded') counts.succeeded += 1;
-    if (outcome === 'deferred_for_budget') counts.deferredForBudget += 1;
-    if (outcome === 'failed_retryable') counts.failedRetryable += 1;
-    if (outcome === 'failed_permanent') counts.failedPermanent += 1;
-    if (outcome === 'dead_lettered') counts.deadLettered += 1;
+    try {
+      const outcome = await processJob(job, now);
+      if (outcome === 'succeeded') counts.succeeded += 1;
+      if (outcome === 'deferred_for_budget') counts.deferredForBudget += 1;
+      if (outcome === 'failed_retryable') counts.failedRetryable += 1;
+      if (outcome === 'failed_permanent') counts.failedPermanent += 1;
+      if (outcome === 'dead_lettered') counts.deadLettered += 1;
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          scope: 'esi-refresh-worker:job',
+          jobId: job.id,
+          dataset: job.dataset,
+          failure: retryCode(error),
+        }),
+      );
+    }
   }
 
   return counts;
