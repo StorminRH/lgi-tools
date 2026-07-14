@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   updateSpy: vi.fn(),
   refreshEveTokenMock: vi.fn(),
   logUsageEventMock: vi.fn(() => Promise.resolve()),
+  emitDomainEventMock: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({
@@ -40,6 +41,7 @@ vi.mock('@/db', () => ({
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({ logUsageEvent: h.logUsageEventMock }));
+vi.mock('@/data/domain-events/queries', () => ({ emitDomainEvent: h.emitDomainEventMock }));
 
 vi.mock('./eve-sso', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./eve-sso')>();
@@ -70,6 +72,7 @@ beforeEach(() => {
   h.updateSpy.mockClear();
   h.refreshEveTokenMock.mockReset();
   h.logUsageEventMock.mockClear();
+  h.emitDomainEventMock.mockClear();
 });
 
 afterEach(() => {
@@ -150,6 +153,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(persisted.accessToken.startsWith('v1:')).toBe(true);
     expect(decryptToken(persisted.refreshToken)).toBe('new-refresh');
     expect(decryptToken(persisted.accessToken)).toBe('new-access');
+    expect(h.emitDomainEventMock).not.toHaveBeenCalled();
   });
 
   it('records a first invalid_grant strike while preserving custody', async () => {
@@ -184,6 +188,15 @@ describe('getFreshAccessTokenForCharacter', () => {
       metadata: { failureClass: 'invalid_grant' },
     });
     expect(h.logUsageEventMock).toHaveBeenCalledTimes(1);
+    expect(h.emitDomainEventMock).toHaveBeenCalledWith({
+      eventType: 'eve_token_state_changed',
+      metadata: {
+        characterId: CHAR_ID,
+        from: 'usable',
+        to: 'suspect',
+        reason: 'invalid_grant',
+      },
+    });
   });
 
   it('suppresses provider calls at 4:59 without emitting refresh-failure telemetry', async () => {
@@ -239,6 +252,15 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(cleared.accessTokenExpiresAt).toBeNull();
     expect(cleared.refreshTokenInvalidGrantCount).toBe(2);
     expect(cleared).not.toHaveProperty('refreshTokenInvalidGrantFirstAt');
+    expect(h.emitDomainEventMock).toHaveBeenCalledWith({
+      eventType: 'eve_token_state_changed',
+      metadata: {
+        characterId: CHAR_ID,
+        from: 'suspect',
+        to: 'reauth_required',
+        reason: 'invalid_grant',
+      },
+    });
   });
 
   it('forces a post-window refresh and resets the strike on success', async () => {
@@ -273,6 +295,15 @@ describe('getFreshAccessTokenForCharacter', () => {
     const persisted = h.updateSpy.mock.calls[0]![0] as Record<string, unknown>;
     expect(persisted.refreshTokenInvalidGrantCount).toBe(0);
     expect(persisted.refreshTokenInvalidGrantFirstAt).toBeNull();
+    expect(h.emitDomainEventMock).toHaveBeenCalledWith({
+      eventType: 'eve_token_state_changed',
+      metadata: {
+        characterId: CHAR_ID,
+        from: 'suspect',
+        to: 'usable',
+        reason: 'refresh_recovered',
+      },
+    });
   });
 
   it('reflects the winner\'s token when the success write loses the race (0 rows)', async () => {
@@ -306,6 +337,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     // Reflects the persisted (winner's) token, NOT our own minted one — and never nulls.
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access', scopes: ['publicData'] });
     expect(h.logUsageEventMock).not.toHaveBeenCalled();
+    expect(h.emitDomainEventMock).not.toHaveBeenCalled();
   });
 
   it('on a lost first-strike CAS, logs the race signal and reflects a fresh winner', async () => {
@@ -338,6 +370,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
     expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access' });
     expect(h.logUsageEventMock).toHaveBeenCalledTimes(2);
+    expect(h.emitDomainEventMock).not.toHaveBeenCalled();
     expect(h.logUsageEventMock).toHaveBeenCalledWith({
       action: 'eve_token_refresh_invalid_grant',
       characterId: CHAR_ID,

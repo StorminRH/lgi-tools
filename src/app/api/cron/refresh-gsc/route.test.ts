@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const syncGscMock = vi.fn();
+const pruneDomainEventsMock = vi.fn();
 const pruneSearchMock = vi.fn();
 const pruneInspectionsMock = vi.fn();
 const pruneUsageMock = vi.fn();
@@ -13,6 +14,10 @@ const getSitemapEntriesMock = vi.fn();
 
 vi.mock('@/data/gsc/ingest', () => ({
   syncGsc: (...args: unknown[]) => syncGscMock(...args),
+}));
+
+vi.mock('@/data/domain-events/queries', () => ({
+  pruneDomainEvents: (...args: unknown[]) => pruneDomainEventsMock(...args),
 }));
 
 vi.mock('@/data/gsc/queries', () => ({
@@ -56,6 +61,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
   beforeEach(() => {
     vi.resetModules();
     syncGscMock.mockReset();
+    pruneDomainEventsMock.mockReset();
     pruneSearchMock.mockReset();
     pruneInspectionsMock.mockReset();
     pruneUsageMock.mockReset();
@@ -75,6 +81,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
       durationMs: 1,
     });
     pruneUsageMock.mockResolvedValue(undefined);
+    pruneDomainEventsMock.mockResolvedValue(undefined);
     pruneSearchMock.mockResolvedValue(undefined);
     pruneInspectionsMock.mockResolvedValue(undefined);
     pruneAuditMock.mockResolvedValue(undefined);
@@ -100,6 +107,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     expect(response.status).toBe(200);
     expect((await response.json()).status).toBe('skipped');
     expect(pruneUsageMock).toHaveBeenCalledOnce();
+    expect(pruneDomainEventsMock).toHaveBeenCalledOnce();
     expect(pruneSearchMock).toHaveBeenCalledOnce();
     expect(pruneInspectionsMock).toHaveBeenCalledOnce();
     expect(pruneAuditMock).toHaveBeenCalledOnce();
@@ -117,6 +125,7 @@ describe('GET /api/cron/refresh-gsc housekeeping', () => {
     ).rejects.toThrow('sitemap failed');
 
     expect(pruneUsageMock).toHaveBeenCalledOnce();
+    expect(pruneDomainEventsMock).toHaveBeenCalledOnce();
     expect(pruneSearchMock).toHaveBeenCalledOnce();
     expect(pruneInspectionsMock).toHaveBeenCalledOnce();
     expect(pruneAuditMock).toHaveBeenCalledOnce();

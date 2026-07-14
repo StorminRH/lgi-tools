@@ -3,6 +3,9 @@ import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
+import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
+import { pruneDomainEvents } from '@/data/domain-events/queries';
+import { domainEvents } from '@/data/domain-events/schema';
 import { pruneGscSearchAnalytics, pruneGscUrlInspections } from '@/data/gsc/queries';
 import { gscSearchAnalytics, gscUrlInspection } from '@/data/gsc/schema';
 import {
@@ -38,6 +41,7 @@ describe.skipIf(!reachable)('table retention prunes execute against Postgres', (
     client = postgres(schemaUrl(baseUrl, SCHEMA), { max: 1, onnotice: () => {} });
     await setupDisposableSchema(client, SCHEMA, [
       'corp_access_audit',
+      'domain_events',
       'gsc_search_analytics',
       'gsc_url_inspection',
       'verification',
@@ -100,6 +104,50 @@ describe.skipIf(!reachable)('table retention prunes execute against Postgres', (
         reason: 'new',
       },
     ]);
+    await database.insert(domainEvents).values([
+      {
+        id: 1,
+        occurredAt: new Date(CUTOFF.getTime() - 1),
+        eventType: 'price_refresh_finished',
+        metadata: {
+          outcome: 'completed',
+          fetched: 1,
+          written: 1,
+          esiCount: 1,
+          fuzzworkFallbackCount: 0,
+          budgetExhausted: false,
+          durationMs: 1,
+        },
+      },
+      {
+        id: 2,
+        occurredAt: CUTOFF,
+        eventType: 'price_refresh_finished',
+        metadata: {
+          outcome: 'completed',
+          fetched: 1,
+          written: 1,
+          esiCount: 1,
+          fuzzworkFallbackCount: 0,
+          budgetExhausted: false,
+          durationMs: 1,
+        },
+      },
+      {
+        id: 3,
+        occurredAt: new Date(CUTOFF.getTime() + 1),
+        eventType: 'price_refresh_finished',
+        metadata: {
+          outcome: 'completed',
+          fetched: 1,
+          written: 1,
+          esiCount: 1,
+          fuzzworkFallbackCount: 0,
+          budgetExhausted: false,
+          durationMs: 1,
+        },
+      },
+    ]);
     await database.insert(verification).values([
       {
         id: 'old',
@@ -124,6 +172,7 @@ describe.skipIf(!reachable)('table retention prunes execute against Postgres', (
     await pruneGscSearchAnalytics(database, GSC_RETENTION_DAYS, NOW);
     await pruneGscUrlInspections(database, GSC_RETENTION_DAYS, NOW);
     await pruneCorpAccessAudit(database, CORP_ACCESS_AUDIT_RETENTION_DAYS, NOW);
+    await pruneDomainEvents(database, DOMAIN_EVENT_RETENTION_DAYS, NOW);
     await pruneExpiredVerifications(database, VERIFICATION_RETENTION_DAYS, NOW);
 
     const analytics = await database
@@ -138,6 +187,10 @@ describe.skipIf(!reachable)('table retention prunes execute against Postgres', (
       .select({ userId: corpAccessAudit.userId })
       .from(corpAccessAudit)
       .orderBy(asc(corpAccessAudit.decidedAt));
+    const retainedEvents = await database
+      .select({ id: domainEvents.id })
+      .from(domainEvents)
+      .orderBy(asc(domainEvents.occurredAt));
     const verifications = await database
       .select({ id: verification.id })
       .from(verification)
@@ -146,6 +199,7 @@ describe.skipIf(!reachable)('table retention prunes execute against Postgres', (
     expect(analytics).toEqual([{ date: CUTOFF_DAY }, { date: NEW_DAY }]);
     expect(inspections).toEqual([{ date: CUTOFF_DAY }, { date: NEW_DAY }]);
     expect(audits).toEqual([{ userId: 'boundary' }, { userId: 'new' }]);
+    expect(retainedEvents).toEqual([{ id: 2 }, { id: 3 }]);
     expect(verifications).toEqual([{ id: 'boundary' }, { id: 'new' }]);
   });
 });

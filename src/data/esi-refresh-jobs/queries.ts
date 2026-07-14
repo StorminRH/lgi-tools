@@ -71,7 +71,11 @@ export async function recoverStaleRunningJobs(
   cutoff: Date,
   now = new Date(),
   database: AnyPgDb = db,
-): Promise<{ recovered: number; deadLettered: EsiRefreshJob[] }> {
+): Promise<{
+  recovered: number;
+  retryable: EsiRefreshJob[];
+  deadLettered: EsiRefreshJob[];
+}> {
   const deadLettered = await database
     .update(esiRefreshJobs)
     .set({
@@ -100,8 +104,12 @@ export async function recoverStaleRunningJobs(
       lastErrorCode: 'worker_interrupted',
     })
     .where(and(eq(esiRefreshJobs.status, 'running'), lt(esiRefreshJobs.updatedAt, cutoff)))
-    .returning({ id: esiRefreshJobs.id });
-  return { recovered: deadLettered.length + retryable.length, deadLettered };
+    .returning();
+  return {
+    recovered: deadLettered.length + retryable.length,
+    retryable,
+    deadLettered,
+  };
 }
 
 export async function claimDueEsiRefreshJobs(

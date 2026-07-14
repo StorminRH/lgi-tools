@@ -337,6 +337,13 @@
       "when": 1784036577203,
       "tag": "0047_flawless_weapon_omega",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1784058123925,
+      "tag": "0048_same_bloodscream",
+      "breakpoints": true
     }
   ]
 }

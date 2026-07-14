@@ -115,6 +115,13 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
       .orderBy(asc(esiRefreshJobs.idempotencyKey));
 
     expect(result.recovered).toBe(2);
+    expect(result.retryable).toHaveLength(1);
+    expect(result.retryable[0]).toMatchObject({
+      idempotencyKey: 'retry-interrupted',
+      status: 'failed_retryable',
+      attemptCount: 3,
+      lastErrorCode: 'worker_interrupted',
+    });
     expect(result.deadLettered).toHaveLength(1);
     expect(result.deadLettered[0]).toMatchObject({
       idempotencyKey: 'dead-interrupted',

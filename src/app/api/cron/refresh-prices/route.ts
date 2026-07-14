@@ -1,4 +1,5 @@
 import { revalidateTag } from 'next/cache';
+import { emitDomainEvent } from '@/data/domain-events/queries';
 import type { CronRefreshPricesResponse } from '@/data/market-prices/api-contract';
 import { PRICES_FRESHNESS_TAG, refreshStalePrices } from '@/data/market-prices/cache';
 import { logUsageEvent } from '@/data/telemetry/queries';
@@ -63,6 +64,18 @@ export async function GET(req: Request): Promise<Response> {
 
   const { summary } = result;
   const degraded = summary.fuzzworkFallbackCount > 0 || summary.budgetExhausted;
+  emitDomainEvent({
+    eventType: 'price_refresh_finished',
+    metadata: {
+      outcome: degraded ? 'degraded' : 'completed',
+      fetched: summary.fetched,
+      written: summary.written,
+      esiCount: summary.esiCount,
+      fuzzworkFallbackCount: summary.fuzzworkFallbackCount,
+      budgetExhausted: summary.budgetExhausted,
+      durationMs,
+    },
+  });
 
   // O-2: structured boundary line (runtime logs) + durable telemetry row.
   const outcome = {

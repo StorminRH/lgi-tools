@@ -9,6 +9,7 @@
 // A direct mirror of src/db/owned-blueprints-sync.ts; the shared auth + ESI port
 // wiring lives in owner-sync-port.ts (MIGRATE.D.2).
 import { after } from 'next/server';
+import { emitDomainEvent } from '@/data/domain-events/queries';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { formatStationName } from '@/features/industry-planner/format-station-name';
 import {
@@ -76,6 +77,16 @@ export async function saveOwnedAssetsFromSource(
   });
   try {
     await saveOwnedAssets(owner, rows, etags, snapshotId);
+    emitDomainEvent({
+      eventType: 'esi_snapshot_pulled',
+      metadata: {
+        snapshotId,
+        dataset: 'owned_assets',
+        ownerType: 'corporation',
+        ownerId: owner.ownerId,
+        itemCount: source.items.length,
+      },
+    });
   } catch (error) {
     try {
       await deleteEsiSnapshot(snapshotId);

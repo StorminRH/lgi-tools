@@ -1,4 +1,6 @@
 import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
+import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
+import { pruneDomainEvents } from '@/data/domain-events/queries';
 import { SNAPSHOT_RETENTION_DAYS } from '@/data/esi-snapshots/constants';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
 import { pruneEsiRefreshJobs } from '@/data/esi-refresh-jobs/queries';
@@ -68,6 +70,10 @@ export async function GET(req: Request): Promise<Response> {
       // hiccup neither prevents the remaining tables pruning nor fails the sync.
       // It runs before sitemap/GSC work so an upstream outage cannot suspend
       // unrelated retention policies.
+      await swallow(
+        '[cron:gsc] domain_events prune failed',
+        pruneDomainEvents(db, DOMAIN_EVENT_RETENTION_DAYS),
+      );
       await swallow(
         '[cron:gsc] usage_logs prune failed',
         pruneUsageLogs(USAGE_LOG_RETENTION_DAYS),

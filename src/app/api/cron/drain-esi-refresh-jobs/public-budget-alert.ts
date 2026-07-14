@@ -4,6 +4,7 @@ import {
   countPublicEsiBudgetExhaustionsInWindow,
   hasPublicEsiBudgetAlertForWindow,
 } from '@/data/telemetry/queries';
+import { emitDomainEvent } from '@/data/domain-events/queries';
 import { alertPublicEsiBudgetExhaustion, isOpsAlertConfigured } from '@/lib/alerts';
 
 export const PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES = 15;
@@ -51,5 +52,14 @@ export async function maybeAlertPublicEsiBudgetExhaustion(
     return { status: 'unconfigured', count };
   }
   await completePublicEsiBudgetAlertClaim(claimId);
+  emitDomainEvent({
+    eventType: 'esi_budget_guard_exhausted',
+    metadata: {
+      count,
+      windowMinutes: PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES,
+      windowStartedAt: windowStartedAtIso,
+      windowEndedAt: windowEndedAt.toISOString(),
+    },
+  });
   return { status: 'alerted', count };
 }

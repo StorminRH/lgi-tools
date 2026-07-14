@@ -7,6 +7,11 @@ const mocks = vi.hoisted(() => ({
   complete: vi.fn(),
   alert: vi.fn(),
   configured: vi.fn(),
+  emitDomainEvent: vi.fn(),
+}));
+
+vi.mock('@/data/domain-events/queries', () => ({
+  emitDomainEvent: mocks.emitDomainEvent,
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({
@@ -64,6 +69,15 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
       mocks.alert.mock.invocationCallOrder[0]!,
     );
     expect(mocks.complete).toHaveBeenCalledWith(42);
+    expect(mocks.emitDomainEvent).toHaveBeenCalledWith({
+      eventType: 'esi_budget_guard_exhausted',
+      metadata: {
+        count: 3,
+        windowMinutes: 15,
+        windowStartedAt: '2026-07-14T13:00:00.000Z',
+        windowEndedAt: '2026-07-14T13:15:00.000Z',
+      },
+    });
   });
 
   it('suppresses another alert inside the same window', async () => {
@@ -74,6 +88,7 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
       count: 5,
     });
     expect(mocks.alert).not.toHaveBeenCalled();
+    expect(mocks.emitDomainEvent).not.toHaveBeenCalled();
   });
 
   it('does not let a prior pending claim suppress the next completed window', async () => {
@@ -99,6 +114,7 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
     });
     expect(mocks.claim).not.toHaveBeenCalled();
     expect(mocks.alert).not.toHaveBeenCalled();
+    expect(mocks.emitDomainEvent).not.toHaveBeenCalled();
   });
 
   it('does not post when the deduplication marker cannot be stored', async () => {
@@ -115,6 +131,7 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
 
     await expect(maybeAlertPublicEsiBudgetExhaustion()).rejects.toThrow('webhook timed out');
     expect(mocks.complete).not.toHaveBeenCalled();
+    expect(mocks.emitDomainEvent).not.toHaveBeenCalled();
   });
 
   it('leaves an unconfigured delivery as an expiring claim', async () => {
