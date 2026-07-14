@@ -59,4 +59,13 @@ describe('alertPublicEsiBudgetExhaustion', () => {
     await expect(alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 })).resolves.toBe(true);
     expect(postDiscordWebhookMock).toHaveBeenCalledOnce();
   });
+
+  it('rejects a non-success response so the alert claim can be released', async () => {
+    vi.stubEnv('DISCORD_ALERT_WEBHOOK_URL', 'https://discord.test/webhook');
+    postDiscordWebhookMock.mockResolvedValue(new Response(null, { status: 503 }));
+
+    await expect(
+      alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 }),
+    ).rejects.toThrow('returned 503');
+  });
 });

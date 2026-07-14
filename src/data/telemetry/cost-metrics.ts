@@ -14,20 +14,29 @@ export function elapsedCostTimer(timer: CostTimer): number {
   return Date.now() - timer.startedAt;
 }
 
+async function writeCostMetric(
+  action: UsageAction,
+  metadata: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await logUsageEvent({ action, metadata });
+  } catch (error) {
+    console.error('[cost-metrics] telemetry write failed', error);
+  }
+}
+
 export function emitCostMetric(
   action: UsageAction,
   metadata: Record<string, unknown>,
 ): void {
   try {
-    after(async () => {
-      try {
-        await logUsageEvent({ action, metadata });
-      } catch (error) {
-        console.error('[cost-metrics] telemetry write failed', error);
-      }
-    });
+    after(() => writeCostMetric(action, metadata));
   } catch (error) {
     console.error('[cost-metrics] telemetry scheduling failed', error);
+    // Next startup and non-request database work have no `after()` scope. Keep
+    // those rare metrics fire-and-forget, but still attempt the write instead
+    // of dropping it solely because request lifecycle scheduling is absent.
+    void writeCostMetric(action, metadata);
   }
 }
 

@@ -97,7 +97,7 @@ export async function alertPublicEsiBudgetExhaustion(
   const url = readEnv('DISCORD_ALERT_WEBHOOK_URL');
   if (!url) return false;
 
-  await postDiscordWebhook(url, {
+  const response = await postDiscordWebhook(url, {
     embeds: [
       {
         title: 'Public ESI refreshes are repeatedly budget-blocked',
@@ -107,5 +107,8 @@ export async function alertPublicEsiBudgetExhaustion(
       },
     ],
   });
+  if (!response.ok) {
+    throw new Error(`Public ESI budget alert webhook returned ${response.status}`);
+  }
   return true;
 }

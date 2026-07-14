@@ -48,13 +48,13 @@ describe('cost metrics', () => {
     });
   });
 
-  it('does not fail the measured path when lifecycle scheduling is unavailable', () => {
+  it('falls back to a direct contained write when lifecycle scheduling is unavailable', async () => {
     afterMock.mockImplementationOnce(() => {
       throw new Error('outside request scope');
     });
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
     expect(() => emitCostMetric('market_price_refresh', { requested: 1 })).not.toThrow();
-    expect(logUsageEventMock).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(logUsageEventMock).toHaveBeenCalledOnce());
   });
 });
