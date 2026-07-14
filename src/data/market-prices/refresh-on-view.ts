@@ -1,6 +1,7 @@
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { after } from 'next/server';
 import { db } from '@/db';
+import { consumeFreshPriceResolution, markFreshPriceResolution } from './cache-resolution';
 import { PER_TYPE_CONCURRENCY, STALE_AFTER_TTL_MS } from './constants';
 import { persistPrices } from './ingest';
 import { getPrices } from './queries';
@@ -84,12 +85,16 @@ export interface LivePricesResult {
 // the row's `source` can't convey on its own (budget exhaustion).
 async function fetchLivePrice(
   typeId: number,
-): Promise<{ raw: RawMarketPrice | null; budgetExhausted: boolean; resolvedAt: number }> {
+): Promise<{ raw: RawMarketPrice | null; budgetExhausted: boolean; resolutionId: string }> {
   'use cache: remote';
   cacheTag(priceTag(typeId));
   cacheLife(LIVE_CACHE_LIFE);
   const { prices, budgetExhausted } = await fetchPricesFromSource([typeId]);
-  return { raw: prices[0] ?? null, budgetExhausted, resolvedAt: Date.now() };
+  return {
+    raw: prices[0] ?? null,
+    budgetExhausted,
+    resolutionId: markFreshPriceResolution(),
+  };
 }
 
 // Bounded-concurrency map. Cache hits resolve instantly; this caps how many
@@ -120,7 +125,6 @@ export async function getLivePrices(
   typeIds: number[],
   onWriteBehind?: (result: PriceWriteBehindResult) => void,
 ): Promise<LivePricesResult> {
-  const requestStartedAt = Date.now();
   const ids = [...new Set(typeIds)];
   const degraded: LivePricesDegradation = {
     fetched: 0,
@@ -144,14 +148,19 @@ export async function getLivePrices(
 
   const live = await mapBounded(ids, PER_TYPE_CONCURRENCY, async (id) => {
     try {
-      return await fetchLivePrice(id);
+      const result = await fetchLivePrice(id);
+      return {
+        ...result,
+        cacheHit: !consumeFreshPriceResolution(result.resolutionId),
+      };
     } catch {
       // fetchPricesFromSource can still throw if the Fuzzwork fallback itself
       // fails — degrade to the seed for this item rather than failing the read.
       return {
         raw: null as RawMarketPrice | null,
         budgetExhausted: false,
-        resolvedAt: Date.now(),
+        resolutionId: '',
+        cacheHit: false,
       };
     }
   });
@@ -163,13 +172,13 @@ export async function getLivePrices(
 
   ids.forEach((id, i) => {
     // live is parallel to ids (mapBounded returns Array(ids.length)); i is the forEach index.
-    const { raw, budgetExhausted, resolvedAt } = live[i]!;
+    const { raw, budgetExhausted, cacheHit } = live[i]!;
     if (budgetExhausted) degraded.budgetExhausted = true;
     if (raw) {
       degraded.fetched++;
       if (raw.source === 'esi') degraded.esiCount++;
       else degraded.fuzzworkFallbackCount++;
-      if (resolvedAt < requestStartedAt) metrics.cacheHits++;
+      if (cacheHit) metrics.cacheHits++;
       else if (raw.source === 'esi') metrics.esiCount++;
       else metrics.fuzzworkFallbackCount++;
       freshRaws.push(raw);

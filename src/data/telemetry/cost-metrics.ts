@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { logUsageEvent } from './queries';
 import type { UsageAction } from './types';
 
@@ -17,9 +18,17 @@ export function emitCostMetric(
   action: UsageAction,
   metadata: Record<string, unknown>,
 ): void {
-  void logUsageEvent({ action, metadata }).catch((error) => {
-    console.error('[cost-metrics] telemetry write failed', error);
-  });
+  try {
+    after(async () => {
+      try {
+        await logUsageEvent({ action, metadata });
+      } catch (error) {
+        console.error('[cost-metrics] telemetry write failed', error);
+      }
+    });
+  } catch (error) {
+    console.error('[cost-metrics] telemetry scheduling failed', error);
+  }
 }
 
 export function observeCostPromise<T>(

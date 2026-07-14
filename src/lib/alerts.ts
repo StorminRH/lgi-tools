@@ -22,6 +22,10 @@ export interface PublicEsiBudgetExhaustion {
   windowMinutes: number;
 }
 
+export function isOpsAlertConfigured(): boolean {
+  return Boolean(readEnv('DISCORD_ALERT_WEBHOOK_URL'));
+}
+
 // Best-effort ops alert when the price source degrades to Fuzzwork (3.0.10
 // O-1). Reads DISCORD_ALERT_WEBHOOK_URL — a dedicated ops channel, separate
 // from the feedback webhook. If it is unset, returns silently: the alert sits

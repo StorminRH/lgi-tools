@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   hasAlert: vi.fn(),
   log: vi.fn(),
   alert: vi.fn(),
+  configured: vi.fn(),
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({
@@ -12,7 +13,10 @@ vi.mock('@/data/telemetry/queries', () => ({
   hasPublicEsiBudgetAlertSince: mocks.hasAlert,
   logUsageEvent: mocks.log,
 }));
-vi.mock('@/lib/alerts', () => ({ alertPublicEsiBudgetExhaustion: mocks.alert }));
+vi.mock('@/lib/alerts', () => ({
+  alertPublicEsiBudgetExhaustion: mocks.alert,
+  isOpsAlertConfigured: mocks.configured,
+}));
 
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
@@ -22,6 +26,7 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
     mocks.hasAlert.mockResolvedValue(false);
     mocks.log.mockResolvedValue(undefined);
     mocks.alert.mockResolvedValue(true);
+    mocks.configured.mockReturnValue(true);
   });
 
   it('does not alert below three public exhaustion events', async () => {
@@ -44,6 +49,9 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
       action: 'public_esi_budget_alerted',
       metadata: { count: 3, windowMinutes: 15 },
     });
+    expect(mocks.log.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.alert.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('suppresses another alert inside the same window', async () => {
@@ -53,6 +61,26 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
       status: 'already-alerted',
       count: 5,
     });
+    expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it('does not claim or post a window when alerts are unconfigured', async () => {
+    mocks.count.mockResolvedValue(3);
+    mocks.configured.mockReturnValue(false);
+
+    await expect(maybeAlertPublicEsiBudgetExhaustion()).resolves.toEqual({
+      status: 'unconfigured',
+      count: 3,
+    });
+    expect(mocks.log).not.toHaveBeenCalled();
+    expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it('does not post when the deduplication marker cannot be stored', async () => {
+    mocks.count.mockResolvedValue(3);
+    mocks.log.mockRejectedValue(new Error('database unavailable'));
+
+    await expect(maybeAlertPublicEsiBudgetExhaustion()).rejects.toThrow('database unavailable');
     expect(mocks.alert).not.toHaveBeenCalled();
   });
 });

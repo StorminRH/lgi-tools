@@ -6,7 +6,11 @@ vi.mock('@/lib/discord', () => ({
   postDiscordWebhook: (...args: unknown[]) => postDiscordWebhookMock(...args),
 }));
 
-import { alertPriceSourceDegradation, alertPublicEsiBudgetExhaustion } from './alerts';
+import {
+  alertPriceSourceDegradation,
+  alertPublicEsiBudgetExhaustion,
+  isOpsAlertConfigured,
+} from './alerts';
 
 const INFO = { fetched: 10, esiCount: 6, fuzzworkFallbackCount: 4, budgetExhausted: true };
 
@@ -48,8 +52,10 @@ describe('alertPublicEsiBudgetExhaustion', () => {
 
   it('reports whether an alert was actually posted', async () => {
     vi.stubEnv('DISCORD_ALERT_WEBHOOK_URL', '');
+    expect(isOpsAlertConfigured()).toBe(false);
     await expect(alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 })).resolves.toBe(false);
     vi.stubEnv('DISCORD_ALERT_WEBHOOK_URL', 'https://discord.test/webhook');
+    expect(isOpsAlertConfigured()).toBe(true);
     await expect(alertPublicEsiBudgetExhaustion({ count: 3, windowMinutes: 15 })).resolves.toBe(true);
     expect(postDiscordWebhookMock).toHaveBeenCalledOnce();
   });
