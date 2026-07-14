@@ -52,7 +52,7 @@ function budgetFromRows(rows: (string | null)[]): Omit<EsiBudgetSnapshot, 'sourc
 
 // Upstash Redis (REST over plain fetch, so it runs anywhere the gate runs —
 // Vercel functions today, Convex actions later). The shared, real scoreboard.
-export class RedisScoreboard implements EsiScoreboard {
+class RedisScoreboard implements EsiScoreboard {
   private readonly redis: Redis;
 
   constructor(url: string, token: string) {
@@ -207,6 +207,10 @@ export class RedisScoreboard implements EsiScoreboard {
   async getCachedBody(url: string): Promise<string | null> {
     return await this.redis.get<string>(keyEtagBody(url));
   }
+}
+
+export function createRedisScoreboard(url: string, token: string): RedisScoreboard {
+  return new RedisScoreboard(url, token);
 }
 
 export function readRedisBudgetSnapshot(

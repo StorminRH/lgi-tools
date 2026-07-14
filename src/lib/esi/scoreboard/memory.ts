@@ -16,7 +16,7 @@ import {
 
 // Dev/test fallback with the same semantics over in-process state — and the
 // readable spec for what the Redis implementation does.
-export class MemoryScoreboard implements EsiScoreboard {
+class MemoryScoreboard implements EsiScoreboard {
   private errorCounts = new Map<number, number>();
   private echo: { value: number; expiresAt: number } | null = null;
   private blocks = new Map<string, { expiresAt: number }>();
@@ -114,6 +114,10 @@ export class MemoryScoreboard implements EsiScoreboard {
     if (entry === undefined || entry.expiresAt <= Date.now()) return null;
     return entry.body;
   }
+}
+
+export function createMemoryScoreboard(): MemoryScoreboard {
+  return new MemoryScoreboard();
 }
 
 export function readMemoryBudgetSnapshot(
