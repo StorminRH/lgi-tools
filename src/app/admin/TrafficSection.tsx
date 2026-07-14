@@ -5,7 +5,6 @@ import { DistributionBars } from '@/components/ui/distribution-bars';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
-import { Pill, type PillTone } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StackedShareBar } from '@/components/ui/stacked-share-bar';
@@ -16,9 +15,8 @@ import {
   getSitemapStatus,
   getTopGscPages,
   getTopQueries,
-  getUrlInspection,
 } from '@/data/gsc/queries';
-import type { GscSitemapStatus, GscTermStat, GscUrlStatus } from '@/data/gsc/types';
+import type { GscSitemapStatus, GscTermStat } from '@/data/gsc/types';
 import {
   getDailyCounts,
   getSearchVsDirect,
@@ -37,6 +35,7 @@ import { deriveGscMultiples } from './gsc-multiples-view';
 import { getLastSyncedAtShared } from './last-synced';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { previousRange, type RangeKey } from './period';
+import { GscCoverageSection } from './GscCoverageSection';
 import { deriveGscPerformanceView, deriveTrafficView, type BarRows } from './traffic-view';
 import { SectionUnavailable } from './SectionUnavailable';
 
@@ -68,19 +67,6 @@ function CollapsedDetailHeader({ label }: { label: string }) {
 }
 
 // ── Google Search Console cards ─────────────────────────────────────────
-
-function verdictTone(verdict: string | null): PillTone {
-  switch (verdict) {
-    case 'PASS':
-      return 'green';
-    case 'PARTIAL':
-      return 'orange';
-    case 'FAIL':
-      return 'red';
-    default:
-      return 'neutral';
-  }
-}
 
 // A top query or page: term + clicks bar (with its share of total clicks) + a
 // secondary impressions/CTR/pos line. `max` sizes the fill; `total` prints the
@@ -129,21 +115,6 @@ function GscSitemapRow({ sitemap }: { sitemap: GscSitemapStatus }) {
   );
 }
 
-function GscUrlRow({ url }: { url: GscUrlStatus }) {
-  return (
-    <div className="px-3.5 py-2 border-b border-border-soft last:border-b-0">
-      <div className="flex items-center justify-between gap-3 mb-1">
-        <span className="font-mono text-ui text-text break-all">{url.url}</span>
-        {url.verdict ? <Pill tone={verdictTone(url.verdict)}>{url.verdict}</Pill> : null}
-      </div>
-      <div className="font-mono text-micro text-muted">
-        {url.coverageState ?? 'unknown'}
-        {url.lastCrawlTime ? ` · crawled ${formatIsoDay(url.lastCrawlTime)}` : ''}
-      </div>
-    </div>
-  );
-}
-
 function GscNotConnectedCard({ label }: { label: string }) {
   return (
     <Card>
@@ -176,7 +147,6 @@ function GscPerformanceDetail({
   topPages,
   totalClicks,
   sitemaps,
-  urls,
 }: {
   view: ReturnType<typeof deriveGscPerformanceView>;
   cells: ReturnType<typeof deriveGscMultiples>;
@@ -185,7 +155,6 @@ function GscPerformanceDetail({
   // denominator, so a row's % is its share of ALL clicks, not the top-10 subtotal.
   totalClicks: number;
   sitemaps: GscSitemapStatus[];
-  urls: GscUrlStatus[];
 }) {
   const trends = [view.clicksTrend, view.impressionsTrend, view.positionTrend] as const;
   const units = ['count', 'count', 'position'] as const;
@@ -229,16 +198,6 @@ function GscPerformanceDetail({
       ) : (
         sitemaps.map((s) => <GscSitemapRow key={s.path} sitemap={s} />)
       )}
-      {urls.length > 0 && (
-        <>
-          <div className="px-3.5 py-2 text-label tracking-display uppercase text-muted border-b border-border-soft">
-            Page index status
-          </div>
-          {urls.map((u) => (
-            <GscUrlRow key={u.url} url={u} />
-          ))}
-        </>
-      )}
     </>
   );
 }
@@ -249,14 +208,12 @@ function GscPerformanceCardBody({
   topPages,
   totalClicks,
   sitemaps,
-  urls,
 }: {
   view: ReturnType<typeof deriveGscPerformanceView>;
   cells: ReturnType<typeof deriveGscMultiples>;
   topPages: GscTermStat[];
   totalClicks: number;
   sitemaps: GscSitemapStatus[];
-  urls: GscUrlStatus[];
 }) {
   return (
     <Card>
@@ -271,7 +228,6 @@ function GscPerformanceCardBody({
           topPages={topPages}
           totalClicks={totalClicks}
           sitemaps={sitemaps}
-          urls={urls}
         />
       ) : (
         <EmptyState>No Search Console data synced yet for this range.</EmptyState>
@@ -292,14 +248,13 @@ async function GscPerformanceCard({ rangeKey, range }: { rangeKey: RangeKey; ran
       getSearchTrend(range),
       getTopGscPages(range, 10),
       getSitemapStatus(),
-      getUrlInspection(),
       getSearchTotals(range),
       prev ? getSearchTotals(prev) : Promise.resolve(null),
     ]),
   );
   if (fetched === SECTION_LOAD_FAILED) return <SectionUnavailable label="Search performance" />;
 
-  const [lastSyncedAt, trend, topPages, sitemaps, urls, totals, prevTotals] = fetched;
+  const [lastSyncedAt, trend, topPages, sitemaps, totals, prevTotals] = fetched;
   const view = deriveGscPerformanceView({ lastSyncedAt, trend, topPages });
   const cells = deriveGscMultiples({ totals, prevTotals });
 
@@ -310,7 +265,6 @@ async function GscPerformanceCard({ rangeKey, range }: { rangeKey: RangeKey; ran
       topPages={topPages}
       totalClicks={totals.clicks}
       sitemaps={sitemaps}
-      urls={urls}
     />
   );
 }
@@ -451,6 +405,10 @@ export async function TrafficSection({
           <GscTopQueriesCard range={range} />
         </Suspense>
       </div>
+
+      <Suspense fallback={<GscCardFallback label="Index coverage" />}>
+        <GscCoverageSection range={range} />
+      </Suspense>
 
       <Card>
         <SectionHeader

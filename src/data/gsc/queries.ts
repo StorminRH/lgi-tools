@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 import type {
   GscDailyPoint,
+  GscCoverageDailyPoint,
   GscRange,
   GscSitemapStatus,
   GscTermStat,
@@ -134,22 +135,49 @@ export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
   }));
 }
 
-// Current per-URL inspection snapshot (not range-bound).
-export async function getUrlInspection(): Promise<GscUrlStatus[]> {
+// Latest stored row for every URL. DISTINCT ON follows PostgreSQL's required
+// key-first ordering, then takes the newest inspection date for that URL.
+export async function getLatestUrlCoverage(): Promise<GscUrlStatus[]> {
   const rows = await db
-    .select({
+    .selectDistinctOn([gscUrlInspection.url], {
+      inspectionDate: gscUrlInspection.inspectionDate,
       url: gscUrlInspection.url,
       verdict: gscUrlInspection.verdict,
       coverageState: gscUrlInspection.coverageState,
       lastCrawlTime: gscUrlInspection.lastCrawlTime,
     })
     .from(gscUrlInspection)
-    .orderBy(gscUrlInspection.url);
+    .orderBy(gscUrlInspection.url, desc(gscUrlInspection.inspectionDate));
   return rows.map((r) => ({
+    inspectionDate: r.inspectionDate,
     url: r.url,
     verdict: r.verdict,
     coverageState: r.coverageState,
     lastCrawlTime: r.lastCrawlTime,
+  }));
+}
+
+// Daily coverage counts within the selected admin range. PASS is the only
+// indexed verdict; every other Google verdict (and null) remains not indexed.
+export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDailyPoint[]> {
+  const indexed = sql<number>`count(*) filter (
+    where ${gscUrlInspection.verdict} = 'PASS'
+  )`.mapWith(Number);
+  const notIndexed = sql<number>`count(*) filter (
+    where ${gscUrlInspection.verdict} is distinct from 'PASS'
+  )`.mapWith(Number);
+  const rows = await db
+    .select({ day: gscUrlInspection.inspectionDate, indexed, notIndexed })
+    .from(gscUrlInspection)
+    .where(
+      between(gscUrlInspection.inspectionDate, toDateStr(range.from), toDateStr(range.to)),
+    )
+    .groupBy(gscUrlInspection.inspectionDate)
+    .orderBy(gscUrlInspection.inspectionDate);
+  return rows.map((row) => ({
+    day: row.day,
+    indexed: Number(row.indexed),
+    notIndexed: Number(row.notIndexed),
   }));
 }
 

@@ -6,9 +6,22 @@ import type { ReactNode } from 'react';
 // the app layer. The admin GSC trio is the first consumer; the GSC coverage
 // dashboard (3.8.3.4) reuses it.
 
-export function MultiplesGrid({ children }: { children: ReactNode }) {
+const columnClasses = {
+  2: 'md:grid-cols-2',
+  3: 'md:grid-cols-3',
+} as const;
+
+export function MultiplesGrid({
+  children,
+  columns = 3,
+}: {
+  children: ReactNode;
+  columns?: keyof typeof columnClasses;
+}) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border-soft">{children}</div>
+    <div className={`grid grid-cols-1 ${columnClasses[columns]} gap-px bg-border-soft`}>
+      {children}
+    </div>
   );
 }
 
