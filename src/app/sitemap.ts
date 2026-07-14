@@ -62,7 +62,7 @@ export function buildSitemapEntries({
 // The catalogue and repo content only change on deploy, so the sitemap is
 // cached into the prerendered shell and the build ID invalidates it — no
 // request-time reads. `use cache` can't sit directly on the route export.
-async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
+export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   'use cache';
   cacheLife('max');
 
@@ -85,5 +85,5 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
 }
 
 export default function sitemap(): Promise<MetadataRoute.Sitemap> {
-  return buildSitemap();
+  return getSitemapEntries();
 }

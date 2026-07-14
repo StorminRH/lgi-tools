@@ -1,10 +1,16 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import type postgres from 'postgres';
 import type { AnyPgDb } from '@/lib/db-types';
-import { GSC_WINDOW_DAYS, UPSERT_CHUNK_ROWS, isGscConfigured } from './constants';
+import {
+  GSC_INSPECTION_BATCH_SIZE,
+  GSC_INSPECTION_URL_LIMIT,
+  GSC_WINDOW_DAYS,
+  UPSERT_CHUNK_ROWS,
+  isGscConfigured,
+} from './constants';
 import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
-import { inspectUrl, inspectionUrls, listSitemaps, querySearchAnalytics } from './source';
+import { inspectUrl, listSitemaps, querySearchAnalytics, siteUrl } from './source';
 import type {
   GscDimension,
   GscSyncSummary,
@@ -88,20 +94,22 @@ export function sitemapToRecord(entry: SitemapApiEntry, syncedAt: Date): Sitemap
 
 export function indexStatusToRecord(
   url: string,
-  status: IndexStatusApiResult,
+  status: IndexStatusApiResult | null,
   syncedAt: Date,
+  inspectionDate = dateStr(syncedAt),
 ): UrlInspectionRecord {
   return {
+    inspectionDate,
     url,
-    verdict: status.verdict ?? null,
-    coverageState: status.coverageState ?? null,
-    robotsTxtState: status.robotsTxtState ?? null,
-    indexingState: status.indexingState ?? null,
-    pageFetchState: status.pageFetchState ?? null,
-    lastCrawlTime: parseTimestamp(status.lastCrawlTime),
-    googleCanonical: status.googleCanonical ?? null,
-    userCanonical: status.userCanonical ?? null,
-    crawledAs: status.crawledAs ?? null,
+    verdict: status?.verdict ?? null,
+    coverageState: status?.coverageState ?? null,
+    robotsTxtState: status?.robotsTxtState ?? null,
+    indexingState: status?.indexingState ?? null,
+    pageFetchState: status?.pageFetchState ?? null,
+    lastCrawlTime: parseTimestamp(status?.lastCrawlTime),
+    googleCanonical: status?.googleCanonical ?? null,
+    userCanonical: status?.userCanonical ?? null,
+    crawledAs: status?.crawledAs ?? null,
     syncedAt,
   };
 }
@@ -116,6 +124,106 @@ function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
+}
+
+function matchesProperty(url: URL, property: string): boolean {
+  if (property.startsWith('sc-domain:')) {
+    const domain = property.slice('sc-domain:'.length).toLowerCase();
+    return url.hostname === domain || url.hostname.endsWith(`.${domain}`);
+  }
+  const prefix = new URL(property);
+  return url.href.startsWith(prefix.href);
+}
+
+// Validate the cron-provided sitemap at the data boundary. The normalized,
+// deterministic ordering makes repeated runs and tests stable.
+export function prepareInspectionUrls(urls: string[], property: string): string[] {
+  const normalized = new Set<string>();
+  for (const raw of urls) {
+    let parsed: URL;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      throw new Error(`invalid sitemap URL: ${raw}`);
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
+      throw new Error(`invalid sitemap URL: ${raw}`);
+    }
+    if (parsed.hash) throw new Error(`sitemap URL must not contain a fragment: ${raw}`);
+    if (!matchesProperty(parsed, property)) {
+      throw new Error(`sitemap URL does not belong to GSC property ${property}: ${raw}`);
+    }
+    normalized.add(parsed.href);
+  }
+  const prepared = [...normalized].sort((a, b) => a.localeCompare(b));
+  if (prepared.length > GSC_INSPECTION_URL_LIMIT) {
+    throw new Error(
+      `sitemap URL count ${prepared.length} exceeds safe limit ${GSC_INSPECTION_URL_LIMIT}`,
+    );
+  }
+  return prepared;
+}
+
+export function missingInspectionUrls(urls: string[], storedUrls: Iterable<string>): string[] {
+  const completed = new Set(storedUrls);
+  return urls.filter((url) => !completed.has(url));
+}
+
+type InspectionBatchResult = { records: UrlInspectionRecord[]; errors: string[] };
+
+export async function upsertUrlInspectionRecords(
+  db: AnyPgDb,
+  records: UrlInspectionRecord[],
+): Promise<void> {
+  if (records.length === 0) return;
+  await db
+    .insert(gscUrlInspection)
+    .values(records)
+    .onConflictDoUpdate({
+      target: [gscUrlInspection.inspectionDate, gscUrlInspection.url],
+      set: {
+        verdict: excluded('verdict'),
+        coverageState: excluded('coverage_state'),
+        robotsTxtState: excluded('robots_txt_state'),
+        indexingState: excluded('indexing_state'),
+        pageFetchState: excluded('page_fetch_state'),
+        lastCrawlTime: excluded('last_crawl_time'),
+        googleCanonical: excluded('google_canonical'),
+        userCanonical: excluded('user_canonical'),
+        crawledAs: excluded('crawled_as'),
+        syncedAt: excluded('synced_at'),
+      },
+    });
+}
+
+// Groups are sequential while the five inspections inside each group run in
+// parallel. A successful response with no indexStatusResult still becomes an
+// all-null row; only request failures remain absent and retryable.
+export async function inspectUrlsInBatches(
+  urls: string[],
+  syncedAt: Date,
+  inspect: (url: string) => Promise<IndexStatusApiResult | null> = inspectUrl,
+): Promise<InspectionBatchResult> {
+  const records: UrlInspectionRecord[] = [];
+  const errors: string[] = [];
+  for (const group of chunk(urls, GSC_INSPECTION_BATCH_SIZE)) {
+    const results = await Promise.all(
+      group.map(async (url): Promise<
+        { ok: true; record: UrlInspectionRecord } | { ok: false; error: string }
+      > => {
+        try {
+          return { ok: true, record: indexStatusToRecord(url, await inspect(url), syncedAt) };
+        } catch (err) {
+          return { ok: false, error: `url-inspection ${url}: ${errText(err)}` };
+        }
+      }),
+    );
+    for (const result of results) {
+      if (result.ok) records.push(result.record);
+      else errors.push(result.error);
+    }
+  }
+  return { records, errors };
 }
 
 // dimensions=['date'] → daily site totals; ['date','query'|'page'] → per-day
@@ -215,43 +323,32 @@ async function syncSitemaps(db: AnyPgDb, syncedAt: Date): Promise<SurfaceResult>
 async function syncUrlInspections(
   db: AnyPgDb,
   syncedAt: Date,
+  sitemapUrls: string[],
 ): Promise<{ count: number; errors: string[] }> {
-  let count = 0;
-  const errors: string[] = [];
-  for (const url of inspectionUrls()) {
-    try {
-      const status = await inspectUrl(url);
-      if (!status) continue;
-      await db
-        .insert(gscUrlInspection)
-        .values(indexStatusToRecord(url, status, syncedAt))
-        .onConflictDoUpdate({
-          target: gscUrlInspection.url,
-          set: {
-            verdict: excluded('verdict'),
-            coverageState: excluded('coverage_state'),
-            robotsTxtState: excluded('robots_txt_state'),
-            indexingState: excluded('indexing_state'),
-            pageFetchState: excluded('page_fetch_state'),
-            lastCrawlTime: excluded('last_crawl_time'),
-            googleCanonical: excluded('google_canonical'),
-            userCanonical: excluded('user_canonical'),
-            crawledAs: excluded('crawled_as'),
-            syncedAt: excluded('synced_at'),
-          },
-        });
-      count++;
-    } catch (err) {
-      errors.push(`url-inspection ${url}: ${errText(err)}`);
-    }
+  try {
+    const urls = prepareInspectionUrls(sitemapUrls, siteUrl());
+    const inspectionDate = dateStr(syncedAt);
+    const stored = await db
+      .select({ url: gscUrlInspection.url })
+      .from(gscUrlInspection)
+      .where(eq(gscUrlInspection.inspectionDate, inspectionDate));
+    const missing = missingInspectionUrls(
+      urls,
+      stored.map((row) => row.url),
+    );
+    const result = await inspectUrlsInBatches(missing, syncedAt);
+
+    await upsertUrlInspectionRecords(db, result.records);
+    return { count: result.records.length, errors: result.errors };
+  } catch (err) {
+    return { count: 0, errors: [`url-inspection: ${errText(err)}`] };
   }
-  return { count, errors };
 }
 
 // Pull-and-store across all three Search Console surfaces. Each surface degrades
 // to its last-known snapshot on failure; the summary threads into cron
 // observability.
-export async function syncGsc(client: Sql): Promise<GscSyncSummary> {
+export async function syncGsc(client: Sql, sitemapUrls: string[]): Promise<GscSyncSummary> {
   const start = Date.now();
   if (!isGscConfigured()) {
     return {
@@ -272,7 +369,7 @@ export async function syncGsc(client: Sql): Promise<GscSyncSummary> {
 
   const search = await syncSearchAnalytics(db, startDate, endDate, syncedAt);
   const sitemap = await syncSitemaps(db, syncedAt);
-  const urls = await syncUrlInspections(db, syncedAt);
+  const urls = await syncUrlInspections(db, syncedAt, sitemapUrls);
 
   const errors = [search.error, sitemap.error, ...urls.errors].filter(
     (e): e is string => e !== null,

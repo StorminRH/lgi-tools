@@ -6,6 +6,7 @@ import { logUsageEvent, pruneUsageLogs } from '@/data/telemetry/queries';
 import { directClient } from '@/db';
 import { runCronJob } from '@/db/cron-gate';
 import { swallow } from '@/lib/cron';
+import { getSitemapEntries } from '@/app/sitemap';
 
 // Vercel-cron endpoint, scheduled in vercel.json ("0 9 * * *" — daily, clear of
 // the 11:30 prices sweep and the daily SDE run). Vercel's cron invoker sends
@@ -55,7 +56,8 @@ export async function GET(req: Request): Promise<Response> {
       // The fetch + upserts run on the directClient pool; the lock stays on the
       // gate's reserved connection. The GSC HTTP calls happen with no
       // transaction open.
-      const summary = await syncGsc(directClient);
+      const sitemapUrls = (await getSitemapEntries()).map((entry) => entry.url);
+      const summary = await syncGsc(directClient, sitemapUrls);
 
       // Daily housekeeping: bound the unbounded usage_logs table. Inside the lock
       // so it runs once a day even if a duplicate cron fires; swallowed so a prune

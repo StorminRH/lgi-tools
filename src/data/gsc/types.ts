@@ -109,8 +109,15 @@ export interface GscSitemapStatus {
 }
 
 export interface GscUrlStatus {
+  inspectionDate: string;
   url: string;
   verdict: string | null;
   coverageState: string | null;
   lastCrawlTime: Date | null;
+}
+
+export interface GscCoverageDailyPoint {
+  day: string;
+  indexed: number;
+  notIndexed: number;
 }

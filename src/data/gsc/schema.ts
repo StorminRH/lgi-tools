@@ -59,18 +59,27 @@ export const gscSitemaps = pgTable('gsc_sitemaps', {
   syncedAt: timestamp('synced_at', { withTimezone: true }).notNull(),
 });
 
-// Per-URL index status for the bounded high-value page set. URL Inspection is
-// the rate-limited surface, so we keep this to a handful of URLs. Snapshot.
-export const gscUrlInspection = pgTable('gsc_url_inspection', {
-  url: text('url').primaryKey(),
-  verdict: text('verdict'),
-  coverageState: text('coverage_state'),
-  robotsTxtState: text('robots_txt_state'),
-  indexingState: text('indexing_state'),
-  pageFetchState: text('page_fetch_state'),
-  lastCrawlTime: timestamp('last_crawl_time', { withTimezone: true }),
-  googleCanonical: text('google_canonical'),
-  userCanonical: text('user_canonical'),
-  crawledAs: text('crawled_as'),
-  syncedAt: timestamp('synced_at', { withTimezone: true }).notNull(),
-});
+// One inspection result per sitemap URL per UTC day. History is intentionally
+// retained so every dashboard horizon remains truthful; the latest-state read
+// uses the URL/date index rather than overwriting prior observations.
+export const gscUrlInspection = pgTable(
+  'gsc_url_inspection',
+  {
+    inspectionDate: date('inspection_date').notNull(),
+    url: text('url').notNull(),
+    verdict: text('verdict'),
+    coverageState: text('coverage_state'),
+    robotsTxtState: text('robots_txt_state'),
+    indexingState: text('indexing_state'),
+    pageFetchState: text('page_fetch_state'),
+    lastCrawlTime: timestamp('last_crawl_time', { withTimezone: true }),
+    googleCanonical: text('google_canonical'),
+    userCanonical: text('user_canonical'),
+    crawledAs: text('crawled_as'),
+    syncedAt: timestamp('synced_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.inspectionDate, t.url] }),
+    index('gsc_url_inspection_url_date_idx').on(t.url, t.inspectionDate),
+  ],
+);

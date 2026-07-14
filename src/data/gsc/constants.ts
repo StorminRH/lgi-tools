@@ -34,12 +34,12 @@ export const SEARCH_ANALYTICS_ROW_LIMIT = 25000;
 // regardless of driver (a 90-day × many-query pull can be a few thousand rows).
 export const UPSERT_CHUNK_ROWS = 500;
 
-// The bounded set of high-value pages we inspect per-URL each day. URL
-// Inspection is the rate-limited surface (2,000 QPD/site); polling only these
-// few keeps us far under the cap while still surfacing real per-URL index
-// status. Relative paths — source.ts joins them to the property origin so this
-// stays correct for either property form.
-export const GSC_INSPECT_PATHS = ['/', '/sites', '/industry', '/changelog'] as const;
+// URL Inspection is limited to 2,000 requests/day and 600 requests/minute per
+// property. The sitemap currently carries 111 URLs; fail the whole inspection
+// surface above this ceiling so a growing sitemap cannot silently consume the
+// quota or publish misleading partial coverage.
+export const GSC_INSPECTION_URL_LIMIT = 500;
+export const GSC_INSPECTION_BATCH_SIZE = 5;
 
 // The sync is disabled (cron no-ops, dashboard hides the GSC cards) unless both
 // the service-account credential and the verified property string are present.

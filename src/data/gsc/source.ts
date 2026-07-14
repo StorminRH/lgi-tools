@@ -1,7 +1,6 @@
 import { JWT } from 'google-auth-library';
 import { requireEnv } from '@/lib/env';
 import {
-  GSC_INSPECT_PATHS,
   GSC_SCOPE,
   SEARCH_ANALYTICS_ROW_LIMIT,
   URL_INSPECTION_ENDPOINT,
@@ -41,23 +40,8 @@ function getJwt(): JWT {
   return _jwt;
 }
 
-function siteUrl(): string {
+export function siteUrl(): string {
   return requireEnv('GSC_SITE_URL');
-}
-
-// The https origin of the verified property, for building inspection URLs:
-// a domain property (`sc-domain:lgi.tools`) → `https://lgi.tools`; a URL-prefix
-// property is already an origin.
-function propertyOrigin(): string {
-  const url = siteUrl();
-  const origin = url.startsWith('sc-domain:') ? `https://${url.slice('sc-domain:'.length)}` : url;
-  return origin.replace(/\/$/, '');
-}
-
-// The bounded set of fully-qualified URLs to inspect this run.
-export function inspectionUrls(): string[] {
-  const origin = propertyOrigin();
-  return GSC_INSPECT_PATHS.map((p) => `${origin}${p}`);
 }
 
 async function authedFetch(url: string, init?: RequestInit): Promise<Response> {
