@@ -8,7 +8,13 @@ vi.mock('./queries', () => ({
 }));
 vi.mock('next/server', () => ({ after: (callback: () => unknown) => afterMock(callback) }));
 
-import { emitCostMetric, observeCostPromise, recordCostMetric, startCostTimer } from './cost-metrics';
+import {
+  elapsedCostTimer,
+  emitCostMetric,
+  observeCostPromise,
+  recordCostMetric,
+  startCostTimer,
+} from './cost-metrics';
 
 describe('cost metrics', () => {
   beforeEach(() => {
@@ -28,6 +34,14 @@ describe('cost metrics', () => {
       action: 'market_price_refresh',
       metadata: { requested: 3 },
     });
+  });
+
+  it('measures duration with the prerender-safe monotonic clock', () => {
+    vi.spyOn(performance, 'now').mockReturnValueOnce(100).mockReturnValueOnce(145);
+    const wallClock = vi.spyOn(Date, 'now');
+
+    expect(elapsedCostTimer(startCostTimer())).toBe(45);
+    expect(wallClock).not.toHaveBeenCalled();
   });
 
   it('observes a promise without replacing or delaying it', async () => {

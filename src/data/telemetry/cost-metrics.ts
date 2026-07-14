@@ -7,11 +7,11 @@ export interface CostTimer {
 }
 
 export function startCostTimer(): CostTimer {
-  return { startedAt: Date.now() };
+  return { startedAt: performance.now() };
 }
 
 export function elapsedCostTimer(timer: CostTimer): number {
-  return Date.now() - timer.startedAt;
+  return performance.now() - timer.startedAt;
 }
 
 export async function recordCostMetric(
