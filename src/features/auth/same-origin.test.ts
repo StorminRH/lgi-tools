@@ -71,6 +71,18 @@ describe('requireSameOrigin', () => {
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
+  it('accepts the browser-visible request origin for a custom preview domain', () => {
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('VERCEL_URL', 'lgi-tools-git-security.example.vercel.app');
+
+    requireSameOrigin(mutationRequest(
+      { origin: 'https://security-preview.lgi.tools' },
+      'https://security-preview.lgi.tools/api/preferences',
+    ));
+
+    expect(logUsageEventMock).not.toHaveBeenCalled();
+  });
+
   it('uses Better Auth for local development', () => {
     vi.stubEnv('BETTER_AUTH_URL', 'http://localhost:3000');
 

@@ -37,17 +37,21 @@ export function requireSameOrigin(request: Request): void {
   const rawOrigin = origin ?? referer;
   if (rawOrigin === null) return;
 
+  const requestUrl = new URL(request.url);
   const source: OriginSource = origin === null ? 'referer' : 'origin';
   const normalizedOrigin = rawOrigin === 'null'
     ? 'null'
     : normalizeOrigin(rawOrigin);
 
-  if (normalizedOrigin !== null && normalizedOrigin === canonicalOrigin()) return;
+  if (
+    normalizedOrigin !== null
+    && (normalizedOrigin === requestUrl.origin || normalizedOrigin === canonicalOrigin())
+  ) return;
 
   void logUsageEvent({
     action: 'cross_origin_mutation',
     metadata: {
-      route: new URL(request.url).pathname,
+      route: requestUrl.pathname,
       offendingOrigin: normalizedOrigin ?? 'invalid',
       source,
     },
