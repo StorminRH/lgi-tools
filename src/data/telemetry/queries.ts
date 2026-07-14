@@ -55,7 +55,7 @@ export async function claimPublicEsiBudgetAlert(
   const [row] = await db
     .insert(usageLogs)
     .values({
-      action: 'public_esi_budget_alerted',
+      action: 'public_esi_budget_alert_claimed',
       characterId: null,
       metadata,
     })
@@ -64,10 +64,13 @@ export async function claimPublicEsiBudgetAlert(
   return row.id;
 }
 
-export async function releasePublicEsiBudgetAlertClaim(id: number): Promise<void> {
-  await db
-    .delete(usageLogs)
-    .where(and(eq(usageLogs.id, id), eq(usageLogs.action, 'public_esi_budget_alerted')));
+export async function completePublicEsiBudgetAlertClaim(id: number): Promise<void> {
+  const [row] = await db
+    .update(usageLogs)
+    .set({ action: 'public_esi_budget_alerted' })
+    .where(and(eq(usageLogs.id, id), eq(usageLogs.action, 'public_esi_budget_alert_claimed')))
+    .returning({ id: usageLogs.id });
+  if (!row) throw new Error('Failed to complete public ESI budget alert claim');
 }
 
 // Bound the otherwise-unbounded usage_logs table (one row per page view plus
@@ -313,14 +316,23 @@ export async function countPublicEsiBudgetExhaustionsSince(since: Date): Promise
   return Number(row?.n ?? 0);
 }
 
-export async function hasPublicEsiBudgetAlertSince(since: Date): Promise<boolean> {
+export async function hasPublicEsiBudgetAlertSince(
+  since: Date,
+  activeClaimSince: Date,
+): Promise<boolean> {
   const [row] = await db
     .select({ n: count() })
     .from(usageLogs)
     .where(
-      and(
-        gte(usageLogs.timestamp, since),
-        eq(usageLogs.action, 'public_esi_budget_alerted'),
+      or(
+        and(
+          gte(usageLogs.timestamp, since),
+          eq(usageLogs.action, 'public_esi_budget_alerted'),
+        ),
+        and(
+          gte(usageLogs.timestamp, activeClaimSince),
+          eq(usageLogs.action, 'public_esi_budget_alert_claimed'),
+        ),
       ),
     );
   return Number(row?.n ?? 0) > 0;

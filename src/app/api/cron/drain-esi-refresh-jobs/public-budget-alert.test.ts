@@ -4,16 +4,16 @@ const mocks = vi.hoisted(() => ({
   count: vi.fn(),
   hasAlert: vi.fn(),
   claim: vi.fn(),
-  release: vi.fn(),
+  complete: vi.fn(),
   alert: vi.fn(),
   configured: vi.fn(),
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({
   claimPublicEsiBudgetAlert: mocks.claim,
+  completePublicEsiBudgetAlertClaim: mocks.complete,
   countPublicEsiBudgetExhaustionsSince: mocks.count,
   hasPublicEsiBudgetAlertSince: mocks.hasAlert,
-  releasePublicEsiBudgetAlertClaim: mocks.release,
 }));
 vi.mock('@/lib/alerts', () => ({
   alertPublicEsiBudgetExhaustion: mocks.alert,
@@ -27,7 +27,7 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
     vi.clearAllMocks();
     mocks.hasAlert.mockResolvedValue(false);
     mocks.claim.mockResolvedValue(42);
-    mocks.release.mockResolvedValue(undefined);
+    mocks.complete.mockResolvedValue(undefined);
     mocks.alert.mockResolvedValue(true);
     mocks.configured.mockReturnValue(true);
   });
@@ -52,7 +52,7 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
     expect(mocks.claim.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.alert.mock.invocationCallOrder[0]!,
     );
-    expect(mocks.release).not.toHaveBeenCalled();
+    expect(mocks.complete).toHaveBeenCalledWith(42);
   });
 
   it('suppresses another alert inside the same window', async () => {
@@ -85,15 +85,15 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
     expect(mocks.alert).not.toHaveBeenCalled();
   });
 
-  it('releases the claim when Discord delivery fails', async () => {
+  it('leaves a failed delivery as an expiring claim', async () => {
     mocks.count.mockResolvedValue(3);
     mocks.alert.mockRejectedValue(new Error('webhook timed out'));
 
     await expect(maybeAlertPublicEsiBudgetExhaustion()).rejects.toThrow('webhook timed out');
-    expect(mocks.release).toHaveBeenCalledWith(42);
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 
-  it('releases the claim if configuration disappears before delivery', async () => {
+  it('leaves an unconfigured delivery as an expiring claim', async () => {
     mocks.count.mockResolvedValue(3);
     mocks.alert.mockResolvedValue(false);
 
@@ -101,6 +101,6 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
       status: 'unconfigured',
       count: 3,
     });
-    expect(mocks.release).toHaveBeenCalledWith(42);
+    expect(mocks.complete).not.toHaveBeenCalled();
   });
 });

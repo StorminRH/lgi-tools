@@ -27,6 +27,7 @@ export const SERVER_USAGE_ACTIONS = [
   'owned_data_read', // authenticated owned-data endpoint timing and result volume
   'planner_open_timing', // server-only planner structure/pricing/history/shell timing
   'neon_cold_start_retry', // recovered or exhausted Neon cold-start retry envelope
+  'public_esi_budget_alert_claimed', // short-lived lease acquired before public budget alert delivery
   'public_esi_budget_alerted', // aggregation-path marker for a dispatched public exhaustion alert
   'cron_prices', // hourly price-cron outcome — refreshed / skipped (O-2, O-3)
   'cron_industry_indices', // daily industry cost-index + adjusted-price cron outcome (3.5.1b)
