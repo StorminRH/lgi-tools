@@ -59,15 +59,11 @@ export async function GET(req: Request): Promise<Response> {
       } satisfies CronRefreshGscResponse);
     },
     work: async () => {
-      // The fetch + upserts run on the directClient pool; the lock stays on the
-      // gate's reserved connection. The GSC HTTP calls happen with no
-      // transaction open.
-      const sitemapUrls = (await getSitemapEntries()).map((entry) => entry.url);
-      const summary = await syncGsc(directClient, sitemapUrls);
-
       // Daily housekeeping runs inside the lock so a duplicate cron cannot race
       // the same retention sweep. Each prune is swallowed independently so one
-      // hiccup neither fails the sync nor prevents the remaining tables pruning.
+      // hiccup neither prevents the remaining tables pruning nor fails the sync.
+      // It runs before sitemap/GSC work so an upstream outage cannot suspend
+      // unrelated retention policies.
       await swallow(
         '[cron:gsc] usage_logs prune failed',
         pruneUsageLogs(USAGE_LOG_RETENTION_DAYS),
@@ -88,6 +84,12 @@ export async function GET(req: Request): Promise<Response> {
         '[cron:gsc] expired verification prune failed',
         pruneExpiredVerifications(db, VERIFICATION_RETENTION_DAYS),
       );
+
+      // The fetch + upserts run on the directClient pool; the lock stays on the
+      // gate's reserved connection. The GSC HTTP calls happen with no
+      // transaction open.
+      const sitemapUrls = (await getSitemapEntries()).map((entry) => entry.url);
+      const summary = await syncGsc(directClient, sitemapUrls);
 
       // Structured boundary line (runtime logs) + durable telemetry row. `outcome`
       // mirrors the price cron so a skipped/failed/partial run is distinguishable
