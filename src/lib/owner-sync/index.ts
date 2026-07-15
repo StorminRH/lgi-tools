@@ -3,6 +3,8 @@
 // its refreshXForUser(port, userId). See types.ts for the seam.
 export { makeCharacterDescriptor } from './character';
 export type { CharacterDatasetSpec, CharacterSyncBase } from './character';
+export { makeCorpDescriptor } from './corp';
+export type { CorpDatasetSpec, CorpSyncBase } from './corp';
 export { runOwnerSync } from './engine';
 export { makeOwnedDescriptor } from './owned';
 export type { OwnedDatasetPort, OwnedDatasetSpec, PagedOwnerReadResult } from './owned';

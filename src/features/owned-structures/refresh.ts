@@ -10,10 +10,10 @@
 // corp-keyed owner — one shared row set, read by all members. The engine checks the
 // shared staleness stamp BEFORE any vend or roles read, so the first member's view
 // per window does the ESI work and every other member's view inside the window does
-// nothing. A corp with no Station_Manager member resolves to `needs_role`, which —
-// with NO saveGateState defined — is a plain skip: a role-less member's refresh never
-// clobbers the shared catalogue a Station_Manager populated.
-import { type OwnerSyncDescriptor, planRead, runOwnerSync } from '@/lib/owner-sync';
+// nothing. The shared corporation descriptor owns that common plumbing. A corp with
+// no Station_Manager member resolves to `needs_role`, which — with NO saveGateState
+// defined — is a plain skip, so a role-less member never clobbers the shared catalogue.
+import { makeCorpDescriptor, planRead, runOwnerSync } from '@/lib/owner-sync';
 import { CORP_STRUCTURES_REQUIRED_ROLES, canSyncCorpStructures } from './corp-sync-eligibility';
 import { type ParsedCorpStructure, parseCorpStructuresBody } from './esi-projection';
 import { isStructuresStale } from './staleness';
@@ -25,26 +25,16 @@ interface StructuresSave {
   etags: string[];
 }
 
-function makeDescriptor(
-  port: CorpStructuresPort,
-): OwnerSyncDescriptor<CorpOwner, CorpStructuresSyncState, StructuresSave> {
-  return {
-    now: () => port.now(),
-    enumerate: (userId) => port.listMembers(userId),
-    identityOf: (owner) => ({ ownerType: 'corporation', ownerId: owner.corporationId }),
-    vendToken: (characterId) => port.vendToken(characterId),
+function makeDescriptor(port: CorpStructuresPort) {
+  return makeCorpDescriptor<CorpOwner, CorpStructuresSyncState, StructuresSave>(port, {
+    // userId IGNORED — every eligible member maps to the same shared corp row.
+    ownerOf: (_userId, corporationId) => ({ corporationId }),
+    eligible: (owner) => canSyncCorpStructures(owner),
+    requiredRoles: CORP_STRUCTURES_REQUIRED_ROLES,
     // Consent gate, FIRST in the engine — a corp that hasn't opted in is skipped
     // before any staleness check, vend, or roles read (zero ESI, zero rows).
     precondition: (owner) => port.isSharingEnabled(owner.corporationId),
-    isStale: (state, now) => isStructuresStale(state?.lastRefreshedAt ?? null, now),
-    corpAxis: {
-      eligible: (owner) => canSyncCorpStructures(owner),
-      // userId IGNORED — the owner key is the corp alone, so every eligible member's
-      // refresh maps to the same shared row (the per-corp shared store).
-      ownerOf: (_userId, corporationId) => ({ corporationId }),
-      requiredRoles: CORP_STRUCTURES_REQUIRED_ROLES,
-      readRoles: (characterId, accessToken) => port.readRoles(characterId, accessToken),
-    },
+    isStale: isStructuresStale,
     readState: (owner) => port.readSyncState(owner.corporationId),
     fetchAndPlan: async (owner, accessToken, state) => {
       const read = await port.readStructures(owner.corporationId, accessToken, state?.pageEtags ?? []);
@@ -58,7 +48,7 @@ function makeDescriptor(
     save: (owner, payload) => port.saveStructures(owner.corporationId, payload.rows, payload.etags),
     stampFresh: (owner) => port.stampFresh(owner.corporationId),
     // NO saveGateState — see the header: a role-less member's needs_role is a skip.
-  };
+  });
 }
 
 export async function refreshCorpStructuresForUser(port: CorpStructuresPort, userId: string): Promise<void> {

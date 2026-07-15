@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { planJobsPersist, refreshJobsForUser } from './refresh';
+import { refreshJobsForUser } from './refresh';
 import type { CharacterJobsSyncState, JobsEsiRead, JobsPort, RefreshCharacter } from './types';
 
 const NOW = new Date('2026-06-28T12:00:00Z');
@@ -54,8 +54,9 @@ describe('refreshJobsForUser', () => {
       readSyncState: vi.fn(async () => fresh()),
     });
 
-    await refreshJobsForUser(port, 'u1');
+    const result = await refreshJobsForUser(port, 'u1');
 
+    expect(result).toEqual([{ kind: 'succeeded', target: { ownerType: 'character', ownerId: 1 } }]);
     expect(port.vendToken).not.toHaveBeenCalled();
     expect(port.readJobs).not.toHaveBeenCalled();
     expect(port.saveJobs).not.toHaveBeenCalled();
@@ -67,8 +68,9 @@ describe('refreshJobsForUser', () => {
       readSyncState: vi.fn(async () => null), // never synced → stale, no held etag
     });
 
-    await refreshJobsForUser(port, 'u1');
+    const result = await refreshJobsForUser(port, 'u1');
 
+    expect(result).toEqual([{ kind: 'succeeded', target: { ownerType: 'character', ownerId: 1 } }]);
     expect(port.readJobs).toHaveBeenCalledWith(1, 'token', null);
     const save = vi.mocked(port.saveJobs).mock.calls[0]!;
     expect(save[0]).toBe(1);
@@ -84,8 +86,9 @@ describe('refreshJobsForUser', () => {
       readJobs: vi.fn(async (): Promise<JobsEsiRead> => ({ kind: 'unchanged' })),
     });
 
-    await refreshJobsForUser(port, 'u1');
+    const result = await refreshJobsForUser(port, 'u1');
 
+    expect(result).toEqual([{ kind: 'succeeded', target: { ownerType: 'character', ownerId: 1 } }]);
     expect(port.readJobs).toHaveBeenCalledWith(1, 'token', '"jh"');
     expect(port.stampFresh).toHaveBeenCalledOnce();
     expect(port.saveJobs).not.toHaveBeenCalled();
@@ -97,8 +100,28 @@ describe('refreshJobsForUser', () => {
       readJobs: vi.fn(async (): Promise<JobsEsiRead> => ({ kind: 'error', code: 'esi_500' })),
     });
 
-    await refreshJobsForUser(port, 'u1');
+    const result = await refreshJobsForUser(port, 'u1');
 
+    expect(result).toEqual([
+      { kind: 'failed_permanent', target: { ownerType: 'character', ownerId: 1 }, code: 'esi_500' },
+    ]);
+    expect(port.saveJobs).not.toHaveBeenCalled();
+    expect(port.stampFresh).not.toHaveBeenCalled();
+  });
+
+  it('reports a fresh contract rejection without saving or stamping', async () => {
+    const port = makePort({
+      listCharacters: vi.fn(async () => [character(1)]),
+      readJobs: vi.fn(
+        async (): Promise<JobsEsiRead> => ({ kind: 'fresh', body: { not: 'an array' }, etag: '"bad"' }),
+      ),
+    });
+
+    const result = await refreshJobsForUser(port, 'u1');
+
+    expect(result).toEqual([
+      { kind: 'failed_permanent', target: { ownerType: 'character', ownerId: 1 }, code: 'contract_error' },
+    ]);
     expect(port.saveJobs).not.toHaveBeenCalled();
     expect(port.stampFresh).not.toHaveBeenCalled();
   });
@@ -139,31 +162,5 @@ describe('refreshJobsForUser', () => {
 
     expect(port.readJobs).not.toHaveBeenCalled();
     expect(port.saveJobs).not.toHaveBeenCalled();
-  });
-});
-
-describe('planJobsPersist', () => {
-  const freshRead = (body: unknown, etag: string | null): JobsEsiRead => ({ kind: 'fresh', body, etag });
-  const unchanged: JobsEsiRead = { kind: 'unchanged' };
-  const error: JobsEsiRead = { kind: 'error', code: 'esi_500' };
-
-  it('saves the board when the read is fresh', () => {
-    expect(planJobsPersist(freshRead([esiJob(5)], '"j"'))).toEqual({
-      kind: 'save',
-      jobs: [esiJob(5)],
-      etag: '"j"',
-    });
-  });
-
-  it('stamps when the read is a 304', () => {
-    expect(planJobsPersist(unchanged)).toEqual({ kind: 'stamp' });
-  });
-
-  it('skips on an ESI error', () => {
-    expect(planJobsPersist(error)).toEqual({ kind: 'skip', code: 'esi_500' });
-  });
-
-  it('skips on a contract mismatch in a fresh body', () => {
-    expect(planJobsPersist(freshRead({ not: 'an array' }, '"j"'))).toEqual({ kind: 'skip', code: 'contract_error' });
   });
 });

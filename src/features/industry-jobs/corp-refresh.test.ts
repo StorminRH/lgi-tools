@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { type CorpJobsPersistPlan, planCorpJobsPersist, refreshCorpJobsForUser } from './corp-refresh';
+import { refreshCorpJobsForUser } from './corp-refresh';
 import type { IndustryJob } from './esi-projection';
 import type { CorpJobsPort, JobsEsiRead, RefreshCorpMember } from './types';
 
@@ -91,26 +91,6 @@ function makeFakePort(opts: FakeOptions) {
   return { port, calls };
 }
 
-describe('planCorpJobsPersist', () => {
-  const cases: Array<[string, JobsEsiRead, CorpJobsPersistPlan]> = [
-    ['saves a fresh body', { kind: 'fresh', body: [], etag: 'e1' }, { kind: 'save', jobs: [], etag: 'e1' }],
-    ['stamps on a 304', { kind: 'unchanged' }, { kind: 'stamp' }],
-    ['needs_role on a 403', { kind: 'error', code: 'esi_403' }, { kind: 'needs_role' }],
-    ['skips a transient error', { kind: 'error', code: 'esi_server_error' }, { kind: 'skip', code: 'esi_server_error' }],
-    ['skips budget exhaustion', { kind: 'error', code: 'budget_exhausted' }, { kind: 'skip', code: 'budget_exhausted' }],
-  ];
-  it.each(cases)('%s', (_label, read, expected) => {
-    expect(planCorpJobsPersist(read)).toEqual(expected);
-  });
-
-  it('skips a fresh body that fails the contract parse', () => {
-    expect(planCorpJobsPersist({ kind: 'fresh', body: { not: 'an array' }, etag: 'e' })).toEqual({
-      kind: 'skip',
-      code: 'contract_error',
-    });
-  });
-});
-
 describe('refreshCorpJobsForUser', () => {
   it('does zero work for a fresh corp (the staleness gate is the dedup)', async () => {
     const { port, calls } = makeFakePort({
@@ -131,7 +111,8 @@ describe('refreshCorpJobsForUser', () => {
       members: [member({ characterId: 1, corporationId: 2000 })],
       reads: { 2000: { kind: 'fresh', body: [fresh], etag: 'etag-1' } },
     });
-    await refreshCorpJobsForUser(port, 'user-1');
+    const result = await refreshCorpJobsForUser(port, 'user-1');
+    expect(result).toEqual([{ kind: 'succeeded', target: { ownerType: 'corporation', ownerId: 2000 } }]);
     expect(calls.readJobs).toEqual([2000]);
     expect(calls.saveJobs).toEqual([{ corporationId: 2000, jobs: [fresh], etag: 'etag-1' }]);
   });
@@ -144,7 +125,10 @@ describe('refreshCorpJobsForUser', () => {
       ],
       roles: { 1: ['Accountant'], 2: ['Station_Manager'] },
     });
-    await refreshCorpJobsForUser(port, 'user-1');
+    const result = await refreshCorpJobsForUser(port, 'user-1');
+    expect(result).toEqual([
+      { kind: 'failed_permanent', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'needs_role' },
+    ]);
     expect(calls.readJobs).toEqual([]); // no token spent on a guaranteed 403
     expect(calls.saveNeedsRole).toEqual([2000]);
     expect(calls.saveJobs).toEqual([]);
@@ -168,7 +152,8 @@ describe('refreshCorpJobsForUser', () => {
       syncStates: { 2000: { lastRefreshedAt: null, jobsEtag: 'held' } },
       reads: { 2000: { kind: 'unchanged' } },
     });
-    await refreshCorpJobsForUser(port, 'user-1');
+    const result = await refreshCorpJobsForUser(port, 'user-1');
+    expect(result).toEqual([{ kind: 'succeeded', target: { ownerType: 'corporation', ownerId: 2000 } }]);
     expect(calls.readJobs).toEqual([2000]);
     expect(calls.stampFresh).toEqual([2000]);
     expect(calls.saveJobs).toEqual([]);
@@ -179,8 +164,43 @@ describe('refreshCorpJobsForUser', () => {
       members: [member({ characterId: 1, corporationId: 2000 })],
       reads: { 2000: { kind: 'error', code: 'esi_403' } },
     });
-    await refreshCorpJobsForUser(port, 'user-1');
+    const result = await refreshCorpJobsForUser(port, 'user-1');
+    expect(result).toEqual([
+      { kind: 'failed_permanent', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'needs_role' },
+    ]);
     expect(calls.saveNeedsRole).toEqual([2000]);
+    expect(calls.saveJobs).toEqual([]);
+  });
+
+  it('reports a transient read error without saving or stamping', async () => {
+    const { port, calls } = makeFakePort({
+      members: [member({ characterId: 1, corporationId: 2000 })],
+      reads: { 2000: { kind: 'error', code: 'esi_server_error' } },
+    });
+
+    const result = await refreshCorpJobsForUser(port, 'user-1');
+
+    expect(result).toEqual([
+      { kind: 'failed_retryable', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'esi_server_error' },
+    ]);
+    expect(calls.saveNeedsRole).toEqual([]);
+    expect(calls.stampFresh).toEqual([]);
+    expect(calls.saveJobs).toEqual([]);
+  });
+
+  it('reports a fresh contract rejection without saving or stamping', async () => {
+    const { port, calls } = makeFakePort({
+      members: [member({ characterId: 1, corporationId: 2000 })],
+      reads: { 2000: { kind: 'fresh', body: { not: 'an array' }, etag: 'bad' } },
+    });
+
+    const result = await refreshCorpJobsForUser(port, 'user-1');
+
+    expect(result).toEqual([
+      { kind: 'failed_permanent', target: { ownerType: 'corporation', ownerId: 2000 }, code: 'contract_error' },
+    ]);
+    expect(calls.saveNeedsRole).toEqual([]);
+    expect(calls.stampFresh).toEqual([]);
     expect(calls.saveJobs).toEqual([]);
   });
 
