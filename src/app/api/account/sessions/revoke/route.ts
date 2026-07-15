@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import type { SessionsRevokeResponse } from '@/features/auth/api-contract';
 import { revokeUserSessions } from '@/features/auth/queries';
 import { requireSession } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
 // POST-only. Log the CALLER out everywhere — revoke all of their sessions. Acts on
@@ -18,12 +18,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
   if (!limit.ok) return limit.response;
 
-  const gate = await requireSession();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const session = gate.session;
-
-  const revoked = await revokeUserSessions(session.user.id);
-
-  return Response.json({ revoked } satisfies SessionsRevokeResponse);
+  return runMutationRoute(request, {
+    authorize: requireSession,
+    handle: async ({ session }) => {
+      const revoked = await revokeUserSessions(session.user.id);
+      return Response.json({ revoked } satisfies SessionsRevokeResponse);
+    },
+  });
 }

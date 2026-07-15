@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { unlinkCharacterFormSchema } from '@/features/auth/api-contract';
 import { auth } from '@/features/auth/auth';
@@ -10,7 +11,6 @@ import {
   repointActiveToOldest,
 } from '@/features/auth/queries';
 import { requireSession } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseFormBody } from '@/lib/route-body';
 
@@ -37,53 +37,50 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
   if (!limit.ok) return limit.response;
 
-  const gate = await requireSession();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const session = gate.session;
+  return runMutationRoute(request, {
+    authorize: requireSession,
+    parse: (incoming) => parseFormBody(
+      incoming,
+      unlinkCharacterFormSchema,
+      (form) => ({ characterId: form.get('characterId') }),
+      () => new Response('Invalid character', { status: 400 }),
+    ),
+    handle: async ({ session }, { characterId }) => {
+      const linked = await listLinkedCharacters(session.user.id);
+      if (!linked.some((c) => c.characterId === characterId)) {
+        return redirectWithError(request, 'not_linked');
+      }
+      // Can't remove the only character — there'd be no identity left to act as.
+      if (linked.length <= 1) {
+        return redirectWithError(request, 'last_character');
+      }
 
-  const parsed = await parseFormBody(
-    request,
-    unlinkCharacterFormSchema,
-    (form) => ({ characterId: form.get('characterId') }),
-    () => new Response('Invalid character', { status: 400 }),
-  );
-  if (!parsed.ok) return parsed.response;
-  const { characterId } = parsed.data;
+      try {
+        await auth.api.unlinkAccount({
+          body: { providerId: EVE_PROVIDER_ID, accountId: String(characterId) },
+          headers: await headers(),
+        });
+      } catch (err) {
+        console.error('[account/unlink] unlinkAccount failed', err);
+        return redirectWithError(request, 'unlink_failed');
+      }
 
-  const linked = await listLinkedCharacters(session.user.id);
-  if (!linked.some((c) => c.characterId === characterId)) {
-    return redirectWithError(request, 'not_linked');
-  }
-  // Can't remove the only character — there'd be no identity left to act as.
-  if (linked.length <= 1) {
-    return redirectWithError(request, 'last_character');
-  }
+      // Re-point the active character if we just removed it (the oldest remaining one
+      // becomes active). Read the stored active id FRESH rather than trusting the
+      // session snapshot, which a concurrent switch could have made stale. Safe
+      // because the last-character guard above guarantees at least one account remains.
+      const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
+      if (activeCharacterId === characterId) {
+        await repointActiveToOldest(session.user.id);
+      }
 
-  try {
-    await auth.api.unlinkAccount({
-      body: { providerId: EVE_PROVIDER_ID, accountId: String(characterId) },
-      headers: await headers(),
-    });
-  } catch (err) {
-    console.error('[account/unlink] unlinkAccount failed', err);
-    return redirectWithError(request, 'unlink_failed');
-  }
+      void logUsageEvent({
+        action: 'character_unlink',
+        characterId: session.characterId,
+        metadata: { userId: session.user.id, unlinkedCharacterId: characterId },
+      }).catch((err) => console.error('[account/unlink] telemetry write failed', err));
 
-  // Re-point the active character if we just removed it (the oldest remaining one
-  // becomes active). Read the stored active id FRESH rather than trusting the
-  // session snapshot, which a concurrent switch could have made stale. Safe
-  // because the last-character guard above guarantees at least one account remains.
-  const activeCharacterId = await getStoredActiveCharacterId(session.user.id);
-  if (activeCharacterId === characterId) {
-    await repointActiveToOldest(session.user.id);
-  }
-
-  void logUsageEvent({
-    action: 'character_unlink',
-    characterId: session.characterId,
-    metadata: { userId: session.user.id, unlinkedCharacterId: characterId },
-  }).catch((err) => console.error('[account/unlink] telemetry write failed', err));
-
-  return Response.redirect(new URL('/characters', request.url), 303);
+      return Response.redirect(new URL('/characters', request.url), 303);
+    },
+  });
 }

@@ -75,7 +75,7 @@
   "boundaries": {
     "zones": [
       {
-        "// note": "First-match-wins: auth-surface is listed BEFORE the features autoDiscover zone so these 3 files classify here, not into features/auth. Verified via `fallow list --boundaries` (auth-surface=3 files, classified ahead of the larger features/auth zone). Mirrors the ESLint shared-auth-surface element.",
+        "// note": "First-match-wins: auth-surface is listed BEFORE the features autoDiscover zone so these 3 files classify here, not into features/auth. Verified via `fallow list --boundaries` (auth-surface=3 files, classified ahead of the larger features/auth zone). Fallow is the sole mechanical boundary owner; CONTRIBUTING.md carries the public prose.",
         "name": "auth-surface",
         "patterns": [
           "src/features/auth/types.ts",

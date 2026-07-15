@@ -16,6 +16,7 @@ const SESSION = {
 
 const getSessionMock = vi.fn();
 const revokeUserSessionsMock = vi.fn();
+const rateLimitGuardMock = vi.fn();
 
 vi.mock('@/features/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -23,6 +24,10 @@ vi.mock('@/features/auth/auth', () => ({
 
 vi.mock('@/features/auth/queries', () => ({
   revokeUserSessions: (u: string) => revokeUserSessionsMock(u),
+}));
+
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimitGuard: (...args: unknown[]) => rateLimitGuardMock(...args),
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
@@ -37,6 +42,25 @@ describe('POST /api/account/sessions/revoke', () => {
   beforeEach(() => {
     getSessionMock.mockReset();
     revokeUserSessionsMock.mockReset();
+    rateLimitGuardMock.mockReset().mockResolvedValue({ ok: true });
+  });
+
+  it('returns the rate-limit response before reading the session', async () => {
+    const response = Response.json(
+      { error: 'rate_limited', retryAfter: 10 },
+      { status: 429, headers: { 'Retry-After': '10' } },
+    );
+    rateLimitGuardMock.mockResolvedValue({ ok: false, response });
+
+    const res = await POST(buildRequest());
+
+    expect(res).toBe(response);
+    expect(rateLimitGuardMock).toHaveBeenCalledWith(expect.any(Request), {
+      name: 'account-logout-everywhere',
+      perMinute: 10,
+    });
+    expect(getSessionMock).not.toHaveBeenCalled();
+    expect(revokeUserSessionsMock).not.toHaveBeenCalled();
   });
 
   it('returns 401 when there is no session', async () => {

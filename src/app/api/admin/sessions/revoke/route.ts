@@ -1,9 +1,9 @@
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminRevokeSessionsFormSchema } from '@/features/auth/api-contract';
 import { getUserById, revokeUserSessions } from '@/features/auth/queries';
 import { requireAdmin } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 
 // POST-only. Admin force-logout: deletes every session row for the target user,
@@ -13,41 +13,39 @@ import { parseFormBody } from '@/lib/route-body';
 // Independent gate — never trust a UI-level disable.
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const session = gate.session;
+  return runMutationRoute(request, {
+    authorize: requireAdmin,
+    parse: (incoming) =>
+      parseFormBody(
+        incoming,
+        adminRevokeSessionsFormSchema,
+        (form) => ({ userId: form.get('userId') }),
+        () => new Response('Invalid form', { status: 400 }),
+      ),
+    handle: async ({ session }, { userId }) => {
+      if (userId === session.user.id) {
+        return new Response('Cannot force-logout your own session', { status: 400 });
+      }
 
-  const parsed = await parseFormBody(
-    request,
-    adminRevokeSessionsFormSchema,
-    (form) => ({ userId: form.get('userId') }),
-    () => new Response('Invalid form', { status: 400 }),
-  );
-  if (!parsed.ok) return parsed.response;
-  const { userId } = parsed.data;
+      const target = await getUserById(userId);
+      if (!target) {
+        return new Response('User not found', { status: 404 });
+      }
 
-  if (userId === session.user.id) {
-    return new Response('Cannot force-logout your own session', { status: 400 });
-  }
+      const revoked = await revokeUserSessions(userId);
 
-  const target = await getUserById(userId);
-  if (!target) {
-    return new Response('User not found', { status: 404 });
-  }
+      void logUsageEvent({
+        action: 'admin_force_logout',
+        characterId: session.characterId,
+        metadata: {
+          actorUserId: session.user.id,
+          targetUserId: userId,
+          targetCharacterId: target.characterId,
+          sessionsRevoked: revoked,
+        },
+      }).catch((err) => console.error('[admin/sessions/revoke] telemetry write failed', err));
 
-  const revoked = await revokeUserSessions(userId);
-
-  void logUsageEvent({
-    action: 'admin_force_logout',
-    characterId: session.characterId,
-    metadata: {
-      actorUserId: session.user.id,
-      targetUserId: userId,
-      targetCharacterId: target.characterId,
-      sessionsRevoked: revoked,
+      return Response.redirect(new URL(`/admin/access/${userId}`, request.url), 303);
     },
-  }).catch((err) => console.error('[admin/sessions/revoke] telemetry write failed', err));
-
-  return Response.redirect(new URL(`/admin/access/${userId}`, request.url), 303);
+  });
 }

@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import { requireUserId } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import {
   favoriteSavedPlanRequestSchema,
   type SavedPlansResponse,
@@ -16,15 +16,13 @@ import { parseJsonBody } from '@/lib/route-body';
 // templates (ownership-scoped like delete; a foreign id is a no-op). Echoes
 // the full updated list.
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireUserId();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const userId = gate.userId;
-
-  const parsed = await parseJsonBody(request, favoriteSavedPlanRequestSchema);
-  if (!parsed.ok) return parsed.response;
-
-  await setSavedPlanFavorite(userId, parsed.data.id, parsed.data.favorite);
-  const plans = await listSavedPlans(userId);
-  return Response.json({ plans } satisfies SavedPlansResponse);
+  return runMutationRoute(request, {
+    authorize: requireUserId,
+    parse: (incoming) => parseJsonBody(incoming, favoriteSavedPlanRequestSchema),
+    handle: async ({ userId }, { id, favorite }) => {
+      await setSavedPlanFavorite(userId, id, favorite);
+      const plans = await listSavedPlans(userId);
+      return Response.json({ plans } satisfies SavedPlansResponse);
+    },
+  });
 }

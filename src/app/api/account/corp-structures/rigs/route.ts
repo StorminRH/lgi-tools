@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import {
   type CorpStructureRigsResponse,
@@ -11,7 +12,6 @@ import {
 } from '@/features/owned-structures/queries';
 import { validateCorpStructureRigs } from '@/features/owned-structures/rig-validation';
 import { requireUserId } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -22,37 +22,36 @@ import { parseJsonBody } from '@/lib/route-body';
 // sharing toggle: the caller must be a member of the corp AND hold the Station_Manager
 // role. The user id comes from the session, never the body.
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireUserId();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const userId = gate.userId;
+  return runMutationRoute(request, {
+    authorize: requireUserId,
+    parse: (incoming) => parseJsonBody(incoming, setCorpStructureRigsRequestSchema),
+    handle: async ({ userId }, body) => {
+      const { corporationId, structureId, rigTypeIds, taxPct } = body;
 
-  const parsed = await parseJsonBody(request, setCorpStructureRigsRequestSchema);
-  if (!parsed.ok) return parsed.response;
-  const { corporationId, structureId, rigTypeIds, taxPct } = parsed.data;
+      const denied = await stationManagerGate(userId, corporationId);
+      if (denied) return denied;
 
-  const denied = await stationManagerGate(userId, corporationId);
-  if (denied) return denied;
+      const [corpStructures, types, rigs] = await Promise.all([
+        getCorpStructures([corporationId]),
+        getStructureTypes(),
+        getStructureRigs(),
+      ]);
+      const check = validateCorpStructureRigs(
+        corpStructures.get(corporationId),
+        structureId,
+        rigTypeIds,
+        types,
+        rigs,
+      );
+      if (!check.ok) return new Response(check.reason, { status: 400 });
 
-  const [corpStructures, types, rigs] = await Promise.all([
-    getCorpStructures([corporationId]),
-    getStructureTypes(),
-    getStructureRigs(),
-  ]);
-  const check = validateCorpStructureRigs(
-    corpStructures.get(corporationId),
-    structureId,
-    rigTypeIds,
-    types,
-    rigs,
-  );
-  if (!check.ok) return new Response(check.reason, { status: 400 });
-
-  await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds, taxPct);
-  const saved = (await getCorpStructureRigs([corporationId])).get(structureId);
-  return Response.json({
-    structureId,
-    rigTypeIds,
-    taxPct: saved?.taxPct ?? null,
-  } satisfies CorpStructureRigsResponse);
+      await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds, taxPct);
+      const saved = (await getCorpStructureRigs([corporationId])).get(structureId);
+      return Response.json({
+        structureId,
+        rigTypeIds,
+        taxPct: saved?.taxPct ?? null,
+      } satisfies CorpStructureRigsResponse);
+    },
+  });
 }
