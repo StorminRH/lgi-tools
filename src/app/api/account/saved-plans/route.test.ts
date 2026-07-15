@@ -106,6 +106,13 @@ describe('POST /api/account/saved-plans', () => {
     expect(h.getBlueprintStructureMock).not.toHaveBeenCalled();
   });
 
+  it('returns 400 for malformed JSON', async () => {
+    const res = await POST(makeRequest('{not valid json'));
+    expect(res.status).toBe(400);
+    expect(await res.text()).toBe('Invalid JSON');
+    expect(h.getBlueprintStructureMock).not.toHaveBeenCalled();
+  });
+
   it('returns 400 when the blueprint does not resolve', async () => {
     h.getBlueprintStructureMock.mockResolvedValue(null);
     const res = await POST(makeRequest(VALID_BODY));
