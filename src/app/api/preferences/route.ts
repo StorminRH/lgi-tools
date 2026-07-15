@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import {
   putPreferenceRequestSchema,
   type GetPreferencesResponse,
@@ -6,7 +7,6 @@ import {
 import { getPreferencesForUser, upsertPreference } from '@/data/preferences/queries';
 import { getCurrentUserId } from '@/features/auth/session';
 import { requireUserId } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import { validatePreferenceValue } from '@/lib/preferences';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -31,18 +31,16 @@ export async function GET(): Promise<Response> {
 // match that key's schema (validatePreferenceValue — the server trust boundary,
 // so a forged body can't write garbage). 401 for anon, 204 on success.
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireUserId();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const userId = gate.userId;
+  return runMutationRoute(request, {
+    authorize: requireUserId,
+    parse: (incoming) => parseJsonBody(incoming, putPreferenceRequestSchema),
+    handle: async ({ userId }, { key, value }) => {
+      if (!validatePreferenceValue(key, value)) {
+        return new Response('invalid value for key', { status: 400 });
+      }
 
-  const parsed = await parseJsonBody(request, putPreferenceRequestSchema);
-  if (!parsed.ok) return parsed.response;
-
-  if (!validatePreferenceValue(parsed.data.key, parsed.data.value)) {
-    return new Response('invalid value for key', { status: 400 });
-  }
-
-  await upsertPreference(userId, parsed.data.key, parsed.data.value);
-  return new Response(null, { status: 204 });
+      await upsertPreference(userId, key, value);
+      return new Response(null, { status: 204 });
+    },
+  });
 }

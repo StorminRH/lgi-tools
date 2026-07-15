@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import { getCurrentUserId } from '@/features/auth/session';
 import { requireUserId } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import {
   createSavedPlanRequestSchema,
   MAX_SAVED_PLANS_PER_USER,
@@ -36,38 +36,36 @@ export async function GET(): Promise<Response> {
 // resolve (it supplies the denormalized product columns the list renders), and
 // the per-user cap holds. Echoes the full updated list.
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireUserId();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const userId = gate.userId;
+  return runMutationRoute(request, {
+    authorize: requireUserId,
+    parse: (incoming) => parseJsonBody(incoming, createSavedPlanRequestSchema),
+    handle: async ({ userId }, body) => {
+      const structure = await getBlueprintStructure(body.snapshot.blueprintTypeId);
+      if (!structure) return new Response('unknown blueprint', { status: 400 });
 
-  const parsed = await parseJsonBody(request, createSavedPlanRequestSchema);
-  if (!parsed.ok) return parsed.response;
+      if ((await countSavedPlans(userId)) >= MAX_SAVED_PLANS_PER_USER) {
+        return new Response('template limit reached', { status: 409 });
+      }
 
-  const structure = await getBlueprintStructure(parsed.data.snapshot.blueprintTypeId);
-  if (!structure) return new Response('unknown blueprint', { status: 400 });
-
-  if ((await countSavedPlans(userId)) >= MAX_SAVED_PLANS_PER_USER) {
-    return new Response('template limit reached', { status: 409 });
-  }
-
-  const id = randomUUID();
-  await createSavedPlan(userId, {
-    id,
-    name: parsed.data.name,
-    blueprintTypeId: parsed.data.snapshot.blueprintTypeId,
-    productTypeId: structure.product.typeId,
-    productName: structure.product.name,
-    snapshot: parsed.data.snapshot,
+      const id = randomUUID();
+      await createSavedPlan(userId, {
+        id,
+        name: body.name,
+        blueprintTypeId: body.snapshot.blueprintTypeId,
+        productTypeId: structure.product.typeId,
+        productName: structure.product.name,
+        snapshot: body.snapshot,
+      });
+      // The pre-check races concurrent saves (count-then-insert; the neon-http
+      // request path has no transaction to serialize it), so recount after the
+      // insert and roll this row back if the cap was breached — simultaneous
+      // saves converge at or under the cap instead of past it.
+      if ((await countSavedPlans(userId)) > MAX_SAVED_PLANS_PER_USER) {
+        await deleteSavedPlan(userId, id);
+        return new Response('template limit reached', { status: 409 });
+      }
+      const plans = await listSavedPlans(userId);
+      return Response.json({ plans } satisfies SavedPlansResponse, { status: 201 });
+    },
   });
-  // The pre-check races concurrent saves (count-then-insert; the neon-http
-  // request path has no transaction to serialize it), so recount after the
-  // insert and roll this row back if the cap was breached — simultaneous
-  // saves converge at or under the cap instead of past it.
-  if ((await countSavedPlans(userId)) > MAX_SAVED_PLANS_PER_USER) {
-    await deleteSavedPlan(userId, id);
-    return new Response('template limit reached', { status: 409 });
-  }
-  const plans = await listSavedPlans(userId);
-  return Response.json({ plans } satisfies SavedPlansResponse, { status: 201 });
 }

@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminUnlinkFormSchema } from '@/features/auth/api-contract';
 import { requireAdmin } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 import {
   accountBelongsToUser,
@@ -28,52 +28,50 @@ function redirectTo(request: NextRequest, userId: string, error?: string): Respo
 // Independent gate — never trust a UI-level disable.
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const session = gate.session;
+  return runMutationRoute(request, {
+    authorize: requireAdmin,
+    parse: (incoming) =>
+      parseFormBody(
+        incoming,
+        adminUnlinkFormSchema,
+        (form) => ({ userId: form.get('userId'), characterId: form.get('characterId') }),
+        () => new Response('Invalid form', { status: 400 }),
+      ),
+    handle: async ({ session }, { userId, characterId }) => {
+      if (!(await accountBelongsToUser(userId, characterId))) {
+        return new Response('Character not linked to that user', { status: 404 });
+      }
 
-  const parsed = await parseFormBody(
-    request,
-    adminUnlinkFormSchema,
-    (form) => ({ userId: form.get('userId'), characterId: form.get('characterId') }),
-    () => new Response('Invalid form', { status: 400 }),
-  );
-  if (!parsed.ok) return parsed.response;
-  const { userId, characterId } = parsed.data;
+      // Don't strand a user with no identity — reassign instead. (The button is
+      // disabled in this case, but a crafted POST would still arrive here.)
+      const linked = await listLinkedCharacters(userId);
+      if (linked.length <= 1) {
+        return redirectTo(request, userId, 'last_character');
+      }
 
-  if (!(await accountBelongsToUser(userId, characterId))) {
-    return new Response('Character not linked to that user', { status: 404 });
-  }
+      const removed = await deleteLinkedCharacter(userId, characterId);
+      if (!removed) {
+        return redirectTo(request, userId, 'unlink_failed');
+      }
 
-  // Don't strand a user with no identity — reassign instead. (The button is
-  // disabled in this case, but a crafted POST would still arrive here.)
-  const linked = await listLinkedCharacters(userId);
-  if (linked.length <= 1) {
-    return redirectTo(request, userId, 'last_character');
-  }
+      // Re-point the target user's active character if we just removed it. At least
+      // one account remains (last-character guard above).
+      const active = await getStoredActiveCharacterId(userId);
+      if (active === characterId) {
+        await repointActiveToOldest(userId);
+      }
 
-  const removed = await deleteLinkedCharacter(userId, characterId);
-  if (!removed) {
-    return redirectTo(request, userId, 'unlink_failed');
-  }
+      void logUsageEvent({
+        action: 'admin_character_unlink',
+        characterId: session.characterId,
+        metadata: {
+          actorUserId: session.user.id,
+          targetUserId: userId,
+          characterId,
+        },
+      }).catch((err) => console.error('[admin/characters/unlink] telemetry write failed', err));
 
-  // Re-point the target user's active character if we just removed it. At least
-  // one account remains (last-character guard above).
-  const active = await getStoredActiveCharacterId(userId);
-  if (active === characterId) {
-    await repointActiveToOldest(userId);
-  }
-
-  void logUsageEvent({
-    action: 'admin_character_unlink',
-    characterId: session.characterId,
-    metadata: {
-      actorUserId: session.user.id,
-      targetUserId: userId,
-      characterId,
+      return redirectTo(request, userId);
     },
-  }).catch((err) => console.error('[admin/characters/unlink] telemetry write failed', err));
-
-  return redirectTo(request, userId);
+  });
 }

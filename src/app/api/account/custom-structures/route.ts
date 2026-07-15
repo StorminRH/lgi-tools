@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import {
   createCustomStructureRequestSchema,
@@ -14,7 +15,6 @@ import {
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { validateCustomStructureSelection } from '@/features/custom-structures/validation';
 import { requireUserId } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseJsonBody } from '@/lib/route-body';
 
 // authz: auth
@@ -24,33 +24,31 @@ import { parseJsonBody } from '@/lib/route-body';
 // from the session, never the body; anonymous callers are rejected. Returns the
 // full updated list (the page reads the initial list server-side, so there is no GET).
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireUserId();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const userId = gate.userId;
+  return runMutationRoute(request, {
+    authorize: requireUserId,
+    parse: (incoming) => parseJsonBody(incoming, createCustomStructureRequestSchema),
+    handle: async ({ userId }, body) => {
+      const [types, rigs] = await Promise.all([getStructureTypes(), getStructureRigs()]);
+      const check = validateCustomStructureSelection(body, types, rigs);
+      if (!check.ok) return new Response(check.reason, { status: 400 });
 
-  const parsed = await parseJsonBody(request, createCustomStructureRequestSchema);
-  if (!parsed.ok) return parsed.response;
+      const badPin = await rejectUnknownSystemPin(body.systemId);
+      if (badPin) return badPin;
 
-  const [types, rigs] = await Promise.all([getStructureTypes(), getStructureRigs()]);
-  const check = validateCustomStructureSelection(parsed.data, types, rigs);
-  if (!check.ok) return new Response(check.reason, { status: 400 });
+      if ((await countCustomStructures(userId)) >= MAX_CUSTOM_STRUCTURES_PER_USER) {
+        return new Response('structure limit reached', { status: 409 });
+      }
 
-  const badPin = await rejectUnknownSystemPin(parsed.data.systemId);
-  if (badPin) return badPin;
-
-  if ((await countCustomStructures(userId)) >= MAX_CUSTOM_STRUCTURES_PER_USER) {
-    return new Response('structure limit reached', { status: 409 });
-  }
-
-  await createCustomStructure(userId, {
-    id: randomUUID(),
-    name: parsed.data.name,
-    structureTypeId: parsed.data.structureTypeId,
-    rigTypeIds: parsed.data.rigTypeIds,
-    systemId: parsed.data.systemId,
-    taxPct: parsed.data.taxPct,
+      await createCustomStructure(userId, {
+        id: randomUUID(),
+        name: body.name,
+        structureTypeId: body.structureTypeId,
+        rigTypeIds: body.rigTypeIds,
+        systemId: body.systemId,
+        taxPct: body.taxPct,
+      });
+      const structures = await listCustomStructures(userId);
+      return Response.json({ structures } satisfies CustomStructuresResponse, { status: 201 });
+    },
   });
-  const structures = await listCustomStructures(userId);
-  return Response.json({ structures } satisfies CustomStructuresResponse, { status: 201 });
 }

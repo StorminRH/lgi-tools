@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { runMutationRoute } from '@/app/api/mutation-route';
 import {
   type CorpStructureSharingResponse,
   setCorpStructureSharingRequestSchema,
@@ -6,7 +7,6 @@ import {
 import { setCorpStructureSharing } from '@/features/owned-structures/queries';
 import { getSessionCharacterId } from '@/features/auth/session';
 import { requireUserId } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
@@ -19,20 +19,17 @@ import { parseJsonBody } from '@/lib/route-body';
 // opts the corp in; DISABLE wipes its stored structures, sync state, and authored
 // rigs. The user id comes from the session, never the body.
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireUserId();
-  if (!gate.ok) return gate.response;
-  requireSameOrigin(request);
-  const userId = gate.userId;
+  return runMutationRoute(request, {
+    authorize: requireUserId,
+    parse: (incoming) => parseJsonBody(incoming, setCorpStructureSharingRequestSchema),
+    handle: async ({ userId }, { corporationId, enabled }) => {
+      // Membership first (fail-closed + audited; also refreshes affiliations), then the
+      // Station_Manager role on the freshly-refreshed set — the shared two-step gate.
+      const denied = await stationManagerGate(userId, corporationId);
+      if (denied) return denied;
 
-  const parsed = await parseJsonBody(request, setCorpStructureSharingRequestSchema);
-  if (!parsed.ok) return parsed.response;
-  const { corporationId, enabled } = parsed.data;
-
-  // Membership first (fail-closed + audited; also refreshes affiliations), then the
-  // Station_Manager role on the freshly-refreshed set — the shared two-step gate.
-  const denied = await stationManagerGate(userId, corporationId);
-  if (denied) return denied;
-
-  await setCorpStructureSharing(corporationId, enabled, await getSessionCharacterId());
-  return Response.json({ corporationId, enabled } satisfies CorpStructureSharingResponse);
+      await setCorpStructureSharing(corporationId, enabled, await getSessionCharacterId());
+      return Response.json({ corporationId, enabled } satisfies CorpStructureSharingResponse);
+    },
+  });
 }
