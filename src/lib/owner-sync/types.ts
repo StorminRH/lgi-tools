@@ -56,9 +56,9 @@ export type CorpDirectorResolution =
   | { kind: 'unavailable' };
 
 // What a per-owner refresh should persist after the fetch + plan. The 'save' variant
-// carries the slice's own save shape (TSave) inline, so a slice's existing plan fn
-// (planJobsPersist / planSkillsPersist / planCorpJobsPersist) IS already a
-// PersistVerdict — no adapter. 'needs_role' records a graceful gate state via
+// carries the slice's own save shape (TSave) inline, so a slice's planRead call or
+// bespoke planner (such as planSkillsPersist) is already a PersistVerdict — no
+// adapter. 'needs_role' records a graceful gate state via
 // saveGateState (a no-op for slices that don't define one — i.e. it degrades to skip).
 export type PersistVerdict<TSave> =
   | ({ kind: 'save' } & TSave)

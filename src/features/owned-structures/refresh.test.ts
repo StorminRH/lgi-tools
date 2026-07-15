@@ -141,6 +141,22 @@ describe('refreshCorpStructuresForUser', () => {
     expect(port.saveStructures).not.toHaveBeenCalled();
   });
 
+  it('treats a mid-read 403 as a non-destructive skip', async () => {
+    const port = makePort({
+      listMembers: vi.fn(async () => [member(1)]),
+      readSyncState: vi.fn(async () => null),
+      readStructures: vi.fn(
+        async (): Promise<CorpStructuresReadResult> => ({ kind: 'error', code: 'esi_403' }),
+      ),
+    });
+
+    await refreshCorpStructuresForUser(port, 'u1');
+
+    expect(port.readStructures).toHaveBeenCalledWith(5000, 'token', []);
+    expect(port.saveStructures).not.toHaveBeenCalled();
+    expect(port.stampFresh).not.toHaveBeenCalled();
+  });
+
   it('writes the same corp-keyed row no matter which member triggers it (the shared store)', async () => {
     const make = () =>
       makePort({

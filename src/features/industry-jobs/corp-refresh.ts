@@ -9,45 +9,20 @@
 // per-user/private. The engine checks the staleness gate BEFORE any vend or roles read
 // (a fresh corp does zero work), resolves a Director among the member characters, and
 // surfaces the graceful needs_role state via saveGateState (the destructive board-drop
-// is the slice's saveNeedsRole). An ESI 403 on the board read (role revoked mid-run)
-// maps to the SAME needs_role state via planCorpJobsPersist below; refresh.test.ts pins
-// the byte-identical behaviour. The client derives "ready" from each job's end_date.
+// is the slice's saveNeedsRole). The shared corporation descriptor owns the common
+// mechanics; this feature alone maps a mid-run ESI 403 to needs_role. The client
+// derives "ready" from each job's end_date.
 import {
-  type OwnerSyncDescriptor,
+  makeCorpDescriptor,
   type OwnerSyncResult,
   type OwnerSyncRunOptions,
+  planRead,
   runOwnerSync,
 } from '@/lib/owner-sync';
 import { CORP_INDUSTRY_JOBS_REQUIRED_ROLES, canSyncCorpIndustryJobs } from './corp-sync-eligibility';
 import { type IndustryJob, parseIndustryJobsBody } from './esi-projection';
 import { isJobsStale } from './staleness';
-import type { CorpJobsPort, CorpJobsSyncState, JobsEsiRead } from './types';
-
-// What a corp refresh should persist from the one endpoint read. PURE + tested, so the
-// 304/error logic stays out of the I/O orchestration. 'skip' = a transient error or a
-// contract mismatch (keep the stored board, don't stamp → retry next view); 'stamp' =
-// a 304 (bump freshness + clear error); 'needs_role' = a 403 (role revoked mid-run →
-// the graceful state); 'save' = persist the fresh board.
-export type CorpJobsPersistPlan =
-  | { kind: 'save'; jobs: IndustryJob[]; etag: string | null }
-  | { kind: 'stamp' }
-  | { kind: 'needs_role' }
-  | { kind: 'skip'; code?: string };
-
-export function planCorpJobsPersist(read: JobsEsiRead): CorpJobsPersistPlan {
-  if (read.kind === 'error') {
-    // A 403 means the in-game role check failed server-side (role revoked since
-    // resolution) — the same graceful needs_role state, not a transient retry. Every
-    // other error keeps the stored board and retries on the next view (no stamp).
-    return read.code === 'esi_403'
-      ? { kind: 'needs_role' }
-      : { kind: 'skip', code: read.code };
-  }
-  if (read.kind === 'unchanged') return { kind: 'stamp' };
-  const jobs = parseIndustryJobsBody(read.body);
-  if (jobs === null) return { kind: 'skip', code: 'contract_error' };
-  return { kind: 'save', jobs, etag: read.etag };
-}
+import type { CorpJobsPort, CorpJobsSyncState } from './types';
 
 // The (user, corp) owner key — corp boards are per-user/private, so the owner carries
 // both the viewing user and the corporation.
@@ -62,28 +37,30 @@ interface CorpJobsSave {
   etag: string | null;
 }
 
-function makeDescriptor(port: CorpJobsPort): OwnerSyncDescriptor<CorpOwner, CorpJobsSyncState, CorpJobsSave> {
-  return {
-    now: () => port.now(),
-    enumerate: (userId) => port.listMembers(userId),
-    identityOf: (owner) => ({ ownerType: 'corporation', ownerId: owner.corporationId }),
-    vendToken: (characterId) => port.vendToken(characterId),
-    isStale: (state, now) => isJobsStale(state?.lastRefreshedAt ?? null, now),
-    corpAxis: {
-      eligible: (owner) => canSyncCorpIndustryJobs(owner),
-      ownerOf: (userId, corporationId) => ({ userId, corporationId }),
-      requiredRoles: CORP_INDUSTRY_JOBS_REQUIRED_ROLES,
-      readRoles: (characterId, accessToken) => port.readRoles(characterId, accessToken),
-    },
+function makeDescriptor(port: CorpJobsPort) {
+  return makeCorpDescriptor<CorpOwner, CorpJobsSyncState, CorpJobsSave>(port, {
+    ownerOf: (userId, corporationId) => ({ userId, corporationId }),
+    eligible: (owner) => canSyncCorpIndustryJobs(owner),
+    requiredRoles: CORP_INDUSTRY_JOBS_REQUIRED_ROLES,
+    isStale: isJobsStale,
     readState: (owner) => port.readSyncState(owner.userId, owner.corporationId),
     fetchAndPlan: async (owner, accessToken, state) => {
       const read = await port.readJobs(owner.corporationId, accessToken, state?.jobsEtag ?? null);
-      return planCorpJobsPersist(read);
+      return planRead(
+        read,
+        (fresh) => {
+          const jobs = parseIndustryJobsBody(fresh.body);
+          return jobs === null ? null : { jobs, etag: fresh.etag };
+        },
+        // A 403 means the role was revoked after token resolution. Corp jobs record
+        // the same graceful needs_role state; every other error keeps its code.
+        (code) => (code === 'esi_403' ? { kind: 'needs_role' } : { kind: 'skip', code }),
+      );
     },
     save: (owner, payload) => port.saveJobs(owner.userId, owner.corporationId, payload.jobs, payload.etag),
     stampFresh: (owner) => port.stampFresh(owner.userId, owner.corporationId),
     saveGateState: (owner) => port.saveNeedsRole(owner.userId, owner.corporationId),
-  };
+  });
 }
 
 export function refreshCorpJobsForUser(

@@ -18,11 +18,14 @@ describe('planRead', () => {
     expect(planRead<Read, { rows: number[] }>({ kind: 'error', code: 'esi_500' }, project)).toEqual({ kind: 'skip', code: 'esi_500' });
   });
 
-  it('routes an error through mapError when supplied (corp jobs 403 → needs_role)', () => {
-    const verdict = planRead<Read, { rows: number[] }>({ kind: 'error', code: 'esi_403' }, project, (code) =>
-      code === 'esi_403' ? { kind: 'needs_role' } : { kind: 'skip' },
+  it.each([
+    ['maps a corp-jobs 403 to needs_role', 'esi_403', { kind: 'needs_role' }],
+    ['preserves a non-role error code', 'esi_500', { kind: 'skip', code: 'esi_500' }],
+  ] as const)('%s', (_label, code, expected) => {
+    const verdict = planRead<Read, { rows: number[] }>({ kind: 'error', code }, project, (errorCode) =>
+      errorCode === 'esi_403' ? { kind: 'needs_role' } : { kind: 'skip', code: errorCode },
     );
-    expect(verdict).toEqual({ kind: 'needs_role' });
+    expect(verdict).toEqual(expected);
   });
 
   it('skips a fresh body that fails projection (contract mismatch)', () => {
