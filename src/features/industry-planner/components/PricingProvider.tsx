@@ -55,11 +55,13 @@ import {
 import { REACTION_ACTIVITY } from '../structure-bonus';
 import { skillTimeFactorsFor, type SkillTimeFactors } from '../skill-time';
 import { useBuildCharacterSkillLevels } from '../use-build-character-skills';
+import { useResourceRead } from '../use-resource-read';
 import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
 } from '../build-pricing';
+import { mapOwnedBlueprints, type OwnedBlueprintMaps } from '../owned-blueprint-maps';
 import { createPriceSnapshot, type PriceSnapshot } from '../price-snapshot';
 import {
   buildSelectionVacatesReaction,
@@ -804,36 +806,29 @@ export function PricingProvider({
   // own stale-gated server-side refresh; we never refetch on a runs/location
   // recompute, so it's one call per blueprint open. Logged-out / owning none of
   // these → empty map → the cost basis stays the ME0 gross basis.
-  useEffect(() => {
-    let ignore = false;
-    const controller = new AbortController();
-    const blueprintTypeIds = collectBlueprintTypeIds(structure.tree, structure.blueprintTypeId);
-    apiFetch(ownedBlueprintsEndpoint, {
-      body: { blueprintTypeIds },
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (ignore || !res.ok) return;
-        // One response, two maps: the ME map feeds the cost compute; the detail map
-        // is the orb popover's readout channel (TE / owner / location) — kept apart
-        // so the compute path stays byte-identical.
-        setOwnedMe(new Map(res.data.blueprints.map((b) => [b.blueprintTypeId, b.me])));
-        setOwnedDetail(
-          new Map(
-            res.data.blueprints.map((b) => [
-              b.blueprintTypeId,
-              { te: b.te, ownerType: b.ownerType, ownerName: b.ownerName, locationName: b.locationName, locationFlag: b.locationFlag },
-            ]),
-          ),
-        );
-      })
-      .catch(() => {});
-    return () => {
-      ignore = true;
-      controller.abort();
-    };
-  }, [structure]);
+  const ownedBlueprintTypeIds = useMemo(
+    () => collectBlueprintTypeIds(structure.tree, structure.blueprintTypeId),
+    [structure],
+  );
+  const readOwnedBlueprints = useCallback(
+    async (signal: AbortSignal): Promise<OwnedBlueprintMaps | null> => {
+      const res = await apiFetch(ownedBlueprintsEndpoint, {
+        body: { blueprintTypeIds: ownedBlueprintTypeIds },
+        cache: 'no-store',
+        signal,
+      });
+      return res.ok ? mapOwnedBlueprints(res.data.blueprints) : null;
+    },
+    [ownedBlueprintTypeIds],
+  );
+  const applyOwnedBlueprints = useCallback((maps: OwnedBlueprintMaps) => {
+    setOwnedMe(maps.ownedMe);
+    setOwnedDetail(maps.ownedDetail);
+  }, []);
+  useResourceRead(readOwnedBlueprints, {
+    enabled: true,
+    onData: applyOwnedBlueprints,
+  });
 
   // Owned-asset overlay (3.7.7.2): fetch the caller's on-hand quantity + holdings
   // for every material/product in this build, once on open — per-user data can't
