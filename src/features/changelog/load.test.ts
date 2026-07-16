@@ -11,6 +11,7 @@ describe('readChangelogSource', () => {
   it('reassembles masters newest-first with the preamble leading', async () => {
     const masters = parseChangelogMasters(await readChangelogSource());
     expect(masters.map((m) => m.version)).toEqual([
+      '3.9',
       '3.8',
       '3.7',
       '3.6',
@@ -22,7 +23,7 @@ describe('readChangelogSource', () => {
       '2.9',
     ]);
     // The preamble file is read first, so the leading master still carries its title.
-    expect(masters[0]?.title).toBe('Undock Checklist');
+    expect(masters[0]?.title).toBe('Refit');
   });
 
   it('projects every real entry into exactly one browser document', async () => {
