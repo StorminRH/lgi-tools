@@ -78,10 +78,10 @@ function combatStats(values: {
   distance?: number;
   velocity?: number;
 }): CombatStats {
-  const damage = { em: 0, therm: 0, kin: 0, exp: 0, total: 0 };
+  const damage = () => ({ em: 0, therm: 0, kin: 0, exp: 0, total: 0 });
   return {
-    turret: { dps: damage, alpha: damage },
-    missile: { dps: damage, alpha: damage },
+    turret: { dps: damage(), alpha: damage() },
+    missile: { dps: damage(), alpha: damage() },
     total: { dps: values.dps, alpha: values.alpha },
     hp: {
       shield: 0,
@@ -286,6 +286,7 @@ describe('listSiteDetails', () => {
       id: 102,
       scram: 0,
       web: 0,
+      // The query negates neut counts, deliberately preserving zero as -0.
       neut: -0,
       rrep: 4,
       dps: 5,
