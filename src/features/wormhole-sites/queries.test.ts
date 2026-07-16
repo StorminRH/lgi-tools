@@ -24,6 +24,7 @@ const h = vi.hoisted(() => {
     cacheLife: vi.fn(),
     cacheTag: vi.fn(),
     getCombatStatsBatch: vi.fn(),
+    withColdStartRetry: vi.fn(),
   };
 });
 
@@ -38,6 +39,10 @@ vi.mock('@/db', () => ({
 
 vi.mock('@/data/npc-stats/queries', () => ({
   getCombatStatsBatch: h.getCombatStatsBatch,
+}));
+
+vi.mock('@/lib/neon-cold-start-retry', () => ({
+  withColdStartRetry: h.withColdStartRetry,
 }));
 
 import { listSiteDetails } from './queries';
@@ -111,6 +116,10 @@ beforeEach(() => {
   h.cacheLife.mockReset();
   h.cacheTag.mockReset();
   h.getCombatStatsBatch.mockReset();
+  h.withColdStartRetry.mockReset();
+  h.withColdStartRetry.mockImplementation(
+    (read: () => Promise<unknown>) => read(),
+  );
 });
 
 describe('listSiteDetails', () => {
@@ -121,6 +130,7 @@ describe('listSiteDetails', () => {
 
     expect(h.select).toHaveBeenCalledTimes(1);
     expect(h.getCombatStatsBatch).not.toHaveBeenCalled();
+    expect(h.withColdStartRetry).toHaveBeenCalledTimes(1);
     expect(h.state.results).toEqual([]);
   });
 

@@ -20,7 +20,7 @@ function resource(
   id: number,
   values: Partial<SiteResource> = {},
 ): SiteResource {
-  return {
+  const base = {
     id,
     orderInSite: id,
     resourceKind: 'gas',
@@ -31,9 +31,14 @@ function resource(
     totalIsk: 100,
     typeId: id,
     liveIsk: null,
-    effectiveIsk: 100,
     liveEligible: false,
     ...values,
+  };
+  return {
+    ...base,
+    effectiveIsk: values.effectiveIsk === undefined
+      ? base.totalIsk
+      : values.effectiveIsk,
   };
 }
 
