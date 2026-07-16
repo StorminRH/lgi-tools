@@ -44,7 +44,6 @@ import {
   type BuildSystemRef,
 } from '../build-system-apply';
 
-export type { ApplySystemOutcome, BuildSystemRef };
 import { computeBuildTimes, type BuildTimes } from '../build-time';
 import {
   availableStructuresEndpoint,
@@ -94,12 +93,6 @@ import {
   type SelectedLocation,
   type SelectedReactionSystem,
   type SelectedStation,
-} from './planner-contexts';
-
-export type {
-  SelectedLocation,
-  SelectedReactionSystem,
-  SelectedStation,
 } from './planner-contexts';
 
 // The planner's single live-pricing store. It owns what `CostPanel` used to:

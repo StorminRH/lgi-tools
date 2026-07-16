@@ -3,9 +3,10 @@
 // component so the decisions are unit-tested and the shell stays render-only.
 
 import { formatStationName } from './format-station-name';
+import type { BuildSystemRef } from './build-system-apply';
 import { deduceLockedSystem, visibleStructuresForSlot, type LockSystem } from './structure-slots';
 import type { AvailableStructure, IndustryStationView } from './types';
-import type { BuildSystemRef, SelectedLocation } from './components/PricingProvider';
+import type { SelectedLocation } from './components/planner-contexts';
 
 // The station's display label: its compacted in-game name when ESI has resolved
 // one, else the station-operation label as a fallback.

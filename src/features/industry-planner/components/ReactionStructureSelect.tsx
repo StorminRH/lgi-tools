@@ -7,7 +7,7 @@ import { TerminalSearch } from '@/components/ui/terminal-search';
 import { facilityValueFor, parseFacilityValue, structureById } from '../facility-value';
 import { deriveReactionSlotView, lockTransition } from '../structure-slots';
 import type { AvailableStructure } from '../types';
-import { usePricing, type SelectedReactionSystem } from './PricingProvider';
+import { useBuildSetup, type SelectedReactionSystem } from './planner-contexts';
 import { SelectedSystemBox } from './SelectedSystemBox';
 import { structureOptionGroups } from './structure-options';
 import { StructureBonusReadout } from './structure-bonus-readout';
@@ -92,7 +92,7 @@ export function ReactionStructureSelect() {
     reactionSystem,
     setReactionSystem,
     reactionStructureReadout,
-  } = usePricing();
+  } = useBuildSetup();
   const { systems } = useSystemSearch();
   const router = useRouter();
 
