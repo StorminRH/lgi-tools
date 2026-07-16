@@ -32,6 +32,7 @@ import {
   type BatchLedger,
   type MeOptions,
 } from '../build-batch';
+import { savedBuildLocationRestoreOf } from '../build-location-view';
 import { clampMe, effectiveMeOf } from '../me-overrides';
 import { clampTe, effectiveTeOf } from '../te-overrides';
 import type { MarginMode } from '../cockpit-margin';
@@ -451,9 +452,15 @@ export function PricingProvider({
   // apply — wins, and the generation guard covers the in-flight overlap).
   const restoredRef = useRef(false);
   useEffect(() => {
-    if (!preferencesReady || restoredRef.current || location || !savedBuildLocation) return;
+    const savedLocationToRestore = savedBuildLocationRestoreOf({
+      preferencesReady,
+      alreadyRestored: restoredRef.current,
+      location,
+      savedBuildLocation,
+    });
+    if (!savedLocationToRestore) return;
     restoredRef.current = true;
-    void applyBuildSystem(savedBuildLocation, { persist: false });
+    void applyBuildSystem(savedLocationToRestore, { persist: false });
   }, [preferencesReady, savedBuildLocation, location, applyBuildSystem]);
 
   // Manual ME / TE override setters (what-if) — `set` clamps (ME 0–10, TE 0–20),

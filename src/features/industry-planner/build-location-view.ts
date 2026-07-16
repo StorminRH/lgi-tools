@@ -30,6 +30,25 @@ export function buildSystemRefOf(system: LockSystem): BuildSystemRef {
   return { systemId: system.id, systemName: system.name, security: system.security };
 }
 
+// The saved-system restore is eligible once preferences are authoritative, no
+// earlier restore has claimed the mount, and no live location already won.
+// Returning the saved ref (rather than a boolean) keeps the effect callback
+// branch-light and makes the complete precedence rule directly testable.
+export function savedBuildLocationRestoreOf({
+  preferencesReady,
+  alreadyRestored,
+  location,
+  savedBuildLocation,
+}: {
+  preferencesReady: boolean;
+  alreadyRestored: boolean;
+  location: SelectedLocation | null;
+  savedBuildLocation: BuildSystemRef | null;
+}): BuildSystemRef | null {
+  if (!preferencesReady || alreadyRestored || location !== null) return null;
+  return savedBuildLocation;
+}
+
 // Everything the build-location slot renders from, derived in one pure pass so
 // the component itself carries no derivation branching: the deduced lock state
 // and the segmented structure list (null while the roster is still loading),
