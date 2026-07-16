@@ -862,32 +862,33 @@ export function PricingProvider({
   // reaction blueprints (a manufacturing build's reaction slot only scales rigs —
   // no fetch). Failure or unmount leaves null: net stays honestly unavailable.
   const reactionSystemId = reactionSystem?.systemId ?? null;
-  useEffect(() => {
-    // Unpicking needs no clear here: `reactionLocation` derives to null the
-    // moment the stored system stops matching (the query-keyed shape above).
-    if (structure.activityId !== REACTION_ACTIVITY || reactionSystemId === null) return;
-    let ignore = false;
-    const controller = new AbortController();
-    apiFetch(buildLocationEndpoint, {
-      body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (ignore || !res.ok) return;
-        setFetchedReactionLocation({
-          systemId: reactionSystemId,
-          blueprintTypeId: structure.blueprintTypeId,
-          costIndex: res.data.costIndices.reaction ?? null,
-          adjustedPrices: new Map(res.data.adjustedPrices.map((p) => [p.typeId, p.adjustedPrice])),
-        });
-      })
-      .catch(() => {});
-    return () => {
-      ignore = true;
-      controller.abort();
-    };
-  }, [structure, reactionSystemId]);
+  const readReactionLocation = useCallback(
+    async (signal: AbortSignal): Promise<ReactionLocationSnapshot | null> => {
+      if (reactionSystemId === null) return null;
+      const res = await apiFetch(buildLocationEndpoint, {
+        body: { systemId: reactionSystemId, blueprintId: structure.blueprintTypeId },
+        cache: 'no-store',
+        signal,
+      });
+      return res.ok
+        ? {
+            systemId: reactionSystemId,
+            blueprintTypeId: structure.blueprintTypeId,
+            costIndex: res.data.costIndices.reaction ?? null,
+            adjustedPrices: new Map(
+              res.data.adjustedPrices.map((price) => [price.typeId, price.adjustedPrice]),
+            ),
+          }
+        : null;
+    },
+    [reactionSystemId, structure.blueprintTypeId],
+  );
+  // Unpicking needs no clear: `reactionLocation` derives to null the moment the
+  // stored query keys stop matching.
+  useResourceRead(readReactionLocation, {
+    enabled: structure.activityId === REACTION_ACTIVITY && reactionSystemId !== null,
+    onData: setFetchedReactionLocation,
+  });
 
   // Available build structures (3.7.9.1.3): the caller's custom (and, next session,
   // corp) structures with resolved dogma, fetched once on open — per-user data
