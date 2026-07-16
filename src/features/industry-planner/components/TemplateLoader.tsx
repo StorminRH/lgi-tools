@@ -15,7 +15,7 @@ import {
   urlStillOnPlan,
 } from '../template-load';
 import { applyTemplate, type TemplateStructureView } from '../template-manifest';
-import { usePricing } from './PricingProvider';
+import { useTemplatePlanner } from './planner-contexts';
 
 // The ?plan= replay slot — a null-rendering effect leaf mounted inside
 // PricingProvider (the RecordRecentBlueprint pattern, but under the provider
@@ -29,7 +29,7 @@ import { usePricing } from './PricingProvider';
 const LOAD_TOAST_ID = 'plan-template-load';
 
 export function TemplateLoader({ structure }: { structure: TemplateStructureView }) {
-  const ctx = usePricing();
+  const ctx = useTemplatePlanner();
   const preferencesReady = usePreferencesReady();
   const planId = useSearchParams().get('plan');
   // The 8s deadline is keyed to the load ATTEMPT, not the plan id — a deadline

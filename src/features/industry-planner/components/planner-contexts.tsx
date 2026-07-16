@@ -1,6 +1,12 @@
 'use client';
 
-import { createContext, useContext, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useMemo,
+  type Context,
+  type ReactNode,
+} from 'react';
 import type { MarketHistoryInputs } from '@/data/market-history/types';
 import type { MarketScore } from '@/data/industry-math/market-score';
 import type { BuildCharacter } from '@/components/run-as-state';
@@ -240,7 +246,7 @@ const BuildCharacterContext = createContext<BuildCharacterValue | null>(null);
 const BuildPlanContext = createContext<BuildPlanValue | null>(null);
 
 function usePlannerContext<T>(
-  context: React.Context<T | null>,
+  context: Context<T | null>,
   hookName: string,
 ): T {
   const value = useContext(context);
@@ -266,6 +272,30 @@ export function useBuildCharacter(): BuildCharacterValue {
 
 export function useBuildPlan(): BuildPlanValue {
   return usePlannerContext(BuildPlanContext, 'useBuildPlan');
+}
+
+// Saved templates intentionally compose every configurable concern except
+// market data. This is their one sanctioned slice-internal aggregate, not a
+// general planner façade.
+export type TemplatePlannerState = PlannerConfigValue &
+  BuildSetupValue &
+  BuildCharacterValue &
+  BuildPlanValue;
+
+export function useTemplatePlanner(): TemplatePlannerState {
+  const plannerConfig = usePlannerConfig();
+  const buildSetup = useBuildSetup();
+  const buildCharacter = useBuildCharacter();
+  const buildPlan = useBuildPlan();
+  return useMemo(
+    () => ({
+      ...plannerConfig,
+      ...buildSetup,
+      ...buildCharacter,
+      ...buildPlan,
+    }),
+    [plannerConfig, buildSetup, buildCharacter, buildPlan],
+  );
 }
 
 // The context taxonomy and nesting live together so PricingProvider supplies one

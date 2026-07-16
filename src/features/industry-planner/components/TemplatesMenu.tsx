@@ -11,7 +11,7 @@ import { saveErrorCopy, templatesEmptyLine } from '../saved-plans-view';
 import { captureTemplate } from '../template-manifest';
 import { useManagedRowMenu } from '../use-managed-row-menu';
 import { useSavedPlans } from '../use-saved-plans';
-import { usePricing } from './PricingProvider';
+import { useTemplatePlanner } from './planner-contexts';
 import { SavedPlanRows } from './SavedPlanRows';
 
 // Saved build templates (3.7.23): the PlannerHead's click-popover, cloned from
@@ -30,7 +30,7 @@ export function TemplatesMenu({
   blueprintTypeId: number;
   productName: string;
 }) {
-  const ctx = usePricing();
+  const ctx = useTemplatePlanner();
   const { plans, listFailed, busyId, refresh, applyEcho, renameRow, favoriteRow, deleteRow } =
     useSavedPlans();
   const [saveName, setSaveName] = useState('');
