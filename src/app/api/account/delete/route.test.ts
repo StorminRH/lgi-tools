@@ -22,7 +22,7 @@ vi.mock('@/features/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/account-purge', () => ({
   nukeAccount: (u: string) => nukeAccountMock(u),
 }));
 

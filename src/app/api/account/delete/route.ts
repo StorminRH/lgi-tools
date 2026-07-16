@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { AccountDeleteResponse } from '@/features/auth/api-contract';
-import { nukeAccount } from '@/features/auth/queries';
+import { nukeAccount } from '@/features/auth/account-purge';
 import { requireSession } from '@/features/auth/route-guards';
 import { requireSameOrigin } from '@/features/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';

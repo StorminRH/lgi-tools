@@ -18,7 +18,7 @@ vi.mock('./eve-token-service', () => ({
   revokeCharacterToken: (characterId: number) => revokeMock(characterId),
 }));
 
-import { nukeAccount, purgeOwnCharacter } from './queries';
+import { nukeAccount, purgeOwnCharacter } from './account-purge';
 import { account, characters, corpAccessAudit, session, user } from './schema';
 import { syntheticEmail } from './synthetic-email';
 

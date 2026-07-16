@@ -35,7 +35,7 @@ vi.mock('./eve-token-service', () => ({
   revokeCharacterToken: (id: number) => revokeMock(id),
 }));
 
-import { nukeAccount, purgeOwnCharacter } from './queries';
+import { nukeAccount, purgeOwnCharacter } from './account-purge';
 
 const USER = 'eve-user-1';
 const CHAR = 90000001;
