@@ -1,4 +1,4 @@
-export interface ResourceRead {
+interface ResourceRead {
   start: () => Promise<void>;
   cancel: () => void;
 }

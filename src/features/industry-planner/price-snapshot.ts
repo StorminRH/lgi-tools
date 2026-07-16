@@ -3,7 +3,7 @@ import type { PriceLite } from './build-pricing';
 import { initialPriceMap } from './initial-price-map';
 import type { BlueprintPricing } from './types';
 
-export interface PriceSeedSettlement {
+interface PriceSeedSettlement {
   seeded: true;
   settle: (current: BlueprintPricing | null) => BlueprintPricing | null;
 }
