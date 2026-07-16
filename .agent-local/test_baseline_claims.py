@@ -157,6 +157,31 @@ class BaselineClaimTests(unittest.TestCase):
             )
         )
 
+    def test_auth_surface_finding_uses_the_matching_source_line(self) -> None:
+        self.fixture.write("src/auth/b.ts", "")
+        self.fixture.write_zones(["src/auth/a.ts", "src/auth/b.ts"])
+        self.fixture.baseline(
+            rails=(
+                "- **Boundaries:** unchanged.\n"
+                "- **Auth:** auth-surface remains exactly one files.\n"
+            )
+        )
+        baseline_lines = (
+            self.fixture.root / "docs/CODE_HEALTH_BASELINE.md"
+        ).read_text(encoding="utf-8").splitlines()
+        expected_line = next(
+            index
+            for index, line in enumerate(baseline_lines, start=1)
+            if "auth-surface remains" in line
+        )
+        finding = next(
+            finding
+            for finding in self.fixture.findings()
+            if "auth-surface files asserted" in finding.message
+        )
+
+        self.assertEqual(expected_line, finding.line)
+
 
 if __name__ == "__main__":
     unittest.main()

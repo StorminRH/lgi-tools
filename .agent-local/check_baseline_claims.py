@@ -215,9 +215,16 @@ def _auth_surface_claim(root: Path, lines: list[str]) -> list[Finding]:
     heading_line, rails = _rails_lines(lines)
     matched = None
     for index, (line_number, _line) in enumerate(rails):
-        window = " ".join(line for _, line in rails[index : index + 4])
+        window_lines = rails[index : index + 4]
+        window = " ".join(line for _, line in window_lines)
         match = AUTH_SURFACE.search(window)
         if match:
+            offset = 0
+            for source_line, line in window_lines:
+                if match.start() < offset + len(line):
+                    line_number = source_line
+                    break
+                offset += len(line) + 1
             matched = (line_number, match)
             break
     if matched is None:

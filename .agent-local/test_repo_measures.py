@@ -33,6 +33,11 @@ class RepoFixture:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
+    def write_bytes(self, rel_path: str, content: bytes) -> None:
+        path = self.root / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+
     def write_zones(self, zones: list[dict[str, object]]) -> None:
         self.write(
             ".fallowrc.json",
@@ -77,6 +82,21 @@ class RepoMeasureTests(unittest.TestCase):
         self.assertEqual(2, export_count(self.fixture.root, "src/a.ts"))
         with self.assertRaisesRegex(MeasureError, "missing file"):
             export_count(self.fixture.root, "src/missing.ts")
+
+    def test_invalid_utf8_is_a_path_specific_measure_error(self) -> None:
+        self.fixture.write_bytes("src/invalid.ts", b"export const value = \xff;\n")
+
+        for measure in (
+            lambda: production_loc(self.fixture.root),
+            lambda: suppression_count(self.fixture.root),
+            lambda: export_count(self.fixture.root, "src/invalid.ts"),
+        ):
+            with self.subTest(measure=measure):
+                with self.assertRaisesRegex(
+                    MeasureError,
+                    r"file is not valid UTF-8: src/invalid\.ts",
+                ):
+                    measure()
 
     def test_zone_count_honors_first_match_wins(self) -> None:
         self.fixture.write("src/shared/first.ts", "")

@@ -77,11 +77,13 @@ def _measure(
         if not argument.startswith("zone:") or len(argument) == len("zone:"):
             raise MeasureError("files() requires a zone:<name> subject")
         return zone_file_count(root, argument.removeprefix("zone:")), clone_counts
-    if not argument.startswith("dup:") or len(argument) == len("dup:"):
-        raise MeasureError("clones() requires a dup:<fingerprint> subject")
-    if clone_counts is None:
-        clone_counts = clone_file_counts(root)
-    return clone_counts.get(argument, 0), clone_counts
+    if metric == "clones":
+        if not argument.startswith("dup:") or len(argument) == len("dup:"):
+            raise MeasureError("clones() requires a dup:<fingerprint> subject")
+        if clone_counts is None:
+            clone_counts = clone_file_counts(root)
+        return clone_counts.get(argument, 0), clone_counts
+    raise MeasureError(f"unsupported Watch metric: {metric}")
 
 
 def collect_findings(root: Path) -> list[Finding]:

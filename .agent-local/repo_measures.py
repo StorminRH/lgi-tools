@@ -21,6 +21,15 @@ class MeasureError(Exception):
     """A repository fact could not be measured; the message explains why."""
 
 
+def _read_utf8(path: Path, root: Path) -> str:
+    """Read one repository file or raise a path-specific measurement error."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        rel_path = path.relative_to(root).as_posix()
+        raise MeasureError(f"file is not valid UTF-8: {rel_path}") from error
+
+
 def _typescript_files(root: Path) -> list[Path]:
     """Return TypeScript files below the two audit-owned source roots."""
     files: list[Path] = []
@@ -67,7 +76,7 @@ def test_file_count(root: Path) -> int:
 def production_loc(root: Path) -> int:
     """Count physical lines across production TypeScript files."""
     return sum(
-        len(path.read_text(encoding="utf-8").splitlines())
+        len(_read_utf8(path, root).splitlines())
         for path in _production_files(root)
     )
 
@@ -85,7 +94,7 @@ def suppression_count(root: Path) -> int:
             source_files.update(path for path in directory.rglob("*.js") if path.is_file())
             source_files.update(path for path in directory.rglob("*.jsx") if path.is_file())
     return sum(
-        len(pattern.findall(path.read_text(encoding="utf-8")))
+        len(pattern.findall(_read_utf8(path, root)))
         for path in source_files
     )
 
@@ -97,7 +106,7 @@ def export_count(root: Path, rel_path: str) -> int:
         raise MeasureError(f"missing file: {rel_path}")
     return sum(
         bool(re.match(r"^export\b", line))
-        for line in path.read_text(encoding="utf-8").splitlines()
+        for line in _read_utf8(path, root).splitlines()
     )
 
 
@@ -145,7 +154,7 @@ def zone_file_count(root: Path, zone_name: str) -> int:
     if not config_path.is_file():
         raise MeasureError("missing file: .fallowrc.json")
     try:
-        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config = json.loads(_read_utf8(config_path, root))
         zones = config["boundaries"]["zones"]
     except (json.JSONDecodeError, KeyError, TypeError) as error:
         raise MeasureError(".fallowrc.json has no parseable boundary zones") from error

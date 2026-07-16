@@ -11,7 +11,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from check_watch_triggers import collect_findings
+from check_watch_triggers import _measure, collect_findings
+from repo_measures import MeasureError
 
 
 SCRIPT = Path(__file__).with_name("check_watch_triggers.py")
@@ -109,6 +110,10 @@ class WatchTriggerTests(unittest.TestCase):
                 ],
                 self.fixture.messages(),
             )
+
+    def test_measure_rejects_metrics_outside_the_closed_grammar(self) -> None:
+        with self.assertRaisesRegex(MeasureError, "unsupported Watch metric: loc"):
+            _measure(self.fixture.root, "loc", "src/queries.ts", None)
 
     def test_check_exit_code_blocks_errors_but_not_promotions(self) -> None:
         self.fixture.write("src/queries.ts", "export const a = 1;\n")
