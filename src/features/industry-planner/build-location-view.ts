@@ -3,9 +3,10 @@
 // component so the decisions are unit-tested and the shell stays render-only.
 
 import { formatStationName } from './format-station-name';
+import type { BuildSystemRef } from './build-system-apply';
 import { deduceLockedSystem, visibleStructuresForSlot, type LockSystem } from './structure-slots';
 import type { AvailableStructure, IndustryStationView } from './types';
-import type { BuildSystemRef, SelectedLocation } from './components/PricingProvider';
+import type { SelectedLocation } from './components/planner-contexts';
 
 // The station's display label: its compacted in-game name when ESI has resolved
 // one, else the station-operation label as a fallback.
@@ -27,6 +28,25 @@ export function resolveStationLabel(
 // security renamed to the build-system ref the provider's applyBuildSystem takes.
 export function buildSystemRefOf(system: LockSystem): BuildSystemRef {
   return { systemId: system.id, systemName: system.name, security: system.security };
+}
+
+// The saved-system restore is eligible once preferences are authoritative, no
+// earlier restore has claimed the mount, and no live location already won.
+// Returning the saved ref (rather than a boolean) keeps the effect callback
+// branch-light and makes the complete precedence rule directly testable.
+export function savedBuildLocationRestoreOf({
+  preferencesReady,
+  alreadyRestored,
+  location,
+  savedBuildLocation,
+}: {
+  preferencesReady: boolean;
+  alreadyRestored: boolean;
+  location: SelectedLocation | null;
+  savedBuildLocation: BuildSystemRef | null;
+}): BuildSystemRef | null {
+  if (!preferencesReady || alreadyRestored || location !== null) return null;
+  return savedBuildLocation;
 }
 
 // Everything the build-location slot renders from, derived in one pure pass so

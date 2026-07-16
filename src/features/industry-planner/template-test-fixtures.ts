@@ -1,4 +1,4 @@
-import type { PricingContextValue } from './components/PricingProvider';
+import type { TemplatePlannerState } from './components/planner-contexts';
 import type { ApplyCtx, TemplateStructureView } from './template-manifest';
 
 // The shared mock-planner harness for template tests: a getter-based ctx view
@@ -185,11 +185,11 @@ export function makeMockPlanner(opts?: {
       state.station = null;
       state.persistedBuildLocation = null;
     },
-  } as unknown as PricingContextValue;
+  } as unknown as TemplatePlannerState;
   return { ctx, state };
 }
 
-export function makeApplyCtx(ctx: PricingContextValue): ApplyCtx {
+export function makeApplyCtx(ctx: TemplatePlannerState): ApplyCtx {
   return { ctx, structure: STRUCTURE, fetchedStations: null };
 }
 

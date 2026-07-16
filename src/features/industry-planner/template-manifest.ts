@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { PricingContextValue } from './components/PricingProvider';
+import type { TemplatePlannerState } from './components/planner-contexts';
 import { snapshotFieldSchemas, type PlanSnapshotV1, type TemplateFieldKey } from './template-snapshot';
 import type { BlueprintStructure } from './types';
 
@@ -31,7 +31,7 @@ export type TemplateStructureView = Pick<
 >;
 
 export interface ApplyCtx {
-  ctx: PricingContextValue;
+  ctx: TemplatePlannerState;
   structure: TemplateStructureView;
   // Filled by the buildSystem entry from its apply outcome; the station entry
   // validates against it (a station belongs to the just-fetched system, and
@@ -48,7 +48,7 @@ export interface TemplateField<K extends TemplateFieldKey> {
   // The unset default — what a malformed saved value degrades to, and what an
   // absent field (an older snapshot after the shape grew) applies as.
   fallback: TemplateFields[K];
-  capture: (ctx: PricingContextValue) => TemplateFields[K];
+  capture: (ctx: TemplatePlannerState) => TemplateFields[K];
   apply: (a: ApplyCtx, value: TemplateFields[K]) => string | null | Promise<string | null>;
 }
 
@@ -286,10 +286,10 @@ export const TEMPLATE_FIELD_KEYS = Object.keys(TEMPLATE_MANIFEST) as readonly Te
 // until it's classified — 'snapshot' classifications must name a real manifest
 // field, or be declared 'derived-or-account' / 'exempt' consciously.
 type MutatorKeys = {
-  [K in keyof PricingContextValue]-?: PricingContextValue[K] extends (...args: never[]) => unknown
+  [K in keyof TemplatePlannerState]-?: TemplatePlannerState[K] extends (...args: never[]) => unknown
     ? K
     : never;
-}[keyof PricingContextValue];
+}[keyof TemplatePlannerState];
 
 export const SETTER_CLASSIFICATION = {
   setRuns: 'runs',
@@ -322,7 +322,7 @@ export const PREF_CLASSIFICATION: Readonly<Record<string, TemplateFieldKey | 'ex
 
 // SAVE — a pure read of the planner's current configuration. Changes nothing.
 export function captureTemplate(
-  ctx: PricingContextValue,
+  ctx: TemplatePlannerState,
   blueprintTypeId: number,
 ): PlanSnapshotV1 {
   const fields = {} as TemplateFields;

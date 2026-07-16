@@ -6,7 +6,7 @@ import { PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { marketScoreView } from '../market-score-inputs';
 import type { BlueprintStructure } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG } from './kpi-tile';
-import { usePricing } from './PricingProvider';
+import { useMarketData } from './planner-contexts';
 
 // The Market Score KPI tile for the Cockpit — the "how sure can I sell this?"
 // liquidity axis beside net margin's "how much?". Numbers are PLAIN and
@@ -16,7 +16,7 @@ import { usePricing } from './PricingProvider';
 // the pure marketScoreView; this shell only holds the mount clock.
 
 export function MarketScorePanel({ structure }: { structure: BlueprintStructure }) {
-  const { marketScore, marketHistory, seeded } = usePricing();
+  const { marketScore, marketHistory, seeded } = useMarketData();
 
   // Staleness flag — a flag, never a score change (the composite stays keyed to
   // latestDate). The clock starts null so the static prerender of this Client

@@ -17,7 +17,7 @@ import { facilityValueFor, parseFacilityValue, structureById } from '../facility
 import type { StructureReadout as StructureReadoutBonus } from '../structure-factors';
 import { lockTransition, type LockSystem } from '../structure-slots';
 import type { AvailableStructure, IndustryStationView } from '../types';
-import { usePricing, type SelectedLocation } from './PricingProvider';
+import { useBuildSetup, type SelectedLocation } from './planner-contexts';
 import { SelectedSystemBox } from './SelectedSystemBox';
 import { structureOptionGroups } from './structure-options';
 import { StructureBonusReadout } from './structure-bonus-readout';
@@ -266,7 +266,7 @@ export function BuildLocationSelector() {
     applyBuildSystem,
     clearBuildLocation,
     savedBuildLocation,
-  } = usePricing();
+  } = useBuildSetup();
   const { systems, parse, suggest } = useSystemSearch();
   // Surfaced when a build-location fetch fails (non-OK or network) so a pick that
   // can't load doesn't silently leave the picker empty. Superseded applies (a

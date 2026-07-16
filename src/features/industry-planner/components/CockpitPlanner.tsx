@@ -8,7 +8,7 @@ import type { BlueprintStructure } from '../types';
 import { CockpitBuildPlan } from './CockpitBuildPlan';
 import { CockpitKpis } from './CockpitKpis';
 import { HeroCard } from './HeroCard';
-import { usePricing } from './PricingProvider';
+import { usePlannerConfig } from './planner-contexts';
 import { TemplatesMenu } from './TemplatesMenu';
 
 // The Cockpit planner body for /industry/[id] — the redesigned dashboard that
@@ -65,7 +65,7 @@ export function CockpitPlanner({ structure }: { structure: BlueprintStructure })
   // Gross/Net is the user's preference, gated by an available net estimate.
   // Provider-owned since 3.7.23.1 (template state); the KPI margin tile still
   // reads the one source through these props.
-  const { marginMode, setMarginMode } = usePricing();
+  const { marginMode, setMarginMode } = usePlannerConfig();
   const group = structure.buildNodeDisplay[structure.product.typeId]?.label ?? '';
 
   return (

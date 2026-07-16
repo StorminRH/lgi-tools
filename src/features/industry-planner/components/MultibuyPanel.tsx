@@ -19,7 +19,7 @@ import {
 } from '../multibuy';
 import type { BlueprintStructure } from '../types';
 import { KpiHelp } from './kpi-tile';
-import { usePricing } from './PricingProvider';
+import { useBuildPlan, usePlannerConfig } from './planner-contexts';
 
 // The multibuy export (3.7.22.1): a click-popover panel in the build-plan header
 // that copies the in-game Multibuy shopping string. One Net toggle — Total (build
@@ -39,13 +39,12 @@ export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) 
   // signed out, no scopes, or empty hangars).
   const {
     runs,
-    ledgerMeOpts,
-    ownedAssets,
     multibuyMode: mode,
     setMultibuyMode: setMode,
     multibuyUncheckedTiers: uncheckedTiers,
     setMultibuyUncheckedTiers: setUncheckedTiers,
-  } = usePricing();
+  } = usePlannerConfig();
+  const { ledgerMeOpts, ownedAssets } = useBuildPlan();
 
   // Remaining needs owned stock to net. The overlay settles to an EMPTY map for
   // a logged-out caller or one owning none of this plan's items (null = not

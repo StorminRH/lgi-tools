@@ -28,7 +28,7 @@ import { CockpitRawLedger } from './CockpitRawLedger';
 import { NodeAdjusters } from './MeAdjuster';
 import { MultibuyPanel } from './MultibuyPanel';
 import { NodeCard, type NodeEfficiency } from './NodeCard';
-import { usePricing } from './PricingProvider';
+import { useBuildPlan, useMarketData } from './planner-contexts';
 
 // The Cockpit build plan: the consolidated material breakdown as a column per
 // depth tier. Each row shows the WHOLE-RUN BATCHED quantity (the build-batch
@@ -275,8 +275,8 @@ function RawLedgerToggle({
 }
 
 export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
+  const { pricing } = useMarketData();
   const {
-    pricing,
     ownedMe,
     ownedDetail,
     ownedAssets,
@@ -291,7 +291,7 @@ export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure 
     // provider and shared, so the tiers, the drill-down, and the build-time totals
     // read one ME source. Byte-identical to the ME0 basis when nothing is owned.
     ledger,
-  } = usePricing();
+  } = useBuildPlan();
   const { tiers, childrenOf } = useMemo(() => consolidateBuild(structure), [structure]);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [ledgerOpen, setLedgerOpen] = useState(false);

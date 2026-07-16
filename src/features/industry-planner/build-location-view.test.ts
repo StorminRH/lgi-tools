@@ -3,6 +3,7 @@ import {
   buildSystemRefOf,
   deriveBuildLocationView,
   resolveStationLabel,
+  savedBuildLocationRestoreOf,
   seededBuildLocation,
   stationLabel,
 } from './build-location-view';
@@ -69,6 +70,33 @@ describe('seededBuildLocation', () => {
     expect(loc.stations).toEqual([]);
     expect(loc.costIndices).toEqual({ manufacturing: null, reaction: null });
     expect(loc.adjustedPrices.size).toBe(0);
+  });
+});
+
+describe('savedBuildLocationRestoreOf', () => {
+  const saved = buildSystemRefOf(SYSTEMS[0]!);
+
+  it('returns the saved system only after preferences settle with no winner', () => {
+    expect(
+      savedBuildLocationRestoreOf({
+        preferencesReady: true,
+        alreadyRestored: false,
+        location: null,
+        savedBuildLocation: saved,
+      }),
+    ).toBe(saved);
+  });
+
+  it.each([
+    { preferencesReady: false, alreadyRestored: false, location: null },
+    { preferencesReady: true, alreadyRestored: true, location: null },
+    {
+      preferencesReady: true,
+      alreadyRestored: false,
+      location: seededBuildLocation(SYSTEMS[1]!),
+    },
+  ])('does not restore when another precedence condition blocks it', (state) => {
+    expect(savedBuildLocationRestoreOf({ ...state, savedBuildLocation: saved })).toBeNull();
   });
 });
 
