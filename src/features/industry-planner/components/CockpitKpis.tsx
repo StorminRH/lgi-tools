@@ -23,8 +23,13 @@ import { marginToneClass, type RegionalDiscountCallout } from '../industry-style
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
-import { useMarketData, usePlannerConfig } from './planner-contexts';
-import { usePricing } from './PricingProvider';
+import {
+  useBuildCharacter,
+  useBuildPlan,
+  useBuildSetup,
+  useMarketData,
+  usePlannerConfig,
+} from './planner-contexts';
 
 export type { MarginMode };
 
@@ -380,18 +385,16 @@ export function CockpitKpis({
   marginMode: MarginMode;
   setMarginMode: (m: MarginMode) => void;
 }) {
+  const { pricing, seeded } = useMarketData();
+  const { runs } = usePlannerConfig();
+  const { buildTimes } = useBuildPlan();
+  const { buildCharacter, skillTimeFactors } = useBuildCharacter();
   const {
-    pricing,
-    seeded,
     location,
-    runs,
-    buildTimes,
     reactionSystem,
     reactionNetAvailable,
-    buildCharacter,
-    skillTimeFactors,
     structureFactors,
-  } = usePricing();
+  } = useBuildSetup();
 
   const margin = cockpitMarginView(
     pricing,
