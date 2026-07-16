@@ -894,20 +894,17 @@ export function PricingProvider({
   // corp) structures with resolved dogma, fetched once on open — per-user data
   // can't live in the static seed. Global to the user, so it doesn't refetch per
   // blueprint. Logged-out / none → empty list → the selector shows its empty state.
-  useEffect(() => {
-    let ignore = false;
-    const controller = new AbortController();
-    apiFetch(availableStructuresEndpoint, { cache: 'no-store', signal: controller.signal })
-      .then((res) => {
-        if (ignore || !res.ok) return;
-        setAvailableStructures(res.data.structures);
-      })
-      .catch(() => {});
-    return () => {
-      ignore = true;
-      controller.abort();
-    };
-  }, []);
+  const readAvailableStructures = useCallback(
+    async (signal: AbortSignal): Promise<AvailableStructure[] | null> => {
+      const res = await apiFetch(availableStructuresEndpoint, { cache: 'no-store', signal });
+      return res.ok ? res.data.structures : null;
+    },
+    [],
+  );
+  useResourceRead(readAvailableStructures, {
+    enabled: true,
+    onData: setAvailableStructures,
+  });
 
   // Recompute when runs, location, the owned-ME overlay, or a manual override
   // changes — independent of the one-shot refresh loop, which never fires onBatch
