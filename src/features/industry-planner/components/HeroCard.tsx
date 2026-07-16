@@ -12,7 +12,7 @@ import type { BlueprintStructure } from '../types';
 import { BuildLocationSelector } from './BuildLocationSelector';
 import { BuildSkillsIndicator } from './BuildSkillsIndicator';
 import { GemIcon, HourglassIcon, MeField, TeField } from './MeAdjuster';
-import { usePricing } from './PricingProvider';
+import { useBuildCharacter, useBuildPlan, usePlannerConfig } from './planner-contexts';
 import { ReactionStructureSelect } from './ReactionStructureSelect';
 
 // The Run-As frame's context subscriber (the HeroSteppers pattern — HeroCard
@@ -21,7 +21,7 @@ import { ReactionStructureSelect } from './ReactionStructureSelect';
 // the shared-zone frame.
 function RunAsSelector() {
   const { buildCharacter, buildCharacterPending, buildCharacters, setBuildCharacter } =
-    usePricing();
+    useBuildCharacter();
   return (
     <RunAsFrame
       buildCharacter={buildCharacter}
@@ -64,9 +64,8 @@ function HeroSteppers({
   blueprintTypeId: number;
   isManufacturing: boolean;
 }) {
+  const { runs, setRuns } = usePlannerConfig();
   const {
-    runs,
-    setRuns,
     ownedMe,
     meOverrides,
     setMeOverride,
@@ -75,7 +74,7 @@ function HeroSteppers({
     teOverrides,
     setTeOverride,
     resetTeOverride,
-  } = usePricing();
+  } = useBuildPlan();
   const meState = nodeMeState(ownedMe?.get(blueprintTypeId), meOverrides.get(blueprintTypeId));
   const teState = nodeTeState(ownedTe?.get(blueprintTypeId), teOverrides.get(blueprintTypeId));
   return (

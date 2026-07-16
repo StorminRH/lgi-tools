@@ -23,6 +23,7 @@ import { marginToneClass, type RegionalDiscountCallout } from '../industry-style
 import type { BlueprintPricing, BlueprintStructure, NetMarginView } from '../types';
 import { KpiHead, KpiHelp, KpiTile, KPI_FIG, SimpleTile } from './kpi-tile';
 import { MarketScorePanel } from './MarketScorePanel';
+import { useMarketData, usePlannerConfig } from './planner-contexts';
 import { usePricing } from './PricingProvider';
 
 export type { MarginMode };
@@ -122,7 +123,8 @@ function InputCostHelp({ bases }: { bases: { batched: number; marginal: number }
 // composition; the toggle reflects the user's intent immediately while the
 // figure carries the summary's own basis stamp.
 function InputCostTile() {
-  const { pricing, costBasis, setCostBasis } = usePricing();
+  const { pricing } = useMarketData();
+  const { costBasis, setCostBasis } = usePlannerConfig();
   const view = inputCostView(pricing);
   return (
     <KpiTile>
@@ -175,7 +177,7 @@ function RegionalDiscountBadge({ callout }: { callout: RegionalDiscountCallout }
 // Self-contained on the pricing context (the InputCostTile shape) so the KPI
 // row stays a thin composition; the verdicts are the pure mappers.
 function SellTile() {
-  const { pricing } = usePricing();
+  const { pricing } = useMarketData();
   const view = sellTileView(pricing);
   return (
     <SimpleTile

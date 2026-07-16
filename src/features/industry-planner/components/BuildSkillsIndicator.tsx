@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { HourglassIcon } from './MeAdjuster';
-import { usePricing } from './PricingProvider';
+import { useBuildCharacter } from './planner-contexts';
 import { buildSkillsView, type AppliedTimeSkill, type SkillTimeBreakdown } from '../skill-time';
 import { formatBonusPct } from '../structure-bonus-view';
 import type { BlueprintStructure } from '../types';
@@ -155,7 +155,7 @@ function RxnSkillMetric({
 }
 
 export function BuildSkillsIndicator({ structure }: { structure: BlueprintStructure }) {
-  const { buildCharacter, skillTimeFactors, buildCharacterSkillLevels } = usePricing();
+  const { buildCharacter, skillTimeFactors, buildCharacterSkillLevels } = useBuildCharacter();
   const view = buildSkillsView(buildCharacter, skillTimeFactors.active, buildCharacterSkillLevels, structure);
   if (view === null) return null;
   return (
