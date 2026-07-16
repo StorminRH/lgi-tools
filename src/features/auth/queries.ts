@@ -14,12 +14,13 @@ import { account, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import type { CharacterRole } from './types';
 
-// AF-004 migration map: the 35 exports in this temporary hub move 1:1 into
-// linked-characters, affiliation-store, admin-users, owner-transfer,
-// account-purge, verification-retention, and the slice-private
-// eve-account-shared module during Sessions 3.8.5.4.2-.3. The owner tags below
-// keep the caller inventory auditable while the DB behavior is characterized;
-// this file exports no compatibility facade after the migration completes.
+// AF-004 migration map: Session 3.8.5.4.2 moved the linked-character and
+// affiliation axes (plus the slice-private eve-account-shared predicates) out
+// 1:1; the 18 exports remaining in this temporary hub move into admin-users
+// (12), owner-transfer (3), account-purge (2), and verification-retention (1)
+// during Session 3.8.5.4.3, which then deletes this file. The owner tags below
+// keep the caller inventory auditable; this file exports no compatibility
+// facade at any point in the migration.
 
 // Admin-dashboard row: a user (the unit admin is granted on) joined to its
 // linked EVE character's display fields. characterId is null only if a user has
