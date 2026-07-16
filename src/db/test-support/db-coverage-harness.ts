@@ -67,6 +67,29 @@ export async function setupDisposableSchema(
   }
 }
 
+// Re-add one load-bearing foreign key to cloned tables. PostgreSQL's
+// `LIKE ... INCLUDING ALL` deliberately omits FKs, which is useful for most
+// query fixtures but would make cascade characterization dishonest. Every
+// identifier and action comes from an in-repo test constant.
+export async function addForeignKey(
+  adminClient: Sql,
+  schema: string,
+  foreignKey: {
+    table: string;
+    column: string;
+    refTable: string;
+    refColumn: string;
+    onDelete: 'cascade';
+  },
+): Promise<void> {
+  await adminClient.unsafe(
+    `ALTER TABLE "${schema}"."${foreignKey.table}" ` +
+      `ADD FOREIGN KEY ("${foreignKey.column}") ` +
+      `REFERENCES "${schema}"."${foreignKey.refTable}" ("${foreignKey.refColumn}") ` +
+      `ON DELETE ${foreignKey.onDelete.toUpperCase()}`,
+  );
+}
+
 // Drop the throwaway schema and everything it holds (tables and cloned sequences).
 export async function dropDisposableSchema(adminClient: Sql, schema: string): Promise<void> {
   await adminClient.unsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);

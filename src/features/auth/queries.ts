@@ -14,6 +14,13 @@ import { account, characters, corpAccessAudit, session, user, verification } fro
 import { syntheticEmail } from './synthetic-email';
 import type { Character, CharacterRole } from './types';
 
+// AF-004 migration map: the 35 exports in this temporary hub move 1:1 into
+// linked-characters, affiliation-store, admin-users, owner-transfer,
+// account-purge, verification-retention, and the slice-private
+// eve-account-shared module during Sessions 3.8.5.4.2-.3. The owner tags below
+// keep the caller inventory auditable while the DB behavior is characterized;
+// this file exports no compatibility facade after the migration completes.
+// [3.8.5.4 owner: linked-characters]
 interface UpsertInput {
   characterId: number;
   name: string;
@@ -23,6 +30,7 @@ interface UpsertInput {
 // Insert on first login, update name/portrait/lastLoginAt on every subsequent login.
 // `role` and `preferences` are deliberately absent from the conflict set: they're
 // owned by the admin/preferences UIs once written, and must survive re-logins.
+// [3.8.5.4 owner: linked-characters]
 export async function upsertCharacterOnLogin(input: UpsertInput): Promise<Character> {
   const now = new Date();
   const [row] = await db
@@ -50,6 +58,7 @@ export async function upsertCharacterOnLogin(input: UpsertInput): Promise<Charac
 // Admin-dashboard row: a user (the unit admin is granted on) joined to its
 // linked EVE character's display fields. characterId is null only if a user has
 // no EVE account, which shouldn't happen for a real pilot.
+// [3.8.5.4 owner: admin-users]
 export interface AdminUser {
   userId: string;
   characterId: number | null;
@@ -58,6 +67,7 @@ export interface AdminUser {
   role: CharacterRole;
 }
 
+// [3.8.5.4 owner: admin-users]
 const adminUserColumns = {
   userId: user.id,
   name: user.name,
@@ -66,6 +76,7 @@ const adminUserColumns = {
   characterId: account.accountId,
 };
 
+// [3.8.5.4 owner: admin-users]
 export function toAdminUser(row: {
   userId: string;
   name: string;
@@ -90,6 +101,7 @@ export function toAdminUser(row: {
 // getUserById's single-account pick deterministic. Oldest-first matches the
 // session resolver's fallback. getUserByCharacterId is unaffected — it queries
 // one specific character, not the fan-out join.
+// [3.8.5.4 owner: admin-users]
 function oldestEveAccountJoin() {
   const older = alias(account, 'older_eve_account');
   return and(
@@ -113,6 +125,7 @@ function oldestEveAccountJoin() {
   );
 }
 
+// [3.8.5.4 owner: admin-users]
 export async function listAdminUsers(): Promise<AdminUser[]> {
   const rows = await db
     .select(adminUserColumns)
@@ -124,6 +137,7 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   return rows.map(toAdminUser);
 }
 
+// [3.8.5.4 owner: admin-users]
 export async function getUserById(userId: string): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)
@@ -137,6 +151,7 @@ export async function getUserById(userId: string): Promise<AdminUser | null> {
 
 // Resolve the user that owns a given EVE character id — used to map the env
 // superadmin (a character id) onto the per-user model for the admin list.
+// [3.8.5.4 owner: admin-users]
 export async function getUserByCharacterId(characterId: number): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)
@@ -151,6 +166,7 @@ export async function getUserByCharacterId(characterId: number): Promise<AdminUs
 // Cap on rows the admin name search displays. A 1-char query matches a large
 // fraction of the table, which only grows; bound the display and let the
 // dashboard hint when there's more. Exported so the UI can show "showing first N".
+// [3.8.5.4 owner: admin-users]
 export const CHARACTER_SEARCH_LIMIT = 50;
 
 // Substring ILIKE search over a user's display name (their linked character's
@@ -160,6 +176,7 @@ export const CHARACTER_SEARCH_LIMIT = 50;
 // knows the result was cut off (vs a result that just happens to be exactly the
 // cap), so the "showing first N" hint can't false-positive on a naturally
 // cap-sized match set.
+// [3.8.5.4 owner: admin-users]
 export async function searchUsersByLinkedCharacterName(query: string): Promise<AdminUser[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
@@ -177,6 +194,7 @@ export async function searchUsersByLinkedCharacterName(query: string): Promise<A
 
 // Flips a user's role. Returns null when no row matches (i.e. the caller passed
 // a userId that isn't in the table).
+// [3.8.5.4 owner: admin-users]
 export async function setUserRole(
   userId: string,
   role: CharacterRole,
@@ -205,21 +223,25 @@ export async function setUserRole(
 // account_id is TEXT; characters.character_id is bigint. Cast on the account
 // side so the join uses the characters PK. Shared by every account→characters
 // join below.
+// [3.8.5.4 owner: eve-account-shared]
 const characterProfileJoin = eq(
   characters.characterId,
   sql`${account.accountId}::bigint`,
 );
 
+// [3.8.5.4 owner: eve-account-shared]
 const eveAccountsForUser = (userId: string) =>
   and(eq(account.userId, userId), eq(account.providerId, EVE_PROVIDER_ID));
 
 // The account-row predicate for one EVE character — provider + character id (as a
 // string). A predicate helper, not a full accountByCharacter query, so each
 // caller keeps its own select/from/where/limit chain intact.
+// [3.8.5.4 owner: eve-account-shared]
 function accountMatch(characterId: number) {
   return and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId)));
 }
 
+// [3.8.5.4 owner: linked-characters]
 export interface LinkedCharacter {
   characterId: number;
   name: string;
@@ -242,6 +264,7 @@ export interface LinkedCharacter {
 // Shape one account→characters join row into a LinkedCharacter: fall back to a
 // synthesised name/portrait when the profile row is missing, and flag whether a
 // usable refresh token is still on file. Pure — the join lives in the query.
+// [3.8.5.4 owner: linked-characters]
 export function toLinkedCharacter(r: {
   accountId: string;
   scope: string | null;
@@ -268,6 +291,7 @@ export function toLinkedCharacter(r: {
 // Every EVE character linked to a user, oldest first. The page's data source —
 // NOT Better Auth's /list-accounts, which carries neither name/portrait nor the
 // token presence this needs (and would leak no useful health signal).
+// [3.8.5.4 owner: linked-characters]
 export async function listLinkedCharacters(userId: string): Promise<LinkedCharacter[]> {
   const rows = await db
     .select({
@@ -299,6 +323,7 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
 // One account→characters row shaped into the cached-affiliation record, loosely
 // coalescing every field to null (an un-refreshed character reads fail-closed).
 // Shared by the per-user and per-character affiliation reads. Pure.
+// [3.8.5.4 owner: affiliation-store]
 export function rowToCachedAffiliation(
   characterId: number,
   row: {
@@ -320,6 +345,7 @@ export function rowToCachedAffiliation(
 // A user's linked characters with their cached corp affiliation. The membership
 // helper (isUserCurrentMemberOfCorp) decides over this; an un-refreshed character
 // carries a null corp + null refreshedAt and reads fail-closed.
+// [3.8.5.4 owner: affiliation-store]
 export async function getUserAffiliations(userId: string): Promise<CachedAffiliation[]> {
   const rows = await db
     .select({
@@ -339,6 +365,7 @@ export async function getUserAffiliations(userId: string): Promise<CachedAffilia
 }
 
 // One character's cached affiliation (null when the profile row doesn't exist).
+// [3.8.5.4 owner: affiliation-store]
 export async function getCharacterAffiliation(
   characterId: number,
 ): Promise<CachedAffiliation | null> {
@@ -359,6 +386,7 @@ export async function getCharacterAffiliation(
 // Linked characters whose affiliation is missing or older than the TTL — the
 // nightly cron's work list. DISTINCT because the same character can be linked by
 // more than one user; one refresh covers them all (affiliation is per-character).
+// [3.8.5.4 owner: affiliation-store]
 export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   const cutoff = new Date(Date.now() - AFFILIATION_TTL_MS);
   const rows = await db
@@ -381,6 +409,7 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
 // the row always exists for a linked/logged-in character (upsertCharacterOnLogin
 // created it). Per-row at this scale (one `characters` row per pilot); batch via
 // VALUES later if the table ever grows large.
+// [3.8.5.4 owner: affiliation-store]
 export async function upsertAffiliations(rows: AffiliationRow[]): Promise<void> {
   if (rows.length === 0) return;
   const now = new Date();
@@ -402,6 +431,7 @@ export async function upsertAffiliations(rows: AffiliationRow[]): Promise<void> 
 // already-typed values (the gate owns the reason vocabulary, so `reason` is a
 // plain string here) and writes only the decision + its subject/corp/provenance —
 // never a token or secret.
+// [3.8.5.4 owner: affiliation-store]
 export async function recordCorpAccessDecision(entry: {
   userId: string;
   corporationId: number;
@@ -412,6 +442,7 @@ export async function recordCorpAccessDecision(entry: {
   await db.insert(corpAccessAudit).values(entry);
 }
 
+// [3.8.5.4 owner: affiliation-store]
 export async function pruneCorpAccessAudit(
   database: AnyPgDb,
   retentionDays: number,
@@ -421,6 +452,7 @@ export async function pruneCorpAccessAudit(
   await database.delete(corpAccessAudit).where(lt(corpAccessAudit.decidedAt, cutoff));
 }
 
+// [3.8.5.4 owner: verification-retention]
 export async function pruneExpiredVerifications(
   database: AnyPgDb,
   retentionDays: number,
@@ -430,6 +462,7 @@ export async function pruneExpiredVerifications(
   await database.delete(verification).where(lt(verification.expiresAt, cutoff));
 }
 
+// [3.8.5.4 owner: linked-characters]
 export interface ActiveCharacter {
   characterId: number;
   // From the joined `characters` row; null when the profile hasn't been written
@@ -445,6 +478,7 @@ export interface ActiveCharacter {
 // out-of-band), repoint user.activeCharacterId to the resolved char — fire-and-
 // forget so getSession never blocks on a write. Returns null only when the user
 // has no linked EVE account at all.
+// [3.8.5.4 owner: linked-characters]
 export async function resolveActiveCharacter(
   userId: string,
   preferredId: number | null,
@@ -487,6 +521,7 @@ export async function resolveActiveCharacter(
 
 // True when the given character is one of this user's linked EVE accounts. The
 // ownership guard the switch/unlink routes gate on — never trust a posted id.
+// [3.8.5.4 owner: linked-characters]
 export async function accountBelongsToUser(userId: string, characterId: number): Promise<boolean> {
   const [row] = await db
     .select({ id: account.id })
@@ -497,6 +532,7 @@ export async function accountBelongsToUser(userId: string, characterId: number):
 }
 
 // Point the user's active character at the given (already-validated) character.
+// [3.8.5.4 owner: linked-characters]
 export async function setActiveCharacter(userId: string, characterId: number): Promise<void> {
   await db
     .update(user)
@@ -507,6 +543,7 @@ export async function setActiveCharacter(userId: string, characterId: number): P
 // Re-point the active character to the user's oldest remaining linked account
 // (NULL when none remain). Called after unlinking the active character so the
 // session never references a deleted account. Returns the new active id.
+// [3.8.5.4 owner: linked-characters]
 export async function repointActiveToOldest(userId: string): Promise<number | null> {
   const [row] = await db
     .select({ accountId: account.accountId })
@@ -528,6 +565,7 @@ export async function repointActiveToOldest(userId: string): Promise<number | nu
 // from the row — used by unlink to decide whether to re-point, rather than
 // trusting the session snapshot captured at the top of the request (which a
 // concurrent switch could have made stale).
+// [3.8.5.4 owner: linked-characters]
 export async function getStoredActiveCharacterId(userId: string): Promise<number | null> {
   const [row] = await db
     .select({ activeCharacterId: user.activeCharacterId })
@@ -549,6 +587,7 @@ export async function getStoredActiveCharacterId(userId: string): Promise<number
 // Remove one linked EVE character from a user (admin force-unlink). Returns
 // whether a row was actually deleted. Caller re-points the user's active
 // character if this was it (mirrors the self-service unlink route).
+// [3.8.5.4 owner: admin-users]
 export async function deleteLinkedCharacter(
   userId: string,
   characterId: number,
@@ -564,6 +603,7 @@ export async function deleteLinkedCharacter(
 // Note: with the session cookie cache on, an already-issued cookie can keep a
 // user "signed in" until it expires (cookieCache.maxAge) and getSession next
 // revalidates against the now-missing row — so revocation isn't instantaneous.
+// [3.8.5.4 owner: admin-users]
 export async function revokeUserSessions(userId: string): Promise<number> {
   const deleted = await db
     .delete(session)
@@ -575,6 +615,7 @@ export async function revokeUserSessions(userId: string): Promise<number> {
 // Count of a user's currently-valid (non-expired) sessions — context for the
 // admin force-logout control. Expired rows are pruned lazily by Better Auth, so
 // filter them out here rather than counting stale rows.
+// [3.8.5.4 owner: admin-users]
 export async function getActiveSessionCount(userId: string): Promise<number> {
   const rows = await db
     .select({ id: session.id })
@@ -593,6 +634,7 @@ export async function getActiveSessionCount(userId: string): Promise<number> {
 // Writes are sequential (the request-path neon-http client is transaction-free);
 // the operation is admin-only and low-rate, so the brief non-atomic window is
 // acceptable — same trade-off the self-service unlink route already makes.
+// [3.8.5.4 owner: admin-users]
 export async function reassignCharacter({
   characterId,
   fromUserId,
@@ -602,6 +644,8 @@ export async function reassignCharacter({
   fromUserId: string;
   toUserId: string;
 }): Promise<{ sourceDeleted: boolean }> {
+  // Pinned as-is for characterization: if this compare-and-swap moves zero rows,
+  // the survivor scan below can still delete an already-empty source user.
   await db
     .update(account)
     .set({ userId: toUserId, updatedAt: new Date() })
@@ -647,6 +691,7 @@ export async function reassignCharacter({
 // getOAuthState outside a request, or after a Better Auth bump that moves the
 // state store) is logged loudly and reported as no-absorb — sign-in and link
 // must never break on this.
+// [3.8.5.4 owner: owner-transfer]
 export async function absorbLinkedCharacterOnProof(
   characterId: number,
 ): Promise<{ absorbed: boolean }> {
@@ -718,6 +763,7 @@ export async function absorbLinkedCharacterOnProof(
 // the difference. Called once per sign-in/link. Cheap on the common paths: one
 // indexed read, plus a single backfill UPDATE the first time a legacy/fresh row
 // records its hash.
+// [3.8.5.4 owner: owner-transfer]
 export async function reconcileCharacterOwner(
   characterId: number,
   jwtOwnerHash: string | null | undefined,
@@ -768,6 +814,7 @@ export async function reconcileCharacterOwner(
 // reaped by its lazy orphan cleanup in onlineStatus.applySyncResults. Steps are
 // sequential, non-atomic neon-http writes (no request-path transaction) — the same
 // accepted trade-off as reassignCharacter; a transfer is rare and low-rate.
+// [3.8.5.4 owner: owner-transfer]
 export async function purgeTransferredCharacter(
   priorUserId: string,
   characterId: number,
@@ -806,6 +853,7 @@ export async function purgeTransferredCharacter(
 // callers (purgeOwnCharacter, purgeTransferredCharacter) run runPurge first.
 // The third caller (absorbLinkedCharacterOnProof) satisfies the same invariant
 // by MOVING the row first — the source's remaining-scan no longer sees it.
+// [3.8.5.4 owner: account-purge]
 async function reconcileAfterCharacterRemoval(
   userId: string,
   characterId: number,
@@ -858,6 +906,7 @@ async function reconcileAfterCharacterRemoval(
 //      identity email is rebound + active repointed and accountEmptied is false.
 // The returned accountEmptied tells the caller/UI whether the account (and session)
 // is gone — the D-5 redirect-to-authorized-apps lightbox shows only when emptied.
+// [3.8.5.4 owner: account-purge]
 export async function purgeOwnCharacter(
   userId: string,
   characterId: number,
@@ -868,6 +917,7 @@ export async function purgeOwnCharacter(
 }
 
 // The character ids of a user's currently-linked EVE accounts.
+// [3.8.5.4 owner: account-purge]
 async function eveAccountIdsFor(userId: string): Promise<number[]> {
   const rows = await db
     .select({ accountId: account.accountId })
@@ -895,6 +945,7 @@ async function eveAccountIdsFor(userId: string): Promise<number[]> {
 // sees only a newcomer or nothing; it converges because a pilot cannot complete the
 // EVE link flow faster than a pass purges. The neon-http path has no transaction, so
 // this shrinks the race to the negligible gap before the delete, not fully closing it.
+// [3.8.5.4 owner: account-purge]
 export async function nukeAccount(userId: string): Promise<void> {
   let linked = await eveAccountIdsFor(userId);
   while (linked.length > 0) {
