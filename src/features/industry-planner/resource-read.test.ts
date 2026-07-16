@@ -101,4 +101,15 @@ describe('createResourceRead', () => {
     await resource.start();
     expect(onData).not.toHaveBeenCalled();
   });
+
+  it('does not hide an application error from the data callback', async () => {
+    const resource = createResourceRead({
+      read: async () => 'data',
+      onData: () => {
+        throw new Error('state mapping failed');
+      },
+    });
+
+    await expect(resource.start()).rejects.toThrow('state mapping failed');
+  });
 });

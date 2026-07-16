@@ -19,16 +19,18 @@ export function createResourceRead<T>(deps: {
       controller?.abort();
       const activeController = new AbortController();
       controller = activeController;
+      let data: T | null;
       try {
-        const data = await deps.read(activeController.signal);
-        if (run !== generation || activeController.signal.aborted || data === null) return;
-        deps.onData(data);
+        data = await deps.read(activeController.signal);
       } catch {
         // Per-user overlays fail open: aborted and failed reads both leave the
         // existing pending/empty presentation rather than surfacing an error.
+        return;
       } finally {
         if (run === generation) controller = null;
       }
+      if (run !== generation || activeController.signal.aborted || data === null) return;
+      deps.onData(data);
     },
     cancel() {
       generation++;
