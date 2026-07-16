@@ -14,7 +14,7 @@ import {
   type EveCharactersResponse,
 } from '@/features/auth/api-contract';
 import { isAffiliationStale } from '@/features/auth/membership';
-import { listLinkedCharacters } from '@/features/auth/queries';
+import { listLinkedCharacters } from '@/features/auth/linked-characters';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { parseJsonBody } from '@/lib/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';

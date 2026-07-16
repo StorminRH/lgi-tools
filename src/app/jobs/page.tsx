@@ -7,7 +7,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
 import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
 import { toPanelCharacter } from '@/features/auth/panel-character';
-import { listLinkedCharacters } from '@/features/auth/queries';
+import { listLinkedCharacters } from '@/features/auth/linked-characters';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { CorpJobsBoard } from '@/features/industry-jobs/components/CorpJobsBoard';
 import { IndustryJobsPanel } from '@/features/industry-jobs/components/IndustryJobsPanel';

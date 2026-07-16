@@ -31,7 +31,7 @@ vi.mock('@/features/auth/auth', () => ({
   },
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/linked-characters', () => ({
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
   repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
   getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),

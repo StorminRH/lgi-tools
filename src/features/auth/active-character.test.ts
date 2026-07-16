@@ -44,7 +44,7 @@ import {
   listLinkedCharacters,
   repointActiveToOldest,
   resolveActiveCharacter,
-} from './queries';
+} from './linked-characters';
 
 beforeEach(() => {
   h.selectRows = [];

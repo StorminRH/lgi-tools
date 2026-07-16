@@ -7,7 +7,7 @@
 // authz: auth
 import type { AccountCharactersResponse } from '@/features/auth/api-contract';
 import { toPanelCharacter } from '@/features/auth/panel-character';
-import { listLinkedCharacters } from '@/features/auth/queries';
+import { listLinkedCharacters } from '@/features/auth/linked-characters';
 import { getCurrentUserId } from '@/features/auth/session';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 

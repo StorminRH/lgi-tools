@@ -17,7 +17,7 @@ import {
   resolveActiveCharacter,
   setActiveCharacter,
   upsertCharacterOnLogin,
-} from './queries';
+} from './linked-characters';
 import { account, characters, user } from './schema';
 
 const SCHEMA = 'test_auth_linked_characters';

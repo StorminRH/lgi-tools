@@ -27,12 +27,8 @@ import {
 } from './eve-sso';
 import { refreshAffiliations } from './affiliation';
 import { recordAbsorb } from './absorb-context';
-import {
-  absorbLinkedCharacterOnProof,
-  reconcileCharacterOwner,
-  resolveActiveCharacter,
-  upsertCharacterOnLogin,
-} from './queries';
+import { resolveActiveCharacter, upsertCharacterOnLogin } from './linked-characters';
+import { absorbLinkedCharacterOnProof, reconcileCharacterOwner } from './queries';
 import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import { encryptToken } from './token-crypto';

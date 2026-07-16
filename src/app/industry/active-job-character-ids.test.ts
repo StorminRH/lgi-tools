@@ -15,7 +15,7 @@ vi.mock('@/features/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/linked-characters', () => ({
   listLinkedCharacters: (userId: string) => listLinkedCharactersMock(userId),
 }));
 

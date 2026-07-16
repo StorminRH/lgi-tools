@@ -10,7 +10,7 @@
 // forbids inside a slice.
 import { after } from 'next/server';
 import { getTypeNames } from '@/data/eve-data/queries';
-import { listLinkedCharacters } from '@/features/auth/queries';
+import { listLinkedCharacters } from '@/features/auth/linked-characters';
 
 // One owner to render: its id (character or corporation), the staleness stamp, and the
 // optional graceful error state (corp jobs' needs_role; absent for the character slices).

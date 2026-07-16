@@ -21,7 +21,7 @@ import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterBut
 import { SwitchCharacterForm } from '@/features/auth/components/SwitchCharacterForm';
 import { UnlinkCharacterForm } from '@/features/auth/components/UnlinkCharacterForm';
 import { EVE_AUTHORIZED_APPS_URL } from '@/features/auth/eve-sso';
-import { listLinkedCharacters, type LinkedCharacter } from '@/features/auth/queries';
+import { listLinkedCharacters, type LinkedCharacter } from '@/features/auth/linked-characters';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
 

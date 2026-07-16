@@ -11,7 +11,7 @@ vi.mock('@/features/auth/affiliation-store', () => ({
   getUserAffiliations: vi.fn(),
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(),
 }));
 

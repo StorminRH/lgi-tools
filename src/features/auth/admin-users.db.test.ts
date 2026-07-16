@@ -10,11 +10,11 @@ import {
   schemaUrl,
   setupDisposableSchema,
 } from '@/db/test-support/db-coverage-harness';
+import { getStoredActiveCharacterId } from './linked-characters';
 import {
   CHARACTER_SEARCH_LIMIT,
   deleteLinkedCharacter,
   getActiveSessionCount,
-  getStoredActiveCharacterId,
   getUserByCharacterId,
   getUserById,
   listAdminUsers,

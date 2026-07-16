@@ -1,4 +1,4 @@
-import type { ActiveCharacter } from './queries';
+import type { ActiveCharacter } from './linked-characters';
 import type { CharacterRole } from './types';
 
 // Shape the enriched session identity from an already-resolved active character.

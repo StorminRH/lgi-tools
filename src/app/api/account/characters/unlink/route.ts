@@ -9,7 +9,7 @@ import {
   getStoredActiveCharacterId,
   listLinkedCharacters,
   repointActiveToOldest,
-} from '@/features/auth/queries';
+} from '@/features/auth/linked-characters';
 import { requireSession } from '@/features/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseFormBody } from '@/lib/route-body';

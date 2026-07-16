@@ -20,8 +20,11 @@ vi.mock('@/features/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
+}));
+
+vi.mock('@/features/auth/queries', () => ({
   reassignCharacter: (args: unknown) => reassignCharacterMock(args),
 }));
 

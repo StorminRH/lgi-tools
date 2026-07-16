@@ -23,12 +23,15 @@ vi.mock('@/features/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
-  deleteLinkedCharacter: (u: string, c: number) => deleteLinkedCharacterMock(u, c),
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
   getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),
   repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
+}));
+
+vi.mock('@/features/auth/queries', () => ({
+  deleteLinkedCharacter: (u: string, c: number) => deleteLinkedCharacterMock(u, c),
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({

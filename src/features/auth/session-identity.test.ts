@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { deriveSessionIdentity } from './session-identity';
-import type { ActiveCharacter } from './queries';
+import type { ActiveCharacter } from './linked-characters';
 
 const baseUser = { id: 'u1', role: 'USER', name: 'User Name', image: 'user-image.png' };
 const baseSession = { id: 's1' };
