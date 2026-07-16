@@ -100,7 +100,7 @@ async function eveAccountIdsFor(userId: string): Promise<number[]> {
     .select({ accountId: account.accountId })
     .from(account)
     .where(eveAccountsForUser(userId));
-  return rows.map((r) => Number(r.accountId));
+  return rows.map((r) => Number(r.accountId)).filter((id) => Number.isFinite(id));
 }
 
 // Nuke the caller's entire account. The user-row delete cascades

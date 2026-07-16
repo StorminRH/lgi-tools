@@ -122,4 +122,17 @@ describe('nukeAccount', () => {
     expect(runPurgeMock).toHaveBeenCalledTimes(3); // 2 character purges + 1 user purge
     expect(state.calls.delete).toBe(1);
   });
+
+  it('skips a malformed EVE account id instead of revoking NaN or repeating the loop', async () => {
+    state.results = [
+      [{ accountId: 'not-a-character-id' }], // filtered before the nuke loop
+      undefined, // delete user row; its cascade removes the malformed account
+    ];
+    await nukeAccount(USER);
+
+    expect(revokeMock).not.toHaveBeenCalled();
+    expect(runPurgeMock).toHaveBeenCalledOnce();
+    expect(runPurgeMock).toHaveBeenCalledWith({ kind: 'user', userId: USER });
+    expect(state.calls.delete).toBe(1);
+  });
 });
