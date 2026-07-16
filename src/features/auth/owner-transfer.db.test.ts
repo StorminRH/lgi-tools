@@ -26,7 +26,7 @@ import {
   absorbLinkedCharacterOnProof,
   purgeTransferredCharacter,
   reconcileCharacterOwner,
-} from './queries';
+} from './owner-transfer';
 import { account, characters, session, user } from './schema';
 import { syntheticEmail } from './synthetic-email';
 

@@ -28,7 +28,7 @@ import {
 import { refreshAffiliations } from './affiliation';
 import { recordAbsorb } from './absorb-context';
 import { resolveActiveCharacter, upsertCharacterOnLogin } from './linked-characters';
-import { absorbLinkedCharacterOnProof, reconcileCharacterOwner } from './queries';
+import { absorbLinkedCharacterOnProof, reconcileCharacterOwner } from './owner-transfer';
 import { account, jwks, session, user, verification } from './schema';
 import { syntheticEmail } from './synthetic-email';
 import { encryptToken } from './token-crypto';

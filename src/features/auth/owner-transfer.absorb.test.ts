@@ -50,7 +50,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 }));
 
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { absorbLinkedCharacterOnProof } from './queries';
+import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { syntheticEmail } from './synthetic-email';
 
 const CHARACTER = 100;

@@ -28,7 +28,7 @@ const { chain, state } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
-import { purgeTransferredCharacter, reconcileCharacterOwner } from './queries';
+import { purgeTransferredCharacter, reconcileCharacterOwner } from './owner-transfer';
 
 const USER = 'eve-user-1';
 const CHAR = 90000001;
