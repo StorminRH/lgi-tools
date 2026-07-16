@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pre-PR Design Review"
+  short_description: "Check design health before opening a PR"
+  default_prompt: "Use $pre-pr-design-review to run the required LGI.tools design review before opening a PR."

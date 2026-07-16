@@ -37,13 +37,15 @@ yarn-error.log*
 # vercel
 .vercel
 
-# coding-agent configuration (kept local-only, not tracked in the repo)
-.claude/
-.agents/
-.codex/
-.agent-local/
-CLAUDE.md
-AGENTS.md
+# local agent state (never tracked)
+.claude/settings.local.json
+.claude/launch.json
+.claude/worktrees/
+.agent-local/tooling-parity-report.json
+.agent-local/pr-*.md
+docs/ux-check/captures/
+docs/margin-audit/
+graphify-out/
 
 # typescript
 *.tsbuildinfo
@@ -51,11 +53,6 @@ next-env.d.ts
 
 # local verification snapshots (wire-format diffs, not committed)
 .verify-snapshots/
-
-# ux-check capture artifacts now live in docs/ux-check/captures/ (covered by /docs/ below)
-
-# internal planning docs and working memory (kept private to maintainers)
-/docs/
 
 # fallow (codebase-intelligence eval). The regression-count floor lives embedded
 # in .fallowrc.json (regression.baseline), so nothing under .fallow/ needs to be

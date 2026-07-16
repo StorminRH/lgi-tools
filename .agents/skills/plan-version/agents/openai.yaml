@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Version"
+  short_description: "Turn a master plan into session contracts"
+  default_prompt: "Use $plan-version to turn the active LGI.tools master version plan into approved session contracts."

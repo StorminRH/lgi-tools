@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Session"
+  short_description: "Create an approved implementation plan"
+  default_prompt: "Use $plan-session to design and persist the next detailed LGI.tools session plan."

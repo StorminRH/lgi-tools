@@ -1,0 +1,4 @@
+interface:
+  display_name: "Version Audit"
+  short_description: "Audit health, refresh baseline, and archive"
+  default_prompt: "Use $version-audit to execute the approved LGI.tools version audit and complete archival."

@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_screenshot",
+      "mcp__Claude_Preview__preview_inspect",
+      "mcp__Claude_Preview__preview_console_logs",
+      "mcp__Claude_Preview__preview_snapshot",
+      "mcp__Claude_Preview__preview_logs",
+      "mcp__Claude_Preview__preview_list",
+      "mcp__1111b538-fdfa-4fdb-81cb-03e4e7fbb718__list_deployments",
+      "mcp__1111b538-fdfa-4fdb-81cb-03e4e7fbb718__get_runtime_logs",
+      "mcp__1111b538-fdfa-4fdb-81cb-03e4e7fbb718__web_fetch_vercel_url",
+      "mcp__1111b538-fdfa-4fdb-81cb-03e4e7fbb718__get_deployment",
+      "mcp__b18723f5-303f-4dca-9f31-6b65a15f189d__describe_project",
+      "mcp__b18723f5-303f-4dca-9f31-6b65a15f189d__list_projects",
+      "mcp__b18723f5-303f-4dca-9f31-6b65a15f189d__list_shared_projects",
+      "mcp__120a590a-993e-4c7a-a301-7b000ff41228__query-docs",
+      "mcp__Snyk_Security__snyk_sca_scan",
+      "Read(./**)",
+      "Grep",
+      "Glob",
+      "WebSearch"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
+          }
+        ]
+      }
+    ]
+  }
+}

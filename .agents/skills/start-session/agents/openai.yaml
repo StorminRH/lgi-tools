@@ -1,0 +1,4 @@
+interface:
+  display_name: "Start Session"
+  short_description: "Resolve and run the next LGI.tools stage"
+  default_prompt: "Use $start-session to resolve the current lifecycle state and run or plan the next LGI.tools stage."
