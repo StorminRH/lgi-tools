@@ -63,8 +63,13 @@ import {
 } from '../build-pricing';
 import { initialPriceMap } from '../initial-price-map';
 import {
+  buildSelectionVacatesReaction,
+  isReactionNetAvailable,
+  selectReactionLocation,
+  type ReactionLocationSnapshot,
+} from '../selection-policy';
+import {
   composeFeeInputs,
-  hostsReactions,
   structureFactorsFor,
   structureReadouts,
   type StructureFactors,
@@ -449,19 +454,14 @@ export function PricingProvider({
   // — so an unpick or a blueprint switch needs no effect-body clear, a prior
   // blueprint's adjusted prices can never feed this one's EIV, and the net path
   // stays honestly unavailable until real inputs exist (never a fake zero).
-  const [fetchedReactionLocation, setFetchedReactionLocation] = useState<{
-    systemId: number;
-    blueprintTypeId: number;
-    costIndex: number | null;
-    adjustedPrices: Map<number, number>;
-  } | null>(null);
-  const reactionLocation =
-    structure.activityId === REACTION_ACTIVITY &&
-    fetchedReactionLocation !== null &&
-    fetchedReactionLocation.systemId === reactionSystem?.systemId &&
-    fetchedReactionLocation.blueprintTypeId === structure.blueprintTypeId
-      ? fetchedReactionLocation
-      : null;
+  const [fetchedReactionLocation, setFetchedReactionLocation] =
+    useState<ReactionLocationSnapshot | null>(null);
+  const reactionLocation = selectReactionLocation({
+    activityId: structure.activityId,
+    blueprintTypeId: structure.blueprintTypeId,
+    reactionSystemId: reactionSystem?.systemId ?? null,
+    fetched: fetchedReactionLocation,
+  });
   // The no-double-select rule holds in STATE, not just in the option lists: picking
   // the reaction slot's refinery as the build structure vacates the reaction slot.
   // (Its dropdown filters that structure out, so leaving the state set would silently
@@ -470,7 +470,7 @@ export function PricingProvider({
   const setSelectedStructure = useCallback(
     (structure: AvailableStructure | null) => {
       setSelectedStructureState(structure);
-      if (structure && reactionStructure && reactionStructure.id === structure.id) {
+      if (buildSelectionVacatesReaction(structure, reactionStructure)) {
         setReactionStructure(null);
         setReactionSystem(null);
       }
@@ -974,10 +974,12 @@ export function PricingProvider({
   // Mirrors assemble()'s reaction fee-input presence so the Net toggle enables
   // exactly when the fee math has something to compute (the reaction-slot fetch,
   // or the build-slot-refinery fallback whose index rides on `location`).
-  const reactionNetAvailable =
-    structure.activityId === REACTION_ACTIVITY &&
-    (reactionLocation !== null ||
-      (!!selectedStructure && hostsReactions(selectedStructure.groupId) && location !== null));
+  const reactionNetAvailable = isReactionNetAvailable({
+    activityId: structure.activityId,
+    reactionLocation,
+    buildStructure: selectedStructure,
+    hasBuildLocation: location !== null,
+  });
 
   const value = useMemo<PricingContextValue>(
     () => ({
