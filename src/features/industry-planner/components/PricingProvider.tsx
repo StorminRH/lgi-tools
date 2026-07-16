@@ -59,9 +59,8 @@ import { toMarketScoreInputs } from '../market-score-inputs';
 import {
   assemblePricing,
   collectIntermediateTypeIds,
-  type PriceLite,
 } from '../build-pricing';
-import { initialPriceMap } from '../initial-price-map';
+import { createPriceSnapshot, type PriceSnapshot } from '../price-snapshot';
 import {
   buildSelectionVacatesReaction,
   isReactionNetAvailable,
@@ -517,15 +516,9 @@ export function PricingProvider({
   const [meOverrides, setMeOverrides] = useState<Map<number, number>>(() => new Map());
   // Manual per-node TE overrides (what-if), the time-side twin of `meOverrides`.
   const [teOverrides, setTeOverrides] = useState<Map<number, number>>(() => new Map());
-  // The seed price map, captured when the snapshot first lands. Each refresh
-  // batch merges over it (refreshed value wins; un-refreshed rows keep their
-  // seed) before recomputing margin, so the assembly never drops back to nulls
-  // mid-loop.
-  const seedMapRef = useRef<Map<number, PriceLite>>(new Map());
-  // The latest live refresh batch, persisted past the one-shot refresh loop so a
-  // runs/location change AFTER the loop finishes still recomputes over live
-  // prices (not the stale seed). Empty until the first batch lands.
-  const liveRef = useRef<Map<number, RefreshedPrice>>(new Map());
+  const priceSnapshotRef = useRef<PriceSnapshot | null>(null);
+  if (priceSnapshotRef.current === null) priceSnapshotRef.current = createPriceSnapshot();
+  const priceSnapshot = priceSnapshotRef.current;
   // Refs mirror current runs/location/pricing so the single assemble() and the
   // recompute effect read them without making the refresh loop or the effect
   // restart on every change.
@@ -559,8 +552,6 @@ export function PricingProvider({
   // manufacturing, the reaction location — or a build-slot refinery — for a
   // reaction blueprint), so with neither it's gross-only.
   const assemble = useCallback(() => {
-    const lookup = (typeId: number): PriceLite | undefined =>
-      liveRef.current.get(typeId) ?? seedMapRef.current.get(typeId);
     const sf = structureFactorsRef.current;
     // Fee composition (3.7.13.3) — the routing rules (mfg tax reads the BUILD
     // slot only; the reaction fee reads the reaction host with the build-slot-
@@ -581,7 +572,7 @@ export function PricingProvider({
     const overrides = meOverridesRef.current;
     const meOf = owned || overrides.size ? effectiveMeOf(owned, overrides) : undefined;
     setPricing(
-      assemblePricing(structure, lookup, {
+      assemblePricing(structure, priceSnapshot.lookup, {
         runs: runsRef.current,
         fee,
         meOf,
@@ -593,19 +584,20 @@ export function PricingProvider({
         basis: costBasisRef.current,
       }),
     );
-  }, [structure]);
+  }, [structure, priceSnapshot]);
 
   // Settle the store from the streamed read. Mark it seeded either way (so a
   // null result reads as "unavailable", not "loading"); only adopt a non-null
   // snapshot, and only the first one — a refresh batch may already have
   // advanced it.
-  const seed = useCallback((initial: BlueprintPricing | null) => {
-    setSeeded(true);
-    if (initial) {
-      seedMapRef.current = initialPriceMap(initial);
-      setPricing((prev) => prev ?? initial);
-    }
-  }, []);
+  const seed = useCallback(
+    (initial: BlueprintPricing | null) => {
+      const settlement = priceSnapshot.seed(initial);
+      setSeeded(settlement.seeded);
+      setPricing(settlement.settle);
+    },
+    [priceSnapshot],
+  );
 
   const setRuns = useCallback((n: number) => {
     setRunsState(Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1);
@@ -763,14 +755,14 @@ export function PricingProvider({
   );
 
   // Recompute the whole snapshot after each batch so margin and every badge
-  // update as prices stream in. Persist the batch in liveRef first so a later
-  // runs/location change still recomputes over it.
+  // update as prices stream in. Persist the batch in the snapshot first so a
+  // later runs/location change still recomputes over it.
   const onBatch = useCallback(
     (refreshed: Map<number, RefreshedPrice>) => {
-      liveRef.current = refreshed;
+      priceSnapshot.applyBatch(refreshed);
       assemble();
     },
-    [assemble],
+    [assemble, priceSnapshot],
   );
 
   // The shared refresh loop. Gated on `seeded && !!pricing` (a one-shot
