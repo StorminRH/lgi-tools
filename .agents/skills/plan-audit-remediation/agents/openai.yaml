@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Audit Remediation"
+  short_description: "Extend a version to resolve audit findings"
+  default_prompt: "Use $plan-audit-remediation to extend the active LGI.tools version with approved remediation sessions for every actionable audit finding."

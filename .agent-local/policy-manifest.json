@@ -1,0 +1,415 @@
+{
+  "policyRevision": 16,
+  "canonicalGuides": [
+    "AGENTS.md",
+    "src/AGENTS.md",
+    "docs/AGENT_TOOLING.md",
+    "docs/DESIGN_PRINCIPLES.md",
+    "docs/DEVELOPMENT_LIFECYCLE.md",
+    "docs/SESSION_CONTRACTS.md",
+    "docs/SESSION_PLANNING.md",
+    "docs/SESSION_END.md",
+    "docs/PRE_PR_DESIGN_REVIEW.md",
+    "docs/PR_REVIEW.md",
+    "docs/VERSION_AUDIT.md",
+    "docs/SELF_REVIEW.md"
+  ],
+  "imports": {
+    "CLAUDE.md": "@AGENTS.md",
+    "src/CLAUDE.md": "@AGENTS.md"
+  },
+  "hookConfigs": {
+    ".claude/settings.json": [
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash",
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
+    ],
+    ".codex/hooks.json": [
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash",
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
+    ]
+  },
+  "skillRoots": {
+    "codex": ".agents/skills",
+    "claude": ".claude/skills"
+  },
+  "pairedSkills": {
+    "plan-version": {
+      "required": [
+        "DESIGN_PRINCIPLES",
+        "CODE_HEALTH_BASELINE",
+        "DEVELOPMENT_LIFECYCLE",
+        "SESSION_CONTRACTS",
+        "master plan",
+        "Plan mode",
+        "approval",
+        "todo list|task list",
+        "directive",
+        "start-session",
+        "session-terminal"
+      ],
+      "forbidden": []
+    },
+    "plan-session": {
+      "required": [
+        "SESSION_PLANNING",
+        "DESIGN_PRINCIPLES",
+        "CODE_HEALTH_BASELINE",
+        "Plan mode",
+        "approval",
+        "session-plans",
+        "todo list|task list",
+        "separate prompt",
+        "directive",
+        "start-session",
+        "session-terminal"
+      ],
+      "forbidden": [
+        "write.*before.*approval"
+      ]
+    },
+    "start-session": {
+      "required": [
+        "resolve_development_state",
+        "directive",
+        "handler",
+        "authority",
+        "primary artifact|primaryArtifact",
+        "pause",
+        "DESIGN_PRINCIPLES",
+        "CODE_HEALTH_BASELINE",
+        "todo list|task list",
+        "Plan mode",
+        "separate prompt",
+        "Graphify",
+        "close-out",
+        "Ryan",
+        "session-terminal"
+      ],
+      "forbidden": [
+        "generate a prompt for itself",
+        "Version_3_8_Prompts"
+      ]
+    },
+    "pre-pr-design-review": {
+      "required": [
+        "PRE_PR_DESIGN_REVIEW",
+        "DESIGN_PRINCIPLES",
+        "CODE_HEALTH_BASELINE",
+        "todo list|task list",
+        "hotspot",
+        "## Notes",
+        "close-out"
+      ],
+      "forbidden": []
+    },
+    "close-out": {
+      "required": [
+        "DESIGN_PRINCIPLES",
+        "CODE_HEALTH_BASELINE",
+        "SESSION_END",
+        "PRE_PR_DESIGN_REVIEW",
+        "PR_REVIEW",
+        "todo list|task list",
+        "current-head",
+        "Greptile",
+        "APP_VERSION",
+        "changelog",
+        "branch push creates no\\s+Vercel\\s+preview",
+        "manual preview",
+        "production-mode build",
+        "What this does",
+        "## Why",
+        "## Notes",
+        "## Test plan",
+        "personal information",
+        "body-file",
+        "pnpm test:coverage",
+        "coverage-backed",
+        "browser-first",
+        "resolver",
+        "directive",
+        "start-session",
+        "do not\\s+archive"
+      ],
+      "forbidden": [
+        "if the work is user-facing, bump",
+        "verify the Vercel preview"
+      ]
+    },
+    "plan-version-audit": {
+      "required": [
+        "VERSION_AUDIT",
+        "DEVELOPMENT_LIFECYCLE",
+        "DESIGN_PRINCIPLES",
+        "CODE_HEALTH_BASELINE",
+        "Plan mode",
+        "approval",
+        "Audit status",
+        "todo list|task list",
+        "Periodic",
+        "Version close",
+        "directive",
+        "start-session",
+        "session-terminal"
+      ],
+      "forbidden": []
+    },
+    "plan-audit-remediation": {
+      "required": [
+        "DESIGN_PRINCIPLES",
+        "SESSION_PLANNING",
+        "PRE_PR_DESIGN_REVIEW",
+        "VERSION_AUDIT",
+        "CODE_HEALTH_BASELINE",
+        "resolver",
+        "directive",
+        "Plan mode",
+        "approval",
+        "AF-NNN",
+        "Floss",
+        "Campaign",
+        "Watch",
+        "characterization",
+        "todo list|task list",
+        "start-session",
+        "separate",
+        "session-terminal"
+      ],
+      "forbidden": []
+    },
+    "version-audit": {
+      "required": [
+        "VERSION_AUDIT",
+        "DESIGN_PRINCIPLES",
+        "CODE_HEALTH_BASELINE",
+        "todo list|task list",
+        "replace",
+        "never\\s+append",
+        "campaign",
+        "AF-NNN",
+        "Remediation required",
+        "directive",
+        "start-session",
+        "restart",
+        "archive",
+        "resolver",
+        "drift"
+      ],
+      "forbidden": []
+    },
+    "triage-issue": {
+      "required": [
+        "DESIGN_PRINCIPLES",
+        "todo list|task list",
+        "Every completed sub-version",
+        "APP_VERSION",
+        "changelog",
+        "Graphify",
+        "user chooses",
+        "close-out"
+      ],
+      "forbidden": [
+        "non-user-facing\\s+change skips",
+        "user-facing\\s+change.*version bump"
+      ]
+    },
+    "ux-check": {
+      "required": [
+        "DESIGN_PRINCIPLES",
+        "todo list|task list",
+        "Graphify",
+        "localhost:3000",
+        "127\\.0\\.0\\.1",
+        "logged-out",
+        "Ryan",
+        "close-out"
+      ],
+      "forbidden": [
+        "pnpm dev.*i\\.e\\. `next dev -H"
+      ]
+    }
+  },
+  "runtimeForbidden": {
+    "codex": [
+      "AskUserQuestion",
+      "Explore subagents",
+      "Claude Desktop",
+      "Claude's Read",
+      "background Bash job"
+    ],
+    "claude": [
+      "long-lived Codex terminal",
+      "Codex's local image",
+      "generic Codex preview"
+    ]
+  },
+  "requiredPaths": [
+    ".agent-local/check_agent_drift.py",
+    ".agent-local/resolve_development_state.py",
+    ".agent-local/test_development_state.py",
+    ".agent-local/checker_common.py",
+    ".agent-local/check_env_example.py",
+    ".agent-local/check_doc_refs.py",
+    ".agent-local/check_lifecycle_evidence.py",
+    ".agent-local/test_env_example.py",
+    ".agent-local/test_doc_refs.py",
+    ".agent-local/test_lifecycle_evidence.py",
+    ".agent-local/graphify_guard.py",
+    ".agent-local/audit_tooling_parity.py",
+    ".agent-local/check_tooling_parity.py",
+    ".agent-local/sync_vercel_plugin.py",
+    ".codex/hooks.json",
+    ".claude/settings.json",
+    "docs/CODE_HEALTH_BASELINE.md",
+    "docs/ux-check/README.md",
+    "scripts/route-classification.json",
+    ".agents/skills/plan-version/SKILL.md",
+    ".agents/skills/plan-version/agents/openai.yaml",
+    ".agents/skills/plan-session/SKILL.md",
+    ".agents/skills/plan-session/agents/openai.yaml",
+    ".agents/skills/start-session/SKILL.md",
+    ".agents/skills/start-session/agents/openai.yaml",
+    ".agents/skills/pre-pr-design-review/SKILL.md",
+    ".agents/skills/pre-pr-design-review/agents/openai.yaml",
+    ".agents/skills/close-out/SKILL.md",
+    ".agents/skills/plan-version-audit/SKILL.md",
+    ".agents/skills/plan-version-audit/agents/openai.yaml",
+    ".agents/skills/plan-audit-remediation/SKILL.md",
+    ".agents/skills/plan-audit-remediation/agents/openai.yaml",
+    ".agents/skills/version-audit/SKILL.md",
+    ".agents/skills/version-audit/agents/openai.yaml",
+    ".agents/skills/triage-issue/SKILL.md",
+    ".agents/skills/ux-check/SKILL.md",
+    ".claude/skills/plan-version/SKILL.md",
+    ".claude/skills/plan-session/SKILL.md",
+    ".claude/skills/start-session/SKILL.md",
+    ".claude/skills/pre-pr-design-review/SKILL.md",
+    ".claude/skills/close-out/SKILL.md",
+    ".claude/skills/plan-version-audit/SKILL.md",
+    ".claude/skills/plan-audit-remediation/SKILL.md",
+    ".claude/skills/version-audit/SKILL.md",
+    ".claude/skills/triage-issue/SKILL.md",
+    ".claude/skills/ux-check/SKILL.md"
+  ],
+  "forbiddenPaths": [
+    ".claude/rules/ui-styling.md",
+    "docs/Version_3_8_Prompts.md"
+  ],
+  "ignoredPaths": [
+    ".agent-local/policy-manifest.json",
+    ".agent-local/check_agent_drift.py",
+    ".agent-local/resolve_development_state.py",
+    ".agent-local/test_development_state.py",
+    "docs/DESIGN_PRINCIPLES.md",
+    "docs/DEVELOPMENT_LIFECYCLE.md",
+    "docs/CODE_HEALTH_BASELINE.md",
+    "docs/SESSION_CONTRACTS.md",
+    "docs/SESSION_PLANNING.md",
+    "docs/SESSION_END.md",
+    "docs/PRE_PR_DESIGN_REVIEW.md",
+    "docs/PR_REVIEW.md",
+    "docs/VERSION_AUDIT.md",
+    "docs/session-contracts/3.8/INDEX.md",
+    ".agents/skills/plan-version/SKILL.md",
+    ".agents/skills/plan-session/SKILL.md",
+    ".agents/skills/start-session/SKILL.md",
+    ".agents/skills/pre-pr-design-review/SKILL.md",
+    ".agents/skills/close-out/SKILL.md",
+    ".agents/skills/plan-version-audit/SKILL.md",
+    ".agents/skills/plan-audit-remediation/SKILL.md",
+    ".agents/skills/version-audit/SKILL.md",
+    ".agents/skills/triage-issue/SKILL.md",
+    ".agents/skills/ux-check/SKILL.md",
+    ".claude/skills/plan-version/SKILL.md",
+    ".claude/skills/plan-session/SKILL.md",
+    ".claude/skills/start-session/SKILL.md",
+    ".claude/skills/pre-pr-design-review/SKILL.md",
+    ".claude/skills/close-out/SKILL.md",
+    ".claude/skills/plan-version-audit/SKILL.md",
+    ".claude/skills/plan-audit-remediation/SKILL.md",
+    ".claude/skills/version-audit/SKILL.md",
+    ".claude/skills/triage-issue/SKILL.md",
+    ".claude/skills/ux-check/SKILL.md"
+  ],
+  "sessionContracts": {
+    "expected": [
+      "docs/session-contracts/3.9/3.9.1.1.md",
+      "docs/session-contracts/3.9/3.9.1.2.md",
+      "docs/session-contracts/3.9/3.9.1.3.md",
+      "docs/session-contracts/3.9/3.9.1.4.md",
+      "docs/session-contracts/3.9/3.9.1.5.md",
+      "docs/session-contracts/3.9/3.9.1.6.md",
+      "docs/session-contracts/3.9/3.9.1.7.1.md",
+      "docs/session-contracts/3.9/3.9.1.7.2.md",
+      "docs/session-contracts/3.9/3.9.2.1.md",
+      "docs/session-contracts/3.9/3.9.2.2.1.md",
+      "docs/session-contracts/3.9/3.9.2.2.2.md",
+      "docs/session-contracts/3.9/3.9.2.3.1.md",
+      "docs/session-contracts/3.9/3.9.2.3.2.md",
+      "docs/session-contracts/3.9/3.9.2.4.md",
+      "docs/session-contracts/3.9/3.9.2.5.md",
+      "docs/session-contracts/3.9/3.9.2.6.md",
+      "docs/session-contracts/3.9/3.9.2.7.md",
+      "docs/session-contracts/3.9/3.9.3.1.md",
+      "docs/session-contracts/3.9/3.9.3.2.md",
+      "docs/session-contracts/3.9/3.9.3.3.md",
+      "docs/session-contracts/3.9/3.9.3.4.1.md",
+      "docs/session-contracts/3.9/3.9.3.4.2.md",
+      "docs/session-contracts/3.9/3.9.3.5.md",
+      "docs/session-contracts/3.9/3.9.3.6.md",
+      "docs/session-contracts/3.9/3.9.3.7.md",
+      "docs/session-contracts/3.9/3.9.3.8.md",
+      "docs/session-contracts/3.9/3.9.4.1.md",
+      "docs/session-contracts/3.9/3.9.4.2.md",
+      "docs/session-contracts/3.9/3.9.4.3.md",
+      "docs/session-contracts/3.9/3.9.4.4.md",
+      "docs/session-contracts/3.9/3.9.4.5.md"
+    ],
+    "scan": [
+      "docs/SESSION_CONTRACTS.md"
+    ],
+    "forbidden": [
+      "Version_3_8_Prompts",
+      "<hard_constraints>",
+      "</hard_constraints>",
+      "this prompt's"
+    ]
+  },
+  "developmentState": {
+    "resolver": ".agent-local/resolve_development_state.py",
+    "allowedStages": [
+      "master-plan-needed",
+      "contracts-needed",
+      "session-plan-needed",
+      "session-ready",
+      "audit-plan-needed",
+      "audit-ready",
+      "audit-remediation-plan-needed",
+      "audit-restart-ready",
+      "archive-needed",
+      "invalid"
+    ],
+    "allowedHandlers": [
+      "plan-version",
+      "plan-session",
+      "start-session",
+      "plan-version-audit",
+      "plan-audit-remediation",
+      "version-audit"
+    ],
+    "allowedModes": [
+      "plan",
+      "execute",
+      "report"
+    ],
+    "directiveFields": [
+      "action",
+      "reason",
+      "handler",
+      "mode",
+      "authority",
+      "primaryArtifact",
+      "pause"
+    ]
+  }
+}

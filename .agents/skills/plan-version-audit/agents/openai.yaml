@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Version Audit"
+  short_description: "Prepare a version or periodic health audit"
+  default_prompt: "Use $plan-version-audit to prepare an approved LGI.tools version-close audit or periodic health pass."
