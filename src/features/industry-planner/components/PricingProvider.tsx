@@ -62,6 +62,7 @@ import {
   collectIntermediateTypeIds,
 } from '../build-pricing';
 import { mapOwnedBlueprints, type OwnedBlueprintMaps } from '../owned-blueprint-maps';
+import { resetOverride, setOverride } from '../override-map';
 import { createPriceSnapshot, type PriceSnapshot } from '../price-snapshot';
 import {
   buildSelectionVacatesReaction,
@@ -353,18 +354,13 @@ function useOverrideSetters(
 ) {
   const set = useCallback(
     (blueprintTypeId: number, value: number) => {
-      setOverrides((prev) => new Map(prev).set(blueprintTypeId, clamp(value)));
+      setOverrides((prev) => setOverride(prev, blueprintTypeId, value, clamp));
     },
     [setOverrides, clamp],
   );
   const reset = useCallback(
     (blueprintTypeId: number) => {
-      setOverrides((prev) => {
-        if (!prev.has(blueprintTypeId)) return prev;
-        const next = new Map(prev);
-        next.delete(blueprintTypeId);
-        return next;
-      });
+      setOverrides((prev) => resetOverride(prev, blueprintTypeId));
     },
     [setOverrides],
   );
