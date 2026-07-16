@@ -11,7 +11,7 @@ const getCharacterAffiliationMock = vi.fn();
 vi.mock('./affiliation-source', () => ({
   fetchAffiliations: (...args: unknown[]) => fetchAffiliationsMock(...args),
 }));
-vi.mock('./queries', () => ({
+vi.mock('./affiliation-store', () => ({
   upsertAffiliations: (...args: unknown[]) => upsertAffiliationsMock(...args),
   getUserAffiliations: (...args: unknown[]) => getUserAffiliationsMock(...args),
   getCharacterAffiliation: (...args: unknown[]) => getCharacterAffiliationMock(...args),

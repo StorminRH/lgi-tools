@@ -13,7 +13,7 @@ const recordCorpAccessDecisionMock = vi.fn();
 vi.mock('./affiliation-source', () => ({
   fetchAffiliations: (...args: unknown[]) => fetchAffiliationsMock(...args),
 }));
-vi.mock('./queries', () => ({
+vi.mock('./affiliation-store', () => ({
   getUserAffiliations: (...args: unknown[]) => getUserAffiliationsMock(...args),
   upsertAffiliations: (...args: unknown[]) => upsertAffiliationsMock(...args),
   getCharacterAffiliation: vi.fn(),

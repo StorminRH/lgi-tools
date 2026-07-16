@@ -5,7 +5,7 @@
 // (the slice's DB home); this module is the logic over them.
 import { fetchAffiliations } from './affiliation-source';
 import { characterIsInCorp, isAffiliationStale, isMemberOfCorp } from './membership';
-import { getCharacterAffiliation, getUserAffiliations, upsertAffiliations } from './queries';
+import { getCharacterAffiliation, getUserAffiliations, upsertAffiliations } from './affiliation-store';
 
 // Postgres advisory-lock key for the nightly affiliation refresh cron. Held only
 // by /api/cron/refresh-affiliations to skip an overlapping run of itself (the

@@ -30,8 +30,11 @@ vi.mock('@/data/telemetry/queries', () => ({
   pruneUsageLogs: (...args: unknown[]) => pruneUsageMock(...args),
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/affiliation-store', () => ({
   pruneCorpAccessAudit: (...args: unknown[]) => pruneAuditMock(...args),
+}));
+
+vi.mock('@/features/auth/queries', () => ({
   pruneExpiredVerifications: (...args: unknown[]) => pruneVerificationMock(...args),
 }));
 

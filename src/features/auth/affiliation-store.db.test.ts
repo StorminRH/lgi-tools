@@ -16,7 +16,7 @@ import {
   listStaleLinkedCharacterIds,
   recordCorpAccessDecision,
   upsertAffiliations,
-} from './queries';
+} from './affiliation-store';
 import { account, characters, corpAccessAudit, user } from './schema';
 
 const SCHEMA = 'test_auth_affiliation_store';

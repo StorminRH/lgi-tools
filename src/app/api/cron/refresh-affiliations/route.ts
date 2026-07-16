@@ -2,7 +2,7 @@ import { cronLogger } from '@/data/telemetry/cron-logger';
 import { runCronJob } from '@/db/cron-gate';
 import { ADVISORY_LOCK_AFFILIATION_REFRESH, refreshAffiliations } from '@/features/auth/affiliation';
 import type { CronRefreshAffiliationsResponse } from '@/features/auth/api-contract';
-import { listStaleLinkedCharacterIds } from '@/features/auth/queries';
+import { listStaleLinkedCharacterIds } from '@/features/auth/affiliation-store';
 
 const logCronEvent = cronLogger('cron:affiliations', 'cron_affiliations');
 

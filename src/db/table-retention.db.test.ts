@@ -12,7 +12,8 @@ import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
 } from '@/features/auth/constants';
-import { pruneCorpAccessAudit, pruneExpiredVerifications } from '@/features/auth/queries';
+import { pruneCorpAccessAudit } from '@/features/auth/affiliation-store';
+import { pruneExpiredVerifications } from '@/features/auth/queries';
 import { corpAccessAudit, verification } from '@/features/auth/schema';
 import {
   canReachDb,

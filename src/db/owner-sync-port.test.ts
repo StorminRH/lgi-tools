@@ -7,8 +7,11 @@ vi.mock('@/features/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: vi.fn(),
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/affiliation-store', () => ({
   getUserAffiliations: vi.fn(),
+}));
+
+vi.mock('@/features/auth/queries', () => ({
   listLinkedCharacters: vi.fn(),
 }));
 

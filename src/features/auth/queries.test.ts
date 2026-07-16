@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { portraitUrl } from './eve-sso';
-import {
-  rowToCachedAffiliation,
-  searchUsersByLinkedCharacterName,
-  toAdminUser,
-  toLinkedCharacter,
-} from './queries';
+import { searchUsersByLinkedCharacterName, toAdminUser, toLinkedCharacter } from './queries';
 
 vi.mock('@/db', () => ({
   db: {
@@ -56,42 +51,6 @@ describe('toAdminUser', () => {
 
   it('defaults a null portrait to the empty string', () => {
     expect(toAdminUser({ ...base, portraitUrl: null }).portraitUrl).toBe('');
-  });
-});
-
-describe('rowToCachedAffiliation', () => {
-  it('maps every affiliation field, keyed by the given character id', () => {
-    expect(
-      rowToCachedAffiliation(90000001, {
-        corporationId: 98000001,
-        allianceId: 99000001,
-        factionId: 500001,
-        refreshedAt: new Date('2026-07-10T00:00:00Z'),
-      }),
-    ).toEqual({
-      characterId: 90000001,
-      corporationId: 98000001,
-      allianceId: 99000001,
-      factionId: 500001,
-      refreshedAt: new Date('2026-07-10T00:00:00Z'),
-    });
-  });
-
-  it('coalesces every missing field to null (fail-closed)', () => {
-    expect(
-      rowToCachedAffiliation(90000001, {
-        corporationId: null,
-        allianceId: null,
-        factionId: null,
-        refreshedAt: null,
-      }),
-    ).toEqual({
-      characterId: 90000001,
-      corporationId: null,
-      allianceId: null,
-      factionId: null,
-      refreshedAt: null,
-    });
   });
 });
 
