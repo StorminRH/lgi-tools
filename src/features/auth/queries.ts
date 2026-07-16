@@ -6,6 +6,7 @@ import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
 import { runPurge } from '@/purge/orchestrator';
 import type { AffiliationRow } from './affiliation-source';
+import { accountMatch, characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
 import { EVE_PROVIDER_ID, portraitUrl } from './eve-sso';
 import { revokeCharacterToken } from './eve-token-service';
 import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
@@ -219,27 +220,6 @@ export async function setUserRole(
 // deterministic — this is the fallback active character and the unlink re-point
 // target.
 // ---------------------------------------------------------------------------
-
-// account_id is TEXT; characters.character_id is bigint. Cast on the account
-// side so the join uses the characters PK. Shared by every account→characters
-// join below.
-// [3.8.5.4 owner: eve-account-shared]
-const characterProfileJoin = eq(
-  characters.characterId,
-  sql`${account.accountId}::bigint`,
-);
-
-// [3.8.5.4 owner: eve-account-shared]
-const eveAccountsForUser = (userId: string) =>
-  and(eq(account.userId, userId), eq(account.providerId, EVE_PROVIDER_ID));
-
-// The account-row predicate for one EVE character — provider + character id (as a
-// string). A predicate helper, not a full accountByCharacter query, so each
-// caller keeps its own select/from/where/limit chain intact.
-// [3.8.5.4 owner: eve-account-shared]
-function accountMatch(characterId: number) {
-  return and(eq(account.providerId, EVE_PROVIDER_ID), eq(account.accountId, String(characterId)));
-}
 
 // [3.8.5.4 owner: linked-characters]
 export interface LinkedCharacter {
