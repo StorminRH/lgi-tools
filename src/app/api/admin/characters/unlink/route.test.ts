@@ -30,7 +30,7 @@ vi.mock('@/features/auth/linked-characters', () => ({
   repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/admin-users', () => ({
   deleteLinkedCharacter: (u: string, c: number) => deleteLinkedCharacterMock(u, c),
 }));
 

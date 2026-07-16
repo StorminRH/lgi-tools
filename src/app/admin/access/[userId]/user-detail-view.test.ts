@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AdminUser } from '@/features/auth/queries';
+import type { AdminUser } from '@/features/auth/admin-users';
 import { deriveUserDetailView } from './user-detail-view';
 
 const adminUser = (over: Partial<AdminUser> = {}): AdminUser => ({

@@ -22,7 +22,7 @@ import {
   revokeUserSessions,
   searchUsersByLinkedCharacterName,
   setUserRole,
-} from './queries';
+} from './admin-users';
 import { account, session, user } from './schema';
 
 const SCHEMA = 'test_auth_admin_users';

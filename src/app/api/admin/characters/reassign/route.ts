@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminReassignFormSchema } from '@/features/auth/api-contract';
 import { accountBelongsToUser } from '@/features/auth/linked-characters';
-import { reassignCharacter } from '@/features/auth/queries';
+import { reassignCharacter } from '@/features/auth/admin-users';
 import { requireAdmin } from '@/features/auth/route-guards';
 import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';

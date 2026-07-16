@@ -24,7 +24,7 @@ vi.mock('@/features/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/admin-users', () => ({
   reassignCharacter: (args: unknown) => reassignCharacterMock(args),
 }));
 

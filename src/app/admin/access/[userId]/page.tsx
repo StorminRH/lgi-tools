@@ -22,7 +22,7 @@ import {
   listLinkedCharacters,
   type LinkedCharacter,
 } from '@/features/auth/linked-characters';
-import { getActiveSessionCount, getUserById } from '@/features/auth/queries';
+import { getActiveSessionCount, getUserById } from '@/features/auth/admin-users';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { deriveUserDetailView } from './user-detail-view';

@@ -29,7 +29,7 @@ const { chain, state } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
-import { reassignCharacter } from './queries';
+import { reassignCharacter } from './admin-users';
 
 beforeEach(() => {
   state.results = [];

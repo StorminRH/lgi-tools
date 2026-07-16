@@ -3,7 +3,7 @@ import {
   ADMIN_ACCESS_QUERY_MAX_LENGTH,
   adminRoleFormSchema,
 } from '@/features/auth/api-contract';
-import { getUserById, setUserRole } from '@/features/auth/queries';
+import { getUserById, setUserRole } from '@/features/auth/admin-users';
 import { requireAdmin } from '@/features/auth/route-guards';
 import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { searchUsersByLinkedCharacterName, toAdminUser } from './queries';
+import { searchUsersByLinkedCharacterName, toAdminUser } from './admin-users';
 
 vi.mock('@/db', () => ({
   db: {
