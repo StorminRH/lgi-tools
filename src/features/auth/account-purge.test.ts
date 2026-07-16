@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { syntheticEmail } from './synthetic-email';
 
-// Chainable thenable (the queries.owner.test.ts house pattern) for the reconcile
+// Chainable thenable (the owner-transfer test pattern) for the reconcile
 // tail. runPurge + the EVE revoke are mocked so these exercise
 // purgeOwnCharacter/nukeAccount's OWN orchestration (revoke → sweep → reconcile),
 // not each contributor's internals (covered in-slice).

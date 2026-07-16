@@ -2,8 +2,8 @@
 // character's EVE link + encrypted tokens (the `account` row) and resets the
 // owner-authored fields on the shared `characters` row (kept, not deleted — it's a
 // telemetry FK target). These are steps 1–2 of the owner-hash transfer-purge
-// surface, now owned here so the registry composes the teardown rather than
-// queries.ts hard-coding it.
+// surface, owned here so account-purge and owner-transfer compose the teardown
+// through the registry rather than hard-coding its tables.
 //
 // Claims also cover `session` (torn down by the user-row cascade in the identity
 // reconcile / a full account-nuke — sessions are per-user, not per-character) so
@@ -11,10 +11,8 @@
 // exemption: the FK-less authz trail (3.7.3.3) outlives the user it records and
 // ages out only through its separate 400-day retention policy.
 //
-// Implemented WITHOUT importing queries.ts — that would close a
-// queries → orchestrator → register-all → purge → queries cycle. The account delete
-// mirrors deleteLinkedCharacter's (the route-side teardown); unifying the two onto
-// the registry is ACCOUNT.2 work.
+// The account delete mirrors deleteLinkedCharacter's route-side teardown, while
+// the registry boundary keeps table ownership separate from auth orchestration.
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import type { PurgeContributor } from '@/purge/types';

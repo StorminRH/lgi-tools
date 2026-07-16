@@ -3,7 +3,8 @@ import { EVE_PROVIDER_ID } from './eve-sso';
 import { account, characters } from './schema';
 
 // Slice-private predicate builders shared by the auth query modules
-// (linked-characters, affiliation-store, and the remaining AF-004 hub axes).
+// (linked-characters, affiliation-store, admin-users, account-purge, and
+// owner-transfer).
 // One home for the "which account rows are EVE links" decision so the
 // provider/key shape can change in exactly one place. Never import these
 // outside `src/features/auth/`.
