@@ -13,7 +13,7 @@ import {
   VERIFICATION_RETENTION_DAYS,
 } from '@/features/auth/constants';
 import { pruneCorpAccessAudit } from '@/features/auth/affiliation-store';
-import { pruneExpiredVerifications } from '@/features/auth/queries';
+import { pruneExpiredVerifications } from '@/features/auth/verification-retention';
 import { corpAccessAudit, verification } from '@/features/auth/schema';
 import {
   canReachDb,

@@ -34,7 +34,7 @@ vi.mock('@/features/auth/affiliation-store', () => ({
   pruneCorpAccessAudit: (...args: unknown[]) => pruneAuditMock(...args),
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/verification-retention', () => ({
   pruneExpiredVerifications: (...args: unknown[]) => pruneVerificationMock(...args),
 }));
 
