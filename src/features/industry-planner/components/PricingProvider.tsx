@@ -81,10 +81,26 @@ import type {
   AvailableStructure,
   BlueprintPricing,
   BlueprintStructure,
-  IndustryStationView,
   OwnedAssetEntry,
   OwnedComponentDetail,
 } from '../types';
+import {
+  PlannerContextProviders,
+  type BuildCharacterValue,
+  type BuildPlanValue,
+  type BuildSetupValue,
+  type MarketDataValue,
+  type PlannerConfigValue,
+  type SelectedLocation,
+  type SelectedReactionSystem,
+  type SelectedStation,
+} from './planner-contexts';
+
+export type {
+  SelectedLocation,
+  SelectedReactionSystem,
+  SelectedStation,
+} from './planner-contexts';
 
 // The planner's single live-pricing store. It owns what `CostPanel` used to:
 // the price snapshot seeded from the server, the client clock, and the
@@ -95,45 +111,6 @@ import type {
 // price read fans out to all of them while the structure stays in the static
 // shell. Prices arrive via an un-awaited promise the server hands down (see
 // PricingSeeder), so the cascade structure never waits on the price read.
-
-// A picked build SYSTEM, client-only state (carries a Map, so it never crosses
-// the wire). Built by the build-location selector from the chosen system + the
-// /api/industry/build-location read. The fee math reads only `adjustedPrices` +
-// `costIndices`, so this object changes only when the SYSTEM changes — the
-// per-station refinement lives in separate `station` state below, so picking a
-// station never churns this object (and never triggers a recompute).
-export interface SelectedLocation {
-  systemId: number;
-  systemName: string;
-  security: number | null;
-  // The system's industry-capable NPC stations, for the per-station refinement.
-  stations: IndustryStationView[];
-  costIndices: { manufacturing: number | null; reaction: number | null };
-  adjustedPrices: Map<number, number>;
-}
-
-// The optional per-station refinement — display + future-score only; the fee
-// math is system-driven (flat NPC facility tax, per-system cost index), so the
-// station choice never changes the numbers in v1. Separate from SelectedLocation
-// so a station pick doesn't re-derive the pricing.
-export interface SelectedStation {
-  id: number;
-  name: string;
-}
-
-// Group B's own build system (3.7.12.2) — the reaction gap-filler refinery's system.
-// It scales B's reaction rigs AND, for a REACTION blueprint, keys the reaction
-// build-location fetch (3.7.13.3 — the #187 dead seam, live): the top reaction job
-// fees against THIS system's 'reaction' cost index, held in the provider's separate
-// `reactionLocation` state. A corp refinery deduce-locks this from its home system;
-// a custom refinery picks it. Kept apart from `location` (A's system) so the two are
-// independent.
-export interface SelectedReactionSystem {
-  systemId: number;
-  systemName: string;
-  security: number | null;
-}
-
 
 export interface PricingContextValue {
   pricing: BlueprintPricing | null;
@@ -959,6 +936,129 @@ export function PricingProvider({
     hasBuildLocation: location !== null,
   });
 
+  const marketDataValue = useMemo<MarketDataValue>(
+    () => ({ pricing, seeded, marketHistory, marketScore }),
+    [pricing, seeded, marketHistory, marketScore],
+  );
+  const plannerConfigValue = useMemo<PlannerConfigValue>(
+    () => ({
+      runs,
+      setRuns,
+      costBasis,
+      setCostBasis,
+      marginMode,
+      setMarginMode,
+      multibuyMode,
+      setMultibuyMode,
+      multibuyUncheckedTiers,
+      setMultibuyUncheckedTiers,
+    }),
+    [
+      runs,
+      setRuns,
+      costBasis,
+      setCostBasis,
+      marginMode,
+      setMarginMode,
+      multibuyMode,
+      setMultibuyMode,
+      multibuyUncheckedTiers,
+      setMultibuyUncheckedTiers,
+    ],
+  );
+  const buildSetupValue = useMemo<BuildSetupValue>(
+    () => ({
+      location,
+      setLocation,
+      station,
+      setStation,
+      applyBuildSystem,
+      clearBuildLocation,
+      savedBuildLocation,
+      availableStructures,
+      selectedStructure,
+      setSelectedStructure,
+      reactionStructure,
+      setReactionStructure,
+      reactionSystem,
+      setReactionSystem,
+      structureFactors,
+      buildStructureReadout,
+      reactionStructureReadout,
+      reactionNetAvailable,
+    }),
+    [
+      location,
+      setLocation,
+      station,
+      setStation,
+      applyBuildSystem,
+      clearBuildLocation,
+      savedBuildLocation,
+      availableStructures,
+      selectedStructure,
+      setSelectedStructure,
+      reactionStructure,
+      setReactionStructure,
+      reactionSystem,
+      setReactionSystem,
+      structureFactors,
+      buildStructureReadout,
+      reactionStructureReadout,
+      reactionNetAvailable,
+    ],
+  );
+  const buildCharacterValue = useMemo<BuildCharacterValue>(
+    () => ({
+      buildCharacter,
+      buildCharacterPending,
+      buildCharacters,
+      setBuildCharacter,
+      buildCharacterSkillLevels,
+      skillTimeFactors,
+    }),
+    [
+      buildCharacter,
+      buildCharacterPending,
+      buildCharacters,
+      setBuildCharacter,
+      buildCharacterSkillLevels,
+      skillTimeFactors,
+    ],
+  );
+  const buildPlanValue = useMemo<BuildPlanValue>(
+    () => ({
+      ownedMe,
+      ownedDetail,
+      ownedAssets,
+      ownedTe,
+      meOverrides,
+      setMeOverride,
+      resetMeOverride,
+      teOverrides,
+      setTeOverride,
+      resetTeOverride,
+      ledger,
+      ledgerMeOpts,
+      buildTimes,
+    }),
+    [
+      ownedMe,
+      ownedDetail,
+      ownedAssets,
+      ownedTe,
+      meOverrides,
+      setMeOverride,
+      resetMeOverride,
+      teOverrides,
+      setTeOverride,
+      resetTeOverride,
+      ledger,
+      ledgerMeOpts,
+      buildTimes,
+    ],
+  );
+
   const value = useMemo<PricingContextValue>(
     () => ({
       pricing,
@@ -1070,13 +1170,21 @@ export function PricingProvider({
 
   return (
     <PricingContext.Provider value={value}>
-      {children}
-      <Suspense fallback={null}>
-        <PricingSeeder pricingPromise={pricingPromise} onSeed={seed} />
-      </Suspense>
-      <Suspense fallback={null}>
-        <HistorySeeder historyPromise={historyPromise} onSeed={mergeHistory} />
-      </Suspense>
+      <PlannerContextProviders
+        marketData={marketDataValue}
+        plannerConfig={plannerConfigValue}
+        buildSetup={buildSetupValue}
+        buildCharacter={buildCharacterValue}
+        buildPlan={buildPlanValue}
+      >
+        {children}
+        <Suspense fallback={null}>
+          <PricingSeeder pricingPromise={pricingPromise} onSeed={seed} />
+        </Suspense>
+        <Suspense fallback={null}>
+          <HistorySeeder historyPromise={historyPromise} onSeed={mergeHistory} />
+        </Suspense>
+      </PlannerContextProviders>
     </PricingContext.Provider>
   );
 }
