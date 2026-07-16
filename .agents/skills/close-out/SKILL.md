@@ -11,7 +11,7 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 16 -->
+<!-- shared-policy-revision: 18 -->
 
 This skill sequences canonical documents and carries merge authorization; it
 does not restate their procedures. Read `docs/DESIGN_PRINCIPLES.md` as the
@@ -33,7 +33,10 @@ a failed gate or any unrelated production action.
 2. Follow `docs/SESSION_END.md` completely. A branch push creates no Vercel
    preview; use a manual preview only under that document's exception. Never run
    a production-mode build before merge. Every completed sub-version still gets
-   its APP_VERSION bump and changelog entry under the PR document's rules.
+   its APP_VERSION bump and changelog entry under the PR document's rules. Run
+   `check_baseline_claims` and `check_watch_triggers`; reconcile or explain every
+   claims warning and surface every `promote AF-NNN` warning to Ryan without
+   auto-promoting it.
 3. After the required delivery evidence exists, mark the current approved
    session plan's execution status Complete. If sessions remain, stop after the
    verified commit/push and handoff.
@@ -52,7 +55,10 @@ a failed gate or any unrelated production action.
 7. After merge/reconciliation, mark an audit finding Delivered only when all
    mapped sub-versions have terminal merge evidence. Do not archive here. Run
    the resolver, report its directive, and return control to `start-session`;
-   close-out never selects the next lifecycle handler itself.
+   close-out never selects the next lifecycle handler itself. Keep the tracked
+   reconciliation local and carry it as the first commit on the next lifecycle
+   branch; the intentional one-PR lag never justifies a follow-up PR or direct
+   push to `main`.
 
-Finish by reconciling branch-independent ignored policy state and running
+Finish by reconciling the narrow ignored local-state boundary and running
 `python3 .agent-local/check_agent_drift.py`.

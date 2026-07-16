@@ -12,7 +12,7 @@ description: >-
 
 # Triage an issue or contribution
 
-<!-- shared-policy-revision: 16 -->
+<!-- shared-policy-revision: 18 -->
 
 Produce a validated diagnosis before taking outward action. Read `CLAUDE.md` and
 the recent changelog/scratchpad context that could reframe the report.

@@ -169,6 +169,13 @@ After any handler outcome, `start-session` reruns the resolver rather than
 predicting whether the next action is planning, execution, audit, remediation,
 restart, or archival.
 
+Lifecycle artifacts are tracked, but their terminal delivery evidence exists
+only after merge. Close-out therefore reconciles the local artifacts immediately
+after merge and carries that reconciliation as the first commit on the branch
+selected for the next lifecycle action. The remote copy intentionally has a
+one-PR lag. Never mark delivery terminal before evidence exists, open a second
+PR solely for reconciliation, or push directly to `main` to eliminate the lag.
+
 **Planning outcomes are session-terminal: a session that planned an artifact
 never executes it.** Runtime plan-mode acceptance authorizes artifact
 persistence only. After a planning handler persists its approved artifact,

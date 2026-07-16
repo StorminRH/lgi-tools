@@ -88,15 +88,14 @@ sub-version's scope?* If yes — fix it. If no — it's a backlog item.
   locally or on the feature branch. Use local dev, `pnpm verify`, route-presence
   checks, and `ux-check` as applicable. Only Vercel runs the production build,
   after the change merges to `main`.
-- **Reconcile ignored private workspace state.** Files under `docs/`, `.agents/`,
-  `.claude/`, `.codex/`, `.agent-local/`, and the root agent guides are deliberately
-  gitignored and therefore branch-independent: they persist across checkout,
-  rebase, and merge without Git reconciling them. Audit every ignored path touched
-  during the session. Keep deliberate durable policy/memory, update both agent
-  adapters and the shared-policy revision when required, remove session-only
-  scripts or artifacts, and run `python3 .agent-local/check_agent_drift.py` after
-  policy changes. Never treat a clean `git status` as proof that this local state
-  is finished.
+- **Reconcile the narrow ignored local-state boundary.** Workspace docs, both
+  skill trees, agent guides, hooks, and `.agent-local/` utilities are tracked and
+  ship through normal commits. Audit only deliberately ignored local state touched
+  during the session: Claude local settings/launchers/worktrees, generated tooling
+  reports and UX captures, margin-audit artifacts, temporary PR body-files, and
+  `graphify-out/`. Remove credential-bearing permissions and session-only artifacts,
+  update both runtime adapters and the shared-policy revision when required, then
+  run `python3 .agent-local/check_agent_drift.py` after policy changes.
 - Run `pnpm verify` before committing — the definition-of-done bundle (typecheck +
   lint + test + the Fallow static-analysis gate covering dead code, duplication,
   complexity, and architecture boundaries).
@@ -113,6 +112,11 @@ sub-version's scope?* If yes — fix it. If no — it's a backlog item.
   baseline entry. Re-run both commands after the fix. Remove the generated `coverage/`
   directory after the final coverage-backed Fallow pass so a later session cannot
   accidentally reuse stale attribution.
+- Run `python3 .agent-local/check_baseline_claims.py --pretty` and `python3
+  .agent-local/check_watch_triggers.py --pretty`. At a final-session close-out,
+  reconcile every baseline-claims warning or explain it in the PR notes, and
+  surface every `promote AF-NNN` warning to the operator. Checkers report only;
+  they never auto-promote a Watch finding.
 - Commit the session's work to the sub-version branch (see the active agent
   guide, `CLAUDE.md` or `AGENTS.md`, for the plain-English commit style).
 - Push the branch. No preview is built automatically.
@@ -137,6 +141,11 @@ In short:
   above, new deferrals should be rare.
 - Delete anything that shipped this session.
 - Do **not** write a forensic session log here. Discoveries and gotchas only.
+- **Carry post-merge lifecycle evidence forward by one PR.** After a merge,
+  reconcile the tracked roadmap, session plan, and SCRATCHPAD locally, then make
+  that reconciliation the first commit on the branch selected by the resolver's
+  next action. The remote documents intentionally lag by one PR; do not open a
+  follow-up PR or push directly to `main` solely to publish the status update.
 
 ---
 

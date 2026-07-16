@@ -1,6 +1,6 @@
 # Claude Code / Codex Tooling Parity
 
-This local-only document records how LGI.tools keeps development capabilities
+This repository document records how LGI.tools keeps development capabilities
 equivalent across Claude Code and Codex. Equivalent behavior does not require
 identical UI syntax: runtime-native adapters are preferred over pretending one
 runtime implements the other's plugin surface.

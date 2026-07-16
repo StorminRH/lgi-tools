@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 16 -->
+<!-- shared-policy-revision: 18 -->
 
 Drive `docs/SESSION_PLANNING.md`; do not restate it. Treat
 `docs/DESIGN_PRINCIPLES.md` as the constitution,
