@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // absorbLinkedCharacterOnProof's decision forks — never absorb without a link
 // state, never absorb your own row, and the emptied/not-emptied source fork
 // (reconcile composition adds ONLY the identity-email rebind). The Drizzle
-// calls are stubbed with the queries.reassign.test.ts chainable thenable:
+// calls are stubbed with the admin-users reassignment-test chainable thenable:
 // every builder method returns the same object, awaiting it resolves the next
 // queued result (FIFO). getOAuthState is mocked settable so link/sign-in/throw
 // are each pinned; the mechanism itself (state timing, relink conversion) is
@@ -50,7 +50,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 }));
 
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { absorbLinkedCharacterOnProof } from './queries';
+import { absorbLinkedCharacterOnProof } from './owner-transfer';
 import { syntheticEmail } from './synthetic-email';
 
 const CHARACTER = 100;

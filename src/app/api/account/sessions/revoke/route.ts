@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import type { SessionsRevokeResponse } from '@/features/auth/api-contract';
-import { revokeUserSessions } from '@/features/auth/queries';
+import { revokeUserSessions } from '@/features/auth/admin-users';
 import { requireSession } from '@/features/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 

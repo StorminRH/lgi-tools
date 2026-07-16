@@ -1,5 +1,5 @@
 import { getRoleChangeAudit } from '@/data/telemetry/queries';
-import { CHARACTER_SEARCH_LIMIT, type AdminUser } from '@/features/auth/queries';
+import { CHARACTER_SEARCH_LIMIT, type AdminUser } from '@/features/auth/admin-users';
 
 type AuditRow = Awaited<ReturnType<typeof getRoleChangeAudit>>[number];
 

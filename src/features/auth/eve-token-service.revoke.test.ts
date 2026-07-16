@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Chainable thenable for the single loadAccountRow read (the queries.owner.test.ts
-// house pattern). revokeCharacterToken's collaborators are mocked so these prove its
+// Chainable thenable for the single loadAccountRow read (the owner-transfer test
+// pattern). revokeCharacterToken's collaborators are mocked so these prove its
 // BEST-EFFORT contract (it never throws) and its read → decrypt → revoke wiring.
 const { chain, state } = vi.hoisted(() => {
   const state = { results: [] as unknown[] };

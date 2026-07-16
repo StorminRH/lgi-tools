@@ -3,7 +3,7 @@ import { headers } from 'next/headers';
 import { unstable_rethrow } from 'next/navigation';
 import { cache } from 'react';
 import { auth } from '@/features/auth/auth';
-import { type LinkedCharacter, listLinkedCharacters } from '@/features/auth/queries';
+import { type LinkedCharacter, listLinkedCharacters } from '@/features/auth/linked-characters';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { canSyncCorpIndustryJobs } from '@/features/industry-jobs/corp-sync-eligibility';
 import { canSyncIndustryJobs } from '@/features/industry-jobs/sync-eligibility';

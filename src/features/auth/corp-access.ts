@@ -14,7 +14,7 @@
 // `blocked = !decision.allowed` and feeds the 3.7.1.2 AccessGate — out of scope here.
 import { refreshStaleAffiliationsForUser } from './affiliation';
 import { memberCharacterIdInCorp } from './membership';
-import { getUserAffiliations, recordCorpAccessDecision } from './queries';
+import { getUserAffiliations, recordCorpAccessDecision } from './affiliation-store';
 
 // Why a decision went the way it did. Plain text in the audit ledger (no DB enum),
 // so a finer-grained reason can be added later without a migration.

@@ -14,7 +14,7 @@ import { after } from 'next/server';
 import { refreshStaleAffiliationsForUser } from '@/features/auth/affiliation';
 import { decideCorpAccess } from '@/features/auth/corp-access';
 import { memberCharacterIdsInCorp, memberCorpIds } from '@/features/auth/membership';
-import { getUserAffiliations } from '@/features/auth/queries';
+import { getUserAffiliations } from '@/features/auth/affiliation-store';
 import {
   getCorpStructureRigs,
   getCorpStructures,

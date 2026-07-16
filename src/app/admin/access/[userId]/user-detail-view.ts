@@ -1,5 +1,5 @@
 import type { ChipTone } from '@/components/ui/tones';
-import type { AdminUser } from '@/features/auth/queries';
+import type { AdminUser } from '@/features/auth/admin-users';
 
 export type UserDetailView = {
   characterIdLabel: string;

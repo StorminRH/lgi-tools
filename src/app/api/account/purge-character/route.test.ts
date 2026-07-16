@@ -24,8 +24,11 @@ vi.mock('@/features/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
+}));
+
+vi.mock('@/features/auth/account-purge', () => ({
   purgeOwnCharacter: (u: string, c: number) => purgeOwnCharacterMock(u, c),
 }));
 

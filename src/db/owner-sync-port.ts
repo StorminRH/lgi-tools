@@ -7,7 +7,8 @@
 // reads) AND lib/esi — a cross-slice join the feature boundary forbids inside a slice.
 // Each wrapper composes these with its own slice-specific Neon read/save/stamp methods.
 import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
-import { getUserAffiliations, listLinkedCharacters } from '@/features/auth/queries';
+import { getUserAffiliations } from '@/features/auth/affiliation-store';
+import { listLinkedCharacters } from '@/features/auth/linked-characters';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
 import { readEsiAuthed, readEsiPagedAuthed } from '@/lib/esi/authed-read';

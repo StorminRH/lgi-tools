@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { syntheticEmail } from './synthetic-email';
 
-// Chainable thenable emulating Drizzle's builder (the queries.reassign.test.ts
-// house pattern): every awaited chain resolves with the next FIFO result, and
+// Chainable thenable emulating Drizzle's builder (the admin-users reassignment
+// test pattern): every awaited chain resolves with the next FIFO result, and
 // delete/update calls are counted so each reconcile path's writes are assertable.
 const { chain, state } = vi.hoisted(() => {
   const state = {
@@ -28,7 +28,7 @@ const { chain, state } = vi.hoisted(() => {
 
 vi.mock('@/db', () => ({ db: chain }));
 
-import { purgeTransferredCharacter, reconcileCharacterOwner } from './queries';
+import { purgeTransferredCharacter, reconcileCharacterOwner } from './owner-transfer';
 
 const USER = 'eve-user-1';
 const CHAR = 90000001;

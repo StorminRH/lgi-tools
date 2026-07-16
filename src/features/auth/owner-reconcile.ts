@@ -4,7 +4,7 @@
 // the account row and compare it on every auth; this function decides what the
 // comparison means. Kept pure (no DB, no imports) so it's exhaustively unit-
 // testable on its own — the DB orchestration that acts on the verdict lives in
-// queries.ts (reconcileCharacterOwner).
+// owner-transfer.ts (reconcileCharacterOwner).
 
 export type OwnerReconcileAction =
   // The common re-login: stored hash matches the JWT (same owner) — do nothing.

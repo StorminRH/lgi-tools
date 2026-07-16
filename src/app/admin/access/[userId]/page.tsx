@@ -18,12 +18,11 @@ import { AdminReassignCharacterForm } from '@/features/auth/components/AdminReas
 import { AdminUnlinkCharacterForm } from '@/features/auth/components/AdminUnlinkCharacterForm';
 import { requireAdminPage } from '@/features/auth/route-guards';
 import {
-  getActiveSessionCount,
   getStoredActiveCharacterId,
-  getUserById,
   listLinkedCharacters,
   type LinkedCharacter,
-} from '@/features/auth/queries';
+} from '@/features/auth/linked-characters';
+import { getActiveSessionCount, getUserById } from '@/features/auth/admin-users';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { deriveUserDetailView } from './user-detail-view';

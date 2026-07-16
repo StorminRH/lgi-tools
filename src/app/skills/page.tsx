@@ -7,7 +7,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/features/auth/auth';
 import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
 import { toPanelCharacter } from '@/features/auth/panel-character';
-import { listLinkedCharacters } from '@/features/auth/queries';
+import { listLinkedCharacters } from '@/features/auth/linked-characters';
 import { SkillQueuePanel } from '@/features/skill-queue/components/SkillQueuePanel';
 import { skillsPageSettings } from '@/features/skill-queue/page-settings';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';

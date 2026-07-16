@@ -1,11 +1,11 @@
 // Corp-affiliation orchestration (3.7.3.2): the refresh (fetch → cache) and the
 // membership decisions (load → fail-closed verdict) that compose the ESI source
-// (affiliation-source.ts), the Neon cache readers/writer (queries.ts), and the
-// pure predicates (membership.ts). The DB readers themselves live in queries.ts
-// (the slice's DB home); this module is the logic over them.
+// (affiliation-source.ts), the Neon cache readers/writer (affiliation-store.ts),
+// and the pure predicates (membership.ts). This module is the logic over those
+// data sources.
 import { fetchAffiliations } from './affiliation-source';
 import { characterIsInCorp, isAffiliationStale, isMemberOfCorp } from './membership';
-import { getCharacterAffiliation, getUserAffiliations, upsertAffiliations } from './queries';
+import { getCharacterAffiliation, getUserAffiliations, upsertAffiliations } from './affiliation-store';
 
 // Postgres advisory-lock key for the nightly affiliation refresh cron. Held only
 // by /api/cron/refresh-affiliations to skip an overlapping run of itself (the

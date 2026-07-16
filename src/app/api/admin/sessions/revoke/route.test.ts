@@ -19,7 +19,7 @@ vi.mock('@/features/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/queries', () => ({
+vi.mock('@/features/auth/admin-users', () => ({
   getUserById: (u: string) => getUserByIdMock(u),
   revokeUserSessions: (u: string) => revokeUserSessionsMock(u),
 }));

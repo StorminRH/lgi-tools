@@ -21,7 +21,7 @@ import {
   listAdminUsers,
   searchUsersByLinkedCharacterName,
   type AdminUser,
-} from '@/features/auth/queries';
+} from '@/features/auth/admin-users';
 import { readEnv } from '@/lib/env';
 import { sanitiseUserText } from '@/lib/sanitise';
 import {

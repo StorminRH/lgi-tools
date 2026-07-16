@@ -123,7 +123,8 @@ export const account = pgTable(
     // legacy rows (pre-3.7.1.3) and on a freshly-created row — both BACKFILL on the
     // next auth, never purge. This is an identity check, NOT a secret (like
     // `scope`, it's plaintext) — do NOT envelope-encrypt it. App-managed: written
-    // only by the reconcile path (queries.ts), never by Better Auth's account write.
+    // only by the reconcile path (owner-transfer.ts), never by Better Auth's
+    // account write.
     ownerHash: text('owner_hash'),
     password: text('password'),
     createdAt: timestamp('created_at').defaultNow().notNull(),

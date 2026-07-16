@@ -6,11 +6,11 @@ import { requireAdmin } from '@/features/auth/route-guards';
 import { parseFormBody } from '@/lib/route-body';
 import {
   accountBelongsToUser,
-  deleteLinkedCharacter,
   getStoredActiveCharacterId,
   listLinkedCharacters,
   repointActiveToOldest,
-} from '@/features/auth/queries';
+} from '@/features/auth/linked-characters';
+import { deleteLinkedCharacter } from '@/features/auth/admin-users';
 
 function redirectTo(request: NextRequest, userId: string, error?: string): Response {
   const url = new URL(`/admin/access/${userId}`, request.url);

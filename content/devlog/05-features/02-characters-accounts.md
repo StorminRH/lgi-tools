@@ -389,7 +389,7 @@ if (activeCharacterId === characterId) {
 }
 ```
 
-<!-- uth:code id="code-account-linked-queries" file="src/features/auth/queries.ts" lines="193-224,226-263,278-299,519-565" lang="ts" -->
+<!-- uth:code id="code-account-linked-queries" file="src/features/auth/linked-characters.ts, src/features/auth/admin-users.ts" lines="97-118,175-184,200-248" lang="ts" -->
 ```ts
 // Multi-character platform. A user can link several EVE characters; these helpers
 // list them, resolve the active one, and move the active pointer.
@@ -434,7 +434,7 @@ export async function reassignCharacter({ characterId, fromUserId, toUserId }: R
 }
 ```
 
-<!-- uth:code id="code-account-owner-hash" file="src/features/auth/queries.ts" lines="67-83,83-113,115-143" lang="ts" -->
+<!-- uth:code id="code-account-owner-hash" file="src/features/auth/owner-transfer.ts" lines="83-159" lang="ts" -->
 ```ts
 // Owner-hash identity binding. EVE's JWT owner claim is stable for one human
 // and changes only when the character is transferred to a different EVE account.
@@ -546,7 +546,7 @@ it('corp_access_audit is declared-retained', () => {
 });
 ```
 
-<!-- uth:code id="code-account-purge-entrypoints" file="src/features/auth/queries.ts" lines="208-227,238-250,517-529" lang="ts" -->
+<!-- uth:code id="code-account-purge-entrypoints" file="src/features/auth/account-purge.ts" lines="88-95,97-137" lang="ts" -->
 ```ts
 export async function purgeOwnCharacter(
   userId: string,

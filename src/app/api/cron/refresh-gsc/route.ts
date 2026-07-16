@@ -16,7 +16,8 @@ import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
 } from '@/features/auth/constants';
-import { pruneCorpAccessAudit, pruneExpiredVerifications } from '@/features/auth/queries';
+import { pruneCorpAccessAudit } from '@/features/auth/affiliation-store';
+import { pruneExpiredVerifications } from '@/features/auth/verification-retention';
 import { swallow } from '@/lib/cron';
 import { getSitemapEntries } from '@/app/sitemap';
 

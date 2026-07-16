@@ -3,8 +3,8 @@
 // sharing (3.7.9), and the v4.0 mapper's corp auto-grant/revoke all consume.
 //
 // PURE + dependency-free on purpose: no DB, no ESI, no clock. The cached
-// affiliation rows are loaded by the DB readers in queries.ts; the freshness
-// `now` is injected by the caller. That keeps the allow/deny logic unit-testable
+// affiliation rows are loaded by the DB readers in affiliation-store.ts; the
+// freshness `now` is injected by the caller. That keeps the allow/deny logic unit-testable
 // in isolation and lets the gate compose load → (refresh if stale) → decide at
 // the app layer (the 3.7.1.2 AccessGate `blocked`-computed-upstream pattern).
 //

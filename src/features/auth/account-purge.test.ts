@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { syntheticEmail } from './synthetic-email';
 
-// Chainable thenable (the queries.owner.test.ts house pattern) for the reconcile
+// Chainable thenable (the owner-transfer test pattern) for the reconcile
 // tail. runPurge + the EVE revoke are mocked so these exercise
 // purgeOwnCharacter/nukeAccount's OWN orchestration (revoke → sweep → reconcile),
 // not each contributor's internals (covered in-slice).
@@ -35,7 +35,7 @@ vi.mock('./eve-token-service', () => ({
   revokeCharacterToken: (id: number) => revokeMock(id),
 }));
 
-import { nukeAccount, purgeOwnCharacter } from './queries';
+import { nukeAccount, purgeOwnCharacter } from './account-purge';
 
 const USER = 'eve-user-1';
 const CHAR = 90000001;
@@ -120,6 +120,19 @@ describe('nukeAccount', () => {
     // The newcomer is swept too, so its character-keyed caches don't orphan.
     expect(revokeMock.mock.calls).toEqual([[CHAR], [OTHER]]);
     expect(runPurgeMock).toHaveBeenCalledTimes(3); // 2 character purges + 1 user purge
+    expect(state.calls.delete).toBe(1);
+  });
+
+  it('skips a malformed EVE account id instead of revoking NaN or repeating the loop', async () => {
+    state.results = [
+      [{ accountId: 'not-a-character-id' }], // filtered before the nuke loop
+      undefined, // delete user row; its cascade removes the malformed account
+    ];
+    await nukeAccount(USER);
+
+    expect(revokeMock).not.toHaveBeenCalled();
+    expect(runPurgeMock).toHaveBeenCalledOnce();
+    expect(runPurgeMock).toHaveBeenCalledWith({ kind: 'user', userId: USER });
     expect(state.calls.delete).toBe(1);
   });
 });
