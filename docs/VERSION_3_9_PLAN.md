@@ -57,7 +57,7 @@ campaign: none — the queue is empty.
 | 3.9.1.1 | Lifecycle doc reconciliation & machine-readable formats | 1 | SHIPPED |
 | 3.9.1.2 | Resolver hardening (vocabulary, markers, git awareness) | 1 | SHIPPED |
 | 3.9.1.3 | Evidence & reference checkers | 1 | SHIPPED |
-| 3.9.1.4 | Baseline claims & Watch tripwires | 1 | PLANNED |
+| 3.9.1.4 | Baseline claims & Watch tripwires | 1 | SHIPPED |
 | 3.9.1.5 | Close-out gate mechanization | 1 | PLANNED |
 | 3.9.1.6 | Drift-manifest derivation | 1 | PLANNED |
 | 3.9.1.7 | Comment standard migration & enforcement | 2 (one branch) | PLANNED |
