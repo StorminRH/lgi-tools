@@ -838,24 +838,21 @@ export function PricingProvider({
   // is `toRefresh` (every priced node — raws + buildables + the product), the same
   // set the price loop uses, memoised on `structure`. Logged-out / owning none →
   // empty map → every QTY ring stays empty + every ledger shows '—' (placeholders).
-  useEffect(() => {
-    let ignore = false;
-    const controller = new AbortController();
-    apiFetch(ownedAssetsEndpoint, {
-      body: { typeIds: toRefresh },
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then((res) => {
-        if (ignore || !res.ok) return;
-        setOwnedAssets(new Map(res.data.assets.map((a) => [a.typeId, a])));
-      })
-      .catch(() => {});
-    return () => {
-      ignore = true;
-      controller.abort();
-    };
-  }, [structure, toRefresh]);
+  const readOwnedAssets = useCallback(
+    async (signal: AbortSignal): Promise<Map<number, OwnedAssetEntry> | null> => {
+      const res = await apiFetch(ownedAssetsEndpoint, {
+        body: { typeIds: toRefresh },
+        cache: 'no-store',
+        signal,
+      });
+      return res.ok ? new Map(res.data.assets.map((asset) => [asset.typeId, asset])) : null;
+    },
+    [toRefresh],
+  );
+  useResourceRead(readOwnedAssets, {
+    enabled: true,
+    onData: setOwnedAssets,
+  });
 
   // Reaction build-location fetch (3.7.13.3, the #187 seam live): for a REACTION
   // blueprint, the top job fees against the REACTION system's 'reaction' index, so
