@@ -1,14 +1,9 @@
 import { eq } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+  createDbTestHarness,
+  seedEveAccount,
+} from '@/db/test-support/db-test-harness';
 import {
   getFreshAccessTokenForCharacter,
   INVALID_GRANT_CONFIRMATION_GRACE_MS,
@@ -24,12 +19,19 @@ import { decryptToken, encryptToken } from './token-crypto';
 // winner's write (whose IS NULL arm must repair it), and re-auth replacing the
 // token mid-vend without being clobbered. Skips cleanly when no DB is reachable.
 
-const SCHEMA = 'test_token_vend_cov';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
-
 const CHAR_ID = 90000007;
 const KEY = Buffer.alloc(32, 7).toString('base64');
+const harness = await createDbTestHarness({
+  schema: 'test_token_vend_cov',
+  tables: ['account', 'usage_logs'],
+  steerDbProxy: true,
+  env: {
+    EVE_TOKEN_ENCRYPTION_KEY: KEY,
+    EVE_CLIENT_ID: 'client-id',
+    EVE_CLIENT_SECRET: 'client-secret',
+  },
+  resetBetweenTests: 'delete',
+});
 const future = () => new Date(Date.now() + 10 * 60 * 1000);
 const past = () => new Date(Date.now() - 1000);
 
@@ -42,36 +44,10 @@ async function waitFor(pred: () => Promise<boolean>, timeoutMs = 3000): Promise<
   throw new Error('waitFor: condition not met before timeout');
 }
 
-describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurrency)', () => {
-  let adminClient: ReturnType<typeof postgres>;
-  let seedDb: ReturnType<typeof drizzlePg>;
+describe.skipIf(!harness.reachable)('token vend compare-and-swap (real Postgres concurrency)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
-  beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-    vi.stubEnv('EVE_TOKEN_ENCRYPTION_KEY', KEY);
-    vi.stubEnv('EVE_CLIENT_ID', 'client-id');
-    vi.stubEnv('EVE_CLIENT_SECRET', 'client-secret');
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 4, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, ['account', 'usage_logs']);
-    seedDb = drizzlePg(adminClient);
-  });
-
-  afterAll(async () => {
-    const proxyClient = (
-      (await import('@/db')).db as unknown as { $client: ReturnType<typeof postgres> }
-    ).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
-  });
-
   beforeEach(async () => {
-    await adminClient.unsafe('DELETE FROM account');
-    await adminClient.unsafe('DELETE FROM usage_logs');
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
 
@@ -86,11 +62,7 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
     invalidGrantCount = 0,
     invalidGrantFirstAt: Date | null = null,
   ) {
-    await seedDb.insert(account).values({
-      id: 'acc1',
-      accountId: String(CHAR_ID),
-      providerId: 'eve',
-      userId: 'user-1',
+    await seedEveAccount(harness.db, { id: 'acc1', characterId: CHAR_ID, userId: 'user-1' }, {
       accessToken: encryptToken(accessPlain),
       refreshToken: encryptToken(refreshPlain),
       accessTokenExpiresAt: expiresAt,
@@ -101,12 +73,12 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
   }
 
   async function readAccount() {
-    const [row] = await seedDb.select().from(account).where(eq(account.id, 'acc1')).limit(1);
+    const [row] = await harness.db.select().from(account).where(eq(account.id, 'acc1')).limit(1);
     return row!;
   }
 
   async function rawRefreshToken(): Promise<string | null> {
-    const rows = await adminClient<
+    const rows = await harness.sql<
       { refresh_token: string | null }[]
     >`SELECT refresh_token FROM account WHERE id = 'acc1'`;
     return rows[0]?.refresh_token ?? null;
@@ -244,7 +216,7 @@ describe.skipIf(!reachable)('token vend compare-and-swap (real Postgres concurre
 
     const vend = getFreshAccessTokenForCharacter(CHAR_ID);
     await entered; // guarantee the vend read RT0 before the re-auth replaces it
-    await seedDb
+    await harness.db
       .update(account)
       .set({
         refreshToken: encryptToken('RT_new'),
