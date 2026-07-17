@@ -13,11 +13,13 @@ import {
   eveCharactersRequestSchema,
   type EveCharactersResponse,
 } from '@/features/auth/api-contract';
-import { isAffiliationStale } from '@/features/auth/membership';
 import { listLinkedCharacters } from '@/features/auth/linked-characters';
 import { deriveCharacterHealth } from '@/features/auth/scope-health';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { parseJsonBody } from '@/lib/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';
+
+const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 /**
  * Handles POST requests for /api/internal/eve-characters; this route owns its authorization,
@@ -42,7 +44,9 @@ export async function POST(req: Request): Promise<Response> {
   // the stale gate makes this a no-op (no ESI) when affiliations are fresh.
   const now = new Date();
   const staleIds = linked
-    .filter((character) => isAffiliationStale(character.affiliationRefreshedAt, now))
+    .filter((character) =>
+      AFFILIATION_FRESHNESS.isStale(character.affiliationRefreshedAt, now),
+    )
     .map((character) => character.characterId);
   if (staleIds.length > 0) {
     after(() => refreshAffiliations(staleIds));

@@ -18,10 +18,12 @@ import {
   type OwnerSyncRunOptions,
   runOwnerSync,
 } from '@/lib/owner-sync';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { parseSkillQueueBody, parseSkillsBody } from './esi-projection';
-import { isSkillsStale } from './staleness';
 import { canSyncSkillQueue } from './sync-eligibility';
 import type { CharacterSkillSyncState, SkillsEsiRead, SkillsPort, SkillsSaveHalves } from './types';
+
+const SKILLS_FRESHNESS = freshnessGate('skills');
 
 /**
  * What a refresh should persist from the two endpoint reads. PURE + tested, so the
@@ -67,7 +69,7 @@ interface SkillsSave {
 
 function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, CharacterSkillSyncState, SkillsSave> {
   return makeCharacterDescriptor(port, {
-    isStale: isSkillsStale,
+    isStale: SKILLS_FRESHNESS.isStale,
     eligible: canSyncSkillQueue,
     fetchAndPlan: async (characterId, accessToken, state) => {
       // Both endpoints in parallel, each replaying ITS OWN held etag.

@@ -10,15 +10,8 @@ import {
 import { describe, expect, it } from 'vitest';
 import * as schema from '@/db/schema';
 import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
-import { STALE_AFTER_TTL_MS } from '@/data/market-prices/constants';
 import { refreshAffiliations } from '@/features/auth/affiliation';
-import { AFFILIATION_TTL_MS } from '@/features/auth/membership';
-import { JOBS_TTL_MS } from '@/features/industry-jobs/staleness';
-import { ASSETS_TTL_MS } from '@/features/owned-assets/staleness';
-import { BLUEPRINTS_TTL_MS } from '@/features/owned-blueprints/staleness';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
-import { STRUCTURES_TTL_MS } from '@/features/owned-structures/staleness';
-import { SKILLS_TTL_MS } from '@/features/skill-queue/staleness';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   effectiveTtlMs,
@@ -338,26 +331,26 @@ describe('ESI dataset registry live gate', () => {
     expect(waivers[0]?.rationale.trim()).not.toBe('');
   });
 
-  it('characterizes every TTL source that session 3.9.2.3.2 will remove', () => {
-    expect(effectiveTtlMs(entryNamed('skills'))).toBe(SKILLS_TTL_MS);
+  it('pins every effective runtime TTL to its verified value', () => {
+    expect(effectiveTtlMs(entryNamed('skills'))).toBe(120_000);
     expect(effectiveTtlMs(entryNamed('character_industry_jobs'))).toBe(
-      JOBS_TTL_MS,
+      300_000,
     );
     expect(effectiveTtlMs(entryNamed('corporation_industry_jobs'))).toBe(
-      JOBS_TTL_MS,
+      300_000,
     );
-    expect(effectiveTtlMs(entryNamed('owned_assets'))).toBe(ASSETS_TTL_MS);
+    expect(effectiveTtlMs(entryNamed('owned_assets'))).toBe(3_600_000);
     expect(effectiveTtlMs(entryNamed('owned_blueprints'))).toBe(
-      BLUEPRINTS_TTL_MS,
+      3_600_000,
     );
     expect(effectiveTtlMs(entryNamed('owned_structures'))).toBe(
-      STRUCTURES_TTL_MS,
+      3_600_000,
     );
     expect(effectiveTtlMs(entryNamed('affiliations'))).toBe(
-      AFFILIATION_TTL_MS,
+      3_600_000,
     );
     expect(effectiveTtlMs(entryNamed('market_prices'))).toBe(
-      STALE_AFTER_TTL_MS,
+      86_400_000,
     );
     expect(effectiveTtlMs(entryNamed('online_status'))).toBe(
       SYNC_DATASET_CONFIG.onlineStatus.cadenceFloorMs,

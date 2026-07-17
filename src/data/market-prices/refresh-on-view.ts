@@ -1,12 +1,15 @@
 import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { after } from 'next/server';
 import { db } from '@/db';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { consumeFreshPriceResolution, markFreshPriceResolution } from './cache-resolution';
-import { PER_TYPE_CONCURRENCY, STALE_AFTER_TTL_MS } from './constants';
+import { PER_TYPE_CONCURRENCY } from './constants';
 import { persistPrices } from './ingest';
 import { getPrices } from './queries';
 import { fetchPricesFromSource } from './source';
 import type { MarketPrice, RawMarketPrice } from './types';
+
+const MARKET_PRICES_FRESHNESS = freshnessGate('market_prices');
 
 // Refresh-on-view engine (3.2.4a). The reusable server half of live pricing:
 // read the durable DB seed, fetch live (coalesced so concurrent viewers of the
@@ -177,7 +180,9 @@ export async function getLivePrices(
   });
 
   const now = new Date();
-  const staleAfter = new Date(now.getTime() + STALE_AFTER_TTL_MS);
+  const staleAfter = new Date(
+    now.getTime() + MARKET_PRICES_FRESHNESS.ttlMs,
+  );
   const prices = new Map<number, MarketPrice>();
   const freshRaws: RawMarketPrice[] = [];
 

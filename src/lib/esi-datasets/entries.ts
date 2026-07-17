@@ -3,9 +3,8 @@ import type { EsiDatasetEntry } from './types';
 /**
  * The ESI dataset registry: one complete declaration per existing external
  * dataset, including placement, freshness, refresh ownership, and durable
- * mirrors. Session 3.9.2.3.2 makes these entries the runtime TTL source; the
- * registry gate already rejects unregistered mirrors, invalid placement, and
- * below-upstream polling.
+ * mirrors. These entries are also the runtime TTL source; the registry gate
+ * rejects unregistered mirrors, invalid placement, and below-upstream polling.
  */
 export const ESI_DATASET_ENTRIES = [
   {

@@ -3,9 +3,12 @@
 // (affiliation-source.ts), the Neon cache readers/writer (affiliation-store.ts),
 // and the pure predicates (membership.ts). This module is the logic over those
 // data sources.
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { fetchAffiliations } from './affiliation-source';
-import { characterIsInCorp, isAffiliationStale, isMemberOfCorp } from './membership';
+import { characterIsInCorp, isMemberOfCorp } from './membership';
 import { getCharacterAffiliation, getUserAffiliations, upsertAffiliations } from './affiliation-store';
+
+const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 /**
  * Postgres advisory-lock key for the nightly affiliation refresh cron. Held only
@@ -47,7 +50,7 @@ export async function refreshStaleAffiliationsForUser(userId: string): Promise<n
   const affiliations = await getUserAffiliations(userId);
   const now = new Date();
   const staleIds = affiliations
-    .filter((a) => isAffiliationStale(a.refreshedAt, now))
+    .filter((a) => AFFILIATION_FRESHNESS.isStale(a.refreshedAt, now))
     .map((a) => a.characterId);
   return refreshAffiliations(staleIds);
 }

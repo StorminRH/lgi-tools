@@ -1,11 +1,14 @@
 import { and, eq, isNull, lt, or } from 'drizzle-orm';
 import { db } from '@/db';
 import type { AnyPgDb } from '@/lib/db-types';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { AffiliationRow } from './affiliation-source';
 import { characterProfileJoin, eveAccountsForUser } from './eve-account-shared';
 import { EVE_PROVIDER_ID } from './eve-sso';
-import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
+import type { CachedAffiliation } from './membership';
 import { account, characters, corpAccessAudit } from './schema';
+
+const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 // ---------------------------------------------------------------------------
 // Corp-affiliation cache (3.7.3.2). The Neon read/write half of the membership
@@ -85,7 +88,7 @@ export async function getCharacterAffiliation(
  * more than one user; one refresh covers them all (affiliation is per-character).
  */
 export async function listStaleLinkedCharacterIds(): Promise<number[]> {
-  const cutoff = new Date(Date.now() - AFFILIATION_TTL_MS);
+  const cutoff = new Date(Date.now() - AFFILIATION_FRESHNESS.ttlMs);
   const rows = await db
     .selectDistinct({ accountId: account.accountId })
     .from(account)

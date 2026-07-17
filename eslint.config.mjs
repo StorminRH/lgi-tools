@@ -231,6 +231,19 @@ const processEnvSelectors = [
   },
 ];
 
+// Dataset freshness windows belong to the ESI dataset registry. A suffix
+// narrow enough to avoid unrelated timeouts and cache durations catches the
+// duplicated per-feature constants this rail replaces. The registry leaf is
+// exempted below so it remains the one legal owner if a named value is ever
+// needed there.
+const datasetTtlSelectors = [
+  {
+    selector: "VariableDeclarator[id.name=/_TTL_MS$/]",
+    message:
+      "Dataset TTL constants belong in the ESI dataset registry; bind a gate from @/lib/esi-datasets/freshness instead.",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -260,7 +273,36 @@ const eslintConfig = defineConfig([
   // dedicated rule block, so it cannot replace any no-restricted-syntax bans.
   {
     files: ["src/**/*.{ts,tsx,mts}"],
-    ignores: ["src/components/eve-image.tsx"],
+    ignores: [
+      "src/components/eve-image.tsx",
+      "src/lib/esi-datasets/**/*.{ts,tsx,mts}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/image",
+              message:
+                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/staleness"],
+              message:
+                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // The ESI dataset leaf remains subject to the next/image boundary, but may
+  // own internal freshness modules without tripping the consumer import rail.
+  {
+    files: ["src/lib/esi-datasets/**/*.{ts,tsx,mts}"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -316,6 +358,13 @@ const eslintConfig = defineConfig([
                 "Cron outcome telemetry belongs to defineCronRoute or CronWorkContext.record.",
             },
           ],
+          patterns: [
+            {
+              group: ["**/staleness"],
+              message:
+                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+            },
+          ],
         },
       ],
     },
@@ -344,6 +393,23 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Dataset-window declarations are a src/ registry concern. Keep the rail on
+  // source tests too, without applying it to Convex's separate response-Expires
+  // fallback policy through the repository-wide base block.
+  {
+    files: ["src/**/*.test.{ts,tsx}"],
+    ignores: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...datasetTtlSelectors,
+      ],
+    },
+  },
   // Real-Postgres suites retain the base syntax rails and add the DB-harness
   // boundary. Flat-config rule options replace rather than merge, so this block
   // must re-list every selector family inherited from the base test config.
@@ -358,6 +424,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...directPostgresSelectors,
         ...postgresConnectionStringSelectors,
+        ...datasetTtlSelectors,
       ],
     },
   },
@@ -382,6 +449,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...datasetTtlSelectors,
       ],
     },
   },
@@ -403,6 +471,27 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...datasetTtlSelectors,
+      ],
+    },
+  },
+  // env.ts is exempt from the process.env ban, not from the dataset-window
+  // ownership rail.
+  {
+    files: ["src/lib/env.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...esiHostSelectors,
+        ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
+        ...datasetTtlSelectors,
       ],
     },
   },
@@ -423,6 +512,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...datasetTtlSelectors,
       ],
     },
   },
@@ -438,6 +528,7 @@ const eslintConfig = defineConfig([
         ...apiFetchSelectors,
         ...processEnvSelectors,
         ...esiHostSelectors,
+        ...datasetTtlSelectors,
       ],
     },
   },
@@ -460,6 +551,42 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...datasetTtlSelectors,
+      ],
+    },
+  },
+  // The registry leaf is the one legal owner of dataset windows. Re-state
+  // every production-source syntax rail except the dataset TTL selector.
+  {
+    files: ["src/lib/esi-datasets/**/*.{ts,tsx,mts}"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+        ...esiHostSelectors,
+        ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
+      ],
+    },
+  },
+  // Tests inside the registry leaf retain the common syntax rails while
+  // sharing the leaf's dataset-TTL exemption.
+  {
+    files: ["src/lib/esi-datasets/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
       ],
     },
   },
