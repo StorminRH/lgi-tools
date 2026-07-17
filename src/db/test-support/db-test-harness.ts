@@ -8,6 +8,9 @@ import { readEnv } from '@/lib/env';
 // Real-Postgres test support is deliberately unzoned under `src/db/**`, so
 // every slice can share one lifecycle primitive without creating a production
 // dependency between feature or data slices.
+// Schema, table, and foreign-key identifiers come only from in-repo suite
+// constants. postgres-js cannot parameterize identifiers, so the lifecycle
+// helpers use `unsafe` strictly for that trusted DDL/reset boundary.
 
 type Sql = ReturnType<typeof postgres>;
 
