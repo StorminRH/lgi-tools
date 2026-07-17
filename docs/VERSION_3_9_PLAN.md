@@ -67,8 +67,11 @@ campaign: none — the queue is empty.
 | 3.9.2.3 | ESI dataset registry & freshness gate (Create + Expand/Combine — one declaration, placement and staleness) | 2 (one branch) | SHIPPED |
 | 3.9.2.4 | Endpoint contract gate (Expand) | 1 | SHIPPED |
 | 3.9.2.5 | ux-check probe harness (Combine ~30 one-off probes) | 1 | SHIPPED |
-| 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | PLANNED |
+| 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | SHIPPED |
 | 3.9.2.7 | Primitives-scoped audit & ledger (report; Ryan decides extensions) | 1 | PLANNED |
+| 3.9.2.8 | Planner freshness consumption (PL-011 Expand) | 1 | PLANNED |
+| 3.9.2.9 | UI wrapper import rail (PL-012 Expand) | 1 | PLANNED |
+| 3.9.2.10 | Token-vend scope cleanup (PL-013 Delete) | 1 | PLANNED |
 | **Phase 3 — Backlog clearance** | | | |
 | 3.9.3.1 | Backlog triage & hygiene sweep | 1 | PLANNED |
 | 3.9.3.2 | EVE image resolver & app-wide adoption | 1 | PLANNED |
@@ -1035,6 +1038,9 @@ for each and Ryan approves the direction before implementation.
 **Delivery evidence.** The recorded comparison; the completeness gate red
 on a seeded missing-declaration dataset, green live; standard close-out.
 
+**Delivered 2026-07-17.** PR #260, squash `cbefaac`; production
+`dpl_FT4WC6NTR1ixoCUmErFvULsgXTAk` is Ready on `lgi.tools`.
+
 ---
 
 ### 3.9.2.7 — Primitives-scoped audit & ledger
@@ -1089,6 +1095,113 @@ surface an agent must choose between).
 **Delivery evidence.** The committed ledger with the arc verdicts
 Delivered and every Proposed row dispositioned by Ryan; `UX gate: No`;
 changelog + APP_VERSION; standard close-out.
+
+---
+
+### 3.9.2.8 — Planner freshness consumption *(PL-011 Expand)*
+
+**Objective.** Make the shared ESI freshness primitive the planner's sole
+authority for price-staleness boundaries without changing the planner's
+refresh or rendering behavior.
+
+**Done means.** Planner price-confidence and aggregate-staleness
+derivations consume the exact `staleAfter <= now` semantics owned by
+`src/lib/esi-datasets/freshness.ts`; no equivalent boundary comparison
+remains in `industry-styles.ts`. The planner still refreshes the complete
+price set on view so the existing visual confirmation behavior is
+unchanged, and the AF-005 pricing contexts do not widen.
+
+**In scope.** The shared freshness surface needed by the planner, its
+price-staleness derivations, and focused behavior tests.
+
+**Out of scope.** Changing price-refresh cadence, data placement,
+confidence labels, UI appearance, or the `PricingContextValue` /
+`usePricing` / `useBuildPlan` ownership split.
+
+**Dependencies.** 3.9.2.7 records and approves PL-011. Independent of the
+other approved extension rows.
+
+**Decisions the session plan must resolve.** The smallest browser-safe
+freshness surface that eliminates the duplicated boundary without moving
+planner policy into `src/lib/`; the characterization cases that prove
+visible behavior is unchanged.
+
+**Baseline & hotspot note.** Neutral. The plan must treat the planner
+pricing surfaces as an existing hotspot and avoid unrelated cleanup.
+
+**Delivery evidence.** Focused exact-boundary and aggregate-confidence
+tests; no direct planner staleness comparison; `pnpm verify`; standard
+close-out. `UX gate: No` because the approved end-state is
+behavior-preserving.
+
+---
+
+### 3.9.2.9 — UI wrapper import rail *(PL-012 Expand)*
+
+**Objective.** Mechanize the standing rule that feature and application
+code consume Base UI and sonner only through `src/components/ui/`.
+
+**Done means.** Scoped restricted-import rules reject direct Base UI and
+sonner imports outside their shared wrappers, preserve the wrappers'
+required package access, and fail on seeded violations for both package
+families. Existing source remains green with no new exemption surface.
+
+**In scope.** ESLint import restrictions, the exact wrapper exemptions,
+seeded rule tests or equivalent lint evidence, and documentation references
+that name the enforcement rail.
+
+**Out of scope.** Rebuilding UI primitives, changing wrapper APIs or
+appearance, migrating already-compliant consumers, or adding a new UI
+library.
+
+**Dependencies.** 3.9.2.7 records and approves PL-012. Independent of the
+other approved extension rows.
+
+**Decisions the session plan must resolve.** The flat-config scope that
+allows only the true wrapper modules without exempting all of
+`src/components/ui/`, and the durable seeded-red demonstration for each
+restricted package.
+
+**Baseline & hotspot note.** Neutral-to-Improves; policy enforcement only,
+with no measured source hotspot change expected.
+
+**Delivery evidence.** Both seeded direct-import violations fail, the live
+tree passes zero-warning lint and `pnpm verify`, and the primitive ledger's
+rail cell names the delivered rule. `UX gate: No`.
+
+---
+
+### 3.9.2.10 — Token-vend scope cleanup *(PL-013 Delete)*
+
+**Objective.** Delete the unused scopes field and divergent parser from the
+internal EVE token-vending contract while preserving the authoritative
+stored-scope health path.
+
+**Done means.** `EveTokenOkResponse` and the internal token route vend only
+the access token data their Convex consumer reads; the token-service
+whitespace-only scope parser is removed; route and contract tests pin the
+narrowed response. `scope-health.ts` remains the sole decoder for persisted
+comma-or-space scope strings and its behavior is unchanged.
+
+**In scope.** The internal token response type, token service, route,
+Convex consumer typing, and focused tests.
+
+**Out of scope.** Requested EVE SSO scopes, stored account scope format,
+token encryption or refresh behavior, scope-health policy, and any auth UI.
+
+**Dependencies.** 3.9.2.7 records and approves PL-013. Independent of the
+other approved extension rows.
+
+**Decisions the session plan must resolve.** The exact contract
+characterization needed before deletion and whether the Convex consumer can
+drop its response cast as part of the same narrowing.
+
+**Baseline & hotspot note.** Improves by deleting a zero-consumer contract
+field and one divergent decoder; auth trust boundaries remain unchanged.
+
+**Delivery evidence.** Focused token-service, route, and scope-health tests;
+Fallow reports no newly unused surface; `pnpm verify`; standard close-out.
+`UX gate: No`.
 
 ---
 
@@ -1511,11 +1624,11 @@ the 3.9 version-close audit.
   state. Phase 3 may
   interleave with Phases 1–2 after 3.9.3.1, except 3.9.3.2 waits for the
   3.9.2.7 ledger only for its ledger-row update, never for its delivery.
-- Phase 2 ordering: 3.9.2.1 (harness) runs first in the arc; 3.9.2.3 before
-  3.9.2.6; 3.9.2.7 (the primitives audit) runs last, after 3.9.2.1–6 are
-  terminal. 3.9.2.4 and 3.9.2.5 may interleave anywhere. Rows the 3.9.2.7
-  report proposes are appended only with Ryan's recorded approval, via the
-  master-plan-amendment path.
+- Phase 2 ordering: 3.9.2.1 (harness) runs first in the original arc;
+  3.9.2.3 before 3.9.2.6; 3.9.2.7 (the primitives audit) runs after
+  3.9.2.1–6 are terminal. 3.9.2.4 and 3.9.2.5 may interleave anywhere.
+  Ryan approved PL-011–PL-013 from the 3.9.2.7 report on 2026-07-17, so
+  amendment rows 3.9.2.8–10 follow the audit and may order freely.
 - The primitives audit (3.9.2.7) never touches the AF ledger, the baseline
   schema, or the version-close audit's authority — it is scoped to the
   primitive map and `PL-NNN` verdicts.
@@ -1557,11 +1670,11 @@ the 3.9 version-close audit.
       entry points; fixture suites green; the comment presence/TSDoc/TODO
       rules green repo-wide with no new suppressions.
 - [ ] Drift-manifest hand-synced lists removed or justified.
-- [ ] All six Phase 2 verdict slices terminal with rails demonstrated;
-      `docs/PRIMITIVE_LEDGER.md` committed with the arc's verdicts
-      Delivered and every Proposed row dispositioned by Ryan (approved rows
-      terminal, deferred rows in backlog with their `PL-NNN`, rejections
-      recorded — none silently implemented).
+- [ ] All six original Phase 2 verdict slices and approved extension rows
+      terminal with rails demonstrated; `docs/PRIMITIVE_LEDGER.md` committed
+      with the arc's verdicts Delivered and every Proposed row dispositioned
+      by Ryan (approved rows terminal, deferred rows in backlog with their
+      `PL-NNN`, rejections recorded — none silently implemented).
 - [ ] Phase 3 delivered per its specs, each shipped item deleted from the
       backlog, and the triage sweep's dispositions resolved; the Phase 4
       no-campaign decision stands unless a Watch trigger tripped (then the
