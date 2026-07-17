@@ -11,10 +11,18 @@ function key(): Buffer {
   return cachedKey;
 }
 
+/**
+ * Serializes and encrypts one raw ESI snapshot body with the application AES-256-GCM layer before
+ * database storage.
+ */
 export function encryptSnapshotBody(body: unknown[]): string {
   return encryptAes256Gcm(JSON.stringify(body), key());
 }
 
+/**
+ * Authenticates, decrypts, and parses one stored ESI snapshot body; corrupt ciphertext or JSON
+ * throws without returning partial data.
+ */
 export function decryptSnapshotBody(ciphertext: string): unknown[] | null {
   const plaintext = decryptAes256Gcm(ciphertext, key());
   if (plaintext === null) return null;

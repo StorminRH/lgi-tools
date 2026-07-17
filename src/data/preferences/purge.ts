@@ -6,6 +6,10 @@ import { db } from '@/db';
 import type { PurgeContributor } from '@/purge/types';
 import { userPreferences } from './schema';
 
+/**
+ * Personal-data purge contributor for preferences purge contributor; this data slice owns deleting
+ * its user and character keyed rows.
+ */
 export const preferencesPurgeContributor: PurgeContributor = {
   name: 'preferences',
   tier: 'durable',

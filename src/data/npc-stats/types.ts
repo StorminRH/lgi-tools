@@ -2,6 +2,7 @@
 // Generic across sleepers, mission rats, incursion NPCs, abyssal NPCs —
 // anything with a type_dogma attributes row gets the same shape.
 
+/** Four EVE damage-channel values in hit points or percentages as documented by the owning combat field. */
 export interface DamageBreakdown {
   em: number;
   therm: number;
@@ -10,6 +11,7 @@ export interface DamageBreakdown {
   total: number;
 }
 
+/** Display-ready NPC combat statistics normalized from dogma attributes. */
 export interface CombatStats {
   turret: { dps: DamageBreakdown; alpha: DamageBreakdown };
   missile: { dps: DamageBreakdown; alpha: DamageBreakdown };

@@ -30,6 +30,7 @@ export function emitDomainEvent(input: DomainEventInput): void {
   }
 }
 
+/** Lists recent privacy-safe domain events newest first within the caller's bounded date range and limit. */
 export async function listRecentDomainEvents(limit: number): Promise<DomainEventRow[]> {
   const rows = await db
     .select()
@@ -41,6 +42,7 @@ export async function listRecentDomainEvents(limit: number): Promise<DomainEvent
   return rows as DomainEventRow[];
 }
 
+/** Deletes domain events older than the retention cutoff and returns the removed row count. */
 export async function pruneDomainEvents(
   database: AnyPgDb,
   retentionDays = DOMAIN_EVENT_RETENTION_DAYS,

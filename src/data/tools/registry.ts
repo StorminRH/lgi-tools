@@ -4,6 +4,7 @@
 //
 // Adding a tool is one entry here — every consumer picks it up.
 
+/** One registered application tool with stable ID, navigation metadata, and search text. */
 export type Tool = {
   label: string;
   abbr: string;        // 2-letter glyph for the search-dropdown result icon
@@ -16,6 +17,7 @@ export type Tool = {
                          // still reachable via search and direct URL
 };
 
+/** Complete ordered application-tool registry; navigation and tool search derive from this single source. */
 export const TOOLS: Tool[] = [
   {
     label: 'Wormhole Sites',
@@ -81,6 +83,7 @@ export function isToolActive(tool: Tool, pathname: string | null): boolean {
   return pathname != null && !!tool.matchPrefix && pathname.startsWith(tool.matchPrefix);
 }
 
+/** Navigation-ready projection of a registered tool. */
 export type NavToolItem =
   | { kind: 'soon'; label: string; title: string }
   | { kind: 'link'; label: string; href: string; active: boolean; title: string };

@@ -12,6 +12,10 @@ import { useEffect } from 'react';
 import { HEARTBEAT_MS, type SyncDataset } from '@/lib/sync-engine';
 import { api } from './api';
 
+/**
+ * Subscribes to one user's live sync subject and presence rows, returning the combined loading and
+ * run-state view for a dataset.
+ */
 export function useSyncSubject(dataset: SyncDataset, characterIds: number[]) {
   const heartbeat = useMutation(api.engine.heartbeat);
 

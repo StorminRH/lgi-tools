@@ -9,6 +9,10 @@ const PG_INT4_MAX = 2_147_483_647;
 
 // ── POST /api/market-history/refresh ─────────────────────────────────────
 
+/**
+ * Boundary validator for refresh history request schema; successful parsing yields the normalized
+ * market history input consumed internally.
+ */
 export const refreshHistoryRequestSchema = z.object({
   typeIds: z
     .array(z.number().int().positive().max(PG_INT4_MAX))
@@ -33,9 +37,14 @@ export const wireHistoryInputsSchema = z.object({
   latestDate: z.string().nullable(),
 }) satisfies z.ZodType<MarketHistoryInputs>;
 
+/**
+ * Boundary validator for refresh history response schema; successful parsing yields the normalized
+ * market history input consumed internally.
+ */
 export const refreshHistoryResponseSchema = z.object({
   inputs: z.array(wireHistoryInputsSchema),
 });
+/** Typed market-history refresh result with source, freshness, and write-behind state. */
 export type RefreshHistoryResponse = z.infer<typeof refreshHistoryResponseSchema>;
 
 /** 400 arms; 429 is the shared RateLimitedBody (src/lib/rate-limit.ts). */
@@ -43,6 +52,10 @@ export type RefreshHistoryBadRequest =
   | { error: 'invalid_json' }
   | { error: 'invalid_request'; issues: unknown[] };
 
+/**
+ * Typed endpoint definition for refresh history endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const refreshHistoryEndpoint: ApiEndpoint<
   z.input<typeof refreshHistoryRequestSchema>,
   RefreshHistoryResponse

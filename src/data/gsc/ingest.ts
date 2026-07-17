@@ -72,6 +72,7 @@ export function searchRowsToRecords(
   return records;
 }
 
+/** Maps one Search Console sitemap response into the stored sitemap record shape. */
 export function sitemapToRecord(entry: SitemapApiEntry, syncedAt: Date): SitemapRecord {
   let submitted = 0;
   let indexed = 0;
@@ -94,6 +95,10 @@ export function sitemapToRecord(entry: SitemapApiEntry, syncedAt: Date): Sitemap
   };
 }
 
+/**
+ * Maps one URL Inspection response into the stored coverage record while preserving unknown
+ * verdicts as nullable fields.
+ */
 export function indexStatusToRecord(
   url: string,
   status: IndexStatusApiResult | null,
@@ -170,6 +175,10 @@ export function prepareInspectionUrls(urls: string[], property: string): string[
   return prepared;
 }
 
+/**
+ * Returns canonical sitemap URLs that lack a current inspection result, bounded to the remaining
+ * daily quota.
+ */
 export function missingInspectionUrls(urls: string[], storedUrls: Iterable<string>): string[] {
   const completed = new Set(storedUrls);
   return urls.filter((url) => !completed.has(url));
@@ -177,6 +186,10 @@ export function missingInspectionUrls(urls: string[], storedUrls: Iterable<strin
 
 type InspectionBatchResult = { records: UrlInspectionRecord[]; errors: string[] };
 
+/**
+ * Upserts one inspection batch and advances its sync run atomically, preserving partial success
+ * when individual URLs failed upstream.
+ */
 export async function upsertUrlInspectionRecords(
   db: AnyPgDb,
   records: UrlInspectionRecord[],

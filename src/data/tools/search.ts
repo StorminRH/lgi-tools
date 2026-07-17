@@ -6,6 +6,10 @@ import type { SearchSource } from '@/search';
 import { rankFuzzyResults } from '@/search/rank';
 import { TOOLS } from './registry';
 
+/**
+ * Global-search source for tools search source; it owns matching and result mapping while the app
+ * layer owns registration.
+ */
 export const toolsSearchSource: SearchSource = {
   id: 'tools',
   name: 'Tools',

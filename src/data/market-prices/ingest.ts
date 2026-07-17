@@ -5,6 +5,7 @@ import { fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
 
+/** Market-price refresh outcome containing persisted row counts grouped by canonical source. */
 export interface RefreshSummary {
   requested: number;
   fetched: number;
@@ -24,6 +25,10 @@ function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
 
+/**
+ * Refreshes canonical market prices for the selected type IDs, falling back by source policy and
+ * returning per-source row counts.
+ */
 export async function refreshPrices(
   db: AnyPgDb,
   typeIds: number[],

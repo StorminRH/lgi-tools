@@ -34,6 +34,7 @@ export function priceTag(typeId: number): string {
 // dynamic hole (excluded from the prerender), which is exactly the live path.
 const LIVE_CACHE_LIFE = { stale: 30, revalidate: 30, expire: 60 };
 
+/** Price degradation details explaining fallback source, staleness, and affected type counts. */
 export interface LivePricesDegradation {
   fetched: number;
   esiCount: number;
@@ -41,6 +42,7 @@ export interface LivePricesDegradation {
   budgetExhausted: boolean;
 }
 
+/** Privacy-safe price refresh measurements including calls, items, and elapsed milliseconds. */
 export interface LivePricesMetrics {
   requested: number;
   returned: number;
@@ -49,6 +51,7 @@ export interface LivePricesMetrics {
   fuzzworkFallbackCount: number;
 }
 
+/** Closed price write-behind outcome distinguishing persisted, deferred, and failed storage. */
 export interface PriceWriteBehindResult {
   outcome: 'succeeded' | 'failed';
   attempted: number;
@@ -67,6 +70,10 @@ function notifyWriteBehind(
   }
 }
 
+/**
+ * Complete refresh-on-view price result combining quotes, source, degradation, metrics, and
+ * write-behind state.
+ */
 export interface LivePricesResult {
   // Freshest value available per type: the live fetch where it succeeded, the
   // DB seed otherwise. Types with neither are simply absent (caller treats a

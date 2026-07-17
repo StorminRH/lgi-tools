@@ -12,6 +12,7 @@ import type { MarketHistoryInputs } from './types';
 // `enabled` false→true trigger, minus the per-item pending/flash (no live UI in
 // 3.5.3a — the score UI is 3.5.3b's; this populates the store/warms the data).
 
+/** Client-facing market-history state containing data, loading, refresh, and degradation signals. */
 export interface HistoryOnViewResult {
   // Freshest inputs per type once the refresh lands; empty until then.
   inputs: Map<number, MarketHistoryInputs>;
@@ -19,6 +20,10 @@ export interface HistoryOnViewResult {
   refreshing: boolean;
 }
 
+/**
+ * Coordinates client market-history refresh-on-view state, deduplicating a fresh resolution and
+ * returning stored data while background writes settle.
+ */
 export function useRefreshHistoryOnView(
   typeIds: number[],
   opts: {

@@ -11,6 +11,7 @@ import type { DepthBand, RegionalDiscount } from './types';
 // diagnosis scripts without dragging in the ESI gate. source.ts re-exports
 // the shared pieces so its consumers are unaffected by the extraction.
 
+/** One market order-book entry with price in ISK and remaining volume in units. */
 export interface OrderEntry {
   price: number;
   volume: bigint;

@@ -18,6 +18,7 @@ import type { MarketHistoryInputs } from './types';
 // Threads degradation facts out in its return value and never imports telemetry
 // (data ⊥ telemetry stays sealed); the route handler emits.
 
+/** Market-history degradation details explaining fallback source and staleness to callers. */
 export interface HistoryDegradation {
   // Types whose live fetch succeeded this call (0 when all were warm).
   fetched: number;
@@ -26,6 +27,7 @@ export interface HistoryDegradation {
   budgetExhausted: boolean;
 }
 
+/** Privacy-safe market-history refresh measurements including calls, rows, and elapsed milliseconds. */
 export interface LiveHistoryMetrics {
   requested: number;
   freshEsi: number;
@@ -34,6 +36,7 @@ export interface LiveHistoryMetrics {
   missing: number;
 }
 
+/** Closed history write-behind outcome distinguishing persisted, deferred, and failed storage. */
 export interface HistoryWriteBehindResult {
   outcome: 'succeeded' | 'partial' | 'failed';
   attempted: number;
@@ -52,6 +55,10 @@ function notifyWriteBehind(
   }
 }
 
+/**
+ * Complete refresh-on-view market-history result combining data, source, degradation, metrics, and
+ * write-behind state.
+ */
 export interface LiveHistoryResult {
   // Freshest inputs per type: freshly fetched where stale, the stored series
   // otherwise. Types with neither are absent (caller treats as "no history").

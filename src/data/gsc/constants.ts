@@ -25,6 +25,7 @@ export const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
  * Inspection is the newer searchconsole/v1 surface.
  */
 export const WEBMASTERS_V3_BASE = 'https://www.googleapis.com/webmasters/v3';
+/** Canonical Google Search Console URL Inspection endpoint used by the ingestion client. */
 export const URL_INSPECTION_ENDPOINT =
   'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
 
@@ -59,6 +60,10 @@ export const UPSERT_CHUNK_ROWS = 500;
  * quota or publish misleading partial coverage.
  */
 export const GSC_INSPECTION_URL_LIMIT = 500;
+/**
+ * Configured gsc limit for gsc inspection batch size; callers use this value instead of embedding
+ * a competing threshold.
+ */
 export const GSC_INSPECTION_BATCH_SIZE = 5;
 
 /**

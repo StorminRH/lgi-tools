@@ -40,6 +40,7 @@ function getJwt(): JWT {
   return _jwt;
 }
 
+/** Extracts and validates the canonical site URL from one Search Console sitemap entry. */
 export function siteUrl(): string {
   return requireEnv('GSC_SITE_URL');
 }
@@ -97,6 +98,7 @@ export async function querySearchAnalytics(args: {
   return rows;
 }
 
+/** Lists Search Console sitemaps for the configured property through the authenticated Google API client. */
 export async function listSitemaps(): Promise<SitemapApiEntry[]> {
   const url = `${WEBMASTERS_V3_BASE}/sites/${encodeURIComponent(siteUrl())}/sitemaps`;
   const res = await authedFetch(url);

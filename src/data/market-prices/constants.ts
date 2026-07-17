@@ -56,6 +56,10 @@ export const NPC_STATION_ID_CEILING = 1e9;
  * divisor above.
  */
 export const REGIONAL_DISCOUNT_MIN_PCT = 15;
+/**
+ * Configured market prices limit for regional discount min units; callers use this value instead
+ * of embedding a competing threshold.
+ */
 export const REGIONAL_DISCOUNT_MIN_UNITS = 10;
 
 /**

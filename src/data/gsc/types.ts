@@ -25,12 +25,14 @@ export interface SearchAnalyticsApiRow {
   position: number;
 }
 
+/** Parsed sitemap document containing its canonical URL entries. */
 export interface SitemapContent {
   type?: string;
   submitted?: string | number;
   indexed?: string | number;
 }
 
+/** Search Console sitemap API record normalized to the fields used by ingestion. */
 export interface SitemapApiEntry {
   path: string;
   lastSubmitted?: string;
@@ -108,6 +110,7 @@ export interface GscTermStat {
   position: number;
 }
 
+/** Stored Search Console sitemap status with submission, crawl, warning, and error counts. */
 export interface GscSitemapStatus {
   path: string;
   lastDownloaded: Date | null;
@@ -118,6 +121,7 @@ export interface GscSitemapStatus {
   indexed: number;
 }
 
+/** Latest URL inspection state for one canonical sitemap URL. */
 export interface GscUrlStatus {
   inspectionDate: string | null;
   url: string;
@@ -126,6 +130,7 @@ export interface GscUrlStatus {
   lastCrawlTime: Date | null;
 }
 
+/** UTC day coverage snapshot with indexed and not-indexed URL counts. */
 export interface GscCoverageDailyPoint {
   day: string;
   indexed: number;

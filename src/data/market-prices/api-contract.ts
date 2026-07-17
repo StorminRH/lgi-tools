@@ -11,6 +11,10 @@ const PG_INT4_MAX = 2_147_483_647;
 
 // ── POST /api/market-prices/refresh ─────────────────────────────────────
 
+/**
+ * Boundary validator for refresh prices request schema; successful parsing yields the normalized
+ * market prices input consumed internally.
+ */
 export const refreshPricesRequestSchema = z.object({
   typeIds: z
     .array(z.number().int().positive().max(PG_INT4_MAX))
@@ -59,7 +63,12 @@ export const wirePriceSchema = z.object({
   source: z.enum(['esi', 'fuzzwork-fallback', 'fuzzwork']) satisfies z.ZodType<PriceSource>,
 });
 
+/**
+ * Boundary validator for refresh prices response schema; successful parsing yields the normalized
+ * market prices input consumed internally.
+ */
 export const refreshPricesResponseSchema = z.object({ prices: z.array(wirePriceSchema) });
+/** Typed market-price refresh result with source counts, freshness, and write-behind state. */
 export type RefreshPricesResponse = z.infer<typeof refreshPricesResponseSchema>;
 
 /** 400 arms; 429 is the shared RateLimitedBody (src/lib/rate-limit.ts). */
@@ -67,6 +76,10 @@ export type RefreshPricesBadRequest =
   | { error: 'invalid_json' }
   | { error: 'invalid_request'; issues: unknown[] };
 
+/**
+ * Typed endpoint definition for refresh prices endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const refreshPricesEndpoint: ApiEndpoint<
   z.input<typeof refreshPricesRequestSchema>,
   RefreshPricesResponse

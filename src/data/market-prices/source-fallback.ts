@@ -56,7 +56,12 @@ const fuzzworkPairSchema = z.object({
 
 const fuzzworkResponseSchema = z.record(z.string(), fuzzworkPairSchema);
 
+/**
+ * One Fuzzwork order-book side aggregate with weighted, percentile, min, max, and volume values in
+ * API units.
+ */
 export type FuzzworkSide = z.infer<typeof fuzzworkSideSchema>;
+/** Fuzzwork buy and sell aggregates for one EVE type ID. */
 export type FuzzworkPair = z.infer<typeof fuzzworkPairSchema>;
 type FuzzworkResponse = z.infer<typeof fuzzworkResponseSchema>;
 
@@ -148,6 +153,10 @@ async function fetchOneBatch(typeIds: number[]): Promise<RawMarketPrice[]> {
   return out;
 }
 
+/**
+ * Fetches buy and sell aggregates from Fuzzwork for a bounded type-ID batch and maps them to the
+ * canonical price source contract.
+ */
 export async function fetchPricesFromFuzzwork(
   typeIds: number[],
 ): Promise<RawMarketPrice[]> {

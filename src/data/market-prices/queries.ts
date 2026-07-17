@@ -20,6 +20,7 @@ const PRICE_COLUMNS = {
   staleAfter: marketPrices.staleAfter,
 } as const;
 
+/** Loads stored market prices for the requested type IDs in one batched query. */
 export async function getPrices(
   typeIds: number[],
 ): Promise<Map<number, MarketPrice>> {

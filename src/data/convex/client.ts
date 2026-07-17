@@ -10,4 +10,8 @@ import { ConvexReactClient } from 'convex/react';
 // Construction is connection-free; the client connects on first subscription.
 const url = process.env.NEXT_PUBLIC_CONVEX_URL;
 
+/**
+ * Shared browser Convex client configured from the public deployment URL; null disables live reads
+ * when the URL is absent.
+ */
 export const convexClient: ConvexReactClient | null = url ? new ConvexReactClient(url) : null;

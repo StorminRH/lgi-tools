@@ -75,12 +75,14 @@ export function parseAdjustedPrices(body: unknown): RawAdjustedPrice[] {
   }));
 }
 
+/** Fetches current ESI industry cost indices through the shared public dispatch gate. */
 export async function fetchCostIndices(): Promise<RawCostIndex[]> {
   const res = await esiFetch(esiUrl('/industry/systems/'));
   if (!res.ok) throw new EsiServerError(res.status);
   return parseCostIndices(await res.json());
 }
 
+/** Fetches current ESI adjusted prices through the shared public dispatch gate. */
 export async function fetchAdjustedPrices(): Promise<RawAdjustedPrice[]> {
   const res = await esiFetch(esiUrl('/markets/prices/'));
   if (!res.ok) throw new EsiServerError(res.status);

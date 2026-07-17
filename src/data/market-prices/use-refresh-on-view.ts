@@ -44,6 +44,7 @@ export interface RefreshedPrice {
   staleAfterMs: number;
 }
 
+/** Client-facing live-price state containing quotes, loading, refresh, and degradation signals. */
 export interface RefreshOnViewResult {
   // Freshest confirmed value per type, accumulated across batches. Empty until
   // the first batch lands; a type missing here simply has no live value yet.
@@ -56,6 +57,10 @@ export interface RefreshOnViewResult {
   refreshing: boolean;
 }
 
+/**
+ * Coordinates client price refresh-on-view state and returns stored prices immediately while a
+ * stale refresh and write-behind settle.
+ */
 export function useRefreshOnView(
   typeIds: number[],
   opts: { enabled: boolean; onBatch?: (prices: Map<number, RefreshedPrice>) => void },

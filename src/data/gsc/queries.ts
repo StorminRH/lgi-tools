@@ -31,6 +31,7 @@ function retentionCutoff(retentionDays: number, now: Date): string {
   return toDateStr(new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000));
 }
 
+/** Deletes Search Console analytics rows older than the retention cutoff. */
 export async function pruneGscSearchAnalytics(
   database: AnyPgDb,
   retentionDays: number,
@@ -41,6 +42,7 @@ export async function pruneGscSearchAnalytics(
     .where(lt(gscSearchAnalytics.date, retentionCutoff(retentionDays, now)));
 }
 
+/** Deletes URL inspection history older than the retention cutoff while retaining current coverage state. */
 export async function pruneGscUrlInspections(
   database: AnyPgDb,
   retentionDays: number,
@@ -73,6 +75,10 @@ function ctr(clicks: number, impressions: number): number {
   return impressions > 0 ? clicks / impressions : 0;
 }
 
+/**
+ * Converts raw Search Console metric totals into normalized clicks, impressions, CTR, and average
+ * position.
+ */
 export function toSearchTotals(
   row: { clicks: number; impressions: number; position: number } | undefined,
 ): GscTotals {
@@ -137,10 +143,18 @@ async function getTopTerms(
   });
 }
 
+/**
+ * Returns the highest-impression Search Console queries and normalized metrics over the requested
+ * date range.
+ */
 export function getTopQueries(range: GscRange, limit = 10): Promise<GscTermStat[]> {
   return getTopTerms(range, 'query', limit);
 }
 
+/**
+ * Returns the highest-impression Search Console pages and normalized metrics over the requested
+ * date range.
+ */
 export function getTopGscPages(range: GscRange, limit = 10): Promise<GscTermStat[]> {
   return getTopTerms(range, 'page', limit);
 }
@@ -170,6 +184,10 @@ export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
   }));
 }
 
+/**
+ * Merges the canonical sitemap URL set with latest inspection records so missing inspections
+ * remain visible as explicit pending rows.
+ */
 export function mergeCurrentUrlCoverage(
   sitemapUrls: string[],
   storedRows: GscUrlStatus[],

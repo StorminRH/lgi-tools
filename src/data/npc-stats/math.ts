@@ -234,6 +234,10 @@ function computeMovement(attrs: AttrMap): CombatStats['movement'] {
   };
 }
 
+/**
+ * Combines raw NPC attributes into display-ready damage, resistance, repair, velocity, and range
+ * statistics using EVE units.
+ */
 export function composeCombatStats(
   sleeperAttrs: AttrMap,
   missileAttrs: AttrMap | null = null,

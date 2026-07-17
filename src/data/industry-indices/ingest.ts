@@ -23,6 +23,7 @@ export interface DatasetResult {
   error?: string;
 }
 
+/** Industry-index refresh outcome containing fetched and persisted row counts. */
 export interface RefreshIndicesSummary {
   costIndices: DatasetResult;
   adjustedPrices: DatasetResult;

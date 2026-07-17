@@ -22,6 +22,7 @@ export const INDUSTRY_ACTIVITIES = [
   'reaction',
 ] as const;
 
+/** Closed ESI industry activity identifiers accepted by system cost-index records. */
 export type IndustryActivity = (typeof INDUSTRY_ACTIVITIES)[number];
 
 /**
