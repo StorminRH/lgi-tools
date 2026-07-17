@@ -1,6 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnyPgDb } from '@/lib/db-types';
 import { EsiBudgetExhaustedError } from '@/lib/esi';
+
+const mocks = vi.hoisted(() => ({
+  advancePendingWorkSignal: vi.fn(async () => {}),
+}));
+vi.mock('./pending-signal', () => ({
+  advancePendingWorkSignal: mocks.advancePendingWorkSignal,
+}));
+
 import { enqueueEsiRefreshJob } from './queries';
 
 const NOW = new Date('2026-07-14T12:00:00Z');
@@ -25,7 +33,9 @@ function fakeDatabase(insertedId: number | null, existingId: number | null) {
   const insert = vi.fn(() => ({ values }));
   const limit = vi
     .fn()
-    .mockResolvedValue(existingId === null ? [] : [{ id: existingId }]);
+    .mockResolvedValue(
+      existingId === null ? [] : [{ id: existingId, nextAttemptAt: NOW }],
+    );
   const where = vi.fn(() => ({ limit }));
   const from = vi.fn(() => ({ where }));
   const select = vi.fn(() => ({ from }));
@@ -38,6 +48,10 @@ function fakeDatabase(insertedId: number | null, existingId: number | null) {
 }
 
 describe('enqueueEsiRefreshJob', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('stores the exact owner, resource, budget metadata, and retry deadline', async () => {
     const fake = fakeDatabase(41, null);
 
@@ -60,6 +74,9 @@ describe('enqueueEsiRefreshJob', () => {
       updatedAt: NOW,
     });
     expect(fake.select).not.toHaveBeenCalled();
+    expect(mocks.advancePendingWorkSignal).toHaveBeenCalledWith(
+      new Date('2026-07-14T12:15:00Z'),
+    );
   });
 
   it('returns the existing live job when the unique key coalesces an insert', async () => {
@@ -69,6 +86,7 @@ describe('enqueueEsiRefreshJob', () => {
 
     expect(fake.insert).toHaveBeenCalledOnce();
     expect(fake.select).toHaveBeenCalledOnce();
+    expect(mocks.advancePendingWorkSignal).toHaveBeenCalledWith(NOW);
   });
 
   it('fails loudly if a coalesced row is no longer live', async () => {
