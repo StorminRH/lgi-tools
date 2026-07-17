@@ -1,14 +1,5 @@
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { db } from '@/db';
-import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 import { characters } from '@/features/auth/schema';
 import {
   claimPublicEsiBudgetAlert,
@@ -51,9 +42,11 @@ import {
 // or app code is touched. The schema is dropped in afterAll, so nothing is left
 // behind in the dev database.
 
-const SCHEMA = 'test_telemetry_cov';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_telemetry_cov',
+  tables: ['usage_logs', 'characters'],
+  steerDbProxy: true,
+});
 
 // A fixed historical week, far from any real data and from defaultNow(); every
 // seeded row sits inside it so the range-scoped queries return rows.
@@ -158,19 +151,9 @@ const cases: QueryCase[] = [
   },
 ];
 
-describe.skipIf(!reachable)('admin telemetry analytics queries execute against Postgres', () => {
-  let adminClient: ReturnType<typeof postgres>;
-
+describe.skipIf(!harness.reachable)('admin telemetry analytics queries execute against Postgres', () => {
   beforeAll(async () => {
-    // Flip the request `db` proxy onto postgres-js (LOCAL_DB_DRIVER) pointed at the
-    // throwaway schema (search_path) before any query runs.
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 1, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, ['usage_logs', 'characters']);
-
-    const seedDb = drizzlePg(adminClient);
+    const seedDb = harness.db;
     await seedDb.insert(characters).values([
       {
         characterId: CHAR_OLD,
@@ -308,18 +291,6 @@ describe.skipIf(!reachable)('admin telemetry analytics queries execute against P
         metadata: { endpoint: '/api/account/skills', returned: 4, outcome: 'succeeded', durationMs: 40 },
       },
     ]);
-  });
-
-  afterAll(async () => {
-    // Close the proxy's pool (built lazily on the first query through `db`), drop
-    // the throwaway schema, then close the admin connection. `.catch` on each
-    // `end` so a connection blip never skips `dropDisposableSchema` and leaves the
-    // schema behind (which would make the next run's `beforeAll` fail at CREATE TABLE).
-    const proxyClient = (db as unknown as { $client: ReturnType<typeof postgres> }).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
   });
 
   it.each(cases)('$name executes and returns a plausible shape', async ({ run, check }) => {
