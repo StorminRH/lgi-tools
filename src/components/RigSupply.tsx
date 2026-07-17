@@ -11,6 +11,10 @@ import { Select, type SelectOption } from '@/components/ui/select';
 // builder's fit-paste box stays in the builder (it pre-fills the structure TYPE, a
 // builder-only concern); the corp editor has a fixed structure and just supplies rigs.
 
+/**
+ * Renders the rig-supply selector and forwards the chosen supply mode; callers retain ownership of
+ * planner recalculation.
+ */
 export function RigSupply({
   validRigs,
   maxSlots,

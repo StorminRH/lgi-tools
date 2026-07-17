@@ -16,6 +16,10 @@ import type { Tone } from './tones';
 // outside-press dismiss, and the panel is a labelled dialog. Used by every "?"
 // help glyph today; reusable anywhere a hover/tap hint is wanted via `tone`.
 
+/**
+ * Closed presentation vocabulary for popover tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type PopoverTone = Extract<Tone, 'neutral' | 'green'>;
 
 // Abstract tone → token classes (no raw hex at the call site; the green-glow
@@ -40,6 +44,10 @@ const popup = cva(
   },
 );
 
+/**
+ * Renders the domain-neutral popover with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Popover({
   trigger,
   children,

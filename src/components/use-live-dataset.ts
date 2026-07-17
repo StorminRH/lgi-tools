@@ -19,6 +19,10 @@ const TICK_MS = 30_000;
 // One delayed reconcile to pick up the on-view write-behind's first payload.
 const RECONCILE_DELAY_MS = 4_000;
 
+/**
+ * Encapsulates the live dataset subscription and state lifecycle; callers provide lookup keys
+ * where required and render the returned state.
+ */
 export function useLiveDataset<TResponse, TKey extends string | boolean>(
   endpoint: ApiEndpoint<null, TResponse>,
   // The primitive reload key: a change re-runs the load. Character trackers pass the

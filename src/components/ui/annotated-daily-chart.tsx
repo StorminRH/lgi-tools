@@ -256,6 +256,10 @@ function DailyTooltip({ datum, formatY }: { datum: DailyHoverPoint; formatY: (y:
   );
 }
 
+/**
+ * Renders the domain-neutral annotated daily chart from display-ready caller data; callers own
+ * units and labels while this primitive owns geometry and interaction.
+ */
 export function AnnotatedDailyChart({
   points,
   average,

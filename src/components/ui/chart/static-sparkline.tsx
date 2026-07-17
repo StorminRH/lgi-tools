@@ -17,6 +17,10 @@ type StaticSparklineProps = {
   ariaLabel?: string;
 };
 
+/**
+ * Renders the domain-neutral static sparkline from display-ready caller data; callers own units
+ * and labels while this primitive owns geometry and interaction.
+ */
 export function StaticSparkline({
   values,
   width = 96,

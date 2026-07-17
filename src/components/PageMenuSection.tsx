@@ -41,6 +41,10 @@ function ControlRow({ model }: { model: MenuControlModel }) {
   );
 }
 
+/**
+ * Renders the current page's registered controls and actions, preserving their declared order and
+ * controlled-state callbacks.
+ */
 export function PageMenuSection() {
   const spec = usePageSettings();
   const models = resolveMenuControls(spec);

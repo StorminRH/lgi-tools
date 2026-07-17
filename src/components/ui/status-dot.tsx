@@ -12,6 +12,10 @@ import { cn } from './cn';
  */
 export type StatusDotState = 'online' | 'offline' | 'vip';
 
+/**
+ * Renders the domain-neutral status dot with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function StatusDot({ state, className }: { state: StatusDotState; className?: string }) {
   return <span aria-hidden className={cn('status-led', state, className)} />;
 }

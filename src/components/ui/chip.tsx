@@ -20,6 +20,10 @@ const chipVariants = cva(
   },
 );
 
+/**
+ * Renders the domain-neutral chip with house behavior and tokens; callers own semantic meaning and
+ * content while this primitive owns presentation.
+ */
 export function Chip({
   tone,
   children,

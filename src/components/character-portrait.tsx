@@ -34,6 +34,10 @@ const SIZE_CLASS: Record<PortraitSize, string> = {
   64: 'size-16',
 };
 
+/**
+ * Renders one EVE character portrait at a supported semantic size, with the shared image fallback
+ * and optional preload behavior.
+ */
 export function CharacterPortrait({
   characterId,
   name,

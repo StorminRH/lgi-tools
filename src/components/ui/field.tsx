@@ -45,6 +45,10 @@ function FieldError({ id, children }: { id: string; children?: ReactNode }) {
   );
 }
 
+/**
+ * Renders the domain-neutral field with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Field({
   label,
   hint,

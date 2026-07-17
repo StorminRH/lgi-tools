@@ -92,6 +92,10 @@ function RunAsCharacterItems({ characters }: { characters: BuildCharacter[] | nu
   );
 }
 
+/**
+ * Renders the planner's run-as character frame from the derived roster state and forwards
+ * selection changes without owning character data.
+ */
 export function RunAsFrame({
   buildCharacter,
   buildCharacterPending,

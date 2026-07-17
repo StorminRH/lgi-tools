@@ -11,6 +11,10 @@ const columnClasses = {
   3: 'md:grid-cols-3',
 } as const;
 
+/**
+ * Renders the domain-neutral multiples grid with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function MultiplesGrid({
   children,
   columns = 3,

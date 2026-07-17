@@ -7,6 +7,10 @@ import { panelSurface } from './dropdown-panel';
 
 type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
 
+/**
+ * Renders the domain-neutral tooltip with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Tooltip({
   content,
   children,

@@ -19,6 +19,10 @@ interface StripCharacter {
   needsReconnect: boolean;
 }
 
+/**
+ * Derives a character strip's loading, empty, and populated state from roster and online-status
+ * inputs without mutating either source.
+ */
 export function stripState(
   character: StripCharacter,
   dimmedIds: readonly number[],

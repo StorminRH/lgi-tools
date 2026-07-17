@@ -10,6 +10,10 @@ const SYNC_ERROR_META: Record<string, { label: string; tone: Tone }> = {
   contract_error: { label: 'Unexpected ESI response', tone: 'red' },
 };
 
+/**
+ * Maps a live-sync error code to its user-facing label and semantic tone, falling back to the
+ * generic sync-error treatment for unknown codes.
+ */
 export function syncErrorMeta(code: string): { label: string; tone: Tone } {
   return SYNC_ERROR_META[code] ?? { label: `Sync failed (${code})`, tone: 'orange' };
 }

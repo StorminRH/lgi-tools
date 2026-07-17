@@ -21,8 +21,20 @@ import { fieldText, fieldVariants, focusWell, type FieldSize } from './input';
 // Base UI supplies typeahead, roving focus, Esc + outside-press dismiss, and
 // touch/keyboard open — none hand-rolled.
 
+/**
+ * One caller-supplied select option; its value is the stable control key and its label or marker
+ * is presentation-ready.
+ */
 export type SelectOption = { value: string; label: ReactNode; disabled?: boolean };
+/**
+ * One labelled select group containing ordered options; group labels are presentation only and
+ * option values remain the control keys.
+ */
 export type SelectOptionGroup = { group: string; options: readonly SelectOption[] };
+/**
+ * Ordered select input accepted by the shared wrapper, allowing plain options and labelled groups
+ * in one canonical collection.
+ */
 export type SelectItems = readonly (SelectOption | SelectOptionGroup)[];
 
 function isGroup(entry: SelectOption | SelectOptionGroup): entry is SelectOptionGroup {
@@ -51,6 +63,10 @@ function Option({ option }: { option: SelectOption }) {
   );
 }
 
+/**
+ * Renders the domain-neutral select with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Select({
   value,
   onValueChange,

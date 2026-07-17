@@ -18,6 +18,10 @@ export type SparklineTone = Extract<
   'green' | 'orange' | 'red' | 'blue' | 'purple' | 'teal'
 >;
 
+/**
+ * Display-ready sparkline point consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export type SparklinePoint = { x: number; y: number };
 
 // Pure geometry helpers live in ./chart/chart-geometry; re-exported here so the

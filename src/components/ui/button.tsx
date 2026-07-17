@@ -40,6 +40,10 @@ export const buttonVariants = cva(
   },
 );
 
+/**
+ * Renders the domain-neutral button with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Button({
   variant,
   size,

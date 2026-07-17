@@ -11,6 +11,10 @@ import type { Tone } from './tones';
 // primitive now that the account menu is a second surface rendering the same
 // affordance. Controlled: the caller owns the value (usePreference, state, …).
 
+/**
+ * Closed presentation vocabulary for segmented tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type SegmentedTone = Extract<Tone, 'green'>;
 
 // Abstract tone → active-segment token classes, the menu.tsx single-tone cva
@@ -39,6 +43,10 @@ const segment = cva(
   },
 );
 
+/**
+ * One caller-supplied segmented option; its value is the stable control key and its label or
+ * marker is presentation-ready.
+ */
 export interface SegmentedOption {
   value: string;
   label: string;
@@ -49,6 +57,10 @@ export interface SegmentedOption {
 const track =
   'inline-flex gap-0.5 rounded-ctl border border-border-soft bg-bg-deep p-[3px] shadow-field-inset';
 
+/**
+ * Renders the domain-neutral segmented control with house behavior and tokens; callers own
+ * semantic meaning and content while this primitive owns presentation.
+ */
 export function SegmentedControl({
   options,
   value,

@@ -44,6 +44,10 @@ const pillVariants = cva(
   },
 );
 
+/**
+ * Renders the domain-neutral pill with house behavior and tokens; callers own semantic meaning and
+ * content while this primitive owns presentation.
+ */
 export function Pill({
   tone,
   size,

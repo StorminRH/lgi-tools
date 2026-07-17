@@ -13,6 +13,10 @@ import type { Tone } from './tones';
 // a name the control is unlabelled. Used by the corp structure-sharing toggle; reusable
 // for any on/off setting.
 
+/**
+ * Closed presentation vocabulary for switch tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type SwitchTone = Extract<Tone, 'green' | 'neutral'>;
 
 // The track. Off = a sunk rail with an idle border; on = the ISK-green pill surface +
@@ -52,6 +56,10 @@ const thumb = cva(
   },
 );
 
+/**
+ * Renders the domain-neutral switch with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Switch({
   checked,
   onCheckedChange,

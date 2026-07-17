@@ -57,6 +57,10 @@ function readLocalValues(): Map<string, unknown> {
   return out;
 }
 
+/**
+ * Publishes preferences state to descendants; the provider owns subscription and update lifecycle
+ * while children consume it.
+ */
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const { data, isPending } = authClient.useSession();
   const userId = data?.user?.id ?? null;

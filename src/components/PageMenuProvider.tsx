@@ -56,6 +56,10 @@ function LivePathnameWatcher({
   return null;
 }
 
+/**
+ * Publishes page menu state to descendants; the provider owns subscription and update lifecycle
+ * while children consume it.
+ */
 export function PageMenuProvider({
   pathname,
   children,

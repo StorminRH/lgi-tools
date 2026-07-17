@@ -47,6 +47,10 @@ const SYNC_TOAST_ID = 'lgi-sync';
 // persist across client navigations, since the toaster lives in the root layout).
 const SYNC_DONE_MS = 500;
 
+/**
+ * Publishes loading toast state to descendants; the provider owns subscription and update
+ * lifecycle while children consume it.
+ */
 export function LoadingToastProvider({ children }: { children: ReactNode }) {
   // The live registration set, mutated synchronously in acquire/release; the
   // render only cares whether it's non-empty, so we publish the size as state.

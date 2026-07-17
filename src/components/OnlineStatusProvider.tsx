@@ -32,6 +32,10 @@ export function useOnlineFlag(characterId: number): boolean | undefined {
   return useContext(OnlineStatusContext).get(characterId);
 }
 
+/**
+ * Publishes online status state to descendants; the provider owns subscription and update
+ * lifecycle while children consume it.
+ */
 export function OnlineStatusProvider({ children }: { children: ReactNode }) {
   // No Convex deployment → no subscription; the default empty map means every
   // portrait reads `unknown` and shows no dot (consumers never crash).

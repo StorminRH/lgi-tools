@@ -6,12 +6,20 @@ import { type Tone, toneHex } from './tones';
 // Geometry is SVG presentation attributes; the split math is the pure
 // {@link stackedShareLayout}.
 
+/**
+ * Display-ready share segment consumed by the shared visualization layer; callers keep all numeric
+ * values in one consistent unit.
+ */
 export interface ShareSegment {
   label: string;
   value: number;
   tone: Tone;
 }
 
+/**
+ * Display-ready share layout part consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export interface ShareLayoutPart extends ShareSegment {
   x: number;
   w: number;
@@ -22,6 +30,10 @@ export interface ShareLayoutPart extends ShareSegment {
   labelAnchor: 'start' | 'middle' | 'end';
 }
 
+/**
+ * Converts non-negative share values into contiguous pixel segments whose widths fill the supplied
+ * bar width.
+ */
 export function stackedShareLayout(segments: ShareSegment[], width: number): ShareLayoutPart[] {
   const total = segments.reduce((sum, seg) => sum + seg.value, 0);
   if (total === 0) return [];
@@ -42,6 +54,10 @@ export function stackedShareLayout(segments: ShareSegment[], width: number): Sha
   });
 }
 
+/**
+ * Renders the domain-neutral stacked share bar from display-ready caller data; callers own units
+ * and labels while this primitive owns geometry and interaction.
+ */
 export function StackedShareBar({
   segments,
   width = 360,

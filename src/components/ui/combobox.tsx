@@ -105,6 +105,10 @@ export function Group({ className, ...props }: ComponentProps<typeof Autocomplet
   return <Autocomplete.Group className={cn('px-0.5 pt-0.5 pb-1', className)} {...props} />;
 }
 
+/**
+ * Renders the domain-neutral group label with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function GroupLabel({ className, ...props }: ComponentProps<typeof Autocomplete.GroupLabel>) {
   return (
     <Autocomplete.GroupLabel

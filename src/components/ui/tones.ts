@@ -3,6 +3,10 @@
 // (wormhole-styles, future industry-styles, …) all import their tone types
 // from here so the palette has one home.
 
+/**
+ * Closed presentation vocabulary for tone; feature callers map domain meaning to these abstract
+ * values before rendering.
+ */
 export type Tone =
   | 'neutral'
   | 'green'

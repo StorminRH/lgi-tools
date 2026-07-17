@@ -20,6 +20,10 @@ import { buildRosterCard, type RosterViewModel } from '@/features/skill-queue/ro
 import { useSkillsLive } from '@/features/skill-queue/use-skills-live';
 import { apiFetch } from '@/lib/api-client';
 
+/**
+ * Loads and renders the signed-in character roster, or renders supplied demo rows; account loading
+ * and empty states remain contained in the panel.
+ */
 export function HomeRosterPanel({ demo }: { demo?: RosterViewModel[] }) {
   return (
     <RosterFrame>{demo !== undefined ? <RosterList items={demo} /> : <LiveRoster />}</RosterFrame>

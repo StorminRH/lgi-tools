@@ -14,9 +14,18 @@ import { searchAll } from '@/search';
 // memoized index via the eve-data snapshot. It carries NO selection state:
 // consumers read the matched entry and keep their own picks.
 
+/** Parsed terminal-search parameters containing the one selected solar-system entry. */
 export type SystemParams = { system: SystemSearchEntry };
+/**
+ * Closed components failure contract for system err; consumers branch on the declared kind instead
+ * of parsing messages.
+ */
 export type SystemErr = { kind: 'not_found' };
 
+/**
+ * System-search controller contract exposing controlled query state, parsed selection, validation
+ * feedback, and clear or select actions.
+ */
 export interface SystemSearch {
   systems: SystemSearchEntry[];
   parse: (input: string) => { ok: true; params: SystemParams } | { ok: false; error: SystemErr };
@@ -43,6 +52,10 @@ export function systemNameFrom(
 // picker has usually loaded the index already, so this resolves immediately.
 const SYSTEM_NAME_RETRY_MS = 15_000;
 
+/**
+ * Encapsulates the system name subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useSystemName(systemId: number | null): string | null {
   const [systems, setSystems] = useState<SystemSearchEntry[] | null>(() => getLoadedSystems());
   // Bumped after a failed load to re-arm the effect — without it a single
@@ -72,6 +85,10 @@ export function useSystemName(systemId: number | null): string | null {
   return systemNameFrom(systems, systemId);
 }
 
+/**
+ * Encapsulates the system search subscription and state lifecycle; callers provide lookup keys
+ * where required and render the returned state.
+ */
 export function useSystemSearch(): SystemSearch {
   // Seeded from the shared snapshot so a second mount (the reaction row, a
   // route revisit) reads the already-loaded index synchronously.

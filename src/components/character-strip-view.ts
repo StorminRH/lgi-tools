@@ -24,6 +24,10 @@ export type CharacterStripBinding = {
   serverValue: number[] | undefined;
 };
 
+/**
+ * Binds one character-strip setting to its typed preference key, default, and update callback so
+ * renderers do not reconstruct preference policy.
+ */
 export function stripPreferenceBinding(
   strip: CharacterStripSpec | undefined,
   initialDimmed: number[] | undefined,

@@ -61,6 +61,7 @@ function ActiveNavStrip() {
   return <NavStrip pathname={pathname} />;
 }
 
+/** Renders desktop tool navigation and its active-route indicator from the shared page menu state. */
 export function NavTools() {
   return (
     <Suspense fallback={<NavStrip pathname={null} />}>

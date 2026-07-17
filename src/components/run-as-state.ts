@@ -63,6 +63,10 @@ export type RunAsView =
   | { kind: 'anon' }
   | { kind: 'present'; characterId: number; name: string; portraitUrl: string };
 
+/**
+ * Derives the complete run-as control state from roster loading, selection, and menu inputs; every
+ * returned variant is ready to render.
+ */
 export function runAsView(
   state: { session: Session | null; loading: boolean },
   selection?: { character: BuildCharacter | null; pending: boolean },

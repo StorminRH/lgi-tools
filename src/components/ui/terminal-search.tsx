@@ -23,6 +23,10 @@ type ParseOk<Params> = { ok: true; params: Params };
 type ParseErr<Err> = { ok: false; error: Err };
 type ParseResult<Params, Err> = ParseOk<Params> | ParseErr<Err>;
 
+/**
+ * Caller contract for rendering terminal search; the component owns presentation while callers own
+ * domain data.
+ */
 export type TerminalSearchProps<Params, Err> = {
   initialValue: string;
   placeholder?: string;
@@ -41,6 +45,10 @@ export type TerminalSearchProps<Params, Err> = {
 
 type EmptyKind = 'empty';
 
+/**
+ * Renders the domain-neutral terminal search with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function TerminalSearch<Params, Err extends { kind: string }>({
   initialValue,
   placeholder,

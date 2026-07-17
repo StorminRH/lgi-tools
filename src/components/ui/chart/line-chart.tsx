@@ -19,6 +19,10 @@ type NumericScale = ((value: number) => number) & {
   invert: (x: number) => number;
 };
 
+/**
+ * Display-ready line chart axis consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export type LineChartAxis = (ctx: {
   xScale: NumericScale;
   yScale: NumericScale;

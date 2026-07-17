@@ -19,6 +19,10 @@ import { HoverCaptureRect } from './chart/hover-layer';
  * rather than by inverting an x probe).
  */
 
+/**
+ * Display-ready bar datum consumed by the shared visualization layer; callers keep all numeric
+ * values in one consistent unit.
+ */
 export type BarDatum = { label: string; value: number };
 
 const formatNumber = (value: number): string => String(value);
@@ -44,6 +48,10 @@ const MARGIN = { top: 8, right: 6, bottom: 20, left: 40 };
 // Value-axis tick count hint (d3 picks nearby round values).
 const Y_TICKS = 3;
 
+/**
+ * Renders the domain-neutral bar chart from display-ready caller data; callers own units and
+ * labels while this primitive owns geometry and interaction.
+ */
 export function BarChart({
   data,
   tone = 'green',

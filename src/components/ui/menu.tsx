@@ -18,6 +18,10 @@ import type { Tone } from './tones';
 // stay open on the new page). Backs the mobile nav hamburger today; reusable
 // anywhere a dropdown of links is wanted via `tone`.
 
+/**
+ * Closed presentation vocabulary for menu tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type MenuTone = Extract<Tone, 'neutral'>;
 
 // Abstract tone → token classes. The base owns the shared dropdown-panel SURFACE
@@ -38,6 +42,10 @@ const popup = cva(`flex flex-col outline-none ${panelSurface}`, {
 
 type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
 
+/**
+ * Renders the domain-neutral menu with house behavior and tokens; callers own semantic meaning and
+ * content while this primitive owns presentation.
+ */
 export function Menu({
   trigger,
   children,
@@ -111,6 +119,10 @@ export const MenuLinkItem = Base.LinkItem;
  * parts.
  */
 export const MenuItem = Base.Item;
+/**
+ * Adopted Base UI menu separator part exposed through the single house wrapper; consumers compose
+ * it only within this primitive family.
+ */
 export const MenuSeparator = Base.Separator;
 
 /**
@@ -120,5 +132,13 @@ export const MenuSeparator = Base.Separator;
  * on select by default — pass `closeOnClick` explicitly.
  */
 export const MenuRadioGroup = Base.RadioGroup;
+/**
+ * Adopted Base UI menu radio item part exposed through the single house wrapper; consumers compose
+ * it only within this primitive family.
+ */
 export const MenuRadioItem = Base.RadioItem;
+/**
+ * Adopted Base UI menu radio item indicator part exposed through the single house wrapper;
+ * consumers compose it only within this primitive family.
+ */
 export const MenuRadioItemIndicator = Base.RadioItemIndicator;

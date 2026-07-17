@@ -23,10 +23,22 @@ export const fieldVariants = cva(
   },
 );
 
+/**
+ * Shared text classes for field contents; wrappers reuse this token so native and library-backed
+ * controls keep identical typography.
+ */
 export const fieldText = 'text-ui font-mono text-text placeholder:text-muted';
+/**
+ * Shared focus and inset-well classes for field controls that own their visible focus border
+ * instead of the global outline.
+ */
 export const focusWell = 'focus-within:border-isk-sub focus-within:shadow-field-focus';
 const innerControl = 'w-full bg-transparent outline-none border-0 field-own-focus';
 
+/**
+ * Supported shared-field density; every input wrapper maps this value to one canonical height and
+ * text treatment.
+ */
 export type FieldSize = VariantProps<typeof fieldVariants>;
 
 /**

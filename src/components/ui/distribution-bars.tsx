@@ -6,12 +6,20 @@ import { ProgressBar } from './progress-bar';
 // hover-only histogram) — the numbers are readable at rest. Layout math is the
 // pure {@link distributionBars}; the row markup is a real list.
 
+/**
+ * Caller input shape accepted by components; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export interface DistributionInput {
   key: string;
   label: string;
   count: number;
 }
 
+/**
+ * Display-ready distribution row containing its label, count, percentage, and semantic tone;
+ * percentages use the caller's shared denominator.
+ */
 export interface DistributionBar extends DistributionInput {
   /** Share of the total across all rows (the printed %). */
   sharePct: number;
@@ -43,6 +51,10 @@ function shareLabel(pct: number): string {
   return `${pct > 0 && pct < 10 ? pct.toFixed(1) : Math.round(pct)}%`;
 }
 
+/**
+ * Renders the domain-neutral distribution bars with house behavior and tokens; callers own
+ * semantic meaning and content while this primitive owns presentation.
+ */
 export function DistributionBars({
   rows,
   formatCount = (n) => n.toLocaleString(),

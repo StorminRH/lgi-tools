@@ -64,6 +64,10 @@ function NavMenuItems() {
   );
 }
 
+/**
+ * Renders the small-screen navigation menu from the shared route definitions; the menu owns
+ * disclosure behavior while routes remain owned by the navigation model.
+ */
 export function NavMenu() {
   return (
     <Menu
