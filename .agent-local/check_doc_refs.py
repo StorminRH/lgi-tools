@@ -3,13 +3,15 @@
 
 Only spans that start with a known repository root, name a known root file, or
 declare an ``../`` archive reference are path claims. Line suffixes are
-stripped, globs must match, and missing operator-machine archive paths warn.
-Basename-only references are deliberately outside this first version.
+stripped, globs must match, deliberately ignored local outputs may be described
+before they exist, and missing operator-machine archive paths warn. Basename-only
+references are deliberately outside this first version.
 """
 
 from __future__ import annotations
 
 from fnmatch import fnmatch
+import json
 from pathlib import Path
 import re
 import sys
@@ -107,6 +109,16 @@ _ALLOWLIST = (
         "docs/**",
         "src/lib/esi-datasets/freshness.ts",
         "approved future artifact created by Session 3.9.2.3.2",
+    ),
+    (
+        "docs/**",
+        "docs/ux-check/run-probes.mjs",
+        "approved future artifact created by Session 3.9.2.5",
+    ),
+    (
+        "docs/**",
+        "docs/ux-check/probes/",
+        "approved future probe-definitions directory created by Session 3.9.2.5",
     ),
     (
         "docs/backlog.md",
@@ -233,9 +245,38 @@ def _path_exists(root: Path, token: str) -> bool:
     return (root / token).exists()
 
 
+def _ignored_paths(root: Path) -> tuple[str, ...]:
+    """Return manifest-declared local paths that need not exist in a clean clone."""
+    manifest_path = root / ".agent-local/policy-manifest.json"
+    if not manifest_path.is_file():
+        return ()
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return ()
+    ignored = manifest.get("ignoredPaths", [])
+    if not isinstance(ignored, list):
+        return ()
+    return tuple(
+        raw_path.rstrip("/")
+        for raw_path in ignored
+        if isinstance(raw_path, str) and raw_path.rstrip("/")
+    )
+
+
+def _declared_ignored(token: str, ignored_paths: tuple[str, ...]) -> bool:
+    """Return whether a repository path claim belongs to declared local state."""
+    normalized = token.rstrip("/")
+    return any(
+        normalized == ignored_path or normalized.startswith(f"{ignored_path}/")
+        for ignored_path in ignored_paths
+    )
+
+
 def collect_findings(root: Path) -> list[Finding]:
     """Report dead repository paths and missing operator-machine archive paths."""
     findings: list[Finding] = []
+    ignored_paths = _ignored_paths(root)
     for path in _source_paths(root):
         source = path.relative_to(root).as_posix()
         for line_number, line in enumerate(
@@ -244,7 +285,11 @@ def collect_findings(root: Path) -> list[Finding]:
         ):
             for match in _INLINE_CODE.finditer(line):
                 token = _normalized_path_claim(match.group(1))
-                if token is None or _allowlisted(source, token):
+                if (
+                    token is None
+                    or _allowlisted(source, token)
+                    or _declared_ignored(token, ignored_paths)
+                ):
                     continue
                 redirected = _archive_redirect(source, token)
                 if redirected is not None:

@@ -21,7 +21,7 @@
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
 | Production TS/TSX files | 757 | 758 | −1: four registry/gate/freshness modules added and five mirrored staleness modules removed |
-| Production TS/TSX LOC | 72,756 | 72,215 | +541 from the typed declaration registry and its fail-closed junction gate, offset by the runtime-gate collapse |
+| Production TS/TSX LOC | 72,785 | 72,215 | +570 from the typed declaration registry, its fail-closed junction gate, and the later route-contract follow-on; this tooling slice adds no production LOC |
 | Test files | 355 | 357 | −2: registry and freshness characterization replace four per-feature staleness suites |
 | Coverage — statements | 85.08% | 85.06% | 8,252 / 9,699 from fresh full-Postgres coverage; all 3,398 tests passed |
 | Coverage — branches | 83.32% | 83.29% | 4,908 / 5,890 |

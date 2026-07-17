@@ -1,140 +1,129 @@
-# docs/ux-check — UX verification working files
+# docs/ux-check — UX verification workspace
 
-Everything here is **local-only** (the whole `docs/` folder is gitignored — nothing
-in here is ever committed). It's the single home for UX-check artifacts so they're
-easy to find and easy to delete.
+The durable probe harness, probe definitions, and this guide are tracked project
+tooling. Generated screenshots and reports under `captures/` remain ignored local
+evidence and can be deleted at any time.
 
 ## Layout
 
 | Path | What | Lifecycle |
 | --- | --- | --- |
-| `scripts/` | Reusable feature-check probe scripts (Playwright `.mjs`) | Kept as templates; edit/copy per feature |
-| `captures/` | **All** generated screenshots + `report.json` | **Auto-wiped at the start of every capture run** — holds only the most recent run |
+| `run-probes.mjs` | Shared Playwright runner for durable interaction probes | Tracked; one owner for browser lifecycle, diagnostics, screenshots, reports, and exit gating |
+| `probes/*.mjs` | Small durable probe definitions | Tracked; one module per recurring feature check |
+| `captures/probes/` | Probe screenshots plus `report.json` | Ignored; only this subdirectory is wiped when the probe runner starts |
+| `captures/` | `pnpm ux-check` sweep screenshots and report | Ignored; the sweep refreshes the capture root as before |
 
-## Where generated files live (for cleanup)
+The probe runner never wipes the sweep's screenshots. Running `pnpm ux-check`
+afterward still starts a new sweep by clearing the capture root, so review or relay
+probe evidence before beginning that later sweep.
 
-All generated output lives under **`docs/ux-check/captures/`** — both the
-`pnpm ux-check` sweep and the probe scripts write there. It's safe to delete the
-whole folder at any time; it regenerates on the next run:
+## Run durable probes
 
-```bash
-rm -rf docs/ux-check/captures      # frees all UX screenshots/reports
-```
-
-Nothing else in the repo writes UX screenshots. (`.ux-captures/` at the repo root
-is retired — the sweep now writes to `docs/ux-check/captures/`.)
-
-> **Auto-wipe caveat:** because `captures/` is cleared at the start of each run,
-> the sweep and a probe will overwrite each other if run back-to-back. Review or
-> relay each run's shots before kicking off the next one.
-
-## Scripts (the index)
-
-Each probe needs the dev server up (`pnpm dev` → `http://localhost:3000`). They're
-**templates** — copy one and tweak the URL/selectors for the feature under test.
-
-### `docs/ux-check/scripts/eve-image-network-probe.mjs`
-Records successful image requests on home, contact, and an industry detail page.
-It writes `captures/eve-image-network-report.json` and fails if a request uses
-`/_next/image` or the console reports a loader-width or hydration error.
+Start the local app first:
 
 ```bash
-node docs/ux-check/scripts/eve-image-network-probe.mjs
+pnpm dev
 ```
 
-### `docs/ux-check/scripts/changelog-browser-probe.mjs`
-Verifies the changelog browser's canonical routes, soft-navigation state, active
-version, 404s, sitemap coverage, shared rail scrolling, and mobile disclosure.
+List available definitions, run all of them, or select names:
 
 ```bash
-node docs/ux-check/scripts/changelog-browser-probe.mjs
+node docs/ux-check/run-probes.mjs --list
+node docs/ux-check/run-probes.mjs
+node docs/ux-check/run-probes.mjs overlay-open dialog-open
 ```
 
-### `docs/ux-check/scripts/content-browser-scroll-probe.mjs`
-Verifies the shared content-browser rail at desktop and mobile widths: sticky
-follow, independent internal scrolling, page chaining at the rail boundary,
-last-item reachability, short-rail pinning, and the mobile disclosure.
+Use a different local origin when needed:
 
 ```bash
-node docs/ux-check/scripts/content-browser-scroll-probe.mjs
+node docs/ux-check/run-probes.mjs --base-url=http://localhost:3001 overlay-open
 ```
 
-### `docs/ux-check/scripts/overlay-open-probe.mjs`
-Opens an overlay (hover + tap + keyboard) on a real route, screenshots the **open**
-state at desktop + mobile, and asserts **zero `style-src` CSP violations** + keyboard
-operability (Enter opens, Escape closes) + touch-open. `pnpm ux-check` only captures
-the closed shell, so this is how overlay/interaction work gets its open-state proof.
+With no names, the runner loads every `.mjs` definition in `probes/`. It runs each
+definition in an isolated page and browser context for its declared viewports, so one
+crash is recorded without aborting the remaining probes. It never waits for
+`networkidle`; the Convex websocket keeps live pages busy indefinitely.
 
-```bash
-# defaults to the OOB.2.2 (?) help popovers on /industry/691
-node docs/ux-check/scripts/overlay-open-probe.mjs
-# adapt per feature:
-PROBE_URL=http://localhost:3000/sites/30002 \
-  PROBE_LABELS="Why this confidence|Resource detail" \
-  node docs/ux-check/scripts/overlay-open-probe.mjs
+Every viewport run automatically records:
+
+- authored checks and screenshots;
+- `style-src` CSP violations;
+- unfiltered console errors and uncaught page errors;
+- failed requests and HTTP 4xx/5xx responses.
+
+The command exits non-zero when an authored check, a definition, or a default gate
+fails. Network findings are recorded for diagnosis but are not an automatic failure,
+because some probes deliberately exercise responses such as signed-out 401s. Read the
+combined result at `captures/probes/report.json`.
+
+## Definition format
+
+A definition imports nothing. The runner discovers it and injects the complete probe
+context, keeping capture paths, Playwright lifecycle, and diagnostic policy out of
+feature checks:
+
+```js
+export default {
+  name: 'feedback-dialog',
+  route: '/',
+  viewports: ['desktop', 'mobile'], // optional; defaults to both
+  settle: 1200,                    // optional milliseconds; defaults to 1000
+  allowConsole: [/expected noise/], // optional extra RegExp filters
+  async setup({ page, baseUrl }) {
+    // Optional pre-navigation route mocks, permissions, or init scripts.
+  },
+  async run({ page, viewport, baseUrl, check, shot }) {
+    const dialog = page.getByRole('dialog');
+    check('dialog opens', await dialog.isVisible());
+    await shot('open');
+  },
+};
 ```
 
-### `docs/ux-check/scripts/dialog-open-probe.mjs`
-Opens the **`/sites` card lightbox** (the Base UI Dialog primitive). Forces the
-catalogue into lightbox mode (sets the `sites.detailMode` preference in
-localStorage — default is `expand`), clicks/taps a card summary, and asserts the
-dialog **opens** (`role="dialog"`), **Escape closes** it, and a **touch-tap opens**
-it on mobile — with **zero `style-src` CSP violations**. Functional + CSP only (no
-axe / formal a11y audit — deferred per the OOB.2.3 standing direction).
+Context members:
 
-```bash
-PROBE_URL=http://localhost:3000/sites node docs/ux-check/scripts/dialog-open-probe.mjs
-```
+| Member | Contract |
+| --- | --- |
+| `page` | The raw Playwright page for feature-specific navigation and interaction |
+| `viewport` | `'desktop'` or `'mobile'` |
+| `baseUrl` | The selected local origin |
+| `check(label, condition)` | Records a pass/fail result without throwing, so later checks still run |
+| `shot(tag)` | Writes a full-page PNG to `captures/probes/<name>--<viewport>--<tag>.png` |
 
-### `docs/ux-check/scripts/feedback-dialog-probe.mjs`
-Opens the public Feedback dialog with keyboard and touch, confirms the shared Field label moves focus into the textarea, proves Escape closes, checks style CSP/page errors, and captures both open states without wiping the route sweep.
+Use `setup` only when behavior must exist before the first navigation, such as a
+`page.route` mock or clipboard permission. Use `allowConsole` only for noise the
+definition intentionally creates; Convex/HMR/Speed-Insights development noise is
+owned centrally by the runner.
 
-```bash
-node docs/ux-check/scripts/feedback-dialog-probe.mjs
-```
+## Durable definition index
 
-### `docs/ux-check/scripts/nav-menu-probe.mjs`
-Drives the **mobile nav hamburger** (the OOB.2.4 Base UI Menu primitive) through its real flow:
-tap-open, **close-on-link-tap + actual route change** (the `pnpm ux-check` sweep opens the
-hamburger but never taps a link, so it can't prove the menu closes itself on navigation),
-keyboard Enter-open / Escape-close, and **zero `style-src` CSP violations**. Functional + CSP
-only (no axe / formal a11y audit — deferred per the OOB.2.3 standing direction).
+| Name | Recurring proof |
+| --- | --- |
+| `asset-ledger` | Logged-out asset ledger open state and totals |
+| `asset-ring-mock` | Mocked complete/partial ownership rings and holding details |
+| `changelog-browser` | Canonical routes, sitemap entries, soft navigation, sticky rail, mobile disclosure |
+| `combobox-global` | Header search focus, options, keyboard navigation, selection, and dismissal |
+| `combobox-terminal` | Planner system search focus, suggestions, selection, and dismissal |
+| `content-browser-scroll` | Shared sticky rail, internal scroll, boundary chaining, and mobile disclosure |
+| `cost-basis` | Raw/Item input-cost toggle and explanatory popover |
+| `devlog-excerpt-open` | Open Shiki excerpts, gutters, colored tokens, and permalinks |
+| `dialog-open` | Sites lightbox click/tap open and Escape close |
+| `eve-image-network` | Direct EVE image requests with no Next optimizer or hydration regression |
+| `feedback-dialog` | Keyboard/touch open, Field focus, and Escape close |
+| `me-planner` | Mocked owned research, component adjuster popover, and ME recomputation |
+| `multibuy-panel` | Tier toggles, nested help, toast, and clipboard payload |
+| `nav-menu` | Mobile open, navigation close, Enter open, and Escape close |
+| `overlay-open` | Desktop hover/keyboard and mobile tap for planner help overlays |
+| `templates-menu` | Signed-out saved-template panel, 401 toast, and unknown-plan cleanup |
 
-```bash
-PROBE_URL=http://localhost:3000/ node docs/ux-check/scripts/nav-menu-probe.mjs
-```
+## Add or explore a probe
 
-### `docs/ux-check/scripts/templates-menu-probe.mjs`
-Drives the **saved-templates popover** (3.7.23, PlannerHead left cluster) and the
-**`?plan=` loader** through their logged-out arms: click-open + Escape-close, the
-signed-out empty state, the save 401 error toast, and the loader's not-found toast
-followed by the `history.replaceState` param strip — with **zero `style-src` CSP
-violations**. The signed-in save/load/rename/favorite/delete flows are Ryan's
-logged-in review.
+When a behavior will recur, add a small definition in `probes/`, run it by name, and
+add its purpose to the index above. Keep all generic lifecycle and diagnostic behavior
+in `run-probes.mjs`; a definition should contain only the feature interaction and its
+checks.
 
-```bash
-PROBE_URL=http://localhost:3000/industry/692 node docs/ux-check/scripts/templates-menu-probe.mjs
-```
-
-### `docs/ux-check/scripts/csp-probe.mjs` — ⚠️ retired (route removed)
-> **Retired:** this probe and its `/dev/sandbox/*` siblings (`toast-csp-probe.mjs`,
-> `mapper-csp-probe.mjs`, `me-adjuster-probe.mjs`) target the `/dev/sandbox/*` harness routes
-> that were deleted with the #210 `/dev` cleanup, so they now 404 and no longer run. Kept as
-> templates for the "open a set of overlays and check CSP" pattern — re-point `PROBE_URL` at a
-> real route to reuse one.
-
-Opens every overlay on the `/dev/sandbox/overlays` harness and records all
-`SecurityPolicyViolation` events — the OOB.2.1 proof that Base UI's internal inline
-positioner style is CSP-clean. A good template for "open a set of overlays and check
-CSP" without screenshots.
-
-```bash
-PROBE_URL=http://localhost:3000/dev/sandbox/overlays node docs/ux-check/scripts/csp-probe.mjs
-```
-
-## Adding a probe
-
-Drop a new `.mjs` in `scripts/`, write its screenshots to `docs/ux-check/captures/`
-(wipe it at the start so storage doesn't creep — see `overlay-open-probe.mjs`), and
-add a one-line entry to the index above. Keep them disposable: a probe that's served
-its purpose can just be deleted.
+One-off exploration remains allowed. A scratch `*-probe.mjs` may live outside
+`probes/` during a session, but the agent drift check warns about it so it cannot be
+forgotten. Delete scratch probes at close-out. Do not promote a genuine one-shot into a
+durable definition "just in case."

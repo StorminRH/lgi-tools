@@ -1,5 +1,5 @@
 {
-  "policyRevision": 20,
+  "policyRevision": 21,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -229,6 +229,9 @@
         "localhost:3000",
         "127\\.0\\.0\\.1",
         "logged-out",
+        "run-probes\\.mjs",
+        "probe definition",
+        "scratch[^.]*drift[^.]*delete",
         "Ryan",
         "close-out"
       ],
@@ -250,6 +253,11 @@
       "Codex's local image",
       "generic Codex preview"
     ]
+  },
+  "probeLayout": {
+    "definitionsDir": "docs/ux-check/probes",
+    "runner": "docs/ux-check/run-probes.mjs",
+    "strayPattern": "*-probe.mjs"
   },
   "requiredPaths": [
     ".agent-local/check_agent_drift.py",
@@ -283,6 +291,7 @@
     ".claude/settings.json",
     "docs/CODE_HEALTH_BASELINE.md",
     "docs/ux-check/README.md",
+    "docs/ux-check/run-probes.mjs",
     "scripts/route-classification.json",
     ".agents/skills/plan-version/agents/openai.yaml",
     ".agents/skills/plan-session/agents/openai.yaml",
