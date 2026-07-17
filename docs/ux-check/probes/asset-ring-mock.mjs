@@ -5,10 +5,11 @@ export default {
   settle: 2200,
   async setup({ page }) {
     await page.route('**/api/industry/owned-assets', async (route) => {
-      let typeIds = [];
-      try {
-        typeIds = JSON.parse(route.request().postData() ?? '{}').typeIds ?? [];
-      } catch {}
+      const body = route.request().postDataJSON();
+      if (!Array.isArray(body?.typeIds)) {
+        throw new Error('asset-ring-mock expected an owned-assets typeIds array');
+      }
+      const typeIds = body.typeIds;
       const assets = typeIds.map((typeId, index) => {
         const ownedQty = index % 3 === 0 ? 10_000_000_000 : index % 3 === 1 ? 4000 : 120;
         return {
