@@ -36,7 +36,7 @@
 | Concern-hook consumers | 22 calls / 11 files | 22 calls / 11 files | Carried from the AF-005 delivery measurement at this same ref |
 | Threshold overrides | 0 | 0 | `.fallowrc.json` `thresholdOverrides` is empty; confirmed fresh |
 | Source suppressions | 21 | 21 | Count re-verified; composition unchanged since the cycle-1 per-site review |
-| Whole-version Fallow clone groups | 1 | 1 | Only `dup:b54bf337` (13 lines × 2 cron shells, gate-excluded, inherited); classified AF-009 Watch in cycle 2 |
+| Whole-version Fallow clone groups | 0 | 1 | `dup:b54bf337` was removed as a byproduct of the wake-policy-driven cron shell expansion; no clone groups remain |
 | Accepted duplication baseline clone groups | 0 | 0 | `fallow-baselines/dupes.json` remains empty; nothing waived |
 
 The version-start shape was extracted with `git archive` during cycle 1 and
@@ -89,7 +89,7 @@ not run under the current dependency and toolchain state.
 | `src/data/telemetry/queries.ts` | 507 LOC; 25 exports; 55 fan-in; zero remediation-phase churn | Keep query groups aligned to one stored event vocabulary; split the next independent persistence/read axis instead of adding another helper family | Watch (AF-006); countable trigger below; judgment: the new export must come from a new axis, or renewed multi-session growth |
 | `src/data/esi-refresh-jobs/queries.ts` | 359 LOC; 12 exports; one queue lifecycle axis with explicit transitions and retention | Preserve lifecycle cohesion; extract only on a second persistence concern or independently changing admin contract | Watch (AF-007); countable trigger below; judgment: a second change axis also promotes |
 | `auth-surface` zone | Exactly three cross-slice contract files, classified ahead of `features/auth`; 35 zones / 35 rules overall | Do not widen. Promote shared contracts to a real platform module if a fourth file is needed | Watch (AF-008); countable trigger below |
-| Cron route shells | `dup:b54bf337`: 13 boring wiring lines cloned between the affiliation and industry-index cron routes; sequencing already owned by `runCronJob`; lock keys and response types are route-owned | Leave as boring shape; extract or accept only when a third instance appears | Watch (AF-009); countable trigger below; judgment: clone-group line growth also promotes |
+| Cron route declarations | Six routes now declare identity, wake class, lock and recording policy, and work to one shell; the old affiliation/industry-index clone and route-local telemetry logger are gone, while the drain keeps `runCronJob` only until session 3.9.2.2.2 | Preserve `defineCronRoute` as the sole route-level auth/lock/telemetry owner and complete the drain's idle-silent migration in 3.9.2.2.2 without widening the declaration spec ahead of its consumer | AF-009 Closed as a byproduct of the wake-policy-driven shell expansion; the clone itself never tripped its promotion trigger |
 
 ### Watch triggers
 
@@ -107,10 +107,6 @@ AF-007: exports(src/data/esi-refresh-jobs/queries.ts) > 15
 
 ```watch-trigger
 AF-008: files(zone:auth-surface) >= 4
-```
-
-```watch-trigger
-AF-009: clones(dup:b54bf337) >= 3
 ```
 
 The admin ops composition is not a hotspot: `OpsSection.tsx` is four independent
@@ -164,12 +160,10 @@ zero above-threshold functions.
 - Gate mode: `new-only`.
 - Baseline file: `fallow-baselines/dupes.json`.
 - Accepted clone groups: **0**.
-- The whole-version pinned audit finds **1 inherited, gate-excluded clone group /
-  26 lines / 2 files**: `dup:b54bf337` between the affiliation and
-  industry-index cron shells — classified **AF-009 Watch** (boring shape; the
-  sequencing owner is `runCronJob`). It is deliberately neither accepted into
-  the baseline nor extracted; the promotion trigger lives in AF-009's
-  `watch-trigger` block above.
+- The whole-version pinned audit finds **0 clone groups**. The former
+  `dup:b54bf337` affiliation/industry-index shell disappeared as a byproduct of
+  expanding the cron seam for wake-class and recording-policy ownership, not
+  because the clone itself promoted. AF-009 is closed with no baseline waiver.
 
 ## Campaign queue
 
@@ -179,4 +173,5 @@ zero above-threshold functions.
 The queue is empty. All three v3.8 campaigns (mutation-route pipeline / AF-001,
 auth query ownership / AF-004, pricing-context decomposition / AF-005) were
 Verified by audit cycle 2 and closed with the version. Future structural work
-enters through the Watch triggers above (AF-006–AF-009) or a new version audit.
+enters through the Watch triggers above (AF-006–AF-008) or a new version audit;
+AF-009 closed during 3.9.2.2's wake-policy expansion.
