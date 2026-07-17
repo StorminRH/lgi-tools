@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   alert: vi.fn(),
   configured: vi.fn(),
   emitDomainEvent: vi.fn(),
+  recentExhaustion: vi.fn(),
 }));
 
 vi.mock('@/data/domain-events/queries', () => ({
@@ -24,6 +25,9 @@ vi.mock('@/lib/alerts', () => ({
   alertPublicEsiBudgetExhaustion: mocks.alert,
   isOpsAlertConfigured: mocks.configured,
 }));
+vi.mock('@/lib/esi/exhaustion-marker', () => ({
+  hasRecentBudgetExhaustion: mocks.recentExhaustion,
+}));
 
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
@@ -35,6 +39,17 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
     mocks.complete.mockResolvedValue(undefined);
     mocks.alert.mockResolvedValue(true);
     mocks.configured.mockReturnValue(true);
+    mocks.recentExhaustion.mockResolvedValue(true);
+  });
+
+  it('skips every Neon read when no recent exhaustion marker exists', async () => {
+    mocks.recentExhaustion.mockResolvedValue(false);
+
+    await expect(maybeAlertPublicEsiBudgetExhaustion()).resolves.toEqual({
+      status: 'no-recent-exhaustion',
+    });
+    expect(mocks.count).not.toHaveBeenCalled();
+    expect(mocks.hasAlert).not.toHaveBeenCalled();
   });
 
   it('does not alert below three public exhaustion events', async () => {
@@ -44,6 +59,17 @@ describe('maybeAlertPublicEsiBudgetExhaustion', () => {
       count: 2,
     });
     expect(mocks.alert).not.toHaveBeenCalled();
+  });
+
+  it('preserves the Neon-backed path when marker state is unknown', async () => {
+    mocks.recentExhaustion.mockResolvedValue('unknown');
+    mocks.count.mockResolvedValue(0);
+
+    await expect(maybeAlertPublicEsiBudgetExhaustion()).resolves.toEqual({
+      status: 'below-threshold',
+      count: 0,
+    });
+    expect(mocks.count).toHaveBeenCalledOnce();
   });
 
   it('alerts once at the threshold and records the aggregation marker', async () => {
