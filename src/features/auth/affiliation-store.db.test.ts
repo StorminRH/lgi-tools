@@ -1,14 +1,11 @@
 import { asc, eq } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+  createDbTestHarness,
+  seedCharacter as insertCharacter,
+  seedEveAccount as insertEveAccount,
+  seedUser,
+} from '@/db/test-support/db-test-harness';
 import { AFFILIATION_TTL_MS } from './membership';
 import {
   getCharacterAffiliation,
@@ -17,51 +14,22 @@ import {
   recordCorpAccessDecision,
   upsertAffiliations,
 } from './affiliation-store';
-import { account, characters, corpAccessAudit, user } from './schema';
+import { characters, corpAccessAudit } from './schema';
 
-const SCHEMA = 'test_auth_affiliation_store';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_auth_affiliation_store',
+  tables: ['user', 'account', 'characters', 'corp_access_audit'],
+  steerDbProxy: true,
+  resetBetweenTests: 'delete',
+});
 
 const USER_ID = 'affiliation-user';
 const FIRST_CHAR = 90000011;
 const SECOND_CHAR = 90000012;
 
-describe.skipIf(!reachable)('affiliation-store queries (real Postgres)', () => {
-  let adminClient: ReturnType<typeof postgres>;
-  let seedDb: ReturnType<typeof drizzlePg>;
-
-  beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 4, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, [
-      'user',
-      'account',
-      'characters',
-      'corp_access_audit',
-    ]);
-    seedDb = drizzlePg(adminClient);
-  });
-
-  afterAll(async () => {
-    const proxyClient = (
-      (await import('@/db')).db as unknown as { $client: ReturnType<typeof postgres> }
-    ).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
-  });
-
+describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)', () => {
   beforeEach(async () => {
-    await adminClient.unsafe('DELETE FROM corp_access_audit');
-    await adminClient.unsafe('DELETE FROM account');
-    await adminClient.unsafe('DELETE FROM characters');
-    await adminClient.unsafe('DELETE FROM "user"');
-    await seedDb.insert(user).values({
-      id: USER_ID,
+    await seedUser(harness.db, USER_ID, {
       name: 'Affiliation Pilot',
       email: `${USER_ID}@eve.invalid`,
     });
@@ -71,21 +39,14 @@ describe.skipIf(!reachable)('affiliation-store queries (real Postgres)', () => {
     characterId: number,
     overrides: Partial<typeof characters.$inferInsert> = {},
   ) {
-    await seedDb.insert(characters).values({
-      characterId,
-      name: `Character ${characterId}`,
+    await insertCharacter(harness.db, characterId, {
       portraitUrl: `https://images.example/${characterId}`,
       ...overrides,
     });
   }
 
   async function seedEveAccount(id: string, characterId: number) {
-    await seedDb.insert(account).values({
-      id,
-      accountId: String(characterId),
-      providerId: 'eve',
-      userId: USER_ID,
-    });
+    await insertEveAccount(harness.db, { id, characterId, userId: USER_ID });
   }
 
   it('returns joined affiliation rows and fails closed across missing profile fields', async () => {
@@ -159,7 +120,7 @@ describe.skipIf(!reachable)('affiliation-store queries (real Postgres)', () => {
     ]);
     await upsertAffiliations([]);
 
-    const rows = await seedDb.select().from(characters).orderBy(asc(characters.characterId));
+    const rows = await harness.db.select().from(characters).orderBy(asc(characters.characterId));
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       characterId: FIRST_CHAR,
@@ -186,7 +147,7 @@ describe.skipIf(!reachable)('affiliation-store queries (real Postgres)', () => {
       reason: 'no_current_member',
     });
 
-    const rows = await seedDb
+    const rows = await harness.db
       .select()
       .from(corpAccessAudit)
       .where(eq(corpAccessAudit.userId, USER_ID))
