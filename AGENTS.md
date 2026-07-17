@@ -198,6 +198,11 @@ Detailed source-level UI and rendering rules live in `src/AGENTS.md` and apply a
 
 Use Vitest and co-locate tests as `foo.test.ts` beside `foo.ts`.
 
+- Real-Postgres suites are named `*.db.test.ts` and use `createDbTestHarness`,
+  which owns DB reachability gating, disposable-schema clones of the migrated
+  local `public` schema, request-path proxy steering, common identity seeds,
+  resets, and teardown. Direct `postgres()` construction and embedded
+  connection strings in DB suites are lint-banned.
 - Add tests organically for new or changed testable behavior: pure functions, math, query helpers, data transforms, state machines, and error/empty/loading branches.
 - Test behavior, not implementation structure or layout. Prefer visible text/roles for unavoidable component tests.
 - Extract branching logic from components into small testable functions; leave static presentational shells to visual review.

@@ -526,7 +526,7 @@ wrapper, `cronLogger`), the full per-owner sync engine
 mutation-route pipeline (`src/app/api/mutation-route.ts`), body parsing
 (`route-body.ts`), two registry-with-gate patterns (purge contributors,
 table-growth), the schema-steered Postgres harness
-(`src/db/test-support/db-coverage-harness.ts`), and the junction manifests
+(`src/db/test-support/db-test-harness.ts`), and the junction manifests
 (`search/register-all.ts`, `purge/register-all.ts`, `db/sde-pipeline.ts`).
 Every slice below names which existing primitive it expands or which
 verified repetition it collapses.
@@ -572,7 +572,7 @@ from a coverage-suite helper into the repo's first-class DB test primitive,
 so characterization work (this arc's and every future campaign's) stops
 hand-assembling setup.
 
-**Verdict & evidence.** *Expand* `src/db/test-support/db-coverage-harness.ts`.
+**Verdict & evidence.** *Expand* `src/db/test-support/db-test-harness.ts`.
 The 3.8.5.x campaigns built five-plus real-Postgres suites (auth migration
 25-scenario coverage, retention boundaries, concurrency cases) that each
 re-assemble reachability gating, schema steering, seeding, and teardown
