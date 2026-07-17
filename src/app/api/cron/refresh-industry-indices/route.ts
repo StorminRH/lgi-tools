@@ -22,6 +22,7 @@ export const maxDuration = 60;
  * consumes no body or query parameters.
  */
 // authz: cron
+// input: none
 export const GET = defineCronRoute<CronRefreshIndustryIndicesResponse>(
   refreshIndustryIndicesDeclaration,
 );

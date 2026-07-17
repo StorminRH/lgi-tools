@@ -13,6 +13,7 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
  * The client derives the live countdown from each entry's absolute finish_date.
  */
 // authz: auth
+// input: none
 // validation: none — no request input (the user id is session-derived, not client-posted)
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();

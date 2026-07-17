@@ -5,6 +5,7 @@
 // caller; anonymous → empty list (the roster only mounts for a signed-in pilot).
 // No token material, no raw scope string. No user input to validate.
 // authz: auth
+// input: none
 import type { AccountCharactersResponse } from '@/features/auth/api-contract';
 import { toPanelCharacter } from '@/features/auth/panel-character';
 import { listLinkedCharacters } from '@/features/auth/linked-characters';

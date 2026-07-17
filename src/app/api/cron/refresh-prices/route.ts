@@ -26,6 +26,7 @@ export const maxDuration = 120;
  * consumes no body or query parameters.
  */
 // authz: cron
+// input: none
 export const GET = defineCronRoute<CronRefreshPricesResponse>(
   refreshPricesDeclaration,
 );

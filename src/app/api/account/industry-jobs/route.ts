@@ -14,6 +14,7 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
  * end_date — there is no server-side completion flip.
  */
 // authz: auth
+// input: none
 // validation: none — no request input (the user id is session-derived, not client-posted)
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();

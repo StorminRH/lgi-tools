@@ -11,7 +11,7 @@
 | --- | --- |
 | Date | 2026-07-17 |
 | App version | 3.9.2.3 |
-| Code ref | `c17e9d6097f2a42c826d74285602be5b6211d6cb` on `codex/3.9.2.3-esi-dataset-registry` |
+| Code ref | `eefc59f23fe035e402275202d27c4b9bed1756a8` on `main` |
 | Measurement scope | Targeted: ESI dataset declarations, placement gate, runtime freshness decisions, and recurrence rails |
 | Previous comparison | 2026-07-17 / 3.9.2.2 / `898871f…` (targeted cron wake-policy pass) |
 | Health trend | Thirteen external datasets now declare placement, upstream freshness, ownership, and mirrors once; one runtime leaf serves every static window and expires-boundary verdict, six mirrored gates are gone, and the new rails reject a duplicated TTL or feature-local staleness import. |

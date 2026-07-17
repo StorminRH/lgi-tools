@@ -19,6 +19,7 @@ import { syncSweeperDeclaration } from './declaration';
  * No user input — bearer-auth only, body and query params ignored.
  */
 // authz: cron
+// input: none
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 export const GET = defineCronRoute<CronSyncSweeperResponse>(
   syncSweeperDeclaration,

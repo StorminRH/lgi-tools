@@ -1,8 +1,11 @@
 import type { NextRequest } from 'next/server';
-import type { SiteListApiItem } from '@/features/wormhole-sites/api-contract';
+import type {
+  ApiError,
+  SiteListApiItem,
+} from '@/features/wormhole-sites/api-contract';
 import { listSites } from '@/features/wormhole-sites/queries';
 import { parseSitesQuery } from '@/features/wormhole-sites/sites-query';
-import type { ApiError, SiteListItem } from '@/features/wormhole-sites/types';
+import type { SiteListItem } from '@/features/wormhole-sites/types';
 
 function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiItem {
   return { ...rest, sheetResourceValueIsk: resourceValueIsk };
@@ -13,6 +16,7 @@ function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiIte
  * typed response mapping.
  */
 // authz: public
+// input: query
 export async function GET(request: NextRequest): Promise<Response> {
   const parsed = parseSitesQuery(
     request.nextUrl.searchParams.get('type'),

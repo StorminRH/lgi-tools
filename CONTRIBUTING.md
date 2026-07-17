@@ -155,7 +155,10 @@ These are load-bearing constraints, several **lint-enforced**:
   in the **route handler** (not in queries). The schema and the route's response
   types live in the owning slice's `api-contract.ts`; clients call `apiFetch`
   (`src/lib/api-client.ts`) with that slice's endpoint object — never a raw
-  `fetch('/api/…')`.
+  `fetch('/api/…')`. Routes without a JSON/form body declare exactly one
+  own-line marker: `// input: none` when they read no caller input, or
+  `// input: query` when they read query/path input; body-consuming routes carry
+  no input marker.
 - **Server env.** Read server-side env through `readEnv`/`requireEnv`
   (`src/lib/env.ts`), the one validated registry — never `process.env` directly.
   (`NODE_ENV` and `NEXT_PUBLIC_*` stay direct reads.)

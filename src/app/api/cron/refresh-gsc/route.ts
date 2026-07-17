@@ -21,6 +21,7 @@ import { refreshGscDeclaration } from './declaration';
  * auth and consumes no body or query parameters.
  */
 // authz: cron
+// input: none
 export const GET = defineCronRoute<CronRefreshGscResponse>(
   refreshGscDeclaration,
 );

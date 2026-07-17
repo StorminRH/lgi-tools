@@ -17,6 +17,7 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
  * from the session, never the client); an anonymous caller gets an empty list.
  */
 // authz: auth
+// input: none
 // validation: none — no request input (the user id is session-derived, not client-posted)
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();

@@ -13,6 +13,7 @@ import { rateLimitGuard } from '@/lib/rate-limit';
  * No user input — acts on the session user only (never a body-supplied id).
  */
 // authz: auth
+// input: none
 export async function POST(request: NextRequest): Promise<Response> {
   const limit = await rateLimitGuard(request, {
     name: 'account-logout-everywhere',

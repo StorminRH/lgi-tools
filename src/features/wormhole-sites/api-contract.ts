@@ -1,9 +1,12 @@
 // API wire contracts owned by the wormhole-sites feature (3.4.T). The detail
-// response is `SiteDetail` and errors are `ApiError` — both already exported
-// wire shapes in ./types (no Date fields, so the TS type IS the wire truth).
+// response is `SiteDetail` and errors are `ApiError` — both are wire shapes
+// from ./types with no Date fields, re-exported here so routes and clients
+// share this contract module as their one API surface.
 import { z } from 'zod';
 import { SITE_TYPES, WORMHOLE_CLASSES } from './schema';
 import type { SiteListItem } from './types';
+
+export type { ApiError, SiteDetail } from './types';
 
 // ── GET /api/sites ──────────────────────────────────────────────────────
 

@@ -10,6 +10,7 @@ import { getSystemSearchIndex } from '@/data/eve-data/queries';
  * (Validation invariant: no input to validate.)
  */
 // authz: public
+// input: none
 export async function GET(): Promise<Response> {
   const systems = await getSystemSearchIndex();
   return Response.json({ systems } satisfies SystemsResponse);

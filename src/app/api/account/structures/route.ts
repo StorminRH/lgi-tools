@@ -21,6 +21,7 @@ import { getCurrentUserId } from '@/features/auth/session';
  * so the planner computes the bonus client-side. Anonymous callers get an empty list.
  */
 // authz: auth
+// input: none
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) return Response.json({ structures: [] } satisfies AvailableStructuresResponse);

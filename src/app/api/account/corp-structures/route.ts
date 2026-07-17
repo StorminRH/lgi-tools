@@ -15,6 +15,7 @@ import type { CorpStructuresResponse } from '@/features/owned-structures/api-con
  * consumes this lands next session.
  */
 // authz: auth
+// input: none
 // validation: none — no request input (the user id is session-derived, not client-posted)
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
