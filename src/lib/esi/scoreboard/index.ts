@@ -1,4 +1,4 @@
-import { readEnv } from '@/lib/env';
+import { resolveUpstashRest } from '@/lib/upstash';
 import { createMemoryScoreboard, readMemoryBudgetSnapshot } from './memory';
 import { createRedisScoreboard, readRedisBudgetSnapshot } from './redis';
 import type { EsiBudgetSnapshot, EsiScoreboard } from './types';
@@ -23,17 +23,6 @@ export {
 } from './types';
 export { normalizeEsiPath } from './keys';
 
-// Same dual-naming acceptance as src/lib/rate-limit.ts: the Vercel
-// marketplace provisions KV_REST_API_*, a direct Upstash signup gives
-// UPSTASH_REDIS_REST_*.
-function redisUrl(): string | undefined {
-  return readEnv('KV_REST_API_URL') ?? readEnv('UPSTASH_REDIS_REST_URL');
-}
-
-function redisToken(): string | undefined {
-  return readEnv('KV_REST_API_TOKEN') ?? readEnv('UPSTASH_REDIS_REST_TOKEN');
-}
-
 type ResolvedScoreboard =
   | { backend: 'redis'; scoreboard: ReturnType<typeof createRedisScoreboard> }
   | { backend: 'memory'; scoreboard: ReturnType<typeof createMemoryScoreboard> };
@@ -49,13 +38,12 @@ let erroredMissingEnvProd = false;
 // fails closed, and the one-time error makes the misconfigured deploy
 // diagnosable from runtime logs.
 function resolveConcreteScoreboard(): ResolvedScoreboard | null {
-  const url = redisUrl();
-  const token = redisToken();
-  if (url && token) {
-    const cached = redisScoreboards.get(url);
+  const upstash = resolveUpstashRest();
+  if (upstash) {
+    const cached = redisScoreboards.get(upstash.url);
     if (cached) return { backend: 'redis', scoreboard: cached };
-    const created = createRedisScoreboard(url, token);
-    redisScoreboards.set(url, created);
+    const created = createRedisScoreboard(upstash.url, upstash.token);
+    redisScoreboards.set(upstash.url, created);
     return { backend: 'redis', scoreboard: created };
   }
 
