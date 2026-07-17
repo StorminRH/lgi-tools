@@ -11,7 +11,7 @@ description: >-
 
 # Run an LGI.tools version audit
 
-<!-- shared-policy-revision: 18 -->
+<!-- shared-policy-revision: 19 -->
 
 Follow `docs/VERSION_AUDIT.md`; read `docs/DESIGN_PRINCIPLES.md`, the current
 baseline, and the approved audit plan first. Invocation authorizes audit-local
@@ -35,6 +35,9 @@ required (`Audit status: Remediation required`) and stops without archival;
 Watch is non-blocking only with
 an explicit trigger. Mark Complete and archive only when every actionable
 finding is Verified, the current cycle is clean, required gates pass, and the
-baseline matches the Audited ref. Periodic mode stops without archival. Finally update
-SCRATCHPAD, rerun the resolver, report its new directive, run the drift check,
-and return control to `start-session` without predicting the next stage.
+baseline matches the Audited ref. Periodic mode stops without archival. For the
+clean version-close transition, require `verify_archive.py --check --phase pre`,
+copy the complete bundle, then require `verify_archive.py --check --phase post`
+before removing active sources. Finally update SCRATCHPAD, rerun the resolver,
+report its new directive, run the drift check, and return control to
+`start-session` without predicting the next stage.

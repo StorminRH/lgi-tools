@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 from contextlib import redirect_stdout
 from io import StringIO
 import json
@@ -54,6 +55,28 @@ class CheckerCommonTests(unittest.TestCase):
 
         with redirect_stdout(StringIO()):
             self.assertEqual(0, run_checker(warnings_only, ["--check"]))
+
+    def test_script_specific_arguments_use_two_argument_collector(self) -> None:
+        def add_arguments(parser: argparse.ArgumentParser) -> None:
+            parser.add_argument("--label", required=True)
+
+        def collect(_root: Path, args: argparse.Namespace) -> list[Finding]:
+            return [Finding("docs/example.md", 2, args.label, "warn")]
+
+        stdout = StringIO()
+        with redirect_stdout(stdout):
+            self.assertEqual(
+                0,
+                run_checker(
+                    collect,
+                    ["--label", "custom argument"],
+                    add_arguments,
+                ),
+            )
+        self.assertEqual(
+            ["docs/example.md:2: custom argument"],
+            json.loads(stdout.getvalue())["warnings"],
+        )
 
 
 if __name__ == "__main__":

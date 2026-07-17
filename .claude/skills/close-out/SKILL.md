@@ -10,7 +10,7 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 18 -->
+<!-- shared-policy-revision: 19 -->
 
 Sequence the canonical docs; do not duplicate them. Read
 `docs/DESIGN_PRINCIPLES.md`, `docs/CODE_HEALTH_BASELINE.md`,
@@ -37,9 +37,12 @@ status Complete. If sessions remain, stop after commit/push/handoff. For a final
 `pre-pr-design-review` and follow `docs/PRE_PR_DESIGN_REVIEW.md`. Reconcile any
 changed hotspot surface in the baseline
 before continuing. Only after that gate passes, follow `docs/PR_REVIEW.md`: use
-`## What this does`, `## Why`, `## Notes`, `## Test plan`; scrub personal information,
-create the body through a temporary Markdown body-file, and read
-the published body back before polling; run the Greptile loop; perform the
+`## What this does`, `## Why`, `## Notes`, `## Test plan`; require
+`check_release_consistency.py --check --expect pre-pr` and
+`scrub_pr_body.py --check --body-file ... --title ...` to block personal information;
+create the body through
+a temporary Markdown body-file and rerun the scrub on the published read-back
+before polling; run the Greptile loop; perform the
 merge-time re-read; merge under the authorization above; and finish browser-first
 after-merge reconciliation.
 
@@ -47,7 +50,10 @@ After merge/reconciliation, mark a mapped `AF-NNN` finding Delivered only after
 all of its remediation sub-versions have terminal merge evidence. Do not archive
 here. Run the resolver, report its directive, and return control to
 `start-session`; close-out never selects the next lifecycle handler itself. Keep
-the tracked reconciliation local and carry it as the first commit on the next
-lifecycle branch; the intentional one-PR lag never justifies a follow-up PR or
-direct push to `main`.
+the tracked reconciliation local and, only after the resolver rerun, carry it as
+the first commit on the branch named for the selected lifecycle action. Require
+`check_release_consistency.py --check --expect reconciled` after that commit;
+the intentional one-PR lag never justifies a follow-up PR or direct push to
+`main`. `verify_archive.py` belongs only to the resolver-selected version-audit
+archive transition, not close-out.
 Finish with the agent drift check.

@@ -52,8 +52,16 @@ Expect Greptile to find real issues; that's the point of consolidating the revie
   CLI's body-file option. Do not interpolate a Markdown PR body directly into a
   shell command: backticks and substitutions can execute locally, corrupt the
   body, or expose local information. After creating or editing the PR, read the
-  published body back from GitHub and confirm both the four-section format and
-  the privacy scrub before starting the review poll.
+  published body back from GitHub into a temporary body-file and rerun the scrub
+  before starting the review poll. Both pre-publish gates are mechanical:
+
+  ```bash
+  python3 .agent-local/check_release_consistency.py --check --expect pre-pr
+  python3 .agent-local/scrub_pr_body.py --check --body-file <body-file> --title "<title>"
+  ```
+
+  After GitHub read-back, rerun `scrub_pr_body.py --check` against the published
+  body-file and title; a finding blocks the review loop.
 - Confirm the local close-out gates are green: `pnpm verify`, then a fresh
   `pnpm test:coverage`, then
   `FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm fallow`. The second Fallow
@@ -316,8 +324,12 @@ automatically. After merge:
 - Change the merged session plan's `Execution status` to `Complete` and mark the
   master-plan row terminal with the actual PR/merge evidence. These two updates
   are what let the lifecycle resolver advance safely.
-- If sessions remain, cut a fresh branch for the next sub-version off the
-  updated `main`.
+- Rerun the resolver after that reconciliation. Create a fresh branch from the
+  updated `main` only after the resolver names the next lifecycle action, and
+  name the branch for that selected action rather than choosing a nearby task.
+  Make the reconciliation its first commit, then require
+  `python3 .agent-local/check_release_consistency.py --check --expect reconciled`
+  to pass. The commit remains local until that next branch's normal PR.
 - **At version close** (the final master-plan row became terminal): do not
   archive or cut the next version branch here. Leave the master plan, contracts,
   session plans, and SCRATCHPAD evidence active, then run the resolver.

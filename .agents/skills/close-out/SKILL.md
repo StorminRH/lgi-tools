@@ -11,7 +11,7 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 18 -->
+<!-- shared-policy-revision: 19 -->
 
 This skill sequences canonical documents and carries merge authorization; it
 does not restate their procedures. Read `docs/DESIGN_PRINCIPLES.md` as the
@@ -48,17 +48,23 @@ a failed gate or any unrelated production action.
 6. Only then read and follow `docs/PR_REVIEW.md`: open the one PR using
    `## What this does`, `## Why`, `## Notes`, and `## Test plan`; run fresh
    `pnpm test:coverage` plus coverage-backed Fallow as required; complete the
-   required personal information scrub, create the body through a temporary
-   Markdown body-file, and read the published body back before polling; complete
-   the Greptile loop; perform the merge-time re-read; merge only under the
-   authorization above; and complete browser-first after-merge reconciliation.
+   required personal information scrub; require
+   `check_release_consistency.py --check --expect pre-pr` and
+   `scrub_pr_body.py --check --body-file ... --title ...`; create the body through
+   a temporary Markdown body-file and rerun the scrub on the published read-back
+   before polling; complete the Greptile loop; perform the merge-time re-read;
+   merge only under the authorization above; and complete browser-first
+   after-merge reconciliation.
 7. After merge/reconciliation, mark an audit finding Delivered only when all
    mapped sub-versions have terminal merge evidence. Do not archive here. Run
    the resolver, report its directive, and return control to `start-session`;
    close-out never selects the next lifecycle handler itself. Keep the tracked
-   reconciliation local and carry it as the first commit on the next lifecycle
-   branch; the intentional one-PR lag never justifies a follow-up PR or direct
-   push to `main`.
+   reconciliation local and, only after the resolver rerun, carry it as the
+   first commit on the branch named for the selected lifecycle action. Require
+   `check_release_consistency.py --check --expect reconciled` after that commit;
+   the intentional one-PR lag never justifies a follow-up PR or direct push to
+   `main`. `verify_archive.py` is not run here: the resolver-selected
+   `version-audit` handler owns its pre-copy and post-copy archive gates.
 
 Finish by reconciling the narrow ignored local-state boundary and running
 `python3 .agent-local/check_agent_drift.py`.

@@ -143,9 +143,12 @@ In short:
 - Do **not** write a forensic session log here. Discoveries and gotchas only.
 - **Carry post-merge lifecycle evidence forward by one PR.** After a merge,
   reconcile the tracked roadmap, session plan, and SCRATCHPAD locally, then make
-  that reconciliation the first commit on the branch selected by the resolver's
-  next action. The remote documents intentionally lag by one PR; do not open a
-  follow-up PR or push directly to `main` solely to publish the status update.
+  that reconciliation the first commit on a branch created only after rerunning
+  the resolver and named for its selected next action. The branch is not an
+  agent choice. After the reconciliation commit, require `python3
+  .agent-local/check_release_consistency.py --check --expect reconciled` to pass.
+  The remote documents intentionally lag by one PR; do not open a follow-up PR
+  or push directly to `main` solely to publish the status update.
 
 ---
 

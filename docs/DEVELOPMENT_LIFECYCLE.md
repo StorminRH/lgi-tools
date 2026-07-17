@@ -171,10 +171,13 @@ restart, or archival.
 
 Lifecycle artifacts are tracked, but their terminal delivery evidence exists
 only after merge. Close-out therefore reconciles the local artifacts immediately
-after merge and carries that reconciliation as the first commit on the branch
-selected for the next lifecycle action. The remote copy intentionally has a
-one-PR lag. Never mark delivery terminal before evidence exists, open a second
-PR solely for reconciliation, or push directly to `main` to eliminate the lag.
+after merge, reruns the resolver, and only then creates and names the branch for
+the resolver-selected next lifecycle action. That reconciliation is the branch's
+first commit and must pass `check_release_consistency.py --check --expect
+reconciled`. The remote copy intentionally has a one-PR lag. Never mark delivery
+terminal before evidence exists, choose a reconciliation branch before the
+resolver rerun, open a second PR solely for reconciliation, or push directly to
+`main` to eliminate the lag.
 
 **Planning outcomes are session-terminal: a session that planned an artifact
 never executes it.** Runtime plan-mode acceptance authorizes artifact
@@ -267,10 +270,17 @@ After the audit completes, archive one verified version bundle:
 ├── VERSION_X_Y_PLAN.md
 ├── session-contracts/
 ├── session-plans/
-└── version-audit/
+└── version-audits/
 ```
 
-Before removing active copies:
+Before copying or removing active files, run `python3
+.agent-local/verify_archive.py --check --phase pre`. It mechanizes preconditions
+1–4 below. After the copy and before removing the active sources, run `python3
+.agent-local/verify_archive.py --check --phase post`; it additionally requires
+every archived roadmap, contract, session plan, and audit-plan file to be
+byte-identical to its active source.
+
+The complete transition remains:
 
 1. verify every roadmap row is terminal;
 2. verify the audit plan says `Complete`;
