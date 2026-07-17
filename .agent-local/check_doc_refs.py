@@ -109,6 +109,16 @@ _ALLOWLIST = (
         "approved future artifact created by Session 3.9.2.3.2",
     ),
     (
+        "docs/**",
+        "docs/ux-check/run-probes.mjs",
+        "approved future artifact created by Session 3.9.2.5",
+    ),
+    (
+        "docs/**",
+        "docs/ux-check/probes/",
+        "approved future probe-definitions directory created by Session 3.9.2.5",
+    ),
+    (
         "docs/backlog.md",
         "scripts/fallow-trial-log.mjs",
         "deferred stale-artifact cleanup remains owned by the 3.9.3.1 backlog triage",
