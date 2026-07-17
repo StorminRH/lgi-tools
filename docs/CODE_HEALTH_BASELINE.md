@@ -9,12 +9,12 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-07-16 |
-| App version | 3.8.5.5 |
-| Code ref | `291ee78bb1f0231f06a021b910f1181ad8c39bff` on `main` |
-| Measurement scope | Full audit |
-| Previous comparison | 2026-07-16 / 3.8.5.5 / `291ee78…` (targeted AF-005 pass at the same ref) |
-| Health trend | Audit cycle 2 verified every v3.8 remediation outcome from fresh evidence — the mutation pipeline, owner-sync convergence, query characterization, auth owners, and five-concern pricing contexts all hold on canonical `main` with no new actionable finding, so v3.8 closes clean. |
+| Date | 2026-07-17 |
+| App version | 3.9.2.2 |
+| Code ref | `898871fcf0a3575d0350e01ea1972b1277a7c9b1` on `codex/3.9.2.2-cron-shell-wake-policy` |
+| Measurement scope | Targeted: cron declarations, deferred-work Redis signals, and ESI refresh queue residual |
+| Previous comparison | 2026-07-16 / 3.8.5.5 / `291ee78…` (full v3.8 close audit) |
+| Health trend | The cron declaration shell now owns all seven route policies, both sub-daily routes prove healthy zero-Neon no-ops, the former cron clone is gone, and the monitored refresh-query surface remains below its promotion trigger with Redis signal ownership kept separate. |
 
 ## Step 1 metrics
 
@@ -23,17 +23,17 @@
 | Production TS/TSX files | 758 | 749 | +9 since the v3.8 audit from v3.9 workflow and cron-primitive delivery |
 | Production TS/TSX LOC | 72,203 | 66,348 | +5,855 since the v3.8 audit, primarily the repo-wide interface-comment standard plus the cron declaration and idle-signal modules |
 | Test files | 357 | 352 | +5 since the v3.8 audit for workflow rails, cron-shell behavior, Redis signals, and response contracts |
-| Coverage — statements | 88.06% | 88.06% | 8,076 / 9,171 from fresh full-Postgres coverage; 3,322 tests passed + 1 intentional skip |
-| Coverage — branches | 84.80% | 84.80% | 4,784 / 5,641 |
-| Coverage — functions | 84.34% | 84.34% | 2,010 / 2,383 |
-| Coverage — lines | 89.06% | 89.06% | 7,103 / 7,975 |
-| Fallow health score | 78 (B) | 78 (B) | Freshly remeasured; deductions are hotspots −10, unit size −10, coupling −2.2; maintainability 91.6 (good) |
-| Functions above health thresholds | 0 | 0 | Fresh coverage-backed run; the six former AF-003 findings remain cleared by characterization |
+| Coverage — statements | 85.06% | 88.06% | 8,206 / 9,647 from fresh full-Postgres coverage; 3,358 tests passed + 1 intentional skip |
+| Coverage — branches | 83.28% | 84.80% | 4,847 / 5,820 |
+| Coverage — functions | 80.36% | 84.34% | 2,043 / 2,542 |
+| Coverage — lines | 85.94% | 89.06% | 7,225 / 8,407 |
+| Fallow health score | 78 (B) | 78 (B) | Carried from the previous full measurement; this targeted pass changed no threshold or hotspot-score policy |
+| Functions above health thresholds | 0 | 0 | Previous full result carried forward; fresh origin/main-pinned coverage-backed Fallow found zero changed-function issues |
 | Auth query hub exports | 0 | 0 | Hub deleted; seven focused owner/private modules verified in place; the only remaining `features/auth/queries` string is a devlog parser test fixture |
 | `PricingContextValue` fields | 0 | 0 | Interface, context, and `usePricing` remain deleted with no compatibility surface |
 | `usePricing()` call sites | 0 | 0 | Zero definition or consumer hits |
 | Concern-context fields | 4 / 10 / 18 / 6 / 13 | 4 / 10 / 18 / 6 / 13 | Market / config / setup / character / plan, remeasured per interface; every surface materially narrower than the former 52 |
-| Concern-hook consumers | 22 calls / 11 files | 22 calls / 11 files | Carried from the AF-005 delivery measurement at this same ref |
+| Concern-hook consumers | 22 calls / 11 files | 22 calls / 11 files | Carried from the previous full measurement; this targeted surface did not touch planner contexts |
 | Threshold overrides | 0 | 0 | `.fallowrc.json` `thresholdOverrides` is empty; confirmed fresh |
 | Source suppressions | 21 | 21 | Count re-verified; composition unchanged since the cycle-1 per-site review |
 | Whole-version Fallow clone groups | 0 | 1 | `dup:b54bf337` was removed as a byproduct of the wake-policy-driven cron shell expansion; no clone groups remain |
