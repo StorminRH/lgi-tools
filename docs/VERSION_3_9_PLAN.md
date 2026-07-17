@@ -60,7 +60,7 @@ campaign: none — the queue is empty.
 | 3.9.1.4 | Baseline claims & Watch tripwires | 1 | SHIPPED |
 | 3.9.1.5 | Close-out gate mechanization | 1 | SHIPPED |
 | 3.9.1.6 | Drift-manifest derivation | 1 | SHIPPED |
-| 3.9.1.7 | Comment standard migration & enforcement | 2 (one branch) | PLANNED |
+| 3.9.1.7 | Comment standard migration & enforcement | 2 (one branch) | SHIPPED |
 | **Phase 2 — Primitive lifecycle** | | | |
 | 3.9.2.1 | Real-Postgres test harness promotion (Expand) | 1 | PLANNED |
 | 3.9.2.2 | Cron shell & wake policy (Expand; retires `dup:b54bf337`, fixes the idle Neon wake) | 2 (one branch) | PLANNED |
