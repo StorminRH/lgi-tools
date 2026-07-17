@@ -4,6 +4,7 @@
 import type { RecentBlueprint } from '../recent-blueprints';
 import { IndustryRow } from './IndustryRow';
 
+/** Renders the browser-local recent blueprint list and forwards planner navigation. */
 export function RecentBlueprintRows({ recent }: { recent: RecentBlueprint[] }) {
   return (
     <>

@@ -57,12 +57,17 @@ export const snapshotFieldSchemas = {
   multibuyUncheckedTiers: z.array(z.number().int().min(1)),
 } as const;
 
+/**
+ * Boundary validator for plan snapshot v1 schema; successful parsing yields the normalized
+ * industry planner input consumed internally.
+ */
 export const planSnapshotV1Schema = z.object({
   v: z.literal(1),
   blueprintTypeId: z.number().int().positive(),
   ...snapshotFieldSchemas,
 });
 
+/** Validated version-one saved planner snapshot with blueprint, setup, overrides, and preferences. */
 export type PlanSnapshotV1 = z.infer<typeof planSnapshotV1Schema>;
 
 /** Every configurable field (identity fields v/blueprintTypeId excluded). */
@@ -80,4 +85,5 @@ export const planSnapshotWireSchema = z.looseObject({
   v: z.literal(1),
   blueprintTypeId: z.number().int().positive(),
 });
+/** Unknown persisted snapshot value before version dispatch and validation. */
 export type PlanSnapshotWire = z.infer<typeof planSnapshotWireSchema>;

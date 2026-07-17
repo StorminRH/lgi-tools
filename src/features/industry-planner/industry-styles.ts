@@ -24,6 +24,7 @@ export function marginToneClass(marginPct: number | null): string {
   return toneTextClass('green');
 }
 
+/** Display-ready margin amount in ISK, percentage, and semantic profitability tone. */
 export interface MarginFigures {
   showNet: boolean;
   margin: number | null;
@@ -104,6 +105,7 @@ const RAW_BY_GROUP: Record<string, Category> = {
   'Abyssal Materials': SALVAGE,
 };
 
+/** Returns the semantic raw-material style for a node from its market group and build classification. */
 export function classifyRaw(groupName: string, categoryName: string): Category {
   return (
     RAW_BY_GROUP[groupName] ??
@@ -127,11 +129,13 @@ const REACTION_ACTIVITY_ID = 11;
  */
 export const REACTION_NODE_LABEL = 'Reaction';
 
+/** Canonical build-node label, icon intent, and semantic tone. */
 export interface NodeLabel {
   label: string;
   tone: Tone;
 }
 
+/** Maps a build node to its canonical label, icon intent, and semantic tone. */
 export function classifyBuildNode(args: {
   isRaw: boolean;
   isRoot: boolean;
@@ -186,6 +190,7 @@ export function nodeIcon(
 // `/render` request that would 400 (the planner-hero fix).
 const RENDERABLE_CATEGORIES = new Set(['Ship', 'Drone', 'Structure']);
 
+/** Returns whether an EVE category supports the large render rendition rather than only an inventory icon. */
 export function isRenderableCategory(categoryName: string): boolean {
   return RENDERABLE_CATEGORIES.has(categoryName);
 }
@@ -211,11 +216,13 @@ export interface ConfidenceInput {
   staleAfterMs: number | null; // null = no price row at all
 }
 
+/** Confidence evidence for one priced planner row, including source and freshness. */
 export interface RowConfidence {
   level: ConfidenceLevel;
   reasons: string[];
 }
 
+/** Worst-case confidence summary across all priced rows contributing to a total. */
 export interface AggregateConfidence {
   level: ConfidenceLevel;
   summary: string;

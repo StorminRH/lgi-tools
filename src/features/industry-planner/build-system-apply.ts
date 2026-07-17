@@ -30,6 +30,10 @@ export type ApplySystemOutcome =
   | { status: 'failed' }
   | { status: 'superseded' };
 
+/**
+ * Applies build system applier through the industry planner ownership boundary. Persistence or
+ * transport failures remain visible to the caller.
+ */
 export function createBuildSystemApplier(deps: {
   // Resolves the system's live build data; null = a non-OK response.
   fetchLocation: (systemId: number, signal: AbortSignal) => Promise<BuildLocationData | null>;

@@ -94,6 +94,7 @@ function CategoryColumn({ group }: { group: CategoryGroup }) {
   );
 }
 
+/** Renders raw-material quantities, owned coverage, and cost totals for the active build plan. */
 export function CockpitRawLedger({
   pricing,
   structure,

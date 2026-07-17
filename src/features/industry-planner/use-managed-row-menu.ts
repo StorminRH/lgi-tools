@@ -12,6 +12,7 @@
 // with rename + two-step delete) — this stays planner-local until then.
 import { useState } from 'react';
 
+/** Controlled menu model for one planner row's build, buy, reset, and override actions. */
 export interface ManagedRowMenu<Row extends { id: string }> {
   editingId: string | null;
   armedDeleteId: string | null;
@@ -21,6 +22,10 @@ export interface ManagedRowMenu<Row extends { id: string }> {
   reset: () => void;
 }
 
+/**
+ * Encapsulates the managed row menu subscription and state lifecycle; callers provide lookup keys
+ * where required and render the returned state.
+ */
 export function useManagedRowMenu<Row extends { id: string }>(mutations: {
   rename: (row: Row, draft: string) => void;
   remove: (row: Row) => void;

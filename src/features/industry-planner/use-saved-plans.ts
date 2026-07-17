@@ -21,6 +21,7 @@ import {
 } from './api-contract';
 import { echoOutcome } from './saved-plans-view';
 
+/** Client saved-plan controller state with rows, quota, loading, mutation, and error signals. */
 export interface SavedPlansState {
   // null = not fetched yet; [] settles for an anonymous viewer too.
   plans: SavedPlanRow[] | null;
@@ -38,6 +39,10 @@ export interface SavedPlansState {
   deleteRow: (row: SavedPlanRow) => void;
 }
 
+/**
+ * Encapsulates the saved plans subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useSavedPlans(): SavedPlansState {
   const [plans, setPlans] = useState<SavedPlanRow[] | null>(null);
   const [listFailed, setListFailed] = useState(false);

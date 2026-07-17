@@ -41,6 +41,7 @@ export interface BuildTimeLine {
   totalSeconds: number;
 }
 
+/** Blueprint production times in seconds before and after skill, structure, and TE factors. */
 export interface BuildTimes {
   // The final assembly job, runs-scaled + TE-adjusted, or null (degenerate / 0 runs).
   topJob: string | null;

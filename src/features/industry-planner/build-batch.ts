@@ -404,6 +404,10 @@ function meFactor(me: number): number {
 // never contain both an intermediate and its inputs for the same demand, and a
 // type consumed at several depths aggregates in its single demand entry.
 
+/**
+ * Caller input shape accepted by industry planner; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export interface MultibuyOptions {
   // Buildable typeIds the player will BUILD; any buildable not in the set is
   // bought at its net demand and its inputs are never demanded.
@@ -481,6 +485,10 @@ export function computeMultibuyDemand(
   return buy;
 }
 
+/**
+ * Returns the buildable type IDs and run counts actually selected by multibuy options across a
+ * planner chain.
+ */
 export function chainActualsFrom(
   tree: TreeNode[],
   focusTypeId: number,

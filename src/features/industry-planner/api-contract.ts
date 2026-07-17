@@ -30,11 +30,23 @@ export const blueprintIndexEntrySchema = z.object({
   name: z.string(),
 }) satisfies z.ZodType<BlueprintIndexEntry>;
 
+/**
+ * Boundary validator for blueprints response schema; successful parsing yields the normalized
+ * industry planner input consumed internally.
+ */
 export const blueprintsResponseSchema = z.object({
   blueprints: z.array(blueprintIndexEntrySchema),
 });
+/**
+ * Stable industry planner outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type BlueprintsResponse = z.infer<typeof blueprintsResponseSchema>;
 
+/**
+ * Typed endpoint definition for blueprints endpoint; method, path, request, and response contracts
+ * remain coupled here.
+ */
 export const blueprintsEndpoint: ApiEndpoint<null, BlueprintsResponse> = {
   method: 'GET',
   path: '/api/industry/blueprints',
@@ -61,6 +73,10 @@ const industryStationViewSchema = z.object({
   researchCapable: z.boolean(),
 }) satisfies z.ZodType<IndustryStationView>;
 
+/**
+ * Boundary validator for build location response schema; successful parsing yields the normalized
+ * industry planner input consumed internally.
+ */
 export const buildLocationResponseSchema = z.object({
   stations: z.array(industryStationViewSchema),
   costIndices: z.object({
@@ -71,6 +87,10 @@ export const buildLocationResponseSchema = z.object({
     z.object({ typeId: z.number(), adjustedPrice: z.number() }),
   ),
 }) satisfies z.ZodType<BuildLocationData>;
+/**
+ * Stable industry planner outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type BuildLocationResponse = z.infer<typeof buildLocationResponseSchema>;
 
 /** 400 arms mirror the refresh endpoint's shape. */
@@ -78,6 +98,10 @@ export type BuildLocationBadRequest =
   | { error: 'invalid_json' }
   | { error: 'invalid_request'; issues: unknown[] };
 
+/**
+ * Typed endpoint definition for build location endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const buildLocationEndpoint: ApiEndpoint<
   z.input<typeof buildLocationRequestSchema>,
   BuildLocationResponse
@@ -110,6 +134,10 @@ const ownedBlueprintMeEntrySchema = z.object({
   locationFlag: z.string(),
 }) satisfies z.ZodType<OwnedBlueprintMeEntry>;
 
+/**
+ * Boundary validator for owned blueprints response schema; successful parsing yields the
+ * normalized industry planner input consumed internally.
+ */
 export const ownedBlueprintsResponseSchema = z.object({
   blueprints: z.array(ownedBlueprintMeEntrySchema),
 }) satisfies z.ZodType<OwnedBlueprintsResponse>;
@@ -119,6 +147,10 @@ export type OwnedBlueprintsBadRequest =
   | { error: 'invalid_json' }
   | { error: 'invalid_request'; issues: unknown[] };
 
+/**
+ * Typed endpoint definition for owned blueprints endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const ownedBlueprintsEndpoint: ApiEndpoint<
   z.input<typeof ownedBlueprintsRequestSchema>,
   OwnedBlueprintsResponse
@@ -155,6 +187,10 @@ const ownedAssetEntrySchema = z.object({
   heldBy: z.array(assetHoldingSchema),
 }) satisfies z.ZodType<OwnedAssetEntry>;
 
+/**
+ * Boundary validator for owned assets response schema; successful parsing yields the normalized
+ * industry planner input consumed internally.
+ */
 export const ownedAssetsResponseSchema = z.object({
   assets: z.array(ownedAssetEntrySchema),
 }) satisfies z.ZodType<OwnedAssetsResponse>;
@@ -164,6 +200,10 @@ export type OwnedAssetsBadRequest =
   | { error: 'invalid_json' }
   | { error: 'invalid_request'; issues: unknown[] };
 
+/**
+ * Typed endpoint definition for owned assets endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const ownedAssetsEndpoint: ApiEndpoint<
   z.input<typeof ownedAssetsRequestSchema>,
   OwnedAssetsResponse
@@ -189,10 +229,18 @@ export const skillLevelsRequestSchema = z.object({
   characterId: z.number().int().positive().max(PG_INT4_MAX),
 });
 
+/**
+ * Boundary validator for skill levels response schema; successful parsing yields the normalized
+ * industry planner input consumed internally.
+ */
 export const skillLevelsResponseSchema = z.object({
   // skill type id (string key, JSON-native) → active_skill_level.
   levels: z.record(z.string(), z.number()).nullable(),
 });
+/**
+ * Stable industry planner outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type SkillLevelsResponse = z.infer<typeof skillLevelsResponseSchema>;
 
 /** 400 arms mirror the build-location endpoint's shape. */
@@ -200,6 +248,10 @@ export type SkillLevelsBadRequest =
   | { error: 'invalid_json' }
   | { error: 'invalid_request'; issues: unknown[] };
 
+/**
+ * Typed endpoint definition for skill levels endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const skillLevelsEndpoint: ApiEndpoint<
   z.input<typeof skillLevelsRequestSchema>,
   SkillLevelsResponse
@@ -241,6 +293,10 @@ export const availableStructureSchema = z.object({
   taxPct: z.number().nullable(),
 });
 
+/**
+ * Boundary validator for available structures response schema; successful parsing yields the
+ * normalized industry planner input consumed internally.
+ */
 export const availableStructuresResponseSchema = z.object({
   structures: z.array(availableStructureSchema),
 });
@@ -249,6 +305,10 @@ export const availableStructuresResponseSchema = z.object({
 // its response shape from here — the api-contract is the one wire-shape home.
 export type { AvailableStructure, AvailableStructuresResponse } from './types';
 
+/**
+ * Typed endpoint definition for available structures endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const availableStructuresEndpoint: ApiEndpoint<null, AvailableStructuresResponse> = {
   method: 'GET',
   path: '/api/account/structures',
@@ -263,7 +323,15 @@ export const availableStructuresEndpoint: ApiEndpoint<null, AvailableStructuresR
 // without a refetch; the GET feeds the planner and follows the fail-open read
 // posture (anonymous ⇒ a typed empty list, never an error).
 
+/**
+ * Configured industry planner limit for max saved plan name len; callers use this value instead of
+ * embedding a competing threshold.
+ */
 export const MAX_SAVED_PLAN_NAME_LEN = 80;
+/**
+ * Configured industry planner limit for max saved plans per user; callers use this value instead
+ * of embedding a competing threshold.
+ */
 export const MAX_SAVED_PLANS_PER_USER = 50;
 /**
  * A generous ceiling for one serialized snapshot — inputs only; a fully
@@ -285,11 +353,23 @@ const savedPlanRowSchema = z.object({
   // ISO timestamp — drives the list's favorite-first / recently-updated order.
   updatedAt: z.string(),
 });
+/**
+ * Display-ready saved plan row produced by industry planner; values retain their domain units and
+ * require no additional query by the renderer.
+ */
 export type SavedPlanRow = z.infer<typeof savedPlanRowSchema>;
 
+/**
+ * Boundary validator for saved plans response schema; successful parsing yields the normalized
+ * industry planner input consumed internally.
+ */
 export const savedPlansResponseSchema = z.object({
   plans: z.array(savedPlanRowSchema),
 });
+/**
+ * Stable industry planner outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type SavedPlansResponse = z.infer<typeof savedPlansResponseSchema>;
 
 /**
@@ -317,8 +397,16 @@ export const createSavedPlanRequestSchema = z.object({
     'snapshot too large',
   ),
 });
+/**
+ * Caller input shape accepted by industry planner; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type CreateSavedPlanRequest = z.input<typeof createSavedPlanRequestSchema>;
 
+/**
+ * Typed endpoint definition for create saved plan endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const createSavedPlanEndpoint: ApiEndpoint<
   CreateSavedPlanRequest,
   SavedPlansResponse
@@ -334,8 +422,16 @@ export const renameSavedPlanRequestSchema = z.object({
   id: savedPlanId,
   name: savedPlanName,
 });
+/**
+ * Caller input shape accepted by industry planner; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type RenameSavedPlanRequest = z.input<typeof renameSavedPlanRequestSchema>;
 
+/**
+ * Typed endpoint definition for rename saved plan endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const renameSavedPlanEndpoint: ApiEndpoint<
   RenameSavedPlanRequest,
   SavedPlansResponse
@@ -351,8 +447,16 @@ export const favoriteSavedPlanRequestSchema = z.object({
   id: savedPlanId,
   favorite: z.boolean(),
 });
+/**
+ * Caller input shape accepted by industry planner; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type FavoriteSavedPlanRequest = z.input<typeof favoriteSavedPlanRequestSchema>;
 
+/**
+ * Typed endpoint definition for favorite saved plan endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const favoriteSavedPlanEndpoint: ApiEndpoint<
   FavoriteSavedPlanRequest,
   SavedPlansResponse
@@ -367,8 +471,16 @@ export const favoriteSavedPlanEndpoint: ApiEndpoint<
 export const deleteSavedPlanRequestSchema = z.object({
   id: savedPlanId,
 });
+/**
+ * Caller input shape accepted by industry planner; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type DeleteSavedPlanRequest = z.input<typeof deleteSavedPlanRequestSchema>;
 
+/**
+ * Typed endpoint definition for delete saved plan endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const deleteSavedPlanEndpoint: ApiEndpoint<
   DeleteSavedPlanRequest,
   SavedPlansResponse

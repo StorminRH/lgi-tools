@@ -1,5 +1,6 @@
 import type { OwnedBlueprintMeEntry, OwnedComponentDetail } from './types';
 
+/** Owned original and copy blueprint quantities indexed by type ID for planner lookup. */
 export interface OwnedBlueprintMaps {
   ownedMe: Map<number, number>;
   ownedDetail: Map<number, OwnedComponentDetail>;

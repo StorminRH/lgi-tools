@@ -274,6 +274,10 @@ function RawLedgerToggle({
   );
 }
 
+/**
+ * Renders the tiered build plan, node controls, and consolidated multibuy state from the active
+ * planner calculation.
+ */
 export function CockpitBuildPlan({ structure }: { structure: BlueprintStructure }) {
   const { pricing } = useMarketData();
   const {

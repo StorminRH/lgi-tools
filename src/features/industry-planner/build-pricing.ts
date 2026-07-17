@@ -36,6 +36,7 @@ import type {
 // from the DB price snapshot, and the client rebuilds it from live on-demand
 // prices after a refresh. Same inputs → same margin, no drift between them.
 
+/** Minimal planner quote containing ISK value, source, freshness, and confidence. */
 export interface PriceLite {
   bestBuy: number | null;
   bestSell: number | null;
@@ -64,6 +65,7 @@ export interface PriceLite {
   staleAfterMs: number | null;
 }
 
+/** PriceLite projection for a richer quote type, preserving only fields needed by build pricing. */
 export type PriceLiteOf = (typeId: number) => PriceLite | undefined;
 
 // The product header's priced view — identity from the structure, sell-side
@@ -163,6 +165,10 @@ export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, Co
  */
 export const MANUFACTURING_ACTIVITY_ID = 1;
 
+/**
+ * Caller input shape accepted by industry planner; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export interface AssembleOptions {
   // Whole runs of the top product to build. Scales the batch cost basis, the
   // revenue (output units = quantityPerRun × runs), and the EIV base. Default 1.
@@ -329,6 +335,10 @@ function resolveCostBills(
   };
 }
 
+/**
+ * Attaches price quotes, source confidence, and cost basis to a build tree while preserving the
+ * tree's production quantities.
+ */
 export function assemblePricing(
   structure: BlueprintStructure,
   priceOf: PriceLiteOf,

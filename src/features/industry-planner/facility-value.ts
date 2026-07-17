@@ -3,6 +3,7 @@
 // encode/decode both slots share, so the shells stay a flat dispatch over the
 // parsed intent instead of re-deriving the string prefixes inline. Pure.
 
+/** Selected build facility with stable identity, label, source kind, and applicable bonus inputs. */
 export type FacilitySelection =
   | { kind: 'add-custom' }
   | { kind: 'structure'; id: string }

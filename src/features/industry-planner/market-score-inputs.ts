@@ -150,6 +150,10 @@ function advFor(history: MarketHistoryInputs | null, windowDays: number): number
   return history.averageDailyVolume.find((w) => w.days === windowDays)?.adv ?? null;
 }
 
+/**
+ * Maps planner price and history observations into the normalized market-score inputs without
+ * changing their ISK or volume units.
+ */
 export function toMarketScoreInputs({
   outputUnits,
   history,

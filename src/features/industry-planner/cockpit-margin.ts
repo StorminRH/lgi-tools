@@ -6,6 +6,7 @@ import type { BlueprintPricing, NetMarginView } from './types';
 // decides which cost basis (gross vs net) is in play. Pure (no React); the
 // component feeds it the live store's values.
 
+/** Closed planner margin basis selecting raw-material or built-input cost. */
 export type MarginMode = 'gross' | 'net';
 
 /**

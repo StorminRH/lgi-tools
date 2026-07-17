@@ -15,6 +15,7 @@ const actionClass =
   'cursor-pointer font-mono text-ui leading-none text-faint transition-colors hover:text-name ' +
   'disabled:cursor-not-allowed disabled:opacity-40';
 
+/** Renders one saved-plan row with load, favorite, rename, and delete actions supplied by its controller. */
 export function SavedPlanRowItem({
   row,
   busy,

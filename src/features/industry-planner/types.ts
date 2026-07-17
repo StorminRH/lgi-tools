@@ -21,6 +21,7 @@ export interface BlueprintIndexEntry {
 //  - `BlueprintPricing` — the priced cost panel (whole-run batch materials ×
 //    live prices + margin), cached `'hours'`. Streams into a `<Suspense>` hole.
 
+/** One blueprint activity product with type identity and output quantity per run. */
 export interface BlueprintProduct {
   typeId: number;
   name: string;
@@ -43,6 +44,7 @@ export interface BlueprintProduct {
 // across many parents carries it once, not per occurrence — keeping the
 // cached structure small even for capital trees with millions of duplicates.
 
+/** Display metadata for one resolved build node, including names, categories, and image intent. */
 export interface BuildNodeDisplay {
   name: string;
   height: number; // 0 for a raw leaf; 1 + tallest input otherwise
@@ -68,6 +70,7 @@ export interface MaterialCategoryMeta {
   tone: Tone;
 }
 
+/** Resolved blueprint node with activity, products, materials, and recursive build children. */
 export interface BlueprintStructure {
   blueprintTypeId: number;
   activityId: number;
@@ -118,6 +121,10 @@ export interface BlueprintStructure {
   >;
 }
 
+/**
+ * Display-ready material cost row produced by industry planner; values retain their domain units
+ * and require no additional query by the renderer.
+ */
 export interface MaterialCostRow {
   typeId: number;
   name: string;
@@ -194,6 +201,10 @@ export interface AvailableStructure {
   taxPct: number | null;
 }
 
+/**
+ * Stable industry planner outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export interface AvailableStructuresResponse {
   structures: AvailableStructure[];
 }
@@ -262,6 +273,7 @@ export interface NetMarginView {
   sellSide: { salesTax: number | null; brokerFee: number | null; total: number | null };
 }
 
+/** Planner pricing result for one blueprint tree with row quotes and aggregate ISK totals. */
 export interface BlueprintPricing {
   rows: MaterialCostRow[];
   // Confidence-only side-channel for the buildable intermediates shown in the

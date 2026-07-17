@@ -27,6 +27,10 @@ export function templateGateOpen(g: {
   return g.timedOut || (g.preferencesReady && g.structuresSettled && g.rosterSettled);
 }
 
+/**
+ * Closed template application result covering success, incompatible version, missing blueprint,
+ * and invalid snapshot.
+ */
 export type TemplateLoadOutcome =
   | { kind: 'fetch-failed' }
   | { kind: 'not-found' }
@@ -54,6 +58,7 @@ export async function runTemplateLoad(deps: {
   return { kind: 'applied', row, notes };
 }
 
+/** User-facing template application feedback with semantic tone and concise detail. */
 export interface TemplateLoadToast {
   type: 'success' | 'info' | 'error';
   message: string;

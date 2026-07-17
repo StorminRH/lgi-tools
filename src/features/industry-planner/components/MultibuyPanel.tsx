@@ -32,6 +32,7 @@ import { useBuildPlan, usePlannerConfig } from './planner-contexts';
 
 const NET_MODES = ['Total', 'Remaining'] as const satisfies readonly NetMode[];
 
+/** Renders tier selection and the resulting EVE multibuy text without owning build consolidation. */
 export function MultibuyPanel({ structure }: { structure: BlueprintStructure }) {
   // The panel's scope state (net mode + unchecked tiers) is provider-owned
   // since 3.7.23.1 (template state); Remaining stays the default for anyone

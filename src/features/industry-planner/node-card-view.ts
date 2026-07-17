@@ -11,6 +11,10 @@ import type { TypeIconVariant } from '@/components/type-icon';
 const CARD =
   'flex min-h-[72px] items-center gap-2.5 border-t border-border-soft first:border-t-0 px-3 py-2.5 text-left transition-opacity';
 
+/**
+ * Display-ready node card state for industry planner; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export interface NodeCardView {
   interactive: boolean;
   iconDesc: { typeId: number; variant: TypeIconVariant };
@@ -20,6 +24,10 @@ export interface NodeCardView {
   className: string;
 }
 
+/**
+ * Derives the complete display model for one build node from production, pricing, asset, and
+ * override state.
+ */
 export function nodeCardView(args: {
   onSelect?: () => void;
   // The rendition the icon should show; absent → the item's own `icon` (the

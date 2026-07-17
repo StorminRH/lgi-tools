@@ -2,6 +2,10 @@ import { REACTION_ACTIVITY } from './structure-bonus';
 import { hostsReactions } from './structure-factors';
 import type { AvailableStructure } from './types';
 
+/**
+ * Previous non-reaction facility selection retained while reaction-only location policy
+ * temporarily applies.
+ */
 export interface ReactionLocationSnapshot {
   systemId: number;
   blueprintTypeId: number;

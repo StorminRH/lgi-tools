@@ -30,6 +30,7 @@ export type TemplateStructureView = Pick<
   'blueprintTypeId' | 'nodeActivityByBlueprint'
 >;
 
+/** Setter and lookup ports required to apply one template snapshot to a live planner. */
 export interface ApplyCtx {
   ctx: TemplatePlannerState;
   structure: TemplateStructureView;
@@ -45,6 +46,7 @@ export interface ApplyCtx {
  */
 export type TemplateFields = { [K in TemplateFieldKey]: PlanSnapshotV1[K] };
 
+/** One versioned template field definition owning extraction, validation, and application. */
 export interface TemplateField<K extends TemplateFieldKey> {
   schema: z.ZodType<TemplateFields[K]>;
   // The unset default — what a malformed saved value degrades to, and what an
@@ -297,6 +299,10 @@ type MutatorKeys = {
     : never;
 }[keyof TemplatePlannerState];
 
+/**
+ * Closed industry planner vocabulary and canonical order for setter classification; consumers
+ * derive validation and iteration from this one list.
+ */
 export const SETTER_CLASSIFICATION = {
   setRuns: 'runs',
   setLocation: 'buildSystem',

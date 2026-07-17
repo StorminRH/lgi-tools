@@ -83,6 +83,7 @@ export type LockTransition =
   | { kind: 'unlock' }
   | { kind: 'none' };
 
+/** Returns the next build-location lock state for a slot change, preserving explicitly locked selections. */
 export function lockTransition(
   prev: AvailableStructure | null,
   next: AvailableStructure | null,

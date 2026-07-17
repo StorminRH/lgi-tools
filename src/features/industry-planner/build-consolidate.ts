@@ -11,6 +11,10 @@ import type { BlueprintStructure, BuildNode } from './types';
 // buildable's transitive downstream requirements, so the UI can light up a
 // single component's whole chain across the tiers.
 
+/**
+ * One caller-supplied consolidated item; its value is the stable control key and its label or
+ * marker is presentation-ready.
+ */
 export interface ConsolidatedItem {
   typeId: number;
   name: string;
@@ -23,12 +27,14 @@ export interface ConsolidatedItem {
   hasChildren: boolean;
 }
 
+/** One build-plan tier containing aggregated material quantities in units. */
 export interface ConsolidatedTier {
   // Build step below the product (1 = the product's direct inputs).
   depth: number;
   items: ConsolidatedItem[];
 }
 
+/** Complete multibuy consolidation with ordered tiers and all direct input quantities. */
 export interface ConsolidatedBuild {
   // Ordered product-side → raw-side (tier 1 first).
   tiers: ConsolidatedTier[];
@@ -41,6 +47,7 @@ export interface ConsolidatedBuild {
   childrenOf: Map<number, Set<number>>;
 }
 
+/** Aggregates selected build-plan nodes into tiered material totals without double-counting shared inputs. */
 export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBuild {
   const { buildTree, buildNodeDisplay } = structure;
 

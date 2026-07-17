@@ -15,6 +15,7 @@ import { useMarketData } from './planner-contexts';
 // hover reveals the full 3-signal breakdown. All the derived values come from
 // the pure marketScoreView; this shell only holds the mount clock.
 
+/** Renders market demand, spread, volume, and confidence signals derived by the market-score model. */
 export function MarketScorePanel({ structure }: { structure: BlueprintStructure }) {
   const { marketScore, marketHistory, seeded } = useMarketData();
 

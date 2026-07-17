@@ -39,6 +39,7 @@ export function hostsReactions(groupId: number): boolean {
   return groupId === SDE_REFINERY_GROUP_ID;
 }
 
+/** Multiplicative structure material, time, cost-index, and tax factors. */
 export interface StructureFactors {
   // Per-node factors fed to the engine (default 1 ⇒ no change).
   structureMeFactorOf: (blueprintTypeId: number) => number;
@@ -53,6 +54,7 @@ export interface StructureFactors {
   active: boolean;
 }
 
+/** Identity structure factors used when no facility or rig bonus applies. */
 export const NO_STRUCTURE_FACTORS: StructureFactors = {
   structureMeFactorOf: () => 1,
   structureTeFactorOf: () => 1,
@@ -121,6 +123,10 @@ function routeHosts(
   };
 }
 
+/**
+ * Returns the canonical structure factors result for the requested industry planner case; callers
+ * own the supplied clock or identity context.
+ */
 export function structureFactorsFor(args: {
   // The "build at" structure (any group) + its system security.
   selectedStructure: AvailableStructure | null;
@@ -224,6 +230,7 @@ export interface StructureReadout {
   rxn: StructureBonus | null;
 }
 
+/** Formats structure material, time, cost-index, and tax factors as planner readouts. */
 export function structureReadouts(args: {
   selectedStructure: AvailableStructure | null;
   reactionStructure: AvailableStructure | null;

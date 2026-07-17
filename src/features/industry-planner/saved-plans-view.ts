@@ -4,8 +4,13 @@
 // updated) — consumers never re-sort, so the cut here is a plain slice.
 import type { SavedPlanRow } from './api-contract';
 
+/**
+ * Configured industry planner limit for saved tiles max; callers use this value instead of
+ * embedding a competing threshold.
+ */
 export const SAVED_TILES_MAX = 8;
 
+/** Selects favorite and recent saved plans for the dashboard's bounded tile area. */
 export function savedTiles(
   plans: readonly SavedPlanRow[],
   max: number = SAVED_TILES_MAX,
@@ -32,6 +37,7 @@ export function savedEmptyLine(args: { listFailed: boolean; signedOut: boolean }
  */
 export type SavedPlansState = { kind: 'blank' } | { kind: 'empty'; line: string } | { kind: 'list' };
 
+/** Derives loading, empty, populated, and quota state for the saved-plans manager. */
 export function savedPlansViewState(
   plans: readonly SavedPlanRow[] | null,
   roster: readonly unknown[] | null,

@@ -71,6 +71,7 @@ export function pluralCount(n: number, singular: string, plural: string): string
   return `${n} ${n === 1 ? singular : plural}`;
 }
 
+/** One EVE multibuy line with type name and whole required quantity. */
 export interface MultibuyEntry {
   name: string;
   qty: number;

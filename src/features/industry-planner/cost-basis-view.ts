@@ -3,6 +3,7 @@
 // batched empty-hangar buy list (today's basis), "Item" the marginal consumed
 // bill.
 
+/** Closed input-cost basis selecting direct market value or recursively built value. */
 export type CostBasis = 'batched' | 'marginal';
 
 /**

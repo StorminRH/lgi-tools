@@ -6,6 +6,7 @@
 import type { SavedPlanRow } from '../api-contract';
 import { IndustryRow } from './IndustryRow';
 
+/** Renders the bounded favorite and recent saved-plan tiles for the industry dashboard. */
 export function SavedBuildTiles({ plans }: { plans: SavedPlanRow[] }) {
   return (
     <>

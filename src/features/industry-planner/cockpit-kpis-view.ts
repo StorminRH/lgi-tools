@@ -31,6 +31,7 @@ export interface CockpitMarginView {
   marginLabel: string;
 }
 
+/** Derives cockpit margin amount, percentage, tone, and confidence from sell and input totals in ISK. */
 export function cockpitMarginView(
   pricing: BlueprintPricing | null,
   activityId: number,
@@ -73,6 +74,7 @@ export interface SellTileView {
   revenue: string;
 }
 
+/** Formats the planner's sell-value KPI from the selected market quote and confidence. */
 export function sellTileView(pricing: BlueprintPricing | null): SellTileView {
   const thinAnchor = pricing ? sellAnchorConfidence(pricing.product) : null;
   const discount = pricing ? regionalDiscountCallout(pricing.product) : null;
@@ -93,6 +95,7 @@ export interface InputCostView {
   inputCost: string;
 }
 
+/** Formats the planner's input-cost KPI from raw or built cost basis and confidence. */
 export function inputCostView(pricing: BlueprintPricing | null): InputCostView {
   const summary = pricing?.summary ?? null;
   return {

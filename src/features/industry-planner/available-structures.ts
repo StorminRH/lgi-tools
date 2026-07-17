@@ -7,6 +7,7 @@
 import { SDE_ENGINEERING_COMPLEX_GROUP_ID } from '@/data/eve-data/constants';
 import type { AvailableStructure } from './api-contract';
 
+/** User-owned custom structure input with selected hull, rigs, tax, and display identity. */
 export interface CustomStructureInput {
   id: string;
   name: string;
@@ -16,6 +17,7 @@ export interface CustomStructureInput {
   taxPct: number | null;
 }
 
+/** Corporation structure input available to the user, including hull, rigs, tax, and access state. */
 export interface CorpStructureInput {
   structureId: number | string;
   typeId: number;
@@ -26,6 +28,7 @@ export interface CorpStructureInput {
   taxPct: number | null;
 }
 
+/** Canonical structure hull identity and name used to enrich available facility inputs. */
 export interface StructureTypeRow {
   typeId: number;
   name: string;
@@ -61,6 +64,10 @@ function resolveGroupId(groupIdByType: Map<number, number>, typeId: number): num
   return groupIdByType.get(typeId) ?? SDE_ENGINEERING_COMPLEX_GROUP_ID;
 }
 
+/**
+ * Combines canonical structure types, user custom structures, and eligible corporation structures
+ * into one deduplicated planner selector list.
+ */
 export function buildAvailableStructures(
   custom: readonly CustomStructureInput[],
   corp: readonly CorpStructureInput[],

@@ -8,9 +8,11 @@ import { Popover } from '@/components/ui/popover';
 // in its own module so both CockpitKpis and the (score) MarketScorePanel can use
 // it without a circular import (CockpitKpis renders MarketScorePanel).
 
+/** Shared numeric typography classes for cockpit KPI figures. */
 export const KPI_FIG = 'mt-2.5 text-stat font-semibold leading-[1.02] tabular-nums';
 const KPI_LABEL = 'font-mono text-label font-semibold uppercase tracking-emphasis text-muted';
 
+/** Renders one cockpit KPI value, comparison, confidence, and supporting hint. */
 export function KpiTile({
   span2,
   children,

@@ -219,6 +219,7 @@ function BuildableIcon({
   );
 }
 
+/** Renders one build node's production, price, asset, ME, and TE controls from its derived view model. */
 export function NodeCard({
   typeId,
   icon,

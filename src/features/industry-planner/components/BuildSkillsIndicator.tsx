@@ -154,6 +154,7 @@ function RxnSkillMetric({
   );
 }
 
+/** Renders character skill levels and their time reduction for the active blueprint activity. */
 export function BuildSkillsIndicator({ structure }: { structure: BlueprintStructure }) {
   const { buildCharacter, skillTimeFactors, buildCharacterSkillLevels } = useBuildCharacter();
   const view = buildSkillsView(buildCharacter, skillTimeFactors.active, buildCharacterSkillLevels, structure);

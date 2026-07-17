@@ -7,6 +7,7 @@
 const STORAGE_KEY = 'lgi:industry:recent-blueprints';
 const MAX_RECENT = 8;
 
+/** Browser-persisted recent blueprint identity, product identity, name, and absolute visit time. */
 export type RecentBlueprint = {
   typeId: number; // the blueprint type id (the /industry/[id] route param)
   productTypeId: number; // the produced item — used for the row icon, not the blueprint scroll
@@ -35,6 +36,7 @@ function safeStorage(): Storage | null {
   }
 }
 
+/** Validates the persisted recent-blueprint shape before browser storage data is trusted. */
 export function isRecentBlueprint(value: unknown): value is RecentBlueprint {
   if (typeof value !== 'object' || value === null) return false;
   const r = value as Record<string, unknown>;
@@ -62,12 +64,20 @@ export function parseRecentBlueprints(raw: string | null): RecentBlueprint[] {
   }
 }
 
+/**
+ * Reads, validates, and recency-sorts the browser's recent blueprint list; malformed storage
+ * yields an empty list.
+ */
 export function readRecentBlueprints(): RecentBlueprint[] {
   const store = safeStorage();
   if (!store) return [];
   return parseRecentBlueprints(store.getItem(STORAGE_KEY));
 }
 
+/**
+ * Moves one blueprint to the front of the browser's bounded recents list and persists the
+ * deduplicated result.
+ */
 export function recordRecentBlueprint(entry: RecentBlueprint): void {
   const store = safeStorage();
   if (!store) return;

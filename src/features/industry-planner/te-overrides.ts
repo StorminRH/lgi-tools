@@ -8,6 +8,10 @@
 // 2% per level), where material efficiency tops out at 10.
 import { effectiveMeOf, nodeMeState, type NodeMeState } from './me-overrides';
 
+/**
+ * Configured industry planner limit for max te; callers use this value instead of embedding a
+ * competing threshold.
+ */
 export const MAX_TE = 20;
 
 /**
@@ -32,8 +36,10 @@ export function effectiveTeOf(
   return effectiveMeOf(owned, overrides);
 }
 
+/** Derives one node's effective time efficiency and override state within the allowed TE range. */
 export function nodeTeState(owned: number | undefined, override: number | undefined): NodeMeState {
   return nodeMeState(owned, override);
 }
 
+/** Effective node time efficiency plus whether a user override is active. */
 export type NodeTeState = NodeMeState;

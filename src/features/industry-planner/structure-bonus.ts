@@ -73,7 +73,15 @@ const ATTR = {
  * 1 = manufacturing, 11 = reaction.
  */
 export const MANUFACTURING_ACTIVITY = 1;
+/**
+ * Configured industry planner limit for reaction activity; callers use this value instead of
+ * embedding a competing threshold.
+ */
 export const REACTION_ACTIVITY = 11;
+/**
+ * Canonical identifier used by industry planner; consumers must not infer additional identity
+ * semantics from its storage representation.
+ */
 export type IndustryActivityId = typeof MANUFACTURING_ACTIVITY | typeof REACTION_ACTIVITY;
 
 /**
@@ -86,6 +94,10 @@ export interface StructureBonus {
   costBonus: number;
 }
 
+/**
+ * Caller input shape accepted by industry planner; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export interface StructureBonusInput {
   // The structure type's dogma map ({ attributeId: value }).
   structureAttrs: AttrMap;

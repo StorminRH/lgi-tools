@@ -8,6 +8,7 @@ interface PriceSeedSettlement {
   settle: (current: BlueprintPricing | null) => BlueprintPricing | null;
 }
 
+/** Immutable quote snapshot keyed by type ID for one planner calculation. */
 export interface PriceSnapshot {
   seed: (initial: BlueprintPricing | null) => PriceSeedSettlement;
   applyBatch: (batch: Map<number, RefreshedPrice>) => void;

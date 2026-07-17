@@ -6,6 +6,10 @@
 
 import type { LazySearchSource } from '@/search';
 
+/**
+ * Global-search source for blueprints search source; it owns matching and result mapping while the
+ * app layer owns registration.
+ */
 export const blueprintsSearchSource: LazySearchSource = {
   id: 'blueprints',
   name: 'Blueprints',

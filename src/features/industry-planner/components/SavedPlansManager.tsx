@@ -17,6 +17,10 @@ import { useManagedRowMenu } from '../use-managed-row-menu';
 import { useSavedPlans } from '../use-saved-plans';
 import { SavedPlanRows } from './SavedPlanRows';
 
+/**
+ * Coordinates the saved-plan list UI, quota state, and destructive confirmations through the
+ * saved-plans hook.
+ */
 export function SavedPlansManager() {
   const roster = useAccountCharacters();
   const { plans, listFailed, busyId, refresh, renameRow, favoriteRow, deleteRow } =

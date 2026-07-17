@@ -27,13 +27,38 @@ import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
 import { formatBonusPct } from './structure-bonus-view';
 import type { BlueprintStructure } from './types';
 
+/**
+ * Configured industry planner limit for industry skill id; callers use this value instead of
+ * embedding a competing threshold.
+ */
 export const INDUSTRY_SKILL_ID = 3380;
+/**
+ * Configured industry planner limit for industry time pct per level; callers use this value
+ * instead of embedding a competing threshold.
+ */
 export const INDUSTRY_TIME_PCT_PER_LEVEL = -4;
+/**
+ * Configured industry planner limit for advanced industry skill id; callers use this value instead
+ * of embedding a competing threshold.
+ */
 export const ADVANCED_INDUSTRY_SKILL_ID = 3388;
+/**
+ * Configured industry planner limit for advanced industry time pct per level; callers use this
+ * value instead of embedding a competing threshold.
+ */
 export const ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL = -3;
+/**
+ * Configured industry planner limit for reactions skill id; callers use this value instead of
+ * embedding a competing threshold.
+ */
 export const REACTIONS_SKILL_ID = 45746;
+/**
+ * Configured industry planner limit for reactions time pct per level; callers use this value
+ * instead of embedding a competing threshold.
+ */
 export const REACTIONS_TIME_PCT_PER_LEVEL = -4;
 
+/** Multiplicative time factors for base industry, advanced industry, and reaction skills. */
 export interface SkillTimeFactors {
   // Per-node time factor (default 1 ⇒ no change), multiplied into the job-time
   // product beside teFactor and structureTeFactorOf.
@@ -42,6 +67,7 @@ export interface SkillTimeFactors {
   active: boolean;
 }
 
+/** Identity skill-time factors used when no character skill reduction applies. */
 export const NO_SKILL_FACTORS: SkillTimeFactors = {
   skillTimeFactorOf: () => 1,
   active: false,
@@ -78,6 +104,7 @@ export interface SkillTimeBreakdown {
   reaction: { skills: AppliedTimeSkill[]; totalPct: number };
 }
 
+/** Calculates multiplicative industry skill time factors from character levels and activity type. */
 export function skillTimeBreakdown(args: {
   levels: Record<string, number>;
   nodeTimeSkills: Record<
@@ -181,6 +208,7 @@ export interface BuildSkillsView {
   mfgHeadline: string;
 }
 
+/** Builds the display-ready skill-time reduction rows for the active blueprint activity. */
 export function buildSkillsView(
   buildCharacter: { name: string } | null,
   skillTimeFactorsActive: boolean,

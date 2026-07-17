@@ -61,6 +61,10 @@ function PlannerHead({
   );
 }
 
+/**
+ * Composes the planner cockpit from concern-specific contexts while leaving data loading and
+ * calculations in the provider.
+ */
 export function CockpitPlanner({ structure }: { structure: BlueprintStructure }) {
   // Gross/Net is the user's preference, gated by an available net estimate.
   // Provider-owned since 3.7.23.1 (template state); the KPI margin tile still

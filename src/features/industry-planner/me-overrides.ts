@@ -52,6 +52,7 @@ export function effectiveMeOf(
  */
 export type NodeMeState = 'owned' | 'manual' | 'unowned';
 
+/** Derives one node's effective material efficiency and override state from blueprint and user values. */
 export function nodeMeState(
   owned: number | undefined,
   override: number | undefined,

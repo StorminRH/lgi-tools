@@ -6,6 +6,7 @@ import type { NetMarginView } from './types';
 // labelled line items out; the component formats and lays them out. No fee math
 // here — it only re-presents amounts that already exist.
 
+/** One labelled planner fee component with amount in ISK and optional explanatory rate. */
 export interface FeeLine {
   label: string;
   // ISK amount, or null when it can't be computed — a missing system cost index
@@ -13,6 +14,7 @@ export interface FeeLine {
   value: number | null;
 }
 
+/** Complete job-fee components and total in ISK for one planned build. */
 export interface FeeBreakdown {
   install: FeeLine[];
   installTotal: number | null;
@@ -37,6 +39,7 @@ function facilityTaxLabel(rate: number, assumed: boolean): string {
   return `Facility tax (${(rate * 100).toFixed(2)}%${assumed ? ' assumed' : ''})`;
 }
 
+/** Calculates facility tax, system cost index, SCC surcharge, and total job fee in ISK for one build. */
 export function buildFeeBreakdown(net: NetMarginView): FeeBreakdown {
   const { jobFee, sellSide, systemCostIndex } = net;
 

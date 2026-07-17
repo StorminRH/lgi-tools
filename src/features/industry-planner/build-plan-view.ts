@@ -12,6 +12,10 @@ export interface BuildFocus {
   typeId: number;
 }
 
+/**
+ * Display-ready tier row state for industry planner; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export interface TierRowView {
   item: ConsolidatedItem;
   // The displayed quantity: a lit downstream cell shows the ACTUAL consumed

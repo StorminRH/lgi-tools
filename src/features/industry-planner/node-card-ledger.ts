@@ -9,6 +9,10 @@
 import { formatIsk } from '@/lib/format/isk';
 import { formatCompactQuantity, formatQuantity } from '@/lib/format/number';
 
+/**
+ * Display-ready ledger cell produced by industry planner; values retain their domain units and
+ * require no additional query by the renderer.
+ */
 export interface LedgerCell {
   qty: string;
   isk: string;
@@ -34,6 +38,7 @@ export interface QtyRingView {
   ringLabel: string;
 }
 
+/** Derives the quantity-ring fraction and tone from required and available units. */
 export function qtyRingView(name: string, qty: number, ownedQty?: number): QtyRingView {
   const progress = ownedQty !== undefined && qty > 0 ? Math.min(ownedQty / qty, 1) : 0;
   const remaining = Math.max(0, qty - (ownedQty ?? 0));
@@ -61,6 +66,7 @@ export interface AssetLedgerView {
   remaining: LedgerCell | null;
 }
 
+/** Builds display rows comparing required material quantities with owned assets across eligible locations. */
 export function assetLedgerView(
   qty: number,
   value: number | null,
@@ -75,6 +81,7 @@ export function assetLedgerView(
   };
 }
 
+/** Builds one owned-material ledger row with required, available, missing, and source quantities in units. */
 export function ownedLedgerRow(
   qty: number,
   ownedQty: number,

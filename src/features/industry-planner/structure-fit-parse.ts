@@ -21,6 +21,7 @@
 // Degrades gracefully: a string with no resolvable structure header returns null;
 // rig names that don't resolve are dropped, never thrown.
 
+/** Successfully parsed structure fit containing hull and applicable rig type IDs. */
 export interface ParsedStructureFit {
   structureTypeId: number;
   rigTypeIds: number[];
@@ -48,6 +49,10 @@ function stripOffline(text: string): string {
   return text.replace(/\s*\/offline$/i, '').trim();
 }
 
+/**
+ * Parses a copied in-game structure fit into structure and rig type IDs, returning explicit errors
+ * for unsupported or malformed lines.
+ */
 export function parseStructureFit(
   clipboard: string,
   resolveTypeId: ResolveTypeId,
