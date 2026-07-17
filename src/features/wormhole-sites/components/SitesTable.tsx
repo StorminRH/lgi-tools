@@ -80,6 +80,7 @@ const COLUMNS: SortableColumn<SiteDetail>[] = [
   },
 ];
 
+/** Renders sortable wormhole-site catalogue rows and forwards sort state through URL-backed controls. */
 export function SitesTable({
   sites,
   sortKey,

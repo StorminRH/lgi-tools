@@ -23,6 +23,7 @@ import { SavedPlanRows } from './SavedPlanRows';
 // dashboard's Templates section and /industry/templates); every mutating endpoint
 // echoes the full updated list, so the panel re-renders without a refetch.
 
+/** Renders saved template choices in the planner menu and forwards the selected snapshot for application. */
 export function TemplatesMenu({
   blueprintTypeId,
   productName,

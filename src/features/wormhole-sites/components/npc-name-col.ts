@@ -6,14 +6,18 @@ const ROW_PADDING = 28; // px-3.5 on each side of the wave grid
 const NAME_BUFFER = 10; // clear gap between the longest name and the EWAR chips
 const MIN_NAME = 40;
 
-// One measured NPC row: the name width, the combined EWAR+DPS trailing width,
-// and the usable grid content width (Infinity when the grid wasn't found).
+/**
+ * One measured NPC row: the name width, the combined EWAR+DPS trailing width,
+ * and the usable grid content width (Infinity when the grid wasn't found).
+ */
 export type NpcRowMetrics = { name: number; trailing: number; gridContent: number };
 
-// The shared name-column width: the widest NPC name (+ buffer), but clamped so
-// the busiest row (widest EWAR + DPS) still fits the narrowest grid — otherwise a
-// fixed name column would overflow EWAR-heavy waves and shove their DPS out of
-// line. Returns null when nothing measurable was found (fall back to auto sizing).
+/**
+ * The shared name-column width: the widest NPC name (+ buffer), but clamped so
+ * the busiest row (widest EWAR + DPS) still fits the narrowest grid — otherwise a
+ * fixed name column would overflow EWAR-heavy waves and shove their DPS out of
+ * line. Returns null when nothing measurable was found (fall back to auto sizing).
+ */
 export function deriveNpcNameColWidth(rows: NpcRowMetrics[]): number | null {
   let maxName = 0;
   let maxTrailing = 0;

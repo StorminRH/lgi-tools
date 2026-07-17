@@ -20,6 +20,7 @@ const PRICE_COLUMNS = {
   staleAfter: marketPrices.staleAfter,
 } as const;
 
+/** Loads stored market prices for the requested type IDs in one batched query. */
 export async function getPrices(
   typeIds: number[],
 ): Promise<Map<number, MarketPrice>> {
@@ -35,8 +36,10 @@ export async function getPrices(
   return out;
 }
 
-// Type IDs with stale_after < NOW(). Drives the nightly backstop sweep:
-// only the rows that have actually expired get fetched from the source.
+/**
+ * Type IDs with stale_after \< NOW(). Drives the nightly backstop sweep:
+ * only the rows that have actually expired get fetched from the source.
+ */
 export async function listStaleTypeIds(db: AnyPgDb): Promise<number[]> {
   const rows = await db
     .select({ typeId: marketPrices.typeId })
@@ -45,12 +48,14 @@ export async function listStaleTypeIds(db: AnyPgDb): Promise<number[]> {
   return rows.map((r) => r.typeId);
 }
 
-// Type IDs from `expected` that have NO row in market_prices. For callers
-// that want to ensure their expected set has rows after seeding. Exported
-// now so 3.0.3/3.0.4 wiring can read it; no runtime consumer in 3.0.2.
-// JS-side set diff after a single IN(...) round trip — at the expected
-// scale (~thousands of IDs) cheaper than an `unnest` + LEFT JOIN dance,
-// and avoids the drizzle sql-tag array-binding wrinkle.
+/**
+ * Type IDs from `expected` that have NO row in market_prices. For callers
+ * that want to ensure their expected set has rows after seeding. Exported
+ * now so 3.0.3/3.0.4 wiring can read it; no runtime consumer in 3.0.2.
+ * JS-side set diff after a single IN(...) round trip — at the expected
+ * scale (~thousands of IDs) cheaper than an `unnest` + LEFT JOIN dance,
+ * and avoids the drizzle sql-tag array-binding wrinkle.
+ */
 export async function listMissingTypeIds(
   db: AnyPgDb,
   expected: number[],

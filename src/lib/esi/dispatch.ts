@@ -22,6 +22,10 @@ import {
 // loop, and the per-instance fallback state. Lives beside the public entry so
 // esiFetch stays a thin orchestrator over named single-purpose helpers.
 
+/**
+ * Dispatch options for the shared ESI gate, including route group, cache policy, authentication
+ * budget, and caller abort signal.
+ */
 export interface EsiFetchOptions {
   // User-initiated call: when the scoreboard is unreachable, allow a
   // hard-capped per-instance trickle instead of refusing outright.
@@ -43,13 +47,17 @@ let trickleCount = 0;
 // scoreboard; an object replaces the resolved one. Not for runtime callers.
 let scoreboardOverride: EsiScoreboard | 'unavailable' | null = null;
 
+/**
+ * Replaces the process-local ESI scoreboard for an isolated test; production callers must never
+ * use this seam.
+ */
 export function __setScoreboardForTests(
   sb: EsiScoreboard | 'unavailable' | null,
 ): void {
   scoreboardOverride = sb;
 }
 
-// Reset module-level state between Vitest cases. Not for runtime callers.
+/** Reset module-level state between Vitest cases. Not for runtime callers. */
 export function __resetEsiGateForTests(): void {
   redisDownUntil = 0;
   trickleWindowStart = 0;
@@ -58,14 +66,20 @@ export function __resetEsiGateForTests(): void {
   __resetScoreboardForTests();
 }
 
+/**
+ * Returns the lazily resolved process-local ESI scoreboard shared by every dispatch in the current
+ * runtime.
+ */
 export function getScoreboard(): EsiScoreboard | null {
   if (scoreboardOverride === 'unavailable') return null;
   if (scoreboardOverride !== null) return scoreboardOverride;
   return resolveScoreboard();
 }
 
-// Conditional requests and body caching apply only to unauthenticated GETs:
-// the shared cache must never hold per-character data.
+/**
+ * Conditional requests and body caching apply only to unauthenticated GETs:
+ * the shared cache must never hold per-character data.
+ */
 export function isEtagEligible(init?: RequestInit): boolean {
   if ((init?.method ?? 'GET').toUpperCase() !== 'GET') return false;
   return !new Headers(init?.headers).has('Authorization');
@@ -212,11 +226,13 @@ function synthesizeFromCache(body: string, meta: CachedEtagMeta): Response {
   return new Response(body, { status: 200, statusText: 'OK', headers });
 }
 
-// Serve the stored body WITHOUT dispatching while ESI's own cache window (the
-// stored Expires) is still open and the body is still in the scoreboard. Returns
-// null — fall through to a normal conditional dispatch — when the window has
-// closed, the body was evicted, or the lookup errors. Makes no report: no ESI
-// call happened, so there are no fresh rate-limit numbers to record.
+/**
+ * Serve the stored body WITHOUT dispatching while ESI's own cache window (the
+ * stored Expires) is still open and the body is still in the scoreboard. Returns
+ * null — fall through to a normal conditional dispatch — when the window has
+ * closed, the body was evicted, or the lookup errors. Makes no report: no ESI
+ * call happened, so there are no fresh rate-limit numbers to record.
+ */
 export async function serveFromExpiresWindow(
   url: string,
   etagMeta: CachedEtagMeta,
@@ -233,9 +249,11 @@ export async function serveFromExpiresWindow(
   return synthesizeFromCache(body, etagMeta);
 }
 
-// Consult the shared scoreboard, skipping while the outage memo is open. A
-// pre-dispatch failure opens the memo (so a Redis outage doesn't add a timeout
-// to every call) and reports as "no shared state" — null, which fails closed.
+/**
+ * Consult the shared scoreboard, skipping while the outage memo is open. A
+ * pre-dispatch failure opens the memo (so a Redis outage doesn't add a timeout
+ * to every call) and reports as "no shared state" — null, which fails closed.
+ */
 export async function consultPreDispatch(
   sb: EsiScoreboard | null,
   url: string,
@@ -251,10 +269,12 @@ export async function consultPreDispatch(
   }
 }
 
-// Refuse the call when the budget is spent. Without the shared mirror (pre ===
-// null) we cannot know what other instances have spent, so fail closed:
-// interactive callers get a hard-capped per-instance trickle, everything else
-// throws. With it, honor a 429 Retry-After block and the error-budget floor.
+/**
+ * Refuse the call when the budget is spent. Without the shared mirror (pre ===
+ * null) we cannot know what other instances have spent, so fail closed:
+ * interactive callers get a hard-capped per-instance trickle, everything else
+ * throws. With it, honor a 429 Retry-After block and the error-budget floor.
+ */
 export function enforceBudget(
   pre: PreDispatchState | null,
   url: string,
@@ -374,8 +394,10 @@ function throwIfErrorStatus(url: string, res: Response): void {
   }
 }
 
-// At most two dispatches: the conditional attempt, plus one unconditional
-// retry if a 304 arrives but the cached body has been evicted.
+/**
+ * At most two dispatches: the conditional attempt, plus one unconditional
+ * retry if a 304 arrives but the cached body has been evicted.
+ */
 export async function dispatch(
   url: string,
   init: RequestInit | undefined,

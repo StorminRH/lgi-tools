@@ -22,9 +22,11 @@ interface UpsertInput {
   portraitUrl: string;
 }
 
-// Insert on first login, update name/portrait/lastLoginAt on every subsequent login.
-// `role` and `preferences` are deliberately absent from the conflict set: they're
-// owned by the admin/preferences UIs once written, and must survive re-logins.
+/**
+ * Insert on first login, update name/portrait/lastLoginAt on every subsequent login.
+ * `role` and `preferences` are deliberately absent from the conflict set: they're
+ * owned by the admin/preferences UIs once written, and must survive re-logins.
+ */
 export async function upsertCharacterOnLogin(input: UpsertInput): Promise<Character> {
   const now = new Date();
   const [row] = await db
@@ -49,6 +51,7 @@ export async function upsertCharacterOnLogin(input: UpsertInput): Promise<Charac
   return row as Character;
 }
 
+/** User-owned linked EVE character with token availability, granted scopes, and display identity. */
 export interface LinkedCharacter {
   characterId: number;
   name: string;
@@ -68,9 +71,11 @@ export interface LinkedCharacter {
   affiliationRefreshedAt: Date | null;
 }
 
-// Shape one account→characters join row into a LinkedCharacter: fall back to a
-// synthesised name/portrait when the profile row is missing, and flag whether a
-// usable refresh token is still on file. Pure — the join lives in the query.
+/**
+ * Shape one account→characters join row into a LinkedCharacter: fall back to a
+ * synthesised name/portrait when the profile row is missing, and flag whether a
+ * usable refresh token is still on file. Pure — the join lives in the query.
+ */
 export function toLinkedCharacter(r: {
   accountId: string;
   scope: string | null;
@@ -94,9 +99,11 @@ export function toLinkedCharacter(r: {
   };
 }
 
-// Every EVE character linked to a user, oldest first. The page's data source —
-// NOT Better Auth's /list-accounts, which carries neither name/portrait nor the
-// token presence this needs (and would leak no useful health signal).
+/**
+ * Every EVE character linked to a user, oldest first. The page's data source —
+ * NOT Better Auth's /list-accounts, which carries neither name/portrait nor the
+ * token presence this needs (and would leak no useful health signal).
+ */
 export async function listLinkedCharacters(userId: string): Promise<LinkedCharacter[]> {
   const rows = await db
     .select({
@@ -117,6 +124,7 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
   return rows.map(toLinkedCharacter).filter((r) => Number.isFinite(r.characterId));
 }
 
+/** Linked character selected for active account operations. */
 export interface ActiveCharacter {
   characterId: number;
   // From the joined `characters` row; null when the profile hasn't been written
@@ -125,13 +133,15 @@ export interface ActiveCharacter {
   portraitUrl: string | null;
 }
 
-// Resolve the user's ACTIVE character for the session: the account named by
-// `preferredId` (user.activeCharacterId) when it's still linked, else the oldest
-// linked account. One indexed read (account_user_id_idx) + a characters PK join.
-// If `preferredId` is set but no longer linked (its character was unlinked
-// out-of-band), repoint user.activeCharacterId to the resolved char — fire-and-
-// forget so getSession never blocks on a write. Returns null only when the user
-// has no linked EVE account at all.
+/**
+ * Resolve the user's ACTIVE character for the session: the account named by
+ * `preferredId` (user.activeCharacterId) when it's still linked, else the oldest
+ * linked account. One indexed read (account_user_id_idx) + a characters PK join.
+ * If `preferredId` is set but no longer linked (its character was unlinked
+ * out-of-band), repoint user.activeCharacterId to the resolved char — fire-and-
+ * forget so getSession never blocks on a write. Returns null only when the user
+ * has no linked EVE account at all.
+ */
 export async function resolveActiveCharacter(
   userId: string,
   preferredId: number | null,
@@ -172,8 +182,10 @@ export async function resolveActiveCharacter(
   return { characterId: chosen.characterId, name: chosen.name, portraitUrl: chosen.portraitUrl };
 }
 
-// True when the given character is one of this user's linked EVE accounts. The
-// ownership guard the switch/unlink routes gate on — never trust a posted id.
+/**
+ * True when the given character is one of this user's linked EVE accounts. The
+ * ownership guard the switch/unlink routes gate on — never trust a posted id.
+ */
 export async function accountBelongsToUser(userId: string, characterId: number): Promise<boolean> {
   const [row] = await db
     .select({ id: account.id })
@@ -183,7 +195,7 @@ export async function accountBelongsToUser(userId: string, characterId: number):
   return row != null;
 }
 
-// Point the user's active character at the given (already-validated) character.
+/** Point the user's active character at the given (already-validated) character. */
 export async function setActiveCharacter(userId: string, characterId: number): Promise<void> {
   await db
     .update(user)
@@ -191,9 +203,11 @@ export async function setActiveCharacter(userId: string, characterId: number): P
     .where(eq(user.id, userId));
 }
 
-// Re-point the active character to the user's oldest remaining linked account
-// (NULL when none remain). Called after unlinking the active character so the
-// session never references a deleted account. Returns the new active id.
+/**
+ * Re-point the active character to the user's oldest remaining linked account
+ * (NULL when none remain). Called after unlinking the active character so the
+ * session never references a deleted account. Returns the new active id.
+ */
 export async function repointActiveToOldest(userId: string): Promise<number | null> {
   const [row] = await db
     .select({ accountId: account.accountId })
@@ -211,10 +225,12 @@ export async function repointActiveToOldest(userId: string): Promise<number | nu
   return next;
 }
 
-// The user's CURRENTLY-stored active character id (NULL if none). Read fresh
-// from the row — used by unlink to decide whether to re-point, rather than
-// trusting the session snapshot captured at the top of the request (which a
-// concurrent switch could have made stale).
+/**
+ * The user's CURRENTLY-stored active character id (NULL if none). Read fresh
+ * from the row — used by unlink to decide whether to re-point, rather than
+ * trusting the session snapshot captured at the top of the request (which a
+ * concurrent switch could have made stale).
+ */
 export async function getStoredActiveCharacterId(userId: string): Promise<number | null> {
   const [row] = await db
     .select({ activeCharacterId: user.activeCharacterId })

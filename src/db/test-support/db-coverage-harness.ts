@@ -9,25 +9,31 @@ import postgres from 'postgres';
 
 type Sql = ReturnType<typeof postgres>;
 
-// The local Docker Postgres (`docker compose up -d` on :5433) that `pnpm dev` and
-// the migration/SDE scripts target. A plain string constant, never a `process.env`
-// read, so the server-env lint rule can't fire in this non-test module; the test
-// files (lint-exempt) pass an override when DATABASE_URL is set in the shell.
+/**
+ * The local Docker Postgres (`docker compose up -d` on :5433) that `pnpm dev` and
+ * the migration/SDE scripts target. A plain string constant, never a `process.env`
+ * read, so the server-env lint rule can't fire in this non-test module; the test
+ * files (lint-exempt) pass an override when DATABASE_URL is set in the shell.
+ */
 export const LOCAL_DB_URL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
 
-// Append a `search_path` startup parameter to a connection URL. postgres-js
-// forwards any unknown URL query param as a Postgres startup parameter, so the
-// resulting connection resolves unqualified table names inside <schema> first —
-// the lever that steers the request-path `db` proxy into a disposable test schema
-// with no change to the query source.
+/**
+ * Append a `search_path` startup parameter to a connection URL. postgres-js
+ * forwards any unknown URL query param as a Postgres startup parameter, so the
+ * resulting connection resolves unqualified table names inside <schema> first —
+ * the lever that steers the request-path `db` proxy into a disposable test schema
+ * with no change to the query source.
+ */
 export function schemaUrl(base: string, schema: string): string {
   return `${base}${base.includes('?') ? '&' : '?'}search_path=${schema}`;
 }
 
-// True iff a Postgres answers at `url`. Gates the DB-execution suites: with no
-// reachable DB (CI, a DB-less `pnpm verify`) it returns false and the suite skips.
-// Never rejects — a refused or hung connection resolves false so test collection
-// can't error on it.
+/**
+ * True iff a Postgres answers at `url`. Gates the DB-execution suites: with no
+ * reachable DB (CI, a DB-less `pnpm verify`) it returns false and the suite skips.
+ * Never rejects — a refused or hung connection resolves false so test collection
+ * can't error on it.
+ */
 export async function canReachDb(url: string): Promise<boolean> {
   const probe = postgres(url, { max: 1, connect_timeout: 3, onnotice: () => {} });
   try {
@@ -44,12 +50,14 @@ export async function canReachDb(url: string): Promise<boolean> {
   }
 }
 
-// Create a throwaway schema holding empty clones of the named public tables.
-// `LIKE ... INCLUDING ALL` copies columns, types, defaults, indexes, and checks
-// from the live table, so there is no DDL to drift out of sync; foreign keys are
-// deliberately not copied (LIKE never copies them), so seed rows need no parent
-// rows. The names are in-repo test constants, so `unsafe` interpolation carries
-// no injection surface.
+/**
+ * Create a throwaway schema holding empty clones of the named public tables.
+ * `LIKE ... INCLUDING ALL` copies columns, types, defaults, indexes, and checks
+ * from the live table, so there is no DDL to drift out of sync; foreign keys are
+ * deliberately not copied (LIKE never copies them), so seed rows need no parent
+ * rows. The names are in-repo test constants, so `unsafe` interpolation carries
+ * no injection surface.
+ */
 export async function setupDisposableSchema(
   adminClient: Sql,
   schema: string,
@@ -67,10 +75,12 @@ export async function setupDisposableSchema(
   }
 }
 
-// Re-add one load-bearing foreign key to cloned tables. PostgreSQL's
-// `LIKE ... INCLUDING ALL` deliberately omits FKs, which is useful for most
-// query fixtures but would make cascade characterization dishonest. Every
-// identifier and action comes from an in-repo test constant.
+/**
+ * Re-add one load-bearing foreign key to cloned tables. PostgreSQL's
+ * `LIKE ... INCLUDING ALL` deliberately omits FKs, which is useful for most
+ * query fixtures but would make cascade characterization dishonest. Every
+ * identifier and action comes from an in-repo test constant.
+ */
 export async function addForeignKey(
   adminClient: Sql,
   schema: string,
@@ -90,7 +100,7 @@ export async function addForeignKey(
   );
 }
 
-// Drop the throwaway schema and everything it holds (tables and cloned sequences).
+/** Drop the throwaway schema and everything it holds (tables and cloned sequences). */
 export async function dropDisposableSchema(adminClient: Sql, schema: string): Promise<void> {
   await adminClient.unsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
 }

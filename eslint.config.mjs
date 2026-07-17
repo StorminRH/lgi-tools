@@ -1,6 +1,8 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
+import tsdoc from "eslint-plugin-tsdoc";
 
 // Shared `no-restricted-syntax` selector sets. Factored out because flat config
 // REPLACES (does not merge) a rule's options for each matching file — so a
@@ -368,6 +370,40 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}", "convex/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/*.d.ts"],
+    plugins: { jsdoc, tsdoc },
+    rules: {
+      "jsdoc/require-jsdoc": [
+        "error",
+        {
+          publicOnly: { esm: true, ancestorsOnly: true },
+          require: {
+            ArrowFunctionExpression: true,
+            ClassDeclaration: true,
+            ClassExpression: true,
+            FunctionDeclaration: true,
+            FunctionExpression: true,
+          },
+          exemptOverloadedImplementations: true,
+          skipInterveningOverloadedDeclarations: false,
+          contexts: [
+            "ExportNamedDeclaration > VariableDeclaration",
+            "TSInterfaceDeclaration",
+            "TSTypeAliasDeclaration",
+            "TSEnumDeclaration",
+            "TSDeclareFunction",
+          ],
+        },
+      ],
+      "tsdoc/syntax": "error",
+      "no-warning-comments": [
+        "error",
+        { terms: ["todo", "fixme"], location: "anywhere" },
       ],
     },
   },

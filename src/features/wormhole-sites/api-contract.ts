@@ -7,14 +7,20 @@ import type { SiteListItem } from './types';
 
 // ── GET /api/sites ──────────────────────────────────────────────────────
 
+/**
+ * Boundary validator for sites query schema; successful parsing yields the normalized wormhole
+ * sites input consumed internally.
+ */
 export const sitesQuerySchema = z.object({
   type: z.enum(SITE_TYPES).optional(),
   class: z.enum(WORMHOLE_CLASSES).optional(),
 });
 
-// List response row: makes the ISK source explicit so consumers can't mistake
-// the Sheet's static rollup for the live-overlaid value returned by
-// /api/sites/[id]. The list endpoint never applies the live overlay.
+/**
+ * List response row: makes the ISK source explicit so consumers can't mistake
+ * the Sheet's static rollup for the live-overlaid value returned by
+ * /api/sites/[id]. The list endpoint never applies the live overlay.
+ */
 export type SiteListApiItem = Omit<SiteListItem, 'resourceValueIsk'> & {
   sheetResourceValueIsk: SiteListItem['resourceValueIsk'];
 };
@@ -26,9 +32,11 @@ export type SiteListApiItem = Omit<SiteListItem, 'resourceValueIsk'> & {
 // refuse with a 500.
 const PG_SERIAL_MAX = 2_147_483_647;
 
-// Plain positive decimal only — no leading zeros, no signs, no whitespace,
-// no hex/scientific notation, no trailing garbage that parseInt would
-// silently strip.
+/**
+ * Plain positive decimal only — no leading zeros, no signs, no whitespace,
+ * no hex/scientific notation, no trailing garbage that parseInt would
+ * silently strip.
+ */
 export const siteIdParamSchema = z.object({
   id: z
     .string()

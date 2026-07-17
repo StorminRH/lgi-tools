@@ -12,20 +12,28 @@
 //
 // Runtime-light — the Convex action imports this too.
 
-// Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
-// never demand a scope sign-in doesn't request). A direct EVE_SCOPES import
-// here would be a feature → feature edge the boundary lint bans.
+/**
+ * Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
+ * never demand a scope sign-in doesn't request). A direct EVE_SCOPES import
+ * here would be a feature → feature edge the boundary lint bans.
+ */
 export const CORP_INDUSTRY_JOBS_SYNC_SCOPES = [
   'esi-characters.read_corporation_roles.v1',
   'esi-industry.read_corporation_jobs.v1',
 ] as const;
 
-// The in-game corp roles that admit a character to the corp industry-jobs
-// endpoint. Factory_Manager is the documented role; Director holds it
-// implicitly, but ESI lists roles explicitly, so we admit either. A 403 from
-// the actual read (role revoked mid-run) is the safety net.
+/**
+ * The in-game corp roles that admit a character to the corp industry-jobs
+ * endpoint. Factory_Manager is the documented role; Director holds it
+ * implicitly, but ESI lists roles explicitly, so we admit either. A 403 from
+ * the actual read (role revoked mid-run) is the safety net.
+ */
 export const CORP_INDUSTRY_JOBS_REQUIRED_ROLES = ['Factory_Manager', 'Director'] as const;
 
+/**
+ * Returns whether a linked character has token custody and every scope required for corporation
+ * industry jobs.
+ */
 export function canSyncCorpIndustryJobs(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

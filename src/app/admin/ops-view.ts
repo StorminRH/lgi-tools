@@ -10,6 +10,10 @@ import type { DomainEventRow } from '@/data/domain-events/types';
 import { ESI_BUDGET_FLOOR } from '@/lib/esi';
 import type { EsiBudgetSnapshot } from '@/lib/esi/scoreboard';
 
+/**
+ * Display-ready ops metric row produced by App Router; values retain their domain units and
+ * require no additional query by the renderer.
+ */
 export interface OpsMetricRow {
   label: string;
   value: string;
@@ -24,6 +28,10 @@ function elapsedLabel(from: Date, now: Date): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
+/**
+ * Derives budget view under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
   if (snapshot === null) {
     return {
@@ -63,6 +71,7 @@ export function deriveBudgetView(snapshot: EsiBudgetSnapshot | null) {
   };
 }
 
+/** Derives queue view under the App Router policy without transferring ownership of caller-provided inputs. */
 export function deriveQueueView(stats: EsiRefreshQueueStat[], now: Date) {
   const rows = stats.map((row) => ({
     status: row.status,
@@ -78,6 +87,10 @@ export function deriveQueueView(stats: EsiRefreshQueueStat[], now: Date) {
   };
 }
 
+/**
+ * Derives dead letter view under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function deriveDeadLetterView(rows: DeadLetterRow[]) {
   return rows.map((row) => ({
     id: row.id,
@@ -89,6 +102,10 @@ export function deriveDeadLetterView(rows: DeadLetterRow[]) {
   }));
 }
 
+/**
+ * Derives cost lens view under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function deriveCostLensView(input: {
   prices: PriceSourceSplit;
   history: HistorySourceSplit;
@@ -150,6 +167,10 @@ export function deriveCostLensView(input: {
   };
 }
 
+/**
+ * Derives domain event under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function summarizeDomainEvent(event: DomainEventRow): string {
   switch (event.eventType) {
     case 'price_refresh_finished':

@@ -1,6 +1,10 @@
 import type { ComponentProps } from 'react';
 import { cn } from './cn';
 
+/**
+ * Renders the domain-neutral kbd with house behavior and tokens; callers own semantic meaning and
+ * content while this primitive owns presentation.
+ */
 export function Kbd({ className, ...props }: ComponentProps<'kbd'>) {
   return (
     <kbd

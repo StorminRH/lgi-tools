@@ -10,19 +10,31 @@ import type {
   RefreshVolumePoint,
 } from './types';
 
-// ── Cron outcome vocabulary ─────────────────────────────────────────────
-// The healthy/neutral outcome sets are the single source of truth for the
-// status strip's classification. `cron_prices` never writes a failure row (a
-// crash writes nothing), so its only outcomes are healthy. `cron_sde` busy is
-// a benign lock-contention skip — not counted against health;
-// remote-unreachable is genuinely unhealthy.
+/**
+ * ── Cron outcome vocabulary ─────────────────────────────────────────────
+ * The healthy/neutral outcome sets are the single source of truth for the
+ * status strip's classification. `cron_prices` never writes a failure row (a
+ * crash writes nothing), so its only outcomes are healthy. `cron_sde` busy is
+ * a benign lock-contention skip — not counted against health;
+ * remote-unreachable is genuinely unhealthy.
+ */
 export const PRICES_HEALTHY_OUTCOMES = ['refreshed', 'skipped'] as const;
+/**
+ * Closed, canonically ordered set of sde healthy outcomes; consumers derive validation, unions,
+ * and iteration from this one list.
+ */
 export const SDE_HEALTHY_OUTCOMES = ['up-to-date', 'reingested'] as const;
+/**
+ * Closed, canonically ordered set of sde neutral outcomes; consumers derive validation, unions,
+ * and iteration from this one list.
+ */
 export const SDE_NEUTRAL_OUTCOMES = ['busy'] as const;
 
-// ── Login-frequency histogram ───────────────────────────────────────────
-// Bucket edges are presentation, so bucketing happens here, not in SQL. Input
-// is a bare per-user login-count list — no identity reaches this function.
+/**
+ * ── Login-frequency histogram ───────────────────────────────────────────
+ * Bucket edges are presentation, so bucketing happens here, not in SQL. Input
+ * is a bare per-user login-count list — no identity reaches this function.
+ */
 export interface LoginFrequencyBucket {
   label: string;
   users: number;
@@ -35,6 +47,10 @@ const LOGIN_BUCKETS: { label: string; test: (n: number) => boolean }[] = [
   { label: '10+', test: (n) => n >= 10 },
 ];
 
+/**
+ * Buckets users by observed login frequency over the supplied period for health reporting;
+ * returned counts are users.
+ */
 export function loginFrequencyBuckets(counts: number[]): LoginFrequencyBucket[] {
   return LOGIN_BUCKETS.map((b) => ({
     label: b.label,
@@ -58,6 +74,10 @@ export function formatPct(r: number | null, empty = '—'): string {
 // Each reads sensibly at an empty window, a real 0%, and 100%. They never
 // fabricate a denominator that doesn't exist (a trivially-true denominator).
 
+/**
+ * Summarizes canonical versus fallback price-source events and computes the fallback percentage
+ * for the requested period.
+ */
 export function fallbackSummary({ esi, fallback }: FallbackRateData): string {
   const denom = esi + fallback;
   if (denom === 0) return 'No price refreshes recorded this period.';
@@ -66,11 +86,13 @@ export function fallbackSummary({ esi, fallback }: FallbackRateData): string {
   return `Fuzzwork covered ${pct}% of priced items when ESI was unavailable.`;
 }
 
+/** Summarizes ESI budget refusal events by route group and source for the requested period. */
 export function budgetSummary(count: number): string {
   if (count === 0) return 'ESI stayed within its error budget all period.';
   return `ESI hit its error-budget floor ${count} time${count === 1 ? '' : 's'}, falling back to Fuzzwork.`;
 }
 
+/** Groups degraded price-source callers by the closed caller vocabulary and event count. */
 export function degradationCallerSummary(rows: DegradationCallerCount[]): string {
   const total = rows.reduce((s, r) => s + r.count, 0);
   if (total === 0) return 'No price-source degradation events this period.';
@@ -78,6 +100,7 @@ export function degradationCallerSummary(rows: DegradationCallerCount[]): string
   return `${total} degradation event${total === 1 ? '' : 's'} this period (${parts}).`;
 }
 
+/** Aggregates refresh volume, item counts, and elapsed milliseconds by dataset and outcome. */
 export function refreshVolumeSummary(points: RefreshVolumePoint[]): string {
   if (points.length === 0) return 'No price refreshes recorded this period.';
   const fetched = points.reduce((s, p) => s + p.fetched, 0);
@@ -90,17 +113,29 @@ export function refreshVolumeSummary(points: RefreshVolumePoint[]): string {
 // plus a plain-English headline. Levels are presentation-agnostic (the route
 // maps them to dot colors); thresholds are pinned by tests.
 
+/** Closed operations-health severity used by dashboard status strips. */
 export type StatusLevel = 'green' | 'amber' | 'red' | 'neutral';
 
+/** Display-ready subsystem health with severity, short label, and operator-facing detail. */
 export interface SubsystemStatus {
   level: StatusLevel;
   headline: string;
 }
 
-// GSC sync outcomes (`summary.status` from the daily cron): `synced` is clean,
-// `skipped` is a benign no-op, `partial` completed with errors, `failed` failed.
+/**
+ * GSC sync outcomes (`summary.status` from the daily cron): `synced` is clean,
+ * `skipped` is a benign no-op, `partial` completed with errors, `failed` failed.
+ */
 export const GSC_HEALTHY_OUTCOMES = ['synced'] as const;
+/**
+ * Closed, canonically ordered set of gsc neutral outcomes; consumers derive validation, unions,
+ * and iteration from this one list.
+ */
 export const GSC_NEUTRAL_OUTCOMES = ['skipped'] as const;
+/**
+ * Closed, canonically ordered set of gsc degraded outcomes; consumers derive validation, unions,
+ * and iteration from this one list.
+ */
 export const GSC_DEGRADED_OUTCOMES = ['partial'] as const;
 
 // Staleness slack over the schedule interval before a cron reads as late
@@ -120,6 +155,7 @@ export function formatAgo(then: Date, now: Date): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+/** Latest cron evidence and expected cadence used to derive one subsystem status. */
 export interface CronStatusInput {
   /** Latest recorded run, regardless of the dashboard range. Null = never ran. */
   lastRun: { timestamp: Date; outcome: string | null } | null;
@@ -147,6 +183,10 @@ function classifyOutcome(
   return 'unhealthy';
 }
 
+/**
+ * Derives the dashboard health level and explanatory detail for one cron from its latest success,
+ * failure, and expected cadence.
+ */
 export function deriveCronStatus(input: CronStatusInput): SubsystemStatus {
   const { lastRun, outcomes, expectedEveryHours, now } = input;
   if (!lastRun) return { level: 'red', headline: 'never ran' };
@@ -180,6 +220,7 @@ export function deriveCronStatus(input: CronStatusInput): SubsystemStatus {
   return { level: 'green', headline: `healthy · last run ${ago}` };
 }
 
+/** Search Console sync evidence used to derive coverage subsystem health. */
 export interface GscStatusInput {
   configured: boolean;
   lastRun: { timestamp: Date; outcome: string | null } | null;
@@ -189,8 +230,10 @@ export interface GscStatusInput {
   now: Date;
 }
 
-// Takes lastSyncedAt as a plain Date so this slice never imports gsc —
-// cross-slice composition stays at the route level.
+/**
+ * Takes lastSyncedAt as a plain Date so this slice never imports gsc —
+ * cross-slice composition stays at the route level.
+ */
 export function deriveGscStatus(input: GscStatusInput): SubsystemStatus {
   if (!input.configured) {
     return { level: 'neutral', headline: 'not connected · set GSC env vars to sync search data' };
@@ -213,6 +256,7 @@ export function deriveGscStatus(input: GscStatusInput): SubsystemStatus {
   return base;
 }
 
+/** Fallback, budget, and refresh-volume evidence used to derive ESI source health. */
 export interface EsiSourceStatusInput {
   fallback: FallbackRateData;
   budgetExhaustions: number;
@@ -222,6 +266,10 @@ export interface EsiSourceStatusInput {
 // source reads as down rather than flaky.
 const FALLBACK_RED_RATE = 0.5;
 
+/**
+ * Derives ESI source health from fallback share, budget exhaustion, and recent refresh volume
+ * without querying storage.
+ */
 export function deriveEsiSourceStatus({
   fallback,
   budgetExhaustions,
@@ -245,9 +293,11 @@ export function deriveEsiSourceStatus({
   return { level: 'green', headline: 'ESI served every priced item this period' };
 }
 
-// Daily fallback-rate percentages for the ESI-source trend chart: the share of
-// each day's priced items served by the Fuzzwork fallback, as a whole percent.
-// A day with no refreshes (esi + fallback === 0) reads 0, never a divide-by-zero.
+/**
+ * Daily fallback-rate percentages for the ESI-source trend chart: the share of
+ * each day's priced items served by the Fuzzwork fallback, as a whole percent.
+ * A day with no refreshes (esi + fallback === 0) reads 0, never a divide-by-zero.
+ */
 export function fallbackRatePoints(
   perDay: ReadonlyArray<{ esi: number; fallback: number }>,
 ): number[] {

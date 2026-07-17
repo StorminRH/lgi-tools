@@ -79,12 +79,14 @@ function JobsLoading() {
   );
 }
 
-// Live industry jobs across the pilot's linked characters (3.4.8) — the
-// second Convex tracker, and the first with a scheduled transition: a job
-// flips to ready at its end date with the page open. The page container
-// prerenders as the static shell; the session + character-list read is a
-// request-time dynamic hole, and the job boards stream in reactively from
-// Convex inside the client island.
+/**
+ * Live industry jobs across the pilot's linked characters (3.4.8) — the
+ * second Convex tracker, and the first with a scheduled transition: a job
+ * flips to ready at its end date with the page open. The page container
+ * prerenders as the static shell; the session + character-list read is a
+ * request-time dynamic hole, and the job boards stream in reactively from
+ * Convex inside the client island.
+ */
 export default function JobsPage() {
   return (
     <PageShell>

@@ -10,6 +10,7 @@
 // popover, and are never read by the cost/ME compute path.
 import type { OwnedBlueprintOwnerType } from './schema';
 
+/** Original and copy blueprint quantities for one blueprint type. */
 export interface OwnedBlueprintSummary {
   me: number;
   te: number;
@@ -23,10 +24,13 @@ export interface OwnedBlueprintSummary {
   locationFlag: string;
 }
 
+/** Owned blueprint summaries indexed by blueprint type ID. */
 export type OwnedBlueprintMap = Map<number, OwnedBlueprintSummary>;
 
-// The columns the reduce needs from a stored row — a structural subset so callers
-// can pass the cached read's projection directly.
+/**
+ * The columns the reduce needs from a stored row — a structural subset so callers
+ * can pass the cached read's projection directly.
+ */
 export interface BlueprintMapInput {
   typeId: number;
   materialEfficiency: number;
@@ -55,6 +59,7 @@ function isBetterCopy(row: BlueprintMapInput, summary: OwnedBlueprintSummary): b
   return runsRank(row.runs) > runsRank(summary.runs);
 }
 
+/** Aggregates owned blueprint rows by type ID into original and copy quantities. */
 export function toOwnedBlueprintMap(rows: BlueprintMapInput[]): OwnedBlueprintMap {
   const map: OwnedBlueprintMap = new Map();
   for (const row of rows) {

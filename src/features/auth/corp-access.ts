@@ -16,11 +16,15 @@ import { refreshStaleAffiliationsForUser } from './affiliation';
 import { memberCharacterIdInCorp } from './membership';
 import { getUserAffiliations, recordCorpAccessDecision } from './affiliation-store';
 
-// Why a decision went the way it did. Plain text in the audit ledger (no DB enum),
-// so a finer-grained reason can be added later without a migration.
+/**
+ * Why a decision went the way it did. Plain text in the audit ledger (no DB enum),
+ * so a finer-grained reason can be added later without a migration.
+ */
 export const CORP_ACCESS_REASONS = ['member', 'not_member'] as const;
+/** Closed reasons a linked character is or is not eligible to read corporation data. */
 export type CorpAccessReason = (typeof CORP_ACCESS_REASONS)[number];
 
+/** Corporation-access verdict with eligible character IDs and the reason shown to callers. */
 export interface CorpAccessDecision {
   allowed: boolean;
   reason: CorpAccessReason;
@@ -28,10 +32,12 @@ export interface CorpAccessDecision {
   characterId: number | null;
 }
 
-// Decide whether this user may access corporationId's scope, on ≤1h-fresh
-// affiliation, and record the decision. The two affiliation reads (the stale-scan
-// inside refreshStaleAffiliationsForUser, then the post-refresh read here) are the
-// inherent cost of deciding on freshly-refreshed data.
+/**
+ * Decide whether this user may access corporationId's scope, on ≤1h-fresh
+ * affiliation, and record the decision. The two affiliation reads (the stale-scan
+ * inside refreshStaleAffiliationsForUser, then the post-refresh read here) are the
+ * inherent cost of deciding on freshly-refreshed data.
+ */
 export async function decideCorpAccess(input: {
   userId: string;
   corporationId: number;

@@ -34,6 +34,10 @@ export function runMutationRoute<TAuthorization extends AuthorizationSuccess, TB
   request: Request,
   options: BodyfulMutationOptions<TAuthorization, TBody>,
 ): Promise<Response>;
+/**
+ * Runs authorization, same-origin observation, optional body parsing, and the mutation handler in
+ * order; guard and parser responses pass through unchanged.
+ */
 export function runMutationRoute<TAuthorization extends AuthorizationSuccess>(
   request: Request,
   options: BodylessMutationOptions<TAuthorization>,

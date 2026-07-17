@@ -1,23 +1,27 @@
-// One rung of the near-touch depth ladder (3.5.3a): the cumulative order
-// volume available within `pct`% of the BEST price on a side. Bands are nested
-// (0.5% ⊂ 1% ⊂ …), so cumVolume is monotonic non-decreasing across the ladder.
-// cumVolume is a plain number — realistic Jita cumulative volumes stay well
-// under MAX_SAFE_INTEGER, matching computeSide's existing Number() math.
+/**
+ * One rung of the near-touch depth ladder (3.5.3a): the cumulative order
+ * volume available within `pct`% of the BEST price on a side. Bands are nested
+ * (0.5% ⊂ 1% ⊂ …), so cumVolume is monotonic non-decreasing across the ladder.
+ * cumVolume is a plain number — realistic Jita cumulative volumes stay well
+ * under MAX_SAFE_INTEGER, matching computeSide's existing Number() math.
+ */
 export interface DepthBand {
   pct: number;
   cumVolume: number;
 }
 
-// The best single non-hub sell opportunity for a type (3.7.26.1) — computed
-// by the same ingest pass that scopes the stored book to Jita 4-4, from the
-// region orders the scoping filters out. All fields are plain numbers (this
-// rides a jsonb column; BigInt would throw at serialization). `pct` is the
-// discount vs the HUB best sell; `units` is the winning station's volume
-// priced at-or-under the hub best, after that station's own dust walk.
-// System id, never a station/structure id — the UI resolves it to a system
-// name from the SDE. NULL on a row means no opportunity cleared the gate
-// (or the row predates the field / came from the Fuzzwork fallback, which
-// has no order book to fold over).
+/**
+ * The best single non-hub sell opportunity for a type (3.7.26.1) — computed
+ * by the same ingest pass that scopes the stored book to Jita 4-4, from the
+ * region orders the scoping filters out. All fields are plain numbers (this
+ * rides a jsonb column; BigInt would throw at serialization). `pct` is the
+ * discount vs the HUB best sell; `units` is the winning station's volume
+ * priced at-or-under the hub best, after that station's own dust walk.
+ * System id, never a station/structure id — the UI resolves it to a system
+ * name from the SDE. NULL on a row means no opportunity cleared the gate
+ * (or the row predates the field / came from the Fuzzwork fallback, which
+ * has no order book to fold over).
+ */
 export interface RegionalDiscount {
   systemId: number;
   price: number;
@@ -53,7 +57,7 @@ interface PricedFigures {
   source: PriceSource;
 }
 
-// Public-facing record returned by getPrices() and stored in the DB.
+/** Public-facing record returned by getPrices() and stored in the DB. */
 export interface MarketPrice extends PricedFigures {
   updatedAt: Date;
   // Row-level expiry — the authoritative staleness signal (the bulk refresh
@@ -63,14 +67,18 @@ export interface MarketPrice extends PricedFigures {
   staleAfter: Date;
 }
 
-// Source attribution stored on every market_prices row. 'esi' is the
-// happy path (3.0.3+). 'fuzzwork-fallback' is the circuit-breaker target
-// when ESI is degraded. 'fuzzwork' stays legal so pre-3.0.3 rows in
-// production still validate against this union; new writes never use
-// the bare 'fuzzwork' literal.
+/**
+ * Source attribution stored on every market_prices row. 'esi' is the
+ * happy path (3.0.3+). 'fuzzwork-fallback' is the circuit-breaker target
+ * when ESI is degraded. 'fuzzwork' stays legal so pre-3.0.3 rows in
+ * production still validate against this union; new writes never use
+ * the bare 'fuzzwork' literal.
+ */
 export type PriceSource = 'esi' | 'fuzzwork-fallback' | 'fuzzwork';
 
-// Source-shaped record before persistence. Volume + source are populated
-// from the source response; updatedAt + staleAfter are set by the ingest
-// layer at write time.
+/**
+ * Source-shaped record before persistence. Volume + source are populated
+ * from the source response; updatedAt + staleAfter are set by the ingest
+ * layer at write time.
+ */
 export type RawMarketPrice = PricedFigures;

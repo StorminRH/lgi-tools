@@ -20,22 +20,24 @@
 
 import { computeMargin, type MarginInput, type MaterialQty } from './profitability';
 
-// EVE fee rates, all fractions. Defaults model the case this version ships:
-// an NPC station, ME0, Omega clone, manufacturing job with no structure bonuses,
-// and sell-side defaults with NO Accounting / Broker Relations skills or
-// standings. Each sell-side rate is a clearly-labeled BASE-RATE ASSUMPTION; a
-// future per-user override (or a reaction/research consumer with a different SCC)
-// slots in by passing a different FeeRates — no rework.
-//
-// Rates verified against current EVE/ESI documentation 2026-06, re-verified
-// 2026-07 (CCP changes these; see the per-field provenance):
-//   facilityTax  0.25% — NPC station, Viridian 2023-06. Also the no-tax-entered
-//                default for player structures (and the in-game default profile
-//                value); a per-facility owner-set rate arrives via `rates`.
-//   sccSurcharge 4%    — manufacturing, raised 0.75%→1.5%→4% in Version 21.06 (2024-02)
-//   salesTax     7.5%  — base before Accounting, raised in Version 22.02 (2025-03-12)
-//   brokerFee    3%    — NPC station base before Broker Relations / standings
-// (Alpha clone tax 0.25% applies only to Alpha clones — we model Omega, so 0.)
+/**
+ * EVE fee rates, all fractions. Defaults model the case this version ships:
+ * an NPC station, ME0, Omega clone, manufacturing job with no structure bonuses,
+ * and sell-side defaults with NO Accounting / Broker Relations skills or
+ * standings. Each sell-side rate is a clearly-labeled BASE-RATE ASSUMPTION; a
+ * future per-user override (or a reaction/research consumer with a different SCC)
+ * slots in by passing a different FeeRates — no rework.
+ *
+ * Rates verified against current EVE/ESI documentation 2026-06, re-verified
+ * 2026-07 (CCP changes these; see the per-field provenance):
+ *   facilityTax  0.25% — NPC station, Viridian 2023-06. Also the no-tax-entered
+ *                default for player structures (and the in-game default profile
+ *                value); a per-facility owner-set rate arrives via `rates`.
+ *   sccSurcharge 4%    — manufacturing, raised 0.75%→1.5%→4% in Version 21.06 (2024-02)
+ *   salesTax     7.5%  — base before Accounting, raised in Version 22.02 (2025-03-12)
+ *   brokerFee    3%    — NPC station base before Broker Relations / standings
+ * (Alpha clone tax 0.25% applies only to Alpha clones — we model Omega, so 0.)
+ */
 export interface FeeRates {
   facilityTax: number; // fraction of EIV
   sccSurcharge: number; // fraction of EIV
@@ -43,6 +45,10 @@ export interface FeeRates {
   brokerFee: number; // fraction of sell revenue (base assumption)
 }
 
+/**
+ * Default broker, sales-tax, SCC surcharge, and facility-tax rates used when the planner has no
+ * user or facility override.
+ */
 export const DEFAULT_FEE_RATES: FeeRates = {
   facilityTax: 0.0025,
   sccSurcharge: 0.04,
@@ -50,33 +56,41 @@ export const DEFAULT_FEE_RATES: FeeRates = {
   brokerFee: 0.03,
 };
 
-// Reactions share the manufacturing SCC: Version 21.06 (2024-02) raised the
-// job-installation surcharge to 4%, and the 2025-07 Exploration & Industry
-// Balance Rework cut only ME/TE research to 2% — reactions went unmentioned,
-// i.e. unchanged. Named separately so the reaction consumer's provenance is
-// explicit rather than "happens to equal manufacturing".
+/**
+ * Reactions share the manufacturing SCC: Version 21.06 (2024-02) raised the
+ * job-installation surcharge to 4%, and the 2025-07 Exploration & Industry
+ * Balance Rework cut only ME/TE research to 2% — reactions went unmentioned,
+ * i.e. unchanged. Named separately so the reaction consumer's provenance is
+ * explicit rather than "happens to equal manufacturing".
+ */
 export const REACTION_SCC_SURCHARGE = 0.04;
 
-// In-game cap on a player structure's owner-set facility tax (0–10%, decimal
-// entry — Viridian 2023-06). Imported by the api-contract validators so the
-// bound lives once.
+/**
+ * In-game cap on a player structure's owner-set facility tax (0–10%, decimal
+ * entry — Viridian 2023-06). Imported by the api-contract validators so the
+ * bound lives once.
+ */
 export const MAX_FACILITY_TAX_PCT = 10;
 
-// Effective facility-tax FRACTION for a structure whose owner-set tax is
-// `enteredPct` (a percent, 0–MAX_FACILITY_TAX_PCT) or null when never entered.
-// Unset falls back to the NPC-station baseline, keeping fees byte-identical to
-// the pre-entry output. Strict null check: an entered 0 is a real 0% (a
-// genuinely free structure), not "unknown".
+/**
+ * Effective facility-tax FRACTION for a structure whose owner-set tax is
+ * `enteredPct` (a percent, 0–MAX_FACILITY_TAX_PCT) or null when never entered.
+ * Unset falls back to the NPC-station baseline, keeping fees byte-identical to
+ * the pre-entry output. Strict null check: an entered 0 is a real 0% (a
+ * genuinely free structure), not "unknown".
+ */
 export function effectiveFacilityTaxRate(enteredPct: number | null): number {
   return enteredPct === null ? DEFAULT_FEE_RATES.facilityTax : enteredPct / 100;
 }
 
-// A facility-tax entry-field draft → the wire value, shared by every tax entry
-// surface (the structure builder + the corp completion editor): empty = null
-// (never entered — the fee path then assumes the NPC baseline), else a percent
-// inside the in-game cap. An entered 0 is a real 0% rate. Plain decimals only —
-// Number() alone would also admit scientific/hex forms ('1e1', '0xa') that a
-// programmatic or pasted value could carry.
+/**
+ * A facility-tax entry-field draft → the wire value, shared by every tax entry
+ * surface (the structure builder + the corp completion editor): empty = null
+ * (never entered — the fee path then assumes the NPC baseline), else a percent
+ * inside the in-game cap. An entered 0 is a real 0% rate. Plain decimals only —
+ * Number() alone would also admit scientific/hex forms ('1e1', '0xa') that a
+ * programmatic or pasted value could carry.
+ */
 export function parseFacilityTaxDraft(
   draft: string,
 ): { ok: true; value: number | null } | { ok: false } {
@@ -88,20 +102,25 @@ export function parseFacilityTaxDraft(
   return { ok: true, value: n };
 }
 
-// The inverse of the parse above: a stored tax value → the entry-field draft
-// that prefills its editor. null (never entered) → empty; a stored percent →
-// its string. Shared by the same two tax entry surfaces so their prefill and
-// their parse agree.
+/**
+ * The inverse of the parse above: a stored tax value → the entry-field draft
+ * that prefills its editor. null (never entered) → empty; a stored percent →
+ * its string. Shared by the same two tax entry surfaces so their prefill and
+ * their parse agree.
+ */
 export function taxDraftFromStored(taxPct: number | null): string {
   return taxPct === null ? '' : String(taxPct);
 }
 
-// CCP "adjusted price" for a type, or null when there's no usable adjusted price
-// (no row, or a stored NULL — the absent-vs-0.0 distinction the adjusted_prices
-// table preserves). Mirrors PriceOf, but a single number per type. A returned 0
-// is a real, known price, NOT "missing".
+/**
+ * CCP "adjusted price" for a type, or null when there's no usable adjusted price
+ * (no row, or a stored NULL — the absent-vs-0.0 distinction the adjusted_prices
+ * table preserves). Mirrors PriceOf, but a single number per type. A returned 0
+ * is a real, known price, NOT "missing".
+ */
 export type AdjustedPriceOf = (typeId: number) => number | null;
 
+/** Industry job installation fee components and total in ISK. */
 export interface JobInstallationFee {
   // Σ baseQty × adjustedPrice over the ME0 base materials. A partial sum (missing
   // adjusted prices contribute 0 and are flagged), never null — the honest base
@@ -121,12 +140,14 @@ export interface JobInstallationFee {
   missingSystemCostIndex: boolean;
 }
 
-// Job installation fee from the blueprint's ME0 base materials and the system's
-// activity cost index. `baseMaterials` is the job's direct ME0 base list at the
-// quantities being installed — the leaf is run/batch-agnostic, so the caller
-// owns scaling (it passes quantity × runs). Same shape as computeBuildCost's
-// input but a different semantic basis (priced with CCP adjusted prices, not
-// market buy/sell).
+/**
+ * Job installation fee from the blueprint's ME0 base materials and the system's
+ * activity cost index. `baseMaterials` is the job's direct ME0 base list at the
+ * quantities being installed — the leaf is run/batch-agnostic, so the caller
+ * owns scaling (it passes quantity × runs). Same shape as computeBuildCost's
+ * input but a different semantic basis (priced with CCP adjusted prices, not
+ * market buy/sell).
+ */
 export function computeJobInstallationFee(
   baseMaterials: MaterialQty[],
   adjustedPriceOf: AdjustedPriceOf,
@@ -169,14 +190,17 @@ export function computeJobInstallationFee(
   };
 }
 
+/** Broker and sales-tax rates plus total sell-side fees in ISK. */
 export interface SellSideFees {
   salesTax: number | null; // revenue × salesTax
   brokerFee: number | null; // revenue × brokerFee
   total: number | null;
 }
 
-// Sell-side trading fees on the product's sell revenue. Null (not zero) when
-// revenue is unknown, so a caller can't sum it into a total and undercount.
+/**
+ * Sell-side trading fees on the product's sell revenue. Null (not zero) when
+ * revenue is unknown, so a caller can't sum it into a total and undercount.
+ */
 export function computeSellSideFees(
   revenue: number | null,
   rates: FeeRates = DEFAULT_FEE_RATES,
@@ -189,6 +213,10 @@ export function computeSellSideFees(
   return { salesTax, brokerFee, total: salesTax + brokerFee };
 }
 
+/**
+ * Margin inputs plus the ME0 base-material valuation used for EIV and installation-cost
+ * calculations.
+ */
 export interface NetMarginInput extends MarginInput {
   // ME0 base materials of the job, for EIV (distinct from the build-cost list).
   baseMaterials: MaterialQty[];
@@ -200,6 +228,7 @@ export interface NetMarginInput extends MarginInput {
   structureCostBonusPct?: number;
 }
 
+/** Revenue, total cost, profit in ISK, and profit percentage for one sale scenario. */
 export interface NetMargin {
   revenue: number | null;
   buildCost: number;
@@ -212,11 +241,13 @@ export interface NetMargin {
   incomplete: boolean; // missing index OR missing adjusted price OR revenue null
 }
 
-// Net margin = gross margin − job installation fee − sell-side fees. Composes
-// computeMargin for the gross numbers (one definition of gross margin, so the
-// gross path matches profitability.ts exactly), then the two fee functions.
-// grossMargin is never collapsed by a null jobFee — the UI can degrade to "gross
-// known, net unknown".
+/**
+ * Net margin = gross margin − job installation fee − sell-side fees. Composes
+ * computeMargin for the gross numbers (one definition of gross margin, so the
+ * gross path matches profitability.ts exactly), then the two fee functions.
+ * grossMargin is never collapsed by a null jobFee — the UI can degrade to "gross
+ * known, net unknown".
+ */
 export function computeNetMargin(input: NetMarginInput): NetMargin {
   const rates = input.rates ?? DEFAULT_FEE_RATES;
   const gross = computeMargin(input);

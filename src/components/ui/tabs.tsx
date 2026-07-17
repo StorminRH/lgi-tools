@@ -4,6 +4,10 @@ import { Tabs as Base } from '@base-ui/react/tabs';
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
+/**
+ * One caller-supplied tab option; its value is the stable control key and its label or marker is
+ * presentation-ready.
+ */
 export interface TabOption {
   value: string;
   label: string;
@@ -11,6 +15,10 @@ export interface TabOption {
   disabled?: boolean;
 }
 
+/**
+ * Renders the domain-neutral tabs with house behavior and tokens; callers own semantic meaning and
+ * content while this primitive owns presentation.
+ */
 export function Tabs({
   tabs,
   label,

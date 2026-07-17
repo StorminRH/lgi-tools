@@ -6,6 +6,7 @@ import { SectionLabel } from '@/components/ui/section-label';
 import { EVE_AUTHORIZED_APPS_URL } from '@/features/auth/eve-sso';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
+/** Static search and social metadata for the /legal route. */
 export const metadata = buildPageMetadata({
   title: 'Privacy',
   description:
@@ -28,6 +29,10 @@ function LegalSection({ label, children }: { label: ReactNode; children: ReactNo
   );
 }
 
+/**
+ * Renders the /legal route surface and owns its page-level composition, metadata boundary, and
+ * fallback presentation.
+ */
 export default function LegalPage() {
   return (
     <PageShell>

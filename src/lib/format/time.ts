@@ -8,6 +8,10 @@ const UTC_DAY = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 });
 
+/**
+ * Formats an ISO date as a stable human-readable UTC date; invalid inputs are returned unchanged
+ * rather than interpreted in local time.
+ */
 export function formatUtcDate(value: Date | string | null): string {
   if (value == null) return '—';
   const date = typeof value === 'string' ? new Date(value) : value;
@@ -15,16 +19,18 @@ export function formatUtcDate(value: Date | string | null): string {
   return UTC_DAY.format(date);
 }
 
-// ISO calendar day ("2026-06-19") for admin readouts that key/label by date.
+/** ISO calendar day ("2026-06-19") for admin readouts that key/label by date. */
 export function formatIsoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-// Coarse "x ago" for live-ish readouts: floors to the largest of m/h/d/w/mo,
-// sub-minute and future timestamps read "just now". `now` is injectable for
-// tests; production reads the wall clock — but only for a non-null date, so a
-// null/shell render never touches `Date.now()` (the Cache Components prerender
-// rule: no clock read before request data).
+/**
+ * Coarse "x ago" for live-ish readouts: floors to the largest of m/h/d/w/mo,
+ * sub-minute and future timestamps read "just now". `now` is injectable for
+ * tests; production reads the wall clock — but only for a non-null date, so a
+ * null/shell render never touches `Date.now()` (the Cache Components prerender
+ * rule: no clock read before request data).
+ */
 export function formatRelativeTime(date: Date | null, now?: number): string {
   if (!date) return '—';
   const diffMs = (now ?? Date.now()) - date.getTime();
@@ -42,8 +48,10 @@ export function formatRelativeTime(date: Date | null, now?: number): string {
   return `${months}mo ago`;
 }
 
-// Compact remaining-time for "finishes in …" labels: largest two units of
-// d/h/m, sub-minute floors to "<1m".
+/**
+ * Compact remaining-time for "finishes in …" labels: largest two units of
+ * d/h/m, sub-minute floors to "\<1m".
+ */
 export function formatRemaining(ms: number): string {
   if (ms < 60_000) return '<1m';
   const minutes = Math.floor(ms / 60_000);

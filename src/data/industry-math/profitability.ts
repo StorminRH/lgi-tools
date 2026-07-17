@@ -12,23 +12,29 @@
 // Jita best *sell* (you place sell orders for your product). Margin is
 // before job/install fees — those land in 3.1.
 
+/** Material quantity before and after ME adjustment, expressed in whole units. */
 export interface MaterialQty {
   typeId: number;
   quantity: number;
 }
 
-// The minimal price view the math needs. Both sides nullable — null means "no
-// orders on that side at the last refresh", which makes that line's cost or
-// revenue unknown rather than zero.
+/**
+ * The minimal price view the math needs. Both sides nullable — null means "no
+ * orders on that side at the last refresh", which makes that line's cost or
+ * revenue unknown rather than zero.
+ */
 export interface MaterialPrice {
   bestBuy: number | null;
   bestSell: number | null;
 }
 
-// Type ID → price, or undefined when the type has no market_prices row at all.
-// Undefined and a present row with a null bestBuy are both "unpriced" for cost.
+/**
+ * Type ID → price, or undefined when the type has no market_prices row at all.
+ * Undefined and a present row with a null bestBuy are both "unpriced" for cost.
+ */
 export type PriceOf = (typeId: number) => MaterialPrice | undefined;
 
+/** Material quantity and total cost in ISK at the supplied unit price. */
 export interface MaterialCost {
   typeId: number;
   quantity: number;
@@ -36,15 +42,18 @@ export interface MaterialCost {
   extendedCost: number | null; // quantity × unitBuy, or null when unpriced
 }
 
+/** Complete build cost in ISK including materials, installation, and facility fees. */
 export interface BuildCost {
   total: number; // sum of the priced extendedCost lines (unpriced lines excluded)
   perMaterial: MaterialCost[];
   missingTypeIds: number[]; // materials with no usable buy price
 }
 
-// Input cost = Σ quantity × best buy. A material with no row, or a null
-// bestBuy, contributes 0 to the total and is flagged in missingTypeIds so the
-// UI can mark the estimate "incomplete" rather than silently undercount it.
+/**
+ * Input cost = Σ quantity × best buy. A material with no row, or a null
+ * bestBuy, contributes 0 to the total and is flagged in missingTypeIds so the
+ * UI can mark the estimate "incomplete" rather than silently undercount it.
+ */
 export function computeBuildCost(
   materials: MaterialQty[],
   priceOf: PriceOf,
@@ -78,12 +87,16 @@ export function computeBuildCost(
   return { total, perMaterial, missingTypeIds };
 }
 
+/**
+ * ISK-denominated build, sell, tax, and fee inputs required to derive gross and net profitability.
+ */
 export interface MarginInput {
   buildCost: number; // BuildCost.total
   productSell: number | null; // product best sell (revenue basis)
   productQty: number; // units produced per run
 }
 
+/** Sell value, cost, profit in ISK, and profit percentage for planner display. */
 export interface Margin {
   revenue: number | null;
   cost: number;
@@ -91,9 +104,11 @@ export interface Margin {
   marginPct: number | null; // margin / revenue × 100; null when revenue unknown or ≤ 0
 }
 
-// Output revenue = best sell × units produced per run. Returns a null revenue
-// (and null margin) when the product has no sell price, so the UI can show
-// "—" instead of treating an unpriced product as a total loss.
+/**
+ * Output revenue = best sell × units produced per run. Returns a null revenue
+ * (and null margin) when the product has no sell price, so the UI can show
+ * "—" instead of treating an unpriced product as a total loss.
+ */
 export function computeMargin({
   buildCost,
   productSell,

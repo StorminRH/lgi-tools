@@ -2,11 +2,13 @@ import { gasClassRange } from './gas-classes';
 import { WORMHOLE_CLASSES } from './schema';
 import type { SiteListItem, SiteType, WormholeClass } from './types';
 
-// The set of wormhole classes a site belongs to, for the /sites filter rail.
-// Most sites carry a single `wormholeClass`; gas sites have a NULL class but a
-// name-derived spawn range (gas-classes.ts), expanded here so a gas signature
-// matches any class within its range. Sites with neither (rare) match no class
-// filter — they only appear when no class is selected.
+/**
+ * The set of wormhole classes a site belongs to, for the /sites filter rail.
+ * Most sites carry a single `wormholeClass`; gas sites have a NULL class but a
+ * name-derived spawn range (gas-classes.ts), expanded here so a gas signature
+ * matches any class within its range. Sites with neither (rare) match no class
+ * filter — they only appear when no class is selected.
+ */
 export function siteClassSet(
   site: Pick<SiteListItem, 'wormholeClass' | 'siteType' | 'name'>,
 ): WormholeClass[] {
@@ -29,14 +31,18 @@ export function siteClassSet(
 // when the site's class set intersects the selection; a non-empty type axis
 // matches when the site's type is selected.
 
-// Class axis only — also used standalone for the per-type counts, which tally
-// against the class selection regardless of the type selection.
+/**
+ * Class axis only — also used standalone for the per-type counts, which tally
+ * against the class selection regardless of the type selection.
+ */
 export function matchesClassFilter(clsSet: WormholeClass[], cls: WormholeClass[]): boolean {
   return cls.length === 0 || cls.some((c) => clsSet.includes(c));
 }
 
-// A null `type` (the table reads it from a DOM attribute) matches only when no
-// type is selected.
+/**
+ * A null `type` (the table reads it from a DOM attribute) matches only when no
+ * type is selected.
+ */
 export function matchesFilter(
   site: { type: SiteType | null; clsSet: WormholeClass[] },
   selection: { cls: WormholeClass[]; types: SiteType[] },

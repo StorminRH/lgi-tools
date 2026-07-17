@@ -25,12 +25,14 @@ import {
 } from '../corp-structure-view';
 import type { CorpStructurePageStructure, CorpStructurePageView } from '../types';
 
-// The corp-structures section of the /structures page. For each member corp: the
-// shared structures with, for a Station_Manager, a per-structure rig-completion
-// editor (ESI doesn't expose fitted rigs). A non-Station_Manager member sees the
-// shared structures read-only; a corp that isn't shared and where the viewer isn't
-// a manager shows nothing. The sharing consent toggle itself lives on the account
-// settings page (ACCOUNT.6 — its one home); managers get a pointer there.
+/**
+ * The corp-structures section of the /structures page. For each member corp: the
+ * shared structures with, for a Station_Manager, a per-structure rig-completion
+ * editor (ESI doesn't expose fitted rigs). A non-Station_Manager member sees the
+ * shared structures read-only; a corp that isn't shared and where the viewer isn't
+ * a manager shows nothing. The sharing consent toggle itself lives on the account
+ * settings page (ACCOUNT.6 — its one home); managers get a pointer there.
+ */
 export function CorpStructureSection({
   corps,
   structureTypes,

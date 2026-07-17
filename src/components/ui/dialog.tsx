@@ -16,6 +16,10 @@ import type { Tone } from './tones';
 // sibling element, a programmatic trigger), not just a Base UI `Trigger`. Used by
 // the `/sites` card lightbox today; reusable anywhere a centred modal is wanted.
 
+/**
+ * Closed presentation vocabulary for dialog tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type DialogTone = Extract<Tone, 'neutral'>;
 
 // Abstract tone → token classes (no raw hex). `neutral` is the raised-slate
@@ -39,6 +43,10 @@ const popup = cva(
   },
 );
 
+/**
+ * Renders the domain-neutral dialog with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Dialog({
   open,
   onOpenChange,
@@ -85,8 +93,18 @@ export function Dialog({
   );
 }
 
-// Re-exported so consumers compose the dialog's close affordance through
-// `@/components/ui/dialog` without reaching for the raw Base UI import.
+/**
+ * Re-exported so consumers compose the dialog's close affordance through
+ * `@/components/ui/dialog` without reaching for the raw Base UI import.
+ */
 export const DialogClose = Base.Close;
+/**
+ * Adopted Base UI dialog title part exposed through the single house wrapper; consumers compose it
+ * only within this primitive family.
+ */
 export const DialogTitle = Base.Title;
+/**
+ * Adopted Base UI dialog description part exposed through the single house wrapper; consumers
+ * compose it only within this primitive family.
+ */
 export const DialogDescription = Base.Description;

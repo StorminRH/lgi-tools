@@ -4,7 +4,7 @@
 // This helper owns only the common corporation axis; feature decisions stay local.
 import type { EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
 
-// The common port surface exposed by both current corporation-sync callers.
+/** The common port surface exposed by both current corporation-sync callers. */
 export interface CorpSyncBase {
   now(): Date;
   listMembers(userId: string): Promise<EnumeratedOwner[]>;
@@ -12,8 +12,10 @@ export interface CorpSyncBase {
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
 }
 
-// TOwner may add feature identity (corp jobs include userId), but every owner carries
-// corporationId so the builder can expose one stable OwnerSyncTarget.
+/**
+ * TOwner may add feature identity (corp jobs include userId), but every owner carries
+ * corporationId so the builder can expose one stable OwnerSyncTarget.
+ */
 export interface CorpDatasetSpec<
   TOwner extends { corporationId: number },
   TState extends { lastRefreshedAt: Date | null },
@@ -43,6 +45,10 @@ export interface CorpDatasetSpec<
   saveGateState?(owner: TOwner): Promise<void>;
 }
 
+/**
+ * Builds the owner-sync descriptor for a corporation-keyed dataset while preserving the eligible
+ * reader character used for authenticated ESI access.
+ */
 export function makeCorpDescriptor<
   TOwner extends { corporationId: number },
   TState extends { lastRefreshedAt: Date | null },

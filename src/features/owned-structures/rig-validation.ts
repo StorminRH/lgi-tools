@@ -5,15 +5,18 @@ import {
 } from '@/data/eve-data/structures';
 import type { CorpStructureRow } from './types';
 
+/** Closed structure-rig validation result with normalized rig IDs or an incompatibility reason. */
 export type RigSelectionValidation = { ok: true } | { ok: false; reason: string };
 
-// Server trust boundary for the corp rigs route: the structure must be one of
-// this corp's pulled structures, its type must be a real industry structure,
-// and every rig must physically fit it (group + size — the shared
-// rigFitsStructure rule), mirroring the custom-structures validation. Pure over
-// the already-fetched rows/option lists, so the branching is unit-tested
-// without a DB; an unknown or wrong-slot rig would otherwise silently
-// contribute a zero bonus.
+/**
+ * Server trust boundary for the corp rigs route: the structure must be one of
+ * this corp's pulled structures, its type must be a real industry structure,
+ * and every rig must physically fit it (group + size — the shared
+ * rigFitsStructure rule), mirroring the custom-structures validation. Pure over
+ * the already-fetched rows/option lists, so the branching is unit-tested
+ * without a DB; an unknown or wrong-slot rig would otherwise silently
+ * contribute a zero bonus.
+ */
 export function validateCorpStructureRigs(
   corpStructures: CorpStructureRow[] | undefined,
   structureId: number,

@@ -8,6 +8,7 @@ import type { SiteResource } from '../types';
 // Shared live-price context for a site's resource rows + footer. Its own module
 // so the island (provider) and ResourceRow (consumer) don't import each other.
 
+/** Live resource-price context exposing current values, refresh state, and source confidence by type ID. */
 export interface SiteLiveValue {
   priceOf: (typeId: number) => RefreshedPrice | undefined;
   isPending: (typeId: number) => boolean;
@@ -23,15 +24,21 @@ const NO_LIVE: SiteLiveValue = {
   requestEnable: () => {},
 };
 
+/**
+ * React context channel for live wormhole-site resource values; consumers use the owning provider
+ * hook rather than reading it directly.
+ */
 export const SiteLiveContext = createContext<SiteLiveValue>(NO_LIVE);
 
-// Rows fall back to their static seed outside a provider (no badge, no flash).
+/** Rows fall back to their static seed outside a provider (no badge, no flash). */
 export function useSiteLive(): SiteLiveValue {
   return useContext(SiteLiveContext);
 }
 
-// The live ISK for an eligible resource given the current price map, or its
-// static seed when no live value has landed (or it isn't eligible).
+/**
+ * The live ISK for an eligible resource given the current price map, or its
+ * static seed when no live value has landed (or it isn't eligible).
+ */
 export function resourceLiveIsk(resource: SiteResource, live: SiteLiveValue): number | null {
   if (!resource.liveEligible || resource.typeId == null) return resource.effectiveIsk;
   const refreshed = live.priceOf(resource.typeId);

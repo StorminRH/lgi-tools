@@ -42,9 +42,11 @@ function makeCorpJobsPort(): CorpJobsPort {
   };
 }
 
-// One corp's board for the wire: the cached payload (null when needs_role / un-synced)
-// plus the "as of" stamp and the graceful per-corp error state. The client joins this
-// with the corp + installer names it resolves via /api/eve/names.
+/**
+ * One corp's board for the wire: the cached payload (null when needs_role / un-synced)
+ * plus the "as of" stamp and the graceful per-corp error state. The client joins this
+ * with the corp + installer names it resolves via /api/eve/names.
+ */
 export interface ViewerCorpJobs {
   corporationId: number;
   data: CharacterJobsData | null;
@@ -52,21 +54,25 @@ export interface ViewerCorpJobs {
   syncError: string | null;
 }
 
-// The on-view payload: the per-corp boards + one shared type-id→name map (blueprint +
-// product names) resolved server-side from the SDE, keyed by String(typeId).
+/**
+ * The on-view payload: the per-corp boards + one shared type-id→name map (blueprint +
+ * product names) resolved server-side from the SDE, keyed by String(typeId).
+ */
 export interface ViewerCorpJobsResult {
   corporations: ViewerCorpJobs[];
   names: Record<string, string>;
 }
 
-// The on-view seam: read the user's current corp boards + freshness immediately,
-// resolve the referenced type names from the SDE, and fire a stale-gated write-behind
-// refresh behind the response. A re-view inside the 300s window makes no ESI call (the
-// refresh's per-corp staleness gate is the dedup). The corp set is the user's sync rows
-// (the board table is corp-keyed but not user-enumerable on its own); on a first-ever
-// view there are no rows yet — the client's cold reconcile re-fetches once the
-// write-behind has populated. The cached boards + the uncached sync states are read in
-// parallel.
+/**
+ * The on-view seam: read the user's current corp boards + freshness immediately,
+ * resolve the referenced type names from the SDE, and fire a stale-gated write-behind
+ * refresh behind the response. A re-view inside the 300s window makes no ESI call (the
+ * refresh's per-corp staleness gate is the dedup). The corp set is the user's sync rows
+ * (the board table is corp-keyed but not user-enumerable on its own); on a first-ever
+ * view there are no rows yet — the client's cold reconcile re-fetches once the
+ * write-behind has populated. The cached boards + the uncached sync states are read in
+ * parallel.
+ */
 export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCorpJobsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerCorpJobs>(userId, {
     // The corp set is the user's sync rows (the board table is corp-keyed but not
@@ -102,6 +108,10 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
   return { corporations: rows, names };
 }
 
+/**
+ * Refreshes corporation industry jobs for one eligible character through the shared owner-sync
+ * pipeline and returns its source and freshness outcome.
+ */
 export async function runCorporationIndustryJobsRefreshJob(
   userId: string,
   target: OwnerSyncTarget,

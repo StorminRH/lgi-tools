@@ -15,25 +15,32 @@
 import { bigint, bigserial, index, integer, pgEnum, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
 import { ownerSyncStateColumns } from '@/lib/db-columns';
 
-// Postgres enum driven from a TS `as const` (the one-source-of-truth invariant).
+/** Postgres enum driven from a TS `as const` (the one-source-of-truth invariant). */
 export const OWNED_BLUEPRINT_OWNER_TYPES = ['character', 'corporation'] as const;
+/** Closed personal or corporation owner kinds for persisted blueprints. */
 export type OwnedBlueprintOwnerType = (typeof OWNED_BLUEPRINT_OWNER_TYPES)[number];
+/**
+ * Drizzle schema owner for owned blueprint owner type enum; migrations, queries, retention, and
+ * purge claims derive from this single declaration.
+ */
 export const ownedBlueprintOwnerTypeEnum = pgEnum(
   'owned_blueprint_owner_type',
   OWNED_BLUEPRINT_OWNER_TYPES,
 );
 
-// The owned-blueprint rows. Columns are the OwnedBlueprint projection
-// (esi-projection.ts) verbatim plus the owner key. A refresh REPLACES the whole
-// set for an owner (delete-then-insert), so there is no natural unique key to
-// reconcile against — ESI's `item_id` is intentionally dropped by the projection,
-// and two BPCs of the same type/location/ME/TE/runs are legitimately
-// indistinguishable rows. A synthetic `id` keeps each row addressable; the owner
-// index serves the per-owner read.
-//
-// No foreign key on owner_id: for a corporation owner it is a corp id with no
-// `characters` row, so the column can't FK uniformly — the same FK-less posture
-// as corp_access_audit, where the id is recorded provenance.
+/**
+ * The owned-blueprint rows. Columns are the OwnedBlueprint projection
+ * (esi-projection.ts) verbatim plus the owner key. A refresh REPLACES the whole
+ * set for an owner (delete-then-insert), so there is no natural unique key to
+ * reconcile against — ESI's `item_id` is intentionally dropped by the projection,
+ * and two BPCs of the same type/location/ME/TE/runs are legitimately
+ * indistinguishable rows. A synthetic `id` keeps each row addressable; the owner
+ * index serves the per-owner read.
+ *
+ * No foreign key on owner_id: for a corporation owner it is a corp id with no
+ * `characters` row, so the column can't FK uniformly — the same FK-less posture
+ * as corp_access_audit, where the id is recorded provenance.
+ */
 export const ownedBlueprints = pgTable(
   'owned_blueprints',
   {
@@ -53,12 +60,14 @@ export const ownedBlueprints = pgTable(
   (t) => [index('owned_blueprints_owner_idx').on(t.ownerType, t.ownerId)],
 );
 
-// Per-owner sync state — separate from the data rows so an owner with ZERO
-// blueprints still records "checked at T" (otherwise an empty result would look
-// un-synced and refetch on every view). `last_refreshed_at` is the staleness gate
-// the on-view refresh reads; `page_etags` are the per-page ETags replayed on the
-// next refresh so an unchanged owner returns a 304 and skips the row rewrite (the
-// gate's own ETag cache is unauthenticated-only, so an authed reader holds them).
+/**
+ * Per-owner sync state — separate from the data rows so an owner with ZERO
+ * blueprints still records "checked at T" (otherwise an empty result would look
+ * un-synced and refetch on every view). `last_refreshed_at` is the staleness gate
+ * the on-view refresh reads; `page_etags` are the per-page ETags replayed on the
+ * next refresh so an unchanged owner returns a 304 and skips the row rewrite (the
+ * gate's own ETag cache is unauthenticated-only, so an authed reader holds them).
+ */
 export const ownedBlueprintSyncs = pgTable(
   'owned_blueprint_syncs',
   ownerSyncStateColumns(ownedBlueprintOwnerTypeEnum),

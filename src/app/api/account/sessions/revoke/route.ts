@@ -5,11 +5,13 @@ import { revokeUserSessions } from '@/features/auth/admin-users';
 import { requireSession } from '@/features/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
-// POST-only. Log the CALLER out everywhere — revoke all of their sessions. Acts on
-// session.user.id only. Note: with the session cookie cache on, an already-issued
-// cookie can keep a tab "signed in" until it next revalidates against the now-missing
-// row, so revocation isn't instantaneous (see revokeUserSessions).
-// No user input — acts on the session user only (never a body-supplied id).
+/**
+ * POST-only. Log the CALLER out everywhere — revoke all of their sessions. Acts on
+ * session.user.id only. Note: with the session cookie cache on, an already-issued
+ * cookie can keep a tab "signed in" until it next revalidates against the now-missing
+ * row, so revocation isn't instantaneous (see revokeUserSessions).
+ * No user input — acts on the session user only (never a body-supplied id).
+ */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   const limit = await rateLimitGuard(request, {

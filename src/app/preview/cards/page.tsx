@@ -5,8 +5,10 @@ import { SITE_TYPE_LABEL } from '@/features/wormhole-sites/components/wormhole-s
 import { MOCK_SITES } from '@/features/wormhole-sites/mock-data';
 import type { SiteDetail, SiteType } from '@/features/wormhole-sites/types';
 
-// Internal visual reference for the site cards — not a user-facing route, so
-// keep it out of the index.
+/**
+ * Internal visual reference for the site cards — not a user-facing route, so
+ * keep it out of the index.
+ */
 export const metadata: Metadata = { robots: { index: false } };
 
 const SECTION_ORDER: SiteType[] = ['combat', 'ore', 'gas', 'relic', 'data'];
@@ -19,6 +21,10 @@ function bySection(sites: SiteDetail[]): Record<SiteType, SiteDetail[]> {
   return groups;
 }
 
+/**
+ * Renders the /preview/cards route surface and owns its page-level composition, metadata boundary,
+ * and fallback presentation.
+ */
 export default function PreviewCardsPage() {
   const groups = bySection(MOCK_SITES);
 

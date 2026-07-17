@@ -17,6 +17,7 @@ import { registerPageSettings } from '@/page-settings';
 import { accountPageSettings } from '@/page-settings/account';
 import type { PageSettingsSpec } from '@/page-settings/types';
 
+/** Complete ordered page-settings specification set registered at application startup. */
 export const PAGE_SETTINGS_SPECS: readonly PageSettingsSpec[] = [
   sitesPageSettings,
   accountPageSettings,

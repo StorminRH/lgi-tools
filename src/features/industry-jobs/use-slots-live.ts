@@ -26,6 +26,10 @@ function anyUnsynced(characters: ViewerSlots[]): boolean {
   return characters.some((character) => !character.synced);
 }
 
+/**
+ * Encapsulates the slots live subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } {
   const [response, setResponse] = useState<IndustrySlotsResponse | null>(null);
 

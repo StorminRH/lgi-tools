@@ -23,6 +23,10 @@ import { Toaster as SonnerToaster, toast } from 'sonner';
 
 export { toast };
 
+/**
+ * Renders the domain-neutral toaster with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Toaster() {
   return (
     <SonnerToaster

@@ -21,6 +21,10 @@ import type { DepthBand, RegionalDiscount } from './types';
 // real value. updated_at + stale_after are set explicitly on every
 // refresh batch; the bulk refresh path filters on stale_after < NOW().
 
+/**
+ * Drizzle schema owner for market prices; migrations, queries, retention, and purge claims derive
+ * from this single declaration.
+ */
 export const marketPrices = pgTable(
   'market_prices',
   {

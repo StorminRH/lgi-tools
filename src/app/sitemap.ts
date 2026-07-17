@@ -14,6 +14,10 @@ type SitemapInputs = {
   introSlug: string | undefined;
 };
 
+/**
+ * Derives sitemap entries under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function buildSitemapEntries({
   sites,
   changelog,
@@ -59,9 +63,11 @@ export function buildSitemapEntries({
   return [...staticRoutes, ...siteRoutes, ...changelogRoutes, ...devlogRoutes];
 }
 
-// The catalogue and repo content only change on deploy, so the sitemap is
-// cached into the prerendered shell and the build ID invalidates it — no
-// request-time reads. `use cache` can't sit directly on the route export.
+/**
+ * The catalogue and repo content only change on deploy, so the sitemap is
+ * cached into the prerendered shell and the build ID invalidates it — no
+ * request-time reads. `use cache` can't sit directly on the route export.
+ */
 export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   'use cache';
   cacheLife('max');
@@ -84,6 +90,10 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   });
 }
 
+/**
+ * Serves the cached canonical sitemap assembled by getSitemapEntries; no request-time data or
+ * caller-owned state is read.
+ */
 export default function sitemap(): Promise<MetadataRoute.Sitemap> {
   return getSitemapEntries();
 }

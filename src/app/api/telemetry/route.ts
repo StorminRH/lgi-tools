@@ -11,14 +11,16 @@ import { parseJsonBody } from '@/lib/route-body';
 // payloads keeps a misbehaving client from running away.
 const MAX_METADATA_BYTES = 2048;
 
-// Silent first-party tracker. Accepts JSON { action, metadata? } and returns
-// 204. Shape is validated synchronously (400 before any write) so a
-// misconfigured client surfaces in the network tab. A per-IP rate limit (the
-// only public write path that was missing one) bounds a scripted flood that
-// would skew the analytics this table feeds. The characterId comes from the
-// Better Auth session lookup, and the row is written fire-and-forget — the
-// beacon's caller ignores the response, so we never block the 204 on the
-// insert, matching every other logUsageEvent caller.
+/**
+ * Silent first-party tracker. Accepts JSON \{ action, metadata? \} and returns
+ * 204. Shape is validated synchronously (400 before any write) so a
+ * misconfigured client surfaces in the network tab. A per-IP rate limit (the
+ * only public write path that was missing one) bounds a scripted flood that
+ * would skew the analytics this table feeds. The characterId comes from the
+ * Better Auth session lookup, and the row is written fire-and-forget — the
+ * beacon's caller ignores the response, so we never block the 204 on the
+ * insert, matching every other logUsageEvent caller.
+ */
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   const parsed = await parseJsonBody(request, telemetryRequestSchema);

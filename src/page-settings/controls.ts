@@ -19,6 +19,7 @@ import { getPreferenceDef, type PreferenceDef } from '@/lib/preferences';
 import type { FeatureControlId } from './feature-controls';
 import type { PageSettingsSpec, SettingsControlRef } from './types';
 
+/** Display-ready page-menu control with stable identity, label, state, and controlled update behavior. */
 export type MenuControlModel = {
   kind: 'preference';
   key: string;
@@ -30,13 +31,16 @@ export type MenuControlModel = {
   def: PreferenceDef<string>;
 };
 
-// A feature-owned, server-backed control, resolved by id. The settings page
-// maps the id to its owning slice's component; the resolver stays data-only.
+/**
+ * A feature-owned, server-backed control, resolved by id. The settings page
+ * maps the id to its owning slice's component; the resolver stays data-only.
+ */
 export type FeatureControlModel = {
   kind: 'feature';
   id: FeatureControlId;
 };
 
+/** Display-ready union of controls and actions that a page can publish to the shared menu. */
 export type PageControlModel = MenuControlModel | FeatureControlModel;
 
 // Refs at ONE placement. Explicit `order` sorts first (ascending); refs without
@@ -75,6 +79,10 @@ function preferenceModel(ref: { key: string }): MenuControlModel | null {
   };
 }
 
+/**
+ * Resolves registered page controls into ordered menu models, omitting controls whose current
+ * state makes them unavailable.
+ */
 export function resolveMenuControls(spec: PageSettingsSpec | null): MenuControlModel[] {
   if (spec === null) return [];
   const models: MenuControlModel[] = [];
@@ -86,6 +94,10 @@ export function resolveMenuControls(spec: PageSettingsSpec | null): MenuControlM
   return models;
 }
 
+/**
+ * Resolves the current route's page-settings declaration into display-ready controls using the
+ * supplied preference and feature state.
+ */
 export function resolvePageControls(spec: PageSettingsSpec | null): PageControlModel[] {
   if (spec === null) return [];
   const models: PageControlModel[] = [];

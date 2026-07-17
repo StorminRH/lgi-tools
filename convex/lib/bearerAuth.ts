@@ -9,6 +9,10 @@ async function sha256(text: string): Promise<Uint8Array> {
   return new Uint8Array(digest);
 }
 
+/**
+ * Constant-time check that a raw Authorization header matches the expected Bearer secret; null and
+ * malformed headers return false without throwing.
+ */
 export async function bearerMatches(
   authorization: string | null,
   secret: string,

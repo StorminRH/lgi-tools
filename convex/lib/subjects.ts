@@ -16,6 +16,10 @@ import type { DatabaseReader } from '../_generated/server';
 // today; a superset of the active SyncDataset during a future drain window).
 type StoredDataset = Doc<'syncSubjects'>['dataset'];
 
+/**
+ * Reads the unique subject row for one stored dataset and user; returns null when the subject has
+ * not been created.
+ */
 export function getSyncSubject(
   db: DatabaseReader,
   dataset: StoredDataset,
@@ -27,6 +31,10 @@ export function getSyncSubject(
     .unique();
 }
 
+/**
+ * Reads the unique presence row for one stored dataset and user; returns null when no heartbeat
+ * has been recorded.
+ */
 export function getPresence(
   db: DatabaseReader,
   dataset: StoredDataset,

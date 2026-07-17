@@ -8,10 +8,12 @@ import {
 import { listSavedPlans, renameSavedPlan } from '@/features/industry-planner/saved-plans-queries';
 import { parseJsonBody } from '@/lib/route-body';
 
+/**
+ * POST /api/account/saved-plans/rename — rename one of the caller's OWN
+ * templates (the query's (userId, id) predicate makes a foreign id a no-op).
+ * Echoes the full updated list.
+ */
 // authz: auth
-// POST /api/account/saved-plans/rename — rename one of the caller's OWN
-// templates (the query's (userId, id) predicate makes a foreign id a no-op).
-// Echoes the full updated list.
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     authorize: requireUserId,

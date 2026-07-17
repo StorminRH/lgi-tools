@@ -92,6 +92,10 @@ async function SettingsContent() {
   );
 }
 
+/**
+ * Renders the /settings route surface and owns its page-level composition, metadata boundary, and
+ * fallback presentation.
+ */
 export default function SettingsPage() {
   return (
     <PageShell>

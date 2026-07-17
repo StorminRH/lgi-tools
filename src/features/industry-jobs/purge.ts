@@ -12,6 +12,10 @@ import {
   corpIndustryJobSyncs,
 } from './schema';
 
+/**
+ * Personal-data purge contributor for industry jobs purge contributor; this data slice owns
+ * deleting its user and character keyed rows.
+ */
 export const industryJobsPurgeContributor: PurgeContributor = {
   name: 'industry-jobs',
   tier: 'cache',

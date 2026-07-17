@@ -18,6 +18,7 @@
 
 import { EVE_SCOPES } from './eve-sso';
 
+/** Derived linked-character connection health with missing scopes, token state, and reconnection verdict. */
 export interface CharacterHealth {
   // True when the character can't currently back the required ESI calls: either
   // its refresh token is gone (so nothing can be vended) or it's missing one of
@@ -48,10 +49,12 @@ function parseScopes(scope: string | null | undefined): Set<string> {
   return new Set(tokenizeScopes(scope));
 }
 
-// Per-feature scope health: which of `required` a character is missing, and
-// whether that surface should prompt a reconnect. Generic over `required` so
-// each consumer (a feature surface, the sitewide rollup below) passes the exact
-// set it needs — degradation stays scoped to that set, never global.
+/**
+ * Per-feature scope health: which of `required` a character is missing, and
+ * whether that surface should prompt a reconnect. Generic over `required` so
+ * each consumer (a feature surface, the sitewide rollup below) passes the exact
+ * set it needs — degradation stays scoped to that set, never global.
+ */
 export function deriveScopeHealth(
   {
     scope,
@@ -70,7 +73,7 @@ export function deriveScopeHealth(
   };
 }
 
-// Sitewide rollup: health against the full requested superset (EVE_SCOPES).
+/** Sitewide rollup: health against the full requested superset (EVE_SCOPES). */
 export function deriveCharacterHealth(input: {
   scope: string | null | undefined;
   hasRefreshToken: boolean;
@@ -78,10 +81,12 @@ export function deriveCharacterHealth(input: {
   return deriveScopeHealth(input, EVE_SCOPES);
 }
 
-// A scope the character has actually granted, as shown read-only on /characters.
-// `status` is 'active' when the scope is still in the requested set (EVE_SCOPES),
-// or 'legacy' when it was granted earlier and is no longer requested (safe to
-// revoke). `gloss` is a short human description when one is known.
+/**
+ * A scope the character has actually granted, as shown read-only on /characters.
+ * `status` is 'active' when the scope is still in the requested set (EVE_SCOPES),
+ * or 'legacy' when it was granted earlier and is no longer requested (safe to
+ * revoke). `gloss` is a short human description when one is known.
+ */
 export type GrantedScope = { id: string; gloss?: string; status: 'active' | 'legacy' };
 
 // Short human descriptions for the scopes a pilot may have granted — the
@@ -112,10 +117,12 @@ function describeScope(id: string, status: 'active' | 'legacy'): GrantedScope {
   return gloss ? { id, gloss, status } : { id, status };
 }
 
-// List what a character has ACTUALLY granted (parsed from the stored scope), not
-// the ideal set — so a legacy grant honestly shows every scope it still carries.
-// Active scopes (those still requested) come first in EVE_SCOPES order; legacy
-// scopes (granted earlier, no longer requested) follow in grant order.
+/**
+ * List what a character has ACTUALLY granted (parsed from the stored scope), not
+ * the ideal set — so a legacy grant honestly shows every scope it still carries.
+ * Active scopes (those still requested) come first in EVE_SCOPES order; legacy
+ * scopes (granted earlier, no longer requested) follow in grant order.
+ */
 export function listGrantedScopes(scope: string | null | undefined): GrantedScope[] {
   const granted = tokenizeScopes(scope);
   const grantedSet = new Set(granted);

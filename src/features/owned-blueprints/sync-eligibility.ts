@@ -6,10 +6,13 @@
 // fine. The character read needs no in-game role. Runtime-light — the Convex
 // action imports this too.
 
-// Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
-// never demand a scope sign-in doesn't request).
+/**
+ * Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
+ * never demand a scope sign-in doesn't request).
+ */
 export const BLUEPRINTS_SYNC_SCOPES = ['esi-characters.read_blueprints.v1'] as const;
 
+/** Returns whether a linked character has token custody and the personal-blueprints scope. */
 export function canSyncBlueprints(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

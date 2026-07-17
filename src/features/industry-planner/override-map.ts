@@ -1,3 +1,4 @@
+/** Returns a new override map with one type ID set, leaving the caller's map unchanged. */
 export function setOverride(
   current: Map<number, number>,
   blueprintTypeId: number,
@@ -7,6 +8,7 @@ export function setOverride(
   return new Map(current).set(blueprintTypeId, clamp(value));
 }
 
+/** Returns a new override map without the selected type ID, leaving the caller's map unchanged. */
 export function resetOverride(
   current: Map<number, number>,
   blueprintTypeId: number,

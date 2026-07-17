@@ -10,6 +10,10 @@
 import { useEffect, useState } from 'react';
 import { readRecentBlueprints, type RecentBlueprint } from './recent-blueprints';
 
+/**
+ * Encapsulates the recent blueprints subscription and state lifecycle; callers provide lookup keys
+ * where required and render the returned state.
+ */
 export function useRecentBlueprints(): RecentBlueprint[] | null {
   const [recent, setRecent] = useState<RecentBlueprint[] | null>(null);
 

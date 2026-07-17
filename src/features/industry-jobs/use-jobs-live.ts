@@ -22,6 +22,10 @@ function jobsIsCold(response: JobsResponse, eligibleKey: string): boolean {
   return anyEligibleCold(response.characters, eligibleKey);
 }
 
+/**
+ * Encapsulates the jobs live subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useJobsLive(eligibleCharacterIds: number[]): {
   jobsByCharacter: Map<number, ViewerJobs>;
   names: Record<string, string>;

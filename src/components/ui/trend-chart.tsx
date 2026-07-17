@@ -44,6 +44,10 @@ type TrendChartProps = {
   ariaLabel?: string;
 };
 
+/**
+ * Renders the domain-neutral trend chart from display-ready caller data; callers own units and
+ * labels while this primitive owns geometry and interaction.
+ */
 export function TrendChart({
   data,
   labels,

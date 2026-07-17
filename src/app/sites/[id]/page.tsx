@@ -23,13 +23,19 @@ import { buildBreadcrumbList } from '@/lib/structured-data';
 // 'use cache'-backed, so this only dedupes within the render pass).
 const loadSite = cache(getPricedSiteDetail);
 
-// Prerender a static shell for all 69 catalogue sites (the catalogue is
-// deploy-static); the build ID invalidates them on deploy.
+/**
+ * Prerender a static shell for all 69 catalogue sites (the catalogue is
+ * deploy-static); the build ID invalidates them on deploy.
+ */
 export async function generateStaticParams(): Promise<{ id: string }[]> {
   const sites = await getSiteSearchIndex();
   return sites.map((s) => ({ id: String(s.id) }));
 }
 
+/**
+ * Builds request-independent metadata for /sites/[id] from the route parameter and canonical
+ * content source.
+ */
 export async function generateMetadata({
   params,
 }: {
@@ -117,10 +123,12 @@ async function SiteDeepLinkMeta({
   );
 }
 
-// The site content (name, resources, waves, prices) prerenders into the static
-// shell so crawlers see it in the initial HTML; live prices ride the cached
-// `getPricedSiteDetail` (refreshed hourly by the prices cron via its tag). Only
-// the back link + freshness strip read request-time data, from the Suspense hole.
+/**
+ * The site content (name, resources, waves, prices) prerenders into the static
+ * shell so crawlers see it in the initial HTML; live prices ride the cached
+ * `getPricedSiteDetail` (refreshed hourly by the prices cron via its tag). Only
+ * the back link + freshness strip read request-time data, from the Suspense hole.
+ */
 export default async function SiteDetailPage({
   params,
   searchParams,

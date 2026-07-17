@@ -18,13 +18,15 @@ import { internalMutation, internalQuery, type MutationCtx, query } from './_gen
 import { stampSyncSubject } from './lib/characterSync';
 import { getSyncSubject } from './lib/subjects';
 
-// The COLD-equivalent viewer wire: the calling user's per-character online flag,
-// keyed by character. Its read set is the characterOnline table alone, and the
-// apply writes that table ONLY on a genuine online↔offline change, so this query
-// re-fires only when a character's online state actually flips — never on a
-// per-cycle 304/dispatch/completion (those touch the subject row, which this
-// query never reads). A character with no doc yet (unfetched / errored-first /
-// not relinked) is simply absent — the portrait shows no dot.
+/**
+ * The COLD-equivalent viewer wire: the calling user's per-character online flag,
+ * keyed by character. Its read set is the characterOnline table alone, and the
+ * apply writes that table ONLY on a genuine online↔offline change, so this query
+ * re-fires only when a character's online state actually flips — never on a
+ * per-cycle 304/dispatch/completion (those touch the subject row, which this
+ * query never reads). A character with no doc yet (unfetched / errored-first /
+ * not relinked) is simply absent — the portrait shows no dot.
+ */
 export const forViewer = query({
   args: {},
   handler: async (ctx) => {
@@ -41,10 +43,12 @@ export const forViewer = query({
   },
 });
 
-// The action's read seam: which ETag to replay per character. The row exists iff
-// the character holds online data (a fresh 200 wrote it), so the etag-implies-data
-// invariant holds by construction — no separate data-presence gate needed (unlike
-// skills, whose etag lives on a hot doc split from its cold payload).
+/**
+ * The action's read seam: which ETag to replay per character. The row exists iff
+ * the character holds online data (a fresh 200 wrote it), so the etag-implies-data
+ * invariant holds by construction — no separate data-presence gate needed (unlike
+ * skills, whose etag lives on a hot doc split from its cold payload).
+ */
 export const heldState = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
@@ -70,10 +74,12 @@ const characterResultValidator = v.object({
 
 type CharacterResult = Infer<typeof characterResultValidator>;
 
-// The run's single batched write. Idempotent (upserts keyed by userId+characterId),
-// so a Workpool retry that re-runs the action cannot double-write; the generation
-// guard (against the engine's subject row) makes a superseded run's late apply a
-// no-op instead of an overwrite.
+/**
+ * The run's single batched write. Idempotent (upserts keyed by userId+characterId),
+ * so a Workpool retry that re-runs the action cannot double-write; the generation
+ * guard (against the engine's subject row) makes a superseded run's late apply a
+ * no-op instead of an overwrite.
+ */
 export const applySyncResults = internalMutation({
   args: {
     userId: v.string(),
@@ -153,13 +159,15 @@ async function applyOnlineResult(
   return result.expiresAt;
 }
 
-// Explicit teardown for a Neon-side account/character purge (ACCOUNT.2). The lazy
-// orphan-clean in applySyncResults cannot cover a removed user — no later sync
-// re-enumerates a deleted account — so the purge calls this directly. `characterId`
-// null tears down the whole user (an account-nuke); a number tears down one
-// character (a single character-purge / unlink). Idempotent: deleting absent rows is
-// a no-op, so a retried best-effort purge is safe. Reached only via the bearer-gated
-// /purge-online HTTP action (Neon → Convex, one-directional).
+/**
+ * Explicit teardown for a Neon-side account/character purge (ACCOUNT.2). The lazy
+ * orphan-clean in applySyncResults cannot cover a removed user — no later sync
+ * re-enumerates a deleted account — so the purge calls this directly. `characterId`
+ * null tears down the whole user (an account-nuke); a number tears down one
+ * character (a single character-purge / unlink). Idempotent: deleting absent rows is
+ * a no-op, so a retried best-effort purge is safe. Reached only via the bearer-gated
+ * /purge-online HTTP action (Neon → Convex, one-directional).
+ */
 export const purgeForUser = internalMutation({
   args: { userId: v.string(), characterId: v.union(v.number(), v.null()) },
   handler: async (ctx, { userId, characterId }) => {

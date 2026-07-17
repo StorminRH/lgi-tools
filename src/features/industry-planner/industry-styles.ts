@@ -13,8 +13,10 @@ import type { PriceSource } from '@/data/market-prices/types';
 // healthy (green). A rough cut for at-a-glance scanning, not a trading signal.
 const THIN_MARGIN_PCT = 5;
 
-// Text-colour class for a margin figure. Loss → red, thin → orange, healthy →
-// green, unknown (no product sell price) → muted.
+/**
+ * Text-colour class for a margin figure. Loss → red, thin → orange, healthy →
+ * green, unknown (no product sell price) → muted.
+ */
 export function marginToneClass(marginPct: number | null): string {
   if (marginPct === null) return 'text-muted';
   if (marginPct < 0) return toneTextClass('red');
@@ -22,6 +24,7 @@ export function marginToneClass(marginPct: number | null): string {
   return toneTextClass('green');
 }
 
+/** Display-ready margin amount in ISK, percentage, and semantic profitability tone. */
 export interface MarginFigures {
   showNet: boolean;
   margin: number | null;
@@ -31,10 +34,12 @@ export interface MarginFigures {
   missingAdjustedPriceCount: number;
 }
 
-// The hero's headline figures: net wins whenever a net estimate exists (a
-// manufacturing blueprint with a build location picked → `net` non-null),
-// otherwise gross from the materials-only summary. `sign` is the leading '+'
-// for a positive margin; the missing-fee flags feed selectMarginCaption.
+/**
+ * The hero's headline figures: net wins whenever a net estimate exists (a
+ * manufacturing blueprint with a build location picked → `net` non-null),
+ * otherwise gross from the materials-only summary. `sign` is the leading '+'
+ * for a positive margin; the missing-fee flags feed selectMarginCaption.
+ */
 export function deriveMarginFigures(
   summary: { margin: number | null; marginPct: number | null } | null,
   net: {
@@ -56,19 +61,23 @@ export function deriveMarginFigures(
   };
 }
 
-// Industry activity label, from the shared id → label map (eve-data).
-// Manufacturing (1) and reactions (11) are the only activities the planner
-// models (see eve-data INDUSTRY_ACTIVITY_NAMES); the fallback covers any id
-// outside the map.
+/**
+ * Industry activity label, from the shared id → label map (eve-data).
+ * Manufacturing (1) and reactions (11) are the only activities the planner
+ * models (see eve-data INDUSTRY_ACTIVITY_NAMES); the fallback covers any id
+ * outside the map.
+ */
 export function activityLabel(activityId: number): string {
   return ACTIVITY_ID_LABEL[activityId] ?? 'Industry';
 }
 
-// A material/build category: a display label, a palette tone, and a sort order.
-// Categories are keyed off the SDE *group* (not the broader category), because
-// group is what distinguishes e.g. a manufactured Fuel Block from a reaction
-// output — both sit under the `Material` SDE category. Adding/retuning a
-// category is a config edit here; nothing else changes.
+/**
+ * A material/build category: a display label, a palette tone, and a sort order.
+ * Categories are keyed off the SDE *group* (not the broader category), because
+ * group is what distinguishes e.g. a manufactured Fuel Block from a reaction
+ * output — both sit under the `Material` SDE category. Adding/retuning a
+ * category is a config edit here; nothing else changes.
+ */
 export interface Category {
   label: string;
   tone: Tone;
@@ -96,6 +105,7 @@ const RAW_BY_GROUP: Record<string, Category> = {
   'Abyssal Materials': SALVAGE,
 };
 
+/** Returns the semantic raw-material style for a node from its market group and build classification. */
 export function classifyRaw(groupName: string, categoryName: string): Category {
   return (
     RAW_BY_GROUP[groupName] ??
@@ -112,16 +122,20 @@ export function classifyRaw(groupName: string, categoryName: string): Category {
 // Raws reuse the ledger's source-category colour but show their real SDE group
 // name, so no invented name enters the tree.
 const REACTION_ACTIVITY_ID = 11;
-// The label a reaction-activity (11) build node carries. Exported so the planner
-// can tell a reaction node from a manufactured one — reactions can't be researched,
-// so they have no ME/TE to adjust.
+/**
+ * The label a reaction-activity (11) build node carries. Exported so the planner
+ * can tell a reaction node from a manufactured one — reactions can't be researched,
+ * so they have no ME/TE to adjust.
+ */
 export const REACTION_NODE_LABEL = 'Reaction';
 
+/** Canonical build-node label, icon intent, and semantic tone. */
 export interface NodeLabel {
   label: string;
   tone: Tone;
 }
 
+/** Maps a build node to its canonical label, icon intent, and semantic tone. */
 export function classifyBuildNode(args: {
   isRaw: boolean;
   isRoot: boolean;
@@ -155,10 +169,12 @@ export function classifyBuildNode(args: {
 //   • a product/material serves `icon`; ships/drones/structures also serve
 //     `render`, everything else 400s on `/render`.
 
-// A buildable node shows the icon of WHAT YOU RUN — the producing blueprint or
-// reaction formula (both serve `bp`, so one variant covers both). A raw/leaf
-// with no producing type keeps the item's own `icon`. `bpc` is deliberately
-// unused for v1: ownership is already conveyed by the node's frame tone.
+/**
+ * A buildable node shows the icon of WHAT YOU RUN — the producing blueprint or
+ * reaction formula (both serve `bp`, so one variant covers both). A raw/leaf
+ * with no producing type keeps the item's own `icon`. `bpc` is deliberately
+ * unused for v1: ownership is already conveyed by the node's frame tone.
+ */
 export function nodeIcon(
   producingBlueprintTypeId: number | undefined,
   typeId: number,
@@ -174,6 +190,7 @@ export function nodeIcon(
 // `/render` request that would 400 (the planner-hero fix).
 const RENDERABLE_CATEGORIES = new Set(['Ship', 'Drone', 'Structure']);
 
+/** Returns whether an EVE category supports the large render rendition rather than only an inventory icon. */
 export function isRenderableCategory(categoryName: string): boolean {
   return RENDERABLE_CATEGORIES.has(categoryName);
 }
@@ -191,7 +208,7 @@ const THIN_LIQUIDITY_UNITS = 100;
 const HIGH_CONFIDENCE_SHARE = 0.75;
 const MEDIUM_CONFIDENCE_SHARE = 0.4;
 
-// The price signals a confidence verdict reads — a subset of MaterialCostRow.
+/** The price signals a confidence verdict reads — a subset of MaterialCostRow. */
 export interface ConfidenceInput {
   source: PriceSource | null;
   buyVolume: number | null;
@@ -199,21 +216,25 @@ export interface ConfidenceInput {
   staleAfterMs: number | null; // null = no price row at all
 }
 
+/** Confidence evidence for one priced planner row, including source and freshness. */
 export interface RowConfidence {
   level: ConfidenceLevel;
   reasons: string[];
 }
 
+/** Worst-case confidence summary across all priced rows contributing to a total. */
 export interface AggregateConfidence {
   level: ConfidenceLevel;
   summary: string;
 }
 
-// One material's price-confidence verdict at time `nowMs`. high = fresh ESI
-// price with real depth; low = priced row but no usable price; unknown = no
-// price row yet; medium = any single shortfall (stale / fallback source /
-// thin depth). `nowMs` is passed in, never read from the wall clock, so this
-// stays pure (and Cache-Components-safe — see CostPanel for who supplies it).
+/**
+ * One material's price-confidence verdict at time `nowMs`. high = fresh ESI
+ * price with real depth; low = priced row but no usable price; unknown = no
+ * price row yet; medium = any single shortfall (stale / fallback source /
+ * thin depth). `nowMs` is passed in, never read from the wall clock, so this
+ * stays pure (and Cache-Components-safe — see CostPanel for who supplies it).
+ */
 export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfidence {
   if (input.staleAfterMs === null) {
     return { level: 'unknown', reasons: ['No price data yet'] };
@@ -239,11 +260,13 @@ export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfi
 // rows not yet re-fetched).
 const THIN_SELL_ANCHOR_RATIO = 0.9;
 
-// The Sell·Jita honesty badge (3.7.25.1): null = no badge (healthy or
-// unknowable); otherwise the level + reason the PriceConfidence primitive
-// renders. Pure ratio test on the two stored sell figures — deliberately
-// source-agnostic, so a Fuzzwork-fallback row (raw book bottom, no order book
-// to dust-filter) and a stale pre-hardening row fire the same way.
+/**
+ * The Sell·Jita honesty badge (3.7.25.1): null = no badge (healthy or
+ * unknowable); otherwise the level + reason the PriceConfidence primitive
+ * renders. Pure ratio test on the two stored sell figures — deliberately
+ * source-agnostic, so a Fuzzwork-fallback row (raw book bottom, no order book
+ * to dust-filter) and a stale pre-hardening row fire the same way.
+ */
 export function sellAnchorConfidence(product: {
   bestSell: number | null | undefined;
   pct5Sell: number | null | undefined;
@@ -258,20 +281,24 @@ export function sellAnchorConfidence(product: {
   return { level: 'medium', reasons: ['Price anchored by a thin order'] };
 }
 
-// The Sell·Jita opportunity callout's display verdict (3.7.26.1): the stored
-// regional discount, validated for render. The gate thresholds live at ingest
-// (constants.ts) — this only decides "is there a well-formed discount to
-// show" and shapes the display numbers. Distinct from the thin-order badge
-// above (different tone, different meaning — both can render at once).
+/**
+ * The Sell·Jita opportunity callout's display verdict (3.7.26.1): the stored
+ * regional discount, validated for render. The gate thresholds live at ingest
+ * (constants.ts) — this only decides "is there a well-formed discount to
+ * show" and shapes the display numbers. Distinct from the thin-order badge
+ * above (different tone, different meaning — both can render at once).
+ */
 export interface RegionalDiscountCallout {
   systemId: number;
   pct: number; // whole percent, rounded for display
   units: number;
 }
 
-// Loose guards on purpose (the #203 posture): a payload cached before the
-// field existed reaches here with regionalDiscount undefined, and a malformed
-// or partial object must read as "no callout", never render NaN.
+/**
+ * Loose guards on purpose (the #203 posture): a payload cached before the
+ * field existed reaches here with regionalDiscount undefined, and a malformed
+ * or partial object must read as "no callout", never render NaN.
+ */
 export function regionalDiscountCallout(product: {
   regionalDiscount?: {
     systemId?: number | null;
@@ -291,9 +318,11 @@ export function regionalDiscountCallout(product: {
   return { systemId: d.systemId, pct: Math.round(d.pct), units: d.units };
 }
 
-// The shortfall tallies behind an aggregate verdict. `total` is the row count
-// the share is taken over; `high` is the fully-trustworthy rows; the rest count
-// each shortfall independently (a row can be both stale and fallback).
+/**
+ * The shortfall tallies behind an aggregate verdict. `total` is the row count
+ * the share is taken over; `high` is the fully-trustworthy rows; the rest count
+ * each shortfall independently (a row can be both stale and fallback).
+ */
 export interface ConfidenceCounts {
   high: number;
   total: number;
@@ -303,10 +332,12 @@ export interface ConfidenceCounts {
   missing: number;
 }
 
-// Map shortfall counts onto one headline level + a breakdown string — the ONE
-// place the share bands and summary format live. The browse catalog computes
-// the counts in SQL (`aggregateConfidence` below tallies them in JS from the
-// per-row verdicts); both funnel through here so neither can drift.
+/**
+ * Map shortfall counts onto one headline level + a breakdown string — the ONE
+ * place the share bands and summary format live. The browse catalog computes
+ * the counts in SQL (`aggregateConfidence` below tallies them in JS from the
+ * per-row verdicts); both funnel through here so neither can drift.
+ */
 export function aggregateConfidenceFromCounts(c: ConfidenceCounts): AggregateConfidence {
   if (c.total === 0) return { level: 'unknown', summary: 'No materials to price' };
 
@@ -344,10 +375,12 @@ function classifyInput(input: ConfidenceInput, nowMs: number): RowCounts {
   return counts;
 }
 
-// Roll the per-row verdicts into one headline level + a breakdown string for
-// the cost panel's aggregate line ("High confidence — 1 stale · 1 missing").
-// The headline is share-based (mostly-trustworthy rows still read "high", with
-// the exceptions surfaced in the summary); the summary counts each shortfall.
+/**
+ * Roll the per-row verdicts into one headline level + a breakdown string for
+ * the cost panel's aggregate line ("High confidence — 1 stale · 1 missing").
+ * The headline is share-based (mostly-trustworthy rows still read "high", with
+ * the exceptions surfaced in the summary); the summary counts each shortfall.
+ */
 export function aggregateConfidence(
   inputs: ConfidenceInput[],
   nowMs: number,

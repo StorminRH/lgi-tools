@@ -2,6 +2,10 @@ import { APP_VERSION } from '@/config/app-version';
 import { postDiscordWebhook } from '@/lib/discord';
 import { readEnv } from '@/lib/env';
 
+/**
+ * Privacy-safe alert payload describing a price source's degraded freshness and fallback state
+ * without user identifiers.
+ */
 export interface PriceSourceDegradation {
   fetched: number;
   esiCount: number;
@@ -9,6 +13,10 @@ export interface PriceSourceDegradation {
   budgetExhausted: boolean;
 }
 
+/**
+ * Privacy-safe alert payload for one terminal deferred-refresh job, using dataset and reason
+ * taxonomy rather than owner identifiers.
+ */
 export interface EsiRefreshDeadLetter {
   jobId: number;
   dataset: string;
@@ -17,22 +25,32 @@ export interface EsiRefreshDeadLetter {
   failureCode: string;
 }
 
+/**
+ * Aggregate alert payload for sustained public ESI budget exhaustion within one bounded
+ * observation window.
+ */
 export interface PublicEsiBudgetExhaustion {
   count: number;
   windowMinutes: number;
 }
 
+/**
+ * Returns whether the dedicated operations-alert webhook is configured; it does not fall back to
+ * the user-feedback webhook.
+ */
 export function isOpsAlertConfigured(): boolean {
   return Boolean(readEnv('DISCORD_ALERT_WEBHOOK_URL'));
 }
 
-// Best-effort ops alert when the price source degrades to Fuzzwork (3.0.10
-// O-1). Reads DISCORD_ALERT_WEBHOOK_URL — a dedicated ops channel, separate
-// from the feedback webhook. If it is unset, returns silently: the alert sits
-// on top of the O-1 telemetry event, never as a hard dependency. Fired only
-// from the cron path (not the public on-demand route) so a public endpoint
-// can't drive Discord posts. Callers invoke it fire-and-forget, so a Discord
-// failure never breaks the cron.
+/**
+ * Best-effort ops alert when the price source degrades to Fuzzwork (3.0.10
+ * O-1). Reads DISCORD_ALERT_WEBHOOK_URL — a dedicated ops channel, separate
+ * from the feedback webhook. If it is unset, returns silently: the alert sits
+ * on top of the O-1 telemetry event, never as a hard dependency. Fired only
+ * from the cron path (not the public on-demand route) so a public endpoint
+ * can't drive Discord posts. Callers invoke it fire-and-forget, so a Discord
+ * failure never breaks the cron.
+ */
 export async function alertPriceSourceDegradation(
   info: PriceSourceDegradation,
 ): Promise<void> {
@@ -67,6 +85,10 @@ export async function alertPriceSourceDegradation(
   await postDiscordWebhook(url, { embeds: [embed] });
 }
 
+/**
+ * Posts a privacy-safe deferred-refresh dead-letter alert when operations alerting is configured;
+ * an absent webhook makes the call a no-op.
+ */
 export async function alertEsiRefreshDeadLetter(
   info: EsiRefreshDeadLetter,
 ): Promise<void> {
@@ -91,6 +113,10 @@ export async function alertEsiRefreshDeadLetter(
   });
 }
 
+/**
+ * Posts the aggregated public ESI budget-exhaustion alert without including user or character
+ * identifiers; an absent webhook makes the call a no-op.
+ */
 export async function alertPublicEsiBudgetExhaustion(
   info: PublicEsiBudgetExhaustion,
 ): Promise<boolean> {

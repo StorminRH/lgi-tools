@@ -102,11 +102,13 @@ function SignedInCluster({
   );
 }
 
-// `variant` picks the signed-in cluster's shape: 'menu' (default) renders the
-// portrait as the account-menu trigger (the desktop header); 'flat' renders the
-// legacy portrait-link + Log out button — the hamburger footer's shape, where a
-// menu must never nest inside the NavMenu popup. Loading + signed-out render
-// identically in both.
+/**
+ * `variant` picks the signed-in cluster's shape: 'menu' (default) renders the
+ * portrait as the account-menu trigger (the desktop header); 'flat' renders the
+ * legacy portrait-link + Log out button — the hamburger footer's shape, where a
+ * menu must never nest inside the NavMenu popup. Loading + signed-out render
+ * identically in both.
+ */
 export function LoginButton({ variant = 'menu' }: { variant?: 'menu' | 'flat' }) {
   const { session, isAdmin: showAdminLink, loading } = useAuth();
 

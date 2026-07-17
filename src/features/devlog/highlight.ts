@@ -65,9 +65,11 @@ function tokenize(code: string, lang: string, hl: Highlighter, loaded: Set<strin
   }
 }
 
-// Highlight a single excerpt, returning a NEW object with `tokens` attached (never
-// mutates). Thin wrapper over tokenize; the batch path (highlightTree) shares the
-// same tokenizer so the two never diverge.
+/**
+ * Highlight a single excerpt, returning a NEW object with `tokens` attached (never
+ * mutates). Thin wrapper over tokenize; the batch path (highlightTree) shares the
+ * same tokenizer so the two never diverge.
+ */
 export async function highlightExcerpt(excerpt: Excerpt): Promise<Excerpt> {
   const hl = await getHighlighter();
   const loaded = new Set(hl.getLoadedLanguages());
@@ -87,9 +89,11 @@ function eachExcerpt(tree: DevlogTree): Excerpt[] {
   return out;
 }
 
-// Rebuild the tree with each excerpt block pointing at its highlighted object (by
-// id). PURE and sync — no Shiki — so it's unit-testable with a hand-built map, and
-// it never mutates the input tree.
+/**
+ * Rebuild the tree with each excerpt block pointing at its highlighted object (by
+ * id). PURE and sync — no Shiki — so it's unit-testable with a hand-built map, and
+ * it never mutates the input tree.
+ */
 export function rebuildTree(tree: DevlogTree, byId: Map<string, Excerpt>): DevlogTree {
   const mapDoc = (d: DevlogDocument): DevlogDocument => ({
     ...d,
@@ -103,9 +107,11 @@ export function rebuildTree(tree: DevlogTree, byId: Map<string, Excerpt>): Devlo
   };
 }
 
-// Attach tokens to every excerpt in the tree, highlighting each distinct definition
-// exactly once. Called from the cached loadDevlog, so the whole pass is paid once
-// per deploy.
+/**
+ * Attach tokens to every excerpt in the tree, highlighting each distinct definition
+ * exactly once. Called from the cached loadDevlog, so the whole pass is paid once
+ * per deploy.
+ */
 export async function highlightTree(tree: DevlogTree): Promise<DevlogTree> {
   const hl = await getHighlighter();
   const loaded = new Set(hl.getLoadedLanguages());

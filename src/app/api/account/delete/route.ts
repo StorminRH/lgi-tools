@@ -6,11 +6,13 @@ import { requireSession } from '@/features/auth/route-guards';
 import { requireSameOrigin } from '@/features/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
-// POST-only. Nuke the CALLER's entire account — every linked character's derived
-// data scrubbed, each EVE grant revoked, then the user row deleted (its sessions,
-// preferences, and custom structures cascade). The most destructive self-service
-// control; the account-page UI confirm-gates it.
-// No user input — acts on the session user only (never a body-supplied id).
+/**
+ * POST-only. Nuke the CALLER's entire account — every linked character's derived
+ * data scrubbed, each EVE grant revoked, then the user row deleted (its sessions,
+ * preferences, and custom structures cascade). The most destructive self-service
+ * control; the account-page UI confirm-gates it.
+ * No user input — acts on the session user only (never a body-supplied id).
+ */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   const limit = await rateLimitGuard(request, { name: 'account-delete', perMinute: 5 });

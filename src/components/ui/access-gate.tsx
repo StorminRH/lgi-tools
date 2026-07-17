@@ -38,6 +38,10 @@ const gateVariants = cva('font-mono border rounded-card px-3.5 py-3.5 flex flex-
   defaultVariants: { tone: 'orange' },
 });
 
+/**
+ * Renders the domain-neutral access gate with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function AccessGate({
   blocked,
   reason,

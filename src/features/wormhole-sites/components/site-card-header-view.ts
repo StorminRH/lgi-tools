@@ -51,6 +51,10 @@ function deriveClassPill(site: SiteDetail): { tone: PillTone; label: string } | 
   return null;
 }
 
+/**
+ * Display-ready site card header state for wormhole sites; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type SiteCardHeaderView = {
   subLine: string | null;
   waveValue: string;
@@ -61,8 +65,10 @@ export type SiteCardHeaderView = {
   ewarPills: { key: EwarKey; tone: ChipTone; label: string }[];
 };
 
-// The card's collapsed-summary content, computed from the site + its displayable
-// resources: the value read, the class/type/EWAR pill configs, and the sub-line.
+/**
+ * The card's collapsed-summary content, computed from the site + its displayable
+ * resources: the value read, the class/type/EWAR pill configs, and the sub-line.
+ */
 export function deriveSiteCardHeaderView(
   site: SiteDetail,
   liveResources: SiteResource[],

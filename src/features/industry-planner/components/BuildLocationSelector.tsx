@@ -253,6 +253,10 @@ function BuildSystemControl({
 // owner-set facility tax with the 0.25% NPC baseline assumed when unset), so an
 // NPC station pick never changes the numbers.
 
+/**
+ * Renders controlled NPC, custom, and corporation build-location choices and forwards the selected
+ * facility without calculating bonuses.
+ */
 export function BuildLocationSelector() {
   const {
     location,

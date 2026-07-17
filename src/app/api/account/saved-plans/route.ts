@@ -17,11 +17,13 @@ import {
 } from '@/features/industry-planner/saved-plans-queries';
 import { parseJsonBody } from '@/lib/route-body';
 
+/**
+ * GET /api/account/saved-plans — the caller's saved build templates. The
+ * fail-open read posture (#197): an anonymous caller gets a typed empty list,
+ * never an error, so the planner's template surface degrades instead of
+ * breaking.
+ */
 // authz: auth
-// GET /api/account/saved-plans — the caller's saved build templates. The
-// fail-open read posture (#197): an anonymous caller gets a typed empty list,
-// never an error, so the planner's template surface degrades instead of
-// breaking.
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) return Response.json({ plans: [] } satisfies SavedPlansResponse);
@@ -29,12 +31,14 @@ export async function GET(): Promise<Response> {
   return Response.json({ plans } satisfies SavedPlansResponse);
 }
 
-// POST /api/account/saved-plans — save the planner's current configuration as
-// a named template. The user id comes from the session, never the body. The
-// snapshot is validated shallowly (version + blueprint anchor + byte cap — the
-// contract explains why deep validation waits until load); the blueprint must
-// resolve (it supplies the denormalized product columns the list renders), and
-// the per-user cap holds. Echoes the full updated list.
+/**
+ * POST /api/account/saved-plans — save the planner's current configuration as
+ * a named template. The user id comes from the session, never the body. The
+ * snapshot is validated shallowly (version + blueprint anchor + byte cap — the
+ * contract explains why deep validation waits until load); the blueprint must
+ * resolve (it supplies the denormalized product columns the list renders), and
+ * the per-user cap holds. Echoes the full updated list.
+ */
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     authorize: requireUserId,

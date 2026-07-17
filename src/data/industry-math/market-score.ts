@@ -24,25 +24,31 @@
 // sub-signal weights. The tests pin BEHAVIOUR (monotonicity, the weakest-link
 // floor, unknown handling), never these specific numbers.
 
-// Time-to-clear (days) at which the liquidity signal bottoms out: a batch that
-// would take a month of average volume to sell through (wall + your units)
-// scores 0. PROVISIONAL.
+/**
+ * Time-to-clear (days) at which the liquidity signal bottoms out: a batch that
+ * would take a month of average volume to sell through (wall + your units)
+ * scores 0. PROVISIONAL.
+ */
 export const CLEAR_DAYS_MAX = 30;
 
-// Price-volatility CV at which stability bottoms out (~30% monthly price swing
-// → 0). PROVISIONAL.
+/**
+ * Price-volatility CV at which stability bottoms out (~30% monthly price swing
+ * → 0). PROVISIONAL.
+ */
 export const STABILITY_CV_MAX = 0.3;
 
-// Zero-filled daily-volume CV at which consistency bottoms out. Volume CV runs
-// higher than price CV — a market that trades only a few days a month is very
-// spiky once the no-trade days are zero-filled — so the cap is higher.
-// PROVISIONAL.
-//
-// Confirmed intended (3.5.4a audit / Ryan, 2026-06-14): a volumeCv past this caps
-// consistency at exactly 0, and the weakest-link compose then floors the WHOLE
-// score to 0 (e.g. a barely-traded officer module). That hard 0 is the desired
-// "a thin market can't hide behind a healthy margin" read, not a miscalibration —
-// do not soften it to a low-but-nonzero floor without a fresh decision.
+/**
+ * Zero-filled daily-volume CV at which consistency bottoms out. Volume CV runs
+ * higher than price CV — a market that trades only a few days a month is very
+ * spiky once the no-trade days are zero-filled — so the cap is higher.
+ * PROVISIONAL.
+ *
+ * Confirmed intended (3.5.4a audit / Ryan, 2026-06-14): a volumeCv past this caps
+ * consistency at exactly 0, and the weakest-link compose then floors the WHOLE
+ * score to 0 (e.g. a barely-traded officer module). That hard 0 is the desired
+ * "a thin market can't hide behind a healthy margin" read, not a miscalibration —
+ * do not soften it to a low-but-nonzero floor without a fresh decision.
+ */
 export const CONSISTENCY_CV_MAX = 1.5;
 
 // Wording thresholds on the raw volume CV for the demand-consistency readout
@@ -56,9 +62,11 @@ const CONSISTENCY_SPIKY_CV = 1.0;
 // it. PROVISIONAL.
 const WEIGHTS = { liquidity: 0.5, stability: 0.25, consistency: 0.25 } as const;
 
-// Neutral numeric inputs — the feature adapter picks the ADV window and the
-// near-touch depth bands and hands over plain scalars (null = genuinely
-// unknown, distinct from a real zero).
+/**
+ * Neutral numeric inputs — the feature adapter picks the ADV window and the
+ * near-touch depth bands and hands over plain scalars (null = genuinely
+ * unknown, distinct from a real zero).
+ */
 export interface MarketScoreInputs {
   outputUnits: number; // runs × quantityPerRun (≥ 1)
   adv: number | null; // chosen ADV window, units/day; null = no demand history
@@ -68,11 +76,14 @@ export interface MarketScoreInputs {
   volumeCv: number | null; // zero-filled 30d volume CV; null = no data / zero mean
 }
 
+/** Closed market-history consistency buckets derived from price dispersion. */
 export type ConsistencyBand = 'steady' | 'moderate' | 'spiky';
 
-// The fused liquidity signal, decomposed for the breakdown readout: the total
-// time-to-clear and its two parts (the wall ahead of you + your own batch),
-// plus the buy-side instant-dump detail (unscored).
+/**
+ * The fused liquidity signal, decomposed for the breakdown readout: the total
+ * time-to-clear and its two parts (the wall ahead of you + your own batch),
+ * plus the buy-side instant-dump detail (unscored).
+ */
 export interface LiquiditySignal {
   score: number | null; // normalized 0..1, null when ADV is unknown
   timeToClearDays: number | null;
@@ -84,17 +95,20 @@ export interface LiquiditySignal {
   wallKnown: boolean;
 }
 
+/** Normalized price-stability score and explanatory bucket. */
 export interface StabilitySignal {
   score: number | null;
   swingPct: number | null; // priceVolatility as a percentage, for the readout
 }
 
+/** Normalized market consistency score and explanatory bucket. */
 export interface ConsistencySignal {
   score: number | null;
   volumeCv: number | null;
   band: ConsistencyBand | null;
 }
 
+/** Complete normalized market score with demand, spread, stability, consistency, and confidence signals. */
 export interface MarketScore {
   // 0..100, null when NO sub-signal is known (no fabricated number).
   score: number | null;
@@ -190,6 +204,10 @@ function compose(
   return { score: Math.round(Math.exp(lnSum / weightSum) * 100), knownCount };
 }
 
+/**
+ * Computes the normalized market score, stability, and consistency signals from price history,
+ * spread, and volume observations.
+ */
 export function computeMarketScore(inputs: MarketScoreInputs): MarketScore {
   const liquidity = computeLiquidity(inputs);
   const stability = computeStability(inputs.priceVolatility);

@@ -11,6 +11,10 @@ const RESOURCE_SECTION_COPY = {
   combat: { label: 'Resources',           hint: '',                      footer: 'Total value' },
 } satisfies Record<SiteType, { label: string; hint: string; footer: string }>;
 
+/**
+ * Display-ready site details state for wormhole sites; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type SiteDetailsView = {
   isWaveDriven: boolean;
   hasResources: boolean;
@@ -21,9 +25,11 @@ export type SiteDetailsView = {
   footerLabel: string;
 };
 
-// Which blocks the expanded body renders and with what copy: wave-driven sites
-// (combat / hackable) lead with wave cards, gathering sites show a resource
-// section; a resource-less site still gets its (possibly empty) wave section.
+/**
+ * Which blocks the expanded body renders and with what copy: wave-driven sites
+ * (combat / hackable) lead with wave cards, gathering sites show a resource
+ * section; a resource-less site still gets its (possibly empty) wave section.
+ */
 export function deriveSiteDetailsView(site: SiteDetail): SiteDetailsView {
   const isHackSite = site.siteType === 'relic' || site.siteType === 'data';
   const copy = RESOURCE_SECTION_COPY[site.siteType];

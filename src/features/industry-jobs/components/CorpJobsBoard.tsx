@@ -34,11 +34,14 @@ import { JobRowFrame } from './JobRowFrame';
 
 type CorpEntry = CorpJobsResponse['corporations'][number];
 
-// The scope-missing gate copy, exported so the /industry dashboard coordinator
-// (which composes the gate itself around the rank model) shows the same words.
+/**
+ * The scope-missing gate copy, exported so the /industry dashboard coordinator
+ * (which composes the gate itself around the rank model) shows the same words.
+ */
 export const CORP_ACCESS_REASON =
   "Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here.";
 
+/** Renders corporation industry jobs grouped by owner with access, loading, empty, and refresh states. */
 export function CorpJobsBoard({
   eligibleCharacterIds,
   hasLinkedCharacters,
@@ -86,11 +89,13 @@ function LiveCorpJobs({ eligibleCharacterIds }: { eligibleCharacterIds: number[]
   return <CorpJobsList corporations={corporations} names={names} now={now} />;
 }
 
-// The corp boards themselves, presentational over live data — rendered by the
-// self-fetching board above (/jobs) and by the /industry dashboard coordinator
-// (3.7.24), which owns its own useCorpJobsLive read + loading/empty states.
-// Corp + installer names resolve here through /api/eve/names regardless of
-// which surface mounts it.
+/**
+ * The corp boards themselves, presentational over live data — rendered by the
+ * self-fetching board above (/jobs) and by the /industry dashboard coordinator
+ * (3.7.24), which owns its own useCorpJobsLive read + loading/empty states.
+ * Corp + installer names resolve here through /api/eve/names regardless of
+ * which surface mounts it.
+ */
 export function CorpJobsList({
   corporations,
   names,

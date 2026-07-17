@@ -29,14 +29,17 @@ import {
 } from './structure-bonus';
 import type { AvailableStructure } from './types';
 
-// COVERAGE (distinct from BONUS): which activities a structure can HOST, decided by
-// its SDE group — only a Refinery (1406) hosts reactions; every industry structure
-// hosts manufacturing. A structure that hosts an activity but lacks its rigs still
-// covers it at zero bonus — coverage is group-level, bonus is rig/role-level.
+/**
+ * COVERAGE (distinct from BONUS): which activities a structure can HOST, decided by
+ * its SDE group — only a Refinery (1406) hosts reactions; every industry structure
+ * hosts manufacturing. A structure that hosts an activity but lacks its rigs still
+ * covers it at zero bonus — coverage is group-level, bonus is rig/role-level.
+ */
 export function hostsReactions(groupId: number): boolean {
   return groupId === SDE_REFINERY_GROUP_ID;
 }
 
+/** Multiplicative structure material, time, cost-index, and tax factors. */
 export interface StructureFactors {
   // Per-node factors fed to the engine (default 1 ⇒ no change).
   structureMeFactorOf: (blueprintTypeId: number) => number;
@@ -51,6 +54,7 @@ export interface StructureFactors {
   active: boolean;
 }
 
+/** Identity structure factors used when no facility or rig bonus applies. */
 export const NO_STRUCTURE_FACTORS: StructureFactors = {
   structureMeFactorOf: () => 1,
   structureTeFactorOf: () => 1,
@@ -119,6 +123,10 @@ function routeHosts(
   };
 }
 
+/**
+ * Returns the canonical structure factors result for the requested industry planner case; callers
+ * own the supplied clock or identity context.
+ */
 export function structureFactorsFor(args: {
   // The "build at" structure (any group) + its system security.
   selectedStructure: AvailableStructure | null;
@@ -167,19 +175,21 @@ export function structureFactorsFor(args: {
   };
 }
 
-// The fee inputs for assemblePricing, composed from the two location fetches +
-// the two structure slots (3.7.13.3). Pure so the provider's assemble() stays a
-// thin shell and the routing rules are unit-testable:
-//   • The mfg fee reads the BUILD slot only — a lone reaction-slot refinery
-//     "hosting the chain" (the #187 ME routing) never lends its tax to the
-//     manufacturing fee, whose index comes from the BUILD system; tax and index
-//     must not straddle two systems.
-//   • The reaction fee reads the reaction host (the refinery, else a build-slot
-//     refinery) — its inputs are the dedicated reaction-slot fetch, else the
-//     build system's own 'reaction' index (already fetched with the location).
-//   • Adjusted prices are CCP-global (the same value whichever system fetched
-//     them), so either read's map answers for the blueprint's EIV base.
-// Neither source present ⇒ undefined ⇒ the gross-only path, byte-identical.
+/**
+ * The fee inputs for assemblePricing, composed from the two location fetches +
+ * the two structure slots (3.7.13.3). Pure so the provider's assemble() stays a
+ * thin shell and the routing rules are unit-testable:
+ *   • The mfg fee reads the BUILD slot only — a lone reaction-slot refinery
+ *     "hosting the chain" (the #187 ME routing) never lends its tax to the
+ *     manufacturing fee, whose index comes from the BUILD system; tax and index
+ *     must not straddle two systems.
+ *   • The reaction fee reads the reaction host (the refinery, else a build-slot
+ *     refinery) — its inputs are the dedicated reaction-slot fetch, else the
+ *     build system's own 'reaction' index (already fetched with the location).
+ *   • Adjusted prices are CCP-global (the same value whichever system fetched
+ *     them), so either read's map answers for the blueprint's EIV base.
+ * Neither source present ⇒ undefined ⇒ the gross-only path, byte-identical.
+ */
 export function composeFeeInputs(args: {
   location: {
     adjustedPrices: Map<number, number>;
@@ -209,15 +219,18 @@ export function composeFeeInputs(args: {
   };
 }
 
-// The bonuses each SLOT is contributing, for its readout pills — split from the host
-// bonuses by the same routing. A slot shows a pill only for an activity it actually
-// hosts (so the "build" slot never shows a reaction pill when a refinery took over
-// reactions, and a lone refinery in either slot shows both).
+/**
+ * The bonuses each SLOT is contributing, for its readout pills — split from the host
+ * bonuses by the same routing. A slot shows a pill only for an activity it actually
+ * hosts (so the "build" slot never shows a reaction pill when a refinery took over
+ * reactions, and a lone refinery in either slot shows both).
+ */
 export interface StructureReadout {
   mfg: StructureBonus | null;
   rxn: StructureBonus | null;
 }
 
+/** Formats structure material, time, cost-index, and tax factors as planner readouts. */
 export function structureReadouts(args: {
   selectedStructure: AvailableStructure | null;
   reactionStructure: AvailableStructure | null;

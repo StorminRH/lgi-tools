@@ -10,10 +10,22 @@
 import type postgres from 'postgres';
 
 type Sql = ReturnType<typeof postgres>;
+/**
+ * Direct unpooled PostgreSQL session reserved for advisory-lock work; the lock helper owns
+ * releasing and closing it.
+ */
 export type ReservedConnection = Awaited<ReturnType<Sql['reserve']>>;
 
+/**
+ * Closed advisory-lock result distinguishing completed callback work from lock contention without
+ * treating contention as an error.
+ */
 export type AdvisoryLockOutcome<T> = { busy: true } | { busy: false; result: T };
 
+/**
+ * Runs a callback while holding one PostgreSQL session advisory lock on a reserved, unpooled
+ * connection; release and connection close always run in finally.
+ */
 export async function withAdvisoryLock<T>(
   client: Sql,
   lockKey: number,

@@ -5,12 +5,15 @@
 // granted it under an older, smaller consent still syncs fine. The character read
 // needs no in-game role. Mirrors the owned-blueprints predicate.
 
-// Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
-// never demand a scope sign-in doesn't request). The asset reads live under
-// `esi-assets`. A direct EVE_SCOPES import here would be a feature → feature edge
-// the boundary lint bans.
+/**
+ * Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
+ * never demand a scope sign-in doesn't request). The asset reads live under
+ * `esi-assets`. A direct EVE_SCOPES import here would be a feature → feature edge
+ * the boundary lint bans.
+ */
 export const ASSETS_SYNC_SCOPES = ['esi-assets.read_assets.v1'] as const;
 
+/** Returns whether a linked character has token custody and the personal-assets scope. */
 export function canSyncAssets(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

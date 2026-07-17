@@ -44,8 +44,10 @@ const adjustedPricesBodySchema = z.array(
   }),
 );
 
-// Flatten the nested per-system shape into one RawCostIndex per known activity.
-// Exported for direct unit testing of the parse/flatten path.
+/**
+ * Flatten the nested per-system shape into one RawCostIndex per known activity.
+ * Exported for direct unit testing of the parse/flatten path.
+ */
 export function parseCostIndices(body: unknown): RawCostIndex[] {
   const result = costIndicesBodySchema.safeParse(body);
   if (!result.success) throw new EsiContractError();
@@ -63,7 +65,7 @@ export function parseCostIndices(body: unknown): RawCostIndex[] {
   return out;
 }
 
-// Exported for direct unit testing of the parse path.
+/** Exported for direct unit testing of the parse path. */
 export function parseAdjustedPrices(body: unknown): RawAdjustedPrice[] {
   const result = adjustedPricesBodySchema.safeParse(body);
   if (!result.success) throw new EsiContractError();
@@ -73,12 +75,14 @@ export function parseAdjustedPrices(body: unknown): RawAdjustedPrice[] {
   }));
 }
 
+/** Fetches current ESI industry cost indices through the shared public dispatch gate. */
 export async function fetchCostIndices(): Promise<RawCostIndex[]> {
   const res = await esiFetch(esiUrl('/industry/systems/'));
   if (!res.ok) throw new EsiServerError(res.status);
   return parseCostIndices(await res.json());
 }
 
+/** Fetches current ESI adjusted prices through the shared public dispatch gate. */
 export async function fetchAdjustedPrices(): Promise<RawAdjustedPrice[]> {
   const res = await esiFetch(esiUrl('/markets/prices/'));
   if (!res.ok) throw new EsiServerError(res.status);

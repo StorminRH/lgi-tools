@@ -12,9 +12,10 @@ const preferenceKeySchema = z.enum(PREFERENCE_KEYS as unknown as [string, ...str
 const getPreferencesResponseSchema = z.object({
   preferences: z.array(z.object({ key: z.string(), value: z.unknown() })),
 });
+/** Server-readable preference values keyed by the closed preference registry. */
 export type GetPreferencesResponse = z.infer<typeof getPreferencesResponseSchema>;
 
-// GET /api/preferences — every saved preference for the logged-in caller.
+/** GET /api/preferences — every saved preference for the logged-in caller. */
 export const getPreferencesEndpoint: ApiEndpoint<null, GetPreferencesResponse> = {
   method: 'GET',
   path: '/api/preferences',
@@ -22,12 +23,16 @@ export const getPreferencesEndpoint: ApiEndpoint<null, GetPreferencesResponse> =
   response: getPreferencesResponseSchema,
 };
 
+/**
+ * Boundary validator for put preference request schema; successful parsing yields the normalized
+ * preferences input consumed internally.
+ */
 export const putPreferenceRequestSchema = z.object({
   key: preferenceKeySchema,
   value: z.unknown(),
 });
 
-// POST /api/preferences — upsert one of the caller's preferences. 204 on success.
+/** POST /api/preferences — upsert one of the caller's preferences. 204 on success. */
 export const putPreferenceEndpoint: ApiEndpoint<
   z.input<typeof putPreferenceRequestSchema>,
   undefined

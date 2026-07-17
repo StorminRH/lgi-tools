@@ -22,6 +22,10 @@ import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import type { CharacterStripSpec } from '@/page-settings/types';
 
+/**
+ * Connects a page-settings character-strip declaration to roster and online state, then renders
+ * its loading, empty, or populated section.
+ */
 export function CharacterStripSection({
   characters,
   strip,

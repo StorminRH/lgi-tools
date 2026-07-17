@@ -18,12 +18,14 @@ type TokenOutcome =
   | { kind: 'needs_role' }
   | { kind: 'skip'; retryable: boolean };
 
-// Run one user's per-owner sync: the character pass THEN the corp pass, in series at
-// the top level (a character is both a char-owner and a corp member, so serialising
-// the passes avoids vending the same token concurrently). Within each pass the owners
-// are independent and refresh in parallel. Each owner reports a structured outcome;
-// budget deferrals may additionally enqueue through the optional callback. A
-// character-only slice supplies no corpAxis; a corp-only slice supplies no characterAxis.
+/**
+ * Run one user's per-owner sync: the character pass THEN the corp pass, in series at
+ * the top level (a character is both a char-owner and a corp member, so serialising
+ * the passes avoids vending the same token concurrently). Within each pass the owners
+ * are independent and refresh in parallel. Each owner reports a structured outcome;
+ * budget deferrals may additionally enqueue through the optional callback. A
+ * character-only slice supplies no corpAxis; a corp-only slice supplies no characterAxis.
+ */
 export async function runOwnerSync<TOwner, TState, TSave>(
   descriptor: OwnerSyncDescriptor<TOwner, TState, TSave>,
   userId: string,

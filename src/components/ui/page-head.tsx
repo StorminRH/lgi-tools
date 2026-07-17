@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 
-// The terminal-style `lgi://<crumb>` breadcrumb line, on its own so a page that
-// can't use the full <PageHead> scaffold (e.g. an entity-detail header with a
-// portrait) still opens with the same crumb. The `lgi://` prefix is ISK-green;
-// the crumb tail is muted.
+/**
+ * The terminal-style `lgi://<crumb>` breadcrumb line, on its own so a page that
+ * can't use the full <PageHead> scaffold (e.g. an entity-detail header with a
+ * portrait) still opens with the same crumb. The `lgi://` prefix is ISK-green;
+ * the crumb tail is muted.
+ */
 export function Breadcrumb({ crumb }: { crumb: string }) {
   return (
     <div className="font-mono text-label tracking-label text-muted mb-2">
@@ -13,13 +15,15 @@ export function Breadcrumb({ crumb }: { crumb: string }) {
   );
 }
 
-// Shared inner-page header (the prototype's `.OGP-head`) — the breadcrumb over a
-// Barlow uppercase title (sized by the `--text-display` ladder token), with an
-// optional left `subtitle` line under the title and an optional right-aligned
-// `meta` slot. The ONE page-title system: every inner page (public + signed-in)
-// opens with this exact scaffold so titles can't drift page-to-page. The
-// `subtitle` carries a page's descriptive sentence; the terse `meta` slot is for
-// short uppercase tags or header controls.
+/**
+ * Shared inner-page header (the prototype's `.OGP-head`) — the breadcrumb over a
+ * Barlow uppercase title (sized by the `--text-display` ladder token), with an
+ * optional left `subtitle` line under the title and an optional right-aligned
+ * `meta` slot. The ONE page-title system: every inner page (public + signed-in)
+ * opens with this exact scaffold so titles can't drift page-to-page. The
+ * `subtitle` carries a page's descriptive sentence; the terse `meta` slot is for
+ * short uppercase tags or header controls.
+ */
 export function PageHead({
   crumb,
   title,

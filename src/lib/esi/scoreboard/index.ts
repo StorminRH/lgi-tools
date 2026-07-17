@@ -79,10 +79,18 @@ function resolveConcreteScoreboard(): ResolvedScoreboard | null {
   return null;
 }
 
+/**
+ * Selects the Redis-backed scoreboard when configured and otherwise the in-memory development
+ * implementation, returning one shared promise.
+ */
 export function resolveScoreboard(): EsiScoreboard | null {
   return resolveConcreteScoreboard()?.scoreboard ?? null;
 }
 
+/**
+ * Reads the current public and authenticated ESI budget counters from the active scoreboard, or
+ * null when no snapshot can be produced.
+ */
 export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null> {
   const scoreboard = resolveConcreteScoreboard();
   if (scoreboard === null) return null;
@@ -91,7 +99,7 @@ export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null>
     : await readMemoryBudgetSnapshot(scoreboard.scoreboard);
 }
 
-// Reset module state between Vitest cases. Not for runtime callers.
+/** Reset module state between Vitest cases. Not for runtime callers. */
 export function __resetScoreboardForTests(): void {
   redisScoreboards.clear();
   memoryScoreboard = null;

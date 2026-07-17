@@ -7,11 +7,13 @@ import { loadDevlog } from '@/features/devlog/load';
 import { documentSummary, findDocument, flattenDocuments, introDocument } from '@/features/devlog/parse';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
-// Every document except the Introduction (which lands at /devlog) is prerendered by
-// slug (generateStaticParams enumerates them all); an unknown slug falls through to
-// notFound(). Cache Components disallows the `dynamicParams` route segment config
-// (it errors the build), so unknown-slug handling is the notFound() above, not
-// `dynamicParams = false`.
+/**
+ * Every document except the Introduction (which lands at /devlog) is prerendered by
+ * slug (generateStaticParams enumerates them all); an unknown slug falls through to
+ * notFound(). Cache Components disallows the `dynamicParams` route segment config
+ * (it errors the build), so unknown-slug handling is the notFound() above, not
+ * `dynamicParams = false`.
+ */
 export async function generateStaticParams() {
   const tree = await loadDevlog();
   const introSlug = introDocument(tree)?.slug;
@@ -20,6 +22,10 @@ export async function generateStaticParams() {
     .map((d) => ({ slug: d.slug }));
 }
 
+/**
+ * Builds request-independent metadata for /devlog/[slug] from the route parameter and canonical
+ * content source.
+ */
 export async function generateMetadata({
   params,
 }: {
@@ -35,6 +41,10 @@ export async function generateMetadata({
   });
 }
 
+/**
+ * Renders the /devlog/[slug] route surface and owns its page-level composition, metadata boundary,
+ * and fallback presentation.
+ */
 export default async function DevlogDocumentPage({
   params,
 }: {

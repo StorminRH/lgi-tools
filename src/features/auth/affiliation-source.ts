@@ -28,6 +28,10 @@ const affiliationEntrySchema = z.object({
 });
 const affiliationResponseSchema = z.array(affiliationEntrySchema);
 
+/**
+ * Display-ready affiliation row produced by auth; values retain their domain units and require no
+ * additional query by the renderer.
+ */
 export interface AffiliationRow {
   characterId: number;
   corporationId: number;
@@ -67,9 +71,11 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationRow[]>
   return parsed.success ? parsed.data.map(toAffiliationRow) : [];
 }
 
-// Fetch affiliations for the given characters. Best-effort and resilient: each
-// batch is independent, and a skipped character simply keeps its prior cached
-// value and is retried on the next trigger.
+/**
+ * Fetch affiliations for the given characters. Best-effort and resilient: each
+ * batch is independent, and a skipped character simply keeps its prior cached
+ * value and is retried on the next trigger.
+ */
 export async function fetchAffiliations(characterIds: number[]): Promise<AffiliationRow[]> {
   const unique = dedupe(characterIds);
   if (unique.length === 0) return [];

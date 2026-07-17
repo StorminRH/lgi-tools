@@ -16,6 +16,10 @@ import type { Tone } from './tones';
 // outside-press dismiss, and the panel is a labelled dialog. Used by every "?"
 // help glyph today; reusable anywhere a hover/tap hint is wanted via `tone`.
 
+/**
+ * Closed presentation vocabulary for popover tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type PopoverTone = Extract<Tone, 'neutral' | 'green'>;
 
 // Abstract tone → token classes (no raw hex at the call site; the green-glow
@@ -40,6 +44,10 @@ const popup = cva(
   },
 );
 
+/**
+ * Renders the domain-neutral popover with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Popover({
   trigger,
   children,
@@ -100,8 +108,10 @@ export function Popover({
   );
 }
 
-// The panel's green terminal-style header. Pairs with the rows below; the popup
-// itself supplies the chrome + gap-3 rhythm.
+/**
+ * The panel's green terminal-style header. Pairs with the rows below; the popup
+ * itself supplies the chrome + gap-3 rhythm.
+ */
 export function PopoverHeading({ children }: { children: ReactNode }) {
   return (
     <div className="font-mono text-label font-semibold uppercase tracking-display text-isk">
@@ -110,9 +120,11 @@ export function PopoverHeading({ children }: { children: ReactNode }) {
   );
 }
 
-// A "Label — description" row: bright bold label, em dash, then muted body text.
-// Put the concrete value in parentheses, e.g.
-// <PopoverRow label="Liquidity">how fast a batch sells (≈ 3 days to clear)</PopoverRow>.
+/**
+ * A "Label — description" row: bright bold label, em dash, then muted body text.
+ * Put the concrete value in parentheses, e.g.
+ * <PopoverRow label="Liquidity">how fast a batch sells (≈ 3 days to clear)</PopoverRow>.
+ */
 export function PopoverRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <p className="font-body text-body leading-snug text-muted">

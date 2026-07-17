@@ -16,16 +16,32 @@ import {
   ESI_REFRESH_OWNER_TYPES,
 } from './constants';
 
+/**
+ * Drizzle schema owner for esi refresh dataset enum; migrations, queries, retention, and purge
+ * claims derive from this single declaration.
+ */
 export const esiRefreshDatasetEnum = pgEnum('esi_refresh_dataset', ESI_REFRESH_DATASETS);
+/**
+ * Drizzle schema owner for esi refresh job status enum; migrations, queries, retention, and purge
+ * claims derive from this single declaration.
+ */
 export const esiRefreshJobStatusEnum = pgEnum(
   'esi_refresh_job_status',
   ESI_REFRESH_JOB_STATUSES,
 );
+/**
+ * Drizzle schema owner for esi refresh owner type enum; migrations, queries, retention, and purge
+ * claims derive from this single declaration.
+ */
 export const esiRefreshOwnerTypeEnum = pgEnum(
   'esi_refresh_owner_type',
   ESI_REFRESH_OWNER_TYPES,
 );
 
+/**
+ * Drizzle schema owner for esi refresh jobs; migrations, queries, retention, and purge claims
+ * derive from this single declaration.
+ */
 export const esiRefreshJobs = pgTable(
   'esi_refresh_jobs',
   {

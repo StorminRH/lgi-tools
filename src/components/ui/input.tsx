@@ -2,13 +2,15 @@ import type { ComponentProps, ComponentPropsWithRef, ReactNode } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './cn';
 
-// The form-field primitives ("Inset Instrument", 3.8.2.2): a text Input and a
-// Textarea, engraved into the same dark inset well. One `fieldVariants` owns the
-// well surface (bg-bg-deep + inset shadow + control radius) so they never drift;
-// the well shows focus via the ISK-sub border + focus ring. `fieldText` is the
-// shared value-text treatment applied to the control. The dropdown Select (3.8.2.3)
-// is a Base UI overlay and lives in its own file (select.tsx); it wears this same
-// well as its closed trigger via the exported `fieldVariants`/`fieldText`/`focusWell`.
+/**
+ * The form-field primitives ("Inset Instrument", 3.8.2.2): a text Input and a
+ * Textarea, engraved into the same dark inset well. One `fieldVariants` owns the
+ * well surface (bg-bg-deep + inset shadow + control radius) so they never drift;
+ * the well shows focus via the ISK-sub border + focus ring. `fieldText` is the
+ * shared value-text treatment applied to the control. The dropdown Select (3.8.2.3)
+ * is a Base UI overlay and lives in its own file (select.tsx); it wears this same
+ * well as its closed trigger via the exported `fieldVariants`/`fieldText`/`focusWell`.
+ */
 export const fieldVariants = cva(
   // `field-own-focus` opts the field out of the global keyboard focus ring — the
   // ISK-sub well border is its focus indicator, so the ring would just double it.
@@ -21,16 +23,30 @@ export const fieldVariants = cva(
   },
 );
 
+/**
+ * Shared text classes for field contents; wrappers reuse this token so native and library-backed
+ * controls keep identical typography.
+ */
 export const fieldText = 'text-ui font-mono text-text placeholder:text-muted';
+/**
+ * Shared focus and inset-well classes for field controls that own their visible focus border
+ * instead of the global outline.
+ */
 export const focusWell = 'focus-within:border-isk-sub focus-within:shadow-field-focus';
 const innerControl = 'w-full bg-transparent outline-none border-0 field-own-focus';
 
+/**
+ * Supported shared-field density; every input wrapper maps this value to one canonical height and
+ * text treatment.
+ */
 export type FieldSize = VariantProps<typeof fieldVariants>;
 
-// A text field. `className` styles the WELL (width/height overrides ride here, as
-// today's inputClass consumers do); input props (value/onChange/placeholder/type)
-// forward to the inner control. Optional leading `>` prompt glyph and a trailing
-// slot (an inline unit, a clear button, …).
+/**
+ * A text field. `className` styles the WELL (width/height overrides ride here, as
+ * today's inputClass consumers do); input props (value/onChange/placeholder/type)
+ * forward to the inner control. Optional leading `>` prompt glyph and a trailing
+ * slot (an inline unit, a clear button, …).
+ */
 export function Input({
   size,
   prompt,
@@ -51,8 +67,10 @@ export function Input({
   );
 }
 
-// A multi-line field — the surface IS the control, so the well tokens sit directly
-// on the <textarea>.
+/**
+ * A multi-line field — the surface IS the control, so the well tokens sit directly
+ * on the <textarea>.
+ */
 export function Textarea({
   size,
   className,

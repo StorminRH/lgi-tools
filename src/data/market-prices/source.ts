@@ -329,13 +329,15 @@ async function fallbackToFuzzwork(
   return raw.map((r) => ({ ...r, source: 'fuzzwork-fallback' as const }));
 }
 
-// Returns the priced rows plus a `budgetExhausted` flag — true when ESI's
-// error budget was hit (either the pre-dispatch gate or a 420), which forced
-// the Fuzzwork fallback. The flag is the one degradation fact callers can't
-// reconstruct from the row `source` values alone (a fallback row reads the
-// same whether it came from an ESI 5xx or budget exhaustion); the route
-// handlers thread it into the O-1 telemetry. The data slice itself never
-// imports telemetry — the boundary stays sealed.
+/**
+ * Returns the priced rows plus a `budgetExhausted` flag — true when ESI's
+ * error budget was hit (either the pre-dispatch gate or a 420), which forced
+ * the Fuzzwork fallback. The flag is the one degradation fact callers can't
+ * reconstruct from the row `source` values alone (a fallback row reads the
+ * same whether it came from an ESI 5xx or budget exhaustion); the route
+ * handlers thread it into the O-1 telemetry. The data slice itself never
+ * imports telemetry — the boundary stays sealed.
+ */
 export async function fetchPricesFromSource(
   typeIds: number[],
 ): Promise<{ prices: RawMarketPrice[]; budgetExhausted: boolean }> {

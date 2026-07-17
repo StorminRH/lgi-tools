@@ -8,9 +8,11 @@
 // about any feature. It lives in src/lib so the boundary rules (lib → lib only)
 // STRUCTURALLY forbid an engine → feature import.
 
-// A linked character as a refresh enumerates it — identity, cached corp id, and the
-// scope health the slice's eligibility predicate reads. corporationId is null for a
-// character with no cached affiliation (and is unused by character-only slices).
+/**
+ * A linked character as a refresh enumerates it — identity, cached corp id, and the
+ * scope health the slice's eligibility predicate reads. corporationId is null for a
+ * character with no cached affiliation (and is unused by character-only slices).
+ */
 export interface EnumeratedOwner {
   characterId: number;
   corporationId: number | null;
@@ -18,59 +20,74 @@ export interface EnumeratedOwner {
   missingScopes: string[];
 }
 
-// A paged-owner key: a character or a corporation, by id. The shared owner shape the
-// paged owned-* slices (blueprints, assets) key their per-owner rows on — and the
-// owners the read side (resolveOwnedOwnersForUser) enumerates. Each slice keeps its
-// OWN Postgres enum (the one-source-of-truth rule) but the enum's TS type is this same
-// literal union, so the descriptor + port speak one type and the duplicate defs die.
+/**
+ * A paged-owner key: a character or a corporation, by id. The shared owner shape the
+ * paged owned-* slices (blueprints, assets) key their per-owner rows on — and the
+ * owners the read side (resolveOwnedOwnersForUser) enumerates. Each slice keeps its
+ * OWN Postgres enum (the one-source-of-truth rule) but the enum's TS type is this same
+ * literal union, so the descriptor + port speak one type and the duplicate defs die.
+ */
 export interface OwnerKey {
   ownerType: 'character' | 'corporation';
   ownerId: number;
 }
 
-// The per-owner sync state the PAGED owned-* twins persist: the staleness stamp + the
-// per-page etags replayed so an unchanged owner returns a 304. Named for the paged
-// shape — distinct from a slice's own TState (jobs' single etag, skills' two).
+/**
+ * The per-owner sync state the PAGED owned-* twins persist: the staleness stamp + the
+ * per-page etags replayed so an unchanged owner returns a 304. Named for the paged
+ * shape — distinct from a slice's own TState (jobs' single etag, skills' two).
+ */
 export interface PagedOwnerSyncState {
   lastRefreshedAt: Date | null;
   pageEtags: string[];
 }
 
-// One vended member candidate for a corporation: the character whose token would
-// read the corp endpoint, that already-vended token, and whether it holds a
-// required in-game role.
+/**
+ * One vended member candidate for a corporation: the character whose token would
+ * read the corp endpoint, that already-vended token, and whether it holds a
+ * required in-game role.
+ */
 export interface CorpMemberCandidate {
   vendingCharacterId: number;
   accessToken: string;
   hasRole: boolean;
 }
 
-// The Director-resolution outcome for one corporation:
-//   token       — a role-holder's token to read the corp endpoint with;
-//   needs_role  — members vended but NONE holds the role (a graceful per-corp state
-//                 a slice may record via saveGateState; granting scope can't fix it);
-//   unavailable — no member could be vended this run (transient — skip and retry).
+/**
+ * The Director-resolution outcome for one corporation:
+ *   token       — a role-holder's token to read the corp endpoint with;
+ *   needs_role  — members vended but NONE holds the role (a graceful per-corp state
+ *                 a slice may record via saveGateState; granting scope can't fix it);
+ *   unavailable — no member could be vended this run (transient — skip and retry).
+ */
 export type CorpDirectorResolution =
   | { kind: 'token'; vendingCharacterId: number; accessToken: string }
   | { kind: 'needs_role' }
   | { kind: 'unavailable' };
 
-// What a per-owner refresh should persist after the fetch + plan. The 'save' variant
-// carries the slice's own save shape (TSave) inline, so a slice's planRead call or
-// bespoke planner (such as planSkillsPersist) is already a PersistVerdict — no
-// adapter. 'needs_role' records a graceful gate state via
-// saveGateState (a no-op for slices that don't define one — i.e. it degrades to skip).
+/**
+ * What a per-owner refresh should persist after the fetch + plan. The 'save' variant
+ * carries the slice's own save shape (TSave) inline, so a slice's planRead call or
+ * bespoke planner (such as planSkillsPersist) is already a PersistVerdict — no
+ * adapter. 'needs_role' records a graceful gate state via
+ * saveGateState (a no-op for slices that don't define one — i.e. it degrades to skip).
+ */
 export type PersistVerdict<TSave> =
   | ({ kind: 'save' } & TSave)
   | { kind: 'stamp' }
   | { kind: 'needs_role' }
   | { kind: 'skip'; code?: string };
 
+/** Validated owner and authenticated-reader identity passed into one owner-sync run. */
 export interface OwnerSyncTarget {
   ownerType: 'character' | 'corporation';
   ownerId: number;
 }
 
+/**
+ * Closed owner-sync outcome preserving fresh, refreshed, deferred, skipped, and failed states for
+ * callers and telemetry.
+ */
 export type OwnerSyncResult =
   | { kind: 'succeeded'; target: OwnerSyncTarget }
   | {
@@ -81,6 +98,10 @@ export type OwnerSyncResult =
   | { kind: 'failed_retryable'; target: OwnerSyncTarget; code: string }
   | { kind: 'failed_permanent'; target: OwnerSyncTarget; code: string };
 
+/**
+ * Per-run owner-sync controls for clock, forcing, queue behavior, and optional injected ports used
+ * by tests.
+ */
 export interface OwnerSyncRunOptions {
   target?: OwnerSyncTarget;
   onBudgetDeferred?(
@@ -89,7 +110,7 @@ export interface OwnerSyncRunOptions {
   ): Promise<void>;
 }
 
-// The character-owner axis (absent for corp-only slices like corp jobs).
+/** The character-owner axis (absent for corp-only slices like corp jobs). */
 export interface OwnerAxis<TOwner> {
   // Whether a character is eligible to sync this dataset (refresh token + scopes).
   eligible(owner: EnumeratedOwner): boolean;
@@ -97,7 +118,7 @@ export interface OwnerAxis<TOwner> {
   ownerOf(characterId: number): TOwner;
 }
 
-// The corporation-owner axis (absent for character-only slices like skills / jobs).
+/** The corporation-owner axis (absent for character-only slices like skills / jobs). */
 export interface CorpOwnerAxis<TOwner> {
   // Whether a character is eligible to contribute to its corp's sync (token+scopes).
   eligible(owner: EnumeratedOwner): boolean;
@@ -109,10 +130,12 @@ export interface CorpOwnerAxis<TOwner> {
   readRoles(characterId: number, accessToken: string): Promise<string[] | null>;
 }
 
-// The per-feature seam the engine runs over. The slice builds it inside its
-// refreshXForUser(port, userId) from the injected port + its own pure helpers, so
-// refresh.ts stays boundary-legal (feature → lib + same-slice) and its existing
-// tests pass unchanged.
+/**
+ * The per-feature seam the engine runs over. The slice builds it inside its
+ * refreshXForUser(port, userId) from the injected port + its own pure helpers, so
+ * refresh.ts stays boundary-legal (feature → lib + same-slice) and its existing
+ * tests pass unchanged.
+ */
 export interface OwnerSyncDescriptor<TOwner, TState, TSave> {
   // The clock (injected for testability — the wrapper supplies () => new Date()).
   now(): Date;

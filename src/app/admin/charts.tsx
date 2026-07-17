@@ -36,11 +36,13 @@ function formatterFor(unit: 'percent' | 'count' | 'position'): (y: number) => st
   return (y) => y.toLocaleString();
 }
 
-// The analytical daily chart: daily bars + a 7d moving-average line + a dashed
-// prior-period reference + deploy markers + an end label. The server computes
-// every aggregate (average, referenceLine, weekend flags, endValue/endDelta) and
-// passes plain numbers; only the unit-driven formatters and the delta→colour
-// mapping are built here, client-side.
+/**
+ * The analytical daily chart: daily bars + a 7d moving-average line + a dashed
+ * prior-period reference + deploy markers + an end label. The server computes
+ * every aggregate (average, referenceLine, weekend flags, endValue/endDelta) and
+ * passes plain numbers; only the unit-driven formatters and the delta→colour
+ * mapping are built here, client-side.
+ */
 export function AdminDailyChart({
   points,
   average,
@@ -90,11 +92,13 @@ export function AdminDailyChart({
   );
 }
 
-// A day-indexed trend line. `points` carry numeric x (the ordinal day index)
-// and y; `labels[x]` is the day string shown in the tooltip (and, compacted to
-// MM-DD, along the x axis). `unit` picks the y formatter so no function prop
-// has to be serialized from the server. `position` is for search-result rank
-// (one decimal, no suffix; lower is better).
+/**
+ * A day-indexed trend line. `points` carry numeric x (the ordinal day index)
+ * and y; `labels[x]` is the day string shown in the tooltip (and, compacted to
+ * MM-DD, along the x axis). `unit` picks the y formatter so no function prop
+ * has to be serialized from the server. `position` is for search-result rank
+ * (one decimal, no suffix; lower is better).
+ */
 export function AdminTrendChart({
   points,
   labels,
@@ -132,7 +136,7 @@ export function AdminTrendChart({
   );
 }
 
-// Categorical counts. Same serialization story as AdminTrendChart.
+/** Categorical counts. Same serialization story as AdminTrendChart. */
 export function AdminBarChart({
   data,
   tone = 'blue',

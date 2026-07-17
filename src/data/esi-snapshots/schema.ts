@@ -2,11 +2,19 @@ import { bigint, bigserial, index, jsonb, pgEnum, pgTable, text, timestamp } fro
 import { ESI_SNAPSHOT_OWNER_TYPES } from './constants';
 import type { EsiSnapshotResponseHeaders } from './types';
 
+/**
+ * Drizzle schema owner for esi snapshot owner type enum; migrations, queries, retention, and purge
+ * claims derive from this single declaration.
+ */
 export const esiSnapshotOwnerTypeEnum = pgEnum(
   'esi_snapshot_owner_type',
   ESI_SNAPSHOT_OWNER_TYPES,
 );
 
+/**
+ * Drizzle schema owner for esi snapshots; migrations, queries, retention, and purge claims derive
+ * from this single declaration.
+ */
 export const esiSnapshots = pgTable(
   'esi_snapshots',
   {

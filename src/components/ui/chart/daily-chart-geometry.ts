@@ -3,8 +3,10 @@
 // React, no visx — just the derived arrays and scalars the chart draws, so it
 // unit-tests cleanly and no single render function carries the branchy math.
 
-// The plain daily-chart series the server computes and the chart draws — the one
-// shape shared by the section's derived data and the client wrapper's props.
+/**
+ * The plain daily-chart series the server computes and the chart draws — the one
+ * shape shared by the section's derived data and the client wrapper's props.
+ */
 export interface DailyChartSeries {
   points: { x: number; y: number }[];
   average: number[];
@@ -14,6 +16,10 @@ export interface DailyChartSeries {
   eventMarkers: { x: number; label: string }[];
 }
 
+/**
+ * Display-ready daily hover point consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export interface DailyHoverPoint {
   x: number;
   y: number;
@@ -21,6 +27,10 @@ export interface DailyHoverPoint {
   avg: number;
 }
 
+/**
+ * Display-ready daily chart model consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export interface DailyChartModel {
   /** Ordinal x indices and raw y values, parallel to the points. */
   xs: number[];
@@ -37,6 +47,10 @@ export interface DailyChartModel {
   hover: DailyHoverPoint[];
 }
 
+/**
+ * Computes chart scales, paths, bars, markers, and hover points from one daily series and
+ * viewport; all geometry is returned in pixels.
+ */
 export function dailyChartModel(input: {
   points: { x: number; y: number }[];
   average: number[];

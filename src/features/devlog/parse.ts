@@ -61,6 +61,10 @@ const LINK = /\[([^\]]+)\]\(([^)\s]+)\)/y;
 const INLINE_CODE = /`([^`]+)`/y;
 const BOLD = /\*\*([^*]+?)\*\*/y;
 
+/**
+ * Converts a devlog title into a lowercase stable URL slug, removing unsupported characters and
+ * repeated separators.
+ */
 export function slugify(title: string): string {
   return title
     .toLowerCase()
@@ -68,25 +72,31 @@ export function slugify(title: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-// The gutter's first line number: the first integer in a `lines` label, or 1 when
-// there isn't one. Only trusted as a true source line for a clean single range
-// (see isCleanSingleRange) — a multi-range/path-prefixed label falls back to a
-// relative 1..N gutter, so a stray digit in a path prefix never misleads.
+/**
+ * The gutter's first line number: the first integer in a `lines` label, or 1 when
+ * there isn't one. Only trusted as a true source line for a clean single range
+ * (see isCleanSingleRange) — a multi-range/path-prefixed label falls back to a
+ * relative 1..N gutter, so a stray digit in a path prefix never misleads.
+ */
 export function parseStartLine(lines: string): number {
   const m = lines.match(/\d+/);
   return m ? Number(m[0]) : 1;
 }
 
-// A `lines` label is a clean single range when it is exactly one line number or one
-// `start-end` pair — no comma multi-range, no semicolon, no path prefix. Gates both
-// the permalink `#L…` fragment and the absolute-line gutter, so the two agree.
+/**
+ * A `lines` label is a clean single range when it is exactly one line number or one
+ * `start-end` pair — no comma multi-range, no semicolon, no path prefix. Gates both
+ * the permalink `#L…` fragment and the absolute-line gutter, so the two agree.
+ */
 export function isCleanSingleRange(lines: string): boolean {
   return /^\d+(?:-\d+)?$/.test(lines.trim());
 }
 
-// The `#L<start>-L<end>` (or `#L<n>` for a single line) permalink fragment, but only
-// for a clean single range; '' otherwise, so a multi-range excerpt links to the file
-// at the pinned SHA with no (rotting) line anchor.
+/**
+ * The `#L<start>-L<end>` (or `#L<n>` for a single line) permalink fragment, but only
+ * for a clean single range; '' otherwise, so a multi-range excerpt links to the file
+ * at the pinned SHA with no (rotting) line anchor.
+ */
 export function lineFragment(lines: string): string {
   const clean = lines.trim();
   if (!isCleanSingleRange(clean)) return '';
@@ -94,11 +104,13 @@ export function lineFragment(lines: string): string {
   return end && end !== start ? `#L${start}-L${end}` : `#L${start}`;
 }
 
-// A pinned-SHA GitHub permalink for an excerpt, or null when one can't be built: a
-// full 40-char commit `ref` and a repo `file` path are both required — a branch name
-// or abbreviated ref is rejected (it would drift off the snapshot), and an excerpt
-// whose `file` is prose ("GitHub PR #… review thread") must carry no ref. The line
-// fragment is appended only for a clean single range (unpinned line links rot).
+/**
+ * A pinned-SHA GitHub permalink for an excerpt, or null when one can't be built: a
+ * full 40-char commit `ref` and a repo `file` path are both required — a branch name
+ * or abbreviated ref is rejected (it would drift off the snapshot), and an excerpt
+ * whose `file` is prose ("GitHub PR #… review thread") must carry no ref. The line
+ * fragment is appended only for a clean single range (unpinned line links rot).
+ */
 export function githubUrl(excerpt: Pick<Excerpt, 'ref' | 'file' | 'lines'>): string | null {
   const ref = excerpt.ref.trim();
   if (!COMMIT_SHA.test(ref) || !excerpt.file) return null;
@@ -121,10 +133,12 @@ function markAt(text: string, i: number) {
   return null;
 }
 
-// Split a run of prose into inline tokens. Whichever mark (inline code, bold, link)
-// opens earliest at the cursor wins, so precedence falls out of a single scan; no
-// mark spans a block boundary. Any residual reference marker is dropped (references
-// are lifted to block level before this runs).
+/**
+ * Split a run of prose into inline tokens. Whichever mark (inline code, bold, link)
+ * opens earliest at the cursor wins, so precedence falls out of a single scan; no
+ * mark spans a block boundary. Any residual reference marker is dropped (references
+ * are lifted to block level before this runs).
+ */
 export function parseInline(text: string): InlineToken[] {
   const tokens: InlineToken[] = [];
   let buf = '';
@@ -379,6 +393,10 @@ function makeSlugger(): (title: string) => string {
   };
 }
 
+/**
+ * Parses the segmented devlog source into a typed folder tree with stable slugs, excerpts, and
+ * update dates.
+ */
 export function parseDevlog(md: string): DevlogTree {
   const looseDocuments: DevlogDocument[] = [];
   const folders: DevlogFolder[] = [];
@@ -405,22 +423,25 @@ export function parseDevlog(md: string): DevlogTree {
   return { looseDocuments, folders };
 }
 
-// The document that lands at /devlog (the first loose top-level document).
+/** The document that lands at /devlog (the first loose top-level document). */
 export function introDocument(tree: DevlogTree): DevlogDocument | undefined {
   return tree.looseDocuments[0];
 }
 
-// Every document in nav order (loose documents first, then each folder's).
+/** Every document in nav order (loose documents first, then each folder's). */
 export function flattenDocuments(tree: DevlogTree): DevlogDocument[] {
   return [...tree.looseDocuments, ...tree.folders.flatMap((f) => f.documents)];
 }
 
+/** Finds one parsed devlog document by slug, returning null when absent. */
 export function findDocument(tree: DevlogTree, slug: string): DevlogDocument | undefined {
   return flattenDocuments(tree).find((d) => d.slug === slug);
 }
 
-// A short plain-text summary (the first paragraph, truncated) for a document's meta
-// description.
+/**
+ * A short plain-text summary (the first paragraph, truncated) for a document's meta
+ * description.
+ */
 export function documentSummary(doc: DevlogDocument, max = 155): string {
   const para = doc.blocks.find((b): b is Extract<Block, { type: 'paragraph' }> => b.type === 'paragraph');
   if (!para) return 'A behind-the-scenes look at how LGI.tools is built.';
@@ -430,8 +451,10 @@ export function documentSummary(doc: DevlogDocument, max = 155): string {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
-// Strip document content down to the titles + slugs the file-browser rail renders,
-// so the client nav never serializes any document's blocks.
+/**
+ * Strip document content down to the titles + slugs the file-browser rail renders,
+ * so the client nav never serializes any document's blocks.
+ */
 export function toNavModel(tree: DevlogTree): ContentNavModel {
   const doc = (d: DevlogDocument) => ({ slug: d.slug, title: d.title });
   return {

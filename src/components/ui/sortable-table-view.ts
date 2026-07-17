@@ -12,6 +12,10 @@ export type SortHeaderColumn = {
   align?: 'left' | 'right';
 };
 
+/**
+ * Display-ready sort header cell model consumed by the shared visualization layer; callers keep
+ * all numeric values in one consistent unit.
+ */
 export type SortHeaderCellModel = {
   key: string;
   label: string;

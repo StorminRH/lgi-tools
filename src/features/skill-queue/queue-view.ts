@@ -9,10 +9,16 @@ import { type EntryStatus, entryProgress, type QueueSummary, summarizeQueue } fr
 import { STATUS_META } from './skill-queue-styles';
 import type { CharacterSkillData } from './types';
 
-// The card header slot: the "queue ends in …" countdown while actively training, a
-// paused marker, or nothing (empty / complete queues).
+/**
+ * The card header slot: the "queue ends in …" countdown while actively training, a
+ * paused marker, or nothing (empty / complete queues).
+ */
 export type QueueHeader = { kind: 'ends-in'; ms: number } | { kind: 'paused' } | null;
 
+/**
+ * Display-ready queue card model consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export interface QueueCardModel {
   isEmpty: boolean;
   subtitle: string | null;
@@ -37,9 +43,11 @@ function queueHeader(summary: QueueSummary, now: number): QueueHeader {
   return null;
 }
 
-// One character's queue-card model: whether the queue is empty, its SP subtitle, and the
-// header slot. A never-synced character (data:null) is inert (that is the
-// LiveCharacterCard's no-data state, distinct from a synced-but-empty queue).
+/**
+ * One character's queue-card model: whether the queue is empty, its SP subtitle, and the
+ * header slot. A never-synced character (data:null) is inert (that is the
+ * LiveCharacterCard's no-data state, distinct from a synced-but-empty queue).
+ */
 export function queueCardModel(data: CharacterSkillData | null, now: number): QueueCardModel {
   if (data === null) return { isEmpty: false, subtitle: null, header: null };
   const summary = summarizeQueue(data.entries, now);
@@ -50,6 +58,10 @@ export function queueCardModel(data: CharacterSkillData | null, now: number): Qu
   };
 }
 
+/**
+ * Display-ready entry row model consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export interface EntryRowModel {
   status: EntryStatus;
   pct: number;
@@ -59,6 +71,7 @@ export interface EntryRowModel {
   showBar: boolean;
 }
 
+/** Derives one skill queue row's progress, time remaining, level label, and completion state. */
 export function entryRowModel(entry: SkillQueueEntry, now: number): EntryRowModel {
   const progress = entryProgress(entry, now);
   const finish = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : null;

@@ -12,6 +12,10 @@ const dotVariants = cva('inline-block w-[6px] h-[6px] rounded-full shrink-0', {
   },
 });
 
+/**
+ * Renders the domain-neutral dot with house behavior and tokens; callers own semantic meaning and
+ * content while this primitive owns presentation.
+ */
 export function Dot({ tone }: { tone: DotTone }) {
   return <span className={dotVariants({ tone })} />;
 }

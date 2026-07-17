@@ -13,7 +13,7 @@ import type { OwnedAsset } from './esi-projection';
 import type { OwnerKey, PagedOwnerSyncState } from '@/lib/owner-sync';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
-// One cache tag per owner so a refresh busts exactly that owner's cached read.
+/** One cache tag per owner so a refresh busts exactly that owner's cached read. */
 export function ownedAssetsTag(owner: OwnerKey): string {
   return `owned-assets:${owner.ownerType}:${owner.ownerId}`;
 }
@@ -42,18 +42,22 @@ async function getOwnerAssetRows(owner: OwnerKey): Promise<AssetMapInput[]> {
   return rows.map((row) => ({ ...row, ownerType: owner.ownerType, ownerId: owner.ownerId }));
 }
 
-// The combined owned-asset map across the given owners (the user's characters +
-// member corps, resolved by the caller — owner resolution needs auth, which a
-// feature slice may not import, so the caller passes the owner set in), scoped to
-// the requested type ids. Composes the cached per-owner reads and reduces to the
-// per-type summary (summed owned qty + held-by list).
+/**
+ * The combined owned-asset map across the given owners (the user's characters +
+ * member corps, resolved by the caller — owner resolution needs auth, which a
+ * feature slice may not import, so the caller passes the owner set in), scoped to
+ * the requested type ids. Composes the cached per-owner reads and reduces to the
+ * per-type summary (summed owned qty + held-by list).
+ */
 export async function getOwnedAssetMap(owners: OwnerKey[], typeIds: number[]): Promise<OwnedAssetMap> {
   const perOwner = await Promise.all(owners.map(getOwnerAssetRows));
   return buildOwnedAssetMap(perOwner.flat(), typeIds);
 }
 
-// Live (uncached) sync state for the staleness gate + etag replay. Uncached on
-// purpose: the refresh needs the true last-refreshed time, not a cached view.
+/**
+ * Live (uncached) sync state for the staleness gate + etag replay. Uncached on
+ * purpose: the refresh needs the true last-refreshed time, not a cached view.
+ */
 export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyncState | null> {
   const rows = await db
     .select({
@@ -67,10 +71,12 @@ export async function readOwnerSyncState(owner: OwnerKey): Promise<PagedOwnerSyn
   return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
 }
 
-// Replace-all write-behind. Sequential (no transaction — the request path runs on
-// the neon-http driver, which has none): delete the owner's rows, insert the fresh
-// set, then stamp the sync row LAST. Stamping last means a partial failure leaves
-// the owner stale, so the next view simply refetches (self-healing).
+/**
+ * Replace-all write-behind. Sequential (no transaction — the request path runs on
+ * the neon-http driver, which has none): delete the owner's rows, insert the fresh
+ * set, then stamp the sync row LAST. Stamping last means a partial failure leaves
+ * the owner stale, so the next view simply refetches (self-healing).
+ */
 export async function saveOwnedAssets(
   owner: OwnerKey,
   rows: OwnedAsset[],
@@ -105,9 +111,11 @@ export async function saveOwnedAssets(
   revalidateTag(ownedAssetsTag(owner), 'max');
 }
 
-// The 304 path: bump freshness only, leaving stored rows + held etags untouched
-// (the data is unchanged, so no revalidate). The sync row always exists here — a
-// 304 can only follow a prior fresh save that stored the replayed etag.
+/**
+ * The 304 path: bump freshness only, leaving stored rows + held etags untouched
+ * (the data is unchanged, so no revalidate). The sync row always exists here — a
+ * 304 can only follow a prior fresh save that stored the replayed etag.
+ */
 export async function stampOwnerFresh(owner: OwnerKey): Promise<void> {
   await db
     .update(ownedAssetSyncs)

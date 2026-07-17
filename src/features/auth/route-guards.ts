@@ -14,13 +14,19 @@ import { getCurrentUserId } from './session';
 
 type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
 
+/**
+ * Route-guard verdict that either carries the authenticated Better Auth session or the response
+ * the route must return unchanged.
+ */
 export type SessionGuardResult =
   | { ok: true; session: BetterAuthSession }
   | { ok: false; response: Response };
 
-// The signed-in gate for mutating routes: 401 for anonymous callers. Read-only
-// surfaces that fail soft (empty payload for anonymous) keep their own
-// per-route early return instead — never force a 401 onto those.
+/**
+ * The signed-in gate for mutating routes: 401 for anonymous callers. Read-only
+ * surfaces that fail soft (empty payload for anonymous) keep their own
+ * per-route early return instead — never force a 401 onto those.
+ */
 export async function requireSession(): Promise<SessionGuardResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
@@ -29,8 +35,10 @@ export async function requireSession(): Promise<SessionGuardResult> {
   return { ok: true, session };
 }
 
-// The admin gate for `authz: admin` routes. Independent gate — never trust a
-// UI-level disable; the handler is the source of truth for who can mutate.
+/**
+ * The admin gate for `authz: admin` routes. Independent gate — never trust a
+ * UI-level disable; the handler is the source of truth for who can mutate.
+ */
 export async function requireAdmin(): Promise<SessionGuardResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.isAdmin) {
@@ -39,12 +47,18 @@ export async function requireAdmin(): Promise<SessionGuardResult> {
   return { ok: true, session };
 }
 
+/**
+ * Route-guard verdict that either carries the authenticated user id or the response the route must
+ * return unchanged.
+ */
 export type UserIdGuardResult =
   | { ok: true; userId: string }
   | { ok: false; response: Response };
 
-// The per-USER gate (Better Auth user id, distinct from the active character)
-// for routes that write user-keyed rows: 401 for anonymous callers.
+/**
+ * The per-USER gate (Better Auth user id, distinct from the active character)
+ * for routes that write user-keyed rows: 401 for anonymous callers.
+ */
 export async function requireUserId(): Promise<UserIdGuardResult> {
   const userId = await getCurrentUserId();
   if (!userId) {
@@ -53,8 +67,10 @@ export async function requireUserId(): Promise<UserIdGuardResult> {
   return { ok: true, userId };
 }
 
-// The admin gate for server PAGES: redirects instead of a 403 (page context),
-// and hands back the session for the viewer id the dashboards need.
+/**
+ * The admin gate for server PAGES: redirects instead of a 403 (page context),
+ * and hands back the session for the viewer id the dashboards need.
+ */
 export async function requireAdminPage(): Promise<BetterAuthSession> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.isAdmin) {

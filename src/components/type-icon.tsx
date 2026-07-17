@@ -12,6 +12,10 @@ import { cn } from './ui/cn';
 // Vercel's optimizer. On a 404 this swaps to a tone-styled monogram rather than
 // leaving a broken image.
 
+/**
+ * Closed presentation vocabulary for type icon variant; feature callers map domain meaning to
+ * these abstract values before rendering.
+ */
 export type TypeIconVariant = 'icon' | 'render' | 'bp' | 'bpc';
 
 const IMAGE_FAMILY: Record<TypeIconVariant, EveImageFamily> = {
@@ -32,6 +36,10 @@ const FALLBACK_SIZE_CLASS: Record<number, string> = {
   88: 'w-[88px] h-[88px]',
 };
 
+/**
+ * Renders an EVE type icon, render, blueprint, or copy rendition and falls back to the provided
+ * monogram when no usable image is available.
+ */
 export function TypeIcon({
   typeId,
   variant = 'icon',

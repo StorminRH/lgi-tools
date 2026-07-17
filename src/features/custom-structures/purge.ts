@@ -5,6 +5,10 @@ import { db } from '@/db';
 import type { PurgeContributor } from '@/purge/types';
 import { customStructures } from './schema';
 
+/**
+ * Personal-data purge contributor for custom structures purge contributor; this data slice owns
+ * deleting its user and character keyed rows.
+ */
 export const customStructuresPurgeContributor: PurgeContributor = {
   name: 'custom-structures',
   tier: 'durable',

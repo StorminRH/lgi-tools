@@ -132,6 +132,10 @@ function CorpSectionBody({
   return <CorpJobsList corporations={corporations} names={names} now={now} />;
 }
 
+/**
+ * Renders the industry dashboard grid surface; this component owns local presentation and
+ * interaction wiring while callers own domain data.
+ */
 export function IndustryDashboardGrid({
   characterIds,
   corpEligibleCharacterIds,

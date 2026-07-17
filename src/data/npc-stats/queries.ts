@@ -8,9 +8,11 @@ import { getTypeAttributesBatch } from '@/data/eve-data/queries';
 import { composeCombatStats, missileTypeIdFor } from './math';
 import type { CombatStats } from './types';
 
-// One round-trip pulls every sleeper's attrs, a second pulls the distinct
-// missile attrs. Hot path for listSiteDetails(), which fetches dozens of NPCs
-// at once.
+/**
+ * One round-trip pulls every sleeper's attrs, a second pulls the distinct
+ * missile attrs. Hot path for listSiteDetails(), which fetches dozens of NPCs
+ * at once.
+ */
 export async function getCombatStatsBatch(
   typeIds: number[],
 ): Promise<Map<number, CombatStats>> {

@@ -16,6 +16,10 @@ import type { Tone } from './tones';
 // at the call site (globals.css `.nav-tool`), abstract-tone style; the primitive
 // owns only layout (a full-height flex row).
 
+/**
+ * Closed presentation vocabulary for navigation menu tone; feature callers map domain meaning to
+ * these abstract values before rendering.
+ */
 export type NavigationMenuTone = Extract<Tone, 'neutral'>;
 
 // The list is the flex row. Structural-only tone (the cell surface is the call
@@ -29,6 +33,10 @@ const list = cva('flex items-stretch list-none m-0 p-0', {
   defaultVariants: { tone: 'neutral' },
 });
 
+/**
+ * Renders the domain-neutral navigation menu with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function NavigationMenu({
   children,
   label,
@@ -52,9 +60,15 @@ export function NavigationMenu({
   );
 }
 
-// Re-exported so consumers compose the bar through `@/components/ui/navigation-menu`
-// (matching how `menu.tsx` re-exports `MenuLinkItem`). `Item` renders an <li>;
-// `Link` an <a> — pass `render={<Link … />}` to compose with Next, and `active`
-// for the current page.
+/**
+ * Re-exported so consumers compose the bar through `@/components/ui/navigation-menu`
+ * (matching how `menu.tsx` re-exports `MenuLinkItem`). `Item` renders an <li>;
+ * `Link` an <a> — pass `render={<Link … />}` to compose with Next, and `active`
+ * for the current page.
+ */
 export const NavigationMenuItem = Base.Item;
+/**
+ * Adopted Base UI navigation menu link part exposed through the single house wrapper; consumers
+ * compose it only within this primitive family.
+ */
 export const NavigationMenuLink = Base.Link;

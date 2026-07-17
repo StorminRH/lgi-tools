@@ -7,12 +7,14 @@ import { getCachedSiteCount } from '@/features/wormhole-sites/queries';
 import { formatQuantity } from '@/lib/format/number';
 import { formatUtcDate } from '@/lib/format/time';
 
-// The home hero's live-data hook — a compact panel of the catalogue + market
-// freshness numbers that prove the tools sit on a living dataset. Identical for
-// anonymous and signed-in visitors and built entirely from cached, no-arg
-// accessors, so it prerenders into the static shell (no per-request work). Dates
-// are absolute UTC — a live "x ago" would freeze at build time. This supersedes
-// the old bottom-of-page Status card; the same five reads now lead the page.
+/**
+ * The home hero's live-data hook — a compact panel of the catalogue + market
+ * freshness numbers that prove the tools sit on a living dataset. Identical for
+ * anonymous and signed-in visitors and built entirely from cached, no-arg
+ * accessors, so it prerenders into the static shell (no per-request work). Dates
+ * are absolute UTC — a live "x ago" would freeze at build time. This supersedes
+ * the old bottom-of-page Status card; the same five reads now lead the page.
+ */
 export async function HomeLiveStats() {
   const [sde, sites, blueprints, trackedTypes, prices] = await Promise.all([
     getCachedSdeVersion(),

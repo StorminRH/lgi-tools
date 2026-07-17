@@ -22,12 +22,14 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
   return url;
 }
 
-// POST-only. The dashboard's <RoleToggleForm> submits hidden inputs:
-//   userId, nextRole, q (optional).
-// Admin is per-user; the gate + the viewer's own id come from the Better Auth
-// session directly (the shared Session type deliberately doesn't carry userId).
-// Independent gate — never trust a UI-level disable; the handler is the source
-// of truth for who can mutate roles.
+/**
+ * POST-only. The dashboard's <RoleToggleForm> submits hidden inputs:
+ *   userId, nextRole, q (optional).
+ * Admin is per-user; the gate + the viewer's own id come from the Better Auth
+ * session directly (the shared Session type deliberately doesn't carry userId).
+ * Independent gate — never trust a UI-level disable; the handler is the source
+ * of truth for who can mutate roles.
+ */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireAdmin();

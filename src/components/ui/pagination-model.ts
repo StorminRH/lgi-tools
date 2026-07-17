@@ -1,5 +1,13 @@
+/**
+ * One caller-supplied pagination item; its value is the stable control key and its label or marker
+ * is presentation-ready.
+ */
 export type PaginationItem = number | 'ellipsis';
 
+/**
+ * Returns the compact pagination window as page numbers and ellipsis markers, preserving the
+ * first, last, current, and neighboring pages.
+ */
 export function paginationItems(page: number, pageCount: number): PaginationItem[] {
   if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index + 1);
 

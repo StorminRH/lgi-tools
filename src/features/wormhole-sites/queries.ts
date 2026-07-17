@@ -164,6 +164,7 @@ function matchesClass(s: Pick<SiteListItem, 'name' | 'siteType' | 'wormholeClass
   return false;
 }
 
+/** Lists wormhole sites as lightweight catalogue rows ordered by canonical site identity. */
 export async function listSites(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
@@ -214,6 +215,7 @@ async function loadNpcsForWaves(waveIds: number[]): Promise<NpcRow[]> {
     .orderBy(npcs.orderInWave);
 }
 
+/** Loads full site details for the requested IDs in one batched query. */
 export async function listSiteDetails(filters: {
   type?: SiteType;
   wormholeClass?: WormholeClass;
@@ -329,10 +331,12 @@ export async function listSiteDetails(filters: {
   });
 }
 
-// Minimal site shape for the global search dropdown. Server-rendered once
-// in AppHeader and passed to the client via AppHeaderShell, so the search
-// dropdown can filter against name/class/type without a per-keystroke
-// round-trip. ~69 rows today; trivial payload.
+/**
+ * Minimal site shape for the global search dropdown. Server-rendered once
+ * in AppHeader and passed to the client via AppHeaderShell, so the search
+ * dropdown can filter against name/class/type without a per-keystroke
+ * round-trip. ~69 rows today; trivial payload.
+ */
 export type SiteSearchEntry = {
   id: number;
   name: string;
@@ -342,9 +346,11 @@ export type SiteSearchEntry = {
   resourceValueIsk: number | null;
 };
 
-// Cached count of catalogued wormhole sites, for the home dashboard's status
-// card. Same deploy-static catalogue as getSiteSearchIndex — the build ID
-// invalidates it.
+/**
+ * Cached count of catalogued wormhole sites, for the home dashboard's status
+ * card. Same deploy-static catalogue as getSiteSearchIndex — the build ID
+ * invalidates it.
+ */
 export async function getCachedSiteCount(): Promise<number> {
   'use cache';
   cacheLife('max');
@@ -354,6 +360,7 @@ export async function getCachedSiteCount(): Promise<number> {
   });
 }
 
+/** Returns the deploy-cached lightweight wormhole-site catalogue used by search and static routes. */
 export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   // The wormhole catalogue is deploy-static (seeded once by migration, untouched
   // by either cron), so cache it into the prerender shell and let the build ID
@@ -375,6 +382,10 @@ export async function getSiteSearchIndex(): Promise<SiteSearchEntry[]> {
   );
 }
 
+/**
+ * Loads one complete wormhole-site record with waves, NPCs, resources, and derived values, or null
+ * when absent.
+ */
 export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   // The catalogue is deploy-static (seeded once by migration, untouched by either
   // cron), so cache the structural read into the prerender shell and let the build
@@ -447,12 +458,14 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   });
 }
 
-// Price-overlaid site detail, cached for the static prerender shell. The site
-// structure is deploy-static (getSiteDetail, cacheLife 'max'); live Jita prices
-// only change on the hourly cron, so we cache the overlaid result under the same
-// freshness tag the cron revalidates. This gives the detail page the same price
-// freshness as a per-request fetch while letting the full site content prerender
-// into the static shell for crawlers. Returns null for an unknown id.
+/**
+ * Price-overlaid site detail, cached for the static prerender shell. The site
+ * structure is deploy-static (getSiteDetail, cacheLife 'max'); live Jita prices
+ * only change on the hourly cron, so we cache the overlaid result under the same
+ * freshness tag the cron revalidates. This gives the detail page the same price
+ * freshness as a per-request fetch while letting the full site content prerender
+ * into the static shell for crawlers. Returns null for an unknown id.
+ */
 export async function getPricedSiteDetail(id: number): Promise<SiteDetail | null> {
   'use cache';
   cacheLife('hours');

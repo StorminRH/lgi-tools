@@ -171,6 +171,9 @@ function GscSyncDetail({
   );
 }
 
+/**
+ * Loads the current service, ingestion, and search-health summaries for the selected admin range.
+ */
 export async function StatusStrip({ range }: { range: DateRange }) {
   const gscConfigured = isGscConfigured();
   const fetched = await loadSection('system-health', () =>

@@ -17,6 +17,10 @@ import { skillLevelsEndpoint } from './api-contract';
 // catches it (the use-skills-live.ts idiom, same delay).
 const RECONCILE_DELAY_MS = 4_000;
 
+/**
+ * Encapsulates the build character skill levels subscription and state lifecycle; callers provide
+ * lookup keys where required and render the returned state.
+ */
 export function useBuildCharacterSkillLevels(
   characterId: number | null,
 ): Record<string, number> | null {

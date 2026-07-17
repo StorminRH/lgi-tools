@@ -2,6 +2,7 @@ import { isSleeperClassCode, type SleeperClassCode } from './schema';
 import { SLEEPER_CLASS_ORDER } from './sleeper-classes';
 import type { SiteDetail } from './types';
 
+/** Per-ship-class NPC count and total EHP summary for one site or wave. */
 export interface ShipClassSummary {
   code: SleeperClassCode;
   /** Total NPC count of this hull class across every wave in the site. */

@@ -3,6 +3,10 @@ import { Fragment, type ReactNode } from 'react';
 import { cn } from './cn';
 import { deriveSortHeaderCells, type SortHeaderCellModel } from './sortable-table-view';
 
+/**
+ * Column contract for the shared sortable table: header content, value accessor, and optional
+ * comparison or presentation metadata.
+ */
 export interface SortableColumn<Row> {
   key: string;
   label: string;
@@ -90,6 +94,10 @@ function SortHeaderCell({ cell }: { cell: SortHeaderCellModel }) {
   );
 }
 
+/**
+ * Renders the domain-neutral sortable table with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function SortableTable<Row>({
   columns,
   rows,

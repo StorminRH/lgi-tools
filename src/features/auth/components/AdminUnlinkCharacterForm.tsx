@@ -2,10 +2,12 @@
 
 import { Button } from '@/components/ui/button';
 
-// Admin force-unlink control. Pure HTML form posting to
-// /api/admin/characters/unlink, with a confirm() gate in bundled client JS
-// (not an inline event handler — house style). The route is the real guard;
-// `disabled` (the user's last character) is UI decoration.
+/**
+ * Admin force-unlink control. Pure HTML form posting to
+ * /api/admin/characters/unlink, with a confirm() gate in bundled client JS
+ * (not an inline event handler — house style). The route is the real guard;
+ * `disabled` (the user's last character) is UI decoration.
+ */
 export function AdminUnlinkCharacterForm({
   userId,
   characterId,

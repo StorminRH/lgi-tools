@@ -8,6 +8,7 @@ import type { SiteType, WormholeClass } from '../types';
  * primitive layer's abstract tones.
  */
 
+/** Authoritative mapping from wormhole class labels to abstract UI tones. */
 export const CLASS_TONE: Record<WormholeClass, PillTone> = {
   C1: 'green',
   C2: 'green-strong',
@@ -17,6 +18,7 @@ export const CLASS_TONE: Record<WormholeClass, PillTone> = {
   C6: 'purple',
 };
 
+/** Authoritative mapping from site families to abstract UI tones. */
 export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   combat: 'red-soft',
   ore:    'yellow',
@@ -25,6 +27,7 @@ export const SITE_TYPE_TONE: Record<SiteType, PillTone> = {
   data:   'blue',
 };
 
+/** Authoritative user-facing labels for canonical site families. */
 export const SITE_TYPE_LABEL: Record<SiteType, string> = {
   combat: 'Combat',
   ore:    'Ore',
@@ -36,6 +39,7 @@ export const SITE_TYPE_LABEL: Record<SiteType, string> = {
 /** EWAR keys on Wave / Npc rows → chip color. */
 export type EwarKey = 'web' | 'scram' | 'neut' | 'rr';
 
+/** Authoritative mapping from EWAR kinds to abstract UI tones. */
 export const EWAR_TONE: Record<EwarKey, ChipTone> = {
   web:   'blue',
   scram: 'red',
@@ -43,6 +47,7 @@ export const EWAR_TONE: Record<EwarKey, ChipTone> = {
   rr:    'green',
 };
 
+/** Authoritative user-facing labels for EWAR kinds. */
 export const EWAR_LABEL: Record<EwarKey, string> = {
   web:   'WEB',
   scram: 'SCRAM',

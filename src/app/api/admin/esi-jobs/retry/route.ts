@@ -7,9 +7,11 @@ import { requireAdmin } from '@/features/auth/route-guards';
 import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 
-// Admin-only form POST. Re-enqueues a dead-lettered refresh through the normal
-// worker path; the query layer absorbs an already-live replacement as an
-// idempotent superseded outcome.
+/**
+ * Admin-only form POST. Re-enqueues a dead-lettered refresh through the normal
+ * worker path; the query layer absorbs an already-live replacement as an
+ * idempotent superseded outcome.
+ */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireAdmin();

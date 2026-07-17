@@ -1,3 +1,4 @@
+/** Closed durable domain-event vocabulary shared by writers, storage, and operations views. */
 export const DOMAIN_EVENT_TYPES = [
   'price_refresh_finished',
   'esi_snapshot_pulled',
@@ -48,11 +49,17 @@ interface DomainEventMetadataByType {
   };
 }
 
+/**
+ * Closed privacy-safe metadata carried by durable domain events; values contain taxonomy and
+ * counts, never secrets or raw owner identity.
+ */
 export type DomainEventMetadata = DomainEventMetadataByType[DomainEventType];
 
-// A discriminated union keeps every event's metadata closed at the call site.
-// There is deliberately no generic extension bag: new stored knowledge must be
-// named here and reviewed before an emitter can persist it.
+/**
+ * A discriminated union keeps every event's metadata closed at the call site.
+ * There is deliberately no generic extension bag: new stored knowledge must be
+ * named here and reviewed before an emitter can persist it.
+ */
 export type DomainEventInput = {
   [TEvent in DomainEventType]: {
     eventType: TEvent;
@@ -60,6 +67,7 @@ export type DomainEventInput = {
   };
 }[DomainEventType];
 
+/** Stored domain-event view with event type, privacy-safe metadata, and absolute creation timestamp. */
 export type DomainEventRow = DomainEventInput & {
   id: number;
   occurredAt: Date;

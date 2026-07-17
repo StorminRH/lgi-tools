@@ -27,6 +27,10 @@ import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 // renders client-side.
 import '@/search/register-all';
 
+/**
+ * Composes the global header's navigation, search, page menu, status, and account controls from
+ * the supplied catalogue index and request-resolved account state.
+ */
 export function AppHeaderShell({
   siteIndex,
   serverStatus,

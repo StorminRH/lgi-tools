@@ -6,6 +6,7 @@ import { loadDevlog } from '@/features/devlog/load';
 import { introDocument } from '@/features/devlog/parse';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
+/** Static search and social metadata for the /devlog route. */
 export const metadata = buildPageMetadata({
   title: 'Under the Hood',
   description:
@@ -13,8 +14,10 @@ export const metadata = buildPageMetadata({
   canonical: '/devlog',
 });
 
-// The landing document (Introduction). Content is the deploy-static dev log, so the
-// route prerenders as the static shell.
+/**
+ * The landing document (Introduction). Content is the deploy-static dev log, so the
+ * route prerenders as the static shell.
+ */
 export default async function DevlogIndexPage() {
   const doc = introDocument(await loadDevlog());
   if (!doc) notFound();

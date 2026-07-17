@@ -4,6 +4,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
 import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 
+/** Static search and social metadata for the /industry/templates route. */
 export const metadata: Metadata = {
   title: 'Build Templates',
   description:
@@ -19,10 +20,12 @@ export const metadata: Metadata = {
   },
 };
 
-// Fully static shell — the template list is a client island fetching
-// /api/account/saved-plans on mount (an anonymous visitor settles to the
-// sign-in hint via the client roster signal; no server session read here, so
-// the page prerenders whole).
+/**
+ * Fully static shell — the template list is a client island fetching
+ * /api/account/saved-plans on mount (an anonymous visitor settles to the
+ * sign-in hint via the client roster signal; no server session read here, so
+ * the page prerenders whole).
+ */
 export default function BuildTemplatesPage() {
   return (
     <PageShell>

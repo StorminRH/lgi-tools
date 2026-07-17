@@ -10,14 +10,16 @@ type PreparedAccountTokenWrite<T> = T & {
   refreshTokenInvalidGrantFirstAt?: Date | null;
 };
 
-// Encrypt the EVE access/refresh tokens on an account write before it reaches
-// the DB. A non-empty replacement refresh token also proves the OAuth grant is
-// healthy, so the same write clears any prior invalid-grant strike. The create
-// hook receives the full account; the update hook (re-login) receives only the
-// changed fields — so unrelated account updates leave the strike untouched and
-// tokens already at rest remain idempotent. `encrypt` is injected (the real
-// EVE-keyed encryptToken at the call site) so the guard matrix is unit-testable
-// without the dedicated key. The key lives in token-crypto.ts.
+/**
+ * Encrypt the EVE access/refresh tokens on an account write before it reaches
+ * the DB. A non-empty replacement refresh token also proves the OAuth grant is
+ * healthy, so the same write clears any prior invalid-grant strike. The create
+ * hook receives the full account; the update hook (re-login) receives only the
+ * changed fields — so unrelated account updates leave the strike untouched and
+ * tokens already at rest remain idempotent. `encrypt` is injected (the real
+ * EVE-keyed encryptToken at the call site) so the guard matrix is unit-testable
+ * without the dedicated key. The key lives in token-crypto.ts.
+ */
 export function encryptAccountTokens<
   T extends {
     providerId?: string;

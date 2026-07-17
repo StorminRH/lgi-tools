@@ -55,6 +55,10 @@ function toIso(pubDate: string | null): string | null {
   return Number.isNaN(ms) ? null : new Date(ms).toISOString();
 }
 
+/**
+ * Parses the EVE news RSS document into normalized entries, dropping malformed items instead of
+ * failing the whole feed.
+ */
 export function parseEveRss(xml: string): EveNewsItem[] {
   if (typeof xml !== 'string' || !xml.includes('<item')) {
     throw new Error('eve rss: no <item> elements');

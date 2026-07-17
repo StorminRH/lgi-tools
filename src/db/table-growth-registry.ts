@@ -45,17 +45,27 @@ type TableGrowthStory =
   | BoundedGrowthStory
   | PurgeManagedGrowthStory;
 
+/**
+ * Schema-qualified Drizzle migrations table retained as an explicit infrastructure exemption in
+ * the growth registry.
+ */
 export const DRIZZLE_MIGRATIONS_TABLE = {
   schema: 'drizzle',
   name: '__drizzle_migrations',
 } as const;
 
+/**
+ * Builds the schema-qualified key used by the table-growth registry so migrations and runtime
+ * checks address one table consistently.
+ */
 export function tableGrowthKey(table: RegisteredTable): string {
   return is(table, PgTable) ? getTableConfig(table).name : `${table.schema}.${table.name}`;
 }
 
-// Test-only accounting for every durable Postgres table. This module is never
-// imported by the DB proxy or a runtime route; the gate consumes it directly.
+/**
+ * Test-only accounting for every durable Postgres table. This module is never
+ * imported by the DB proxy or a runtime route; the gate consumes it directly.
+ */
 export const TABLE_GROWTH_STORIES = [
   {
     kind: 'pruned',

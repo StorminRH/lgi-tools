@@ -65,22 +65,28 @@ const VERBATIM_ENV = {
 
 const SERVER_ENV = { ...REQUIRED_ENV, ...VERBATIM_ENV };
 
+/** Server environment names whose absence is always a configuration error at the read boundary. */
 export type RequiredEnvName = keyof typeof REQUIRED_ENV;
+/** Closed registry of server environment names permitted through the shared env reader. */
 export type ServerEnvName = RequiredEnvName | keyof typeof VERBATIM_ENV;
 
-// Returns the validated value, or undefined when unset / empty-on-a-required-var.
-// The caller keeps its existing fallback branch (503 / 500-with-message / silent
-// no-op / `??` chain) — this only replaces the raw read.
+/**
+ * Returns the validated value, or undefined when unset / empty-on-a-required-var.
+ * The caller keeps its existing fallback branch (503 / 500-with-message / silent
+ * no-op / `??` chain) — this only replaces the raw read.
+ */
 export function readEnv(name: ServerEnvName): string | undefined {
   const parsed = SERVER_ENV[name].safeParse(process.env[name]);
   return parsed.success ? parsed.data : undefined;
 }
 
-// Throwing read for sites where a missing var is a deployment error. Accepts
-// only REQUIRED keys: a verbatim key's empty value is meaningful, so the
-// `if (!value)` throw below would misfire on it — the type makes that a compile
-// error. The message matches the local helpers this replaces (auth,
-// eve-token-service, db scripts, …) byte-for-byte.
+/**
+ * Throwing read for sites where a missing var is a deployment error. Accepts
+ * only REQUIRED keys: a verbatim key's empty value is meaningful, so the
+ * `if (!value)` throw below would misfire on it — the type makes that a compile
+ * error. The message matches the local helpers this replaces (auth,
+ * eve-token-service, db scripts, …) byte-for-byte.
+ */
 export function requireEnv(name: RequiredEnvName): string {
   const value = readEnv(name);
   if (!value) throw new Error(`${name} is not set`);

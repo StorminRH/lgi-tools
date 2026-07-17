@@ -8,22 +8,26 @@ import { runCronJob } from '@/db/cron-gate';
 
 const logCronEvent = cronLogger('cron:industry-indices', 'cron_industry_indices');
 
-// Vercel cron endpoint. Wired to "40 11 * * *" in vercel.json (11:40 UTC —
-// after the 11:00–11:15 daily downtime and clear of the 11:30 prices sweep on
-// the direct Neon endpoint). Vercel dispatches GET with
-// `Authorization: Bearer ${CRON_SECRET}`.
-//
-// Refreshes both daily CCP industry datasets (system cost indices + adjusted
-// prices) under the shared cron gate's advisory lock, which skips an
-// overlapping run of itself — the upserts are idempotent, so the lock guards
-// against a redundant double ESI pull, not data integrity. Two bulk fetches +
-// chunked upserts complete in a few seconds; 60 bounds a hang well under the
-// 300s platform default.
+/**
+ * Vercel cron endpoint. Wired to "40 11 * * *" in vercel.json (11:40 UTC —
+ * after the 11:00–11:15 daily downtime and clear of the 11:30 prices sweep on
+ * the direct Neon endpoint). Vercel dispatches GET with
+ * `Authorization: Bearer ${CRON_SECRET}`.
+ *
+ * Refreshes both daily CCP industry datasets (system cost indices + adjusted
+ * prices) under the shared cron gate's advisory lock, which skips an
+ * overlapping run of itself — the upserts are idempotent, so the lock guards
+ * against a redundant double ESI pull, not data integrity. Two bulk fetches +
+ * chunked upserts complete in a few seconds; 60 bounds a hang well under the
+ * 300s platform default.
+ */
 export const maxDuration = 60;
 
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_INDUSTRY_INDICES);
 
-// No user input — bearer-auth only, no body or query params consumed.
+/**
+ * No user input — bearer-auth only, no body or query params consumed.
+ */
 // authz: cron
 export async function GET(req: Request): Promise<Response> {
   const start = Date.now();

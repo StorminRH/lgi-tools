@@ -12,6 +12,10 @@ import { Popover, PopoverHeading } from './popover';
 // neither the half-circle clip-path nor the ring is expressible as an inline
 // style.
 
+/**
+ * Closed presentation vocabulary for confidence level; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'unknown';
 
 const ACCESSIBLE_LABEL: Record<ConfidenceLevel, string> = {
@@ -21,6 +25,10 @@ const ACCESSIBLE_LABEL: Record<ConfidenceLevel, string> = {
   unknown: 'Unknown confidence',
 };
 
+/**
+ * Renders the domain-neutral price confidence with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function PriceConfidence({
   level,
   loading,

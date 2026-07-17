@@ -19,8 +19,10 @@ import type { MarketPrice, RawMarketPrice } from './types';
 // telemetry: `data ⊥ telemetry` stays sealed, and the route handler emits
 // (exactly as the bulk refresh path does).
 
-// Per-item short-term cache tag. Exported so an explicit refresh can bust a
-// single item's coalescing entry.
+/**
+ * Per-item short-term cache tag. Exported so an explicit refresh can bust a
+ * single item's coalescing entry.
+ */
 export function priceTag(typeId: number): string {
   return `market-price-${typeId}`;
 }
@@ -32,6 +34,7 @@ export function priceTag(typeId: number): string {
 // dynamic hole (excluded from the prerender), which is exactly the live path.
 const LIVE_CACHE_LIFE = { stale: 30, revalidate: 30, expire: 60 };
 
+/** Price degradation details explaining fallback source, staleness, and affected type counts. */
 export interface LivePricesDegradation {
   fetched: number;
   esiCount: number;
@@ -39,6 +42,7 @@ export interface LivePricesDegradation {
   budgetExhausted: boolean;
 }
 
+/** Privacy-safe price refresh measurements including calls, items, and elapsed milliseconds. */
 export interface LivePricesMetrics {
   requested: number;
   returned: number;
@@ -47,6 +51,7 @@ export interface LivePricesMetrics {
   fuzzworkFallbackCount: number;
 }
 
+/** Closed price write-behind outcome distinguishing persisted, deferred, and failed storage. */
 export interface PriceWriteBehindResult {
   outcome: 'succeeded' | 'failed';
   attempted: number;
@@ -65,6 +70,10 @@ function notifyWriteBehind(
   }
 }
 
+/**
+ * Complete refresh-on-view price result combining quotes, source, degradation, metrics, and
+ * write-behind state.
+ */
 export interface LivePricesResult {
   // Freshest value available per type: the live fetch where it succeeded, the
   // DB seed otherwise. Types with neither are simply absent (caller treats a
@@ -119,8 +128,10 @@ async function mapBounded<T, R>(
   return results;
 }
 
-// On-view read. Returns the freshest prices available and persists the freshly
-// fetched rows as the new seed behind the response (never blocking it).
+/**
+ * On-view read. Returns the freshest prices available and persists the freshly
+ * fetched rows as the new seed behind the response (never blocking it).
+ */
 export async function getLivePrices(
   typeIds: number[],
   onWriteBehind?: (result: PriceWriteBehindResult) => void,
@@ -221,10 +232,12 @@ export async function getLivePrices(
   return { prices, degraded, metrics };
 }
 
-// Explicit refresh: mark each item's coalescing entry stale so the next view
-// refetches (stale-while-revalidate via the 'max' profile). Built as the engine
-// primitive now; a runtime caller (a "refresh now" affordance, the rewired CLI)
-// lands in a later sub-version.
+/**
+ * Explicit refresh: mark each item's coalescing entry stale so the next view
+ * refetches (stale-while-revalidate via the 'max' profile). Built as the engine
+ * primitive now; a runtime caller (a "refresh now" affordance, the rewired CLI)
+ * lands in a later sub-version.
+ */
 export async function refreshPricesOnDemand(typeIds: number[]): Promise<void> {
   for (const id of new Set(typeIds)) {
     revalidateTag(priceTag(id), 'max');

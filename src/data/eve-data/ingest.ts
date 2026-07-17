@@ -20,6 +20,7 @@ import {
 import { boolOf, intOrNull, localizedEn, numOrNull, strOrNull } from './coerce';
 import { emitUniverseNeon, parseUniverse } from './universe';
 
+/** Absolute SDE row counts written by the ingest run, grouped by source entity. */
 export type IngestSummary = {
   categoriesWritten: number;
   groupsWritten: number;
@@ -36,6 +37,7 @@ export type IngestSummary = {
   durationMs: number;
 };
 
+/** SDE ingest controls for source paths, batching, and optional injected database or progress ports. */
 export type IngestOptions = {
   keepCache?: boolean;
 };
@@ -81,6 +83,10 @@ async function streamInsert<T extends Record<string, unknown>>(
   return total;
 }
 
+/**
+ * Streams the downloaded SDE JSONL files into normalized tables under the ingest lock and returns
+ * absolute row counts.
+ */
 export async function runIngest(
   db: PostgresJsDb,
   opts: IngestOptions = {},

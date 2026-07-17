@@ -6,8 +6,13 @@
 // module turns timestamps into what is true "as of" now.
 import type { SkillQueueEntry } from './esi-projection';
 
+/**
+ * Closed set of externally meaningful skill queue states; callers must handle every member instead
+ * of inferring state from incidental fields.
+ */
 export type EntryStatus = 'done' | 'training' | 'pending' | 'paused';
 
+/** Display-ready skill entry progress with fraction, remaining milliseconds, and completion state. */
 export interface EntryProgress {
   status: EntryStatus;
   // Completion of the level being trained, 0–100. Done ⇒ 100. For a paused
@@ -31,6 +36,10 @@ function clampPct(pct: number): number {
   return Math.min(100, Math.max(0, pct));
 }
 
+/**
+ * Calculates a queue entry's completed fraction from absolute start and finish timestamps, clamped
+ * from zero to one.
+ */
 export function entryProgress(entry: SkillQueueEntry, now: number): EntryProgress {
   const start = entry.start_date !== undefined ? Date.parse(entry.start_date) : null;
   const finish = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : null;
@@ -47,6 +56,7 @@ export function entryProgress(entry: SkillQueueEntry, now: number): EntryProgres
   };
 }
 
+/** Skill queue aggregate containing entry count, remaining milliseconds, and absolute completion time. */
 export interface QueueSummary {
   kind: 'empty' | 'paused' | 'active' | 'complete';
   // Entries whose finish_date is already behind us — trained, even though ESI
@@ -56,6 +66,7 @@ export interface QueueSummary {
   finishesAt: number | null;
 }
 
+/** Aggregates remaining queue duration, skill count, and completion time from ordered entries. */
 export function summarizeQueue(entries: SkillQueueEntry[], now: number): QueueSummary {
   if (entries.length === 0) return { kind: 'empty', doneCount: 0, finishesAt: null };
   const statuses = entries.map((entry) => entryProgress(entry, now).status);
@@ -78,23 +89,28 @@ export function summarizeQueue(entries: SkillQueueEntry[], now: number): QueueSu
 
 // Roman skill levels — the in-game convention (Level V, not Level 5).
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V'] as const;
+/** Formats an EVE skill level from zero through five as its canonical Roman numeral. */
 export function romanLevel(level: number): string {
   return ROMAN[level] ?? String(level);
 }
 
-// What the home roster shows on its single "training now" line, distilled from
-// the same per-entry math the full queue uses. Discriminated so the card branches
-// on `kind` alone — no date math in the JSX.
+/**
+ * What the home roster shows on its single "training now" line, distilled from
+ * the same per-entry math the full queue uses. Discriminated so the card branches
+ * on `kind` alone — no date math in the JSX.
+ */
 export type CurrentTraining =
   | { kind: 'empty' }
   | { kind: 'complete' }
   | { kind: 'paused'; skillId: number; level: number; pct: number }
   | { kind: 'training'; skillId: number; level: number; pct: number; finishesAt: number };
 
-// The active entry is the lowest queue_position not already trained (ESI keeps a
-// finished level queued until the pilot next logs in, so the head can be 'done'
-// while the next entry trains). An all-paused queue carries no dates; an all-done
-// or missing queue collapses to complete/empty.
+/**
+ * The active entry is the lowest queue_position not already trained (ESI keeps a
+ * finished level queued until the pilot next logs in, so the head can be 'done'
+ * while the next entry trains). An all-paused queue carries no dates; an all-done
+ * or missing queue collapses to complete/empty.
+ */
 export function currentTraining(entries: SkillQueueEntry[], now: number): CurrentTraining {
   if (entries.length === 0) return { kind: 'empty' };
   const ordered = [...entries].sort((a, b) => a.queue_position - b.queue_position);

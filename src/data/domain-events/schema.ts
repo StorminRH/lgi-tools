@@ -1,10 +1,12 @@
 import { bigserial, index, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import type { DomainEventMetadata } from './types';
 
-// Internal, append-only system event ledger. Identifiers and classified
-// outcomes are allowed; token values, secrets, raw request/ESI bodies, and raw
-// error messages are not. The typed insert surface in queries.ts is the only
-// production writer, and retention is the only deletion path.
+/**
+ * Internal, append-only system event ledger. Identifiers and classified
+ * outcomes are allowed; token values, secrets, raw request/ESI bodies, and raw
+ * error messages are not. The typed insert surface in queries.ts is the only
+ * production writer, and retention is the only deletion path.
+ */
 export const domainEvents = pgTable(
   'domain_events',
   {

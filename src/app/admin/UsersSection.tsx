@@ -19,6 +19,9 @@ function pluralUsers(n: number): string {
   return `${n.toLocaleString()} user${n === 1 ? '' : 's'}`;
 }
 
+/**
+ * Loads and renders account-growth and engagement metrics for the selected admin date range.
+ */
 export async function UsersSection({ range }: { range: DateRange }) {
   const fetched = await loadSection('users', () =>
     Promise.all([getLoginCountsPerUser(range), getReturningVsNew(range)]),

@@ -51,6 +51,10 @@ function makeDescriptor(port: CorpStructuresPort) {
   });
 }
 
+/**
+ * Refreshes corporation structures for every eligible linked character and returns the merged
+ * stored projection.
+ */
 export async function refreshCorpStructuresForUser(port: CorpStructuresPort, userId: string): Promise<void> {
   await runOwnerSync(makeDescriptor(port), userId);
 }

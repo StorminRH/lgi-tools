@@ -21,26 +21,33 @@
 // cache must never hold per-character data, and the multi-hundred-KB region-dump
 // pages churn every 5 minutes anyway, so caching them buys nothing.
 
-// CCP's legacy error-limit ceiling: 100 non-2xx/3xx per 60s window.
+/** CCP's legacy error-limit ceiling: 100 non-2xx/3xx per 60s window. */
 export const ESI_ERROR_CEILING = 100;
 
-// Cache bodies at or under this size (bytes). Per-type market responses fit;
-// region-dump pages don't (deliberate — see header comment).
+/**
+ * Cache bodies at or under this size (bytes). Per-type market responses fit;
+ * region-dump pages don't (deliberate — see header comment).
+ */
 export const BODY_CACHE_MAX_BYTES = 131_072;
 
-// Self-count minute keys live just past the two-bucket read window.
+/** Self-count minute keys live just past the two-bucket read window. */
 export const ERROR_COUNT_TTL_SECONDS = 120;
-// Group state outlives the ~15-min floating window by a margin.
+/** Group state outlives the ~15-min floating window by a margin. */
 export const GROUP_STATE_TTL_SECONDS = 1200;
-// ETag meta/body: refreshed on every revalidation, dropped after two idle days.
+/** ETag meta/body: refreshed on every revalidation, dropped after two idle days. */
 export const ETAG_TTL_SECONDS = 172_800;
 
+/** Metadata stored beside one cached ETag body, including validator, status, headers, and absolute expiry. */
 export interface CachedEtagMeta {
   etag: string;
   expires: string | null;
   contentType: string | null;
 }
 
+/**
+ * Scoreboard verdict computed before network dispatch, carrying any block, budget, or
+ * cached-response decision.
+ */
 export interface PreDispatchState {
   // min(echo ?? ceiling, ceiling − selfCount) — the pessimistic combination
   // of both error-limit mirrors.
@@ -53,6 +60,10 @@ export interface PreDispatchState {
   etag: CachedEtagMeta | null;
 }
 
+/**
+ * Point-in-time ESI budget observations by route group; counters and timestamps retain their
+ * upstream units.
+ */
 export interface EsiBudgetSnapshot {
   effectiveRemaining: number;
   selfCount: number;
@@ -60,8 +71,10 @@ export interface EsiBudgetSnapshot {
   source: 'shared' | 'process-local';
 }
 
-// Everything the gate observed about one ESI response, pre-parsed. The
-// scoreboard turns it into key writes; it never touches Response objects.
+/**
+ * Everything the gate observed about one ESI response, pre-parsed. The
+ * scoreboard turns it into key writes; it never touches Response objects.
+ */
 export interface EsiReport {
   url: string;
   status: number;
@@ -80,6 +93,10 @@ export interface EsiReport {
   refreshEtag: CachedEtagMeta | null;
 }
 
+/**
+ * Storage-neutral contract owning ESI budget checks, block state, ETag caching, and post-response
+ * accounting.
+ */
 export interface EsiScoreboard {
   preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState>;
   budgetSnapshot(): Promise<EsiBudgetSnapshot>;

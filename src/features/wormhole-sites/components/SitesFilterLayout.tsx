@@ -32,12 +32,17 @@ const VIEW_OPTIONS = [
   { value: 'table', label: 'Table' },
 ] as const;
 
+/** Catalogue filter metadata listing available site types, classes, and result counts. */
 export interface SiteFilterMeta {
   id: number;
   type: SiteType;
   clsSet: WormholeClass[];
 }
 
+/**
+ * One caller-supplied site card item; its value is the stable control key and its label or marker
+ * is presentation-ready.
+ */
 export interface SiteCardItem {
   meta: SiteFilterMeta;
   node: ReactNode;
@@ -47,6 +52,7 @@ function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
 }
 
+/** Owns client catalogue filtering and layout state while rendering the supplied immutable site cards. */
 export function SitesFilterLayout({
   cards,
   table,

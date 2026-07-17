@@ -17,10 +17,18 @@ async function findOlderChangelogDocument(slug: string): Promise<ChangelogDocume
   return findChangelogDocument(await olderChangelogDocuments(), slug);
 }
 
+/**
+ * Enumerates the canonical static parameter set for /changelog/[slug]; callers must treat the
+ * returned slugs as build inputs.
+ */
 export async function generateStaticParams() {
   return (await olderChangelogDocuments()).map(({ slug }) => ({ slug }));
 }
 
+/**
+ * Builds request-independent metadata for /changelog/[slug] from the route parameter and canonical
+ * content source.
+ */
 export async function generateMetadata({
   params,
 }: {
@@ -39,6 +47,10 @@ export async function generateMetadata({
   });
 }
 
+/**
+ * Renders the /changelog/[slug] route surface and owns its page-level composition, metadata
+ * boundary, and fallback presentation.
+ */
 export default async function ChangelogMasterPage({
   params,
 }: {

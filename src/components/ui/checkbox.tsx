@@ -14,6 +14,10 @@ import type { Tone } from './tones';
 // `<input>`, so without a name the control is unlabelled. First consumer: the
 // multibuy panel's tier scope list.
 
+/**
+ * Closed presentation vocabulary for checkbox tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type CheckboxTone = Extract<Tone, 'green' | 'neutral' | 'red'>;
 
 // The box. Unticked = a sunk square with an idle border; ticked = the ISK-green
@@ -52,6 +56,10 @@ const fill = cva('block h-[8px] w-[8px] rounded-[1px]', {
   defaultVariants: { tone: 'green' },
 });
 
+/**
+ * Renders the domain-neutral checkbox with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Checkbox({
   checked,
   onCheckedChange,

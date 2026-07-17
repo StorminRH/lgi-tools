@@ -9,6 +9,7 @@ import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import type { JobRowFrameData } from '../job-view';
 
+/** Renders the shared status, activity, product, runs, and timing frame for one industry job. */
 export function JobRowFrame({
   headlineName,
   runs,

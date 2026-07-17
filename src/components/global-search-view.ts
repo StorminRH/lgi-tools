@@ -1,10 +1,12 @@
 import type { SearchResult, SearchSection } from '@/search';
 import { pillToneClasses, type PillTone } from '@/components/ui/pill';
 
-// Splits a label into matched / unmatched runs for highlight rendering. Adjacent
-// matched chars collapse into one run so a substring match renders as a single
-// highlighted span, not N nested ones. With no indices the whole label is one
-// unmatched run.
+/**
+ * Splits a label into matched / unmatched runs for highlight rendering. Adjacent
+ * matched chars collapse into one run so a substring match renders as a single
+ * highlighted span, not N nested ones. With no indices the whole label is one
+ * unmatched run.
+ */
 export function splitMatchRuns(
   label: string,
   indices?: number[],
@@ -23,17 +25,21 @@ export function splitMatchRuns(
   return runs;
 }
 
-// The engine's sections flattened to one list, fed to the combobox as its item
-// model so keyboard navigation runs continuously across the whole result set
-// (the rows are still rendered grouped below it — the flat list matches the old
-// cross-group flat-index navigation).
+/**
+ * The engine's sections flattened to one list, fed to the combobox as its item
+ * model so keyboard navigation runs continuously across the whole result set
+ * (the rows are still rendered grouped below it — the flat list matches the old
+ * cross-group flat-index navigation).
+ */
 export function flattenSections(sections: SearchSection[]): SearchResult[] {
   return sections.flatMap((section) => section.results);
 }
 
-// A result icon badge's colour classes, resolved from the (abstract) iconTone the
-// source emitted. Unknown / legacy tones (e.g. an old localStorage recent stored
-// under the retired `cls-*` scheme) fall back to neutral.
+/**
+ * A result icon badge's colour classes, resolved from the (abstract) iconTone the
+ * source emitted. Unknown / legacy tones (e.g. an old localStorage recent stored
+ * under the retired `cls-*` scheme) fall back to neutral.
+ */
 export function searchIconClass(iconTone?: string): string {
   const tone: PillTone = iconTone && iconTone in pillToneClasses ? (iconTone as PillTone) : 'neutral';
   return pillToneClasses[tone];

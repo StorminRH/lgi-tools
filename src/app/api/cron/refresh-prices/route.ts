@@ -30,11 +30,17 @@ async function logCronEvent(
 // No user input — bearer-auth only, body and query params ignored.
 // authz: cron
 
-// Worst observed sweep is ~37s (a full stale set: ESI batches + Fuzzwork
-// fallback); 120 gives that headroom while still bounding a hang at well
-// under the 300s platform default.
+/**
+ * Worst observed sweep is ~37s (a full stale set: ESI batches + Fuzzwork
+ * fallback); 120 gives that headroom while still bounding a hang at well
+ * under the 300s platform default.
+ */
 export const maxDuration = 120;
 
+/**
+ * Handles GET requests for /api/cron/refresh-prices; this route owns its authorization, boundary
+ * validation, and typed response mapping.
+ */
 export async function GET(req: Request): Promise<Response> {
   const denied = await requireCronAuth(req);
   if (denied) return denied;

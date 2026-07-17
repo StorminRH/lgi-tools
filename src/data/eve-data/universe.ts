@@ -69,17 +69,20 @@ const INSERT_BATCH = 1000;
 
 // ----- The typed contract (one home-agnostic shape both emitters consume) ---
 
+/** Normalized EVE region identity and name emitted from the universe dump. */
 export type UniverseRegion = {
   id: number;
   name: string;
 };
 
+/** Normalized EVE constellation identity, name, and parent region. */
 export type UniverseConstellation = {
   id: number;
   regionId: number;
   name: string;
 };
 
+/** Normalized EVE solar-system identity, name, security status, and universe parents. */
 export type UniverseSolarSystem = {
   id: number;
   constellationId: number;
@@ -92,18 +95,22 @@ export type UniverseSolarSystem = {
   wormholeClassId: number | null;
 };
 
-// A directed system→system jump (one CCP stargate). An undirected gate appears as
-// the two reciprocal edges (each physical gate is its own record).
+/**
+ * A directed system→system jump (one CCP stargate). An undirected gate appears as
+ * the two reciprocal edges (each physical gate is its own record).
+ */
 export type UniverseSystemJump = {
   fromSystemId: number;
   toSystemId: number;
 };
 
+/** Normalized NPC station-operation identity and supported service vocabulary. */
 export type UniverseStationOperation = {
   id: number;
   name: string;
 };
 
+/** Normalized NPC station identity, name, system, operation, and owning corporation. */
 export type UniverseNpcStation = {
   id: number;
   solarSystemId: number;
@@ -115,6 +122,7 @@ export type UniverseNpcStation = {
   industryCapable: boolean;
 };
 
+/** Normalized universe dump containing regions, constellations, systems, operations, and NPC stations. */
 export type UniverseDataset = {
   regions: UniverseRegion[];
   constellations: UniverseConstellation[];
@@ -124,7 +132,7 @@ export type UniverseDataset = {
   stations: UniverseNpcStation[];
 };
 
-// The raw record sets the core operates on (one array per universe file).
+/** The raw record sets the core operates on (one array per universe file). */
 export type RawUniverseFiles = {
   regions: Record<string, unknown>[];
   constellations: Record<string, unknown>[];
@@ -137,13 +145,15 @@ export type RawUniverseFiles = {
 
 // ----- Service-ID resolution + the build assertion --------------------------
 
-// Resolve the Factory (manufacturing) and Laboratory (research) service `_key`s
-// from `stationServices.jsonl` BY NAME, at ingest time. In the JSONL SDE the
-// service IDs are renumbered 1–27 (Factory=14, Laboratory=15 today) — the legacy
-// bitmask values (Factory 8192, Laboratory 16384) are dead and must never be
-// hard-coded. Throwing when a name is absent is the build assertion: a CCP
-// rename/renumber fails the ingest loudly instead of silently flagging every
-// station as non-industry.
+/**
+ * Resolve the Factory (manufacturing) and Laboratory (research) service `_key`s
+ * from `stationServices.jsonl` BY NAME, at ingest time. In the JSONL SDE the
+ * service IDs are renumbered 1–27 (Factory=14, Laboratory=15 today) — the legacy
+ * bitmask values (Factory 8192, Laboratory 16384) are dead and must never be
+ * hard-coded. Throwing when a name is absent is the build assertion: a CCP
+ * rename/renumber fails the ingest loudly instead of silently flagging every
+ * station as non-industry.
+ */
 export function resolveIndustryServiceIds(services: Record<string, unknown>[]): {
   factoryId: number;
   laboratoryId: number;
@@ -173,10 +183,12 @@ function findServiceIdByName(
 
 // ----- The pure core --------------------------------------------------------
 
-// Pure: raw records in, projected/filtered/joined dataset out. No file IO, no
-// DB, no logging — so it's fully unit-testable from in-memory fixtures. Each
-// pass below filters/joins one entity, threading the surviving id-sets into the
-// next; this orchestrator just wires them together.
+/**
+ * Pure: raw records in, projected/filtered/joined dataset out. No file IO, no
+ * DB, no logging — so it's fully unit-testable from in-memory fixtures. Each
+ * pass below filters/joins one entity, threading the surviving id-sets into the
+ * next; this orchestrator just wires them together.
+ */
 export function buildUniverseDataset(raw: RawUniverseFiles): UniverseDataset {
   const { regions, regionIds, regionClass } = projectRegions(raw);
   const { constellations, constellationIds, constellationClass } =
@@ -412,10 +424,12 @@ async function readJsonl(path: string): Promise<Record<string, unknown>[]> {
   return out;
 }
 
-// The shared parse core. Reads the six already-downloaded universe files fully
-// (small — 6.5KB–5MB; unlike the 149MB types.jsonl they materialize trivially,
-// and the cross-file industry join can't be done streaming) and returns the
-// typed dataset. Pure logic lives in `buildUniverseDataset`.
+/**
+ * The shared parse core. Reads the six already-downloaded universe files fully
+ * (small — 6.5KB–5MB; unlike the 149MB types.jsonl they materialize trivially,
+ * and the cross-file industry join can't be done streaming) and returns the
+ * typed dataset. Pure logic lives in `buildUniverseDataset`.
+ */
 export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDataset> {
   const [regions, constellations, systems, stargates, stations, operations, services] =
     await Promise.all([
@@ -451,6 +465,7 @@ export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDatas
 
 // ----- The Neon emitter (this session's only consumer) ----------------------
 
+/** Absolute row counts emitted for each normalized universe table. */
 export type UniverseEmitSummary = {
   regionsWritten: number;
   constellationsWritten: number;
@@ -460,11 +475,13 @@ export type UniverseEmitSummary = {
   npcStationsWritten: number;
 };
 
-// Wipe + refill the universe tables from the in-memory dataset, inside the
-// caller's transaction (`runIngest`'s). Children-first TRUNCATE (CASCADE),
-// parents-first insert: jumps and stations both reference systems, so they're
-// truncated before / inserted after the systems table. The universe tables are
-// FK-independent of the type/blueprint tables, so this is self-contained.
+/**
+ * Wipe + refill the universe tables from the in-memory dataset, inside the
+ * caller's transaction (`runIngest`'s). Children-first TRUNCATE (CASCADE),
+ * parents-first insert: jumps and stations both reference systems, so they're
+ * truncated before / inserted after the systems table. The universe tables are
+ * FK-independent of the type/blueprint tables, so this is self-contained.
+ */
 export async function emitUniverseNeon(
   tx: AnyPgDb,
   dataset: UniverseDataset,

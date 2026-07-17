@@ -14,6 +14,9 @@ const DOT_CLASS: Record<StatusLevel, string> = {
   neutral: 'bg-muted',
 };
 
+/**
+ * Renders one labelled operational status with text and icon semantics in addition to its tone.
+ */
 export function StatusRow({
   name,
   status,

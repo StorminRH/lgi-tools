@@ -14,15 +14,19 @@ import type { AnyPgDb } from '@/lib/db-types';
 // both hold a postgres-js client.
 type Sql = ReturnType<typeof postgres>;
 
-// `reason` records the one no-write outcome so the cron can tell a healthy
-// "nothing was stale" run apart from a real refresh in the record (O-3).
+/**
+ * `reason` records the one no-write outcome so the cron can tell a healthy
+ * "nothing was stale" run apart from a real refresh in the record (O-3).
+ */
 export type CachedRefreshResult =
   | { status: 'cached'; reason: 'empty-set'; lastUpdatedAt: Date | null }
   | { status: 'refreshed'; lastUpdatedAt: Date; summary: RefreshSummary };
 
-// Reads the most recent updated_at. Returns null when the table is empty
-// — no batch has ever been written. Exported so the page can render
-// initial freshness without triggering a refresh.
+/**
+ * Reads the most recent updated_at. Returns null when the table is empty
+ * — no batch has ever been written. Exported so the page can render
+ * initial freshness without triggering a refresh.
+ */
 export async function getPricesFreshness(
   db: AnyPgDb,
 ): Promise<{ lastUpdatedAt: Date | null }> {
@@ -34,16 +38,20 @@ export async function getPricesFreshness(
   return { lastUpdatedAt: row?.updatedAt ?? null };
 }
 
-// Revalidation tag for the cached freshness snapshot below. The hourly prices
-// cron busts it (`revalidateTag`) the moment a refresh writes new rows.
+/**
+ * Revalidation tag for the cached freshness snapshot below. The hourly prices
+ * cron busts it (`revalidateTag`) the moment a refresh writes new rows.
+ */
 export const PRICES_FRESHNESS_TAG = 'market-prices-freshness';
 
-// Cached, no-arg view of the latest price timestamp for the header chip. Caching
-// the DB read off the render path keeps it in the static shell (the raw
-// `getPricesFreshness(db)` takes a non-serializable client and is reused inside
-// the refresh write-loop, so it can't carry the directive itself). The `'hours'`
-// cacheLife gives sub-day freshness between the nightly cron runs; the tag bumps
-// it immediately the moment a refresh writes new rows.
+/**
+ * Cached, no-arg view of the latest price timestamp for the header chip. Caching
+ * the DB read off the render path keeps it in the static shell (the raw
+ * `getPricesFreshness(db)` takes a non-serializable client and is reused inside
+ * the refresh write-loop, so it can't carry the directive itself). The `'hours'`
+ * cacheLife gives sub-day freshness between the nightly cron runs; the tag bumps
+ * it immediately the moment a refresh writes new rows.
+ */
 export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date | null }> {
   'use cache';
   cacheLife('hours');
@@ -54,12 +62,14 @@ export async function getCachedPricesFreshness(): Promise<{ lastUpdatedAt: Date 
   return withColdStartRetry(() => getPricesFreshness(db));
 }
 
-// Cached count of priced market items, for the home dashboard's status card.
-// The tracked-type set changes only when the SDE is re-ingested (rare); the
-// `'max'` cacheLife scopes it to the build ID. (We can't tag it with the
-// SDE-structure tag — that constant lives in the eve-data slice, and two data
-// slices never import each other — so a re-ingest is reflected on the next
-// deploy rather than immediately. Acceptable for a catalogue count.)
+/**
+ * Cached count of priced market items, for the home dashboard's status card.
+ * The tracked-type set changes only when the SDE is re-ingested (rare); the
+ * `'max'` cacheLife scopes it to the build ID. (We can't tag it with the
+ * SDE-structure tag — that constant lives in the eve-data slice, and two data
+ * slices never import each other — so a re-ingest is reflected on the next
+ * deploy rather than immediately. Acceptable for a catalogue count.)
+ */
 export async function getCachedTrackedTypeCount(): Promise<number> {
   'use cache';
   cacheLife('max');
@@ -69,16 +79,18 @@ export async function getCachedTrackedTypeCount(): Promise<number> {
   });
 }
 
-// Nightly backstop sweep (vercel.json "30 11 * * *"). Refreshes only the
-// type IDs with `stale_after < NOW()` — the rows the on-demand view path
-// hasn't refreshed within the TTL window. Lock-free: the cron is the only
-// bulk writer, and a race with a concurrent on-demand write is last-write-
-// wins — both paths persist freshly-fetched rows, so whichever lands second
-// simply wins and both values are fresh.
-//
-// The Fuzzwork/ESI HTTP call inside `refreshPrices` happens with no
-// transaction open; its upsert is a single statement, so we never pin a long
-// transaction across the network round-trip.
+/**
+ * Nightly backstop sweep (vercel.json "30 11 * * *"). Refreshes only the
+ * type IDs with `stale_after < NOW()` — the rows the on-demand view path
+ * hasn't refreshed within the TTL window. Lock-free: the cron is the only
+ * bulk writer, and a race with a concurrent on-demand write is last-write-
+ * wins — both paths persist freshly-fetched rows, so whichever lands second
+ * simply wins and both values are fresh.
+ *
+ * The Fuzzwork/ESI HTTP call inside `refreshPrices` happens with no
+ * transaction open; its upsert is a single statement, so we never pin a long
+ * transaction across the network round-trip.
+ */
 export async function refreshStalePrices(client: Sql): Promise<CachedRefreshResult> {
   const db = drizzle(client);
 

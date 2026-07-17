@@ -2,6 +2,10 @@ import { siteIdParamSchema } from '@/features/wormhole-sites/api-contract';
 import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import type { ApiError, SiteDetail } from '@/features/wormhole-sites/types';
 
+/**
+ * Handles GET requests for /api/sites/[id]; this route owns its authorization, boundary
+ * validation, and typed response mapping.
+ */
 // authz: public
 export async function GET(
   _request: Request,

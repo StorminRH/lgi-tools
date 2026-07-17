@@ -12,10 +12,16 @@ import { cn } from './cn';
 // The arc circle radius inside the 0–40 viewBox; the track + arc share it.
 const RADIUS = 17;
 
+/**
+ * Closed presentation vocabulary for qty ring tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type QtyRingTone = 'neutral' | 'isk';
 
-// Pure: the stroke-dasharray ("<filled> <circumference>") + circumference for a
-// progress fraction at a given radius. Progress is clamped to 0–1 (non-finite → 0).
+/**
+ * Pure: the stroke-dasharray ("<filled> <circumference>") + circumference for a
+ * progress fraction at a given radius. Progress is clamped to 0–1 (non-finite → 0).
+ */
 export function ringDash(
   progress: number,
   radius: number,
@@ -32,6 +38,10 @@ const arc = cva('fill-none', {
   defaultVariants: { tone: 'neutral' },
 });
 
+/**
+ * Renders the domain-neutral qty ring from display-ready caller data; callers own units and labels
+ * while this primitive owns geometry and interaction.
+ */
 export function QtyRing({
   progress,
   tone = 'neutral',

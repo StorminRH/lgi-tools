@@ -23,16 +23,19 @@ import { isSkillsStale } from './staleness';
 import { canSyncSkillQueue } from './sync-eligibility';
 import type { CharacterSkillSyncState, SkillsEsiRead, SkillsPort, SkillsSaveHalves } from './types';
 
-// What a refresh should persist from the two endpoint reads. PURE + tested, so the
-// merge/304 logic stays out of the I/O orchestration. 'skip' = an ESI error or a
-// contract mismatch on a fresh half (keep stored data); 'stamp' = both halves 304
-// (bump freshness only); 'save' = persist the fresh half(s), a 304 half omitted (the
-// stored row already holds it).
+/**
+ * What a refresh should persist from the two endpoint reads. PURE + tested, so the
+ * merge/304 logic stays out of the I/O orchestration. 'skip' = an ESI error or a
+ * contract mismatch on a fresh half (keep stored data); 'stamp' = both halves 304
+ * (bump freshness only); 'save' = persist the fresh half(s), a 304 half omitted (the
+ * stored row already holds it).
+ */
 export type SkillsPersistPlan =
   | { kind: 'save'; halves: SkillsSaveHalves }
   | { kind: 'stamp' }
   | { kind: 'skip'; code?: string };
 
+/** Builds the atomic skills and queue persistence plan from normalized ESI payloads. */
 export function planSkillsPersist(
   queueRead: SkillsEsiRead,
   skillsRead: SkillsEsiRead,
@@ -78,6 +81,10 @@ function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, Character
   });
 }
 
+/**
+ * Refreshes skills and queue data for every eligible linked character and returns the merged
+ * roster projection.
+ */
 export function refreshSkillsForUser(
   port: SkillsPort,
   userId: string,

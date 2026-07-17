@@ -93,6 +93,10 @@ export function pinLabel(systemId: number, systems: SystemSearchEntry[]): string
   return sys ? `${sys.name} ${formatSec(sys.security)}` : `System ${systemId}`;
 }
 
+/**
+ * Display-ready saved structure row state for custom structures; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type SavedStructureRowView = {
   name: string;
   typeLabel: string;

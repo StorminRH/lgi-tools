@@ -8,6 +8,10 @@ import { computeDelta, type Delta } from './period';
 // new-vs-returning) now render as StackedShareBars, and avg position moves to
 // the GSC small-multiples — so the table stays four clean columns.
 
+/**
+ * Display-ready metric row produced by App Router; values retain their domain units and require no
+ * additional query by the renderer.
+ */
 export interface MetricRow {
   label: string;
   /** Pre-formatted headline value for the current window ('—' when N/A). */
@@ -27,6 +31,10 @@ function perDay(total: number, rangeDays: number): string | null {
   return v < 10 ? v.toFixed(1) : Math.round(v).toLocaleString();
 }
 
+/**
+ * Derives metric rows under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function buildMetricRows(args: {
   rangeDays: number;
   pageViews: { referred: number; direct: number };

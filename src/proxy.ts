@@ -30,26 +30,28 @@ const CONVEX_CONNECT_SRC = (() => {
   return ` ${url.origin} ${wsScheme}//${url.host}`;
 })();
 
-// Per-request Content-Security-Policy. Through 3.0.4.5 this used a fresh
-// per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which
-// forced every route to dynamic rendering. 3.0.4.6 retired the nonce — the
-// conversion-track enabler — for a basic origin-locked policy: scripts load
-// from our own origin (`'self'`), with `'unsafe-inline'` admitting the inline
-// RSC flight-data scripts that hydration needs. OOB.1.1 then widened `style-src`
-// to `'self' 'unsafe-inline'` as well, so inline `style="…"` attributes are now
-// permitted in every environment (see the dev-relaxation note below).
-//
-// Why `'unsafe-inline'` and not a stricter form: every App Router page emits
-// inline `self.__next_f.push(...)` scripts that `'self'` alone can't bless, and
-// the nonce that used to bless them is what we're removing. Subresource
-// Integrity doesn't help — it signs only external script files, never inline
-// content (re-confirmed empirically in 3.0.4.6). This keeps origin-level XSS protection
-// (no third-party script hosts, no object/base/frame vectors) while dropping the
-// per-request mechanism that fought the stack. The header is still emitted from
-// proxy.ts per request; relocating/caching it is a later conversion-track step.
-//
-// Static security headers (HSTS, X-Frame-Options, etc.) live in next.config.ts
-// so they apply to API responses too.
+/**
+ * Per-request Content-Security-Policy. Through 3.0.4.5 this used a fresh
+ * per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which
+ * forced every route to dynamic rendering. 3.0.4.6 retired the nonce — the
+ * conversion-track enabler — for a basic origin-locked policy: scripts load
+ * from our own origin (`'self'`), with `'unsafe-inline'` admitting the inline
+ * RSC flight-data scripts that hydration needs. OOB.1.1 then widened `style-src`
+ * to `'self' 'unsafe-inline'` as well, so inline `style="…"` attributes are now
+ * permitted in every environment (see the dev-relaxation note below).
+ *
+ * Why `'unsafe-inline'` and not a stricter form: every App Router page emits
+ * inline `self.__next_f.push(...)` scripts that `'self'` alone can't bless, and
+ * the nonce that used to bless them is what we're removing. Subresource
+ * Integrity doesn't help — it signs only external script files, never inline
+ * content (re-confirmed empirically in 3.0.4.6). This keeps origin-level XSS protection
+ * (no third-party script hosts, no object/base/frame vectors) while dropping the
+ * per-request mechanism that fought the stack. The header is still emitted from
+ * proxy.ts per request; relocating/caching it is a later conversion-track step.
+ *
+ * Static security headers (HSTS, X-Frame-Options, etc.) live in next.config.ts
+ * so they apply to API responses too.
+ */
 export function proxy(request: NextRequest): NextResponse {
   const isDev = process.env.NODE_ENV === "development";
 
@@ -90,10 +92,12 @@ export function proxy(request: NextRequest): NextResponse {
   return response;
 }
 
-// Skip API routes (JSON responses don't need CSP), Next.js static + image
-// optimizer paths, the favicon, and prefetch requests. Prefetches re-use the
-// initial document's CSP header, so adding it per-prefetch would only burn CPU.
-// Same pattern recommended in the Next 16 CSP guide.
+/**
+ * Skip API routes (JSON responses don't need CSP), Next.js static + image
+ * optimizer paths, the favicon, and prefetch requests. Prefetches re-use the
+ * initial document's CSP header, so adding it per-prefetch would only burn CPU.
+ * Same pattern recommended in the Next 16 CSP guide.
+ */
 export const config = {
   matcher: [
     {

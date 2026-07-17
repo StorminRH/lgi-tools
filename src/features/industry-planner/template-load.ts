@@ -6,14 +6,18 @@ import type { SavedPlanRow } from './api-contract';
 // every decision that branches lives here, unit-tested against the shared
 // mock-planner harness (the Humble Component split).
 
-// How long the loader waits for the planner's async surfaces (preferences,
-// structures, roster) before applying with whatever settled — a template load
-// should never hang on a slow read; applyTemplate's per-field fail-open
-// degrades the unsettled-dependent fields with notes instead.
+/**
+ * How long the loader waits for the planner's async surfaces (preferences,
+ * structures, roster) before applying with whatever settled — a template load
+ * should never hang on a slow read; applyTemplate's per-field fail-open
+ * degrades the unsettled-dependent fields with notes instead.
+ */
 export const TEMPLATE_APPLY_GATE_MS = 8000;
 
-// The apply-what-settled gate: wait for all three readiness signals, but the
-// deadline overrides — after it, apply with whatever is there.
+/**
+ * The apply-what-settled gate: wait for all three readiness signals, but the
+ * deadline overrides — after it, apply with whatever is there.
+ */
 export function templateGateOpen(g: {
   preferencesReady: boolean;
   structuresSettled: boolean;
@@ -23,16 +27,22 @@ export function templateGateOpen(g: {
   return g.timedOut || (g.preferencesReady && g.structuresSettled && g.rosterSettled);
 }
 
+/**
+ * Closed template application result covering success, incompatible version, missing blueprint,
+ * and invalid snapshot.
+ */
 export type TemplateLoadOutcome =
   | { kind: 'fetch-failed' }
   | { kind: 'not-found' }
   | { kind: 'mismatch'; row: SavedPlanRow }
   | { kind: 'applied'; row: SavedPlanRow; notes: string[] };
 
-// One load request, deps injected: fetch the caller's saved plans (null =
-// couldn't read — non-OK or network), resolve the row, guard that it belongs
-// to the blueprint in view, then replay it. `apply` is applyTemplate pre-bound
-// to the live ApplyCtx; its degrade notes pass through untouched. Never throws.
+/**
+ * One load request, deps injected: fetch the caller's saved plans (null =
+ * couldn't read — non-OK or network), resolve the row, guard that it belongs
+ * to the blueprint in view, then replay it. `apply` is applyTemplate pre-bound
+ * to the live ApplyCtx; its degrade notes pass through untouched. Never throws.
+ */
 export async function runTemplateLoad(deps: {
   planId: string;
   blueprintTypeId: number;
@@ -48,6 +58,7 @@ export async function runTemplateLoad(deps: {
   return { kind: 'applied', row, notes };
 }
 
+/** User-facing template application feedback with semantic tone and concise detail. */
 export interface TemplateLoadToast {
   type: 'success' | 'info' | 'error';
   message: string;
@@ -57,9 +68,11 @@ export interface TemplateLoadToast {
   duration: number;
 }
 
-// The ONE keyed toast per load, summarizing what fell away. `info` is the
-// partial-apply arm: the load succeeded, so it isn't an error — the notes ride
-// the description slot.
+/**
+ * The ONE keyed toast per load, summarizing what fell away. `info` is the
+ * partial-apply arm: the load succeeded, so it isn't an error — the notes ride
+ * the description slot.
+ */
 export function loadToastFor(outcome: TemplateLoadOutcome): TemplateLoadToast {
   switch (outcome.kind) {
     case 'fetch-failed':
@@ -91,17 +104,21 @@ export function loadToastFor(outcome: TemplateLoadOutcome): TemplateLoadToast {
   }
 }
 
-// Whether the live URL still points at the load this run handled. A stale
-// completion — the user navigated to another template (or away) while the
-// load was in flight — must not toast over the newer load or strip a plan
-// param that load hasn't consumed yet.
+/**
+ * Whether the live URL still points at the load this run handled. A stale
+ * completion — the user navigated to another template (or away) while the
+ * load was in flight — must not toast over the newer load or strip a plan
+ * param that load hasn't consumed yet.
+ */
 export function urlStillOnPlan(search: string, planId: string): boolean {
   return new URLSearchParams(search).get('plan') === planId;
 }
 
-// Remove the plan param from a location.search string, preserving every other
-// param (and their order). Returns '' when nothing remains so the caller can
-// append it to the pathname directly.
+/**
+ * Remove the plan param from a location.search string, preserving every other
+ * param (and their order). Returns '' when nothing remains so the caller can
+ * append it to the pathname directly.
+ */
 export function stripPlanParam(search: string): string {
   const params = new URLSearchParams(search);
   params.delete('plan');

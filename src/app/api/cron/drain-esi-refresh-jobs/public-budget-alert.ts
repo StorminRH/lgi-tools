@@ -7,15 +7,31 @@ import {
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import { alertPublicEsiBudgetExhaustion, isOpsAlertConfigured } from '@/lib/alerts';
 
+/**
+ * Canonical App Router policy for public esi budget alert window minutes; consumers derive
+ * behavior from this single ordered definition. Values are minutes.
+ */
 export const PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES = 15;
+/**
+ * Canonical App Router policy for public esi budget alert threshold; consumers derive behavior
+ * from this single ordered definition.
+ */
 export const PUBLIC_ESI_BUDGET_ALERT_THRESHOLD = 3;
 
+/**
+ * Outcome of the public ESI budget-alert policy, distinguishing a low count, an active suppression
+ * window, and a delivered alert.
+ */
 export type PublicBudgetAlertResult =
   | { status: 'below-threshold'; count: number }
   | { status: 'already-alerted'; count: number }
   | { status: 'unconfigured'; count: number }
   | { status: 'alerted'; count: number };
 
+/**
+ * Sends at most one public ESI budget alert for the current 15-minute window when the configured
+ * exhaustion threshold is met; otherwise reports the skipped reason.
+ */
 export async function maybeAlertPublicEsiBudgetExhaustion(
   now: Date = new Date(),
 ): Promise<PublicBudgetAlertResult> {

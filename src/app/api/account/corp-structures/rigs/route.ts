@@ -15,12 +15,14 @@ import { requireUserId } from '@/features/auth/route-guards';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
+/**
+ * Gated further by corp membership + the in-game Station_Manager role (below).
+ * POST /api/account/corp-structures/rigs — record a corp structure's fitted rigs (ESI
+ * doesn't expose them), so the planner bonus is exact. Same two-step gate as the
+ * sharing toggle: the caller must be a member of the corp AND hold the Station_Manager
+ * role. The user id comes from the session, never the body.
+ */
 // authz: auth
-// Gated further by corp membership + the in-game Station_Manager role (below).
-// POST /api/account/corp-structures/rigs — record a corp structure's fitted rigs (ESI
-// doesn't expose them), so the planner bonus is exact. Same two-step gate as the
-// sharing toggle: the caller must be a member of the corp AND hold the Station_Manager
-// role. The user id comes from the session, never the body.
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     authorize: requireUserId,

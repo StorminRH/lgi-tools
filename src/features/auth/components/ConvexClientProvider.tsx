@@ -39,6 +39,10 @@ function useAuthForConvex() {
   );
 }
 
+/**
+ * Publishes convex client state to descendants; the provider owns subscription and update
+ * lifecycle while children consume it.
+ */
 export function ConvexClientProvider({ children }: { children: React.ReactNode }) {
   // No Convex deployment configured (NEXT_PUBLIC_CONVEX_URL unset) — run the
   // site without the provider; consumers null-check the client themselves.

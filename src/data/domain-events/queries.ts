@@ -17,9 +17,11 @@ async function insertDomainEvent(input: DomainEventInput): Promise<void> {
   }
 }
 
-// Ledger writes are always additive and best-effort. A failed audit insert is
-// observable in runtime logs but can never fail the domain operation it records.
-// Next's request-lifetime primitive keeps the insert alive after a response.
+/**
+ * Ledger writes are always additive and best-effort. A failed audit insert is
+ * observable in runtime logs but can never fail the domain operation it records.
+ * Next's request-lifetime primitive keeps the insert alive after a response.
+ */
 export function emitDomainEvent(input: DomainEventInput): void {
   try {
     after(() => insertDomainEvent(input));
@@ -28,6 +30,7 @@ export function emitDomainEvent(input: DomainEventInput): void {
   }
 }
 
+/** Lists recent privacy-safe domain events newest first within the caller's bounded date range and limit. */
 export async function listRecentDomainEvents(limit: number): Promise<DomainEventRow[]> {
   const rows = await db
     .select()
@@ -39,6 +42,7 @@ export async function listRecentDomainEvents(limit: number): Promise<DomainEvent
   return rows as DomainEventRow[];
 }
 
+/** Deletes domain events older than the retention cutoff and returns the removed row count. */
 export async function pruneDomainEvents(
   database: AnyPgDb,
   retentionDays = DOMAIN_EVENT_RETENTION_DAYS,

@@ -15,6 +15,7 @@ import { jobActivityPill } from '../industry-jobs-styles';
 import { jobProgress } from '../job-state';
 import { activeJobStatusText, formatEndDate, jobRowModel } from '../job-view';
 
+/** Renders active personal jobs with progress and completion timing from normalized job rows. */
 export function IndustryActiveJobs({
   jobs,
   names,

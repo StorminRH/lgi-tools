@@ -9,6 +9,7 @@
 
 import type { PageSettingsSpec } from '@/page-settings/types';
 
+/** Declarative skill-queue controls registered with the shared page-settings system. */
 export const skillsPageSettings = {
   route: '/skills',
   strip: { surfaceId: 'skills' },

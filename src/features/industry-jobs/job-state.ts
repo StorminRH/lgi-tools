@@ -9,11 +9,13 @@
 // functions makes the derivation unit-testable.
 import type { IndustryJob, JobStatus } from './esi-projection';
 
-// The live "ready" derivation: an 'active' job whose end_date has passed is
-// 'ready' regardless of what ESI said. Everything else is returned verbatim —
-// a paused job is not progressing, so a past end_date never completes it.
-// An unparseable end_date stays verbatim. Pure (status, end_date, now), so the
-// client can re-derive it every render-clock tick with no server round-trip.
+/**
+ * The live "ready" derivation: an 'active' job whose end_date has passed is
+ * 'ready' regardless of what ESI said. Everything else is returned verbatim —
+ * a paused job is not progressing, so a past end_date never completes it.
+ * An unparseable end_date stays verbatim. Pure (status, end_date, now), so the
+ * client can re-derive it every render-clock tick with no server round-trip.
+ */
 export function deriveJobStatus(status: JobStatus, endDate: string, nowMs: number): JobStatus {
   if (status !== 'active') return status;
   const end = Date.parse(endDate);
@@ -21,9 +23,11 @@ export function deriveJobStatus(status: JobStatus, endDate: string, nowMs: numbe
   return end <= nowMs ? 'ready' : status;
 }
 
-// Completion of a job, 0–100, for the progress bar. Active interpolates by
-// time; paused freezes at the pause timestamp; ready/delivered are done;
-// cancelled/reverted render no meaningful progress.
+/**
+ * Completion of a job, 0–100, for the progress bar. Active interpolates by
+ * time; paused freezes at the pause timestamp; ready/delivered are done;
+ * cancelled/reverted render no meaningful progress.
+ */
 export function jobProgress(job: IndustryJob, nowMs: number): number {
   if (job.status === 'ready' || job.status === 'delivered') return 100;
   if (job.status === 'cancelled' || job.status === 'reverted') return 0;
@@ -41,6 +45,7 @@ function clampPct(pct: number): number {
   return Math.min(100, Math.max(0, pct));
 }
 
+/** Aggregate industry-job counts and slot usage by activity. */
 export interface JobsSummary {
   total: number;
   readyCount: number;
@@ -50,6 +55,7 @@ export interface JobsSummary {
   nextEndAt: number | null;
 }
 
+/** Counts active, ready, and completed industry jobs and groups slot usage by activity. */
 export function summarizeJobs(jobs: IndustryJob[], nowMs: number): JobsSummary {
   let readyCount = 0;
   let pausedCount = 0;

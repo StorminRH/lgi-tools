@@ -23,6 +23,10 @@ import { isAssetsStale } from './staleness';
 import { canSyncAssets } from './sync-eligibility';
 import type { OwnedAssetsPort } from './types';
 
+/**
+ * Refreshes every eligible personal and corporation asset owner visible to one user and returns
+ * the merged stored projection.
+ */
 export function refreshOwnedAssetsForUser(
   port: OwnedAssetsPort,
   userId: string,

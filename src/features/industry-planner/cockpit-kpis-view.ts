@@ -14,10 +14,12 @@ import {
 import { REACTION_ACTIVITY } from './structure-bonus';
 import type { BlueprintPricing, NetMarginView } from './types';
 
-// The margin tile's derived state: the net figures (net path only), the gross↔net
-// figures the tile shows, the fee-bearing system name for the hover, and the tile
-// label. The net-availability source is activity-matched — a reaction blueprint's
-// fee rides the reaction slot (or a build-slot refinery), not the build location.
+/**
+ * The margin tile's derived state: the net figures (net path only), the gross↔net
+ * figures the tile shows, the fee-bearing system name for the hover, and the tile
+ * label. The net-availability source is activity-matched — a reaction blueprint's
+ * fee rides the reaction slot (or a build-slot refinery), not the build location.
+ */
 export interface CockpitMarginView {
   net: NetMarginView | null;
   netAvailable: boolean;
@@ -29,6 +31,7 @@ export interface CockpitMarginView {
   marginLabel: string;
 }
 
+/** Derives cockpit margin amount, percentage, tone, and confidence from sell and input totals in ISK. */
 export function cockpitMarginView(
   pricing: BlueprintPricing | null,
   activityId: number,
@@ -60,8 +63,10 @@ export function cockpitMarginView(
   };
 }
 
-// The Sell·Jita tile's derived state: the thin-order badge verdict, the regional
-// discount opportunity, whether either badge shows, and the revenue figure.
+/**
+ * The Sell·Jita tile's derived state: the thin-order badge verdict, the regional
+ * discount opportunity, whether either badge shows, and the revenue figure.
+ */
 export interface SellTileView {
   thinAnchor: ReturnType<typeof sellAnchorConfidence>;
   discount: RegionalDiscountCallout | null;
@@ -69,6 +74,7 @@ export interface SellTileView {
   revenue: string;
 }
 
+/** Formats the planner's sell-value KPI from the selected market quote and confidence. */
 export function sellTileView(pricing: BlueprintPricing | null): SellTileView {
   const thinAnchor = pricing ? sellAnchorConfidence(pricing.product) : null;
   const discount = pricing ? regionalDiscountCallout(pricing.product) : null;
@@ -80,13 +86,16 @@ export function sellTileView(pricing: BlueprintPricing | null): SellTileView {
   };
 }
 
-// The Input-cost tile's derived state: both cost bases for the popover, and the
-// active input-cost figure (the summary carries its own basis stamp).
+/**
+ * The Input-cost tile's derived state: both cost bases for the popover, and the
+ * active input-cost figure (the summary carries its own basis stamp).
+ */
 export interface InputCostView {
   bases: { batched: number; marginal: number } | null;
   inputCost: string;
 }
 
+/** Formats the planner's input-cost KPI from raw or built cost basis and confidence. */
 export function inputCostView(pricing: BlueprintPricing | null): InputCostView {
   const summary = pricing?.summary ?? null;
   return {
@@ -95,7 +104,7 @@ export function inputCostView(pricing: BlueprintPricing | null): InputCostView {
   };
 }
 
-// "an 8%/11%/18%/80–89% discount" — the only integers ≤ 100 spoken with a vowel.
+/** "an 8%/11%/18%/80–89% discount" — the only integers ≤ 100 spoken with a vowel. */
 export function indefiniteArticleForPct(pct: number): 'a' | 'an' {
   return pct === 8 || pct === 11 || pct === 18 || (pct >= 80 && pct <= 89) ? 'an' : 'a';
 }

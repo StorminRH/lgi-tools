@@ -57,6 +57,10 @@ function readLocalValues(): Map<string, unknown> {
   return out;
 }
 
+/**
+ * Publishes preferences state to descendants; the provider owns subscription and update lifecycle
+ * while children consume it.
+ */
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const { data, isPending } = authClient.useSession();
   const userId = data?.user?.id ?? null;
@@ -131,15 +135,17 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   return <PreferencesContext.Provider value={ctx}>{children}</PreferencesContext.Provider>;
 }
 
-// Reactive value + setter for one preference. `serverValue` (the server-read
-// cookie value for an ssrReadable key) seeds the first render so it matches the
-// server's HTML — omit it for plain localStorage keys (→ fallback). The setter
-// writes through every active tier.
-//
-// Tolerant of a missing provider (like useLoadingToast): outside one — only ever
-// in isolated unit renders, since the provider wraps the whole app in the root
-// layout — it returns the serverValue/fallback and a no-op setter, so a component
-// can be rendered standalone without a provider/auth client.
+/**
+ * Reactive value + setter for one preference. `serverValue` (the server-read
+ * cookie value for an ssrReadable key) seeds the first render so it matches the
+ * server's HTML — omit it for plain localStorage keys (→ fallback). The setter
+ * writes through every active tier.
+ *
+ * Tolerant of a missing provider (like useLoadingToast): outside one — only ever
+ * in isolated unit renders, since the provider wraps the whole app in the root
+ * layout — it returns the serverValue/fallback and a no-op setter, so a component
+ * can be rendered standalone without a provider/auth client.
+ */
 export function usePreference<T>(
   def: PreferenceDef<T>,
   opts?: { serverValue?: T },
@@ -160,9 +166,11 @@ export function usePreference<T>(
   return [value, setValue] as const;
 }
 
-// Whether the authoritative tier has settled. Consumers that re-fetch on a saved
-// value (the planner) gate on this so they restore the server value, not the
-// optimistic localStorage one. False outside a provider.
+/**
+ * Whether the authoritative tier has settled. Consumers that re-fetch on a saved
+ * value (the planner) gate on this so they restore the server value, not the
+ * optimistic localStorage one. False outside a provider.
+ */
 export function usePreferencesReady(): boolean {
   return useContext(PreferencesContext)?.ready ?? false;
 }

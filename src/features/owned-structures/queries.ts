@@ -14,7 +14,7 @@ import type { ParsedCorpStructure } from './esi-projection';
 import { corpStructureRigs, corpStructures, corpStructureSharing, corpStructureSyncs } from './schema';
 import type { CorpStructureRow, CorpStructureSharingState, CorpStructuresSyncState } from './types';
 
-// One cache tag per corp so a refresh busts exactly that corp's cached read.
+/** One cache tag per corp so a refresh busts exactly that corp's cached read. */
 export function corpStructuresTag(corporationId: number): string {
   return `corp-structures:${corporationId}`;
 }
@@ -39,10 +39,12 @@ async function getCorpStructureRows(corporationId: number): Promise<CorpStructur
     .where(eq(corpStructures.corporationId, corporationId));
 }
 
-// The owned structures for each given corp (the caller resolves which corps the
-// viewer may see — via the 3.7.3 corp-access membership gate — and passes them in,
-// since owner resolution needs auth a feature slice may not import). Composes the
-// cached per-corp reads into one corp-keyed map.
+/**
+ * The owned structures for each given corp (the caller resolves which corps the
+ * viewer may see — via the 3.7.3 corp-access membership gate — and passes them in,
+ * since owner resolution needs auth a feature slice may not import). Composes the
+ * cached per-corp reads into one corp-keyed map.
+ */
 export async function getCorpStructures(
   corporationIds: number[],
 ): Promise<Map<number, CorpStructureRow[]>> {
@@ -52,8 +54,10 @@ export async function getCorpStructures(
   return new Map(perCorp);
 }
 
-// Live (uncached) sync state for the staleness gate + etag replay. Uncached on
-// purpose: the refresh needs the true last-refreshed time, not a cached view.
+/**
+ * Live (uncached) sync state for the staleness gate + etag replay. Uncached on
+ * purpose: the refresh needs the true last-refreshed time, not a cached view.
+ */
 export async function readCorpStructureSyncState(
   corporationId: number,
 ): Promise<CorpStructuresSyncState | null> {
@@ -66,8 +70,10 @@ export async function readCorpStructureSyncState(
   return row ? { lastRefreshedAt: row.lastRefreshedAt, pageEtags: row.pageEtags } : null;
 }
 
-// The freshness "as of" per corp for the read seam (which corps render + when each
-// was last synced). Uncached — the read seam wants the true stamp.
+/**
+ * The freshness "as of" per corp for the read seam (which corps render + when each
+ * was last synced). Uncached — the read seam wants the true stamp.
+ */
 export async function listCorpStructureSyncStates(
   corporationIds: number[],
 ): Promise<{ corporationId: number; lastRefreshedAt: Date }[]> {
@@ -104,10 +110,12 @@ async function deriveSecurityClasses(
   return result;
 }
 
-// Replace-all write-behind. Sequential (no transaction — the request path runs on
-// the neon-http driver, which has none): derive the bands, delete the corp's rows,
-// insert the fresh set, then stamp the sync row LAST. Stamping last means a partial
-// failure leaves the corp stale, so the next view simply refetches (self-healing).
+/**
+ * Replace-all write-behind. Sequential (no transaction — the request path runs on
+ * the neon-http driver, which has none): derive the bands, delete the corp's rows,
+ * insert the fresh set, then stamp the sync row LAST. Stamping last means a partial
+ * failure leaves the corp stale, so the next view simply refetches (self-healing).
+ */
 export async function saveCorpStructures(
   corporationId: number,
   rows: ParsedCorpStructure[],
@@ -144,9 +152,11 @@ export async function saveCorpStructures(
   revalidateTag(corpStructuresTag(corporationId), 'max');
 }
 
-// The 304 path: bump freshness only, leaving stored rows + held etags untouched
-// (the data is unchanged, so no revalidate). The sync row always exists here — a
-// 304 can only follow a prior fresh save that stored the replayed etags.
+/**
+ * The 304 path: bump freshness only, leaving stored rows + held etags untouched
+ * (the data is unchanged, so no revalidate). The sync row always exists here — a
+ * 304 can only follow a prior fresh save that stored the replayed etags.
+ */
 export async function stampCorpStructuresFresh(corporationId: number): Promise<void> {
   await db
     .update(corpStructureSyncs)
@@ -156,8 +166,10 @@ export async function stampCorpStructuresFresh(corporationId: number): Promise<v
 
 // ── Sharing consent (the app-authored system-of-record) ──────────────────────────
 
-// Whether a corp has opted in to sharing. Default OFF: no row ⇒ false. Read by the
-// engine's precondition (before any vend) AND the read-side filter (below).
+/**
+ * Whether a corp has opted in to sharing. Default OFF: no row ⇒ false. Read by the
+ * engine's precondition (before any vend) AND the read-side filter (below).
+ */
 export async function isCorpStructureSharingEnabled(corporationId: number): Promise<boolean> {
   const rows = await db
     .select({ enabled: corpStructureSharing.enabled })
@@ -167,8 +179,10 @@ export async function isCorpStructureSharingEnabled(corporationId: number): Prom
   return rows[0]?.enabled ?? false;
 }
 
-// The sharing state for a set of corps (the structures page reads all member corps'
-// state at once). A corp with no row defaults to disabled.
+/**
+ * The sharing state for a set of corps (the structures page reads all member corps'
+ * state at once). A corp with no row defaults to disabled.
+ */
 export async function readCorpStructureSharings(
   corporationIds: number[],
 ): Promise<Map<number, CorpStructureSharingState>> {
@@ -185,14 +199,16 @@ export async function readCorpStructureSharings(
   return new Map(rows.map((r) => [r.corporationId, { enabled: r.enabled, setBy: r.setBy, setAt: r.setAt }]));
 }
 
-// Flip a corp's sharing consent. ENABLE just upserts enabled=true — the next member
-// view re-pulls cold (the precondition now passes and the wiped sync row makes the
-// catalogue stale). DISABLE wipes: flip enabled=false FIRST (so the precondition + the
-// read filter + the save re-check all fail closed immediately), THEN delete the corp's
-// regenerable rows + sync state + authored rigs, THEN bust the cached read. Sequential,
-// not transactional — the request path is the neon-http driver, which has none (the
-// saveCorpStructures precedent); flip-consent-first makes the deletes idempotent
-// cleanup, and the read-side consent filter hides any residue from a partial wipe.
+/**
+ * Flip a corp's sharing consent. ENABLE just upserts enabled=true — the next member
+ * view re-pulls cold (the precondition now passes and the wiped sync row makes the
+ * catalogue stale). DISABLE wipes: flip enabled=false FIRST (so the precondition + the
+ * read filter + the save re-check all fail closed immediately), THEN delete the corp's
+ * regenerable rows + sync state + authored rigs, THEN bust the cached read. Sequential,
+ * not transactional — the request path is the neon-http driver, which has none (the
+ * saveCorpStructures precedent); flip-consent-first makes the deletes idempotent
+ * cleanup, and the read-side consent filter hides any residue from a partial wipe.
+ */
 export async function setCorpStructureSharing(
   corporationId: number,
   enabled: boolean,
@@ -215,14 +231,17 @@ export async function setCorpStructureSharing(
 
 // ── Authored completions (app-authored; survive the full-replace pull) ────────────
 
-// The authored completion (rig fit + facility tax) for a set of corps, keyed by
-// structureId (globally unique in EVE, so no cross-corp collision). A structure with
-// no row contributes no rigs and no tax (the fee path then assumes the NPC baseline).
+/**
+ * The authored completion (rig fit + facility tax) for a set of corps, keyed by
+ * structureId (globally unique in EVE, so no cross-corp collision). A structure with
+ * no row contributes no rigs and no tax (the fee path then assumes the NPC baseline).
+ */
 export interface CorpStructureCompletion {
   rigTypeIds: number[];
   taxPct: number | null;
 }
 
+/** Loads fitted rig type IDs for the requested corporation structures in one batched query. */
 export async function getCorpStructureRigs(
   corporationIds: number[],
 ): Promise<Map<number, CorpStructureCompletion>> {
@@ -238,11 +257,13 @@ export async function getCorpStructureRigs(
   return new Map(rows.map((r) => [r.structureId, { rigTypeIds: r.rigTypeIds, taxPct: r.taxPct }]));
 }
 
-// Record one structure's authored completion (the Station_Manager's input — ESI
-// exposes neither the rigs nor the profile tax). Untouched by the full-replace pull
-// (saveCorpStructures never references this table), so the authored values survive
-// the hourly refresh. `taxPct` is tri-state: undefined leaves the stored tax as-is
-// (a rig-only save can't clobber it), null clears it, a number sets it.
+/**
+ * Record one structure's authored completion (the Station_Manager's input — ESI
+ * exposes neither the rigs nor the profile tax). Untouched by the full-replace pull
+ * (saveCorpStructures never references this table), so the authored values survive
+ * the hourly refresh. `taxPct` is tri-state: undefined leaves the stored tax as-is
+ * (a rig-only save can't clobber it), null clears it, a number sets it.
+ */
 export async function upsertCorpStructureRigs(
   corporationId: number,
   structureId: number,

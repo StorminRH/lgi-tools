@@ -5,6 +5,7 @@ import { fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
 
+/** Market-price refresh outcome containing persisted row counts grouped by canonical source. */
 export interface RefreshSummary {
   requested: number;
   fetched: number;
@@ -24,6 +25,10 @@ function excluded(column: string) {
   return sql.raw(`excluded.${column}`);
 }
 
+/**
+ * Refreshes canonical market prices for the selected type IDs, falling back by source policy and
+ * returning per-source row counts.
+ */
 export async function refreshPrices(
   db: AnyPgDb,
   typeIds: number[],
@@ -43,12 +48,14 @@ export async function refreshPrices(
   return persistPrices(db, raw, { requested: typeIds.length, budgetExhausted });
 }
 
-// Upsert already-fetched price rows and summarize them. Split out from
-// refreshPrices so the refresh-on-view engine can persist rows it already has
-// from the short-term coalescing cache (write-behind) without re-fetching the
-// source. `requested` defaults to the row count (the on-view caller persists
-// exactly what it fetched); `budgetExhausted` is the one degradation fact the
-// rows themselves don't carry, threaded through from the source fetch.
+/**
+ * Upsert already-fetched price rows and summarize them. Split out from
+ * refreshPrices so the refresh-on-view engine can persist rows it already has
+ * from the short-term coalescing cache (write-behind) without re-fetching the
+ * source. `requested` defaults to the row count (the on-view caller persists
+ * exactly what it fetched); `budgetExhausted` is the one degradation fact the
+ * rows themselves don't carry, threaded through from the source fetch.
+ */
 export async function persistPrices(
   db: AnyPgDb,
   raw: RawMarketPrice[],

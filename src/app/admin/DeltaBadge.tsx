@@ -1,10 +1,12 @@
 import { deriveDeltaBadge } from './delta-badge-view';
 import type { Delta } from './period';
 
-// The period-over-period delta badge, shared by the MetricTable rows and the
-// GSC small-multiples headers. Delta colours are the one place (besides the
-// status strip) where green/red appear — the charts themselves stay on the
-// single blue accent. Pass `invert` for metrics where lower is better.
+/**
+ * The period-over-period delta badge, shared by the MetricTable rows and the
+ * GSC small-multiples headers. Delta colours are the one place (besides the
+ * status strip) where green/red appear — the charts themselves stay on the
+ * single blue accent. Pass `invert` for metrics where lower is better.
+ */
 export function DeltaBadge({ delta, invert = false }: { delta: Delta; invert?: boolean }) {
   const view = deriveDeltaBadge(delta, invert);
   if (view.kind === 'new') {

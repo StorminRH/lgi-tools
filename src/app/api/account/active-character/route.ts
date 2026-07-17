@@ -7,10 +7,12 @@ import { requireSession } from '@/features/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseFormBody } from '@/lib/route-body';
 
-// POST-only. Sets the signed-in pilot's active character. Any authenticated user
-// may switch among THEIR OWN linked characters — the ownership check is the real
-// guard (a crafted POST can name any id; the UI-level row is just convenience).
-// Mirrors /api/admin/role: Zod-validated form, fire-and-forget telemetry, 303.
+/**
+ * POST-only. Sets the signed-in pilot's active character. Any authenticated user
+ * may switch among THEIR OWN linked characters — the ownership check is the real
+ * guard (a crafted POST can name any id; the UI-level row is just convenience).
+ * Mirrors /api/admin/role: Zod-validated form, fire-and-forget telemetry, 303.
+ */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected

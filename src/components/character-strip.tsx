@@ -37,6 +37,10 @@ const portraitButton = cva(
   },
 );
 
+/**
+ * Renders selectable character portraits with online status and optional selection control;
+ * callers own the selected character identifier.
+ */
 export function CharacterStrip({
   characters,
   dimmedIds,

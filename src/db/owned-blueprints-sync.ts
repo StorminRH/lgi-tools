@@ -44,12 +44,14 @@ function makeOwnedBlueprintsPort(): OwnedBlueprintsPort {
   };
 }
 
-// The on-view seam: resolve the owned-BP detail for the requested blueprint types
-// immediately, and fire a stale-gated write-behind refresh behind the response. A
-// re-view inside the 1h window makes no blueprint ESI call (the refresh's per-owner
-// staleness gate is the dedup). Owner + NPC-station names are resolved server-side
-// in ONE bounded /universe/names pass (day-cached, shared across viewers); player
-// structures degrade to a generic label — no read_structures scope is taken.
+/**
+ * The on-view seam: resolve the owned-BP detail for the requested blueprint types
+ * immediately, and fire a stale-gated write-behind refresh behind the response. A
+ * re-view inside the 1h window makes no blueprint ESI call (the refresh's per-owner
+ * staleness gate is the dedup). Owner + NPC-station names are resolved server-side
+ * in ONE bounded /universe/names pass (day-cached, shared across viewers); player
+ * structures degrade to a generic label — no read_structures scope is taken.
+ */
 export async function getOwnedBlueprintDetailOnView(
   userId: string,
   requestedTypeIds: number[],
@@ -67,6 +69,10 @@ export async function getOwnedBlueprintDetailOnView(
   return buildOwnedDetail(map, requestedTypeIds, names, formatStationName);
 }
 
+/**
+ * Refreshes owned blueprints for one character through the shared owner-sync pipeline and returns
+ * the normalized source outcome.
+ */
 export async function runOwnedBlueprintsRefreshJob(
   userId: string,
   target: OwnerSyncTarget,

@@ -238,6 +238,10 @@ const options = {
   ],
 } satisfies BetterAuthOptions;
 
+/**
+ * Server Better Auth instance owning EVE OAuth, encrypted application token custody, sessions, and
+ * account hooks.
+ */
 export const auth = betterAuth({
   ...options,
   plugins: [

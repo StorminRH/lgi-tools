@@ -17,6 +17,10 @@ import { accountBelongsToUser } from '@/features/auth/linked-characters';
 import { parseJsonBody } from '@/lib/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';
 
+/**
+ * Handles POST requests for /api/internal/eve-token; this route owns its authorization, boundary
+ * validation, and typed response mapping.
+ */
 export async function POST(req: Request): Promise<Response> {
   const denied = await requireServiceAuth(req);
   if (denied) return denied;

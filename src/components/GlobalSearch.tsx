@@ -38,6 +38,10 @@ type Props = {
 
 const DEBOUNCE_MS = 120;
 
+/**
+ * Renders the controlled global-search overlay, debounces queries by 120 milliseconds, and returns
+ * navigation choices without owning route changes.
+ */
 export function GlobalSearch({ active, onActiveChange, siteIndex }: Props) {
   const { session, isAdmin } = useAuth();
   const router = useRouter();

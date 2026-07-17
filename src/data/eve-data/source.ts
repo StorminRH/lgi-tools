@@ -73,11 +73,13 @@ const SDE_JSONL_NAMES: readonly SdeJsonlName[] = [
   'stationServices',
 ] as const;
 
-// The download interface 3.3.2b inherits: a map of name → on-disk path of the
-// extracted `.jsonl` file. Each file is one JSON object per line; the `_key`
-// field is the entity id (typeID/groupID/…), and `types.jsonl`'s `name` is a
-// localized object (`{en, de, …}`), NOT a flat string. `types.jsonl` is the
-// large one (~149 MB / 52k lines) — read it line-by-line, never whole.
+/**
+ * The download interface 3.3.2b inherits: a map of name → on-disk path of the
+ * extracted `.jsonl` file. Each file is one JSON object per line; the `_key`
+ * field is the entity id (typeID/groupID/…), and `types.jsonl`'s `name` is a
+ * localized object (`{en, de, …}`), NOT a flat string. `types.jsonl` is the
+ * large one (~149 MB / 52k lines) — read it line-by-line, never whole.
+ */
 export type SdeJsonlPaths = Record<SdeJsonlName, string>;
 
 const JSONL_CACHE_DIR = join(tmpdir(), 'lgi-sde-jsonl');
@@ -199,10 +201,12 @@ async function extractEntries(
   });
 }
 
-// Download CCP's latest SDE JSONL zip and extract the files the ingest
-// layer needs, returning their on-disk paths. Idempotent within a run: if all
-// are already cached (warm /tmp), reuses them; callers run cleanupSdeJsonl
-// after ingest so a later drift-triggered run re-downloads fresh.
+/**
+ * Download CCP's latest SDE JSONL zip and extract the files the ingest
+ * layer needs, returning their on-disk paths. Idempotent within a run: if all
+ * are already cached (warm /tmp), reuses them; callers run cleanupSdeJsonl
+ * after ingest so a later drift-triggered run re-downloads fresh.
+ */
 export async function downloadSdeJsonl(): Promise<SdeJsonlPaths> {
   await mkdir(JSONL_CACHE_DIR, { recursive: true });
   const paths = Object.fromEntries(
@@ -222,6 +226,7 @@ export async function downloadSdeJsonl(): Promise<SdeJsonlPaths> {
   return paths;
 }
 
+/** Deletes downloaded temporary SDE JSONL files after ingest; missing files are ignored. */
 export async function cleanupSdeJsonl(paths: SdeJsonlPaths): Promise<void> {
   await Promise.all(
     Object.values(paths).map((p) => unlink(p).catch(() => undefined)),
@@ -236,9 +241,11 @@ const sdeBuildRecord = z.object({
   buildNumber: z.number(),
 });
 
-// Pure, testable: find the `sde` record in a JSONL manifest body and return its
-// build number as a string, or null if absent/malformed. Validates at the
-// boundary (the body is an external response) rather than casting.
+/**
+ * Pure, testable: find the `sde` record in a JSONL manifest body and return its
+ * build number as a string, or null if absent/malformed. Validates at the
+ * boundary (the body is an external response) rather than casting.
+ */
 export function parseSdeBuildNumber(body: string): string | null {
   for (const line of body.split('\n')) {
     const trimmed = line.trim();
@@ -255,11 +262,13 @@ export function parseSdeBuildNumber(body: string): string | null {
   return null;
 }
 
-// Drift probe: GET the 80-byte manifest and return CCP's current build number.
-// The daily cron + the build-time gate compare this against the stored
-// `sde_version`. Returns null when the request fails or the body is malformed —
-// callers treat null as "version unknown, assume no drift" rather than as a hard
-// error, so a transient CCP outage never blocks a deploy.
+/**
+ * Drift probe: GET the 80-byte manifest and return CCP's current build number.
+ * The daily cron + the build-time gate compare this against the stored
+ * `sde_version`. Returns null when the request fails or the body is malformed —
+ * callers treat null as "version unknown, assume no drift" rather than as a hard
+ * error, so a transient CCP outage never blocks a deploy.
+ */
 export async function getRemoteSdeVersion(): Promise<string | null> {
   try {
     const res = await fetchWithTimeout(CCP_SDE_LATEST_MANIFEST_URL, {
@@ -310,6 +319,7 @@ const SDE_DUMPS: readonly SdeDumpName[] = [
   'industryActivityProducts',
 ] as const;
 
+/** Temporary local JSONL paths for every downloaded SDE source required by ingest. */
 export type SdeDumpPaths = Record<SdeDumpName, string>;
 
 const CACHE_DIR = join(tmpdir(), 'lgi-sde');
@@ -340,6 +350,10 @@ async function downloadOne(name: SdeDumpName): Promise<string> {
   return dest;
 }
 
+/**
+ * Downloads and expands the required SDE datasets into temporary JSONL paths, replacing any prior
+ * incomplete files.
+ */
 export async function downloadDumps(): Promise<SdeDumpPaths> {
   await mkdir(CACHE_DIR, { recursive: true });
   const entries = await Promise.all(

@@ -6,6 +6,10 @@ import { APP_VERSION } from '@/config/app-version';
 import { toChangelogDocuments, toChangelogNavModel } from '@/features/changelog/browser';
 import { loadChangelog } from '@/features/changelog/load';
 
+/**
+ * Renders the /changelog route surface and owns its page-level composition, metadata boundary, and
+ * fallback presentation.
+ */
 export default async function ChangelogLayout({ children }: { children: ReactNode }) {
   const model = toChangelogNavModel(toChangelogDocuments(await loadChangelog()));
   return (

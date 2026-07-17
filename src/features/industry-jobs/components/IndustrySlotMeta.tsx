@@ -19,6 +19,7 @@ import { useCorpJobsLive } from '../use-corp-jobs-live';
 import { useJobsLive } from '../use-jobs-live';
 import { useSlotsLive } from '../use-slots-live';
 
+/** Renders used industry slots by activity from the viewer-visible personal and corporation jobs. */
 export function IndustrySlotMeta({
   characterIds,
   corpEligibleCharacterIds,

@@ -9,6 +9,7 @@ interface SiteSocialCardContent {
   valueCaption: string;
 }
 
+/** Derives social-card title, classification, resource summary, and NPC count from one site detail. */
 export function deriveSiteSocialCardContent(site: SiteDetail): SiteSocialCardContent {
   const { typeLabel, classLabel } = deriveSiteMeta(site);
   const isResourceSite = site.siteType === 'ore' || site.siteType === 'gas';

@@ -25,12 +25,14 @@ import type {
   OwnedComponentDetail,
 } from '../types';
 
-// A picked build SYSTEM, client-only state (carries a Map, so it never crosses
-// the wire). Built by the build-location selector from the chosen system + the
-// /api/industry/build-location read. The fee math reads only `adjustedPrices` +
-// `costIndices`, so this object changes only when the SYSTEM changes — the
-// per-station refinement lives in separate `station` state below, so picking a
-// station never churns this object (and never triggers a recompute).
+/**
+ * A picked build SYSTEM, client-only state (carries a Map, so it never crosses
+ * the wire). Built by the build-location selector from the chosen system + the
+ * /api/industry/build-location read. The fee math reads only `adjustedPrices` +
+ * `costIndices`, so this object changes only when the SYSTEM changes — the
+ * per-station refinement lives in separate `station` state below, so picking a
+ * station never churns this object (and never triggers a recompute).
+ */
 export interface SelectedLocation {
   systemId: number;
   systemName: string;
@@ -41,28 +43,33 @@ export interface SelectedLocation {
   adjustedPrices: Map<number, number>;
 }
 
-// The optional per-station refinement — display + future-score only; the fee
-// math is system-driven (flat NPC facility tax, per-system cost index), so the
-// station choice never changes the numbers in v1. Separate from SelectedLocation
-// so a station pick doesn't re-derive the pricing.
+/**
+ * The optional per-station refinement — display + future-score only; the fee
+ * math is system-driven (flat NPC facility tax, per-system cost index), so the
+ * station choice never changes the numbers in v1. Separate from SelectedLocation
+ * so a station pick doesn't re-derive the pricing.
+ */
 export interface SelectedStation {
   id: number;
   name: string;
 }
 
-// Group B's own build system (3.7.12.2) — the reaction gap-filler refinery's system.
-// It scales B's reaction rigs AND, for a REACTION blueprint, keys the reaction
-// build-location fetch (3.7.13.3 — the #187 dead seam, live): the top reaction job
-// fees against THIS system's 'reaction' cost index, held in the provider's separate
-// `reactionLocation` state. A corp refinery deduce-locks this from its home system;
-// a custom refinery picks it. Kept apart from `location` (A's system) so the two are
-// independent.
+/**
+ * Group B's own build system (3.7.12.2) — the reaction gap-filler refinery's system.
+ * It scales B's reaction rigs AND, for a REACTION blueprint, keys the reaction
+ * build-location fetch (3.7.13.3 — the #187 dead seam, live): the top reaction job
+ * fees against THIS system's 'reaction' cost index, held in the provider's separate
+ * `reactionLocation` state. A corp refinery deduce-locks this from its home system;
+ * a custom refinery picks it. Kept apart from `location` (A's system) so the two are
+ * independent.
+ */
 export interface SelectedReactionSystem {
   systemId: number;
   systemName: string;
   security: number | null;
 }
 
+/** Market-data concern context containing quotes, history, confidence, and refresh state only. */
 export interface MarketDataValue {
   pricing: BlueprintPricing | null;
   // True once the streamed price read has settled — distinguishes "still
@@ -80,6 +87,7 @@ export interface MarketDataValue {
   marketScore: MarketScore;
 }
 
+/** Planner-configuration concern context containing cost basis, hub, multibuy, and display preferences. */
 export interface PlannerConfigValue {
   // Runs of the top product to build (default 1). Scales the cost basis, output
   // units, and the EIV base. 3.5.3b's market score reads this from here.
@@ -105,6 +113,7 @@ export interface PlannerConfigValue {
   setMultibuyUncheckedTiers: (tiers: ReadonlySet<number>) => void;
 }
 
+/** Build-setup concern context containing structure, rig, tax, ME, and TE choices. */
 export interface BuildSetupValue {
   // The picked build system (null = gross-only). 3.5.3b reads this from here.
   location: SelectedLocation | null;
@@ -159,6 +168,7 @@ export interface BuildSetupValue {
   reactionNetAvailable: boolean;
 }
 
+/** Build-character concern context containing selected character, skills, blueprints, and owned assets. */
 export interface BuildCharacterValue {
   // The BUILD CHARACTER (ACCOUNT.8) — the compute identity Phase 3's levers
   // read. The skills→time lever (3.7.19.1) is live: the character's trained
@@ -191,6 +201,7 @@ export interface BuildCharacterValue {
   skillTimeFactors: SkillTimeFactors;
 }
 
+/** Build-plan concern context containing resolved tree, node overrides, totals, and template application. */
 export interface BuildPlanValue {
   // The caller's owned-blueprint ME, keyed by blueprint type id (best owned copy
   // per type). null until the owned-blueprints read settles; empty for a
@@ -254,34 +265,60 @@ function usePlannerContext<T>(
   return value;
 }
 
+/**
+ * Encapsulates the market data subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useMarketData(): MarketDataValue {
   return usePlannerContext(MarketDataContext, 'useMarketData');
 }
 
+/**
+ * Encapsulates the planner config subscription and state lifecycle; callers provide lookup keys
+ * where required and render the returned state.
+ */
 export function usePlannerConfig(): PlannerConfigValue {
   return usePlannerContext(PlannerConfigContext, 'usePlannerConfig');
 }
 
+/**
+ * Encapsulates the build setup subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useBuildSetup(): BuildSetupValue {
   return usePlannerContext(BuildSetupContext, 'useBuildSetup');
 }
 
+/**
+ * Encapsulates the build character subscription and state lifecycle; callers provide lookup keys
+ * where required and render the returned state.
+ */
 export function useBuildCharacter(): BuildCharacterValue {
   return usePlannerContext(BuildCharacterContext, 'useBuildCharacter');
 }
 
+/**
+ * Encapsulates the build plan subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useBuildPlan(): BuildPlanValue {
   return usePlannerContext(BuildPlanContext, 'useBuildPlan');
 }
 
-// Saved templates intentionally compose every configurable concern except
-// market data. This is their one sanctioned slice-internal aggregate, not a
-// general planner façade.
+/**
+ * Saved templates intentionally compose every configurable concern except
+ * market data. This is their one sanctioned slice-internal aggregate, not a
+ * general planner façade.
+ */
 export type TemplatePlannerState = PlannerConfigValue &
   BuildSetupValue &
   BuildCharacterValue &
   BuildPlanValue;
 
+/**
+ * Encapsulates the template planner subscription and state lifecycle; callers provide lookup keys
+ * where required and render the returned state.
+ */
 export function useTemplatePlanner(): TemplatePlannerState {
   const plannerConfig = usePlannerConfig();
   const buildSetup = useBuildSetup();
@@ -298,8 +335,10 @@ export function useTemplatePlanner(): TemplatePlannerState {
   );
 }
 
-// The context taxonomy and nesting live together so PricingProvider supplies one
-// source of truth while consumers can only subscribe through concern-sized hooks.
+/**
+ * The context taxonomy and nesting live together so PricingProvider supplies one
+ * source of truth while consumers can only subscribe through concern-sized hooks.
+ */
 export function PlannerContextProviders({
   marketData,
   plannerConfig,

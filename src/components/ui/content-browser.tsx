@@ -6,6 +6,10 @@ import type { ContentNavModel } from './content-browser-view';
 export type { ContentNavGroup, ContentNavItem, ContentNavModel } from './content-browser-view';
 export { landingContentSlug } from './content-browser-view';
 
+/**
+ * Renders the domain-neutral content browser with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function ContentBrowser({
   basePath,
   railLabel,

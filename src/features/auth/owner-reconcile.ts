@@ -6,6 +6,7 @@
 // testable on its own — the DB orchestration that acts on the verdict lives in
 // owner-transfer.ts (reconcileCharacterOwner).
 
+/** Closed action required when an EVE character's provider owner differs from stored custody. */
 export type OwnerReconcileAction =
   // The common re-login: stored hash matches the JWT (same owner) — do nothing.
   | 'noop'
@@ -17,11 +18,13 @@ export type OwnerReconcileAction =
   // character. Purge the prior owner's footprint and force a fresh re-consent.
   | 'purge';
 
-// `jwtOwnerHash` is the `owner` claim off the verified JWT (optional — EVE should
-// always send it for a CHARACTER token, but treat its absence as "no information":
-// never act). `storedHash` is the value on the account row (NULL on legacy/fresh
-// rows). An empty string is treated like NULL (defensive — never a false purge on
-// an empty stored value).
+/**
+ * `jwtOwnerHash` is the `owner` claim off the verified JWT (optional — EVE should
+ * always send it for a CHARACTER token, but treat its absence as "no information":
+ * never act). `storedHash` is the value on the account row (NULL on legacy/fresh
+ * rows). An empty string is treated like NULL (defensive — never a false purge on
+ * an empty stored value).
+ */
 export function classifyOwnerReconcile(
   storedHash: string | null,
   jwtOwnerHash: string | null | undefined,

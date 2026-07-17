@@ -9,11 +9,13 @@
 // Entry keys stay snake_case: they are ESI's truth, stored verbatim.
 import { z } from 'zod';
 
-// GET /characters/{id}/skillqueue — only queue_position, skill_id, and
-// finished_level are required; the dates and SP fields are all absent when
-// the queue is paused.
-// Exported so the API contract (api-contract.ts) builds the wire response schema off
-// the same entry shape the projection produces — one source of truth for an entry.
+/**
+ * GET /characters/\{id\}/skillqueue — only queue_position, skill_id, and
+ * finished_level are required; the dates and SP fields are all absent when
+ * the queue is paused.
+ * Exported so the API contract (api-contract.ts) builds the wire response schema off
+ * the same entry shape the projection produces — one source of truth for an entry.
+ */
 export const skillQueueEntrySchema = z.object({
   skill_id: z.number().int(),
   queue_position: z.number().int(),
@@ -26,6 +28,7 @@ export const skillQueueEntrySchema = z.object({
 });
 const skillQueueBodySchema = z.array(skillQueueEntrySchema);
 
+/** One queued skill level with absolute start and finish timestamps and training position. */
 export type SkillQueueEntry = z.infer<typeof skillQueueEntrySchema>;
 
 // GET /characters/{id}/skills — headline totals plus the per-skill trained
@@ -45,6 +48,7 @@ const skillsBodySchema = z.object({
   ),
 });
 
+/** Character skill totals containing learned skill points and known skill count. */
 export interface SkillTotals {
   totalSp: number;
   unallocatedSp?: number;
@@ -56,6 +60,7 @@ export interface SkillTotals {
 // contract error for that character rather than retrying (a shape change
 // won't fix itself) or crashing the whole run.
 
+/** Validates and normalizes the ESI skill-queue payload into ordered entries with absolute timestamps. */
 export function parseSkillQueueBody(body: unknown): SkillQueueEntry[] | null {
   const parsed = skillQueueBodySchema.safeParse(body);
   if (!parsed.success) return null;
@@ -63,6 +68,7 @@ export function parseSkillQueueBody(body: unknown): SkillQueueEntry[] | null {
   return [...parsed.data].sort((a, b) => a.queue_position - b.queue_position);
 }
 
+/** Validates and normalizes the ESI character-skills payload into levels and totals. */
 export function parseSkillsBody(body: unknown): SkillTotals | null {
   const parsed = skillsBodySchema.safeParse(body);
   if (!parsed.success) return null;

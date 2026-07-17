@@ -16,6 +16,10 @@ const COOKIE_PREFIX = 'lgi_pref_';
 // Functional preference cookie — first-party, ~1 year, no PII.
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
+/**
+ * Authoritative preference definition pairing key, default value, storage scope, and optional
+ * server-readable cookie.
+ */
 export interface PreferenceDef<T> {
   // The canonical key: the server KV `key` column, the API enum value, and the
   // stem for the localStorage key + cookie name. Stable; never reuse for a
@@ -42,8 +46,10 @@ function define<T>(
 
 // ── Registry — adding an autosaved setting is ONE entry here ──
 
-// /sites cards↔table view. ssrReadable so the streamed shell renders the saved
-// view server-side (cookie) and there's no cards→table flip on reload.
+/**
+ * /sites cards↔table view. ssrReadable so the streamed shell renders the saved
+ * view server-side (cookie) and there's no cards→table flip on reload.
+ */
 export const sitesView = define<'cards' | 'table'>(
   'sites.view',
   z.enum(['cards', 'table']),
@@ -51,9 +57,11 @@ export const sitesView = define<'cards' | 'table'>(
   true,
 );
 
-// The planner's picked build SYSTEM — only the identifier is persisted; the live
-// stations/indices/adjusted-prices are re-fetched on restore (so NOT ssrReadable,
-// there's no static value to render). null = no pick (gross-only).
+/**
+ * The planner's picked build SYSTEM — only the identifier is persisted; the live
+ * stations/indices/adjusted-prices are re-fetched on restore (so NOT ssrReadable,
+ * there's no static value to render). null = no pick (gross-only).
+ */
 export const plannerBuildLocation = define<{
   systemId: number;
   systemName: string;
@@ -70,14 +78,16 @@ export const plannerBuildLocation = define<{
   null,
 );
 
-// The planner's BUILD CHARACTER — the compute identity Phase 3's levers
-// (skills→time, standings→cost) will read (ACCOUNT.8). null = unset ⇒ the Run-As
-// frame mirrors the live active character; picking "Default" stores null again
-// (store-explicit-only), so the mirror keeps following whoever is active. The id
-// is validated against the linked-character roster client-side — an id no longer
-// on the account fails open to the mirror, never rendered. ssrReadable: the frame
-// renders on initial load, so the cookie keeps a hard reload from flashing the
-// active character while the server GET resolves (the strip criterion).
+/**
+ * The planner's BUILD CHARACTER — the compute identity Phase 3's levers
+ * (skills→time, standings→cost) will read (ACCOUNT.8). null = unset ⇒ the Run-As
+ * frame mirrors the live active character; picking "Default" stores null again
+ * (store-explicit-only), so the mirror keeps following whoever is active. The id
+ * is validated against the linked-character roster client-side — an id no longer
+ * on the account fails open to the mirror, never rendered. ssrReadable: the frame
+ * renders on initial load, so the cookie keeps a hard reload from flashing the
+ * active character while the server GET resolves (the strip criterion).
+ */
 export const plannerBuildCharacter = define<number | null>(
   'planner.buildCharacterId',
   z.number().int().positive().nullable(),
@@ -85,21 +95,25 @@ export const plannerBuildCharacter = define<number | null>(
   true,
 );
 
-// /sites cards: the in-place downward expand vs the centred lightbox overlay.
-// NOT ssrReadable — it only changes post-click expand behaviour, never the
-// initial render, so there's no first-paint to keep in sync (no hydration flash).
+/**
+ * /sites cards: the in-place downward expand vs the centred lightbox overlay.
+ * NOT ssrReadable — it only changes post-click expand behaviour, never the
+ * initial render, so there's no first-paint to keep in sync (no hydration flash).
+ */
 export const sitesDetailMode = define<'lightbox' | 'expand'>(
   'sites.detailMode',
   z.enum(['lightbox', 'expand']),
   'expand',
 );
 
-// The planner's input-cost basis — the Raw|Item toggle (3.7.21.1). 'batched'
-// (Raw) = the whole-run empty-hangar buy list; 'marginal' (Item, the default) =
-// only what the build consumes. NOT ssrReadable: the pricing seed is one shared
-// 'use cache' snapshot that always carries the marginal default, so there is no
-// per-visitor value the server could render — a saved 'batched' re-assembles at
-// hydration (the owned-ME settle class).
+/**
+ * The planner's input-cost basis — the Raw|Item toggle (3.7.21.1). 'batched'
+ * (Raw) = the whole-run empty-hangar buy list; 'marginal' (Item, the default) =
+ * only what the build consumes. NOT ssrReadable: the pricing seed is one shared
+ * 'use cache' snapshot that always carries the marginal default, so there is no
+ * per-visitor value the server could render — a saved 'batched' re-assembles at
+ * hydration (the owned-ME settle class).
+ */
 export const industryCostBasis = define<'batched' | 'marginal'>(
   'industry.costBasis',
   z.enum(['batched', 'marginal']),
@@ -115,9 +129,15 @@ export const industryCostBasis = define<'batched' | 'marginal'>(
 // criterion). Adding a strip surface = one id here + the feature's spec.strip
 // declaration; the wire enum and validation grow automatically.
 
+/** Closed character-strip surface identifiers used to derive typed local-preference keys. */
 export const STRIP_SURFACE_IDS = ['skills', 'jobs'] as const;
+/**
+ * Canonical identifier used by lib; consumers must not infer additional identity semantics from
+ * its storage representation.
+ */
 export type StripSurfaceId = (typeof STRIP_SURFACE_IDS)[number];
 
+/** Returns the typed local-preference key for one character-strip surface's dimmed state. */
 export function stripDimmedKey(surfaceId: string): string {
   return `strip.${surfaceId}.dimmed`;
 }
@@ -137,14 +157,18 @@ const STRIP_DIMMED_DEFS = Object.fromEntries(
 // CharacterPortrait sentinel-id precedent — unreachable, never colliding).
 const STRIP_DIMMED_NONE = define<number[]>(stripDimmedKey('__none'), stripDimmedSchema, []);
 
-// Total resolver returning stable module-scope refs — usePreference's setter
-// identity keys off the def object, so this must never construct per call.
+/**
+ * Total resolver returning stable module-scope refs — usePreference's setter
+ * identity keys off the def object, so this must never construct per call.
+ */
 export function stripDimmedDef(surfaceId?: StripSurfaceId): PreferenceDef<number[]> {
   return surfaceId === undefined ? STRIP_DIMMED_NONE : STRIP_DIMMED_DEFS[surfaceId];
 }
 
-// The registry, in declaration order. The provider iterates it to seed and
-// reconcile the tiers; a setting added above is included here automatically.
+/**
+ * The registry, in declaration order. The provider iterates it to seed and
+ * reconcile the tiers; a setting added above is included here automatically.
+ */
 export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
   sitesView,
   plannerBuildLocation,
@@ -155,20 +179,24 @@ export const PREFERENCES: readonly PreferenceDef<unknown>[] = [
 ];
 const BY_KEY = new Map(PREFERENCES.map((p) => [p.key, p]));
 
-// The known keys, for the API contract's enum and the server trust boundary.
+/** The known keys, for the API contract's enum and the server trust boundary. */
 export const PREFERENCE_KEYS: readonly string[] = PREFERENCES.map((p) => p.key);
 
-// Registry lookup by key — for layers handed a preference REFERENCE (a
-// page-settings control key) rather than importing a def directly. Unknown keys
-// return undefined and the caller drops them; anti-drift (every spec key is a
-// registered preference) is the page-settings engine test's job.
+/**
+ * Registry lookup by key — for layers handed a preference REFERENCE (a
+ * page-settings control key) rather than importing a def directly. Unknown keys
+ * return undefined and the caller drops them; anti-drift (every spec key is a
+ * registered preference) is the page-settings engine test's job.
+ */
 export function getPreferenceDef(key: string): PreferenceDef<unknown> | undefined {
   return BY_KEY.get(key);
 }
 
-// Server trust boundary: is `value` a valid payload for this known `key`? The
-// route's enum already guarantees the key is known; this guarantees the value
-// matches that key's schema before it reaches the KV store.
+/**
+ * Server trust boundary: is `value` a valid payload for this known `key`? The
+ * route's enum already guarantees the key is known; this guarantees the value
+ * matches that key's schema before it reaches the KV store.
+ */
 export function validatePreferenceValue(key: string, value: unknown): boolean {
   const def = BY_KEY.get(key);
   return def != null && def.schema.safeParse(value).success;
@@ -185,11 +213,13 @@ function safeStorage(): Storage | null {
   }
 }
 
-// The explicitly-stored local value, or undefined when absent/invalid — distinct
-// from "the value or its fallback". The provider needs presence: it seeds the
-// server only for settings the user actually chose, and leaves an unset key OUT
-// of its value map so the hook falls through to its serverValue/fallback. A
-// stored `null` (e.g. a cleared build location) is a real value, returned as-is.
+/**
+ * The explicitly-stored local value, or undefined when absent/invalid — distinct
+ * from "the value or its fallback". The provider needs presence: it seeds the
+ * server only for settings the user actually chose, and leaves an unset key OUT
+ * of its value map so the hook falls through to its serverValue/fallback. A
+ * stored `null` (e.g. a cleared build location) is a real value, returned as-is.
+ */
 export function peekLocalPreference<T>(def: PreferenceDef<T>): T | undefined {
   const store = safeStorage();
   if (!store) return undefined;
@@ -203,6 +233,10 @@ export function peekLocalPreference<T>(def: PreferenceDef<T>): T | undefined {
   }
 }
 
+/**
+ * Persists one preference to browser local storage and silently ignores unavailable or
+ * quota-failing storage so UI updates are not blocked.
+ */
 export function writeLocalPreference<T>(def: PreferenceDef<T>, value: T): void {
   const store = safeStorage();
   if (!store) return;
@@ -215,14 +249,20 @@ export function writeLocalPreference<T>(def: PreferenceDef<T>, value: T): void {
 
 // ── cookie codec (the ssrReadable mirror) ──
 
+/**
+ * Returns the server-readable cookie name for a preference definition, or null when the preference
+ * is intentionally client-only.
+ */
 export function cookieNameFor(def: PreferenceDef<unknown>): string {
   return COOKIE_PREFIX + def.key.replace(/\./g, '_');
 }
 
-// Client-side cookie write — bundled JS, NOT an inline script, so the CSP's
-// no-raw-HTML-sink property is untouched. No-op for keys that aren't
-// ssrReadable. Non-HttpOnly by necessity (the client owns the write); the
-// value is a non-sensitive functional preference.
+/**
+ * Client-side cookie write — bundled JS, NOT an inline script, so the CSP's
+ * no-raw-HTML-sink property is untouched. No-op for keys that aren't
+ * ssrReadable. Non-HttpOnly by necessity (the client owns the write); the
+ * value is a non-sensitive functional preference.
+ */
 export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void {
   if (typeof document === 'undefined' || !def.ssrReadable) return;
   const encoded = encodeURIComponent(JSON.stringify(value));
@@ -231,8 +271,10 @@ export function writePreferenceCookie<T>(def: PreferenceDef<T>, value: T): void 
   document.cookie = `${cookieNameFor(def)}=${encoded}; Path=/; Max-Age=${COOKIE_MAX_AGE_SECONDS}; SameSite=Lax${secure}`;
 }
 
-// Pure parse of a raw cookie value (the server passes `cookies().get(name)?.value`,
-// so lib stays Next-free). Garbage or a schema mismatch falls back to the default.
+/**
+ * Pure parse of a raw cookie value (the server passes `cookies().get(name)?.value`,
+ * so lib stays Next-free). Garbage or a schema mismatch falls back to the default.
+ */
 export function readPreferenceCookieValue<T>(
   raw: string | undefined,
   def: PreferenceDef<T>,
@@ -248,9 +290,11 @@ export function readPreferenceCookieValue<T>(
 
 // ── sync-on-login reconciliation (pure; the Humble-Component split for the provider) ──
 
-// Server wins for a logged-in user; seed the server from localStorage ONLY for
-// keys the server has no value for yet (so an anon user's choices carry over
-// once). Returns the reconciled value map and the keys to seed up to the server.
+/**
+ * Server wins for a logged-in user; seed the server from localStorage ONLY for
+ * keys the server has no value for yet (so an anon user's choices carry over
+ * once). Returns the reconciled value map and the keys to seed up to the server.
+ */
 export function reconcilePreferences(
   serverValues: Map<string, unknown>,
   localValues: Map<string, unknown>,
@@ -268,4 +312,8 @@ export function reconcilePreferences(
   return { values, toSeed };
 }
 
+/**
+ * Test-only preference internals exposed for deterministic storage and key-contract verification;
+ * production code must not consume this object.
+ */
 export const __TEST_ONLY__ = { LS_PREFIX };

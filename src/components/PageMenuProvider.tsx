@@ -56,6 +56,10 @@ function LivePathnameWatcher({
   return null;
 }
 
+/**
+ * Publishes page menu state to descendants; the provider owns subscription and update lifecycle
+ * while children consume it.
+ */
 export function PageMenuProvider({
   pathname,
   children,
@@ -85,8 +89,10 @@ export function PageMenuProvider({
   );
 }
 
-// The slot: the current route's page-settings spec, or null. Safe to call
-// outside a provider (returns null), like usePreference's tolerant read.
+/**
+ * The slot: the current route's page-settings spec, or null. Safe to call
+ * outside a provider (returns null), like usePreference's tolerant read.
+ */
 export function usePageSettings(): PageSettingsSpec | null {
   return useContext(PageMenuContext);
 }

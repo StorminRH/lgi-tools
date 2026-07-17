@@ -14,21 +14,25 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { connection } from 'next/server';
 import { readEnv } from '@/lib/env';
 
-// Constant-time bearer check. Comparing SHA-256 digests (always 32 bytes) keeps
-// timingSafeEqual's equal-length requirement satisfied and leaks no length, so a
-// timing side-channel can't reveal the secret character by character.
+/**
+ * Constant-time bearer check. Comparing SHA-256 digests (always 32 bytes) keeps
+ * timingSafeEqual's equal-length requirement satisfied and leaks no length, so a
+ * timing side-channel can't reveal the secret character by character.
+ */
 export function bearerMatches(authorization: string | null, secret: string): boolean {
   const provided = createHash('sha256').update(authorization ?? '').digest();
   const expected = createHash('sha256').update(`Bearer ${secret}`).digest();
   return timingSafeEqual(provided, expected);
 }
 
-// Shared bearer-secret entry guard. Defers to request time (so Cache Components
-// doesn't try to prerender the route), then accepts only a caller presenting
-// `Authorization: Bearer ${secret}`. Returns an error Response to short-circuit
-// the handler — 500 if the secret is unset, 401 for a bad/absent bearer — or
-// null to proceed. One implementation means the check can't drift between the
-// cron and service route families.
+/**
+ * Shared bearer-secret entry guard. Defers to request time (so Cache Components
+ * doesn't try to prerender the route), then accepts only a caller presenting
+ * `Authorization: Bearer ${secret}`. Returns an error Response to short-circuit
+ * the handler — 500 if the secret is unset, 401 for a bad/absent bearer — or
+ * null to proceed. One implementation means the check can't drift between the
+ * cron and service route families.
+ */
 export async function requireBearerSecret(
   req: Request,
   envVar: 'CRON_SECRET' | 'CONVEX_SERVICE_SECRET',
@@ -44,8 +48,10 @@ export async function requireBearerSecret(
   return null;
 }
 
-// Guard for the internal service routes (`authz: service`): a Convex action
-// authenticates with the shared CONVEX_SERVICE_SECRET bearer.
+/**
+ * Guard for the internal service routes (`authz: service`): a Convex action
+ * authenticates with the shared CONVEX_SERVICE_SECRET bearer.
+ */
 export function requireServiceAuth(req: Request): Promise<Response | null> {
   return requireBearerSecret(req, 'CONVEX_SERVICE_SECRET');
 }

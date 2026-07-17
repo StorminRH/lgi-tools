@@ -7,15 +7,21 @@ import { type Tone } from './tones';
  * they and their consumers import.
  */
 
-// The viz tones the compact charts bless. A curated subset of the shared
-// vocabulary — saturated families that read as a single line on the dark
-// surface. The hexes come from the canonical `toneHex` map (tones.ts); this
-// only narrows which tones a chart accepts.
+/**
+ * The viz tones the compact charts bless. A curated subset of the shared
+ * vocabulary — saturated families that read as a single line on the dark
+ * surface. The hexes come from the canonical `toneHex` map (tones.ts); this
+ * only narrows which tones a chart accepts.
+ */
 export type SparklineTone = Extract<
   Tone,
   'green' | 'orange' | 'red' | 'blue' | 'purple' | 'teal'
 >;
 
+/**
+ * Display-ready sparkline point consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export type SparklinePoint = { x: number; y: number };
 
 // Pure geometry helpers live in ./chart/chart-geometry; re-exported here so the

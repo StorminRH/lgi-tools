@@ -12,16 +12,20 @@ import { after } from 'next/server';
 import { getTypeNames } from '@/data/eve-data/queries';
 import { listLinkedCharacters } from '@/features/auth/linked-characters';
 
-// One owner to render: its id (character or corporation), the staleness stamp, and the
-// optional graceful error state (corp jobs' needs_role; absent for the character slices).
+/**
+ * One owner to render: its id (character or corporation), the staleness stamp, and the
+ * optional graceful error state (corp jobs' needs_role; absent for the character slices).
+ */
 export interface OwnerRow {
   id: number;
   lastRefreshedAt: Date | null;
   syncError?: string | null;
 }
 
-// The per-dataset knobs the shared seam runs over. TData is the slice's cached payload;
-// TRow is the slice's wire row (ViewerJobs / ViewerSkills / ViewerCorpJobs).
+/**
+ * The per-dataset knobs the shared seam runs over. TData is the slice's cached payload;
+ * TRow is the slice's wire row (ViewerJobs / ViewerSkills / ViewerCorpJobs).
+ */
 export interface LiveDatasetView<TData, TRow> {
   // Resolve the owners to render (with sync state) AND their cached data map. The slice
   // owns the read ordering: character slices parallelize data + per-id state
@@ -35,9 +39,11 @@ export interface LiveDatasetView<TData, TRow> {
   nameIds(rows: TRow[]): Iterable<number>;
 }
 
-// The character-owner read: enumerate the user's linked characters, then read their
-// cached data + uncached per-character sync state IN PARALLEL (the character-slice hot
-// path — the data read and the N state reads overlap, as before the generalization).
+/**
+ * The character-owner read: enumerate the user's linked characters, then read their
+ * cached data + uncached per-character sync state IN PARALLEL (the character-slice hot
+ * path — the data read and the N state reads overlap, as before the generalization).
+ */
 export async function readCharacterOwners<TData>(
   userId: string,
   readData: (characterIds: number[]) => Promise<Map<number, TData>>,
@@ -53,9 +59,11 @@ export async function readCharacterOwners<TData>(
   return { owners, data };
 }
 
-// The shared character wire row ({ characterId, data, lastRefreshedAt-as-epoch-ms }) —
-// jobs and skills build the identical shape, so it lives here rather than cloning per
-// slice. The absolute stamp is exposed as epoch ms, the shape the client "as of" reads.
+/**
+ * The shared character wire row (\{ characterId, data, lastRefreshedAt-as-epoch-ms \}) —
+ * jobs and skills build the identical shape, so it lives here rather than cloning per
+ * slice. The absolute stamp is exposed as epoch ms, the shape the client "as of" reads.
+ */
 export function characterRow<TData>(
   owner: OwnerRow,
   data: TData | null,
@@ -63,6 +71,10 @@ export function characterRow<TData>(
   return { characterId: owner.id, data, lastRefreshedAt: owner.lastRefreshedAt?.getTime() ?? null };
 }
 
+/**
+ * Returns the stored live-dataset projection and schedules a refresh only when its freshness gate
+ * says the viewer's owner is due.
+ */
 export async function getLiveDatasetOnView<TData, TRow>(
   userId: string,
   view: LiveDatasetView<TData, TRow>,

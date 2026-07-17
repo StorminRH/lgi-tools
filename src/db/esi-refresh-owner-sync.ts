@@ -6,6 +6,10 @@ import type {
   OwnerSyncTarget,
 } from '@/lib/owner-sync';
 
+/**
+ * Records a budget-blocked owner refresh in the durable queue and returns the existing deferred
+ * outcome without performing the owner read.
+ */
 export function enqueueBudgetDeferral(
   dataset: EsiRefreshDataset,
   userId: string,
@@ -16,6 +20,10 @@ export function enqueueBudgetDeferral(
   };
 }
 
+/**
+ * Selects the refresh result for the requested owner from a batch outcome, preserving explicit
+ * skipped, deferred, and failed states.
+ */
 export function targetedOwnerResult(
   target: OwnerSyncTarget,
   results: OwnerSyncResult[],

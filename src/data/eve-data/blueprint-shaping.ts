@@ -7,16 +7,20 @@
 import { ACTIVITY_NAME_TO_ID, INDUSTRY_ACTIVITY_NAMES } from './constants';
 import { activitiesToRows, type BlueprintActivities } from './tree-resolver';
 
-// The item a blueprint produces and how many per run, for the chosen industry
-// activity (manufacturing 1 preferred over reaction 11). See getBlueprintOutput.
+/**
+ * The item a blueprint produces and how many per run, for the chosen industry
+ * activity (manufacturing 1 preferred over reaction 11). See getBlueprintOutput.
+ */
 export type BlueprintOutput = {
   productTypeId: number;
   quantity: number;
   activityId: number;
 };
 
-// One row per (blueprint, manufacturing/reaction product) for the planner's
-// blueprint search index. See getBlueprintSearchRows.
+/**
+ * One row per (blueprint, manufacturing/reaction product) for the planner's
+ * blueprint search index. See getBlueprintSearchRows.
+ */
 export type BlueprintSearchRow = {
   blueprintTypeId: number;
   activityId: number;
@@ -24,17 +28,21 @@ export type BlueprintSearchRow = {
   name: string;
 };
 
-// A search row before its product name is joined in — the intermediate the
-// two-phase search query carries between its two reads.
+/**
+ * A search row before its product name is joined in — the intermediate the
+ * two-phase search query carries between its two reads.
+ */
 export type PendingSearchRow = {
   blueprintTypeId: number;
   activityId: number;
   productTypeId: number;
 };
 
-// The blueprint's first product under the preferred industry activity, or null
-// when it produces nothing under either (not planner-buildable). Manufacturing
-// wins over reaction (a blueprint carries at most one).
+/**
+ * The blueprint's first product under the preferred industry activity, or null
+ * when it produces nothing under either (not planner-buildable). Manufacturing
+ * wins over reaction (a blueprint carries at most one).
+ */
 export function pickBlueprintOutput(
   activities: BlueprintActivities,
 ): BlueprintOutput | null {
@@ -51,9 +59,11 @@ export function pickBlueprintOutput(
   return null;
 }
 
-// The industry activity id (1 = manufacturing, 11 = reaction) that actually
-// yields a product, preferring manufacturing (the lower id — INDUSTRY_ACTIVITY_
-// NAMES is ordered manufacturing-first). Null when neither yields a product.
+/**
+ * The industry activity id (1 = manufacturing, 11 = reaction) that actually
+ * yields a product, preferring manufacturing (the lower id — INDUSTRY_ACTIVITY_
+ * NAMES is ordered manufacturing-first). Null when neither yields a product.
+ */
 export function pickProducingActivityId(activities: BlueprintActivities): number | null {
   for (const name of INDUSTRY_ACTIVITY_NAMES) {
     const act = activities[name];
@@ -64,9 +74,11 @@ export function pickProducingActivityId(activities: BlueprintActivities): number
   return null;
 }
 
-// Phase one of the search query: flatten every manufacturing/reaction product of
-// every (already published-filtered) blueprint row into pending rows, collecting
-// the product ids whose published names the caller then looks up.
+/**
+ * Phase one of the search query: flatten every manufacturing/reaction product of
+ * every (already published-filtered) blueprint row into pending rows, collecting
+ * the product ids whose published names the caller then looks up.
+ */
 export function collectSearchPending(
   rows: ReadonlyArray<{ blueprintTypeId: number; activities: unknown }>,
 ): { pending: PendingSearchRow[]; productIds: Set<number> } {
@@ -88,9 +100,11 @@ export function collectSearchPending(
   return { pending, productIds };
 }
 
-// Phase two: join the published product names onto the pending rows, dropping
-// any product whose name didn't come back (an unpublished product — the
-// degenerate self-recipe junk the search index must not carry).
+/**
+ * Phase two: join the published product names onto the pending rows, dropping
+ * any product whose name didn't come back (an unpublished product — the
+ * degenerate self-recipe junk the search index must not carry).
+ */
 export function resolveSearchRows(
   pending: readonly PendingSearchRow[],
   nameRows: ReadonlyArray<{ id: number; name: string }>,
@@ -111,9 +125,11 @@ export function resolveSearchRows(
   return out;
 }
 
-// Union of every type id that appears as a material input OR product output under
-// manufacturing/reactions across all blueprint rows — the set upserted into
-// `market_prices` after each SDE ingest.
+/**
+ * Union of every type id that appears as a material input OR product output under
+ * manufacturing/reactions across all blueprint rows — the set upserted into
+ * `market_prices` after each SDE ingest.
+ */
 export function collectTrackedTypeIds(
   rows: ReadonlyArray<{ blueprintTypeId: number; activities: unknown }>,
 ): number[] {

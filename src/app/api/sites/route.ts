@@ -8,6 +8,10 @@ function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiIte
   return { ...rest, sheetResourceValueIsk: resourceValueIsk };
 }
 
+/**
+ * Handles GET requests for /api/sites; this route owns its authorization, boundary validation, and
+ * typed response mapping.
+ */
 // authz: public
 export async function GET(request: NextRequest): Promise<Response> {
   const parsed = parseSitesQuery(

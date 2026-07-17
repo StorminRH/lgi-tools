@@ -7,9 +7,11 @@ import { getStoredActiveCharacterId, repointActiveToOldest } from './linked-char
 import { account, session, user } from './schema';
 import type { CharacterRole } from './types';
 
-// Admin-dashboard row: a user (the unit admin is granted on) joined to its
-// linked EVE character's display fields. characterId is null only if a user has
-// no EVE account, which shouldn't happen for a real pilot.
+/**
+ * Admin-dashboard row: a user (the unit admin is granted on) joined to its
+ * linked EVE character's display fields. characterId is null only if a user has
+ * no EVE account, which shouldn't happen for a real pilot.
+ */
 export interface AdminUser {
   userId: string;
   characterId: number | null;
@@ -26,6 +28,7 @@ const adminUserColumns = {
   characterId: account.accountId,
 };
 
+/** Maps a Better Auth user row to the privacy-bounded administrator view. */
 export function toAdminUser(row: {
   userId: string;
   name: string;
@@ -73,6 +76,7 @@ function oldestEveAccountJoin() {
   );
 }
 
+/** Lists administrator user views with linked-character counts for the access dashboard. */
 export async function listAdminUsers(): Promise<AdminUser[]> {
   const rows = await db
     .select(adminUserColumns)
@@ -84,6 +88,7 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   return rows.map(toAdminUser);
 }
 
+/** Reads one administrator user view by ID and returns null when the user does not exist. */
 export async function getUserById(userId: string): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)
@@ -95,8 +100,10 @@ export async function getUserById(userId: string): Promise<AdminUser | null> {
   return row ? toAdminUser(row) : null;
 }
 
-// Resolve the user that owns a given EVE character id — used to map the env
-// superadmin (a character id) onto the per-user model for the admin list.
+/**
+ * Resolve the user that owns a given EVE character id — used to map the env
+ * superadmin (a character id) onto the per-user model for the admin list.
+ */
 export async function getUserByCharacterId(characterId: number): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)
@@ -108,18 +115,22 @@ export async function getUserByCharacterId(characterId: number): Promise<AdminUs
   return row ? toAdminUser(row) : null;
 }
 
-// Cap on rows the admin name search displays. A 1-char query matches a large
-// fraction of the table, which only grows; bound the display and let the
-// dashboard hint when there's more. Exported so the UI can show "showing first N".
+/**
+ * Cap on rows the admin name search displays. A 1-char query matches a large
+ * fraction of the table, which only grows; bound the display and let the
+ * dashboard hint when there's more. Exported so the UI can show "showing first N".
+ */
 export const CHARACTER_SEARCH_LIMIT = 50;
 
-// Substring ILIKE search over a user's display name (their linked character's
-// name). Empty/whitespace-only queries short-circuit to [] so the dashboard's
-// empty-q view doesn't fetch the world. Fetches ONE row past the display cap as
-// a truncation probe: a caller that gets back CHARACTER_SEARCH_LIMIT + 1 rows
-// knows the result was cut off (vs a result that just happens to be exactly the
-// cap), so the "showing first N" hint can't false-positive on a naturally
-// cap-sized match set.
+/**
+ * Substring ILIKE search over a user's display name (their linked character's
+ * name). Empty/whitespace-only queries short-circuit to [] so the dashboard's
+ * empty-q view doesn't fetch the world. Fetches ONE row past the display cap as
+ * a truncation probe: a caller that gets back CHARACTER_SEARCH_LIMIT + 1 rows
+ * knows the result was cut off (vs a result that just happens to be exactly the
+ * cap), so the "showing first N" hint can't false-positive on a naturally
+ * cap-sized match set.
+ */
 export async function searchUsersByLinkedCharacterName(query: string): Promise<AdminUser[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
@@ -135,8 +146,10 @@ export async function searchUsersByLinkedCharacterName(query: string): Promise<A
   return rows.map(toAdminUser);
 }
 
-// Flips a user's role. Returns null when no row matches (i.e. the caller passed
-// a userId that isn't in the table).
+/**
+ * Flips a user's role. Returns null when no row matches (i.e. the caller passed
+ * a userId that isn't in the table).
+ */
 export async function setUserRole(
   userId: string,
   role: CharacterRole,
@@ -160,9 +173,11 @@ export async function setUserRole(
 // `account` row, so deleting/moving the row carries them with it.
 // ---------------------------------------------------------------------------
 
-// Remove one linked EVE character from a user (admin force-unlink). Returns
-// whether a row was actually deleted. Caller re-points the user's active
-// character if this was it (mirrors the self-service unlink route).
+/**
+ * Remove one linked EVE character from a user (admin force-unlink). Returns
+ * whether a row was actually deleted. Caller re-points the user's active
+ * character if this was it (mirrors the self-service unlink route).
+ */
 export async function deleteLinkedCharacter(
   userId: string,
   characterId: number,
@@ -174,10 +189,12 @@ export async function deleteLinkedCharacter(
   return deleted.length > 0;
 }
 
-// Force-logout: delete every session row for a user. Returns the count removed.
-// Note: with the session cookie cache on, an already-issued cookie can keep a
-// user "signed in" until it expires (cookieCache.maxAge) and getSession next
-// revalidates against the now-missing row — so revocation isn't instantaneous.
+/**
+ * Force-logout: delete every session row for a user. Returns the count removed.
+ * Note: with the session cookie cache on, an already-issued cookie can keep a
+ * user "signed in" until it expires (cookieCache.maxAge) and getSession next
+ * revalidates against the now-missing row — so revocation isn't instantaneous.
+ */
 export async function revokeUserSessions(userId: string): Promise<number> {
   const deleted = await db
     .delete(session)
@@ -186,9 +203,11 @@ export async function revokeUserSessions(userId: string): Promise<number> {
   return deleted.length;
 }
 
-// Count of a user's currently-valid (non-expired) sessions — context for the
-// admin force-logout control. Expired rows are pruned lazily by Better Auth, so
-// filter them out here rather than counting stale rows.
+/**
+ * Count of a user's currently-valid (non-expired) sessions — context for the
+ * admin force-logout control. Expired rows are pruned lazily by Better Auth, so
+ * filter them out here rather than counting stale rows.
+ */
 export async function getActiveSessionCount(userId: string): Promise<number> {
   const rows = await db
     .select({ id: session.id })
@@ -197,16 +216,18 @@ export async function getActiveSessionCount(userId: string): Promise<number> {
   return rows.length;
 }
 
-// Move a single linked character from one user onto another (admin reassign —
-// the one-click merge). The unique key is (providerId, accountId), so changing
-// only userId never conflicts. If the source user is left with no EVE accounts
-// the source `user` row is deleted (its sessions cascade) — an account-less
-// user can never be signed into again, so this is the natural completion of a
-// merge, not a separate destructive delete. If the source keeps other
-// characters, its active pointer is re-aimed when we moved the active one.
-// Writes are sequential (the request-path neon-http client is transaction-free);
-// the operation is admin-only and low-rate, so the brief non-atomic window is
-// acceptable — same trade-off the self-service unlink route already makes.
+/**
+ * Move a single linked character from one user onto another (admin reassign —
+ * the one-click merge). The unique key is (providerId, accountId), so changing
+ * only userId never conflicts. If the source user is left with no EVE accounts
+ * the source `user` row is deleted (its sessions cascade) — an account-less
+ * user can never be signed into again, so this is the natural completion of a
+ * merge, not a separate destructive delete. If the source keeps other
+ * characters, its active pointer is re-aimed when we moved the active one.
+ * Writes are sequential (the request-path neon-http client is transaction-free);
+ * the operation is admin-only and low-rate, so the brief non-atomic window is
+ * acceptable — same trade-off the self-service unlink route already makes.
+ */
 export async function reassignCharacter({
   characterId,
   fromUserId,

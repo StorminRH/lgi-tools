@@ -31,8 +31,16 @@ const jobsResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
 
+/**
+ * Personal industry jobs visible to the active character, with the source freshness timestamp used
+ * by the UI.
+ */
 export type JobsResponse = z.infer<typeof jobsResponseSchema>;
 
+/**
+ * Boundary validator for industry jobs endpoint; successful parsing yields the normalized industry
+ * jobs input consumed internally.
+ */
 export const industryJobsEndpoint: ApiEndpoint<null, JobsResponse> = {
   method: 'GET',
   path: '/api/account/industry-jobs',
@@ -60,8 +68,16 @@ const corpJobsResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
 
+/**
+ * Corporation industry jobs visible through the active character's roles, with source freshness
+ * and access metadata.
+ */
 export type CorpJobsResponse = z.infer<typeof corpJobsResponseSchema>;
 
+/**
+ * Boundary validator for corp industry jobs endpoint; successful parsing yields the normalized
+ * industry jobs input consumed internally.
+ */
 export const corpIndustryJobsEndpoint: ApiEndpoint<null, CorpJobsResponse> = {
   method: 'GET',
   path: '/api/account/corp-industry-jobs',
@@ -97,9 +113,18 @@ const industrySlotsResponseSchema = z.object({
   characters: z.array(viewerSlotsSchema),
 });
 
+/** Personal and corporation industry-slot usage visible to the current viewer. */
 export type ViewerSlots = z.infer<typeof viewerSlotsSchema>;
+/**
+ * Personal and corporation slot usage plus the skill-derived limits available to the current
+ * viewer.
+ */
 export type IndustrySlotsResponse = z.infer<typeof industrySlotsResponseSchema>;
 
+/**
+ * Typed endpoint definition for industry slots endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const industrySlotsEndpoint: ApiEndpoint<null, IndustrySlotsResponse> = {
   method: 'GET',
   path: '/api/account/industry-slots',

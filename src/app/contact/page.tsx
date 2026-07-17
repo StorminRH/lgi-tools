@@ -4,6 +4,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
+/** Static search and social metadata for the /contact route. */
 export const metadata = buildPageMetadata({
   title: 'Contact',
   description: 'Reach the developer of LGI.tools — bug reports, ideas, and data corrections.',
@@ -21,6 +22,10 @@ const MAINTAINER_CORPS = [
 ];
 const CONTACT_EMAIL = 'lgi.tools@pm.me';
 
+/**
+ * Renders the /contact route surface and owns its page-level composition, metadata boundary, and
+ * fallback presentation.
+ */
 export default function ContactPage() {
   return (
     <PageShell>

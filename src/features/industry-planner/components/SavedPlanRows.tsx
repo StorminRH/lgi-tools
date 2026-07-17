@@ -10,6 +10,7 @@ import type { SavedPlanRow } from '../api-contract';
 import type { ManagedRowMenu } from '../use-managed-row-menu';
 import { SavedPlanRowItem } from './SavedPlanRowItem';
 
+/** Renders the ordered saved-plan collection and empty state without owning persistence. */
 export function SavedPlanRows({
   plans,
   busyId,

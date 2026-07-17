@@ -16,6 +16,10 @@ import { apiFetch } from '@/lib/api-client';
 import { useAuth } from '@/features/auth/components/AuthProvider';
 import { deriveRoster, type BuildCharacter } from './run-as-state';
 
+/**
+ * Encapsulates the account characters subscription and state lifecycle; callers provide lookup
+ * keys where required and render the returned state.
+ */
 export function useAccountCharacters(): BuildCharacter[] | null {
   const { session, loading } = useAuth();
   const characterId = session?.characterId ?? null;

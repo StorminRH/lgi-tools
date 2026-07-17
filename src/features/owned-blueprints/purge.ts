@@ -6,6 +6,10 @@ import { db } from '@/db';
 import type { PurgeContributor } from '@/purge/types';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
+/**
+ * Personal-data purge contributor for owned blueprints purge contributor; this data slice owns
+ * deleting its user and character keyed rows.
+ */
 export const ownedBlueprintsPurgeContributor: PurgeContributor = {
   name: 'owned-blueprints',
   tier: 'cache',

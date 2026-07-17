@@ -8,6 +8,10 @@ import type postgres from 'postgres';
 
 type Sql = ReturnType<typeof postgres>;
 
+/**
+ * Runs a database maintenance script with standardized success and failure reporting, closing the
+ * database connection before returning an exit code.
+ */
 export function runScript(
   main: () => Promise<void>,
   options: { client: Sql; softFail?: boolean },

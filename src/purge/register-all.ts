@@ -21,6 +21,10 @@ import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
 import type { PurgeContributor } from './types';
 
+/**
+ * Complete personal-data purge contributor registry; every user or character-keyed table must be
+ * claimed here or explicitly retained.
+ */
 export const PURGE_CONTRIBUTORS: readonly PurgeContributor[] = [
   authPurgeContributor,
   skillQueuePurgeContributor,

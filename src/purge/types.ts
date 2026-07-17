@@ -10,31 +10,46 @@
 // layer above themselves, so there is no cross-slice or feature→junction value edge.
 import type { PgTable } from 'drizzle-orm/pg-core';
 
-// Teardown order — the orchestrator runs tiers in this sequence:
-//   credential → the EVE link + tokens (kill access first, so nothing can ESI-fetch
-//                during the rest of the purge)
-//   cache      → regenerable ESI mirrors (skills, jobs, assets, blueprints, telemetry)
-//   durable    → app-authored, non-regenerable per-user data (preferences, custom structures)
+/**
+ * Teardown order — the orchestrator runs tiers in this sequence:
+ *   credential → the EVE link + tokens (kill access first, so nothing can ESI-fetch
+ *                during the rest of the purge)
+ *   cache      → regenerable ESI mirrors (skills, jobs, assets, blueprints, telemetry)
+ *   durable    → app-authored, non-regenerable per-user data (preferences, custom structures)
+ */
 export type PurgeTier = 'credential' | 'cache' | 'durable';
 
-// What is being purged: one character (its per-character rows) or one user (its
-// per-user rows). A full account-nuke (ACCOUNT.2) is N character purges + 1 user
-// purge; this layer provides the building blocks, not that orchestration.
+/**
+ * What is being purged: one character (its per-character rows) or one user (its
+ * per-user rows). A full account-nuke (ACCOUNT.2) is N character purges + 1 user
+ * purge; this layer provides the building blocks, not that orchestration.
+ */
 export type PurgeSubject =
   | { readonly kind: 'character'; readonly userId: string; readonly characterId: number }
   | { readonly kind: 'user'; readonly userId: string };
 
+/**
+ * Character purge subject containing the human user ID and finite EVE character ID required by
+ * per-slice contributors.
+ */
 export type PurgeCharacterSubject = Extract<PurgeSubject, { kind: 'character' }>;
+/** Whole-user purge subject used when every character and user-keyed row must be removed. */
 export type PurgeUserSubject = Extract<PurgeSubject, { kind: 'user' }>;
 
-// A user/character-keyed table this slice deliberately RETAINS (never purges),
-// declared with a reason — the same explicit discipline as a claim, so a retained
-// table is an audited decision the gate can see, never a silent omission.
+/**
+ * A user/character-keyed table this slice deliberately RETAINS (never purges),
+ * declared with a reason — the same explicit discipline as a claim, so a retained
+ * table is an audited decision the gate can see, never a silent omission.
+ */
 export interface RetainedTable {
   readonly table: PgTable;
   readonly reason: string;
 }
 
+/**
+ * Per-slice personal-data purge contract; implementations own their tables while the registry owns
+ * cross-slice ordering.
+ */
 export interface PurgeContributor {
   readonly name: string;
   readonly tier: PurgeTier;

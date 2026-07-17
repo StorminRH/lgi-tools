@@ -28,6 +28,10 @@ function corpJobsIsCold(response: CorpJobsResponse, hasEligible: boolean): boole
   return hasEligible && response.corporations.length === 0;
 }
 
+/**
+ * Encapsulates the corp jobs live subscription and state lifecycle; callers provide lookup keys
+ * where required and render the returned state.
+ */
 export function useCorpJobsLive(eligibleCharacterIds: number[]): {
   corporations: ViewerCorpJobs[];
   names: Record<string, string>;

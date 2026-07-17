@@ -117,15 +117,17 @@ function HeroSteppers({
   );
 }
 
-// The consolidated hero card: ONE equal-height plane of elements — the item
-// render in a square frame (the building-character frame's exact twin), the
-// stacked ME/TE/Runs boxed steppers, the square Run-As frame, and the two
-// location groups side by side (Manufacturing, then Reactions; each a
-// fixed-size System search over a Station select, bonus readout beside the
-// header). The item's identity lives ABOVE the card (PlannerHead: centered
-// name + the category/activity/per-run chips), so the card carries no title.
-// Every cluster centers on the same 108px plane so nothing shifts as picks
-// land; the band wraps cleanly on narrow viewports.
+/**
+ * The consolidated hero card: ONE equal-height plane of elements — the item
+ * render in a square frame (the building-character frame's exact twin), the
+ * stacked ME/TE/Runs boxed steppers, the square Run-As frame, and the two
+ * location groups side by side (Manufacturing, then Reactions; each a
+ * fixed-size System search over a Station select, bonus readout beside the
+ * header). The item's identity lives ABOVE the card (PlannerHead: centered
+ * name + the category/activity/per-run chips), so the card carries no title.
+ * Every cluster centers on the same 108px plane so nothing shifts as picks
+ * land; the band wraps cleanly on narrow viewports.
+ */
 export function HeroCard({ structure }: { structure: BlueprintStructure }) {
   const isManufacturing = structure.activityId === MANUFACTURING_ACTIVITY_ID;
 

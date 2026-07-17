@@ -19,9 +19,11 @@ import { cn } from './ui/cn';
 import { StatusDot } from './ui/status-dot';
 import { useOnlineFlag } from './OnlineStatusProvider';
 
-// The display sizes in use across the app, mapped to literal size utilities (a
-// dynamic `size-[Npx]` can't be statically extracted by Tailwind, and the img
-// needs an explicit size class because preflight forces height:auto otherwise).
+/**
+ * The display sizes in use across the app, mapped to literal size utilities (a
+ * dynamic `size-[Npx]` can't be statically extracted by Tailwind, and the img
+ * needs an explicit size class because preflight forces height:auto otherwise).
+ */
 export type PortraitSize = 28 | 32 | 36 | 38 | 64;
 
 const SIZE_CLASS: Record<PortraitSize, string> = {
@@ -32,6 +34,10 @@ const SIZE_CLASS: Record<PortraitSize, string> = {
   64: 'size-16',
 };
 
+/**
+ * Renders one EVE character portrait at a supported semantic size, with the shared image fallback
+ * and optional preload behavior.
+ */
 export function CharacterPortrait({
   characterId,
   name,

@@ -6,12 +6,20 @@ import { ProgressBar } from './progress-bar';
 // hover-only histogram) — the numbers are readable at rest. Layout math is the
 // pure {@link distributionBars}; the row markup is a real list.
 
+/**
+ * One non-negative distribution row; callers provide a stable key and display label while the
+ * component derives shares.
+ */
 export interface DistributionInput {
   key: string;
   label: string;
   count: number;
 }
 
+/**
+ * Display-ready distribution row containing its label, count, percentage, and semantic tone;
+ * percentages use the caller's shared denominator.
+ */
 export interface DistributionBar extends DistributionInput {
   /** Share of the total across all rows (the printed %). */
   sharePct: number;
@@ -19,9 +27,11 @@ export interface DistributionBar extends DistributionInput {
   fillPct: number;
 }
 
-// `sort: 'desc'` ranks by count (top pages/queries); `'none'` preserves the
-// caller's order for an inherently ordered series (the login-frequency buckets
-// read 1 → 2–3 → 4–9 → 10+, not by magnitude).
+/**
+ * `sort: 'desc'` ranks by count (top pages/queries); `'none'` preserves the
+ * caller's order for an inherently ordered series (the login-frequency buckets
+ * read 1 → 2–3 → 4–9 → 10+, not by magnitude).
+ */
 export function distributionBars(
   rows: DistributionInput[],
   sort: 'desc' | 'none' = 'desc',
@@ -41,6 +51,10 @@ function shareLabel(pct: number): string {
   return `${pct > 0 && pct < 10 ? pct.toFixed(1) : Math.round(pct)}%`;
 }
 
+/**
+ * Renders the domain-neutral distribution bars with house behavior and tokens; callers own
+ * semantic meaning and content while this primitive owns presentation.
+ */
 export function DistributionBars({
   rows,
   formatCount = (n) => n.toLocaleString(),

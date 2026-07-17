@@ -18,6 +18,10 @@ import type { Tone } from './tones';
 // stay open on the new page). Backs the mobile nav hamburger today; reusable
 // anywhere a dropdown of links is wanted via `tone`.
 
+/**
+ * Closed presentation vocabulary for menu tone; feature callers map domain meaning to these
+ * abstract values before rendering.
+ */
 export type MenuTone = Extract<Tone, 'neutral'>;
 
 // Abstract tone → token classes. The base owns the shared dropdown-panel SURFACE
@@ -38,6 +42,10 @@ const popup = cva(`flex flex-col outline-none ${panelSurface}`, {
 
 type PositionerProps = React.ComponentProps<typeof Base.Positioner>;
 
+/**
+ * Renders the domain-neutral menu with house behavior and tokens; callers own semantic meaning and
+ * content while this primitive owns presentation.
+ */
 export function Menu({
   trigger,
   children,
@@ -97,22 +105,40 @@ export function Menu({
   );
 }
 
-// Re-exported so consumers compose navigable menu rows through `@/components/ui/menu`
-// without reaching for the raw Base UI import (matching how `dialog.tsx` re-exports
-// its Close). Renders an `<a>`; pass `render={<Link … />}` to compose with Next.
+/**
+ * Re-exported so consumers compose navigable menu rows through `@/components/ui/menu`
+ * without reaching for the raw Base UI import (matching how `dialog.tsx` re-exports
+ * its Close). Renders an `<a>`; pass `render={<Link … />}` to compose with Next.
+ */
 export const MenuLinkItem = Base.LinkItem;
 
-// The non-link action row (closes the menu on select by default) and the section
-// divider, re-exported on the same terms as MenuLinkItem. First consumer is the
-// account menu's global half; the Run-As selector (ACCOUNT.8) composes the same
-// parts.
+/**
+ * The non-link action row (closes the menu on select by default) and the section
+ * divider, re-exported on the same terms as MenuLinkItem. First consumer is the
+ * account menu's global half; the Run-As selector (ACCOUNT.8) composes the same
+ * parts.
+ */
 export const MenuItem = Base.Item;
+/**
+ * Adopted Base UI menu separator part exposed through the single house wrapper; consumers compose
+ * it only within this primitive family.
+ */
 export const MenuSeparator = Base.Separator;
 
-// The pick-one-of-N rows (`role="menuitemradio"` + aria-checked for free),
-// re-exported on the same terms. First consumer is the Run-As build-character
-// selector (ACCOUNT.8). ⚠️ Unlike MenuItem, a RadioItem does NOT close the menu
-// on select by default — pass `closeOnClick` explicitly.
+/**
+ * The pick-one-of-N rows (`role="menuitemradio"` + aria-checked for free),
+ * re-exported on the same terms. First consumer is the Run-As build-character
+ * selector (ACCOUNT.8). ⚠️ Unlike MenuItem, a RadioItem does NOT close the menu
+ * on select by default — pass `closeOnClick` explicitly.
+ */
 export const MenuRadioGroup = Base.RadioGroup;
+/**
+ * Adopted Base UI menu radio item part exposed through the single house wrapper; consumers compose
+ * it only within this primitive family.
+ */
 export const MenuRadioItem = Base.RadioItem;
+/**
+ * Adopted Base UI menu radio item indicator part exposed through the single house wrapper;
+ * consumers compose it only within this primitive family.
+ */
 export const MenuRadioItemIndicator = Base.RadioItemIndicator;

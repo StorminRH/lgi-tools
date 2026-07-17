@@ -31,33 +31,56 @@ const viewerCorpStructuresSchema = z.object({
   lastRefreshedAt: z.number().nullable(),
 });
 
-// Exported as the slice's canonical wire shape: the route derives its response type
-// from it (below), and next session's client adds the typed `apiFetch` endpoint that
-// validates against it (`response: corpStructuresResponseSchema`).
+/**
+ * Exported as the slice's canonical wire shape: the route derives its response type
+ * from it (below), and next session's client adds the typed `apiFetch` endpoint that
+ * validates against it (`response: corpStructuresResponseSchema`).
+ */
 export const corpStructuresResponseSchema = z.object({
   corporations: z.array(viewerCorpStructuresSchema),
 });
 
+/**
+ * Corporation structures visible to the active character, paired with access and freshness
+ * metadata for the current read.
+ */
 export type CorpStructuresResponse = z.infer<typeof corpStructuresResponseSchema>;
 
-// ── POST /api/account/corp-structures/sharing (authz: auth + Station_Manager) ──
-// Flip a corp's structure-sharing consent. The route is the trust boundary: the
-// caller must be a member of the corp AND hold the in-game Station_Manager role
-// (any of their linked pilots in it). ENABLE opts the corp in (the next member view
-// pulls the catalogue); DISABLE wipes the corp's stored structures, sync state, and
-// authored rigs. Echoes the new state so the toggle reflects it without a refetch.
+/**
+ * ── POST /api/account/corp-structures/sharing (authz: auth + Station_Manager) ──
+ * Flip a corp's structure-sharing consent. The route is the trust boundary: the
+ * caller must be a member of the corp AND hold the in-game Station_Manager role
+ * (any of their linked pilots in it). ENABLE opts the corp in (the next member view
+ * pulls the catalogue); DISABLE wipes the corp's stored structures, sync state, and
+ * authored rigs. Echoes the new state so the toggle reflects it without a refetch.
+ */
 export const setCorpStructureSharingRequestSchema = z.object({
   corporationId: z.number().int().positive(),
   enabled: z.boolean(),
 });
+/**
+ * Corporation-sharing mutation payload selecting whether eligible account characters may use the
+ * stored structures.
+ */
 export type SetCorpStructureSharingRequest = z.input<typeof setCorpStructureSharingRequestSchema>;
 
+/**
+ * Boundary validator for corp structure sharing response schema; successful parsing yields the
+ * normalized owned structures input consumed internally.
+ */
 export const corpStructureSharingResponseSchema = z.object({
   corporationId: z.number(),
   enabled: z.boolean(),
 });
+/**
+ * Saved corporation-structure sharing state returned after the authenticated mutation completes.
+ */
 export type CorpStructureSharingResponse = z.infer<typeof corpStructureSharingResponseSchema>;
 
+/**
+ * Typed endpoint definition for set corp structure sharing endpoint; method, path, request, and
+ * response contracts remain coupled here.
+ */
 export const setCorpStructureSharingEndpoint: ApiEndpoint<
   SetCorpStructureSharingRequest,
   CorpStructureSharingResponse
@@ -76,7 +99,14 @@ export const setCorpStructureSharingEndpoint: ApiEndpoint<
 // slots. An orphan structureId (not in the corp's pulled set) is harmless — it's
 // never joined and is wiped on disable. Echoes the saved completion.
 const PG_INT4_MAX = 2_147_483_647;
+/**
+ * Inclusive upper bound for corp structure rigs; validation and UI limits share this value.
+ */
 export const MAX_CORP_STRUCTURE_RIGS = 3;
+/**
+ * Boundary validator for set corp structure rigs request schema; successful parsing yields the
+ * normalized owned structures input consumed internally.
+ */
 export const setCorpStructureRigsRequestSchema = z.object({
   corporationId: z.number().int().positive(),
   structureId: z.number().int().positive(),
@@ -87,15 +117,30 @@ export const setCorpStructureRigsRequestSchema = z.object({
   // an entered 0 is a real 0%).
   taxPct: z.number().min(0).max(MAX_FACILITY_TAX_PCT).nullable().optional(),
 });
+/**
+ * Corporation-structure override payload; omitted or null fields clear the saved rig or tax value.
+ */
 export type SetCorpStructureRigsRequest = z.input<typeof setCorpStructureRigsRequestSchema>;
 
+/**
+ * Boundary validator for corp structure rigs response schema; successful parsing yields the
+ * normalized owned structures input consumed internally.
+ */
 export const corpStructureRigsResponseSchema = z.object({
   structureId: z.number(),
   rigTypeIds: z.array(z.number()),
   taxPct: z.number().nullable(),
 });
+/**
+ * Validated rig and tax configuration for one corporation structure, including nullable values
+ * when no override is stored.
+ */
 export type CorpStructureRigsResponse = z.infer<typeof corpStructureRigsResponseSchema>;
 
+/**
+ * Typed endpoint definition for set corp structure rigs endpoint; method, path, request, and
+ * response contracts remain coupled here.
+ */
 export const setCorpStructureRigsEndpoint: ApiEndpoint<
   SetCorpStructureRigsRequest,
   CorpStructureRigsResponse

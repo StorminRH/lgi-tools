@@ -23,6 +23,10 @@ import { isBlueprintsStale } from './staleness';
 import { canSyncBlueprints } from './sync-eligibility';
 import type { OwnedBlueprintsPort } from './types';
 
+/**
+ * Refreshes every eligible personal and corporation blueprint owner visible to one user and
+ * returns the merged stored projection.
+ */
 export function refreshOwnedBlueprintsForUser(
   port: OwnedBlueprintsPort,
   userId: string,

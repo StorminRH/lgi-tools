@@ -23,6 +23,10 @@ function DialogError({ children }: { children?: ReactNode }) {
   );
 }
 
+/**
+ * Renders the domain-neutral confirm dialog with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function ConfirmDialog({
   open,
   onOpenChange,

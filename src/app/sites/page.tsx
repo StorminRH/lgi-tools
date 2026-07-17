@@ -17,6 +17,7 @@ import { parseSortDir, parseSortKey } from '@/features/wormhole-sites/sort';
 import type { SiteDetail } from '@/features/wormhole-sites/types';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
+/** Static search and social metadata for the /sites route. */
 export const metadata = buildPageMetadata({
   title: 'Wormhole Sites — Live Jita Loot & Resource Values',
   description:
@@ -94,9 +95,11 @@ function SitesLoading() {
   );
 }
 
-// The static shell — just the page background. The header, filter rail, and
-// results all stream in from the <Suspense> hole once the priced catalogue
-// resolves; the rail + view toggle are then client-interactive.
+/**
+ * The static shell — just the page background. The header, filter rail, and
+ * results all stream in from the <Suspense> hole once the priced catalogue
+ * resolves; the rail + view toggle are then client-interactive.
+ */
 export default function SitesPage({
   searchParams,
 }: {

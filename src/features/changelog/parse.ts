@@ -12,24 +12,33 @@ import { isIsoCalendarDate } from '@/lib/iso-date';
 // variant. If a future entry genuinely needs richer formatting, grow this
 // parser for exactly the new feature.
 
+/**
+ * Closed, canonically ordered set of change types; consumers derive validation, unions, and
+ * iteration from this one list.
+ */
 export const CHANGE_TYPES = ['Added', 'Changed', 'Fixed', 'Removed'] as const;
+/** Closed changelog entry categories used for labels and semantic tones. */
 export type ChangeType = (typeof CHANGE_TYPES)[number];
 
+/** Titled group of related changelog bullet items. */
 export type ChangelogGroup = {
   type: ChangeType;
   items: string[];
 };
 
+/** One dated sub-version changelog entry with type, title, lead, and grouped details. */
 export type ChangelogEntry = {
   version: string;
   date: string;
   groups: ChangelogGroup[];
 };
 
-// A master version groups all its sub-versions (a `### vX.Y.Z` entry). New
-// masters carry a themed title; historical ones render as a bare version number.
-// A master may also carry a short plain-language summary — the prose paragraph(s)
-// written directly under its `## vX.Y — Title` heading, before the first entry.
+/**
+ * A master version groups all its sub-versions (a `### vX.Y.Z` entry). New
+ * masters carry a themed title; historical ones render as a bare version number.
+ * A master may also carry a short plain-language summary — the prose paragraph(s)
+ * written directly under its `## vX.Y — Title` heading, before the first entry.
+ */
 export type ChangelogMaster = {
   version: string;
   title: string | null;
@@ -62,12 +71,18 @@ function parseEntryHeading(line: string): Pick<ChangelogEntry, 'version' | 'date
 // not whitespace.
 const MASTER_HEADING = /^##\s+v?([\d.]+)\s+[—-]\s+(.+?)\s*$/;
 
-// The master version is the first two dot-segments: '3.0.3.1' → '3.0',
-// '3.6.28' → '3.6'. A single-segment version returns itself unchanged.
+/**
+ * The master version is the first two dot-segments: '3.0.3.1' → '3.0',
+ * '3.6.28' → '3.6'. A single-segment version returns itself unchanged.
+ */
 export function masterVersionOf(version: string): string {
   return version.split('.').slice(0, 2).join('.');
 }
 
+/**
+ * Parses changelog Markdown into typed master and sub-version entries, rejecting malformed release
+ * headings and dates.
+ */
 export function parseChangelog(md: string): ChangelogEntry[] {
   const entries: ChangelogEntry[] = [];
   let currentEntry: ChangelogEntry | null = null;
@@ -140,12 +155,14 @@ function collectMasterMeta(md: string): MasterMeta {
   return { titles, summaries };
 }
 
-// Groups the flat entries under their master version. The master grouping is
-// derived from each entry's version prefix, so historical entries need no
-// per-master heading; a `## vX.Y — …` heading only supplies the optional theme
-// title and summary. Masters come out newest-first and sub-versions newest-first,
-// both straight from the changelog's source order (an insertion-ordered Map). A
-// themed heading with no matching entries is inert — it never produces a master.
+/**
+ * Groups the flat entries under their master version. The master grouping is
+ * derived from each entry's version prefix, so historical entries need no
+ * per-master heading; a `## vX.Y — …` heading only supplies the optional theme
+ * title and summary. Masters come out newest-first and sub-versions newest-first,
+ * both straight from the changelog's source order (an insertion-ordered Map). A
+ * themed heading with no matching entries is inert — it never produces a master.
+ */
 export function parseChangelogMasters(md: string): ChangelogMaster[] {
   const { titles, summaries } = collectMasterMeta(md);
 

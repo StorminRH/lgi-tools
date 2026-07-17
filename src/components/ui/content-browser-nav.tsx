@@ -39,6 +39,10 @@ function ContentItemLink({
   );
 }
 
+/**
+ * Renders the domain-neutral content browser nav tree with house behavior and tokens; callers own
+ * semantic meaning and content while this primitive owns presentation.
+ */
 export function ContentBrowserNavTree({
   basePath,
   navigationLabel,
@@ -91,6 +95,10 @@ export function ContentBrowserNavTree({
   );
 }
 
+/**
+ * Renders the domain-neutral content browser nav with house behavior and tokens; callers own
+ * semantic meaning and content while this primitive owns presentation.
+ */
 export function ContentBrowserNav(props: ContentBrowserNavProps) {
   const pathname = usePathname();
   return (

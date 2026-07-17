@@ -27,13 +27,32 @@ import { MANUFACTURING_ACTIVITY, REACTION_ACTIVITY } from './structure-bonus';
 import { formatBonusPct } from './structure-bonus-view';
 import type { BlueprintStructure } from './types';
 
+/**
+ * Canonical EVE skill identifier for industry; callers use the SDE identity directly.
+ */
 export const INDUSTRY_SKILL_ID = 3380;
+/**
+ * Percentage-point time adjustment per trained level for industry time.
+ */
 export const INDUSTRY_TIME_PCT_PER_LEVEL = -4;
+/**
+ * Canonical EVE skill identifier for advanced industry; callers use the SDE identity directly.
+ */
 export const ADVANCED_INDUSTRY_SKILL_ID = 3388;
+/**
+ * Percentage-point time adjustment per trained level for advanced industry time.
+ */
 export const ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL = -3;
+/**
+ * Canonical EVE skill identifier for reactions; callers use the SDE identity directly.
+ */
 export const REACTIONS_SKILL_ID = 45746;
+/**
+ * Percentage-point time adjustment per trained level for reactions time.
+ */
 export const REACTIONS_TIME_PCT_PER_LEVEL = -4;
 
+/** Multiplicative time factors for base industry, advanced industry, and reaction skills. */
 export interface SkillTimeFactors {
   // Per-node time factor (default 1 ⇒ no change), multiplied into the job-time
   // product beside teFactor and structureTeFactorOf.
@@ -42,6 +61,7 @@ export interface SkillTimeFactors {
   active: boolean;
 }
 
+/** Identity skill-time factors used when no character skill reduction applies. */
 export const NO_SKILL_FACTORS: SkillTimeFactors = {
   skillTimeFactorOf: () => 1,
   active: false,
@@ -54,26 +74,31 @@ function term(pctPerLevel: number, level: number): number {
   return 1 + (pctPerLevel * level) / 100;
 }
 
-// One applied skill for the hero readout's popover: name, trained level, and
-// its own reduction (|pct/lvl|·level — the per-skill line, not the compound).
+/**
+ * One applied skill for the hero readout's popover: name, trained level, and
+ * its own reduction (|pct/lvl|·level — the per-skill line, not the compound).
+ */
 export interface AppliedTimeSkill {
   name: string;
   level: number;
   reductionPct: number;
 }
 
-// The hero readout's popover model: the applied skills listed per activity plus
-// the compound total effect. `manufacturing.totalPct` compounds the
-// ACTIVITY-WIDE skills only (Industry × Advanced Industry — what every mfg job
-// gets); the trained per-item T2 skills present in THIS plan are listed
-// separately since they apply only to jobs requiring them. Untrained skills
-// (level 0) are not "being applied" and are omitted.
+/**
+ * The hero readout's popover model: the applied skills listed per activity plus
+ * the compound total effect. `manufacturing.totalPct` compounds the
+ * ACTIVITY-WIDE skills only (Industry × Advanced Industry — what every mfg job
+ * gets); the trained per-item T2 skills present in THIS plan are listed
+ * separately since they apply only to jobs requiring them. Untrained skills
+ * (level 0) are not "being applied" and are omitted.
+ */
 export interface SkillTimeBreakdown {
   manufacturing: { skills: AppliedTimeSkill[]; totalPct: number };
   perItem: AppliedTimeSkill[];
   reaction: { skills: AppliedTimeSkill[]; totalPct: number };
 }
 
+/** Calculates multiplicative industry skill time factors from character levels and activity type. */
 export function skillTimeBreakdown(args: {
   levels: Record<string, number>;
   nodeTimeSkills: Record<
@@ -123,10 +148,12 @@ export function skillTimeBreakdown(args: {
   };
 }
 
-// Build the per-node closure for the selected character. `levels` null ⇒ the
-// character's skills are unknown (never synced / pre-0039 row / fetch failed /
-// no character selected) ⇒ the identity factors — the ALL-OR-NOTHING fail-open:
-// skills apply fully or not at all, never a silent partial mix.
+/**
+ * Build the per-node closure for the selected character. `levels` null ⇒ the
+ * character's skills are unknown (never synced / pre-0039 row / fetch failed /
+ * no character selected) ⇒ the identity factors — the ALL-OR-NOTHING fail-open:
+ * skills apply fully or not at all, never a silent partial mix.
+ */
 export function skillTimeFactorsFor(args: {
   levels: Record<string, number> | null;
   nodeActivityByBlueprint: Record<number, number>;
@@ -159,12 +186,14 @@ export function skillTimeFactorsFor(args: {
   };
 }
 
-// The applied-build-skills hero readout's view (3.7.19.1): null in every
-// degraded state (no build character, the lever inactive, levels not loaded, or
-// nothing trained for the plan's activities), else the two show-flags, the
-// manufacturing headline (never a −0% claim — it reads the strongest per-item
-// skill as an "up to" when no activity-wide reduction applies), the character
-// name, and the breakdown to render. The component stays a render shell.
+/**
+ * The applied-build-skills hero readout's view (3.7.19.1): null in every
+ * degraded state (no build character, the lever inactive, levels not loaded, or
+ * nothing trained for the plan's activities), else the two show-flags, the
+ * manufacturing headline (never a −0% claim — it reads the strongest per-item
+ * skill as an "up to" when no activity-wide reduction applies), the character
+ * name, and the breakdown to render. The component stays a render shell.
+ */
 export interface BuildSkillsView {
   characterName: string;
   breakdown: SkillTimeBreakdown;
@@ -173,6 +202,7 @@ export interface BuildSkillsView {
   mfgHeadline: string;
 }
 
+/** Builds the display-ready skill-time reduction rows for the active blueprint activity. */
 export function buildSkillsView(
   buildCharacter: { name: string } | null,
   skillTimeFactorsActive: boolean,

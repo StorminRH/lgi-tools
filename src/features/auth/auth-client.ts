@@ -13,6 +13,7 @@ import { customSessionClient, genericOAuthClient } from 'better-auth/client/plug
 import { createAuthClient } from 'better-auth/react';
 import type { auth } from './auth';
 
+/** Browser Better Auth client configured with the EVE OAuth provider and shared session contract. */
 export const authClient = createAuthClient({
   plugins: [genericOAuthClient(), customSessionClient<typeof auth>()],
 });

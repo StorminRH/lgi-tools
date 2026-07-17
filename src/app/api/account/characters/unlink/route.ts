@@ -20,12 +20,14 @@ function redirectWithError(request: NextRequest, code: string): Response {
   return Response.redirect(url, 303);
 }
 
-// POST-only. Removes one of the signed-in pilot's linked EVE characters (and its
-// stored encrypted tokens — deleteAccount drops the row). We pre-check ownership
-// and the last-character guard ourselves for clean error copy; Better Auth's
-// unlink also enforces both as a backstop. If the removed character was active,
-// the active pointer is re-aimed at the oldest remaining one so the session never
-// references a deleted account.
+/**
+ * POST-only. Removes one of the signed-in pilot's linked EVE characters (and its
+ * stored encrypted tokens — deleteAccount drops the row). We pre-check ownership
+ * and the last-character guard ourselves for clean error copy; Better Auth's
+ * unlink also enforces both as a backstop. If the removed character was active,
+ * the active pointer is re-aimed at the oldest remaining one so the session never
+ * references a deleted account.
+ */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected

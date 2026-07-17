@@ -7,18 +7,20 @@ import type { AnyPgDb } from '@/lib/db-types';
 // ESI's /universe/names/ resolves up to 1000 ids per POST.
 const NAMES_BATCH = 1000;
 
-// ESI returns the full in-game station name ("Jita IV - Moon 4 - Caldari Navy
-// Assembly Plant"), which CCP's SDE record does not carry (it has no celestial
-// reference and we ingest neither npcCorporations nor map celestials). We resolve
-// it here, through the one ESI gate, and stamp it onto eve_npc_stations.name.
-//
-// Runs AFTER runIngest commits — so the ESI calls happen with no ingest
-// transaction open (the network-outside-a-transaction invariant). Best-effort:
-// any failed batch is logged and skipped, leaving those names null; the planner
-// falls back to the operation label, so a flaky ESI never fails the pipeline /
-// deploy. Only resolves industry-capable stations (the planner's consumers, 2.3k
-// of 5.2k → 3 calls) whose name is still null — every row, right after an ingest
-// wipe; a no-op otherwise.
+/**
+ * ESI returns the full in-game station name ("Jita IV - Moon 4 - Caldari Navy
+ * Assembly Plant"), which CCP's SDE record does not carry (it has no celestial
+ * reference and we ingest neither npcCorporations nor map celestials). We resolve
+ * it here, through the one ESI gate, and stamp it onto eve_npc_stations.name.
+ *
+ * Runs AFTER runIngest commits — so the ESI calls happen with no ingest
+ * transaction open (the network-outside-a-transaction invariant). Best-effort:
+ * any failed batch is logged and skipped, leaving those names null; the planner
+ * falls back to the operation label, so a flaky ESI never fails the pipeline /
+ * deploy. Only resolves industry-capable stations (the planner's consumers, 2.3k
+ * of 5.2k → 3 calls) whose name is still null — every row, right after an ingest
+ * wipe; a no-op otherwise.
+ */
 export async function resolveNpcStationNames(db: AnyPgDb): Promise<{ resolved: number }> {
   const rows = await db
     .select({ id: eveNpcStations.id })

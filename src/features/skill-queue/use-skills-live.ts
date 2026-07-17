@@ -21,6 +21,10 @@ function skillsIsCold(response: SkillsResponse, eligibleKey: string): boolean {
   return anyEligibleCold(response.characters, eligibleKey);
 }
 
+/**
+ * Encapsulates the skills live subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useSkillsLive(eligibleCharacterIds: number[]): {
   skillsByCharacter: Map<number, ViewerSkills>;
   names: Record<string, string>;

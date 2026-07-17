@@ -3,6 +3,7 @@ import type { Wave } from '../types';
 import { EwarRow } from './EwarRow';
 import { NpcRow } from './NpcRow';
 
+/** Renders one combat wave's NPC composition, totals, and electronic-warfare indicators. */
 export function WaveCard({
   wave,
   label,

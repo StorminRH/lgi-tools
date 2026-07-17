@@ -23,16 +23,21 @@ import {
   type ActivityName,
 } from './constants';
 
+/** One skill requirement for a blueprint activity, including skill type ID and required level. */
 export type ActivitySkill = { typeId: number; level: number };
+/** One blueprint activity material requirement with type ID and base quantity. */
 export type ActivityMaterial = { typeId: number; quantity: number };
-// `probability` is present only on invention products (the per-run invention
-// success chance, e.g. 0.3); manufacturing/reaction products omit it.
+/**
+ * `probability` is present only on invention products (the per-run invention
+ * success chance, e.g. 0.3); manufacturing/reaction products omit it.
+ */
 export type ActivityProduct = {
   typeId: number;
   quantity: number;
   probability?: number;
 };
 
+/** Normalized blueprint activity containing time, products, materials, and required skills. */
 export type BlueprintActivity = {
   name: ActivityName;
   activityId: number; // CCP's numeric id, e.g. 'invention' → 8
@@ -42,8 +47,10 @@ export type BlueprintActivity = {
   time: number | null; // base seconds for one run, ME0/TE0; null if absent
 };
 
-// Only activities actually present on the blueprint appear (no fabricated empty
-// placeholders). A consumer looks one up by name with `.find(a => a.name === …)`.
+/**
+ * Only activities actually present on the blueprint appear (no fabricated empty
+ * placeholders). A consumer looks one up by name with `.find(a => a.name === …)`.
+ */
 export type BlueprintActivitySet = BlueprintActivity[];
 
 function asObject(raw: unknown): Record<string, unknown> | null {
@@ -102,6 +109,10 @@ function parseSkills(raw: unknown): ActivitySkill[] {
   });
 }
 
+/**
+ * Parses raw SDE blueprint activities into normalized products, materials, time, and skill
+ * requirements keyed by supported activity.
+ */
 export function parseBlueprintActivities(raw: unknown): BlueprintActivitySet {
   const activities = asObject(raw);
   if (!activities) return [];

@@ -1,20 +1,25 @@
+/** Closed feedback submission state for idle, sending, success, and failure presentation. */
 export type SubmitState =
   | { kind: 'idle' }
   | { kind: 'submitting' }
   | { kind: 'success' }
   | { kind: 'error'; message: string };
 
-// Whether a submit should proceed: `busy` while one is already in flight (silent
-// no-op), `empty` for a blank message (show the inline error), else `ok`.
+/**
+ * Whether a submit should proceed: `busy` while one is already in flight (silent
+ * no-op), `empty` for a blank message (show the inline error), else `ok`.
+ */
 export function feedbackSubmitGate(message: string, state: SubmitState): 'busy' | 'empty' | 'ok' {
   if (state.kind === 'submitting') return 'busy';
   if (message.trim().length === 0) return 'empty';
   return 'ok';
 }
 
-// The user-facing error line for a failed submit, gated on status so a raw error
-// body never reaches the UI: 400 carries a human-readable validation detail;
-// 429 / 5xx get a friendly line each.
+/**
+ * The user-facing error line for a failed submit, gated on status so a raw error
+ * body never reaches the UI: 400 carries a human-readable validation detail;
+ * 429 / 5xx get a friendly line each.
+ */
 export async function feedbackErrorMessage(result: {
   status: number;
   response: Response;

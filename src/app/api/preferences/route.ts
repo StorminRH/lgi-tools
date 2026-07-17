@@ -10,13 +10,15 @@ import { requireUserId } from '@/features/auth/route-guards';
 import { validatePreferenceValue } from '@/lib/preferences';
 import { parseJsonBody } from '@/lib/route-body';
 
-// Both handlers are scoped to the authenticated caller's own user rows; an
-// anonymous GET returns an empty set (the client falls back to localStorage) and
-// an anonymous POST is rejected.
+/**
+ * Both handlers are scoped to the authenticated caller's own user rows; an
+ * anonymous GET returns an empty set (the client falls back to localStorage) and
+ * an anonymous POST is rejected.
+ *
+ * GET /api/preferences — the caller's saved preferences (their own rows only). No
+ * user input to validate.
+ */
 // authz: auth
-//
-// GET /api/preferences — the caller's saved preferences (their own rows only). No
-// user input to validate.
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
@@ -26,10 +28,12 @@ export async function GET(): Promise<Response> {
   return Response.json({ preferences } satisfies GetPreferencesResponse);
 }
 
-// POST /api/preferences — upsert ONE of the caller's preferences. Body
-// { key, value }: the key must be a known registry key (enum) and the value must
-// match that key's schema (validatePreferenceValue — the server trust boundary,
-// so a forged body can't write garbage). 401 for anon, 204 on success.
+/**
+ * POST /api/preferences — upsert ONE of the caller's preferences. Body
+ * \{ key, value \}: the key must be a known registry key (enum) and the value must
+ * match that key's schema (validatePreferenceValue — the server trust boundary,
+ * so a forged body can't write garbage). 401 for anon, 204 on success.
+ */
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     authorize: requireUserId,

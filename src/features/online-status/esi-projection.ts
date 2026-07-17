@@ -11,9 +11,11 @@ import { z } from 'zod';
 // timestamps/login-count are stripped (zod objects drop unknown keys).
 const onlineBodySchema = z.object({ online: z.boolean() });
 
-// Returns null on a shape mismatch — the syncing action records a contract error
-// for that character rather than retrying (a shape change won't fix itself) or
-// crashing the whole run.
+/**
+ * Returns null on a shape mismatch — the syncing action records a contract error
+ * for that character rather than retrying (a shape change won't fix itself) or
+ * crashing the whole run.
+ */
 export function parseOnlineBody(body: unknown): boolean | null {
   const parsed = onlineBodySchema.safeParse(body);
   return parsed.success ? parsed.data.online : null;

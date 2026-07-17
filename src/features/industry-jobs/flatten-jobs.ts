@@ -4,6 +4,7 @@
 // the board renders soonest-done first, job_id tie-breaking for stability.
 import type { IndustryJob } from './esi-projection';
 
+/** Flattens per-owner industry-job groups into one deterministically ordered job list. */
 export function flattenJobs(
   boards: Iterable<{ data: { jobs: IndustryJob[] } | null }>,
 ): IndustryJob[] {
@@ -16,8 +17,10 @@ export function flattenJobs(
   );
 }
 
-// The section header's "N complete · M in progress" counts. Statuses arrive
-// already derived by the live hook (a past-end_date active job is 'ready').
+/**
+ * The section header's "N complete · M in progress" counts. Statuses arrive
+ * already derived by the live hook (a past-end_date active job is 'ready').
+ */
 export function jobCounts(jobs: readonly IndustryJob[]): {
   complete: number;
   inProgress: number;

@@ -5,10 +5,13 @@
 // an older, smaller consent still syncs fine. Runtime-light — the Convex
 // action imports this too.
 
-// Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
-// never demand a scope sign-in doesn't request).
+/**
+ * Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
+ * never demand a scope sign-in doesn't request).
+ */
 export const INDUSTRY_JOBS_SYNC_SCOPES = ['esi-industry.read_character_jobs.v1'] as const;
 
+/** Returns whether a linked character has token custody and the personal-industry-jobs scope. */
 export function canSyncIndustryJobs(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

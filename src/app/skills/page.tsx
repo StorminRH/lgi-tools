@@ -56,10 +56,12 @@ function SkillsLoading() {
   );
 }
 
-// Live skill queues across the pilot's linked characters (3.4.7) — the first
-// Convex tracker. The page container prerenders as the static shell; the
-// session + character-list read is a request-time dynamic hole, and the
-// queues stream in reactively from Convex inside the client island.
+/**
+ * Live skill queues across the pilot's linked characters (3.4.7) — the first
+ * Convex tracker. The page container prerenders as the static shell; the
+ * session + character-list read is a request-time dynamic hole, and the
+ * queues stream in reactively from Convex inside the client island.
+ */
 export default function SkillsPage() {
   return (
     <PageShell>

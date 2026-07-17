@@ -13,6 +13,7 @@ import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySl
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
 import { IndustryDashboardGrid } from './IndustryDashboardGrid';
 
+/** Static search and social metadata for the /industry route. */
 export const metadata: Metadata = {
   title: 'Industry Planner',
   description:
@@ -93,12 +94,14 @@ function DashboardSkeleton() {
   );
 }
 
-// Static shell — header and typed hint prerender, plus the section-grid
-// skeleton as the <Suspense> fallback. The session + linked-character read is
-// ONE request-time hole feeding the client section grid (IndustryDashboardGrid),
-// which owns recents (localStorage), templates (/api/account/saved-plans),
-// and the personal + corp job boards (the existing Neon stale-gated on-view
-// reads) — and ranks populated sections above empty ones.
+/**
+ * Static shell — header and typed hint prerender, plus the section-grid
+ * skeleton as the <Suspense> fallback. The session + linked-character read is
+ * ONE request-time hole feeding the client section grid (IndustryDashboardGrid),
+ * which owns recents (localStorage), templates (/api/account/saved-plans),
+ * and the personal + corp job boards (the existing Neon stale-gated on-view
+ * reads) — and ranks populated sections above empty ones.
+ */
 export default function IndustryDashboardPage() {
   return (
     <PageShell>

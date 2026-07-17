@@ -45,6 +45,10 @@ function makeDescriptor(port: JobsPort): OwnerSyncDescriptor<number, CharacterJo
   });
 }
 
+/**
+ * Refreshes eligible personal industry jobs for all linked characters and returns the merged
+ * stored projection.
+ */
 export function refreshJobsForUser(
   port: JobsPort,
   userId: string,

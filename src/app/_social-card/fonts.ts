@@ -6,6 +6,10 @@ const socialCardFontData = Promise.all([
   readFile(join(process.cwd(), 'assets/fonts/JetBrainsMono-Regular.ttf')),
 ]);
 
+/**
+ * Loads the bundled font bytes required by social-card rendering; the shared promise deduplicates
+ * file reads across image requests.
+ */
 export async function loadSocialCardFonts() {
   const [barlowCondensedBold, jetBrainsMonoRegular] = await socialCardFontData;
   return [

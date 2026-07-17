@@ -48,6 +48,7 @@ const ownedAssetSchema = z.object({
 });
 const ownedAssetsBodySchema = z.array(ownedAssetSchema);
 
+/** Normalized owned asset with type, quantity, owner, location, flag, and snapshot identity. */
 export type OwnedAsset = z.infer<typeof ownedAssetSchema>;
 
 // The aggregation key: same type at the same place (flag + type) is one holding.
@@ -81,9 +82,11 @@ function compareAssets(a: OwnedAsset, b: OwnedAsset): number {
   );
 }
 
-// Returns null on a shape mismatch — the syncing path records a contract error
-// for that owner rather than retrying (a shape change won't fix itself) or
-// crashing the whole run. Mirrors parseBlueprintsBody.
+/**
+ * Returns null on a shape mismatch — the syncing path records a contract error
+ * for that owner rather than retrying (a shape change won't fix itself) or
+ * crashing the whole run. Mirrors parseBlueprintsBody.
+ */
 export function parseAssetsBody(body: unknown): OwnedAsset[] | null {
   const parsed = ownedAssetsBodySchema.safeParse(body);
   if (!parsed.success) return null;

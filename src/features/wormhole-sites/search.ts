@@ -11,6 +11,7 @@ import { CLASS_TONE, SITE_TYPE_LABEL } from './components/wormhole-styles';
 
 let SITE_INDEX: SiteSearchEntry[] = [];
 
+/** Injects the immutable wormhole-site search catalogue consumed by the registered source. */
 export function setSiteSearchIndex(entries: SiteSearchEntry[]): void {
   SITE_INDEX = entries;
 }
@@ -32,6 +33,10 @@ const CLASS_ORDER: Record<string, number> = {
   C1: 0, C2: 1, C3: 2, C4: 3, C5: 4, C6: 5,
 };
 
+/**
+ * Global-search source for sites search source; it owns matching and result mapping while the app
+ * layer owns registration.
+ */
 export const sitesSearchSource: SearchSource = {
   id: 'sites',
   name: 'Sites',

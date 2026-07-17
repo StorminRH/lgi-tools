@@ -3,6 +3,7 @@
 import type { Tone } from '@/components/ui/tones';
 import type { EntryStatus } from './progress';
 
+/** Authoritative mapping from skill-queue connection states to labels and semantic tones. */
 export const STATUS_META: Record<EntryStatus, { label: string; tone: Tone }> = {
   training: { label: 'Training', tone: 'green' },
   done: { label: 'Done', tone: 'teal' },

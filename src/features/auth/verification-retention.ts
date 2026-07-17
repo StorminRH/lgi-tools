@@ -2,6 +2,7 @@ import { lt } from 'drizzle-orm';
 import type { AnyPgDb } from '@/lib/db-types';
 import { verification } from './schema';
 
+/** Deletes expired Better Auth verification rows using the configured retention boundary. */
 export async function pruneExpiredVerifications(
   database: AnyPgDb,
   retentionDays: number,

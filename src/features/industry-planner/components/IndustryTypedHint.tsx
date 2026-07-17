@@ -19,6 +19,7 @@ function focusNavSearch() {
   input.focus();
 }
 
+/** Renders the planner's typed explanatory hint with consistent terminal styling. */
 export function IndustryTypedHint() {
   const reduced = useMemo(
     () =>

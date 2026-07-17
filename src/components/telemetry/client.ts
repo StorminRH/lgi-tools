@@ -8,6 +8,10 @@ import { telemetryEndpoint } from '@/data/telemetry/api-contract';
 import { apiFetch } from '@/lib/api-client';
 import { buildTelemetryPayload, type TelemetryInput } from './telemetry-payload';
 
+/**
+ * Queues one privacy-bounded telemetry event with keepalive delivery; browser or network failure
+ * is intentionally ignored so navigation is never blocked.
+ */
 export function postTelemetry(input: TelemetryInput): void {
   const payload = buildTelemetryPayload(input);
 

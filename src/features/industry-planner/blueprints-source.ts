@@ -37,6 +37,7 @@ function loadIndex(): Promise<BlueprintIndexEntry[]> {
   return indexPromise;
 }
 
+/** Global-search data source that maps the cached blueprint catalogue into planner search results. */
 export const blueprintsSource: SearchSource = {
   id: 'blueprints',
   name: 'Blueprints',

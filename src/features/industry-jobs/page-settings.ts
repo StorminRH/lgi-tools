@@ -8,6 +8,7 @@
 
 import type { PageSettingsSpec } from '@/page-settings/types';
 
+/** Declarative industry-jobs controls registered with the shared page-settings system. */
 export const jobsPageSettings = {
   route: '/jobs',
   strip: { surfaceId: 'jobs' },

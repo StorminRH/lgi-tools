@@ -106,6 +106,10 @@ const COMMANDS: CommandEntry[] = [
   },
 ];
 
+/**
+ * Global-search source for commands search source; it owns matching and result mapping while the
+ * app layer owns registration.
+ */
 export const commandsSearchSource: SearchSource = {
   id: 'commands',
   name: 'Commands',

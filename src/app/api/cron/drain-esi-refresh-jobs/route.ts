@@ -5,11 +5,14 @@ import { drainEsiRefreshJobs } from '@/db/esi-refresh-worker';
 import { swallow } from '@/lib/cron';
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
+/** Maximum Vercel function execution window in seconds for this route's bounded background work. */
 export const maxDuration = 300;
 
-// Vercel cron, scheduled every 15 minutes. The shared cron gate authenticates
-// CRON_SECRET and holds the session advisory lock so duplicate delivery cannot
-// claim the same jobs. No user input; body and query parameters are ignored.
+/**
+ * Vercel cron, scheduled every 15 minutes. The shared cron gate authenticates
+ * CRON_SECRET and holds the session advisory lock so duplicate delivery cannot
+ * claim the same jobs. No user input; body and query parameters are ignored.
+ */
 // authz: cron
 export async function GET(req: Request): Promise<Response> {
   const started = Date.now();

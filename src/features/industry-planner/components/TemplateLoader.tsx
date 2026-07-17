@@ -28,6 +28,7 @@ import { useTemplatePlanner } from './planner-contexts';
 
 const LOAD_TOAST_ID = 'plan-template-load';
 
+/** Applies a saved snapshot to the live planner and renders its success or incompatibility feedback. */
 export function TemplateLoader({ structure }: { structure: TemplateStructureView }) {
   const ctx = useTemplatePlanner();
   const preferencesReady = usePreferencesReady();

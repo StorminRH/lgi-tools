@@ -144,8 +144,10 @@ function AdminLoading() {
   );
 }
 
-// Per-user, session-gated: the content (auth check, redirect, DB reads) is a
-// fully request-time dynamic hole. Only the page container prerenders.
+/**
+ * Per-user, session-gated: the content (auth check, redirect, DB reads) is a
+ * fully request-time dynamic hole. Only the page container prerenders.
+ */
 export default function AdminPage({
   searchParams,
 }: {

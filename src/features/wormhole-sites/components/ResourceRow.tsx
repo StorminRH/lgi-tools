@@ -32,6 +32,7 @@ function ResourceValue({ resource }: { resource: SiteResource }) {
   );
 }
 
+/** Renders one site resource's quantity, volume in cubic metres, and live ISK value. */
 export function SiteResourceRow({
   resource,
   siteType,

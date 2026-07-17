@@ -4,12 +4,19 @@
 //   34,35,36   → explicit IDs, unconditional refresh
 //   --debug    → explicit IDs (DEFAULT_DEBUG_IDS), unconditional
 
-// Sanity trio: Tritanium / Pyerite / Mexallon. Always have deep order books in
-// Jita on both sides — a useful smoke-test default when no IDs are passed.
+/**
+ * Sanity trio: Tritanium / Pyerite / Mexallon. Always have deep order books in
+ * Jita on both sides — a useful smoke-test default when no IDs are passed.
+ */
 export const DEFAULT_DEBUG_IDS = [34, 35, 36];
 
+/** Closed command-line price-refresh mode selecting the whole catalogue or an explicit type-ID subset. */
 export type RefreshMode = { kind: 'cached' } | { kind: 'explicit'; ids: number[] };
 
+/**
+ * Parses the comma-separated numeric type-ID argument, rejecting empty, non-integer, or
+ * non-positive entries before database work begins.
+ */
 export function parseIds(arg: string): number[] {
   const ids = arg
     .split(',')
@@ -24,6 +31,10 @@ export function parseIds(arg: string): number[] {
   return ids;
 }
 
+/**
+ * Parses the price-refresh command line into its closed refresh mode and optional type-ID
+ * selection, throwing on unsupported combinations.
+ */
 export function parseArgs(argv: string[]): RefreshMode {
   let debug = false;
   let idsArg: string | undefined;

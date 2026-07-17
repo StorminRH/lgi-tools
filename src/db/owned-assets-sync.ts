@@ -54,6 +54,10 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
   };
 }
 
+/**
+ * Persists one validated owned-assets source snapshot and replaces the owner's current projection
+ * in the same database transaction.
+ */
 export async function saveOwnedAssetsFromSource(
   owner: OwnerKey,
   rows: Parameters<typeof saveOwnedAssets>[1],
@@ -97,13 +101,15 @@ export async function saveOwnedAssetsFromSource(
   }
 }
 
-// The on-view seam: resolve the owned-asset detail for the requested types
-// immediately, and fire a stale-gated write-behind refresh behind the response. A
-// re-view inside the 1h window makes no asset ESI call (the refresh's per-owner
-// staleness gate is the dedup). Owner + NPC-station + solar-system names are
-// resolved server-side in ONE bounded /universe/names pass (day-cached, shared
-// across viewers); player structures / containers degrade to a generic label — no
-// read_structures scope is taken.
+/**
+ * The on-view seam: resolve the owned-asset detail for the requested types
+ * immediately, and fire a stale-gated write-behind refresh behind the response. A
+ * re-view inside the 1h window makes no asset ESI call (the refresh's per-owner
+ * staleness gate is the dedup). Owner + NPC-station + solar-system names are
+ * resolved server-side in ONE bounded /universe/names pass (day-cached, shared
+ * across viewers); player structures / containers degrade to a generic label — no
+ * read_structures scope is taken.
+ */
 export async function getOwnedAssetDetailOnView(
   userId: string,
   requestedTypeIds: number[],
@@ -121,6 +127,10 @@ export async function getOwnedAssetDetailOnView(
   return buildOwnedAssetDetail(map, names, formatStationName);
 }
 
+/**
+ * Refreshes owned assets for one owner through the shared owner-sync port, including raw snapshot
+ * retention and stored-source fallback.
+ */
 export async function runOwnedAssetsRefreshJob(
   userId: string,
   target: OwnerSyncTarget,

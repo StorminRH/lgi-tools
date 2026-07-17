@@ -50,6 +50,10 @@ type CharacterOutcome =
   | { kind: 'result'; result: CharacterResult }
   | { kind: 'stop'; runError: string; result: CharacterResult };
 
+/**
+ * Runs the authenticated online-status sync for one user through the shared Convex engine; the
+ * engine owns scheduling and persisted run state.
+ */
 export const syncUser = internalAction({
   args: { userId: v.string(), generation: v.number() },
   handler: async (ctx, { userId, generation }) => {

@@ -24,12 +24,18 @@ import { useAuth } from '@/features/auth/components/AuthProvider';
 // characterId → online (true/false). Absent = unknown (no live doc / not ours).
 const OnlineStatusContext = createContext<ReadonlyMap<number, boolean>>(new Map());
 
-// Read one character's live online flag. undefined when the character isn't the
-// viewer's, hasn't synced yet, or there's no provider above (the default map).
+/**
+ * Read one character's live online flag. undefined when the character isn't the
+ * viewer's, hasn't synced yet, or there's no provider above (the default map).
+ */
 export function useOnlineFlag(characterId: number): boolean | undefined {
   return useContext(OnlineStatusContext).get(characterId);
 }
 
+/**
+ * Publishes online status state to descendants; the provider owns subscription and update
+ * lifecycle while children consume it.
+ */
 export function OnlineStatusProvider({ children }: { children: ReactNode }) {
   // No Convex deployment → no subscription; the default empty map means every
   // portrait reads `unknown` and shows no dot (consumers never crash).

@@ -12,6 +12,7 @@ import type { WormholeClass } from './types';
 // This helper centralises that mapping so card, table, and filter logic can
 // all derive it from the site name without each having its own switch.
 
+/** Inclusive wormhole-class bounds used by gas-site filtering and labels. */
 export interface ClassRange {
   min: WormholeClass;
   max: WormholeClass;
@@ -21,6 +22,7 @@ const CLASS_ORDER: Record<WormholeClass, number> = {
   C1: 1, C2: 2, C3: 3, C4: 4, C5: 5, C6: 6,
 };
 
+/** Returns the inclusive wormhole-class range implied by a gas-site class label. */
 export function gasClassRange(name: string): ClassRange | null {
   // Order matters — "Core" appears before "Frontier" alphabetically but the
   // ranges don't overlap, so the order of the three branches is purely a
@@ -31,11 +33,13 @@ export function gasClassRange(name: string): ClassRange | null {
   return null;
 }
 
+/** Formats an inclusive wormhole-class range as one class or a compact class span. */
 export function formatClassRange(range: ClassRange): string {
   if (range.min === range.max) return range.min;
   return `${range.min}–${range.max}`;
 }
 
+/** Returns whether an inclusive wormhole-class range contains the supplied class number. */
 export function classRangeIncludes(range: ClassRange, cls: WormholeClass): boolean {
   return CLASS_ORDER[cls] >= CLASS_ORDER[range.min] && CLASS_ORDER[cls] <= CLASS_ORDER[range.max];
 }

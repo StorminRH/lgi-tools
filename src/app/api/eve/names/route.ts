@@ -11,6 +11,10 @@ import {
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import { parseJsonBody } from '@/lib/route-body';
 
+/**
+ * Handles POST requests for /api/eve/names; this route owns its authorization, boundary
+ * validation, and typed response mapping.
+ */
 export async function POST(req: Request): Promise<Response> {
   const parsed = await parseJsonBody(req, entityNamesRequestSchema);
   if (!parsed.ok) return parsed.response;

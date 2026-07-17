@@ -11,11 +11,13 @@ import {
 import { requireUserId } from '@/features/auth/route-guards';
 import { parseJsonBody } from '@/lib/route-body';
 
+/**
+ * POST /api/account/custom-structures/delete. Deletes one of the caller's OWN
+ * structures (the query's (userId, id) predicate makes it a no-op for a row the
+ * caller doesn't own). Returns the updated list. apiFetch only speaks GET/POST,
+ * so this is a POST sub-route rather than an HTTP DELETE.
+ */
 // authz: auth
-// POST /api/account/custom-structures/delete. Deletes one of the caller's OWN
-// structures (the query's (userId, id) predicate makes it a no-op for a row the
-// caller doesn't own). Returns the updated list. apiFetch only speaks GET/POST,
-// so this is a POST sub-route rather than an HTTP DELETE.
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     authorize: requireUserId,

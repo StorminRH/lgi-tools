@@ -1,11 +1,13 @@
-// Decorates Better Auth's OAuth-callback redirect with the absorbed-character
-// marker so the roster can show its moved-note (ACCOUNT.3 absorb-on-proof).
-// Only a clean redirect is decorated: the absorb can commit and the callback
-// still fail afterwards, and an error redirect must never claim a move
-// succeeded. The Location being decorated is Better Auth's own callbackURL,
-// validated against trustedOrigins when the link started — this only appends a
-// param. Pure over (response, requestUrl, absorbedCharacterId); the async
-// tracking scope lives in absorb-context.ts.
+/**
+ * Decorates Better Auth's OAuth-callback redirect with the absorbed-character
+ * marker so the roster can show its moved-note (ACCOUNT.3 absorb-on-proof).
+ * Only a clean redirect is decorated: the absorb can commit and the callback
+ * still fail afterwards, and an error redirect must never claim a move
+ * succeeded. The Location being decorated is Better Auth's own callbackURL,
+ * validated against trustedOrigins when the link started — this only appends a
+ * param. Pure over (response, requestUrl, absorbedCharacterId); the async
+ * tracking scope lives in absorb-context.ts.
+ */
 export function decorateAbsorbRedirect(
   response: Response,
   requestUrl: string,

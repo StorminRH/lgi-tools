@@ -27,12 +27,14 @@ import type { PostgresJsDb } from '@/lib/db-types';
 // postgres-js `drizzle(client)`.
 
 
+/** Aggregate row counts produced by one SDE seed stage for operator reporting. */
 export type SeedSummary = {
   tracked: number;
   missing: number;
   inserted: number;
 };
 
+/** Complete SDE pipeline outcome combining ingest and derived-table row counts. */
 export type SdePipelineSummary = {
   ingest: IngestSummary;
   resolve: ResolveSummary;
@@ -41,12 +43,14 @@ export type SdePipelineSummary = {
   durationMs: number;
 };
 
-// Seed market_prices with one row per tracked type ID that isn't
-// already present. NULL prices, epoch staleness, source 'esi' — the
-// next price-refresh cron tick (or on-demand request) fills them in.
-// `ON CONFLICT DO NOTHING` preserves any existing rows verbatim, so
-// the 54 wormhole-site rows seeded by the wormhole-sites ingest stay
-// intact with their current prices.
+/**
+ * Seed market_prices with one row per tracked type ID that isn't
+ * already present. NULL prices, epoch staleness, source 'esi' — the
+ * next price-refresh cron tick (or on-demand request) fills them in.
+ * `ON CONFLICT DO NOTHING` preserves any existing rows verbatim, so
+ * the 54 wormhole-site rows seeded by the wormhole-sites ingest stay
+ * intact with their current prices.
+ */
 export async function seedTrackedTypes(db: PostgresJsDb): Promise<SeedSummary> {
   const tracked = await listTrackedTypeIds(db);
   const missing = await listMissingTypeIds(db, tracked);
@@ -91,10 +95,12 @@ export async function seedTrackedTypes(db: PostgresJsDb): Promise<SeedSummary> {
   return { tracked: tracked.length, missing: missing.length, inserted };
 }
 
-// End-to-end SDE pipeline. Idempotent. Safe to call on every deploy;
-// the resolver short-circuits via `tree_resolver_hash` when nothing
-// upstream changed, and seeding `ON CONFLICT DO NOTHING` is a no-op
-// for rows that already exist.
+/**
+ * End-to-end SDE pipeline. Idempotent. Safe to call on every deploy;
+ * the resolver short-circuits via `tree_resolver_hash` when nothing
+ * upstream changed, and seeding `ON CONFLICT DO NOTHING` is a no-op
+ * for rows that already exist.
+ */
 export async function runSdePipeline(db: PostgresJsDb): Promise<SdePipelineSummary> {
   const start = Date.now();
   const ingest = await runIngest(db);
@@ -107,9 +113,11 @@ export async function runSdePipeline(db: PostgresJsDb): Promise<SdePipelineSumma
   return { ingest, resolve, seed, stationNames, durationMs: Date.now() - start };
 }
 
-// Convenience for callers that have a raw postgres-js client and want
-// to log a quick row-count summary post-pipeline (cron handler uses
-// this in its response body).
+/**
+ * Convenience for callers that have a raw postgres-js client and want
+ * to log a quick row-count summary post-pipeline (cron handler uses
+ * this in its response body).
+ */
 export async function summarizeMarketPricesRowCount(
   db: PostgresJsDb,
 ): Promise<{ total: number; priced: number }> {

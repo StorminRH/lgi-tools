@@ -15,9 +15,11 @@ import { account, characters, corpAccessAudit } from './schema';
 // helpers (eve-account-shared) as the linked-character readers.
 // ---------------------------------------------------------------------------
 
-// One account→characters row shaped into the cached-affiliation record, loosely
-// coalescing every field to null (an un-refreshed character reads fail-closed).
-// Shared by the per-user and per-character affiliation reads. Pure.
+/**
+ * One account→characters row shaped into the cached-affiliation record, loosely
+ * coalescing every field to null (an un-refreshed character reads fail-closed).
+ * Shared by the per-user and per-character affiliation reads. Pure.
+ */
 export function rowToCachedAffiliation(
   characterId: number,
   row: {
@@ -36,9 +38,11 @@ export function rowToCachedAffiliation(
   };
 }
 
-// A user's linked characters with their cached corp affiliation. The membership
-// helper (isUserCurrentMemberOfCorp) decides over this; an un-refreshed character
-// carries a null corp + null refreshedAt and reads fail-closed.
+/**
+ * A user's linked characters with their cached corp affiliation. The membership
+ * helper (isUserCurrentMemberOfCorp) decides over this; an un-refreshed character
+ * carries a null corp + null refreshedAt and reads fail-closed.
+ */
 export async function getUserAffiliations(userId: string): Promise<CachedAffiliation[]> {
   const rows = await db
     .select({
@@ -57,7 +61,7 @@ export async function getUserAffiliations(userId: string): Promise<CachedAffilia
     .filter((r) => Number.isFinite(r.characterId));
 }
 
-// One character's cached affiliation (null when the profile row doesn't exist).
+/** One character's cached affiliation (null when the profile row doesn't exist). */
 export async function getCharacterAffiliation(
   characterId: number,
 ): Promise<CachedAffiliation | null> {
@@ -75,9 +79,11 @@ export async function getCharacterAffiliation(
   return rowToCachedAffiliation(characterId, row);
 }
 
-// Linked characters whose affiliation is missing or older than the TTL — the
-// nightly cron's work list. DISTINCT because the same character can be linked by
-// more than one user; one refresh covers them all (affiliation is per-character).
+/**
+ * Linked characters whose affiliation is missing or older than the TTL — the
+ * nightly cron's work list. DISTINCT because the same character can be linked by
+ * more than one user; one refresh covers them all (affiliation is per-character).
+ */
 export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   const cutoff = new Date(Date.now() - AFFILIATION_TTL_MS);
   const rows = await db
@@ -96,10 +102,12 @@ export async function listStaleLinkedCharacterIds(): Promise<number[]> {
   return rows.map((r) => Number(r.accountId)).filter((id) => Number.isFinite(id));
 }
 
-// Write fetched affiliations onto the `characters` cache. UPDATE (not upsert) —
-// the row always exists for a linked/logged-in character (upsertCharacterOnLogin
-// created it). Per-row at this scale (one `characters` row per pilot); batch via
-// VALUES later if the table ever grows large.
+/**
+ * Write fetched affiliations onto the `characters` cache. UPDATE (not upsert) —
+ * the row always exists for a linked/logged-in character (upsertCharacterOnLogin
+ * created it). Per-row at this scale (one `characters` row per pilot); batch via
+ * VALUES later if the table ever grows large.
+ */
 export async function upsertAffiliations(rows: AffiliationRow[]): Promise<void> {
   if (rows.length === 0) return;
   const now = new Date();
@@ -117,10 +125,12 @@ export async function upsertAffiliations(rows: AffiliationRow[]): Promise<void> 
   }
 }
 
-// Append one corp-access decision to the audit ledger (allow AND deny). Accepts
-// already-typed values (the gate owns the reason vocabulary, so `reason` is a
-// plain string here) and writes only the decision + its subject/corp/provenance —
-// never a token or secret.
+/**
+ * Append one corp-access decision to the audit ledger (allow AND deny). Accepts
+ * already-typed values (the gate owns the reason vocabulary, so `reason` is a
+ * plain string here) and writes only the decision + its subject/corp/provenance —
+ * never a token or secret.
+ */
 export async function recordCorpAccessDecision(entry: {
   userId: string;
   corporationId: number;
@@ -131,6 +141,7 @@ export async function recordCorpAccessDecision(entry: {
   await db.insert(corpAccessAudit).values(entry);
 }
 
+/** Deletes corporation-access audit rows older than the retention cutoff. */
 export async function pruneCorpAccessAudit(
   database: AnyPgDb,
   retentionDays: number,

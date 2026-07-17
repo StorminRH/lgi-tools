@@ -8,15 +8,18 @@ interface PriceSeedSettlement {
   settle: (current: BlueprintPricing | null) => BlueprintPricing | null;
 }
 
+/** Immutable quote snapshot keyed by type ID for one planner calculation. */
 export interface PriceSnapshot {
   seed: (initial: BlueprintPricing | null) => PriceSeedSettlement;
   applyBatch: (batch: Map<number, RefreshedPrice>) => void;
   lookup: (typeId: number) => PriceLite | undefined;
 }
 
-// Owns the client price-store merge policy behind one lookup: the streamed seed
-// is captured once, each refresh callback replaces the cumulative live snapshot,
-// and live values win per type while untouched rows keep their server fallback.
+/**
+ * Owns the client price-store merge policy behind one lookup: the streamed seed
+ * is captured once, each refresh callback replaces the cumulative live snapshot,
+ * and live values win per type while untouched rows keep their server fallback.
+ */
 export function createPriceSnapshot(): PriceSnapshot {
   let captured = false;
   let initialPricing: BlueprintPricing | null = null;

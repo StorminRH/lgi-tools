@@ -19,8 +19,10 @@ import type {
 // column (typed `between`, never a raw Date interpolation — drizzle would bind
 // a full timestamp Postgres can't compare cleanly to a date).
 
-// The `date` column is stored as 'YYYY-MM-DD'; convert a range bound to match.
-// Exported for the date-string unit test.
+/**
+ * The `date` column is stored as 'YYYY-MM-DD'; convert a range bound to match.
+ * Exported for the date-string unit test.
+ */
 export function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -29,6 +31,7 @@ function retentionCutoff(retentionDays: number, now: Date): string {
   return toDateStr(new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000));
 }
 
+/** Deletes Search Console analytics rows older than the retention cutoff. */
 export async function pruneGscSearchAnalytics(
   database: AnyPgDb,
   retentionDays: number,
@@ -39,6 +42,7 @@ export async function pruneGscSearchAnalytics(
     .where(lt(gscSearchAnalytics.date, retentionCutoff(retentionDays, now)));
 }
 
+/** Deletes URL inspection history older than the retention cutoff while retaining current coverage state. */
 export async function pruneGscUrlInspections(
   database: AnyPgDb,
   retentionDays: number,
@@ -71,6 +75,10 @@ function ctr(clicks: number, impressions: number): number {
   return impressions > 0 ? clicks / impressions : 0;
 }
 
+/**
+ * Converts raw Search Console metric totals into normalized clicks, impressions, CTR, and average
+ * position.
+ */
 export function toSearchTotals(
   row: { clicks: number; impressions: number; position: number } | undefined,
 ): GscTotals {
@@ -79,8 +87,10 @@ export function toSearchTotals(
   return { clicks, impressions, ctr: ctr(clicks, impressions), position: Number(row?.position ?? 0) };
 }
 
-// Daily site totals for the trend charts — one row per day (each carries GSC's
-// own daily position, so no weighting needed here).
+/**
+ * Daily site totals for the trend charts — one row per day (each carries GSC's
+ * own daily position, so no weighting needed here).
+ */
 export async function getSearchTrend(range: GscRange): Promise<GscDailyPoint[]> {
   const rows = await db
     .select({
@@ -100,7 +110,7 @@ export async function getSearchTrend(range: GscRange): Promise<GscDailyPoint[]> 
   }));
 }
 
-// Headline numbers over the range (summed from the daily totals).
+/** Headline numbers over the range (summed from the daily totals). */
 export async function getSearchTotals(range: GscRange): Promise<GscTotals> {
   const [row] = await db
     .select({ clicks: sumClicks, impressions: sumImpressions, position: weightedPosition })
@@ -133,15 +143,23 @@ async function getTopTerms(
   });
 }
 
+/**
+ * Returns the highest-impression Search Console queries and normalized metrics over the requested
+ * date range.
+ */
 export function getTopQueries(range: GscRange, limit = 10): Promise<GscTermStat[]> {
   return getTopTerms(range, 'query', limit);
 }
 
+/**
+ * Returns the highest-impression Search Console pages and normalized metrics over the requested
+ * date range.
+ */
 export function getTopGscPages(range: GscRange, limit = 10): Promise<GscTermStat[]> {
   return getTopTerms(range, 'page', limit);
 }
 
-// Current sitemap snapshot (not range-bound).
+/** Current sitemap snapshot (not range-bound). */
 export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
   const rows = await db
     .select({
@@ -166,6 +184,10 @@ export async function getSitemapStatus(): Promise<GscSitemapStatus[]> {
   }));
 }
 
+/**
+ * Merges the canonical sitemap URL set with latest inspection records so missing inspections
+ * remain visible as explicit pending rows.
+ */
 export function mergeCurrentUrlCoverage(
   sitemapUrls: string[],
   storedRows: GscUrlStatus[],
@@ -183,9 +205,11 @@ export function mergeCurrentUrlCoverage(
   );
 }
 
-// Latest stored row for every current sitemap URL. DISTINCT ON follows
-// PostgreSQL's required key-first ordering, then takes the newest inspection
-// date. The merge keeps never-inspected and repeatedly-failing URLs visible.
+/**
+ * Latest stored row for every current sitemap URL. DISTINCT ON follows
+ * PostgreSQL's required key-first ordering, then takes the newest inspection
+ * date. The merge keeps never-inspected and repeatedly-failing URLs visible.
+ */
 export async function getLatestUrlCoverage(sitemapUrls: string[]): Promise<GscUrlStatus[]> {
   if (sitemapUrls.length === 0) return [];
   const rows = await db
@@ -211,9 +235,11 @@ export async function getLatestUrlCoverage(sitemapUrls: string[]): Promise<GscUr
   );
 }
 
-// Daily coverage counts within the selected admin range. Each stored row carries
-// that day's expected sitemap size, so normal sitemap growth never erases older
-// complete days. Partial days stay absent until retries fill the expected count.
+/**
+ * Daily coverage counts within the selected admin range. Each stored row carries
+ * that day's expected sitemap size, so normal sitemap growth never erases older
+ * complete days. Partial days stay absent until retries fill the expected count.
+ */
 export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDailyPoint[]> {
   const indexed = sql<number>`count(*) filter (
     where ${gscUrlInspection.verdict} = 'PASS'
@@ -238,9 +264,11 @@ export async function getCoverageTrend(range: GscRange): Promise<GscCoverageDail
   }));
 }
 
-// Latest sync time across the stored rows — the "data as of" caption (null when
-// nothing has synced yet). The dashboard gates the GSC cards on isGscConfigured()
-// (env-only) before calling this, so it fans this out alongside the data reads.
+/**
+ * Latest sync time across the stored rows — the "data as of" caption (null when
+ * nothing has synced yet). The dashboard gates the GSC cards on isGscConfigured()
+ * (env-only) before calling this, so it fans this out alongside the data reads.
+ */
 export async function getLastSyncedAt(): Promise<Date | null> {
   const [row] = await db
     .select({ lastSyncedAt: sql<Date | null>`max(${gscSearchAnalytics.syncedAt})` })

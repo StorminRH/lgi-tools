@@ -7,9 +7,11 @@ import { esiFetch, esiUrl } from '@/lib/esi';
 // corporation name) — 3.7.3.4. Entity names live neither in Convex nor the SDE,
 // so they are resolved here at view time, like the type-name resolver.
 
-// Per-id remote cache tag. An entity name is identical for every viewer, so the
-// first lookup of an id serves everyone until the entry expires; the tag lets a
-// future explicit refresh bust exactly one id.
+/**
+ * Per-id remote cache tag. An entity name is identical for every viewer, so the
+ * first lookup of an id serves everyone until the entry expires; the tag lets a
+ * future explicit refresh bust exactly one id.
+ */
 export function entityNameTag(id: number): string {
   return `eve-entity-name-${id}`;
 }
@@ -43,10 +45,12 @@ async function fetchEntityName(id: number): Promise<string | null> {
   return row && typeof row.name === 'string' ? row.name : null;
 }
 
-// Resolve a batch of entity ids → names (keyed as stringified ids, matching the
-// type-name resolver's wire shape). Deduped; cache hits resolve instantly and
-// cold ids fan out at bounded concurrency. An id that can't be resolved (unknown
-// or a flaky lookup) is simply absent — the board falls back to a generic label.
+/**
+ * Resolve a batch of entity ids → names (keyed as stringified ids, matching the
+ * type-name resolver's wire shape). Deduped; cache hits resolve instantly and
+ * cold ids fan out at bounded concurrency. An id that can't be resolved (unknown
+ * or a flaky lookup) is simply absent — the board falls back to a generic label.
+ */
 export async function resolveEntityNames(ids: number[]): Promise<Record<string, string>> {
   const unique = [...new Set(ids)].filter((id) => Number.isInteger(id) && id > 0);
   const names: Record<string, string> = {};

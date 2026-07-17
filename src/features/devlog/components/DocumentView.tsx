@@ -32,13 +32,15 @@ const BLOCK_RENDERERS: {
   excerpt: (block, key) => <CodeExcerpt key={key} excerpt={block.excerpt} />,
 };
 
-// Renders one block by dispatching to its type's renderer.
+/** Renders one block by dispatching to its type's renderer. */
 export function renderBlock(block: Block, key: number): ReactNode {
   return (BLOCK_RENDERERS[block.type] as BlockRenderer)(block, key);
 }
 
-// One dev-log document: its title over the ordered blocks. Code excerpts sit inline
-// where their reference sat, collapsed by default.
+/**
+ * One dev-log document: its title over the ordered blocks. Code excerpts sit inline
+ * where their reference sat, collapsed by default.
+ */
 export function DocumentView({ title, blocks }: { title: string; blocks: Block[] }) {
   return (
     <article className="devlog-prose">

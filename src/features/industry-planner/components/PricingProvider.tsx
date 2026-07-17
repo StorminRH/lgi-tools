@@ -161,6 +161,10 @@ function useOverrideSetters(
   return { set, reset };
 }
 
+/**
+ * Publishes pricing state to descendants; the provider owns subscription and update lifecycle
+ * while children consume it.
+ */
 export function PricingProvider({
   structure,
   pricingPromise,

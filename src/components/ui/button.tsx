@@ -2,11 +2,13 @@ import type { ComponentPropsWithRef } from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from './cn';
 
-// The action-button primitive ("Inset Instrument", 3.8.2.2). Four intents mapped
-// to tokens via cva; two sizes. `buttonVariants` is exported so a navigational
-// `<a>`/`<Link>` that must look like a button can wear the same look without a
-// second source of truth (it can't be a <button>). The bezel (--shadow-btn-bezel)
-// gives every intent except `ghost` a subtle physical raise.
+/**
+ * The action-button primitive ("Inset Instrument", 3.8.2.2). Four intents mapped
+ * to tokens via cva; two sizes. `buttonVariants` is exported so a navigational
+ * `<a>`/`<Link>` that must look like a button can wear the same look without a
+ * second source of truth (it can't be a <button>). The bezel (--shadow-btn-bezel)
+ * gives every intent except `ghost` a subtle physical raise.
+ */
 export const buttonVariants = cva(
   'inline-flex items-center justify-center font-mono uppercase tracking-ui text-ui ' +
     'rounded-ctl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ' +
@@ -38,6 +40,10 @@ export const buttonVariants = cva(
   },
 );
 
+/**
+ * Renders the domain-neutral button with house behavior and tokens; callers own semantic meaning
+ * and content while this primitive owns presentation.
+ */
 export function Button({
   variant,
   size,

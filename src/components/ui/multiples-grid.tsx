@@ -11,6 +11,10 @@ const columnClasses = {
   3: 'md:grid-cols-3',
 } as const;
 
+/**
+ * Renders the domain-neutral multiples grid with house behavior and tokens; callers own semantic
+ * meaning and content while this primitive owns presentation.
+ */
 export function MultiplesGrid({
   children,
   columns = 3,
@@ -25,8 +29,10 @@ export function MultiplesGrid({
   );
 }
 
-// One cell: a title, a big current value with an optional delta badge beside it,
-// an optional note (e.g. "lower = better"), then the chart.
+/**
+ * One cell: a title, a big current value with an optional delta badge beside it,
+ * an optional note (e.g. "lower = better"), then the chart.
+ */
 export function MultiplesCell({
   title,
   value,

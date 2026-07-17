@@ -278,6 +278,10 @@ async function EventPanel() {
   );
 }
 
+/**
+ * Composes four independently suspended operations panels so one unavailable data source cannot
+ * blank the full section.
+ */
 export function OpsSection({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

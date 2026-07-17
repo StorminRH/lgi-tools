@@ -11,41 +11,46 @@ import type { DepthBand, RegionalDiscount } from './types';
 // diagnosis scripts without dragging in the ESI gate. source.ts re-exports
 // the shared pieces so its consumers are unaffected by the extraction.
 
+/** One market order-book entry with price in ISK and remaining volume in units. */
 export interface OrderEntry {
   price: number;
   volume: bigint;
 }
 
-// One remote station's sell book, accumulated by the ingest while it scopes
-// the stored book to the hub. Keyed by location id in the bucket map; the
-// system id rides along because it's what the callout stores (system name is
-// the UI's resolution, never station names).
+/**
+ * One remote station's sell book, accumulated by the ingest while it scopes
+ * the stored book to the hub. Keyed by location id in the bucket map; the
+ * system id rides along because it's what the callout stores (system name is
+ * the UI's resolution, never station names).
+ */
 export interface RemoteStationBook {
   systemId: number;
   orders: OrderEntry[];
 }
 
-// Best + 5%-percentile for one side of the book.
-//
-// `best` is the DUST-FILTERED touch (3.7.25.1): the lowest ask / highest bid
-// with real volume behind it. The sorted book is walked front-to-back and the
-// best is the price of the order at which cumulative volume first reaches
-// ceil(side volume / BEST_DUST_VOLUME_DIVISOR) (0.1%, min 1 unit) — so a
-// healthy front order (carrying the threshold alone) keeps the raw touch
-// byte-identically, while a 1-unit sliver anchoring a deep book is skipped.
-// Applies to BOTH sides: on the buy side it filters sliver highball bids the
-// same way (a volume filter, never a pct5 clamp — pct5_buy is wall-diluted
-// and provably wrong as a guard; see the hardening report §2.2).
-//
-// `pct5` — the volume-weighted average price of the cheapest 5% of side
-// volume (Fuzzwork's definition; we match it so wormhole-sites ISK totals
-// don't drift when the source swaps) — is UNTOUCHED by the dust filter and
-// still walks from the raw front of the book. Buy side sorts descending
-// (best bid first); sell side sorts ascending (best ask first). Empty side
-// returns nulls; zero-volume side returns the raw touch for both.
-//
-// Exported for testing — the math is delicate enough that a direct
-// regression test is worth the extra surface.
+/**
+ * Best + 5%-percentile for one side of the book.
+ *
+ * `best` is the DUST-FILTERED touch (3.7.25.1): the lowest ask / highest bid
+ * with real volume behind it. The sorted book is walked front-to-back and the
+ * best is the price of the order at which cumulative volume first reaches
+ * ceil(side volume / BEST_DUST_VOLUME_DIVISOR) (0.1%, min 1 unit) — so a
+ * healthy front order (carrying the threshold alone) keeps the raw touch
+ * byte-identically, while a 1-unit sliver anchoring a deep book is skipped.
+ * Applies to BOTH sides: on the buy side it filters sliver highball bids the
+ * same way (a volume filter, never a pct5 clamp — pct5_buy is wall-diluted
+ * and provably wrong as a guard; see the hardening report §2.2).
+ *
+ * `pct5` — the volume-weighted average price of the cheapest 5% of side
+ * volume (Fuzzwork's definition; we match it so wormhole-sites ISK totals
+ * don't drift when the source swaps) — is UNTOUCHED by the dust filter and
+ * still walks from the raw front of the book. Buy side sorts descending
+ * (best bid first); sell side sorts ascending (best ask first). Empty side
+ * returns nulls; zero-volume side returns the raw touch for both.
+ *
+ * Exported for testing — the math is delicate enough that a direct
+ * regression test is worth the extra surface.
+ */
 export function computeSide(
   orders: OrderEntry[],
   direction: 'asc' | 'desc',
@@ -102,25 +107,27 @@ export function computeSide(
   return { best, pct5, volume: totalVolume };
 }
 
-// Near-touch depth ladder (3.5.3a): cumulative volume within each band of
-// DEPTH_BANDS_PCT measured from `best` on this side. One pass, no sort —
-// bands are nested, so an order within the tightest band it qualifies for is
-// counted in that band and every wider one. `best` comes from computeSide;
-// an empty side (best === null) has no depth.
-//
-// Anchored to `best` — the DUST-FILTERED best from computeSide (3.7.25.1),
-// not pct5 and not the raw touch; see DEPTH_BANDS_PCT for the manipulation
-// argument (the hardened anchor closes the mid-gap sliver case, where a
-// 1-unit ask under the real book used to window the bands around itself and
-// exclude the real sell wall). A buy order qualifies for band b when
-// price ≥ best·(1−b/100); a sell order when price ≤ best·(1+b/100). Volume
-// accumulates as a Number, like
-// computeSide's weighted sum (realistic cumulative volumes stay under
-// MAX_SAFE_INTEGER).
-//
-// Exported for testing — the manipulation-resistance is delicate enough that
-// direct adversarial fixtures (a 0.01-ISK spoof, a far-out whale order) are
-// worth the surface.
+/**
+ * Near-touch depth ladder (3.5.3a): cumulative volume within each band of
+ * DEPTH_BANDS_PCT measured from `best` on this side. One pass, no sort —
+ * bands are nested, so an order within the tightest band it qualifies for is
+ * counted in that band and every wider one. `best` comes from computeSide;
+ * an empty side (best === null) has no depth.
+ *
+ * Anchored to `best` — the DUST-FILTERED best from computeSide (3.7.25.1),
+ * not pct5 and not the raw touch; see DEPTH_BANDS_PCT for the manipulation
+ * argument (the hardened anchor closes the mid-gap sliver case, where a
+ * 1-unit ask under the real book used to window the bands around itself and
+ * exclude the real sell wall). A buy order qualifies for band b when
+ * price ≥ best·(1−b/100); a sell order when price ≤ best·(1+b/100). Volume
+ * accumulates as a Number, like
+ * computeSide's weighted sum (realistic cumulative volumes stay under
+ * MAX_SAFE_INTEGER).
+ *
+ * Exported for testing — the manipulation-resistance is delicate enough that
+ * direct adversarial fixtures (a 0.01-ISK spoof, a far-out whale order) are
+ * worth the surface.
+ */
 export function computeDepth(
   orders: OrderEntry[],
   direction: 'asc' | 'desc',
@@ -141,33 +148,37 @@ export function computeDepth(
   return DEPTH_BANDS_PCT.map((pct, i) => ({ pct, cumVolume: sums[i] ?? 0 }));
 }
 
-// Whether a remote sell book may anchor a regional-discount callout: NPC
-// stations only (see NPC_STATION_ID_CEILING — structures can be ACL-gated,
-// and the calibration set had no structure candidates).
+/**
+ * Whether a remote sell book may anchor a regional-discount callout: NPC
+ * stations only (see NPC_STATION_ID_CEILING — structures can be ACL-gated,
+ * and the calibration set had no structure candidates).
+ */
 export function isDiscountEligibleLocation(locationId: number): boolean {
   return locationId < NPC_STATION_ID_CEILING;
 }
 
-// The regional-discount fold (3.7.26.1): the best single non-hub sell
-// opportunity, computed from the remote books the hub scoping filters out
-// of the stored price. Guards, in order:
-//
-// - No hub best → no discount (the discount is measured against the hub
-//   price; with no hub book there is nothing to compare to — the row is
-//   null-priced and the callout stays silent).
-// - Each remote station's book gets the SAME dust walk as the hub book
-//   (computeSide over the station's FULL book) — a backwater [1,1,1,1,1]
-//   sliver ladder must not fake an opportunity; that is exactly the class
-//   hub scoping just removed from the headline.
-// - A station qualifies only when its dust-filtered best is strictly under
-//   the hub best; its `units` count the station's volume priced at-or-under
-//   the hub best (what a traveler could actually buy cheaper than Jita).
-// - Both gate thresholds must clear (see constants.ts for calibration).
-// - Winner = the lowest surviving station best; ONE opportunity per type,
-//   never a list.
-//
-// `units` is a plain number — this value rides a jsonb column and BigInt
-// throws at JSON serialization.
+/**
+ * The regional-discount fold (3.7.26.1): the best single non-hub sell
+ * opportunity, computed from the remote books the hub scoping filters out
+ * of the stored price. Guards, in order:
+ *
+ * - No hub best → no discount (the discount is measured against the hub
+ *   price; with no hub book there is nothing to compare to — the row is
+ *   null-priced and the callout stays silent).
+ * - Each remote station's book gets the SAME dust walk as the hub book
+ *   (computeSide over the station's FULL book) — a backwater [1,1,1,1,1]
+ *   sliver ladder must not fake an opportunity; that is exactly the class
+ *   hub scoping just removed from the headline.
+ * - A station qualifies only when its dust-filtered best is strictly under
+ *   the hub best; its `units` count the station's volume priced at-or-under
+ *   the hub best (what a traveler could actually buy cheaper than Jita).
+ * - Both gate thresholds must clear (see constants.ts for calibration).
+ * - Winner = the lowest surviving station best; ONE opportunity per type,
+ *   never a list.
+ *
+ * `units` is a plain number — this value rides a jsonb column and BigInt
+ * throws at JSON serialization.
+ */
 export function computeRegionalDiscount(
   remoteSell: Map<number, RemoteStationBook>,
   hubBestSell: number | null,

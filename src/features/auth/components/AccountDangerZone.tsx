@@ -22,14 +22,16 @@ import { authClient } from '../auth-client';
 import { confirmGateReducer, INITIAL_CONFIRM_PHASE } from '../confirm-gate';
 import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
-// The /characters "Danger zone" (ACCOUNT.2.2) — the destructive account controls,
-// quarantined below the roster and kept visually apart from the reversible Unlink
-// (which stays on the roster). It hosts a per-character Purge (the new scrub +
-// EVE-revoke action, distinct from unlink), an account Delete (strongest confirm),
-// and Log-out-everywhere. All three sit behind confirm gates; the decision logic
-// lives in tested helpers (account-actions / confirm-gate), this file is the shell.
-// A single D-5 lightbox is shown when any purge empties the account or a delete
-// succeeds.
+/**
+ * The /characters "Danger zone" (ACCOUNT.2.2) — the destructive account controls,
+ * quarantined below the roster and kept visually apart from the reversible Unlink
+ * (which stays on the roster). It hosts a per-character Purge (the new scrub +
+ * EVE-revoke action, distinct from unlink), an account Delete (strongest confirm),
+ * and Log-out-everywhere. All three sit behind confirm gates; the decision logic
+ * lives in tested helpers (account-actions / confirm-gate), this file is the shell.
+ * A single D-5 lightbox is shown when any purge empties the account or a delete
+ * succeeds.
+ */
 export function AccountDangerZone({
   characters,
 }: {

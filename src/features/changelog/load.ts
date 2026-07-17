@@ -25,19 +25,23 @@ function orderChangelogFiles(files: string[]): string[] {
   return [...preamble, ...masters];
 }
 
-// The changelog as one string, reassembled from its per-master files in render order.
-// Concatenated with no separator, it reproduces the pre-split source byte-for-byte, so
-// the parser stays untouched. Kept separate from the cached loader so tests can read it
-// without entering a `use cache` scope.
+/**
+ * The changelog as one string, reassembled from its per-master files in render order.
+ * Concatenated with no separator, it reproduces the pre-split source byte-for-byte, so
+ * the parser stays untouched. Kept separate from the cached loader so tests can read it
+ * without entering a `use cache` scope.
+ */
 export async function readChangelogSource(): Promise<string> {
   const ordered = orderChangelogFiles(await readdir(CHANGELOG_DIR));
   const parts = await Promise.all(ordered.map((f) => readFile(join(CHANGELOG_DIR, f), 'utf8')));
   return parts.join('');
 }
 
-// The changelog only changes on deploy, so cache the file reads + parse and let the
-// build id invalidate it — this keeps /changelog in the static prerender shell instead
-// of forcing the route dynamic on an uncached file read.
+/**
+ * The changelog only changes on deploy, so cache the file reads + parse and let the
+ * build id invalidate it — this keeps /changelog in the static prerender shell instead
+ * of forcing the route dynamic on an uncached file read.
+ */
 export async function loadChangelog(): Promise<ChangelogMaster[]> {
   'use cache';
   cacheLife('max');

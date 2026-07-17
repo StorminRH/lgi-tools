@@ -11,6 +11,10 @@ import type { BlueprintStructure, BuildNode } from './types';
 // buildable's transitive downstream requirements, so the UI can light up a
 // single component's whole chain across the tiers.
 
+/**
+ * One caller-supplied consolidated item; its value is the stable control key and its label or
+ * marker is presentation-ready.
+ */
 export interface ConsolidatedItem {
   typeId: number;
   name: string;
@@ -23,12 +27,14 @@ export interface ConsolidatedItem {
   hasChildren: boolean;
 }
 
+/** One build-plan tier containing aggregated material quantities in units. */
 export interface ConsolidatedTier {
   // Build step below the product (1 = the product's direct inputs).
   depth: number;
   items: ConsolidatedItem[];
 }
 
+/** Complete multibuy consolidation with ordered tiers and all direct input quantities. */
 export interface ConsolidatedBuild {
   // Ordered product-side → raw-side (tier 1 first).
   tiers: ConsolidatedTier[];
@@ -41,6 +47,7 @@ export interface ConsolidatedBuild {
   childrenOf: Map<number, Set<number>>;
 }
 
+/** Aggregates selected build-plan nodes into tiered material totals without double-counting shared inputs. */
 export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBuild {
   const { buildTree, buildNodeDisplay } = structure;
 
@@ -117,13 +124,15 @@ export function consolidateBuild(structure: BlueprintStructure): ConsolidatedBui
   return { tiers, descendants, childrenOf };
 }
 
-// The focused item's downstream chain, indexed by depth RELATIVE to the focus
-// (0 = the focused item, 1 = its direct inputs, 2 = theirs, …). Walking
-// `childrenOf` from the focus keeps each level to the types actually consumed at
-// that step of THIS item's subtree — unlike a flat descendant set, which would
-// also match a type that sits at this depth elsewhere in the build (e.g. a
-// mineral a sibling capital part consumes directly). Shared by the consolidated
-// tier views so a focused component lights its chain at the right tier.
+/**
+ * The focused item's downstream chain, indexed by depth RELATIVE to the focus
+ * (0 = the focused item, 1 = its direct inputs, 2 = theirs, …). Walking
+ * `childrenOf` from the focus keeps each level to the types actually consumed at
+ * that step of THIS item's subtree — unlike a flat descendant set, which would
+ * also match a type that sits at this depth elsewhere in the build (e.g. a
+ * mineral a sibling capital part consumes directly). Shared by the consolidated
+ * tier views so a focused component lights its chain at the right tier.
+ */
 export function chainLevelsFrom(
   rootTypeId: number,
   childrenOf: Map<number, Set<number>>,
@@ -141,22 +150,24 @@ export function chainLevelsFrom(
   return levels;
 }
 
-// Re-base the consolidated tiers from the resolver's MARGINAL (fractional-run)
-// quantities onto the WHOLE-RUN batch totals, so the columns read what a builder
-// actually makes/buys. Placement is untouched (a type stays in every tier it's
-// consumed at) — only the number changes. Each type's whole-run total is split
-// across the tiers it appears in IN PROPORTION to its marginal share there, so:
-//   • a type's per-tier cells still SUM to its whole-run total (shared
-//     sub-components counted once — the build-batch aggregate-then-ceil);
-//   • a type consumed at a single tier shows its full batch (e.g. a component
-//     needed 150 at a 100/run batch reads 200, two whole runs);
-//   • a type split across tiers keeps its split (possibly sub-unit, as before).
-// `runs` is already baked into the batch totals, so callers render the cell
-// quantity directly — no further × runs.
-//
-// Whole-run total per type: raws → the leaf total you buy; buildables → produced
-// (`runs × batch`). Pure — takes the consolidated tiers and a precomputed ledger
-// (`computeBatchLedger(structure.tree, runs)`), returns fresh tiers.
+/**
+ * Re-base the consolidated tiers from the resolver's MARGINAL (fractional-run)
+ * quantities onto the WHOLE-RUN batch totals, so the columns read what a builder
+ * actually makes/buys. Placement is untouched (a type stays in every tier it's
+ * consumed at) — only the number changes. Each type's whole-run total is split
+ * across the tiers it appears in IN PROPORTION to its marginal share there, so:
+ *   • a type's per-tier cells still SUM to its whole-run total (shared
+ *     sub-components counted once — the build-batch aggregate-then-ceil);
+ *   • a type consumed at a single tier shows its full batch (e.g. a component
+ *     needed 150 at a 100/run batch reads 200, two whole runs);
+ *   • a type split across tiers keeps its split (possibly sub-unit, as before).
+ * `runs` is already baked into the batch totals, so callers render the cell
+ * quantity directly — no further × runs.
+ *
+ * Whole-run total per type: raws → the leaf total you buy; buildables → produced
+ * (`runs × batch`). Pure — takes the consolidated tiers and a precomputed ledger
+ * (`computeBatchLedger(structure.tree, runs)`), returns fresh tiers.
+ */
 export function scaleTiersToBatched(
   tiers: ConsolidatedTier[],
   ledger: BatchLedger,
