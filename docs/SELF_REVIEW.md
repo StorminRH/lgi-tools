@@ -14,14 +14,15 @@ only the *judgment* calls no gate can see. Skip any section the session didn't t
 
 ## 1 — Data placement (added/moved any ESI-fed dataset?)
 
-Declare, in the diff, in order:
-1. **The dataset's ESI cache time** — look it up at `esi.evetech.net/ui/`, don't guess.
-2. **Where you put it** — Convex or Neon.
-3. **Does that match the rule?** Convex ONLY for ≤2-min-cache live data or
-   collaborative peer-fan-out data; everything slower → Neon. "Per-character" is
-   not a reason (skills are per-character, in Neon). Cache > 2 min in Convex =
-   **placement bug — fix now, don't ship.** A Convex tracker used as scaffold
-   doesn't make the data Convex-shaped.
+Add or update the dataset's declaration in
+`src/lib/esi-datasets/entries.ts`: record the current ESI spec path and verified
+cache time, placement, freshness model, refresh owner, and durable mirrors.
+`src/esi-datasets/registry.test.ts` enforces the mechanical rule: Convex ONLY for
+≤2-min-cache live data or collaborative peer-fan-out data; everything slower →
+Neon. "Per-character" is not a reason (skills are per-character, in Neon).
+Below-upstream polling, an unregistered mirror, or an owner/route that does not
+exist fails the gate. A necessary historical exception stays visible as a
+rationale-bearing, single-rule waiver in the entry.
 
 Then confirm:
 - **Refresh shape** — global/shared → cron-kept single copy; personal → stale-gated
