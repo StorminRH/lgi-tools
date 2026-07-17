@@ -1,21 +1,14 @@
 import { asc } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
 import { ownedAssets } from '@/features/owned-assets/schema';
-import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from './test-support/db-coverage-harness';
+import { createDbTestHarness } from './test-support/db-test-harness';
 import { pruneEsiSnapshots } from './esi-snapshot-retention';
 
-const SCHEMA = 'test_esi_snapshot_retention';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_esi_snapshot_retention',
+  tables: ['esi_snapshots', 'owned_assets'],
+});
 const NOW = new Date('2026-07-14T12:00:00Z');
 const OLD = new Date('2026-07-01T12:00:00Z');
 const BOUNDARY = new Date('2026-07-07T12:00:00Z');
@@ -36,21 +29,9 @@ function snapshot(id: number, ownerId: number, fetchedAt: Date) {
   };
 }
 
-describe.skipIf(!reachable)('ESI snapshot retention executes against Postgres', () => {
-  let client: ReturnType<typeof postgres>;
-
-  beforeAll(async () => {
-    client = postgres(schemaUrl(baseUrl, SCHEMA), { max: 1, onnotice: () => {} });
-    await setupDisposableSchema(client, SCHEMA, ['esi_snapshots', 'owned_assets']);
-  });
-
-  afterAll(async () => {
-    await dropDisposableSchema(client, SCHEMA);
-    await client.end({ timeout: 5 }).catch(() => {});
-  });
-
+describe.skipIf(!harness.reachable)('ESI snapshot retention executes against Postgres', () => {
   it('prunes expired superseded snapshots but preserves the boundary, latest, and referenced', async () => {
-    const database = drizzlePg(client);
+    const database = harness.db;
     await database.insert(esiSnapshots).values([
       snapshot(1, 100, OLD),
       snapshot(2, 100, NEW),

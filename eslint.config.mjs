@@ -163,6 +163,35 @@ const apiFetchSelectors = [
   },
 ];
 
+// Real-Postgres suites use the lifecycle-owning test harness instead of
+// constructing a second client or embedding credentials/schema steering. The
+// harness module itself is outside the `*.db.test.ts` rail below.
+const directPostgresSelectors = [
+  {
+    selector: "ImportDeclaration[source.value='postgres']",
+    message:
+      "DB suites use createDbTestHarness (@/db/test-support/db-test-harness); importing postgres-js directly bypasses the shared lifecycle even when the import is aliased.",
+  },
+  {
+    selector: "CallExpression[callee.name='postgres']",
+    message:
+      "DB suites use createDbTestHarness (@/db/test-support/db-test-harness); direct postgres() construction duplicates reachability, schema steering, and teardown.",
+  },
+];
+
+const postgresConnectionStringSelectors = [
+  {
+    selector: "Literal[value=/^postgres(?:ql)?:\\/\\//]",
+    message:
+      "DB suites must not embed Postgres connection strings — createDbTestHarness owns the local URL and disposable-schema steering.",
+  },
+  {
+    selector: "TemplateElement[value.raw=/^postgres(?:ql)?:\\/\\//]",
+    message:
+      "DB suites must not embed Postgres connection strings — createDbTestHarness owns the local URL and disposable-schema steering.",
+  },
+];
+
 // ESI gate enforcement (3.4.5): CCP's error limit is per-IP and shared across
 // every ESI call the app makes — one un-gated call burns budget the shared
 // scoreboard can't see, and overrunning the limit is a permanent IP-wide ban.
@@ -268,6 +297,23 @@ const eslintConfig = defineConfig([
         ...hexColorSelectors,
         ...rgbaColorSelectors,
         ...apiFetchSelectors,
+      ],
+    },
+  },
+  // Real-Postgres suites retain the base syntax rails and add the DB-harness
+  // boundary. Flat-config rule options replace rather than merge, so this block
+  // must re-list every selector family inherited from the base test config.
+  {
+    files: ["src/**/*.db.test.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...directPostgresSelectors,
+        ...postgresConnectionStringSelectors,
       ],
     },
   },

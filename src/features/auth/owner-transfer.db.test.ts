@@ -1,16 +1,12 @@
 import { eq } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usageLogs } from '@/data/telemetry/schema';
 import {
-  addForeignKey,
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+  createDbTestHarness,
+  seedCharacter as insertCharacter,
+  seedEveAccount as insertEveAccount,
+  seedUser as insertUser,
+} from '@/db/test-support/db-test-harness';
 
 const oauthState = vi.hoisted(() => ({ value: null as unknown, error: null as Error | null }));
 
@@ -30,78 +26,48 @@ import {
 import { account, characters, session, user } from './schema';
 import { syntheticEmail } from './synthetic-email';
 
-const SCHEMA = 'test_auth_owner_transfer';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_auth_owner_transfer',
+  tables: ['user', 'account', 'characters', 'session', 'usage_logs', 'character_skills'],
+  foreignKeys: [
+    {
+      table: 'account',
+      column: 'user_id',
+      refTable: 'user',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'session',
+      column: 'user_id',
+      refTable: 'user',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+  ],
+  steerDbProxy: true,
+  env: {
+    NEXT_PUBLIC_CONVEX_URL: '',
+    CONVEX_SERVICE_SECRET: '',
+  },
+  resetBetweenTests: 'delete',
+});
 
 const SOURCE_ID = 'transfer-source';
 const TARGET_ID = 'transfer-target';
 const MOVED_CHAR = 90000031;
 const SURVIVOR_CHAR = 90000032;
 
-describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
-  let adminClient: ReturnType<typeof postgres>;
-  let seedDb: ReturnType<typeof drizzlePg>;
-
-  beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
-    vi.stubEnv('CONVEX_SERVICE_SECRET', '');
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 4, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, [
-      'user',
-      'account',
-      'characters',
-      'session',
-      'usage_logs',
-      'character_skills',
-    ]);
-    await addForeignKey(adminClient, SCHEMA, {
-      table: 'account',
-      column: 'user_id',
-      refTable: 'user',
-      refColumn: 'id',
-      onDelete: 'cascade',
-    });
-    await addForeignKey(adminClient, SCHEMA, {
-      table: 'session',
-      column: 'user_id',
-      refTable: 'user',
-      refColumn: 'id',
-      onDelete: 'cascade',
-    });
-    seedDb = drizzlePg(adminClient);
-  });
-
-  afterAll(async () => {
-    const proxyClient = (
-      (await import('@/db')).db as unknown as { $client: ReturnType<typeof postgres> }
-    ).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
-  });
-
+describe.skipIf(!harness.reachable)('owner-transfer queries (real Postgres)', () => {
   beforeEach(async () => {
     oauthState.value = null;
     oauthState.error = null;
-    await adminClient.unsafe('DELETE FROM session');
-    await adminClient.unsafe('DELETE FROM account');
-    await adminClient.unsafe('DELETE FROM usage_logs');
-    await adminClient.unsafe('DELETE FROM character_skills');
-    await adminClient.unsafe('DELETE FROM characters');
-    await adminClient.unsafe('DELETE FROM "user"');
     await seedUser(SOURCE_ID, MOVED_CHAR);
     await seedUser(TARGET_ID, null);
   });
 
   async function seedUser(id: string, activeCharacterId: number | null) {
-    await seedDb.insert(user).values({
-      id,
-      name: `Pilot ${id}`,
+    await insertUser(harness.db, id, {
       email: syntheticEmail(activeCharacterId ?? 90000999),
       activeCharacterId,
     });
@@ -111,9 +77,7 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
     characterId: number,
     preferences: Record<string, unknown> = { privateNote: 'owner-authored' },
   ) {
-    await seedDb.insert(characters).values({
-      characterId,
-      name: `Character ${characterId}`,
+    await insertCharacter(harness.db, characterId, {
       portraitUrl: `https://images.example/${characterId}`,
       preferences,
     });
@@ -126,11 +90,7 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
     ownerHash: string | null,
     createdAt: Date = new Date(),
   ) {
-    await seedDb.insert(account).values({
-      id,
-      accountId: String(characterId),
-      providerId: 'eve',
-      userId,
+    await insertEveAccount(harness.db, { id, characterId, userId }, {
       ownerHash,
       createdAt,
       updatedAt: createdAt,
@@ -138,7 +98,7 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
   }
 
   async function readAccountOwnerHash(characterId: number): Promise<string | null | undefined> {
-    const [row] = await seedDb
+    const [row] = await harness.db
       .select({ ownerHash: account.ownerHash })
       .from(account)
       .where(eq(account.accountId, String(characterId)))
@@ -162,17 +122,17 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
   it('uses the credential tier on owner mismatch, deleting custody but retaining cache rows', async () => {
     await seedCharacter(MOVED_CHAR);
     await seedEveAccount('moved', MOVED_CHAR, SOURCE_ID, 'owner-one');
-    await seedDb.insert(session).values({
+    await harness.db.insert(session).values({
       id: 'source-session',
       token: 'source-session-token',
       userId: SOURCE_ID,
       expiresAt: new Date(Date.now() + 60_000),
     });
-    await adminClient`
+    await harness.sql`
       INSERT INTO character_skills (character_id, total_sp, queue)
       VALUES (${MOVED_CHAR}, 123, '[]'::jsonb)
     `;
-    await seedDb.insert(usageLogs).values({
+    await harness.db.insert(usageLogs).values({
       characterId: MOVED_CHAR,
       action: 'auth_login',
       metadata: { source: 'before-transfer' },
@@ -182,21 +142,21 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
 
     expect(await readAccountOwnerHash(MOVED_CHAR)).toBeUndefined();
     expect(
-      await seedDb.select().from(user).where(eq(user.id, SOURCE_ID)),
+      await harness.db.select().from(user).where(eq(user.id, SOURCE_ID)),
     ).toHaveLength(0);
     expect(
-      await seedDb.select().from(session).where(eq(session.userId, SOURCE_ID)),
+      await harness.db.select().from(session).where(eq(session.userId, SOURCE_ID)),
     ).toHaveLength(0);
-    const [skillRow] = await adminClient<{ count: number }[]>`
+    const [skillRow] = await harness.sql<{ count: number }[]>`
       SELECT count(*)::int AS count
       FROM character_skills
       WHERE character_id = ${MOVED_CHAR}
     `;
     expect(skillRow?.count).toBe(1);
     expect(
-      await seedDb.select().from(usageLogs).where(eq(usageLogs.characterId, MOVED_CHAR)),
+      await harness.db.select().from(usageLogs).where(eq(usageLogs.characterId, MOVED_CHAR)),
     ).toHaveLength(1);
-    const [profile] = await seedDb
+    const [profile] = await harness.db
       .select({ preferences: characters.preferences })
       .from(characters)
       .where(eq(characters.characterId, MOVED_CHAR));
@@ -222,7 +182,7 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
 
     await purgeTransferredCharacter(SOURCE_ID, MOVED_CHAR);
 
-    const [source] = await seedDb
+    const [source] = await harness.db
       .select({ email: user.email, activeCharacterId: user.activeCharacterId })
       .from(user)
       .where(eq(user.id, SOURCE_ID));
@@ -244,7 +204,7 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
     await seedEveAccount('target-owned', MOVED_CHAR, TARGET_ID, 'owner-one');
     await expect(absorbLinkedCharacterOnProof(MOVED_CHAR)).resolves.toEqual({ absorbed: false });
     expect(
-      await seedDb.select().from(usageLogs).where(eq(usageLogs.action, 'auth_absorb')),
+      await harness.db.select().from(usageLogs).where(eq(usageLogs.action, 'auth_absorb')),
     ).toHaveLength(0);
   });
 
@@ -255,13 +215,13 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
     await expect(absorbLinkedCharacterOnProof(MOVED_CHAR)).resolves.toEqual({ absorbed: true });
 
     expect(
-      await seedDb.select().from(user).where(eq(user.id, SOURCE_ID)),
+      await harness.db.select().from(user).where(eq(user.id, SOURCE_ID)),
     ).toHaveLength(0);
     expect(
-      await seedDb.select().from(account).where(eq(account.userId, TARGET_ID)),
+      await harness.db.select().from(account).where(eq(account.userId, TARGET_ID)),
     ).toHaveLength(1);
     await vi.waitFor(async () => {
-      const [event] = await seedDb
+      const [event] = await harness.db
         .select()
         .from(usageLogs)
         .where(eq(usageLogs.action, 'auth_absorb'))
@@ -296,7 +256,7 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
 
     await expect(absorbLinkedCharacterOnProof(MOVED_CHAR)).resolves.toEqual({ absorbed: true });
 
-    const [source] = await seedDb
+    const [source] = await harness.db
       .select({ email: user.email, activeCharacterId: user.activeCharacterId })
       .from(user)
       .where(eq(user.id, SOURCE_ID));
@@ -305,7 +265,7 @@ describe.skipIf(!reachable)('owner-transfer queries (real Postgres)', () => {
       activeCharacterId: SURVIVOR_CHAR,
     });
     expect(
-      await seedDb
+      await harness.db
         .select()
         .from(account)
         .where(eq(account.accountId, String(MOVED_CHAR))),

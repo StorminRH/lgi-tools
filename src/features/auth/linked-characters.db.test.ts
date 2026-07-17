@@ -1,14 +1,11 @@
 import { asc, eq } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+  createDbTestHarness,
+  seedCharacter as insertCharacter,
+  seedEveAccount as insertEveAccount,
+  seedUser as insertUser,
+} from '@/db/test-support/db-test-harness';
 import {
   accountBelongsToUser,
   getStoredActiveCharacterId,
@@ -18,49 +15,26 @@ import {
   setActiveCharacter,
   upsertCharacterOnLogin,
 } from './linked-characters';
-import { account, characters, user } from './schema';
+import { account, characters } from './schema';
 
-const SCHEMA = 'test_auth_linked_characters';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_auth_linked_characters',
+  tables: ['user', 'account', 'characters'],
+  steerDbProxy: true,
+  resetBetweenTests: 'delete',
+});
 
 const USER_ID = 'linked-user';
 const FIRST_CHAR = 90000001;
 const SECOND_CHAR = 90000002;
 
-describe.skipIf(!reachable)('linked-character queries (real Postgres)', () => {
-  let adminClient: ReturnType<typeof postgres>;
-  let seedDb: ReturnType<typeof drizzlePg>;
-
-  beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 4, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, ['user', 'account', 'characters']);
-    seedDb = drizzlePg(adminClient);
-  });
-
-  afterAll(async () => {
-    const proxyClient = (
-      (await import('@/db')).db as unknown as { $client: ReturnType<typeof postgres> }
-    ).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
-  });
-
+describe.skipIf(!harness.reachable)('linked-character queries (real Postgres)', () => {
   beforeEach(async () => {
-    await adminClient.unsafe('DELETE FROM account');
-    await adminClient.unsafe('DELETE FROM characters');
-    await adminClient.unsafe('DELETE FROM "user"');
     await seedUser(USER_ID);
   });
 
   async function seedUser(id: string, activeCharacterId: number | null = null) {
-    await seedDb.insert(user).values({
-      id,
+    await insertUser(harness.db, id, {
       name: `Pilot ${id}`,
       email: `${id}@eve.invalid`,
       activeCharacterId,
@@ -71,9 +45,7 @@ describe.skipIf(!reachable)('linked-character queries (real Postgres)', () => {
     characterId: number,
     overrides: Partial<typeof characters.$inferInsert> = {},
   ) {
-    await seedDb.insert(characters).values({
-      characterId,
-      name: `Character ${characterId}`,
+    await insertCharacter(harness.db, characterId, {
       portraitUrl: `https://images.example/${characterId}`,
       ...overrides,
     });
@@ -85,11 +57,7 @@ describe.skipIf(!reachable)('linked-character queries (real Postgres)', () => {
     createdAt: Date,
     overrides: Partial<typeof account.$inferInsert> = {},
   ) {
-    await seedDb.insert(account).values({
-      id,
-      accountId: String(characterId),
-      providerId: 'eve',
-      userId: USER_ID,
+    await insertEveAccount(harness.db, { id, characterId, userId: USER_ID }, {
       createdAt,
       updatedAt: createdAt,
       ...overrides,
@@ -110,7 +78,7 @@ describe.skipIf(!reachable)('linked-character queries (real Postgres)', () => {
       portraitUrl: 'https://images.example/new',
     });
 
-    const [row] = await seedDb
+    const [row] = await harness.db
       .select()
       .from(characters)
       .where(eq(characters.characterId, FIRST_CHAR))
@@ -170,14 +138,14 @@ describe.skipIf(!reachable)('linked-character queries (real Postgres)', () => {
       expect(await getStoredActiveCharacterId(USER_ID)).toBe(FIRST_CHAR);
     });
 
-    await seedDb.delete(account).where(eq(account.userId, USER_ID));
+    await harness.db.delete(account).where(eq(account.userId, USER_ID));
     await expect(resolveActiveCharacter(USER_ID, null)).resolves.toBeNull();
   });
 
   it('denies unowned characters and stores only explicitly selected linked ids', async () => {
     await seedEveAccount('owned', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
     await seedUser('other-user');
-    await seedDb.insert(account).values({
+    await harness.db.insert(account).values({
       id: 'other',
       accountId: String(SECOND_CHAR),
       providerId: 'eve',
@@ -197,13 +165,13 @@ describe.skipIf(!reachable)('linked-character queries (real Postgres)', () => {
     await expect(repointActiveToOldest(USER_ID)).resolves.toBe(FIRST_CHAR);
     await expect(getStoredActiveCharacterId(USER_ID)).resolves.toBe(FIRST_CHAR);
 
-    const linked = await seedDb
+    const linked = await harness.db
       .select({ id: account.id })
       .from(account)
       .where(eq(account.userId, USER_ID))
       .orderBy(asc(account.createdAt));
     expect(linked).toHaveLength(2);
-    await seedDb.delete(account).where(eq(account.userId, USER_ID));
+    await harness.db.delete(account).where(eq(account.userId, USER_ID));
 
     await expect(repointActiveToOldest(USER_ID)).resolves.toBeNull();
     await expect(getStoredActiveCharacterId(USER_ID)).resolves.toBeNull();

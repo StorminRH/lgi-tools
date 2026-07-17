@@ -1,17 +1,13 @@
 import { eq, isNull } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usageLogs } from '@/data/telemetry/schema';
 import { userPreferences } from '@/data/preferences/schema';
 import {
-  addForeignKey,
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+  createDbTestHarness,
+  seedCharacter as insertCharacter,
+  seedEveAccount as insertEveAccount,
+  seedUser,
+} from '@/db/test-support/db-test-harness';
 
 const revokeMock = vi.hoisted(() => vi.fn());
 vi.mock('./eve-token-service', () => ({
@@ -23,9 +19,6 @@ import { account, characters, corpAccessAudit, session, user } from './schema';
 import { syntheticEmail } from './synthetic-email';
 
 const SCHEMA = 'test_auth_account_purge';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
-
 const USER_ID = 'purge-user';
 const FIRST_CHAR = 90000041;
 const SECOND_CHAR = 90000042;
@@ -54,52 +47,38 @@ const TABLE_NAMES = [
   'saved_plans',
 ] as const;
 
-describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
-  let adminClient: ReturnType<typeof postgres>;
-  let seedDb: ReturnType<typeof drizzlePg>;
-
-  beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-    vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', '');
-    vi.stubEnv('CONVEX_SERVICE_SECRET', '');
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 4, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, TABLE_NAMES);
-    await addForeignKey(adminClient, SCHEMA, {
+const harness = await createDbTestHarness({
+  schema: SCHEMA,
+  tables: TABLE_NAMES,
+  foreignKeys: [
+    {
       table: 'account',
       column: 'user_id',
       refTable: 'user',
       refColumn: 'id',
       onDelete: 'cascade',
-    });
-    await addForeignKey(adminClient, SCHEMA, {
+    },
+    {
       table: 'session',
       column: 'user_id',
       refTable: 'user',
       refColumn: 'id',
       onDelete: 'cascade',
-    });
-    seedDb = drizzlePg(adminClient);
-  });
+    },
+  ],
+  steerDbProxy: true,
+  env: {
+    NEXT_PUBLIC_CONVEX_URL: '',
+    CONVEX_SERVICE_SECRET: '',
+  },
+  resetBetweenTests: 'truncate',
+});
 
-  afterAll(async () => {
-    const proxyClient = (
-      (await import('@/db')).db as unknown as { $client: ReturnType<typeof postgres> }
-    ).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
-  });
-
+describe.skipIf(!harness.reachable)('account-purge queries (real Postgres)', () => {
   beforeEach(async () => {
     revokeMock.mockReset();
     revokeMock.mockResolvedValue(undefined);
-    const tables = TABLE_NAMES.map((table) => `"${SCHEMA}"."${table}"`).join(', ');
-    await adminClient.unsafe(`TRUNCATE TABLE ${tables} CASCADE`);
-    await seedDb.insert(user).values({
-      id: USER_ID,
+    await seedUser(harness.db, USER_ID, {
       name: 'Purge Pilot',
       email: syntheticEmail(FIRST_CHAR),
       activeCharacterId: FIRST_CHAR,
@@ -107,9 +86,7 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
   });
 
   async function seedCharacter(characterId: number) {
-    await seedDb.insert(characters).values({
-      characterId,
-      name: `Character ${characterId}`,
+    await insertCharacter(harness.db, characterId, {
       portraitUrl: `https://images.example/${characterId}`,
       preferences: { privateNote: `note-${characterId}` },
     });
@@ -120,26 +97,22 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
     characterId: number,
     createdAt: Date,
   ) {
-    await seedDb.insert(account).values({
-      id,
-      accountId: String(characterId),
-      providerId: 'eve',
-      userId: USER_ID,
+    await insertEveAccount(harness.db, { id, characterId, userId: USER_ID }, {
       createdAt,
       updatedAt: createdAt,
     });
   }
 
   async function seedCharacterCache(characterId: number) {
-    await adminClient`
+    await harness.sql`
       INSERT INTO character_skills (character_id, total_sp, queue)
       VALUES (${characterId}, ${characterId}, '[]'::jsonb)
     `;
-    await adminClient`
+    await harness.sql`
       INSERT INTO character_industry_jobs (character_id, jobs)
       VALUES (${characterId}, '[]'::jsonb)
     `;
-    await seedDb.insert(usageLogs).values({
+    await harness.db.insert(usageLogs).values({
       characterId,
       action: 'auth_login',
       metadata: { seeded: true },
@@ -147,18 +120,18 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
   }
 
   async function seedUserData() {
-    await seedDb.insert(userPreferences).values({
+    await harness.db.insert(userPreferences).values({
       userId: USER_ID,
       key: 'planner.default',
       value: { region: 10000002 },
     });
-    await adminClient`
+    await harness.sql`
       INSERT INTO custom_structures
         (id, user_id, name, structure_type_id, rig_type_ids)
       VALUES
         ('custom-structure', ${USER_ID}, 'Private Structure', 35825, '[]'::jsonb)
     `;
-    await adminClient`
+    await harness.sql`
       INSERT INTO saved_plans
         (id, user_id, name, blueprint_type_id, product_type_id, product_name, snapshot)
       VALUES
@@ -172,14 +145,14 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
           '{"v":1,"blueprintTypeId":100}'::jsonb
         )
     `;
-    await adminClient`
+    await harness.sql`
       INSERT INTO corp_industry_jobs (user_id, corporation_id, jobs)
       VALUES (${USER_ID}, 98000041, '[]'::jsonb)
     `;
   }
 
   async function seedRetainedAudit() {
-    await seedDb.insert(corpAccessAudit).values({
+    await harness.db.insert(corpAccessAudit).values({
       userId: USER_ID,
       characterId: FIRST_CHAR,
       corporationId: 98000041,
@@ -189,7 +162,7 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
   }
 
   async function countClonedRows(table: string, where = 'TRUE'): Promise<number> {
-    const rows = await adminClient.unsafe<{ count: number }[]>(
+    const rows = await harness.sql.unsafe<{ count: number }[]>(
       `SELECT count(*)::int AS count FROM "${SCHEMA}"."${table}" WHERE ${where}`,
     );
     return rows[0]?.count ?? 0;
@@ -201,7 +174,7 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
     await seedEveAccount('first', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
     await seedEveAccount('second', SECOND_CHAR, new Date('2026-07-02T00:00:00Z'));
     await seedCharacterCache(FIRST_CHAR);
-    await seedDb.insert(usageLogs).values({
+    await harness.db.insert(usageLogs).values({
       characterId: null,
       action: 'page_view',
       metadata: { anonymous: true },
@@ -211,7 +184,7 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
 
     let accountPresentDuringRevoke = false;
     revokeMock.mockImplementationOnce(async () => {
-      const rows = await seedDb
+      const rows = await harness.db
         .select()
         .from(account)
         .where(eq(account.accountId, String(FIRST_CHAR)));
@@ -224,24 +197,24 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
 
     expect(accountPresentDuringRevoke).toBe(true);
     expect(
-      await seedDb.select().from(account).where(eq(account.accountId, String(FIRST_CHAR))),
+      await harness.db.select().from(account).where(eq(account.accountId, String(FIRST_CHAR))),
     ).toHaveLength(0);
     expect(await countClonedRows('character_skills', `character_id = ${FIRST_CHAR}`)).toBe(0);
     expect(await countClonedRows('character_industry_jobs', `character_id = ${FIRST_CHAR}`)).toBe(
       0,
     );
     expect(
-      await seedDb.select().from(usageLogs).where(eq(usageLogs.characterId, FIRST_CHAR)),
+      await harness.db.select().from(usageLogs).where(eq(usageLogs.characterId, FIRST_CHAR)),
     ).toHaveLength(0);
     expect(
-      await seedDb.select().from(usageLogs).where(isNull(usageLogs.characterId)),
+      await harness.db.select().from(usageLogs).where(isNull(usageLogs.characterId)),
     ).toHaveLength(1);
-    const [profile] = await seedDb
+    const [profile] = await harness.db
       .select({ preferences: characters.preferences })
       .from(characters)
       .where(eq(characters.characterId, FIRST_CHAR));
     expect(profile?.preferences).toEqual({});
-    const [remainingUser] = await seedDb
+    const [remainingUser] = await harness.db
       .select({ email: user.email, activeCharacterId: user.activeCharacterId })
       .from(user)
       .where(eq(user.id, USER_ID));
@@ -249,16 +222,16 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
       email: syntheticEmail(SECOND_CHAR),
       activeCharacterId: SECOND_CHAR,
     });
-    expect(await seedDb.select().from(userPreferences)).toHaveLength(1);
+    expect(await harness.db.select().from(userPreferences)).toHaveLength(1);
     expect(await countClonedRows('custom_structures')).toBe(1);
     expect(await countClonedRows('saved_plans')).toBe(1);
-    expect(await seedDb.select().from(corpAccessAudit)).toHaveLength(1);
+    expect(await harness.db.select().from(corpAccessAudit)).toHaveLength(1);
   });
 
   it('deletes a last-character user only after the credential row is gone', async () => {
     await seedCharacter(FIRST_CHAR);
     await seedEveAccount('only', FIRST_CHAR, new Date('2026-07-01T00:00:00Z'));
-    await seedDb.insert(session).values({
+    await harness.db.insert(session).values({
       id: 'purge-session',
       token: 'purge-session-token',
       userId: USER_ID,
@@ -269,9 +242,9 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
       accountEmptied: true,
     });
 
-    expect(await seedDb.select().from(account)).toHaveLength(0);
-    expect(await seedDb.select().from(user)).toHaveLength(0);
-    expect(await seedDb.select().from(session)).toHaveLength(0);
+    expect(await harness.db.select().from(account)).toHaveLength(0);
+    expect(await harness.db.select().from(user)).toHaveLength(0);
+    expect(await harness.db.select().from(session)).toHaveLength(0);
   });
 
   it('nukes every character and user tier, retains the audit trail, and is idempotent', async () => {
@@ -283,7 +256,7 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
     await seedCharacterCache(SECOND_CHAR);
     await seedUserData();
     await seedRetainedAudit();
-    await seedDb.insert(session).values({
+    await harness.db.insert(session).values({
       id: 'nuke-session',
       token: 'nuke-session-token',
       userId: USER_ID,
@@ -293,20 +266,20 @@ describe.skipIf(!reachable)('account-purge queries (real Postgres)', () => {
     await nukeAccount(USER_ID);
 
     expect(revokeMock.mock.calls).toEqual([[FIRST_CHAR], [SECOND_CHAR]]);
-    expect(await seedDb.select().from(account)).toHaveLength(0);
+    expect(await harness.db.select().from(account)).toHaveLength(0);
     expect(await countClonedRows('character_skills')).toBe(0);
     expect(await countClonedRows('character_industry_jobs')).toBe(0);
-    expect(await seedDb.select().from(usageLogs)).toHaveLength(0);
+    expect(await harness.db.select().from(usageLogs)).toHaveLength(0);
     expect(await countClonedRows('corp_industry_jobs')).toBe(0);
-    expect(await seedDb.select().from(userPreferences)).toHaveLength(0);
+    expect(await harness.db.select().from(userPreferences)).toHaveLength(0);
     expect(await countClonedRows('custom_structures')).toBe(0);
     expect(await countClonedRows('saved_plans')).toBe(0);
-    expect(await seedDb.select().from(session)).toHaveLength(0);
-    expect(await seedDb.select().from(user)).toHaveLength(0);
-    expect(await seedDb.select().from(corpAccessAudit)).toHaveLength(1);
+    expect(await harness.db.select().from(session)).toHaveLength(0);
+    expect(await harness.db.select().from(user)).toHaveLength(0);
+    expect(await harness.db.select().from(corpAccessAudit)).toHaveLength(1);
 
     await expect(nukeAccount(USER_ID)).resolves.toBeUndefined();
     expect(revokeMock.mock.calls).toEqual([[FIRST_CHAR], [SECOND_CHAR]]);
-    expect(await seedDb.select().from(corpAccessAudit)).toHaveLength(1);
+    expect(await harness.db.select().from(corpAccessAudit)).toHaveLength(1);
   });
 });

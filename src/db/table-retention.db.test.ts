@@ -1,7 +1,5 @@
 import { asc } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { GSC_RETENTION_DAYS } from '@/data/gsc/constants';
 import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
 import { pruneDomainEvents } from '@/data/domain-events/queries';
@@ -15,17 +13,18 @@ import {
 import { pruneCorpAccessAudit } from '@/features/auth/affiliation-store';
 import { pruneExpiredVerifications } from '@/features/auth/verification-retention';
 import { corpAccessAudit, verification } from '@/features/auth/schema';
-import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from './test-support/db-coverage-harness';
+import { createDbTestHarness } from './test-support/db-test-harness';
 
-const SCHEMA = 'test_table_retention';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_table_retention',
+  tables: [
+    'corp_access_audit',
+    'domain_events',
+    'gsc_search_analytics',
+    'gsc_url_inspection',
+    'verification',
+  ],
+});
 const NOW = new Date('2026-07-14T12:00:00Z');
 const CUTOFF = new Date(NOW.getTime() - GSC_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 const CUTOFF_DAY = CUTOFF.toISOString().slice(0, 10);
@@ -35,27 +34,9 @@ const VERIFICATION_CUTOFF = new Date(
   NOW.getTime() - VERIFICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000,
 );
 
-describe.skipIf(!reachable)('table retention prunes execute against Postgres', () => {
-  let client: ReturnType<typeof postgres>;
-
-  beforeAll(async () => {
-    client = postgres(schemaUrl(baseUrl, SCHEMA), { max: 1, onnotice: () => {} });
-    await setupDisposableSchema(client, SCHEMA, [
-      'corp_access_audit',
-      'domain_events',
-      'gsc_search_analytics',
-      'gsc_url_inspection',
-      'verification',
-    ]);
-  });
-
-  afterAll(async () => {
-    await dropDisposableSchema(client, SCHEMA);
-    await client.end({ timeout: 5 }).catch(() => {});
-  });
-
+describe.skipIf(!harness.reachable)('table retention prunes execute against Postgres', () => {
   it('deletes rows beyond each retention horizon and preserves the boundary', async () => {
-    const database = drizzlePg(client);
+    const database = harness.db;
     await database.insert(gscSearchAnalytics).values(
       [OLD_DAY, CUTOFF_DAY, NEW_DAY].map((date) => ({
         date,

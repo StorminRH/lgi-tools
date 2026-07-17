@@ -1,7 +1,5 @@
 import { asc } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   enqueueEsiRefreshJob,
   getEsiRefreshQueueStats,
@@ -11,41 +9,20 @@ import {
 } from '@/data/esi-refresh-jobs/queries';
 import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { EsiBudgetExhaustedError } from '@/lib/esi';
-import { db } from '@/db';
-import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from './test-support/db-coverage-harness';
+import { createDbTestHarness } from './test-support/db-test-harness';
 
-const SCHEMA = 'test_esi_refresh_jobs';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_esi_refresh_jobs',
+  tables: ['esi_refresh_jobs'],
+  steerDbProxy: true,
+});
 const NOW = new Date('2026-07-14T12:00:00Z');
 const OLD = new Date('2026-07-01T12:00:00Z');
 const BOUNDARY = new Date('2026-07-07T12:00:00Z');
 
-describe.skipIf(!reachable)('ESI refresh queue durability executes against Postgres', () => {
-  let client: ReturnType<typeof postgres>;
-
-  beforeAll(async () => {
-    client = postgres(schemaUrl(baseUrl, SCHEMA), { max: 2, onnotice: () => {} });
-    await setupDisposableSchema(client, SCHEMA, ['esi_refresh_jobs']);
-    process.env.LOCAL_DB_DRIVER = 'postgres-js';
-    process.env.DATABASE_URL = schemaUrl(baseUrl, SCHEMA);
-  });
-
-  afterAll(async () => {
-    const proxyClient = (db as unknown as { $client: ReturnType<typeof postgres> }).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(client, SCHEMA);
-    await client.end({ timeout: 5 }).catch(() => {});
-  });
-
+describe.skipIf(!harness.reachable)('ESI refresh queue durability executes against Postgres', () => {
   it('coalesces concurrent budget deferrals for the same dataset and owner', async () => {
-    const database = drizzlePg(client);
+    const database = harness.db;
     const error = new EsiBudgetExhaustedError(
       10,
       'rate_limited',
@@ -77,7 +54,7 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
   });
 
   it('prunes expired terminal rows while preserving the boundary and dead letters', async () => {
-    const database = drizzlePg(client);
+    const database = harness.db;
     await database.delete(esiRefreshJobs);
     await database.insert(esiRefreshJobs).values([
       terminalJob('old-success', 'succeeded', OLD),
@@ -99,7 +76,7 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
   });
 
   it('keeps a dead letter superseded when its idempotency key already has a live job', async () => {
-    const database = drizzlePg(client);
+    const database = harness.db;
     await database.delete(esiRefreshJobs);
     const [deadLetter] = await database
       .insert(esiRefreshJobs)
@@ -128,7 +105,7 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
   });
 
   it('decodes the grouped oldest-created aggregate as a Date', async () => {
-    const database = drizzlePg(client);
+    const database = harness.db;
     await database.delete(esiRefreshJobs);
     await database.insert(esiRefreshJobs).values([
       {
@@ -150,7 +127,7 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
   });
 
   it('requeues a dead letter with every retry field reset', async () => {
-    const database = drizzlePg(client);
+    const database = harness.db;
     await database.delete(esiRefreshJobs);
     const [deadLetter] = await database
       .insert(esiRefreshJobs)
@@ -183,7 +160,7 @@ describe.skipIf(!reachable)('ESI refresh queue durability executes against Postg
   });
 
   it('counts interrupted runs and dead-letters the fifth interruption', async () => {
-    const database = drizzlePg(client);
+    const database = harness.db;
     await database.delete(esiRefreshJobs);
     await database.insert(esiRefreshJobs).values([
       runningJob('retry-interrupted', 2, new Date('2026-07-14T11:00:00Z')),
