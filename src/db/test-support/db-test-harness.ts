@@ -83,19 +83,10 @@ export async function createDbTestHarness(
   beforeAll(async () => {
     if (!reachable) return;
 
-    for (const [name, value] of Object.entries(options.env ?? {})) {
-      vi.stubEnv(name, value);
-    }
-    if (options.steerDbProxy) {
-      vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-      vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, options.schema));
-    }
-
+    steerHarnessEnvironment(options, baseUrl);
     sql = postgres(schemaUrl(baseUrl, options.schema), { max: 4, onnotice: () => {} });
     await setupDisposableSchema(sql, options.schema, options.tables);
-    for (const foreignKey of options.foreignKeys ?? []) {
-      await addForeignKey(sql, options.schema, foreignKey);
-    }
+    await addForeignKeys(sql, options);
     database = drizzlePg(sql);
   });
 
@@ -222,6 +213,22 @@ async function setupDisposableSchema(
     await sql.unsafe(
       `CREATE TABLE "${schema}"."${table}" (LIKE public."${table}" INCLUDING ALL)`,
     );
+  }
+}
+
+function steerHarnessEnvironment(options: DbTestHarnessOptions, baseUrl: string): void {
+  for (const [name, value] of Object.entries(options.env ?? {})) {
+    vi.stubEnv(name, value);
+  }
+  if (options.steerDbProxy) {
+    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
+    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, options.schema));
+  }
+}
+
+async function addForeignKeys(sql: Sql, options: DbTestHarnessOptions): Promise<void> {
+  for (const foreignKey of options.foreignKeys ?? []) {
+    await addForeignKey(sql, options.schema, foreignKey);
   }
 }
 
