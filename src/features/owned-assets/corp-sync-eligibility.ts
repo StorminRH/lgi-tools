@@ -30,6 +30,7 @@ export const CORP_ASSETS_SYNC_SCOPES = [
  */
 export const CORP_ASSETS_REQUIRED_ROLES = ['Director'] as const;
 
+/** Returns whether a linked character can read corporation assets for its current role and scope set. */
 export function canSyncCorpAssets(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

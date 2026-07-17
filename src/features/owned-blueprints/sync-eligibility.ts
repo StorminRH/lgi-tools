@@ -12,6 +12,7 @@
  */
 export const BLUEPRINTS_SYNC_SCOPES = ['esi-characters.read_blueprints.v1'] as const;
 
+/** Returns whether a linked character has token custody and the personal-blueprints scope. */
 export function canSyncBlueprints(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

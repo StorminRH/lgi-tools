@@ -35,6 +35,7 @@ function PauseGlyph() {
   );
 }
 
+/** Renders one character's skill-queue summary, portrait, connection health, and navigation action. */
 export function RosterCard({
   vm,
   reconnectAction,

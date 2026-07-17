@@ -13,6 +13,7 @@ const TYPE_TONE: Record<ChangeType, PillTone> = {
   Removed: 'red',
 };
 
+/** Renders one changelog entry's date, type, title, and structured detail content. */
 export function EntryCard({ entry }: { entry: ChangelogEntry }) {
   return (
     <div className="changelog-entry">

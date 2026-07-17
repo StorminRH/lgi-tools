@@ -26,6 +26,10 @@ export interface OwnedBlueprintDetailEntry {
 // stations resolve through the public /universe/names path like any other entity.
 const STRUCTURE_ID_FLOOR = 1_000_000_000_000;
 
+/**
+ * Returns whether an asset location represents a player-owned structure rather than an NPC station
+ * or inventory item.
+ */
 export function isPlayerStructure(locationId: number): boolean {
   return locationId >= STRUCTURE_ID_FLOOR;
 }

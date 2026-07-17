@@ -11,6 +11,7 @@
  */
 export const INDUSTRY_JOBS_SYNC_SCOPES = ['esi-industry.read_character_jobs.v1'] as const;
 
+/** Returns whether a linked character has token custody and the personal-industry-jobs scope. */
 export function canSyncIndustryJobs(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

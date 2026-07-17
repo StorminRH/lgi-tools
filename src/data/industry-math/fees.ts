@@ -45,6 +45,10 @@ export interface FeeRates {
   brokerFee: number; // fraction of sell revenue (base assumption)
 }
 
+/**
+ * Default broker, sales-tax, SCC surcharge, and facility-tax rates used when the planner has no
+ * user or facility override.
+ */
 export const DEFAULT_FEE_RATES: FeeRates = {
   facilityTax: 0.0025,
   sccSurcharge: 0.04,
@@ -116,6 +120,7 @@ export function taxDraftFromStored(taxPct: number | null): string {
  */
 export type AdjustedPriceOf = (typeId: number) => number | null;
 
+/** Industry job installation fee components and total in ISK. */
 export interface JobInstallationFee {
   // Σ baseQty × adjustedPrice over the ME0 base materials. A partial sum (missing
   // adjusted prices contribute 0 and are flagged), never null — the honest base
@@ -185,6 +190,7 @@ export function computeJobInstallationFee(
   };
 }
 
+/** Broker and sales-tax rates plus total sell-side fees in ISK. */
 export interface SellSideFees {
   salesTax: number | null; // revenue × salesTax
   brokerFee: number | null; // revenue × brokerFee
@@ -207,6 +213,10 @@ export function computeSellSideFees(
   return { salesTax, brokerFee, total: salesTax + brokerFee };
 }
 
+/**
+ * Caller input shape accepted by industry math; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export interface NetMarginInput extends MarginInput {
   // ME0 base materials of the job, for EIV (distinct from the build-cost list).
   baseMaterials: MaterialQty[];
@@ -218,6 +228,7 @@ export interface NetMarginInput extends MarginInput {
   structureCostBonusPct?: number;
 }
 
+/** Revenue, total cost, profit in ISK, and profit percentage for one sale scenario. */
 export interface NetMargin {
   revenue: number | null;
   buildCost: number;

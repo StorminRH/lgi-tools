@@ -45,6 +45,7 @@ function clampPct(pct: number): number {
   return Math.min(100, Math.max(0, pct));
 }
 
+/** Aggregate industry-job counts and slot usage by activity. */
 export interface JobsSummary {
   total: number;
   readyCount: number;
@@ -54,6 +55,7 @@ export interface JobsSummary {
   nextEndAt: number | null;
 }
 
+/** Counts active, ready, and completed industry jobs and groups slot usage by activity. */
 export function summarizeJobs(jobs: IndustryJob[], nowMs: number): JobsSummary {
   let readyCount = 0;
   let pausedCount = 0;

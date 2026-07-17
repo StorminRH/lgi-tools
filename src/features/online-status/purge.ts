@@ -42,6 +42,10 @@ async function postPurgeOnline(userId: string, characterId: number | null): Prom
   }
 }
 
+/**
+ * Personal-data purge contributor for online status purge contributor; this data slice owns
+ * deleting its user and character keyed rows.
+ */
 export const onlineStatusPurgeContributor: PurgeContributor = {
   name: 'online-status',
   // characterOnline is a regenerable ESI mirror, not credential or durable data.

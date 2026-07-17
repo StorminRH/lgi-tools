@@ -18,12 +18,20 @@ import { setCorpStructureSharingEndpoint } from '../api-contract';
 // island takes server-resolved corps in and fires the same mutation out — the
 // gate/wipe live in the data layer behind the same endpoint.
 
+/**
+ * Display-ready sharing corp state for owned structures; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type SharingCorpView = {
   corporationId: number;
   corporationName: string;
   sharingEnabled: boolean;
 };
 
+/**
+ * Renders corporation structure-sharing controls and forwards optimistic sharing updates to the
+ * owning settings action.
+ */
 export function CorpSharingSettings({ corps }: { corps: SharingCorpView[] }) {
   return (
     <Card>

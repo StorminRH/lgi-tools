@@ -5,6 +5,7 @@ import {
 } from '@/data/eve-data/structures';
 import type { CorpStructureRow } from './types';
 
+/** Closed structure-rig validation result with normalized rig IDs or an incompatibility reason. */
 export type RigSelectionValidation = { ok: true } | { ok: false; reason: string };
 
 /**

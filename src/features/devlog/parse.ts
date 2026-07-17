@@ -61,6 +61,10 @@ const LINK = /\[([^\]]+)\]\(([^)\s]+)\)/y;
 const INLINE_CODE = /`([^`]+)`/y;
 const BOLD = /\*\*([^*]+?)\*\*/y;
 
+/**
+ * Converts a devlog title into a lowercase stable URL slug, removing unsupported characters and
+ * repeated separators.
+ */
 export function slugify(title: string): string {
   return title
     .toLowerCase()
@@ -389,6 +393,10 @@ function makeSlugger(): (title: string) => string {
   };
 }
 
+/**
+ * Parses the segmented devlog source into a typed folder tree with stable slugs, excerpts, and
+ * update dates.
+ */
 export function parseDevlog(md: string): DevlogTree {
   const looseDocuments: DevlogDocument[] = [];
   const folders: DevlogFolder[] = [];
@@ -425,6 +433,7 @@ export function flattenDocuments(tree: DevlogTree): DevlogDocument[] {
   return [...tree.looseDocuments, ...tree.folders.flatMap((f) => f.documents)];
 }
 
+/** Finds one parsed devlog document by slug, returning null when absent. */
 export function findDocument(tree: DevlogTree, slug: string): DevlogDocument | undefined {
   return flattenDocuments(tree).find((d) => d.slug === slug);
 }

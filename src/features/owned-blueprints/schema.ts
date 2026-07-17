@@ -17,7 +17,12 @@ import { ownerSyncStateColumns } from '@/lib/db-columns';
 
 /** Postgres enum driven from a TS `as const` (the one-source-of-truth invariant). */
 export const OWNED_BLUEPRINT_OWNER_TYPES = ['character', 'corporation'] as const;
+/** Closed personal or corporation owner kinds for persisted blueprints. */
 export type OwnedBlueprintOwnerType = (typeof OWNED_BLUEPRINT_OWNER_TYPES)[number];
+/**
+ * Drizzle schema owner for owned blueprint owner type enum; migrations, queries, retention, and
+ * purge claims derive from this single declaration.
+ */
 export const ownedBlueprintOwnerTypeEnum = pgEnum(
   'owned_blueprint_owner_type',
   OWNED_BLUEPRINT_OWNER_TYPES,

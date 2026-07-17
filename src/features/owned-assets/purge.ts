@@ -7,6 +7,10 @@ import { db } from '@/db';
 import type { PurgeContributor } from '@/purge/types';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
+/**
+ * Personal-data purge contributor for owned assets purge contributor; this data slice owns
+ * deleting its user and character keyed rows.
+ */
 export const ownedAssetsPurgeContributor: PurgeContributor = {
   name: 'owned-assets',
   tier: 'cache',

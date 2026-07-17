@@ -37,6 +37,10 @@ const ownedBlueprintSchema = z.object({
 });
 const ownedBlueprintsBodySchema = z.array(ownedBlueprintSchema);
 
+/**
+ * Normalized owned blueprint row with owner, location, original or copy runs, and material and
+ * time efficiency.
+ */
 export type OwnedBlueprint = z.infer<typeof ownedBlueprintSchema>;
 
 // Canonical ordering so the same owned set always projects to the same array

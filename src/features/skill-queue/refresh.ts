@@ -35,6 +35,7 @@ export type SkillsPersistPlan =
   | { kind: 'stamp' }
   | { kind: 'skip'; code?: string };
 
+/** Builds the atomic skills and queue persistence plan from normalized ESI payloads. */
 export function planSkillsPersist(
   queueRead: SkillsEsiRead,
   skillsRead: SkillsEsiRead,
@@ -80,6 +81,10 @@ function makeDescriptor(port: SkillsPort): OwnerSyncDescriptor<number, Character
   });
 }
 
+/**
+ * Refreshes skills and queue data for every eligible linked character and returns the merged
+ * roster projection.
+ */
 export function refreshSkillsForUser(
   port: SkillsPort,
   userId: string,

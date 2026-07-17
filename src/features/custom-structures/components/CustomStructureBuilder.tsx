@@ -370,6 +370,7 @@ function SavedStructuresList({
   );
 }
 
+/** Renders the controlled custom-structure editor for hull, rigs, tax, name, and saved facility actions. */
 export function CustomStructureBuilder({
   structureTypes,
   structureRigs,

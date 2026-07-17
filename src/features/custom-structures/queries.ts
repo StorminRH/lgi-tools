@@ -31,6 +31,7 @@ export async function listCustomStructures(userId: string): Promise<CustomStruct
   }));
 }
 
+/** Counts custom planner structures owned by one user for quota enforcement. */
 export async function countCustomStructures(userId: string): Promise<number> {
   const [row] = await db
     .select({ n: count() })
@@ -39,6 +40,10 @@ export async function countCustomStructures(userId: string): Promise<number> {
   return Number(row?.n ?? 0);
 }
 
+/**
+ * Creates one user-owned custom structure after validating hull, rig compatibility, tax, name, and
+ * per-user quota.
+ */
 export async function createCustomStructure(
   userId: string,
   input: {

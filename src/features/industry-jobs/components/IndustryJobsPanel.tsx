@@ -26,6 +26,7 @@ import type { CharacterJobsData } from '../types';
 import { useJobsLive } from '../use-jobs-live';
 import { JobRowFrame } from './JobRowFrame';
 
+/** Composes personal industry job state, slot summary, and reconnect affordances for one character. */
 export function IndustryJobsPanel({
   characters,
   strip,

@@ -12,6 +12,7 @@
 // Jita best *sell* (you place sell orders for your product). Margin is
 // before job/install fees — those land in 3.1.
 
+/** Material quantity before and after ME adjustment, expressed in whole units. */
 export interface MaterialQty {
   typeId: number;
   quantity: number;
@@ -33,6 +34,7 @@ export interface MaterialPrice {
  */
 export type PriceOf = (typeId: number) => MaterialPrice | undefined;
 
+/** Material quantity and total cost in ISK at the supplied unit price. */
 export interface MaterialCost {
   typeId: number;
   quantity: number;
@@ -40,6 +42,7 @@ export interface MaterialCost {
   extendedCost: number | null; // quantity × unitBuy, or null when unpriced
 }
 
+/** Complete build cost in ISK including materials, installation, and facility fees. */
 export interface BuildCost {
   total: number; // sum of the priced extendedCost lines (unpriced lines excluded)
   perMaterial: MaterialCost[];
@@ -84,12 +87,17 @@ export function computeBuildCost(
   return { total, perMaterial, missingTypeIds };
 }
 
+/**
+ * Caller input shape accepted by industry math; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export interface MarginInput {
   buildCost: number; // BuildCost.total
   productSell: number | null; // product best sell (revenue basis)
   productQty: number; // units produced per run
 }
 
+/** Sell value, cost, profit in ISK, and profit percentage for planner display. */
 export interface Margin {
   revenue: number | null;
   cost: number;

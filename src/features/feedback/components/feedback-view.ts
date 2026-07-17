@@ -1,3 +1,4 @@
+/** Closed feedback submission state for idle, sending, success, and failure presentation. */
 export type SubmitState =
   | { kind: 'idle' }
   | { kind: 'submitting' }

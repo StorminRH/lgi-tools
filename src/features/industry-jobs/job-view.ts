@@ -22,6 +22,7 @@ export interface JobRowModel {
   showBar: boolean;
 }
 
+/** Derives one job row's label, progress, remaining time, status, and semantic tone. */
 export function jobRowModel(job: IndustryJob, now: number): JobRowModel {
   const end = Date.parse(job.end_date);
   return {
@@ -46,6 +47,7 @@ export interface JobRowFrameData {
   pct: number;
 }
 
+/** Derives shared row framing data for personal and corporation job presentations. */
 export function jobRowFrameData(
   job: IndustryJob,
   names: Record<string, string>,
@@ -114,6 +116,7 @@ export interface JobsCardModel {
   nextDoneMs: number | null;
 }
 
+/** Derives the personal jobs card's loading, empty, reconnect, and populated states. */
 export function jobsCardModel(data: CharacterJobsData | null, now: number): JobsCardModel {
   if (data === null) return { isEmpty: false, subtitle: null, nextDoneMs: null };
   const summary = summarizeJobs(data.jobs, now);
@@ -148,6 +151,7 @@ export function corpEntityIds(
  */
 export type CorpGroupState = 'needs-role' | 'sync-error' | 'empty' | 'rows';
 
+/** Derives one corporation job group's access, loading, empty, and populated state. */
 export function corpGroupState(corp: { syncError: string | null; data: CharacterJobsData | null }): CorpGroupState {
   if (corp.syncError === 'needs_role') return 'needs-role';
   if (corp.data === null) return 'sync-error';

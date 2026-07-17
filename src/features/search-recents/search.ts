@@ -8,6 +8,10 @@
 import type { SearchResult, SearchSource } from '@/search';
 import { fuzzyMatch } from '@/search/match';
 
+/**
+ * Global-search source for recents search source; it owns matching and result mapping while the
+ * app layer owns registration.
+ */
 export const recentsSearchSource: SearchSource = {
   id: 'recents',
   name: 'Recent',

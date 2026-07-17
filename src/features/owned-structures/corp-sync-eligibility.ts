@@ -30,6 +30,7 @@ export const CORP_STRUCTURES_SYNC_SCOPES = [
  */
 export const CORP_STRUCTURES_REQUIRED_ROLES = ['Station_Manager'] as const;
 
+/** Returns whether a linked character can read corporation structures for its role and scope set. */
 export function canSyncCorpStructures(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

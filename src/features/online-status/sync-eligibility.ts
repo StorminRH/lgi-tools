@@ -11,6 +11,7 @@
  */
 export const ONLINE_SYNC_SCOPES = ['esi-location.read_online.v1'] as const;
 
+/** Returns whether a linked character has token custody and the online-status scope. */
 export function canSyncOnline(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

@@ -15,6 +15,10 @@ import type { CharacterSkillData } from './types';
  */
 export type QueueHeader = { kind: 'ends-in'; ms: number } | { kind: 'paused' } | null;
 
+/**
+ * Display-ready queue card model consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export interface QueueCardModel {
   isEmpty: boolean;
   subtitle: string | null;
@@ -54,6 +58,10 @@ export function queueCardModel(data: CharacterSkillData | null, now: number): Qu
   };
 }
 
+/**
+ * Display-ready entry row model consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export interface EntryRowModel {
   status: EntryStatus;
   pct: number;
@@ -63,6 +71,7 @@ export interface EntryRowModel {
   showBar: boolean;
 }
 
+/** Derives one skill queue row's progress, time remaining, level label, and completion state. */
 export function entryRowModel(entry: SkillQueueEntry, now: number): EntryRowModel {
   const progress = entryProgress(entry, now);
   const finish = entry.finish_date !== undefined ? Date.parse(entry.finish_date) : null;

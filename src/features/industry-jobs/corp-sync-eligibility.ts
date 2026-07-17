@@ -30,6 +30,10 @@ export const CORP_INDUSTRY_JOBS_SYNC_SCOPES = [
  */
 export const CORP_INDUSTRY_JOBS_REQUIRED_ROLES = ['Factory_Manager', 'Director'] as const;
 
+/**
+ * Returns whether a linked character has token custody and every scope required for corporation
+ * industry jobs.
+ */
 export function canSyncCorpIndustryJobs(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

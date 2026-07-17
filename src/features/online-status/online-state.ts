@@ -8,6 +8,10 @@
  */
 export type OnlineState = 'online' | 'offline' | 'unknown';
 
+/**
+ * Derives a character's online, offline, stale, or unavailable state from sync subject and
+ * presence timestamps.
+ */
 export function deriveOnlineState(online: boolean | undefined): OnlineState {
   if (online === undefined) return 'unknown';
   return online ? 'online' : 'offline';

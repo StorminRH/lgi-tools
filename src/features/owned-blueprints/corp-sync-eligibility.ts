@@ -32,6 +32,7 @@ export const CORP_BLUEPRINTS_SYNC_SCOPES = [
  */
 export const CORP_BLUEPRINTS_REQUIRED_ROLES = ['Director'] as const;
 
+/** Returns whether a linked character can read corporation blueprints for its current role and scope set. */
 export function canSyncCorpBlueprints(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

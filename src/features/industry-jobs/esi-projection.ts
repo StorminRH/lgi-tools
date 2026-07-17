@@ -11,6 +11,10 @@
 // layer derives (see convex/schema.ts).
 import { z } from 'zod';
 
+/**
+ * Closed industry jobs vocabulary and canonical order for job statuses; consumers derive
+ * validation and iteration from this one list.
+ */
 export const JOB_STATUSES = [
   'active',
   'paused',
@@ -20,6 +24,10 @@ export const JOB_STATUSES = [
   'reverted',
 ] as const;
 
+/**
+ * Closed set of externally meaningful industry jobs states; callers must handle every member
+ * instead of inferring state from incidental fields.
+ */
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
 /**
@@ -50,6 +58,10 @@ export const industryJobSchema = z.object({
 });
 const industryJobsBodySchema = z.array(industryJobSchema);
 
+/**
+ * Normalized personal or corporation industry job with absolute timing, activity, product,
+ * installer, and status.
+ */
 export type IndustryJob = z.infer<typeof industryJobSchema>;
 
 /**

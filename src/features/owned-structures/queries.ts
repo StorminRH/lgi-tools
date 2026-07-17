@@ -241,6 +241,7 @@ export interface CorpStructureCompletion {
   taxPct: number | null;
 }
 
+/** Loads fitted rig type IDs for the requested corporation structures in one batched query. */
 export async function getCorpStructureRigs(
   corporationIds: number[],
 ): Promise<Map<number, CorpStructureCompletion>> {

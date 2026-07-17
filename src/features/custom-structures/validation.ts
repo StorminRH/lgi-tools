@@ -4,11 +4,13 @@ import {
   type StructureTypeOption,
 } from '@/data/eve-data/structures';
 
+/** Persisted custom facility selection containing hull, rigs, tax, and user-facing name. */
 export interface CustomStructureSelection {
   structureTypeId: number;
   rigTypeIds: number[];
 }
 
+/** Closed custom-structure validation result with normalized selection or field error. */
 export type SelectionValidation = { ok: true } | { ok: false; reason: string };
 
 /**

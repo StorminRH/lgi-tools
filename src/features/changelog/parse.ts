@@ -12,14 +12,21 @@ import { isIsoCalendarDate } from '@/lib/iso-date';
 // variant. If a future entry genuinely needs richer formatting, grow this
 // parser for exactly the new feature.
 
+/**
+ * Closed changelog vocabulary and canonical order for change types; consumers derive validation
+ * and iteration from this one list.
+ */
 export const CHANGE_TYPES = ['Added', 'Changed', 'Fixed', 'Removed'] as const;
+/** Closed changelog entry categories used for labels and semantic tones. */
 export type ChangeType = (typeof CHANGE_TYPES)[number];
 
+/** Titled group of related changelog bullet items. */
 export type ChangelogGroup = {
   type: ChangeType;
   items: string[];
 };
 
+/** One dated sub-version changelog entry with type, title, lead, and grouped details. */
 export type ChangelogEntry = {
   version: string;
   date: string;
@@ -72,6 +79,10 @@ export function masterVersionOf(version: string): string {
   return version.split('.').slice(0, 2).join('.');
 }
 
+/**
+ * Parses changelog Markdown into typed master and sub-version entries, rejecting malformed release
+ * headings and dates.
+ */
 export function parseChangelog(md: string): ChangelogEntry[] {
   const entries: ChangelogEntry[] = [];
   let currentEntry: ChangelogEntry | null = null;

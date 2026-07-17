@@ -40,6 +40,10 @@ export const corpStructuresResponseSchema = z.object({
   corporations: z.array(viewerCorpStructuresSchema),
 });
 
+/**
+ * Stable owned structures outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type CorpStructuresResponse = z.infer<typeof corpStructuresResponseSchema>;
 
 /**
@@ -54,14 +58,30 @@ export const setCorpStructureSharingRequestSchema = z.object({
   corporationId: z.number().int().positive(),
   enabled: z.boolean(),
 });
+/**
+ * Caller input shape accepted by owned structures; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type SetCorpStructureSharingRequest = z.input<typeof setCorpStructureSharingRequestSchema>;
 
+/**
+ * Boundary validator for corp structure sharing response schema; successful parsing yields the
+ * normalized owned structures input consumed internally.
+ */
 export const corpStructureSharingResponseSchema = z.object({
   corporationId: z.number(),
   enabled: z.boolean(),
 });
+/**
+ * Stable owned structures outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type CorpStructureSharingResponse = z.infer<typeof corpStructureSharingResponseSchema>;
 
+/**
+ * Typed endpoint definition for set corp structure sharing endpoint; method, path, request, and
+ * response contracts remain coupled here.
+ */
 export const setCorpStructureSharingEndpoint: ApiEndpoint<
   SetCorpStructureSharingRequest,
   CorpStructureSharingResponse
@@ -80,7 +100,15 @@ export const setCorpStructureSharingEndpoint: ApiEndpoint<
 // slots. An orphan structureId (not in the corp's pulled set) is harmless — it's
 // never joined and is wiped on disable. Echoes the saved completion.
 const PG_INT4_MAX = 2_147_483_647;
+/**
+ * Configured owned structures limit for max corp structure rigs; callers use this value instead of
+ * embedding a competing threshold.
+ */
 export const MAX_CORP_STRUCTURE_RIGS = 3;
+/**
+ * Boundary validator for set corp structure rigs request schema; successful parsing yields the
+ * normalized owned structures input consumed internally.
+ */
 export const setCorpStructureRigsRequestSchema = z.object({
   corporationId: z.number().int().positive(),
   structureId: z.number().int().positive(),
@@ -91,15 +119,31 @@ export const setCorpStructureRigsRequestSchema = z.object({
   // an entered 0 is a real 0%).
   taxPct: z.number().min(0).max(MAX_FACILITY_TAX_PCT).nullable().optional(),
 });
+/**
+ * Caller input shape accepted by owned structures; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type SetCorpStructureRigsRequest = z.input<typeof setCorpStructureRigsRequestSchema>;
 
+/**
+ * Boundary validator for corp structure rigs response schema; successful parsing yields the
+ * normalized owned structures input consumed internally.
+ */
 export const corpStructureRigsResponseSchema = z.object({
   structureId: z.number(),
   rigTypeIds: z.array(z.number()),
   taxPct: z.number().nullable(),
 });
+/**
+ * Stable owned structures outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type CorpStructureRigsResponse = z.infer<typeof corpStructureRigsResponseSchema>;
 
+/**
+ * Typed endpoint definition for set corp structure rigs endpoint; method, path, request, and
+ * response contracts remain coupled here.
+ */
 export const setCorpStructureRigsEndpoint: ApiEndpoint<
   SetCorpStructureRigsRequest,
   CorpStructureRigsResponse

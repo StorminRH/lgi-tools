@@ -36,6 +36,7 @@ export interface OwnedAssetSummary {
   heldBy: AssetHolding[];
 }
 
+/** Owned asset quantities indexed by type ID and eligible location for planner lookup. */
 export type OwnedAssetMap = Map<number, OwnedAssetSummary>;
 
 /**

@@ -55,6 +55,10 @@ function rendersIcon(r: StoredRecent): boolean {
   return !ITEM_KINDS.has(r.kind) || r.typeId != null;
 }
 
+/**
+ * Reads and validates browser-local search recents, returning an empty list for malformed or
+ * unavailable storage.
+ */
 export function readRecents(): SearchResult[] {
   return readStored()
     .slice(0, MAX_RECENTS)
@@ -65,6 +69,7 @@ export function readRecents(): SearchResult[] {
     }));
 }
 
+/** Moves one search selection to the front of the bounded, deduplicated recent list. */
 export function pushRecent(result: SearchResult): void {
   if (result.kind === 'recent') return;
   if (result.disabled) return;
@@ -88,6 +93,7 @@ export function pushRecent(result: SearchResult): void {
   store.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
+/** Removes all browser-local search recents without affecting other preferences. */
 export function clearRecents(): void {
   const store = safeStorage();
   if (!store) return;
@@ -114,6 +120,10 @@ function isStoredRecent(value: unknown): value is StoredRecent {
   return storedRecentSchema.safeParse(value).success;
 }
 
+/**
+ * Test-only preference internals exposed for deterministic storage and key-contract verification;
+ * production code must not consume this object.
+ */
 export const __TEST_ONLY__ = {
   STORAGE_KEY,
   MAX_RECENTS,

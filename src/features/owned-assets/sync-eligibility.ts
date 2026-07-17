@@ -13,6 +13,7 @@
  */
 export const ASSETS_SYNC_SCOPES = ['esi-assets.read_assets.v1'] as const;
 
+/** Returns whether a linked character has token custody and the personal-assets scope. */
 export function canSyncAssets(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];

@@ -30,6 +30,7 @@ import { entryRowModel, type QueueHeader, queueCardModel } from '../queue-view';
 import type { CharacterSkillData } from '../types';
 import { useSkillsLive } from '../use-skills-live';
 
+/** Renders a character's current and queued skills with progress, totals, and refresh state. */
 export function SkillQueuePanel({
   characters,
   reconnectAction,

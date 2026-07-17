@@ -41,6 +41,7 @@ type CorpEntry = CorpJobsResponse['corporations'][number];
 export const CORP_ACCESS_REASON =
   "Reading your corporation's industry jobs needs corporation-roles and corporation-jobs access. Grant it to any linked character to see your corp jobs here.";
 
+/** Renders corporation industry jobs grouped by owner with access, loading, empty, and refresh states. */
 export function CorpJobsBoard({
   eligibleCharacterIds,
   hasLinkedCharacters,

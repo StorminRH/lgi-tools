@@ -4,6 +4,7 @@
 // the board renders soonest-done first, job_id tie-breaking for stability.
 import type { IndustryJob } from './esi-projection';
 
+/** Flattens per-owner industry-job groups into one deterministically ordered job list. */
 export function flattenJobs(
   boards: Iterable<{ data: { jobs: IndustryJob[] } | null }>,
 ): IndustryJob[] {

@@ -31,8 +31,16 @@ const jobsResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
 
+/**
+ * Stable industry jobs outcome returned across the owning boundary; callers handle the represented
+ * success, absence, or failure states.
+ */
 export type JobsResponse = z.infer<typeof jobsResponseSchema>;
 
+/**
+ * Boundary validator for industry jobs endpoint; successful parsing yields the normalized industry
+ * jobs input consumed internally.
+ */
 export const industryJobsEndpoint: ApiEndpoint<null, JobsResponse> = {
   method: 'GET',
   path: '/api/account/industry-jobs',
@@ -60,8 +68,16 @@ const corpJobsResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
 
+/**
+ * Stable industry jobs outcome returned across the owning boundary; callers handle the represented
+ * success, absence, or failure states.
+ */
 export type CorpJobsResponse = z.infer<typeof corpJobsResponseSchema>;
 
+/**
+ * Boundary validator for corp industry jobs endpoint; successful parsing yields the normalized
+ * industry jobs input consumed internally.
+ */
 export const corpIndustryJobsEndpoint: ApiEndpoint<null, CorpJobsResponse> = {
   method: 'GET',
   path: '/api/account/corp-industry-jobs',
@@ -97,9 +113,18 @@ const industrySlotsResponseSchema = z.object({
   characters: z.array(viewerSlotsSchema),
 });
 
+/** Personal and corporation industry-slot usage visible to the current viewer. */
 export type ViewerSlots = z.infer<typeof viewerSlotsSchema>;
+/**
+ * Stable industry jobs outcome returned across the owning boundary; callers handle the represented
+ * success, absence, or failure states.
+ */
 export type IndustrySlotsResponse = z.infer<typeof industrySlotsResponseSchema>;
 
+/**
+ * Typed endpoint definition for industry slots endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const industrySlotsEndpoint: ApiEndpoint<null, IndustrySlotsResponse> = {
   method: 'GET',
   path: '/api/account/industry-slots',

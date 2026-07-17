@@ -63,6 +63,10 @@ function makeDescriptor(port: CorpJobsPort) {
   });
 }
 
+/**
+ * Refreshes every corporation-industry owner visible to one user and returns the merged stored job
+ * projection.
+ */
 export function refreshCorpJobsForUser(
   port: CorpJobsPort,
   userId: string,

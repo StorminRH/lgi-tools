@@ -76,6 +76,7 @@ export interface MarketScoreInputs {
   volumeCv: number | null; // zero-filled 30d volume CV; null = no data / zero mean
 }
 
+/** Closed market-history consistency buckets derived from price dispersion. */
 export type ConsistencyBand = 'steady' | 'moderate' | 'spiky';
 
 /**
@@ -94,17 +95,20 @@ export interface LiquiditySignal {
   wallKnown: boolean;
 }
 
+/** Normalized price-stability score and explanatory bucket. */
 export interface StabilitySignal {
   score: number | null;
   swingPct: number | null; // priceVolatility as a percentage, for the readout
 }
 
+/** Normalized market consistency score and explanatory bucket. */
 export interface ConsistencySignal {
   score: number | null;
   volumeCv: number | null;
   band: ConsistencyBand | null;
 }
 
+/** Complete normalized market score with demand, spread, stability, consistency, and confidence signals. */
 export interface MarketScore {
   // 0..100, null when NO sub-signal is known (no fabricated number).
   score: number | null;
@@ -200,6 +204,10 @@ function compose(
   return { score: Math.round(Math.exp(lnSum / weightSum) * 100), knownCount };
 }
 
+/**
+ * Computes the normalized market score, stability, and consistency signals from price history,
+ * spread, and volume observations.
+ */
 export function computeMarketScore(inputs: MarketScoreInputs): MarketScore {
   const liquidity = computeLiquidity(inputs);
   const stability = computeStability(inputs.priceVolatility);

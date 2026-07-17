@@ -103,6 +103,7 @@ function demoChars(now: number): DemoChar[] {
   ];
 }
 
+/** Builds deterministic skill-queue roster data for the signed-out homepage demonstration. */
 export function buildDemoRoster(single = false): RosterViewModel[] {
   const chars = demoChars(DEMO_NOW);
   return (single ? chars.slice(0, 1) : chars).map((c) =>

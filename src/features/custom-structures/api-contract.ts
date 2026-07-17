@@ -10,9 +10,25 @@ import type { CustomStructureRow } from './types';
 // Postgres 32-bit `integer` ceiling — structure/rig type ids are int4 columns.
 const PG_INT4_MAX = 2_147_483_647;
 
+/**
+ * Configured custom structures limit for max custom structure name len; callers use this value
+ * instead of embedding a competing threshold.
+ */
 export const MAX_CUSTOM_STRUCTURE_NAME_LEN = 80;
+/**
+ * Configured custom structures limit for max custom structure rigs; callers use this value instead
+ * of embedding a competing threshold.
+ */
 export const MAX_CUSTOM_STRUCTURE_RIGS = 3; // Upwell structures have at most 3 rig slots
+/**
+ * Configured custom structures limit for max custom structures per user; callers use this value
+ * instead of embedding a competing threshold.
+ */
 export const MAX_CUSTOM_STRUCTURES_PER_USER = 50;
+/**
+ * Boundary validator for max structure fit len; successful parsing yields the normalized custom
+ * structures input consumed internally.
+ */
 export const MAX_STRUCTURE_FIT_LEN = 8000; // a generous clipboard ceiling
 
 const typeId = z.number().int().positive().max(PG_INT4_MAX);
@@ -33,9 +49,17 @@ const customStructureRowSchema = z.object({
   taxPct: z.number().nullable(),
 }) satisfies z.ZodType<CustomStructureRow>;
 
+/**
+ * Boundary validator for custom structures response schema; successful parsing yields the
+ * normalized custom structures input consumed internally.
+ */
 export const customStructuresResponseSchema = z.object({
   structures: z.array(customStructureRowSchema),
 });
+/**
+ * Stable custom structures outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type CustomStructuresResponse = z.infer<typeof customStructuresResponseSchema>;
 
 /**
@@ -57,8 +81,16 @@ export const createCustomStructureRequestSchema = z.object({
   // (there is no stored value to clobber).
   taxPct: facilityTaxPct.nullable().default(null),
 });
+/**
+ * Caller input shape accepted by custom structures; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type CreateCustomStructureRequest = z.input<typeof createCustomStructureRequestSchema>;
 
+/**
+ * Typed endpoint definition for create custom structure endpoint; method, path, request, and
+ * response contracts remain coupled here.
+ */
 export const createCustomStructureEndpoint: ApiEndpoint<
   CreateCustomStructureRequest,
   CustomStructuresResponse
@@ -77,8 +109,16 @@ export const createCustomStructureEndpoint: ApiEndpoint<
 export const deleteCustomStructureRequestSchema = z.object({
   id: z.string().min(1).max(100),
 });
+/**
+ * Caller input shape accepted by custom structures; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type DeleteCustomStructureRequest = z.input<typeof deleteCustomStructureRequestSchema>;
 
+/**
+ * Typed endpoint definition for delete custom structure endpoint; method, path, request, and
+ * response contracts remain coupled here.
+ */
 export const deleteCustomStructureEndpoint: ApiEndpoint<
   DeleteCustomStructureRequest,
   CustomStructuresResponse
@@ -99,8 +139,16 @@ export const setCustomStructurePinRequestSchema = z.object({
   id: z.string().min(1).max(100),
   systemId: typeId.nullable(),
 });
+/**
+ * Caller input shape accepted by custom structures; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type SetCustomStructurePinRequest = z.input<typeof setCustomStructurePinRequestSchema>;
 
+/**
+ * Typed endpoint definition for set custom structure pin endpoint; method, path, request, and
+ * response contracts remain coupled here.
+ */
 export const setCustomStructurePinEndpoint: ApiEndpoint<
   SetCustomStructurePinRequest,
   CustomStructuresResponse
@@ -122,8 +170,16 @@ export const setCustomStructureTaxRequestSchema = z.object({
   id: z.string().min(1).max(100),
   taxPct: facilityTaxPct.nullable(),
 });
+/**
+ * Caller input shape accepted by custom structures; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type SetCustomStructureTaxRequest = z.input<typeof setCustomStructureTaxRequestSchema>;
 
+/**
+ * Typed endpoint definition for set custom structure tax endpoint; method, path, request, and
+ * response contracts remain coupled here.
+ */
 export const setCustomStructureTaxEndpoint: ApiEndpoint<
   SetCustomStructureTaxRequest,
   CustomStructuresResponse
@@ -144,15 +200,31 @@ export const setCustomStructureTaxEndpoint: ApiEndpoint<
 export const parseStructureFitRequestSchema = z.object({
   fit: z.string().min(1).max(MAX_STRUCTURE_FIT_LEN),
 });
+/**
+ * Caller input shape accepted by custom structures; the receiving boundary owns validation and
+ * normalization before the values move inward.
+ */
 export type ParseStructureFitRequest = z.input<typeof parseStructureFitRequestSchema>;
 
+/**
+ * Boundary validator for parse structure fit response schema; successful parsing yields the
+ * normalized custom structures input consumed internally.
+ */
 export const parseStructureFitResponseSchema = z.object({
   parsed: z
     .object({ structureTypeId: z.number(), rigTypeIds: z.array(z.number()) })
     .nullable(),
 });
+/**
+ * Stable custom structures outcome returned across the owning boundary; callers handle the
+ * represented success, absence, or failure states.
+ */
 export type ParseStructureFitResponse = z.infer<typeof parseStructureFitResponseSchema>;
 
+/**
+ * Typed endpoint definition for parse structure fit endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const parseStructureFitEndpoint: ApiEndpoint<
   ParseStructureFitRequest,
   ParseStructureFitResponse

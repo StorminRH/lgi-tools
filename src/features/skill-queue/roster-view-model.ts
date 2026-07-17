@@ -17,6 +17,10 @@ export interface RosterLiveData {
   syncError: string | null;
 }
 
+/**
+ * Display-ready roster view model consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export interface RosterViewModel {
   characterId: number;
   name: string;
@@ -34,6 +38,7 @@ export interface RosterViewModel {
   remainingLabel: string | null;
 }
 
+/** Derives one display-ready roster card from linked-character health, skills, and queue state. */
 export function buildRosterCard(
   character: PanelCharacter,
   live: RosterLiveData | undefined,

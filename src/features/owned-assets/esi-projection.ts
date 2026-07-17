@@ -48,6 +48,7 @@ const ownedAssetSchema = z.object({
 });
 const ownedAssetsBodySchema = z.array(ownedAssetSchema);
 
+/** Normalized owned asset with type, quantity, owner, location, flag, and snapshot identity. */
 export type OwnedAsset = z.infer<typeof ownedAssetSchema>;
 
 // The aggregation key: same type at the same place (flag + type) is one holding.

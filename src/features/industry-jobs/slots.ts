@@ -16,19 +16,36 @@ import { type JobCategory, jobCategory } from './industry-jobs-styles';
 
 /** Manufacturing slots: 1 + Mass Production + Advanced Mass Production. */
 export const MASS_PRODUCTION_SKILL_ID = 3387;
+/**
+ * Configured industry jobs limit for advanced mass production skill id; callers use this value
+ * instead of embedding a competing threshold.
+ */
 export const ADVANCED_MASS_PRODUCTION_SKILL_ID = 24625;
 /**
  * Science slots (research/copy/invention): 1 + Laboratory Operation +
  * Advanced Laboratory Operation.
  */
 export const LABORATORY_OPERATION_SKILL_ID = 3406;
+/**
+ * Configured industry jobs limit for advanced laboratory operation skill id; callers use this
+ * value instead of embedding a competing threshold.
+ */
 export const ADVANCED_LABORATORY_OPERATION_SKILL_ID = 24624;
 /** Reaction slots: 1 + Mass Reactions + Advanced Mass Reactions. */
 export const MASS_REACTIONS_SKILL_ID = 45748;
+/**
+ * Configured industry jobs limit for advanced mass reactions skill id; callers use this value
+ * instead of embedding a competing threshold.
+ */
 export const ADVANCED_MASS_REACTIONS_SKILL_ID = 45749;
 
+/**
+ * Closed industry jobs vocabulary and canonical order for slot categories; consumers derive
+ * validation and iteration from this one list.
+ */
 export const SLOT_CATEGORIES: readonly JobCategory[] = ['manufacturing', 'science', 'reactions'];
 
+/** Maximum concurrent personal industry jobs by activity, derived from character skills. */
 export interface SlotCapacity {
   manufacturing: number;
   science: number;
@@ -85,11 +102,16 @@ export function countUsedSlots(
   return used;
 }
 
+/** Used industry slots by activity for one character or merged viewer. */
 export interface SlotUsage {
   used: number;
   total: number;
 }
 
+/**
+ * Display-ready slot meta model consumed by the shared visualization layer; callers keep all
+ * numeric values in one consistent unit.
+ */
 export type SlotMetaModel = Record<JobCategory, SlotUsage>;
 
 /**

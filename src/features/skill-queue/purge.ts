@@ -5,6 +5,10 @@ import { db } from '@/db';
 import type { PurgeContributor } from '@/purge/types';
 import { characterSkills, characterSkillSyncs } from './schema';
 
+/**
+ * Personal-data purge contributor for skill queue purge contributor; this data slice owns deleting
+ * its user and character keyed rows.
+ */
 export const skillQueuePurgeContributor: PurgeContributor = {
   name: 'skill-queue',
   tier: 'cache',

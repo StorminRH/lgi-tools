@@ -24,6 +24,7 @@ export const corpStructureSchema = z.object({
 });
 const corpStructuresBodySchema = z.array(corpStructureSchema);
 
+/** Normalized corporation structure with identity, type, system, services, state, and profile metadata. */
 export type ParsedCorpStructure = z.infer<typeof corpStructureSchema>;
 
 /**

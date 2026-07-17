@@ -5,6 +5,10 @@ import {
 } from '@/data/eve-data/structures';
 import type { CorpStructurePageStructure, CorpStructurePageView } from './types';
 
+/**
+ * Display-ready corp structure item state for owned structures; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type CorpStructureItemView = {
   typeName: string;
   displayName: string;
@@ -37,6 +41,10 @@ export function deriveCorpStructureItemView(
   };
 }
 
+/**
+ * Display-ready corp card state for owned structures; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type CorpCardView = {
   /** Header hint: the manager's sharing state, or 'shared' for a member. */
   hint: string;

@@ -56,6 +56,7 @@ export type Block =
   | { type: 'blockquote'; tokens: InlineToken[] }
   | { type: 'excerpt'; excerpt: Excerpt };
 
+/** Parsed devlog document with stable slug, title, update date, and renderable blocks. */
 export type DevlogDocument = {
   slug: string;
   title: string;
@@ -63,6 +64,7 @@ export type DevlogDocument = {
   blocks: Block[];
 };
 
+/** Ordered devlog navigation folder containing documents and nested folders. */
 export type DevlogFolder = {
   slug: string;
   title: string;

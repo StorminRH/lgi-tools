@@ -22,7 +22,12 @@ import { esiSnapshots } from '@/data/esi-snapshots/schema';
  * feature → feature import would be a boundary violation.
  */
 export const OWNED_ASSET_OWNER_TYPES = ['character', 'corporation'] as const;
+/** Closed personal or corporation owner kinds for persisted assets. */
 export type OwnedAssetOwnerType = (typeof OWNED_ASSET_OWNER_TYPES)[number];
+/**
+ * Drizzle schema owner for owned asset owner type enum; migrations, queries, retention, and purge
+ * claims derive from this single declaration.
+ */
 export const ownedAssetOwnerTypeEnum = pgEnum('owned_asset_owner_type', OWNED_ASSET_OWNER_TYPES);
 
 /**

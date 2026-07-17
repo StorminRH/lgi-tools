@@ -32,8 +32,16 @@ const skillsResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
 
+/**
+ * Stable skill queue outcome returned across the owning boundary; callers handle the represented
+ * success, absence, or failure states.
+ */
 export type SkillsResponse = z.infer<typeof skillsResponseSchema>;
 
+/**
+ * Typed endpoint definition for skills endpoint; method, path, request, and response contracts
+ * remain coupled here.
+ */
 export const skillsEndpoint: ApiEndpoint<null, SkillsResponse> = {
   method: 'GET',
   path: '/api/account/skills',

@@ -46,6 +46,7 @@ export function jobActivityPill(activityId: number): { label: string; tone: Tone
   return { label: 'IND', tone: 'neutral' };
 }
 
+/** Closed UI categories for active, ready, and completed industry jobs. */
 export type JobCategory = 'manufacturing' | 'science' | 'reactions';
 
 /**

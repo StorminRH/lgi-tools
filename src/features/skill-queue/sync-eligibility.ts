@@ -14,6 +14,7 @@ export const SKILL_SYNC_SCOPES = [
   'esi-skills.read_skillqueue.v1',
 ] as const;
 
+/** Returns whether a linked character has token custody and the skills scope required for queue sync. */
 export function canSyncSkillQueue(character: {
   hasRefreshToken: boolean;
   missingScopes: string[];
