@@ -67,7 +67,7 @@ campaign: none — the queue is empty.
 | 3.9.2.3 | ESI dataset registry & freshness gate (Create + Expand/Combine — one declaration, placement and staleness) | 2 (one branch) | SHIPPED |
 | 3.9.2.4 | Endpoint contract gate (Expand) | 1 | SHIPPED |
 | 3.9.2.5 | ux-check probe harness (Combine ~30 one-off probes) | 1 | SHIPPED |
-| 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | PLANNED |
+| 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | SHIPPED |
 | 3.9.2.7 | Primitives-scoped audit & ledger (report; Ryan decides extensions) | 1 | PLANNED |
 | **Phase 3 — Backlog clearance** | | | |
 | 3.9.3.1 | Backlog triage & hygiene sweep | 1 | PLANNED |
@@ -1034,6 +1034,9 @@ for each and Ryan approves the direction before implementation.
 
 **Delivery evidence.** The recorded comparison; the completeness gate red
 on a seeded missing-declaration dataset, green live; standard close-out.
+
+**Delivered 2026-07-17.** PR #260, squash `cbefaac`; production
+`dpl_FT4WC6NTR1ixoCUmErFvULsgXTAk` is Ready on `lgi.tools`.
 
 ---
 
