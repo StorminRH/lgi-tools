@@ -64,7 +64,7 @@ campaign: none — the queue is empty.
 | **Phase 2 — Primitive lifecycle** | | | |
 | 3.9.2.1 | Real-Postgres test harness promotion (Expand) | 1 | SHIPPED |
 | 3.9.2.2 | Cron shell & wake policy (Expand; retires `dup:b54bf337`, fixes the idle Neon wake) | 2 (one branch) | SHIPPED |
-| 3.9.2.3 | ESI dataset registry & freshness gate (Create + Expand/Combine — one declaration, placement and staleness) | 2 (one branch) | PLANNED |
+| 3.9.2.3 | ESI dataset registry & freshness gate (Create + Expand/Combine — one declaration, placement and staleness) | 2 (one branch) | SHIPPED |
 | 3.9.2.4 | Endpoint contract gate (Expand) | 1 | PLANNED |
 | 3.9.2.5 | ux-check probe harness (Combine ~30 one-off probes) | 1 | PLANNED |
 | 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | PLANNED |
@@ -882,6 +882,9 @@ grep shows zero `*_TTL_MS` constants and zero `staleness.ts` files
 outside the registry/gate; unchanged-behavior characterization green
 before/after migration; the recorded trigger comparison; standard
 close-out.
+
+**Delivered 2026-07-17.** PR #257, squash `eefc59f`; production
+`dpl_CbazTA4SyC46BG77bCGFAXmv9yp2` is Ready on `lgi.tools`.
 
 ---
 
