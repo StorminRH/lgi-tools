@@ -65,8 +65,8 @@ def matches(text: str, pattern: str) -> bool:
     return re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL) is not None
 
 
-def derived_session_contracts(root: Path) -> list[str]:
-    """Return the active version's indexed session-contract paths.
+def derived_session_contracts(root: Path) -> tuple[list[str], str | None]:
+    """Return indexed session-contract paths together with the active version.
 
     The roadmap discovery and INDEX.md format stay owned by the lifecycle
     resolver; this derives the drift gate's expectations from them instead of
@@ -77,12 +77,13 @@ def derived_session_contracts(root: Path) -> list[str]:
     """
     _, version, _, _ = active_roadmap(root)
     if version is None:
-        return []
+        return [], None
     index_path = root / "docs/session-contracts" / version / "INDEX.md"
-    return sorted(
+    expected = sorted(
         path.relative_to(root).as_posix()
         for _, path in parse_contract_index(index_path).values()
     )
+    return expected, version
 
 
 def check_imports(manifest: dict, errors: list[str]) -> None:
@@ -212,10 +213,9 @@ def check_ignored(manifest: dict, errors: list[str]) -> None:
 
 def check_session_contracts(manifest: dict, root: Path, errors: list[str]) -> None:
     policy = manifest.get("sessionContracts", {})
-    expected = derived_session_contracts(root)
+    expected, version = derived_session_contracts(root)
     scan_paths = [*policy.get("scan", []), *expected]
 
-    _, version, _, _ = active_roadmap(root)
     if version is not None:
         contract_root = root / "docs/session-contracts" / version
         indexed = {root / raw_path for raw_path in expected}
