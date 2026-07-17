@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -70,6 +71,19 @@ class DocRefsTests(unittest.TestCase):
             ],
             self.rendered(),
         )
+
+    def test_manifest_declared_ignored_outputs_need_not_exist(self) -> None:
+        manifest_path = self.fixture.root / ".agent-local/policy-manifest.json"
+        manifest_path.parent.mkdir(parents=True)
+        manifest_path.write_text(
+            json.dumps({"ignoredPaths": ["docs/generated/"]}),
+            encoding="utf-8",
+        )
+        self.fixture.write(
+            "guide.md",
+            "Future outputs: `docs/generated/report.json` and `docs/generated/*.png`.\n",
+        )
+        self.assertEqual([], self.rendered())
 
     def test_missing_archive_reference_warns(self) -> None:
         self.fixture.write(

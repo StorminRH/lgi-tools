@@ -11,7 +11,7 @@ description: >-
 
 # Start an LGI.tools session
 
-<!-- shared-policy-revision: 20 -->
+<!-- shared-policy-revision: 21 -->
 
 `docs/DEVELOPMENT_LIFECYCLE.md` defines lifecycle semantics; the resolver is the
 sole mechanical owner of current-state validation and handler selection. Treat

@@ -7,7 +7,12 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from check_agent_drift import check_paths, check_session_contracts, check_skill_pairs
+from check_agent_drift import (
+    check_paths,
+    check_probe_layout,
+    check_session_contracts,
+    check_skill_pairs,
+)
 
 
 class DriftFixture:
@@ -33,6 +38,11 @@ class DriftFixture:
                 "codex": ["claude-only"],
                 "claude": ["codex-only"],
             },
+            "probeLayout": {
+                "definitionsDir": "docs/ux-check/probes",
+                "runner": "docs/ux-check/run-probes.mjs",
+                "strayPattern": "*-probe.mjs",
+            },
             "sessionContracts": {
                 "scan": ["docs/SESSION_CONTRACTS.md"],
                 "forbidden": ["retired contract policy"],
@@ -41,6 +51,8 @@ class DriftFixture:
         self.write("AGENTS.md", "guide\n")
         self.write(".agent-local/check_agent_drift.py", "checker\n")
         self.write("docs/SESSION_CONTRACTS.md", "contract standard\n")
+        self.write("docs/ux-check/run-probes.mjs", "runner\n")
+        self.write("docs/ux-check/probes/example.mjs", "export default {};\n")
         self.write(
             "docs/VERSION_3_9_PLAN.md",
             "# Version 3.9\n\n"
@@ -104,10 +116,14 @@ class AgentDriftTests(unittest.TestCase):
         check_session_contracts(self.fixture.manifest, self.fixture.root, errors)
         return errors
 
+    def check_probes(self) -> list[str]:
+        return check_probe_layout(self.fixture.manifest, self.fixture.root)
+
     def test_affected_checks_accept_the_passing_fixture(self) -> None:
         self.assertEqual([], self.check_paths())
         self.assertEqual([], self.check_skills())
         self.assertEqual([], self.check_contracts())
+        self.assertEqual([], self.check_probes())
 
     def test_paths_report_missing_and_retired_entries(self) -> None:
         (self.fixture.root / "AGENTS.md").unlink()
@@ -217,6 +233,22 @@ class AgentDriftTests(unittest.TestCase):
         (self.fixture.root / "docs/session-contracts/3.9/INDEX.md").unlink()
         (self.fixture.root / "docs/session-contracts/3.9/3.9.1.6.md").unlink()
         self.assertEqual([], self.check_contracts())
+
+    def test_probe_layout_warns_about_a_stray_scratch_script(self) -> None:
+        self.fixture.write("tmp/foo-probe.mjs", "scratch\n")
+        self.assertEqual(
+            [
+                "stray probe script (scratch allowed; delete at close-out): "
+                "tmp/foo-probe.mjs"
+            ],
+            self.check_probes(),
+        )
+
+    def test_probe_layout_allows_definitions_and_prunes_generated_trees(self) -> None:
+        self.fixture.write("docs/ux-check/probes/legacy-probe.mjs", "definition\n")
+        self.fixture.write("docs/ux-check/captures/generated-probe.mjs", "capture\n")
+        self.fixture.write("node_modules/package-probe.mjs", "dependency\n")
+        self.assertEqual([], self.check_probes())
 
 
 if __name__ == "__main__":

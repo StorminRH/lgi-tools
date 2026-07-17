@@ -4,9 +4,8 @@ description: >-
   Run the LGI.tools scripted UX sweep at the end of a session that touched the
   UI. Figure out which routes the session changed, make sure the local dev server
   is up, run `pnpm ux-check` with the affected routes, and report the
-  console/network findings + screenshots inline. This replaces the
-  Codex Desktop auto-verify preview loop for UI verification — same idea as base
-  Codex Preview, just no model-in-the-loop per click, so it's fast. Use it
+  console/network findings + screenshots inline. Use the shared probe runner for
+  durable interaction checks and focused open-state evidence. Use this skill
   whenever you've changed a user-facing surface and want to check it before Ryan's
   review — phrasings like "ux check", "sweep the UI", "capture the pages", "check
   how it looks", "verify the UI". Ryan still reviews visual + feel in his own
@@ -15,7 +14,7 @@ description: >-
 
 # UX check (LGI.tools)
 
-<!-- shared-policy-revision: 20 -->
+<!-- shared-policy-revision: 21 -->
 
 A fast, scripted replacement for the Codex Desktop auto-verify preview loop, **for
 UI verification only**. Drives a headless Chromium over the running dev server,
@@ -99,22 +98,39 @@ also captures the hamburger opened. Flags if needed: `--viewport=desktop`,
 
 ## Step 3b — Open-state probes (overlays / interactions)
 
-`pnpm ux-check` captures only the **closed** static shell — it never opens a
-tooltip/popover/dialog/menu or clicks anything. For overlay or interaction work,
-use a Playwright probe from **`docs/ux-check/scripts/`** (indexed in
-`docs/ux-check/README.md`): it opens the overlay on a real route and proves the
-open state — zero `style-src` CSP violations, keyboard + touch operability — and
-screenshots it. `overlay-open-probe.mjs` is the starting template; copy + tweak the
-URL/labels per feature. Its shots also land in `docs/ux-check/captures/`.
+`pnpm ux-check` captures only the **closed** static shell. For durable dialogs,
+popovers, menus, toasts, mock-backed states, or other interactions, run the shared
+runner against the tracked probe definitions in `docs/ux-check/probes/`:
 
-> All generated UX files (sweep + probes) live under **`docs/ux-check/captures/`**
-> — one place to keep tabs, safe to delete (`rm -rf docs/ux-check/captures`).
-> Because it auto-wipes each run, the sweep and a probe overwrite each other if run
-> back-to-back, so relay each run's shots before starting the next.
+```bash
+node docs/ux-check/run-probes.mjs --list
+node docs/ux-check/run-probes.mjs nav-menu overlay-open
+node docs/ux-check/run-probes.mjs                 # all definitions
+```
+
+The runner executes desktop and mobile in isolated browser contexts, installs
+standard CSP/console/page/network diagnostics, writes screenshots plus
+`report.json` under `docs/ux-check/captures/probes/`, and exits nonzero for a
+failed check, probe crash, `style-src` violation, unfiltered console error, or
+uncaught page error. Network failures remain reported evidence rather than a
+default failure gate.
+
+For a recurring interaction, add or update a **probe definition** in
+`docs/ux-check/probes/`; do not create another standalone Playwright launcher.
+Follow `docs/ux-check/README.md` for the definition contract, context helpers,
+mock setup, and runner flags. A temporary `*-probe.mjs` scratch script is allowed
+during diagnosis, but the drift gate warns about it and you must delete it at
+close-out.
+
+The route sweep refreshes `docs/ux-check/captures/`. The probe runner refreshes
+only `docs/ux-check/captures/probes/`, so preserve any evidence needed for the
+handoff before rerunning the same workflow.
 
 ## Step 4 — Report findings inline
 
-- Read `docs/ux-check/captures/report.json` and surface, per route × viewport:
+- Read `docs/ux-check/captures/report.json` for the route sweep and
+  `docs/ux-check/captures/probes/report.json` for runner probes. Surface, per route
+  or definition × viewport:
   console/page errors, failed requests, and 4xx/5xx responses. Quote the first
   message of each.
 - `Read` a few key `docs/ux-check/captures/*.png` to flag obvious visual breakage

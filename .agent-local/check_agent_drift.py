@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -200,6 +201,43 @@ def check_paths(manifest: dict, root: Path, errors: list[str]) -> None:
             errors.append(f"retired path still exists: {raw_path}")
 
 
+def check_probe_layout(manifest: dict, root: Path) -> list[str]:
+    """Flag stray *-probe.mjs scripts outside the probe-definitions layout.
+
+    Warnings, not errors: scratch probes are allowed during a session and
+    deleted at close-out.
+    """
+    policy = manifest.get("probeLayout", {})
+    definitions_dir = root / policy.get("definitionsDir", "")
+    stray_pattern = policy.get("strayPattern")
+    if not stray_pattern:
+        return []
+
+    pruned = {".git", "node_modules", ".next", "graphify-out"}
+    captures_dir = root / "docs/ux-check/captures"
+    warnings: list[str] = []
+    for current, directories, files in os.walk(root):
+        current_path = Path(current)
+        directories[:] = sorted(
+            directory
+            for directory in directories
+            if directory not in pruned
+            and current_path / directory != captures_dir
+        )
+        for filename in sorted(files):
+            if not Path(filename).match(stray_pattern):
+                continue
+            path = current_path / filename
+            try:
+                path.relative_to(definitions_dir)
+            except ValueError:
+                warnings.append(
+                    "stray probe script (scratch allowed; delete at close-out): "
+                    f"{relative(path, root)}"
+                )
+    return warnings
+
+
 def check_ignored(manifest: dict, errors: list[str]) -> None:
     for raw_path in manifest["ignoredPaths"]:
         result = subprocess.run(
@@ -387,7 +425,8 @@ def main() -> int:
     check_ignored(manifest, errors)
     check_session_contracts(manifest, ROOT, errors)
     check_development_state_tests(errors)
-    warnings = check_lifecycle_checkers(errors)
+    warnings = check_probe_layout(manifest, ROOT)
+    warnings.extend(check_lifecycle_checkers(errors))
     check_development_state(manifest, errors)
     check_tooling(errors)
 
