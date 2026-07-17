@@ -60,8 +60,9 @@ export type CronRunOutcome<Body> = {
  * durable cron telemetry, so their ordering cannot drift. Lock contention
  * short-circuits to the declared busy body. `record: 'always'` requires a
  * written justification; the default noteworthy policy records only failure
- * or completed work. `preLock` may return a full outcome or pass a typed value
- * into `work`.
+ * or completed work. `idle.probe` runs before any context or lock exists and
+ * may finish an idle-silent run with one boundary line. `preLock` may return a
+ * full outcome or pass a typed value into `work`.
  */
 export type CronRouteDeclaration<Body, Pre = void> = {
   name: string;
@@ -73,6 +74,13 @@ export type CronRouteDeclaration<Body, Pre = void> = {
   lock:
     | { key: number; busyBody: (durationMs: number) => Body }
     | { mode: 'none'; justification: string };
+  idle?: {
+    probe: () => Promise<
+      | { idle: true; telemetry?: Record<string, unknown> }
+      | { idle: false }
+    >;
+    body: (durationMs: number) => Body;
+  };
   preLock?: (
     ctx: CronWorkContext,
   ) => Promise<{ done: CronRunOutcome<Body> } | { proceed: Pre }>;
@@ -181,9 +189,26 @@ export function defineCronRoute<Body, Pre = void>(
     if (denied) return denied;
 
     const started = Date.now();
-    const baseContext = workContext(declaration.name);
 
     try {
+      if (declaration.idle) {
+        const idle = await declaration.idle.probe();
+        if (idle.idle) {
+          const durationMs = Date.now() - started;
+          return finishRun(
+            declaration,
+            {
+              outcome: 'idle',
+              workDone: false,
+              telemetry: idle.telemetry,
+              body: declaration.idle.body(durationMs),
+            },
+            durationMs,
+          );
+        }
+      }
+
+      const baseContext = workContext(declaration.name);
       let pre = undefined as Pre;
       if (declaration.preLock) {
         const gate = await declaration.preLock(baseContext);
