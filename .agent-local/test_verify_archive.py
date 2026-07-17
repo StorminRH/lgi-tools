@@ -120,6 +120,16 @@ class VerifyArchiveTests(unittest.TestCase):
         self.assertTrue(any("archive copy is missing" in message for message in messages))
         self.assertTrue(any("archive copy differs" in message for message in messages))
 
+    def test_post_reports_missing_active_source_directory(self) -> None:
+        shutil.rmtree(self.fixture.root / "docs/session-plans/9.9")
+        self.assertTrue(
+            any(
+                "docs/session-plans/9.9:1: archive source set is missing or empty"
+                in message
+                for message in self.fixture.messages("post")
+            )
+        )
+
     def test_faithful_post_copy_is_green(self) -> None:
         self.fixture.copy_bundle()
         self.assertEqual([], self.fixture.messages("post"))

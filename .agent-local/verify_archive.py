@@ -56,7 +56,11 @@ def _active_bundle_files(
     findings: list[Finding] = []
     for name in ("session-contracts", "session-plans", "version-audits"):
         source_dir = root / "docs" / name / version
-        source_files = sorted(path for path in source_dir.rglob("*") if path.is_file())
+        source_files = (
+            sorted(path for path in source_dir.rglob("*") if path.is_file())
+            if source_dir.is_dir()
+            else []
+        )
         if not source_files:
             findings.append(
                 Finding(
