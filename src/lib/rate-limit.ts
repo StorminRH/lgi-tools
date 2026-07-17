@@ -1,6 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { readEnv } from "@/lib/env";
+import { resolveUpstashRest } from "@/lib/upstash";
 
 // Shared sliding-window rate limiter backed by Upstash Redis. Stateless
 // across Vercel serverless invocations (in-process counters don't survive
@@ -43,31 +43,16 @@ interface RateLimitOptions {
 const limiters = new Map<string, Ratelimit>();
 let warnedAboutMissingEnv = false;
 
-// Vercel's Upstash marketplace integration provisions env vars as
-// `KV_REST_API_URL` + `KV_REST_API_TOKEN` (the Vercel-KV-style naming —
-// same Upstash database underneath). A direct Upstash.com signup gives
-// the `UPSTASH_REDIS_REST_*` names that `Redis.fromEnv()` expects.
-// We accept either so the code works on both provisioning paths
-// without an env-var alias being a hidden requirement.
-function redisUrl(): string | undefined {
-  return readEnv("KV_REST_API_URL") ?? readEnv("UPSTASH_REDIS_REST_URL");
-}
-
-function redisToken(): string | undefined {
-  return readEnv("KV_REST_API_TOKEN") ?? readEnv("UPSTASH_REDIS_REST_TOKEN");
-}
-
-function isConfigured(): boolean {
-  return Boolean(redisUrl() && redisToken());
-}
-
-function getLimiter(options: RateLimitOptions): Ratelimit {
+function getLimiter(
+  options: RateLimitOptions,
+  upstash: NonNullable<ReturnType<typeof resolveUpstashRest>>,
+): Ratelimit {
   const cacheKey = `${options.name}:${options.perMinute}`;
   const cached = limiters.get(cacheKey);
   if (cached) return cached;
 
   const limiter = new Ratelimit({
-    redis: new Redis({ url: redisUrl()!, token: redisToken()! }),
+    redis: new Redis(upstash),
     limiter: Ratelimit.slidingWindow(options.perMinute, "60 s"),
     analytics: true,
     prefix: `lgi:ratelimit:${options.name}`,
@@ -91,7 +76,8 @@ export async function rateLimit(
   identifier: string,
   options: RateLimitOptions,
 ): Promise<RateLimitResult> {
-  if (!isConfigured()) {
+  const upstash = resolveUpstashRest();
+  if (!upstash) {
     // Non-production (dev, test) bypasses cleanly so `pnpm dev` and
     // vitest don't require an Upstash account. Production fails closed:
     // a misconfigured deploy should 500 once and get fixed, never ship
@@ -110,7 +96,7 @@ export async function rateLimit(
     );
   }
 
-  const limiter = getLimiter(options);
+  const limiter = getLimiter(options, upstash);
   const result = await limiter.limit(identifier);
   // `analytics: true` makes `pending` a real promise that performs the
   // analytics write; awaiting it inside the request lifecycle ensures

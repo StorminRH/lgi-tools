@@ -6,6 +6,7 @@ import {
   ESI_REFRESH_JOB_MAX_ATTEMPTS,
   LIVE_ESI_REFRESH_JOB_STATUSES,
 } from './constants';
+import { advancePendingWorkSignal } from './pending-signal';
 import { esiRefreshJobs } from './schema';
 import type {
   EnqueueEsiRefreshJobInput,
@@ -48,6 +49,7 @@ export async function enqueueEsiRefreshJob(
 ): Promise<number> {
   const key = idempotencyKey(input);
   const retryAfterMs = (input.error.retryAfterSeconds ?? 0) * 1000;
+  const nextAttemptAt = new Date(now.getTime() + retryAfterMs);
   const inserted = await database
     .insert(esiRefreshJobs)
     .values({
@@ -58,7 +60,7 @@ export async function enqueueEsiRefreshJob(
       resource: input.error.resource ?? 'unknown',
       idempotencyKey: key,
       status: retryAfterMs > 0 ? 'deferred_for_budget' : 'queued',
-      nextAttemptAt: new Date(now.getTime() + retryAfterMs),
+      nextAttemptAt,
       budgetReason: input.error.reason,
       budgetRemaining: input.error.remaining,
       retryAfterSeconds: input.error.retryAfterSeconds,
@@ -67,10 +69,16 @@ export async function enqueueEsiRefreshJob(
     })
     .onConflictDoNothing()
     .returning({ id: esiRefreshJobs.id });
-  if (inserted[0] !== undefined) return inserted[0].id;
+  if (inserted[0] !== undefined) {
+    await advancePendingWorkSignal(nextAttemptAt);
+    return inserted[0].id;
+  }
 
   const existing = await database
-    .select({ id: esiRefreshJobs.id })
+    .select({
+      id: esiRefreshJobs.id,
+      nextAttemptAt: esiRefreshJobs.nextAttemptAt,
+    })
     .from(esiRefreshJobs)
     .where(
       and(
@@ -82,7 +90,33 @@ export async function enqueueEsiRefreshJob(
   if (existing[0] === undefined) {
     throw new Error('ESI refresh job coalesced without a live row');
   }
+  await advancePendingWorkSignal(existing[0].nextAttemptAt);
   return existing[0].id;
+}
+
+/**
+ * Returns the post-drain live queue truth: how many jobs are already due and
+ * the earliest `nextAttemptAt`, or null when no live job remains.
+ */
+export async function getEsiRefreshQueueResidual(
+  now = new Date(),
+  database: AnyPgDb = db,
+): Promise<{ dueCount: number; earliestNextAttemptAt: Date | null }> {
+  const dueCount = sql<number>`count(*) filter (where ${lte(
+    esiRefreshJobs.nextAttemptAt,
+    now,
+  )})`.mapWith(Number);
+  const earliestNextAttemptAt = sql<Date | null>`min(${esiRefreshJobs.nextAttemptAt})`.mapWith(
+    esiRefreshJobs.nextAttemptAt,
+  );
+  const [row] = await database
+    .select({ dueCount, earliestNextAttemptAt })
+    .from(esiRefreshJobs)
+    .where(inArray(esiRefreshJobs.status, LIVE_ESI_REFRESH_JOB_STATUSES));
+  return {
+    dueCount: row?.dueCount ?? 0,
+    earliestNextAttemptAt: row?.earliestNextAttemptAt ?? null,
+  };
 }
 
 /**

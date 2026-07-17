@@ -28,25 +28,11 @@ Two different fallow commands; only one gates CI:
 The universal health caps — cyclomatic **20** / cognitive **15** / CRAP **30** —
 now apply to every file, with no `thresholdOverrides` exceptions.
 
-## Accepted warn-only convergences (deliberately unbaselined — not debt)
+## Accepted warn-only convergences
 
-A whole-repo `fallow dupes` scan reports four small clone groups (~0.2% of the
-repo). They are **warn-level** and live in files unchanged vs `main`, so the
-audit's new-only attribution already excludes them — baselining them would record
-non-debt. They stay un-baselined on purpose; coupling each pair is exactly what
-the shared gate/kit primitives are designed to avoid:
-
-| Convergence | Why it stays split |
-| --- | --- |
-| `api/account/saved-plans/route.ts` ↔ `api/preferences/route.ts` | Route-handler-kit residual — the guard + body-parse + JSON-payload call shape the shared `src/lib` route kit leaves at each site; the handlers' logic differs. |
-| `api/cron/refresh-affiliations/route.ts` ↔ `api/cron/refresh-industry-indices/route.ts` | Cron-gate residual — two crons sharing the `runCronJob` call shape; their jobs are unrelated. |
-| `industry/[id]/page.tsx` ↔ `sites/[id]/page.tsx` (`generateMetadata`) | Parallel dynamic-metadata heads over different entities; a shared helper would couple two feature routes. |
-| `api/account/active-character/route.ts` ↔ `api/account/characters/unlink/route.ts` | Route-kit residual — same guard/parse shape, a different account mutation. |
-
-(The corp tri-state readout — `LiveCorpJobs` ↔ the corp `CorpSectionBody` — is a
-*conceptual* convergence that sits below fallow's token threshold, so it is not
-even a detected clone group. It is noted here only so a future reader does not
-mistake it for hidden debt.)
+None. The whole-version pinned scan reports zero clone groups, and the accepted
+duplication baseline remains empty. Repetition that a future changeset
+introduces must pass the normal design review rather than being catalogued here.
 
 ## How the baselines reached empty
 

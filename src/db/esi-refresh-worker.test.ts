@@ -5,6 +5,15 @@ import { EsiBudgetExhaustedError } from '@/lib/esi';
 const mocks = vi.hoisted(() => ({
   alertDeadLetter: vi.fn(async () => {}),
   claim: vi.fn(),
+  residual: vi.fn<
+    () => Promise<{
+      dueCount: number;
+      earliestNextAttemptAt: Date | null;
+    }>
+  >(async () => ({
+    dueCount: 0,
+    earliestNextAttemptAt: null,
+  })),
   markDeadLettered: vi.fn(async () => {}),
   markDeferred: vi.fn(async () => {}),
   markPermanent: vi.fn(async () => {}),
@@ -23,6 +32,7 @@ const mocks = vi.hoisted(() => ({
   runCharacterJobs: vi.fn(),
   runCorporationJobs: vi.fn(),
   runSkills: vi.fn(),
+  writeBackPendingWorkSignal: vi.fn(async () => {}),
 }));
 vi.mock('@/data/domain-events/queries', () => ({
   emitDomainEvent: mocks.emitDomainEvent,
@@ -30,12 +40,16 @@ vi.mock('@/data/domain-events/queries', () => ({
 
 vi.mock('@/data/esi-refresh-jobs/queries', () => ({
   claimDueEsiRefreshJobs: mocks.claim,
+  getEsiRefreshQueueResidual: mocks.residual,
   markEsiRefreshJobDeadLettered: mocks.markDeadLettered,
   markEsiRefreshJobDeferred: mocks.markDeferred,
   markEsiRefreshJobPermanent: mocks.markPermanent,
   markEsiRefreshJobRetryable: mocks.markRetryable,
   markEsiRefreshJobSucceeded: mocks.markSucceeded,
   recoverStaleRunningJobs: mocks.recover,
+}));
+vi.mock('@/data/esi-refresh-jobs/pending-signal', () => ({
+  writeBackPendingWorkSignal: mocks.writeBackPendingWorkSignal,
 }));
 vi.mock('@/lib/alerts', () => ({ alertEsiRefreshDeadLetter: mocks.alertDeadLetter }));
 vi.mock('./corp-industry-jobs-sync', () => ({
@@ -84,7 +98,12 @@ describe('drainEsiRefreshJobs', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.recover.mockResolvedValue({ recovered: 0, retryable: [], deadLettered: [] });
+    mocks.residual.mockResolvedValue({
+      dueCount: 0,
+      earliestNextAttemptAt: null,
+    });
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   it('processes each dataset serially and records every lifecycle outcome', async () => {
@@ -122,6 +141,11 @@ describe('drainEsiRefreshJobs', () => {
       code: 'scope_missing',
     });
     mocks.runAssets.mockRejectedValue(new TypeError('connection lost'));
+    const earliestNextAttemptAt = new Date('2026-07-14T12:15:00Z');
+    mocks.residual.mockResolvedValue({
+      dueCount: 2,
+      earliestNextAttemptAt,
+    });
 
     const result = await drainEsiRefreshJobs(NOW);
 
@@ -152,6 +176,13 @@ describe('drainEsiRefreshJobs', () => {
       attemptCount: 5,
       failureCode: 'connection',
     });
+    expect(mocks.residual).toHaveBeenCalledWith(NOW);
+    expect(mocks.writeBackPendingWorkSignal).toHaveBeenCalledWith(
+      earliestNextAttemptAt,
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('"dueCount":2'),
+    );
     expect(mocks.emitDomainEvent.mock.calls.map(([event]) => event)).toEqual([
       {
         eventType: 'esi_refresh_job_status_changed',
@@ -230,6 +261,7 @@ describe('drainEsiRefreshJobs', () => {
       recovered: 2,
     });
     expect(mocks.markSucceeded).toHaveBeenCalledTimes(2);
+    expect(mocks.writeBackPendingWorkSignal).toHaveBeenCalledWith(null);
     expect(mocks.alertDeadLetter).toHaveBeenCalledWith({
       jobId: 8,
       dataset: 'owned_blueprints',

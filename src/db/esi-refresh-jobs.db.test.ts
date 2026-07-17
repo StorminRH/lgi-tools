@@ -1,7 +1,8 @@
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import {
   enqueueEsiRefreshJob,
+  getEsiRefreshQueueResidual,
   getEsiRefreshQueueStats,
   pruneEsiRefreshJobs,
   recoverStaleRunningJobs,
@@ -124,6 +125,42 @@ describe.skipIf(!harness.reachable)('ESI refresh queue durability executes again
 
     expect(rows).toEqual([{ status: 'queued', count: 2, oldestCreatedAt: OLD }]);
     expect(rows[0]?.oldestCreatedAt).toBeInstanceOf(Date);
+  });
+
+  it('returns due count and earliest retry across only live jobs', async () => {
+    const database = harness.db;
+    const earlier = new Date('2026-07-14T11:45:00Z');
+    const later = new Date('2026-07-14T13:00:00Z');
+    await database.delete(esiRefreshJobs);
+    await database.insert(esiRefreshJobs).values([
+      {
+        ...terminalJob('due-live', 'succeeded', earlier),
+        status: 'queued',
+        finishedAt: null,
+      },
+      {
+        ...terminalJob('future-live', 'succeeded', later),
+        status: 'deferred_for_budget',
+        finishedAt: null,
+      },
+      terminalJob('terminal', 'succeeded', earlier),
+    ]);
+
+    await expect(getEsiRefreshQueueResidual(NOW, database)).resolves.toEqual({
+      dueCount: 1,
+      earliestNextAttemptAt: earlier,
+    });
+
+    await database
+      .delete(esiRefreshJobs)
+      .where(eq(esiRefreshJobs.status, 'queued'));
+    await database
+      .delete(esiRefreshJobs)
+      .where(eq(esiRefreshJobs.status, 'deferred_for_budget'));
+    await expect(getEsiRefreshQueueResidual(NOW, database)).resolves.toEqual({
+      dueCount: 0,
+      earliestNextAttemptAt: null,
+    });
   });
 
   it('requeues a dead letter with every retry field reset', async () => {

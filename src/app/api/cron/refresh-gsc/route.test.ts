@@ -49,7 +49,23 @@ vi.mock('@/data/esi-refresh-jobs/queries', () => ({
 vi.mock('@/db', () => ({ db: {}, directClient: {} }));
 
 vi.mock('@/db/cron-gate', () => ({
-  runCronJob: ({ work }: { work: () => Promise<Response> }) => work(),
+  defineCronRoute:
+    (declaration: {
+      work: (
+        ctx: {
+          client: unknown;
+          record: (...args: unknown[]) => Promise<void>;
+        },
+        pre: unknown,
+      ) => Promise<{ body: unknown }>;
+    }) =>
+    async () => {
+      const outcome = await declaration.work(
+        { client: {}, record: async () => {} },
+        undefined,
+      );
+      return Response.json(outcome.body);
+    },
 }));
 
 vi.mock('@/app/sitemap', () => ({

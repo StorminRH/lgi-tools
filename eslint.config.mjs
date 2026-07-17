@@ -276,6 +276,50 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Cron route declarations reach auth, advisory locks, the direct DB client,
+  // and durable outcome telemetry only through defineCronRoute. Keep the
+  // existing next/image boundary in this replacement block as well.
+  {
+    files: ["src/app/api/cron/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/image",
+              message:
+                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
+            },
+            {
+              name: "@/lib/cron",
+              importNames: ["requireCronAuth"],
+              message:
+                "Cron routes declare auth through defineCronRoute; do not bypass the shell ordering.",
+            },
+            {
+              name: "@/db/advisory-lock",
+              importNames: ["withAdvisoryLock"],
+              message:
+                "Cron routes declare lock policy through defineCronRoute; do not reserve locks directly.",
+            },
+            {
+              name: "@/db",
+              importNames: ["directClient"],
+              message:
+                "Cron work receives the shared client from CronWorkContext; do not import directClient.",
+            },
+            {
+              name: "@/data/telemetry/queries",
+              importNames: ["logUsageEvent"],
+              message:
+                "Cron outcome telemetry belongs to defineCronRoute or CronWorkContext.record.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // CSP + color tokens: two families of `no-restricted-syntax` bans share one
   // block (the rule's options REPLACE across matching files, so they can't be
   // split into two `**/*.{ts,tsx}` objects without one wiping the other).

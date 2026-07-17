@@ -6,6 +6,7 @@ import {
 } from '@/data/telemetry/queries';
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import { alertPublicEsiBudgetExhaustion, isOpsAlertConfigured } from '@/lib/alerts';
+import { hasRecentBudgetExhaustion } from '@/lib/esi/exhaustion-marker';
 
 /**
  * Canonical App Router policy for public esi budget alert window minutes; consumers derive
@@ -23,6 +24,7 @@ export const PUBLIC_ESI_BUDGET_ALERT_THRESHOLD = 3;
  * window, and a delivered alert.
  */
 export type PublicBudgetAlertResult =
+  | { status: 'no-recent-exhaustion' }
   | { status: 'below-threshold'; count: number }
   | { status: 'already-alerted'; count: number }
   | { status: 'unconfigured'; count: number }
@@ -35,6 +37,9 @@ export type PublicBudgetAlertResult =
 export async function maybeAlertPublicEsiBudgetExhaustion(
   now: Date = new Date(),
 ): Promise<PublicBudgetAlertResult> {
+  if ((await hasRecentBudgetExhaustion()) === false) {
+    return { status: 'no-recent-exhaustion' };
+  }
   const windowMs = PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES * 60_000;
   const windowEndedAt = new Date(Math.floor(now.getTime() / windowMs) * windowMs);
   const windowStartedAt = new Date(windowEndedAt.getTime() - windowMs);

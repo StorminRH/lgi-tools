@@ -39,6 +39,7 @@ export const SERVER_USAGE_ACTIONS = [
   'cron_sde', // daily SDE-cron outcome (O-2, O-3)
   'cron_gsc', // daily Google-Search-Console sync outcome — synced / skipped / failed (3.3.3)
   'cron_sync_sweeper', // 15-min sync-engine watchdog — dispatched>0 means the Convex scan lagged (3.4.9)
+  'cron_esi_refresh_jobs', // 15-min idle-silent drain of deferred owner-sync work
   'cron_affiliations', // nightly corp-affiliation refresh outcome — busy / refreshed (3.7.3.2)
   'eve_token_refresh_invalid_grant', // EVE rejected the submitted refresh token as invalid / expired / revoked
   'eve_token_refresh_timeout', // the EVE SSO refresh request exceeded the shared outbound timeout

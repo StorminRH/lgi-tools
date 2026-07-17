@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ESI_COMPATIBILITY_DATE } from '@/config/esi';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
+
+const mocks = vi.hoisted(() => ({
+  markRecentBudgetExhaustion: vi.fn(),
+}));
+vi.mock('./exhaustion-marker', () => ({
+  markRecentBudgetExhaustion: mocks.markRecentBudgetExhaustion,
+}));
+
 import {
   __resetEsiGateForTests,
   __setScoreboardForTests,
@@ -36,6 +44,7 @@ describe('esiFetch', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    mocks.markRecentBudgetExhaustion.mockClear();
     __resetEsiGateForTests();
     // Pin the in-process scoreboard path even when a `vercel env pull` left
     // Upstash credentials in the local env (rate-limit.test.ts precedent).
@@ -134,6 +143,7 @@ describe('esiFetch', () => {
     const err = await esiFetch(TEST_URL).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((err as EsiBudgetExhaustedError).reason).toBe('error_budget');
+    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
     // Refusal happened before fetch — still only one call recorded.
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
@@ -174,10 +184,12 @@ describe('esiFetch', () => {
     const first = await esiFetch(TEST_URL).catch((e: unknown) => e);
     expect(first).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((first as EsiBudgetExhaustedError).reason).toBe('esi_420');
+    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
 
     const second = await esiFetch(TEST_URL).catch((e: unknown) => e);
     expect(second).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((second as EsiBudgetExhaustedError).reason).toBe('error_budget');
+    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledTimes(2);
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
@@ -217,6 +229,7 @@ describe('esiFetch', () => {
       retryAfterSeconds: 30,
       resource: '/markets/{n}/orders',
     });
+    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
 
     // Same route (different query) refuses pre-dispatch...
     const blocked = await esiFetch(
@@ -225,6 +238,7 @@ describe('esiFetch', () => {
     expect(blocked).toBeInstanceOf(EsiBudgetExhaustedError);
     expect((blocked as EsiBudgetExhaustedError).reason).toBe('rate_limited');
     expect((blocked as EsiBudgetExhaustedError).retryAfterSeconds).toBe(30);
+    expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledTimes(2);
 
     // ...a different route still dispatches...
     fetchSpy.mockResolvedValueOnce(mockResponse(200));
@@ -494,6 +508,7 @@ describe('esiFetch', () => {
       expect((err as EsiBudgetExhaustedError).reason).toBe(
         'scoreboard_unavailable',
       );
+      expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
@@ -512,6 +527,7 @@ describe('esiFetch', () => {
       }).catch((e: unknown) => e);
       expect(capped).toBeInstanceOf(EsiBudgetExhaustedError);
       expect((capped as EsiBudgetExhaustedError).reason).toBe('trickle_capped');
+      expect(mocks.markRecentBudgetExhaustion).toHaveBeenCalledOnce();
       expect(fetchSpy).toHaveBeenCalledTimes(10);
 
       vi.advanceTimersByTime(60_001);

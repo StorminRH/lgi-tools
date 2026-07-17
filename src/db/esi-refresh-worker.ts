@@ -11,8 +11,10 @@ import {
   markEsiRefreshJobPermanent,
   markEsiRefreshJobRetryable,
   markEsiRefreshJobSucceeded,
+  getEsiRefreshQueueResidual,
   recoverStaleRunningJobs,
 } from '@/data/esi-refresh-jobs/queries';
+import { writeBackPendingWorkSignal } from '@/data/esi-refresh-jobs/pending-signal';
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import type { EsiRefreshWorkerSummary } from '@/data/esi-refresh-jobs/api-contract';
 import type {
@@ -237,5 +239,14 @@ export async function drainEsiRefreshJobs(
     }
   }
 
+  const residual = await getEsiRefreshQueueResidual(now);
+  await writeBackPendingWorkSignal(residual.earliestNextAttemptAt);
+  console.log(
+    JSON.stringify({
+      scope: 'esi-refresh-worker:residual',
+      dueCount: residual.dueCount,
+      earliestNextAttemptAt: residual.earliestNextAttemptAt?.toISOString() ?? null,
+    }),
+  );
   return counts;
 }
