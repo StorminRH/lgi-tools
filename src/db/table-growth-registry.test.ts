@@ -1,32 +1,12 @@
-import { is } from 'drizzle-orm';
-import { getTableConfig, integer, PgTable, pgTable } from 'drizzle-orm/pg-core';
+import { getTableConfig, integer, pgTable, type PgTable } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import { PURGE_CONTRIBUTORS } from '@/purge/register-all';
+import { reflectedSchemaTables } from './test-support/schema-reflection';
 import {
   DRIZZLE_MIGRATIONS_TABLE,
   TABLE_GROWTH_STORIES,
   tableGrowthKey,
 } from './table-growth-registry';
-
-const schemaLoaders = import.meta.glob('../**/schema.ts') as Record<
-  string,
-  () => Promise<unknown>
->;
-const schemaModules = Object.fromEntries(
-  await Promise.all(
-    Object.entries(schemaLoaders).map(async ([path, load]) => [path, await load()] as const),
-  ),
-);
-
-function reflectedTables(modules: Record<string, unknown>): PgTable[] {
-  const byName = new Map<string, PgTable>();
-  for (const schemaModule of Object.values(modules)) {
-    for (const value of Object.values(schemaModule as Record<string, unknown>)) {
-      if (is(value, PgTable)) byName.set(getTableConfig(value).name, value);
-    }
-  }
-  return [...byName.values()];
-}
 
 function duplicates(keys: readonly string[]): string[] {
   const seen = new Set<string>();
@@ -58,7 +38,7 @@ function missingMessage(missing: readonly string[]): string {
   return `Undeclared table(s): ${missing.join(', ')}. Add a pruned, bounded, or purge-managed growth story.`;
 }
 
-const tables = reflectedTables(schemaModules);
+const tables = await reflectedSchemaTables();
 const declarationKeys = TABLE_GROWTH_STORIES.map((story) => tableGrowthKey(story.table));
 
 describe('table growth-story gate', () => {

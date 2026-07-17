@@ -10,10 +10,15 @@
 // purge must not delete the shared corp catalogue). Keep the scan set in sync with
 // this rule so a future novel identity column can't silently slip the gate.
 import { is } from 'drizzle-orm';
-import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
+import { getTableConfig, integer, PgTable, pgTable, text } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import * as schema from '@/db/schema';
-import { NON_NEON_HOMES, findUnclaimed, isUserDataTable } from './coverage';
+import {
+  NON_NEON_HOMES,
+  findIdentityFkLeaks,
+  findUnclaimed,
+  isUserDataTable,
+} from './coverage';
 import { PURGE_CONTRIBUTORS } from './register-all';
 
 // The schema barrel re-exports pgTable objects alongside enums + const arrays;
@@ -93,5 +98,39 @@ describe('purge registry gate', () => {
     expect(findUnclaimed(['corp_access_audit'], new Set(), new Set(['corp_access_audit']))).toEqual(
       [],
     );
+  });
+
+  it('finds a novel-named foreign key to an identity table', () => {
+    const identityUser = pgTable('user', {
+      id: text('id').primaryKey(),
+    });
+    const novelIdentityKey = pgTable('synthetic_novel_identity_key', {
+      createdBy: text('created_by').references(() => identityUser.id),
+    });
+
+    expect(findIdentityFkLeaks([novelIdentityKey])).toEqual([
+      'synthetic_novel_identity_key.created_by references user through an unsanctioned identity column',
+    ]);
+  });
+
+  it('accepts sanctioned identity keys and ignores non-identity foreign keys', () => {
+    const identityUser = pgTable('user', {
+      id: text('id').primaryKey(),
+    });
+    const identityCharacters = pgTable('characters', {
+      id: integer('id').primaryKey(),
+    });
+    const referenceTable = pgTable('synthetic_reference', {
+      id: integer('id').primaryKey(),
+    });
+    const sanctioned = pgTable('synthetic_sanctioned_identity_keys', {
+      userId: text('user_id').references(() => identityUser.id),
+      characterId: integer('character_id').references(() => identityCharacters.id),
+      ownerId: integer('owner_id').references(() => identityCharacters.id),
+      ownerType: text('owner_type'),
+      referenceId: integer('reference_id').references(() => referenceTable.id),
+    });
+
+    expect(findIdentityFkLeaks([sanctioned])).toEqual([]);
   });
 });
