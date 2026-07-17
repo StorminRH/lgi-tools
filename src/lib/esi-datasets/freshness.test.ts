@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   freshnessGate,
   isBoundaryStale,
-  type StaticWindowDatasetName,
 } from './freshness';
+
+type StaticWindowDatasetName = Parameters<typeof freshnessGate>[0];
 
 const NOW = new Date('2026-07-17T12:00:00Z');
 const STATIC_WINDOWS = [

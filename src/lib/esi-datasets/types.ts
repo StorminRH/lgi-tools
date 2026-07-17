@@ -5,7 +5,7 @@
  * window and freshness comes from its response Expires header. Non-ESI
  * upstreams are exempt from ESI cache-time rules, but not placement rules.
  */
-export type EsiUpstream =
+type EsiUpstream =
   | {
       kind: 'esi';
       specPaths: readonly string[];
