@@ -5,7 +5,9 @@ import {
   EsiBudgetExhaustedError,
   EsiServerError,
   ESI_BUDGET_FLOOR,
+  type EsiBudgetExhaustedReason,
 } from './errors';
+import { markRecentBudgetExhaustion } from './exhaustion-marker';
 import {
   BODY_CACHE_MAX_BYTES,
   resolveScoreboard,
@@ -269,6 +271,21 @@ export async function consultPreDispatch(
   }
 }
 
+function throwBudgetExhausted(
+  remaining: number,
+  reason: EsiBudgetExhaustedReason,
+  retryAfterSeconds: number | null,
+  resource: string,
+): never {
+  markRecentBudgetExhaustion();
+  throw new EsiBudgetExhaustedError(
+    remaining,
+    reason,
+    retryAfterSeconds,
+    resource,
+  );
+}
+
 /**
  * Refuse the call when the budget is spent. Without the shared mirror (pre ===
  * null) we cannot know what other instances have spent, so fail closed:
@@ -283,7 +300,7 @@ export function enforceBudget(
   const resource = normalizeEsiPath(url);
   if (pre === null) {
     if (opts?.interactive !== true) {
-      throw new EsiBudgetExhaustedError(0, 'scoreboard_unavailable', null, resource);
+      throwBudgetExhausted(0, 'scoreboard_unavailable', null, resource);
     }
     const now = Date.now();
     if (now - trickleWindowStart >= 60_000) {
@@ -291,13 +308,13 @@ export function enforceBudget(
       trickleCount = 0;
     }
     if (trickleCount >= TRICKLE_MAX_PER_MINUTE) {
-      throw new EsiBudgetExhaustedError(0, 'trickle_capped', null, resource);
+      throwBudgetExhausted(0, 'trickle_capped', null, resource);
     }
     trickleCount += 1;
     return;
   }
   if (pre.blockedRetryAfter !== null) {
-    throw new EsiBudgetExhaustedError(
+    throwBudgetExhausted(
       pre.effectiveRemaining,
       'rate_limited',
       pre.blockedRetryAfter,
@@ -305,7 +322,7 @@ export function enforceBudget(
     );
   }
   if (pre.effectiveRemaining < ESI_BUDGET_FLOOR) {
-    throw new EsiBudgetExhaustedError(
+    throwBudgetExhausted(
       pre.effectiveRemaining,
       'error_budget',
       null,
@@ -379,10 +396,10 @@ async function captureEtagToStore(
 // carries Retry-After metadata so owner refreshes can resume through the queue.
 function throwIfErrorStatus(url: string, res: Response): void {
   if (res.status === 420) {
-    throw new EsiBudgetExhaustedError(0, 'esi_420', null, normalizeEsiPath(url));
+    throwBudgetExhausted(0, 'esi_420', null, normalizeEsiPath(url));
   }
   if (res.status === 429) {
-    throw new EsiBudgetExhaustedError(
+    throwBudgetExhausted(
       parseIntHeader(res.headers, 'X-Ratelimit-Remaining') ?? 0,
       'rate_limited',
       parseIntHeader(res.headers, 'Retry-After'),
