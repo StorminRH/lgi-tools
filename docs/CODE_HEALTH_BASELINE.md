@@ -11,7 +11,7 @@
 | --- | --- |
 | Date | 2026-07-17 |
 | App version | 3.9.2.3 |
-| Code ref | `18d5df443e329794d79ba157a240866579430728` on `codex/3.9.2.3-esi-dataset-registry` |
+| Code ref | `c17e9d6097f2a42c826d74285602be5b6211d6cb` on `codex/3.9.2.3-esi-dataset-registry` |
 | Measurement scope | Targeted: ESI dataset declarations, placement gate, runtime freshness decisions, and recurrence rails |
 | Previous comparison | 2026-07-17 / 3.9.2.2 / `898871f…` (targeted cron wake-policy pass) |
 | Health trend | Thirteen external datasets now declare placement, upstream freshness, ownership, and mirrors once; one runtime leaf serves every static window and expires-boundary verdict, six mirrored gates are gone, and the new rails reject a duplicated TTL or feature-local staleness import. |
@@ -21,12 +21,12 @@
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
 | Production TS/TSX files | 757 | 758 | −1: four registry/gate/freshness modules added and five mirrored staleness modules removed |
-| Production TS/TSX LOC | 72,753 | 72,215 | +538 from the typed declaration registry and its fail-closed junction gate, offset by the runtime-gate collapse |
+| Production TS/TSX LOC | 72,756 | 72,215 | +541 from the typed declaration registry and its fail-closed junction gate, offset by the runtime-gate collapse |
 | Test files | 355 | 357 | −2: registry and freshness characterization replace four per-feature staleness suites |
-| Coverage — statements | 85.07% | 85.06% | 8,251 / 9,699 from fresh full-Postgres coverage; all 3,397 tests passed |
-| Coverage — branches | 83.31% | 83.29% | 4,907 / 5,890 |
+| Coverage — statements | 85.08% | 85.06% | 8,252 / 9,699 from fresh full-Postgres coverage; all 3,398 tests passed |
+| Coverage — branches | 83.32% | 83.29% | 4,908 / 5,890 |
 | Coverage — functions | 80.48% | 80.37% | 2,058 / 2,557 |
-| Coverage — lines | 85.94% | 85.94% | 7,269 / 8,458 |
+| Coverage — lines | 85.95% | 85.94% | 7,270 / 8,458 |
 | Fallow health score | 78 (B) | 78 (B) | Carried from the previous full measurement; this targeted pass changed no threshold or hotspot-score policy |
 | Functions above health thresholds | 0 | 0 | Previous full result carried forward; fresh origin/main-pinned coverage-backed Fallow found zero changed-function issues |
 | Auth query hub exports | 0 | 0 | Hub deleted; seven focused owner/private modules verified in place; the only remaining `features/auth/queries` string is a devlog parser test fixture |
