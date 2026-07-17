@@ -42,6 +42,10 @@ import { getSitemapEntries } from '@/app/sitemap';
 
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_GSC_SYNC);
 
+/**
+ * Handles GET requests for /api/cron/refresh-gsc; this route owns its authorization, boundary
+ * validation, and typed response mapping.
+ */
 // authz: cron
 export async function GET(req: Request): Promise<Response> {
   const start = Date.now();

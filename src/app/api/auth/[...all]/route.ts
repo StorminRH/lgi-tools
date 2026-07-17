@@ -33,6 +33,10 @@ const OAUTH_ENTRY_LIMITS = new Map<string, { name: string; perMinute: number }>(
   ['/api/auth/oauth2/link', { name: 'auth-oauth-link', perMinute: 10 }],
 ]);
 
+/**
+ * Handles POST requests for /api/auth/[...all]; this route owns its authorization, boundary
+ * validation, and typed response mapping.
+ */
 export async function POST(request: Request): Promise<Response> {
   const policy = OAUTH_ENTRY_LIMITS.get(new URL(request.url).pathname);
   if (policy) {

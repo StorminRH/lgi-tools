@@ -19,6 +19,10 @@ export interface SyncEnv {
   secret: string;
 }
 
+/**
+ * Reads the Convex deployment URL and service secret, throwing when either required environment
+ * value is absent.
+ */
 export function requireSyncEnv(): SyncEnv {
   const siteUrl = process.env.SITE_URL;
   const secret = process.env.CONVEX_SERVICE_SECRET;
@@ -64,6 +68,10 @@ export type TokenVend =
   | { kind: 'reauth' }
   | { kind: 'unavailable' };
 
+/**
+ * Vends one short-lived EVE access token without exposing refresh-token custody; returns the
+ * documented skip, reauth, or unavailable state for non-success responses.
+ */
 export async function vendCharacterToken(
   env: SyncEnv,
   userId: string,
@@ -111,6 +119,10 @@ export interface SubjectStamp {
   rlUsed: number | null;
 }
 
+/**
+ * Persists one completed sync run onto its subject row, including cache windows, enumerated
+ * character IDs, and rate-limit observations; lifecycle status is unchanged.
+ */
 export async function stampSyncSubject(
   ctx: MutationCtx,
   subjectId: Id<'syncSubjects'>,

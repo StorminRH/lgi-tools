@@ -17,6 +17,7 @@ import { parseSortDir, parseSortKey } from '@/features/wormhole-sites/sort';
 import type { SiteDetail } from '@/features/wormhole-sites/types';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
+/** Static search and social metadata for the /sites route. */
 export const metadata = buildPageMetadata({
   title: 'Wormhole Sites — Live Jita Loot & Resource Values',
   description:

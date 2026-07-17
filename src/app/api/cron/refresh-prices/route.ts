@@ -37,6 +37,10 @@ async function logCronEvent(
  */
 export const maxDuration = 120;
 
+/**
+ * Handles GET requests for /api/cron/refresh-prices; this route owns its authorization, boundary
+ * validation, and typed response mapping.
+ */
 export async function GET(req: Request): Promise<Response> {
   const denied = await requireCronAuth(req);
   if (denied) return denied;

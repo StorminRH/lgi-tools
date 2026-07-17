@@ -13,6 +13,7 @@ import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySl
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
 import { IndustryDashboardGrid } from './IndustryDashboardGrid';
 
+/** Static search and social metadata for the /industry route. */
 export const metadata: Metadata = {
   title: 'Industry Planner',
   description:

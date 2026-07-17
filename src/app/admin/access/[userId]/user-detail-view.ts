@@ -1,6 +1,10 @@
 import type { ChipTone } from '@/components/ui/tones';
 import type { AdminUser } from '@/features/auth/admin-users';
 
+/**
+ * Display-ready user detail state for App Router; consumers can render it without reconstructing
+ * storage or domain policy.
+ */
 export type UserDetailView = {
   characterIdLabel: string;
   identityChips: { tone: ChipTone; label: string }[];

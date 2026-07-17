@@ -12,6 +12,10 @@ export const metadata = {
   title: 'Not found',
 };
 
+/**
+ * Renders the / route surface and owns its page-level composition, metadata boundary, and fallback
+ * presentation.
+ */
 export default function NotFound() {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-6 py-20 gap-8 text-center">

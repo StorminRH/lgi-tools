@@ -11,9 +11,21 @@
 // (a future page-settings spec would feed a persisted order here); the default
 // is the product-preferred order. Deliberately nothing more is built for that.
 
+/**
+ * Canonical identifier used by App Router; consumers must not infer additional identity semantics
+ * from its storage representation.
+ */
 export type DashboardSectionId = 'recents' | 'saved' | 'active' | 'corp';
+/**
+ * Closed set of externally meaningful App Router states; callers must handle every member instead
+ * of inferring state from incidental fields.
+ */
 export type SectionStatus = 'pending' | 'empty' | 'populated';
 
+/**
+ * Canonical App Router policy for preferred section order; consumers derive behavior from this
+ * single ordered definition.
+ */
 export const PREFERRED_SECTION_ORDER: readonly DashboardSectionId[] = [
   'recents',
   'saved',
@@ -21,6 +33,7 @@ export const PREFERRED_SECTION_ORDER: readonly DashboardSectionId[] = [
   'corp',
 ];
 
+/** Derives sections under the App Router policy without transferring ownership of caller-provided inputs. */
 export function orderSections(
   status: Readonly<Record<DashboardSectionId, SectionStatus>>,
   preferred: readonly DashboardSectionId[] = PREFERRED_SECTION_ORDER,

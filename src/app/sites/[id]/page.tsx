@@ -32,6 +32,10 @@ export async function generateStaticParams(): Promise<{ id: string }[]> {
   return sites.map((s) => ({ id: String(s.id) }));
 }
 
+/**
+ * Builds request-independent metadata for /sites/[id] from the route parameter and canonical
+ * content source.
+ */
 export async function generateMetadata({
   params,
 }: {

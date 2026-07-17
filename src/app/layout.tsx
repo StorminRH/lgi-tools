@@ -48,6 +48,7 @@ const DEFAULT_DESCRIPTION =
 
 const googleVerification = readEnv("GOOGLE_SITE_VERIFICATION");
 
+/** Static search and social metadata for the / route. */
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -71,6 +72,10 @@ export const metadata: Metadata = {
   ...(googleVerification ? { verification: { google: googleVerification } } : {}),
 };
 
+/**
+ * Renders the / route surface and owns its page-level composition, metadata boundary, and fallback
+ * presentation.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

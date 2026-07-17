@@ -22,6 +22,10 @@ export async function generateStaticParams() {
     .map((d) => ({ slug: d.slug }));
 }
 
+/**
+ * Builds request-independent metadata for /devlog/[slug] from the route parameter and canonical
+ * content source.
+ */
 export async function generateMetadata({
   params,
 }: {
@@ -37,6 +41,10 @@ export async function generateMetadata({
   });
 }
 
+/**
+ * Renders the /devlog/[slug] route surface and owns its page-level composition, metadata boundary,
+ * and fallback presentation.
+ */
 export default async function DevlogDocumentPage({
   params,
 }: {

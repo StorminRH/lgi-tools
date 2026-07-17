@@ -9,6 +9,7 @@ import { buildDemoRoster } from '@/features/skill-queue/roster-demo-data';
 import { readEnv } from '@/lib/env';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
+/** Static search and social metadata for the / route. */
 export const metadata = buildPageMetadata({
   title: 'Eve Online Wormhole Site Database & Live Jita Loot Prices — LGI.tools',
   description:
@@ -98,6 +99,10 @@ async function RosterDemo({
   );
 }
 
+/**
+ * Renders the home surface; this component owns local presentation and interaction wiring while
+ * callers own domain data.
+ */
 export default function Home({
   searchParams,
 }: {

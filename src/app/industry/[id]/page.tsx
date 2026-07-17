@@ -29,6 +29,10 @@ import {
   getBlueprintStructure,
 } from '@/features/industry-planner/queries';
 
+/**
+ * Builds request-independent metadata for /industry/[id] from the route parameter and canonical
+ * content source.
+ */
 export async function generateMetadata({
   params,
 }: {
@@ -158,6 +162,10 @@ function PlannerSkeleton() {
   return <LoadingLabel label="Loading blueprint…" className="block w-full" />;
 }
 
+/**
+ * Renders the /industry/[id] route surface and owns its page-level composition, metadata boundary,
+ * and fallback presentation.
+ */
 export default function BlueprintPlannerPage({
   params,
 }: {

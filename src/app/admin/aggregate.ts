@@ -28,6 +28,10 @@ export function isWeekend(date: string): boolean {
   return dow === 0 || dow === 6;
 }
 
+/**
+ * Public App Router data contract for daily series; fields are owned here so callers do not depend
+ * on the module's internal representation.
+ */
 export interface DailySeries {
   /** Continuous calendar days [startDay, endDay] inclusive, ascending. */
   days: string[];
@@ -82,6 +86,7 @@ export function movingAverage(values: number[], window: number): number[] {
   return out;
 }
 
+/** Sums the supplied numeric series without changing its units; callers own filtering and unit consistency. */
 export function sum(values: number[]): number {
   let total = 0;
   for (const v of values) total += v;

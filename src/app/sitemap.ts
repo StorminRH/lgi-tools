@@ -14,6 +14,10 @@ type SitemapInputs = {
   introSlug: string | undefined;
 };
 
+/**
+ * Derives sitemap entries under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function buildSitemapEntries({
   sites,
   changelog,
@@ -86,6 +90,10 @@ export async function getSitemapEntries(): Promise<MetadataRoute.Sitemap> {
   });
 }
 
+/**
+ * Serves the cached canonical sitemap assembled by getSitemapEntries; no request-time data or
+ * caller-owned state is read.
+ */
 export default function sitemap(): Promise<MetadataRoute.Sitemap> {
   return getSitemapEntries();
 }

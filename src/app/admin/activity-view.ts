@@ -17,6 +17,10 @@ const MARKER_DENSITY_CAP = 120;
 
 const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 
+/**
+ * Public App Router data contract for activity chart data; fields are owned here so callers do not
+ * depend on the module's internal representation.
+ */
 export interface ActivityChartData extends DailyChartSeries {
   endValue: number;
   endDelta: Delta | null;
@@ -54,6 +58,10 @@ export function dedupeMarkersByDay(
   }));
 }
 
+/**
+ * Derives activity view under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function deriveActivityView(input: {
   range: DateRange;
   dailyCounts: { day: string; totalEvents: number }[];

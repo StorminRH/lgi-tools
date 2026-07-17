@@ -10,6 +10,10 @@ import type { MetricRow } from './metric-view';
 // exists. Replaces the KpiCard grid. A11y floor: a genuine table with a header
 // row; the delta's direction is carried by the symbol as well as the colour.
 
+/**
+ * Renders the metric table surface; this component owns local presentation and interaction wiring
+ * while callers own domain data.
+ */
 export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }) {
   return (
     <Card>

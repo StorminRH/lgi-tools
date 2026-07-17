@@ -6,6 +6,7 @@ import { loadDevlog } from '@/features/devlog/load';
 import { introDocument } from '@/features/devlog/parse';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
+/** Static search and social metadata for the /devlog route. */
 export const metadata = buildPageMetadata({
   title: 'Under the Hood',
   description:

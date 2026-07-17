@@ -2,10 +2,17 @@ import { ImageResponse } from 'next/og';
 import { toneHex } from '@/components/ui/tones';
 import { loadSocialCardFonts } from './_social-card/fonts';
 
+/** Accessible alternative text embedded in this generated social image. */
 export const alt = 'LGI.tools — Eve Online tools for wormhole pilots';
+/** Canonical pixel dimensions for this generated social image. */
 export const size = { width: 1200, height: 630 };
+/** MIME type emitted by this generated social image route. */
 export const contentType = 'image/png';
 
+/**
+ * Renders the 1200 by 630 Open Graph image for this route using bundled fonts; callers provide
+ * only route parameters where required.
+ */
 export default async function Image() {
   const fonts = await loadSocialCardFonts();
   return new ImageResponse(

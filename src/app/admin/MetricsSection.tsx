@@ -63,6 +63,10 @@ function metricsHint(rangeKey: RangeKey): string {
   return rangeKey === 'all' ? 'all time' : `Δ vs previous ${RANGE_NOUN[rangeKey]}`;
 }
 
+/**
+ * Renders the metrics section surface; this component owns local presentation and interaction
+ * wiring while callers own domain data.
+ */
 export async function MetricsSection({
   rangeKey,
   range,

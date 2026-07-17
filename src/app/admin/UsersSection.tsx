@@ -19,6 +19,10 @@ function pluralUsers(n: number): string {
   return `${n.toLocaleString()} user${n === 1 ? '' : 's'}`;
 }
 
+/**
+ * Renders the users section surface; this component owns local presentation and interaction wiring
+ * while callers own domain data.
+ */
 export async function UsersSection({ range }: { range: DateRange }) {
   const fetched = await loadSection('users', () =>
     Promise.all([getLoginCountsPerUser(range), getReturningVsNew(range)]),

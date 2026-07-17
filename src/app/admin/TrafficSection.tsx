@@ -346,6 +346,10 @@ function ActivityCard({ activity }: { activity: ActivityChartData }) {
   );
 }
 
+/**
+ * Renders the traffic section surface; this component owns local presentation and interaction
+ * wiring while callers own domain data.
+ */
 export async function TrafficSection({
   rangeKey,
   range,

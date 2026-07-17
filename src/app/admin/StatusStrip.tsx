@@ -171,6 +171,10 @@ function GscSyncDetail({
   );
 }
 
+/**
+ * Renders the status strip surface; this component owns local presentation and interaction wiring
+ * while callers own domain data.
+ */
 export async function StatusStrip({ range }: { range: DateRange }) {
   const gscConfigured = isGscConfigured();
   const fetched = await loadSection('system-health', () =>

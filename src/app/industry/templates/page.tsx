@@ -4,6 +4,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';
 import { SavedPlansManager } from '@/features/industry-planner/components/SavedPlansManager';
 
+/** Static search and social metadata for the /industry/templates route. */
 export const metadata: Metadata = {
   title: 'Build Templates',
   description:

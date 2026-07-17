@@ -1,15 +1,24 @@
 import type { GscCoverageDailyPoint, GscUrlStatus } from '@/data/gsc/types';
 import { trendSeries } from './period';
 
+/**
+ * Display-ready gsc coverage row produced by App Router; values retain their domain units and
+ * require no additional query by the renderer.
+ */
 export interface GscCoverageRow extends GscUrlStatus {
   indexed: boolean;
   reason: string;
 }
 
+/** Returns the indexed verdict without side effects; callers own the policy branch taken from that verdict. */
 export function isIndexedVerdict(verdict: string | null): boolean {
   return verdict === 'PASS';
 }
 
+/**
+ * Derives gsc coverage view under the App Router policy without transferring ownership of
+ * caller-provided inputs.
+ */
 export function deriveGscCoverageView(input: {
   latest: GscUrlStatus[];
   trend: GscCoverageDailyPoint[];

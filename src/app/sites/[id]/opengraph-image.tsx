@@ -6,10 +6,17 @@ import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { deriveSiteSocialCardContent } from '@/features/wormhole-sites/site-social-card';
 import { parseNumericRouteId } from '@/lib/route-id';
 
+/** Accessible alternative text embedded in this generated social image. */
 export const alt = 'LGI.tools wormhole site overview';
+/** Canonical pixel dimensions for this generated social image. */
 export const size = { width: 1200, height: 630 };
+/** MIME type emitted by this generated social image route. */
 export const contentType = 'image/png';
 
+/**
+ * Renders the 1200 by 630 Open Graph image for this route using bundled fonts; callers provide
+ * only route parameters where required.
+ */
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const id = parseNumericRouteId((await params).id);
   if (id === null) notFound();

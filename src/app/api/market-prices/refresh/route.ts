@@ -34,6 +34,10 @@ import { parseJsonBody } from "@/lib/route-body";
  */
 export const maxDuration = 60;
 
+/**
+ * Handles POST requests for /api/market-prices/refresh; this route owns its authorization,
+ * boundary validation, and typed response mapping.
+ */
 export async function POST(request: NextRequest): Promise<Response> {
   const parsed = await parseJsonBody(request, refreshPricesRequestSchema, {
     invalidJson: () =>

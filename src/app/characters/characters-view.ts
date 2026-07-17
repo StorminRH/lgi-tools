@@ -5,6 +5,10 @@ import { deriveCharacterHealth, type GrantedScope, listGrantedScopes } from '@/f
 // it can be tested directly. No DB, no network — everything derives from the
 // already-loaded roster and grant strings.
 
+/**
+ * Display-ready character row state for App Router; consumers can render it without reconstructing
+ * storage or domain policy.
+ */
 export type CharacterRowView = {
   // Whether the character can't currently back its ESI calls (missing scopes or a
   // dead refresh token) — drives the "Reconnect" affordance.

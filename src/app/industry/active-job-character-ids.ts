@@ -93,6 +93,10 @@ export interface CorpJobsAccess {
   hasLinkedCharacters: boolean;
 }
 
+/**
+ * Returns corporation-job-eligible character IDs plus whether any linked character exists,
+ * allowing the dashboard to distinguish missing scope from no account.
+ */
 export async function corpJobsAccess(): Promise<CorpJobsAccess> {
   const characters = await linkedJobCharacters();
   return {

@@ -2,6 +2,10 @@ import { toneHex } from '@/components/ui/tones';
 import { deriveDeltaBadge } from './delta-badge-view';
 import type { Delta } from './period';
 
+/**
+ * Public App Router data contract for end label display; fields are owned here so callers do not
+ * depend on the module's internal representation.
+ */
 export interface EndLabelDisplay {
   valueText: string;
   deltaText: string | null;

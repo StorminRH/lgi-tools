@@ -5,6 +5,7 @@ import { drainEsiRefreshJobs } from '@/db/esi-refresh-worker';
 import { swallow } from '@/lib/cron';
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
+/** Maximum Vercel function execution window in seconds for this route's bounded background work. */
 export const maxDuration = 300;
 
 /**

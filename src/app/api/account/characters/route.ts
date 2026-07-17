@@ -11,6 +11,10 @@ import { listLinkedCharacters } from '@/features/auth/linked-characters';
 import { getCurrentUserId } from '@/features/auth/session';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 
+/**
+ * Handles GET requests for /api/account/characters; this route owns its authorization, boundary
+ * validation, and typed response mapping.
+ */
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {

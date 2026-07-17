@@ -14,6 +14,10 @@ const DOT_CLASS: Record<StatusLevel, string> = {
   neutral: 'bg-muted',
 };
 
+/**
+ * Renders the status row surface; this component owns local presentation and interaction wiring
+ * while callers own domain data.
+ */
 export function StatusRow({
   name,
   status,

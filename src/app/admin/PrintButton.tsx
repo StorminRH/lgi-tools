@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 // pick "Save as PDF" as the destination to get a shareable file. The
 // no-print class hides this button from the output itself.
 
+/**
+ * Renders the print button surface; this component owns local presentation and interaction wiring
+ * while callers own domain data.
+ */
 export function PrintButton() {
   return (
     <Button

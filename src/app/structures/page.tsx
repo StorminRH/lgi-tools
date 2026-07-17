@@ -58,6 +58,10 @@ async function StructuresContent() {
   );
 }
 
+/**
+ * Renders the /structures route surface and owns its page-level composition, metadata boundary,
+ * and fallback presentation.
+ */
 export default function StructuresPage() {
   return (
     <PageShell>

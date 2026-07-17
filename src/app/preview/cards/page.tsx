@@ -21,6 +21,10 @@ function bySection(sites: SiteDetail[]): Record<SiteType, SiteDetail[]> {
   return groups;
 }
 
+/**
+ * Renders the /preview/cards route surface and owns its page-level composition, metadata boundary,
+ * and fallback presentation.
+ */
 export default function PreviewCardsPage() {
   const groups = bySection(MOCK_SITES);
 

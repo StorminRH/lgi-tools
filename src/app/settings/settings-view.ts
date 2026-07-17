@@ -18,6 +18,10 @@ import type {
  */
 export type FeatureSectionView = { id: 'corp-structure-sharing'; corps: SharingCorpView[] };
 
+/**
+ * Display-ready settings state for App Router; consumers can render it without reconstructing
+ * storage or domain policy.
+ */
 export type SettingsView = {
   preferenceModels: MenuControlModel[];
   featureSections: FeatureSectionView[];
