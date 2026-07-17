@@ -1,14 +1,5 @@
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { db } from '@/db';
-import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 import { getBlueprintActivities } from './queries';
 import { industryBlueprints } from './schema';
 import { INV_683, MFG_681, RXN_46175 } from './__fixtures__/blueprint-activities';
@@ -18,37 +9,21 @@ import { INV_683, MFG_681, RXN_46175 } from './__fixtures__/blueprint-activities
 // the jsonb column), not just a hand-built object. Skips cleanly when no DB is
 // reachable (CI has no Postgres). The throwaway schema is dropped in afterAll.
 
-const SCHEMA = 'test_eve_activities';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_eve_activities',
+  tables: ['industry_blueprints'],
+  steerDbProxy: true,
+});
 
-describe.skipIf(!reachable)('getBlueprintActivities executes against Postgres', () => {
-  let adminClient: ReturnType<typeof postgres>;
-
+describe.skipIf(!harness.reachable)('getBlueprintActivities executes against Postgres', () => {
   beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 1, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, ['industry_blueprints']);
-
-    await drizzlePg(adminClient)
+    await harness.db
       .insert(industryBlueprints)
       .values([
         { blueprintTypeId: 681, maxProductionLimit: 1, activities: MFG_681 },
         { blueprintTypeId: 683, maxProductionLimit: 1, activities: INV_683 },
         { blueprintTypeId: 46175, maxProductionLimit: 1, activities: RXN_46175 },
       ]);
-  });
-
-  afterAll(async () => {
-    // `.catch` on each `end` so a connection blip never skips `dropDisposableSchema`
-    // and leaves the schema behind (which would wedge the next run's `beforeAll`).
-    const proxyClient = (db as unknown as { $client: ReturnType<typeof postgres> }).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
   });
 
   it('reads invention probability, datacores, and skills from the stored blob', async () => {
