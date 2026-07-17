@@ -1,15 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { db } from '@/db';
-import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+import { describe, expect, it, vi } from 'vitest';
+import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 import {
   getCorpStructureRigs,
   isCorpStructureSharingEnabled,
@@ -36,35 +27,18 @@ vi.mock('next/cache', () => ({
   revalidateTag: vi.fn(),
 }));
 
-const SCHEMA = 'test_corp_structures_cov';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_corp_structures_cov',
+  tables: [
+    'corp_structures',
+    'corp_structure_syncs',
+    'corp_structure_sharing',
+    'corp_structure_rigs',
+  ],
+  steerDbProxy: true,
+});
 
-describe.skipIf(!reachable)('corp-structure sharing + authored-rig queries against Postgres', () => {
-  let adminClient: ReturnType<typeof postgres>;
-  let seedDb: ReturnType<typeof drizzlePg>;
-
-  beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 1, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, [
-      'corp_structures',
-      'corp_structure_syncs',
-      'corp_structure_sharing',
-      'corp_structure_rigs',
-    ]);
-    seedDb = drizzlePg(adminClient);
-  });
-
-  afterAll(async () => {
-    const proxyClient = (db as unknown as { $client: ReturnType<typeof postgres> }).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
-  });
-
+describe.skipIf(!harness.reachable)('corp-structure sharing + authored-rig queries against Postgres', () => {
   it('defaults sharing OFF for a corp with no row', async () => {
     expect(await isCorpStructureSharingEnabled(9001)).toBe(false);
     expect((await readCorpStructureSharings([9001])).size).toBe(0);
@@ -81,8 +55,8 @@ describe.skipIf(!reachable)('corp-structure sharing + authored-rig queries again
   it('disable WIPES the corp structures, sync state, and authored rigs (off ⇒ gone)', async () => {
     const corp = 9003;
     // Seed a fully-populated, sharing-enabled corp.
-    await seedDb.insert(corpStructureSharing).values({ corporationId: corp, enabled: true, setBy: 7 });
-    await seedDb.insert(corpStructures).values({
+    await harness.db.insert(corpStructureSharing).values({ corporationId: corp, enabled: true, setBy: 7 });
+    await harness.db.insert(corpStructures).values({
       corporationId: corp,
       structureId: 600001,
       typeId: 35825,
@@ -90,15 +64,15 @@ describe.skipIf(!reachable)('corp-structure sharing + authored-rig queries again
       securityClass: 'high',
       name: 'Raitaru A',
     });
-    await seedDb.insert(corpStructureSyncs).values({ corporationId: corp, lastRefreshedAt: new Date(), pageEtags: [] });
-    await seedDb.insert(corpStructureRigs).values({ corporationId: corp, structureId: 600001, rigTypeIds: [37178] });
+    await harness.db.insert(corpStructureSyncs).values({ corporationId: corp, lastRefreshedAt: new Date(), pageEtags: [] });
+    await harness.db.insert(corpStructureRigs).values({ corporationId: corp, structureId: 600001, rigTypeIds: [37178] });
 
     await setCorpStructureSharing(corp, false, 7);
 
     expect(await isCorpStructureSharingEnabled(corp)).toBe(false);
     expect(await readCorpStructureSyncState(corp)).toBeNull();
     expect((await getCorpStructureRigs([corp])).size).toBe(0);
-    const remainingStructures = await seedDb
+    const remainingStructures = await harness.db
       .select()
       .from(corpStructures)
       .where(eq(corpStructures.corporationId, corp));
@@ -109,7 +83,7 @@ describe.skipIf(!reachable)('corp-structure sharing + authored-rig queries again
     const corp = 9004;
     await setCorpStructureSharing(corp, true, 11);
     // A pre-existing pulled structure + the structure-manager's authored completion.
-    await seedDb.insert(corpStructures).values({
+    await harness.db.insert(corpStructures).values({
       corporationId: corp,
       structureId: 600002,
       typeId: 35825,
@@ -123,7 +97,7 @@ describe.skipIf(!reachable)('corp-structure sharing + authored-rig queries again
     await saveCorpStructures(corp, [], ['"e1"']);
 
     // The pulled structure rows were replaced, but the authored completion survives.
-    const remaining = await seedDb.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
+    const remaining = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
     expect(remaining).toHaveLength(0);
     expect((await getCorpStructureRigs([corp])).get(600002)).toEqual({
       rigTypeIds: [37178, 37180],
@@ -163,7 +137,7 @@ describe.skipIf(!reachable)('corp-structure sharing + authored-rig queries again
     const corp = 9006;
     // Sharing OFF (no row). A late write-behind save must not insert rows.
     await saveCorpStructures(corp, [{ structure_id: 600004, type_id: 35825, system_id: 30000142, name: 'Ghost' }], []);
-    const rows = await seedDb.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
+    const rows = await harness.db.select().from(corpStructures).where(eq(corpStructures.corporationId, corp));
     expect(rows).toHaveLength(0);
     expect(await readCorpStructureSyncState(corp)).toBeNull();
   });
