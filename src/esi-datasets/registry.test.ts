@@ -180,6 +180,32 @@ describe('ESI dataset registry seeded rule failures', () => {
     ]);
   });
 
+  it('rejects an unknown personal cron backstop under its dedicated rule', () => {
+    const invalid: EsiDatasetEntry = {
+      name: 'missing_personal_backstop',
+      store: 'neon',
+      shape: 'personal-on-view',
+      freshnessModel: 'caller-ttl',
+      refreshOwner: { kind: 'deferred-queue', dataset: 'skills' },
+      cronBackstopRoute: '/api/cron/not-live',
+      upstream: staticEsi(300),
+      mirrorTables: [],
+    };
+    const waived: EsiDatasetEntry = {
+      ...invalid,
+      name: 'waived_personal_backstop',
+      waiver: {
+        rule: 'personal-backstop-names-route',
+        rationale: 'Synthetic seeded waiver.',
+      },
+    };
+
+    expect(checkEntries([invalid], liveContext)).toEqual([
+      'missing_personal_backstop: unknown cron backstop /api/cron/not-live',
+    ]);
+    expect(checkEntries([waived], liveContext)).toEqual([]);
+  });
+
   it('rejects an effective TTL below the verified upstream cache', () => {
     const entry: EsiDatasetEntry = {
       name: 'too_fast',

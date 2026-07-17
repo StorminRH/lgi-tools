@@ -21,6 +21,7 @@ type EsiUpstream =
 export type EsiGateRuleId =
   | 'convex-cache-bound'
   | 'global-cron-names-route'
+  | 'personal-backstop-names-route'
   | 'personal-names-owner'
   | 'ttl-at-least-upstream';
 
@@ -92,7 +93,9 @@ export type EsiDatasetEntry =
  * Returns the dataset's effective static staleness window in milliseconds:
  * the declared override when present, otherwise the verified upstream ESI
  * cache time. Expires-boundary and cron-cadence models return null because
- * their row or schedule owns freshness instead of a fixed TTL.
+ * their row or schedule owns freshness instead of a fixed TTL. Engine-cadence
+ * returns the upstream window so the junction gate can verify its cadence
+ * floor; runtime callers do not consume it as a staleness TTL.
  */
 export function effectiveTtlMs(entry: EsiDatasetEntry): number | null {
   if (

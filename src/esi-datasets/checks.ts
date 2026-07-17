@@ -173,7 +173,7 @@ function entryFindings(
     ),
     ...ruleFinding(
       entry,
-      'global-cron-names-route',
+      'personal-backstop-names-route',
       cronBackstopViolation(entry, context),
     ),
     ...liveOwnerFinding(entry, context),
@@ -189,9 +189,9 @@ function entryFindings(
  * Validates placement and freshness over entries plus live-world name sets.
  * Convex is limited to ≤120-second ESI data unless collaborative; global
  * datasets name a live cron; personal datasets name a queue handle or entry
- * point; engine owners name a live sync dataset; and static TTLs never
- * undercut upstream. A waiver suppresses only its named rule and must retain a
- * non-empty rationale.
+ * point and any cron backstop names a live route; engine owners name a live
+ * sync dataset; and static TTLs never undercut upstream. A waiver suppresses
+ * only its named rule and must retain a non-empty rationale.
  */
 export function checkEntries(
   entries: readonly EsiDatasetEntry[],
