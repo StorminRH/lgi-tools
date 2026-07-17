@@ -3,8 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
   fetchMock: vi.fn(),
   logUsageEventMock: vi.fn(),
+  reserveMock: vi.fn(),
 }));
 
+vi.mock('@/db', () => ({
+  directClient: { reserve: (...args: unknown[]) => h.reserveMock(...args) },
+}));
 vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/fetch-with-timeout', () => ({
   fetchWithTimeout: (...args: unknown[]) => h.fetchMock(...args),
@@ -30,6 +34,9 @@ function sweepCounts(counts: { dispatched: number; retired: number; deleted: num
 beforeEach(() => {
   h.fetchMock.mockReset();
   h.logUsageEventMock.mockReset().mockResolvedValue(undefined);
+  h.reserveMock
+    .mockReset()
+    .mockRejectedValue(new Error('healthy sweeper must not reserve Neon'));
   vi.stubEnv('CRON_SECRET', SECRET);
   vi.stubEnv('NEXT_PUBLIC_CONVEX_URL', 'https://happy-otter-123.convex.cloud');
   vi.stubEnv('CONVEX_SERVICE_SECRET', 'svc-secret');
@@ -107,7 +114,7 @@ describe('GET /api/cron/sync-sweeper', () => {
     expect(h.logUsageEventMock).toHaveBeenCalled();
   });
 
-  it('sweeps against the .convex.site origin and reports the counts', async () => {
+  it('reports a healthy Convex no-op with zero Neon touches', async () => {
     h.fetchMock.mockResolvedValue(sweepCounts({ dispatched: 0, retired: 1, deleted: 2 }));
     const res = await GET(authedRequest());
     const body = await res.json();
@@ -118,6 +125,7 @@ describe('GET /api/cron/sync-sweeper', () => {
       headers: { authorization: 'Bearer svc-secret' },
     });
     // A healthy no-op sweep is NOT noteworthy — no durable telemetry row.
+    expect(h.reserveMock).not.toHaveBeenCalled();
     expect(h.logUsageEventMock).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
   });
