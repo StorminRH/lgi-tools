@@ -9,7 +9,7 @@ vi.mock('./pending-signal', () => ({
   advancePendingWorkSignal: mocks.advancePendingWorkSignal,
 }));
 
-import { enqueueEsiRefreshJob } from './queries';
+import { enqueueEsiRefreshJob, getEsiRefreshQueueResidual } from './queries';
 
 const NOW = new Date('2026-07-14T12:00:00Z');
 const input = {
@@ -95,5 +95,36 @@ describe('enqueueEsiRefreshJob', () => {
     await expect(enqueueEsiRefreshJob(input, NOW, fake.database)).rejects.toThrow(
       'ESI refresh job coalesced without a live row',
     );
+  });
+});
+
+function fakeResidualDatabase(
+  rows: Array<{ dueCount: number; earliestNextAttemptAt: Date | null }>,
+) {
+  const where = vi.fn().mockResolvedValue(rows);
+  const from = vi.fn(() => ({ where }));
+  const select = vi.fn(() => ({ from }));
+  return { database: { select } as unknown as AnyPgDb, select };
+}
+
+describe('getEsiRefreshQueueResidual', () => {
+  it('returns the aggregate due count and earliest next attempt', async () => {
+    const earliest = new Date('2026-07-14T12:30:00Z');
+    const fake = fakeResidualDatabase([
+      { dueCount: 3, earliestNextAttemptAt: earliest },
+    ]);
+
+    await expect(
+      getEsiRefreshQueueResidual(NOW, fake.database),
+    ).resolves.toEqual({ dueCount: 3, earliestNextAttemptAt: earliest });
+    expect(fake.select).toHaveBeenCalledOnce();
+  });
+
+  it('reports an idle residual when no live jobs remain', async () => {
+    const fake = fakeResidualDatabase([]);
+
+    await expect(
+      getEsiRefreshQueueResidual(NOW, fake.database),
+    ).resolves.toEqual({ dueCount: 0, earliestNextAttemptAt: null });
   });
 });

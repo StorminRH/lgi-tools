@@ -21,12 +21,12 @@
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
 | Production TS/TSX files | 758 | 749 | +9 since the v3.8 audit from v3.9 workflow and cron-primitive delivery |
-| Production TS/TSX LOC | 72,203 | 66,348 | +5,855 since the v3.8 audit, primarily the repo-wide interface-comment standard plus the cron declaration and idle-signal modules |
+| Production TS/TSX LOC | 72,215 | 66,348 | +5,867 since the v3.8 audit, primarily the repo-wide interface-comment standard plus the cron declaration and idle-signal modules |
 | Test files | 357 | 352 | +5 since the v3.8 audit for workflow rails, cron-shell behavior, Redis signals, and response contracts |
-| Coverage — statements | 85.06% | 88.06% | 8,206 / 9,647 from fresh full-Postgres coverage; 3,358 tests passed + 1 intentional skip |
-| Coverage — branches | 83.28% | 84.80% | 4,847 / 5,820 |
-| Coverage — functions | 80.36% | 84.34% | 2,043 / 2,542 |
-| Coverage — lines | 85.94% | 89.06% | 7,225 / 8,407 |
+| Coverage — statements | 85.06% | 88.06% | 8,210 / 9,651 from fresh full-Postgres coverage; 3,360 tests passed + 1 intentional skip |
+| Coverage — branches | 83.29% | 84.80% | 4,848 / 5,820 |
+| Coverage — functions | 80.37% | 84.34% | 2,044 / 2,543 |
+| Coverage — lines | 85.94% | 89.06% | 7,229 / 8,411 |
 | Fallow health score | 78 (B) | 78 (B) | Carried from the previous full measurement; this targeted pass changed no threshold or hotspot-score policy |
 | Functions above health thresholds | 0 | 0 | Previous full result carried forward; fresh origin/main-pinned coverage-backed Fallow found zero changed-function issues |
 | Auth query hub exports | 0 | 0 | Hub deleted; seven focused owner/private modules verified in place; the only remaining `features/auth/queries` string is a devlog parser test fixture |

@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { resolveUpstashRest } from '@/lib/upstash';
 
@@ -18,11 +19,22 @@ function resolveRedis(): Redis | null {
 export function markRecentBudgetExhaustion(): void {
   const redis = resolveRedis();
   if (!redis) return;
-  void redis
-    .set(RECENT_EXHAUSTION_KEY, 1, {
-      ex: RECENT_EXHAUSTION_TTL_SECONDS,
-    })
-    .catch(() => {});
+  const write = () =>
+    redis
+      .set(RECENT_EXHAUSTION_KEY, 1, {
+        ex: RECENT_EXHAUSTION_TTL_SECONDS,
+      })
+      .catch(() => {});
+  // The refusal that triggers this write is thrown mid-request, so the
+  // request-lifetime primitive keeps the hint write alive past the response
+  // (the domain-events ledger pattern). Outside a request scope — the
+  // standalone refresh scripts — `after` throws and the plain fire-and-forget
+  // write preserves the previous behavior.
+  try {
+    after(write);
+  } catch {
+    void write();
+  }
 }
 
 /**
