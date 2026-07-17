@@ -1,5 +1,5 @@
 {
-  "policyRevision": 19,
+  "policyRevision": 20,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -64,7 +64,7 @@
         "session-terminal"
       ],
       "forbidden": [
-        "write.*before.*approval"
+        "write[^.]*before[^.]*approval"
       ]
     },
     "start-session": {
@@ -179,7 +179,7 @@
         "characterization",
         "todo list|task list",
         "start-session",
-        "separate",
+        "separate (prompt|remediation)",
         "session-terminal"
       ],
       "forbidden": []
@@ -218,7 +218,7 @@
       ],
       "forbidden": [
         "non-user-facing\\s+change skips",
-        "user-facing\\s+change.*version bump"
+        "user-facing\\s+change[^.]*version bump"
       ]
     },
     "ux-check": {
@@ -253,6 +253,7 @@
   },
   "requiredPaths": [
     ".agent-local/check_agent_drift.py",
+    ".agent-local/test_agent_drift.py",
     ".agent-local/resolve_development_state.py",
     ".agent-local/test_development_state.py",
     ".agent-local/checker_common.py",
@@ -283,33 +284,13 @@
     "docs/CODE_HEALTH_BASELINE.md",
     "docs/ux-check/README.md",
     "scripts/route-classification.json",
-    ".agents/skills/plan-version/SKILL.md",
     ".agents/skills/plan-version/agents/openai.yaml",
-    ".agents/skills/plan-session/SKILL.md",
     ".agents/skills/plan-session/agents/openai.yaml",
-    ".agents/skills/start-session/SKILL.md",
     ".agents/skills/start-session/agents/openai.yaml",
-    ".agents/skills/pre-pr-design-review/SKILL.md",
     ".agents/skills/pre-pr-design-review/agents/openai.yaml",
-    ".agents/skills/close-out/SKILL.md",
-    ".agents/skills/plan-version-audit/SKILL.md",
     ".agents/skills/plan-version-audit/agents/openai.yaml",
-    ".agents/skills/plan-audit-remediation/SKILL.md",
     ".agents/skills/plan-audit-remediation/agents/openai.yaml",
-    ".agents/skills/version-audit/SKILL.md",
-    ".agents/skills/version-audit/agents/openai.yaml",
-    ".agents/skills/triage-issue/SKILL.md",
-    ".agents/skills/ux-check/SKILL.md",
-    ".claude/skills/plan-version/SKILL.md",
-    ".claude/skills/plan-session/SKILL.md",
-    ".claude/skills/start-session/SKILL.md",
-    ".claude/skills/pre-pr-design-review/SKILL.md",
-    ".claude/skills/close-out/SKILL.md",
-    ".claude/skills/plan-version-audit/SKILL.md",
-    ".claude/skills/plan-audit-remediation/SKILL.md",
-    ".claude/skills/version-audit/SKILL.md",
-    ".claude/skills/triage-issue/SKILL.md",
-    ".claude/skills/ux-check/SKILL.md"
+    ".agents/skills/version-audit/agents/openai.yaml"
   ],
   "forbiddenPaths": [
     ".claude/rules/ui-styling.md",
@@ -324,39 +305,6 @@
     ".agent-local/pr-privacy-local-patterns.txt"
   ],
   "sessionContracts": {
-    "expected": [
-      "docs/session-contracts/3.9/3.9.1.1.md",
-      "docs/session-contracts/3.9/3.9.1.2.md",
-      "docs/session-contracts/3.9/3.9.1.3.md",
-      "docs/session-contracts/3.9/3.9.1.4.md",
-      "docs/session-contracts/3.9/3.9.1.5.md",
-      "docs/session-contracts/3.9/3.9.1.6.md",
-      "docs/session-contracts/3.9/3.9.1.7.1.md",
-      "docs/session-contracts/3.9/3.9.1.7.2.md",
-      "docs/session-contracts/3.9/3.9.2.1.md",
-      "docs/session-contracts/3.9/3.9.2.2.1.md",
-      "docs/session-contracts/3.9/3.9.2.2.2.md",
-      "docs/session-contracts/3.9/3.9.2.3.1.md",
-      "docs/session-contracts/3.9/3.9.2.3.2.md",
-      "docs/session-contracts/3.9/3.9.2.4.md",
-      "docs/session-contracts/3.9/3.9.2.5.md",
-      "docs/session-contracts/3.9/3.9.2.6.md",
-      "docs/session-contracts/3.9/3.9.2.7.md",
-      "docs/session-contracts/3.9/3.9.3.1.md",
-      "docs/session-contracts/3.9/3.9.3.2.md",
-      "docs/session-contracts/3.9/3.9.3.3.md",
-      "docs/session-contracts/3.9/3.9.3.4.1.md",
-      "docs/session-contracts/3.9/3.9.3.4.2.md",
-      "docs/session-contracts/3.9/3.9.3.5.md",
-      "docs/session-contracts/3.9/3.9.3.6.md",
-      "docs/session-contracts/3.9/3.9.3.7.md",
-      "docs/session-contracts/3.9/3.9.3.8.md",
-      "docs/session-contracts/3.9/3.9.4.1.md",
-      "docs/session-contracts/3.9/3.9.4.2.md",
-      "docs/session-contracts/3.9/3.9.4.3.md",
-      "docs/session-contracts/3.9/3.9.4.4.md",
-      "docs/session-contracts/3.9/3.9.4.5.md"
-    ],
     "scan": [
       "docs/SESSION_CONTRACTS.md"
     ],

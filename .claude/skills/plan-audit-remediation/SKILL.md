@@ -10,7 +10,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 19 -->
+<!-- shared-policy-revision: 20 -->
 
 Use Claude Code Plan mode and the native task list. Require the lifecycle
 resolver directive to name `plan-audit-remediation` as the handler. Otherwise
