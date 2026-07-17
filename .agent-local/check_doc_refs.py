@@ -81,6 +81,11 @@ _ALLOWLIST = (
         "approved future artifact created by Session 3.9.2.7",
     ),
     (
+        "docs/session-plans/3.9/3.9.2.7.md",
+        "docs/PRIMITIVE_LEDGER.md",
+        "approved future artifact created by Session 3.9.2.7",
+    ),
+    (
         "docs/**",
         "src/lib/esi-datasets/types.ts",
         "approved future artifact created by Session 3.9.2.3.1",
