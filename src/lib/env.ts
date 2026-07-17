@@ -65,7 +65,9 @@ const VERBATIM_ENV = {
 
 const SERVER_ENV = { ...REQUIRED_ENV, ...VERBATIM_ENV };
 
+/** Server environment names whose absence is always a configuration error at the read boundary. */
 export type RequiredEnvName = keyof typeof REQUIRED_ENV;
+/** Closed registry of server environment names permitted through the shared env reader. */
 export type ServerEnvName = RequiredEnvName | keyof typeof VERBATIM_ENV;
 
 /**

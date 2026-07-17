@@ -34,6 +34,10 @@ export interface RlSnapshot {
   rlUsed: number | null;
 }
 
+/**
+ * Authenticated ESI read port used by owner-sync descriptors; callers supply the access token and
+ * retain endpoint-specific normalization.
+ */
 export type EsiAuthedRead =
   | { kind: 'fresh'; body: unknown; etag: string | null; expiresAt: number | null }
   | { kind: 'unchanged'; expiresAt: number | null }
@@ -138,6 +142,10 @@ async function fetchPage(
   return { kind: 'error', code: `esi_${res.status}` };
 }
 
+/**
+ * Reads every page of one authenticated ESI collection through the shared dispatch gate,
+ * preserving response metadata and aborting on any page failure.
+ */
 export async function readEsiPagedAuthed(
   basePath: string,
   accessToken: string,

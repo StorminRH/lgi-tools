@@ -13,6 +13,10 @@ import {
   type ReservedConnection,
 } from './advisory-lock';
 
+/**
+ * Authenticates and executes one cron callback under its advisory lock, translating lock
+ * contention and failures into the standard cron response.
+ */
 export async function runCronJob(options: {
   req: Request;
   lockKey: number;

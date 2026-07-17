@@ -45,6 +45,10 @@ export interface CorpDatasetSpec<
   saveGateState?(owner: TOwner): Promise<void>;
 }
 
+/**
+ * Builds the owner-sync descriptor for a corporation-keyed dataset while preserving the eligible
+ * reader character used for authenticated ESI access.
+ */
 export function makeCorpDescriptor<
   TOwner extends { corporationId: number },
   TState extends { lastRefreshedAt: Date | null },

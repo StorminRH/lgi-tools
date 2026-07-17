@@ -92,6 +92,10 @@ function freshnessMapOf(
   return new Map(syncStates.map((s) => [s.corporationId, s.lastRefreshedAt.getTime()]));
 }
 
+/**
+ * Returns stored corporation structures visible to one user and schedules only the stale eligible
+ * owners for refresh.
+ */
 export async function getCorpStructuresForUserOnView(userId: string): Promise<ViewerCorpStructuresResult> {
   await refreshStaleAffiliationsForUser(userId);
   const affiliations = await getUserAffiliations(userId);

@@ -79,6 +79,10 @@ function basePathFor(resource: string, owner: OwnerKey): string {
     : `/corporations/${owner.ownerId}/${resource}/`;
 }
 
+/**
+ * Builds the shared owned-data refresh descriptor from dataset-specific read and persist ports
+ * without exposing pipeline sequencing to the caller.
+ */
 export function makeOwnedDescriptor<TRow>(
   port: OwnedDatasetPort<TRow>,
   spec: OwnedDatasetSpec<TRow>,

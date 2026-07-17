@@ -15,11 +15,16 @@
 
 import fuzzysort from 'fuzzysort';
 
+/** Successful fuzzy-match score and matched character indexes in the original candidate string. */
 export type FuzzyMatch = {
   score: number;
   matchIndices: number[];
 };
 
+/**
+ * Scores a candidate against one query and returns matched character indexes, or null when the
+ * candidate does not satisfy the fuzzy search.
+ */
 export function fuzzyMatch(query: string, target: string): FuzzyMatch | null {
   if (query.length === 0) {
     return { score: 0, matchIndices: [] };

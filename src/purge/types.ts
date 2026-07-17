@@ -28,7 +28,12 @@ export type PurgeSubject =
   | { readonly kind: 'character'; readonly userId: string; readonly characterId: number }
   | { readonly kind: 'user'; readonly userId: string };
 
+/**
+ * Character purge subject containing the human user ID and finite EVE character ID required by
+ * per-slice contributors.
+ */
 export type PurgeCharacterSubject = Extract<PurgeSubject, { kind: 'character' }>;
+/** Whole-user purge subject used when every character and user-keyed row must be removed. */
 export type PurgeUserSubject = Extract<PurgeSubject, { kind: 'user' }>;
 
 /**
@@ -41,6 +46,10 @@ export interface RetainedTable {
   readonly reason: string;
 }
 
+/**
+ * Per-slice personal-data purge contract; implementations own their tables while the registry owns
+ * cross-slice ordering.
+ */
 export interface PurgeContributor {
   readonly name: string;
   readonly tier: PurgeTier;

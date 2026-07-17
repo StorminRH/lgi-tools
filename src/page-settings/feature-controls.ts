@@ -10,4 +10,5 @@
  */
 export const FEATURE_CONTROL_IDS = ['corp-structure-sharing'] as const;
 
+/** Closed identifiers for feature-backed controls whose state is resolved above the participating slices. */
 export type FeatureControlId = (typeof FEATURE_CONTROL_IDS)[number];

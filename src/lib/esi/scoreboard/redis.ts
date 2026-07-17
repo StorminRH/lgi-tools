@@ -209,10 +209,15 @@ class RedisScoreboard implements EsiScoreboard {
   }
 }
 
+/**
+ * Creates the Redis-backed ESI scoreboard that atomically coordinates shared dispatch budgets and
+ * ETag cache state.
+ */
 export function createRedisScoreboard(url: string, token: string): RedisScoreboard {
   return new RedisScoreboard(url, token);
 }
 
+/** Reads a point-in-time ESI budget snapshot from Redis without mutating dispatch state. */
 export function readRedisBudgetSnapshot(
   scoreboard: RedisScoreboard,
 ): Promise<EsiBudgetSnapshot> {

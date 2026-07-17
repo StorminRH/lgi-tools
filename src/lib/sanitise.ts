@@ -4,6 +4,10 @@
 // the cleaning is shared — the max-length stays a per-call-site constant.
 const CONTROL_CHARS = /\p{C}/gu;
 
+/**
+ * Normalizes user-authored text by removing control characters, collapsing whitespace, and
+ * enforcing the caller-supplied maximum length.
+ */
 export function sanitiseUserText(raw: string, maxLength: number): string {
   return raw.replace(CONTROL_CHARS, '').trim().slice(0, maxLength);
 }

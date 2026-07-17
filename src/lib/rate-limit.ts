@@ -11,16 +11,19 @@ import { readEnv } from "@/lib/env";
 // time. The Upstash SDK is connectionless (REST under the hood), so module
 // state is safe across serverless cold starts.
 
+/** Allowed rate-limit verdict carrying the remaining request count for the active window. */
 export interface RateLimitOk {
   ok: true;
   remaining: number;
 }
 
+/** Denied rate-limit verdict carrying the retry delay in whole seconds. */
 export interface RateLimitDenied {
   ok: false;
   retryAfter: number;
 }
 
+/** Closed rate-limit result requiring callers to handle allowed and denied outcomes explicitly. */
 export type RateLimitResult = RateLimitOk | RateLimitDenied;
 
 /**
@@ -135,6 +138,10 @@ export async function rateLimit(
  */
 export type RateLimitGuardResult = { ok: true } | { ok: false; response: Response };
 
+/**
+ * Checks and records one named rate-limit bucket, returning a closed allowed or denied result with
+ * retry timing instead of throwing.
+ */
 export async function rateLimitGuard(
   request: Request,
   options: RateLimitOptions,

@@ -99,6 +99,10 @@ export type AuthedSingleRead =
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
+/**
+ * Owner-sync port for an authenticated paginated ESI read; it returns normalized items plus the
+ * response metadata that controls freshness.
+ */
 export type AuthedPagedRead =
   | { kind: 'fresh'; items: unknown[]; etags: string[]; responseHeaders: EsiResponseHeaders }
   | { kind: 'unchanged' }

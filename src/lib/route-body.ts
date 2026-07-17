@@ -39,6 +39,10 @@ export async function parseFormBody<S extends z.ZodTypeAny>(
   return { ok: true, data: parsed.data };
 }
 
+/**
+ * Parses and validates a request JSON body with the supplied Zod schema, returning a typed value
+ * or the standard 400 response.
+ */
 export async function parseJsonBody<S extends z.ZodTypeAny>(
   request: Request,
   schema: S,

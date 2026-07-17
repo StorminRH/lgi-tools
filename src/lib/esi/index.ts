@@ -75,6 +75,10 @@ export function esiUrl(path: string): string {
   return `${ESI_BASE_URL}${path}`;
 }
 
+/**
+ * Dispatches one ESI request through the sole shared budget, cache, retry, and telemetry gate;
+ * callers retain endpoint-specific parsing.
+ */
 export async function esiFetch(
   url: string,
   init?: RequestInit,

@@ -108,6 +108,10 @@ export async function getCorpJobsForUserOnView(userId: string): Promise<ViewerCo
   return { corporations: rows, names };
 }
 
+/**
+ * Refreshes corporation industry jobs for one eligible character through the shared owner-sync
+ * pipeline and returns its source and freshness outcome.
+ */
 export async function runCorporationIndustryJobsRefreshJob(
   userId: string,
   target: OwnerSyncTarget,

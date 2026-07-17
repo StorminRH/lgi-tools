@@ -55,6 +55,10 @@ export type CharacterStripSpec = {
   surfaceId: StripSurfaceId;
 };
 
+/**
+ * Declarative page-settings contract owning a route's controls, ordering, and optional
+ * character-strip configuration.
+ */
 export type PageSettingsSpec = {
   // The base route this spec governs, matched against usePathname() — a `/sites`
   // spec also governs `/sites/30002`. The most-specific match wins.

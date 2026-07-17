@@ -37,8 +37,16 @@
 import type { useRouter } from 'next/navigation';
 import type { Session } from '@/features/auth/types';
 
+/**
+ * Minimal navigation port required by global search so sources can navigate without depending on
+ * the full Next.js router.
+ */
 export type AppRouterInstance = ReturnType<typeof useRouter>;
 
+/**
+ * One display-ready global-search result with stable source identity, score, matched indexes, and
+ * navigation action.
+ */
 export type SearchResult = {
   kind: string;
   id: string;
@@ -72,6 +80,7 @@ export type SearchResult = {
   disabled?: boolean;
 };
 
+/** Runtime context supplied to search sources, including navigation and any shared catalogue data. */
 export type SearchContext = {
   session: Session | null;
   // Precomputed server-side because `isAdmin()` consults the env-only
@@ -85,6 +94,10 @@ export type SearchContext = {
   signal?: AbortSignal;
 };
 
+/**
+ * Pluggable search-source contract pairing a unique name with a query function over the shared
+ * search context.
+ */
 export type SearchSource = {
   // Stable machine identity, the key scoped queries filter on. Distinct from
   // `name`, which is display copy (the dropdown section header) — retitling a
@@ -118,6 +131,10 @@ export type LazySearchSource = {
 
 const sources: SearchSource[] = [];
 
+/**
+ * Registers one uniquely named global-search source and rejects duplicate names to keep search
+ * composition deterministic.
+ */
 export function registerSearchSource(source: SearchSource): void {
   // A duplicated id would double-dispatch under a scoped query, so surface
   // the registration mistake the moment it happens instead of at review
@@ -190,10 +207,15 @@ export function registerLazySearchSource(meta: LazySearchSource): void {
   });
 }
 
+/**
+ * Returns search sources in registration order as a defensive copy that callers cannot use to
+ * mutate the registry.
+ */
 export function listRegisteredSources(): readonly SearchSource[] {
   return sources;
 }
 
+/** Grouped global-search results for one registered source in deterministic display order. */
 export type SearchSection = {
   name: string;
   results: SearchResult[];

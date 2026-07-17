@@ -69,6 +69,10 @@ export async function getOwnedBlueprintDetailOnView(
   return buildOwnedDetail(map, requestedTypeIds, names, formatStationName);
 }
 
+/**
+ * Refreshes owned blueprints for one character through the shared owner-sync pipeline and returns
+ * the normalized source outcome.
+ */
 export async function runOwnedBlueprintsRefreshJob(
   userId: string,
   target: OwnerSyncTarget,

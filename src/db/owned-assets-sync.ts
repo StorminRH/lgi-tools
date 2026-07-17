@@ -54,6 +54,10 @@ function makeOwnedAssetsPort(): OwnedAssetsPort {
   };
 }
 
+/**
+ * Persists one validated owned-assets source snapshot and replaces the owner's current projection
+ * in the same database transaction.
+ */
 export async function saveOwnedAssetsFromSource(
   owner: OwnerKey,
   rows: Parameters<typeof saveOwnedAssets>[1],
@@ -123,6 +127,10 @@ export async function getOwnedAssetDetailOnView(
   return buildOwnedAssetDetail(map, names, formatStationName);
 }
 
+/**
+ * Refreshes owned assets for one owner through the shared owner-sync port, including raw snapshot
+ * retention and stored-source fallback.
+ */
 export async function runOwnedAssetsRefreshJob(
   userId: string,
   target: OwnerSyncTarget,

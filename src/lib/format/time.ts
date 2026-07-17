@@ -8,6 +8,10 @@ const UTC_DAY = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 });
 
+/**
+ * Formats an ISO date as a stable human-readable UTC date; invalid inputs are returned unchanged
+ * rather than interpreted in local time.
+ */
 export function formatUtcDate(value: Date | string | null): string {
   if (value == null) return '—';
   const date = typeof value === 'string' ? new Date(value) : value;

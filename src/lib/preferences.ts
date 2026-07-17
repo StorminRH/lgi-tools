@@ -16,6 +16,10 @@ const COOKIE_PREFIX = 'lgi_pref_';
 // Functional preference cookie — first-party, ~1 year, no PII.
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
+/**
+ * Authoritative preference definition pairing key, default value, storage scope, and optional
+ * server-readable cookie.
+ */
 export interface PreferenceDef<T> {
   // The canonical key: the server KV `key` column, the API enum value, and the
   // stem for the localStorage key + cookie name. Stable; never reuse for a
@@ -125,9 +129,15 @@ export const industryCostBasis = define<'batched' | 'marginal'>(
 // criterion). Adding a strip surface = one id here + the feature's spec.strip
 // declaration; the wire enum and validation grow automatically.
 
+/** Closed character-strip surface identifiers used to derive typed local-preference keys. */
 export const STRIP_SURFACE_IDS = ['skills', 'jobs'] as const;
+/**
+ * Canonical identifier used by lib; consumers must not infer additional identity semantics from
+ * its storage representation.
+ */
 export type StripSurfaceId = (typeof STRIP_SURFACE_IDS)[number];
 
+/** Returns the typed local-preference key for one character-strip surface's dimmed state. */
 export function stripDimmedKey(surfaceId: string): string {
   return `strip.${surfaceId}.dimmed`;
 }
@@ -223,6 +233,10 @@ export function peekLocalPreference<T>(def: PreferenceDef<T>): T | undefined {
   }
 }
 
+/**
+ * Persists one preference to browser local storage and silently ignores unavailable or
+ * quota-failing storage so UI updates are not blocked.
+ */
 export function writeLocalPreference<T>(def: PreferenceDef<T>, value: T): void {
   const store = safeStorage();
   if (!store) return;
@@ -235,6 +249,10 @@ export function writeLocalPreference<T>(def: PreferenceDef<T>, value: T): void {
 
 // ── cookie codec (the ssrReadable mirror) ──
 
+/**
+ * Returns the server-readable cookie name for a preference definition, or null when the preference
+ * is intentionally client-only.
+ */
 export function cookieNameFor(def: PreferenceDef<unknown>): string {
   return COOKIE_PREFIX + def.key.replace(/\./g, '_');
 }
@@ -294,4 +312,8 @@ export function reconcilePreferences(
   return { values, toSeed };
 }
 
+/**
+ * Test-only preference internals exposed for deterministic storage and key-contract verification;
+ * production code must not consume this object.
+ */
 export const __TEST_ONLY__ = { LS_PREFIX };

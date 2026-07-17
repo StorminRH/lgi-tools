@@ -17,6 +17,10 @@ import type { PageSettingsSpec } from './types';
 
 const specs: PageSettingsSpec[] = [];
 
+/**
+ * Registers one page-settings specification by route and rejects duplicate ownership so each page
+ * has one authoritative declaration.
+ */
 export function registerPageSettings(spec: PageSettingsSpec): void {
   specs.push(spec);
 }

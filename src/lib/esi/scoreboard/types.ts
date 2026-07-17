@@ -37,12 +37,17 @@ export const GROUP_STATE_TTL_SECONDS = 1200;
 /** ETag meta/body: refreshed on every revalidation, dropped after two idle days. */
 export const ETAG_TTL_SECONDS = 172_800;
 
+/** Metadata stored beside one cached ETag body, including validator, status, headers, and absolute expiry. */
 export interface CachedEtagMeta {
   etag: string;
   expires: string | null;
   contentType: string | null;
 }
 
+/**
+ * Scoreboard verdict computed before network dispatch, carrying any block, budget, or
+ * cached-response decision.
+ */
 export interface PreDispatchState {
   // min(echo ?? ceiling, ceiling − selfCount) — the pessimistic combination
   // of both error-limit mirrors.
@@ -55,6 +60,10 @@ export interface PreDispatchState {
   etag: CachedEtagMeta | null;
 }
 
+/**
+ * Point-in-time ESI budget observations by route group; counters and timestamps retain their
+ * upstream units.
+ */
 export interface EsiBudgetSnapshot {
   effectiveRemaining: number;
   selfCount: number;
@@ -84,6 +93,10 @@ export interface EsiReport {
   refreshEtag: CachedEtagMeta | null;
 }
 
+/**
+ * Storage-neutral contract owning ESI budget checks, block state, ETag caching, and post-response
+ * accounting.
+ */
 export interface EsiScoreboard {
   preDispatch(url: string, wantEtag: boolean): Promise<PreDispatchState>;
   budgetSnapshot(): Promise<EsiBudgetSnapshot>;

@@ -143,6 +143,10 @@ export async function getSkillLevelsForCharacterOnView(
   return levels;
 }
 
+/**
+ * Refreshes one character's skills through the shared owner-sync pipeline and returns the
+ * normalized freshness and source outcome.
+ */
 export async function runSkillsRefreshJob(
   userId: string,
   target: OwnerSyncTarget,

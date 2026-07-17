@@ -5,12 +5,17 @@
 // the wire: same method/headers/body bytes as the call sites it replaced.
 import type { z } from 'zod';
 
+/** Closed typed API outcome: validated success data or a declared error payload and HTTP status. */
 export type ApiResult<TData> =
   | { ok: true; status: number; data: TData }
   // Body left unconsumed — callers branch on status and read .text() exactly
   // as they did against the raw Response.
   | { ok: false; status: number; response: Response };
 
+/**
+ * Typed same-origin endpoint contract pairing method, path, response schema, and optional request
+ * schema in one authoritative definition.
+ */
 export interface ApiEndpoint<TIn, TData> {
   method: 'GET' | 'POST';
   path: string;
@@ -30,10 +35,18 @@ export interface ApiEndpoint<TIn, TData> {
 
 type CallInit = Pick<RequestInit, 'signal' | 'cache' | 'keepalive'>;
 
+/**
+ * Calls a typed same-origin endpoint, validates its response contract, and returns the closed
+ * success or API-error result without throwing for declared HTTP failures.
+ */
 export async function apiFetch<TData>(
   endpoint: ApiEndpoint<null, TData>,
   init?: CallInit,
 ): Promise<ApiResult<TData>>;
+/**
+ * Calls a typed same-origin endpoint, validates its response contract, and returns the closed
+ * success or API-error result without throwing for declared HTTP failures.
+ */
 export async function apiFetch<TIn, TData>(
   endpoint: ApiEndpoint<TIn, TData>,
   init: CallInit & { body: TIn },

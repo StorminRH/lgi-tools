@@ -71,6 +71,10 @@ export function characterRow<TData>(
   return { characterId: owner.id, data, lastRefreshedAt: owner.lastRefreshedAt?.getTime() ?? null };
 }
 
+/**
+ * Returns the stored live-dataset projection and schedules a refresh only when its freshness gate
+ * says the viewer's owner is due.
+ */
 export async function getLiveDatasetOnView<TData, TRow>(
   userId: string,
   view: LiveDatasetView<TData, TRow>,

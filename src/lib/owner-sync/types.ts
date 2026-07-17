@@ -78,11 +78,16 @@ export type PersistVerdict<TSave> =
   | { kind: 'needs_role' }
   | { kind: 'skip'; code?: string };
 
+/** Validated owner and authenticated-reader identity passed into one owner-sync run. */
 export interface OwnerSyncTarget {
   ownerType: 'character' | 'corporation';
   ownerId: number;
 }
 
+/**
+ * Closed owner-sync outcome preserving fresh, refreshed, deferred, skipped, and failed states for
+ * callers and telemetry.
+ */
 export type OwnerSyncResult =
   | { kind: 'succeeded'; target: OwnerSyncTarget }
   | {
@@ -93,6 +98,10 @@ export type OwnerSyncResult =
   | { kind: 'failed_retryable'; target: OwnerSyncTarget; code: string }
   | { kind: 'failed_permanent'; target: OwnerSyncTarget; code: string };
 
+/**
+ * Per-run owner-sync controls for clock, forcing, queue behavior, and optional injected ports used
+ * by tests.
+ */
 export interface OwnerSyncRunOptions {
   target?: OwnerSyncTarget;
   onBudgetDeferred?(

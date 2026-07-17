@@ -9,6 +9,7 @@
 
 import type { PageSettingsSpec } from './types';
 
+/** Declarative account-page control specification consumed by the shared page-settings registry. */
 export const accountPageSettings: PageSettingsSpec = {
   route: '/settings',
   controls: [{ kind: 'feature', id: 'corp-structure-sharing', placement: 'inline' }],

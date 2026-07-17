@@ -4,6 +4,10 @@ import { esiSnapshots } from '@/data/esi-snapshots/schema';
 import { ownedAssets } from '@/features/owned-assets/schema';
 import type { AnyPgDb } from '@/lib/db-types';
 
+/**
+ * Deletes expired unreferenced ESI snapshots while retaining the newest snapshot and any snapshot
+ * still referenced by current data.
+ */
 export async function pruneEsiSnapshots(
   database: AnyPgDb,
   retentionDays: number,

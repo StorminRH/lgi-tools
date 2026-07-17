@@ -4,6 +4,10 @@
 // so each entry's main() stays a thin orchestrator: it does the DB I/O and
 // calls these to decide.
 
+/**
+ * Per-table row counts produced by SDE bootstrap verification; counts are absolute rows after the
+ * import completes.
+ */
 export interface SdeRowCounts {
   typeDogma: number;
   npcStations: number;

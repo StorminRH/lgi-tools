@@ -27,6 +27,10 @@
  * re-instantiates).
  */
 export const SYNC_DATASETS = ['onlineStatus'] as const;
+/**
+ * Closed active Convex sync-dataset registry; stored schemas may temporarily retain a retiring
+ * superset during drain windows.
+ */
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
 
 /**
@@ -83,6 +87,7 @@ export const STALE_RUNNING_MS = 3 * 60_000;
  */
 export const SYNC_JITTER_MS = 10_000;
 
+/** Returns whether a sync subject has no usable completion window at the supplied epoch-millisecond clock. */
 export function isCold(lastSeenAt: number, now: number): boolean {
   return now - lastSeenAt > COLD_AFTER_MS;
 }
@@ -126,6 +131,10 @@ export function isRunningFresh(
  */
 export type DueSubjectAction = 'delete' | 'retire' | 'skip' | 'dispatch';
 
+/**
+ * Classifies one sync subject as due, fresh, running, or deferred from absolute timestamps;
+ * callers own scheduling the resulting action.
+ */
 export function classifyDueSubject(
   lastSeenAt: number | null,
   status: 'idle' | 'running',

@@ -22,6 +22,10 @@ import {
 // loop, and the per-instance fallback state. Lives beside the public entry so
 // esiFetch stays a thin orchestrator over named single-purpose helpers.
 
+/**
+ * Dispatch options for the shared ESI gate, including route group, cache policy, authentication
+ * budget, and caller abort signal.
+ */
 export interface EsiFetchOptions {
   // User-initiated call: when the scoreboard is unreachable, allow a
   // hard-capped per-instance trickle instead of refusing outright.
@@ -43,6 +47,10 @@ let trickleCount = 0;
 // scoreboard; an object replaces the resolved one. Not for runtime callers.
 let scoreboardOverride: EsiScoreboard | 'unavailable' | null = null;
 
+/**
+ * Replaces the process-local ESI scoreboard for an isolated test; production callers must never
+ * use this seam.
+ */
 export function __setScoreboardForTests(
   sb: EsiScoreboard | 'unavailable' | null,
 ): void {
@@ -58,6 +66,10 @@ export function __resetEsiGateForTests(): void {
   __resetScoreboardForTests();
 }
 
+/**
+ * Returns the lazily resolved process-local ESI scoreboard shared by every dispatch in the current
+ * runtime.
+ */
 export function getScoreboard(): EsiScoreboard | null {
   if (scoreboardOverride === 'unavailable') return null;
   if (scoreboardOverride !== null) return scoreboardOverride;

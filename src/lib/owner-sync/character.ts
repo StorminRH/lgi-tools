@@ -40,6 +40,10 @@ export interface CharacterDatasetSpec<TState, TSave> {
   save(characterId: number, payload: TSave): Promise<void>;
 }
 
+/**
+ * Builds the owner-sync descriptor for a character-keyed dataset, including eligibility,
+ * freshness, queue, and telemetry ownership.
+ */
 export function makeCharacterDescriptor<TState extends { lastRefreshedAt: Date | null }, TSave>(
   base: CharacterSyncBase<TState>,
   spec: CharacterDatasetSpec<TState, TSave>,

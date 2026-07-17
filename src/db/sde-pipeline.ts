@@ -27,12 +27,14 @@ import type { PostgresJsDb } from '@/lib/db-types';
 // postgres-js `drizzle(client)`.
 
 
+/** Aggregate row counts produced by one SDE seed stage for operator reporting. */
 export type SeedSummary = {
   tracked: number;
   missing: number;
   inserted: number;
 };
 
+/** Complete SDE pipeline outcome combining ingest and derived-table row counts. */
 export type SdePipelineSummary = {
   ingest: IngestSummary;
   resolve: ResolveSummary;

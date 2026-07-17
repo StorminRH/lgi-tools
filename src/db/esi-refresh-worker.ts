@@ -188,6 +188,10 @@ function recordProcessedOutcome(
   emitJobStatus(job, outcome.status, outcome.attemptCount, outcome.failureCode);
 }
 
+/**
+ * Claims and runs one bounded batch of deferred ESI refresh jobs with per-job isolation, retry
+ * scheduling, dead-letter handling, and an aggregate drain summary.
+ */
 export async function drainEsiRefreshJobs(
   now = new Date(),
 ): Promise<Omit<EsiRefreshWorkerSummary, 'status' | 'durationMs'>> {

@@ -22,6 +22,10 @@ const BASE_DELAY_MS = 500;
 // Guard against pathological/cyclic cause chains while walking.
 const MAX_CHAIN_DEPTH = 10;
 
+/**
+ * One Neon cold-start retry observation with attempt count and elapsed milliseconds; it contains
+ * no query text or user identity.
+ */
 export interface NeonColdStartMetric {
   outcome: 'recovered' | 'exhausted';
   attempts: number;
@@ -32,6 +36,10 @@ type NeonColdStartMetricSink = (metric: NeonColdStartMetric) => void | Promise<v
 
 let metricSink: NeonColdStartMetricSink | null = null;
 
+/**
+ * Installs or clears the callback that receives Neon cold-start retry metrics; callers own sink
+ * lifetime and must avoid throwing.
+ */
 export function configureNeonColdStartMetricSink(
   sink: NeonColdStartMetricSink | null,
 ): void {
