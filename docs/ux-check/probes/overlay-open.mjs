@@ -3,13 +3,6 @@ const LABELS = [
   'How build time is estimated',
 ];
 
-function slugify(value) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
 export default {
   name: 'overlay-open',
   route: '/industry/691',
@@ -26,14 +19,15 @@ export default {
       await trigger.scrollIntoViewIfNeeded();
       if (viewport === 'mobile') await trigger.tap();
       else await trigger.hover();
-      await page.waitForTimeout(650);
+      await page.waitForTimeout(1000);
       const openedByPointer = (await trigger.getAttribute('data-popup-open')) !== null;
-      console.log(
-        `    ${openedByPointer ? '✓' : '–'} ${viewport === 'mobile' ? 'tap' : 'hover'} opens: ${label}`,
+      check(
+        `${viewport === 'mobile' ? 'tap' : 'hover'} opens: ${label}`,
+        openedByPointer,
       );
       if (openedByPointer) {
         opened += 1;
-        await shot(slugify(label));
+        await shot(label);
         if (viewport === 'mobile') {
           await page.touchscreen.tap(5, 5);
           await page.waitForTimeout(300);
