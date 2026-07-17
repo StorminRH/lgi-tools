@@ -30,10 +30,12 @@ export function parseSortDir(raw: string | undefined): SortDir {
   return raw === 'asc' ? 'asc' : 'desc';
 }
 
-// Returns the column's default direction (the one the URL gets the first time
-// a user clicks the header). Numeric columns descend by default — biggest
-// first. String + categorical-rank columns (name, type, class) ascend, since
-// "data → combat" or "C6 → C1" on first click is counter-intuitive.
+/**
+ * Returns the column's default direction (the one the URL gets the first time
+ * a user clicks the header). Numeric columns descend by default — biggest
+ * first. String + categorical-rank columns (name, type, class) ascend, since
+ * "data → combat" or "C6 → C1" on first click is counter-intuitive.
+ */
 export function defaultDirFor(key: SortableKey): SortDir {
   if (key === 'name' || key === 'type' || key === 'class') return 'asc';
   return 'desc';
@@ -44,9 +46,11 @@ function siteIskValue(s: SiteDetail): number | null {
   return isWaveDriven ? s.blueLootIsk : s.resourceValueIsk;
 }
 
-// Total scram NPC count across the site, summed across waves. `ewScram` is
-// wire-encoded as a positive count (no sign convention quirk here, unlike
-// `ewNeut`), so a straight sum is the count.
+/**
+ * Total scram NPC count across the site, summed across waves. `ewScram` is
+ * wire-encoded as a positive count (no sign convention quirk here, unlike
+ * `ewNeut`), so a straight sum is the count.
+ */
 export function siteScramTotal(s: SiteDetail): number {
   return s.waves.reduce((n, w) => n + (w.ewScram ?? 0), 0);
 }

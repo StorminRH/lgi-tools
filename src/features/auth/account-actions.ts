@@ -19,18 +19,22 @@ import {
 } from './api-contract';
 import { EVE_AUTHORIZED_APPS_URL } from './eve-sso';
 
-// The minimal slice of `apiFetch` the runners use: the no-body call and the
-// body call. The real `apiFetch` is assignable to this (its init params are
-// optional); a test stub is too. Keeps these runners off a hard import of the
-// client function while staying fully typed.
+/**
+ * The minimal slice of `apiFetch` the runners use: the no-body call and the
+ * body call. The real `apiFetch` is assignable to this (its init params are
+ * optional); a test stub is too. Keeps these runners off a hard import of the
+ * client function while staying fully typed.
+ */
 export interface AccountApiCaller {
   <TData>(endpoint: ApiEndpoint<null, TData>): Promise<ApiResult<TData>>;
   <TIn, TData>(endpoint: ApiEndpoint<TIn, TData>, init: { body: TIn }): Promise<ApiResult<TData>>;
 }
 
-// Purging a character either empties the account (it was the last one → the user
-// row is already gone server-side → the D-5 lightbox + redirect) or leaves the
-// pilot signed in with their other characters (`stayed`). `error` is any non-2xx.
+/**
+ * Purging a character either empties the account (it was the last one → the user
+ * row is already gone server-side → the D-5 lightbox + redirect) or leaves the
+ * pilot signed in with their other characters (`stayed`). `error` is any non-2xx.
+ */
 export type PurgeOutcome = { kind: 'emptied' } | { kind: 'stayed' } | { kind: 'error' };
 
 export async function runPurgeCharacter(
@@ -46,7 +50,7 @@ export async function runPurgeCharacter(
   }
 }
 
-// Deleting the whole account always empties it (always the D-5 lightbox on success).
+/** Deleting the whole account always empties it (always the D-5 lightbox on success). */
 export type DeleteOutcome = { kind: 'emptied' } | { kind: 'error' };
 
 export async function runDeleteAccount(call: AccountApiCaller): Promise<DeleteOutcome> {
@@ -58,8 +62,10 @@ export async function runDeleteAccount(call: AccountApiCaller): Promise<DeleteOu
   }
 }
 
-// Log-out-everywhere revokes EVERY session including this one, so success means the
-// current device is signed out too → navigate home, signed out.
+/**
+ * Log-out-everywhere revokes EVERY session including this one, so success means the
+ * current device is signed out too → navigate home, signed out.
+ */
 export type LogoutOutcome = { kind: 'done' } | { kind: 'error' };
 
 export async function runLogoutEverywhere(call: AccountApiCaller): Promise<LogoutOutcome> {
@@ -73,21 +79,25 @@ export async function runLogoutEverywhere(call: AccountApiCaller): Promise<Logou
 
 export type DestructionOutcome = PurgeOutcome | DeleteOutcome | LogoutOutcome;
 
-// Where the browser goes after a destructive action resolves. An emptied account
-// (last-character purge or full delete) → EVE's authorized-apps page so the pilot
-// can confirm the grant is gone (the D-5 redirect); a successful log-out-everywhere
-// → home, signed out. Anything that leaves the session intact (a one-of-many purge)
-// or errored → no navigation (`null`).
+/**
+ * Where the browser goes after a destructive action resolves. An emptied account
+ * (last-character purge or full delete) → EVE's authorized-apps page so the pilot
+ * can confirm the grant is gone (the D-5 redirect); a successful log-out-everywhere
+ * → home, signed out. Anything that leaves the session intact (a one-of-many purge)
+ * or errored → no navigation (`null`).
+ */
 export function redirectTargetFor(outcome: DestructionOutcome): string | null {
   if (outcome.kind === 'emptied') return EVE_AUTHORIZED_APPS_URL;
   if (outcome.kind === 'done') return '/';
   return null; // stayed | error
 }
 
-// The whole-account delete is gated on an explicit acknowledgement checkbox (the
-// strongest confirm, D-3). Kept as a named predicate so the gate's rule lives in
-// one tested place — and so a future stricter gate (type-to-confirm) slots here
-// without touching the control.
+/**
+ * The whole-account delete is gated on an explicit acknowledgement checkbox (the
+ * strongest confirm, D-3). Kept as a named predicate so the gate's rule lives in
+ * one tested place — and so a future stricter gate (type-to-confirm) slots here
+ * without touching the control.
+ */
 export function isDeleteAcknowledged(acknowledged: boolean): boolean {
   return acknowledged === true;
 }

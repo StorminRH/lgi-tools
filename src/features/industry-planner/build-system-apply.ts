@@ -7,20 +7,24 @@ import type { BuildLocationData } from './types';
 // resolve late and clobber the winner. Pure factory (fetch + state writes
 // injected) so the guard's branches are testable without a render.
 
-// The identifier triple every apply takes — the same shape the
-// planner.buildLocation preference persists and a saved template stores; the
-// live stations/indices/prices are fetched by the apply itself.
+/**
+ * The identifier triple every apply takes — the same shape the
+ * planner.buildLocation preference persists and a saved template stores; the
+ * live stations/indices/prices are fetched by the apply itself.
+ */
 export interface BuildSystemRef {
   systemId: number;
   systemName: string;
   security: number | null;
 }
 
-// The apply's settled outcome: 'superseded' means a later apply took over (the
-// generation guard) — callers stay silent on it; only 'failed' is an error. An
-// 'applied' outcome carries the fetched data so a follow-up step (the template
-// loader's station validation) reads the winner's stations without racing a
-// re-render for fresh state.
+/**
+ * The apply's settled outcome: 'superseded' means a later apply took over (the
+ * generation guard) — callers stay silent on it; only 'failed' is an error. An
+ * 'applied' outcome carries the fetched data so a follow-up step (the template
+ * loader's station validation) reads the winner's stations without racing a
+ * re-render for fresh state.
+ */
 export type ApplySystemOutcome =
   | { status: 'applied'; data: BuildLocationData }
   | { status: 'failed' }

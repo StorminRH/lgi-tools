@@ -6,8 +6,10 @@ export type RoleToggleView = {
   label: string;
 };
 
-// The per-row toggle's content: the role the button flips to, whether the row
-// targets the viewer's own account (the disabled self-row), and the button copy.
+/**
+ * The per-row toggle's content: the role the button flips to, whether the row
+ * targets the viewer's own account (the disabled self-row), and the button copy.
+ */
 export function deriveRoleToggle(
   currentRole: CharacterRole,
   targetUserId: string,

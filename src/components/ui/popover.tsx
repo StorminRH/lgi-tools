@@ -100,8 +100,10 @@ export function Popover({
   );
 }
 
-// The panel's green terminal-style header. Pairs with the rows below; the popup
-// itself supplies the chrome + gap-3 rhythm.
+/**
+ * The panel's green terminal-style header. Pairs with the rows below; the popup
+ * itself supplies the chrome + gap-3 rhythm.
+ */
 export function PopoverHeading({ children }: { children: ReactNode }) {
   return (
     <div className="font-mono text-label font-semibold uppercase tracking-display text-isk">
@@ -110,9 +112,11 @@ export function PopoverHeading({ children }: { children: ReactNode }) {
   );
 }
 
-// A "Label — description" row: bright bold label, em dash, then muted body text.
-// Put the concrete value in parentheses, e.g.
-// <PopoverRow label="Liquidity">how fast a batch sells (≈ 3 days to clear)</PopoverRow>.
+/**
+ * A "Label — description" row: bright bold label, em dash, then muted body text.
+ * Put the concrete value in parentheses, e.g.
+ * <PopoverRow label="Liquidity">how fast a batch sells (≈ 3 days to clear)</PopoverRow>.
+ */
 export function PopoverRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <p className="font-body text-body leading-snug text-muted">

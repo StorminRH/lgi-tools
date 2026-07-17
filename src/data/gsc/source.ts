@@ -62,9 +62,11 @@ function searchAnalyticsUrl(): string {
   return `${WEBMASTERS_V3_BASE}/sites/${encodeURIComponent(siteUrl())}/searchAnalytics/query`;
 }
 
-// One Search Analytics query, paginated on startRow until a short page signals
-// the end. `dimensions` are the raw API dimension names (e.g. ['date'] or
-// ['date','query']) and map to each returned row's `keys` array positionally.
+/**
+ * One Search Analytics query, paginated on startRow until a short page signals
+ * the end. `dimensions` are the raw API dimension names (e.g. ['date'] or
+ * ['date','query']) and map to each returned row's `keys` array positionally.
+ */
 export async function querySearchAnalytics(args: {
   startDate: string;
   endDate: string;
@@ -102,8 +104,10 @@ export async function listSitemaps(): Promise<SitemapApiEntry[]> {
   return body.sitemap ?? [];
 }
 
-// Inspect one URL; returns just the index-status half (the dashboard reads
-// verdict / coverage / last-crawl). Null when Google returns no index status.
+/**
+ * Inspect one URL; returns just the index-status half (the dashboard reads
+ * verdict / coverage / last-crawl). Null when Google returns no index status.
+ */
 export async function inspectUrl(url: string): Promise<IndexStatusApiResult | null> {
   const res = await authedFetch(URL_INSPECTION_ENDPOINT, {
     method: 'POST',

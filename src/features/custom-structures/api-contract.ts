@@ -38,11 +38,13 @@ export const customStructuresResponseSchema = z.object({
 });
 export type CustomStructuresResponse = z.infer<typeof customStructuresResponseSchema>;
 
-// ── POST /api/account/custom-structures ──────────────────────────────────
-// Save one custom structure. The route is the trust boundary: it confirms the
-// type is a real industry structure and every rig fits it (validation.ts), and
-// enforces the per-user cap. Echoes back the full updated list so the client
-// re-renders without a second GET.
+/**
+ * ── POST /api/account/custom-structures ──────────────────────────────────
+ * Save one custom structure. The route is the trust boundary: it confirms the
+ * type is a real industry structure and every rig fits it (validation.ts), and
+ * enforces the per-user cap. Echoes back the full updated list so the client
+ * re-renders without a second GET.
+ */
 export const createCustomStructureRequestSchema = z.object({
   name: z.string().trim().min(1).max(MAX_CUSTOM_STRUCTURE_NAME_LEN),
   structureTypeId: typeId,
@@ -67,9 +69,11 @@ export const createCustomStructureEndpoint: ApiEndpoint<
   response: customStructuresResponseSchema,
 };
 
-// ── POST /api/account/custom-structures/delete ───────────────────────────
-// Delete one of the caller's own structures (ownership-scoped in the query).
-// Echoes back the updated list.
+/**
+ * ── POST /api/account/custom-structures/delete ───────────────────────────
+ * Delete one of the caller's own structures (ownership-scoped in the query).
+ * Echoes back the updated list.
+ */
 export const deleteCustomStructureRequestSchema = z.object({
   id: z.string().min(1).max(100),
 });
@@ -85,10 +89,12 @@ export const deleteCustomStructureEndpoint: ApiEndpoint<
   response: customStructuresResponseSchema,
 };
 
-// ── POST /api/account/custom-structures/set-pin ──────────────────────────
-// Pin one of the caller's own structures to a system, or unpin it (null).
-// Ownership-scoped in the query like delete; the route confirms a non-null
-// system exists. Echoes back the updated list.
+/**
+ * ── POST /api/account/custom-structures/set-pin ──────────────────────────
+ * Pin one of the caller's own structures to a system, or unpin it (null).
+ * Ownership-scoped in the query like delete; the route confirms a non-null
+ * system exists. Echoes back the updated list.
+ */
 export const setCustomStructurePinRequestSchema = z.object({
   id: z.string().min(1).max(100),
   systemId: typeId.nullable(),
@@ -105,11 +111,13 @@ export const setCustomStructurePinEndpoint: ApiEndpoint<
   response: customStructuresResponseSchema,
 };
 
-// ── POST /api/account/custom-structures/set-tax ──────────────────────────
-// Set or clear (null) the facility tax on one of the caller's own structures.
-// Ownership-scoped in the query like set-pin (a foreign id is a no-op). An
-// entered 0 is a real 0% rate, distinct from null/never-entered. Echoes back
-// the updated list.
+/**
+ * ── POST /api/account/custom-structures/set-tax ──────────────────────────
+ * Set or clear (null) the facility tax on one of the caller's own structures.
+ * Ownership-scoped in the query like set-pin (a foreign id is a no-op). An
+ * entered 0 is a real 0% rate, distinct from null/never-entered. Echoes back
+ * the updated list.
+ */
 export const setCustomStructureTaxRequestSchema = z.object({
   id: z.string().min(1).max(100),
   taxPct: facilityTaxPct.nullable(),
@@ -126,11 +134,13 @@ export const setCustomStructureTaxEndpoint: ApiEndpoint<
   response: customStructuresResponseSchema,
 };
 
-// ── POST /api/account/custom-structures/parse-fit ────────────────────────
-// Parse a pasted in-game structure fit into { structureTypeId, rigTypeIds } so
-// the builder can pre-fill the picker. `parsed` is null when the clipboard has no
-// resolvable structure header. Resolution is bounded to the known industry
-// structures + rigs, so unknown lines (services, fighters, defensive rigs) drop.
+/**
+ * ── POST /api/account/custom-structures/parse-fit ────────────────────────
+ * Parse a pasted in-game structure fit into \{ structureTypeId, rigTypeIds \} so
+ * the builder can pre-fill the picker. `parsed` is null when the clipboard has no
+ * resolvable structure header. Resolution is bounded to the known industry
+ * structures + rigs, so unknown lines (services, fighters, defensive rigs) drop.
+ */
 export const parseStructureFitRequestSchema = z.object({
   fit: z.string().min(1).max(MAX_STRUCTURE_FIT_LEN),
 });

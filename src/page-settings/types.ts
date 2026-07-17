@@ -16,18 +16,20 @@ import type { FeatureControlId } from './feature-controls';
 // section, or inline on the page.
 type SettingsPlacement = 'global' | 'section' | 'inline';
 
-// A reference to ONE setting, in two kinds (ACCOUNT.6 grew the union):
-// - 'preference' (the default when `kind` is omitted, keeping pre-.6 spec
-//   literals valid as-is): a value-registry setting BY KEY (a lib/preferences
-//   PreferenceDef.key). Anti-drift is the engine test asserting every key is a
-//   registered preference.
-// - 'feature': a feature-owned, server-backed control BY ID (a
-//   ./feature-controls id — type-only import, so this module stays value-free).
-//   Pinned to placement 'inline' at the type level: a feature control never
-//   renders in the menu (D-3 — the menu hosts no confirm-gated/destructive
-//   flow); the menu resolver also drops it at runtime as cast-defense.
-// Exported for the presentation resolver (./controls); features keep importing
-// only the spec type.
+/**
+ * A reference to ONE setting, in two kinds (ACCOUNT.6 grew the union):
+ * - 'preference' (the default when `kind` is omitted, keeping pre-.6 spec
+ *   literals valid as-is): a value-registry setting BY KEY (a lib/preferences
+ *   PreferenceDef.key). Anti-drift is the engine test asserting every key is a
+ *   registered preference.
+ * - 'feature': a feature-owned, server-backed control BY ID (a
+ *   ./feature-controls id — type-only import, so this module stays value-free).
+ *   Pinned to placement 'inline' at the type level: a feature control never
+ *   renders in the menu (D-3 — the menu hosts no confirm-gated/destructive
+ *   flow); the menu resolver also drops it at runtime as cast-defense.
+ * Exported for the presentation resolver (./controls); features keep importing
+ * only the spec type.
+ */
 export type SettingsControlRef =
   | {
       kind?: 'preference';
@@ -42,11 +44,13 @@ export type SettingsControlRef =
       order?: number;
     };
 
-// The per-surface character strip (D-7, per-feature opt-in). `surfaceId` names
-// the surface's dimmed-set preference (lib/preferences' STRIP_SURFACE_IDS —
-// type-only import, so declaring a strip for a surface with no registered
-// dimmed-set def is a compile error). Exported for the panels' prop seam
-// (ACCOUNT.7); features still import only spec types from this module.
+/**
+ * The per-surface character strip (D-7, per-feature opt-in). `surfaceId` names
+ * the surface's dimmed-set preference (lib/preferences' STRIP_SURFACE_IDS —
+ * type-only import, so declaring a strip for a surface with no registered
+ * dimmed-set def is a compile error). Exported for the panels' prop seam
+ * (ACCOUNT.7); features still import only spec types from this module.
+ */
 export type CharacterStripSpec = {
   surfaceId: StripSurfaceId;
 };

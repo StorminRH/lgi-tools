@@ -13,8 +13,10 @@ export const metadata = buildPageMetadata({
   canonical: '/devlog',
 });
 
-// The landing document (Introduction). Content is the deploy-static dev log, so the
-// route prerenders as the static shell.
+/**
+ * The landing document (Introduction). Content is the deploy-static dev log, so the
+ * route prerenders as the static shell.
+ */
 export default async function DevlogIndexPage() {
   const doc = introDocument(await loadDevlog());
   if (!doc) notFound();

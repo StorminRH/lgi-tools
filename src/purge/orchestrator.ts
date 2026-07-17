@@ -17,10 +17,12 @@ async function runTier(tier: PurgeTier, subject: PurgeSubject): Promise<void> {
   }
 }
 
-// Run the purge for `subject`. `tiers` narrows the sweep: the owner-hash
-// transfer-purge passes ['credential'] (a transferred character keeps its identity,
-// so its regenerable caches re-sync under the new owner and must NOT be torn down);
-// a full character/account purge runs every tier.
+/**
+ * Run the purge for `subject`. `tiers` narrows the sweep: the owner-hash
+ * transfer-purge passes ['credential'] (a transferred character keeps its identity,
+ * so its regenerable caches re-sync under the new owner and must NOT be torn down);
+ * a full character/account purge runs every tier.
+ */
 export async function runPurge(
   subject: PurgeSubject,
   tiers: readonly PurgeTier[] = TIER_ORDER,

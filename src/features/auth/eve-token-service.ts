@@ -31,8 +31,10 @@ import {
 import { account } from './schema';
 import { decryptToken, encryptToken } from './token-crypto';
 
-// Refresh proactively when the stored access token has under a minute of life
-// left, so a vended token always carries usable headroom for the caller's call.
+/**
+ * Refresh proactively when the stored access token has under a minute of life
+ * left, so a vended token always carries usable headroom for the caller's call.
+ */
 export const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
 export const INVALID_GRANT_CONFIRMATION_GRACE_MS = 5 * 60 * 1000;
 
@@ -226,18 +228,20 @@ async function deferInvalidGrantConfirmation(
   return deferred.length > 0 ? { kind: 'upstream_error' } : reflectStoredToken(characterId);
 }
 
-// Revoke a character's EVE grant at CCP (RFC 7009), BEST-EFFORT. Reads the stored
-// refresh-token ciphertext, decrypts it, and revokes it at EVE's SSO endpoint so
-// the renewal path is closed upstream — not just dropped from local custody. NEVER
-// throws: a purge that calls this must finish its Neon teardown even if the revoke
-// fails (CCP down, network blip, env missing, already-dead token). A null/legacy/
-// tampered ciphertext means there is nothing valid to revoke, so we skip silently.
-//
-// Ordering: a purge calls this BEFORE its credential tier deletes the account row
-// (which carries the encrypted token) — the plaintext is needed to revoke. The
-// vend path's CAS race does not apply here: we revoke whatever ciphertext is stored
-// at read time; a concurrent rotation at worst revokes a now-stale token, which CCP
-// treats as a harmless no-op (200 either way).
+/**
+ * Revoke a character's EVE grant at CCP (RFC 7009), BEST-EFFORT. Reads the stored
+ * refresh-token ciphertext, decrypts it, and revokes it at EVE's SSO endpoint so
+ * the renewal path is closed upstream — not just dropped from local custody. NEVER
+ * throws: a purge that calls this must finish its Neon teardown even if the revoke
+ * fails (CCP down, network blip, env missing, already-dead token). A null/legacy/
+ * tampered ciphertext means there is nothing valid to revoke, so we skip silently.
+ *
+ * Ordering: a purge calls this BEFORE its credential tier deletes the account row
+ * (which carries the encrypted token) — the plaintext is needed to revoke. The
+ * vend path's CAS race does not apply here: we revoke whatever ciphertext is stored
+ * at read time; a concurrent rotation at worst revokes a now-stale token, which CCP
+ * treats as a harmless no-op (200 either way).
+ */
 export async function revokeCharacterToken(characterId: number): Promise<void> {
   try {
     const row = await loadAccountRow(characterId);

@@ -21,10 +21,12 @@ import {
 // Google's vocabulary, not ours, so the "pg enums from a TS as-const array"
 // invariant doesn't apply (same reasoning as `market_prices.source`).
 
-// Search Analytics at daily grain. One table serves the site-total trend
-// (dimension='total') plus the per-day query/page breakdowns ('query'/'page'),
-// so any dashboard horizon is a SQL aggregation over these rows. CTR is derived
-// at read time (clicks/impressions), never stored, so it can't drift.
+/**
+ * Search Analytics at daily grain. One table serves the site-total trend
+ * (dimension='total') plus the per-day query/page breakdowns ('query'/'page'),
+ * so any dashboard horizon is a SQL aggregation over these rows. CTR is derived
+ * at read time (clicks/impressions), never stored, so it can't drift.
+ */
 export const gscSearchAnalytics = pgTable(
   'gsc_search_analytics',
   {
@@ -42,9 +44,11 @@ export const gscSearchAnalytics = pgTable(
   ],
 );
 
-// One row per submitted sitemap. submitted/indexed are summed over the API's
-// `contents[]` — the affordable indexing-coverage proxy (there is no bulk
-// index-coverage API). Snapshot, not range-bound.
+/**
+ * One row per submitted sitemap. submitted/indexed are summed over the API's
+ * `contents[]` — the affordable indexing-coverage proxy (there is no bulk
+ * index-coverage API). Snapshot, not range-bound.
+ */
 export const gscSitemaps = pgTable('gsc_sitemaps', {
   path: text('path').primaryKey(),
   lastSubmitted: timestamp('last_submitted', { withTimezone: true }),
@@ -59,9 +63,11 @@ export const gscSitemaps = pgTable('gsc_sitemaps', {
   syncedAt: timestamp('synced_at', { withTimezone: true }).notNull(),
 });
 
-// One inspection result per sitemap URL per UTC day. The 400-day retained
-// history covers every fixed dashboard horizon; the latest-state read uses the
-// URL/date index rather than overwriting prior observations.
+/**
+ * One inspection result per sitemap URL per UTC day. The 400-day retained
+ * history covers every fixed dashboard horizon; the latest-state read uses the
+ * URL/date index rather than overwriting prior observations.
+ */
 export const gscUrlInspection = pgTable(
   'gsc_url_inspection',
   {

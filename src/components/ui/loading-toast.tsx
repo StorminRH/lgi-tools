@@ -78,11 +78,13 @@ export function LoadingToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Register a loader for as long as `active` is true (and until unmount). The
-// canonical entry point for components that already hold a boolean flag. No-op
-// on the server (the effect doesn't run) and a no-op outside a provider (ctx is
-// null), so a beacon in a test or storybook can't throw. useId gives a stable,
-// instance-unique token without a useRef(randomUUID) dance.
+/**
+ * Register a loader for as long as `active` is true (and until unmount). The
+ * canonical entry point for components that already hold a boolean flag. No-op
+ * on the server (the effect doesn't run) and a no-op outside a provider (ctx is
+ * null), so a beacon in a test or storybook can't throw. useId gives a stable,
+ * instance-unique token without a useRef(randomUUID) dance.
+ */
 export function useLoadingToast(active: boolean): void {
   const ctx = useContext(LoadingToastContext);
   const token = useId();

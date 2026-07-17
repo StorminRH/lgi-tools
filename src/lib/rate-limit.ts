@@ -23,8 +23,10 @@ export interface RateLimitDenied {
 
 export type RateLimitResult = RateLimitOk | RateLimitDenied;
 
-// Wire shape of the 429 body every rate-limited route constructs itself —
-// pinned with `satisfies` at those call sites (3.4.T contract pattern).
+/**
+ * Wire shape of the 429 body every rate-limited route constructs itself —
+ * pinned with `satisfies` at those call sites (3.4.T contract pattern).
+ */
 export interface RateLimitedBody {
   error: "rate_limited";
   retryAfter: number;
@@ -71,15 +73,17 @@ function getLimiter(options: RateLimitOptions): Ratelimit {
   return limiter;
 }
 
-// Returns `{ ok: true }` when the caller is under the limit and
-// `{ ok: false, retryAfter }` when they're over it. `retryAfter` is in
-// seconds, matching the `Retry-After` HTTP header units.
-//
-// In development without Upstash env vars configured, returns ok with
-// Infinity remaining and warns once per process — so `pnpm dev` stays
-// unblocked without an account. In production / preview, missing env vars
-// throw (fail-closed: a misconfigured deploy should 500 once and get
-// fixed, not ship an unlimited endpoint silently).
+/**
+ * Returns `{ ok: true }` when the caller is under the limit and
+ * `{ ok: false, retryAfter }` when they're over it. `retryAfter` is in
+ * seconds, matching the `Retry-After` HTTP header units.
+ *
+ * In development without Upstash env vars configured, returns ok with
+ * Infinity remaining and warns once per process — so `pnpm dev` stays
+ * unblocked without an account. In production / preview, missing env vars
+ * throw (fail-closed: a misconfigured deploy should 500 once and get
+ * fixed, not ship an unlimited endpoint silently).
+ */
 export async function rateLimit(
   identifier: string,
   options: RateLimitOptions,
@@ -121,12 +125,14 @@ export async function rateLimit(
   return { ok: false, retryAfter };
 }
 
-// Route-guard form of the limiter: keys on the client IP and, when over the
-// limit, hands back the exact 429 every rate-limited route returns as-is
-// (RateLimitedBody JSON + Retry-After header) — so a handler's happy path is
-// `if (!limit.ok) return limit.response;` instead of the repeated
-// clientIdentifier + Response.json construction. Same ok/response union shape
-// as parseJsonBody (src/lib/route-body.ts).
+/**
+ * Route-guard form of the limiter: keys on the client IP and, when over the
+ * limit, hands back the exact 429 every rate-limited route returns as-is
+ * (RateLimitedBody JSON + Retry-After header) — so a handler's happy path is
+ * `if (!limit.ok) return limit.response;` instead of the repeated
+ * clientIdentifier + Response.json construction. Same ok/response union shape
+ * as parseJsonBody (src/lib/route-body.ts).
+ */
 export type RateLimitGuardResult = { ok: true } | { ok: false; response: Response };
 
 export async function rateLimitGuard(
@@ -147,15 +153,17 @@ export async function rateLimitGuard(
   };
 }
 
-// Extracts the originating IP for rate-limit keying. `x-real-ip` is
-// platform-set on Vercel (the connecting client's address; a client can't
-// supply it) and must win: the leftmost `x-forwarded-for` entry is
-// attacker-controlled there — Vercel appends to a client-supplied list
-// rather than replacing it, so keying on it hands every spoofer a fresh
-// bucket (verified live against a preview deployment). The forwarded-for
-// path stays as a fallback for local dev, where `x-real-ip` isn't set;
-// no header at all falls to one fixed shared bucket so such callers are
-// still subject to the limit.
+/**
+ * Extracts the originating IP for rate-limit keying. `x-real-ip` is
+ * platform-set on Vercel (the connecting client's address; a client can't
+ * supply it) and must win: the leftmost `x-forwarded-for` entry is
+ * attacker-controlled there — Vercel appends to a client-supplied list
+ * rather than replacing it, so keying on it hands every spoofer a fresh
+ * bucket (verified live against a preview deployment). The forwarded-for
+ * path stays as a fallback for local dev, where `x-real-ip` isn't set;
+ * no header at all falls to one fixed shared bucket so such callers are
+ * still subject to the limit.
+ */
 export function clientIdentifier(headers: Headers): string {
   const realIp = headers.get("x-real-ip");
   if (realIp) return realIp;

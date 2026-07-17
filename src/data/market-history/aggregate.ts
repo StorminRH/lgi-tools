@@ -46,9 +46,11 @@ function windowVolumeTotal(
   return { inWindow, total };
 }
 
-// Average daily volume over a trailing window: total units traded ÷ the window's
-// CALENDAR length, so traded-nothing days (no row) correctly pull the average
-// down. null when the window holds no rows ("no data" ≠ "zero").
+/**
+ * Average daily volume over a trailing window: total units traded ÷ the window's
+ * CALENDAR length, so traded-nothing days (no row) correctly pull the average
+ * down. null when the window holds no rows ("no data" ≠ "zero").
+ */
 export function averageDailyVolume(
   rows: HistoryDailyRow[],
   windowDays: number,
@@ -59,11 +61,13 @@ export function averageDailyVolume(
   return w.total / windowDays;
 }
 
-// Coefficient of variation (stddev/mean) of daily volume over a trailing
-// window, ZERO-FILLING days with no trades — a market that trades hard for
-// three days then goes quiet is inconsistent, and the zero days are what show
-// it. Population stddev over the window's calendar length. null when the window
-// has no data or a zero mean.
+/**
+ * Coefficient of variation (stddev/mean) of daily volume over a trailing
+ * window, ZERO-FILLING days with no trades — a market that trades hard for
+ * three days then goes quiet is inconsistent, and the zero days are what show
+ * it. Population stddev over the window's calendar length. null when the window
+ * has no data or a zero mean.
+ */
 export function volumeCoefficientOfVariation(
   rows: HistoryDailyRow[],
   windowDays: number,
@@ -87,9 +91,11 @@ export function volumeCoefficientOfVariation(
   return stddev / mean;
 }
 
-// Price volatility: coefficient of variation (stddev/mean) of the daily average
-// price over a trailing window, across the days that traded (no zero-fill —
-// price has no value on a no-trade day). null when fewer than 2 priced days.
+/**
+ * Price volatility: coefficient of variation (stddev/mean) of the daily average
+ * price over a trailing window, across the days that traded (no zero-fill —
+ * price has no value on a no-trade day). null when fewer than 2 priced days.
+ */
 export function priceVolatility(
   rows: HistoryDailyRow[],
   windowDays: number,
@@ -110,7 +116,7 @@ export function priceVolatility(
   return stddev / mean;
 }
 
-// Distinct days with data inside a trailing window — the demand-coverage input.
+/** Distinct days with data inside a trailing window — the demand-coverage input. */
 export function coverage(
   rows: HistoryDailyRow[],
   windowDays: number,
@@ -119,9 +125,11 @@ export function coverage(
   return rowsInWindow(rows, windowDays, asOf).length;
 }
 
-// Compose the typed scoring inputs. `asOf` is the latest row's date (the data's
-// own frame); demand intensity reflects the type's most recent active period,
-// while latestDate carries the staleness the consumer judges against today.
+/**
+ * Compose the typed scoring inputs. `asOf` is the latest row's date (the data's
+ * own frame); demand intensity reflects the type's most recent active period,
+ * while latestDate carries the staleness the consumer judges against today.
+ */
 export function computeHistoryInputs(
   typeId: number,
   rows: HistoryDailyRow[],

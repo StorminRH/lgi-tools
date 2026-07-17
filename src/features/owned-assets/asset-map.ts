@@ -12,10 +12,12 @@
 // types is applied HERE, in the reduce.
 import type { OwnedAssetOwnerType } from './schema';
 
-// One (owner, location) holding of a type. quantity is the summed per-(type,
-// location) stack the projection produced; this list keeps each distinct owner/
-// location holding separate so the readout can show WHERE the units sit. owner_id
-// / location_id are raw ids resolved to names server-side, above this pure reduce.
+/**
+ * One (owner, location) holding of a type. quantity is the summed per-(type,
+ * location) stack the projection produced; this list keeps each distinct owner/
+ * location holding separate so the readout can show WHERE the units sit. owner_id
+ * / location_id are raw ids resolved to names server-side, above this pure reduce.
+ */
 export interface AssetHolding {
   ownerType: OwnedAssetOwnerType;
   ownerId: number;
@@ -25,8 +27,10 @@ export interface AssetHolding {
   quantity: number;
 }
 
-// Per-type summary: total owned across ALL owners + locations, plus the held-by
-// list backing the popover.
+/**
+ * Per-type summary: total owned across ALL owners + locations, plus the held-by
+ * list backing the popover.
+ */
 export interface OwnedAssetSummary {
   ownedQty: number;
   heldBy: AssetHolding[];
@@ -34,8 +38,10 @@ export interface OwnedAssetSummary {
 
 export type OwnedAssetMap = Map<number, OwnedAssetSummary>;
 
-// The columns the reduce needs from a stored row — a structural subset so callers
-// can pass the cached read's projection directly.
+/**
+ * The columns the reduce needs from a stored row — a structural subset so callers
+ * can pass the cached read's projection directly.
+ */
 export interface AssetMapInput {
   typeId: number;
   ownerType: OwnedAssetOwnerType;
@@ -46,11 +52,13 @@ export interface AssetMapInput {
   quantity: number;
 }
 
-// Reduce stored rows → the per-type summary, optionally scoped to `typeIds` (the
-// build's requested types; omit to keep every type). Rows arrive canonically
-// sorted within an owner (the projection's compareAssets) and owners are flattened
-// in a fixed order, so `heldBy` push-order is deterministic for a fixed owner set —
-// no extra sort, matching the blueprint reduce's reliance on upstream ordering.
+/**
+ * Reduce stored rows → the per-type summary, optionally scoped to `typeIds` (the
+ * build's requested types; omit to keep every type). Rows arrive canonically
+ * sorted within an owner (the projection's compareAssets) and owners are flattened
+ * in a fixed order, so `heldBy` push-order is deterministic for a fixed owner set —
+ * no extra sort, matching the blueprint reduce's reliance on upstream ordering.
+ */
 export function buildOwnedAssetMap(rows: AssetMapInput[], typeIds?: number[]): OwnedAssetMap {
   const wanted = typeIds ? new Set(typeIds) : null;
   const map: OwnedAssetMap = new Map();

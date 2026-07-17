@@ -94,9 +94,11 @@ function SitesLoading() {
   );
 }
 
-// The static shell — just the page background. The header, filter rail, and
-// results all stream in from the <Suspense> hole once the priced catalogue
-// resolves; the rail + view toggle are then client-interactive.
+/**
+ * The static shell — just the page background. The header, filter rail, and
+ * results all stream in from the <Suspense> hole once the priced catalogue
+ * resolves; the rail + view toggle are then client-interactive.
+ */
 export default function SitesPage({
   searchParams,
 }: {

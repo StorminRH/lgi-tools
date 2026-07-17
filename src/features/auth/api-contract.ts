@@ -20,8 +20,10 @@ export const eveTokenRequestSchema = z.object({
   characterId: z.number().int().positive(),
 });
 
-// 200 — pinned with `satisfies` in the route; type-imported by convex/ in
-// 3.4.3. `expiresAt` is an ISO-8601 string on the wire (Date.toISOString()).
+/**
+ * 200 — pinned with `satisfies` in the route; type-imported by convex/ in
+ * 3.4.3. `expiresAt` is an ISO-8601 string on the wire (Date.toISOString()).
+ */
 export interface EveTokenOkResponse {
   accessToken: string;
   expiresAt: string;
@@ -29,7 +31,7 @@ export interface EveTokenOkResponse {
   scopes: string[];
 }
 
-// 404 | 409 | 502 JSON envelope. 400/401/500 are plain text — uncontracted.
+/** 404 | 409 | 502 JSON envelope. 400/401/500 are plain text — uncontracted. */
 export type EveTokenErrorCode = 'not_found' | 'reauth_required' | 'upstream_error';
 export interface EveTokenErrorResponse {
   error: EveTokenErrorCode;
@@ -46,11 +48,13 @@ export const eveCharactersRequestSchema = z.object({
   userId: userIdField,
 });
 
-// 200 — pinned with `satisfies` in the route; type-imported by convex/.
-// `hasRefreshToken` + `missingScopes` (from the shipped scope-health
-// derivation) let a consumer decide eligibility against ITS OWN scope needs —
-// the skill tracker only requires the two skill scopes, not the full
-// superset — and skip token vends that would only 409. No token material.
+/**
+ * 200 — pinned with `satisfies` in the route; type-imported by convex/.
+ * `hasRefreshToken` + `missingScopes` (from the shipped scope-health
+ * derivation) let a consumer decide eligibility against ITS OWN scope needs —
+ * the skill tracker only requires the two skill scopes, not the full
+ * superset — and skip token vends that would only 409. No token material.
+ */
 export interface EveCharacterEntry {
   characterId: number;
   name: string;
@@ -65,10 +69,12 @@ export interface EveCharactersResponse {
   characters: EveCharacterEntry[];
 }
 
-// ── GET /api/cron/refresh-affiliations (authz: cron) ────────────────────
-// No programmatic consumer (Vercel cron reads logs only) — pinned with
-// `satisfies` in the route. `busy` means another run held the advisory lock;
-// `refreshed` carries the characters considered + rows actually written.
+/**
+ * ── GET /api/cron/refresh-affiliations (authz: cron) ────────────────────
+ * No programmatic consumer (Vercel cron reads logs only) — pinned with
+ * `satisfies` in the route. `busy` means another run held the advisory lock;
+ * `refreshed` carries the characters considered + rows actually written.
+ */
 export type CronRefreshAffiliationsResponse =
   | { status: 'busy' }
   | { status: 'refreshed'; stale: number; refreshed: number };
@@ -79,18 +85,20 @@ export type CronRefreshAffiliationsResponse =
 // fields have input type `unknown` — the routes pass form.get() values to
 // safeParse exactly as before.
 
-// /api/account/active-character — the character to make active.
+/** /api/account/active-character — the character to make active. */
 export const switchCharacterFormSchema = z.object({
   characterId: z.coerce.number().int().positive(),
 });
 
-// /api/account/characters/unlink — the character to remove.
+/** /api/account/characters/unlink — the character to remove. */
 export const unlinkCharacterFormSchema = z.object({
   characterId: z.coerce.number().int().positive(),
 });
 
-// /api/admin/role — `q` (optional search-state preserver) is loosely validated
-// here; the route's post-parse sanitiseQuery() does the real cleaning.
+/**
+ * /api/admin/role — `q` (optional search-state preserver) is loosely validated
+ * here; the route's post-parse sanitiseQuery() does the real cleaning.
+ */
 export const ADMIN_ACCESS_QUERY_MAX_LENGTH = 200;
 export const adminRoleFormSchema = z.object({
   userId: userIdField,
@@ -98,19 +106,19 @@ export const adminRoleFormSchema = z.object({
   q: z.string().max(ADMIN_ACCESS_QUERY_MAX_LENGTH * 4).optional(),
 });
 
-// /api/admin/characters/unlink — admin force-unlink from ANY user.
+/** /api/admin/characters/unlink — admin force-unlink from ANY user. */
 export const adminUnlinkFormSchema = z.object({
   userId: userIdField,
   characterId: z.coerce.number().int().positive(),
 });
 
-// /api/admin/characters/reassign — move a character onto the acting admin.
+/** /api/admin/characters/reassign — move a character onto the acting admin. */
 export const adminReassignFormSchema = z.object({
   characterId: z.coerce.number().int().positive(),
   fromUserId: userIdField,
 });
 
-// /api/admin/sessions/revoke — the user whose sessions to revoke.
+/** /api/admin/sessions/revoke — the user whose sessions to revoke. */
 export const adminRevokeSessionsFormSchema = z.object({
   userId: userIdField,
 });
@@ -186,9 +194,11 @@ export const accountCharactersEndpoint: ApiEndpoint<null, AccountCharactersRespo
 // the route imports its contract (the api-contracts.test invariant) and pins its
 // JSON payload with `satisfies`.
 
-// POST /api/account/purge-character — purge one of the caller's own characters
-// (full teardown + EVE revoke). The route also verifies the posted id belongs to
-// the session user before acting.
+/**
+ * POST /api/account/purge-character — purge one of the caller's own characters
+ * (full teardown + EVE revoke). The route also verifies the posted id belongs to
+ * the session user before acting.
+ */
 export const purgeCharacterRequestSchema = z.object({
   characterId: z.number().int().positive(),
 });

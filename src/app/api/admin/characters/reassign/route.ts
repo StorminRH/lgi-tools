@@ -7,12 +7,14 @@ import { requireAdmin } from '@/features/auth/route-guards';
 import { requireSameOrigin } from '@/features/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 
-// POST-only. Admin reassign — move a character from a standalone/other account
-// onto the acting admin's own account in one click (no OAuth re-login). Used to
-// consolidate the pre-linking standalone accounts. The destination is fixed to
-// the caller (session.user.id). If the source account is left empty it's removed
-// (see reassignCharacter). Never trust the posted owner — we verify the
-// character actually belongs to `fromUserId` first.
+/**
+ * POST-only. Admin reassign — move a character from a standalone/other account
+ * onto the acting admin's own account in one click (no OAuth re-login). Used to
+ * consolidate the pre-linking standalone accounts. The destination is fixed to
+ * the caller (session.user.id). If the source account is left empty it's removed
+ * (see reassignCharacter). Never trust the posted owner — we verify the
+ * character actually belongs to `fromUserId` first.
+ */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireAdmin();

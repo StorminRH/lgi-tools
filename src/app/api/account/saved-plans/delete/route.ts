@@ -8,11 +8,13 @@ import {
 import { deleteSavedPlan, listSavedPlans } from '@/features/industry-planner/saved-plans-queries';
 import { parseJsonBody } from '@/lib/route-body';
 
+/**
+ * POST /api/account/saved-plans/delete — delete one of the caller's OWN
+ * templates (the query's (userId, id) predicate makes a foreign id a no-op).
+ * Echoes the updated list. apiFetch only speaks GET/POST, so this is a POST
+ * sub-route rather than an HTTP DELETE.
+ */
 // authz: auth
-// POST /api/account/saved-plans/delete — delete one of the caller's OWN
-// templates (the query's (userId, id) predicate makes a foreign id a no-op).
-// Echoes the updated list. apiFetch only speaks GET/POST, so this is a POST
-// sub-route rather than an HTTP DELETE.
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     authorize: requireUserId,

@@ -12,8 +12,10 @@ const RETRY_AFTER_MAX_SECONDS = 3600;
 
 const KEY_PREFIX = 'lgi:esi';
 
-// Collapse numeric path segments so one block key covers a route, not one
-// region/type permutation: /markets/10000002/orders/ → /markets/{n}/orders.
+/**
+ * Collapse numeric path segments so one block key covers a route, not one
+ * region/type permutation: /markets/10000002/orders/ → /markets/\{n\}/orders.
+ */
 export function normalizeEsiPath(url: string): string {
   const path = new URL(url).pathname.replace(/\/+$/, '') || '/';
   return path
@@ -34,8 +36,10 @@ export function echoTtl(resetSeconds: number | null): number {
   return clamp(resetSeconds ?? DEFAULT_RETRY_AFTER_SECONDS, 1, ECHO_TTL_MAX_SECONDS);
 }
 
-// Clamp a 429's Retry-After to a sane block duration. Shared by both backends
-// so the bounding lives in exactly one place.
+/**
+ * Clamp a 429's Retry-After to a sane block duration. Shared by both backends
+ * so the bounding lives in exactly one place.
+ */
 export function resolveRetryAfter(retryAfter: number | null): number {
   return clamp(retryAfter ?? DEFAULT_RETRY_AFTER_SECONDS, 1, RETRY_AFTER_MAX_SECONDS);
 }
@@ -65,9 +69,11 @@ export function keyEtagBody(url: string): string {
   return `${KEY_PREFIX}:etag:body:${urlPathAndQuery(url)}`;
 }
 
-// The one atomic piece: never let a stale higher Remain reopen the gate.
-// Absent key = the window rolled over, so the incoming value is fresh truth
-// even when numerically higher than the last one any instance saw.
+/**
+ * The one atomic piece: never let a stale higher Remain reopen the gate.
+ * Absent key = the window rolled over, so the incoming value is fresh truth
+ * even when numerically higher than the last one any instance saw.
+ */
 export const WRITE_IF_LOWER_LUA = `local cur = redis.call('GET', KEYS[1])
 if cur == false or tonumber(cur) > tonumber(ARGV[1]) then
   redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2])

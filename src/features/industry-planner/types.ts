@@ -4,9 +4,11 @@ import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import type { AttrMap } from '@/data/eve-data/types';
 import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
 
-// One searchable blueprint: its own type ID, plus the type ID and name of the
-// item it builds (the product, so the search dropdown can show the product's
-// icon). Feeds the lazy Blueprints search source.
+/**
+ * One searchable blueprint: its own type ID, plus the type ID and name of the
+ * item it builds (the product, so the search dropdown can show the product's
+ * icon). Feeds the lazy Blueprints search source.
+ */
 export interface BlueprintIndexEntry {
   blueprintTypeId: number;
   productTypeId: number;
@@ -49,16 +51,18 @@ export interface BuildNodeDisplay {
   tone: Tone;
 }
 
-// One node in the nested build tree. Carries only the per-occurrence facts (its
-// type and the absolute quantity one run of the final product needs);
-// everything per-type-stable is looked up from `buildNodeDisplay`.
+/**
+ * One node in the nested build tree. Carries only the per-occurrence facts (its
+ * type and the absolute quantity one run of the final product needs);
+ * everything per-type-stable is looked up from `buildNodeDisplay`.
+ */
 export interface BuildNode {
   typeId: number;
   quantity: number;
   inputs: BuildNode[];
 }
 
-// A raw-material source category present in this build, with its colour.
+/** A raw-material source category present in this build, with its colour. */
 export interface MaterialCategoryMeta {
   label: string;
   tone: Tone;
@@ -135,10 +139,12 @@ export interface MaterialCostRow {
   staleAfterMs: number | null;
 }
 
-// A buildable intermediate's market price, carried only so the cascade can show
-// a price-confidence badge on it (a build-vs-buy liquidity hint). These are NOT
-// summed into the cost basis — the cost stays the recursed raw materials
-// (`rows`). One entry per non-raw, non-root node typeId in the build tree.
+/**
+ * A buildable intermediate's market price, carried only so the cascade can show
+ * a price-confidence badge on it (a build-vs-buy liquidity hint). These are NOT
+ * summed into the cost basis — the cost stays the recursed raw materials
+ * (`rows`). One entry per non-raw, non-root node typeId in the build tree.
+ */
 export interface IntermediatePrice {
   typeId: number;
   bestBuy: number | null;
@@ -153,19 +159,21 @@ export interface IntermediatePrice {
 
 // --- Build-structure selector (3.7.9.1.3) --------------------------------
 
-// A structure the planner can place a build in — SOURCE-AGNOSTIC so the corp-
-// pulled source (3.7.9.1.5) slots in beside the user's custom ones with no
-// selector/wiring change. There is no per-structure "role": one selected
-// structure bonuses each build node by THAT node's activity, from the structure's
-// own attrs plus whatever rigs fit it. The resolved structure + rig dogma travels
-// on the wire so the bonus recomputes client-side, live, as the build system /
-// per-node activity change. `securityClass` is the structure's own system band for
-// a corp structure; null for a custom one (pinned or not), whose rig bonus instead
-// scales against the security of the planner's selected build LOCATION. `systemId`
-// is the structure's home system — always set for corp, set for a custom structure
-// its owner PINNED in the builder (3.7.13.2) — and makes a pick lock the build
-// location to it (isSystemLocked); null = portable, borrowing whatever system the
-// planner has selected.
+/**
+ * A structure the planner can place a build in — SOURCE-AGNOSTIC so the corp-
+ * pulled source (3.7.9.1.5) slots in beside the user's custom ones with no
+ * selector/wiring change. There is no per-structure "role": one selected
+ * structure bonuses each build node by THAT node's activity, from the structure's
+ * own attrs plus whatever rigs fit it. The resolved structure + rig dogma travels
+ * on the wire so the bonus recomputes client-side, live, as the build system /
+ * per-node activity change. `securityClass` is the structure's own system band for
+ * a corp structure; null for a custom one (pinned or not), whose rig bonus instead
+ * scales against the security of the planner's selected build LOCATION. `systemId`
+ * is the structure's home system — always set for corp, set for a custom structure
+ * its owner PINNED in the builder (3.7.13.2) — and makes a pick lock the build
+ * location to it (isSystemLocked); null = portable, borrowing whatever system the
+ * planner has selected.
+ */
 export interface AvailableStructure {
   id: string;
   source: 'custom' | 'corp';
@@ -194,9 +202,11 @@ export interface AvailableStructuresResponse {
 // (The searchable system index — SystemSearchEntry — lives in the eve-data
 // slice since 3.7.13.2: the systems search source + every picker share it.)
 
-// One industry-capable NPC station in a system. `name` is the full in-game
-// station name (ESI-resolved); null when unresolved, so the picker falls back to
-// `operationName` (the station-operation label).
+/**
+ * One industry-capable NPC station in a system. `name` is the full in-game
+ * station name (ESI-resolved); null when unresolved, so the picker falls back to
+ * `operationName` (the station-operation label).
+ */
 export interface IndustryStationView {
   id: number;
   name: string | null;
@@ -205,11 +215,13 @@ export interface IndustryStationView {
   researchCapable: boolean;
 }
 
-// Everything the client needs to compute net margin once a build system is
-// picked: its industry stations, both relevant system cost indices (null when
-// the system has no stored index — the absent-vs-0.0 distinction), and the CCP
-// adjusted prices for the product's direct ME0 base materials (EIV basis). The
-// wire shape for /api/industry/build-location.
+/**
+ * Everything the client needs to compute net margin once a build system is
+ * picked: its industry stations, both relevant system cost indices (null when
+ * the system has no stored index — the absent-vs-0.0 distinction), and the CCP
+ * adjusted prices for the product's direct ME0 base materials (EIV basis). The
+ * wire shape for /api/industry/build-location.
+ */
 export interface BuildLocationData {
   stations: IndustryStationView[];
   costIndices: { manufacturing: number | null; reaction: number | null };
@@ -219,10 +231,12 @@ export interface BuildLocationData {
   adjustedPrices: { typeId: number; adjustedPrice: number }[];
 }
 
-// The net-margin view derived client-side once fee inputs exist (manufacturing
-// and reaction blueprints, each against its own index + tax). Null on the
-// gross-only path. Mirrors the pure leaf's NetMargin, minus the gross fields
-// already in `summary`.
+/**
+ * The net-margin view derived client-side once fee inputs exist (manufacturing
+ * and reaction blueprints, each against its own index + tax). Null on the
+ * gross-only path. Mirrors the pure leaf's NetMargin, minus the gross fields
+ * already in `summary`.
+ */
 export interface NetMarginView {
   netMargin: number | null;
   netMarginPct: number | null;
@@ -299,14 +313,16 @@ export interface BlueprintPricing {
 
 // --- Owned-blueprint ME overlay (3.7.5.2) --------------------------------
 
-// One owned blueprint's effective material efficiency + readout detail, keyed by
-// blueprint type. `me` is the best ME across all the caller's copies of that
-// blueprint (resolved server-side); `te`, owner, and location describe that same
-// best copy — informational popover rows, never part of the cost compute. The wire
-// shape for /api/industry/owned-blueprints; the client builds a
-// Map<blueprintTypeId, me> for the cost basis and a parallel detail map for the orb.
-// ownerType is the wire's own literal (the DB enum lives in the owned-blueprints
-// slice, which a feature may not import — features never import each other).
+/**
+ * One owned blueprint's effective material efficiency + readout detail, keyed by
+ * blueprint type. `me` is the best ME across all the caller's copies of that
+ * blueprint (resolved server-side); `te`, owner, and location describe that same
+ * best copy — informational popover rows, never part of the cost compute. The wire
+ * shape for /api/industry/owned-blueprints; the client builds a
+ * Map\<blueprintTypeId, me\> for the cost basis and a parallel detail map for the orb.
+ * ownerType is the wire's own literal (the DB enum lives in the owned-blueprints
+ * slice, which a feature may not import — features never import each other).
+ */
 export interface OwnedBlueprintMeEntry {
   blueprintTypeId: number;
   me: number;
@@ -317,27 +333,33 @@ export interface OwnedBlueprintMeEntry {
   locationFlag: string;
 }
 
-// The owned-ME overlay payload: only the blueprints the caller owns among those
-// requested. Blueprints absent from the list are unowned → the client applies
-// ME0 to them (the byte-identical gross path). Empty for a logged-out caller.
+/**
+ * The owned-ME overlay payload: only the blueprints the caller owns among those
+ * requested. Blueprints absent from the list are unowned → the client applies
+ * ME0 to them (the byte-identical gross path). Empty for a logged-out caller.
+ */
 export interface OwnedBlueprintsResponse {
   blueprints: OwnedBlueprintMeEntry[];
 }
 
-// The readout detail for an owned component's orb popover (3.7.5.5): the best
-// owned copy's TE + owner + location. Built client-side into a
-// Map<blueprintTypeId, …> parallel to the ME map, and NEVER read by the cost
-// compute — purely informational rows.
+/**
+ * The readout detail for an owned component's orb popover (3.7.5.5): the best
+ * owned copy's TE + owner + location. Built client-side into a
+ * Map\<blueprintTypeId, …\> parallel to the ME map, and NEVER read by the cost
+ * compute — purely informational rows.
+ */
 export type OwnedComponentDetail = Omit<OwnedBlueprintMeEntry, 'blueprintTypeId' | 'me'>;
 
-// ── Owned-assets overlay (3.7.7.2) ──────────────────────────────────────
-// The wire shape for /api/industry/owned-assets; the client builds a
-// Map<typeId, OwnedAssetEntry> keyed by the material/product type id (assets are
-// the item itself, not its blueprint) to fill each node's QTY ring + asset ledger.
-// A type can sit in several places / be held by several owners, so each entry
-// carries a `heldBy` LIST — owner + location are resolved to names server-side.
-// ownerType is the wire's own literal (the DB enum lives in the owned-assets slice,
-// which a feature may not import — features never import each other).
+/**
+ * ── Owned-assets overlay (3.7.7.2) ──────────────────────────────────────
+ * The wire shape for /api/industry/owned-assets; the client builds a
+ * Map\<typeId, OwnedAssetEntry\> keyed by the material/product type id (assets are
+ * the item itself, not its blueprint) to fill each node's QTY ring + asset ledger.
+ * A type can sit in several places / be held by several owners, so each entry
+ * carries a `heldBy` LIST — owner + location are resolved to names server-side.
+ * ownerType is the wire's own literal (the DB enum lives in the owned-assets slice,
+ * which a feature may not import — features never import each other).
+ */
 export interface AssetHolding {
   ownerType: 'character' | 'corporation';
   ownerName: string;
@@ -346,18 +368,22 @@ export interface AssetHolding {
   quantity: number;
 }
 
-// One owned type: total on-hand quantity across every owner + location, plus the
-// held-by list backing the popover.
+/**
+ * One owned type: total on-hand quantity across every owner + location, plus the
+ * held-by list backing the popover.
+ */
 export interface OwnedAssetEntry {
   typeId: number;
   ownedQty: number;
   heldBy: AssetHolding[];
 }
 
-// The owned-asset overlay payload: only the types the caller owns among those
-// requested. Types absent from the list are un-held → the client leaves the ring
-// empty + the ledger '—' (the byte-identical placeholder path). Empty for a
-// logged-out caller.
+/**
+ * The owned-asset overlay payload: only the types the caller owns among those
+ * requested. Types absent from the list are un-held → the client leaves the ring
+ * empty + the ledger '—' (the byte-identical placeholder path). Empty for a
+ * logged-out caller.
+ */
 export interface OwnedAssetsResponse {
   assets: OwnedAssetEntry[];
 }

@@ -22,9 +22,11 @@
 import { esiFetch, esiUrl } from './index';
 import type { EsiPageResponseHeaders, EsiResponseHeaders } from './response-metadata';
 
-// Latest X-Ratelimit-* numbers seen this run — the token-bucket group usage the
-// Convex live engine schedules against. Mutated in place as reads land. Supplied
-// ONLY by the online-status caller; the Neon trackers omit it (no harvest).
+/**
+ * Latest X-Ratelimit-* numbers seen this run — the token-bucket group usage the
+ * Convex live engine schedules against. Mutated in place as reads land. Supplied
+ * ONLY by the online-status caller; the Neon trackers omit it (no harvest).
+ */
 export interface RlSnapshot {
   rlGroup: string | null;
   rlLimit: number | null;
@@ -37,9 +39,11 @@ export type EsiAuthedRead =
   | { kind: 'unchanged'; expiresAt: number | null }
   | { kind: 'error'; code: string };
 
-// One authed conditional read. Used for the corp-roles probe (which needs no
-// pagination) and as the single-call building block. `rl`, when given, harvests
-// the rate-limit headers off the response (the online-status cadence seam).
+/**
+ * One authed conditional read. Used for the corp-roles probe (which needs no
+ * pagination) and as the single-call building block. `rl`, when given, harvests
+ * the rate-limit headers off the response (the online-status cadence seam).
+ */
 export async function readEsiAuthed(
   path: string,
   accessToken: string,
@@ -58,19 +62,21 @@ export async function readEsiAuthed(
   return { kind: 'error', code: `esi_${res.status}` };
 }
 
-// The paginated read for the owned-blueprints / owned-assets endpoints (?page= +
-// X-Pages), returning the flattened element array across all pages.
-//
-//  - 'unchanged' — a single-page collection whose held page-1 etag still matches
-//    (the dominant character case): the caller bumps the staleness stamp and
-//    leaves the stored rows untouched.
-//  - 'fresh' — the flattened items plus per-page etags (empty if any page lacked
-//    an ETag, so a partial set never misaligns next run).
-//  - 'error' — a 4xx or a body that isn't an array.
-//
-// A multi-page collection (large corps) is reassembled fresh across pages: it
-// costs one ESI call per page either way, so v1 spends no per-page conditional
-// bookkeeping. A multi-page 304 fast path is a deferred optimization.
+/**
+ * The paginated read for the owned-blueprints / owned-assets endpoints (?page= +
+ * X-Pages), returning the flattened element array across all pages.
+ *
+ *  - 'unchanged' — a single-page collection whose held page-1 etag still matches
+ *    (the dominant character case): the caller bumps the staleness stamp and
+ *    leaves the stored rows untouched.
+ *  - 'fresh' — the flattened items plus per-page etags (empty if any page lacked
+ *    an ETag, so a partial set never misaligns next run).
+ *  - 'error' — a 4xx or a body that isn't an array.
+ *
+ * A multi-page collection (large corps) is reassembled fresh across pages: it
+ * costs one ESI call per page either way, so v1 spends no per-page conditional
+ * bookkeeping. A multi-page 304 fast path is a deferred optimization.
+ */
 export type EsiPagedRead =
   | { kind: 'unchanged'; expiresAt: number | null }
   | {

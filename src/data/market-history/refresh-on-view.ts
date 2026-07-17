@@ -60,9 +60,11 @@ export interface LiveHistoryResult {
   metrics: LiveHistoryMetrics;
 }
 
-// On-view read. Serves warm types from the stored rows untouched, fetches only
-// stale/missing types from ESI, returns the freshest inputs, and persists the
-// freshly fetched series as the new seed behind the response (never blocking it).
+/**
+ * On-view read. Serves warm types from the stored rows untouched, fetches only
+ * stale/missing types from ESI, returns the freshest inputs, and persists the
+ * freshly fetched series as the new seed behind the response (never blocking it).
+ */
 export async function getLiveHistory(
   typeIds: number[],
   onWriteBehind?: (result: HistoryWriteBehindResult) => void,

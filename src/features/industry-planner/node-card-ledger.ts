@@ -14,16 +14,18 @@ export interface LedgerCell {
   isk: string;
 }
 
-// Compact needed-quantity for the ring centre (sub-unit marginal shares → "<1").
+/** Compact needed-quantity for the ring centre (sub-unit marginal shares → "\<1"). */
 export function ringQty(qty: number): string {
   if (qty > 0 && qty < 0.5) return '<1';
   return formatCompactQuantity(qty);
 }
 
-// The QTY ring's derived state: fill progress (owned ÷ needed, clamped), the
-// still-to-acquire count, whether the node is fully owned, the ring tone, and the
-// accessible label. Unowned (ownedQty absent) → the empty-track placeholder with
-// the whole need as the label, byte-identical to the pre-assets output.
+/**
+ * The QTY ring's derived state: fill progress (owned ÷ needed, clamped), the
+ * still-to-acquire count, whether the node is fully owned, the ring tone, and the
+ * accessible label. Unowned (ownedQty absent) → the empty-track placeholder with
+ * the whole need as the label, byte-identical to the pre-assets output.
+ */
 export interface QtyRingView {
   progress: number;
   remaining: number;
@@ -47,9 +49,11 @@ export function qtyRingView(name: string, qty: number, ownedQty?: number): QtyRi
   return { progress, remaining, complete, tone: progress > 0 ? 'isk' : 'neutral', ringLabel };
 }
 
-// The asset ledger's rendered cells: the always-real Needed row (qty + ISK, ISK
-// '—' when unpriced) plus the Owned + Remaining cells, null when there's no
-// synced quantity (the "—" placeholders a logged-out / owns-none caller shows).
+/**
+ * The asset ledger's rendered cells: the always-real Needed row (qty + ISK, ISK
+ * '—' when unpriced) plus the Owned + Remaining cells, null when there's no
+ * synced quantity (the "—" placeholders a logged-out / owns-none caller shows).
+ */
 export interface AssetLedgerView {
   neededQty: string;
   neededIsk: string;

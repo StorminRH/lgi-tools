@@ -7,13 +7,15 @@ import {
 import { getBuildLocation } from '@/features/industry-planner/queries';
 import { parseJsonBody } from '@/lib/route-body';
 
-// POST /api/industry/build-location
-// Body: { systemId, blueprintId }
-//
-// Per-pick build-location read for the planner's net-margin path: the system's
-// industry-capable NPC stations + its cost indices + the CCP adjusted prices for
-// the blueprint's direct base materials (the EIV basis). All internal indexed DB
-// reads, no external calls — fetched only when the user picks a build system.
+/**
+ * POST /api/industry/build-location
+ * Body: \{ systemId, blueprintId \}
+ *
+ * Per-pick build-location read for the planner's net-margin path: the system's
+ * industry-capable NPC stations + its cost indices + the CCP adjusted prices for
+ * the blueprint's direct base materials (the EIV basis). All internal indexed DB
+ * reads, no external calls — fetched only when the user picks a build system.
+ */
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   const parsed = await parseJsonBody(request, buildLocationRequestSchema, {

@@ -1,7 +1,9 @@
-// ── Slice-local date range ──────────────────────────────────────────────
-// Structurally identical to telemetry's DateRange, declared here so the GSC
-// slice never imports a sibling data slice (boundary rule). The dashboard
-// passes its existing `range` object straight in.
+/**
+ * ── Slice-local date range ──────────────────────────────────────────────
+ * Structurally identical to telemetry's DateRange, declared here so the GSC
+ * slice never imports a sibling data slice (boundary rule). The dashboard
+ * passes its existing `range` object straight in.
+ */
 export interface GscRange {
   from: Date;
   to: Date;
@@ -11,8 +13,10 @@ export interface GscRange {
 // Boundary types: Google sends more keys; we read these. int64 counts arrive
 // as JSON strings, so sitemap counts are typed string | number and coerced.
 
-// One row of a searchanalytics.query response. `keys` aligns with the
-// requested `dimensions` array (e.g. ['date'] or ['date','query']).
+/**
+ * One row of a searchanalytics.query response. `keys` aligns with the
+ * requested `dimensions` array (e.g. ['date'] or ['date','query']).
+ */
 export interface SearchAnalyticsApiRow {
   keys?: string[];
   clicks: number;
@@ -39,8 +43,10 @@ export interface SitemapApiEntry {
   contents?: SitemapContent[];
 }
 
-// urlInspectionResult.inspectionResult.indexStatusResult — the index-status
-// half of a URL Inspection. All fields optional; Google omits what it lacks.
+/**
+ * urlInspectionResult.inspectionResult.indexStatusResult — the index-status
+ * half of a URL Inspection. All fields optional; Google omits what it lacks.
+ */
 export interface IndexStatusApiResult {
   verdict?: string;
   coverageState?: string;
@@ -53,12 +59,14 @@ export interface IndexStatusApiResult {
   crawledAs?: string;
 }
 
-// ── Which search-analytics grouping a stored row came from ──────────────
-// 'total' = the daily site totals (dimensions=['date']); 'query'/'page' = the
-// per-day breakdowns (dimensions=['date','query'|'page']).
+/**
+ * ── Which search-analytics grouping a stored row came from ──────────────
+ * 'total' = the daily site totals (dimensions=['date']); 'query'/'page' = the
+ * per-day breakdowns (dimensions=['date','query'|'page']).
+ */
 export type GscDimension = 'total' | 'query' | 'page';
 
-// ── Sync summary (mirrors market-prices' RefreshSummary) ────────────────
+/** ── Sync summary (mirrors market-prices' RefreshSummary) ──────────────── */
 export interface GscSyncSummary {
   status: 'synced' | 'partial' | 'skipped' | 'failed';
   // Present when status is 'skipped' (e.g. 'not_configured') or 'failed'.
@@ -72,8 +80,10 @@ export interface GscSyncSummary {
   durationMs: number;
 }
 
-// ── Dashboard read shapes ───────────────────────────────────────────────
-// One day of site-total search performance (for the trend charts).
+/**
+ * ── Dashboard read shapes ───────────────────────────────────────────────
+ * One day of site-total search performance (for the trend charts).
+ */
 export interface GscDailyPoint {
   day: string;
   clicks: number;
@@ -81,7 +91,7 @@ export interface GscDailyPoint {
   position: number;
 }
 
-// Range-aggregated headline numbers. CTR derived (clicks/impressions).
+/** Range-aggregated headline numbers. CTR derived (clicks/impressions). */
 export interface GscTotals {
   clicks: number;
   impressions: number;
@@ -89,7 +99,7 @@ export interface GscTotals {
   position: number;
 }
 
-// A top query or page over the range. CTR derived; position impression-weighted.
+/** A top query or page over the range. CTR derived; position impression-weighted. */
 export interface GscTermStat {
   key: string;
   clicks: number;

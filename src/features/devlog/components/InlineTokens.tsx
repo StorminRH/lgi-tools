@@ -26,12 +26,12 @@ const TOKEN_RENDERERS: {
   text: (token, key) => <Fragment key={key}>{token.value}</Fragment>,
 };
 
-// Renders one inline token by dispatching to its type's renderer.
+/** Renders one inline token by dispatching to its type's renderer. */
 export function renderToken(token: InlineToken, key: number): ReactNode {
   return (TOKEN_RENDERERS[token.type] as TokenRenderer)(token, key);
 }
 
-// Inline prose runs → React elements, in source order.
+/** Inline prose runs → React elements, in source order. */
 export function InlineTokens({ tokens }: { tokens: InlineToken[] }) {
   return <>{tokens.map((token, i) => renderToken(token, i))}</>;
 }

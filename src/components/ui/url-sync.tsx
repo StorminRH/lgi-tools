@@ -13,7 +13,7 @@ import type { ReactNode } from 'react';
  * the native `toggle` event, so the wrapped component stays a pure
  * server component with no client-state awareness.
  *
- * One-way only: state -> URL. Reading the URL on mount to open a
+ * One-way only: state -\> URL. Reading the URL on mount to open a
  * specific child is not implemented (no current use case).
  */
 export function UrlSync({

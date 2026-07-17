@@ -52,9 +52,11 @@ export function NavigationMenu({
   );
 }
 
-// Re-exported so consumers compose the bar through `@/components/ui/navigation-menu`
-// (matching how `menu.tsx` re-exports `MenuLinkItem`). `Item` renders an <li>;
-// `Link` an <a> — pass `render={<Link … />}` to compose with Next, and `active`
-// for the current page.
+/**
+ * Re-exported so consumers compose the bar through `@/components/ui/navigation-menu`
+ * (matching how `menu.tsx` re-exports `MenuLinkItem`). `Item` renders an <li>;
+ * `Link` an <a> — pass `render={<Link … />}` to compose with Next, and `active`
+ * for the current page.
+ */
 export const NavigationMenuItem = Base.Item;
 export const NavigationMenuLink = Base.Link;

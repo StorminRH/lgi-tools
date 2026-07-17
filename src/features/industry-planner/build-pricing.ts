@@ -101,11 +101,13 @@ function rowPriceFields(p: PriceLite | undefined) {
   };
 }
 
-// The buildable intermediates in a build tree — every non-raw node except the
-// root products (the products are shown as block headers / the hero, not as
-// priceable rows). Deduped by typeId, since a component shared across parents
-// appears many times but needs pricing once. Drives the cascade's per-row
-// build-vs-buy confidence badge.
+/**
+ * The buildable intermediates in a build tree — every non-raw node except the
+ * root products (the products are shown as block headers / the hero, not as
+ * priceable rows). Deduped by typeId, since a component shared across parents
+ * appears many times but needs pricing once. Drives the cascade's per-row
+ * build-vs-buy confidence badge.
+ */
 export function collectIntermediateTypeIds(
   buildTree: BuildNode[],
   display: Record<number, BuildNodeDisplay>,
@@ -123,9 +125,11 @@ export function collectIntermediateTypeIds(
   return [...out];
 }
 
-// The per-typeId confidence inputs for every cascade row a badge can attach to:
-// the priced raw materials (`rows`) plus the buildable intermediates. Pure, so
-// the provider derives the same map server- and client-side.
+/**
+ * The per-typeId confidence inputs for every cascade row a badge can attach to:
+ * the priced raw materials (`rows`) plus the buildable intermediates. Pure, so
+ * the provider derives the same map server- and client-side.
+ */
 export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, ConfidenceInput> {
   const map = new Map<number, ConfidenceInput>();
   for (const r of pricing.rows) {
@@ -147,14 +151,16 @@ export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, Co
   return map;
 }
 
-// The manufacturing activity id. Net margin is computed for manufacturing AND
-// reaction top jobs (3.7.13.3) — each against its own cost index and facility
-// tax; reactions share the 4% SCC (the 2025-07 rework cut research only, so the
-// old "different SCC" rationale is gone — reactions were blocked on the missing
-// reaction-index seam, now live). The activity gate lives here so the math can
-// never fee a reaction at the manufacturing index: a reaction blueprint without
-// reaction fee inputs stays gross-only.
-// Exported so the hero gates the build-location selector on the same value.
+/**
+ * The manufacturing activity id. Net margin is computed for manufacturing AND
+ * reaction top jobs (3.7.13.3) — each against its own cost index and facility
+ * tax; reactions share the 4% SCC (the 2025-07 rework cut research only, so the
+ * old "different SCC" rationale is gone — reactions were blocked on the missing
+ * reaction-index seam, now live). The activity gate lives here so the math can
+ * never fee a reaction at the manufacturing index: a reaction blueprint without
+ * reaction fee inputs stays gross-only.
+ * Exported so the hero gates the build-location selector on the same value.
+ */
 export const MANUFACTURING_ACTIVITY_ID = 1;
 
 export interface AssembleOptions {

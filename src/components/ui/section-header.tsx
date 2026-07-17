@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 
-// `size` widens the header for dense dashboard cards: 'sm' is the sitewide
-// default; 'md' reads at 11px for pages (admin) whose primary content is the
-// card headers themselves.
+/**
+ * `size` widens the header for dense dashboard cards: 'sm' is the sitewide
+ * default; 'md' reads at 11px for pages (admin) whose primary content is the
+ * card headers themselves.
+ */
 export function SectionHeader({
   label,
   hint,

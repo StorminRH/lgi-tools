@@ -19,8 +19,10 @@ import type { MarketPrice, RawMarketPrice } from './types';
 // telemetry: `data ⊥ telemetry` stays sealed, and the route handler emits
 // (exactly as the bulk refresh path does).
 
-// Per-item short-term cache tag. Exported so an explicit refresh can bust a
-// single item's coalescing entry.
+/**
+ * Per-item short-term cache tag. Exported so an explicit refresh can bust a
+ * single item's coalescing entry.
+ */
 export function priceTag(typeId: number): string {
   return `market-price-${typeId}`;
 }
@@ -119,8 +121,10 @@ async function mapBounded<T, R>(
   return results;
 }
 
-// On-view read. Returns the freshest prices available and persists the freshly
-// fetched rows as the new seed behind the response (never blocking it).
+/**
+ * On-view read. Returns the freshest prices available and persists the freshly
+ * fetched rows as the new seed behind the response (never blocking it).
+ */
 export async function getLivePrices(
   typeIds: number[],
   onWriteBehind?: (result: PriceWriteBehindResult) => void,
@@ -221,10 +225,12 @@ export async function getLivePrices(
   return { prices, degraded, metrics };
 }
 
-// Explicit refresh: mark each item's coalescing entry stale so the next view
-// refetches (stale-while-revalidate via the 'max' profile). Built as the engine
-// primitive now; a runtime caller (a "refresh now" affordance, the rewired CLI)
-// lands in a later sub-version.
+/**
+ * Explicit refresh: mark each item's coalescing entry stale so the next view
+ * refetches (stale-while-revalidate via the 'max' profile). Built as the engine
+ * primitive now; a runtime caller (a "refresh now" affordance, the rewired CLI)
+ * lands in a later sub-version.
+ */
 export async function refreshPricesOnDemand(typeIds: number[]): Promise<void> {
   for (const id of new Set(typeIds)) {
     revalidateTag(priceTag(id), 'max');

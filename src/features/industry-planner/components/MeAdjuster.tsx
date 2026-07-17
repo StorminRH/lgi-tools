@@ -76,8 +76,10 @@ function iconTone(state: Exclude<IconState, 'unowned'>): { fill: string; glow: s
     : { fill: 'fill-evb-bright', glow: 'drop-shadow-[0_0_4px_var(--color-evb-glow)]' };
 }
 
-// EVE's material-efficiency gem. Sized by its container. Exported so the UX sandbox
-// renders the same glyph (one source, no duplicate).
+/**
+ * EVE's material-efficiency gem. Sized by its container. Exported so the UX sandbox
+ * renders the same glyph (one source, no duplicate).
+ */
 export function GemIcon({ state }: { state: IconState }) {
   if (state === 'unowned') {
     return (
@@ -108,8 +110,10 @@ export function GemIcon({ state }: { state: IconState }) {
   );
 }
 
-// EVE's time-efficiency hourglass — the time-side twin of the gem, same tone logic.
-// A bowtie silhouette with cap bars top and bottom.
+/**
+ * EVE's time-efficiency hourglass — the time-side twin of the gem, same tone logic.
+ * A bowtie silhouette with cap bars top and bottom.
+ */
 export function HourglassIcon({ state }: { state: IconState }) {
   if (state === 'unowned') {
     return (
@@ -145,8 +149,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// The owner / location provenance rows shown under the gem's ME stepper for an owned
-// node (TE moved to the hourglass orb, so it is no longer listed here).
+/**
+ * The owner / location provenance rows shown under the gem's ME stepper for an owned
+ * node (TE moved to the hourglass orb, so it is no longer listed here).
+ */
 export function ProvenanceRows({ detail }: { detail: OwnedComponentDetail }) {
   return (
     <div className="flex flex-col gap-1 border-t border-border-soft pt-1.5">
@@ -411,8 +417,10 @@ function InlineField({
   );
 }
 
-// The material-efficiency inline field for a node (or the hero card, `boxed`). `name`
-// is "main blueprint" in the hero.
+/**
+ * The material-efficiency inline field for a node (or the hero card, `boxed`). `name`
+ * is "main blueprint" in the hero.
+ */
 export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOverride, resetMeOverride, steppers, boxed }: MeProps & { steppers?: boolean; boxed?: boolean }) {
   const d = deriveAdjust(ownedMe, meOverrides, blueprintTypeId);
   // Stable callbacks so the field's native wheel listener re-registers only on a
@@ -434,7 +442,7 @@ export function MeField({ blueprintTypeId, name, ownedMe, meOverrides, setMeOver
   );
 }
 
-// The time-efficiency inline field — the time-side twin of MeField.
+/** The time-efficiency inline field — the time-side twin of MeField. */
 export function TeField({ blueprintTypeId, name, ownedTe, teOverrides, setTeOverride, resetTeOverride, steppers, boxed }: TeProps & { steppers?: boolean; boxed?: boolean }) {
   const d = deriveAdjust(ownedTe, teOverrides, blueprintTypeId);
   const onCommit = useCallback((n: number) => setTeOverride(blueprintTypeId, n), [setTeOverride, blueprintTypeId]);
@@ -465,9 +473,11 @@ function AdjusterRow({ label, children }: { label: string; children: ReactNode }
   );
 }
 
-// The two labelled fields (gem ME + hourglass TE) that fill a buildable node's icon
-// popover (3.7.5.8) — one source for the live planner and the sandbox. The frame tone
-// and the popover shell live in NodeCard; this is only the body.
+/**
+ * The two labelled fields (gem ME + hourglass TE) that fill a buildable node's icon
+ * popover (3.7.5.8) — one source for the live planner and the sandbox. The frame tone
+ * and the popover shell live in NodeCard; this is only the body.
+ */
 export function NodeAdjusters({
   blueprintTypeId,
   name,

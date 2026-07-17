@@ -35,8 +35,10 @@ const EMPTY: ActivityChartData = {
   hasData: false,
 };
 
-// One marker per day: many sub-versions ship on the same date, so collapse them
-// (label = the single version, or "N deploys" when several land the same day).
+/**
+ * One marker per day: many sub-versions ship on the same date, so collapse them
+ * (label = the single version, or "N deploys" when several land the same day).
+ */
 export function dedupeMarkersByDay(
   markers: { date: string; label: string }[],
 ): { date: string; label: string }[] {
@@ -114,7 +116,7 @@ export function deriveActivityView(input: {
   };
 }
 
-// Number of whole days in a range — for callers that need the window length.
+/** Number of whole days in a range — for callers that need the window length. */
 export function rangeDayCount(range: DateRange): number {
   return Math.max(1, Math.round((range.to.getTime() - range.from.getTime()) / MS_PER_DAY));
 }

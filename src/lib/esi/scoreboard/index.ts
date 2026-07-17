@@ -91,7 +91,7 @@ export async function readEsiBudgetSnapshot(): Promise<EsiBudgetSnapshot | null>
     : await readMemoryBudgetSnapshot(scoreboard.scoreboard);
 }
 
-// Reset module state between Vitest cases. Not for runtime callers.
+/** Reset module state between Vitest cases. Not for runtime callers. */
 export function __resetScoreboardForTests(): void {
   redisScoreboards.clear();
   memoryScoreboard = null;

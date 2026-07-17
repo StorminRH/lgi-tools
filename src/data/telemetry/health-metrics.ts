@@ -10,19 +10,23 @@ import type {
   RefreshVolumePoint,
 } from './types';
 
-// ── Cron outcome vocabulary ─────────────────────────────────────────────
-// The healthy/neutral outcome sets are the single source of truth for the
-// status strip's classification. `cron_prices` never writes a failure row (a
-// crash writes nothing), so its only outcomes are healthy. `cron_sde` busy is
-// a benign lock-contention skip — not counted against health;
-// remote-unreachable is genuinely unhealthy.
+/**
+ * ── Cron outcome vocabulary ─────────────────────────────────────────────
+ * The healthy/neutral outcome sets are the single source of truth for the
+ * status strip's classification. `cron_prices` never writes a failure row (a
+ * crash writes nothing), so its only outcomes are healthy. `cron_sde` busy is
+ * a benign lock-contention skip — not counted against health;
+ * remote-unreachable is genuinely unhealthy.
+ */
 export const PRICES_HEALTHY_OUTCOMES = ['refreshed', 'skipped'] as const;
 export const SDE_HEALTHY_OUTCOMES = ['up-to-date', 'reingested'] as const;
 export const SDE_NEUTRAL_OUTCOMES = ['busy'] as const;
 
-// ── Login-frequency histogram ───────────────────────────────────────────
-// Bucket edges are presentation, so bucketing happens here, not in SQL. Input
-// is a bare per-user login-count list — no identity reaches this function.
+/**
+ * ── Login-frequency histogram ───────────────────────────────────────────
+ * Bucket edges are presentation, so bucketing happens here, not in SQL. Input
+ * is a bare per-user login-count list — no identity reaches this function.
+ */
 export interface LoginFrequencyBucket {
   label: string;
   users: number;
@@ -97,8 +101,10 @@ export interface SubsystemStatus {
   headline: string;
 }
 
-// GSC sync outcomes (`summary.status` from the daily cron): `synced` is clean,
-// `skipped` is a benign no-op, `partial` completed with errors, `failed` failed.
+/**
+ * GSC sync outcomes (`summary.status` from the daily cron): `synced` is clean,
+ * `skipped` is a benign no-op, `partial` completed with errors, `failed` failed.
+ */
 export const GSC_HEALTHY_OUTCOMES = ['synced'] as const;
 export const GSC_NEUTRAL_OUTCOMES = ['skipped'] as const;
 export const GSC_DEGRADED_OUTCOMES = ['partial'] as const;
@@ -189,8 +195,10 @@ export interface GscStatusInput {
   now: Date;
 }
 
-// Takes lastSyncedAt as a plain Date so this slice never imports gsc —
-// cross-slice composition stays at the route level.
+/**
+ * Takes lastSyncedAt as a plain Date so this slice never imports gsc —
+ * cross-slice composition stays at the route level.
+ */
 export function deriveGscStatus(input: GscStatusInput): SubsystemStatus {
   if (!input.configured) {
     return { level: 'neutral', headline: 'not connected · set GSC env vars to sync search data' };
@@ -245,9 +253,11 @@ export function deriveEsiSourceStatus({
   return { level: 'green', headline: 'ESI served every priced item this period' };
 }
 
-// Daily fallback-rate percentages for the ESI-source trend chart: the share of
-// each day's priced items served by the Fuzzwork fallback, as a whole percent.
-// A day with no refreshes (esi + fallback === 0) reads 0, never a divide-by-zero.
+/**
+ * Daily fallback-rate percentages for the ESI-source trend chart: the share of
+ * each day's priced items served by the Fuzzwork fallback, as a whole percent.
+ * A day with no refreshes (esi + fallback === 0) reads 0, never a divide-by-zero.
+ */
 export function fallbackRatePoints(
   perDay: ReadonlyArray<{ esi: number; fallback: number }>,
 ): number[] {

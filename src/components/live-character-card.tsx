@@ -19,8 +19,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
 import { emptyDataText, syncErrorMeta } from './live-character-sync';
 
-// Server-prop shape for one linked character: Neon truth (name/portrait/scope
-// health) joined client-side with the live projection.
+/**
+ * Server-prop shape for one linked character: Neon truth (name/portrait/scope
+ * health) joined client-side with the live projection.
+ */
 export interface PanelCharacter {
   characterId: number;
   name: string;
@@ -28,10 +30,12 @@ export interface PanelCharacter {
   needsReconnect: boolean;
 }
 
-// The card shell for one character: portrait header (with feature-supplied
-// subtitle + header-right slot), the reconnect and sync-error callouts, the
-// "as of" section header, and the null / empty / rows tri-state. Rows are the
-// children; everything that differs per feature arrives as a prop.
+/**
+ * The card shell for one character: portrait header (with feature-supplied
+ * subtitle + header-right slot), the reconnect and sync-error callouts, the
+ * "as of" section header, and the null / empty / rows tri-state. Rows are the
+ * children; everything that differs per feature arrives as a prop.
+ */
 export function LiveCharacterCard({
   character,
   syncError,
@@ -145,9 +149,11 @@ export function LiveCharacterCard({
   );
 }
 
-// What a feature renders for one character once its live doc is in hand. The
-// panel owns the LiveCharacterCard shell; the feature supplies only what differs
-// per character — the empty test, the two header slots, and the rows.
+/**
+ * What a feature renders for one character once its live doc is in hand. The
+ * panel owns the LiveCharacterCard shell; the feature supplies only what differs
+ * per character — the empty test, the two header slots, and the rows.
+ */
 export interface CharacterCardContent {
   isEmpty: boolean;
   subtitle?: ReactNode;

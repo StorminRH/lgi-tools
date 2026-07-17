@@ -9,14 +9,16 @@ import { getCurrentUserId } from '@/features/auth/session';
 import { parseJsonBody } from '@/lib/route-body';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 
-// POST /api/industry/owned-assets
-// Body: { typeIds } — the material/product types in the planned build whose owned
-// quantity the asset ledger needs (Owned / Remaining / held-by) and whose QTY ring
-// reflects owned-vs-needed. Scoped to the authenticated caller's own owners (the
-// user id comes from the session, never the body); an anonymous caller gets an
-// empty set, so every ring stays empty and every ledger shows '—' (the
-// byte-identical placeholder path). Returns only the OWNED types among those
-// requested — an un-held one is simply absent.
+/**
+ * POST /api/industry/owned-assets
+ * Body: \{ typeIds \} — the material/product types in the planned build whose owned
+ * quantity the asset ledger needs (Owned / Remaining / held-by) and whose QTY ring
+ * reflects owned-vs-needed. Scoped to the authenticated caller's own owners (the
+ * user id comes from the session, never the body); an anonymous caller gets an
+ * empty set, so every ring stays empty and every ledger shows '—' (the
+ * byte-identical placeholder path). Returns only the OWNED types among those
+ * requested — an un-held one is simply absent.
+ */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   const parsed = await parseJsonBody(request, ownedAssetsRequestSchema, {

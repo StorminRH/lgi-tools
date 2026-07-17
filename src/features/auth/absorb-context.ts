@@ -9,8 +9,10 @@ type AbsorbBox = { absorbedCharacterId: number | null };
 
 const absorbStore = new AsyncLocalStorage<AbsorbBox>();
 
-// Run `fn` (the Better Auth handler call) with an absorb outcome box in scope,
-// and report what — if anything — was absorbed during it.
+/**
+ * Run `fn` (the Better Auth handler call) with an absorb outcome box in scope,
+ * and report what — if anything — was absorbed during it.
+ */
 export async function runWithAbsorbTracking<T>(
   fn: () => Promise<T>,
 ): Promise<{ result: T; absorbedCharacterId: number | null }> {
@@ -19,8 +21,10 @@ export async function runWithAbsorbTracking<T>(
   return { result, absorbedCharacterId: box.absorbedCharacterId };
 }
 
-// Record an absorb from inside the callback. No-op when no box is active
-// (POST paths, tests that drive the orchestrator directly).
+/**
+ * Record an absorb from inside the callback. No-op when no box is active
+ * (POST paths, tests that drive the orchestrator directly).
+ */
 export function recordAbsorb(characterId: number): void {
   const box = absorbStore.getStore();
   if (box) box.absorbedCharacterId = characterId;

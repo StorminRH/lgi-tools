@@ -8,11 +8,13 @@ import { requireSession } from '@/features/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseJsonBody } from '@/lib/route-body';
 
-// POST-only. Purge one of the CALLER's OWN linked characters — the destructive
-// counterpart to unlink: it scrubs all of the character's derived data and revokes
-// its EVE grant upstream (unlink only detaches). Returns { accountEmptied } so the
-// UI knows whether purging the last character emptied (and deleted) the account.
-// Acts on session.user.id only; the ownership check guards the posted character id.
+/**
+ * POST-only. Purge one of the CALLER's OWN linked characters — the destructive
+ * counterpart to unlink: it scrubs all of the character's derived data and revokes
+ * its EVE grant upstream (unlink only detaches). Returns \{ accountEmptied \} so the
+ * UI knows whether purging the last character emptied (and deleted) the account.
+ * Acts on session.user.id only; the ownership check guards the posted character id.
+ */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected at

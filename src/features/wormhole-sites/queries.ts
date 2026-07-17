@@ -329,10 +329,12 @@ export async function listSiteDetails(filters: {
   });
 }
 
-// Minimal site shape for the global search dropdown. Server-rendered once
-// in AppHeader and passed to the client via AppHeaderShell, so the search
-// dropdown can filter against name/class/type without a per-keystroke
-// round-trip. ~69 rows today; trivial payload.
+/**
+ * Minimal site shape for the global search dropdown. Server-rendered once
+ * in AppHeader and passed to the client via AppHeaderShell, so the search
+ * dropdown can filter against name/class/type without a per-keystroke
+ * round-trip. ~69 rows today; trivial payload.
+ */
 export type SiteSearchEntry = {
   id: number;
   name: string;
@@ -342,9 +344,11 @@ export type SiteSearchEntry = {
   resourceValueIsk: number | null;
 };
 
-// Cached count of catalogued wormhole sites, for the home dashboard's status
-// card. Same deploy-static catalogue as getSiteSearchIndex — the build ID
-// invalidates it.
+/**
+ * Cached count of catalogued wormhole sites, for the home dashboard's status
+ * card. Same deploy-static catalogue as getSiteSearchIndex — the build ID
+ * invalidates it.
+ */
 export async function getCachedSiteCount(): Promise<number> {
   'use cache';
   cacheLife('max');
@@ -447,12 +451,14 @@ export async function getSiteDetail(id: number): Promise<SiteDetail | null> {
   });
 }
 
-// Price-overlaid site detail, cached for the static prerender shell. The site
-// structure is deploy-static (getSiteDetail, cacheLife 'max'); live Jita prices
-// only change on the hourly cron, so we cache the overlaid result under the same
-// freshness tag the cron revalidates. This gives the detail page the same price
-// freshness as a per-request fetch while letting the full site content prerender
-// into the static shell for crawlers. Returns null for an unknown id.
+/**
+ * Price-overlaid site detail, cached for the static prerender shell. The site
+ * structure is deploy-static (getSiteDetail, cacheLife 'max'); live Jita prices
+ * only change on the hourly cron, so we cache the overlaid result under the same
+ * freshness tag the cron revalidates. This gives the detail page the same price
+ * freshness as a per-request fetch while letting the full site content prerender
+ * into the static shell for crawlers. Returns null for an unknown id.
+ */
 export async function getPricedSiteDetail(id: number): Promise<SiteDetail | null> {
   'use cache';
   cacheLife('hours');

@@ -31,10 +31,12 @@ const structureRefSchema = z.object({
   name: z.string(),
 });
 
-// One schema per template field, exported individually so the manifest
-// (template-manifest.ts) validates each field alone at load time. Adding a
-// field here without a manifest entry (or vice versa) fails tsc — the two are
-// tied by TemplateFieldKey.
+/**
+ * One schema per template field, exported individually so the manifest
+ * (template-manifest.ts) validates each field alone at load time. Adding a
+ * field here without a manifest entry (or vice versa) fails tsc — the two are
+ * tied by TemplateFieldKey.
+ */
 export const snapshotFieldSchemas = {
   runs: z.number().int().min(1),
   buildSystem: systemRefSchema.nullable(),
@@ -63,15 +65,17 @@ export const planSnapshotV1Schema = z.object({
 
 export type PlanSnapshotV1 = z.infer<typeof planSnapshotV1Schema>;
 
-// Every configurable field (identity fields v/blueprintTypeId excluded).
+/** Every configurable field (identity fields v/blueprintTypeId excluded). */
 export type TemplateFieldKey = keyof typeof snapshotFieldSchemas;
 
-// The snapshot as it crosses the wire and rests in the jsonb column: SHALLOW —
-// only the version tag + the blueprint anchor are pinned (plus a byte cap at
-// the create route). Deep per-field validation happens at LOAD
-// (template-manifest.ts), because references go stale after a valid save and a
-// malformed field must degrade alone, not void the template. Loose so the
-// shape can grow fields without invalidating stored rows.
+/**
+ * The snapshot as it crosses the wire and rests in the jsonb column: SHALLOW —
+ * only the version tag + the blueprint anchor are pinned (plus a byte cap at
+ * the create route). Deep per-field validation happens at LOAD
+ * (template-manifest.ts), because references go stale after a valid save and a
+ * malformed field must degrade alone, not void the template. Loose so the
+ * shape can grow fields without invalidating stored rows.
+ */
 export const planSnapshotWireSchema = z.looseObject({
   v: z.literal(1),
   blueprintTypeId: z.number().int().positive(),

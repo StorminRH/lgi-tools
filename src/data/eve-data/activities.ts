@@ -25,8 +25,10 @@ import {
 
 export type ActivitySkill = { typeId: number; level: number };
 export type ActivityMaterial = { typeId: number; quantity: number };
-// `probability` is present only on invention products (the per-run invention
-// success chance, e.g. 0.3); manufacturing/reaction products omit it.
+/**
+ * `probability` is present only on invention products (the per-run invention
+ * success chance, e.g. 0.3); manufacturing/reaction products omit it.
+ */
 export type ActivityProduct = {
   typeId: number;
   quantity: number;
@@ -42,8 +44,10 @@ export type BlueprintActivity = {
   time: number | null; // base seconds for one run, ME0/TE0; null if absent
 };
 
-// Only activities actually present on the blueprint appear (no fabricated empty
-// placeholders). A consumer looks one up by name with `.find(a => a.name === …)`.
+/**
+ * Only activities actually present on the blueprint appear (no fabricated empty
+ * placeholders). A consumer looks one up by name with `.find(a => a.name === …)`.
+ */
 export type BlueprintActivitySet = BlueprintActivity[];
 
 function asObject(raw: unknown): Record<string, unknown> | null {

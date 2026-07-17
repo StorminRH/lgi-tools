@@ -9,18 +9,20 @@ import { computeDelta } from './period';
 
 const MS_PER_DAY = 86_400_000;
 
-// Integer day number for a 'YYYY-MM-DD' string at UTC midnight. Integer day
-// arithmetic sidesteps any timezone/DST drift (same approach as market-history).
+/**
+ * Integer day number for a 'YYYY-MM-DD' string at UTC midnight. Integer day
+ * arithmetic sidesteps any timezone/DST drift (same approach as market-history).
+ */
 export function toDayNumber(date: string): number {
   return Math.floor(Date.parse(`${date}T00:00:00Z`) / MS_PER_DAY);
 }
 
-// 'YYYY-MM-DD' for an integer UTC day number — the inverse of toDayNumber.
+/** 'YYYY-MM-DD' for an integer UTC day number — the inverse of toDayNumber. */
 export function dayString(dayNumber: number): string {
   return new Date(dayNumber * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
-// UTC weekend test for a 'YYYY-MM-DD' day (Sunday = 0, Saturday = 6).
+/** UTC weekend test for a 'YYYY-MM-DD' day (Sunday = 0, Saturday = 6). */
 export function isWeekend(date: string): boolean {
   const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
   return dow === 0 || dow === 6;
@@ -65,7 +67,7 @@ export function zeroFillDaily(
 /**
  * Trailing moving average aligned 1:1 with a continuous daily series:
  * `average[i] = mean(values[max(0, i - window + 1) .. i])`. Early points average
- * the days available so the line is defined from the first point. A window < 1
+ * the days available so the line is defined from the first point. A window \< 1
  * returns a copy; an empty series returns [].
  */
 export function movingAverage(values: number[], window: number): number[] {
@@ -86,7 +88,7 @@ export function sum(values: number[]): number {
   return total;
 }
 
-// Arithmetic mean; 0 for an empty list (callers gate emptiness before display).
+/** Arithmetic mean; 0 for an empty list (callers gate emptiness before display). */
 export function mean(values: number[]): number {
   return values.length === 0 ? 0 : sum(values) / values.length;
 }

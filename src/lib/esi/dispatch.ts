@@ -49,7 +49,7 @@ export function __setScoreboardForTests(
   scoreboardOverride = sb;
 }
 
-// Reset module-level state between Vitest cases. Not for runtime callers.
+/** Reset module-level state between Vitest cases. Not for runtime callers. */
 export function __resetEsiGateForTests(): void {
   redisDownUntil = 0;
   trickleWindowStart = 0;
@@ -64,8 +64,10 @@ export function getScoreboard(): EsiScoreboard | null {
   return resolveScoreboard();
 }
 
-// Conditional requests and body caching apply only to unauthenticated GETs:
-// the shared cache must never hold per-character data.
+/**
+ * Conditional requests and body caching apply only to unauthenticated GETs:
+ * the shared cache must never hold per-character data.
+ */
 export function isEtagEligible(init?: RequestInit): boolean {
   if ((init?.method ?? 'GET').toUpperCase() !== 'GET') return false;
   return !new Headers(init?.headers).has('Authorization');
@@ -212,11 +214,13 @@ function synthesizeFromCache(body: string, meta: CachedEtagMeta): Response {
   return new Response(body, { status: 200, statusText: 'OK', headers });
 }
 
-// Serve the stored body WITHOUT dispatching while ESI's own cache window (the
-// stored Expires) is still open and the body is still in the scoreboard. Returns
-// null — fall through to a normal conditional dispatch — when the window has
-// closed, the body was evicted, or the lookup errors. Makes no report: no ESI
-// call happened, so there are no fresh rate-limit numbers to record.
+/**
+ * Serve the stored body WITHOUT dispatching while ESI's own cache window (the
+ * stored Expires) is still open and the body is still in the scoreboard. Returns
+ * null — fall through to a normal conditional dispatch — when the window has
+ * closed, the body was evicted, or the lookup errors. Makes no report: no ESI
+ * call happened, so there are no fresh rate-limit numbers to record.
+ */
 export async function serveFromExpiresWindow(
   url: string,
   etagMeta: CachedEtagMeta,
@@ -233,9 +237,11 @@ export async function serveFromExpiresWindow(
   return synthesizeFromCache(body, etagMeta);
 }
 
-// Consult the shared scoreboard, skipping while the outage memo is open. A
-// pre-dispatch failure opens the memo (so a Redis outage doesn't add a timeout
-// to every call) and reports as "no shared state" — null, which fails closed.
+/**
+ * Consult the shared scoreboard, skipping while the outage memo is open. A
+ * pre-dispatch failure opens the memo (so a Redis outage doesn't add a timeout
+ * to every call) and reports as "no shared state" — null, which fails closed.
+ */
 export async function consultPreDispatch(
   sb: EsiScoreboard | null,
   url: string,
@@ -251,10 +257,12 @@ export async function consultPreDispatch(
   }
 }
 
-// Refuse the call when the budget is spent. Without the shared mirror (pre ===
-// null) we cannot know what other instances have spent, so fail closed:
-// interactive callers get a hard-capped per-instance trickle, everything else
-// throws. With it, honor a 429 Retry-After block and the error-budget floor.
+/**
+ * Refuse the call when the budget is spent. Without the shared mirror (pre ===
+ * null) we cannot know what other instances have spent, so fail closed:
+ * interactive callers get a hard-capped per-instance trickle, everything else
+ * throws. With it, honor a 429 Retry-After block and the error-budget floor.
+ */
 export function enforceBudget(
   pre: PreDispatchState | null,
   url: string,
@@ -374,8 +382,10 @@ function throwIfErrorStatus(url: string, res: Response): void {
   }
 }
 
-// At most two dispatches: the conditional attempt, plus one unconditional
-// retry if a 304 arrives but the cached body has been evicted.
+/**
+ * At most two dispatches: the conditional attempt, plus one unconditional
+ * retry if a 304 arrives but the cached body has been evicted.
+ */
 export async function dispatch(
   url: string,
   init: RequestInit | undefined,

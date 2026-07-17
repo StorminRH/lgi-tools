@@ -7,11 +7,13 @@ import { loadDevlog } from '@/features/devlog/load';
 import { documentSummary, findDocument, flattenDocuments, introDocument } from '@/features/devlog/parse';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
-// Every document except the Introduction (which lands at /devlog) is prerendered by
-// slug (generateStaticParams enumerates them all); an unknown slug falls through to
-// notFound(). Cache Components disallows the `dynamicParams` route segment config
-// (it errors the build), so unknown-slug handling is the notFound() above, not
-// `dynamicParams = false`.
+/**
+ * Every document except the Introduction (which lands at /devlog) is prerendered by
+ * slug (generateStaticParams enumerates them all); an unknown slug falls through to
+ * notFound(). Cache Components disallows the `dynamicParams` route segment config
+ * (it errors the build), so unknown-slug handling is the notFound() above, not
+ * `dynamicParams = false`.
+ */
 export async function generateStaticParams() {
   const tree = await loadDevlog();
   const introSlug = introDocument(tree)?.slug;

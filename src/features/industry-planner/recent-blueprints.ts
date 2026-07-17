@@ -13,8 +13,10 @@ export type RecentBlueprint = {
   name: string; // the produced item's name, for the row label
 };
 
-// Newest first, deduped by typeId (a re-view floats it back to the top),
-// capped at MAX_RECENT. Pure — the storage wrappers below delegate here.
+/**
+ * Newest first, deduped by typeId (a re-view floats it back to the top),
+ * capped at MAX_RECENT. Pure — the storage wrappers below delegate here.
+ */
 export function mergeRecent(
   list: RecentBlueprint[],
   entry: RecentBlueprint,
@@ -43,10 +45,12 @@ export function isRecentBlueprint(value: unknown): value is RecentBlueprint {
   );
 }
 
-// Parse a raw localStorage string into the recent list: a JSON array of valid
-// RecentBlueprint entries, foreign/malformed entries dropped, capped at
-// MAX_RECENT. Any parse failure (or a null/empty string) yields []. Pure — no
-// storage, so the validation is unit-testable without a DOM.
+/**
+ * Parse a raw localStorage string into the recent list: a JSON array of valid
+ * RecentBlueprint entries, foreign/malformed entries dropped, capped at
+ * MAX_RECENT. Any parse failure (or a null/empty string) yields []. Pure — no
+ * storage, so the validation is unit-testable without a DOM.
+ */
 export function parseRecentBlueprints(raw: string | null): RecentBlueprint[] {
   if (!raw) return [];
   try {

@@ -20,12 +20,14 @@ function retentionCutoff(now: Date): string {
   return cutoff.toISOString().slice(0, 10);
 }
 
-// Persist one type's freshly fetched daily series: upsert the returned window by
-// (type_id, date), prune rows older than the retention cutoff, and upsert the
-// per-type freshness/provenance meta. Statements run sequentially (no
-// interactive transaction — the neon-http request path has none); each is
-// idempotent and last-write-wins, so a partial failure just leaves meta unbumped
-// and the next view refetches.
+/**
+ * Persist one type's freshly fetched daily series: upsert the returned window by
+ * (type_id, date), prune rows older than the retention cutoff, and upsert the
+ * per-type freshness/provenance meta. Statements run sequentially (no
+ * interactive transaction — the neon-http request path has none); each is
+ * idempotent and last-write-wins, so a partial failure just leaves meta unbumped
+ * and the next view refetches.
+ */
 export async function persistHistory(
   db: AnyPgDb,
   typeId: number,

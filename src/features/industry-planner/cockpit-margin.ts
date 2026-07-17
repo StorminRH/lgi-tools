@@ -8,11 +8,13 @@ import type { BlueprintPricing, NetMarginView } from './types';
 
 export type MarginMode = 'gross' | 'net';
 
-// The net-margin view to use, honoring the user's gross/net preference. Net is
-// available for a manufacturing blueprint with a build location picked, or a
-// reaction blueprint with a reaction fee source (3.7.13.3 — its own reaction
-// system, or a build-slot refinery). The caller passes the activity-matched
-// `hasFeeSource` so this stays free of the pricing-store hook.
+/**
+ * The net-margin view to use, honoring the user's gross/net preference. Net is
+ * available for a manufacturing blueprint with a build location picked, or a
+ * reaction blueprint with a reaction fee source (3.7.13.3 — its own reaction
+ * system, or a build-slot refinery). The caller passes the activity-matched
+ * `hasFeeSource` so this stays free of the pricing-store hook.
+ */
 export function selectNet(
   pricing: BlueprintPricing | null,
   activityId: number,

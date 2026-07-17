@@ -27,9 +27,11 @@ export function readUtmTags(params: URLSearchParams): UtmTags | undefined {
   return Object.keys(tags).length > 0 ? tags : undefined;
 }
 
-// The referrer hostname, but only when it points at a different origin than the
-// current page — same-origin referrers are page-hops, not acquisition events.
-// `raw` is the document.referrer; a malformed URL throws (the caller swallows it).
+/**
+ * The referrer hostname, but only when it points at a different origin than the
+ * current page — same-origin referrers are page-hops, not acquisition events.
+ * `raw` is the document.referrer; a malformed URL throws (the caller swallows it).
+ */
 export function referrerHostFrom(raw: string, currentHost: string): string | null {
   if (!raw) return null;
   const url = new URL(raw);

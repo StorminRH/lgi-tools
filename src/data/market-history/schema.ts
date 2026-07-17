@@ -15,9 +15,11 @@ import {
 // (placement-by-temperature). Pure number space — no FK to eve-data, keyed by
 // raw CCP type IDs, the same decoupling as market_prices / industry_indices.
 
-// One row per (type, day). `date` is stored in string mode ("YYYY-MM-DD") to
-// match ESI's day key exactly with no timezone ambiguity. A day with no trades
-// has no row, so a calendar gap means "zero demand that day".
+/**
+ * One row per (type, day). `date` is stored in string mode ("YYYY-MM-DD") to
+ * match ESI's day key exactly with no timezone ambiguity. A day with no trades
+ * has no row, so a calendar gap means "zero demand that day".
+ */
 export const marketHistory = pgTable(
   'market_history',
   {
@@ -36,9 +38,11 @@ export const marketHistory = pgTable(
   }),
 );
 
-// Per-type freshness + provenance marker. The on-view gate reads stale_after
-// (the ESI Expires header — next ~11:05 UTC recompute) to decide fetch-or-serve
-// without touching the bulky daily rows. One row per type.
+/**
+ * Per-type freshness + provenance marker. The on-view gate reads stale_after
+ * (the ESI Expires header — next ~11:05 UTC recompute) to decide fetch-or-serve
+ * without touching the bulky daily rows. One row per type.
+ */
 export const marketHistoryMeta = pgTable('market_history_meta', {
   typeId: integer('type_id').primaryKey(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),

@@ -7,9 +7,11 @@ export type SitesQueryParse =
   | { ok: true; data: z.infer<typeof sitesQuerySchema> }
   | { ok: false; error: ApiError };
 
-// Query-param validation for GET /api/sites, extracted pure so the Zod-issue →
-// "Must be one of …" 400 formatting is unit-testable without a request. Returns
-// the parsed filters, or the exact ApiError body the route sends back as-is.
+/**
+ * Query-param validation for GET /api/sites, extracted pure so the Zod-issue →
+ * "Must be one of …" 400 formatting is unit-testable without a request. Returns
+ * the parsed filters, or the exact ApiError body the route sends back as-is.
+ */
 export function parseSitesQuery(
   type: string | null,
   wormholeClass: string | null,

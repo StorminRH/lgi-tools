@@ -1,9 +1,11 @@
 import { Button } from '@/components/ui/button';
 
-// Per-row "unlink" control. Pure HTML form posting to
-// /api/account/characters/unlink — no client JS. The `disabled` state on the
-// only/last character is UI decoration; the route refuses it regardless. Mirrors
-// the admin RoleToggleForm pattern.
+/**
+ * Per-row "unlink" control. Pure HTML form posting to
+ * /api/account/characters/unlink — no client JS. The `disabled` state on the
+ * only/last character is UI decoration; the route refuses it regardless. Mirrors
+ * the admin RoleToggleForm pattern.
+ */
 export function UnlinkCharacterForm({
   characterId,
   disabled,

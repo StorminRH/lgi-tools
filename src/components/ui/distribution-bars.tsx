@@ -19,9 +19,11 @@ export interface DistributionBar extends DistributionInput {
   fillPct: number;
 }
 
-// `sort: 'desc'` ranks by count (top pages/queries); `'none'` preserves the
-// caller's order for an inherently ordered series (the login-frequency buckets
-// read 1 → 2–3 → 4–9 → 10+, not by magnitude).
+/**
+ * `sort: 'desc'` ranks by count (top pages/queries); `'none'` preserves the
+ * caller's order for an inherently ordered series (the login-frequency buckets
+ * read 1 → 2–3 → 4–9 → 10+, not by magnitude).
+ */
 export function distributionBars(
   rows: DistributionInput[],
   sort: 'desc' | 'none' = 'desc',

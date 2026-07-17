@@ -26,7 +26,7 @@ export interface ParsedStructureFit {
   rigTypeIds: number[];
 }
 
-// Resolve an exact in-game type name to its SDE typeId, or undefined if unknown.
+/** Resolve an exact in-game type name to its SDE typeId, or undefined if unknown. */
 export type ResolveTypeId = (name: string) => number | undefined;
 
 // `[Azbel, Cap Production]` → "Azbel". Returns null if the line isn't a header.

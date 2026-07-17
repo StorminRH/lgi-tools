@@ -19,10 +19,12 @@ export const metadata: Metadata = {
   },
 };
 
-// Fully static shell — the template list is a client island fetching
-// /api/account/saved-plans on mount (an anonymous visitor settles to the
-// sign-in hint via the client roster signal; no server session read here, so
-// the page prerenders whole).
+/**
+ * Fully static shell — the template list is a client island fetching
+ * /api/account/saved-plans on mount (an anonymous visitor settles to the
+ * sign-in hint via the client roster signal; no server session read here, so
+ * the page prerenders whole).
+ */
 export default function BuildTemplatesPage() {
   return (
     <PageShell>

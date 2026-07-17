@@ -1,8 +1,10 @@
 import { PREFERENCES, reconcilePreferences } from '@/lib/preferences';
 import type { GetPreferencesResponse } from './api-contract';
 
-// The server's stored rows projected onto the registry: each known key whose
-// stored value re-validates against its schema (unknown / invalid rows dropped).
+/**
+ * The server's stored rows projected onto the registry: each known key whose
+ * stored value re-validates against its schema (unknown / invalid rows dropped).
+ */
 export function parseServerPreferences(
   preferences: GetPreferencesResponse['preferences'],
 ): Map<string, unknown> {
@@ -16,10 +18,12 @@ export function parseServerPreferences(
   return serverValues;
 }
 
-// Reconcile the loaded preference tiers into the values to apply now and the keys
-// to seed up to the server. A failed read (`ok: false`) contributes no server
-// values AND seeds nothing — a failed read must never look like "the server has
-// nothing" and clobber real rows.
+/**
+ * Reconcile the loaded preference tiers into the values to apply now and the keys
+ * to seed up to the server. A failed read (`ok: false`) contributes no server
+ * values AND seeds nothing — a failed read must never look like "the server has
+ * nothing" and clobber real rows.
+ */
 export function processPreferencesResponse(
   res: { ok: true; data: GetPreferencesResponse } | { ok: false },
   localValues: Map<string, unknown>,

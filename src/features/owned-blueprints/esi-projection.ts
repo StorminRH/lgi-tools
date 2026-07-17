@@ -55,9 +55,11 @@ function compareBlueprints(a: OwnedBlueprint, b: OwnedBlueprint): number {
   );
 }
 
-// Returns null on a shape mismatch — the syncing action records a contract
-// error for that subject rather than retrying (a shape change won't fix itself)
-// or crashing the whole run. Mirrors parseIndustryJobsBody.
+/**
+ * Returns null on a shape mismatch — the syncing action records a contract
+ * error for that subject rather than retrying (a shape change won't fix itself)
+ * or crashing the whole run. Mirrors parseIndustryJobsBody.
+ */
 export function parseBlueprintsBody(body: unknown): OwnedBlueprint[] | null {
   const parsed = ownedBlueprintsBodySchema.safeParse(body);
   if (!parsed.success) return null;

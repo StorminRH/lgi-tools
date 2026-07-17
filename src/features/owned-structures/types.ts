@@ -8,10 +8,12 @@
 import type { SecurityClass } from '@/data/eve-data/security';
 import type { ParsedCorpStructure } from './esi-projection';
 
-// The read/display shape of one stored structure — what the read seam returns and
-// the planner's location selector renders (and feeds to computeStructureBonus next
-// session: typeId + securityClass are its inputs). `name` is null only for the rare
-// structure ESI returned without one; the selector falls back to the type name.
+/**
+ * The read/display shape of one stored structure — what the read seam returns and
+ * the planner's location selector renders (and feeds to computeStructureBonus next
+ * session: typeId + securityClass are its inputs). `name` is null only for the rare
+ * structure ESI returned without one; the selector falls back to the type name.
+ */
 export interface CorpStructureRow {
   structureId: number;
   typeId: number;
@@ -20,28 +22,34 @@ export interface CorpStructureRow {
   name: string | null;
 }
 
-// Per-corp sharing consent state (the app-authored system-of-record). `enabled`
-// defaults false; `setBy`/`setAt` are audit fields the structures page can surface.
+/**
+ * Per-corp sharing consent state (the app-authored system-of-record). `enabled`
+ * defaults false; `setBy`/`setAt` are audit fields the structures page can surface.
+ */
 export interface CorpStructureSharingState {
   enabled: boolean;
   setBy: number | null;
   setAt: Date;
 }
 
-// One stored structure joined with its authored completion — the shape the structures
-// page + corp completion editor consume (the rigs are empty and the tax null until a
-// Station_Manager records them; a null tax means the fee path assumes the 0.25% NPC
-// baseline).
+/**
+ * One stored structure joined with its authored completion — the shape the structures
+ * page + corp completion editor consume (the rigs are empty and the tax null until a
+ * Station_Manager records them; a null tax means the fee path assumes the 0.25% NPC
+ * baseline).
+ */
 export interface CorpStructurePageStructure extends CorpStructureRow {
   rigTypeIds: number[];
   taxPct: number | null;
 }
 
-// One member corp as the structures page renders it: the corp + its resolved name +
-// the viewer's Station_Manager flag + the sharing state + the shared structures
-// (populated only when sharing is on). Defined here in the slice so both the
-// composition layer (which builds it) and the client section (which renders it) share
-// one shape without the component reaching into src/db.
+/**
+ * One member corp as the structures page renders it: the corp + its resolved name +
+ * the viewer's Station_Manager flag + the sharing state + the shared structures
+ * (populated only when sharing is on). Defined here in the slice so both the
+ * composition layer (which builds it) and the client section (which renders it) share
+ * one shape without the component reaching into src/db.
+ */
 export interface CorpStructurePageView {
   corporationId: number;
   corporationName: string;
@@ -51,17 +59,21 @@ export interface CorpStructurePageView {
   lastRefreshedAt: number | null;
 }
 
-// The owner key: a corporation alone. NO userId — the structures catalogue is shared
-// across every member of the corp, so one row set is keyed by the corp id and all
-// members read it. (Contrast corp jobs, whose owner is (userId, corporationId).)
+/**
+ * The owner key: a corporation alone. NO userId — the structures catalogue is shared
+ * across every member of the corp, so one row set is keyed by the corp id and all
+ * members read it. (Contrast corp jobs, whose owner is (userId, corporationId).)
+ */
 export interface CorpOwner {
   corporationId: number;
 }
 
-// A linked character as the corp refresh enumerates it: identity, its cached corp id
-// (from the affiliation cache — null until first refreshed), plus the scope health
-// the eligibility predicate (canSyncCorpStructures) reads. The corp axis lives here
-// so the refresh can group members by corp.
+/**
+ * A linked character as the corp refresh enumerates it: identity, its cached corp id
+ * (from the affiliation cache — null until first refreshed), plus the scope health
+ * the eligibility predicate (canSyncCorpStructures) reads. The corp axis lives here
+ * so the refresh can group members by corp.
+ */
 export interface RefreshCorpMember {
   characterId: number;
   corporationId: number | null;
@@ -69,23 +81,29 @@ export interface RefreshCorpMember {
   missingScopes: string[];
 }
 
-// Per-corp sync state: the shared staleness stamp + the per-page etags to replay so
-// an unchanged corp returns a 304.
+/**
+ * Per-corp sync state: the shared staleness stamp + the per-page etags to replay so
+ * an unchanged corp returns a 304.
+ */
 export interface CorpStructuresSyncState {
   lastRefreshedAt: Date | null;
   pageEtags: string[];
 }
 
-// The slice's own read result, decoupled from lib/esi's EsiPagedRead (the Neon
-// path's fixed TTL ignores the ESI cache window the gate returns).
+/**
+ * The slice's own read result, decoupled from lib/esi's EsiPagedRead (the Neon
+ * path's fixed TTL ignores the ESI cache window the gate returns).
+ */
 export type CorpStructuresReadResult =
   | { kind: 'fresh'; items: unknown[]; etags: string[] }
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
-// The injected I/O the corp refresh runs over: auth (member enumeration, token vend,
-// in-game roles read), the one paged authed ESI gate read per corp, and Neon storage.
-// The real implementations are wired in src/db/corp-structures-sync.ts.
+/**
+ * The injected I/O the corp refresh runs over: auth (member enumeration, token vend,
+ * in-game roles read), the one paged authed ESI gate read per corp, and Neon storage.
+ * The real implementations are wired in src/db/corp-structures-sync.ts.
+ */
 export interface CorpStructuresPort {
   now(): Date;
   // Whether the corp has opted in to sharing its structures (the consent gate). Read

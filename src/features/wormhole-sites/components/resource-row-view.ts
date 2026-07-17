@@ -13,9 +13,11 @@ export type ResourceRowView = {
   dotTone: DotTone | null;
 };
 
-// The layout for one resource row, keyed by site type: hackable containers get a
-// two-column row with a coloured bullet, ore/gas get a three-column row with a
-// quantity·volume meta line (gas without a unit count shows volume alone).
+/**
+ * The layout for one resource row, keyed by site type: hackable containers get a
+ * two-column row with a coloured bullet, ore/gas get a three-column row with a
+ * quantity·volume meta line (gas without a unit count shows volume alone).
+ */
 export function deriveResourceRowView(resource: SiteResource, siteType: SiteType): ResourceRowView {
   if (siteType === 'relic' || siteType === 'data') {
     return { colsClass: 'grid-cols-[1fr_auto]', meta: null, dotTone: HACKING_DOT_TONE[siteType] };
@@ -35,8 +37,10 @@ export function deriveResourceRowView(resource: SiteResource, siteType: SiteType
   return { colsClass: 'grid-cols-[1fr_auto_auto]', meta: gasMeta, dotTone: null };
 }
 
-// A resource shows a live-confirmed price only when the site marks it live-eligible
-// and it carries a market type id; everything else renders its static seed.
+/**
+ * A resource shows a live-confirmed price only when the site marks it live-eligible
+ * and it carries a market type id; everything else renders its static seed.
+ */
 export function resourceValueEligible(resource: SiteResource): boolean {
   return resource.liveEligible && resource.typeId != null;
 }

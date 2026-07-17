@@ -10,7 +10,7 @@ import { mapByIdDroppingNulls } from '@/lib/fan-out';
 import { characterSkills, characterSkillSyncs } from './schema';
 import type { CharacterSkillData, CharacterSkillSyncState, SkillsSaveHalves } from './types';
 
-// One cache tag per character so a refresh busts exactly that character's cached read.
+/** One cache tag per character so a refresh busts exactly that character's cached read. */
 export function skillsTag(characterId: number): string {
   return `skills:${characterId}`;
 }
@@ -39,20 +39,24 @@ async function getCharacterSkills(characterId: number): Promise<CharacterSkillDa
   return data;
 }
 
-// The combined payload map across the given characters (the caller passes the user's
-// linked character ids — listing them needs auth, which a feature slice may not
-// import). Composes the cached per-character reads; a never-synced character is absent.
+/**
+ * The combined payload map across the given characters (the caller passes the user's
+ * linked character ids — listing them needs auth, which a feature slice may not
+ * import). Composes the cached per-character reads; a never-synced character is absent.
+ */
 export async function getSkillsForCharacters(
   characterIds: number[],
 ): Promise<Map<number, CharacterSkillData>> {
   return mapByIdDroppingNulls(characterIds, getCharacterSkills);
 }
 
-// Cached per-character trained-levels read for the planner's skills→time lever
-// (3.7.19.1). Shares the character's skills tag, so the write-behind's revalidate
-// busts it together with the payload read. Null when the character has never
-// synced (no row) OR the row predates the skill_levels column (pre-0039) — both
-// fail open to the no-skill baseline downstream.
+/**
+ * Cached per-character trained-levels read for the planner's skills→time lever
+ * (3.7.19.1). Shares the character's skills tag, so the write-behind's revalidate
+ * busts it together with the payload read. Null when the character has never
+ * synced (no row) OR the row predates the skill_levels column (pre-0039) — both
+ * fail open to the no-skill baseline downstream.
+ */
 export async function getCharacterSkillLevels(
   characterId: number,
 ): Promise<Record<string, number> | null> {
@@ -67,11 +71,13 @@ export async function getCharacterSkillLevels(
   return rows[0]?.skillLevels ?? null;
 }
 
-// The trained-levels map across the given characters (the slots readout's batch —
-// 3.7.24), composing the cached per-character reads like getSkillsForCharacters.
-// Unlike that map, a never-synced character is KEPT with a null value: null is the
-// meaningful fail-open signal downstream (base slot capacity), distinct from a
-// present map that simply lacks a skill (rank 0).
+/**
+ * The trained-levels map across the given characters (the slots readout's batch —
+ * 3.7.24), composing the cached per-character reads like getSkillsForCharacters.
+ * Unlike that map, a never-synced character is KEPT with a null value: null is the
+ * meaningful fail-open signal downstream (base slot capacity), distinct from a
+ * present map that simply lacks a skill (rank 0).
+ */
 export async function getSkillLevelsForCharacters(
   characterIds: number[],
 ): Promise<Map<number, Record<string, number> | null>> {
@@ -81,9 +87,11 @@ export async function getSkillLevelsForCharacters(
   return new Map(entries);
 }
 
-// Live (uncached) sync state for the staleness gate + etag replay (refresh path) and
-// the "as of" stamp (read path). Uncached on purpose: both need the true
-// last-refreshed time, not a cached view.
+/**
+ * Live (uncached) sync state for the staleness gate + etag replay (refresh path) and
+ * the "as of" stamp (read path). Uncached on purpose: both need the true
+ * last-refreshed time, not a cached view.
+ */
 export async function readCharacterSyncState(
   characterId: number,
 ): Promise<CharacterSkillSyncState | null> {
@@ -102,12 +110,14 @@ export async function readCharacterSyncState(
     : null;
 }
 
-// The write-behind. Two single-page endpoints feed two columns each; a 304 half is
-// omitted, so only the fresh half is written and the stored 304 half is untouched. A
-// 304 implies a prior fresh save (the etag came from one), so the partial-update path
-// always targets an existing row. Both halves present ⇒ a full upsert (the first-ever
-// sync inserts; later both-fresh syncs replace). The sync row's freshness is stamped
-// either way, and revalidateTag busts the cached read.
+/**
+ * The write-behind. Two single-page endpoints feed two columns each; a 304 half is
+ * omitted, so only the fresh half is written and the stored 304 half is untouched. A
+ * 304 implies a prior fresh save (the etag came from one), so the partial-update path
+ * always targets an existing row. Both halves present ⇒ a full upsert (the first-ever
+ * sync inserts; later both-fresh syncs replace). The sync row's freshness is stamped
+ * either way, and revalidateTag busts the cached read.
+ */
 export async function saveCharacterSkills(
   characterId: number,
   halves: SkillsSaveHalves,
@@ -161,9 +171,11 @@ export async function saveCharacterSkills(
   revalidateTag(skillsTag(characterId), 'max');
 }
 
-// The both-304 path: bump freshness only, leaving stored data + held etags untouched
-// (the data is unchanged, so no revalidate). The sync row always exists here — a 304
-// can only follow a prior fresh save that stored the replayed etag.
+/**
+ * The both-304 path: bump freshness only, leaving stored data + held etags untouched
+ * (the data is unchanged, so no revalidate). The sync row always exists here — a 304
+ * can only follow a prior fresh save that stored the replayed etag.
+ */
 export async function stampCharacterFresh(characterId: number): Promise<void> {
   await db
     .update(characterSkillSyncs)

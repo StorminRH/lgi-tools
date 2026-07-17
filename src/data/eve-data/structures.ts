@@ -32,22 +32,26 @@ export type StructureRigOption = {
   rigSize: number | null;
 };
 
-// Whether a rig is an industry-efficiency rig the planner models, from its dogma.
-// Reaction rigs carry the reactor-time attr; a manufacturing rig is one whose
-// material-reduction attr is present AND nonzero — that excludes the copy /
-// invention / research optimization rigs, which share the time/cost attrs but
-// carry no material reduction (and must not speed up a manufacturing build).
+/**
+ * Whether a rig is an industry-efficiency rig the planner models, from its dogma.
+ * Reaction rigs carry the reactor-time attr; a manufacturing rig is one whose
+ * material-reduction attr is present AND nonzero — that excludes the copy /
+ * invention / research optimization rigs, which share the time/cost attrs but
+ * carry no material reduction (and must not speed up a manufacturing build).
+ */
 export function isIndustryRig(attrs: AttrMap): boolean {
   if (attrs[RIG_REACTION_TIME_ATTR] !== undefined) return true;
   return (attrs[RIG_MFG_MATERIAL_ATTR] ?? 0) !== 0;
 }
 
-// Whether a rig physically fits a structure: CCP's actual fitting rule, not a
-// "role". The structure's group id must be one of the rig's canFitShipGroup ids
-// AND the rig-size class (M/L/XL) must match. A manufacturing rig fits an
-// Engineering Complex, a Refinery, or a Citadel; a reaction rig fits a Refinery
-// only. The single rule behind both the builder's rig picker and the save trust
-// boundary, so the two can never disagree on what's valid.
+/**
+ * Whether a rig physically fits a structure: CCP's actual fitting rule, not a
+ * "role". The structure's group id must be one of the rig's canFitShipGroup ids
+ * AND the rig-size class (M/L/XL) must match. A manufacturing rig fits an
+ * Engineering Complex, a Refinery, or a Citadel; a reaction rig fits a Refinery
+ * only. The single rule behind both the builder's rig picker and the save trust
+ * boundary, so the two can never disagree on what's valid.
+ */
 export function rigFitsStructure(
   rig: { canFitGroups: number[]; rigSize: number | null },
   structure: { groupId: number; rigSize: number | null },
@@ -55,10 +59,12 @@ export function rigFitsStructure(
   return rig.canFitGroups.includes(structure.groupId) && rig.rigSize === structure.rigSize;
 }
 
-// Shape raw type+dogma rows into the industry rigs the planner models: keep only
-// the industry-efficiency rigs (isIndustryRig), read each one's fittable
-// structure groups (canFitShipGroup01/02/03) and rig-size class, and return them
-// name-sorted. The cached DB read that feeds this lives in queries.ts.
+/**
+ * Shape raw type+dogma rows into the industry rigs the planner models: keep only
+ * the industry-efficiency rigs (isIndustryRig), read each one's fittable
+ * structure groups (canFitShipGroup01/02/03) and rig-size class, and return them
+ * name-sorted. The cached DB read that feeds this lives in queries.ts.
+ */
 export function shapeStructureRigs(
   rows: ReadonlyArray<{ id: number; name: string; attributes: unknown }>,
 ): StructureRigOption[] {

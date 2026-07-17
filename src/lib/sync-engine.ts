@@ -11,29 +11,33 @@
 // below. Tying heartbeat frequency to a dataset's refresh rate would blind
 // cold-detection for that dataset's whole cadence.
 
-// The datasets registered with the engine — one entry per live consumer.
-// Adding a future consumer is a config change here plus a syncRef in
-// convex/engine.ts, not new machinery.
-//
-// The engine serves a SINGLE live consumer: onlineStatus, the ≤2-min canary
-// (MIGRATE.A) that keeps it exercised + proven for the v4.0 mapper. The three
-// slow trackers (skills, personal + corp industry jobs) MOVED to Neon
-// stale-gated on-view reads in MIGRATE.B (all 300s/120s cache, "ready" derived
-// client-side from each job's absolute end_date — slow per-owner data, not
-// live); MIGRATE.D.1 wiped their dormant schema literals + subject rows. See
-// docs/CONVEX.md for the ≤2-min placement rule and the orphan-guard pattern
-// (the dataset-union-as-superset-of-the-registry technique a future retirement
-// re-instantiates).
+/**
+ * The datasets registered with the engine — one entry per live consumer.
+ * Adding a future consumer is a config change here plus a syncRef in
+ * convex/engine.ts, not new machinery.
+ *
+ * The engine serves a SINGLE live consumer: onlineStatus, the ≤2-min canary
+ * (MIGRATE.A) that keeps it exercised + proven for the v4.0 mapper. The three
+ * slow trackers (skills, personal + corp industry jobs) MOVED to Neon
+ * stale-gated on-view reads in MIGRATE.B (all 300s/120s cache, "ready" derived
+ * client-side from each job's absolute end_date — slow per-owner data, not
+ * live); MIGRATE.D.1 wiped their dormant schema literals + subject rows. See
+ * docs/CONVEX.md for the ≤2-min placement rule and the orphan-guard pattern
+ * (the dataset-union-as-superset-of-the-registry technique a future retirement
+ * re-instantiates).
+ */
 export const SYNC_DATASETS = ['onlineStatus'] as const;
 export type SyncDataset = (typeof SYNC_DATASETS)[number];
 
-// Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:
-// the real schedule comes off each run's stored ESI Expires (minExpiresAt),
-// and the floor only guards against polling faster than the dataset's cache
-// (~300s jobs / 60s online, both read live).
-// tokenGroup names the ESI token bucket the dataset bills (per-character
-// buckets, group-keyed) — the engine's rate limiter smooths dispatch per
-// group so a re-arm herd can't burst one group's spend.
+/**
+ * Per-dataset scheduling data. cadenceFloorMs is the floor, not the target:
+ * the real schedule comes off each run's stored ESI Expires (minExpiresAt),
+ * and the floor only guards against polling faster than the dataset's cache
+ * (~300s jobs / 60s online, both read live).
+ * tokenGroup names the ESI token bucket the dataset bills (per-character
+ * buckets, group-keyed) — the engine's rate limiter smooths dispatch per
+ * group so a re-arm herd can't burst one group's spend.
+ */
 export const SYNC_DATASET_CONFIG: Record<
   SyncDataset,
   { cadenceFloorMs: number; tokenGroup: string }
@@ -47,46 +51,58 @@ export const SYNC_DATASET_CONFIG: Record<
   onlineStatus: { cadenceFloorMs: 60_000, tokenGroup: 'char-online' },
 };
 
-// Client heartbeat interval while the tab is visible.
+/** Client heartbeat interval while the tab is visible. */
 export const HEARTBEAT_MS = 20_000;
 
-// A subject whose last heartbeat is older than this is cold: the scan stops
-// dispatching for it (three missed beats of margin over HEARTBEAT_MS).
+/**
+ * A subject whose last heartbeat is older than this is cold: the scan stops
+ * dispatching for it (three missed beats of margin over HEARTBEAT_MS).
+ */
 export const COLD_AFTER_MS = 60_000;
 
-// A subject this long without a heartbeat is deleted by the sweep — pure
-// housekeeping; a returning viewer's first heartbeat recreates the row. Lives
-// here (beside COLD_AFTER_MS) so the pure sweep classifier and the engine's
-// abandoned-row index range share one constant.
+/**
+ * A subject this long without a heartbeat is deleted by the sweep — pure
+ * housekeeping; a returning viewer's first heartbeat recreates the row. Lives
+ * here (beside COLD_AFTER_MS) so the pure sweep classifier and the engine's
+ * abandoned-row index range share one constant.
+ */
 export const RETENTION_MS = 7 * 24 * 60 * 60_000;
 
-// A 'running' status older than this is treated as stuck (e.g. the workpool
-// onComplete itself failed) and taken over by the next dispatch — without it
-// one wedged run would block the subject's syncs forever. Sized above the
-// worst-case retry envelope (4 attempts, ~1s/2s/4s backoff, seconds-long
-// runs). Carried verbatim from the 3.4.7/3.4.8 trackers.
+/**
+ * A 'running' status older than this is treated as stuck (e.g. the workpool
+ * onComplete itself failed) and taken over by the next dispatch — without it
+ * one wedged run would block the subject's syncs forever. Sized above the
+ * worst-case retry envelope (4 attempts, ~1s/2s/4s backoff, seconds-long
+ * runs). Carried verbatim from the 3.4.7/3.4.8 trackers.
+ */
 export const STALE_RUNNING_MS = 3 * 60_000;
 
-// Random spread added to every computed due time so subjects sharing a token
-// group land on different scan ticks instead of dispatching as a herd.
+/**
+ * Random spread added to every computed due time so subjects sharing a token
+ * group land on different scan ticks instead of dispatching as a herd.
+ */
 export const SYNC_JITTER_MS = 10_000;
 
 export function isCold(lastSeenAt: number, now: number): boolean {
   return now - lastSeenAt > COLD_AFTER_MS;
 }
 
-// Cold-detection over a subject's presence doc, which the engine reads
-// separately from the subject row (presence lives in its own ephemeral table
-// so an interval heartbeat never invalidates forViewer). An absent presence
-// doc means no live tab has ever beaten — or its presence was already reaped —
-// so it is cold by definition; otherwise defer to isCold.
+/**
+ * Cold-detection over a subject's presence doc, which the engine reads
+ * separately from the subject row (presence lives in its own ephemeral table
+ * so an interval heartbeat never invalidates forViewer). An absent presence
+ * doc means no live tab has ever beaten — or its presence was already reaped —
+ * so it is cold by definition; otherwise defer to isCold.
+ */
 export function isColdFromPresence(lastSeenAt: number | null, now: number): boolean {
   return lastSeenAt === null || isCold(lastSeenAt, now);
 }
 
-// True while a dispatched run still owns the subject — new dispatches must
-// wait. Past STALE_RUNNING_MS the run is presumed wedged and a new dispatch
-// takes over (the generation token makes the old run's late writes no-ops).
+/**
+ * True while a dispatched run still owns the subject — new dispatches must
+ * wait. Past STALE_RUNNING_MS the run is presumed wedged and a new dispatch
+ * takes over (the generation token makes the old run's late writes no-ops).
+ */
 export function isRunningFresh(
   status: 'idle' | 'running',
   lastRequestedAt: number,
@@ -95,17 +111,19 @@ export function isRunningFresh(
   return status === 'running' && now - lastRequestedAt < STALE_RUNNING_MS;
 }
 
-// What the sweep should do with an OVERDUE subject (one its by_next_due range
-// surfaced, i.e. nextDueAt in (0, now]), given its presence liveness. Pure half
-// of the sweep's Pass A so the cold/retention/running branches are unit-tested
-// without a Convex runtime:
-//   - cold & past retention (or never seen) → 'delete' the abandoned row
-//   - cold but still within retention       → 'retire' it from the scan set
-//   - a fresh run still owns it              → 'skip'
-//   - otherwise (hot, idle)                  → 'dispatch'
-// Mirrors the inline cold/running branches the 30s scan uses, plus the sweep's
-// retention housekeeping. The retire branch needs no separate "is it overdue?"
-// test: every row in Pass A's range is already overdue.
+/**
+ * What the sweep should do with an OVERDUE subject (one its by_next_due range
+ * surfaced, i.e. nextDueAt in (0, now]), given its presence liveness. Pure half
+ * of the sweep's Pass A so the cold/retention/running branches are unit-tested
+ * without a Convex runtime:
+ *   - cold & past retention (or never seen) → 'delete' the abandoned row
+ *   - cold but still within retention       → 'retire' it from the scan set
+ *   - a fresh run still owns it              → 'skip'
+ *   - otherwise (hot, idle)                  → 'dispatch'
+ * Mirrors the inline cold/running branches the 30s scan uses, plus the sweep's
+ * retention housekeeping. The retire branch needs no separate "is it overdue?"
+ * test: every row in Pass A's range is already overdue.
+ */
 export type DueSubjectAction = 'delete' | 'retire' | 'skip' | 'dispatch';
 
 export function classifyDueSubject(
@@ -121,11 +139,13 @@ export function classifyDueSubject(
   return 'dispatch';
 }
 
-// Next scheduled run: when the earliest per-character cache window ends, but
-// never sooner than the dataset's cadence floor, plus jitter. minExpiresAt
-// null means stale-now (first sync, or an errored character cleared its
-// window) — the floor still paces it, so an erroring subject retries at
-// cadence, never in a tight loop.
+/**
+ * Next scheduled run: when the earliest per-character cache window ends, but
+ * never sooner than the dataset's cadence floor, plus jitter. minExpiresAt
+ * null means stale-now (first sync, or an errored character cleared its
+ * window) — the floor still paces it, so an erroring subject retries at
+ * cadence, never in a tight loop.
+ */
 export function computeNextDueAt(
   minExpiresAt: number | null,
   cadenceFloorMs: number,
@@ -136,10 +156,12 @@ export function computeNextDueAt(
   return due + Math.floor(random() * SYNC_JITTER_MS);
 }
 
-// Should a mount/visible heartbeat dispatch immediately, rather than
-// wait for the scan? Yes when the data is stale (no window, or window past)
-// or the viewer brought a character the engine hasn't synced yet (the
-// freshness-only hint — it never grants access; the action re-enumerates).
+/**
+ * Should a mount/visible heartbeat dispatch immediately, rather than
+ * wait for the scan? Yes when the data is stale (no window, or window past)
+ * or the viewer brought a character the engine hasn't synced yet (the
+ * freshness-only hint — it never grants access; the action re-enumerates).
+ */
 export function isStaleForImmediate(
   minExpiresAt: number | null,
   syncedCharacterIds: number[],
@@ -151,25 +173,31 @@ export function isStaleForImmediate(
   return characterIdsHint.some((id) => !synced.has(id));
 }
 
-// The subject-level cache window from a run's per-character windows: the
-// earliest expiry, with any null (errored character — window cleared, the
-// #95 "re-syncable now" meaning) poisoning the whole subject to stale.
+/**
+ * The subject-level cache window from a run's per-character windows: the
+ * earliest expiry, with any null (errored character — window cleared, the
+ * #95 "re-syncable now" meaning) poisoning the whole subject to stale.
+ */
 export function minCacheWindow(windows: Array<number | null>): number | null {
   if (windows.length === 0 || windows.some((w) => w === null)) return null;
   return Math.min(...(windows as number[]));
 }
 
-// A subject with no hinted and no previously-synced characters has nothing
-// to sync — heartbeats stay presence-only (parity with the shipped "no hint,
-// no docs" guard).
+/**
+ * A subject with no hinted and no previously-synced characters has nothing
+ * to sync — heartbeats stay presence-only (parity with the shipped "no hint,
+ * no docs" guard).
+ */
 export function hasSyncTarget(syncedCharacterIds: number[], characterIdsHint: number[]): boolean {
   return characterIdsHint.length > 0 || syncedCharacterIds.length > 0;
 }
 
-// The Convex HTTP-actions origin for a deployment URL: cloud deployments
-// serve them on the sibling .convex.site domain; the local dev backend
-// serves them on the API port + 1 (3210 → 3211). Returns null for shapes we
-// don't recognize so the caller can fail loudly instead of posting nowhere.
+/**
+ * The Convex HTTP-actions origin for a deployment URL: cloud deployments
+ * serve them on the sibling .convex.site domain; the local dev backend
+ * serves them on the API port + 1 (3210 → 3211). Returns null for shapes we
+ * don't recognize so the caller can fail loudly instead of posting nowhere.
+ */
 export function deriveConvexSiteUrl(convexUrl: string): string | null {
   let url: URL;
   try {

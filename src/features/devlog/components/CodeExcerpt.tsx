@@ -37,14 +37,16 @@ function ExcerptLines({ tokens, lines }: { tokens: ExcerptTokens; lines: string 
   );
 }
 
-// One inline code excerpt, collapsed by default: a native <details> (the Collapsible
-// invariant — the element owns open/closed, no React state) showing a mono `file:lines`
-// label that expands the snapshot in place. When the excerpt carries a pinned-SHA
-// permalink, a "view on GitHub" link sits above the code (outside <summary>, so it
-// never toggles the details). The code renders as JSX — never innerHTML — so a snapshot
-// containing markup stays inert; when the build attached no tokens, it falls back to the
-// raw text. A standalone boxed excerpt owns its own border (the raw <details> idiom of
-// the tree outline), rather than the Collapsible list divider.
+/**
+ * One inline code excerpt, collapsed by default: a native <details> (the Collapsible
+ * invariant — the element owns open/closed, no React state) showing a mono `file:lines`
+ * label that expands the snapshot in place. When the excerpt carries a pinned-SHA
+ * permalink, a "view on GitHub" link sits above the code (outside <summary>, so it
+ * never toggles the details). The code renders as JSX — never innerHTML — so a snapshot
+ * containing markup stays inert; when the build attached no tokens, it falls back to the
+ * raw text. A standalone boxed excerpt owns its own border (the raw <details> idiom of
+ * the tree outline), rather than the Collapsible list divider.
+ */
 export function CodeExcerpt({ excerpt }: { excerpt: Excerpt }) {
   const href = githubUrl(excerpt);
   return (

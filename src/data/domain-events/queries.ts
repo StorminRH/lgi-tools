@@ -17,9 +17,11 @@ async function insertDomainEvent(input: DomainEventInput): Promise<void> {
   }
 }
 
-// Ledger writes are always additive and best-effort. A failed audit insert is
-// observable in runtime logs but can never fail the domain operation it records.
-// Next's request-lifetime primitive keeps the insert alive after a response.
+/**
+ * Ledger writes are always additive and best-effort. A failed audit insert is
+ * observable in runtime logs but can never fail the domain operation it records.
+ * Next's request-lifetime primitive keeps the insert alive after a response.
+ */
 export function emitDomainEvent(input: DomainEventInput): void {
   try {
     after(() => insertDomainEvent(input));

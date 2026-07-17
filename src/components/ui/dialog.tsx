@@ -85,8 +85,10 @@ export function Dialog({
   );
 }
 
-// Re-exported so consumers compose the dialog's close affordance through
-// `@/components/ui/dialog` without reaching for the raw Base UI import.
+/**
+ * Re-exported so consumers compose the dialog's close affordance through
+ * `@/components/ui/dialog` without reaching for the raw Base UI import.
+ */
 export const DialogClose = Base.Close;
 export const DialogTitle = Base.Title;
 export const DialogDescription = Base.Description;

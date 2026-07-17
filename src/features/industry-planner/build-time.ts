@@ -12,21 +12,27 @@ import { formatRemaining } from '@/lib/format/time';
 // (one job slot, no parallelism) — building one Ishtar from an empty hangar reads as
 // days; the tile's hover says so.
 
-// Time-efficiency multiplier: TE% (0–20) reduces job time. 0 ⇒ 1 (unchanged), the
-// byte-identical anchor for the pre-TE Build-time figure.
+/**
+ * Time-efficiency multiplier: TE% (0–20) reduces job time. 0 ⇒ 1 (unchanged), the
+ * byte-identical anchor for the pre-TE Build-time figure.
+ */
 export function teFactor(te: number): number {
   return te <= 0 ? 1 : 1 - te / 100;
 }
 
-// Compact largest-two-units duration for a build job, reusing the app's
-// remaining-time idiom (seconds → ms). Sub-minute floors to "<1m".
+/**
+ * Compact largest-two-units duration for a build job, reusing the app's
+ * remaining-time idiom (seconds → ms). Sub-minute floors to "\<1m".
+ */
 export function formatBuildDuration(seconds: number): string {
   return formatRemaining(Math.round(seconds) * 1000);
 }
 
-// One job in the "total job time" calculation: a buildable, its TE-adjusted per-run
-// time, the batched run count, and the product (perRun × runs). Seconds; the UI
-// formats them. The whole breakdown's `totalSeconds` sums to the Total job time.
+/**
+ * One job in the "total job time" calculation: a buildable, its TE-adjusted per-run
+ * time, the batched run count, and the product (perRun × runs). Seconds; the UI
+ * formats them. The whole breakdown's `totalSeconds` sums to the Total job time.
+ */
 export interface BuildTimeLine {
   typeId: number;
   name: string;
@@ -49,11 +55,13 @@ export interface BuildTimes {
   breakdown: BuildTimeLine[];
 }
 
-// Compute the build-time figures + the per-job breakdown. `builds` is the ME-aware
-// batch ledger's per-node entries (keyed by product typeId, each carrying its
-// whole-run count + producing blueprint); the top product is NOT among them, so it is
-// added once from `topJobSeconds`. `teOf` returns a blueprint's effective TE (owned or
-// overridden), or undefined ⇒ TE0; `nameOf` labels each line by product typeId.
+/**
+ * Compute the build-time figures + the per-job breakdown. `builds` is the ME-aware
+ * batch ledger's per-node entries (keyed by product typeId, each carrying its
+ * whole-run count + producing blueprint); the top product is NOT among them, so it is
+ * added once from `topJobSeconds`. `teOf` returns a blueprint's effective TE (owned or
+ * overridden), or undefined ⇒ TE0; `nameOf` labels each line by product typeId.
+ */
 export function computeBuildTimes(args: {
   topBlueprintTypeId: number;
   topProductTypeId: number;

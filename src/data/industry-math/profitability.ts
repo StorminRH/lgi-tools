@@ -17,16 +17,20 @@ export interface MaterialQty {
   quantity: number;
 }
 
-// The minimal price view the math needs. Both sides nullable — null means "no
-// orders on that side at the last refresh", which makes that line's cost or
-// revenue unknown rather than zero.
+/**
+ * The minimal price view the math needs. Both sides nullable — null means "no
+ * orders on that side at the last refresh", which makes that line's cost or
+ * revenue unknown rather than zero.
+ */
 export interface MaterialPrice {
   bestBuy: number | null;
   bestSell: number | null;
 }
 
-// Type ID → price, or undefined when the type has no market_prices row at all.
-// Undefined and a present row with a null bestBuy are both "unpriced" for cost.
+/**
+ * Type ID → price, or undefined when the type has no market_prices row at all.
+ * Undefined and a present row with a null bestBuy are both "unpriced" for cost.
+ */
 export type PriceOf = (typeId: number) => MaterialPrice | undefined;
 
 export interface MaterialCost {
@@ -42,9 +46,11 @@ export interface BuildCost {
   missingTypeIds: number[]; // materials with no usable buy price
 }
 
-// Input cost = Σ quantity × best buy. A material with no row, or a null
-// bestBuy, contributes 0 to the total and is flagged in missingTypeIds so the
-// UI can mark the estimate "incomplete" rather than silently undercount it.
+/**
+ * Input cost = Σ quantity × best buy. A material with no row, or a null
+ * bestBuy, contributes 0 to the total and is flagged in missingTypeIds so the
+ * UI can mark the estimate "incomplete" rather than silently undercount it.
+ */
 export function computeBuildCost(
   materials: MaterialQty[],
   priceOf: PriceOf,
@@ -91,9 +97,11 @@ export interface Margin {
   marginPct: number | null; // margin / revenue × 100; null when revenue unknown or ≤ 0
 }
 
-// Output revenue = best sell × units produced per run. Returns a null revenue
-// (and null margin) when the product has no sell price, so the UI can show
-// "—" instead of treating an unpriced product as a total loss.
+/**
+ * Output revenue = best sell × units produced per run. Returns a null revenue
+ * (and null margin) when the product has no sell price, so the UI can show
+ * "—" instead of treating an unpriced product as a total loss.
+ */
 export function computeMargin({
   buildCost,
   productSell,

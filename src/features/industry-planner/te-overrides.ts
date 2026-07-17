@@ -10,17 +10,21 @@ import { effectiveMeOf, nodeMeState, type NodeMeState } from './me-overrides';
 
 export const MAX_TE = 20;
 
-// Clamp a raw numeric TE input to an integer in [0, MAX_TE]; a non-finite input
-// (empty / malformed field) falls back to `fallback`. Same shape as `clampMe`.
+/**
+ * Clamp a raw numeric TE input to an integer in [0, MAX_TE]; a non-finite input
+ * (empty / malformed field) falls back to `fallback`. Same shape as `clampMe`.
+ */
 export function clampTe(n: number, fallback = 0): number {
   if (!Number.isFinite(n)) return fallback;
   return Math.min(MAX_TE, Math.max(0, Math.floor(n)));
 }
 
-// The effective per-blueprint TE lookup and a node's owned/manual/unowned state are
-// identical in shape to ME (override wins, else owned, else undefined). Thin
-// forwarders (not bare aliases) so the TE boundary is explicit — a deliberate seam to
-// make TE-specific behaviour easy to add later without a copy of the logic today.
+/**
+ * The effective per-blueprint TE lookup and a node's owned/manual/unowned state are
+ * identical in shape to ME (override wins, else owned, else undefined). Thin
+ * forwarders (not bare aliases) so the TE boundary is explicit — a deliberate seam to
+ * make TE-specific behaviour easy to add later without a copy of the logic today.
+ */
 export function effectiveTeOf(
   owned: Map<number, number> | null,
   overrides: Map<number, number>,

@@ -25,8 +25,10 @@ export function MultiplesGrid({
   );
 }
 
-// One cell: a title, a big current value with an optional delta badge beside it,
-// an optional note (e.g. "lower = better"), then the chart.
+/**
+ * One cell: a title, a big current value with an optional delta badge beside it,
+ * an optional note (e.g. "lower = better"), then the chart.
+ */
 export function MultiplesCell({
   title,
   value,

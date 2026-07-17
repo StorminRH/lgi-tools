@@ -135,10 +135,12 @@ function FeedbackFooter({
   );
 }
 
-// Feedback modal. Captures the URL the user was viewing when the modal
-// opened (not at submit time — feedback is reactive, so the page they
-// were reacting to is the relevant one even if they navigate after).
-// Server reads the session itself; client doesn't pass character info.
+/**
+ * Feedback modal. Captures the URL the user was viewing when the modal
+ * opened (not at submit time — feedback is reactive, so the page they
+ * were reacting to is the relevant one even if they navigate after).
+ * Server reads the session itself; client doesn't pass character info.
+ */
 export function FeedbackModal({
   open,
   onClose,

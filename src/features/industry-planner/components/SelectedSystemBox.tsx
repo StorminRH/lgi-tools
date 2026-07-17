@@ -1,11 +1,13 @@
 import { formatSec } from '@/data/eve-data/systems-search';
 
-// The picked/locked SYSTEM readout of a location group — the exact fixed box
-// (260×30) the system search and the station select render at, so picking,
-// locking, or clearing a system never shifts the hero card's plane. `locked`
-// carries the locking structure's name (corp or pinned custom); a locked box
-// shows a static marker instead of the Clear action. Both location groups
-// share it so the two can't drift.
+/**
+ * The picked/locked SYSTEM readout of a location group — the exact fixed box
+ * (260×30) the system search and the station select render at, so picking,
+ * locking, or clearing a system never shifts the hero card's plane. `locked`
+ * carries the locking structure's name (corp or pinned custom); a locked box
+ * shows a static marker instead of the Clear action. Both location groups
+ * share it so the two can't drift.
+ */
 export function SelectedSystemBox({
   name,
   security,

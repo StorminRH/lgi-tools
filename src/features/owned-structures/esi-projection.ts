@@ -11,9 +11,11 @@
 // snake_case — ESI's truth, parsed verbatim.
 import { z } from 'zod';
 
-// One element of the corp-structures list. `name` is authoritative (the corp owns
-// the structure) but kept optional so a single nameless structure never fails the
-// whole-body parse — it stores a null name and the selector falls back to the type.
+/**
+ * One element of the corp-structures list. `name` is authoritative (the corp owns
+ * the structure) but kept optional so a single nameless structure never fails the
+ * whole-body parse — it stores a null name and the selector falls back to the type.
+ */
 export const corpStructureSchema = z.object({
   structure_id: z.number().int(),
   type_id: z.number().int(),
@@ -24,9 +26,11 @@ const corpStructuresBodySchema = z.array(corpStructureSchema);
 
 export type ParsedCorpStructure = z.infer<typeof corpStructureSchema>;
 
-// Returns null on a shape mismatch — the syncing layer keeps the stored catalogue
-// and retries on the next view rather than blanking it (a shape change won't fix
-// itself). Sorted by structure id for a stable order (ESI documents none).
+/**
+ * Returns null on a shape mismatch — the syncing layer keeps the stored catalogue
+ * and retries on the next view rather than blanking it (a shape change won't fix
+ * itself). Sorted by structure id for a stable order (ESI documents none).
+ */
 export function parseCorpStructuresBody(items: unknown[]): ParsedCorpStructure[] | null {
   const parsed = corpStructuresBodySchema.safeParse(items);
   if (!parsed.success) return null;

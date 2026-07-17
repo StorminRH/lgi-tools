@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
-// Standalone "// Label" section heading — recreates the prototype's
-// `.OG-seclabel`. Distinct from the bordered, in-card `SectionHeader`: this one
-// sits free above a grid or list (homepage tools, /industry sections, the
-// static-page sections), with the leading `//` slashes in ISK-green. An
-// optional `meta` node renders right-aligned (e.g. `// Active jobs` paired with
-// a `1 complete · 4 in progress` count). The label text stays the mono face;
-// `meta` is rendered as-is so the caller owns its styling.
+/**
+ * Standalone "// Label" section heading — recreates the prototype's
+ * `.OG-seclabel`. Distinct from the bordered, in-card `SectionHeader`: this one
+ * sits free above a grid or list (homepage tools, /industry sections, the
+ * static-page sections), with the leading `//` slashes in ISK-green. An
+ * optional `meta` node renders right-aligned (e.g. `// Active jobs` paired with
+ * a `1 complete · 4 in progress` count). The label text stays the mono face;
+ * `meta` is rendered as-is so the caller owns its styling.
+ */
 export function SectionLabel({
   children,
   meta,

@@ -7,9 +7,11 @@ import { historyTag } from './constants';
 import { marketHistory, marketHistoryMeta } from './schema';
 import type { HistoryDailyRow, MarketHistoryInputs } from './types';
 
-// Stored daily rows grouped by type, oldest day first. The raw series — used by
-// the on-view engine and the cached inputs read, and available to 3.5.3b for
-// any window/sparkline the typed inputs don't pre-bake.
+/**
+ * Stored daily rows grouped by type, oldest day first. The raw series — used by
+ * the on-view engine and the cached inputs read, and available to 3.5.3b for
+ * any window/sparkline the typed inputs don't pre-bake.
+ */
 export async function getStoredHistory(
   typeIds: number[],
 ): Promise<Map<number, HistoryDailyRow[]>> {
@@ -44,8 +46,10 @@ export async function getStoredHistory(
   return out;
 }
 
-// Per-type freshness — the on-view gate reads stale_after to decide
-// fetch-or-serve without touching the bulky daily rows.
+/**
+ * Per-type freshness — the on-view gate reads stale_after to decide
+ * fetch-or-serve without touching the bulky daily rows.
+ */
 export async function getHistoryMeta(
   typeIds: number[],
 ): Promise<Map<number, { staleAfter: Date }>> {
@@ -62,11 +66,13 @@ export async function getHistoryMeta(
   return out;
 }
 
-// Cached typed scoring inputs from the stored rows — the planner page's warm
-// seed (mirrors the price seed). Returns a plain array (cache-serializable, no
-// Map). The 'hours' cacheLife gives sub-day freshness; the per-type tag bumps
-// it the instant the on-view write-behind persists fresh rows. Types with no
-// stored history are simply absent from the result.
+/**
+ * Cached typed scoring inputs from the stored rows — the planner page's warm
+ * seed (mirrors the price seed). Returns a plain array (cache-serializable, no
+ * Map). The 'hours' cacheLife gives sub-day freshness; the per-type tag bumps
+ * it the instant the on-view write-behind persists fresh rows. Types with no
+ * stored history are simply absent from the result.
+ */
 export async function getMarketHistoryInputs(
   typeIds: number[],
 ): Promise<MarketHistoryInputs[]> {

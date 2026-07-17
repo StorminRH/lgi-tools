@@ -60,17 +60,19 @@ async function retryDelayFor(
   return BASE_DELAY_MS * 2 ** (attempt - 1);
 }
 
-// The neon-http driver (@neondatabase/serverless) has exactly three
-// `NeonDbError` constructions on the query path; two are connection-class:
-// - fetch rejection → message `Error connecting to database: ${err}` (the
-//   observed build-killer: "... fetch failed"), with `sourceError` set;
-// - non-400 HTTP failure from the proxy → `Server error (HTTP status N): ...`
-//   (5xx covers the compute-wake window; 4xx is auth/config — not retried).
-// SQL errors arrive with a real SQLSTATE in `code`: class 08 (connection
-// exception) and 57P03 (cannot_connect_now, "the database system is starting
-// up") are the cold-start-shaped ones. Drizzle wraps every query error in
-// DrizzleQueryError with `cause` set, so the matcher walks the chain — it
-// works with or without the wrapper.
+/**
+ * The neon-http driver (\@neondatabase/serverless) has exactly three
+ * `NeonDbError` constructions on the query path; two are connection-class:
+ * - fetch rejection → message `Error connecting to database: ${err}` (the
+ *   observed build-killer: "... fetch failed"), with `sourceError` set;
+ * - non-400 HTTP failure from the proxy → `Server error (HTTP status N): ...`
+ *   (5xx covers the compute-wake window; 4xx is auth/config — not retried).
+ * SQL errors arrive with a real SQLSTATE in `code`: class 08 (connection
+ * exception) and 57P03 (cannot_connect_now, "the database system is starting
+ * up") are the cold-start-shaped ones. Drizzle wraps every query error in
+ * DrizzleQueryError with `cause` set, so the matcher walks the chain — it
+ * works with or without the wrapper.
+ */
 export function isNeonColdStartError(err: unknown): boolean {
   let node: unknown = err;
   for (let depth = 0; depth < MAX_CHAIN_DEPTH && node instanceof Error; depth++) {
@@ -91,10 +93,12 @@ export function isNeonColdStartError(err: unknown): boolean {
   return false;
 }
 
-// Runs `read`, retrying cold-start-class failures with exponential backoff
-// (500 ms / 1 s / 2 s between the 4 attempts). Every retry logs a console.warn
-// so a recovered build is visible in the Vercel build logs. Non-matching
-// errors rethrow immediately; exhaustion rethrows the last error.
+/**
+ * Runs `read`, retrying cold-start-class failures with exponential backoff
+ * (500 ms / 1 s / 2 s between the 4 attempts). Every retry logs a console.warn
+ * so a recovered build is visible in the Vercel build logs. Non-matching
+ * errors rethrow immediately; exhaustion rethrows the last error.
+ */
 export async function withColdStartRetry<T>(read: () => Promise<T>): Promise<T> {
   let totalDelayMs = 0;
   for (let attempt = 1; ; attempt++) {

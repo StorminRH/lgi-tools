@@ -22,11 +22,13 @@ export const JOB_STATUSES = [
 
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
-// GET /characters/{id}/industry/jobs — one element per job. The endpoint
-// returns more fields than the tracker stores (location/facility ids, cost,
-// invention detail); Zod strips the rest so the doc carries only what the UI
-// renders. Without `include_completed` only active/paused/ready jobs appear —
-// a delivered job simply vanishes from the next fresh body.
+/**
+ * GET /characters/\{id\}/industry/jobs — one element per job. The endpoint
+ * returns more fields than the tracker stores (location/facility ids, cost,
+ * invention detail); Zod strips the rest so the doc carries only what the UI
+ * renders. Without `include_completed` only active/paused/ready jobs appear —
+ * a delivered job simply vanishes from the next fresh body.
+ */
 export const industryJobSchema = z.object({
   job_id: z.number().int(),
   // The character who installed the job — on the corp endpoint it identifies the
@@ -50,9 +52,11 @@ const industryJobsBodySchema = z.array(industryJobSchema);
 
 export type IndustryJob = z.infer<typeof industryJobSchema>;
 
-// Returns null on a shape mismatch — the syncing action records a contract
-// error for that character rather than retrying (a shape change won't fix
-// itself) or crashing the whole run.
+/**
+ * Returns null on a shape mismatch — the syncing action records a contract
+ * error for that character rather than retrying (a shape change won't fix
+ * itself) or crashing the whole run.
+ */
 export function parseIndustryJobsBody(body: unknown): IndustryJob[] | null {
   const parsed = industryJobsBodySchema.safeParse(body);
   if (!parsed.success) return null;
@@ -63,13 +67,15 @@ export function parseIndustryJobsBody(body: unknown): IndustryJob[] | null {
   );
 }
 
-// The type ids a set of job boards reference — each job's blueprint plus its
-// product where one exists — so a consumer can resolve them to names in one
-// batch. Reads only the `data.jobs` each entry carries, so the per-character
-// (personal) and per-corporation (corp) live shapes both satisfy it. Lives here
-// in the runtime-light projection (not the 'use client' panel) so the Neon
-// server wrapper (src/db/industry-jobs-sync.ts) can resolve names server-side and
-// the corp board can still resolve them client-side — one shared extraction.
+/**
+ * The type ids a set of job boards reference — each job's blueprint plus its
+ * product where one exists — so a consumer can resolve them to names in one
+ * batch. Reads only the `data.jobs` each entry carries, so the per-character
+ * (personal) and per-corporation (corp) live shapes both satisfy it. Lives here
+ * in the runtime-light projection (not the 'use client' panel) so the Neon
+ * server wrapper (src/db/industry-jobs-sync.ts) can resolve names server-side and
+ * the corp board can still resolve them client-side — one shared extraction.
+ */
 export function jobTypeIds(entries: { data: { jobs: IndustryJob[] } | null }[]): number[] {
   const ids: number[] = [];
   for (const entry of entries) {

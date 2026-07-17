@@ -18,9 +18,11 @@ function reDeriveBoard(board: JobBoard, now: number): JobBoard {
   };
 }
 
-// The per-character board map with each job's status re-derived on the render clock. A
-// never-synced character (data:null) passes through untouched, so consumers read
-// job.status as before.
+/**
+ * The per-character board map with each job's status re-derived on the render clock. A
+ * never-synced character (data:null) passes through untouched, so consumers read
+ * job.status as before.
+ */
 export function deriveJobsByCharacter(response: JobsResponse | null, now: number): Map<number, ViewerJobs> {
   const map = new Map<number, ViewerJobs>();
   for (const character of response?.characters ?? []) {
@@ -32,8 +34,10 @@ export function deriveJobsByCharacter(response: JobsResponse | null, now: number
   return map;
 }
 
-// The per-corp board list with each job's status re-derived on the render clock. A corp
-// with no readable board (data:null — un-synced or needs_role) passes through untouched.
+/**
+ * The per-corp board list with each job's status re-derived on the render clock. A corp
+ * with no readable board (data:null — un-synced or needs_role) passes through untouched.
+ */
 export function deriveCorpJobs(response: CorpJobsResponse | null, now: number): ViewerCorpJobs[] {
   return (response?.corporations ?? []).map((corp) =>
     corp.data === null ? corp : { ...corp, data: reDeriveBoard(corp.data, now) },

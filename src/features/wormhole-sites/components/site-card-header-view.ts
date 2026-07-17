@@ -61,8 +61,10 @@ export type SiteCardHeaderView = {
   ewarPills: { key: EwarKey; tone: ChipTone; label: string }[];
 };
 
-// The card's collapsed-summary content, computed from the site + its displayable
-// resources: the value read, the class/type/EWAR pill configs, and the sub-line.
+/**
+ * The card's collapsed-summary content, computed from the site + its displayable
+ * resources: the value read, the class/type/EWAR pill configs, and the sub-line.
+ */
 export function deriveSiteCardHeaderView(
   site: SiteDetail,
   liveResources: SiteResource[],

@@ -26,13 +26,15 @@ export function isOpsAlertConfigured(): boolean {
   return Boolean(readEnv('DISCORD_ALERT_WEBHOOK_URL'));
 }
 
-// Best-effort ops alert when the price source degrades to Fuzzwork (3.0.10
-// O-1). Reads DISCORD_ALERT_WEBHOOK_URL — a dedicated ops channel, separate
-// from the feedback webhook. If it is unset, returns silently: the alert sits
-// on top of the O-1 telemetry event, never as a hard dependency. Fired only
-// from the cron path (not the public on-demand route) so a public endpoint
-// can't drive Discord posts. Callers invoke it fire-and-forget, so a Discord
-// failure never breaks the cron.
+/**
+ * Best-effort ops alert when the price source degrades to Fuzzwork (3.0.10
+ * O-1). Reads DISCORD_ALERT_WEBHOOK_URL — a dedicated ops channel, separate
+ * from the feedback webhook. If it is unset, returns silently: the alert sits
+ * on top of the O-1 telemetry event, never as a hard dependency. Fired only
+ * from the cron path (not the public on-demand route) so a public endpoint
+ * can't drive Discord posts. Callers invoke it fire-and-forget, so a Discord
+ * failure never breaks the cron.
+ */
 export async function alertPriceSourceDegradation(
   info: PriceSourceDegradation,
 ): Promise<void> {

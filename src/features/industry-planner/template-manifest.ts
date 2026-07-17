@@ -24,7 +24,7 @@ import type { BlueprintStructure } from './types';
 // the moment the setter lands on the context). Old saved snapshots simply lack
 // the new field and degrade to its fallback — no migration.
 
-// The slice of the blueprint structure the applies validate against.
+/** The slice of the blueprint structure the applies validate against. */
 export type TemplateStructureView = Pick<
   BlueprintStructure,
   'blueprintTypeId' | 'nodeActivityByBlueprint'
@@ -39,8 +39,10 @@ export interface ApplyCtx {
   fetchedStations: { id: number }[] | null;
 }
 
-// The configurable fields alone (the snapshot minus its identity fields) —
-// the one type expression every generic index below shares.
+/**
+ * The configurable fields alone (the snapshot minus its identity fields) —
+ * the one type expression every generic index below shares.
+ */
 export type TemplateFields = { [K in TemplateFieldKey]: PlanSnapshotV1[K] };
 
 export interface TemplateField<K extends TemplateFieldKey> {
@@ -84,12 +86,14 @@ function applyOverrides(
     : null;
 }
 
-// Entries are declared in APPLY ORDER (Object key order is the orchestration
-// order). Two orderings are load-bearing: buildStructure before the reaction
-// pair (the #187 guard clears the pair on an id collision — the pair's own
-// applies must land after), and station after buildSystem (a station is only
-// valid inside the just-fetched system). buildSystem sits last-but-one so its
-// await never lets a user race window into the synchronous applies.
+/**
+ * Entries are declared in APPLY ORDER (Object key order is the orchestration
+ * order). Two orderings are load-bearing: buildStructure before the reaction
+ * pair (the #187 guard clears the pair on an id collision — the pair's own
+ * applies must land after), and station after buildSystem (a station is only
+ * valid inside the just-fetched system). buildSystem sits last-but-one so its
+ * await never lets a user race window into the synchronous applies.
+ */
 export const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateField<K> } = {
   runs: {
     schema: snapshotFieldSchemas.runs,
@@ -277,8 +281,10 @@ export const TEMPLATE_MANIFEST: { readonly [K in TemplateFieldKey]: TemplateFiel
   },
 };
 
-// The orchestration order — the manifest's declaration order (see the comment
-// above the manifest for why it's load-bearing).
+/**
+ * The orchestration order — the manifest's declaration order (see the comment
+ * above the manifest for why it's load-bearing).
+ */
 export const TEMPLATE_FIELD_KEYS = Object.keys(TEMPLATE_MANIFEST) as readonly TemplateFieldKey[];
 
 // EVERY function-valued key on the pricing context. Built from the context
@@ -311,16 +317,18 @@ export const SETTER_CLASSIFICATION = {
   setMultibuyUncheckedTiers: 'multibuyUncheckedTiers',
 } as const satisfies Record<MutatorKeys, TemplateFieldKey | 'derived-or-account' | 'exempt'>;
 
-// Planner-scoped preference keys, classified: a template field (write-through
-// on load) or a conscious exemption. template-manifest.test.ts asserts every
-// planner.* / industry.* key in the preference registry appears here.
+/**
+ * Planner-scoped preference keys, classified: a template field (write-through
+ * on load) or a conscious exemption. template-manifest.test.ts asserts every
+ * planner.* / industry.* key in the preference registry appears here.
+ */
 export const PREF_CLASSIFICATION: Readonly<Record<string, TemplateFieldKey | 'exempt'>> = {
   'planner.buildLocation': 'buildSystem',
   'planner.buildCharacterId': 'buildCharacterId',
   'industry.costBasis': 'costBasis',
 };
 
-// SAVE — a pure read of the planner's current configuration. Changes nothing.
+/** SAVE — a pure read of the planner's current configuration. Changes nothing. */
 export function captureTemplate(
   ctx: TemplatePlannerState,
   blueprintTypeId: number,
@@ -333,12 +341,14 @@ export function captureTemplate(
   return { v: 1, blueprintTypeId, ...fields };
 }
 
-// LOAD — replay a snapshot through the public setters, per-field fail-open.
-// Each field is validated ALONE (references go stale after a valid save; one
-// malformed field degrades to its fallback rather than voiding the template),
-// then applied in manifest order. Returns the "what fell away" notes; never
-// throws, never leaves a field un-applied (full-replacement semantics — a
-// saved null clears).
+/**
+ * LOAD — replay a snapshot through the public setters, per-field fail-open.
+ * Each field is validated ALONE (references go stale after a valid save; one
+ * malformed field degrades to its fallback rather than voiding the template),
+ * then applied in manifest order. Returns the "what fell away" notes; never
+ * throws, never leaves a field un-applied (full-replacement semantics — a
+ * saved null clears).
+ */
 export async function applyTemplate(
   a: ApplyCtx,
   snapshot: Readonly<Record<string, unknown>>,

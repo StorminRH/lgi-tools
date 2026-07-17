@@ -101,10 +101,12 @@ export type SearchSource = {
   excludeFromDefaultScope?: boolean;
 };
 
-// Descriptor for a lazily-loaded source. Same metadata as a SearchSource
-// minus the matcher, which arrives via the memoized `load()` import. The
-// industry-planner Blueprints source exports one of these for the manifest
-// to hand to `registerLazySearchSource`.
+/**
+ * Descriptor for a lazily-loaded source. Same metadata as a SearchSource
+ * minus the matcher, which arrives via the memoized `load()` import. The
+ * industry-planner Blueprints source exports one of these for the manifest
+ * to hand to `registerLazySearchSource`.
+ */
 export type LazySearchSource = {
   id: string;
   name: string;
@@ -128,31 +130,33 @@ export function registerSearchSource(source: SearchSource): void {
   sources.push(source);
 }
 
-// Lazy-loaded source. The `load()` callback runs at most once per
-// session — its promise is memoized on first invocation so subsequent
-// keystrokes reuse the resolved SearchSource without re-importing the
-// underlying module.
-//
-// Example consumer (see src/features/industry-planner/search.ts): the feature
-// slice exports a LazySearchSource descriptor and the wiring manifest registers
-// it from above —
-//
-//   // in the slice:
-//   export const blueprintsSearchSource: LazySearchSource = {
-//     id: 'blueprints',
-//     name: 'Blueprints',
-//     limit: 6,
-//     load: () => import('./blueprints-source').then((m) => m.blueprintsSource),
-//   };
-//
-//   // in src/search/register-all.ts:
-//   registerLazySearchSource(blueprintsSearchSource);
-//
-// The wrapper presents the same SearchSource shape as a static source
-// to the dispatcher, so `searchAll` doesn't need to know lazy sources
-// exist. The signal check between `await load()` and `await
-// resolved.search(...)` means a cancelled query doesn't waste a freshly-
-// loaded module's first call.
+/**
+ * Lazy-loaded source. The `load()` callback runs at most once per
+ * session — its promise is memoized on first invocation so subsequent
+ * keystrokes reuse the resolved SearchSource without re-importing the
+ * underlying module.
+ *
+ * Example consumer (see src/features/industry-planner/search.ts): the feature
+ * slice exports a LazySearchSource descriptor and the wiring manifest registers
+ * it from above —
+ *
+ *   // in the slice:
+ *   export const blueprintsSearchSource: LazySearchSource = \{
+ *     id: 'blueprints',
+ *     name: 'Blueprints',
+ *     limit: 6,
+ *     load: () =\> import('./blueprints-source').then((m) =\> m.blueprintsSource),
+ *   \};
+ *
+ *   // in src/search/register-all.ts:
+ *   registerLazySearchSource(blueprintsSearchSource);
+ *
+ * The wrapper presents the same SearchSource shape as a static source
+ * to the dispatcher, so `searchAll` doesn't need to know lazy sources
+ * exist. The signal check between `await load()` and `await`
+ * `resolved.search(...)` means a cancelled query doesn't waste a freshly-
+ * loaded module's first call.
+ */
 export function registerLazySearchSource(meta: LazySearchSource): void {
   let loadPromise: Promise<SearchSource> | null = null;
 
@@ -195,14 +199,16 @@ export type SearchSection = {
   results: SearchResult[];
 };
 
-// `sourceIds` scopes the query to a subset of registered sources:
-//  - omitted/undefined → every registered source (the global command bar's
-//    full-scope behavior, unchanged);
-//  - an id subset → only those sources run, each with its own ranking and
-//    limit exactly as at full scope;
-//  - an empty array → no sources, resolves to [];
-//  - an unknown id simply matches nothing (no warning).
-// Section order stays registration order regardless of `sourceIds` order.
+/**
+ * `sourceIds` scopes the query to a subset of registered sources:
+ *  - omitted/undefined → every registered source (the global command bar's
+ *    full-scope behavior, unchanged);
+ *  - an id subset → only those sources run, each with its own ranking and
+ *    limit exactly as at full scope;
+ *  - an empty array → no sources, resolves to [];
+ *  - an unknown id simply matches nothing (no warning).
+ * Section order stays registration order regardless of `sourceIds` order.
+ */
 export async function searchAll(
   query: string,
   ctx: SearchContext,
@@ -262,8 +268,10 @@ export async function searchAll(
   return out;
 }
 
-// Test-only: clear the source list so each test starts from empty.
-// Production code never calls this.
+/**
+ * Test-only: clear the source list so each test starts from empty.
+ * Production code never calls this.
+ */
 export function __resetSearchSources(): void {
   sources.length = 0;
 }

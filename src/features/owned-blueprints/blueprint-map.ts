@@ -25,8 +25,10 @@ export interface OwnedBlueprintSummary {
 
 export type OwnedBlueprintMap = Map<number, OwnedBlueprintSummary>;
 
-// The columns the reduce needs from a stored row — a structural subset so callers
-// can pass the cached read's projection directly.
+/**
+ * The columns the reduce needs from a stored row — a structural subset so callers
+ * can pass the cached read's projection directly.
+ */
 export interface BlueprintMapInput {
   typeId: number;
   materialEfficiency: number;

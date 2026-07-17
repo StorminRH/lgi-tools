@@ -67,9 +67,11 @@ async function fetchAffiliationBatch(batch: number[]): Promise<AffiliationRow[]>
   return parsed.success ? parsed.data.map(toAffiliationRow) : [];
 }
 
-// Fetch affiliations for the given characters. Best-effort and resilient: each
-// batch is independent, and a skipped character simply keeps its prior cached
-// value and is retried on the next trigger.
+/**
+ * Fetch affiliations for the given characters. Best-effort and resilient: each
+ * batch is independent, and a skipped character simply keeps its prior cached
+ * value and is retried on the next trigger.
+ */
 export async function fetchAffiliations(characterIds: number[]): Promise<AffiliationRow[]> {
   const unique = dedupe(characterIds);
   if (unique.length === 0) return [];

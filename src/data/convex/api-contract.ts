@@ -1,10 +1,12 @@
 // API wire contract owned by the convex slice (3.4.9).
 
-// ── GET /api/cron/sync-sweeper (authz: cron) ────────────────────────────
-// The sync engine's external watchdog: relays the deployment's sweep counts.
-// All JSON-primitive fields, so the TS type is the wire truth; no
-// programmatic consumer — pinned with `satisfies` in the route. Counts are
-// null when the sweep never reached the deployment (skipped/failed).
+/**
+ * ── GET /api/cron/sync-sweeper (authz: cron) ────────────────────────────
+ * The sync engine's external watchdog: relays the deployment's sweep counts.
+ * All JSON-primitive fields, so the TS type is the wire truth; no
+ * programmatic consumer — pinned with `satisfies` in the route. Counts are
+ * null when the sweep never reached the deployment (skipped/failed).
+ */
 export interface CronSyncSweeperResponse {
   status: 'swept' | 'skipped' | 'failed';
   reason?: string;

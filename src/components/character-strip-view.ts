@@ -14,9 +14,11 @@ import type { PanelCharacter } from './live-character-card';
 import { stripDimmedDef, type PreferenceDef } from '@/lib/preferences';
 import type { CharacterStripSpec } from '@/page-settings/types';
 
-// The usePreference inputs for the section. `serverValue` (the cookie-read dimmed
-// set for the first paint) is offered only when a strip is declared; absent, the
-// hook falls through to the sentinel def's fallback and nothing dims.
+/**
+ * The usePreference inputs for the section. `serverValue` (the cookie-read dimmed
+ * set for the first paint) is offered only when a strip is declared; absent, the
+ * hook falls through to the sentinel def's fallback and nothing dims.
+ */
 export type CharacterStripBinding = {
   def: PreferenceDef<number[]>;
   serverValue: number[] | undefined;
@@ -32,7 +34,7 @@ export function stripPreferenceBinding(
   };
 }
 
-// The resolved view the section shell renders from.
+/** The resolved view the section shell renders from. */
 export type CharacterStripView = {
   hasStrip: boolean;
   visible: PanelCharacter[];
@@ -40,10 +42,12 @@ export type CharacterStripView = {
   syncCaption: string;
 };
 
-// With a strip declared, the view-only filter drops dimmed healthy characters and
-// the all-hidden notice shows when nothing remains lit; without one, children get
-// the untouched list (no filtering, no notice). The sync caption is the same
-// loading/steady copy the section rendered inline.
+/**
+ * With a strip declared, the view-only filter drops dimmed healthy characters and
+ * the all-hidden notice shows when nothing remains lit; without one, children get
+ * the untouched list (no filtering, no notice). The sync caption is the same
+ * loading/steady copy the section rendered inline.
+ */
 export function deriveStripView(
   strip: CharacterStripSpec | undefined,
   characters: PanelCharacter[],

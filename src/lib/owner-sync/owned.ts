@@ -10,18 +10,22 @@ import { planRead } from './plan';
 import type { EnumeratedOwner, OwnerKey, OwnerSyncDescriptor, PagedOwnerSyncState } from './types';
 import type { EsiResponseHeaders } from '../esi/response-metadata';
 
-// The slice's own paged read result, decoupled from lib/esi's EsiPagedRead (the Neon
-// path's fixed TTL ignores the ESI cache window the gate returns). The db wiring's
-// AuthedPagedRead is structurally this — assigned through the port.
+/**
+ * The slice's own paged read result, decoupled from lib/esi's EsiPagedRead (the Neon
+ * path's fixed TTL ignores the ESI cache window the gate returns). The db wiring's
+ * AuthedPagedRead is structurally this — assigned through the port.
+ */
 export type PagedOwnerReadResult =
   | { kind: 'fresh'; items: unknown[]; etags: string[]; responseHeaders: EsiResponseHeaders }
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
-// The injected I/O a paged-owned refresh runs over: auth (token vend, role read,
-// character enumeration), the ESI gate read, and Neon storage. The real port is wired
-// in src/db/owned-*-sync.ts; the orchestration is unit-tested against a fake one. TRow
-// is the slice's projected row (OwnedAsset / OwnedBlueprint).
+/**
+ * The injected I/O a paged-owned refresh runs over: auth (token vend, role read,
+ * character enumeration), the ESI gate read, and Neon storage. The real port is wired
+ * in src/db/owned-*-sync.ts; the orchestration is unit-tested against a fake one. TRow
+ * is the slice's projected row (OwnedAsset / OwnedBlueprint).
+ */
 export interface OwnedDatasetPort<TRow> {
   now(): Date;
   // The user's linked characters with scope health + cached corp id.
@@ -45,7 +49,7 @@ export interface OwnedDatasetPort<TRow> {
   stampFresh(owner: OwnerKey): Promise<void>;
 }
 
-// The per-dataset knobs — everything that genuinely differs between the twins.
+/** The per-dataset knobs — everything that genuinely differs between the twins. */
 export interface OwnedDatasetSpec<TRow> {
   // The ESI path segment: 'assets' | 'blueprints'.
   resource: string;

@@ -66,9 +66,11 @@ export type { EsiFetchOptions } from './dispatch';
 // contract via the X-Compatibility-Date header instead (src/config/esi.ts).
 const ESI_BASE_URL = 'https://esi.evetech.net';
 
-// The only sanctioned way to construct an ESI URL — the host literal is
-// lint-banned outside this slice so every consumer arrives here, where
-// esiFetch (and the shared budget) is the only dispatch on offer.
+/**
+ * The only sanctioned way to construct an ESI URL — the host literal is
+ * lint-banned outside this slice so every consumer arrives here, where
+ * esiFetch (and the shared budget) is the only dispatch on offer.
+ */
 export function esiUrl(path: string): string {
   return `${ESI_BASE_URL}${path}`;
 }

@@ -8,52 +8,60 @@ import { characterPortraitUrl, type EveImageSize } from '@/lib/eve-image';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import type { EveJwtClaims, EveTokenResponse } from './types';
 
-// Better Auth provider id for EVE SSO. Lives here (the pure, DB-free module) so
-// both the auth instance and the query layer can reference it without an import
-// cycle.
+/**
+ * Better Auth provider id for EVE SSO. Lives here (the pure, DB-free module) so
+ * both the auth instance and the query layer can reference it without an import
+ * cycle.
+ */
 export const EVE_PROVIDER_ID = 'eve';
 
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
 export const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
-// CCP's published OAuth2 token-revocation endpoint (RFC 7009) — the per-token
-// server-side revoke used when a pilot purges a character/account. Distinct from
-// EVE_AUTHORIZED_APPS_URL above: that is the pilot's account-level dashboard page;
-// this is the granular, per-refresh-token machine endpoint. Hardcoded like the
-// other EVE_* URLs (CCP advertises it under `.well-known/oauth-authorization-server`).
+/**
+ * CCP's published OAuth2 token-revocation endpoint (RFC 7009) — the per-token
+ * server-side revoke used when a pilot purges a character/account. Distinct from
+ * EVE_AUTHORIZED_APPS_URL above: that is the pilot's account-level dashboard page;
+ * this is the granular, per-refresh-token machine endpoint. Hardcoded like the
+ * other EVE_* URLs (CCP advertises it under `.well-known/oauth-authorization-server`).
+ */
 export const EVE_REVOKE_URL = 'https://login.eveonline.com/v2/oauth/revoke';
 export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
 export const EVE_ISSUER = 'https://login.eveonline.com';
 export const EVE_AUDIENCE = 'EVE Online';
 
-// EVE's account-level dashboard where a pilot reviews and revokes third-party
-// app access. One URL serves every character (CCP scopes it to the logged-in
-// pilot), so it's page-level, not per-character. Shared from this one module so
-// the /characters revoke link and the Privacy page (/legal) can't drift. The
-// legacy community.eveonline.com path is dead (301s to the developers root).
+/**
+ * EVE's account-level dashboard where a pilot reviews and revokes third-party
+ * app access. One URL serves every character (CCP scopes it to the logged-in
+ * pilot), so it's page-level, not per-character. Shared from this one module so
+ * the /characters revoke link and the Privacy page (/legal) can't drift. The
+ * legacy community.eveonline.com path is dead (301s to the developers root).
+ */
 export const EVE_AUTHORIZED_APPS_URL = 'https://developers.eveonline.com/authorized-apps';
 
-// The exact scope set the site requests, and the only set a sign-in or relink
-// re-consents to (Better Auth's genericOAuth forwards these on both the
-// authorize request and the token exchange — see the `getToken` site in
-// auth.ts). It is the SUPERSET: each scoped feature declares its own narrower
-// subset in its slice and is degraded per-feature, never globally (the
-// per-feature deriveScopeHealth in scope-health.ts).
-//
-// STRICT LEAST-PRIVILEGE (Decision Record, 3.7.1.1): exactly the scopes a
-// shipped feature actually consumes — publicData, the two skill reads, the
-// character-jobs read, and (added 3.7.3.1, the first corp feature) the corp
-// roles read and the corp industry-jobs read. ZERO write scope (no
-// `manage_*`/`write_*`). The 3.4.6 superset's seven extra reads (manage_planets,
-// standings, two clones, three location) only ever proved an ESI sandbox; they
-// were never wired to a feature and are dropped — the dev/esi explorer is
-// re-scoped to the consumed set, not kept as a reason to retain them.
-//
-// Two rules this set is held to (the eve-sso.test.ts pin enforces both):
-//  - Every string must EXIST in the live ESI scope list — a nonexistent scope
-//    breaks ALL sign-in with `invalid_scope` (a wrong name shipped in 3.4.1a and
-//    did exactly that). Removing from a known-good set is safe; ADDING is a
-//    deliberate, batched decision (verify the name live first).
-//  - No write scope. Read-only by construction.
+/**
+ * The exact scope set the site requests, and the only set a sign-in or relink
+ * re-consents to (Better Auth's genericOAuth forwards these on both the
+ * authorize request and the token exchange — see the `getToken` site in
+ * auth.ts). It is the SUPERSET: each scoped feature declares its own narrower
+ * subset in its slice and is degraded per-feature, never globally (the
+ * per-feature deriveScopeHealth in scope-health.ts).
+ *
+ * STRICT LEAST-PRIVILEGE (Decision Record, 3.7.1.1): exactly the scopes a
+ * shipped feature actually consumes — publicData, the two skill reads, the
+ * character-jobs read, and (added 3.7.3.1, the first corp feature) the corp
+ * roles read and the corp industry-jobs read. ZERO write scope (no
+ * `manage_*`/`write_*`). The 3.4.6 superset's seven extra reads (manage_planets,
+ * standings, two clones, three location) only ever proved an ESI sandbox; they
+ * were never wired to a feature and are dropped — the dev/esi explorer is
+ * re-scoped to the consumed set, not kept as a reason to retain them.
+ *
+ * Two rules this set is held to (the eve-sso.test.ts pin enforces both):
+ *  - Every string must EXIST in the live ESI scope list — a nonexistent scope
+ *    breaks ALL sign-in with `invalid_scope` (a wrong name shipped in 3.4.1a and
+ *    did exactly that). Removing from a known-good set is safe; ADDING is a
+ *    deliberate, batched decision (verify the name live first).
+ *  - No write scope. Read-only by construction.
+ */
 export const EVE_SCOPES = [
   'publicData',
   'esi-skills.read_skills.v1',
@@ -203,10 +211,12 @@ interface RefreshTokenInput {
   clientSecret: string;
 }
 
-// Outcome of a refresh-token grant. Distinguishing the three cases is the whole
-// point: `dead` means the refresh token is gone (the pilot must reconnect, so
-// the caller nulls custody); `retryable` means the response did not prove the
-// token dead, so custody is preserved and the caller surfaces a retryable error.
+/**
+ * Outcome of a refresh-token grant. Distinguishing the three cases is the whole
+ * point: `dead` means the refresh token is gone (the pilot must reconnect, so
+ * the caller nulls custody); `retryable` means the response did not prove the
+ * token dead, so custody is preserved and the caller surfaces a retryable error.
+ */
 export type RefreshFailureClass =
   | 'invalid_grant'
   | 'timeout'
@@ -228,9 +238,11 @@ function isTimeoutError(error: unknown): boolean {
   );
 }
 
-// Exchange a stored refresh token for a fresh access token. Pure HTTP — no DB,
-// no crypto; persistence + re-encryption live in eve-token-service.ts so this
-// stays unit-testable with a `fetch` spy, exactly like exchangeCodeForToken.
+/**
+ * Exchange a stored refresh token for a fresh access token. Pure HTTP — no DB,
+ * no crypto; persistence + re-encryption live in eve-token-service.ts so this
+ * stays unit-testable with a `fetch` spy, exactly like exchangeCodeForToken.
+ */
 export async function refreshEveToken({
   refreshToken,
   clientId,
@@ -293,17 +305,19 @@ interface RevokeTokenInput {
   clientSecret: string;
 }
 
-// Revoke a stored refresh token at EVE's SSO revocation endpoint (RFC 7009). Pure
-// HTTP — no DB, no crypto — so it stays unit-testable with a `fetch` spy, like
-// refreshEveToken. BEST-EFFORT by contract: a purge that revokes a pilot's grant
-// must never be aborted by a revoke failure, so this never throws and reports only
-// a boolean. Reuses the shared Basic-auth form request shape (the revoke endpoint
-// authenticates a confidential client exactly like the token endpoint).
-//
-// NOTE: EVE returns 200 for an unknown/already-invalid token too (RFC 7009 §2.2),
-// so `ok` means "the renewal path is closed", NOT "the token existed". Revoking
-// the refresh token immediately stops new access tokens from being minted; any
-// access token already issued self-expires within EVE's ~20 min lifetime.
+/**
+ * Revoke a stored refresh token at EVE's SSO revocation endpoint (RFC 7009). Pure
+ * HTTP — no DB, no crypto — so it stays unit-testable with a `fetch` spy, like
+ * refreshEveToken. BEST-EFFORT by contract: a purge that revokes a pilot's grant
+ * must never be aborted by a revoke failure, so this never throws and reports only
+ * a boolean. Reuses the shared Basic-auth form request shape (the revoke endpoint
+ * authenticates a confidential client exactly like the token endpoint).
+ *
+ * NOTE: EVE returns 200 for an unknown/already-invalid token too (RFC 7009 §2.2),
+ * so `ok` means "the renewal path is closed", NOT "the token existed". Revoking
+ * the refresh token immediately stops new access tokens from being minted; any
+ * access token already issued self-expires within EVE's ~20 min lifetime.
+ */
 export async function revokeEveRefreshToken({
   refreshToken,
   clientId,
@@ -342,8 +356,10 @@ interface CharacterIdentity {
   portraitUrl: string;
 }
 
-// EVE encodes the character ID in the JWT `sub` as "CHARACTER:EVE:<numeric-id>".
-// We throw if the shape is unexpected — the caller turns that into a 4xx redirect.
+/**
+ * EVE encodes the character ID in the JWT `sub` as "CHARACTER:EVE:<numeric-id>".
+ * We throw if the shape is unexpected — the caller turns that into a 4xx redirect.
+ */
 export function claimsToCharacter(claims: EveJwtClaims): CharacterIdentity {
   const match = /^CHARACTER:EVE:(\d+)$/.exec(claims.sub);
   if (!match) {

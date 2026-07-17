@@ -14,7 +14,7 @@ const getPreferencesResponseSchema = z.object({
 });
 export type GetPreferencesResponse = z.infer<typeof getPreferencesResponseSchema>;
 
-// GET /api/preferences — every saved preference for the logged-in caller.
+/** GET /api/preferences — every saved preference for the logged-in caller. */
 export const getPreferencesEndpoint: ApiEndpoint<null, GetPreferencesResponse> = {
   method: 'GET',
   path: '/api/preferences',
@@ -27,7 +27,7 @@ export const putPreferenceRequestSchema = z.object({
   value: z.unknown(),
 });
 
-// POST /api/preferences — upsert one of the caller's preferences. 204 on success.
+/** POST /api/preferences — upsert one of the caller's preferences. 204 on success. */
 export const putPreferenceEndpoint: ApiEndpoint<
   z.input<typeof putPreferenceRequestSchema>,
   undefined

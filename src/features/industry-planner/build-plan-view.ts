@@ -6,7 +6,7 @@
 import { REACTION_NODE_LABEL } from './industry-styles';
 import type { ConsolidatedItem, ConsolidatedTier } from './build-consolidate';
 
-// The current drill focus: a buildable at a given tier depth.
+/** The current drill focus: a buildable at a given tier depth. */
 export interface BuildFocus {
   depth: number;
   typeId: number;
@@ -23,10 +23,12 @@ export interface TierRowView {
   faded: boolean;
 }
 
-// The rows of one tier column plus its ISK subtotal. A focused drill-down lights
-// the downstream chain: the selected node, its `related` descendants (shown at
-// their actual consumed quantity), and everything else `faded`. The subtotal sums
-// each row's DISPLAYED value, so the column header always equals its visible rows.
+/**
+ * The rows of one tier column plus its ISK subtotal. A focused drill-down lights
+ * the downstream chain: the selected node, its `related` descendants (shown at
+ * their actual consumed quantity), and everything else `faded`. The subtotal sums
+ * each row's DISPLAYED value, so the column header always equals its visible rows.
+ */
 export function tierColumnView(
   tier: ConsolidatedTier,
   ctx: {
@@ -52,9 +54,11 @@ export function tierColumnView(
   return { rows, subtotal };
 }
 
-// Unit market price per type: raws at best buy (the cost basis), buildable
-// intermediates at best sell (the build-vs-buy acquisition price). A type is
-// either a raw or a buildable, so the keys never collide.
+/**
+ * Unit market price per type: raws at best buy (the cost basis), buildable
+ * intermediates at best sell (the build-vs-buy acquisition price). A type is
+ * either a raw or a buildable, so the keys never collide.
+ */
 export function unitPriceMap(
   pricing: {
     rows: { typeId: number; unitBuy: number | null }[];
@@ -69,9 +73,11 @@ export function unitPriceMap(
   return m;
 }
 
-// Whether a node shows the ME/TE efficiency adjusters: a manufacturable buildable
-// only. Raws (no producing blueprint) and reactions (can't be researched) get a
-// plain, frameless icon. A type guard so the caller narrows the blueprint id.
+/**
+ * Whether a node shows the ME/TE efficiency adjusters: a manufacturable buildable
+ * only. Raws (no producing blueprint) and reactions (can't be researched) get a
+ * plain, frameless icon. A type guard so the caller narrows the blueprint id.
+ */
 export function isEfficiencyEligible(
   blueprintTypeId: number | undefined,
   label: string | undefined,
@@ -79,8 +85,10 @@ export function isEfficiencyEligible(
   return blueprintTypeId !== undefined && label !== REACTION_NODE_LABEL;
 }
 
-// A tier column's lit-chain slice for a relative depth below the focus, or null
-// when nothing is focused (or the map lacks that depth).
+/**
+ * A tier column's lit-chain slice for a relative depth below the focus, or null
+ * when nothing is focused (or the map lacks that depth).
+ */
 export function levelAt<T>(
   map: Map<number, T> | null,
   focus: BuildFocus | null,

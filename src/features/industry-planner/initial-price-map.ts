@@ -1,11 +1,13 @@
 import type { PriceLite } from './build-pricing';
 import type { BlueprintPricing } from './types';
 
-// Live price map seeded from the server snapshot — the priced raw rows, the
-// product, and the buildable intermediates (so a refresh recomputes the same
-// shape the server produced). Each row carries its row-level stale_after, so
-// the client decides staleness and recomputes without re-reading the DB.
-// (Extracted from PricingProvider — pure input shaping, no React.)
+/**
+ * Live price map seeded from the server snapshot — the priced raw rows, the
+ * product, and the buildable intermediates (so a refresh recomputes the same
+ * shape the server produced). Each row carries its row-level stale_after, so
+ * the client decides staleness and recomputes without re-reading the DB.
+ * (Extracted from PricingProvider — pure input shaping, no React.)
+ */
 export function initialPriceMap(pricing: BlueprintPricing): Map<number, PriceLite> {
   const map = new Map<number, PriceLite>();
   // Depth is product-only: the Market Score reads the product's ladders, so

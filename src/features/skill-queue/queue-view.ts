@@ -9,8 +9,10 @@ import { type EntryStatus, entryProgress, type QueueSummary, summarizeQueue } fr
 import { STATUS_META } from './skill-queue-styles';
 import type { CharacterSkillData } from './types';
 
-// The card header slot: the "queue ends in …" countdown while actively training, a
-// paused marker, or nothing (empty / complete queues).
+/**
+ * The card header slot: the "queue ends in …" countdown while actively training, a
+ * paused marker, or nothing (empty / complete queues).
+ */
 export type QueueHeader = { kind: 'ends-in'; ms: number } | { kind: 'paused' } | null;
 
 export interface QueueCardModel {
@@ -37,9 +39,11 @@ function queueHeader(summary: QueueSummary, now: number): QueueHeader {
   return null;
 }
 
-// One character's queue-card model: whether the queue is empty, its SP subtitle, and the
-// header slot. A never-synced character (data:null) is inert (that is the
-// LiveCharacterCard's no-data state, distinct from a synced-but-empty queue).
+/**
+ * One character's queue-card model: whether the queue is empty, its SP subtitle, and the
+ * header slot. A never-synced character (data:null) is inert (that is the
+ * LiveCharacterCard's no-data state, distinct from a synced-but-empty queue).
+ */
 export function queueCardModel(data: CharacterSkillData | null, now: number): QueueCardModel {
   if (data === null) return { isEmpty: false, subtitle: null, header: null };
   const summary = summarizeQueue(data.entries, now);

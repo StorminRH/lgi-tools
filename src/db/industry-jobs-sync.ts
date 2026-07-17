@@ -38,30 +38,36 @@ function makeJobsPort(): JobsPort {
   };
 }
 
-// One character's board for the wire: the cached payload (null until first sync) plus
-// the "as of" stamp. The client joins this with its character list (names/portraits/
-// scope health) by characterId.
+/**
+ * One character's board for the wire: the cached payload (null until first sync) plus
+ * the "as of" stamp. The client joins this with its character list (names/portraits/
+ * scope health) by characterId.
+ */
 export interface ViewerJobs {
   characterId: number;
   data: CharacterJobsData | null;
   lastRefreshedAt: number | null;
 }
 
-// The on-view payload: the per-character boards + one shared type-id→name map. Names are
-// resolved server-side from the SDE (blueprint + product types), so the client needs no
-// separate name fetch — keyed by String(typeId), the shape the UI's `names[String(id)]`
-// lookups expect.
+/**
+ * The on-view payload: the per-character boards + one shared type-id→name map. Names are
+ * resolved server-side from the SDE (blueprint + product types), so the client needs no
+ * separate name fetch — keyed by String(typeId), the shape the UI's `names[String(id)]`
+ * lookups expect.
+ */
 export interface ViewerJobsResult {
   characters: ViewerJobs[];
   names: Record<string, string>;
 }
 
-// The on-view seam: read the current per-character boards + freshness immediately,
-// resolve the referenced type names from the SDE, and fire a stale-gated write-behind
-// refresh behind the response (the shared getLiveDatasetOnView tail). A re-view inside
-// the 300s window makes no ESI call (the refresh's per-character staleness gate is the
-// dedup). The cached payload + the uncached sync-state stamp are read in parallel
-// (readCharacterOwners).
+/**
+ * The on-view seam: read the current per-character boards + freshness immediately,
+ * resolve the referenced type names from the SDE, and fire a stale-gated write-behind
+ * refresh behind the response (the shared getLiveDatasetOnView tail). A re-view inside
+ * the 300s window makes no ESI call (the refresh's per-character staleness gate is the
+ * dedup). The cached payload + the uncached sync-state stamp are read in parallel
+ * (readCharacterOwners).
+ */
 export async function getJobsForUserOnView(userId: string): Promise<ViewerJobsResult> {
   const { rows, names } = await getLiveDatasetOnView<CharacterJobsData, ViewerJobs>(userId, {
     read: (uid) => readCharacterOwners(uid, getJobsForCharacters, readCharacterJobSyncState),

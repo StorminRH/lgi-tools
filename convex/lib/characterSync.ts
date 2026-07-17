@@ -10,8 +10,10 @@ import { minCacheWindow } from '@/lib/sync-engine';
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 
-// Deployment-level config (set via `npx convex env set`) — the app's
-// NEXT_PUBLIC_* inlines don't exist in a Convex bundle.
+/**
+ * Deployment-level config (set via `npx convex env set`) — the app's
+ * NEXT_PUBLIC_* inlines don't exist in a Convex bundle.
+ */
 export interface SyncEnv {
   siteUrl: string;
   secret: string;
@@ -26,12 +28,14 @@ export function requireSyncEnv(): SyncEnv {
   return { siteUrl, secret };
 }
 
-// The ownership boundary: which characters this user actually owns, read from
-// Neon on every run (no client-posted id carries authority). fetchWithTimeout
-// (not bare fetch): a hung Next.js endpoint must fail fast into the Action
-// Retrier rather than holding the action open until the platform kills it. A
-// non-ok response is Neon-side trouble — transient by assumption; throw so the
-// retrier retries.
+/**
+ * The ownership boundary: which characters this user actually owns, read from
+ * Neon on every run (no client-posted id carries authority). fetchWithTimeout
+ * (not bare fetch): a hung Next.js endpoint must fail fast into the Action
+ * Retrier rather than holding the action open until the platform kills it. A
+ * non-ok response is Neon-side trouble — transient by assumption; throw so the
+ * retrier retries.
+ */
 export async function fetchEnumeratedCharacters(
   env: SyncEnv,
   userId: string,
@@ -47,11 +51,13 @@ export async function fetchEnumeratedCharacters(
   return ((await res.json()) as EveCharactersResponse).characters;
 }
 
-// One per-character token vend. The refresh token never reaches Convex — the
-// endpoint returns only a short-lived access token. The status ladder is the
-// recorded taxonomy: 404 = unlinked between enumeration and vend (the next
-// run's enumeration deletes the doc — skip silently); 409 = reauth required;
-// any other non-ok = token unavailable.
+/**
+ * One per-character token vend. The refresh token never reaches Convex — the
+ * endpoint returns only a short-lived access token. The status ladder is the
+ * recorded taxonomy: 404 = unlinked between enumeration and vend (the next
+ * run's enumeration deletes the doc — skip silently); 409 = reauth required;
+ * any other non-ok = token unavailable.
+ */
 export type TokenVend =
   | { kind: 'token'; accessToken: string }
   | { kind: 'skip' }
@@ -75,9 +81,11 @@ export async function vendCharacterToken(
   return { kind: 'token', accessToken: token.accessToken };
 }
 
-// The next freshness window for a character from its read(s): the earliest
-// parseable Expires, or a dataset fallback when none carried one. Pure so the
-// fallback/earliest logic is unit-testable.
+/**
+ * The next freshness window for a character from its read(s): the earliest
+ * parseable Expires, or a dataset fallback when none carried one. Pure so the
+ * fallback/earliest logic is unit-testable.
+ */
 export function resolveExpiresAt(
   windows: Array<number | null>,
   fallbackTtlMs: number,
@@ -87,11 +95,13 @@ export function resolveExpiresAt(
   return present.length > 0 ? Math.min(...present) : now + fallbackTtlMs;
 }
 
-// Stamp the run's results onto the engine's subject row: the cache window the
-// next due time is computed from, the enumeration the heartbeat hint checks
-// against, and the rl* observability. status stays as-is — the workpool's
-// onComplete owns the lifecycle and clears it exactly once. Shared because the
-// subject row is the same `syncSubjects` table for every tracker.
+/**
+ * Stamp the run's results onto the engine's subject row: the cache window the
+ * next due time is computed from, the enumeration the heartbeat hint checks
+ * against, and the rl* observability. status stays as-is — the workpool's
+ * onComplete owns the lifecycle and clears it exactly once. Shared because the
+ * subject row is the same `syncSubjects` table for every tracker.
+ */
 export interface SubjectStamp {
   enumeratedCharacterIds: number[];
   lastError: string | null;

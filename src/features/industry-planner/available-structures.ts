@@ -34,8 +34,10 @@ export interface StructureTypeRow {
 
 type DogmaMap = ReadonlyMap<number, Record<string, number>>;
 
-// Every structure + rig type referenced by either source — the one batched
-// dogma read the route performs.
+/**
+ * Every structure + rig type referenced by either source — the one batched
+ * dogma read the route performs.
+ */
 export function collectDogmaTypeIds(
   custom: readonly CustomStructureInput[],
   corp: readonly CorpStructureInput[],

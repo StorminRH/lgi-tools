@@ -30,9 +30,11 @@ export function KpiTile({
   );
 }
 
-// The "?" help affordance in a KPI tile header: a small dot whose hover (or
-// focus) reveals an explanation panel. Shared by the Market Score, Build time,
-// and Net margin tiles so the trigger chrome is defined once.
+/**
+ * The "?" help affordance in a KPI tile header: a small dot whose hover (or
+ * focus) reveals an explanation panel. Shared by the Market Score, Build time,
+ * and Net margin tiles so the trigger chrome is defined once.
+ */
 export function KpiHelp({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Popover
@@ -45,8 +47,10 @@ export function KpiHelp({ label, children }: { label: string; children: ReactNod
   );
 }
 
-// The label row. The figure sits directly beneath it (KPI_FIG's own top margin
-// is the only gap), so the tile is as short as its content.
+/**
+ * The label row. The figure sits directly beneath it (KPI_FIG's own top margin
+ * is the only gap), so the tile is as short as its content.
+ */
 export function KpiHead({ label, right }: { label: string; right?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-1.5">
@@ -56,10 +60,12 @@ export function KpiHead({ label, right }: { label: string; right?: ReactNode }) 
   );
 }
 
-// A plain value tile (Input cost / Sell / Build time). Net margin and Market Score
-// compose KpiTile directly because they carry extra controls. `right` rides the
-// label row (KpiHead's existing slot) for a small affordance like a
-// data-quality badge.
+/**
+ * A plain value tile (Input cost / Sell / Build time). Net margin and Market Score
+ * compose KpiTile directly because they carry extra controls. `right` rides the
+ * label row (KpiHead's existing slot) for a small affordance like a
+ * data-quality badge.
+ */
 export function SimpleTile({
   label,
   value,

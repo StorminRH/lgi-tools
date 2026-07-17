@@ -54,20 +54,24 @@ function term(pctPerLevel: number, level: number): number {
   return 1 + (pctPerLevel * level) / 100;
 }
 
-// One applied skill for the hero readout's popover: name, trained level, and
-// its own reduction (|pct/lvl|·level — the per-skill line, not the compound).
+/**
+ * One applied skill for the hero readout's popover: name, trained level, and
+ * its own reduction (|pct/lvl|·level — the per-skill line, not the compound).
+ */
 export interface AppliedTimeSkill {
   name: string;
   level: number;
   reductionPct: number;
 }
 
-// The hero readout's popover model: the applied skills listed per activity plus
-// the compound total effect. `manufacturing.totalPct` compounds the
-// ACTIVITY-WIDE skills only (Industry × Advanced Industry — what every mfg job
-// gets); the trained per-item T2 skills present in THIS plan are listed
-// separately since they apply only to jobs requiring them. Untrained skills
-// (level 0) are not "being applied" and are omitted.
+/**
+ * The hero readout's popover model: the applied skills listed per activity plus
+ * the compound total effect. `manufacturing.totalPct` compounds the
+ * ACTIVITY-WIDE skills only (Industry × Advanced Industry — what every mfg job
+ * gets); the trained per-item T2 skills present in THIS plan are listed
+ * separately since they apply only to jobs requiring them. Untrained skills
+ * (level 0) are not "being applied" and are omitted.
+ */
 export interface SkillTimeBreakdown {
   manufacturing: { skills: AppliedTimeSkill[]; totalPct: number };
   perItem: AppliedTimeSkill[];
@@ -123,10 +127,12 @@ export function skillTimeBreakdown(args: {
   };
 }
 
-// Build the per-node closure for the selected character. `levels` null ⇒ the
-// character's skills are unknown (never synced / pre-0039 row / fetch failed /
-// no character selected) ⇒ the identity factors — the ALL-OR-NOTHING fail-open:
-// skills apply fully or not at all, never a silent partial mix.
+/**
+ * Build the per-node closure for the selected character. `levels` null ⇒ the
+ * character's skills are unknown (never synced / pre-0039 row / fetch failed /
+ * no character selected) ⇒ the identity factors — the ALL-OR-NOTHING fail-open:
+ * skills apply fully or not at all, never a silent partial mix.
+ */
 export function skillTimeFactorsFor(args: {
   levels: Record<string, number> | null;
   nodeActivityByBlueprint: Record<number, number>;
@@ -159,12 +165,14 @@ export function skillTimeFactorsFor(args: {
   };
 }
 
-// The applied-build-skills hero readout's view (3.7.19.1): null in every
-// degraded state (no build character, the lever inactive, levels not loaded, or
-// nothing trained for the plan's activities), else the two show-flags, the
-// manufacturing headline (never a −0% claim — it reads the strongest per-item
-// skill as an "up to" when no activity-wide reduction applies), the character
-// name, and the breakdown to render. The component stays a render shell.
+/**
+ * The applied-build-skills hero readout's view (3.7.19.1): null in every
+ * degraded state (no build character, the lever inactive, levels not loaded, or
+ * nothing trained for the plan's activities), else the two show-flags, the
+ * manufacturing headline (never a −0% claim — it reads the strongest per-item
+ * skill as an "up to" when no activity-wide reduction applies), the character
+ * name, and the breakdown to render. The component stays a render shell.
+ */
 export interface BuildSkillsView {
   characterName: string;
   breakdown: SkillTimeBreakdown;

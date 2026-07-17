@@ -18,14 +18,16 @@ function redirectTo(request: NextRequest, userId: string, error?: string): Respo
   return Response.redirect(url, 303);
 }
 
-// POST-only. Admin force-unlinks one EVE character from ANY user (and its stored
-// encrypted tokens — deleting the account row drops them). Unlike the
-// self-service route this can't use auth.api.unlinkAccount (that only targets
-// the caller's own user), so it's a direct DB delete guarded here. We refuse the
-// user's LAST character — that would orphan the account; reassign is the path for
-// a single-character standalone account. If the removed character was the user's
-// active one, the active pointer is re-aimed at the oldest remaining account.
-// Independent gate — never trust a UI-level disable.
+/**
+ * POST-only. Admin force-unlinks one EVE character from ANY user (and its stored
+ * encrypted tokens — deleting the account row drops them). Unlike the
+ * self-service route this can't use auth.api.unlinkAccount (that only targets
+ * the caller's own user), so it's a direct DB delete guarded here. We refuse the
+ * user's LAST character — that would orphan the account; reassign is the path for
+ * a single-character standalone account. If the removed character was the user's
+ * active one, the active pointer is re-aimed at the oldest remaining account.
+ * Independent gate — never trust a UI-level disable.
+ */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {

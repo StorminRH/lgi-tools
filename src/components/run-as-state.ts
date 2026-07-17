@@ -1,18 +1,22 @@
 import type { AccountCharactersResponse } from '@/features/auth/api-contract';
 import type { Session } from '@/features/auth/types';
 
-// One linked character as the account-characters endpoint projects it — the
-// roster the Run-As selector lists and validates against.
+/**
+ * One linked character as the account-characters endpoint projects it — the
+ * roster the Run-As selector lists and validates against.
+ */
 export type BuildCharacter = AccountCharactersResponse['characters'][number];
 
-// The stored build-character id resolved against the linked roster (ACCOUNT.8).
-// null id = unset ⇒ the frame mirrors the active character; an id with the
-// roster still loading is `pending` (the frame shows its loading skeleton — an
-// unvalidated id is never rendered); an id absent from the settled roster fails
-// open to the mirror (absorbed away, purged — never auto-cleared, just unused).
-// `needsReconnect` plays no role: a scope-broken character is still selectable
-// (Phase 3 decides how missing data degrades). Strip dimmed-sets are
-// participation-only preferences and never enter this seam — dimmed ≠ unselectable.
+/**
+ * The stored build-character id resolved against the linked roster (ACCOUNT.8).
+ * null id = unset ⇒ the frame mirrors the active character; an id with the
+ * roster still loading is `pending` (the frame shows its loading skeleton — an
+ * unvalidated id is never rendered); an id absent from the settled roster fails
+ * open to the mirror (absorbed away, purged — never auto-cleared, just unused).
+ * `needsReconnect` plays no role: a scope-broken character is still selectable
+ * (Phase 3 decides how missing data degrades). Strip dimmed-sets are
+ * participation-only preferences and never enter this seam — dimmed ≠ unselectable.
+ */
 export function resolveBuildCharacter(
   selectedId: number | null,
   roster: BuildCharacter[] | null,
@@ -25,14 +29,16 @@ export function resolveBuildCharacter(
   };
 }
 
-// The roster the account-characters read yields for the CURRENT auth identity —
-// the useAccountCharacters hook's pure derivation (Humble Component). null =
-// still resolving (session unsettled, or the fetch for this identity hasn't
-// landed); [] = settled empty (anon, or a failed read failing OPEN so a saved
-// pick falls back to the mirror instead of loading forever). Keying the fetched
-// payload by the active characterId makes a sign-in or active-character switch
-// structurally unable to serve a stale roster: the derivation nulls until the
-// matching fetch lands.
+/**
+ * The roster the account-characters read yields for the CURRENT auth identity —
+ * the useAccountCharacters hook's pure derivation (Humble Component). null =
+ * still resolving (session unsettled, or the fetch for this identity hasn't
+ * landed); [] = settled empty (anon, or a failed read failing OPEN so a saved
+ * pick falls back to the mirror instead of loading forever). Keying the fetched
+ * payload by the active characterId makes a sign-in or active-character switch
+ * structurally unable to serve a stale roster: the derivation nulls until the
+ * matching fetch lands.
+ */
 export function deriveRoster(
   state: { loading: boolean; characterId: number | null },
   fetched: { characterId: number; list: BuildCharacter[] } | null,
@@ -42,14 +48,16 @@ export function deriveRoster(
   return fetched && fetched.characterId === state.characterId ? fetched.list : null;
 }
 
-// The Run-As frame's display state, derived from the auth session and (since
-// ACCOUNT.8) the resolved build-character selection. Extracted from the JSX
-// shell (Humble Component) so the branching is unit-tested while the frame stays
-// visual-review only. `loading` is checked first, so a settled session that
-// resolved to null reads `anon` — never a stuck `loading`. A pending selection
-// also reads `loading`: the wrong portrait must never flash while the roster
-// resolves. With no selection the frame mirrors the active character, exactly
-// the pre-ACCOUNT.8 path.
+/**
+ * The Run-As frame's display state, derived from the auth session and (since
+ * ACCOUNT.8) the resolved build-character selection. Extracted from the JSX
+ * shell (Humble Component) so the branching is unit-tested while the frame stays
+ * visual-review only. `loading` is checked first, so a settled session that
+ * resolved to null reads `anon` — never a stuck `loading`. A pending selection
+ * also reads `loading`: the wrong portrait must never flash while the roster
+ * resolves. With no selection the frame mirrors the active character, exactly
+ * the pre-ACCOUNT.8 path.
+ */
 export type RunAsView =
   | { kind: 'loading' }
   | { kind: 'anon' }
@@ -70,14 +78,18 @@ export function runAsView(
   return { kind: 'present', characterId, name, portraitUrl };
 }
 
-// The radio group's current value: the selected build character's id, or the
-// sentinel 0 ("no explicit pick" — 0 is unreachable as a real character id).
+/**
+ * The radio group's current value: the selected build character's id, or the
+ * sentinel 0 ("no explicit pick" — 0 is unreachable as a real character id).
+ */
 export function buildRadioValue(buildCharacter: BuildCharacter | null): number {
   return buildCharacter?.characterId ?? 0;
 }
 
-// Maps a radio selection back to a stored pick: the 0 sentinel clears the pick
-// (so the frame mirrors the active character); any real id is the explicit pick.
+/**
+ * Maps a radio selection back to a stored pick: the 0 sentinel clears the pick
+ * (so the frame mirrors the active character); any real id is the explicit pick.
+ */
 export function parseRadioSelection(value: number): number | null {
   return value === 0 ? null : value;
 }

@@ -5,8 +5,10 @@
 // under an older consent still syncs fine. Runtime-light — the Convex action
 // imports this too.
 
-// Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
-// never demand a scope sign-in doesn't request).
+/**
+ * Pinned ∈ EVE_SCOPES by the co-located test (the PR #83 lesson: a sync must
+ * never demand a scope sign-in doesn't request).
+ */
 export const ONLINE_SYNC_SCOPES = ['esi-location.read_online.v1'] as const;
 
 export function canSyncOnline(character: {

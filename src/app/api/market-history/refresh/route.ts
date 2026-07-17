@@ -30,8 +30,10 @@ import { parseJsonBody } from '@/lib/route-body';
 // served — and the shared ESI gate already governs the budget).
 // authz: public
 
-// History is one ESI call per stale type at concurrency 10; the on-view trigger
-// asks for a single product type. 60 bounds a hang well under the 300s default.
+/**
+ * History is one ESI call per stale type at concurrency 10; the on-view trigger
+ * asks for a single product type. 60 bounds a hang well under the 300s default.
+ */
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest): Promise<Response> {

@@ -74,15 +74,17 @@ function ReactionSystemRow({
   );
 }
 
-// The reaction location group (3.7.12.2) — the SECOND of the two always-visible
-// location groups, stacked below the build group and mirroring its shape: a system row
-// ("React at") over a facility row ("Refinery"), both shown at all times. It offers
-// the caller's refineries (custom + corp) EXCEPT the one already picked as the build
-// structure (no double-select), per-source segmented against the row's system
-// (3.7.13.2: a locked refinery — corp or pinned custom — shows only in its own
-// system's list). Reactions build here; a lone refinery here also does the
-// manufacturing chain (the smart routing in structureFactorsFor). A locked refinery
-// deduce-locks its own system; a portable one scales against the row's picked system.
+/**
+ * The reaction location group (3.7.12.2) — the SECOND of the two always-visible
+ * location groups, stacked below the build group and mirroring its shape: a system row
+ * ("React at") over a facility row ("Refinery"), both shown at all times. It offers
+ * the caller's refineries (custom + corp) EXCEPT the one already picked as the build
+ * structure (no double-select), per-source segmented against the row's system
+ * (3.7.13.2: a locked refinery — corp or pinned custom — shows only in its own
+ * system's list). Reactions build here; a lone refinery here also does the
+ * manufacturing chain (the smart routing in structureFactorsFor). A locked refinery
+ * deduce-locks its own system; a portable one scales against the row's picked system.
+ */
 export function ReactionStructureSelect() {
   const {
     availableStructures,

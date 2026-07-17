@@ -73,18 +73,20 @@ export async function reconcileAfterCharacterRemoval(
 // reassignCharacter/purgeTransferredCharacter trade-off (a purge is rare).
 // ---------------------------------------------------------------------------
 
-// Purge one of the caller's own characters — the destructive counterpart to unlink.
-// Where unlink (deleteLinkedCharacter) only detaches the account row, this scrubs
-// ALL of the character's derived data and revokes its EVE grant upstream. Order:
-//   1. Revoke the EVE refresh token at CCP (best-effort — never aborts the purge),
-//      BEFORE the credential tier below deletes the stored token.
-//   2. runPurge ALL tiers (credential link+tokens → cache mirrors incl. the Convex
-//      online doc → durable), the full per-character sweep.
-//   3. Reconcile the user row: a last-character purge empties the account, so the
-//      user is deleted (a de-facto nuke) and accountEmptied is true; otherwise the
-//      identity email is rebound + active repointed and accountEmptied is false.
-// The returned accountEmptied tells the caller/UI whether the account (and session)
-// is gone — the D-5 redirect-to-authorized-apps lightbox shows only when emptied.
+/**
+ * Purge one of the caller's own characters — the destructive counterpart to unlink.
+ * Where unlink (deleteLinkedCharacter) only detaches the account row, this scrubs
+ * ALL of the character's derived data and revokes its EVE grant upstream. Order:
+ *   1. Revoke the EVE refresh token at CCP (best-effort — never aborts the purge),
+ *      BEFORE the credential tier below deletes the stored token.
+ *   2. runPurge ALL tiers (credential link+tokens → cache mirrors incl. the Convex
+ *      online doc → durable), the full per-character sweep.
+ *   3. Reconcile the user row: a last-character purge empties the account, so the
+ *      user is deleted (a de-facto nuke) and accountEmptied is true; otherwise the
+ *      identity email is rebound + active repointed and accountEmptied is false.
+ * The returned accountEmptied tells the caller/UI whether the account (and session)
+ * is gone — the D-5 redirect-to-authorized-apps lightbox shows only when emptied.
+ */
 export async function purgeOwnCharacter(
   userId: string,
   characterId: number,
@@ -103,25 +105,27 @@ async function eveAccountIdsFor(userId: string): Promise<number[]> {
   return rows.map((r) => Number(r.accountId)).filter((id) => Number.isFinite(id));
 }
 
-// Nuke the caller's entire account. The user-row delete cascades
-// session/account/user_preferences/custom_structures, but the per-character caches
-// (skills, jobs, owned assets/blueprints, telemetry) key on character_id with no
-// user FK, so they do NOT cascade — they must be swept per character first. So:
-//   - for each linked character: revoke its EVE grant (best-effort) + runPurge its
-//     per-character tiers (credential-first, so nothing can re-sync mid-purge);
-//   - runPurge the per-user tiers (the user-keyed tables with no FK — e.g. the corp
-//     jobs board — plus the user-axis Convex online teardown);
-//   - delete the user row (the cascade finishes the cascading tables).
-// "N character purges + 1 user purge + the user-row delete" (src/purge/types.ts).
-//
-// Re-enumerate until no EVE account remains rather than snapshotting once: a
-// character linked concurrently (after an enumeration) would otherwise be
-// cascade-orphaned by the final user-row drop — its account row gone, its
-// character-keyed caches surviving with no later sync to reap them. Each pass purges
-// the linked set (the credential tier deletes those account rows), so the next pass
-// sees only a newcomer or nothing; it converges because a pilot cannot complete the
-// EVE link flow faster than a pass purges. The neon-http path has no transaction, so
-// this shrinks the race to the negligible gap before the delete, not fully closing it.
+/**
+ * Nuke the caller's entire account. The user-row delete cascades
+ * session/account/user_preferences/custom_structures, but the per-character caches
+ * (skills, jobs, owned assets/blueprints, telemetry) key on character_id with no
+ * user FK, so they do NOT cascade — they must be swept per character first. So:
+ *   - for each linked character: revoke its EVE grant (best-effort) + runPurge its
+ *     per-character tiers (credential-first, so nothing can re-sync mid-purge);
+ *   - runPurge the per-user tiers (the user-keyed tables with no FK — e.g. the corp
+ *     jobs board — plus the user-axis Convex online teardown);
+ *   - delete the user row (the cascade finishes the cascading tables).
+ * "N character purges + 1 user purge + the user-row delete" (src/purge/types.ts).
+ *
+ * Re-enumerate until no EVE account remains rather than snapshotting once: a
+ * character linked concurrently (after an enumeration) would otherwise be
+ * cascade-orphaned by the final user-row drop — its account row gone, its
+ * character-keyed caches surviving with no later sync to reap them. Each pass purges
+ * the linked set (the credential tier deletes those account rows), so the next pass
+ * sees only a newcomer or nothing; it converges because a pilot cannot complete the
+ * EVE link flow faster than a pass purges. The neon-http path has no transaction, so
+ * this shrinks the race to the negligible gap before the delete, not fully closing it.
+ */
 export async function nukeAccount(userId: string): Promise<void> {
   let linked = await eveAccountIdsFor(userId);
   while (linked.length > 0) {

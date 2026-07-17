@@ -10,10 +10,12 @@ import { rateLimitGuard } from '@/lib/rate-limit';
 // authz: public
 const { GET: betterAuthGet, POST: betterAuthPost } = toNextJsHandler(auth);
 
-// GET runs inside the absorb-tracking scope so the OAuth callback can report
-// an absorb-on-proof (a stray duplicate account merged during "Add character")
-// and the SUCCESS redirect can carry it to the roster's moved-note (the
-// decoration rules live with decorateAbsorbRedirect).
+/**
+ * GET runs inside the absorb-tracking scope so the OAuth callback can report
+ * an absorb-on-proof (a stray duplicate account merged during "Add character")
+ * and the SUCCESS redirect can carry it to the roster's moved-note (the
+ * decoration rules live with decorateAbsorbRedirect).
+ */
 export async function GET(request: Request): Promise<Response> {
   const { result: response, absorbedCharacterId } = await runWithAbsorbTracking(() =>
     betterAuthGet(request),

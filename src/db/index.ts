@@ -40,10 +40,12 @@ function getDb(): Db {
   return _db;
 }
 
-// A Neon connection string is "pooled" when its host carries the `-pooler`
-// suffix — that endpoint is PgBouncer in transaction mode, which recycles the
-// underlying backend between statements and so cannot hold a session-scoped
-// advisory lock. Exported for the connection unit test.
+/**
+ * A Neon connection string is "pooled" when its host carries the `-pooler`
+ * suffix — that endpoint is PgBouncer in transaction mode, which recycles the
+ * underlying backend between statements and so cannot hold a session-scoped
+ * advisory lock. Exported for the connection unit test.
+ */
 export function isPooledHost(url: string): boolean {
   let hostname: string;
   try {
@@ -55,13 +57,15 @@ export function isPooledHost(url: string): boolean {
   return hostname.includes('-pooler');
 }
 
-// Resolves the connection string for session-scoped lock holders. Prefers the
-// direct (unpooled) endpoint and falls back to DATABASE_URL — which on local
-// Docker has no `-pooler`, so dev works without the extra var.
-//
-// Fail-closed: if the resolved URL is still a pooled host (unpooled var missing
-// in production), throw rather than silently run a lock that won't hold. The
-// request path never calls this, so this can't affect normal query throughput.
+/**
+ * Resolves the connection string for session-scoped lock holders. Prefers the
+ * direct (unpooled) endpoint and falls back to DATABASE_URL — which on local
+ * Docker has no `-pooler`, so dev works without the extra var.
+ *
+ * Fail-closed: if the resolved URL is still a pooled host (unpooled var missing
+ * in production), throw rather than silently run a lock that won't hold. The
+ * request path never calls this, so this can't affect normal query throughput.
+ */
 export function resolveLockConnectionUrl(
   env: Record<string, string | undefined> = process.env,
 ): string {
@@ -86,18 +90,22 @@ function getDirectClient(): Sql {
   return _directClient;
 }
 
-// Proxy preserves the `db.select(...)` call-site API while deferring
-// connection until the first actual database call at request time.
+/**
+ * Proxy preserves the `db.select(...)` call-site API while deferring
+ * connection until the first actual database call at request time.
+ */
 export const db: Db = new Proxy({} as Db, {
   get(_target, prop) {
     return (getDb() as unknown as Record<string | symbol, unknown>)[prop];
   },
 });
 
-// Raw postgres-js client on the direct (unpooled) endpoint. Only lock holders
-// need it: they reserve a connection to hold a session-level advisory lock
-// across a non-transactional HTTP call, which requires a stable backend — so it
-// must NOT run through the pooler. Request-path code uses `db` above instead.
+/**
+ * Raw postgres-js client on the direct (unpooled) endpoint. Only lock holders
+ * need it: they reserve a connection to hold a session-level advisory lock
+ * across a non-transactional HTTP call, which requires a stable backend — so it
+ * must NOT run through the pooler. Request-path code uses `db` above instead.
+ */
 export const directClient: Sql = new Proxy({} as Sql, {
   get(_target, prop) {
     return (getDirectClient() as unknown as Record<string | symbol, unknown>)[prop];

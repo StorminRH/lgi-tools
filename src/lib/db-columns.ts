@@ -8,8 +8,10 @@
 // evaluated schema is byte-identical to the inline columns it replaces — no migration.
 import { bigint, jsonb, type PgEnum, timestamp } from 'drizzle-orm/pg-core';
 
-// Fresh column builders per call (Drizzle column builders are single-use — a table
-// owns its columns), so the two owned-* sync tables can't share one frozen object.
+/**
+ * Fresh column builders per call (Drizzle column builders are single-use — a table
+ * owns its columns), so the two owned-* sync tables can't share one frozen object.
+ */
 export function ownerSyncStateColumns<T extends [string, ...string[]]>(ownerTypeEnum: PgEnum<T>) {
   return {
     ownerType: ownerTypeEnum('owner_type').notNull(),

@@ -53,7 +53,7 @@ function friendlyFlag(flag: string): string {
   return corpHangar ? `Corp Hangar ${corpHangar[1]}` : '';
 }
 
-// One resolved holding for the popover: who holds it, where, and how much.
+/** One resolved holding for the popover: who holds it, where, and how much. */
 export interface ResolvedHolding {
   ownerType: OwnedAssetOwnerType;
   ownerName: string;
@@ -62,7 +62,7 @@ export interface ResolvedHolding {
   quantity: number;
 }
 
-// One owned type's ledger detail: total owned + the resolved held-by list.
+/** One owned type's ledger detail: total owned + the resolved held-by list. */
 export interface OwnedAssetDetailEntry {
   typeId: number;
   ownedQty: number;
@@ -79,9 +79,11 @@ function isResolvableLocation(holding: AssetHolding): boolean {
   return false;
 }
 
-// The distinct ids worth a name lookup: every holding's owner, plus its location
-// when that location is resolvable. Deduped; only types the map holds contribute
-// (the map is already scoped to the requested types by the reduce).
+/**
+ * The distinct ids worth a name lookup: every holding's owner, plus its location
+ * when that location is resolvable. Deduped; only types the map holds contribute
+ * (the map is already scoped to the requested types by the reduce).
+ */
 export function collectAssetNameIds(map: OwnedAssetMap): number[] {
   const ids = new Set<number>();
   for (const summary of map.values()) {
@@ -126,9 +128,11 @@ function resolveLocationName(
   return UNKNOWN_LOCATION_LABEL;
 }
 
-// Assemble the ledger detail for every type the map holds. Owner/location names
-// come from the injected `names` record (stringified-id keys, matching the
-// resolver's wire shape); unresolved owners/locations degrade to a generic label.
+/**
+ * Assemble the ledger detail for every type the map holds. Owner/location names
+ * come from the injected `names` record (stringified-id keys, matching the
+ * resolver's wire shape); unresolved owners/locations degrade to a generic label.
+ */
 export function buildOwnedAssetDetail(
   map: OwnedAssetMap,
   names: Record<string, string>,

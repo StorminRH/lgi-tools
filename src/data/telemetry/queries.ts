@@ -40,8 +40,10 @@ interface LogEventInput {
   metadata?: Record<string, unknown>;
 }
 
-// Fire-and-forget INSERT. Callers can await for tests; production paths
-// generally don't because telemetry failures must never break user flows.
+/**
+ * Fire-and-forget INSERT. Callers can await for tests; production paths
+ * generally don't because telemetry failures must never break user flows.
+ */
 export async function logUsageEvent(input: LogEventInput): Promise<void> {
   await db.insert(usageLogs).values({
     action: input.action,
@@ -74,11 +76,13 @@ export async function completePublicEsiBudgetAlertClaim(id: number): Promise<voi
   if (!row) throw new Error('Failed to complete public ESI budget alert claim');
 }
 
-// Bound the otherwise-unbounded usage_logs table (one row per page view plus
-// each ESI/degradation/cron event): drop rows past the retention window. Hosted
-// on the daily GSC cron. Idempotent — a re-run only deletes newly-aged rows — so
-// it needs no lock of its own. The cutoff is computed in JS (driver-agnostic,
-// matching the market-history prune) rather than via SQL now().
+/**
+ * Bound the otherwise-unbounded usage_logs table (one row per page view plus
+ * each ESI/degradation/cron event): drop rows past the retention window. Hosted
+ * on the daily GSC cron. Idempotent — a re-run only deletes newly-aged rows — so
+ * it needs no lock of its own. The cutoff is computed in JS (driver-agnostic,
+ * matching the market-history prune) rather than via SQL now().
+ */
 export async function pruneUsageLogs(retentionDays: number, now: Date = new Date()): Promise<void> {
   const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
   await db.delete(usageLogs).where(lt(usageLogs.timestamp, cutoff));
@@ -143,9 +147,11 @@ async function topByMetadataKey(
     .map((r) => ({ value: r.value as string, count: Number(r.count) }));
 }
 
-// Exported only so the regression test can pin the SQL shape — building the query
-// never opens a connection, so the test needs no live DB. (Mirrors db/index.ts's
-// `isPooledHost`, exported for the connection unit test.)
+/**
+ * Exported only so the regression test can pin the SQL shape — building the query
+ * never opens a connection, so the test needs no live DB. (Mirrors db/index.ts's
+ * `isPooledHost`, exported for the connection unit test.)
+ */
 export function topByMetadataKeyToSQL(
   metaKey: string,
   action: UsageAction,
@@ -161,19 +167,23 @@ export async function getTopPages(range: DateRange, limit = 10): Promise<PathCou
   return rows.map((r) => ({ path: r.value, count: r.count }));
 }
 
-// Top referrer hostnames among page_view events. TelemetryReporter only
-// writes metadata.referrer when the referring origin is different from the
-// current host, so same-origin page-hops never appear here. Joining on
-// `path = '/sites'` would over-narrow it — we want acquisition across the
-// whole platform.
+/**
+ * Top referrer hostnames among page_view events. TelemetryReporter only
+ * writes metadata.referrer when the referring origin is different from the
+ * current host, so same-origin page-hops never appear here. Joining on
+ * `path = '/sites'` would over-narrow it — we want acquisition across the
+ * whole platform.
+ */
 export async function getTopReferrers(range: DateRange, limit = 10): Promise<ReferrerCount[]> {
   const rows = await topByMetadataKey('referrer', 'page_view', range, limit);
   return rows.map((r) => ({ host: r.value, count: r.count }));
 }
 
-// Top entry pages — paths where metadata.is_entry is true. Tracks the first
-// page-view per browser session, so this aggregates landing pages rather
-// than every page a user opens after they're already on the site.
+/**
+ * Top entry pages — paths where metadata.is_entry is true. Tracks the first
+ * page-view per browser session, so this aggregates landing pages rather
+ * than every page a user opens after they're already on the site.
+ */
 export async function getTopEntryPages(range: DateRange, limit = 10): Promise<EntryPageCount[]> {
   const isEntry = sql<string>`${usageLogs.metadata} ->> 'is_entry'`;
   const rows = await topByMetadataKey('path', 'page_view', range, limit, eq(isEntry, 'true'));
@@ -235,9 +245,11 @@ export async function getRoleChangeAudit(
 // zero-match window reads as 0, not NULL. All division/bucketing is deferred
 // to the caller (health-metrics.ts) — these queries only emit raw counts.
 
-// ESI vs Fuzzwork-fallback source split over `cron_prices` refreshed rows,
-// with a per-day series for the fallback-rate trend. The caller turns these
-// into a rate (and distinguishes a real 0% from an empty window).
+/**
+ * ESI vs Fuzzwork-fallback source split over `cron_prices` refreshed rows,
+ * with a per-day series for the fallback-rate trend. The caller turns these
+ * into a rate (and distinguishes a real 0% from an empty window).
+ */
 export async function getFallbackRate(range: DateRange): Promise<FallbackRateData> {
   const esi = sql<number>`coalesce(sum(${jsonInt('esiCount')}), 0)`.mapWith(Number);
   const fallback = sql<number>`coalesce(sum(${jsonInt('fuzzworkFallbackCount')}), 0)`.mapWith(
@@ -271,9 +283,11 @@ export async function getFallbackRate(range: DateRange): Promise<FallbackRateDat
   };
 }
 
-// Count one canonical degradation row per price refresh whose ESI budget was
-// exhausted. A degraded cron also writes a cron_prices outcome row, so counting
-// both actions would double the same incident.
+/**
+ * Count one canonical degradation row per price refresh whose ESI budget was
+ * exhausted. A degraded cron also writes a cron_prices outcome row, so counting
+ * both actions would double the same incident.
+ */
 export async function getBudgetExhaustionCount(range: DateRange): Promise<number> {
   const [row] = await db
     .select({ n: count() })
@@ -331,9 +345,11 @@ export async function hasPublicEsiBudgetAlertForWindow(
   return Number(row?.n ?? 0) > 0;
 }
 
-// Degradation events grouped by caller (`cron` vs `on-demand`). `caller` only
-// exists on `price_source_degraded` rows, which are emitted only when degraded
-// — so this is the mix of degradation events by origin, not of all refreshes.
+/**
+ * Degradation events grouped by caller (`cron` vs `on-demand`). `caller` only
+ * exists on `price_source_degraded` rows, which are emitted only when degraded
+ * — so this is the mix of degradation events by origin, not of all refreshes.
+ */
 export async function getDegradationByCaller(
   range: DateRange,
 ): Promise<DegradationCallerCount[]> {
@@ -387,9 +403,11 @@ export function getGscCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]
   return getCronOutcomes(range, 'cron_gsc');
 }
 
-// Latest run per cron action regardless of range — the status strip needs a
-// "now"-anchored staleness check, not a range-scoped one (a 1-day window with
-// no SDE run can still be normal for a daily cron; a multi-day-old last run is not).
+/**
+ * Latest run per cron action regardless of range — the status strip needs a
+ * "now"-anchored staleness check, not a range-scoped one (a 1-day window with
+ * no SDE run can still be normal for a daily cron; a multi-day-old last run is not).
+ */
 export async function getLastCronRuns(): Promise<CronLastRun[]> {
   const outcome = sql<string | null>`${usageLogs.metadata} ->> 'outcome'`;
   const rows = await db
@@ -409,7 +427,7 @@ export async function getLastCronRuns(): Promise<CronLastRun[]> {
   }));
 }
 
-// Per-day fetched/written totals from `cron_prices` refreshed rows.
+/** Per-day fetched/written totals from `cron_prices` refreshed rows. */
 export async function getRefreshVolume(range: DateRange): Promise<RefreshVolumePoint[]> {
   const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
   const fetched = sql<number>`coalesce(sum(${jsonInt('fetched')}), 0)`.mapWith(Number);
@@ -433,11 +451,13 @@ export async function getRefreshVolume(range: DateRange): Promise<RefreshVolumeP
   }));
 }
 
-// Returning-vs-new authenticated users over the window. "New" = accounts
-// created in-window; "returning" = distinct characters that logged in during
-// the window whose account predates it. A user can be in at most one bucket;
-// dormant accounts (created before, no login in-window) are in neither.
-// Counts only — no character id or name leaves this function.
+/**
+ * Returning-vs-new authenticated users over the window. "New" = accounts
+ * created in-window; "returning" = distinct characters that logged in during
+ * the window whose account predates it. A user can be in at most one bucket;
+ * dormant accounts (created before, no login in-window) are in neither.
+ * Counts only — no character id or name leaves this function.
+ */
 export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNew> {
   const [newRow, retRow] = await Promise.all([
     db
@@ -465,8 +485,10 @@ export async function getReturningVsNew(range: DateRange): Promise<ReturningVsNe
   };
 }
 
-// Per-user login counts over the window, returned as a bare count list (no
-// identity). The caller buckets these into a frequency histogram.
+/**
+ * Per-user login counts over the window, returned as a bare count list (no
+ * identity). The caller buckets these into a frequency histogram.
+ */
 export async function getLoginCountsPerUser(range: DateRange): Promise<number[]> {
   const rows = await db
     .select({ c: count() })
@@ -482,9 +504,11 @@ export async function getLoginCountsPerUser(range: DateRange): Promise<number[]>
   return rows.map((r) => Number(r.c));
 }
 
-// Referred (carried an external referrer) vs direct page views. Same referrer
-// rule as getTopReferrers: TelemetryReporter only writes metadata.referrer for
-// a cross-origin referrer, so "direct" folds in same-origin and untagged hits.
+/**
+ * Referred (carried an external referrer) vs direct page views. Same referrer
+ * rule as getTopReferrers: TelemetryReporter only writes metadata.referrer for
+ * a cross-origin referrer, so "direct" folds in same-origin and untagged hits.
+ */
 export async function getSearchVsDirect(range: DateRange): Promise<SearchVsDirect> {
   const referred = sql<number>`count(*) filter (where ${usageLogs.metadata} ->> 'referrer' is not null)`.mapWith(
     Number,
@@ -499,7 +523,7 @@ export async function getSearchVsDirect(range: DateRange): Promise<SearchVsDirec
   return { referred: Number(row?.referred ?? 0), direct: Number(row?.direct ?? 0) };
 }
 
-// Convenience for routes that want a quick "last 7d" snapshot.
+/** Convenience for routes that want a quick "last 7d" snapshot. */
 export function lastNDaysRange(days: number, now: Date = new Date()): DateRange {
   const to = now;
   const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);

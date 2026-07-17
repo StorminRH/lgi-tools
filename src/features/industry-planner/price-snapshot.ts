@@ -14,9 +14,11 @@ export interface PriceSnapshot {
   lookup: (typeId: number) => PriceLite | undefined;
 }
 
-// Owns the client price-store merge policy behind one lookup: the streamed seed
-// is captured once, each refresh callback replaces the cumulative live snapshot,
-// and live values win per type while untouched rows keep their server fallback.
+/**
+ * Owns the client price-store merge policy behind one lookup: the streamed seed
+ * is captured once, each refresh callback replaces the cumulative live snapshot,
+ * and live values win per type while untouched rows keep their server fallback.
+ */
 export function createPriceSnapshot(): PriceSnapshot {
   let captured = false;
   let initialPricing: BlueprintPricing | null = null;

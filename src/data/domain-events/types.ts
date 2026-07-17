@@ -50,9 +50,11 @@ interface DomainEventMetadataByType {
 
 export type DomainEventMetadata = DomainEventMetadataByType[DomainEventType];
 
-// A discriminated union keeps every event's metadata closed at the call site.
-// There is deliberately no generic extension bag: new stored knowledge must be
-// named here and reviewed before an emitter can persist it.
+/**
+ * A discriminated union keeps every event's metadata closed at the call site.
+ * There is deliberately no generic extension bag: new stored knowledge must be
+ * named here and reviewed before an emitter can persist it.
+ */
 export type DomainEventInput = {
   [TEvent in DomainEventType]: {
     eventType: TEvent;

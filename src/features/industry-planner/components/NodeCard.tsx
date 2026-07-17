@@ -24,8 +24,10 @@ import type { AssetHolding, OwnedComponentDetail } from '../types';
 // (needed / owned / remaining). Clicking the card body drills the cascade (when
 // `onSelect` is set); the icon + ring stop their own events so opening them never drills.
 
-// The popover adjusters for a buildable node, plus the single tone that colours its
-// icon frame. Absent for raws/reactions (a plain, frameless icon).
+/**
+ * The popover adjusters for a buildable node, plus the single tone that colours its
+ * icon frame. Absent for raws/reactions (a plain, frameless icon).
+ */
 export interface NodeEfficiency {
   state: NodeMeState;
   adjusters: ReactNode;

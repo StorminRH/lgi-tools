@@ -23,8 +23,10 @@ export interface SystemSearch {
   suggest: (input: string) => Promise<string[]>;
 }
 
-// The pure half of useSystemName (the Humble split): resolve an id against
-// a possibly-unloaded index. Exported for testing.
+/**
+ * The pure half of useSystemName (the Humble split): resolve an id against
+ * a possibly-unloaded index. Exported for testing.
+ */
 export function systemNameFrom(
   systems: SystemSearchEntry[] | null,
   systemId: number | null,

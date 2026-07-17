@@ -52,18 +52,20 @@ function BonusRowView({ row }: { row: StructureBonusRow }) {
   return <>{render(row)}</>;
 }
 
-// A structure slot's compact bonus readout (3.7.13.2 hero rework): the ME gem and
-// TE hourglass with bare percents, replacing the wordy green pills that pushed the
-// hero's controls around. Renders inside a fixed-height slot the selectors reserve,
-// so a bonus appearing or vanishing never reflows the card. The slot passes only
-// the bonuses it actually hosts, so readouts never double up across the two slots;
-// the reaction contribution gets a tiny "rxn" marker only when it shares the line
-// with manufacturing parts (a lone-refinery build slot hosts both).
-//
-// `taxPct` is the slot structure's owner-ENTERED facility tax (3.7.13.3), shown
-// muted — a tax is a cost, not a bonus. Rendered only when entered (including a
-// real 0%); the unset 0.25%-assumed baseline stays out of the hero and lives in
-// the fee-breakdown hover instead.
+/**
+ * A structure slot's compact bonus readout (3.7.13.2 hero rework): the ME gem and
+ * TE hourglass with bare percents, replacing the wordy green pills that pushed the
+ * hero's controls around. Renders inside a fixed-height slot the selectors reserve,
+ * so a bonus appearing or vanishing never reflows the card. The slot passes only
+ * the bonuses it actually hosts, so readouts never double up across the two slots;
+ * the reaction contribution gets a tiny "rxn" marker only when it shares the line
+ * with manufacturing parts (a lone-refinery build slot hosts both).
+ *
+ * `taxPct` is the slot structure's owner-ENTERED facility tax (3.7.13.3), shown
+ * muted — a tax is a cost, not a bonus. Rendered only when entered (including a
+ * real 0%); the unset 0.25%-assumed baseline stays out of the hero and lives in
+ * the fee-breakdown hover instead.
+ */
 export function StructureBonusReadout({
   readout,
   taxPct,

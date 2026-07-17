@@ -2,9 +2,11 @@ import Link from 'next/link';
 import { Pill } from '@/components/ui/pill';
 import { SectionLabel } from '@/components/ui/section-label';
 
-// The shared tool grid — identical for anonymous and signed-in visitors. The
-// card-glow + bob hover (reduced-motion gated in globals.css) and the
-// arbitrary-value grid template use classes, not inline `style` (house style).
+/**
+ * The shared tool grid — identical for anonymous and signed-in visitors. The
+ * card-glow + bob hover (reduced-motion gated in globals.css) and the
+ * arbitrary-value grid template use classes, not inline `style` (house style).
+ */
 export function HomeFeatureCards() {
   return (
     <section>

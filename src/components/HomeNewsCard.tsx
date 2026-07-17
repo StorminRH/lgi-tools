@@ -6,12 +6,14 @@ import { getEveNews } from '@/data/eve-news/queries';
 import type { EveNewsItem } from '@/data/eve-news/types';
 import { formatUtcDate } from '@/lib/format/time';
 
-// The shared EVE news card — identical for anonymous and signed-in visitors.
-// This is the degradation BOUNDARY: getEveNews() throws on a feed failure so the
-// cache can serve last-good (see the accessor), and the try/catch here turns a
-// cold-miss failure into an empty state rather than erroring the page. Headlines
-// are rendered as plain JSX text (auto-escaped) and link out to eveonline.com —
-// never raw feed HTML (`dangerouslySetInnerHTML` is lint-banned under the CSP).
+/**
+ * The shared EVE news card — identical for anonymous and signed-in visitors.
+ * This is the degradation BOUNDARY: getEveNews() throws on a feed failure so the
+ * cache can serve last-good (see the accessor), and the try/catch here turns a
+ * cold-miss failure into an empty state rather than erroring the page. Headlines
+ * are rendered as plain JSX text (auto-escaped) and link out to eveonline.com —
+ * never raw feed HTML (`dangerouslySetInnerHTML` is lint-banned under the CSP).
+ */
 export async function HomeNewsCard() {
   let items: EveNewsItem[] = [];
   try {

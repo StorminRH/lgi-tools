@@ -68,14 +68,18 @@ const ATTR = {
   secMultNull: 2357, // covers BOTH null-sec and wormhole space
 } as const;
 
-// The two industry activities a structure modifies. CCP activity ids (constants.ts):
-// 1 = manufacturing, 11 = reaction.
+/**
+ * The two industry activities a structure modifies. CCP activity ids (constants.ts):
+ * 1 = manufacturing, 11 = reaction.
+ */
 export const MANUFACTURING_ACTIVITY = 1;
 export const REACTION_ACTIVITY = 11;
 export type IndustryActivityId = typeof MANUFACTURING_ACTIVITY | typeof REACTION_ACTIVITY;
 
-// Effective structure reductions, each a PERCENT (e.g. 5.99 = a 5.99% reduction),
-// full precision. `me` is 0 for reactions. Compose downstream as `× (1 − x/100)`.
+/**
+ * Effective structure reductions, each a PERCENT (e.g. 5.99 = a 5.99% reduction),
+ * full precision. `me` is 0 for reactions. Compose downstream as `× (1 − x/100)`.
+ */
 export interface StructureBonus {
   me: number;
   te: number;
@@ -126,8 +130,10 @@ function reductionPct(
   return (1 - modifier) * 100;
 }
 
-// The structure's effective material / time / cost reductions for an industry job
-// of `activityId` run in it. Pure: a function of the passed dogma + security class.
+/**
+ * The structure's effective material / time / cost reductions for an industry job
+ * of `activityId` run in it. Pure: a function of the passed dogma + security class.
+ */
 export function computeStructureBonus(input: StructureBonusInput): StructureBonus {
   const { structureAttrs, rigAttrs, securityClass, activityId } = input;
 

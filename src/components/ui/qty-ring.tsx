@@ -14,8 +14,10 @@ const RADIUS = 17;
 
 export type QtyRingTone = 'neutral' | 'isk';
 
-// Pure: the stroke-dasharray ("<filled> <circumference>") + circumference for a
-// progress fraction at a given radius. Progress is clamped to 0–1 (non-finite → 0).
+/**
+ * Pure: the stroke-dasharray ("<filled> <circumference>") + circumference for a
+ * progress fraction at a given radius. Progress is clamped to 0–1 (non-finite → 0).
+ */
 export function ringDash(
   progress: number,
   radius: number,

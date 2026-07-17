@@ -5,14 +5,14 @@
 
 const ISK_ZEROS = 1_000_000;
 
-// Compact figure for a row value: "123.4M" / "1.2B", "—" when absent.
+/** Compact figure for a row value: "123.4M" / "1.2B", "—" when absent. */
 export function formatIsk(isk: number | null): string {
   if (isk == null) return '—';
   if (isk >= 1_000_000_000) return `${(isk / 1_000_000_000).toFixed(1)}B`;
   return `${(isk / ISK_ZEROS).toFixed(1)}M`;
 }
 
-// Same magnitude, with the unit — used by the card header and section footer.
+/** Same magnitude, with the unit — used by the card header and section footer. */
 export function formatIskHeader(isk: number | null): string {
   if (isk == null) return '—';
   if (isk >= 1_000_000_000) return `${(isk / 1_000_000_000).toFixed(1)}B ISK`;

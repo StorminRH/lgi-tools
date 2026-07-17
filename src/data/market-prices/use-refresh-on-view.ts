@@ -21,8 +21,10 @@ import type { DepthBand, PriceSource, RegionalDiscount } from './types';
 // island (which just reads `prices`). Both get identical refresh visuals because
 // both run this one loop.
 
-// A live price after client-side deserialization: the wire shape (DB-bigint
-// volumes as strings, stale_after as an ISO string) narrowed to plain numbers.
+/**
+ * A live price after client-side deserialization: the wire shape (DB-bigint
+ * volumes as strings, stale_after as an ISO string) narrowed to plain numbers.
+ */
 export interface RefreshedPrice {
   typeId: number;
   bestBuy: number | null;

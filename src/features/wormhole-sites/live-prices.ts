@@ -3,24 +3,26 @@ import { getPrices } from '@/data/market-prices/queries';
 import { liveIskFor } from './live-isk';
 import type { SiteDetail, SiteResource } from './types';
 
-// Overlays live Jita 5%-percentile buy values onto a list of sites.
-//
-// Strategy:
-// - Collect every non-null typeId across all sites' resources.
-// - Batch-fetch market prices and SDE volumes (parallel, one round-trip each).
-// - For each resource: liveIsk = round(units × pct5Buy). The Sheet stores
-//   `units` as the raw EVE unit count, and compressed-market prices are
-//   per-unit (1 compressed unit = 1 raw unit equivalent for the ores and
-//   gases this app cares about), so the formula needs no volume conversion.
-//   `type.volume` is read but is not part of the formula — it's retained as
-//   a sanity gate (skip the live overlay when the SDE row is missing).
-// - effectiveIsk = liveIsk ?? totalIsk per row.
-// - At the site level, resourceValueIsk is recomputed as sum(effectiveIsk)
-//   when the site has resources — keeps the header total and the footer
-//   total derived from the same source. Sites with no resources are passed
-//   through unchanged.
-//
-// Pure — does not mutate the input array or its members.
+/**
+ * Overlays live Jita 5%-percentile buy values onto a list of sites.
+ *
+ * Strategy:
+ * - Collect every non-null typeId across all sites' resources.
+ * - Batch-fetch market prices and SDE volumes (parallel, one round-trip each).
+ * - For each resource: liveIsk = round(units × pct5Buy). The Sheet stores
+ *   `units` as the raw EVE unit count, and compressed-market prices are
+ *   per-unit (1 compressed unit = 1 raw unit equivalent for the ores and
+ *   gases this app cares about), so the formula needs no volume conversion.
+ *   `type.volume` is read but is not part of the formula — it's retained as
+ *   a sanity gate (skip the live overlay when the SDE row is missing).
+ * - effectiveIsk = liveIsk ?? totalIsk per row.
+ * - At the site level, resourceValueIsk is recomputed as sum(effectiveIsk)
+ *   when the site has resources — keeps the header total and the footer
+ *   total derived from the same source. Sites with no resources are passed
+ *   through unchanged.
+ *
+ * Pure — does not mutate the input array or its members.
+ */
 export async function overlayLivePrices(sites: SiteDetail[]): Promise<SiteDetail[]> {
   const allTypeIds = new Set<number>();
   for (const s of sites) {

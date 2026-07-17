@@ -15,9 +15,11 @@ import { readEsiAuthed, readEsiPagedAuthed } from '@/lib/esi/authed-read';
 import type { OwnerKey } from '@/lib/owner-sync';
 import type { EsiResponseHeaders } from '@/lib/esi/response-metadata';
 
-// A linked character with derived scope health — the shape every per-owner refresh
-// enumerates. corporationId is always included (the corp axis needs it); character-only
-// slices simply ignore it.
+/**
+ * A linked character with derived scope health — the shape every per-owner refresh
+ * enumerates. corporationId is always included (the corp axis needs it); character-only
+ * slices simply ignore it.
+ */
 export interface LinkedCharacterHealth {
   characterId: number;
   corporationId: number | null;
@@ -25,7 +27,7 @@ export interface LinkedCharacterHealth {
   missingScopes: string[];
 }
 
-// The user's linked characters with the scope health the eligibility predicates read.
+/** The user's linked characters with the scope health the eligibility predicates read. */
 export async function listCharactersWithHealth(userId: string): Promise<LinkedCharacterHealth[]> {
   const linked = await listLinkedCharacters(userId);
   return linked.map((character) => ({
@@ -39,10 +41,12 @@ export async function listCharactersWithHealth(userId: string): Promise<LinkedCh
   }));
 }
 
-// The owned-* read-side owners for a user: their linked characters, plus the
-// corporations any of their characters is currently a member of (cheap — read straight
-// off the affiliation cache, no role read; the refresh side is what gates on the
-// Director role). Owners with no stored rows simply contribute nothing to the map.
+/**
+ * The owned-* read-side owners for a user: their linked characters, plus the
+ * corporations any of their characters is currently a member of (cheap — read straight
+ * off the affiliation cache, no role read; the refresh side is what gates on the
+ * Director role). Owners with no stored rows simply contribute nothing to the map.
+ */
 export async function resolveOwnedOwnersForUser(userId: string): Promise<OwnerKey[]> {
   const [linked, affiliations] = await Promise.all([
     listLinkedCharacters(userId),
@@ -59,7 +63,7 @@ export async function resolveOwnedOwnersForUser(userId: string): Promise<OwnerKe
   return owners;
 }
 
-// A fresh access token for a character, or null when unavailable / reauth-needed.
+/** A fresh access token for a character, or null when unavailable / reauth-needed. */
 export async function vendTokenFor(characterId: number): Promise<string | null> {
   const result = await getFreshAccessTokenForCharacter(characterId);
   return result.kind === 'ok' ? result.accessToken : null;
@@ -73,7 +77,7 @@ function extractRoles(body: unknown): string[] {
   return Array.isArray(roles) ? roles.filter((r): r is string => typeof r === 'string') : [];
 }
 
-// A character's in-game corp roles (for the Director gate), or null on an ESI error.
+/** A character's in-game corp roles (for the Director gate), or null on an ESI error. */
 export async function readRolesFor(characterId: number, accessToken: string): Promise<string[] | null> {
   try {
     const read = await readEsiAuthed(`/characters/${characterId}/roles`, accessToken, null);
@@ -85,9 +89,11 @@ export async function readRolesFor(characterId: number, accessToken: string): Pr
   }
 }
 
-// The slice ReadResult shapes (single + paged), decoupled from lib/esi's EsiAuthedRead
-// (the Neon path's fixed TTL ignores the ESI cache window the gate returns) — structurally
-// identical to each slice's own JobsEsiRead / SkillsEsiRead and OwnedXReadResult.
+/**
+ * The slice ReadResult shapes (single + paged), decoupled from lib/esi's EsiAuthedRead
+ * (the Neon path's fixed TTL ignores the ESI cache window the gate returns) — structurally
+ * identical to each slice's own JobsEsiRead / SkillsEsiRead and OwnedXReadResult.
+ */
 export type AuthedSingleRead =
   | { kind: 'fresh'; body: unknown; etag: string | null }
   | { kind: 'unchanged' }
@@ -107,8 +113,10 @@ function esiThrowToError(error: unknown): { kind: 'error'; code: string } {
   throw error;
 }
 
-// One authed single-endpoint read mapped to the slice contract (a 4xx is already a soft
-// 'error' code from the reader).
+/**
+ * One authed single-endpoint read mapped to the slice contract (a 4xx is already a soft
+ * 'error' code from the reader).
+ */
 export async function readSingleEndpoint(
   path: string,
   accessToken: string,
@@ -124,7 +132,7 @@ export async function readSingleEndpoint(
   }
 }
 
-// One authed paginated read mapped to the slice contract, same best-effort swallow.
+/** One authed paginated read mapped to the slice contract, same best-effort swallow. */
 export async function readPagedEndpoint(
   basePath: string,
   accessToken: string,

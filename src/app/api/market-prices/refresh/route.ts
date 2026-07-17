@@ -26,10 +26,12 @@ import { parseJsonBody } from "@/lib/route-body";
 // change, not a code edit.
 // authz: public
 
-// Worst honest case: 50 typeIds at per-type ESI concurrency 10 → up to 5
-// sequential rounds of 10s-timeout fetches plus the Fuzzwork fallback
-// (observed peak 38.8s). 60 covers that while bounding a hang at well under
-// the 300s platform default.
+/**
+ * Worst honest case: 50 typeIds at per-type ESI concurrency 10 → up to 5
+ * sequential rounds of 10s-timeout fetches plus the Fuzzwork fallback
+ * (observed peak 38.8s). 60 covers that while bounding a hang at well under
+ * the 300s platform default.
+ */
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest): Promise<Response> {

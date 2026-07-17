@@ -11,10 +11,12 @@ const statusBodySchema = z.object({
   vip: z.boolean().optional(),
 });
 
-// Pure parse of a 200 /status/ body into the online/vip shape. Throws
-// EsiContractError on a shape change — routed like any other ESI failure (a
-// malformed body is no more usable than a 5xx). Exported for direct unit
-// testing of the parse path.
+/**
+ * Pure parse of a 200 /status/ body into the online/vip shape. Throws
+ * EsiContractError on a shape change — routed like any other ESI failure (a
+ * malformed body is no more usable than a 5xx). Exported for direct unit
+ * testing of the parse path.
+ */
 export function parseServerStatus(
   body: unknown,
 ): Extract<ServerStatus, { players: number }> {

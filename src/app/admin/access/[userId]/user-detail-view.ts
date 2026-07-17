@@ -9,12 +9,14 @@ export type UserDetailView = {
   forceLogoutDisabled: boolean;
 };
 
-// Folds the admin user-detail header/session reads into one view: the character-id
-// label, the identity chips (the role chip always, plus a "You" chip when the admin
-// is looking at their own account), and the self / only-character / force-logout
-// flags the per-character rows and the force-logout control disable on. The admin
-// gate and DB reads stay in the page shell; this takes their already-resolved
-// values.
+/**
+ * Folds the admin user-detail header/session reads into one view: the character-id
+ * label, the identity chips (the role chip always, plus a "You" chip when the admin
+ * is looking at their own account), and the self / only-character / force-logout
+ * flags the per-character rows and the force-logout control disable on. The admin
+ * gate and DB reads stay in the page shell; this takes their already-resolved
+ * values.
+ */
 export function deriveUserDetailView({
   targetUser,
   charactersCount,

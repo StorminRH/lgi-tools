@@ -1,7 +1,9 @@
-// The LGI bracket-stamp wordmark — the visual hero banner. Shared by the
-// anonymous pitch (HomeHero) and the signed-in dashboard (HomeLeftColumn), where
-// it sits above the character roster. Pure presentational markup, so it renders
-// the same on the server (anon shell) and the client (signed-in swap).
+/**
+ * The LGI bracket-stamp wordmark — the visual hero banner. Shared by the
+ * anonymous pitch (HomeHero) and the signed-in dashboard (HomeLeftColumn), where
+ * it sits above the character roster. Pure presentational markup, so it renders
+ * the same on the server (anon shell) and the client (signed-in swap).
+ */
 export function HeroBanner() {
   return (
     <div className="flex flex-col gap-6">

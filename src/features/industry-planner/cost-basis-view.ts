@@ -5,10 +5,12 @@
 
 export type CostBasis = 'batched' | 'marginal';
 
-// The batched (Raw) input cost, re-derived from the priced rows: the rows are
-// ALWAYS the batched bill regardless of the summary's basis, and an unpriced
-// line contributes 0 — the same missing-price honesty as computeBuildCost. The
-// raw-ledger header sums to the list it opens through this.
+/**
+ * The batched (Raw) input cost, re-derived from the priced rows: the rows are
+ * ALWAYS the batched bill regardless of the summary's basis, and an unpriced
+ * line contributes 0 — the same missing-price honesty as computeBuildCost. The
+ * raw-ledger header sums to the list it opens through this.
+ */
 export function batchedCostOfRows(rows: { extendedCost: number | null }[]): number {
   return rows.reduce((sum, r) => sum + (r.extendedCost ?? 0), 0);
 }

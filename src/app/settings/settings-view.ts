@@ -11,9 +11,11 @@ import type {
 // turns resolved control models (and the fetched manager corps) into what the
 // page renders.
 
-// A feature-owned section to render, resolved to its component props. A
-// discriminated union keyed by the feature control id, so a new feature control
-// is a compile error in the switch below (the exhaustiveness guard).
+/**
+ * A feature-owned section to render, resolved to its component props. A
+ * discriminated union keyed by the feature control id, so a new feature control
+ * is a compile error in the switch below (the exhaustiveness guard).
+ */
 export type FeatureSectionView = { id: 'corp-structure-sharing'; corps: SharingCorpView[] };
 
 export type SettingsView = {
@@ -22,15 +24,19 @@ export type SettingsView = {
   isEmpty: boolean;
 };
 
-// Does the page need the corp-structures read? Only when a corp-structure-sharing
-// feature control is on the page — the fetch is gated on this so a viewer with no
-// such control never pays for the ESI-backed read.
+/**
+ * Does the page need the corp-structures read? Only when a corp-structure-sharing
+ * feature control is on the page — the fetch is gated on this so a viewer with no
+ * such control never pays for the ESI-backed read.
+ */
 export function settingsNeedsCorpSharing(models: PageControlModel[]): boolean {
   return models.some((m) => m.kind === 'feature' && m.id === 'corp-structure-sharing');
 }
 
-// The corps a Station_Manager may configure, mapped to the sharing view shape.
-// Fail-closed: a non-Station_Manager corp drops out entirely, never shown disabled.
+/**
+ * The corps a Station_Manager may configure, mapped to the sharing view shape.
+ * Fail-closed: a non-Station_Manager corp drops out entirely, never shown disabled.
+ */
 export function toManagerCorps(rows: CorpStructurePageView[]): SharingCorpView[] {
   return rows
     .filter((corp) => corp.isStationManager)
@@ -58,8 +64,10 @@ function featureSectionView(
   }
 }
 
-// Split the resolved controls into the preferences card's models and the feature
-// sections that actually render, and flag when the page has nothing to show.
+/**
+ * Split the resolved controls into the preferences card's models and the feature
+ * sections that actually render, and flag when the page has nothing to show.
+ */
 export function deriveSettingsView(
   models: PageControlModel[],
   managerCorps: SharingCorpView[],

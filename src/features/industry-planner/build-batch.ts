@@ -47,8 +47,10 @@ function flattenRecipes(tree: TreeNode[]): Map<number, Recipe> {
   return recipes;
 }
 
-// The raw (leaf) type IDs in a tree — the materials with no recipe. Run- and
-// price-independent, so it's the set the planner prices and refreshes.
+/**
+ * The raw (leaf) type IDs in a tree — the materials with no recipe. Run- and
+ * price-independent, so it's the set the planner prices and refreshes.
+ */
 export function collectRawTypeIds(tree: TreeNode[]): number[] {
   const recipes = flattenRecipes(tree);
   const raws = new Set<number>();
@@ -62,13 +64,15 @@ export function collectRawTypeIds(tree: TreeNode[]): number[] {
   return [...raws];
 }
 
-// The whole-run batch ledger for `requestedRuns` runs of the blueprint at the
-// root of `tree`: the raw (leaf) totals you buy from an empty hangar, PLUS, for
-// every buildable, the whole runs its aggregate demand needs and the blueprint's
-// per-run yield (`batch`). `runs × batch` is what a run-rounded build actually
-// produces — the figure the build-plan columns show. One walk feeds both: the
-// raws are the cost basis (`computeBatchMaterials`), the builds drive the tier
-// display, so the two can never disagree on runs.
+/**
+ * The whole-run batch ledger for `requestedRuns` runs of the blueprint at the
+ * root of `tree`: the raw (leaf) totals you buy from an empty hangar, PLUS, for
+ * every buildable, the whole runs its aggregate demand needs and the blueprint's
+ * per-run yield (`batch`). `runs × batch` is what a run-rounded build actually
+ * produces — the figure the build-plan columns show. One walk feeds both: the
+ * raws are the cost basis (`computeBatchMaterials`), the builds drive the tier
+ * display, so the two can never disagree on runs.
+ */
 export interface BatchLedger {
   // Raw-material typeId → whole-run total quantity.
   raws: Map<number, number>;
@@ -87,7 +91,7 @@ export interface BatchLedger {
   >;
 }
 
-// `requestedRuns` defaults to 1 — one run of the blueprint, today's per-run cost basis.
+/** `requestedRuns` defaults to 1 — one run of the blueprint, today's per-run cost basis. */
 export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLedger {
   const recipes = flattenRecipes(tree);
   // Per buildable type: cumulative demand and the whole runs that demand needs.
@@ -137,9 +141,11 @@ export function computeBatchLedger(tree: TreeNode[], requestedRuns = 1): BatchLe
   return { raws, builds };
 }
 
-// Raw-material totals to build `requestedRuns` runs of the blueprint at the root
-// of `tree`, on the whole-run batch basis described above — the cost-panel basis.
-// A thin projection of `computeBatchLedger`'s raws so the two share one walk.
+/**
+ * Raw-material totals to build `requestedRuns` runs of the blueprint at the root
+ * of `tree`, on the whole-run batch basis described above — the cost-panel basis.
+ * A thin projection of `computeBatchLedger`'s raws so the two share one walk.
+ */
 export function computeBatchMaterials(
   tree: TreeNode[],
   requestedRuns = 1,
@@ -161,9 +167,11 @@ export function computeBatchMaterials(
 // The ME lookup is a callback (not the owned-blueprints map type) so this stays
 // inside the industry-planner slice — a feature never imports another feature.
 
-// What the transform needs to apply per-component ME: the per-blueprint ME
-// lookup, and the TOP blueprint's id (the root tree nodes are ITS direct inputs,
-// so the top blueprint's ME reduces them).
+/**
+ * What the transform needs to apply per-component ME: the per-blueprint ME
+ * lookup, and the TOP blueprint's id (the root tree nodes are ITS direct inputs,
+ * so the top blueprint's ME reduces them).
+ */
 export interface MeOptions {
   meOf: (blueprintTypeId: number) => number | undefined;
   topBlueprintTypeId: number;
@@ -239,15 +247,17 @@ function recipeHeights(recipes: Map<number, Recipe>): Map<number, number> {
   return heights;
 }
 
-// The whole-run batch ledger with per-component owned ME applied. Same shape and
-// meaning as `computeBatchLedger`, but ME-aware: because ME's ceil is non-linear
-// in the run count, each buildable's ME must be applied ONCE over its final run
-// total — so this is a topological aggregate-then-ceil (process parents before
-// children by descending height) rather than the ME0 path's incremental walk. A
-// buildable's height is strictly greater than any of its inputs', so its demand
-// is fully aggregated before its runs (and ME-reduced input draw) are computed.
-// With `meOf` returning undefined everywhere this reproduces `computeBatchLedger`
-// exactly (meAdjust → qty·runs), the byte-identical-at-ME0 guarantee.
+/**
+ * The whole-run batch ledger with per-component owned ME applied. Same shape and
+ * meaning as `computeBatchLedger`, but ME-aware: because ME's ceil is non-linear
+ * in the run count, each buildable's ME must be applied ONCE over its final run
+ * total — so this is a topological aggregate-then-ceil (process parents before
+ * children by descending height) rather than the ME0 path's incremental walk. A
+ * buildable's height is strictly greater than any of its inputs', so its demand
+ * is fully aggregated before its runs (and ME-reduced input draw) are computed.
+ * With `meOf` returning undefined everywhere this reproduces `computeBatchLedger`
+ * exactly (meAdjust → qty·runs), the byte-identical-at-ME0 guarantee.
+ */
 export function computeBatchLedgerWithMe(
   tree: TreeNode[],
   requestedRuns: number,
@@ -286,8 +296,10 @@ export function computeBatchLedgerWithMe(
   return { raws, builds };
 }
 
-// Raw-material totals with per-component owned ME applied — the ME-aware twin of
-// `computeBatchMaterials`, a thin projection of `computeBatchLedgerWithMe`'s raws.
+/**
+ * Raw-material totals with per-component owned ME applied — the ME-aware twin of
+ * `computeBatchMaterials`, a thin projection of `computeBatchLedgerWithMe`'s raws.
+ */
 export function computeBatchMaterialsWithMe(
   tree: TreeNode[],
   requestedRuns: number,
@@ -298,15 +310,17 @@ export function computeBatchMaterialsWithMe(
   );
 }
 
-// Marginal ("Item" basis) raw-material totals: what `requestedRuns` runs of the
-// top blueprint actually CONSUME, with no batch rounding anywhere below the
-// root — the fractional twin of `computeBatchMaterials(WithMe)`. Each buildable
-// runs exactly demand ÷ yield (no ceil, no ≥1-per-run floor), so a hull that
-// needs 16 units out of a 200-unit reaction batch is charged 16, not 200.
-// Linear in `requestedRuns` by construction. ME (owned blueprint + structure)
-// applies as linear factors per `meFactor` — the same fractional-lens semantics
-// as `chainActualsFrom`; with no `opts` (or ME0 everywhere) the factors are ×1.
-// Only the requested runs themselves stay whole (they arrive as an integer).
+/**
+ * Marginal ("Item" basis) raw-material totals: what `requestedRuns` runs of the
+ * top blueprint actually CONSUME, with no batch rounding anywhere below the
+ * root — the fractional twin of `computeBatchMaterials(WithMe)`. Each buildable
+ * runs exactly demand ÷ yield (no ceil, no ≥1-per-run floor), so a hull that
+ * needs 16 units out of a 200-unit reaction batch is charged 16, not 200.
+ * Linear in `requestedRuns` by construction. ME (owned blueprint + structure)
+ * applies as linear factors per `meFactor` — the same fractional-lens semantics
+ * as `chainActualsFrom`; with no `opts` (or ME0 everywhere) the factors are ×1.
+ * Only the requested runs themselves stay whole (they arrive as an integer).
+ */
 export function computeMarginalMaterials(
   tree: TreeNode[],
   requestedRuns = 1,
@@ -336,9 +350,11 @@ export function computeMarginalMaterials(
   return [...raws.entries()].map(([typeId, quantity]) => ({ typeId, quantity }));
 }
 
-// Every blueprint type that produces something in this build — the top product's
-// blueprint plus every buildable node's producing blueprint. The set the client
-// asks the owned-blueprints endpoint about (its ME lookup is keyed by these).
+/**
+ * Every blueprint type that produces something in this build — the top product's
+ * blueprint plus every buildable node's producing blueprint. The set the client
+ * asks the owned-blueprints endpoint about (its ME lookup is keyed by these).
+ */
 export function collectBlueprintTypeIds(tree: TreeNode[], topBlueprintTypeId: number): number[] {
   const out = new Set<number>([topBlueprintTypeId]);
   for (const recipe of flattenRecipes(tree).values()) out.add(recipe.blueprintTypeId);
@@ -431,7 +447,7 @@ function expandBuild(
     addDemand(input.typeId, meAdjust(input.qty, runs, me, structureMult));
 }
 
-// typeId → integer quantity to buy (bought intermediates + the raw frontier).
+/** typeId → integer quantity to buy (bought intermediates + the raw frontier). */
 export function computeMultibuyDemand(
   tree: TreeNode[],
   requestedRuns: number,

@@ -31,21 +31,25 @@ const viewerCorpStructuresSchema = z.object({
   lastRefreshedAt: z.number().nullable(),
 });
 
-// Exported as the slice's canonical wire shape: the route derives its response type
-// from it (below), and next session's client adds the typed `apiFetch` endpoint that
-// validates against it (`response: corpStructuresResponseSchema`).
+/**
+ * Exported as the slice's canonical wire shape: the route derives its response type
+ * from it (below), and next session's client adds the typed `apiFetch` endpoint that
+ * validates against it (`response: corpStructuresResponseSchema`).
+ */
 export const corpStructuresResponseSchema = z.object({
   corporations: z.array(viewerCorpStructuresSchema),
 });
 
 export type CorpStructuresResponse = z.infer<typeof corpStructuresResponseSchema>;
 
-// ── POST /api/account/corp-structures/sharing (authz: auth + Station_Manager) ──
-// Flip a corp's structure-sharing consent. The route is the trust boundary: the
-// caller must be a member of the corp AND hold the in-game Station_Manager role
-// (any of their linked pilots in it). ENABLE opts the corp in (the next member view
-// pulls the catalogue); DISABLE wipes the corp's stored structures, sync state, and
-// authored rigs. Echoes the new state so the toggle reflects it without a refetch.
+/**
+ * ── POST /api/account/corp-structures/sharing (authz: auth + Station_Manager) ──
+ * Flip a corp's structure-sharing consent. The route is the trust boundary: the
+ * caller must be a member of the corp AND hold the in-game Station_Manager role
+ * (any of their linked pilots in it). ENABLE opts the corp in (the next member view
+ * pulls the catalogue); DISABLE wipes the corp's stored structures, sync state, and
+ * authored rigs. Echoes the new state so the toggle reflects it without a refetch.
+ */
 export const setCorpStructureSharingRequestSchema = z.object({
   corporationId: z.number().int().positive(),
   enabled: z.boolean(),

@@ -15,39 +15,49 @@ import type { DepthBand } from '@/data/market-prices/types';
 // retuning one to a value that isn't produced upstream is a COMPILE error, not a
 // silent null score at runtime (the adapter looks these up by exact equality).
 
-// The score is driven by the 30-day ADV window (coherent with the 30-day
-// price-stability / demand-consistency window). The 7d/90d windows are shown in
-// the breakdown for context only — they do NOT feed the score. PROVISIONAL.
+/**
+ * The score is driven by the 30-day ADV window (coherent with the 30-day
+ * price-stability / demand-consistency window). The 7d/90d windows are shown in
+ * the breakdown for context only — they do NOT feed the score. PROVISIONAL.
+ */
 export const SCORE_ADV_WINDOW_DAYS = 30 satisfies (typeof HISTORY_ADV_WINDOWS)[number];
 
-// The near-touch SELL band that stands in for "the wall ahead of you if you list
-// competitively": cumulative sell volume within this % of the best sell price.
-// Best-anchored (3.5.3a), not pct5. PROVISIONAL.
+/**
+ * The near-touch SELL band that stands in for "the wall ahead of you if you list
+ * competitively": cumulative sell volume within this % of the best sell price.
+ * Best-anchored (3.5.3a), not pct5. PROVISIONAL.
+ */
 export const SELL_WALL_BAND_PCT = 5 satisfies (typeof DEPTH_BANDS_PCT)[number];
 
-// The tighter near-touch BUY band for the "instant liquidity if you dump now"
-// breakdown detail: cumulative buy volume within this % of the best buy.
-// PROVISIONAL.
+/**
+ * The tighter near-touch BUY band for the "instant liquidity if you dump now"
+ * breakdown detail: cumulative buy volume within this % of the best buy.
+ * PROVISIONAL.
+ */
 export const INSTANT_DUMP_BAND_PCT = 2 satisfies (typeof DEPTH_BANDS_PCT)[number];
 
-// Staleness flag threshold (DISPLAY-ONLY, NOT a score input). When the product's
-// most-recent traded day is more than this many days before today, the panel
-// surfaces a caveat. The composite stays keyed to latestDate (asOf = the latest
-// row), so it scores the type's most recent active period regardless of how long
-// ago that was — honest degradation here is a FLAG, never a score change.
-// Tempering the composite by latestDate-vs-today is a separate deferred item
-// (backlog). 14d clears the normal daily/weekly trading cadence (fresh history
-// ends yesterday) while catching genuinely stale series well before the
-// egregious month+ case (PLEX scored 94 on ~11-month-old Forge history).
-// PROVISIONAL — tuned at the UX gate.
+/**
+ * Staleness flag threshold (DISPLAY-ONLY, NOT a score input). When the product's
+ * most-recent traded day is more than this many days before today, the panel
+ * surfaces a caveat. The composite stays keyed to latestDate (asOf = the latest
+ * row), so it scores the type's most recent active period regardless of how long
+ * ago that was — honest degradation here is a FLAG, never a score change.
+ * Tempering the composite by latestDate-vs-today is a separate deferred item
+ * (backlog). 14d clears the normal daily/weekly trading cadence (fresh history
+ * ends yesterday) while catching genuinely stale series well before the
+ * egregious month+ case (PLEX scored 94 on ~11-month-old Forge history).
+ * PROVISIONAL — tuned at the UX gate.
+ */
 export const STALENESS_FLAG_DAYS = 14;
 
-// Whole days between a "YYYY-MM-DD" history date and a client `now` (ms), or null
-// when the date is absent. UTC integer-day arithmetic (mirrors aggregate.ts
-// toDayNumber) avoids any timezone/DST drift. The clock is the CALLER's — a
-// client mount read — so this stays pure and testable and never touches the wall
-// clock itself (the aggregate layer is deliberately clock-free; the consumer
-// derives staleness-vs-today, per market-history/types.ts latestDate).
+/**
+ * Whole days between a "YYYY-MM-DD" history date and a client `now` (ms), or null
+ * when the date is absent. UTC integer-day arithmetic (mirrors aggregate.ts
+ * toDayNumber) avoids any timezone/DST drift. The clock is the CALLER's — a
+ * client mount read — so this stays pure and testable and never touches the wall
+ * clock itself (the aggregate layer is deliberately clock-free; the consumer
+ * derives staleness-vs-today, per market-history/types.ts latestDate).
+ */
 export function daysSinceHistoryDate(latestDate: string | null, nowMs: number): number | null {
   if (latestDate === null) return null;
   const parsed = Date.parse(`${latestDate}T00:00:00Z`);
@@ -74,8 +84,10 @@ function ageLabel(days: number): string {
 
 const BAND_WORD = { steady: 'steady', moderate: 'moderate', spiky: 'spiky' } as const;
 
-// The concrete value shown in parentheses for each Market Score signal row (the
-// live-derived bit; the description beside it is fixed copy).
+/**
+ * The concrete value shown in parentheses for each Market Score signal row (the
+ * live-derived bit; the description beside it is fixed copy).
+ */
 export function signalValues(score: MarketScore): {
   liquidity: string;
   stability: string;
@@ -92,11 +104,13 @@ export function signalValues(score: MarketScore): {
   };
 }
 
-// Everything the Market Score tile renders from, derived in one pure pass: the
-// display score (or the '…' placeholder before the seed settles), the three
-// signal values, the breakdown heading, and the staleness flag/note derived from
-// the caller's client clock (`nowMs` is null before the mount effect fills it,
-// so the static prerender never reads the wall clock).
+/**
+ * Everything the Market Score tile renders from, derived in one pure pass: the
+ * display score (or the '…' placeholder before the seed settles), the three
+ * signal values, the breakdown heading, and the staleness flag/note derived from
+ * the caller's client clock (`nowMs` is null before the mount effect fills it,
+ * so the static prerender never reads the wall clock).
+ */
 export function marketScoreView(
   score: MarketScore,
   seeded: boolean,

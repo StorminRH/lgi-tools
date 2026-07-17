@@ -45,9 +45,11 @@ function parseTimestamp(s: string | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-// keys[0] is always the date; for 'query'/'page' keys[1] is the term/url, and
-// 'total' rows (dimensions=['date']) carry no second key, so key=''. Rows with
-// no date key are dropped (the API never omits it, but stay defensive).
+/**
+ * keys[0] is always the date; for 'query'/'page' keys[1] is the term/url, and
+ * 'total' rows (dimensions=['date']) carry no second key, so key=''. Rows with
+ * no date key are dropped (the API never omits it, but stay defensive).
+ */
 export function searchRowsToRecords(
   apiRows: SearchAnalyticsApiRow[],
   dimension: GscDimension,
@@ -137,8 +139,10 @@ function matchesProperty(url: URL, property: string): boolean {
   return url.href.startsWith(prefix.href);
 }
 
-// Validate the cron-provided sitemap at the data boundary. The normalized,
-// deterministic ordering makes repeated runs and tests stable.
+/**
+ * Validate the cron-provided sitemap at the data boundary. The normalized,
+ * deterministic ordering makes repeated runs and tests stable.
+ */
 export function prepareInspectionUrls(urls: string[], property: string): string[] {
   const normalized = new Set<string>();
   for (const raw of urls) {
@@ -199,9 +203,11 @@ export async function upsertUrlInspectionRecords(
     });
 }
 
-// Groups are sequential while the five inspections inside each group run in
-// parallel. A successful response with no indexStatusResult still becomes an
-// all-null row; only request failures remain absent and retryable.
+/**
+ * Groups are sequential while the five inspections inside each group run in
+ * parallel. A successful response with no indexStatusResult still becomes an
+ * all-null row; only request failures remain absent and retryable.
+ */
 export async function inspectUrlsInBatches(
   urls: string[],
   syncedAt: Date,
@@ -352,9 +358,11 @@ async function syncUrlInspections(
   }
 }
 
-// Pull-and-store across all three Search Console surfaces. Each surface degrades
-// to its last-known snapshot on failure; the summary threads into cron
-// observability.
+/**
+ * Pull-and-store across all three Search Console surfaces. Each surface degrades
+ * to its last-known snapshot on failure; the summary threads into cron
+ * observability.
+ */
 export async function syncGsc(client: Sql, sitemapUrls: string[]): Promise<GscSyncSummary> {
   const start = Date.now();
   if (!isGscConfigured()) {

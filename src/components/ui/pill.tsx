@@ -5,14 +5,16 @@ import type { PillTone } from './tones';
 
 export type { PillTone };
 
-// Two sizes: 'sm' (default) is the dense card-meta size (10.5px / 600 / 4px
-// tracking, 3px radius). 'md' is the clickable-affordance size used by the
-// FilterBar and any other interactive pill consumer that needs more click
-// target + readability. Radius lives per-size so the sm polish (3px) doesn't
-// restyle the untouched md pills.
-// Tone → color classes (bg + text + border) from the shared palette tokens. The
-// one place the abstract tone becomes concrete colors; reused by any tone-colored
-// surface that isn't a pill shape (e.g. the global-search result icon badges).
+/**
+ * Two sizes: 'sm' (default) is the dense card-meta size (10.5px / 600 / 4px
+ * tracking, 3px radius). 'md' is the clickable-affordance size used by the
+ * FilterBar and any other interactive pill consumer that needs more click
+ * target + readability. Radius lives per-size so the sm polish (3px) doesn't
+ * restyle the untouched md pills.
+ * Tone → color classes (bg + text + border) from the shared palette tokens. The
+ * one place the abstract tone becomes concrete colors; reused by any tone-colored
+ * surface that isn't a pill shape (e.g. the global-search result icon badges).
+ */
 export const pillToneClasses = {
   neutral:      'bg-surface-raised text-text border-border-idle',
   green:        'bg-pill-green-bg text-isk border-isk-dim',

@@ -30,8 +30,10 @@ export type MenuControlModel = {
   def: PreferenceDef<string>;
 };
 
-// A feature-owned, server-backed control, resolved by id. The settings page
-// maps the id to its owning slice's component; the resolver stays data-only.
+/**
+ * A feature-owned, server-backed control, resolved by id. The settings page
+ * maps the id to its owning slice's component; the resolver stays data-only.
+ */
 export type FeatureControlModel = {
   kind: 'feature';
   id: FeatureControlId;

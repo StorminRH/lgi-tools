@@ -7,10 +7,12 @@ type ReadResult =
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
-// The common single-fetch → verdict mapping. unchanged → stamp; error → skip
-// (unless mapError preserves a feature verdict, e.g. corp jobs' 403 → needs_role);
-// fresh → onFresh, where a null projection (contract mismatch) becomes skip and
-// otherwise saves the payload.
+/**
+ * The common single-fetch → verdict mapping. unchanged → stamp; error → skip
+ * (unless mapError preserves a feature verdict, e.g. corp jobs' 403 → needs_role);
+ * fresh → onFresh, where a null projection (contract mismatch) becomes skip and
+ * otherwise saves the payload.
+ */
 export function planRead<TRead extends ReadResult, TSave extends object>(
   read: TRead,
   onFresh: (fresh: Extract<TRead, { kind: 'fresh' }>) => TSave | null,

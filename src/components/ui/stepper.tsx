@@ -3,13 +3,15 @@
 import { NumberField } from '@base-ui/react/number-field';
 import { cn } from './cn';
 
-// A compact −/[value]/+ integer stepper with a typeable middle field, on Base UI's
-// NumberField. Domain-agnostic: the caller owns the value and is handed each
-// committed number through `onChange`. NumberField owns the editing model — you can
-// clear and retype mid-edit, valid input commits as you type, and on blur it formats
-// and CLAMPS to [min, max] (empty blur snaps to `min`). Both buttons clamp, so they
-// no-op at the bounds rather than overshoot. `max` omitted = no upper bound (the
-// runs case). Integer-only via a zero-fraction format; Alt-/Shift-step stay whole.
+/**
+ * A compact −/[value]/+ integer stepper with a typeable middle field, on Base UI's
+ * NumberField. Domain-agnostic: the caller owns the value and is handed each
+ * committed number through `onChange`. NumberField owns the editing model — you can
+ * clear and retype mid-edit, valid input commits as you type, and on blur it formats
+ * and CLAMPS to [min, max] (empty blur snaps to `min`). Both buttons clamp, so they
+ * no-op at the bounds rather than overshoot. `max` omitted = no upper bound (the
+ * runs case). Integer-only via a zero-fraction format; Alt-/Shift-step stay whole.
+ */
 export function Stepper({
   value,
   onChange,

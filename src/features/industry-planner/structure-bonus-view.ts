@@ -5,16 +5,20 @@
 
 import type { StructureReadout } from './structure-factors';
 
-// A reduction/bonus percent for the hero readouts: small values keep one
-// decimal, larger ones round to whole.
+/**
+ * A reduction/bonus percent for the hero readouts: small values keep one
+ * decimal, larger ones round to whole.
+ */
 export function formatBonusPct(n: number): string {
   return `${n < 10 ? n.toFixed(1) : Math.round(n)}%`;
 }
 
-// One rendered row of the structure-bonus readout. `me`/`te`/`cost` are the
-// manufacturing bonuses; `rxn-te` is a lone-refinery build slot's reaction TE
-// (with a "rxn" marker only when it shares the line with manufacturing parts);
-// `tax` is the owner-entered facility tax (a cost, shown muted).
+/**
+ * One rendered row of the structure-bonus readout. `me`/`te`/`cost` are the
+ * manufacturing bonuses; `rxn-te` is a lone-refinery build slot's reaction TE
+ * (with a "rxn" marker only when it shares the line with manufacturing parts);
+ * `tax` is the owner-entered facility tax (a cost, shown muted).
+ */
 export type StructureBonusRow =
   | { kind: 'me'; pct: string }
   | { kind: 'te'; pct: string }
@@ -22,10 +26,12 @@ export type StructureBonusRow =
   | { kind: 'rxn-te'; pct: string; withMarker: boolean }
   | { kind: 'tax'; taxPct: number };
 
-// Which bonus rows a structure slot shows, in display order: only bonuses that
-// are actually positive, the reaction TE only when the slot hosts it, and the
-// tax only when the owner entered one (including a real 0%). An empty result
-// means the slot renders nothing.
+/**
+ * Which bonus rows a structure slot shows, in display order: only bonuses that
+ * are actually positive, the reaction TE only when the slot hosts it, and the
+ * tax only when the owner entered one (including a real 0%). An empty result
+ * means the slot renders nothing.
+ */
 export function structureBonusRows(
   readout: StructureReadout,
   taxPct?: number | null,

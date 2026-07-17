@@ -9,6 +9,8 @@
 import type { OwnedDatasetPort } from '@/lib/owner-sync';
 import type { OwnedAsset } from './esi-projection';
 
-// The injected I/O the refresh runs over — the shared paged-owned port over this
-// slice's row. The real implementation is wired in src/db/owned-assets-sync.ts.
+/**
+ * The injected I/O the refresh runs over — the shared paged-owned port over this
+ * slice's row. The real implementation is wired in src/db/owned-assets-sync.ts.
+ */
 export type OwnedAssetsPort = OwnedDatasetPort<OwnedAsset>;

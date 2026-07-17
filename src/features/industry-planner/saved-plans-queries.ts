@@ -11,7 +11,7 @@ import type { PlanSnapshotWire } from './template-snapshot';
 // Kept apart from queries.ts, whose blueprint reads are 'use cache' cached —
 // per-user rows must never sit behind those directives.
 
-// Favorite-first, then most recently updated — the list's display order.
+/** Favorite-first, then most recently updated — the list's display order. */
 export async function listSavedPlans(userId: string): Promise<SavedPlanRow[]> {
   const rows = await db
     .select({
@@ -52,8 +52,10 @@ export async function createSavedPlan(
   await db.insert(savedPlans).values({ userId, ...input });
 }
 
-// Rename refreshes updatedAt (a content change reorders the list); the
-// favorite toggle deliberately does not — starring must not shuffle rows.
+/**
+ * Rename refreshes updatedAt (a content change reorders the list); the
+ * favorite toggle deliberately does not — starring must not shuffle rows.
+ */
 export async function renameSavedPlan(userId: string, id: string, name: string): Promise<void> {
   await db
     .update(savedPlans)

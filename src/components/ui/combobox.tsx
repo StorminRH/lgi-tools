@@ -25,18 +25,22 @@ import { cn } from './cn';
 import { dropdownGroupLabel, dropdownPanel } from './dropdown-panel';
 import { fieldText, fieldVariants, focusWell, type FieldSize } from './input';
 
-// Root renders no DOM of its own; re-exported as-is so Base UI's generic item
-// typing flows through untouched. Consumers own the controlled surface —
-// `value`/`onValueChange` for the text, `items` for the (already-filtered) model,
-// `filter={null}` to keep Base UI from re-filtering, and `open`/`onOpenChange`
-// when the open state must sync with an external one (the header search box).
+/**
+ * Root renders no DOM of its own; re-exported as-is so Base UI's generic item
+ * typing flows through untouched. Consumers own the controlled surface —
+ * `value`/`onValueChange` for the text, `items` for the (already-filtered) model,
+ * `filter={null}` to keep Base UI from re-filtering, and `open`/`onOpenChange`
+ * when the open state must sync with an external one (the header search box).
+ */
 export const Root = Autocomplete.Root;
 
-// The field WELL as the combobox's input row: the InputGroup wears the same
-// engraved well as Input/Select/Textarea (`fieldVariants` + `focusWell` + the
-// `.field-own-focus` opt-out of the global ring), framing a leading `prompt` slot
-// (e.g. a `>`), the text input, and a trailing adornment slot. The ref forwards to
-// the real `<input>` so a consumer can focus it (⌘K) or tag it with a data hook.
+/**
+ * The field WELL as the combobox's input row: the InputGroup wears the same
+ * engraved well as Input/Select/Textarea (`fieldVariants` + `focusWell` + the
+ * `.field-own-focus` opt-out of the global ring), framing a leading `prompt` slot
+ * (e.g. a `>`), the text input, and a trailing adornment slot. The ref forwards to
+ * the real `<input>` so a consumer can focus it (⌘K) or tag it with a data hook.
+ */
 export const Field = forwardRef<
   HTMLInputElement,
   FieldSize & {
@@ -63,8 +67,10 @@ export const Field = forwardRef<
   );
 });
 
-// The floating results panel — portaled, positioned below the field, wearing the
-// shared recessed dropdown-panel surface. `className` sizes / caps the popup.
+/**
+ * The floating results panel — portaled, positioned below the field, wearing the
+ * shared recessed dropdown-panel surface. `className` sizes / caps the popup.
+ */
 export function Panel({
   className,
   sideOffset = 6,
@@ -85,12 +91,16 @@ export function Panel({
   );
 }
 
-// The list container (role=listbox). Structural — spacing lives on the panel and
-// on grouped sections, so this is a thin passthrough.
+/**
+ * The list container (role=listbox). Structural — spacing lives on the panel and
+ * on grouped sections, so this is a thin passthrough.
+ */
 export const List = Autocomplete.List;
 
-// A labelled group of rows. Frames a section within the panel; the label wears the
-// faint uppercase micro-caps every dropdown group uses.
+/**
+ * A labelled group of rows. Frames a section within the panel; the label wears the
+ * faint uppercase micro-caps every dropdown group uses.
+ */
 export function Group({ className, ...props }: ComponentProps<typeof Autocomplete.Group>) {
   return <Autocomplete.Group className={cn('px-0.5 pt-0.5 pb-1', className)} {...props} />;
 }
@@ -104,11 +114,13 @@ export function GroupLabel({ className, ...props }: ComponentProps<typeof Autoco
   );
 }
 
-// A selectable row. Bakes in only the interactive BEHAVIOR — the control radius and
-// the highlight treatment Base UI drives via `data-highlighted` — so each consumer
-// composes its own row CONTENT/layout on top (a plain suggestion line, or a rich
-// icon+label+sub grid card). `onClick` fires on pointer click AND on Enter when the
-// row is the highlighted one.
+/**
+ * A selectable row. Bakes in only the interactive BEHAVIOR — the control radius and
+ * the highlight treatment Base UI drives via `data-highlighted` — so each consumer
+ * composes its own row CONTENT/layout on top (a plain suggestion line, or a rich
+ * icon+label+sub grid card). `onClick` fires on pointer click AND on Enter when the
+ * row is the highlighted one.
+ */
 export function Item({ className, ...props }: ComponentProps<typeof Autocomplete.Item>) {
   return (
     <Autocomplete.Item

@@ -46,8 +46,10 @@ export interface CombatStats {
   };
 }
 
-// Shape that mirrors the persisted `waves.*` aggregate columns being dropped
-// in 2.7.1. Recomputed live in queries.ts via `summariseWave`.
+/**
+ * Shape that mirrors the persisted `waves.*` aggregate columns being dropped
+ * in 2.7.1. Recomputed live in queries.ts via `summariseWave`.
+ */
 export interface WaveTotals {
   dpsTotal: number;
   alphaTotal: number;

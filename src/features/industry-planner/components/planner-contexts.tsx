@@ -25,12 +25,14 @@ import type {
   OwnedComponentDetail,
 } from '../types';
 
-// A picked build SYSTEM, client-only state (carries a Map, so it never crosses
-// the wire). Built by the build-location selector from the chosen system + the
-// /api/industry/build-location read. The fee math reads only `adjustedPrices` +
-// `costIndices`, so this object changes only when the SYSTEM changes — the
-// per-station refinement lives in separate `station` state below, so picking a
-// station never churns this object (and never triggers a recompute).
+/**
+ * A picked build SYSTEM, client-only state (carries a Map, so it never crosses
+ * the wire). Built by the build-location selector from the chosen system + the
+ * /api/industry/build-location read. The fee math reads only `adjustedPrices` +
+ * `costIndices`, so this object changes only when the SYSTEM changes — the
+ * per-station refinement lives in separate `station` state below, so picking a
+ * station never churns this object (and never triggers a recompute).
+ */
 export interface SelectedLocation {
   systemId: number;
   systemName: string;
@@ -41,22 +43,26 @@ export interface SelectedLocation {
   adjustedPrices: Map<number, number>;
 }
 
-// The optional per-station refinement — display + future-score only; the fee
-// math is system-driven (flat NPC facility tax, per-system cost index), so the
-// station choice never changes the numbers in v1. Separate from SelectedLocation
-// so a station pick doesn't re-derive the pricing.
+/**
+ * The optional per-station refinement — display + future-score only; the fee
+ * math is system-driven (flat NPC facility tax, per-system cost index), so the
+ * station choice never changes the numbers in v1. Separate from SelectedLocation
+ * so a station pick doesn't re-derive the pricing.
+ */
 export interface SelectedStation {
   id: number;
   name: string;
 }
 
-// Group B's own build system (3.7.12.2) — the reaction gap-filler refinery's system.
-// It scales B's reaction rigs AND, for a REACTION blueprint, keys the reaction
-// build-location fetch (3.7.13.3 — the #187 dead seam, live): the top reaction job
-// fees against THIS system's 'reaction' cost index, held in the provider's separate
-// `reactionLocation` state. A corp refinery deduce-locks this from its home system;
-// a custom refinery picks it. Kept apart from `location` (A's system) so the two are
-// independent.
+/**
+ * Group B's own build system (3.7.12.2) — the reaction gap-filler refinery's system.
+ * It scales B's reaction rigs AND, for a REACTION blueprint, keys the reaction
+ * build-location fetch (3.7.13.3 — the #187 dead seam, live): the top reaction job
+ * fees against THIS system's 'reaction' cost index, held in the provider's separate
+ * `reactionLocation` state. A corp refinery deduce-locks this from its home system;
+ * a custom refinery picks it. Kept apart from `location` (A's system) so the two are
+ * independent.
+ */
 export interface SelectedReactionSystem {
   systemId: number;
   systemName: string;
@@ -274,9 +280,11 @@ export function useBuildPlan(): BuildPlanValue {
   return usePlannerContext(BuildPlanContext, 'useBuildPlan');
 }
 
-// Saved templates intentionally compose every configurable concern except
-// market data. This is their one sanctioned slice-internal aggregate, not a
-// general planner façade.
+/**
+ * Saved templates intentionally compose every configurable concern except
+ * market data. This is their one sanctioned slice-internal aggregate, not a
+ * general planner façade.
+ */
 export type TemplatePlannerState = PlannerConfigValue &
   BuildSetupValue &
   BuildCharacterValue &
@@ -298,8 +306,10 @@ export function useTemplatePlanner(): TemplatePlannerState {
   );
 }
 
-// The context taxonomy and nesting live together so PricingProvider supplies one
-// source of truth while consumers can only subscribe through concern-sized hooks.
+/**
+ * The context taxonomy and nesting live together so PricingProvider supplies one
+ * source of truth while consumers can only subscribe through concern-sized hooks.
+ */
 export function PlannerContextProviders({
   marketData,
   plannerConfig,

@@ -193,7 +193,7 @@ export function makeApplyCtx(ctx: TemplatePlannerState): ApplyCtx {
   return { ctx, structure: STRUCTURE, fetchedStations: null };
 }
 
-// A fully-configured planner — every field away from its default.
+/** A fully-configured planner — every field away from its default. */
 export function configureFull(state: MockState) {
   state.runs = 3;
   state.location = { systemId: 30000142, systemName: 'Jita', security: 0.9 };

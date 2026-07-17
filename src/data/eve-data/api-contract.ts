@@ -39,9 +39,11 @@ export const entityNamesEndpoint: ApiEndpoint<
   response: entityNamesResponseSchema,
 };
 
-// ── GET /api/cron/refresh-sde (authz: cron) ─────────────────────────────
-// No programmatic consumer (Vercel cron reads logs only) — arms pinned with
-// `satisfies` in the route. Version markers are CCP build-number strings.
+/**
+ * ── GET /api/cron/refresh-sde (authz: cron) ─────────────────────────────
+ * No programmatic consumer (Vercel cron reads logs only) — arms pinned with
+ * `satisfies` in the route. Version markers are CCP build-number strings.
+ */
 export type CronRefreshSdeResponse =
   | { status: 'up-to-date'; sdeVersion: string }
   | { status: 'remote-unreachable'; sdeVersion: string }
@@ -54,11 +56,13 @@ export type CronRefreshSdeResponse =
       marketPrices: { total: number; priced: number };
     };
 
-// ── GET /api/industry/systems (authz: none — public SDE read) ───────────
-// The universe system search index (3.7.13.2): every persistent solar system,
-// name-sorted. No user input; the route prerenders to a static JSON asset.
-// Mirrors SystemSearchEntry (the systems search source's index shape) —
-// matched client-side, never filtered on the server.
+/**
+ * ── GET /api/industry/systems (authz: none — public SDE read) ───────────
+ * The universe system search index (3.7.13.2): every persistent solar system,
+ * name-sorted. No user input; the route prerenders to a static JSON asset.
+ * Mirrors SystemSearchEntry (the systems search source's index shape) —
+ * matched client-side, never filtered on the server.
+ */
 export const systemSearchEntrySchema = z.object({
   id: z.number(),
   name: z.string(),

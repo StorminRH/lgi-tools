@@ -8,13 +8,15 @@ import { parseStructureFit } from '@/features/industry-planner/structure-fit-par
 import { requireUserId } from '@/features/auth/route-guards';
 import { parseJsonBody } from '@/lib/route-body';
 
+/**
+ * POST /api/account/custom-structures/parse-fit. Turns a pasted in-game structure
+ * fit into \{ structureTypeId, rigTypeIds \} so the builder can pre-fill its picker.
+ * Reads no per-user data, but stays signed-in-only (the builder is a signed-in
+ * feature). Resolution is bounded to the known industry structures + rigs, so
+ * unknown lines (services, fighters, defensive rigs) drop; `parsed` is null when
+ * the clipboard has no resolvable structure header.
+ */
 // authz: auth
-// POST /api/account/custom-structures/parse-fit. Turns a pasted in-game structure
-// fit into { structureTypeId, rigTypeIds } so the builder can pre-fill its picker.
-// Reads no per-user data, but stays signed-in-only (the builder is a signed-in
-// feature). Resolution is bounded to the known industry structures + rigs, so
-// unknown lines (services, fighters, defensive rigs) drop; `parsed` is null when
-// the clipboard has no resolvable structure header.
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await requireUserId();
   if (!gate.ok) return gate.response;

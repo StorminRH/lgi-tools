@@ -39,10 +39,12 @@ const esiHistoryItemSchema = z.object({
 });
 const esiHistorySchema = z.array(esiHistoryItemSchema);
 
-// Validate a parsed-JSON history body and map it to our daily rows, throwing
-// EsiContractError on a shape mismatch (callers skip that type, exactly as for
-// a transient failure). Volume is an integer count → bigint.
-// Exported for testing.
+/**
+ * Validate a parsed-JSON history body and map it to our daily rows, throwing
+ * EsiContractError on a shape mismatch (callers skip that type, exactly as for
+ * a transient failure). Volume is an integer count → bigint.
+ * Exported for testing.
+ */
 export function parseEsiHistory(body: unknown): HistoryDailyRow[] {
   const result = esiHistorySchema.safeParse(body);
   if (!result.success) throw new EsiContractError();
@@ -56,8 +58,10 @@ export function parseEsiHistory(body: unknown): HistoryDailyRow[] {
   }));
 }
 
-// stale_after from the response Expires header (next CCP recompute, ~11:05 UTC),
-// falling back to now+24h when it's absent or unparseable. Exported for testing.
+/**
+ * stale_after from the response Expires header (next CCP recompute, ~11:05 UTC),
+ * falling back to now+24h when it's absent or unparseable. Exported for testing.
+ */
 export function staleAfterFromExpires(expires: string | null, now: Date): Date {
   if (expires !== null) {
     const parsed = new Date(expires);
@@ -91,11 +95,13 @@ async function runConcurrent<T>(
   await Promise.all(runners);
 }
 
-// Fetch daily history for each requested type. Per-type best-effort: a 4xx
-// (e.g. an invalid type), a 5xx, or a malformed body simply omits that type
-// from the results (the engine keeps the stored series). Budget exhaustion
-// stops further dispatch and is flagged for telemetry. There is no bulk
-// region-dump for history, so this is inherently one call per type.
+/**
+ * Fetch daily history for each requested type. Per-type best-effort: a 4xx
+ * (e.g. an invalid type), a 5xx, or a malformed body simply omits that type
+ * from the results (the engine keeps the stored series). Budget exhaustion
+ * stops further dispatch and is flagged for telemetry. There is no bulk
+ * region-dump for history, so this is inherently one call per type.
+ */
 export async function fetchHistoryFromSource(
   typeIds: number[],
 ): Promise<{ results: RawHistory[]; budgetExhausted: boolean }> {

@@ -256,17 +256,21 @@ export function composeCombatStats(
   };
 }
 
-// Look up the missile typeId an NPC carries (or null if it doesn't shoot
-// missiles). Pure helper — callers use it to know which missile attrs to
-// pass into `composeCombatStats`.
+/**
+ * Look up the missile typeId an NPC carries (or null if it doesn't shoot
+ * missiles). Pure helper — callers use it to know which missile attrs to
+ * pass into `composeCombatStats`.
+ */
 export function missileTypeIdFor(sleeperAttrs: AttrMap): number | null {
   const id = sleeperAttrs[ATTR.missileTypeId];
   return id === undefined || id === 0 ? null : Math.round(id);
 }
 
-// Sum per-NPC stats × quantity across a wave. Mirrors the persisted
-// `waves.dps_total`, `alpha_total`, `ehp_total`, `ew_scram`, `ew_web`,
-// `ew_neut`, `ew_rrep` columns being dropped in 2.7.1.
+/**
+ * Sum per-NPC stats × quantity across a wave. Mirrors the persisted
+ * `waves.dps_total`, `alpha_total`, `ehp_total`, `ew_scram`, `ew_web`,
+ * `ew_neut`, `ew_rrep` columns being dropped in 2.7.1.
+ */
 export function summariseWave(
   npcs: Array<{ stats: CombatStats; quantity: number }>,
 ): WaveTotals {

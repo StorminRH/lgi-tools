@@ -129,11 +129,13 @@ async function nodeTimeSkillsFor(
   return nodeTimeSkills;
 }
 
-// Deploy-static blueprint structure: the nested tree, the flattened raw
-// materials (cost basis), and names for everything. No price dependency, so it
-// renders in the static shell. Cached `'max'` (build ID drops it on deploy,
-// which covers deploy-time SDE ingest) and tagged so the daily drift cron can
-// bust it after a no-deploy re-ingest. Warm loads hit the cache → no DB query.
+/**
+ * Deploy-static blueprint structure: the nested tree, the flattened raw
+ * materials (cost basis), and names for everything. No price dependency, so it
+ * renders in the static shell. Cached `'max'` (build ID drops it on deploy,
+ * which covers deploy-time SDE ingest) and tagged so the daily drift cron can
+ * bust it after a no-deploy re-ingest. Warm loads hit the cache → no DB query.
+ */
 export async function getBlueprintStructure(
   blueprintId: number,
 ): Promise<BlueprintStructure | null> {
@@ -217,12 +219,14 @@ export async function getBlueprintStructure(
   });
 }
 
-// Priced cost panel: flat materials × live prices + margin. One batched price
-// query across all materials + the product (never per-material in a loop).
-// Cached `'hours'` + the prices freshness tag, so the cron's revalidate keeps
-// it fresh; the client tops up any null/stale rows on demand. Returns null only
-// when the blueprint itself doesn't resolve (page already handled that via the
-// structure read).
+/**
+ * Priced cost panel: flat materials × live prices + margin. One batched price
+ * query across all materials + the product (never per-material in a loop).
+ * Cached `'hours'` + the prices freshness tag, so the cron's revalidate keeps
+ * it fresh; the client tops up any null/stale rows on demand. Returns null only
+ * when the blueprint itself doesn't resolve (page already handled that via the
+ * structure read).
+ */
 export async function getBlueprintPricing(
   blueprintId: number,
 ): Promise<BlueprintPricing | null> {
@@ -268,12 +272,14 @@ export async function getBlueprintPricing(
   );
 }
 
-// Compact search index: one entry per blueprint, labelled by the published
-// item it produces. Cached `'max'` (deploy-static, SDE-tagged). Fetched once by
-// the lazy Blueprints search source on the client's first blueprint keystroke,
-// so the ~5k-entry index never rides the initial bundle. Filtering to published
-// products also drops the degenerate self-recipe junk (those produce
-// unpublished types).
+/**
+ * Compact search index: one entry per blueprint, labelled by the published
+ * item it produces. Cached `'max'` (deploy-static, SDE-tagged). Fetched once by
+ * the lazy Blueprints search source on the client's first blueprint keystroke,
+ * so the ~5k-entry index never rides the initial bundle. Filtering to published
+ * products also drops the degenerate self-recipe junk (those produce
+ * unpublished types).
+ */
 export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> {
   'use cache';
   cacheLife('max');
@@ -308,12 +314,14 @@ export async function getBlueprintSearchIndex(): Promise<BlueprintIndexEntry[]> 
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Per-pick build-location read: the system's industry stations + both relevant
-// cost indices + the CCP adjusted prices for THIS blueprint's direct ME0 base
-// materials (the EIV basis for the top job's installation fee). Composes the
-// eve-data and industry-indices slices — the join lives here, in the feature
-// layer, never inside a data slice. Not cached: it's the dynamic build-location
-// route's body, fetched only when the user picks a system (all indexed reads).
+/**
+ * Per-pick build-location read: the system's industry stations + both relevant
+ * cost indices + the CCP adjusted prices for THIS blueprint's direct ME0 base
+ * materials (the EIV basis for the top job's installation fee). Composes the
+ * eve-data and industry-indices slices — the join lives here, in the feature
+ * layer, never inside a data slice. Not cached: it's the dynamic build-location
+ * route's body, fetched only when the user picks a system (all indexed reads).
+ */
 export async function getBuildLocation(
   systemId: number,
   blueprintId: number,

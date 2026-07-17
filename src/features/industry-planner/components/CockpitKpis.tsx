@@ -372,10 +372,12 @@ function TotalJobTile({ buildTimes }: { buildTimes: BuildTimes }) {
   );
 }
 
-// The Cockpit KPI tile row: input cost · sell · net margin (Gross/Net toggle) ·
-// market score (with "?" breakdown) · build time · total job time. All figures read
-// the live pricing store; the margin tile flips gross↔net and each figure flashes in
-// as prices land. The tiles are render shells over the pure cockpit-kpis-view.
+/**
+ * The Cockpit KPI tile row: input cost · sell · net margin (Gross/Net toggle) ·
+ * market score (with "?" breakdown) · build time · total job time. All figures read
+ * the live pricing store; the margin tile flips gross↔net and each figure flashes in
+ * as prices land. The tiles are render shells over the pure cockpit-kpis-view.
+ */
 export function CockpitKpis({
   structure,
   marginMode,

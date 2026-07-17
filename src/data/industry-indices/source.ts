@@ -44,8 +44,10 @@ const adjustedPricesBodySchema = z.array(
   }),
 );
 
-// Flatten the nested per-system shape into one RawCostIndex per known activity.
-// Exported for direct unit testing of the parse/flatten path.
+/**
+ * Flatten the nested per-system shape into one RawCostIndex per known activity.
+ * Exported for direct unit testing of the parse/flatten path.
+ */
 export function parseCostIndices(body: unknown): RawCostIndex[] {
   const result = costIndicesBodySchema.safeParse(body);
   if (!result.success) throw new EsiContractError();
@@ -63,7 +65,7 @@ export function parseCostIndices(body: unknown): RawCostIndex[] {
   return out;
 }
 
-// Exported for direct unit testing of the parse path.
+/** Exported for direct unit testing of the parse path. */
 export function parseAdjustedPrices(body: unknown): RawAdjustedPrice[] {
   const result = adjustedPricesBodySchema.safeParse(body);
   if (!result.success) throw new EsiContractError();

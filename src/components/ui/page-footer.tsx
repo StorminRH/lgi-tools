@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { cn } from './cn';
 
-// Domain-agnostic page footer. Three slots: `left` / `center` / `right`.
-// Mirrors a standard left/right header pattern but adds an optional
-// center slot — the application footer's right corner is reserved for the
-// floating `<FeedbackButton>`, so version / changelog links sit in the
-// middle to avoid collision.
+/**
+ * Domain-agnostic page footer. Three slots: `left` / `center` / `right`.
+ * Mirrors a standard left/right header pattern but adds an optional
+ * center slot — the application footer's right corner is reserved for the
+ * floating `<FeedbackButton>`, so version / changelog links sit in the
+ * middle to avoid collision.
+ */
 export function PageFooter({
   left,
   center,

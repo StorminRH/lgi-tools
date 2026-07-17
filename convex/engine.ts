@@ -116,17 +116,19 @@ const SYNC_REFS = {
 // leave the shared budget comfortable.
 const SWEEP_DELETE_BATCH = 512;
 
-// The overdue/hot-set dispatch passes — the 30s scan and the sweep's Pass A and
-// Pass B — read at most this many subjects per run, oldest-first, so a large due
-// or hot set can't approach Convex's ~4,096 index-range-read per-mutation ceiling
-// (docs/CONVEX.md), the one capacity wall no tier lifts. A backlog drains over
-// subsequent runs (the scan's 30s tick, the sweep's 15-min run) — same posture as
-// Pass C's SWEEP_DELETE_BATCH. 1024 = 2× SWEEP_DELETE_BATCH and a 4× margin below
-// the ceiling; far above any realistic single-run set (the audit models ~0.021×
-// users due/tick → ~210 at 10k users, not reached until tens of thousands), so
-// normal operation stays single-run. Per-row cost against the ceiling is one
-// indexed presence/subject read — the dispatch path's rate-limiter + workpool
-// calls are isolated Convex components, billed against their own budget.
+/**
+ * The overdue/hot-set dispatch passes — the 30s scan and the sweep's Pass A and
+ * Pass B — read at most this many subjects per run, oldest-first, so a large due
+ * or hot set can't approach Convex's ~4,096 index-range-read per-mutation ceiling
+ * (docs/CONVEX.md), the one capacity wall no tier lifts. A backlog drains over
+ * subsequent runs (the scan's 30s tick, the sweep's 15-min run) — same posture as
+ * Pass C's SWEEP_DELETE_BATCH. 1024 = 2× SWEEP_DELETE_BATCH and a 4× margin below
+ * the ceiling; far above any realistic single-run set (the audit models ~0.021×
+ * users due/tick → ~210 at 10k users, not reached until tens of thousands), so
+ * normal operation stays single-run. Per-row cost against the ceiling is one
+ * indexed presence/subject read — the dispatch path's rate-limiter + workpool
+ * calls are isolated Convex components, billed against their own budget.
+ */
 export const SCAN_DISPATCH_BATCH = 1024;
 
 // One structured line when a bounded dispatch pass hit its cap — the next run
@@ -149,17 +151,19 @@ function dueSubjects(ctx: MutationCtx, now: number): Promise<Doc<'syncSubjects'>
     .take(SCAN_DISPATCH_BATCH);
 }
 
-// The liveness signal and the on-view trigger. Every beat refreshes presence
-// — written to the syncPresence row, a doc forViewer never reads, so an
-// interval beat no longer re-runs the heavy tracker payload (3.5.e1). Interval
-// beats stop at the presence write (the scan owns the cadence — letting them
-// dispatch would turn an errored subject into a 20s retry hammer) and so never
-// even touch the subject row. Mount/visible beats also dispatch immediately
-// when the data is stale or the viewer brought an unsynced character, which is
-// what makes opening a tracker (or returning to it) land a fresh sync at once
-// — and an errored run clears the cache window, so the next such beat retries
-// right away. The hint never grants access — the action re-enumerates the
-// user's characters from Neon on every run.
+/**
+ * The liveness signal and the on-view trigger. Every beat refreshes presence
+ * — written to the syncPresence row, a doc forViewer never reads, so an
+ * interval beat no longer re-runs the heavy tracker payload (3.5.e1). Interval
+ * beats stop at the presence write (the scan owns the cadence — letting them
+ * dispatch would turn an errored subject into a 20s retry hammer) and so never
+ * even touch the subject row. Mount/visible beats also dispatch immediately
+ * when the data is stale or the viewer brought an unsynced character, which is
+ * what makes opening a tracker (or returning to it) land a fresh sync at once
+ * — and an errored run clears the cache window, so the next such beat retries
+ * right away. The hint never grants access — the action re-enumerates the
+ * user's characters from Neon on every run.
+ */
 export const heartbeat = mutation({
   args: {
     dataset: syncDatasetValidator,
@@ -233,11 +237,13 @@ export const heartbeat = mutation({
   },
 });
 
-// The 30s dispatcher (convex/crons.ts): one indexed range over due
-// subjects. Cold rows are retired from the scan set (nextDueAt null — the
-// returning viewer's heartbeat revives them); fresh-running rows are left
-// for their completion to re-arm; a running row past STALE_RUNNING_MS is
-// presumed wedged and taken over here, automatically.
+/**
+ * The 30s dispatcher (convex/crons.ts): one indexed range over due
+ * subjects. Cold rows are retired from the scan set (nextDueAt null — the
+ * returning viewer's heartbeat revives them); fresh-running rows are left
+ * for their completion to re-arm; a running row past STALE_RUNNING_MS is
+ * presumed wedged and taken over here, automatically.
+ */
 export const scan = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -320,13 +326,15 @@ async function dispatch(
   return true;
 }
 
-// Exactly-once run epilogue from the Workpool: clear 'running', surface a
-// terminal failure, and arm the next due time — off the cache window the
-// apply just stamped, floored at the dataset cadence, plus jitter (group
-// staggering). Matched by workId, so a taken-over run's late completion
-// no-ops rather than clearing the new run's status. A successful run that
-// synced nothing parks at null until a heartbeat brings targets; a failed
-// run always re-arms (rationale inline below).
+/**
+ * Exactly-once run epilogue from the Workpool: clear 'running', surface a
+ * terminal failure, and arm the next due time — off the cache window the
+ * apply just stamped, floored at the dataset cadence, plus jitter (group
+ * staggering). Matched by workId, so a taken-over run's late completion
+ * no-ops rather than clearing the new run's status. A successful run that
+ * synced nothing parks at null until a heartbeat brings targets; a failed
+ * run always re-arms (rationale inline below).
+ */
 export const onSyncComplete = internalMutation({
   args: vOnCompleteArgs(v.object({ dataset: syncDatasetValidator, userId: v.string() })),
   handler: async (ctx, { workId, context, result }) => {
@@ -372,41 +380,43 @@ export const onSyncComplete = internalMutation({
   },
 });
 
-// The external watchdog's worker (POST /sweep, convex/http.ts — driven by a
-// 15-minute Vercel cron, a different failure domain from the Convex
-// scheduler). Reconciles anything the 30s scan should have handled —
-// `dispatched` staying 0 on a healthy system is the idempotence signal, and
-// a non-zero count means the cron scan is dead or lagging. Also retires
-// cold due rows and deletes long-abandoned subjects (regenerable state: a
-// returning heartbeat recreates everything).
-//
-// Three bounded indexed passes, never a full-table scan (3.5.e2). Each reads
-// only the rows that can need action, so the work scales with live working
-// sets — not the total retained-subject count — and each is ALSO row-capped
-// (oldest-first .take()) so no pass can approach the ~4,096-read per-mutation
-// ceiling, draining any backlog over subsequent runs:
-//   A. overdue — by_next_due over (0, now], the 30s scan's own range: delete
-//      past-retention / retire cold-within-retention / dispatch hot. Capped at
-//      SCAN_DISPATCH_BATCH (≈0 on a healthy system, but the scan's own cap now
-//      lets a backlog form — this recovery pass must not read it unbounded).
-//   B. dropped — by_last_seen over hot presence (lastSeenAt ≥ now−COLD): a hot
-//      idle row with targets but no schedule (timer wiped mid-flight) is
-//      re-armed. Capped at SCAN_DISPATCH_BATCH (a backstop sample of the
-//      concurrently-watched set; the on-view heartbeat is the primary re-arm).
-//   C. abandoned — by_last_seen over past-retention presence (lastSeenAt <
-//      now−RETENTION): delete subject + presence, oldest first, capped per run
-//      at SWEEP_DELETE_BATCH. Bounded by per-run retention crossings.
-// A runs first so its writes are visible (read-your-writes) to B/C: a row A
-// dispatched leaves the null-scheduled set B scans, and a row A deleted is gone
-// from C's presence range, so no row is acted on twice. The cold-but-within-
-// retention middle band is never scanned — it needs nothing until it comes due
-// (A) or ages out (C).
-// NOTE: a subject with NO presence doc sits in none of these ranges, so the
-// sweep does not delete it. Correct in steady state — presence and subject are
-// created together (heartbeat) and only ever deleted together (here), so no such
-// orphan is ever produced. The fixed pre-e1 legacy orphan population that
-// predated this coupling was reaped, and the lastSeenAt tombstone dropped, by the
-// e3 one-shot migration.
+/**
+ * The external watchdog's worker (POST /sweep, convex/http.ts — driven by a
+ * 15-minute Vercel cron, a different failure domain from the Convex
+ * scheduler). Reconciles anything the 30s scan should have handled —
+ * `dispatched` staying 0 on a healthy system is the idempotence signal, and
+ * a non-zero count means the cron scan is dead or lagging. Also retires
+ * cold due rows and deletes long-abandoned subjects (regenerable state: a
+ * returning heartbeat recreates everything).
+ *
+ * Three bounded indexed passes, never a full-table scan (3.5.e2). Each reads
+ * only the rows that can need action, so the work scales with live working
+ * sets — not the total retained-subject count — and each is ALSO row-capped
+ * (oldest-first .take()) so no pass can approach the ~4,096-read per-mutation
+ * ceiling, draining any backlog over subsequent runs:
+ *   A. overdue — by_next_due over (0, now], the 30s scan's own range: delete
+ *      past-retention / retire cold-within-retention / dispatch hot. Capped at
+ *      SCAN_DISPATCH_BATCH (≈0 on a healthy system, but the scan's own cap now
+ *      lets a backlog form — this recovery pass must not read it unbounded).
+ *   B. dropped — by_last_seen over hot presence (lastSeenAt ≥ now−COLD): a hot
+ *      idle row with targets but no schedule (timer wiped mid-flight) is
+ *      re-armed. Capped at SCAN_DISPATCH_BATCH (a backstop sample of the
+ *      concurrently-watched set; the on-view heartbeat is the primary re-arm).
+ *   C. abandoned — by_last_seen over past-retention presence (lastSeenAt \<
+ *      now−RETENTION): delete subject + presence, oldest first, capped per run
+ *      at SWEEP_DELETE_BATCH. Bounded by per-run retention crossings.
+ * A runs first so its writes are visible (read-your-writes) to B/C: a row A
+ * dispatched leaves the null-scheduled set B scans, and a row A deleted is gone
+ * from C's presence range, so no row is acted on twice. The cold-but-within-
+ * retention middle band is never scanned — it needs nothing until it comes due
+ * (A) or ages out (C).
+ * NOTE: a subject with NO presence doc sits in none of these ranges, so the
+ * sweep does not delete it. Correct in steady state — presence and subject are
+ * created together (heartbeat) and only ever deleted together (here), so no such
+ * orphan is ever produced. The fixed pre-e1 legacy orphan population that
+ * predated this coupling was reaped, and the lastSeenAt tombstone dropped, by the
+ * e3 one-shot migration.
+ */
 export const sweep = internalMutation({
   args: {},
   handler: async (ctx) => {

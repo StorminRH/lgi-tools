@@ -59,10 +59,12 @@ function takeIsEntry(): boolean {
   }
 }
 
-// Mounted once at the root layout. Watches the URL via Next.js navigation
-// hooks and POSTs a page_view event for every change. Failures are
-// swallowed by the server route — nothing to surface to the user either
-// way.
+/**
+ * Mounted once at the root layout. Watches the URL via Next.js navigation
+ * hooks and POSTs a page_view event for every change. Failures are
+ * swallowed by the server route — nothing to surface to the user either
+ * way.
+ */
 export function TelemetryReporter(): null {
   const pathname = usePathname();
   const searchParams = useSearchParams();

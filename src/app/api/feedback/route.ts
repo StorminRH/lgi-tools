@@ -48,12 +48,14 @@ function buildEmbed({
   };
 }
 
-// POST-only. Accepts JSON `{ message, path }`. Reads session server-side so
-// character attribution can't be forged. Forwards to Discord webhook; on
-// success, logs `feedback_submitted` to usage_logs (per the 2.8.4 audit
-// pattern — one operational record, not a separate feedback table).
-// Discord failure returns 502 and does NOT log telemetry; the action didn't
-// happen.
+/**
+ * POST-only. Accepts JSON `{ message, path }`. Reads session server-side so
+ * character attribution can't be forged. Forwards to Discord webhook; on
+ * success, logs `feedback_submitted` to usage_logs (per the 2.8.4 audit
+ * pattern — one operational record, not a separate feedback table).
+ * Discord failure returns 502 and does NOT log telemetry; the action didn't
+ * happen.
+ */
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
   const parsed = await parseJsonBody(request, feedbackRequestSchema);

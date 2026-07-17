@@ -16,11 +16,13 @@ const numPrefix = (name: string): number => {
   return m ? Number(m[1]) : -1;
 };
 
-// The dev log as one string, reassembled in nav order: top-level entries by numeric
-// prefix, each chapter as its heading file then its documents. Concatenated with no
-// separator it reproduces the pre-split source byte-for-byte, so the parser stays
-// untouched. Kept separate from the cached loader so tests can read it without entering
-// a `use cache` scope.
+/**
+ * The dev log as one string, reassembled in nav order: top-level entries by numeric
+ * prefix, each chapter as its heading file then its documents. Concatenated with no
+ * separator it reproduces the pre-split source byte-for-byte, so the parser stays
+ * untouched. Kept separate from the cached loader so tests can read it without entering
+ * a `use cache` scope.
+ */
 export async function readDevlogSource(): Promise<string> {
   const top = await readdir(DEVLOG_DIR, { withFileTypes: true });
   top.sort((a, b) => numPrefix(a.name) - numPrefix(b.name));
@@ -40,11 +42,13 @@ export async function readDevlogSource(): Promise<string> {
   return parts.join('');
 }
 
-// The dev log only changes on deploy, so cache the file reads + parse + syntax highlight
-// and let the build id invalidate it — this keeps /devlog in the static prerender shell
-// instead of forcing the route dynamic on an uncached file read (the /changelog pattern).
-// Highlighting runs here (server-side, once per deploy) so zero Shiki reaches the client;
-// the tokens ride the cached tree as plain data.
+/**
+ * The dev log only changes on deploy, so cache the file reads + parse + syntax highlight
+ * and let the build id invalidate it — this keeps /devlog in the static prerender shell
+ * instead of forcing the route dynamic on an uncached file read (the /changelog pattern).
+ * Highlighting runs here (server-side, once per deploy) so zero Shiki reaches the client;
+ * the tokens ride the cached tree as plain data.
+ */
 export async function loadDevlog(): Promise<DevlogTree> {
   'use cache';
   cacheLife('max');

@@ -3,8 +3,10 @@
 // React, no visx — just the derived arrays and scalars the chart draws, so it
 // unit-tests cleanly and no single render function carries the branchy math.
 
-// The plain daily-chart series the server computes and the chart draws — the one
-// shape shared by the section's derived data and the client wrapper's props.
+/**
+ * The plain daily-chart series the server computes and the chart draws — the one
+ * shape shared by the section's derived data and the client wrapper's props.
+ */
 export interface DailyChartSeries {
   points: { x: number; y: number }[];
   average: number[];

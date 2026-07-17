@@ -10,14 +10,16 @@ import { requireUserId } from '@/features/auth/route-guards';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 
+/**
+ * Gated further by corp membership + the in-game Station_Manager role (below).
+ * POST /api/account/corp-structures/sharing — flip a corp's structure-sharing consent.
+ * The route is the trust boundary, gated in two steps: the caller must be a CURRENT
+ * member of the corp (decideCorpAccess — fail-closed + audited), and one of their
+ * linked pilots in it must hold the Station_Manager role (userHoldsCorpRole). ENABLE
+ * opts the corp in; DISABLE wipes its stored structures, sync state, and authored
+ * rigs. The user id comes from the session, never the body.
+ */
 // authz: auth
-// Gated further by corp membership + the in-game Station_Manager role (below).
-// POST /api/account/corp-structures/sharing — flip a corp's structure-sharing consent.
-// The route is the trust boundary, gated in two steps: the caller must be a CURRENT
-// member of the corp (decideCorpAccess — fail-closed + audited), and one of their
-// linked pilots in it must hold the Station_Manager role (userHoldsCorpRole). ENABLE
-// opts the corp in; DISABLE wipes its stored structures, sync state, and authored
-// rigs. The user id comes from the session, never the body.
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
     authorize: requireUserId,

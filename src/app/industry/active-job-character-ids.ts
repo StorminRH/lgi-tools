@@ -66,8 +66,10 @@ function missingScopesOf(character: LinkedCharacter): string[] {
   }).missingScopes;
 }
 
-// The signed-in pilot's industry-job-eligible (per-character) ids, for the live
-// sync. [] for signed-out / auth-env-absent (see linkedJobCharacters).
+/**
+ * The signed-in pilot's industry-job-eligible (per-character) ids, for the live
+ * sync. [] for signed-out / auth-env-absent (see linkedJobCharacters).
+ */
 export async function activeJobCharacterIds(): Promise<number[]> {
   const characters = await linkedJobCharacters();
   return characters
@@ -80,10 +82,12 @@ export async function activeJobCharacterIds(): Promise<number[]> {
     .map((character) => character.characterId);
 }
 
-// The merged active-jobs board's corp slice: which characters can vend a corp
-// read (scope + token), and whether the pilot has any linked character at all.
-// The board derives its gate from these — no eligible chars but some linked →
-// scope-missing (offer the relink); none linked → render nothing.
+/**
+ * The merged active-jobs board's corp slice: which characters can vend a corp
+ * read (scope + token), and whether the pilot has any linked character at all.
+ * The board derives its gate from these — no eligible chars but some linked →
+ * scope-missing (offer the relink); none linked → render nothing.
+ */
 export interface CorpJobsAccess {
   eligibleCharacterIds: number[];
   hasLinkedCharacters: boolean;

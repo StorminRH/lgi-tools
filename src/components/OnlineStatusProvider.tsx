@@ -24,8 +24,10 @@ import { useAuth } from '@/features/auth/components/AuthProvider';
 // characterId → online (true/false). Absent = unknown (no live doc / not ours).
 const OnlineStatusContext = createContext<ReadonlyMap<number, boolean>>(new Map());
 
-// Read one character's live online flag. undefined when the character isn't the
-// viewer's, hasn't synced yet, or there's no provider above (the default map).
+/**
+ * Read one character's live online flag. undefined when the character isn't the
+ * viewer's, hasn't synced yet, or there's no provider above (the default map).
+ */
 export function useOnlineFlag(characterId: number): boolean | undefined {
   return useContext(OnlineStatusContext).get(characterId);
 }

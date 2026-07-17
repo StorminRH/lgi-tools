@@ -9,9 +9,11 @@ export interface EndLabelDisplay {
   deltaHex: string | null;
 }
 
-// Resolve a period-over-period delta into a chart end-label's text + colour.
-// Reuses deriveDeltaBadge (so `invert` — lower-is-better — is honoured) and maps
-// its text class to a tones hex for the SVG fill.
+/**
+ * Resolve a period-over-period delta into a chart end-label's text + colour.
+ * Reuses deriveDeltaBadge (so `invert` — lower-is-better — is honoured) and maps
+ * its text class to a tones hex for the SVG fill.
+ */
 export function endLabelFor(
   valueText: string,
   delta: Delta | null,

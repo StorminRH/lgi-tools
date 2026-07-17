@@ -7,41 +7,51 @@
 // single-page endpoint (one held etag, no two-halves split).
 import type { IndustryJob } from './esi-projection';
 
-// The stored per-character payload — the active job board. The raw ESI status is
-// stored verbatim; the client derives "ready" from each job's absolute end_date (no
-// at-write derivation, no scheduler). The wire/consumer shape too (the API contract
-// references it).
+/**
+ * The stored per-character payload — the active job board. The raw ESI status is
+ * stored verbatim; the client derives "ready" from each job's absolute end_date (no
+ * at-write derivation, no scheduler). The wire/consumer shape too (the API contract
+ * references it).
+ */
 export interface CharacterJobsData {
   jobs: IndustryJob[];
 }
 
-// A linked character as the refresh enumerates it — identity plus the scope health
-// the eligibility predicate (canSyncIndustryJobs) reads. No corp id: personal jobs is
-// per-character only.
+/**
+ * A linked character as the refresh enumerates it — identity plus the scope health
+ * the eligibility predicate (canSyncIndustryJobs) reads. No corp id: personal jobs is
+ * per-character only.
+ */
 export interface RefreshCharacter {
   characterId: number;
   hasRefreshToken: boolean;
   missingScopes: string[];
 }
 
-// Per-character sync state: the staleness stamp + the single held etag to replay so an
-// unchanged board returns a 304.
+/**
+ * Per-character sync state: the staleness stamp + the single held etag to replay so an
+ * unchanged board returns a 304.
+ */
 export interface CharacterJobsSyncState {
   lastRefreshedAt: Date | null;
   jobsEtag: string | null;
 }
 
-// The slice's own read result for the one endpoint, decoupled from lib/esi's
-// EsiAuthedRead (the Neon path's fixed TTL ignores the ESI cache window the gate
-// returns). 'fresh' carries the raw body for the slice's projection to parse.
+/**
+ * The slice's own read result for the one endpoint, decoupled from lib/esi's
+ * EsiAuthedRead (the Neon path's fixed TTL ignores the ESI cache window the gate
+ * returns). 'fresh' carries the raw body for the slice's projection to parse.
+ */
 export type JobsEsiRead =
   | { kind: 'fresh'; body: unknown; etag: string | null }
   | { kind: 'unchanged' }
   | { kind: 'error'; code: string };
 
-// The injected I/O the refresh runs over: auth (character enumeration, token vend),
-// the one authed ESI gate read, and Neon storage. The real implementations are wired
-// in src/db/industry-jobs-sync.ts.
+/**
+ * The injected I/O the refresh runs over: auth (character enumeration, token vend),
+ * the one authed ESI gate read, and Neon storage. The real implementations are wired
+ * in src/db/industry-jobs-sync.ts.
+ */
 export interface JobsPort {
   now(): Date;
   // The user's linked characters with scope health.
@@ -60,10 +70,12 @@ export interface JobsPort {
 
 // ── CORP industry jobs (MIGRATE.B.3) — the corp twins of the shapes above ──
 
-// A linked character as the CORP refresh enumerates it: identity, its cached corp id
-// (from the affiliation cache — null until first refreshed), plus the scope health the
-// eligibility predicate (canSyncCorpIndustryJobs) reads. The corp axis lives here
-// (unlike RefreshCharacter) so the refresh can group members by corp.
+/**
+ * A linked character as the CORP refresh enumerates it: identity, its cached corp id
+ * (from the affiliation cache — null until first refreshed), plus the scope health the
+ * eligibility predicate (canSyncCorpIndustryJobs) reads. The corp axis lives here
+ * (unlike RefreshCharacter) so the refresh can group members by corp.
+ */
 export interface RefreshCorpMember {
   characterId: number;
   corporationId: number | null;
@@ -71,18 +83,22 @@ export interface RefreshCorpMember {
   missingScopes: string[];
 }
 
-// Per-(user, corp) sync state: the staleness stamp, the single held etag, and the
-// graceful per-corp `syncError` (e.g. 'needs_role') the board surfaces.
+/**
+ * Per-(user, corp) sync state: the staleness stamp, the single held etag, and the
+ * graceful per-corp `syncError` (e.g. 'needs_role') the board surfaces.
+ */
 export interface CorpJobsSyncState {
   lastRefreshedAt: Date | null;
   jobsEtag: string | null;
   syncError: string | null;
 }
 
-// The injected I/O the corp refresh runs over: auth (member enumeration, token vend,
-// in-game roles read), the one authed ESI gate read per corp, and Neon storage. The
-// real implementations are wired in src/db/corp-industry-jobs-sync.ts. Reuses
-// JobsEsiRead (the corp board is the same single endpoint shape as the character one).
+/**
+ * The injected I/O the corp refresh runs over: auth (member enumeration, token vend,
+ * in-game roles read), the one authed ESI gate read per corp, and Neon storage. The
+ * real implementations are wired in src/db/corp-industry-jobs-sync.ts. Reuses
+ * JobsEsiRead (the corp board is the same single endpoint shape as the character one).
+ */
 export interface CorpJobsPort {
   now(): Date;
   // The user's linked characters with corp id + scope health.

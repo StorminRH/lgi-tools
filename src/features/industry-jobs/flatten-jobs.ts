@@ -16,8 +16,10 @@ export function flattenJobs(
   );
 }
 
-// The section header's "N complete · M in progress" counts. Statuses arrive
-// already derived by the live hook (a past-end_date active job is 'ready').
+/**
+ * The section header's "N complete · M in progress" counts. Statuses arrive
+ * already derived by the live hook (a past-end_date active job is 'ready').
+ */
 export function jobCounts(jobs: readonly IndustryJob[]): {
   complete: number;
   inProgress: number;

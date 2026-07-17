@@ -9,9 +9,11 @@
 // boundary-legal (feature → lib) and its fake-port tests pass unchanged.
 import type { EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
 
-// The common port surface both character slices expose (their full ports add the
-// endpoint-specific read/save the spec closes over). TState is the slice's per-character
-// sync state; it carries the staleness stamp the gate reads.
+/**
+ * The common port surface both character slices expose (their full ports add the
+ * endpoint-specific read/save the spec closes over). TState is the slice's per-character
+ * sync state; it carries the staleness stamp the gate reads.
+ */
 export interface CharacterSyncBase<TState> {
   now(): Date;
   // The user's linked characters with scope health (no corp id — character-only).
@@ -21,7 +23,7 @@ export interface CharacterSyncBase<TState> {
   stampFresh(characterId: number): Promise<void>;
 }
 
-// The per-dataset knobs — everything that genuinely differs between the twins.
+/** The per-dataset knobs — everything that genuinely differs between the twins. */
 export interface CharacterDatasetSpec<TState, TSave> {
   // The staleness gate, closing over the slice's TTL.
   isStale(lastRefreshedAt: Date | null, now: Date): boolean;

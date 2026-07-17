@@ -17,9 +17,11 @@ export type CharacterRole = (typeof CHARACTER_ROLES)[number];
 
 export const characterRoleEnum = pgEnum('character_role', CHARACTER_ROLES);
 
-// `ADMIN` is in the enum from day one even though only USER is assigned in 2.8.1:
-// adding enum values mid-flight is a heavier migration than including both up front.
-// SUPERADMIN is env-based, not a DB role.
+/**
+ * `ADMIN` is in the enum from day one even though only USER is assigned in 2.8.1:
+ * adding enum values mid-flight is a heavier migration than including both up front.
+ * SUPERADMIN is env-based, not a DB role.
+ */
 export const characters = pgTable('characters', {
   characterId: bigint('character_id', { mode: 'number' }).primaryKey(),
   name: text('name').notNull(),
@@ -141,9 +143,11 @@ export const account = pgTable(
   ],
 );
 
-// Better Auth stores short-lived OAuth state here because this deployment uses
-// its database-backed state strategy. Successful callbacks consume their row;
-// abandoned flows are pruned one day after expiry by daily housekeeping.
+/**
+ * Better Auth stores short-lived OAuth state here because this deployment uses
+ * its database-backed state strategy. Successful callbacks consume their row;
+ * abandoned flows are pruned one day after expiry by daily housekeeping.
+ */
 export const verification = pgTable(
   'verification',
   {
@@ -157,12 +161,14 @@ export const verification = pgTable(
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 );
 
-// Better Auth JWT plugin (3.4.1b) — the signing keypair for the Convex-facing
-// JWT. Keys are generated once and persisted here (static JWKS served at
-// /api/auth/jwks), not regenerated per request; the private key is itself
-// encrypted at rest by Better Auth under the app secret. `expiresAt` is nullable
-// and only written if key rotation is ever enabled. Matches Better Auth's
-// expected model field-for-field.
+/**
+ * Better Auth JWT plugin (3.4.1b) — the signing keypair for the Convex-facing
+ * JWT. Keys are generated once and persisted here (static JWKS served at
+ * /api/auth/jwks), not regenerated per request; the private key is itself
+ * encrypted at rest by Better Auth under the app secret. `expiresAt` is nullable
+ * and only written if key rotation is ever enabled. Matches Better Auth's
+ * expected model field-for-field.
+ */
 export const jwks = pgTable('jwks', {
   id: text('id').primaryKey(),
   publicKey: text('public_key').notNull(),
@@ -171,18 +177,20 @@ export const jwks = pgTable('jwks', {
   expiresAt: timestamp('expires_at'),
 });
 
-// Corp-access decision ledger (3.7.3.3) — one row per decision made by the audited
-// corp-access gate (corp-access.ts), allow AND deny. A security/authz audit trail,
-// NOT analytics telemetry: it lives on its own table so its retention is decoupled
-// from the 180-day usage_logs prune — denials (unauthorized-access attempts) must
-// outlive analytics. Append-only between 400-day retention sweeps; deliberately
-// NO foreign keys on user_id / character_id so the trail survives the user or
-// character row being deleted (the ids are recorded provenance, the same FK-less
-// posture as the role_change audit's JSONB ids). `character_id` is the linked pilot
-// whose fresh affiliation
-// granted access — NULL on a deny. `reason` is plain text (the gate owns the
-// vocabulary) so a new reason needs no migration, like usage_logs.action. Records
-// no tokens/secrets.
+/**
+ * Corp-access decision ledger (3.7.3.3) — one row per decision made by the audited
+ * corp-access gate (corp-access.ts), allow AND deny. A security/authz audit trail,
+ * NOT analytics telemetry: it lives on its own table so its retention is decoupled
+ * from the 180-day usage_logs prune — denials (unauthorized-access attempts) must
+ * outlive analytics. Append-only between 400-day retention sweeps; deliberately
+ * NO foreign keys on user_id / character_id so the trail survives the user or
+ * character row being deleted (the ids are recorded provenance, the same FK-less
+ * posture as the role_change audit's JSONB ids). `character_id` is the linked pilot
+ * whose fresh affiliation
+ * granted access — NULL on a deny. `reason` is plain text (the gate owns the
+ * vocabulary) so a new reason needs no migration, like usage_logs.action. Records
+ * no tokens/secrets.
+ */
 export const corpAccessAudit = pgTable(
   'corp_access_audit',
   {

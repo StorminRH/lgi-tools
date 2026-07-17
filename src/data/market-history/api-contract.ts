@@ -16,10 +16,12 @@ export const refreshHistoryRequestSchema = z.object({
     .max(ON_DEMAND_HISTORY_MAX_TYPE_IDS),
 });
 
-// The typed scoring inputs as they cross the wire. Every field is already a
-// plain number/string (the bigint volume is aggregated away into ADV), so the
-// shape equals MarketHistoryInputs directly. The `satisfies` pin keeps them in
-// lockstep; the contract test asserts it.
+/**
+ * The typed scoring inputs as they cross the wire. Every field is already a
+ * plain number/string (the bigint volume is aggregated away into ADV), so the
+ * shape equals MarketHistoryInputs directly. The `satisfies` pin keeps them in
+ * lockstep; the contract test asserts it.
+ */
 export const wireHistoryInputsSchema = z.object({
   typeId: z.number(),
   averageDailyVolume: z.array(
@@ -36,7 +38,7 @@ export const refreshHistoryResponseSchema = z.object({
 });
 export type RefreshHistoryResponse = z.infer<typeof refreshHistoryResponseSchema>;
 
-// 400 arms; 429 is the shared RateLimitedBody (src/lib/rate-limit.ts).
+/** 400 arms; 429 is the shared RateLimitedBody (src/lib/rate-limit.ts). */
 export type RefreshHistoryBadRequest =
   | { error: 'invalid_json' }
   | { error: 'invalid_request'; issues: unknown[] };

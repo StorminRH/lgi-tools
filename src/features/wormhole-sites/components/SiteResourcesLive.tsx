@@ -78,17 +78,21 @@ function ViewSentinel() {
   return <div ref={ref} aria-hidden className="h-0" />;
 }
 
-// The card's headline total, summed live from the same map the rows read. Shows
-// the server seed until the refresh lands, then flashes in the live sum.
+/**
+ * The card's headline total, summed live from the same map the rows read. Shows
+ * the server seed until the refresh lands, then flashes in the live sum.
+ */
 export function SiteHeaderTotal({ resources }: { resources: SiteResource[] }) {
   const live = useSiteLive();
   const total = resources.reduce((sum, r) => sum + (resourceLiveIsk(r, live) ?? 0), 0);
   return <LivePrice value={formatIskHeader(total)} />;
 }
 
-// The expanded body's resource rows + footer. Renders the view sentinel that
-// arms the refresh, then the live rows and the live total. Consumes the context
-// from the SiteLiveProvider above it.
+/**
+ * The expanded body's resource rows + footer. Renders the view sentinel that
+ * arms the refresh, then the live rows and the live total. Consumes the context
+ * from the SiteLiveProvider above it.
+ */
 export function SiteResourcesLive({
   resources,
   siteType,

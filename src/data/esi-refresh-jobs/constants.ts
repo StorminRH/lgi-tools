@@ -36,5 +36,5 @@ export const ESI_REFRESH_RETRY_DELAYS_MS = [
   24 * 60 * 60 * 1000,
 ] as const;
 
-// Reserved alongside the existing 8273619013–16 cron locks.
+/** Reserved alongside the existing 8273619013–16 cron locks. */
 export const ADVISORY_LOCK_ESI_REFRESH_QUEUE = BigInt(8273619017);

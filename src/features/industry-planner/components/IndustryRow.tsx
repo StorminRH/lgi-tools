@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { initials } from '@/lib/format/names';
 
-// A recents/favorites row for the industry dashboard (handoff §5): a typographic
-// monogram (or a ★ for favorites) beside the name over an optional group
-// caption, linking to the blueprint planner page. Presentational and hook-free,
-// so it renders from both the client recents island and the server favorites
-// section. Green tint + a 2px green left rule on hover.
+/**
+ * A recents/favorites row for the industry dashboard (handoff §5): a typographic
+ * monogram (or a ★ for favorites) beside the name over an optional group
+ * caption, linking to the blueprint planner page. Presentational and hook-free,
+ * so it renders from both the client recents island and the server favorites
+ * section. Green tint + a 2px green left rule on hover.
+ */
 export function IndustryRow({
   name,
   href,

@@ -15,8 +15,10 @@ export type CharacterRowView = {
   scopes: GrantedScope[];
 };
 
-// The per-row reads: health rollup, the health chip copy, and the granted-scope
-// list — all off the stored grant string (no tokens, no new query).
+/**
+ * The per-row reads: health rollup, the health chip copy, and the granted-scope
+ * list — all off the stored grant string (no tokens, no new query).
+ */
 export function deriveCharacterRowView(character: {
   scope: string | null;
   hasRefreshToken: boolean;
@@ -37,9 +39,11 @@ export function deriveCharacterRowView(character: {
   };
 }
 
-// The absorb-on-proof success note: resolve the ?absorbed=<id> param against the
-// just-loaded roster, which doubles as the whitelist — a non-string, stale, or
-// forged id doesn't resolve, so nothing renders (fail-closed).
+/**
+ * The absorb-on-proof success note: resolve the ?absorbed=<id> param against the
+ * just-loaded roster, which doubles as the whitelist — a non-string, stale, or
+ * forged id doesn't resolve, so nothing renders (fail-closed).
+ */
 export function deriveAbsorbedCharacter(
   rawAbsorbed: string | string[] | undefined,
   characters: LinkedCharacter[],
