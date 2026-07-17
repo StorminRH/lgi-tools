@@ -86,6 +86,31 @@ export async function enqueueEsiRefreshJob(
 }
 
 /**
+ * Returns the post-drain live queue truth: how many jobs are already due and
+ * the earliest `nextAttemptAt`, or null when no live job remains.
+ */
+export async function getEsiRefreshQueueResidual(
+  now = new Date(),
+  database: AnyPgDb = db,
+): Promise<{ dueCount: number; earliestNextAttemptAt: Date | null }> {
+  const dueCount = sql<number>`count(*) filter (where ${lte(
+    esiRefreshJobs.nextAttemptAt,
+    now,
+  )})`.mapWith(Number);
+  const earliestNextAttemptAt = sql<Date | null>`min(${esiRefreshJobs.nextAttemptAt})`.mapWith(
+    esiRefreshJobs.nextAttemptAt,
+  );
+  const [row] = await database
+    .select({ dueCount, earliestNextAttemptAt })
+    .from(esiRefreshJobs)
+    .where(inArray(esiRefreshJobs.status, LIVE_ESI_REFRESH_JOB_STATUSES));
+  return {
+    dueCount: row?.dueCount ?? 0,
+    earliestNextAttemptAt: row?.earliestNextAttemptAt ?? null,
+  };
+}
+
+/**
  * Returns jobs stranded in running state beyond the stale threshold to retryable state before a
  * new drain claims work.
  */
