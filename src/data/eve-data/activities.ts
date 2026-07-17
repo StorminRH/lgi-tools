@@ -23,7 +23,9 @@ import {
   type ActivityName,
 } from './constants';
 
+/** One skill requirement for a blueprint activity, including skill type ID and required level. */
 export type ActivitySkill = { typeId: number; level: number };
+/** One blueprint activity material requirement with type ID and base quantity. */
 export type ActivityMaterial = { typeId: number; quantity: number };
 /**
  * `probability` is present only on invention products (the per-run invention
@@ -35,6 +37,7 @@ export type ActivityProduct = {
   probability?: number;
 };
 
+/** Normalized blueprint activity containing time, products, materials, and required skills. */
 export type BlueprintActivity = {
   name: ActivityName;
   activityId: number; // CCP's numeric id, e.g. 'invention' → 8
@@ -106,6 +109,10 @@ function parseSkills(raw: unknown): ActivitySkill[] {
   });
 }
 
+/**
+ * Parses raw SDE blueprint activities into normalized products, materials, time, and skill
+ * requirements keyed by supported activity.
+ */
 export function parseBlueprintActivities(raw: unknown): BlueprintActivitySet {
   const activities = asObject(raw);
   if (!activities) return [];

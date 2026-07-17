@@ -52,6 +52,10 @@ export async function logUsageEvent(input: LogEventInput): Promise<void> {
   });
 }
 
+/**
+ * Atomically claims one public ESI budget-alert window so concurrent cron runs cannot send
+ * duplicate notifications.
+ */
 export async function claimPublicEsiBudgetAlert(
   metadata: Record<string, unknown>,
 ): Promise<number> {
@@ -67,6 +71,7 @@ export async function claimPublicEsiBudgetAlert(
   return row.id;
 }
 
+/** Marks a claimed public ESI budget-alert window complete after the notification attempt finishes. */
 export async function completePublicEsiBudgetAlertClaim(id: number): Promise<void> {
   const [row] = await db
     .update(usageLogs)
@@ -88,6 +93,7 @@ export async function pruneUsageLogs(retentionDays: number, now: Date = new Date
   await db.delete(usageLogs).where(lt(usageLogs.timestamp, cutoff));
 }
 
+/** Returns day-bucketed telemetry counts for the requested action and half-open date range. */
 export async function getDailyCounts(range: DateRange): Promise<DailyCount[]> {
   const day = sql<string>`to_char(date_trunc('day', ${usageLogs.timestamp}), 'YYYY-MM-DD')`;
   const rows = await db
@@ -162,6 +168,7 @@ export function topByMetadataKeyToSQL(
   return topByMetadataKeyQuery(metaKey, action, range, limit, extraWhere).toSQL();
 }
 
+/** Returns the most-viewed public paths and counts over the requested date range. */
 export async function getTopPages(range: DateRange, limit = 10): Promise<PathCount[]> {
   const rows = await topByMetadataKey('path', 'page_view', range, limit);
   return rows.map((r) => ({ path: r.value, count: r.count }));
@@ -190,11 +197,13 @@ export async function getTopEntryPages(range: DateRange, limit = 10): Promise<En
   return rows.map((r) => ({ path: r.value, count: r.count }));
 }
 
+/** Returns the most frequent normalized search terms and counts over the requested date range. */
 export async function getTopSearches(range: DateRange, limit = 10): Promise<SearchCount[]> {
   const rows = await topByMetadataKey('query', 'terminal_search', range, limit);
   return rows.map((r) => ({ query: r.value, count: r.count }));
 }
 
+/** Returns administrator role-change audit entries newest first for the requested date range. */
 export async function getRoleChangeAudit(
   range: DateRange,
   limit = 50,
@@ -302,6 +311,7 @@ export async function getBudgetExhaustionCount(range: DateRange): Promise<number
   return Number(row?.n ?? 0);
 }
 
+/** Counts public ESI budget-exhaustion events inside one absolute alert window. */
 export async function countPublicEsiBudgetExhaustionsInWindow(
   from: Date,
   to: Date,
@@ -327,6 +337,7 @@ export async function countPublicEsiBudgetExhaustionsInWindow(
   return Number(row?.n ?? 0);
 }
 
+/** Returns whether the specified public ESI alert window already has a completed claim. */
 export async function hasPublicEsiBudgetAlertForWindow(
   windowStartedAt: string,
 ): Promise<boolean> {
@@ -391,14 +402,17 @@ async function getCronOutcomes(
     }));
 }
 
+/** Returns price-refresh cron outcome counts grouped by outcome for the requested range. */
 export function getPriceCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
   return getCronOutcomes(range, 'cron_prices');
 }
 
+/** Returns SDE-refresh cron outcome counts grouped by outcome for the requested range. */
 export function getSdeCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
   return getCronOutcomes(range, 'cron_sde');
 }
 
+/** Returns Search Console cron outcome counts grouped by outcome for the requested range. */
 export function getGscCronOutcomes(range: DateRange): Promise<CronOutcomeCount[]> {
   return getCronOutcomes(range, 'cron_gsc');
 }

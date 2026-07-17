@@ -59,13 +59,16 @@ export const USAGE_ACTIONS = [
   ...SERVER_USAGE_ACTIONS,
 ] as const;
 
+/** Closed telemetry action vocabulary accepted by usage aggregation queries. */
 export type UsageAction = (typeof USAGE_ACTIONS)[number];
 
+/** Absolute telemetry query window with inclusive from and exclusive to timestamps. */
 export interface DateRange {
   from: Date;
   to: Date;
 }
 
+/** UTC day bucket and absolute event count for one telemetry action. */
 export interface DailyCount {
   day: string;
   totalEvents: number;
@@ -73,26 +76,31 @@ export interface DailyCount {
   anonymousEvents: number;
 }
 
+/** Normalized public path and absolute view count. */
 export interface PathCount {
   path: string;
   count: number;
 }
 
+/** Normalized search term and absolute usage count. */
 export interface SearchCount {
   query: string;
   count: number;
 }
 
+/** Normalized referrer host and absolute referred-session count. */
 export interface ReferrerCount {
   host: string;
   count: number;
 }
 
+/** Normalized landing path and absolute entry-session count. */
 export interface EntryPageCount {
   path: string;
   count: number;
 }
 
+/** Privacy-safe administrator role-change record with actor, target, transition, and absolute timestamp. */
 export interface RoleChangeAuditEntry {
   timestamp: Date;
   actorCharacterId: number | null;

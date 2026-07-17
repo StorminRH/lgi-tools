@@ -226,6 +226,7 @@ export async function downloadSdeJsonl(): Promise<SdeJsonlPaths> {
   return paths;
 }
 
+/** Deletes downloaded temporary SDE JSONL files after ingest; missing files are ignored. */
 export async function cleanupSdeJsonl(paths: SdeJsonlPaths): Promise<void> {
   await Promise.all(
     Object.values(paths).map((p) => unlink(p).catch(() => undefined)),
@@ -318,6 +319,7 @@ const SDE_DUMPS: readonly SdeDumpName[] = [
   'industryActivityProducts',
 ] as const;
 
+/** Temporary local JSONL paths for every downloaded SDE source required by ingest. */
 export type SdeDumpPaths = Record<SdeDumpName, string>;
 
 const CACHE_DIR = join(tmpdir(), 'lgi-sde');
@@ -348,6 +350,10 @@ async function downloadOne(name: SdeDumpName): Promise<string> {
   return dest;
 }
 
+/**
+ * Downloads and expands the required SDE datasets into temporary JSONL paths, replacing any prior
+ * incomplete files.
+ */
 export async function downloadDumps(): Promise<SdeDumpPaths> {
   await mkdir(CACHE_DIR, { recursive: true });
   const entries = await Promise.all(

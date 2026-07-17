@@ -13,6 +13,7 @@
  * for display, not for the math.
  */
 export const SECURITY_CLASSES = ['high', 'low', 'null', 'wormhole'] as const;
+/** Closed wormhole and known-space security classification derived from system security status. */
 export type SecurityClass = (typeof SECURITY_CLASSES)[number];
 
 /**

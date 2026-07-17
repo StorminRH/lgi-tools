@@ -6,6 +6,10 @@
 import { logUsageEvent } from './queries';
 import type { UsageAction } from './types';
 
+/**
+ * Creates the standard structured cron logger for one job and run identifier; callers own emitting
+ * start, outcome, and failure events.
+ */
 export function cronLogger(
   scope: string,
   action: UsageAction,

@@ -20,6 +20,10 @@ import {
 // one JSONB column. Primary keys are CCP's stable, externally-meaningful IDs
 // (the JSONL `_key`) — not `serial`.
 
+/**
+ * Drizzle schema owner for eve categories; migrations, queries, retention, and purge claims derive
+ * from this single declaration.
+ */
 export const eveCategories = pgTable('eve_categories', {
   id: integer('id').primaryKey(),
   name: text('name').notNull(),
@@ -27,6 +31,10 @@ export const eveCategories = pgTable('eve_categories', {
   published: boolean('published').notNull(),
 });
 
+/**
+ * Drizzle schema owner for eve groups; migrations, queries, retention, and purge claims derive
+ * from this single declaration.
+ */
 export const eveGroups = pgTable('eve_groups', {
   id: integer('id').primaryKey(),
   categoryId: integer('category_id')
@@ -41,6 +49,10 @@ export const eveGroups = pgTable('eve_groups', {
   published: boolean('published').notNull(),
 });
 
+/**
+ * Drizzle schema owner for eve types; migrations, queries, retention, and purge claims derive from
+ * this single declaration.
+ */
 export const eveTypes = pgTable(
   'eve_types',
   {
@@ -127,6 +139,10 @@ export const industryBlueprints = pgTable('industry_blueprints', {
 // tables are wiped + repopulated together; idempotency is gated on the
 // `tree_resolver_hash` row in `eveDataMeta`.
 
+/**
+ * Drizzle schema owner for blueprint trees; migrations, queries, retention, and purge claims
+ * derive from this single declaration.
+ */
 export const blueprintTrees = pgTable('blueprint_trees', {
   blueprintTypeId: integer('blueprint_type_id')
     .primaryKey()
@@ -137,6 +153,10 @@ export const blueprintTrees = pgTable('blueprint_trees', {
   computedAt: timestamp('computed_at', { withTimezone: true }).notNull(),
 });
 
+/**
+ * Drizzle schema owner for blueprint flat materials; migrations, queries, retention, and purge
+ * claims derive from this single declaration.
+ */
 export const blueprintFlatMaterials = pgTable(
   'blueprint_flat_materials',
   {
@@ -170,11 +190,19 @@ export const blueprintFlatMaterials = pgTable(
 // category→group→type hierarchy convention above.
 // ===========================================================================
 
+/**
+ * Drizzle schema owner for eve regions; migrations, queries, retention, and purge claims derive
+ * from this single declaration.
+ */
 export const eveRegions = pgTable('eve_regions', {
   id: integer('id').primaryKey(),
   name: text('name').notNull(),
 });
 
+/**
+ * Drizzle schema owner for eve constellations; migrations, queries, retention, and purge claims
+ * derive from this single declaration.
+ */
 export const eveConstellations = pgTable(
   'eve_constellations',
   {

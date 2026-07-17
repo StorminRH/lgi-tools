@@ -8,6 +8,10 @@
 
 import type { LazySearchSource } from '@/search';
 
+/**
+ * Global-search source for systems search source; it owns matching and result mapping while the
+ * app layer owns registration.
+ */
 export const systemsSearchSource: LazySearchSource = {
   id: 'systems',
   name: 'Systems',

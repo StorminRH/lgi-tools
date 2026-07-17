@@ -1,3 +1,7 @@
+/**
+ * Closed esi refresh jobs vocabulary and canonical order for esi refresh datasets; consumers
+ * derive validation and iteration from this one list.
+ */
 export const ESI_REFRESH_DATASETS = [
   'skills',
   'character_industry_jobs',
@@ -6,6 +10,10 @@ export const ESI_REFRESH_DATASETS = [
   'owned_assets',
 ] as const;
 
+/**
+ * Closed esi refresh jobs vocabulary and canonical order for esi refresh job statuses; consumers
+ * derive validation and iteration from this one list.
+ */
 export const ESI_REFRESH_JOB_STATUSES = [
   'queued',
   'running',
@@ -16,8 +24,16 @@ export const ESI_REFRESH_JOB_STATUSES = [
   'dead_lettered',
 ] as const;
 
+/**
+ * Closed esi refresh jobs vocabulary and canonical order for esi refresh owner types; consumers
+ * derive validation and iteration from this one list.
+ */
 export const ESI_REFRESH_OWNER_TYPES = ['character', 'corporation'] as const;
 
+/**
+ * Closed esi refresh jobs vocabulary and canonical order for live esi refresh job statuses;
+ * consumers derive validation and iteration from this one list.
+ */
 export const LIVE_ESI_REFRESH_JOB_STATUSES = [
   'queued',
   'running',
@@ -25,10 +41,30 @@ export const LIVE_ESI_REFRESH_JOB_STATUSES = [
   'failed_retryable',
 ] as const;
 
+/**
+ * Configured esi refresh jobs limit for esi refresh job retention days; callers use this value
+ * instead of embedding a competing threshold.
+ */
 export const ESI_REFRESH_JOB_RETENTION_DAYS = 7;
+/**
+ * Configured esi refresh jobs limit for esi refresh job batch size; callers use this value instead
+ * of embedding a competing threshold.
+ */
 export const ESI_REFRESH_JOB_BATCH_SIZE = 5;
+/**
+ * Configured esi refresh jobs limit for esi refresh job max attempts; callers use this value
+ * instead of embedding a competing threshold.
+ */
 export const ESI_REFRESH_JOB_MAX_ATTEMPTS = 5;
+/**
+ * Configured esi refresh jobs limit for esi refresh stale running ms; callers use this value
+ * instead of embedding a competing threshold. Values are milliseconds.
+ */
 export const ESI_REFRESH_STALE_RUNNING_MS = 10 * 60 * 1000;
+/**
+ * Closed esi refresh jobs vocabulary and canonical order for esi refresh retry delays ms;
+ * consumers derive validation and iteration from this one list. Values are milliseconds.
+ */
 export const ESI_REFRESH_RETRY_DELAYS_MS = [
   15 * 60 * 1000,
   60 * 60 * 1000,

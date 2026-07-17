@@ -4,6 +4,7 @@ import { usageLogs } from './schema';
 import { inRange, jsonInt } from './sql';
 import type { DateRange } from './types';
 
+/** Price-source aggregate with event count and percentage of the requested total. */
 export interface PriceSourceSplit {
   cacheHits: number;
   esiCount: number;
@@ -12,6 +13,7 @@ export interface PriceSourceSplit {
   returned: number;
 }
 
+/** Market-history source aggregate with event count and percentage of the requested total. */
 export interface HistorySourceSplit {
   freshEsi: number;
   warmStored: number;
@@ -19,12 +21,17 @@ export interface HistorySourceSplit {
   missing: number;
 }
 
+/** Deferred-write aggregate grouped by dataset and closed outcome taxonomy. */
 export interface WriteBehindOutcome {
   action: 'market_price_write_behind' | 'market_history_write_behind';
   outcome: string;
   count: number;
 }
 
+/**
+ * Endpoint cost aggregate containing calls, item volume, elapsed milliseconds, and estimated
+ * resource weight.
+ */
 export interface CostlyEndpoint {
   endpoint: string;
   count: number;
@@ -35,6 +42,7 @@ function summedInt(key: string) {
   return sql<number>`coalesce(sum(${jsonInt(key)}), 0)`.mapWith(Number);
 }
 
+/** Aggregates price refresh outcomes by canonical source over the requested date range. */
 export async function getPriceSourceSplit(range: DateRange): Promise<PriceSourceSplit> {
   const [row] = await db
     .select({
@@ -55,6 +63,7 @@ export async function getPriceSourceSplit(range: DateRange): Promise<PriceSource
   };
 }
 
+/** Aggregates market-history refresh outcomes by canonical source over the requested date range. */
 export async function getHistorySourceSplit(range: DateRange): Promise<HistorySourceSplit> {
   const [row] = await db
     .select({
@@ -73,6 +82,7 @@ export async function getHistorySourceSplit(range: DateRange): Promise<HistorySo
   };
 }
 
+/** Aggregates deferred write-behind outcomes by dataset and terminal result for the requested date range. */
 export async function getWriteBehindOutcomes(
   range: DateRange,
 ): Promise<WriteBehindOutcome[]> {
@@ -101,6 +111,10 @@ export async function getWriteBehindOutcomes(
     }));
 }
 
+/**
+ * Returns the highest aggregate endpoint cost totals and latency over the requested window,
+ * bounded to the caller's limit.
+ */
 export async function getTopCostlyEndpoints(
   range: DateRange,
   limit: number,

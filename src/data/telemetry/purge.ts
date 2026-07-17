@@ -8,6 +8,10 @@ import { db } from '@/db';
 import type { PurgeContributor } from '@/purge/types';
 import { usageLogs } from './schema';
 
+/**
+ * Personal-data purge contributor for telemetry purge contributor; this data slice owns deleting
+ * its user and character keyed rows.
+ */
 export const telemetryPurgeContributor: PurgeContributor = {
   name: 'telemetry',
   tier: 'cache',

@@ -69,17 +69,20 @@ const INSERT_BATCH = 1000;
 
 // ----- The typed contract (one home-agnostic shape both emitters consume) ---
 
+/** Normalized EVE region identity and name emitted from the universe dump. */
 export type UniverseRegion = {
   id: number;
   name: string;
 };
 
+/** Normalized EVE constellation identity, name, and parent region. */
 export type UniverseConstellation = {
   id: number;
   regionId: number;
   name: string;
 };
 
+/** Normalized EVE solar-system identity, name, security status, and universe parents. */
 export type UniverseSolarSystem = {
   id: number;
   constellationId: number;
@@ -101,11 +104,13 @@ export type UniverseSystemJump = {
   toSystemId: number;
 };
 
+/** Normalized NPC station-operation identity and supported service vocabulary. */
 export type UniverseStationOperation = {
   id: number;
   name: string;
 };
 
+/** Normalized NPC station identity, name, system, operation, and owning corporation. */
 export type UniverseNpcStation = {
   id: number;
   solarSystemId: number;
@@ -117,6 +122,7 @@ export type UniverseNpcStation = {
   industryCapable: boolean;
 };
 
+/** Normalized universe dump containing regions, constellations, systems, operations, and NPC stations. */
 export type UniverseDataset = {
   regions: UniverseRegion[];
   constellations: UniverseConstellation[];
@@ -459,6 +465,7 @@ export async function parseUniverse(paths: SdeJsonlPaths): Promise<UniverseDatas
 
 // ----- The Neon emitter (this session's only consumer) ----------------------
 
+/** Absolute row counts emitted for each normalized universe table. */
 export type UniverseEmitSummary = {
   regionsWritten: number;
   constellationsWritten: number;

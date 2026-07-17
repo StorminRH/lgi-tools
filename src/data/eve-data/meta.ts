@@ -11,6 +11,7 @@ import type { AnyPgDb } from '@/lib/db-types';
 // Shared by the request-path queries, the resolver, and the deploy/cron pipeline
 // so they all read and write the same row through one implementation.
 
+/** Reads one SDE metadata value by key and returns null when the key has not been stored. */
 export async function getSdeMetaValue(db: AnyPgDb, key: string): Promise<string | null> {
   const [row] = await db
     .select({ value: eveDataMeta.value })
@@ -46,6 +47,7 @@ export async function getCachedSdeVersion(): Promise<{
   });
 }
 
+/** Upserts one authoritative SDE metadata value by key. */
 export async function setSdeMetaValue(db: AnyPgDb, key: string, value: string): Promise<void> {
   await db
     .insert(eveDataMeta)

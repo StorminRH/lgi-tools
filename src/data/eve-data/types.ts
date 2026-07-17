@@ -1,3 +1,7 @@
+/**
+ * Canonical EVE type record exposed to data consumers, including identity, group, name, and market
+ * attributes.
+ */
 export interface EveType {
   id: number;
   groupId: number;

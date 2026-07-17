@@ -10,6 +10,7 @@ import {
 } from './constants';
 import type { AttrMap } from './types';
 
+/** Display-ready Upwell structure type with type ID and label for planner selectors. */
 export type StructureTypeOption = {
   typeId: number;
   name: string;
@@ -22,6 +23,7 @@ export type StructureTypeOption = {
   rigSize: number | null;
 };
 
+/** Display-ready structure rig with type ID, label, size class, and applicable bonus metadata. */
 export type StructureRigOption = {
   typeId: number;
   name: string;

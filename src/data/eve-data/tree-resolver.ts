@@ -61,6 +61,7 @@ export function computeHeights(nodes: TreeNode[]): Map<number, number> {
   return heights;
 }
 
+/** Blueprint tree-resolution outcome containing rebuild identity and absolute resolved-row counts. */
 export type ResolveSummary = {
   blueprintsResolved: number;
   flatMaterialsWritten: number;
@@ -74,7 +75,9 @@ export type ResolveSummary = {
   durationMs: number;
 };
 
+/** Normalized blueprint material with type ID and base quantity before planner modifiers. */
 export type Material = { typeId: number; quantity: number };
+/** In-memory blueprint lookup indexes used only during one tree-resolution build. */
 export type Indexes = {
   // blueprintTypeId -> direct materials. We collapse activity 1 + 11
   // into a single per-blueprint list because no blueprint has BOTH
@@ -86,11 +89,13 @@ export type Indexes = {
   productToBlueprint: Map<number, { blueprintTypeId: number; quantityPerRun: number }>;
 };
 
+/** Raw material edge read from the normalized SDE tables for resolver traversal. */
 export type MaterialRow = {
   blueprintTypeId: number;
   materialTypeId: number;
   quantity: number;
 };
+/** Raw blueprint product edge identifying activity, product type, and output quantity. */
 export type ProductRow = {
   blueprintTypeId: number;
   productTypeId: number;
@@ -107,6 +112,7 @@ type ActivityIO = {
   products?: { typeID: number; quantity: number }[];
   time?: number;
 };
+/** Activities grouped by blueprint type for deterministic resolver traversal. */
 export type BlueprintActivities = Record<string, ActivityIO | undefined>;
 
 /**
@@ -458,6 +464,10 @@ export function hashResolverInputs(
     .digest('hex');
 }
 
+/**
+ * Hashes the blueprint resolver's normalized source rows into a deterministic content identity
+ * used to skip unchanged rebuilds.
+ */
 export async function computeTreeResolverHash(db: AnyPgDb): Promise<string> {
   const all = await db
     .select({
@@ -480,6 +490,7 @@ async function hasResolvedTrees(db: AnyPgDb): Promise<boolean> {
   return exists;
 }
 
+/** Persistable flattened blueprint material edge with accumulated quantity and depth. */
 export type FlatMaterialRow = {
   blueprintTypeId: number;
   rawMaterialTypeId: number;

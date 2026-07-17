@@ -67,6 +67,7 @@ const TYPE_COLUMNS = {
   graphicId: eveTypes.graphicId,
 } as const;
 
+/** Loads EVE types for the requested IDs in one batched query and preserves no caller ordering guarantee. */
 export async function getTypesByIds(ids: number[]): Promise<EveType[]> {
   if (ids.length === 0) return [];
   return db.select(TYPE_COLUMNS).from(eveTypes).where(inArray(eveTypes.id, ids));
@@ -103,6 +104,7 @@ export async function getTypeNames(ids: number[]): Promise<Map<number, string>> 
   return out;
 }
 
+/** Minimal EVE type identity and display name returned by batched label lookups. */
 export type TypeLabel = { name: string; groupName: string; categoryName: string };
 
 /**
@@ -391,6 +393,7 @@ export type IndustryStation = {
   researchCapable: boolean;
 };
 
+/** Returns NPC stations in one solar system whose operation supports manufacturing or research services. */
 export async function getIndustryStationsForSystem(
   systemId: number,
 ): Promise<IndustryStation[]> {

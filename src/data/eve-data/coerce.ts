@@ -24,10 +24,15 @@ export function numOrNull(v: unknown): number | null {
   return typeof v === 'number' ? v : null;
 }
 
+/** Returns a string value unchanged and normalizes every non-string input to null. */
 export function strOrNull(v: unknown): string | null {
   return typeof v === 'string' ? v : null;
 }
 
+/**
+ * Coerces the SDE boolean encodings accepted by this ingest path and returns the supplied fallback
+ * for missing or unrecognized values.
+ */
 export function boolOf(v: unknown): boolean {
   return v === true;
 }

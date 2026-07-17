@@ -17,8 +17,16 @@ import type { SystemSearchEntry } from './systems-search';
 // at view time — entity names are never mirrored into Convex. Capped to bound
 // the cold-cache fan-out (a board's distinct installers + corps stay small).
 
+/**
+ * Configured eve data limit for entity names max ids; callers use this value instead of embedding
+ * a competing threshold.
+ */
 export const ENTITY_NAMES_MAX_IDS = 200;
 
+/**
+ * Boundary validator for entity names request schema; successful parsing yields the normalized eve
+ * data input consumed internally.
+ */
 export const entityNamesRequestSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(ENTITY_NAMES_MAX_IDS),
 });
@@ -27,8 +35,13 @@ export const entityNamesRequestSchema = z.object({
 const entityNamesResponseSchema = z.object({
   names: z.record(z.string(), z.string()),
 });
+/** Resolved EVE entity names keyed by numeric ID; unresolved IDs are intentionally absent. */
 export type EntityNamesResponse = z.infer<typeof entityNamesResponseSchema>;
 
+/**
+ * Typed endpoint definition for entity names endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const entityNamesEndpoint: ApiEndpoint<
   z.input<typeof entityNamesRequestSchema>,
   EntityNamesResponse
@@ -69,11 +82,20 @@ export const systemSearchEntrySchema = z.object({
   security: z.number().nullable(),
 }) satisfies z.ZodType<SystemSearchEntry>;
 
+/**
+ * Boundary validator for systems response schema; successful parsing yields the normalized eve
+ * data input consumed internally.
+ */
 export const systemsResponseSchema = z.object({
   systems: z.array(systemSearchEntrySchema),
 });
+/** Solar-system search response containing normalized ID, name, security, and region fields. */
 export type SystemsResponse = z.infer<typeof systemsResponseSchema>;
 
+/**
+ * Typed endpoint definition for systems endpoint; method, path, request, and response contracts
+ * remain coupled here.
+ */
 export const systemsEndpoint: ApiEndpoint<null, SystemsResponse> = {
   method: 'GET',
   path: '/api/industry/systems',

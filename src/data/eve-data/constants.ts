@@ -34,6 +34,7 @@ export const ALL_ACTIVITY_NAMES = [
   'invention',
   'reaction',
 ] as const;
+/** Closed supported blueprint activity names shared by ingest, tree resolution, and planner consumers. */
 export type ActivityName = (typeof ALL_ACTIVITY_NAMES)[number];
 
 /**
@@ -85,6 +86,7 @@ export const ADVISORY_LOCK_SDE_INGEST = BigInt(8273619013);
 
 /** `eve_data_meta` keys. Plain k/v table — see schema.ts. */
 export const SDE_META_KEY_VERSION = 'sde_version';
+/** SDE metadata key storing the deterministic blueprint-tree resolver source hash. */
 export const SDE_META_KEY_TREE_HASH = 'tree_resolver_hash';
 
 /**
@@ -112,7 +114,15 @@ export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
  * a manufacturing rig still bonuses manufacturing nodes (the rig's bonus only).
  */
 export const SDE_ENGINEERING_COMPLEX_GROUP_ID = 1404; // Raitaru / Azbel / Sotiyo
+/**
+ * Configured eve data limit for sde refinery group id; callers use this value instead of embedding
+ * a competing threshold.
+ */
 export const SDE_REFINERY_GROUP_ID = 1406; // Athanor / Tatara
+/**
+ * Configured eve data limit for sde citadel group id; callers use this value instead of embedding
+ * a competing threshold.
+ */
 export const SDE_CITADEL_GROUP_ID = 1657; // Astrahus / Fortizar / Keepstar (+ faction Fortizars)
 /** The full offerable set: the three industry-capable structure groups. */
 export const SDE_INDUSTRY_STRUCTURE_GROUP_IDS = [
@@ -136,8 +146,20 @@ export const SDE_STRUCTURE_MODULE_CATEGORY_ID = 66;
  * must not be edited this session.
  */
 export const STRUCTURE_RIG_SIZE_ATTR = 1547; // rig fits when this equals the structure's 1547
+/**
+ * Closed eve data vocabulary and canonical order for rig can fit group attrs; consumers derive
+ * validation and iteration from this one list.
+ */
 export const RIG_CAN_FIT_GROUP_ATTRS = [1298, 1299, 1300] as const; // canFitShipGroup01/02/03
+/**
+ * Configured eve data limit for rig mfg material attr; callers use this value instead of embedding
+ * a competing threshold.
+ */
 export const RIG_MFG_MATERIAL_ATTR = 2594; // nonzero ⇒ a manufacturing-efficiency rig
+/**
+ * Configured eve data limit for rig reaction time attr; callers use this value instead of
+ * embedding a competing threshold.
+ */
 export const RIG_REACTION_TIME_ATTR = 2713; // present ⇒ a reactor-efficiency rig
 
 /**
