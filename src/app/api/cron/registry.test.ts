@@ -44,7 +44,11 @@ function isSubDaily(schedule: string): boolean {
   if (fields.length !== 5) {
     throw new Error(`Expected a five-field cron schedule: ${schedule}`);
   }
-  return !/^\d+$/.test(fields[1] ?? '');
+  const fixedField = /^\d+$/;
+  return (
+    !fixedField.test(fields[0] ?? '') ||
+    !fixedField.test(fields[1] ?? '')
+  );
 }
 
 function scheduleFindings(
@@ -95,6 +99,20 @@ describe('cron schedule registry', () => {
     expect(
       scheduleFindings(
         [{ path, schedule: '0 */2 * * *' }],
+        {
+          [path]: { declaration: refreshAffiliationsDeclaration },
+        },
+      ),
+    ).toEqual([
+      `${path}: sub-daily schedule requires idle-silent, got batch`,
+    ]);
+  });
+
+  it('flags a minute-repeating cron even when its hour is fixed', () => {
+    const path = '/api/cron/repeating-within-one-hour';
+    expect(
+      scheduleFindings(
+        [{ path, schedule: '*/15 11 * * *' }],
         {
           [path]: { declaration: refreshAffiliationsDeclaration },
         },

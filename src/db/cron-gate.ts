@@ -1,8 +1,6 @@
-// The cron gate stays a narrow auth + advisory-lock primitive for the drain
-// route until its 3.9.2.2.2 migration. The route shell below is the deeper
-// abstraction: route = declaration, with one owner for auth → pre-lock gate →
-// advisory lock → work → telemetry ordering. This is what removes per-route
-// assembly without turning the gate itself into an options-grown job merger.
+// One route shell owns auth → idle probe → pre-lock gate → advisory lock →
+// work → telemetry ordering. Routes declare policy and supply domain work;
+// none reassemble the lifecycle or reach its lower-level primitives directly.
 import type postgres from 'postgres';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
@@ -89,24 +87,6 @@ export type CronRouteDeclaration<Body, Pre = void> = {
     pre: Pre,
   ) => Promise<CronRunOutcome<Body>>;
 };
-
-/**
- * Authenticates and executes one cron callback under its advisory lock, translating lock
- * contention and failures into the standard cron response.
- */
-export async function runCronJob(options: {
-  req: Request;
-  lockKey: number;
-  onBusy: () => Promise<Response> | Response;
-  work: (reserved: ReservedConnection) => Promise<Response>;
-}): Promise<Response> {
-  const denied = await requireCronAuth(options.req);
-  if (denied) return denied;
-
-  const outcome = await withAdvisoryLock(directClient, options.lockKey, options.work);
-  if (outcome.busy) return await options.onBusy();
-  return outcome.result;
-}
 
 async function recordUsage(
   scope: string,

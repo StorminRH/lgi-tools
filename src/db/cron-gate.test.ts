@@ -24,71 +24,13 @@ vi.mock('next/server', () => ({
   connection: (...args: unknown[]) => connectionMock(...args),
 }));
 
-import { defineCronRoute, runCronJob } from './cron-gate';
+import { defineCronRoute } from './cron-gate';
 
 function authedRequest(): Request {
   return new Request('http://localhost/api/cron/example', {
     headers: { authorization: 'Bearer test-secret' },
   });
 }
-
-describe('runCronJob', () => {
-  beforeEach(() => {
-    withAdvisoryLockMock.mockReset();
-    logUsageEventMock.mockReset().mockResolvedValue(undefined);
-    connectionMock.mockReset().mockResolvedValue(undefined);
-    vi.stubEnv('CRON_SECRET', 'test-secret');
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-  });
-
-  it('rejects a request without the cron bearer before touching the lock', async () => {
-    const res = await runCronJob({
-      req: new Request('http://localhost/api/cron/example'),
-      lockKey: 7,
-      onBusy: () => new Response('busy'),
-      work: async () => new Response('work'),
-    });
-    expect(res.status).toBe(401);
-    expect(withAdvisoryLockMock).not.toHaveBeenCalled();
-  });
-
-  it('returns the work result when the lock is acquired', async () => {
-    const workResponse = Response.json({ status: 'refreshed' });
-    withAdvisoryLockMock.mockResolvedValue({ busy: false, result: workResponse });
-    const onBusy = vi.fn();
-    const res = await runCronJob({
-      req: authedRequest(),
-      lockKey: 7,
-      onBusy,
-      work: async () => workResponse,
-    });
-    expect(res).toBe(workResponse);
-    expect(onBusy).not.toHaveBeenCalled();
-    expect(withAdvisoryLockMock).toHaveBeenCalledWith(
-      expect.anything(),
-      7,
-      expect.any(Function),
-    );
-  });
-
-  it('invokes onBusy when the lock is held', async () => {
-    withAdvisoryLockMock.mockResolvedValue({ busy: true });
-    const busyResponse = Response.json({ status: 'busy' });
-    const res = await runCronJob({
-      req: authedRequest(),
-      lockKey: 7,
-      onBusy: () => busyResponse,
-      work: async () => new Response('work'),
-    });
-    expect(res).toBe(busyResponse);
-  });
-});
 
 describe('defineCronRoute', () => {
   beforeEach(() => {
