@@ -1,14 +1,5 @@
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { db } from '@/db';
-import {
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 import {
   getCoverageTrend,
   getLastSyncedAt,
@@ -27,9 +18,11 @@ import { gscSearchAnalytics, gscSitemaps, gscUrlInspection } from './schema';
 // telemetry suite, for the SEO dashboard's read path. Skips cleanly when no DB is
 // reachable. The throwaway schema is dropped in afterAll, leaving nothing behind.
 
-const SCHEMA = 'test_gsc_cov';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_gsc_cov',
+  tables: ['gsc_search_analytics', 'gsc_sitemaps', 'gsc_url_inspection'],
+  steerDbProxy: true,
+});
 
 const RANGE = {
   from: new Date('2020-01-01T00:00:00Z'),
@@ -122,21 +115,9 @@ const cases: QueryCase[] = [
   },
 ];
 
-describe.skipIf(!reachable)('admin GSC analytics queries execute against Postgres', () => {
-  let adminClient: ReturnType<typeof postgres>;
-
+describe.skipIf(!harness.reachable)('admin GSC analytics queries execute against Postgres', () => {
   beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 1, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, [
-      'gsc_search_analytics',
-      'gsc_sitemaps',
-      'gsc_url_inspection',
-    ]);
-
-    const seedDb = drizzlePg(adminClient);
+    const seedDb = harness.db;
     await seedDb.insert(gscSearchAnalytics).values([
       { date: '2020-01-02', dimension: 'total', key: '', clicks: 10, impressions: 100, position: 5, syncedAt: SYNCED_AT },
       { date: '2020-01-02', dimension: 'query', key: 'wormhole', clicks: 5, impressions: 50, position: 3, syncedAt: SYNCED_AT },
@@ -222,22 +203,12 @@ describe.skipIf(!reachable)('admin GSC analytics queries execute against Postgre
     ]);
   });
 
-  afterAll(async () => {
-    // `.catch` on each `end` so a connection blip never skips `dropDisposableSchema`
-    // and leaves the schema behind (which would wedge the next run's `beforeAll`).
-    const proxyClient = (db as unknown as { $client: ReturnType<typeof postgres> }).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
-  });
-
   it.each(cases)('$name executes and returns a plausible shape', async ({ run, check }) => {
     check(await run());
   });
 
   it('upserts on the inspection-date and URL composite key', async () => {
-    const seedDb = drizzlePg(adminClient);
+    const seedDb = harness.db;
     const before = await seedDb.select().from(gscUrlInspection);
     await upsertUrlInspectionRecords(seedDb, [
       indexStatusToRecord(
@@ -262,7 +233,7 @@ describe.skipIf(!reachable)('admin GSC analytics queries execute against Postgre
     // Runs after the seeded it.each cases; clear the analytics rows so max() over
     // an empty set is null — the contract's no-sync branch, which must stay null and
     // never coerce to the epoch (new Date(null)).
-    await drizzlePg(adminClient).delete(gscSearchAnalytics);
+    await harness.db.delete(gscSearchAnalytics);
     expect(await getLastSyncedAt()).toBeNull();
   });
 });
