@@ -56,7 +56,7 @@ Choose the primitive that matches the affordance. An informational `(?)` hint is
 
 When replacing an existing interaction, build the library-backed equivalent to appearance-and-behavior parity, verify it on the real route, then delete the old implementation in the same change. Do not keep parallel primitives.
 
-Use the `ux-check` skill for changed routes. The standard sweep captures closed states; dialogs, popovers, menus, toasts, and other interactions need an appropriate Playwright probe from `docs/ux-check/scripts/`. Keep open-state probes functional and CSP-focused. Ryan's browser review remains the final visual/feel check.
+Use the `ux-check` skill for changed routes. The standard sweep captures closed states; dialogs, popovers, menus, toasts, and other interactions need an appropriate Playwright definition from `docs/ux-check/probes/`, run through the shared probe runner. Keep open-state probes functional and CSP-focused. Ryan's browser review remains the final visual/feel check.
 
 ## Routes and render modes
 
