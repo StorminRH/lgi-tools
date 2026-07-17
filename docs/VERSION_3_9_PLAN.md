@@ -59,7 +59,7 @@ campaign: none — the queue is empty.
 | 3.9.1.3 | Evidence & reference checkers | 1 | SHIPPED |
 | 3.9.1.4 | Baseline claims & Watch tripwires | 1 | SHIPPED |
 | 3.9.1.5 | Close-out gate mechanization | 1 | SHIPPED |
-| 3.9.1.6 | Drift-manifest derivation | 1 | PLANNED |
+| 3.9.1.6 | Drift-manifest derivation | 1 | SHIPPED |
 | 3.9.1.7 | Comment standard migration & enforcement | 2 (one branch) | PLANNED |
 | **Phase 2 — Primitive lifecycle** | | | |
 | 3.9.2.1 | Real-Postgres test harness promotion (Expand) | 1 | PLANNED |
