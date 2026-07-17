@@ -1,5 +1,5 @@
 {
-  "policyRevision": 18,
+  "policyRevision": 19,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -81,6 +81,7 @@
         "Plan mode",
         "separate prompt",
         "Graphify",
+        "check_release_consistency",
         "close-out",
         "Ryan",
         "session-terminal"
@@ -125,6 +126,9 @@
         "body-file",
         "check_baseline_claims",
         "check_watch_triggers",
+        "check_release_consistency",
+        "scrub_pr_body",
+        "verify_archive",
         "pnpm test:coverage",
         "coverage-backed",
         "browser-first",
@@ -195,6 +199,7 @@
         "start-session",
         "restart",
         "archive",
+        "verify_archive",
         "resolver",
         "drift"
       ],
@@ -254,12 +259,18 @@
     ".agent-local/check_env_example.py",
     ".agent-local/check_doc_refs.py",
     ".agent-local/check_lifecycle_evidence.py",
+    ".agent-local/check_release_consistency.py",
+    ".agent-local/scrub_pr_body.py",
+    ".agent-local/verify_archive.py",
     ".agent-local/repo_measures.py",
     ".agent-local/check_baseline_claims.py",
     ".agent-local/check_watch_triggers.py",
     ".agent-local/test_env_example.py",
     ".agent-local/test_doc_refs.py",
     ".agent-local/test_lifecycle_evidence.py",
+    ".agent-local/test_release_consistency.py",
+    ".agent-local/test_scrub_pr_body.py",
+    ".agent-local/test_verify_archive.py",
     ".agent-local/test_repo_measures.py",
     ".agent-local/test_baseline_claims.py",
     ".agent-local/test_watch_triggers.py",
@@ -309,7 +320,8 @@
     ".claude/launch.json",
     "docs/ux-check/captures/",
     "docs/margin-audit/",
-    ".agent-local/tooling-parity-report.json"
+    ".agent-local/tooling-parity-report.json",
+    ".agent-local/pr-privacy-local-patterns.txt"
   ],
   "sessionContracts": {
     "expected": [

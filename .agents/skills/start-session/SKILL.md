@@ -12,7 +12,7 @@ description: >-
 
 # Start an LGI.tools session
 
-<!-- shared-policy-revision: 18 -->
+<!-- shared-policy-revision: 19 -->
 
 `docs/DEVELOPMENT_LIFECYCLE.md` defines lifecycle semantics and
 `docs/SESSION_CONTRACTS.md` owns artifact meaning. The resolver is the sole
@@ -26,6 +26,11 @@ Run `python3 .agent-local/resolve_development_state.py --pretty`. Read its
 `directive` as the complete dispatch contract; do not maintain another
 stage-to-skill routing table. Before acting, report the directive's action,
 reason, authority, primary artifact, and pause in plain language.
+
+After reporting the directive and before dispatch, run `python3
+.agent-local/check_release_consistency.py --check`. Both the pre-PR and
+reconciled signatures are valid rest states; any other release identity blocks
+dispatch as lifecycle drift.
 
 If `handler` is null, stop at the named pause. Otherwise follow only the named
 handler skill, create the native Codex todo list from that handler and its owning

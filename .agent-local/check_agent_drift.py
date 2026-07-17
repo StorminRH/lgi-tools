@@ -288,6 +288,7 @@ def check_lifecycle_checkers(errors: list[str]) -> list[str]:
         ".agent-local/check_env_example.py",
         ".agent-local/check_doc_refs.py",
         ".agent-local/check_lifecycle_evidence.py",
+        ".agent-local/check_release_consistency.py",
     ):
         result = subprocess.run(
             [sys.executable, str(ROOT / raw_path)],

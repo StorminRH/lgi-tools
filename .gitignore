@@ -43,6 +43,7 @@ yarn-error.log*
 .claude/worktrees/
 .agent-local/tooling-parity-report.json
 .agent-local/pr-*.md
+.agent-local/pr-privacy-local-patterns.txt
 docs/ux-check/captures/
 docs/margin-audit/
 graphify-out/

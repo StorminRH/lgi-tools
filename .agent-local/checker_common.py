@@ -61,16 +61,30 @@ def _report(findings: Sequence[Finding]) -> dict[str, list[str]]:
 
 
 def run_checker(
-    collect: Callable[[Path], list[Finding]],
+    collect: (
+        Callable[[Path], list[Finding]]
+        | Callable[[Path, argparse.Namespace], list[Finding]]
+    ),
     argv: Sequence[str] | None = None,
+    add_arguments: Callable[[argparse.ArgumentParser], None] | None = None,
 ) -> int:
-    """Run one checker CLI and block under --check only when errors are present."""
+    """Run one checker CLI and block under --check only when errors are present.
+
+    ``add_arguments``, when given, registers script-specific flags on the shared
+    parser and switches ``collect`` to the two-argument form. The shared output
+    and blocking contract remains unchanged.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=_DEFAULT_ROOT)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--pretty", action="store_true")
+    if add_arguments is not None:
+        add_arguments(parser)
     args = parser.parse_args(argv)
 
-    payload = _report(collect(args.root.resolve()))
+    if add_arguments is None:
+        payload = _report(collect(args.root.resolve()))
+    else:
+        payload = _report(collect(args.root.resolve(), args))
     print(json.dumps(payload, indent=2 if args.pretty else None, sort_keys=True))
     return 1 if args.check and payload["errors"] else 0

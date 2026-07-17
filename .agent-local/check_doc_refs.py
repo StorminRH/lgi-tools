@@ -83,6 +83,11 @@ _ALLOWLIST = (
         "scripts/fallow-trial-log.mjs",
         "deferred stale-artifact cleanup remains owned by the 3.9.3.1 backlog triage",
     ),
+    (
+        "docs/session-plans/3.9/3.9.1.5.md",
+        ".agent-local/pr-privacy-local-patterns.txt",
+        "approved deliberately-untracked local pattern file created by Session 3.9.1.5; never resolves on a fresh clone",
+    ),
 )
 
 # Old tokens retained in historical prose map to their verified archive homes.

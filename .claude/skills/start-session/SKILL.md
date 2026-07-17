@@ -11,7 +11,7 @@ description: >-
 
 # Start an LGI.tools session
 
-<!-- shared-policy-revision: 18 -->
+<!-- shared-policy-revision: 19 -->
 
 `docs/DEVELOPMENT_LIFECYCLE.md` defines lifecycle semantics; the resolver is the
 sole mechanical owner of current-state validation and handler selection. Treat
@@ -27,6 +27,10 @@ only the named handler skill, create the native Claude Code task list from its
 owning document, and keep one task active. Plan mode directives stay read-only
 until Ryan approves and the handler persists its canonical artifact. Never
 create a separate prompt file.
+
+After reporting the directive and before dispatch, run `python3
+.agent-local/check_release_consistency.py --check`. Both valid signatures are
+accepted; any other release identity blocks dispatch as lifecycle drift.
 
 Every handler returns control here after its artifact or delivery outcome.
 Rerun the resolver instead of predicting the next handler, then report and

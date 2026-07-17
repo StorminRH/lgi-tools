@@ -12,7 +12,7 @@ description: >-
 
 # Run an LGI.tools version audit
 
-<!-- shared-policy-revision: 18 -->
+<!-- shared-policy-revision: 19 -->
 
 Follow `docs/VERSION_AUDIT.md`; it owns measurement, classification, the fixed
 baseline schema, and completion rules. `docs/DESIGN_PRINCIPLES.md` is the
@@ -49,8 +49,10 @@ not authorize a merge, deployment, production change, or destructive recovery.
 7. Mark the audit Complete only when all actionable findings are Verified, the
    current cycle found none, required gates pass, and the baseline code ref
    matches `Audited ref`. A periodic audit stops without archival.
-8. For a clean version-close audit, archive the verified master plan, contracts,
-   session plans, and audit plan as one bundle, keeping the baseline active.
+8. For a clean version-close audit, require `verify_archive.py --check --phase
+   pre`, copy the verified master plan, contracts, session plans, and audit plan
+   as one bundle, then require `verify_archive.py --check --phase post` before
+   removing active sources. Keep the baseline active.
 9. Update SCRATCHPAD, rerun the resolver, report its new directive, run the agent
    drift check, and return control to `start-session` without predicting the next
    stage.
