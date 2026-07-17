@@ -15,7 +15,9 @@ import type { EveJwtClaims, EveTokenResponse } from './types';
  */
 export const EVE_PROVIDER_ID = 'eve';
 
+/** Canonical EVE OAuth authorization endpoint. */
 export const EVE_AUTHORIZE_URL = 'https://login.eveonline.com/v2/oauth/authorize';
+/** Canonical EVE OAuth token exchange and refresh endpoint. */
 export const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
 /**
  * CCP's published OAuth2 token-revocation endpoint (RFC 7009) — the per-token
@@ -25,8 +27,11 @@ export const EVE_TOKEN_URL = 'https://login.eveonline.com/v2/oauth/token';
  * other EVE_* URLs (CCP advertises it under `.well-known/oauth-authorization-server`).
  */
 export const EVE_REVOKE_URL = 'https://login.eveonline.com/v2/oauth/revoke';
+/** Canonical EVE JWKS endpoint used to verify access-token signatures. */
 export const EVE_JWKS_URL = 'https://login.eveonline.com/oauth/jwks';
+/** Required issuer claim for verified EVE access tokens. */
 export const EVE_ISSUER = 'https://login.eveonline.com';
+/** Required audience claim for verified EVE access tokens. */
 export const EVE_AUDIENCE = 'EVE Online';
 
 /**
@@ -173,6 +178,10 @@ interface ExchangeCodeInput {
   clientSecret: string;
 }
 
+/**
+ * Exchanges one EVE OAuth authorization code using PKCE and returns the validated token response;
+ * provider failures remain explicit.
+ */
 export async function exchangeCodeForToken({
   code,
   codeVerifier,
@@ -224,6 +233,10 @@ export type RefreshFailureClass =
   | 'provider_5xx'
   | 'unexpected';
 
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export type RefreshResult =
   | { kind: 'ok'; access_token: string; refresh_token: string; expires_in: number }
   | { kind: 'dead'; failureClass: 'invalid_grant' }
@@ -342,6 +355,10 @@ export async function revokeEveRefreshToken({
   }
 }
 
+/**
+ * Verifies an EVE access token's signature, issuer, audience, expiry, and subject against the
+ * provider JWKS.
+ */
 export async function verifyEveJwt(accessToken: string): Promise<EveJwtClaims> {
   const { payload } = await jwtVerify(accessToken, jwks(), {
     issuer: EVE_ISSUER,
@@ -379,6 +396,7 @@ export function claimsToCharacter(claims: EveJwtClaims): CharacterIdentity {
   };
 }
 
+/** Builds the canonical EVE character portrait URL for the requested character ID and supported pixel size. */
 export function portraitUrl(characterId: number, size: EveImageSize = 128): string {
   return characterPortraitUrl(characterId, size);
 }

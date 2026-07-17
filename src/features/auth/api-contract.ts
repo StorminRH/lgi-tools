@@ -15,6 +15,10 @@ const userIdField = z.string().min(1).max(255).regex(/^[A-Za-z0-9_-]+$/);
 // The Convex action → token-vend boundary. The response carries ONLY the
 // access token; the refresh token never appears on this wire.
 
+/**
+ * Boundary validator for eve token request schema; successful parsing yields the normalized auth
+ * input consumed internally.
+ */
 export const eveTokenRequestSchema = z.object({
   userId: userIdField,
   characterId: z.number().int().positive(),
@@ -33,6 +37,10 @@ export interface EveTokenOkResponse {
 
 /** 404 | 409 | 502 JSON envelope. 400/401/500 are plain text — uncontracted. */
 export type EveTokenErrorCode = 'not_found' | 'reauth_required' | 'upstream_error';
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export interface EveTokenErrorResponse {
   error: EveTokenErrorCode;
 }
@@ -44,6 +52,10 @@ export interface EveTokenErrorResponse {
 // the characters this endpoint returns for that userId — no client-posted
 // character id carries authority anywhere in the sync flow.
 
+/**
+ * Boundary validator for eve characters request schema; successful parsing yields the normalized
+ * auth input consumed internally.
+ */
 export const eveCharactersRequestSchema = z.object({
   userId: userIdField,
 });
@@ -65,6 +77,10 @@ export interface EveCharacterEntry {
   // the character's affiliation has been refreshed at least once.
   corporationId: number | null;
 }
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export interface EveCharactersResponse {
   characters: EveCharacterEntry[];
 }
@@ -100,6 +116,10 @@ export const unlinkCharacterFormSchema = z.object({
  * here; the route's post-parse sanitiseQuery() does the real cleaning.
  */
 export const ADMIN_ACCESS_QUERY_MAX_LENGTH = 200;
+/**
+ * Boundary validator for admin role form schema; successful parsing yields the normalized auth
+ * input consumed internally.
+ */
 export const adminRoleFormSchema = z.object({
   userId: userIdField,
   nextRole: z.enum(CHARACTER_ROLES),
@@ -131,6 +151,10 @@ export const adminRevokeSessionsFormSchema = z.object({
 // through these contracts instead.
 
 const signOutRequestSchema = z.object({});
+/**
+ * Boundary validator for sign out endpoint; successful parsing yields the normalized auth input
+ * consumed internally.
+ */
 export const signOutEndpoint: ApiEndpoint<z.input<typeof signOutRequestSchema>, undefined> = {
   method: 'POST',
   path: '/api/auth/sign-out',
@@ -143,6 +167,10 @@ const signInOauth2RequestSchema = z.object({
   callbackURL: z.string(),
 });
 const signInOauth2ResponseSchema = z.object({ url: z.string().optional() });
+/**
+ * Boundary validator for sign in oauth2 endpoint; successful parsing yields the normalized auth
+ * input consumed internally.
+ */
 export const signInOauth2Endpoint: ApiEndpoint<
   z.input<typeof signInOauth2RequestSchema>,
   z.infer<typeof signInOauth2ResponseSchema>
@@ -157,6 +185,10 @@ export const signInOauth2Endpoint: ApiEndpoint<
 // when anonymous). The Convex client bridge (3.4.3) pulls the ES256 JWT here
 // on (re)connect; each call mints fresh, so there's no client-side caching.
 const tokenResponseSchema = z.object({ token: z.string() });
+/**
+ * Boundary validator for token endpoint; successful parsing yields the normalized auth input
+ * consumed internally.
+ */
 export const tokenEndpoint: ApiEndpoint<null, z.infer<typeof tokenResponseSchema>> = {
   method: 'GET',
   path: '/api/auth/token',
@@ -179,7 +211,15 @@ const accountCharacterSchema = z.object({
 const accountCharactersResponseSchema = z.object({
   characters: z.array(accountCharacterSchema),
 });
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export type AccountCharactersResponse = z.infer<typeof accountCharactersResponseSchema>;
+/**
+ * Typed endpoint definition for account characters endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const accountCharactersEndpoint: ApiEndpoint<null, AccountCharactersResponse> = {
   method: 'GET',
   path: '/api/account/characters',
@@ -206,7 +246,15 @@ export const purgeCharacterRequestSchema = z.object({
 // emptied and the user deleted (a de-facto nuke); the UI shows the EVE-revoke
 // redirect + logs out only then.
 const purgeCharacterResponseSchema = z.object({ accountEmptied: z.boolean() });
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export type PurgeCharacterResponse = z.infer<typeof purgeCharacterResponseSchema>;
+/**
+ * Boundary validator for purge character endpoint; successful parsing yields the normalized auth
+ * input consumed internally.
+ */
 export const purgeCharacterEndpoint: ApiEndpoint<
   z.input<typeof purgeCharacterRequestSchema>,
   PurgeCharacterResponse
@@ -219,7 +267,15 @@ export const purgeCharacterEndpoint: ApiEndpoint<
 
 // POST /api/account/delete — nuke the caller's entire account. No request body.
 const accountDeleteResponseSchema = z.object({ ok: z.literal(true) });
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export type AccountDeleteResponse = z.infer<typeof accountDeleteResponseSchema>;
+/**
+ * Boundary validator for account delete endpoint; successful parsing yields the normalized auth
+ * input consumed internally.
+ */
 export const accountDeleteEndpoint: ApiEndpoint<null, AccountDeleteResponse> = {
   method: 'POST',
   path: '/api/account/delete',
@@ -230,7 +286,15 @@ export const accountDeleteEndpoint: ApiEndpoint<null, AccountDeleteResponse> = {
 // POST /api/account/sessions/revoke — log the caller out everywhere. No request
 // body; `revoked` is the number of sessions removed.
 const sessionsRevokeResponseSchema = z.object({ revoked: z.number() });
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export type SessionsRevokeResponse = z.infer<typeof sessionsRevokeResponseSchema>;
+/**
+ * Typed endpoint definition for sessions revoke endpoint; method, path, request, and response
+ * contracts remain coupled here.
+ */
 export const sessionsRevokeEndpoint: ApiEndpoint<null, SessionsRevokeResponse> = {
   method: 'POST',
   path: '/api/account/sessions/revoke',

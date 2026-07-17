@@ -25,6 +25,7 @@ interface NpcArgs {
   trigger?: boolean;
 }
 
+/** Builds a deterministic NPC fixture with caller overrides for wormhole-site tests and previews. */
 export function npc(
   order: number,
   {
@@ -61,6 +62,7 @@ export function npc(
   };
 }
 
+/** Builds a deterministic wave fixture containing the supplied NPC groups. */
 export function wave(
   waveNumber: number,
   label: string,
@@ -91,6 +93,7 @@ export function wave(
   };
 }
 
+/** Builds a deterministic site-resource fixture with caller-provided quantities and value. */
 export function resource(
   order: number,
   kind: SiteResource['resourceKind'],
@@ -362,6 +365,10 @@ const dataC4: SiteDetail = {
   ],
 };
 
+/**
+ * Closed wormhole sites vocabulary and canonical order for mock sites; consumers derive validation
+ * and iteration from this one list.
+ */
 export const MOCK_SITES: SiteDetail[] = [
   combatC1,
   combatC3,

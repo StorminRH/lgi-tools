@@ -11,6 +11,10 @@ const RESOURCE_SECTION_COPY = {
   combat: { label: 'Resources',           hint: '',                      footer: 'Total value' },
 } satisfies Record<SiteType, { label: string; hint: string; footer: string }>;
 
+/**
+ * Display-ready site details state for wormhole sites; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type SiteDetailsView = {
   isWaveDriven: boolean;
   hasResources: boolean;

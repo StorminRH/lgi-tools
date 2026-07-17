@@ -141,6 +141,7 @@ export async function recordCorpAccessDecision(entry: {
   await db.insert(corpAccessAudit).values(entry);
 }
 
+/** Deletes corporation-access audit rows older than the retention cutoff. */
 export async function pruneCorpAccessAudit(
   database: AnyPgDb,
   retentionDays: number,

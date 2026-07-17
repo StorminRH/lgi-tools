@@ -7,6 +7,7 @@
 import { sitesView, sitesDetailMode } from '@/lib/preferences';
 import type { PageSettingsSpec } from '@/page-settings/types';
 
+/** Declarative wormhole catalogue controls registered with the shared page-settings system. */
 export const sitesPageSettings: PageSettingsSpec = {
   route: '/sites',
   controls: [

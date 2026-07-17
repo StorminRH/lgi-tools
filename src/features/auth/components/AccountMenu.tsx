@@ -20,6 +20,10 @@ import { authClient } from '../auth-client';
 import type { Session } from '../types';
 import { startCharacterLink } from './LinkCharacterButton';
 
+/**
+ * Renders the signed-in account menu with character, settings, administrator, and sign-out actions
+ * from the auth provider.
+ */
 export function AccountMenu({ session }: { session: Session }) {
   return (
     <Menu

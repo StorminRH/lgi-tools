@@ -16,6 +16,7 @@ import { EVE_AUTHORIZED_APPS_URL } from '../eve-sso';
 
 const REDIRECT_SECONDS = 10;
 
+/** Explains an EVE authorization revocation redirect and returns the user to account reconnection controls. */
 export function RevokeRedirectLightbox({ open }: { open: boolean }) {
   const labelId = useId();
   const [seconds, setSeconds] = useState(REDIRECT_SECONDS);

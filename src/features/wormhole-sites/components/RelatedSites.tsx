@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { SiteSearchEntry } from '../queries';
 import { SITE_TYPE_LABEL } from './wormhole-styles';
 
+/** Renders deterministic related wormhole-site links without owning selection policy. */
 export function RelatedSites({ sites }: { sites: SiteSearchEntry[] }) {
   if (sites.length === 0) return null;
 

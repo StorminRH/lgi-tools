@@ -18,6 +18,7 @@
 
 import { EVE_SCOPES } from './eve-sso';
 
+/** Derived linked-character connection health with missing scopes, token state, and reconnection verdict. */
 export interface CharacterHealth {
   // True when the character can't currently back the required ESI calls: either
   // its refresh token is gone (so nothing can be vended) or it's missing one of

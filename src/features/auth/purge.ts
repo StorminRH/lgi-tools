@@ -19,6 +19,10 @@ import type { PurgeContributor } from '@/purge/types';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import { account, characters, corpAccessAudit, session } from './schema';
 
+/**
+ * Personal-data purge contributor for auth purge contributor; this data slice owns deleting its
+ * user and character keyed rows.
+ */
 export const authPurgeContributor: PurgeContributor = {
   name: 'auth',
   tier: 'credential',

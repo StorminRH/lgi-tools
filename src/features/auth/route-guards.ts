@@ -14,6 +14,10 @@ import { getCurrentUserId } from './session';
 
 type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
 
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export type SessionGuardResult =
   | { ok: true; session: BetterAuthSession }
   | { ok: false; response: Response };
@@ -43,6 +47,10 @@ export async function requireAdmin(): Promise<SessionGuardResult> {
   return { ok: true, session };
 }
 
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export type UserIdGuardResult =
   | { ok: true; userId: string }
   | { ok: false; response: Response };

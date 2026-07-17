@@ -28,6 +28,10 @@ const affiliationEntrySchema = z.object({
 });
 const affiliationResponseSchema = z.array(affiliationEntrySchema);
 
+/**
+ * Display-ready affiliation row produced by auth; values retain their domain units and require no
+ * additional query by the renderer.
+ */
 export interface AffiliationRow {
   characterId: number;
   corporationId: number;

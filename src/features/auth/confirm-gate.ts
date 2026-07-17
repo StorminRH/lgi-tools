@@ -6,8 +6,10 @@
 // unit-tested with no React and no DOM (the Humble-Component split — the thin
 // dialog shell stays for visual/ux-check review).
 
+/** Closed destructive-confirmation phases used by the account control state machine. */
 export type ConfirmPhase = 'idle' | 'confirming' | 'running';
 
+/** Closed user and request events accepted by the destructive-confirmation reducer. */
 export type ConfirmEvent =
   | { type: 'request' } // open the confirm dialog
   | { type: 'cancel' } // dismiss without acting
@@ -15,8 +17,13 @@ export type ConfirmEvent =
   | { type: 'fail' } // the call errored — reopen for retry (the control holds the message)
   | { type: 'reset' }; // back to idle (success closes the dialog / the page redirects)
 
+/** Initial idle state for every destructive confirmation gate. */
 export const INITIAL_CONFIRM_PHASE: ConfirmPhase = 'idle';
 
+/**
+ * Advances the destructive-action confirmation gate through idle, armed, submitting, and settled
+ * phases without side effects.
+ */
 export function confirmGateReducer(phase: ConfirmPhase, event: ConfirmEvent): ConfirmPhase {
   switch (event.type) {
     case 'request':

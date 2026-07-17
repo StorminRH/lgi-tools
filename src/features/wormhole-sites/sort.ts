@@ -1,6 +1,10 @@
 import { gasClassRange } from './gas-classes';
 import type { SiteDetail, WormholeClass } from './types';
 
+/**
+ * Closed wormhole sites vocabulary and canonical order for sortable keys; consumers derive
+ * validation and iteration from this one list.
+ */
 export const SORTABLE_KEYS = [
   'name',
   'type',
@@ -10,7 +14,12 @@ export const SORTABLE_KEYS = [
   'class',
 ] as const;
 
+/**
+ * Canonical identifier used by wormhole sites; consumers must not infer additional identity
+ * semantics from its storage representation.
+ */
 export type SortableKey = (typeof SORTABLE_KEYS)[number];
+/** Closed ascending or descending catalogue sort direction. */
 export type SortDir = 'asc' | 'desc';
 
 const TYPE_ORDER: Record<SiteDetail['siteType'], number> = {
@@ -21,11 +30,19 @@ const CLASS_ORDER: Record<WormholeClass, number> = {
   C1: 1, C2: 2, C3: 3, C4: 4, C5: 5, C6: 6,
 };
 
+/**
+ * Interprets sort key using the canonical wormhole sites rules. Invalid input is reported as
+ * absence for the caller to handle.
+ */
 export function parseSortKey(raw: string | undefined): SortableKey | null {
   if (!raw) return null;
   return (SORTABLE_KEYS as readonly string[]).includes(raw) ? (raw as SortableKey) : null;
 }
 
+/**
+ * Interprets sort dir using the canonical wormhole sites rules. Invalid input is normalized to the
+ * module's documented fallback.
+ */
 export function parseSortDir(raw: string | undefined): SortDir {
   return raw === 'asc' ? 'asc' : 'desc';
 }
@@ -79,6 +96,10 @@ function valueFor(s: SiteDetail, key: SortableKey): string | number | null {
   }
 }
 
+/**
+ * Returns a stable copy of site rows sorted by the selected key and direction, with canonical name
+ * tie-breaking.
+ */
 export function sortSitesForTable(
   sites: SiteDetail[],
   sortKey: SortableKey | null,

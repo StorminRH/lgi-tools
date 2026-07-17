@@ -35,6 +35,10 @@ function eligibleTypeIdsOf(resources: SiteResource[]): number[] {
   ];
 }
 
+/**
+ * Publishes site live state to descendants; the provider owns subscription and update lifecycle
+ * while children consume it.
+ */
 export function SiteLiveProvider({
   resources,
   children,

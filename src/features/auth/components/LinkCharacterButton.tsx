@@ -26,6 +26,7 @@ export function startCharacterLink(callbackURL = '/characters'): void {
   });
 }
 
+/** Starts the EVE OAuth character-link flow while preserving the current return path. */
 export function LinkCharacterButton({
   label = 'Link another character',
   emphasis = 'primary',

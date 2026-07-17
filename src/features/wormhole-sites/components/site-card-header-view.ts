@@ -51,6 +51,10 @@ function deriveClassPill(site: SiteDetail): { tone: PillTone; label: string } | 
   return null;
 }
 
+/**
+ * Display-ready site card header state for wormhole sites; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type SiteCardHeaderView = {
   subLine: string | null;
   waveValue: string;

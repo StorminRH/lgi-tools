@@ -1,9 +1,19 @@
 import { bigint, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
+/**
+ * Closed wormhole sites vocabulary and canonical order for site types; consumers derive validation
+ * and iteration from this one list.
+ */
 export const SITE_TYPES = ['combat', 'gas', 'ore', 'relic', 'data'] as const;
+/** Closed canonical wormhole-site families persisted by the catalogue schema. */
 export type SiteType = typeof SITE_TYPES[number];
 
+/**
+ * Closed wormhole sites vocabulary and canonical order for wormhole classes; consumers derive
+ * validation and iteration from this one list.
+ */
 export const WORMHOLE_CLASSES = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'] as const;
+/** Closed supported wormhole class labels, including the frigate-only qualifier. */
 export type WormholeClass = typeof WORMHOLE_CLASSES[number];
 
 /**
@@ -17,6 +27,7 @@ export const SIGNATURE_LABELS = [
   'Gas Signature',
   'Ore Signature',
 ] as const;
+/** Display label for a site's cosmic signature type. */
 export type SignatureLabel = typeof SIGNATURE_LABELS[number];
 
 /**
@@ -31,9 +42,15 @@ export const TRIGGER_LABELS = [
   'Opt?',
   'Trigger on Attack',
 ] as const;
+/** Display label describing what advances or spawns the next site wave. */
 export type TriggerLabel = typeof TRIGGER_LABELS[number];
 
+/**
+ * Closed wormhole sites vocabulary and canonical order for sleeper class codes; consumers derive
+ * validation and iteration from this one list.
+ */
 export const SLEEPER_CLASS_CODES = ['F', 'C', 'B', 'T'] as const;
+/** Closed NPC hull-class codes used by wormhole-site source data. */
 export type SleeperClassCode = typeof SLEEPER_CLASS_CODES[number];
 
 /** Narrow a raw class string (e.g. an NPC's stored code) to a known hull class. */
@@ -41,9 +58,21 @@ export function isSleeperClassCode(code: string): code is SleeperClassCode {
   return (SLEEPER_CLASS_CODES as readonly string[]).includes(code);
 }
 
+/**
+ * Drizzle schema owner for site type enum; migrations, queries, retention, and purge claims derive
+ * from this single declaration.
+ */
 export const siteTypeEnum = pgEnum('site_type', SITE_TYPES);
+/**
+ * Drizzle schema owner for wormhole class enum; migrations, queries, retention, and purge claims
+ * derive from this single declaration.
+ */
 export const wormholeClassEnum = pgEnum('wormhole_class', WORMHOLE_CLASSES);
 
+/**
+ * Drizzle schema owner for sites; migrations, queries, retention, and purge claims derive from
+ * this single declaration.
+ */
 export const sites = pgTable(
   'sites',
   {
@@ -109,6 +138,10 @@ export const npcs = pgTable(
   }),
 );
 
+/**
+ * Drizzle schema owner for site resources; migrations, queries, retention, and purge claims derive
+ * from this single declaration.
+ */
 export const siteResources = pgTable(
   'site_resources',
   {

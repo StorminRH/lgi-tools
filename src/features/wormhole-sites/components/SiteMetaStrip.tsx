@@ -4,6 +4,7 @@
 // already-computed values in.
 import { formatRelativeTime } from '@/lib/format/time';
 
+/** Renders a site's class, signature, trigger, and completion metadata. */
 export function SiteMetaStrip({
   source,
   lastPriceUpdate,

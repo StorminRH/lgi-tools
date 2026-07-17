@@ -28,6 +28,7 @@ const adminUserColumns = {
   characterId: account.accountId,
 };
 
+/** Maps a Better Auth user row to the privacy-bounded administrator view. */
 export function toAdminUser(row: {
   userId: string;
   name: string;
@@ -75,6 +76,7 @@ function oldestEveAccountJoin() {
   );
 }
 
+/** Lists administrator user views with linked-character counts for the access dashboard. */
 export async function listAdminUsers(): Promise<AdminUser[]> {
   const rows = await db
     .select(adminUserColumns)
@@ -86,6 +88,7 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   return rows.map(toAdminUser);
 }
 
+/** Reads one administrator user view by ID and returns null when the user does not exist. */
 export async function getUserById(userId: string): Promise<AdminUser | null> {
   const [row] = await db
     .select(adminUserColumns)

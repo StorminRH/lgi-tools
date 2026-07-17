@@ -12,9 +12,18 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
+/**
+ * Closed auth vocabulary and canonical order for character roles; consumers derive validation and
+ * iteration from this one list.
+ */
 export const CHARACTER_ROLES = ['USER', 'ADMIN'] as const;
+/** Closed corporation-role vocabulary retained for access eligibility decisions. */
 export type CharacterRole = (typeof CHARACTER_ROLES)[number];
 
+/**
+ * Drizzle schema owner for character role enum; migrations, queries, retention, and purge claims
+ * derive from this single declaration.
+ */
 export const characterRoleEnum = pgEnum('character_role', CHARACTER_ROLES);
 
 /**
@@ -61,6 +70,10 @@ export const characters = pgTable('characters', {
 // `"user"` table name is safe (raw SQL elsewhere must quote it too).
 // ---------------------------------------------------------------------------
 
+/**
+ * Encapsulates the r subscription and state lifecycle; callers provide lookup keys where required
+ * and render the returned state.
+ */
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -81,6 +94,10 @@ export const user = pgTable('user', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+/**
+ * Drizzle schema owner for session; migrations, queries, retention, and purge claims derive from
+ * this single declaration.
+ */
 export const session = pgTable(
   'session',
   {
@@ -98,6 +115,10 @@ export const session = pgTable(
   (table) => [index('session_user_id_idx').on(table.userId)],
 );
 
+/**
+ * Drizzle schema owner for account; migrations, queries, retention, and purge claims derive from
+ * this single declaration.
+ */
 export const account = pgTable(
   'account',
   {

@@ -2,11 +2,16 @@ import type { DotTone } from '@/components/ui/tones';
 import type { SiteResource, SiteType } from '../types';
 import { HACKING_DOT_TONE } from './wormhole-styles';
 
+/** Formats a cubic-metre quantity with locale separators and the m3 display unit. */
 export function formatM3(m3: number | null): string {
   if (m3 == null) return '—';
   return `${m3.toLocaleString()} m³`;
 }
 
+/**
+ * Display-ready resource row state for wormhole sites; consumers can render it without
+ * reconstructing storage or domain policy.
+ */
 export type ResourceRowView = {
   colsClass: string;
   meta: string | null;

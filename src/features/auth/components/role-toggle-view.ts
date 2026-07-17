@@ -1,5 +1,9 @@
 import type { CharacterRole } from '../types';
 
+/**
+ * Display-ready role toggle state for auth; consumers can render it without reconstructing storage
+ * or domain policy.
+ */
 export type RoleToggleView = {
   nextRole: CharacterRole;
   isSelf: boolean;

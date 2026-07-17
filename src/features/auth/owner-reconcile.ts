@@ -6,6 +6,7 @@
 // testable on its own — the DB orchestration that acts on the verdict lives in
 // owner-transfer.ts (reconcileCharacterOwner).
 
+/** Closed action required when an EVE character's provider owner differs from stored custody. */
 export type OwnerReconcileAction =
   // The common re-login: stored hash matches the JWT (same owner) — do nothing.
   | 'noop'

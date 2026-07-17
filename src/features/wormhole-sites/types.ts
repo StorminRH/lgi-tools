@@ -2,6 +2,10 @@ import type { SiteType, WormholeClass } from './schema';
 
 export type { SiteType, WormholeClass };
 
+/**
+ * One caller-supplied site list item; its value is the stable control key and its label or marker
+ * is presentation-ready.
+ */
 export interface SiteListItem {
   id: number;
   name: string;
@@ -14,6 +18,7 @@ export interface SiteListItem {
   resourceValueIsk: number | null;
 }
 
+/** One wormhole-site NPC with quantity, hull class, combat statistics, bounty, and EWAR. */
 export interface Npc {
   id: number;
   orderInWave: number;
@@ -34,6 +39,7 @@ export interface Npc {
   ehp: number | null;
 }
 
+/** One ordered wormhole-site wave containing trigger text and grouped NPC entries. */
 export interface Wave {
   id: number;
   waveNumber: number;
@@ -53,6 +59,7 @@ export interface Wave {
   npcs: Npc[];
 }
 
+/** One harvestable site resource with type identity, quantity, volume, and live value inputs. */
 export interface SiteResource {
   id: number;
   orderInSite: number;
@@ -78,11 +85,16 @@ export interface SiteResource {
   liveEligible: boolean;
 }
 
+/** Complete wormhole-site catalogue record with metadata, waves, resources, and derived combat totals. */
 export interface SiteDetail extends SiteListItem {
   waves: Wave[];
   resources: SiteResource[];
 }
 
+/**
+ * Closed wormhole sites failure contract for api error; consumers branch on the declared kind
+ * instead of parsing messages.
+ */
 export interface ApiError {
   error: string;
 }

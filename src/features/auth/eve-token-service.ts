@@ -36,6 +36,10 @@ import { decryptToken, encryptToken } from './token-crypto';
  * left, so a vended token always carries usable headroom for the caller's call.
  */
 export const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
+/**
+ * Closed auth vocabulary and canonical order for invalid grant confirmation grace ms; consumers
+ * derive validation and iteration from this one list. Values are milliseconds.
+ */
 export const INVALID_GRANT_CONFIRMATION_GRACE_MS = 5 * 60 * 1000;
 
 const TOKEN_REFRESH_FAILURE_ACTIONS = {
@@ -46,6 +50,10 @@ const TOKEN_REFRESH_FAILURE_ACTIONS = {
   unexpected: 'eve_token_refresh_unexpected',
 } as const satisfies Record<RefreshFailureClass, UsageAction>;
 
+/**
+ * Stable auth outcome returned across the owning boundary; callers handle the represented success,
+ * absence, or failure states.
+ */
 export type FreshTokenResult =
   | { kind: 'ok'; accessToken: string; expiresAt: Date; characterId: number; scopes: string[] }
   | { kind: 'not_found' }
@@ -259,6 +267,10 @@ export async function revokeCharacterToken(characterId: number): Promise<void> {
   }
 }
 
+/**
+ * Returns a usable access token for one user-owned character, refreshing encrypted custody under
+ * the invalid-grant confirmation policy when required.
+ */
 export async function getFreshAccessTokenForCharacter(
   characterId: number,
 ): Promise<FreshTokenResult> {

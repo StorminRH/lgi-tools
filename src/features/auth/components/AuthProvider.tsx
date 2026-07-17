@@ -17,6 +17,7 @@ import { createContext, useContext } from 'react';
 import { authClient } from '../auth-client';
 import type { Session } from '../types';
 
+/** Client authentication context with session, loading state, and explicit refresh action. */
 export interface AuthState {
   session: Session | null;
   isAdmin: boolean;
@@ -25,6 +26,10 @@ export interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+/**
+ * Publishes auth state to descendants; the provider owns subscription and update lifecycle while
+ * children consume it.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data, isPending } = authClient.useSession();
 
@@ -46,6 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
 }
 
+/**
+ * Encapsulates the auth subscription and state lifecycle; callers provide lookup keys where
+ * required and render the returned state.
+ */
 export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
   if (!ctx) {

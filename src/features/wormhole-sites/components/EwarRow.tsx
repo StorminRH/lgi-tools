@@ -7,6 +7,7 @@ import { EWAR_LABEL, EWAR_ORDER, EWAR_TONE } from './wormhole-styles';
  * anything \> 0 as "present" and render a chip for it.
  */
 
+/** Renders one site's electronic-warfare effects using canonical labels and semantic tones. */
 export function EwarRow({
   web,
   scram,

@@ -3,6 +3,7 @@ import { sitesQuerySchema } from './api-contract';
 import { SITE_TYPES, WORMHOLE_CLASSES } from './schema';
 import type { ApiError } from './types';
 
+/** Validated catalogue query containing normalized filters, sort key, and sort direction. */
 export type SitesQueryParse =
   | { ok: true; data: z.infer<typeof sitesQuerySchema> }
   | { ok: false; error: ApiError };

@@ -37,6 +37,10 @@ export interface AccountApiCaller {
  */
 export type PurgeOutcome = { kind: 'emptied' } | { kind: 'stayed' } | { kind: 'error' };
 
+/**
+ * Deletes one linked character and all contributor-owned personal data after the caller's
+ * confirmation and ownership checks.
+ */
 export async function runPurgeCharacter(
   characterId: number,
   call: AccountApiCaller,
@@ -53,6 +57,10 @@ export async function runPurgeCharacter(
 /** Deleting the whole account always empties it (always the D-5 lightbox on success). */
 export type DeleteOutcome = { kind: 'emptied' } | { kind: 'error' };
 
+/**
+ * Purges every linked character and user-keyed contributor row, then deletes the Better Auth user
+ * as the final irreversible step.
+ */
 export async function runDeleteAccount(call: AccountApiCaller): Promise<DeleteOutcome> {
   try {
     const res = await call(accountDeleteEndpoint);
@@ -68,6 +76,10 @@ export async function runDeleteAccount(call: AccountApiCaller): Promise<DeleteOu
  */
 export type LogoutOutcome = { kind: 'done' } | { kind: 'error' };
 
+/**
+ * Revokes every active session for the current user and returns the destruction-style outcome
+ * consumed by account controls.
+ */
 export async function runLogoutEverywhere(call: AccountApiCaller): Promise<LogoutOutcome> {
   try {
     const res = await call(sessionsRevokeEndpoint);
@@ -77,6 +89,7 @@ export async function runLogoutEverywhere(call: AccountApiCaller): Promise<Logou
   }
 }
 
+/** Closed account-action outcome preserving success, already-empty, and surfaced failure states. */
 export type DestructionOutcome = PurgeOutcome | DeleteOutcome | LogoutOutcome;
 
 /**

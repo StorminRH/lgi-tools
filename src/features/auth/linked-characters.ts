@@ -51,6 +51,7 @@ export async function upsertCharacterOnLogin(input: UpsertInput): Promise<Charac
   return row as Character;
 }
 
+/** User-owned linked EVE character with token availability, granted scopes, and display identity. */
 export interface LinkedCharacter {
   characterId: number;
   name: string;
@@ -123,6 +124,7 @@ export async function listLinkedCharacters(userId: string): Promise<LinkedCharac
   return rows.map(toLinkedCharacter).filter((r) => Number.isFinite(r.characterId));
 }
 
+/** Linked character selected for active account operations. */
 export interface ActiveCharacter {
   characterId: number;
   // From the joined `characters` row; null when the profile hasn't been written

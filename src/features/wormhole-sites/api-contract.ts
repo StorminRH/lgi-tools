@@ -7,6 +7,10 @@ import type { SiteListItem } from './types';
 
 // ── GET /api/sites ──────────────────────────────────────────────────────
 
+/**
+ * Boundary validator for sites query schema; successful parsing yields the normalized wormhole
+ * sites input consumed internally.
+ */
 export const sitesQuerySchema = z.object({
   type: z.enum(SITE_TYPES).optional(),
   class: z.enum(WORMHOLE_CLASSES).optional(),
