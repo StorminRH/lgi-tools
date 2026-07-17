@@ -190,9 +190,12 @@ def collect_findings(
     for line_number, line, location in candidates:
         for rule in rules:
             if rule.pattern.search(line):
+                finding_path = (
+                    f"{body_rel}#title" if location == "PR title" else body_rel
+                )
                 findings.append(
                     Finding(
-                        body_rel,
+                        finding_path,
                         line_number,
                         f"{location} contains {rule.label}",
                         "error",

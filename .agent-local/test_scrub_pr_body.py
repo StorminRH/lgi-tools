@@ -113,6 +113,7 @@ class ScrubPrBodyTests(unittest.TestCase):
             runtime_rules=rules,
         )
         self.assertEqual(1, len(messages))
+        self.assertTrue(messages[0].startswith("candidate.md#title:1:"))
         self.assertIn("PR title contains", messages[0])
 
     def test_check_mode_blocks_seeded_identifier(self) -> None:

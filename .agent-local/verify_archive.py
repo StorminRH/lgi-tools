@@ -156,6 +156,8 @@ def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
             and audit_finding.actionable
             and audit_finding.first_seen == cycle
         ):
+            # A clean close requires a later full cycle with no new actionable
+            # findings; Verified status never creates a same-cycle exception.
             findings.append(
                 Finding(
                     audit_rel,

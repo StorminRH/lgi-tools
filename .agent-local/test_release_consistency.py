@@ -98,7 +98,20 @@ class ReleaseConsistencyTests(unittest.TestCase):
         )
         messages = self.fixture.messages()
         self.assertTrue(any("changelog entry missing" in message for message in messages))
-        self.assertTrue(any("does not match newest changelog" in message for message in messages))
+        self.assertFalse(any("does not match newest changelog" in message for message in messages))
+
+    def test_existing_older_entry_reports_newest_heading_mismatch(self) -> None:
+        self.fixture.seed(
+            "9.9.1.2",
+            ["9.9.1.3", "9.9.1.2"],
+            [("9.9.1.1", "SHIPPED"), ("9.9.1.2", "SHIPPED"), ("9.9.1.3", "PLANNED")],
+        )
+        self.assertTrue(
+            any(
+                "does not match newest changelog" in message
+                for message in self.fixture.messages()
+            )
+        )
 
     def test_terminal_row_after_nonterminal_is_red(self) -> None:
         self.fixture.seed(

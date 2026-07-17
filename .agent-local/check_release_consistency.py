@@ -108,7 +108,7 @@ def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
                 "error",
             )
         )
-    if app_version is not None and app_version != newest_changelog:
+    elif app_version is not None and app_version != newest_changelog:
         findings.append(
             Finding(
                 APP_VERSION_PATH,
