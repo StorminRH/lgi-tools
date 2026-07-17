@@ -26,6 +26,7 @@ export const maxDuration = 300;
  * auth and consumes no body or query parameters.
  */
 // authz: cron
+// input: none
 export const GET = defineCronRoute<CronRefreshSdeResponse, SdePreLockState>(
   refreshSdeDeclaration,
 );

@@ -161,6 +161,15 @@ const apiFetchSelectors = [
     message:
       "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
   },
+  // An inline object literal as apiFetch's first argument bypasses the
+  // declared-endpoint convention (it typechecks against ApiEndpoint).
+  // Endpoints are declared once in the owning slice's api-contract.ts and
+  // passed by name.
+  {
+    selector: "CallExpression[callee.name='apiFetch'] > ObjectExpression:first-child",
+    message:
+      "Inline apiFetch endpoint objects bypass the declared API-contract convention — pass the named endpoint object from the owning slice's api-contract.ts.",
+  },
 ];
 
 // Real-Postgres suites use the lifecycle-owning test harness instead of

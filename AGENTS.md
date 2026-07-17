@@ -161,7 +161,7 @@ Cache global, slow-changing reads with `'use cache'`, `cacheLife`, and `cacheTag
 
 - Validate JSON input in the route handler with a Zod schema from the owning slice's `api-contract.ts`; queries accept typed values.
 - Define response types and endpoint objects in the same contract file. Clients use `apiFetch`; raw `fetch('/api/...')` is banned.
-- Routes with no user input retain the marker comment expected by the API-contract audit.
+- Routes that do not consume a JSON/form body declare exactly one own-line input marker: `// input: none` for no caller input, or `// input: query` for query/path input only. Body-consuming routes carry no input marker.
 - Read server env through `readEnv`/`requireEnv` from `src/lib/env.ts`. Direct reads are limited to `NODE_ENV` and `NEXT_PUBLIC_*`.
 - Every EVE ESI request uses the single `esiFetch`/`esiUrl` gate in `src/lib/esi/` and its shared Redis budget. Never create another wrapper or embed the ESI host elsewhere.
 

@@ -11,6 +11,7 @@ export const maxDuration = 300;
  * noteworthy telemetry. No user input; body and query parameters are ignored.
  */
 // authz: cron
+// input: none
 export const GET = defineCronRoute<EsiRefreshWorkerSummary>(
   drainEsiRefreshJobsDeclaration,
 );
