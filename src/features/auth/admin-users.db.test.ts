@@ -1,15 +1,10 @@
 import { eq } from 'drizzle-orm';
-import { drizzle as drizzlePg } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  addForeignKey,
-  canReachDb,
-  dropDisposableSchema,
-  LOCAL_DB_URL,
-  schemaUrl,
-  setupDisposableSchema,
-} from '@/db/test-support/db-coverage-harness';
+  createDbTestHarness,
+  seedEveAccount as insertEveAccount,
+  seedUser as insertUser,
+} from '@/db/test-support/db-test-harness';
 import { getStoredActiveCharacterId } from './linked-characters';
 import {
   CHARACTER_SEARCH_LIMIT,
@@ -25,56 +20,36 @@ import {
 } from './admin-users';
 import { account, session, user } from './schema';
 
-const SCHEMA = 'test_auth_admin_users';
-const baseUrl = process.env.DATABASE_URL ?? LOCAL_DB_URL;
-const reachable = await canReachDb(baseUrl);
+const harness = await createDbTestHarness({
+  schema: 'test_auth_admin_users',
+  tables: ['user', 'account', 'session'],
+  foreignKeys: [
+    {
+      table: 'account',
+      column: 'user_id',
+      refTable: 'user',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+    {
+      table: 'session',
+      column: 'user_id',
+      refTable: 'user',
+      refColumn: 'id',
+      onDelete: 'cascade',
+    },
+  ],
+  steerDbProxy: true,
+  resetBetweenTests: 'delete',
+});
 
 const SOURCE_ID = 'source-user';
 const TARGET_ID = 'target-user';
 const MOVED_CHAR = 90000021;
 const SURVIVOR_CHAR = 90000022;
 
-describe.skipIf(!reachable)('admin-user queries (real Postgres)', () => {
-  let adminClient: ReturnType<typeof postgres>;
-  let seedDb: ReturnType<typeof drizzlePg>;
-
-  beforeAll(async () => {
-    vi.stubEnv('LOCAL_DB_DRIVER', 'postgres-js');
-    vi.stubEnv('DATABASE_URL', schemaUrl(baseUrl, SCHEMA));
-
-    adminClient = postgres(schemaUrl(baseUrl, SCHEMA), { max: 4, onnotice: () => {} });
-    await setupDisposableSchema(adminClient, SCHEMA, ['user', 'account', 'session']);
-    await addForeignKey(adminClient, SCHEMA, {
-      table: 'account',
-      column: 'user_id',
-      refTable: 'user',
-      refColumn: 'id',
-      onDelete: 'cascade',
-    });
-    await addForeignKey(adminClient, SCHEMA, {
-      table: 'session',
-      column: 'user_id',
-      refTable: 'user',
-      refColumn: 'id',
-      onDelete: 'cascade',
-    });
-    seedDb = drizzlePg(adminClient);
-  });
-
-  afterAll(async () => {
-    const proxyClient = (
-      (await import('@/db')).db as unknown as { $client: ReturnType<typeof postgres> }
-    ).$client;
-    await proxyClient.end({ timeout: 5 }).catch(() => {});
-    await dropDisposableSchema(adminClient, SCHEMA);
-    await adminClient.end({ timeout: 5 }).catch(() => {});
-    vi.unstubAllEnvs();
-  });
-
+describe.skipIf(!harness.reachable)('admin-user queries (real Postgres)', () => {
   beforeEach(async () => {
-    await adminClient.unsafe('DELETE FROM session');
-    await adminClient.unsafe('DELETE FROM account');
-    await adminClient.unsafe('DELETE FROM "user"');
     await seedUser(SOURCE_ID, { name: 'Source Pilot' });
     await seedUser(TARGET_ID, { name: 'Target Pilot' });
   });
@@ -83,8 +58,7 @@ describe.skipIf(!reachable)('admin-user queries (real Postgres)', () => {
     id: string,
     overrides: Partial<typeof user.$inferInsert> = {},
   ) {
-    await seedDb.insert(user).values({
-      id,
+    await insertUser(harness.db, id, {
       name: `Pilot ${id}`,
       email: `${id}@eve.invalid`,
       ...overrides,
@@ -97,11 +71,7 @@ describe.skipIf(!reachable)('admin-user queries (real Postgres)', () => {
     userId: string,
     createdAt: Date = new Date(),
   ) {
-    await seedDb.insert(account).values({
-      id,
-      accountId: String(characterId),
-      providerId: 'eve',
-      userId,
+    await insertEveAccount(harness.db, { id, characterId, userId }, {
       createdAt,
       updatedAt: createdAt,
     });
@@ -112,7 +82,7 @@ describe.skipIf(!reachable)('admin-user queries (real Postgres)', () => {
     userId: string,
     expiresAt: Date,
   ) {
-    await seedDb.insert(session).values({
+    await harness.db.insert(session).values({
       id,
       userId,
       token: `token-${id}`,
@@ -122,8 +92,8 @@ describe.skipIf(!reachable)('admin-user queries (real Postgres)', () => {
 
   it('selects one deterministic oldest EVE account and preserves zero-account admin rows', async () => {
     const tiedAt = new Date('2026-07-01T00:00:00Z');
-    await seedDb.update(user).set({ role: 'ADMIN', name: 'Alpha Admin' }).where(eq(user.id, SOURCE_ID));
-    await seedDb.update(user).set({ role: 'ADMIN', name: 'Beta Admin' }).where(eq(user.id, TARGET_ID));
+    await harness.db.update(user).set({ role: 'ADMIN', name: 'Alpha Admin' }).where(eq(user.id, SOURCE_ID));
+    await harness.db.update(user).set({ role: 'ADMIN', name: 'Beta Admin' }).where(eq(user.id, TARGET_ID));
     await seedEveAccount('account-b', SURVIVOR_CHAR, SOURCE_ID, tiedAt);
     await seedEveAccount('account-a', MOVED_CHAR, SOURCE_ID, tiedAt);
 
@@ -160,13 +130,13 @@ describe.skipIf(!reachable)('admin-user queries (real Postgres)', () => {
         email: `search-${index}@eve.invalid`,
       }));
 
-    await seedDb.insert(user).values(makeSearchUsers(CHARACTER_SEARCH_LIMIT + 2));
+    await harness.db.insert(user).values(makeSearchUsers(CHARACTER_SEARCH_LIMIT + 2));
     await expect(searchUsersByLinkedCharacterName(' search pilot ')).resolves.toHaveLength(
       CHARACTER_SEARCH_LIMIT + 1,
     );
 
-    await seedDb.delete(user).where(eq(user.role, 'USER'));
-    await seedDb.insert(user).values(makeSearchUsers(CHARACTER_SEARCH_LIMIT));
+    await harness.db.delete(user).where(eq(user.role, 'USER'));
+    await harness.db.insert(user).values(makeSearchUsers(CHARACTER_SEARCH_LIMIT));
     await expect(searchUsersByLinkedCharacterName('search pilot')).resolves.toHaveLength(
       CHARACTER_SEARCH_LIMIT,
     );
@@ -205,7 +175,7 @@ describe.skipIf(!reachable)('admin-user queries (real Postgres)', () => {
       }),
     ).resolves.toEqual({ sourceDeleted: true });
 
-    const [moved] = await seedDb
+    const [moved] = await harness.db
       .select({ userId: account.userId })
       .from(account)
       .where(eq(account.accountId, String(MOVED_CHAR)));
@@ -215,7 +185,7 @@ describe.skipIf(!reachable)('admin-user queries (real Postgres)', () => {
   });
 
   it('keeps a surviving source and repoints its moved active character', async () => {
-    await seedDb
+    await harness.db
       .update(user)
       .set({ activeCharacterId: MOVED_CHAR })
       .where(eq(user.id, SOURCE_ID));
