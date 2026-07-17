@@ -6,7 +6,7 @@ import { z } from 'zod';
  */
 export const esiRefreshWorkerSummarySchema = z.object({
   status: z.enum(['drained', 'skipped']),
-  reason: z.literal('busy').optional(),
+  reason: z.enum(['busy', 'idle']).optional(),
   claimed: z.number().int(),
   succeeded: z.number().int(),
   deferredForBudget: z.number().int(),

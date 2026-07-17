@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { CronWakeClass } from '@/db/cron-gate';
+import { drainEsiRefreshJobsDeclaration } from './drain-esi-refresh-jobs/declaration';
 import { refreshAffiliationsDeclaration } from './refresh-affiliations/declaration';
 import { refreshGscDeclaration } from './refresh-gsc/declaration';
 import { refreshIndustryIndicesDeclaration } from './refresh-industry-indices/declaration';
@@ -20,8 +21,7 @@ type CronRegistryEntry =
 
 const cronRegistry = {
   '/api/cron/drain-esi-refresh-jobs': {
-    justification:
-      'idle-silent migration + Redis idle probe land in 3.9.2.2.2, same branch',
+    declaration: drainEsiRefreshJobsDeclaration,
   },
   '/api/cron/refresh-affiliations': {
     declaration: refreshAffiliationsDeclaration,
