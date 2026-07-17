@@ -168,6 +168,11 @@ const apiFetchSelectors = [
 // harness module itself is outside the `*.db.test.ts` rail below.
 const directPostgresSelectors = [
   {
+    selector: "ImportDeclaration[source.value='postgres']",
+    message:
+      "DB suites use createDbTestHarness (@/db/test-support/db-test-harness); importing postgres-js directly bypasses the shared lifecycle even when the import is aliased.",
+  },
+  {
     selector: "CallExpression[callee.name='postgres']",
     message:
       "DB suites use createDbTestHarness (@/db/test-support/db-test-harness); direct postgres() construction duplicates reachability, schema steering, and teardown.",
