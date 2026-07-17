@@ -20,9 +20,9 @@
 
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
-| Production TS/TSX files | 749 | 749 | Flat; same code ref, full-scope remeasurement |
-| Production TS/TSX LOC | 66,348 | 66,348 | Flat. Whole-version: 650 files / 58,952 LOC at version start `dbd6a79` → +99 files / +7,396 LOC across v3.8 |
-| Test files | 352 | 352 | Flat. Whole-version: 283 at version start → +69 across v3.8 |
+| Production TS/TSX files | 758 | 749 | +9 since the v3.8 audit from v3.9 workflow and cron-primitive delivery |
+| Production TS/TSX LOC | 72,203 | 66,348 | +5,855 since the v3.8 audit, primarily the repo-wide interface-comment standard plus the cron declaration and idle-signal modules |
+| Test files | 357 | 352 | +5 since the v3.8 audit for workflow rails, cron-shell behavior, Redis signals, and response contracts |
 | Coverage — statements | 88.06% | 88.06% | 8,076 / 9,171 from fresh full-Postgres coverage; 3,322 tests passed + 1 intentional skip |
 | Coverage — branches | 84.80% | 84.80% | 4,784 / 5,641 |
 | Coverage — functions | 84.34% | 84.34% | 2,010 / 2,383 |
@@ -75,7 +75,7 @@ not run under the current dependency and toolchain state.
 | `src/app/admin/page.tsx` | 5 / 0 | Route-level composition over sealed slices; quiet through remediation | Cohesive composition |
 | Auth data owners (former `auth/queries.ts`) | 11 / 9 | Hub deleted; seven focused owner/private modules hold the split with no compatibility façade and zero stale imports | AF-004 Verified in cycle 2 |
 | `src/data/telemetry/queries.ts` | 2 / 0 | 507 LOC; 25 exports; quiet through remediation | Watch (AF-006); trigger untouched |
-| `src/data/esi-refresh-jobs/queries.ts` | 3 / 0 | 359 LOC; 12 exports; one queue lifecycle axis | Watch (AF-007); trigger untouched |
+| `src/data/esi-refresh-jobs/queries.ts` | 3 / 0 | 379 LOC; 13 exports; the residual queue read remains in the existing lifecycle axis while Redis pending-work state lives in its own module | Watch (AF-007); below trigger |
 | `PricingProvider.tsx` | 11 / 2 | 902 LOC; five separately memoized concern values (4/10/18/6/13 fields); 22 hook calls across 11 components; no `PricingContextValue`, `PricingContext`, or `usePricing` | AF-005 Verified in cycle 2 |
 | `src/features/wormhole-sites/queries.ts` | 11 / 1 | 466 LOC; the six AF-003 seams remain directly characterized; fresh coverage-backed health reports zero findings | AF-003 Verified in cycle 2 |
 | Mutation-route shells (17 pipeline routes) | — / 2 | One 57-LOC app-layer sequencer owns ordering across 17 routes; the pinned whole-version run reports none of AF-001's seven clone IDs | AF-001 Verified in cycle 2 |
@@ -87,9 +87,9 @@ not run under the current dependency and toolchain state.
 | `src/features/industry-planner/components/PricingProvider.tsx` | 902 LOC and 32 fan-out keep it the largest file; five concern contracts (4/10/18/6/13 fields) serve 11 components; provider owns state/effects/derivations and builds each value separately | Preserve the concern taxonomy in `planner-contexts.tsx`; add fields only to their owning concern, keep templates off market data, and do not reintroduce a general façade or selector layer | AF-005 Verified; monitored, not actionable |
 | Auth query ownership | Seven focused owner/private modules (linked-characters, affiliation-store, admin-users, owner-transfer, account-purge, verification-retention, eve-account-shared) each own one axis; `auth-surface` remains exactly three files | Preserve direct owner imports and the acyclic owner-transfer → admin/purge composition; no barrel, façade, or fourth `auth-surface` file | AF-004 Verified; monitored, not actionable |
 | `src/data/telemetry/queries.ts` | 507 LOC; 25 exports; 55 fan-in; zero remediation-phase churn | Keep query groups aligned to one stored event vocabulary; split the next independent persistence/read axis instead of adding another helper family | Watch (AF-006); countable trigger below; judgment: the new export must come from a new axis, or renewed multi-session growth |
-| `src/data/esi-refresh-jobs/queries.ts` | 359 LOC; 12 exports; one queue lifecycle axis with explicit transitions and retention | Preserve lifecycle cohesion; extract only on a second persistence concern or independently changing admin contract | Watch (AF-007); countable trigger below; judgment: a second change axis also promotes |
+| `src/data/esi-refresh-jobs/queries.ts` | 379 LOC; 13 exports; one queue lifecycle axis with explicit transitions, residual timing, and retention; the Redis pending-work signal is a separate persistence module | Preserve lifecycle cohesion; keep Redis signal ownership separate; extract query code only on another independent persistence/read axis or changing admin contract | Watch (AF-007); below the countable trigger; judgment: another change axis also promotes |
 | `auth-surface` zone | Exactly three cross-slice contract files, classified ahead of `features/auth`; 35 zones / 35 rules overall | Do not widen. Promote shared contracts to a real platform module if a fourth file is needed | Watch (AF-008); countable trigger below |
-| Cron route declarations | Six routes now declare identity, wake class, lock and recording policy, and work to one shell; the old affiliation/industry-index clone and route-local telemetry logger are gone, while the drain keeps `runCronJob` only until session 3.9.2.2.2 | Preserve `defineCronRoute` as the sole route-level auth/lock/telemetry owner and complete the drain's idle-silent migration in 3.9.2.2.2 without widening the declaration spec ahead of its consumer | AF-009 Closed as a byproduct of the wake-policy-driven shell expansion; the clone itself never tripped its promotion trigger |
+| Cron route declarations | All seven routes declare identity, wake class, lock and recording policy, idle policy where applicable, and work to one shell; both 15-minute routes prove zero Neon touches on healthy no-ops; `runCronJob` and the temporary schedule justification are gone; the existing AF-006 budget-history read is Redis-marker gated with no new telemetry export | Preserve `defineCronRoute` as the sole route-level auth/idle/lock/telemetry owner and keep sub-daily healthy no-ops demonstrably Neon-silent | AF-009 Closed as a byproduct of the wake-policy-driven shell expansion; the clone itself never tripped its promotion trigger |
 
 ### Watch triggers
 
