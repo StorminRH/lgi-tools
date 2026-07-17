@@ -115,6 +115,26 @@ class LifecycleEvidenceTests(unittest.TestCase):
         self.assertEqual(("docs/session-plans/9.9/9.9.1.1.md", 5), (finding.path, finding.line))
         self.assertEqual("error", finding.severity)
 
+    def test_complete_early_session_with_later_session_remaining_is_valid(self) -> None:
+        self.fixture.write_plan("Complete")
+        contract_directory = self.fixture.docs / "session-contracts/9.9"
+        (contract_directory / "9.9.1.1.2.md").write_text(
+            "## Session 9.9.1.1.2 — Fixture continuation\n\n**UX gate:** No\n",
+            encoding="utf-8",
+        )
+        (contract_directory / "INDEX.md").write_text(
+            "| Session | Sub-version | Contract |\n"
+            "| --- | --- | --- |\n"
+            "| 9.9.1.1 | 9.9.1.1 | `9.9.1.1.md` |\n"
+            "| 9.9.1.1.2 | 9.9.1.1 | `9.9.1.1.2.md` |\n",
+            encoding="utf-8",
+        )
+        findings = collect_findings(self.fixture.root)
+        self.assertFalse(
+            any("execution is Complete" in finding.message for finding in findings),
+            [finding.render() for finding in findings],
+        )
+
     def test_terminal_roadmap_with_pending_plan_is_a_warning(self) -> None:
         self.fixture.write_roadmap("SHIPPED")
         finding = self.matching("execution remains Pending")

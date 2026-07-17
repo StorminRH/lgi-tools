@@ -141,15 +141,30 @@ def _execution_evidence_findings(
     findings: list[Finding] = []
     statuses = {row.subversion: row for row in rows}
     version = roadmap.stem.removeprefix("VERSION_").removesuffix("_PLAN").replace("_", ".")
-    for session, (subversion, _contract) in parse_contract_index(contract_index).items():
+    indexed = parse_contract_index(contract_index)
+    executions = {
+        session: marker(root / "docs/session-plans" / version / f"{session}.md", "Execution status")
+        for session in indexed
+    }
+    sessions_by_subversion: dict[str, list[str]] = {}
+    for session, (subversion, _contract) in indexed.items():
+        sessions_by_subversion.setdefault(subversion, []).append(session)
+    for session, (subversion, _contract) in indexed.items():
         row = statuses.get(subversion)
         plan = root / "docs/session-plans" / version / f"{session}.md"
-        execution = marker(plan, "Execution status")
+        execution = executions[session]
         if row is None or execution not in {"Pending", "Complete"}:
             continue
         line = find_line(plan, "**Execution status:**")
         raw_plan = _relative(root, plan)
-        if execution == "Complete" and not row.terminal:
+        sibling_sessions = sessions_by_subversion[subversion]
+        all_sessions_complete = all(executions[sibling] == "Complete" for sibling in sibling_sessions)
+        if (
+            execution == "Complete"
+            and not row.terminal
+            and all_sessions_complete
+            and session == sibling_sessions[-1]
+        ):
             findings.append(
                 Finding(
                     raw_plan,
