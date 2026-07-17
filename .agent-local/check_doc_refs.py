@@ -79,6 +79,36 @@ _ALLOWLIST = (
         "approved future artifact created by Session 3.9.2.7",
     ),
     (
+        "docs/**",
+        "src/lib/esi-datasets/types.ts",
+        "approved future artifact created by Session 3.9.2.3.1",
+    ),
+    (
+        "docs/**",
+        "src/lib/esi-datasets/entries.ts",
+        "approved future artifact created by Session 3.9.2.3.1",
+    ),
+    (
+        "docs/**",
+        "src/esi-datasets/checks.ts",
+        "approved future artifact created by Session 3.9.2.3.1",
+    ),
+    (
+        "docs/**",
+        "src/esi-datasets/registry.test.ts",
+        "approved future artifact created by Session 3.9.2.3.1",
+    ),
+    (
+        "docs/**",
+        "src/esi-datasets/",
+        "approved future junction directory created by Session 3.9.2.3.1",
+    ),
+    (
+        "docs/**",
+        "src/lib/esi-datasets/freshness.ts",
+        "approved future artifact created by Session 3.9.2.3.2",
+    ),
+    (
         "docs/backlog.md",
         "scripts/fallow-trial-log.mjs",
         "deferred stale-artifact cleanup remains owned by the 3.9.3.1 backlog triage",

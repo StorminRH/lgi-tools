@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import type { CachedAffiliation } from './membership';
 
 // Only the ESI source and the Neon readers/writer are mocked, so the real
 // refresh-then-decide composition (refreshStaleAffiliationsForUser → refresh →
@@ -22,8 +23,9 @@ vi.mock('./affiliation-store', () => ({
 
 import { decideCorpAccess } from './corp-access';
 
+const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
 const FRESH = new Date(Date.now() - 1_000);
-const STALE = new Date(Date.now() - AFFILIATION_TTL_MS - 1_000);
+const STALE = new Date(Date.now() - AFFILIATION_WINDOW_MS - 1_000);
 
 function rowFor(characterId: number, corporationId: number, refreshedAt: Date | null): CachedAffiliation {
   return { characterId, corporationId, allianceId: null, factionId: null, refreshedAt };

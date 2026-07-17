@@ -19,10 +19,12 @@ import {
   planRead,
   runOwnerSync,
 } from '@/lib/owner-sync';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { CORP_INDUSTRY_JOBS_REQUIRED_ROLES, canSyncCorpIndustryJobs } from './corp-sync-eligibility';
 import { type IndustryJob, parseIndustryJobsBody } from './esi-projection';
-import { isJobsStale } from './staleness';
 import type { CorpJobsPort, CorpJobsSyncState } from './types';
+
+const CORP_JOBS_FRESHNESS = freshnessGate('corporation_industry_jobs');
 
 // The (user, corp) owner key — corp boards are per-user/private, so the owner carries
 // both the viewing user and the corporation.
@@ -42,7 +44,7 @@ function makeDescriptor(port: CorpJobsPort) {
     ownerOf: (userId, corporationId) => ({ userId, corporationId }),
     eligible: (owner) => canSyncCorpIndustryJobs(owner),
     requiredRoles: CORP_INDUSTRY_JOBS_REQUIRED_ROLES,
-    isStale: isJobsStale,
+    isStale: CORP_JOBS_FRESHNESS.isStale,
     readState: (owner) => port.readSyncState(owner.userId, owner.corporationId),
     fetchAndPlan: async (owner, accessToken, state) => {
       const read = await port.readJobs(owner.corporationId, accessToken, state?.jobsEtag ?? null);

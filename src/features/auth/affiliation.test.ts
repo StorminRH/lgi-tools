@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AFFILIATION_TTL_MS, type CachedAffiliation } from './membership';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import type { CachedAffiliation } from './membership';
+
+const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
 
 // The ESI source and the Neon readers/writer are mocked — this exercises the
 // orchestration (refresh) + the fail-closed membership composition in isolation.
@@ -39,7 +42,7 @@ function staleRow(corporationId: number): CachedAffiliation {
     corporationId,
     allianceId: null,
     factionId: null,
-    refreshedAt: new Date(Date.now() - AFFILIATION_TTL_MS - 1_000),
+    refreshedAt: new Date(Date.now() - AFFILIATION_WINDOW_MS - 1_000),
   };
 }
 
@@ -80,7 +83,7 @@ describe('refreshStaleAffiliationsForUser', () => {
     return { characterId, corporationId: 2000, allianceId: null, factionId: null, refreshedAt };
   }
   const FRESH_AT = new Date(Date.now() - 1_000);
-  const STALE_AT = new Date(Date.now() - AFFILIATION_TTL_MS - 1_000);
+  const STALE_AT = new Date(Date.now() - AFFILIATION_WINDOW_MS - 1_000);
 
   it('refreshes only the stale and never-refreshed characters, not the fresh ones', async () => {
     getUserAffiliationsMock.mockResolvedValue([

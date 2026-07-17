@@ -19,10 +19,12 @@ import {
   planRead,
   runOwnerSync,
 } from '@/lib/owner-sync';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { type IndustryJob, parseIndustryJobsBody } from './esi-projection';
-import { isJobsStale } from './staleness';
 import { canSyncIndustryJobs } from './sync-eligibility';
 import type { CharacterJobsSyncState, JobsPort } from './types';
+
+const JOBS_FRESHNESS = freshnessGate('character_industry_jobs');
 
 // The save payload the engine carries from fetchAndPlan to save (the fresh board).
 interface JobsSave {
@@ -32,7 +34,7 @@ interface JobsSave {
 
 function makeDescriptor(port: JobsPort): OwnerSyncDescriptor<number, CharacterJobsSyncState, JobsSave> {
   return makeCharacterDescriptor(port, {
-    isStale: isJobsStale,
+    isStale: JOBS_FRESHNESS.isStale,
     eligible: canSyncIndustryJobs,
     fetchAndPlan: async (characterId, accessToken, state) => {
       const read = await port.readJobs(characterId, accessToken, state?.jobsEtag ?? null);

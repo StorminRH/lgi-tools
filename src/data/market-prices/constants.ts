@@ -4,17 +4,6 @@
 // drizzle / postgres dependencies — into the client bundle.
 
 /**
- * Per-row TTL. Every write sets stale_after = NOW() + STALE_AFTER_TTL_MS.
- * Its only remaining role is the "last refreshed" marker the nightly sweep
- * keys off: `listStaleTypeIds` selects rows with stale_after \< NOW(), so a
- * ~24h TTL means the sweep re-fetches anything not refreshed in the last day
- * — matching the nightly cron cadence ("30 11 * * *") and skipping types an
- * on-demand view already refreshed today. It does NOT gate the live view path:
- * `getLivePrices` always fetches live regardless of staleAfter.
- */
-export const STALE_AFTER_TTL_MS = 24 * 60 * 60 * 1000;
-
-/**
  * The Forge region — Jita. The same number that REGION_ID was in
  * source-fallback.ts; promoted to a shared constant now that two source
  * implementations use it.

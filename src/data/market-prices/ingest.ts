@@ -1,9 +1,11 @@
 import { sql } from 'drizzle-orm';
-import { STALE_AFTER_TTL_MS } from './constants';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
+import type { AnyPgDb } from '@/lib/db-types';
 import { marketPrices } from './schema';
 import { fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
-import type { AnyPgDb } from '@/lib/db-types';
+
+const MARKET_PRICES_FRESHNESS = freshnessGate('market_prices');
 
 /** Market-price refresh outcome containing persisted row counts grouped by canonical source. */
 export interface RefreshSummary {
@@ -85,7 +87,9 @@ export async function persistPrices(
   // arrives in 3.0.5 when the on-demand UI consumer updates single rows
   // out of band — bulk-refresh rows still expire together.
   const updatedAt = new Date();
-  const staleAfter = new Date(updatedAt.getTime() + STALE_AFTER_TTL_MS);
+  const staleAfter = new Date(
+    updatedAt.getTime() + MARKET_PRICES_FRESHNESS.ttlMs,
+  );
   const rows = raw.map((r) => ({
     typeId: r.typeId,
     bestBuy: r.bestBuy,

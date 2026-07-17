@@ -2,6 +2,7 @@ import { revalidateTag } from 'next/cache';
 import { after } from 'next/server';
 import { db } from '@/db';
 import { dedupe } from '@/lib/array';
+import { isBoundaryStale } from '@/lib/esi-datasets/freshness';
 import { computeHistoryInputs } from './aggregate';
 import { historyTag } from './constants';
 import { persistHistory } from './ingest';
@@ -88,11 +89,10 @@ export async function getLiveHistory(
   if (ids.length === 0) return { inputs: new Map(), degraded, metrics };
 
   const meta = await getHistoryMeta(ids);
-  const now = Date.now();
-  const staleIds = ids.filter((id) => {
-    const m = meta.get(id);
-    return m === undefined || m.staleAfter.getTime() <= now;
-  });
+  const now = new Date();
+  const staleIds = ids.filter((id) =>
+    isBoundaryStale(meta.get(id)?.staleAfter, now),
+  );
 
   const { results, budgetExhausted } =
     staleIds.length > 0

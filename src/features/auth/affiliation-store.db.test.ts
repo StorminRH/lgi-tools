@@ -6,7 +6,7 @@ import {
   seedEveAccount as insertEveAccount,
   seedUser,
 } from '@/db/test-support/db-test-harness';
-import { AFFILIATION_TTL_MS } from './membership';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import {
   getCharacterAffiliation,
   getUserAffiliations,
@@ -16,6 +16,7 @@ import {
 } from './affiliation-store';
 import { characters, corpAccessAudit } from './schema';
 
+const AFFILIATION_WINDOW_MS = freshnessGate('affiliations').ttlMs;
 const harness = await createDbTestHarness({
   schema: 'test_auth_affiliation_store',
   tables: ['user', 'account', 'characters', 'corp_access_audit'],
@@ -86,10 +87,10 @@ describe.skipIf(!harness.reachable)('affiliation-store queries (real Postgres)',
   it('returns only missing or older-than-TTL linked characters without duplicates', async () => {
     const now = Date.now();
     await seedCharacter(FIRST_CHAR, {
-      affiliationRefreshedAt: new Date(now - AFFILIATION_TTL_MS - 1000),
+      affiliationRefreshedAt: new Date(now - AFFILIATION_WINDOW_MS - 1000),
     });
     await seedCharacter(SECOND_CHAR, {
-      affiliationRefreshedAt: new Date(now - AFFILIATION_TTL_MS + 60_000),
+      affiliationRefreshedAt: new Date(now - AFFILIATION_WINDOW_MS + 60_000),
     });
     await seedEveAccount('first', FIRST_CHAR);
     await seedEveAccount('second', SECOND_CHAR);

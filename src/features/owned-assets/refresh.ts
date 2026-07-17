@@ -17,11 +17,13 @@ import {
   type OwnerSyncResult,
   type OwnerSyncRunOptions,
 } from '@/lib/owner-sync';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { CORP_ASSETS_REQUIRED_ROLES, canSyncCorpAssets } from './corp-sync-eligibility';
 import { parseAssetsBody } from './esi-projection';
-import { isAssetsStale } from './staleness';
 import { canSyncAssets } from './sync-eligibility';
 import type { OwnedAssetsPort } from './types';
+
+const ASSETS_FRESHNESS = freshnessGate('owned_assets');
 
 /**
  * Refreshes every eligible personal and corporation asset owner visible to one user and returns
@@ -35,7 +37,7 @@ export function refreshOwnedAssetsForUser(
   return runOwnerSync(
     makeOwnedDescriptor(port, {
       resource: 'assets',
-      isStale: isAssetsStale,
+      isStale: ASSETS_FRESHNESS.isStale,
       eligibleCharacter: canSyncAssets,
       eligibleCorp: canSyncCorpAssets,
       requiredRoles: CORP_ASSETS_REQUIRED_ROLES,

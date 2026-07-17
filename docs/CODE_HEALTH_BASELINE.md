@@ -10,23 +10,23 @@
 | Field | Value |
 | --- | --- |
 | Date | 2026-07-17 |
-| App version | 3.9.2.2 |
-| Code ref | `898871fcf0a3575d0350e01ea1972b1277a7c9b1` on `codex/3.9.2.2-cron-shell-wake-policy` |
-| Measurement scope | Targeted: cron declarations, deferred-work Redis signals, and ESI refresh queue residual |
-| Previous comparison | 2026-07-16 / 3.8.5.5 / `291ee78…` (full v3.8 close audit) |
-| Health trend | The cron declaration shell now owns all seven route policies, both sub-daily routes prove healthy zero-Neon no-ops, the former cron clone is gone, and the monitored refresh-query surface remains below its promotion trigger with Redis signal ownership kept separate. |
+| App version | 3.9.2.3 |
+| Code ref | `c17e9d6097f2a42c826d74285602be5b6211d6cb` on `codex/3.9.2.3-esi-dataset-registry` |
+| Measurement scope | Targeted: ESI dataset declarations, placement gate, runtime freshness decisions, and recurrence rails |
+| Previous comparison | 2026-07-17 / 3.9.2.2 / `898871f…` (targeted cron wake-policy pass) |
+| Health trend | Thirteen external datasets now declare placement, upstream freshness, ownership, and mirrors once; one runtime leaf serves every static window and expires-boundary verdict, six mirrored gates are gone, and the new rails reject a duplicated TTL or feature-local staleness import. |
 
 ## Step 1 metrics
 
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
-| Production TS/TSX files | 758 | 749 | +9 since the v3.8 audit from v3.9 workflow and cron-primitive delivery |
-| Production TS/TSX LOC | 72,215 | 66,348 | +5,867 since the v3.8 audit, primarily the repo-wide interface-comment standard plus the cron declaration and idle-signal modules |
-| Test files | 357 | 352 | +5 since the v3.8 audit for workflow rails, cron-shell behavior, Redis signals, and response contracts |
-| Coverage — statements | 85.06% | 88.06% | 8,210 / 9,651 from fresh full-Postgres coverage; 3,360 tests passed + 1 intentional skip |
-| Coverage — branches | 83.29% | 84.80% | 4,848 / 5,820 |
-| Coverage — functions | 80.37% | 84.34% | 2,044 / 2,543 |
-| Coverage — lines | 85.94% | 89.06% | 7,229 / 8,411 |
+| Production TS/TSX files | 757 | 758 | −1: four registry/gate/freshness modules added and five mirrored staleness modules removed |
+| Production TS/TSX LOC | 72,756 | 72,215 | +541 from the typed declaration registry and its fail-closed junction gate, offset by the runtime-gate collapse |
+| Test files | 355 | 357 | −2: registry and freshness characterization replace four per-feature staleness suites |
+| Coverage — statements | 85.08% | 85.06% | 8,252 / 9,699 from fresh full-Postgres coverage; all 3,398 tests passed |
+| Coverage — branches | 83.32% | 83.29% | 4,908 / 5,890 |
+| Coverage — functions | 80.48% | 80.37% | 2,058 / 2,557 |
+| Coverage — lines | 85.95% | 85.94% | 7,270 / 8,458 |
 | Fallow health score | 78 (B) | 78 (B) | Carried from the previous full measurement; this targeted pass changed no threshold or hotspot-score policy |
 | Functions above health thresholds | 0 | 0 | Previous full result carried forward; fresh origin/main-pinned coverage-backed Fallow found zero changed-function issues |
 | Auth query hub exports | 0 | 0 | Hub deleted; seven focused owner/private modules verified in place; the only remaining `features/auth/queries` string is a devlog parser test fixture |
@@ -132,8 +132,10 @@ justify no work.
   copy and promotional outreach remain explicit backlog/operator deferrals.
 - **Operations:** same-origin telemetry, token custody, table growth registry,
   encrypted snapshots, deferred queue, cost telemetry, event ledger, admin
-  visibility, retention, and alerts remain connected. `src/lib/esi/` is still
-  the dispatch authority, and Convex contains no Neon/Postgres import path.
+  visibility, retention, and alerts remain connected. The ESI dataset registry
+  owns placement, upstream freshness, refresh ownership, mirrors, and static
+  runtime windows behind junction and lint gates. `src/lib/esi/` remains the
+  dispatch authority, and Convex contains no Neon/Postgres import path.
 - **Boundaries:** Fallow reports 35 zones and 35 rules; `auth-surface` remains
   exactly three files; no boundary rule widened during v3.8. Fallow is the sole
   mechanical boundary owner and CONTRIBUTING.md is the public prose; the

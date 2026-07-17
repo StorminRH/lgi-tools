@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { STALE_AFTER_TTL_MS } from './constants';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import type { MarketPrice, RawMarketPrice } from './types';
+
+const MARKET_PRICE_WINDOW_MS = freshnessGate('market_prices').ttlMs;
 
 const fetchPricesFromSourceMock = vi.fn();
 const getPricesMock = vi.fn();
@@ -95,7 +97,9 @@ describe('getLivePrices', () => {
     const row = prices.get(34)!;
     expect(row.source).toBe('esi');
     expect(row.bestBuy).toBe(10); // live, not the seed's 1
-    expect(row.staleAfter.getTime() - row.updatedAt.getTime()).toBe(STALE_AFTER_TTL_MS);
+    expect(row.staleAfter.getTime() - row.updatedAt.getTime()).toBe(
+      MARKET_PRICE_WINDOW_MS,
+    );
     expect(degraded).toMatchObject({ fetched: 1, esiCount: 1, fuzzworkFallbackCount: 0 });
     expect(metrics).toMatchObject({ requested: 1, returned: 1, esiCount: 1 });
   });

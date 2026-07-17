@@ -17,11 +17,13 @@ import {
   type OwnerSyncResult,
   type OwnerSyncRunOptions,
 } from '@/lib/owner-sync';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { CORP_BLUEPRINTS_REQUIRED_ROLES, canSyncCorpBlueprints } from './corp-sync-eligibility';
 import { parseBlueprintsBody } from './esi-projection';
-import { isBlueprintsStale } from './staleness';
 import { canSyncBlueprints } from './sync-eligibility';
 import type { OwnedBlueprintsPort } from './types';
+
+const BLUEPRINTS_FRESHNESS = freshnessGate('owned_blueprints');
 
 /**
  * Refreshes every eligible personal and corporation blueprint owner visible to one user and
@@ -35,7 +37,7 @@ export function refreshOwnedBlueprintsForUser(
   return runOwnerSync(
     makeOwnedDescriptor(port, {
       resource: 'blueprints',
-      isStale: isBlueprintsStale,
+      isStale: BLUEPRINTS_FRESHNESS.isStale,
       eligibleCharacter: canSyncBlueprints,
       eligibleCorp: canSyncCorpBlueprints,
       requiredRoles: CORP_BLUEPRINTS_REQUIRED_ROLES,

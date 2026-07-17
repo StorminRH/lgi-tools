@@ -14,6 +14,9 @@
 // who left corp C still reads as a member until the next refresh flips the cached
 // corp id (≤ ~1h via login/on-view; the nightly cron is the dormant-character
 // backstop).
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
+
+const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
 /**
  * One linked character's cached affiliation. `corporationId` is the only field
@@ -30,23 +33,6 @@ export interface CachedAffiliation {
 }
 
 /**
- * Matches ESI's own `x-cached-seconds: 3600` on POST /characters/affiliation/ —
- * there is no point refreshing (or trusting) affiliation more often than the
- * upstream updates it. The single TTL governs the three refresh triggers AND the
- * membership freshness gate, so revoke latency and refresh cadence stay aligned.
- */
-export const AFFILIATION_TTL_MS = 60 * 60 * 1000;
-
-/**
- * A refresh is due when the affiliation was never read or is older than the TTL.
- * Drives the on-view + cron stale gates and the gate's refresh-before-decide.
- */
-export function isAffiliationStale(refreshedAt: Date | null, now: Date): boolean {
-  if (refreshedAt === null) return true;
-  return now.getTime() - refreshedAt.getTime() > AFFILIATION_TTL_MS;
-}
-
-/**
  * By corp, over a user's linked characters: the id of the FIRST character that is
  * a CURRENT member of corporationId, or null if none is. Fail-closed — a matching
  * corp whose affiliation is stale/null does not count (the cache can't be trusted
@@ -59,7 +45,9 @@ export function memberCharacterIdInCorp(
   now: Date,
 ): number | null {
   const match = affiliations.find(
-    (a) => a.corporationId === corporationId && !isAffiliationStale(a.refreshedAt, now),
+    (a) =>
+      a.corporationId === corporationId
+      && !AFFILIATION_FRESHNESS.isStale(a.refreshedAt, now),
   );
   return match ? match.characterId : null;
 }
@@ -76,7 +64,11 @@ export function memberCharacterIdsInCorp(
   now: Date,
 ): number[] {
   return affiliations
-    .filter((a) => a.corporationId === corporationId && !isAffiliationStale(a.refreshedAt, now))
+    .filter(
+      (a) =>
+        a.corporationId === corporationId
+        && !AFFILIATION_FRESHNESS.isStale(a.refreshedAt, now),
+    )
     .map((a) => a.characterId);
 }
 
@@ -89,7 +81,10 @@ export function memberCharacterIdsInCorp(
 export function memberCorpIds(affiliations: CachedAffiliation[], now: Date): number[] {
   const ids = new Set<number>();
   for (const a of affiliations) {
-    if (a.corporationId !== null && !isAffiliationStale(a.refreshedAt, now)) {
+    if (
+      a.corporationId !== null
+      && !AFFILIATION_FRESHNESS.isStale(a.refreshedAt, now)
+    ) {
       ids.add(a.corporationId);
     }
   }
@@ -117,6 +112,6 @@ export function characterIsInCorp(
   return (
     affiliation !== null &&
     affiliation.corporationId === corporationId &&
-    !isAffiliationStale(affiliation.refreshedAt, now)
+    !AFFILIATION_FRESHNESS.isStale(affiliation.refreshedAt, now)
   );
 }

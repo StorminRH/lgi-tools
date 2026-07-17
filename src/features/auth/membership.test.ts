@@ -1,18 +1,19 @@
 import { describe, expect, it } from 'vitest';
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import {
-  AFFILIATION_TTL_MS,
   type CachedAffiliation,
   characterIsInCorp,
-  isAffiliationStale,
   isMemberOfCorp,
   memberCharacterIdInCorp,
   memberCharacterIdsInCorp,
   memberCorpIds,
 } from './membership';
 
+const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
+const AFFILIATION_WINDOW_MS = AFFILIATION_FRESHNESS.ttlMs;
 const NOW = new Date('2026-06-25T12:00:00.000Z');
 const FRESH = new Date(NOW.getTime() - 1_000); // 1s ago
-const STALE = new Date(NOW.getTime() - AFFILIATION_TTL_MS - 1_000); // > TTL ago
+const STALE = new Date(NOW.getTime() - AFFILIATION_WINDOW_MS - 1_000);
 
 function aff(overrides: Partial<CachedAffiliation> = {}): CachedAffiliation {
   return {
@@ -25,22 +26,22 @@ function aff(overrides: Partial<CachedAffiliation> = {}): CachedAffiliation {
   };
 }
 
-describe('isAffiliationStale', () => {
+describe('affiliation freshness gate', () => {
   it('treats a never-refreshed (null) affiliation as stale', () => {
-    expect(isAffiliationStale(null, NOW)).toBe(true);
+    expect(AFFILIATION_FRESHNESS.isStale(null, NOW)).toBe(true);
   });
 
   it('treats an affiliation older than the TTL as stale', () => {
-    expect(isAffiliationStale(STALE, NOW)).toBe(true);
+    expect(AFFILIATION_FRESHNESS.isStale(STALE, NOW)).toBe(true);
   });
 
   it('treats a recently-refreshed affiliation as fresh', () => {
-    expect(isAffiliationStale(FRESH, NOW)).toBe(false);
+    expect(AFFILIATION_FRESHNESS.isStale(FRESH, NOW)).toBe(false);
   });
 
   it('treats exactly-at-the-TTL boundary as fresh (the window is inclusive)', () => {
-    const exactly = new Date(NOW.getTime() - AFFILIATION_TTL_MS);
-    expect(isAffiliationStale(exactly, NOW)).toBe(false);
+    const exactly = new Date(NOW.getTime() - AFFILIATION_WINDOW_MS);
+    expect(AFFILIATION_FRESHNESS.isStale(exactly, NOW)).toBe(false);
   });
 });
 

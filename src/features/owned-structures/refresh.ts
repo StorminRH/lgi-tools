@@ -13,11 +13,13 @@
 // nothing. The shared corporation descriptor owns that common plumbing. A corp with
 // no Station_Manager member resolves to `needs_role`, which — with NO saveGateState
 // defined — is a plain skip, so a role-less member never clobbers the shared catalogue.
+import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { makeCorpDescriptor, planRead, runOwnerSync } from '@/lib/owner-sync';
 import { CORP_STRUCTURES_REQUIRED_ROLES, canSyncCorpStructures } from './corp-sync-eligibility';
 import { type ParsedCorpStructure, parseCorpStructuresBody } from './esi-projection';
-import { isStructuresStale } from './staleness';
 import type { CorpOwner, CorpStructuresPort, CorpStructuresSyncState } from './types';
+
+const STRUCTURES_FRESHNESS = freshnessGate('owned_structures');
 
 // The save payload the engine carries from fetchAndPlan to save (per-corp replace-all).
 interface StructuresSave {
@@ -34,7 +36,7 @@ function makeDescriptor(port: CorpStructuresPort) {
     // Consent gate, FIRST in the engine — a corp that hasn't opted in is skipped
     // before any staleness check, vend, or roles read (zero ESI, zero rows).
     precondition: (owner) => port.isSharingEnabled(owner.corporationId),
-    isStale: isStructuresStale,
+    isStale: STRUCTURES_FRESHNESS.isStale,
     readState: (owner) => port.readSyncState(owner.corporationId),
     fetchAndPlan: async (owner, accessToken, state) => {
       const read = await port.readStructures(owner.corporationId, accessToken, state?.pageEtags ?? []);
