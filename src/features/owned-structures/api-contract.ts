@@ -41,8 +41,8 @@ export const corpStructuresResponseSchema = z.object({
 });
 
 /**
- * Stable owned structures outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Corporation structures visible to the active character, paired with access and freshness
+ * metadata for the current read.
  */
 export type CorpStructuresResponse = z.infer<typeof corpStructuresResponseSchema>;
 
@@ -59,8 +59,8 @@ export const setCorpStructureSharingRequestSchema = z.object({
   enabled: z.boolean(),
 });
 /**
- * Caller input shape accepted by owned structures; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Corporation-sharing mutation payload selecting whether eligible account characters may use the
+ * stored structures.
  */
 export type SetCorpStructureSharingRequest = z.input<typeof setCorpStructureSharingRequestSchema>;
 
@@ -73,8 +73,7 @@ export const corpStructureSharingResponseSchema = z.object({
   enabled: z.boolean(),
 });
 /**
- * Stable owned structures outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Saved corporation-structure sharing state returned after the authenticated mutation completes.
  */
 export type CorpStructureSharingResponse = z.infer<typeof corpStructureSharingResponseSchema>;
 
@@ -101,8 +100,7 @@ export const setCorpStructureSharingEndpoint: ApiEndpoint<
 // never joined and is wiped on disable. Echoes the saved completion.
 const PG_INT4_MAX = 2_147_483_647;
 /**
- * Configured owned structures limit for max corp structure rigs; callers use this value instead of
- * embedding a competing threshold.
+ * Inclusive upper bound for corp structure rigs; validation and UI limits share this value.
  */
 export const MAX_CORP_STRUCTURE_RIGS = 3;
 /**
@@ -120,8 +118,7 @@ export const setCorpStructureRigsRequestSchema = z.object({
   taxPct: z.number().min(0).max(MAX_FACILITY_TAX_PCT).nullable().optional(),
 });
 /**
- * Caller input shape accepted by owned structures; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Corporation-structure override payload; omitted or null fields clear the saved rig or tax value.
  */
 export type SetCorpStructureRigsRequest = z.input<typeof setCorpStructureRigsRequestSchema>;
 
@@ -135,8 +132,8 @@ export const corpStructureRigsResponseSchema = z.object({
   taxPct: z.number().nullable(),
 });
 /**
- * Stable owned structures outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Validated rig and tax configuration for one corporation structure, including nullable values
+ * when no override is stored.
  */
 export type CorpStructureRigsResponse = z.infer<typeof corpStructureRigsResponseSchema>;
 

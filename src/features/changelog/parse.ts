@@ -13,8 +13,8 @@ import { isIsoCalendarDate } from '@/lib/iso-date';
 // parser for exactly the new feature.
 
 /**
- * Closed changelog vocabulary and canonical order for change types; consumers derive validation
- * and iteration from this one list.
+ * Closed, canonically ordered set of change types; consumers derive validation, unions, and
+ * iteration from this one list.
  */
 export const CHANGE_TYPES = ['Added', 'Changed', 'Fixed', 'Removed'] as const;
 /** Closed changelog entry categories used for labels and semantic tones. */

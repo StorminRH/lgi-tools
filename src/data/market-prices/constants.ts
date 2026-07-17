@@ -57,8 +57,7 @@ export const NPC_STATION_ID_CEILING = 1e9;
  */
 export const REGIONAL_DISCOUNT_MIN_PCT = 15;
 /**
- * Configured market prices limit for regional discount min units; callers use this value instead
- * of embedding a competing threshold.
+ * Minimum item quantity required for regional discount to be considered representative.
  */
 export const REGIONAL_DISCOUNT_MIN_UNITS = 10;
 

@@ -10,19 +10,14 @@ import type { CustomStructureRow } from './types';
 // Postgres 32-bit `integer` ceiling — structure/rig type ids are int4 columns.
 const PG_INT4_MAX = 2_147_483_647;
 
-/**
- * Configured custom structures limit for max custom structure name len; callers use this value
- * instead of embedding a competing threshold.
- */
+/** Maximum custom-structure name length in Unicode code units, shared by validation and the UI. */
 export const MAX_CUSTOM_STRUCTURE_NAME_LEN = 80;
 /**
- * Configured custom structures limit for max custom structure rigs; callers use this value instead
- * of embedding a competing threshold.
+ * Inclusive upper bound for custom structure rigs; validation and UI limits share this value.
  */
 export const MAX_CUSTOM_STRUCTURE_RIGS = 3; // Upwell structures have at most 3 rig slots
 /**
- * Configured custom structures limit for max custom structures per user; callers use this value
- * instead of embedding a competing threshold.
+ * Inclusive upper bound for custom structures per user; validation and UI limits share this value.
  */
 export const MAX_CUSTOM_STRUCTURES_PER_USER = 50;
 /**
@@ -57,8 +52,8 @@ export const customStructuresResponseSchema = z.object({
   structures: z.array(customStructureRowSchema),
 });
 /**
- * Stable custom structures outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Validated custom structures owned by the authenticated user, in the server's canonical row
+ * shape.
  */
 export type CustomStructuresResponse = z.infer<typeof customStructuresResponseSchema>;
 
@@ -82,8 +77,8 @@ export const createCustomStructureRequestSchema = z.object({
   taxPct: facilityTaxPct.nullable().default(null),
 });
 /**
- * Caller input shape accepted by custom structures; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Create payload for a user-owned structure, including its location, facility type, rigs, and
+ * optional tax override.
  */
 export type CreateCustomStructureRequest = z.input<typeof createCustomStructureRequestSchema>;
 
@@ -110,8 +105,7 @@ export const deleteCustomStructureRequestSchema = z.object({
   id: z.string().min(1).max(100),
 });
 /**
- * Caller input shape accepted by custom structures; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Delete payload identifying the user-owned custom structure to remove.
  */
 export type DeleteCustomStructureRequest = z.input<typeof deleteCustomStructureRequestSchema>;
 
@@ -140,8 +134,7 @@ export const setCustomStructurePinRequestSchema = z.object({
   systemId: typeId.nullable(),
 });
 /**
- * Caller input shape accepted by custom structures; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Pin mutation payload; a null system id clears the structure's planner pin.
  */
 export type SetCustomStructurePinRequest = z.input<typeof setCustomStructurePinRequestSchema>;
 
@@ -171,8 +164,7 @@ export const setCustomStructureTaxRequestSchema = z.object({
   taxPct: facilityTaxPct.nullable(),
 });
 /**
- * Caller input shape accepted by custom structures; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Tax mutation payload; a null percentage restores the structure's default facility tax.
  */
 export type SetCustomStructureTaxRequest = z.input<typeof setCustomStructureTaxRequestSchema>;
 
@@ -201,8 +193,7 @@ export const parseStructureFitRequestSchema = z.object({
   fit: z.string().min(1).max(MAX_STRUCTURE_FIT_LEN),
 });
 /**
- * Caller input shape accepted by custom structures; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Raw in-game structure fit text accepted for bounded server-side parsing.
  */
 export type ParseStructureFitRequest = z.input<typeof parseStructureFitRequestSchema>;
 
@@ -216,8 +207,8 @@ export const parseStructureFitResponseSchema = z.object({
     .nullable(),
 });
 /**
- * Stable custom structures outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Parsed fit result with the resolved structure, system, and rig identities; unresolved fit parts
+ * remain null rather than being guessed.
  */
 export type ParseStructureFitResponse = z.infer<typeof parseStructureFitResponseSchema>;
 

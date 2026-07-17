@@ -33,8 +33,8 @@ const skillsResponseSchema = z.object({
 });
 
 /**
- * Stable skill queue outcome returned across the owning boundary; callers handle the represented
- * success, absence, or failure states.
+ * Character skill levels and queue data for the active character, with freshness metadata for
+ * stale-gated reads.
  */
 export type SkillsResponse = z.infer<typeof skillsResponseSchema>;
 

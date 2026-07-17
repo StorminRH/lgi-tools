@@ -1,6 +1,6 @@
 /**
- * Closed esi refresh jobs vocabulary and canonical order for esi refresh datasets; consumers
- * derive validation and iteration from this one list.
+ * Closed, canonically ordered set of esi refresh datasets; consumers derive validation, unions,
+ * and iteration from this one list.
  */
 export const ESI_REFRESH_DATASETS = [
   'skills',
@@ -11,8 +11,8 @@ export const ESI_REFRESH_DATASETS = [
 ] as const;
 
 /**
- * Closed esi refresh jobs vocabulary and canonical order for esi refresh job statuses; consumers
- * derive validation and iteration from this one list.
+ * Closed, canonically ordered set of esi refresh job statuses; consumers derive validation,
+ * unions, and iteration from this one list.
  */
 export const ESI_REFRESH_JOB_STATUSES = [
   'queued',
@@ -25,14 +25,14 @@ export const ESI_REFRESH_JOB_STATUSES = [
 ] as const;
 
 /**
- * Closed esi refresh jobs vocabulary and canonical order for esi refresh owner types; consumers
- * derive validation and iteration from this one list.
+ * Closed, canonically ordered set of esi refresh owner types; consumers derive validation, unions,
+ * and iteration from this one list.
  */
 export const ESI_REFRESH_OWNER_TYPES = ['character', 'corporation'] as const;
 
 /**
- * Closed esi refresh jobs vocabulary and canonical order for live esi refresh job statuses;
- * consumers derive validation and iteration from this one list.
+ * Closed, canonically ordered set of live esi refresh job statuses; consumers derive validation,
+ * unions, and iteration from this one list.
  */
 export const LIVE_ESI_REFRESH_JOB_STATUSES = [
   'queued',
@@ -42,28 +42,26 @@ export const LIVE_ESI_REFRESH_JOB_STATUSES = [
 ] as const;
 
 /**
- * Configured esi refresh jobs limit for esi refresh job retention days; callers use this value
- * instead of embedding a competing threshold.
+ * Duration in whole days for esi refresh job retention; retention code treats the boundary as a
+ * shared policy.
  */
 export const ESI_REFRESH_JOB_RETENTION_DAYS = 7;
 /**
- * Configured esi refresh jobs limit for esi refresh job batch size; callers use this value instead
- * of embedding a competing threshold.
+ * Maximum records processed in one esi refresh job pass, bounding per-run work.
  */
 export const ESI_REFRESH_JOB_BATCH_SIZE = 5;
 /**
- * Configured esi refresh jobs limit for esi refresh job max attempts; callers use this value
- * instead of embedding a competing threshold.
+ * Maximum attempts allowed for esi refresh job before the job becomes terminal.
  */
 export const ESI_REFRESH_JOB_MAX_ATTEMPTS = 5;
 /**
- * Configured esi refresh jobs limit for esi refresh stale running ms; callers use this value
- * instead of embedding a competing threshold. Values are milliseconds.
+ * Duration in milliseconds for esi refresh stale running; callers share this policy value instead
+ * of inventing another window.
  */
 export const ESI_REFRESH_STALE_RUNNING_MS = 10 * 60 * 1000;
 /**
- * Closed esi refresh jobs vocabulary and canonical order for esi refresh retry delays ms;
- * consumers derive validation and iteration from this one list. Values are milliseconds.
+ * Retry delays in milliseconds, ordered by attempt number; attempts beyond the list reuse its
+ * final delay.
  */
 export const ESI_REFRESH_RETRY_DELAYS_MS = [
   15 * 60 * 1000,

@@ -5,8 +5,7 @@
 import type { SavedPlanRow } from './api-contract';
 
 /**
- * Configured industry planner limit for saved tiles max; callers use this value instead of
- * embedding a competing threshold.
+ * Inclusive upper bound for saved tiles; validation and UI limits share this value.
  */
 export const SAVED_TILES_MAX = 8;
 

@@ -172,8 +172,7 @@ function GscSyncDetail({
 }
 
 /**
- * Renders the status strip surface; this component owns local presentation and interaction wiring
- * while callers own domain data.
+ * Loads the current service, ingestion, and search-health summaries for the selected admin range.
  */
 export async function StatusStrip({ range }: { range: DateRange }) {
   const gscConfigured = isGscConfigured();

@@ -202,8 +202,8 @@ export interface AvailableStructure {
 }
 
 /**
- * Stable industry planner outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Public structures eligible for planner selection, paired with the viewer's saved custom and
+ * corporation structures when authenticated.
  */
 export interface AvailableStructuresResponse {
   structures: AvailableStructure[];

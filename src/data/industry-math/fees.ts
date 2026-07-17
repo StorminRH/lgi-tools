@@ -214,8 +214,8 @@ export function computeSellSideFees(
 }
 
 /**
- * Caller input shape accepted by industry math; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Margin inputs plus the ME0 base-material valuation used for EIV and installation-cost
+ * calculations.
  */
 export interface NetMarginInput extends MarginInput {
   // ME0 base materials of the job, for EIV (distinct from the build-cost list).

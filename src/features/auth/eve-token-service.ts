@@ -37,8 +37,8 @@ import { decryptToken, encryptToken } from './token-crypto';
  */
 export const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
 /**
- * Closed auth vocabulary and canonical order for invalid grant confirmation grace ms; consumers
- * derive validation and iteration from this one list. Values are milliseconds.
+ * Duration in milliseconds for invalid grant confirmation grace; callers share this policy value
+ * instead of inventing another window.
  */
 export const INVALID_GRANT_CONFIRMATION_GRACE_MS = 5 * 60 * 1000;
 
@@ -51,8 +51,8 @@ const TOKEN_REFRESH_FAILURE_ACTIONS = {
 } as const satisfies Record<RefreshFailureClass, UsageAction>;
 
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * Token-vending verdict: a usable access token, a confirmed reauthentication requirement, or a
+ * retryable upstream failure.
  */
 export type FreshTokenResult =
   | { kind: 'ok'; accessToken: string; expiresAt: Date; characterId: number; scopes: string[] }

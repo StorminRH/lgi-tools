@@ -7,8 +7,8 @@ import { ProgressBar } from './progress-bar';
 // pure {@link distributionBars}; the row markup is a real list.
 
 /**
- * Caller input shape accepted by components; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * One non-negative distribution row; callers provide a stable key and display label while the
+ * component derives shares.
  */
 export interface DistributionInput {
   key: string;

@@ -2,8 +2,8 @@ import type { z } from 'zod';
 import type { telemetryRequestSchema } from '@/data/telemetry/api-contract';
 
 /**
- * Caller input shape accepted by components; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Unparsed client telemetry payload accepted by the transport helper; the route remains
+ * responsible for schema validation.
  */
 export type TelemetryInput = z.input<typeof telemetryRequestSchema>;
 

@@ -2,8 +2,8 @@ import { gasClassRange } from './gas-classes';
 import type { SiteDetail, WormholeClass } from './types';
 
 /**
- * Closed wormhole sites vocabulary and canonical order for sortable keys; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of sortable keys; consumers derive validation, unions, and
+ * iteration from this one list.
  */
 export const SORTABLE_KEYS = [
   'name',

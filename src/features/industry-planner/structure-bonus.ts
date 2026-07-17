@@ -74,8 +74,7 @@ const ATTR = {
  */
 export const MANUFACTURING_ACTIVITY = 1;
 /**
- * Configured industry planner limit for reaction activity; callers use this value instead of
- * embedding a competing threshold.
+ * Canonical EVE industry activity identifier for reaction.
  */
 export const REACTION_ACTIVITY = 11;
 /**
@@ -95,8 +94,8 @@ export interface StructureBonus {
 }
 
 /**
- * Caller input shape accepted by industry planner; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Structure dogma attributes, fitted rigs, security class, and activity needed to derive material
+ * and time bonuses.
  */
 export interface StructureBonusInput {
   // The structure type's dogma map ({ attributeId: value }).

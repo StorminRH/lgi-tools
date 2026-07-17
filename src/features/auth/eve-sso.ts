@@ -234,8 +234,8 @@ export type RefreshFailureClass =
   | 'unexpected';
 
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * EVE OAuth refresh verdict, preserving rotated credentials on success and classifying terminal
+ * versus retryable failures.
  */
 export type RefreshResult =
   | { kind: 'ok'; access_token: string; refresh_token: string; expires_in: number }

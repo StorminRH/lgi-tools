@@ -20,8 +20,7 @@ function pluralUsers(n: number): string {
 }
 
 /**
- * Renders the users section surface; this component owns local presentation and interaction wiring
- * while callers own domain data.
+ * Loads and renders account-growth and engagement metrics for the selected admin date range.
  */
 export async function UsersSection({ range }: { range: DateRange }) {
   const fetched = await loadSection('users', () =>

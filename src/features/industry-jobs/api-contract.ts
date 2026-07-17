@@ -32,8 +32,8 @@ const jobsResponseSchema = z.object({
 });
 
 /**
- * Stable industry jobs outcome returned across the owning boundary; callers handle the represented
- * success, absence, or failure states.
+ * Personal industry jobs visible to the active character, with the source freshness timestamp used
+ * by the UI.
  */
 export type JobsResponse = z.infer<typeof jobsResponseSchema>;
 
@@ -69,8 +69,8 @@ const corpJobsResponseSchema = z.object({
 });
 
 /**
- * Stable industry jobs outcome returned across the owning boundary; callers handle the represented
- * success, absence, or failure states.
+ * Corporation industry jobs visible through the active character's roles, with source freshness
+ * and access metadata.
  */
 export type CorpJobsResponse = z.infer<typeof corpJobsResponseSchema>;
 
@@ -116,8 +116,8 @@ const industrySlotsResponseSchema = z.object({
 /** Personal and corporation industry-slot usage visible to the current viewer. */
 export type ViewerSlots = z.infer<typeof viewerSlotsSchema>;
 /**
- * Stable industry jobs outcome returned across the owning boundary; callers handle the represented
- * success, absence, or failure states.
+ * Personal and corporation slot usage plus the skill-derived limits available to the current
+ * viewer.
  */
 export type IndustrySlotsResponse = z.infer<typeof industrySlotsResponseSchema>;
 

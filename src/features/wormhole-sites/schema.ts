@@ -1,16 +1,16 @@
 import { bigint, integer, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 /**
- * Closed wormhole sites vocabulary and canonical order for site types; consumers derive validation
- * and iteration from this one list.
+ * Closed, canonically ordered set of site types; consumers derive validation, unions, and
+ * iteration from this one list.
  */
 export const SITE_TYPES = ['combat', 'gas', 'ore', 'relic', 'data'] as const;
 /** Closed canonical wormhole-site families persisted by the catalogue schema. */
 export type SiteType = typeof SITE_TYPES[number];
 
 /**
- * Closed wormhole sites vocabulary and canonical order for wormhole classes; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of wormhole classes; consumers derive validation, unions, and
+ * iteration from this one list.
  */
 export const WORMHOLE_CLASSES = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6'] as const;
 /** Closed supported wormhole class labels, including the frigate-only qualifier. */
@@ -46,8 +46,8 @@ export const TRIGGER_LABELS = [
 export type TriggerLabel = typeof TRIGGER_LABELS[number];
 
 /**
- * Closed wormhole sites vocabulary and canonical order for sleeper class codes; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of sleeper class codes; consumers derive validation, unions, and
+ * iteration from this one list.
  */
 export const SLEEPER_CLASS_CODES = ['F', 'C', 'B', 'T'] as const;
 /** Closed NPC hull-class codes used by wormhole-site source data. */

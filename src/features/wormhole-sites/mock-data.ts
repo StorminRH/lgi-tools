@@ -366,8 +366,8 @@ const dataC4: SiteDetail = {
 };
 
 /**
- * Closed wormhole sites vocabulary and canonical order for mock sites; consumers derive validation
- * and iteration from this one list.
+ * Deterministic wormhole-site catalogue used by local demos and fixtures; production reads never
+ * depend on it.
  */
 export const MOCK_SITES: SiteDetail[] = [
   combatC1,

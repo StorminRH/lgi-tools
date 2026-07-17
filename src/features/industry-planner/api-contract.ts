@@ -38,8 +38,7 @@ export const blueprintsResponseSchema = z.object({
   blueprints: z.array(blueprintIndexEntrySchema),
 });
 /**
- * Stable industry planner outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Searchable blueprint index entries returned by the planner blueprint endpoint.
  */
 export type BlueprintsResponse = z.infer<typeof blueprintsResponseSchema>;
 
@@ -88,8 +87,8 @@ export const buildLocationResponseSchema = z.object({
   ),
 }) satisfies z.ZodType<BuildLocationData>;
 /**
- * Stable industry planner outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Resolved build-location data for one system or structure selection, including the applicable
+ * indices and facility modifiers.
  */
 export type BuildLocationResponse = z.infer<typeof buildLocationResponseSchema>;
 
@@ -238,8 +237,8 @@ export const skillLevelsResponseSchema = z.object({
   levels: z.record(z.string(), z.number()).nullable(),
 });
 /**
- * Stable industry planner outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Requested planner skill levels keyed by skill id; null means no authenticated character data is
+ * available.
  */
 export type SkillLevelsResponse = z.infer<typeof skillLevelsResponseSchema>;
 
@@ -323,14 +322,10 @@ export const availableStructuresEndpoint: ApiEndpoint<null, AvailableStructuresR
 // without a refetch; the GET feeds the planner and follows the fail-open read
 // posture (anonymous ⇒ a typed empty list, never an error).
 
-/**
- * Configured industry planner limit for max saved plan name len; callers use this value instead of
- * embedding a competing threshold.
- */
+/** Maximum saved-plan name length in Unicode code units, shared by validation and the UI. */
 export const MAX_SAVED_PLAN_NAME_LEN = 80;
 /**
- * Configured industry planner limit for max saved plans per user; callers use this value instead
- * of embedding a competing threshold.
+ * Inclusive upper bound for saved plans per user; validation and UI limits share this value.
  */
 export const MAX_SAVED_PLANS_PER_USER = 50;
 /**
@@ -367,8 +362,8 @@ export const savedPlansResponseSchema = z.object({
   plans: z.array(savedPlanRowSchema),
 });
 /**
- * Stable industry planner outcome returned across the owning boundary; callers handle the
- * represented success, absence, or failure states.
+ * Saved planner builds owned by the authenticated user, in stable server ordering for list and
+ * tile views.
  */
 export type SavedPlansResponse = z.infer<typeof savedPlansResponseSchema>;
 
@@ -398,8 +393,7 @@ export const createSavedPlanRequestSchema = z.object({
   ),
 });
 /**
- * Caller input shape accepted by industry planner; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Create payload containing the validated plan name and complete serializable planner snapshot.
  */
 export type CreateSavedPlanRequest = z.input<typeof createSavedPlanRequestSchema>;
 
@@ -423,8 +417,7 @@ export const renameSavedPlanRequestSchema = z.object({
   name: savedPlanName,
 });
 /**
- * Caller input shape accepted by industry planner; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Rename payload for one user-owned saved plan.
  */
 export type RenameSavedPlanRequest = z.input<typeof renameSavedPlanRequestSchema>;
 
@@ -448,8 +441,7 @@ export const favoriteSavedPlanRequestSchema = z.object({
   favorite: z.boolean(),
 });
 /**
- * Caller input shape accepted by industry planner; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Favorite-state mutation payload for one user-owned saved plan.
  */
 export type FavoriteSavedPlanRequest = z.input<typeof favoriteSavedPlanRequestSchema>;
 
@@ -472,8 +464,7 @@ export const deleteSavedPlanRequestSchema = z.object({
   id: savedPlanId,
 });
 /**
- * Caller input shape accepted by industry planner; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Delete payload identifying one user-owned saved plan.
  */
 export type DeleteSavedPlanRequest = z.input<typeof deleteSavedPlanRequestSchema>;
 

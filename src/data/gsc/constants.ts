@@ -61,8 +61,7 @@ export const UPSERT_CHUNK_ROWS = 500;
  */
 export const GSC_INSPECTION_URL_LIMIT = 500;
 /**
- * Configured gsc limit for gsc inspection batch size; callers use this value instead of embedding
- * a competing threshold.
+ * Maximum records processed in one gsc inspection pass, bounding per-run work.
  */
 export const GSC_INSPECTION_BATCH_SIZE = 5;
 

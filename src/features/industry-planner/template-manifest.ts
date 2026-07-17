@@ -299,10 +299,7 @@ type MutatorKeys = {
     : never;
 }[keyof TemplatePlannerState];
 
-/**
- * Closed industry planner vocabulary and canonical order for setter classification; consumers
- * derive validation and iteration from this one list.
- */
+/** Maps every planner-state setter to the concern a saved template is allowed to restore. */
 export const SETTER_CLASSIFICATION = {
   setRuns: 'runs',
   setLocation: 'buildSystem',

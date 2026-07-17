@@ -13,7 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
- * Closed auth vocabulary and canonical order for character roles; consumers derive validation and
+ * Closed, canonically ordered set of character roles; consumers derive validation, unions, and
  * iteration from this one list.
  */
 export const CHARACTER_ROLES = ['USER', 'ADMIN'] as const;

@@ -28,33 +28,27 @@ import { formatBonusPct } from './structure-bonus-view';
 import type { BlueprintStructure } from './types';
 
 /**
- * Configured industry planner limit for industry skill id; callers use this value instead of
- * embedding a competing threshold.
+ * Canonical EVE skill identifier for industry; callers use the SDE identity directly.
  */
 export const INDUSTRY_SKILL_ID = 3380;
 /**
- * Configured industry planner limit for industry time pct per level; callers use this value
- * instead of embedding a competing threshold.
+ * Percentage-point time adjustment per trained level for industry time.
  */
 export const INDUSTRY_TIME_PCT_PER_LEVEL = -4;
 /**
- * Configured industry planner limit for advanced industry skill id; callers use this value instead
- * of embedding a competing threshold.
+ * Canonical EVE skill identifier for advanced industry; callers use the SDE identity directly.
  */
 export const ADVANCED_INDUSTRY_SKILL_ID = 3388;
 /**
- * Configured industry planner limit for advanced industry time pct per level; callers use this
- * value instead of embedding a competing threshold.
+ * Percentage-point time adjustment per trained level for advanced industry time.
  */
 export const ADVANCED_INDUSTRY_TIME_PCT_PER_LEVEL = -3;
 /**
- * Configured industry planner limit for reactions skill id; callers use this value instead of
- * embedding a competing threshold.
+ * Canonical EVE skill identifier for reactions; callers use the SDE identity directly.
  */
 export const REACTIONS_SKILL_ID = 45746;
 /**
- * Configured industry planner limit for reactions time pct per level; callers use this value
- * instead of embedding a competing threshold.
+ * Percentage-point time adjustment per trained level for reactions time.
  */
 export const REACTIONS_TIME_PCT_PER_LEVEL = -4;
 

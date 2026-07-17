@@ -166,8 +166,8 @@ export function buildConfidenceInputs(pricing: BlueprintPricing): Map<number, Co
 export const MANUFACTURING_ACTIVITY_ID = 1;
 
 /**
- * Caller input shape accepted by industry planner; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Pricing assembly inputs that select top-level run count, material-source policy, and cost
+ * adjustments for one build.
  */
 export interface AssembleOptions {
   // Whole runs of the top product to build. Scales the batch cost basis, the

@@ -15,8 +15,7 @@ const DOT_CLASS: Record<StatusLevel, string> = {
 };
 
 /**
- * Renders the status row surface; this component owns local presentation and interaction wiring
- * while callers own domain data.
+ * Renders one labelled operational status with text and icon semantics in addition to its tone.
  */
 export function StatusRow({
   name,

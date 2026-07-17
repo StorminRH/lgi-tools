@@ -114,15 +114,9 @@ export const TREE_RESOLVER_ALGO_VERSION = 'v3-published-producer';
  * a manufacturing rig still bonuses manufacturing nodes (the rig's bonus only).
  */
 export const SDE_ENGINEERING_COMPLEX_GROUP_ID = 1404; // Raitaru / Azbel / Sotiyo
-/**
- * Configured eve data limit for sde refinery group id; callers use this value instead of embedding
- * a competing threshold.
- */
+/** SDE group identifier shared by Athanor- and Tatara-class refinery structures. */
 export const SDE_REFINERY_GROUP_ID = 1406; // Athanor / Tatara
-/**
- * Configured eve data limit for sde citadel group id; callers use this value instead of embedding
- * a competing threshold.
- */
+/** SDE group identifier shared by Astrahus-, Fortizar-, and Keepstar-class citadels. */
 export const SDE_CITADEL_GROUP_ID = 1657; // Astrahus / Fortizar / Keepstar (+ faction Fortizars)
 /** The full offerable set: the three industry-capable structure groups. */
 export const SDE_INDUSTRY_STRUCTURE_GROUP_IDS = [
@@ -147,18 +141,15 @@ export const SDE_STRUCTURE_MODULE_CATEGORY_ID = 66;
  */
 export const STRUCTURE_RIG_SIZE_ATTR = 1547; // rig fits when this equals the structure's 1547
 /**
- * Closed eve data vocabulary and canonical order for rig can fit group attrs; consumers derive
- * validation and iteration from this one list.
+ * Canonical SDE dogma attribute identifiers for rig can fit group.
  */
 export const RIG_CAN_FIT_GROUP_ATTRS = [1298, 1299, 1300] as const; // canFitShipGroup01/02/03
 /**
- * Configured eve data limit for rig mfg material attr; callers use this value instead of embedding
- * a competing threshold.
+ * Canonical SDE dogma attribute identifier for rig mfg material.
  */
 export const RIG_MFG_MATERIAL_ATTR = 2594; // nonzero ⇒ a manufacturing-efficiency rig
 /**
- * Configured eve data limit for rig reaction time attr; callers use this value instead of
- * embedding a competing threshold.
+ * Canonical SDE dogma attribute identifier for rig reaction time.
  */
 export const RIG_REACTION_TIME_ATTR = 2713; // present ⇒ a reactor-efficiency rig
 

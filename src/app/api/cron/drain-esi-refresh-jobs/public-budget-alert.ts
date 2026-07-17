@@ -19,8 +19,8 @@ export const PUBLIC_ESI_BUDGET_ALERT_WINDOW_MINUTES = 15;
 export const PUBLIC_ESI_BUDGET_ALERT_THRESHOLD = 3;
 
 /**
- * Stable App Router outcome returned across the owning boundary; callers handle the represented
- * success, absence, or failure states.
+ * Outcome of the public ESI budget-alert policy, distinguishing a low count, an active suppression
+ * window, and a delivered alert.
  */
 export type PublicBudgetAlertResult =
   | { status: 'below-threshold'; count: number }

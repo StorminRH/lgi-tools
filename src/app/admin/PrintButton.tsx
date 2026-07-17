@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 // no-print class hides this button from the output itself.
 
 /**
- * Renders the print button surface; this component owns local presentation and interaction wiring
- * while callers own domain data.
+ * Client control that invokes the browser print dialog and hides itself from the printed document.
  */
 export function PrintButton() {
   return (

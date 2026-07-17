@@ -11,8 +11,8 @@ import type { MetricRow } from './metric-view';
 // row; the delta's direction is carried by the symbol as well as the colour.
 
 /**
- * Renders the metric table surface; this component owns local presentation and interaction wiring
- * while callers own domain data.
+ * Renders headline metrics as an accessible table, preserving each row's comparison direction and
+ * optional range hint.
  */
 export function MetricTable({ rows, hint }: { rows: MetricRow[]; hint?: string }) {
   return (

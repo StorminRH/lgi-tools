@@ -279,8 +279,8 @@ async function EventPanel() {
 }
 
 /**
- * Renders the ops section surface; this component owns local presentation and interaction wiring
- * while callers own domain data.
+ * Composes four independently suspended operations panels so one unavailable data source cannot
+ * blank the full section.
  */
 export function OpsSection({ rangeKey, range }: { rangeKey: RangeKey; range: DateRange }) {
   return (

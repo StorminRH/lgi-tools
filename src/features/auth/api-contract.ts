@@ -38,8 +38,8 @@ export interface EveTokenOkResponse {
 /** 404 | 409 | 502 JSON envelope. 400/401/500 are plain text — uncontracted. */
 export type EveTokenErrorCode = 'not_found' | 'reauth_required' | 'upstream_error';
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * JSON error envelope for token vending; the code determines whether the caller treats the
+ * character as missing, reauth-required, or upstream-failed.
  */
 export interface EveTokenErrorResponse {
   error: EveTokenErrorCode;
@@ -78,8 +78,8 @@ export interface EveCharacterEntry {
   corporationId: number | null;
 }
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * Internal character enumeration returned to Convex; each entry carries the identity and
+ * corporation context needed for synchronization.
  */
 export interface EveCharactersResponse {
   characters: EveCharacterEntry[];
@@ -212,8 +212,8 @@ const accountCharactersResponseSchema = z.object({
   characters: z.array(accountCharacterSchema),
 });
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * Linked characters visible on the account surface, already shaped for authenticated client
+ * rendering.
  */
 export type AccountCharactersResponse = z.infer<typeof accountCharactersResponseSchema>;
 /**
@@ -247,8 +247,8 @@ export const purgeCharacterRequestSchema = z.object({
 // redirect + logs out only then.
 const purgeCharacterResponseSchema = z.object({ accountEmptied: z.boolean() });
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * Character-purge result indicating whether removing the character also emptied and deleted the
+ * owning account.
  */
 export type PurgeCharacterResponse = z.infer<typeof purgeCharacterResponseSchema>;
 /**
@@ -268,8 +268,8 @@ export const purgeCharacterEndpoint: ApiEndpoint<
 // POST /api/account/delete — nuke the caller's entire account. No request body.
 const accountDeleteResponseSchema = z.object({ ok: z.literal(true) });
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * Successful full-account deletion acknowledgement; failures use the route's non-JSON error
+ * responses.
  */
 export type AccountDeleteResponse = z.infer<typeof accountDeleteResponseSchema>;
 /**
@@ -287,8 +287,7 @@ export const accountDeleteEndpoint: ApiEndpoint<null, AccountDeleteResponse> = {
 // body; `revoked` is the number of sessions removed.
 const sessionsRevokeResponseSchema = z.object({ revoked: z.number() });
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * Session-revocation result reporting how many matching sessions were removed.
  */
 export type SessionsRevokeResponse = z.infer<typeof sessionsRevokeResponseSchema>;
 /**

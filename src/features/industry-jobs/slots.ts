@@ -17,8 +17,8 @@ import { type JobCategory, jobCategory } from './industry-jobs-styles';
 /** Manufacturing slots: 1 + Mass Production + Advanced Mass Production. */
 export const MASS_PRODUCTION_SKILL_ID = 3387;
 /**
- * Configured industry jobs limit for advanced mass production skill id; callers use this value
- * instead of embedding a competing threshold.
+ * Canonical EVE skill identifier for advanced mass production; callers use the SDE identity
+ * directly.
  */
 export const ADVANCED_MASS_PRODUCTION_SKILL_ID = 24625;
 /**
@@ -27,21 +27,21 @@ export const ADVANCED_MASS_PRODUCTION_SKILL_ID = 24625;
  */
 export const LABORATORY_OPERATION_SKILL_ID = 3406;
 /**
- * Configured industry jobs limit for advanced laboratory operation skill id; callers use this
- * value instead of embedding a competing threshold.
+ * Canonical EVE skill identifier for advanced laboratory operation; callers use the SDE identity
+ * directly.
  */
 export const ADVANCED_LABORATORY_OPERATION_SKILL_ID = 24624;
 /** Reaction slots: 1 + Mass Reactions + Advanced Mass Reactions. */
 export const MASS_REACTIONS_SKILL_ID = 45748;
 /**
- * Configured industry jobs limit for advanced mass reactions skill id; callers use this value
- * instead of embedding a competing threshold.
+ * Canonical EVE skill identifier for advanced mass reactions; callers use the SDE identity
+ * directly.
  */
 export const ADVANCED_MASS_REACTIONS_SKILL_ID = 45749;
 
 /**
- * Closed industry jobs vocabulary and canonical order for slot categories; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of slot categories; consumers derive validation, unions, and
+ * iteration from this one list.
  */
 export const SLOT_CATEGORIES: readonly JobCategory[] = ['manufacturing', 'science', 'reactions'];
 

@@ -20,13 +20,13 @@ import type {
  */
 export const PRICES_HEALTHY_OUTCOMES = ['refreshed', 'skipped'] as const;
 /**
- * Closed telemetry vocabulary and canonical order for sde healthy outcomes; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of sde healthy outcomes; consumers derive validation, unions,
+ * and iteration from this one list.
  */
 export const SDE_HEALTHY_OUTCOMES = ['up-to-date', 'reingested'] as const;
 /**
- * Closed telemetry vocabulary and canonical order for sde neutral outcomes; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of sde neutral outcomes; consumers derive validation, unions,
+ * and iteration from this one list.
  */
 export const SDE_NEUTRAL_OUTCOMES = ['busy'] as const;
 
@@ -128,13 +128,13 @@ export interface SubsystemStatus {
  */
 export const GSC_HEALTHY_OUTCOMES = ['synced'] as const;
 /**
- * Closed telemetry vocabulary and canonical order for gsc neutral outcomes; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of gsc neutral outcomes; consumers derive validation, unions,
+ * and iteration from this one list.
  */
 export const GSC_NEUTRAL_OUTCOMES = ['skipped'] as const;
 /**
- * Closed telemetry vocabulary and canonical order for gsc degraded outcomes; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of gsc degraded outcomes; consumers derive validation, unions,
+ * and iteration from this one list.
  */
 export const GSC_DEGRADED_OUTCOMES = ['partial'] as const;
 

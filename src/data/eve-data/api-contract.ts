@@ -17,10 +17,7 @@ import type { SystemSearchEntry } from './systems-search';
 // at view time — entity names are never mirrored into Convex. Capped to bound
 // the cold-cache fan-out (a board's distinct installers + corps stay small).
 
-/**
- * Configured eve data limit for entity names max ids; callers use this value instead of embedding
- * a competing threshold.
- */
+/** Maximum distinct EVE entity IDs accepted by one request, bounding cold-cache fan-out. */
 export const ENTITY_NAMES_MAX_IDS = 200;
 
 /**

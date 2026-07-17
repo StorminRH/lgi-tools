@@ -405,8 +405,8 @@ function meFactor(me: number): number {
 // type consumed at several depths aggregates in its single demand entry.
 
 /**
- * Caller input shape accepted by industry planner; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * Multibuy aggregation policy: buildable type ids in the set are expanded, while all others remain
+ * market purchases.
  */
 export interface MultibuyOptions {
   // Buildable typeIds the player will BUILD; any buildable not in the set is

@@ -88,8 +88,7 @@ export function computeBuildCost(
 }
 
 /**
- * Caller input shape accepted by industry math; the receiving boundary owns validation and
- * normalization before the values move inward.
+ * ISK-denominated build, sell, tax, and fee inputs required to derive gross and net profitability.
  */
 export interface MarginInput {
   buildCost: number; // BuildCost.total

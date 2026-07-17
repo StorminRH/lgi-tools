@@ -100,8 +100,8 @@ async function RosterDemo({
 }
 
 /**
- * Renders the home surface; this component owns local presentation and interaction wiring while
- * callers own domain data.
+ * Composes the public or authenticated home dashboard while keeping request search parameters
+ * inside the page boundary.
  */
 export default function Home({
   searchParams,

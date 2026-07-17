@@ -15,8 +15,8 @@ import { getCurrentUserId } from './session';
 type BetterAuthSession = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>;
 
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * Route-guard verdict that either carries the authenticated Better Auth session or the response
+ * the route must return unchanged.
  */
 export type SessionGuardResult =
   | { ok: true; session: BetterAuthSession }
@@ -48,8 +48,8 @@ export async function requireAdmin(): Promise<SessionGuardResult> {
 }
 
 /**
- * Stable auth outcome returned across the owning boundary; callers handle the represented success,
- * absence, or failure states.
+ * Route-guard verdict that either carries the authenticated user id or the response the route must
+ * return unchanged.
  */
 export type UserIdGuardResult =
   | { ok: true; userId: string }

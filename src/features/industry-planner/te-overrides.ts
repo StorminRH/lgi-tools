@@ -8,10 +8,7 @@
 // 2% per level), where material efficiency tops out at 10.
 import { effectiveMeOf, nodeMeState, type NodeMeState } from './me-overrides';
 
-/**
- * Configured industry planner limit for max te; callers use this value instead of embedding a
- * competing threshold.
- */
+/** Maximum blueprint time-efficiency value in percentage points. */
 export const MAX_TE = 20;
 
 /**

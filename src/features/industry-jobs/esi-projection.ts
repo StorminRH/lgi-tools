@@ -12,8 +12,8 @@
 import { z } from 'zod';
 
 /**
- * Closed industry jobs vocabulary and canonical order for job statuses; consumers derive
- * validation and iteration from this one list.
+ * Closed, canonically ordered set of job statuses; consumers derive validation, unions, and
+ * iteration from this one list.
  */
 export const JOB_STATUSES = [
   'active',
