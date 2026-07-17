@@ -15,6 +15,8 @@ import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
  */
 export const PURGE_DIRECT_IDENTITY_COLUMNS = ['user_id', 'character_id'] as const;
 
+const IDENTITY_TABLE_NAMES = new Set(['user', 'characters']);
+
 /**
  * True when the table is keyed by a user or character — the set the gate requires
  * a contributor (or a declared exemption) for.
@@ -24,6 +26,35 @@ export function isUserDataTable(table: PgTable): boolean {
   if (PURGE_DIRECT_IDENTITY_COLUMNS.some((id) => columns.includes(id))) return true;
   // Polymorphic per-owner: owner_id is identity only alongside owner_type.
   return columns.includes('owner_id') && columns.includes('owner_type');
+}
+
+/**
+ * Scans the given tables' foreign keys and returns each identity-table reference whose column name
+ * falls outside the sanctioned key shapes, closing the gap where a novel name would evade every
+ * name-based purge check.
+ */
+export function findIdentityFkLeaks(tables: readonly PgTable[]): string[] {
+  const findings: string[] = [];
+  for (const table of tables) {
+    const config = getTableConfig(table);
+    const columnNames = new Set(config.columns.map((column) => column.name));
+    for (const foreignKey of config.foreignKeys) {
+      const reference = foreignKey.reference();
+      const foreignTableName = getTableConfig(reference.foreignTable).name;
+      if (!IDENTITY_TABLE_NAMES.has(foreignTableName)) continue;
+
+      for (const column of reference.columns) {
+        const isDirect = PURGE_DIRECT_IDENTITY_COLUMNS.some((name) => name === column.name);
+        const isPolymorphic =
+          column.name === 'owner_id' && columnNames.has('owner_type');
+        if (isDirect || isPolymorphic) continue;
+        findings.push(
+          `${config.name}.${column.name} references ${foreignTableName} through an unsanctioned identity column`,
+        );
+      }
+    }
+  }
+  return findings.sort();
 }
 
 /**

@@ -155,7 +155,7 @@ Cache global, slow-changing reads with `'use cache'`, `cacheLife`, and `cacheTag
 - The lazy DB proxy in `src/db/index.ts` must remain import-side-effect-free.
 - Session advisory locks use a reserved direct, unpooled connection and release in `finally`; never hold a transaction or pooled connection across network calls.
 - Every deploy migrates its own database branch. Branch pushes do not create previews automatically.
-- Every user/character-keyed Neon table must be claimed by a purge contributor or an explicit retained exemption. Follow the key-shape and registry rules enforced by `src/purge/registry.test.ts`.
+- Every user/character-keyed Neon table must be claimed by a purge contributor or an explicit retained exemption. Follow the complete key-shape, purge, growth, and ESI checklist enforced by `src/db/dataset-declarations.test.ts`.
 
 ### APIs, validation, and environment
 

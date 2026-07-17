@@ -66,7 +66,7 @@ campaign: none — the queue is empty.
 | 3.9.2.2 | Cron shell & wake policy (Expand; retires `dup:b54bf337`, fixes the idle Neon wake) | 2 (one branch) | SHIPPED |
 | 3.9.2.3 | ESI dataset registry & freshness gate (Create + Expand/Combine — one declaration, placement and staleness) | 2 (one branch) | SHIPPED |
 | 3.9.2.4 | Endpoint contract gate (Expand) | 1 | SHIPPED |
-| 3.9.2.5 | ux-check probe harness (Combine ~30 one-off probes) | 1 | PLANNED |
+| 3.9.2.5 | ux-check probe harness (Combine ~30 one-off probes) | 1 | SHIPPED |
 | 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | PLANNED |
 | 3.9.2.7 | Primitives-scoped audit & ledger (report; Ryan decides extensions) | 1 | PLANNED |
 | **Phase 3 — Backlog clearance** | | | |
@@ -940,7 +940,7 @@ close-out.
 
 ### 3.9.2.5 — ux-check probe harness
 
-**Objective.** The ~30 one-off probe scripts in `docs/ux-check/scripts/`
+**Objective.** The ~30 one-off probe scripts under `docs/ux-check/`
 collapse into one probe-definition primitive, making browser probes as
 repeatable for the agent as `ux-capture` sweeps already are.
 
@@ -984,6 +984,9 @@ the skill pair updated same-change.
 **Delivery evidence.** Probe count and total probe LOC before/after in the
 notes; each retained family demonstrated via the runner; drift gate green
 at the bumped revision.
+
+**Delivered 2026-07-17.** PR #259, squash `0959509`; production
+`dpl_2rSnCRoAm1T5Tb6V76aHh14zzR5s` is Ready on `lgi.tools`.
 
 ---
 
