@@ -107,7 +107,7 @@ describe('GET /api/cron/refresh-industry-indices', () => {
         outcome: 'refreshed',
         costIndices: SUMMARY.costIndices,
         adjustedPrices: SUMMARY.adjustedPrices,
-        durationMs: 46,
+        durationMs: expect.any(Number),
       },
     });
   });
