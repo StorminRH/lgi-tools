@@ -9,7 +9,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 19 -->
+<!-- shared-policy-revision: 20 -->
 
 Run the resolver and require its directive to name `plan-session` as the handler.
 Otherwise report it and return control to `start-session`; never select a sibling

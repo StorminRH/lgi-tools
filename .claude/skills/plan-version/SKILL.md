@@ -9,7 +9,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 19 -->
+<!-- shared-policy-revision: 20 -->
 
 Use Claude Code Plan mode and the native task list. Sequence
 `docs/DEVELOPMENT_LIFECYCLE.md` and `docs/SESSION_CONTRACTS.md`; do not duplicate

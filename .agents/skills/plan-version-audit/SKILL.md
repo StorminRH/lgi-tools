@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 19 -->
+<!-- shared-policy-revision: 20 -->
 
 Plan from `docs/VERSION_AUDIT.md` and `docs/DEVELOPMENT_LIFECYCLE.md` without
 copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and

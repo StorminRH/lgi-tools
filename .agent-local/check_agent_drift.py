@@ -9,34 +9,36 @@ import subprocess
 import sys
 from pathlib import Path
 
+from resolve_development_state import active_roadmap, parse_contract_index
+
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST_PATH = Path(__file__).with_name("policy-manifest.json")
 
 
-def relative(path: Path) -> str:
-    return path.relative_to(ROOT).as_posix()
+def relative(path: Path, root: Path) -> str:
+    return path.relative_to(root).as_posix()
 
 
-def read_text(path: Path, errors: list[str]) -> str:
+def read_text(path: Path, root: Path, errors: list[str]) -> str:
     if not path.is_file():
-        errors.append(f"missing file: {relative(path)}")
+        errors.append(f"missing file: {relative(path, root)}")
         return ""
     return path.read_text(encoding="utf-8")
 
 
-def parse_skill(path: Path, errors: list[str]) -> tuple[str, str]:
-    text = read_text(path, errors)
+def parse_skill(path: Path, root: Path, errors: list[str]) -> tuple[str, str]:
+    text = read_text(path, root, errors)
     if not text:
         return "", ""
     lines = text.splitlines()
     if not lines or lines[0] != "---":
-        errors.append(f"{relative(path)}: missing opening YAML frontmatter")
+        errors.append(f"{relative(path, root)}: missing opening YAML frontmatter")
         return "", text
     try:
         closing = lines.index("---", 1)
     except ValueError:
-        errors.append(f"{relative(path)}: missing closing YAML frontmatter")
+        errors.append(f"{relative(path, root)}: missing closing YAML frontmatter")
         return "", text
 
     frontmatter = lines[1:closing]
@@ -47,15 +49,15 @@ def parse_skill(path: Path, errors: list[str]) -> tuple[str, str]:
     ]
     if sorted(keys) != ["description", "name"]:
         errors.append(
-            f"{relative(path)}: frontmatter keys must be exactly name + description"
+            f"{relative(path, root)}: frontmatter keys must be exactly name + description"
         )
 
     name_line = next((line for line in frontmatter if line.startswith("name:")), "")
     name = name_line.partition(":")[2].strip()
     if not name:
-        errors.append(f"{relative(path)}: empty skill name")
+        errors.append(f"{relative(path, root)}: empty skill name")
     if not any(line.startswith("description:") for line in frontmatter):
-        errors.append(f"{relative(path)}: missing description")
+        errors.append(f"{relative(path, root)}: missing description")
     return name, "\n".join(lines[closing + 1 :])
 
 
@@ -63,10 +65,30 @@ def matches(text: str, pattern: str) -> bool:
     return re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL) is not None
 
 
+def derived_session_contracts(root: Path) -> list[str]:
+    """Return the active version's indexed session-contract paths.
+
+    The roadmap discovery and INDEX.md format stay owned by the lifecycle
+    resolver; this derives the drift gate's expectations from them instead of
+    a hand-synced manifest list. No active master plan or no index yields an
+    empty list without error: those lifecycle states are the resolver's to
+    report, and the empty set is exactly the legal post-archive boundary state
+    the old hand-list had to be manually emptied into.
+    """
+    _, version, _, _ = active_roadmap(root)
+    if version is None:
+        return []
+    index_path = root / "docs/session-contracts" / version / "INDEX.md"
+    return sorted(
+        path.relative_to(root).as_posix()
+        for _, path in parse_contract_index(index_path).values()
+    )
+
+
 def check_imports(manifest: dict, errors: list[str]) -> None:
     for raw_path, expected in manifest["imports"].items():
         path = ROOT / raw_path
-        text = read_text(path, errors)
+        text = read_text(path, ROOT, errors)
         first = next(
             (line.strip() for line in text.splitlines() if line.strip()), ""
         )
@@ -96,7 +118,7 @@ def hook_commands(value: object) -> list[str]:
 def check_hooks(manifest: dict, errors: list[str]) -> None:
     for raw_path, expected in manifest["hookConfigs"].items():
         path = ROOT / raw_path
-        text = read_text(path, errors)
+        text = read_text(path, ROOT, errors)
         if not text:
             continue
         try:
@@ -111,14 +133,16 @@ def check_hooks(manifest: dict, errors: list[str]) -> None:
             )
 
 
-def check_skill_pairs(manifest: dict, errors: list[str]) -> None:
+def check_skill_pairs(manifest: dict, root: Path, errors: list[str]) -> None:
     revision = str(manifest["policyRevision"])
-    roots = {name: ROOT / value for name, value in manifest["skillRoots"].items()}
+    roots = {name: root / value for name, value in manifest["skillRoots"].items()}
     expected_names = set(manifest["pairedSkills"])
 
-    for runtime, root in roots.items():
+    for runtime, skill_root in roots.items():
         actual_names = {
-            path.parent.name for path in root.glob("*/SKILL.md") if path.is_file()
+            path.parent.name
+            for path in skill_root.glob("*/SKILL.md")
+            if path.is_file()
         }
         if actual_names != expected_names:
             errors.append(
@@ -127,42 +151,51 @@ def check_skill_pairs(manifest: dict, errors: list[str]) -> None:
             )
 
         for skill_name, policy in manifest["pairedSkills"].items():
-            path = root / skill_name / "SKILL.md"
-            parsed_name, body = parse_skill(path, errors)
+            path = skill_root / skill_name / "SKILL.md"
+            parsed_name, body = parse_skill(path, root, errors)
             if parsed_name and parsed_name != skill_name:
                 errors.append(
-                    f"{relative(path)}: frontmatter name {parsed_name!r} does not "
+                    f"{relative(path, root)}: frontmatter name {parsed_name!r} does not "
                     f"match folder {skill_name!r}"
                 )
 
             marker = f"<!-- shared-policy-revision: {revision} -->"
             if marker not in body:
-                errors.append(f"{relative(path)}: missing marker {marker}")
+                errors.append(f"{relative(path, root)}: missing marker {marker}")
 
             for pattern in policy["required"]:
                 if not matches(body, pattern):
                     errors.append(
-                        f"{relative(path)}: missing required policy /{pattern}/"
+                        f"{relative(path, root)}: missing required policy /{pattern}/"
                     )
             for pattern in policy["forbidden"]:
                 if matches(body, pattern):
                     errors.append(
-                        f"{relative(path)}: contains stale policy /{pattern}/"
+                        f"{relative(path, root)}: contains stale policy /{pattern}/"
                     )
             for pattern in manifest["runtimeForbidden"].get(runtime, []):
                 if matches(body, pattern):
                     errors.append(
-                        f"{relative(path)}: contains wrong-runtime language /{pattern}/"
+                        f"{relative(path, root)}: contains wrong-runtime language /{pattern}/"
                     )
 
 
-def check_paths(manifest: dict, errors: list[str]) -> None:
-    for raw_path in [*manifest["canonicalGuides"], *manifest["requiredPaths"]]:
-        path = ROOT / raw_path
+def check_paths(manifest: dict, root: Path, errors: list[str]) -> None:
+    skill_paths = [
+        f"{skill_root}/{skill_name}/SKILL.md"
+        for skill_root in manifest["skillRoots"].values()
+        for skill_name in manifest["pairedSkills"]
+    ]
+    for raw_path in [
+        *manifest["canonicalGuides"],
+        *manifest["requiredPaths"],
+        *skill_paths,
+    ]:
+        path = root / raw_path
         if not path.is_file():
             errors.append(f"missing required path: {raw_path}")
     for raw_path in manifest["forbiddenPaths"]:
-        if (ROOT / raw_path).exists():
+        if (root / raw_path).exists():
             errors.append(f"retired path still exists: {raw_path}")
 
 
@@ -177,17 +210,25 @@ def check_ignored(manifest: dict, errors: list[str]) -> None:
             errors.append(f"local agent path is not ignored: {raw_path}")
 
 
-def check_session_contracts(manifest: dict, errors: list[str]) -> None:
+def check_session_contracts(manifest: dict, root: Path, errors: list[str]) -> None:
     policy = manifest.get("sessionContracts", {})
-    expected = policy.get("expected", [])
+    expected = derived_session_contracts(root)
     scan_paths = [*policy.get("scan", []), *expected]
 
+    _, version, _, _ = active_roadmap(root)
+    if version is not None:
+        contract_root = root / "docs/session-contracts" / version
+        indexed = {root / raw_path for raw_path in expected}
+        for path in sorted(contract_root.glob("*.md")):
+            if path.name != "INDEX.md" and path not in indexed:
+                errors.append(f"unindexed session contract: {relative(path, root)}")
+
     for raw_path in expected:
-        path = ROOT / raw_path
+        path = root / raw_path
         if not path.is_file():
             errors.append(f"missing session contract: {raw_path}")
             continue
-        text = read_text(path, errors)
+        text = read_text(path, root, errors)
         session_id = path.stem
         first = next((line for line in text.splitlines() if line.strip()), "")
         if not first.startswith(f"## Session {session_id} "):
@@ -198,7 +239,7 @@ def check_session_contracts(manifest: dict, errors: list[str]) -> None:
             errors.append(f"{raw_path}: contains a stray phase heading from the archive")
 
     for raw_path in scan_paths:
-        text = read_text(ROOT / raw_path, errors)
+        text = read_text(root / raw_path, root, errors)
         for pattern in policy.get("forbidden", []):
             if matches(text, pattern):
                 errors.append(
@@ -278,7 +319,7 @@ def check_development_state_tests(errors: list[str]) -> None:
         )
         if result.returncode != 0:
             detail = result.stdout.strip() or result.stderr.strip() or "unknown failure"
-            errors.append(f"{relative(path)} fixture tests failed:\n{detail}")
+            errors.append(f"{relative(path, ROOT)} fixture tests failed:\n{detail}")
 
 
 def check_lifecycle_checkers(errors: list[str]) -> list[str]:
@@ -339,12 +380,12 @@ def check_tooling(errors: list[str]) -> None:
 def main() -> int:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     errors: list[str] = []
-    check_paths(manifest, errors)
+    check_paths(manifest, ROOT, errors)
     check_imports(manifest, errors)
     check_hooks(manifest, errors)
-    check_skill_pairs(manifest, errors)
+    check_skill_pairs(manifest, ROOT, errors)
     check_ignored(manifest, errors)
-    check_session_contracts(manifest, errors)
+    check_session_contracts(manifest, ROOT, errors)
     check_development_state_tests(errors)
     warnings = check_lifecycle_checkers(errors)
     check_development_state(manifest, errors)
