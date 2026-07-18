@@ -18,7 +18,7 @@ description: >-
 
 # Triage an issue / contribution (LGI.tools)
 
-<!-- shared-policy-revision: 22 -->
+<!-- shared-policy-revision: 23 -->
 
 Turns an incoming issue into a validated diagnosis and a short menu of response
 directions, then acts only on the one the user chooses. The point is to **respond

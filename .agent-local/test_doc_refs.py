@@ -72,6 +72,26 @@ class DocRefsTests(unittest.TestCase):
             self.rendered(),
         )
 
+    def test_bracketed_route_path_resolves_literally(self) -> None:
+        page = self.fixture.root / "src/app/sites/[id]/page.tsx"
+        page.parent.mkdir(parents=True)
+        page.write_text("export {};\n", encoding="utf-8")
+        self.fixture.write("guide.md", "See `src/app/sites/[id]/page.tsx`.\n")
+        self.assertEqual([], self.rendered())
+
+    def test_missing_bracketed_route_path_is_an_error(self) -> None:
+        self.fixture.write("guide.md", "See `src/app/sites/[slug]/page.tsx`.\n")
+        self.assertEqual(
+            [
+                (
+                    "error",
+                    "docs/guide.md:1: repository path does not resolve: "
+                    "src/app/sites/[slug]/page.tsx",
+                )
+            ],
+            self.rendered(),
+        )
+
     def test_manifest_declared_ignored_outputs_need_not_exist(self) -> None:
         manifest_path = self.fixture.root / ".agent-local/policy-manifest.json"
         manifest_path.parent.mkdir(parents=True)

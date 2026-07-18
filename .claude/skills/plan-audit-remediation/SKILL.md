@@ -10,7 +10,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 22 -->
+<!-- shared-policy-revision: 23 -->
 
 Use Claude Code Plan mode and the native task list. Require the lifecycle
 resolver directive to name `plan-audit-remediation` as the handler. Otherwise
@@ -32,10 +32,14 @@ finding to one or more contracts, and give every contract dependencies,
 behavior locks, acceptance gates, baseline effect, design-review evidence, and
 normal close-out.
 
-Present the complete extension for Ryan's approval without writing files. After
-approval in execution mode, append the roadmap rows, reconcile the contract
-index/files, mark mapped findings Planned, set the audit to Remediation in
-progress, and update SCRATCHPAD. Do not write session implementation plans.
+Use the global headless `gpt-5.6-sol` routing as useful for bounded finding
+exploration, decomposition, and drafting. Give the complete extension,
+contract set, ledger, and evidence to a fresh read-only xhigh adversarial
+reviewer and reconcile every finding. Present the reviewed extension for Ryan's
+approval without writing files. After approval in execution mode, append the
+roadmap rows, reconcile the contract index/files, mark mapped findings Planned,
+set the audit to Remediation in progress, and update SCRATCHPAD. Do not write
+session implementation plans.
 Rerun the resolver, report its new directive, run the drift check, and stop —
 planning outcomes are session-terminal; execution begins in a fresh
 `start-session`. All Floss and Campaign findings block archive; Watch remains

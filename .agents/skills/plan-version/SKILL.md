@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 22 -->
+<!-- shared-policy-revision: 23 -->
 
 This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
 `docs/SESSION_CONTRACTS.md` own the procedure and artifact schemas;
@@ -31,12 +31,15 @@ This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
 4. In Codex Plan mode, reconcile roadmap intent with live repository state and
    propose the ordered contract/index set. Include dependencies, acceptance
    gates, hotspot contact, and at most one selected health campaign.
-5. Present the decomposition for Ryan's approval. Plan mode is read-only; do not
+5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful during
+   authoring. Give the complete draft to a fresh read-only xhigh adversarial
+   reviewer with its source evidence, then reconcile every finding.
+6. Present the reviewed decomposition for Ryan's approval. Plan mode is read-only; do not
    create or rewrite contract files before approval.
-6. After approval in execution mode, write or reconcile only the deterministic
+7. After approval in execution mode, write or reconcile only the deterministic
    `docs/session-contracts/X.Y/INDEX.md` and contract paths. Do not create a
    session implementation plan here.
-7. Rerun the resolver, report its new directive, run
+8. Rerun the resolver, report its new directive, run
    `python3 .agent-local/check_agent_drift.py`, and stop — planning outcomes
    are session-terminal. A session that planned an artifact never executes it;
    execution begins in a fresh `start-session`.

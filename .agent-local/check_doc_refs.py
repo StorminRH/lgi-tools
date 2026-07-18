@@ -240,9 +240,13 @@ def _archive_redirect(source: str, token: str) -> str | None:
 
 def _path_exists(root: Path, token: str) -> bool:
     """Return whether a literal or globbed repo path resolves."""
+    # Literal existence wins: bracketed Next.js route segments like
+    # `src/app/sites/[id]/page.tsx` are real paths, not character classes.
+    if (root / token).exists():
+        return True
     if any(character in token for character in "*?["):
         return any(root.glob(token))
-    return (root / token).exists()
+    return False
 
 
 def _ignored_paths(root: Path) -> tuple[str, ...]:

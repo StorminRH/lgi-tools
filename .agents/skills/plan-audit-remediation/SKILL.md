@@ -11,7 +11,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 22 -->
+<!-- shared-policy-revision: 23 -->
 
 This is the Plan-mode owner for converting a failed version-close audit into a
 bounded extension of the same master version. It creates no separate remediation
@@ -42,14 +42,18 @@ session plans, and audit finding ledger remain authoritative.
    to scope absent from the audit. Each contract states its finding ids,
    dependencies, behavior locks, end-state, verification, baseline effect,
    pre-PR design evidence, and normal branch/PR close-out.
-5. Present the complete master-plan extension and contract set for Ryan's
+5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful for bounded
+   finding exploration, decomposition, and drafting. Give the complete
+   extension, contract set, ledger, and evidence to a fresh read-only xhigh
+   adversarial reviewer, then reconcile every finding.
+6. Present the reviewed master-plan extension and contract set for Ryan's
    approval. Plan mode is read-only; do not mutate artifacts before approval.
-6. After approval in execution mode, append the approved rows to the current
+7. After approval in execution mode, append the approved rows to the current
    master plan, reconcile `docs/session-contracts/X.Y/INDEX.md` and its contract
    files, change each mapped finding from Open to Planned, set `Audit status` to
    `Remediation in progress`, and update SCRATCHPAD to the first new session.
    Do not create session implementation plans here.
-7. Rerun the resolver, report its new directive, run
+8. Rerun the resolver, report its new directive, run
    `python3 .agent-local/check_agent_drift.py`, and stop — planning outcomes
    are session-terminal. A session that planned an artifact never executes it;
    execution begins in a fresh `start-session`.

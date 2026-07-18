@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 22 -->
+<!-- shared-policy-revision: 23 -->
 
 Plan from `docs/VERSION_AUDIT.md` and `docs/DEVELOPMENT_LIFECYCLE.md` without
 copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
@@ -35,12 +35,16 @@ copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
 4. Produce an approval-ready audit plan naming the mode, exact version/ref,
    metrics and commands, artifact inventory, likely drift questions, baseline
    overwrite, verification, and—only for version close—archive destination.
-5. Wait for Ryan's approval; Plan mode remains read-only.
-6. After approval in execution mode, overwrite a new plan with `Audit status:
+5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful to explore
+   audit surfaces, design measurement workflows, and draft bounded sections.
+   Give the complete plan and its evidence to a fresh read-only xhigh
+   adversarial reviewer, then reconcile every finding.
+6. Present the reviewed plan and wait for Ryan's approval; Plan mode remains read-only.
+7. After approval in execution mode, overwrite a new plan with `Audit status:
    Approved`, `Audit cycle: 1`, the full `Audited ref`, approval date, version,
    mode, procedure, and procedure-digest markers. When reconciling a stale
    in-progress plan, update only the approved procedure/scope while preserving
    its cycle evidence and finding ledger.
-7. Rerun the resolver, report its new directive, run the agent drift check, and
+8. Rerun the resolver, report its new directive, run the agent drift check, and
    stop — planning outcomes are session-terminal. A session that planned an
    artifact never executes it; execution begins in a fresh `start-session`.

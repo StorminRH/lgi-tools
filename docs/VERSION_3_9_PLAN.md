@@ -74,7 +74,7 @@ campaign: none — the queue is empty.
 | 3.9.2.10 | Token-vend scope cleanup (PL-013 Delete) | 1 | SHIPPED |
 | **Phase 3 — Backlog clearance** | | | |
 | 3.9.3.1 | Backlog triage & hygiene sweep | 1 | SHIPPED |
-| 3.9.3.2 | EVE image resolver & app-wide adoption | 1 | PLANNED |
+| 3.9.3.2 | EVE image resolver & app-wide adoption | 1 | SHIPPED |
 | 3.9.3.3 | Invalid-route rendering fix (React #419) | 1 | PLANNED |
 | 3.9.3.4 | Local dev performance | 2 (one branch) | PLANNED |
 | 3.9.3.5 | Update-watch routine (report-only dependency/service watch) | 1 | PLANNED |
