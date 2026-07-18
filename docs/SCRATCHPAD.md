@@ -15,13 +15,17 @@
 
 ## Now
 
-**CURRENT = v3.9 "Refit" in flight; 3.9.2.10 is SHIPPED (see ledger) and PL-013 is Delivered.** All three approved extension rows (PL-011–PL-013) are now delivered through 3.9.2.8–10.
+**CURRENT = v3.9 "Refit" in flight; session 3.9.3.1 (backlog triage) is executed, verified, and committed on its branch — awaiting close-out.** 3.9.2.10 is SHIPPED (see ledger) and PL-013 is Delivered; all three approved extension rows (PL-011–PL-013) are delivered through 3.9.2.8–10.
 
 **⭐⭐ NEW durable gotcha (memory: [[convex-bundles-lib-esi-no-next-imports]]):** Convex bundles the ESI-gate chain (`convex/onlineStatusSync.ts` → `@/lib/esi` → dispatch → everything it imports) into its isolate. ANY `next/server` import in that chain fails ONLY the post-merge production Convex push (`__dirname` in Next's compiled ua-parser-js) — invisible to `pnpm verify`/CI. That is exactly how the first 3.9.2.2 deploy (`dpl_27dx4yFQKHCYRKNBfW4jCbeRSomL`) failed; production kept serving the prior Ready build throughout. Also: two Greptile P2s resolved (marker scheduling reverted-by-design with the constraint documented at the write site; affiliations `outcome:'refreshed'` label justified as preserved behavior — Greptile accepted). CI-only CRAP gotcha confirmed live: a function whose only test is a `*.db.test.ts` suite scores 0% coverage in Postgres-less CI (fix = add off-database unit coverage in the sibling unit suite).
 
-**Riding this branch:** the new paired `drive-session` skill (policy revision 22) — model routing + delegated-execution rules. Mention it in the 3.9.3.1 changelog entry at close-out.
+**Riding this branch:** the new paired `drive-session` skill (policy revision 22) — model routing + delegated-execution rules. Mentioned in the 3.9.3.1 changelog entry (done).
 
-**NEXT = plan session 3.9.3.1.** The resolver reports stage `session-plan-needed`, handler `plan-session`, primary artifact `docs/session-contracts/3.9/3.9.3.1.md`, authority read-only until the implementation plan is approved, and pause "Session-plan approval is required." Plan-mode planning boundary; do not begin implementation.
+**NOW = 3.9.3.1 executed, verified, and committed; awaiting close-out.** The approved plan was executed by the delegated sol@high `codex exec` workflow (second clean run of the trial): five evidence-backed backlog deletions (one commit each naming its supersession), the fallow section collapsed to an archive pointer, all 3.9-owned entries retargeted to their sessions, changelog + APP_VERSION → 3.9.3.1. Acceptance gate passed natively: full `pnpm verify` green (3,423 tests + 1 skip, DB suites against local Postgres), Fallow clean vs merge-base, drift green. ⭐ Delegation gotcha: background `codex exec` MUST redirect stdin (`</dev/null`) — it otherwise blocks forever on "Reading additional input from stdin"; also use `--output-last-message <file>` for the final report.
+
+**3.9.3.1 dispositions report (for Ryan, amendment path):**
+- Admin reassign stale identity email → security-adjacent S-sized correctness issue that can relink a detached character to the wrong source account → suggest a dedicated 3.9 amendment row; not folded into cleanup.
+- P7 stale example citations → XS documentation truth issue whose existing trigger is the 3.9 version-close constitution review → no new row needed unless Ryan wants the one-line amendment sooner.
 
 **⭐ Delegated-execution trial (observed this session, Ryan-directed):** 3.9.2.10 was implemented by a headless `codex exec` GPT-5.6-sol agent (high effort, workspace-write sandbox) working from the approved plan, with the Claude session as orchestrator, question-absorber, and acceptance gate — clean result, no plan deviations, stopped before commit as instructed (~100k GPT tokens). ⭐ Durable gotcha: the codex sandbox blocks localhost network, so `*.db.test.ts` suites silently SKIP inside delegated runs — the orchestrator must re-run DB suites plus full verify at acceptance. Model-routing policy is deliberately NOT yet in AGENTS.md/skills; if Ryan judges the trial good after this PR, a follow-up session encodes it (routing table, codex profiles, skill stop-point, drift gate).
 
