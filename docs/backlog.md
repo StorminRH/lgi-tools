@@ -73,22 +73,6 @@
   shipped tile shows only `BuildTimeView.topJob` (final job, runs-scaled, base/ME0).
   *Size:* M–L. *Trigger:* when a "time to done" readout is prioritized.
 
-## Industry planner — asset tracking
-
-- **Wire the build-plan "Asset Tracking" popover** (deferred at the v3.7.6 node-redesign
-  close-out). *What:* the quantity-ring popover ("Asset Tracking") ships its layout in
-  v3.7.6 as a shell with placeholders — "Item held by" reads "No holdings tracked yet" and
-  Total Owned / Total Remaining show "—" (only Total Needed is real). Fill them once an
-  item-asset feed exists: a held-by section of one group per owner (corporation /
-  character) → per location → quantity (a per-owner subtotal when multi-location), and
-  Owned/Remaining computed against the held total (Remaining = Needed − Owned), all in the
-  same ledger alignment already built (`AssetLedger` + the held-by block in `NodeCard.tsx`).
-  *Why deferred:* needs an EVE item-asset ingest (a new ESI assets scope + sync) that
-  doesn't exist — a separate feature, not a UI tweak; the v3.7.6 popover is the design
-  shell for it. *Size:* L (ESI assets scope decision + sync + schema, then wire the
-  popover). *Trigger:* the item-asset tracker feature (pairs with the planned corp-assets
-  work).
-
 ## Industry planner — structures
 
 - **Manufacturing-Time-Efficiency-rig membership fix** (surfaced in 3.7.9.1.4). *What:*
