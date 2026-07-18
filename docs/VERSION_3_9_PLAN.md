@@ -70,7 +70,7 @@ campaign: none — the queue is empty.
 | 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | SHIPPED |
 | 3.9.2.7 | Primitives-scoped audit & ledger (report; Ryan decides extensions) | 1 | SHIPPED |
 | 3.9.2.8 | Planner freshness consumption (PL-011 Expand) | 1 | SHIPPED |
-| 3.9.2.9 | UI wrapper import rail (PL-012 Expand) | 1 | PLANNED |
+| 3.9.2.9 | UI wrapper import rail (PL-012 Expand) | 1 | SHIPPED |
 | 3.9.2.10 | Token-vend scope cleanup (PL-013 Delete) | 1 | PLANNED |
 | **Phase 3 — Backlog clearance** | | | |
 | 3.9.3.1 | Backlog triage & hygiene sweep | 1 | PLANNED |
@@ -1174,6 +1174,9 @@ with no measured source hotspot change expected.
 **Delivery evidence.** Both seeded direct-import violations fail, the live
 tree passes zero-warning lint and `pnpm verify`, and the primitive ledger's
 rail cell names the delivered rule. `UX gate: No`.
+
+**Delivered 2026-07-17.** PR #263, squash `3dfceab`; production
+`dpl_L3UgA13WPxismcA9QnWpnSjDjpGn` is Ready on `lgi.tools`.
 
 ---
 
