@@ -255,6 +255,7 @@ Use repository skills for their matching workflows:
 - `plan-version`: extrapolate an approved master plan into an ordered contract index and session contracts.
 - `plan-session`: design and, after approval, persist the detailed implementation plan for one contract.
 - `start-session`: public lifecycle entry; report and dispatch the resolver-owned directive, then re-resolve after every handler outcome.
+- `drive-session`: model-routing and delegated-execution rules — which model executes, reviews, explores, or smokes each lifecycle stage, the sol delegate launch/monitor/stop procedure, and the orchestrator-owned acceptance gate.
 - `pre-pr-design-review`: run the constitution-backed design-decay gate and reconcile changed hotspot surfaces before a PR.
 - `close-out`: end-of-session verification, commit/push, required design gate, PR, Greptile, clean merge, and production reconciliation.
 - `plan-version-audit`: create the approved plan for a version-close audit or requested periodic health pass.

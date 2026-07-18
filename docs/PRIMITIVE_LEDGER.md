@@ -115,7 +115,7 @@ Part 2 uses the fixed lifecycle classes `create`, `combine`, `delete`,
 | PL-010 | API/backend | keep | The P3 sweep found no pure rename: `requireCronAuth` owns env and bearer policy, `swallow` owns best-effort failure isolation/logging, EVE URL builders own canonical host/path/size policy, and `defineCronRoute` is consumed by all cron routes. | Keep the flagged wrappers because each hides a real decision used by multiple callers; do not create a pass-through cleanup slice. | XS | Delivered |
 | PL-011 | UI/design | expand | `src/lib/esi-datasets/freshness.ts` owns the exact `staleAfter <= now` boundary, but `src/features/industry-planner/industry-styles.ts` repeats the comparison for confidence and aggregate counts. The planner intentionally refreshes the whole price set on view and that behavior must remain. | Move planner price-staleness derivation onto the shared freshness semantics without changing its always-confirm-on-view behavior or widening the AF-005 pricing contexts. | S–M | Delivered |
 | PL-012 | UI/design | expand | The current tree keeps Base UI and sonner imports inside `src/components/ui/`, and policy names that directory as the sole seam, but ESLint restricts only direct `next/image`; no rail prevents a future feature import of Base UI or sonner. | Add scoped restricted-import enforcement for Base UI and sonner outside the shared UI wrappers, with seeded lint fixtures and wrapper exemptions. | S | Delivered |
-| PL-013 | Auth/trust | delete | `EveTokenOkResponse.scopes` is returned by the internal token-vend route but discarded by its only production consumer in `convex/lib/characterSync.ts`. Its private whitespace-only parser also diverges from the comma-or-space stored-scope decoder in `scope-health.ts`; full Fallow found zero unused files or exports, making this field-level dead contract the sole zero-consumer candidate. | Remove the unused token-vend `scopes` field and redundant parser, update the route contract/tests, and keep `scope-health.ts` as the sole stored-scope decoder. | S | Approved (3.9.2.10) |
+| PL-013 | Auth/trust | delete | `EveTokenOkResponse.scopes` is returned by the internal token-vend route but discarded by its only production consumer in `convex/lib/characterSync.ts`. Its private whitespace-only parser also diverges from the comma-or-space stored-scope decoder in `scope-health.ts`; full Fallow found zero unused files or exports, making this field-level dead contract the sole zero-consumer candidate. | Remove the unused token-vend `scopes` field and redundant parser, update the route contract/tests, and keep `scope-health.ts` as the sole stored-scope decoder. | S | Delivered |
 
 ## Audit evidence
 
@@ -133,5 +133,5 @@ Part 2 uses the fixed lifecycle classes `create`, `combine`, `delete`,
 - Zero-consumer method: full Fallow dead-code analysis reported 468 entry
   points, zero unused files, and zero unused exports. Targeted Graphify and
   source-consumer probes then found the field-level PL-013 candidate.
-- The operator approved PL-011, PL-012, and PL-013 on 2026-07-17. PL-011 and
-  PL-012 were delivered by 3.9.2.8–9; PL-013 remains approved as 3.9.2.10.
+- The operator approved PL-011, PL-012, and PL-013 on 2026-07-17. All three
+  were delivered by 3.9.2.8–10.
