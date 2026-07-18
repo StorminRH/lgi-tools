@@ -26,13 +26,12 @@ export const eveTokenRequestSchema = z.object({
 
 /**
  * 200 — pinned with `satisfies` in the route; type-imported by convex/ in
- * 3.4.3. `expiresAt` is an ISO-8601 string on the wire (Date.toISOString()).
+ * 3.4.3. Carries ONLY the short-lived access token: the consumer's ESI reads
+ * own their freshness windows, so no expiry/identity/scope metadata rides
+ * this wire (PL-013).
  */
 export interface EveTokenOkResponse {
   accessToken: string;
-  expiresAt: string;
-  characterId: number;
-  scopes: string[];
 }
 
 /** 404 | 409 | 502 JSON envelope. 400/401/500 are plain text — uncontracted. */

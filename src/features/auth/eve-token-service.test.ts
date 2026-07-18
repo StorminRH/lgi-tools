@@ -107,8 +107,7 @@ describe('getFreshAccessTokenForCharacter', () => {
       },
     ];
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
-    // scope was null on the row → honest empty list, not the assumed full set.
-    expect(result).toMatchObject({ kind: 'ok', accessToken: 'cached-access', scopes: [] });
+    expect(result).toMatchObject({ kind: 'ok', accessToken: 'cached-access' });
     expect(h.refreshEveTokenMock).not.toHaveBeenCalled();
     expect(h.updateSpy).not.toHaveBeenCalled();
   });
@@ -135,12 +134,7 @@ describe('getFreshAccessTokenForCharacter', () => {
     expect(result).toMatchObject({
       kind: 'ok',
       accessToken: 'new-access',
-      characterId: CHAR_ID,
-      scopes: ['publicData', 'esi-skills.read_skills.v1'],
     });
-    if (result.kind === 'ok') {
-      expect(result.expiresAt.getTime()).toBeGreaterThan(Date.now() + 1190 * 1000);
-    }
     // Decrypted the stored refresh token before refreshing.
     expect(h.refreshEveTokenMock).toHaveBeenCalledWith({
       refreshToken: 'old-refresh',
@@ -335,7 +329,7 @@ describe('getFreshAccessTokenForCharacter', () => {
 
     const result = await getFreshAccessTokenForCharacter(CHAR_ID);
     // Reflects the persisted (winner's) token, NOT our own minted one — and never nulls.
-    expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access', scopes: ['publicData'] });
+    expect(result).toMatchObject({ kind: 'ok', accessToken: 'winner-access' });
     expect(h.logUsageEventMock).not.toHaveBeenCalled();
     expect(h.emitDomainEventMock).not.toHaveBeenCalled();
   });

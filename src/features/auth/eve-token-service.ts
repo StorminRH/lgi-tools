@@ -55,18 +55,10 @@ const TOKEN_REFRESH_FAILURE_ACTIONS = {
  * retryable upstream failure.
  */
 export type FreshTokenResult =
-  | { kind: 'ok'; accessToken: string; expiresAt: Date; characterId: number; scopes: string[] }
+  | { kind: 'ok'; accessToken: string }
   | { kind: 'not_found' }
   | { kind: 'reauth_required' }
   | { kind: 'upstream_error' };
-
-// Reflect ONLY the scopes actually recorded on the account. A null/empty scope
-// means "unknown" — return an empty list rather than assuming the full requested
-// set, so a caller can't read unproven grants off the vended response.
-function parseScopes(scope: string | null): string[] {
-  const trimmed = scope?.trim();
-  return trimmed ? trimmed.split(/\s+/) : [];
-}
 
 function logTokenRefreshFailure(characterId: number, failureClass: RefreshFailureClass): void {
   void logUsageEvent({
@@ -87,7 +79,6 @@ function loadAccountRow(characterId: number) {
       accessTokenExpiresAt: account.accessTokenExpiresAt,
       refreshTokenInvalidGrantCount: account.refreshTokenInvalidGrantCount,
       refreshTokenInvalidGrantFirstAt: account.refreshTokenInvalidGrantFirstAt,
-      scope: account.scope,
     })
     .from(account)
     .where(
@@ -108,11 +99,7 @@ function hasActiveInvalidGrantGrace(row: LoadedAccountRow): boolean {
   );
 }
 
-function readCachedToken(
-  row: LoadedAccountRow,
-  characterId: number,
-  scopes: string[],
-): FreshTokenResult | null {
+function readCachedToken(row: LoadedAccountRow): FreshTokenResult | null {
   if (
     row.refreshTokenInvalidGrantCount === 1 ||
     !row.accessToken ||
@@ -122,9 +109,7 @@ function readCachedToken(
     return null;
   }
   const accessToken = decryptToken(row.accessToken);
-  return accessToken === null
-    ? null
-    : { kind: 'ok', accessToken, expiresAt: row.accessTokenExpiresAt, characterId, scopes };
+  return accessToken === null ? null : { kind: 'ok', accessToken };
 }
 
 // A conditional write affected 0 rows: a concurrent vend rotated this account's
@@ -149,13 +134,7 @@ async function reflectStoredToken(characterId: number): Promise<FreshTokenResult
   if (row.accessTokenExpiresAt.getTime() - Date.now() <= ACCESS_TOKEN_REFRESH_SKEW_MS) {
     return { kind: 'reauth_required' };
   }
-  return {
-    kind: 'ok',
-    accessToken: access,
-    expiresAt: row.accessTokenExpiresAt,
-    characterId,
-    scopes: parseScopes(row.scope),
-  };
+  return { kind: 'ok', accessToken: access };
 }
 
 async function recordInvalidGrant(
@@ -295,10 +274,8 @@ export async function getFreshAccessTokenForCharacter(
   const refreshToken = decryptToken(refreshCiphertext);
   if (refreshToken === null) return { kind: 'reauth_required' };
 
-  const scopes = parseScopes(row.scope);
-
   // A still-valid stored access token is handed back without touching EVE.
-  const cached = readCachedToken(row, characterId, scopes);
+  const cached = readCachedToken(row);
   if (cached !== null) return cached;
 
   const result = await refreshEveToken({
@@ -366,5 +343,5 @@ export async function getFreshAccessTokenForCharacter(
     });
   }
 
-  return { kind: 'ok', accessToken: result.access_token, expiresAt, characterId, scopes };
+  return { kind: 'ok', accessToken: result.access_token };
 }

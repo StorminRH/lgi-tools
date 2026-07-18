@@ -40,9 +40,6 @@ export async function POST(req: Request): Promise<Response> {
     case 'ok':
       return Response.json({
         accessToken: result.accessToken,
-        expiresAt: result.expiresAt.toISOString(),
-        characterId: result.characterId,
-        scopes: result.scopes,
       } satisfies EveTokenOkResponse);
     case 'not_found':
       return Response.json({ error: 'not_found' } satisfies EveTokenErrorResponse, { status: 404 });

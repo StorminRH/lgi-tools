@@ -14,9 +14,6 @@ describe('eve-token contract', () => {
   it('pins the 200 response shape Convex imports', () => {
     expectTypeOf<EveTokenOkResponse>().toEqualTypeOf<{
       accessToken: string;
-      expiresAt: string;
-      characterId: number;
-      scopes: string[];
     }>();
   });
 

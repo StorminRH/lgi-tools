@@ -81,13 +81,9 @@ describe('POST /api/internal/eve-token', () => {
   );
 
   it('returns 200 with only the access token — never the refresh token', async () => {
-    const expiresAt = new Date(Date.now() + 1200 * 1000);
     h.serviceMock.mockResolvedValue({
       kind: 'ok',
       accessToken: 'fresh-access-token',
-      expiresAt,
-      characterId: 90000001,
-      scopes: ['publicData'],
     });
 
     const res = await POST(makeRequest(
@@ -100,9 +96,6 @@ describe('POST /api/internal/eve-token', () => {
     const body = JSON.parse(text);
     expect(body).toEqual({
       accessToken: 'fresh-access-token',
-      expiresAt: expiresAt.toISOString(),
-      characterId: 90000001,
-      scopes: ['publicData'],
     });
     // The core custody guarantee: no refresh token key, and the word never appears.
     expect('refreshToken' in body).toBe(false);
