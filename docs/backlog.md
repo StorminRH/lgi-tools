@@ -293,12 +293,6 @@
 > correctness/a11y/§5 findings went to Ryan's 3.6.7b ledger; these are the lower-
 > severity drift + missing-test gaps with no version commitment.
 
-- **CLAUDE.md bare-filename refs + understated Tech Stack.** *What:* committed
-  `HEAD:CLAUDE.md` references `SESSION_END.md`/`PR_REVIEW.md` without the `docs/` prefix
-  and lists a Tech Stack subset (omits React 19, Tailwind v4, visx, Convex, Upstash,
-  Better Auth, GitHub Actions). *Why deferred:* the in-flight working-tree CLAUDE.md
-  rewrite already corrects both. *Size:* S. *Trigger:* ensure the rewrite lands these.
-  *(Distinct from the ledger item: that one is the gitignored-target decision.)*
 - **Leftover fallow-trial artifacts in gitignored `docs/`.** *What:* `fallow-audit-full.json`
   (748 KB), `fallow-*.txt/json/md`, `compass_artifact_*.md` — one-off outputs from the
   fallow-tooling trial; plus the unused `fallowTotal` const in `scripts/fallow-trial-log.mjs:149`
