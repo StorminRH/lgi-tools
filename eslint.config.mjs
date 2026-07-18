@@ -258,6 +258,23 @@ const datasetTtlSelectors = [
 // src/components/ui/. Factored like the selector families above because
 // flat-config rule options REPLACE per matching file — every block that
 // re-states no-restricted-imports must re-list the bans it keeps.
+const baseUiWrapperFiles = [
+  "src/components/ui/checkbox.tsx",
+  "src/components/ui/combobox.tsx",
+  "src/components/ui/dialog.tsx",
+  "src/components/ui/field.tsx",
+  "src/components/ui/menu.tsx",
+  "src/components/ui/navigation-menu.tsx",
+  "src/components/ui/popover.tsx",
+  "src/components/ui/radio-group.tsx",
+  "src/components/ui/segmented.tsx",
+  "src/components/ui/select.tsx",
+  "src/components/ui/stepper.tsx",
+  "src/components/ui/switch.tsx",
+  "src/components/ui/tabs.tsx",
+  "src/components/ui/tooltip.tsx",
+];
+
 const baseUiImportPatterns = [
   {
     group: ["@base-ui/react", "@base-ui/react/*"],
@@ -314,21 +331,8 @@ const eslintConfig = defineConfig([
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: [
       "src/components/eve-image.tsx",
-      "src/components/ui/checkbox.tsx",
-      "src/components/ui/combobox.tsx",
-      "src/components/ui/dialog.tsx",
-      "src/components/ui/field.tsx",
-      "src/components/ui/menu.tsx",
-      "src/components/ui/navigation-menu.tsx",
-      "src/components/ui/popover.tsx",
-      "src/components/ui/radio-group.tsx",
-      "src/components/ui/segmented.tsx",
-      "src/components/ui/select.tsx",
-      "src/components/ui/stepper.tsx",
-      "src/components/ui/switch.tsx",
-      "src/components/ui/tabs.tsx",
+      ...baseUiWrapperFiles,
       "src/components/ui/toast.tsx",
-      "src/components/ui/tooltip.tsx",
       "src/lib/esi-datasets/**/*.{ts,tsx,mts}",
     ],
     rules: {
@@ -359,22 +363,7 @@ const eslintConfig = defineConfig([
   // Base UI wrappers retain package access but remain subject to every other
   // import rail, including sonner exclusivity.
   {
-    files: [
-      "src/components/ui/checkbox.tsx",
-      "src/components/ui/combobox.tsx",
-      "src/components/ui/dialog.tsx",
-      "src/components/ui/field.tsx",
-      "src/components/ui/menu.tsx",
-      "src/components/ui/navigation-menu.tsx",
-      "src/components/ui/popover.tsx",
-      "src/components/ui/radio-group.tsx",
-      "src/components/ui/segmented.tsx",
-      "src/components/ui/select.tsx",
-      "src/components/ui/stepper.tsx",
-      "src/components/ui/switch.tsx",
-      "src/components/ui/tabs.tsx",
-      "src/components/ui/tooltip.tsx",
-    ],
+    files: baseUiWrapperFiles,
     rules: {
       "no-restricted-imports": [
         "error",
