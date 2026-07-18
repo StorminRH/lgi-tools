@@ -68,7 +68,7 @@ campaign: none — the queue is empty.
 | 3.9.2.4 | Endpoint contract gate (Expand) | 1 | SHIPPED |
 | 3.9.2.5 | ux-check probe harness (Combine ~30 one-off probes) | 1 | SHIPPED |
 | 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | SHIPPED |
-| 3.9.2.7 | Primitives-scoped audit & ledger (report; Ryan decides extensions) | 1 | PLANNED |
+| 3.9.2.7 | Primitives-scoped audit & ledger (report; Ryan decides extensions) | 1 | SHIPPED |
 | 3.9.2.8 | Planner freshness consumption (PL-011 Expand) | 1 | PLANNED |
 | 3.9.2.9 | UI wrapper import rail (PL-012 Expand) | 1 | PLANNED |
 | 3.9.2.10 | Token-vend scope cleanup (PL-013 Delete) | 1 | PLANNED |
@@ -1095,6 +1095,9 @@ surface an agent must choose between).
 **Delivery evidence.** The committed ledger with the arc verdicts
 Delivered and every Proposed row dispositioned by Ryan; `UX gate: No`;
 changelog + APP_VERSION; standard close-out.
+
+**Delivered 2026-07-17.** PR #261, squash `a638f17`; production
+`dpl_4LBvRPthh4UzLPc7xi5VLGutwuHd` is Ready on `lgi.tools`.
 
 ---
 

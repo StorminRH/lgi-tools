@@ -63,6 +63,20 @@ export function freshnessGate(name: StaticWindowDatasetName): FreshnessGate {
 }
 
 /**
+ * The serialized-clock face of the stale-after boundary verdict: true when a
+ * row's persisted stale-after instant (epoch ms) has been reached at `nowMs`.
+ * Owns the same inclusive `staleAfter <= now` comparison as
+ * `isBoundaryStale`, which delegates here. Row existence stays the caller's
+ * question — a missing row is an existence verdict, not a boundary one.
+ */
+export function isBoundaryStaleMs(
+  staleAfterMs: number,
+  nowMs: number,
+): boolean {
+  return staleAfterMs <= nowMs;
+}
+
+/**
  * Returns whether an expires-boundary dataset needs refresh. A missing row is
  * stale; a persisted boundary remains fresh only while it is strictly later
  * than the injected clock.
@@ -71,5 +85,8 @@ export function isBoundaryStale(
   staleAfter: Date | undefined,
   now: Date,
 ): boolean {
-  return staleAfter === undefined || staleAfter.getTime() <= now.getTime();
+  return (
+    staleAfter === undefined
+    || isBoundaryStaleMs(staleAfter.getTime(), now.getTime())
+  );
 }
