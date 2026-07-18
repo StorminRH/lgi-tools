@@ -28,7 +28,7 @@ import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/type-icon';
 import * as Combobox from '@/components/ui/combobox';
 import { Kbd } from '@/components/ui/kbd';
-import { flattenSections, searchIconClass, splitMatchRuns } from './global-search-view';
+import { flattenSections, searchIconClass, searchRowImage, splitMatchRuns } from './global-search-view';
 
 type Props = {
   active: boolean;
@@ -197,8 +197,15 @@ function SearchHints({ active }: { active: boolean }) {
 // The row's leading icon: the type's rendered image (falling back to a mono glyph
 // on a 404), or a tone-coloured class/kind badge for rows without a type image.
 function SearchRowIcon({ row }: { row: SearchResult }) {
-  if (row.typeId) {
-    return <TypeIcon typeId={row.typeId} size={22} mono={row.iconText ?? row.label.slice(0, 2)} />;
+  const image = searchRowImage(row);
+  if (image) {
+    return (
+      <TypeIcon
+        {...image}
+        size={22}
+        mono={row.iconText ?? row.label.slice(0, 2)}
+      />
+    );
   }
   return (
     <span

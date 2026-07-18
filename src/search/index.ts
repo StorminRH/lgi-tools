@@ -35,6 +35,7 @@
 //    the command bar never sees them, embedded pickers query them by id.
 
 import type { useRouter } from 'next/navigation';
+import type { EveImageDescriptor } from '@/data/eve-data/type-images';
 import type { Session } from '@/features/auth/types';
 
 /**
@@ -55,11 +56,12 @@ export type SearchResult = {
   href: string;
   iconText?: string;
   iconTone?: string;
-  // EVE type ID of the item this row represents. When present, the dropdown
-  // renders the type's icon via <TypeIcon> (falling back to the `iconText`
-  // glyph on a 404); when absent, it shows the `iconText` glyph. Only sources
-  // whose rows map to a real EVE type set this (blueprints → the product they
-  // build) — tools, commands, and sites leave it unset.
+  // Resolved type-image descriptor set only by sources whose rows map to a
+  // specific EVE image. Takes precedence over typeId when both are present.
+  icon?: EveImageDescriptor;
+  // EVE product/type identity retained for ranking and search-recents
+  // compatibility. When icon is absent, the dropdown renders this type's item
+  // icon; when both are absent, it shows the iconText glyph.
   typeId?: number;
   // Only set on rows produced by `readRecents()` — preserves the source
   // `kind` from before the row was relabeled to `kind: 'recent'`, so the

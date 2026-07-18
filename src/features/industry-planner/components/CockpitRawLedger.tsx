@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { TypeIcon } from '@/components/type-icon';
+import { itemImage } from '@/data/eve-data/type-images';
 import { formatIsk } from '@/lib/format/isk';
 import { formatQuantity } from '@/lib/format/number';
 import type { BlueprintPricing, BlueprintStructure, MaterialCostRow } from '../types';
@@ -69,7 +70,7 @@ function CategoryColumn({ group }: { group: CategoryGroup }) {
       <Card>
         {group.rows.map((row) => (
           <div key={row.typeId} className={ROW}>
-            <TypeIcon typeId={row.typeId} size={30} mono={row.name.slice(0, 2)} />
+            <TypeIcon {...itemImage(row.typeId)} size={30} mono={row.name.slice(0, 2)} />
             <div className="flex min-w-0 flex-col gap-px">
               <span className="line-clamp-2 break-words font-mono text-ui font-medium leading-[1.28] text-name">
                 {row.name}

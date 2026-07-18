@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { itemImage, nodeImage } from '@/data/eve-data/type-images';
 import { nodeCardView } from './node-card-view';
 
 const base = { typeId: 34, selected: false, related: false, faded: false };
@@ -21,11 +22,10 @@ describe('nodeCardView', () => {
   });
 
   it('defaults the icon to the item itself, or forwards a provided rendition', () => {
-    expect(nodeCardView(base).iconDesc).toEqual({ typeId: 34, variant: 'icon' });
-    expect(nodeCardView({ ...base, icon: { typeId: 999, variant: 'bp' } }).iconDesc).toEqual({
-      typeId: 999,
-      variant: 'bp',
-    });
+    expect(nodeCardView(base).iconDesc).toEqual(itemImage(34));
+    expect(nodeCardView({ ...base, icon: nodeImage(999, 34) }).iconDesc).toEqual(
+      nodeImage(999, 34),
+    );
   });
 
   it('reflects the visual state in the class list', () => {

@@ -3,6 +3,7 @@
 // load mechanism (TemplateLoader on the target page replays it; a tile carries
 // zero loader logic). The list arrives pre-cut and server-ordered (favorites
 // first, then recency) — no sorting here.
+import { blueprintImage } from '@/data/eve-data/type-images';
 import type { SavedPlanRow } from '../api-contract';
 import { IndustryRow } from './IndustryRow';
 
@@ -15,6 +16,7 @@ export function SavedBuildTiles({ plans }: { plans: SavedPlanRow[] }) {
           key={row.id}
           name={row.name}
           group={row.productName}
+          icon={blueprintImage(row.blueprintTypeId)}
           fav={row.favorite}
           href={`/industry/${row.blueprintTypeId}?plan=${row.id}`}
         />

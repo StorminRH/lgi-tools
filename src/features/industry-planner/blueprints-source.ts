@@ -5,6 +5,7 @@
 // and memoized for the session.
 
 import { apiFetch } from '@/lib/api-client';
+import { blueprintImage } from '@/data/eve-data/type-images';
 import type { SearchSource } from '@/search';
 import { rankFuzzyResults } from '@/search/rank';
 import { blueprintsEndpoint } from './api-contract';
@@ -60,9 +61,9 @@ export const blueprintsSource: SearchSource = {
         label: entry.name,
         sub: 'Blueprint',
         href: `/industry/${entry.blueprintTypeId}`,
-        // A blueprint always maps to a real product, so the row always renders that
-        // product's icon (TypeIcon). No generic 'BP' glyph — if the image ever 404s
-        // the fallback derives the monogram from the item name, never a flat "BP".
+        icon: blueprintImage(entry.blueprintTypeId),
+        // Retain product identity for ranking and persisted-recents compatibility;
+        // the resolved blueprint descriptor above owns what the row displays.
         typeId: entry.productTypeId,
         matchIndices: match.matchIndices,
       }),

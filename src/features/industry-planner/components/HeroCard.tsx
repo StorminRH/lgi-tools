@@ -5,6 +5,7 @@ import { RunAsFrame } from '@/components/RunAsFrame';
 import { cn } from '@/components/ui/cn';
 import { Stepper } from '@/components/ui/stepper';
 import { TypeIcon } from '@/components/type-icon';
+import { heroImage } from '@/data/eve-data/type-images';
 import { MANUFACTURING_ACTIVITY_ID } from '../build-pricing';
 import { nodeMeState } from '../me-overrides';
 import { nodeTeState } from '../te-overrides';
@@ -143,11 +144,7 @@ export function HeroCard({ structure }: { structure: BlueprintStructure }) {
           one plane (the character side is borderless by design). */}
       <div className="flex aspect-square w-[108px] shrink-0 items-center justify-center rounded-ctl border border-border p-2">
         <TypeIcon
-          typeId={structure.product.typeId}
-          // Ships/drones/structures serve a 3D render; everything else only an
-          // icon (a `render` request would 400). The renderable signal is
-          // computed from the product's SDE category in the structure builder.
-          variant={structure.product.renderable ? 'render' : 'icon'}
+          {...heroImage(structure.product.typeId, structure.product.renderable)}
           size={88}
           alt={structure.product.name}
           mono={structure.product.name.slice(0, 2)}

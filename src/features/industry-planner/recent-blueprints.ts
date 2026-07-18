@@ -10,7 +10,7 @@ const MAX_RECENT = 8;
 /** Browser-persisted recent blueprint identity, product identity, name, and absolute visit time. */
 export type RecentBlueprint = {
   typeId: number; // the blueprint type id (the /industry/[id] route param)
-  productTypeId: number; // the produced item — used for the row icon, not the blueprint scroll
+  productTypeId: number; // the produced item identity retained with the visit
   name: string; // the produced item's name, for the row label
 };
 

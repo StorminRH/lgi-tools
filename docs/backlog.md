@@ -394,37 +394,6 @@ minimal at ship; explainer already trimmed to one line. *Size:* XS. *Trigger:* S
   cover the cure. Size: small (one popover + one derived set). Trigger: a future scope-set
   addition creating stale links in the wild (the CLAUDE.md batched-scope-decision event).
 
-## EVE images
-
-> Both of this section's earlier neighbours shipped: the planner-hero `/render` 400 fix landed in
-> 3.7.27.1 (PR #205), and hub-scoped Jita 4-4 market data landed in 3.7.26.1 (PR #204).
-
-**Normalized EVE image resolver + app-wide adoption** (Ryan-directed 2026-07-10, surfaced at the
-3.7.27.1 pause). *What:* one shared *descriptor resolver* so every feature that shows an EVE image
-picks the rendition through a single normalized process, then hands `{ typeId, variant }` to
-`TypeIcon`. NOT a rate-limited gate — `TypeIcon` is already the single render door (bakes in the
-`images.evetech.net` host, owns the icon/render/bp/bpc variants + the monogram terminal fallback),
-and images are a plain CDN with no shared budget to protect (unlike the ESI gate). The gap is the
-*decision* layer, today duplicated + drifted per call site. Promote the two 3.7.27.1 seed helpers
-(`nodeIcon`, `isRenderableCategory`, currently in `industry-planner/industry-styles.ts`) into a
-shared home — `src/data/eve-data/` (where SDE blueprint/category semantics already live; a feature
-→ data import, boundary-legal). *The rule is per-INTENT, not one-size:* show-the-item surfaces
-(hero, raw nodes, search dropdown, templates/saved rows, active/corp job rows, recents) → the
-**product/item `icon`** (hero upgrades to `render` when the category is renderable —
-Ship/Drone/Structure verified); show-what-you-run surfaces (build-plan buildables/reactions) → the
-producing **blueprint/formula `bp`** (blueprints/formulas serve no `icon` — verified). Monogram
-stays the universal terminal fallback. *Adoption surface:* migrate every EVE-image call site to the
-resolver — including the `/industry` **landing page**, whose Recents / Templates / Active-jobs /
-Corp-jobs rows today render **typographic monogram initials, not images** (`IndustryRow`,
-`IndustryActiveJobs` JobRow) — so "monogram → product icon" there is a deliberate **visual** change
-needing Ryan's review; plus `SavedPlanRowItem`, `GlobalSearch`, and any other consumer. Some rows
-need an extra id threaded (recents store `blueprintTypeId`; job rows have `product_type_id`;
-templates carry `productTypeId`). *Out of family:* `CharacterPortrait` (portrait endpoint) and
-structure/corp icons — different image families, not this resolver. *Why deferred:* it's a real,
-now-justified primitive (a genuine second consumer exists) but a cross-app refactor + a new visual
-surface — its own reviewable PR, not folded into 3.7.27.1's pure-render scope (one-thing-per-session).
-3.7.27.1 ships the seed helpers it extracts from. *Size:* M. *Trigger:* Session 3.9.3.2.
-
 ## Workflow & docs
 
 - **DESIGN_PRINCIPLES P7 cites deleted example surfaces** (found by the 3.9.1.1 doc-ref sweep).

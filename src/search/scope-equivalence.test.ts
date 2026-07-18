@@ -255,6 +255,10 @@ describe('full-scope search over the real manifest (characterization anchor)', (
           "results": [
             {
               "href": "/industry/29988",
+              "icon": {
+                "typeId": 29988,
+                "variant": "bp",
+              },
               "id": "blueprint:29988",
               "kind": "blueprint",
               "label": "Legion Blueprint",

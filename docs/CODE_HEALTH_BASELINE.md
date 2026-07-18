@@ -9,20 +9,20 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-07-17 |
-| App version | 3.9.2.3 |
-| Code ref | `eefc59f23fe035e402275202d27c4b9bed1756a8` on `main` |
-| Measurement scope | Targeted: ESI dataset declarations, placement gate, runtime freshness decisions, and recurrence rails |
-| Previous comparison | 2026-07-17 / 3.9.2.2 / `898871f…` (targeted cron wake-policy pass) |
-| Health trend | Thirteen external datasets now declare placement, upstream freshness, ownership, and mirrors once; one runtime leaf serves every static window and expires-boundary verdict, six mirrored gates are gone, and the new rails reject a duplicated TTL or feature-local staleness import. |
+| Date | 2026-07-18 |
+| App version | 3.9.3.2 |
+| Code ref | `38d1a6d` on `codex/3.9.3.2-session-planning` (pre-merge targeted pass) |
+| Measurement scope | Targeted: EVE type-image rendition ownership and its adoption surfaces |
+| Previous comparison | 2026-07-17 / 3.9.2.3 / `eefc59f…` (targeted dataset-declaration pass) |
+| Health trend | Every EVE type-image call site now states intent through one resolver in `src/data/eve-data/`; the two drifted per-site rendition decisions are deleted, planner styles shrank by the promoted helpers, and a lint rail rejects rendition literals outside the owner. Unchanged Step 1 metrics carry from the 3.9.2 full measurement. |
 
 ## Step 1 metrics
 
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
-| Production TS/TSX files | 758 | 758 | ±0 net: −1 at the audit (four registry/gate/freshness modules added, five mirrored staleness modules removed), +1 from post-baseline merges; recount 758 at 3.9.2.10 close-out |
-| Production TS/TSX LOC | 72,834 | 72,215 | +619 net: +570 at the audit from the typed declaration registry, its fail-closed junction gate, and the route-contract follow-on, +49 from post-baseline merges; recount 72,834 at 3.9.2.10 close-out |
-| Test files | 356 | 357 | −1 net: −2 at the audit (registry and freshness characterization replace four per-feature staleness suites), +1 from post-baseline merges; recount 356 at 3.9.2.10 close-out |
+| Production TS/TSX files | 759 | 758 | +1 from the 3.9.3.2 shared EVE image resolver module; recount 759 at 3.9.3.2 close-out |
+| Production TS/TSX LOC | 72,944 | 72,215 | +619 through 3.9.2.10 (registry/gate/route-contract work), +110 at 3.9.3.2 (resolver + search descriptor threading); recount 72,944 at 3.9.3.2 close-out |
+| Test files | 360 | 357 | +4 at 3.9.3.2 (resolver, type-icon render, blueprint-row image, and image-variant-rail suites); recount 360 at 3.9.3.2 close-out |
 | Coverage — statements | 85.08% | 85.06% | 8,252 / 9,699 from fresh full-Postgres coverage; all 3,398 tests passed |
 | Coverage — branches | 83.32% | 83.29% | 4,908 / 5,890 |
 | Coverage — functions | 80.48% | 80.37% | 2,058 / 2,557 |
@@ -59,7 +59,7 @@ not run under the current dependency and toolchain state.
 | 10 | `src/app/admin/TrafficSection.tsx` | 467 | Watch |
 | 11 | `src/features/wormhole-sites/queries.ts` | 466 | Covered cohesive query module; AF-003 Verified without extraction |
 | 12 | `src/features/devlog/parse.ts` | 445 | Cohesive non-goal |
-| 13 | `src/features/industry-planner/components/CockpitBuildPlan.tsx` | 439 | Watch |
+| 13 | `src/features/industry-planner/components/CockpitBuildPlan.tsx` | 443 | Watch; +4 LOC at 3.9.3.2 from the resolver import swap only — no new exports or concerns |
 | 14 | `src/features/industry-planner/components/CockpitKpis.tsx` | 426 | Watch |
 | 15 | `src/lib/esi/dispatch.ts` | 408 | Cohesive non-goal; sole ESI dispatch gate |
 | 16 | `src/data/gsc/ingest.ts` | 401 | Cohesive ingestion orchestration |

@@ -5,13 +5,16 @@
 // here once. Feature-local: both consumers are industry-jobs components. The pure row
 // data comes from jobRowFrameData (job-view.ts).
 import type { ReactNode } from 'react';
+import { TypeIcon } from '@/components/type-icon';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { initials } from '@/lib/format/names';
 import type { JobRowFrameData } from '../job-view';
 
 /** Renders the shared status, activity, product, runs, and timing frame for one industry job. */
 export function JobRowFrame({
   headlineName,
+  icon,
   runs,
   activityLabel,
   remainingLabel,
@@ -24,10 +27,13 @@ export function JobRowFrame({
   return (
     <div className="border-t border-border-soft px-3.5 py-[6px]">
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-[6px] text-ui">
-        <span className="text-name truncate leading-[1.5]">
-          {headlineName}{' '}
-          <span className="text-muted">
-            ×{runs} · {activityLabel}
+        <span className="flex min-w-0 items-center gap-2 text-name leading-[1.5]">
+          <TypeIcon {...icon} size={22} mono={initials(headlineName)} />
+          <span className="truncate">
+            {headlineName}{' '}
+            <span className="text-muted">
+              ×{runs} · {activityLabel}
+            </span>
           </span>
         </span>
         <span className="text-micro text-muted shrink-0">{remainingLabel}</span>
