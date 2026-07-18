@@ -71,7 +71,7 @@ campaign: none — the queue is empty.
 | 3.9.2.7 | Primitives-scoped audit & ledger (report; Ryan decides extensions) | 1 | SHIPPED |
 | 3.9.2.8 | Planner freshness consumption (PL-011 Expand) | 1 | SHIPPED |
 | 3.9.2.9 | UI wrapper import rail (PL-012 Expand) | 1 | SHIPPED |
-| 3.9.2.10 | Token-vend scope cleanup (PL-013 Delete) | 1 | PLANNED |
+| 3.9.2.10 | Token-vend scope cleanup (PL-013 Delete) | 1 | SHIPPED |
 | **Phase 3 — Backlog clearance** | | | |
 | 3.9.3.1 | Backlog triage & hygiene sweep | 1 | PLANNED |
 | 3.9.3.2 | EVE image resolver & app-wide adoption | 1 | PLANNED |
@@ -1211,6 +1211,9 @@ field and one divergent decoder; auth trust boundaries remain unchanged.
 **Delivery evidence.** Focused token-service, route, and scope-health tests;
 Fallow reports no newly unused surface; `pnpm verify`; standard close-out.
 `UX gate: No`.
+
+**Delivered 2026-07-17.** PR #264, squash `f1e29d9`; production
+`dpl_ABxcnsUkaKjT4WMpYHyRqYYCm6N4` is Ready on `lgi.tools`.
 
 ---
 
