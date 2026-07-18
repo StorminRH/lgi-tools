@@ -115,8 +115,8 @@
   probe proved the errors remained, so the candidate was reverted. *Why
   deferred:* the approved narrow boundary was exhausted; further work requires a
   dedicated Next.js routing/streamed-metadata diagnosis and must not expand the
-  security release. *Size:* M. *Trigger:* schedule a focused invalid-route
-  production-runtime session; preserve static detail rendering and begin from
+  security release. *Size:* M. *Trigger:* Session 3.9.3.3; preserve static detail
+  rendering and begin from
   the captured 404/noindex/React #419 evidence rather than repeating the failed
   metadata candidate.
 - **Site editorial layer** (deferred from 3.8.3.5.1). *What:* optional
@@ -130,10 +130,12 @@
   values on combat sites. *Size:* M. *Trigger:* feature prioritization.
 - **Per-row staleness UX** — "stale" badges on individual materials. *What:* a per-row
   freshness indicator on planner material rows (distinct from the 3.5.4b score-level
-  staleness flag). *Size:* S–M. *Trigger:* pairs with planner material-row work.
+  staleness flag). *Size:* S–M. *Data layer:* the 3.9.2.3 dataset registry. *Trigger:*
+  pairs with planner material-row work.
 - **3.0 design-doc non-goals** (explicit future-only): invention chance math, PI
   chains, order-depth slippage. *Size:* L each. *Trigger:* an explicit future-feature
   decision (each was scoped out of 3.0 deliberately).
+
 ## Navigation
 
 - **Category-dropdown top nav + module expansion** (from the 3.6.8 polish session —
@@ -190,23 +192,23 @@
 
 > From the 3.5.4a audit operator-checklist — prod-only cells a solo agent can't
 > measure (a Convex deploy key can't run internal functions; the bot challenge blocks
-> anonymous prod browsing). Run during Ryan's next signed-in prod / Convex-dashboard
-> session.
+> anonymous prod browsing). Run in Session 3.9.3.7 during Ryan's signed-in prod /
+> Convex-dashboard session.
 
 - **Cell i — char token groups.** *What:* signed-in prod ~2 min on `/skills` + `/jobs`,
   then read Upstash `lgi:esi:rl:group:char-detail` / `…:char-industry` (or the
   `rlGroup/rlLimit/rlRemaining/rlUsed` fields on the prod `syncSubjects` rows). *Expect:*
-  remaining > 0 throughout. *Size:* S (measurement). *Trigger:* next authed prod pass.
+  remaining > 0 throughout. *Size:* S (measurement). *Trigger:* Session 3.9.3.7.
 - **Cell ii — 3.5.e1 DB-I/O drop — VERIFICATION PENDING OF A SHIPPED CLAIM**
   (code-verified at `convex/engine.ts:121-143`, never dashboard-measured). *What:* Convex
   dashboard → Functions → `engine:heartbeat`, over a ≥3-min visible `/skills` window —
   compare bytes-read for an `interval` beat vs a `mount`/`visible` beat. *Expect:*
   interval-beat bytes-read ≈ one small `syncPresence` doc AND independent of how many
-  characters are linked. *Size:* S (measurement). *Trigger:* next Convex-dashboard session.
+  characters are linked. *Size:* S (measurement). *Trigger:* Session 3.9.3.7.
 - **Cell iii — sweep db-op budget.** *What:* Convex dashboard → Data: note row counts of
   `syncSubjects` and `syncPresence` (expect small) → the three indexed sweep passes are
   ≪ the ~4096 db-op per-mutation budget; also grep prod `vercel logs` for
-  `retention_batch_capped` (expect absent). *Size:* S. *Trigger:* same session.
+  `retention_batch_capped` (expect absent). *Size:* S. *Trigger:* Session 3.9.3.7.
 - **Archon reference fixture has no third-party validation** (blueprint tools are
   JS-rendered / unfetchable). *What:* a standing known-gap — first regression target if
   planner Archon costs ever differ in-game. *Size:* note. *Trigger:* a planner cost
@@ -224,8 +226,8 @@
   advisories. It remains report-only: no package changes, baseline edits,
   commits, pushes, or PRs. *Why deferred:* operator chose on 2026-07-14 to
   revisit the work within whichever version is active at that time, rather than
-  complete it in 3.8. *Size:* M. *Trigger:* daily external-change monitoring is
-  prioritized in an active version; re-plan against current Claude Code runtime
+  complete it in 3.8. *Size:* M. *Trigger:* Session 3.9.3.5; re-plan against current
+  Claude Code runtime
   and scheduling documentation before any account, GitHub, or network access is
   configured.
 - **F3 — app-wide First Load JS trim.** *What:* `/industry/[id]` ships 332 KB gz First
@@ -238,26 +240,26 @@
   1M / 1 GB / 20 GB-hr Free caps) + Upstash console → Usage (commands vs 500K). **Re-
   estimate Upstash commands accounting for F1** — the ESI body cache is more active than
   the old "near-dormant" model assumed: every per-type orders / small-history fetch does
-  ~4 extra Upstash ops (≈2 SET + 2 GET). *Size:* S (measurement). *Trigger:* next
-  dashboards check, or when the 3.5 trackers scale.
+  ~4 extra Upstash ops (≈2 SET + 2 GET). *Size:* S (measurement). *Trigger:* Session
+  3.9.3.7.
 - **3.8 primitive-reference fidelity polish.** *What:* reconcile the few remaining
   presentational differences found in the post-arc reference review: Tooltip's direct
   surface should use the dedicated tooltip treatment, the checked Checkbox should be
   compared against the full-fill HTML reference, and Field/default-density plus invalid
   states should be represented explicitly in the admin primitive preview. *Why deferred:*
   the primitives are functional, accessible, and already shipped; Ryan chose to merge the
-  completed arc and handle additional visual judgment later. *Size:* S. *Trigger:* Ryan's
-  later PR/UI review or the next session that expands one of these primitives.
+  completed arc and handle additional visual judgment later. *Size:* S. *Trigger:* Session
+  3.9.3.6.
 - **Local dev is slow + memory-heavy on DB pages** (from the 3.6.8 polish session; full
-  diagnosis in `docs/DEV_PERF_DIAGNOSIS.md`). *What:* a cold `/sites` in `pnpm dev` takes
+  diagnosis in `DEV_PERF_DIAGNOSIS.md` at the Document Archive root). *What:* a cold
+  `/sites` in `pnpm dev` takes
   >60s and blocks the Node event loop (the whole dev server stops answering), driving a
   24 GB machine ~10 GB into swap. Root cause: the page assembles the entire catalogue and
   eagerly server-renders every site's full detail body (all waves/NPCs) every request,
   with no build-prerender warm cache like prod. Plan (A/B/C in the doc): profile/confirm
   the stall, lazy-render detail bodies (helps dev + prod), and add a dev-only sample-data
   mode so dev serves a small slice, not the full SDE. *Why deferred:* needs profiling +
-  an architectural change; out of polish scope. *Size:* M–L. *Trigger:* the dedicated
-  dev-perf session (next).
+  an architectural change; out of polish scope. *Size:* M–L. *Trigger:* Session 3.9.3.4.
 - **Client-settled static for the session-gated pages** (surfaced 2026-07-11 by the 3.7.35.1
   conformance route-optimality diagnosis). *What:* `/skills`, `/jobs`, `/structures`, `/settings`,
   `/characters` are `◐` partial because each does a server-side session-gated linked-character read
@@ -302,29 +304,13 @@
   disproportionate add for one column hidden below 900px. **Ratified** in 3.6.7b (ledger #3):
   the omission stands. *Size:* M (new ESI name-resolution surface). *Home/Trigger:* fold into
   the deferred dedicated `/jobs` reskin.
+
 ## fallow code-health (from the fallow-adoption chore) — CLOSED
 
-> fallow is the adopted static gate (replaced knip; `chore/fallow-adopt`, PR #116). The
-> complexity/CRAP debt this section tracked was **fully eliminated by the A–E program
-> (Sessions 3.7.29.1–3.7.34.1, through PR #211)** — every clone group and CRAP hotspot was
-> extracted into tested helpers or a generalized primitive, zero waivers. Both fallow baselines
-> are empty (`dupes.json` = `[]`, `.fallowrc.json` `health.thresholdOverrides` = `[]`), and a live
-> `pnpm test:coverage && fallow health --coverage` reports **health 78/B, 0 critical findings, 0
-> functions over CRAP 30** (2026-07-11). Kept only as the historical record + the re-derive recipe.
-
-- **Top critical-complexity functions — CLOSED (all resolved by A–E).** The old list
-  (`BlueprintHero`, `CharacterJobsCard` / `CharacterQueueCard`, `KpiRow`, `syncGsc`, `CostLedger`,
-  `AccessContent`) was extracted into tested `*-view.ts` / helper pieces across Sessions C/D; none
-  surface as critical today. Re-derive if a new hotspot ever appears: `pnpm test:coverage &&
-  fallow health --coverage coverage/coverage-final.json --format json | jq
-  '[.findings[]|select(.severity=="critical")]'` (empty as of 2026-07-11).
-- The 2026-07-14 v3.8 audit re-derived six above-threshold, zero-direct-coverage
-  query/transform functions. They remain unwaived and moved from deferred Floss
-  into active AF-003 / Session 3.8.5.3.1; the closed A–E campaign itself stays
-  closed.
-- The corp tri-state warn-only convergence (`LiveCorpJobs` ↔ `CorpSectionBody`) was accepted as a
-  non-debt convergence group, not a clone or waiver — its closed disposition lives in the ledger of
-  record, `fallow-baselines/README.md`.
+> Disposition ledger: `fallow-baselines/README.md`; pre-compaction history: Document Archive
+> `fallow-health-improvement.md`. Re-derive with `pnpm test:coverage && pnpm fallow:health`.
+> AF-003 moved the v3.8 audit's six unwaived functions into Session 3.8.5.3.1; the corp tri-state
+> convergence remains a closed non-debt disposition in the ledger of record.
 
 ## Asset ledger — real in-game held-by names (structures, corp divisions, containers)
 
@@ -395,8 +381,7 @@ genuinely un-extractable from the DOM, where a render/interaction test earns the
 every tier unchecked the list still holds the product's direct inputs, which read as surprising).
 *What:* show that the product itself is always built — a pinned, checked, disabled row above Tier 1
 (e.g. "Jaguar · the product") or an explainer clause. *Why deferred:* Ryan chose to keep the panel
-minimal at ship; explainer already trimmed to one line. *Size:* XS. *Trigger:* if users hit the same
-"why is the list never empty" confusion.
+minimal at ship; explainer already trimmed to one line. *Size:* XS. *Trigger:* Session 3.9.3.6.
 
 - **Slots readout: scope-mismatch hint (probably unnecessary).** When a linked character's
   corp-installed jobs are visible (via a corp-eligible reader) but their personal job board
@@ -438,8 +423,7 @@ templates carry `productTypeId`). *Out of family:* `CharacterPortrait` (portrait
 structure/corp icons — different image families, not this resolver. *Why deferred:* it's a real,
 now-justified primitive (a genuine second consumer exists) but a cross-app refactor + a new visual
 surface — its own reviewable PR, not folded into 3.7.27.1's pure-render scope (one-thing-per-session).
-3.7.27.1 ships the seed helpers it extracts from. *Size:* M. *Trigger:* Ryan schedules it as the
-next images-theme sub-version (natural 3.7.27.2).
+3.7.27.1 ships the seed helpers it extracts from. *Size:* M. *Trigger:* Session 3.9.3.2.
 
 ## Workflow & docs
 
