@@ -20,9 +20,9 @@
 
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
-| Production TS/TSX files | 758 | 758 | −1: four registry/gate/freshness modules added and five mirrored staleness modules removed; recount 758 at 3.9.2.10 close-out (post-baseline merges) |
-| Production TS/TSX LOC | 72,834 | 72,215 | +570 from the typed declaration registry, its fail-closed junction gate, and the later route-contract follow-on; recount 72,834 at 3.9.2.10 close-out |
-| Test files | 356 | 357 | −2: registry and freshness characterization replace four per-feature staleness suites; recount 356 at 3.9.2.10 close-out |
+| Production TS/TSX files | 758 | 758 | ±0 net: −1 at the audit (four registry/gate/freshness modules added, five mirrored staleness modules removed), +1 from post-baseline merges; recount 758 at 3.9.2.10 close-out |
+| Production TS/TSX LOC | 72,834 | 72,215 | +619 net: +570 at the audit from the typed declaration registry, its fail-closed junction gate, and the route-contract follow-on, +49 from post-baseline merges; recount 72,834 at 3.9.2.10 close-out |
+| Test files | 356 | 357 | −1 net: −2 at the audit (registry and freshness characterization replace four per-feature staleness suites), +1 from post-baseline merges; recount 356 at 3.9.2.10 close-out |
 | Coverage — statements | 85.08% | 85.06% | 8,252 / 9,699 from fresh full-Postgres coverage; all 3,398 tests passed |
 | Coverage — branches | 83.32% | 83.29% | 4,908 / 5,890 |
 | Coverage — functions | 80.48% | 80.37% | 2,058 / 2,557 |
