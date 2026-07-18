@@ -12,7 +12,9 @@ under `docs/session-plans/X.Y/`.
 
 The purpose is to move design judgment to before the code exists. Plan mode is
 read-only: do not persist the plan or mutate the repository until Ryan approves
-and the runtime returns to execution mode.
+and the runtime returns to execution mode. Headless planning workers may help
+author the plan under the routing in `AGENTS.md`; they never implement it or own
+lifecycle judgment.
 
 ---
 
@@ -158,10 +160,30 @@ the pre-PR evidence that will allow close-out to mark it Delivered. The plan may
 not downgrade an actionable finding to Watch or substitute metric movement for
 the required design outcome.
 
-Create a native runtime todo list from Steps 1–9 before starting the analysis.
-Present the resulting plan in Plan mode and wait for approval.
+Create a native runtime todo list from Steps 1–10 before starting the analysis.
+The complete draft proceeds to Step 9 before it is presented for approval.
 
-## Step 9 — Persist only after approval
+## Step 9 — Adversarially review the complete draft
+
+After the authoring session has a complete draft, but before Ryan sees it:
+
+1. launch a fresh read-only `gpt-5.6-sol` worker at xhigh effort;
+2. give it the complete draft plus the contract and the specific evidence the
+   draft relies on, without coaching it toward the author's conclusions;
+3. require an adversarial review for unsupported assumptions, scope drift,
+   boundary or hotspot mistakes, weaker alternatives, missing behavior locks,
+   insufficient verification, and contradictions with current code or primary
+   documentation;
+4. reconcile every finding into the draft or record why it does not apply;
+5. rerun the review when the reconciliation materially changes the plan's
+   architecture, scope, or verification strategy.
+
+The reviewer is supplementary and never owns the plan. The planning session
+retains judgment, surfaces real product or scope conflicts to Ryan, and only
+then presents the approval-ready plan. Do not create a separate prompt or
+review artifact in the repository.
+
+## Step 10 — Persist only after approval
 
 After Ryan approves and the runtime is in execution mode:
 
@@ -186,4 +208,5 @@ After Ryan approves and the runtime is in execution mode:
 - [ ] Rail conflicts resolved deliberately?
 - [ ] Baseline effect classified and update step included when required?
 - [ ] Scope guard explicit?
+- [ ] Complete draft adversarially reviewed by a fresh xhigh planning worker?
 - [ ] No file written before approval?

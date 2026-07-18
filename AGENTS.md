@@ -252,18 +252,44 @@ feat: add browsing and filtering for wormhole sites
 
 Use repository skills for their matching workflows:
 
-- `plan-version`: extrapolate an approved master plan into an ordered contract index and session contracts.
-- `plan-session`: design and, after approval, persist the detailed implementation plan for one contract.
+- `plan-version`: extrapolate an approved master plan into an ordered contract index and session contracts, with adversarial review before approval.
+- `plan-session`: design, adversarially review, and, after approval, persist the detailed implementation plan for one contract.
 - `start-session`: public lifecycle entry; report and dispatch the resolver-owned directive, then re-resolve after every handler outcome.
-- `drive-session`: model-routing and delegated-execution rules — which model executes, reviews, explores, or smokes each lifecycle stage, the sol delegate launch/monitor/stop procedure, and the orchestrator-owned acceptance gate.
 - `pre-pr-design-review`: run the constitution-backed design-decay gate and reconcile changed hotspot surfaces before a PR.
 - `close-out`: end-of-session verification, commit/push, required design gate, PR, Greptile, clean merge, and production reconciliation.
-- `plan-version-audit`: create the approved plan for a version-close audit or requested periodic health pass.
+- `plan-version-audit`: create and adversarially review the approved plan for a version-close audit or requested periodic health pass.
 - `plan-audit-remediation`: extend the current master version with approved
   sub-versions/contracts for every actionable close-audit finding.
 - `version-audit`: execute the approved audit, overwrite the live health baseline, and archive a completed version only after the audit passes.
 - `triage-issue`: validate an issue/contribution and report options before taking outward action.
 - `ux-check`: scripted desktop/mobile capture and console/network review for changed UI routes.
+
+### Claude subagent routing
+
+Claude Code never launches a native Claude subagent. Whenever any workflow
+calls for a subagent—planning, exploration, execution support, triage, audit
+work, or review—Claude launches a headless `gpt-5.6-sol` worker through the
+Codex CLI. Choose its effort from the Claude seat that would otherwise have
+handled the task:
+
+| Equivalent Claude seat | Headless Codex worker | Typical use |
+| --- | --- | --- |
+| Opus 4.8 | `gpt-5.6-sol` @ high | difficult architecture, synthesis, or cross-cutting work |
+| Sonnet | `gpt-5.6-sol` @ medium | bounded exploration, implementation support, or review |
+| Haiku | `gpt-5.6-sol` @ low | narrow lookups, inventories, and mechanical small tasks |
+
+Use xhigh only when a workflow explicitly requires it or a high-effort worker
+cannot resolve the task. Every complete planning draft receives a fresh
+read-only `gpt-5.6-sol` xhigh adversarial review before operator approval. The
+primary session reconciles worker output and retains lifecycle judgment,
+operator questions, approval, persistence, commits, and close-out unless the
+active workflow explicitly delegates a narrower responsibility.
+
+Every Claude-launched background task title begins
+`gpt-5.6-sol@<effort>: <bounded purpose>` so the model and effort are visible.
+There is no generic delegated-session executor: workers are task-scoped, and
+the active stage skill remains the workflow owner. Runtime-specific headless
+launch mechanics live in `CLAUDE.md`.
 
 Every repository skill creates a native runtime todo/task list from its phases
 and owning documents before execution. Keep one item active and reopen

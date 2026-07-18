@@ -1,5 +1,5 @@
 {
-  "policyRevision": 22,
+  "policyRevision": 23,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -45,6 +45,10 @@
         "todo list|task list",
         "directive",
         "start-session",
+        "gpt-5\\.6-sol",
+        "read-only",
+        "xhigh",
+        "adversarial",
         "session-terminal"
       ],
       "forbidden": []
@@ -61,6 +65,10 @@
         "separate prompt",
         "directive",
         "start-session",
+        "gpt-5\\.6-sol",
+        "read-only",
+        "xhigh",
+        "adversarial",
         "session-terminal"
       ],
       "forbidden": [
@@ -157,6 +165,10 @@
         "Version close",
         "directive",
         "start-session",
+        "gpt-5\\.6-sol",
+        "read-only",
+        "xhigh",
+        "adversarial",
         "session-terminal"
       ],
       "forbidden": []
@@ -180,6 +192,10 @@
         "todo list|task list",
         "start-session",
         "separate (prompt|remediation)",
+        "gpt-5\\.6-sol",
+        "read-only",
+        "xhigh",
+        "adversarial",
         "session-terminal"
       ],
       "forbidden": []
@@ -238,26 +254,6 @@
       "forbidden": [
         "pnpm dev.*i\\.e\\. `next dev -H"
       ]
-    },
-    "drive-session": {
-      "required": [
-        "gpt-5\\.6-sol",
-        "codex exec",
-        "resume --last",
-        "workspace-write",
-        "db\\.test\\.ts",
-        "pnpm verify",
-        "QUESTION FOR ORCHESTRATOR",
-        "terra",
-        "luna",
-        "xhigh",
-        "close-out",
-        "Graphify",
-        "Greptile",
-        "start-session",
-        "Ryan"
-      ],
-      "forbidden": []
     }
   },
   "runtimeForbidden": {
@@ -269,6 +265,7 @@
       "background Bash job"
     ],
     "claude": [
+      "Explore subagents",
       "long-lived Codex terminal",
       "Codex's local image",
       "generic Codex preview"
@@ -323,6 +320,8 @@
   ],
   "forbiddenPaths": [
     ".claude/rules/ui-styling.md",
+    ".agents/skills/drive-session/SKILL.md",
+    ".claude/skills/drive-session/SKILL.md",
     "docs/Version_3_8_Prompts.md"
   ],
   "ignoredPaths": [

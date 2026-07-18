@@ -12,7 +12,7 @@ description: >-
 
 # Triage an issue or contribution
 
-<!-- shared-policy-revision: 22 -->
+<!-- shared-policy-revision: 23 -->
 
 Produce a validated diagnosis before taking outward action. Read `CLAUDE.md` and
 the recent changelog/scratchpad context that could reframe the report.
@@ -40,9 +40,10 @@ Ask which issue/PR if none is identifiable.
 ## 2. Validate every claim
 
 Query Graphify before broad source searches. Use `query`, `explain`, `path`, or
-`affected`, then open the exact files and lines needed for proof. Claude may use
-read-only Explore subagents for a genuinely broad class sweep, but each must also
-follow Graphify-first orientation.
+`affected`, then open the exact files and lines needed for proof. For a genuinely
+broad class sweep, Claude may launch task-scoped read-only headless Codex workers
+through the global `gpt-5.6-sol` routing; each must also follow Graphify-first
+orientation.
 
 For each claim, confirm current code and behavior, reproduce safely when useful,
 distinguish application bugs from environment/auth/rate-limit/schema/deployment

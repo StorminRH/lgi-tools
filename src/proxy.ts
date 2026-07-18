@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SITE_URL } from "@/config/site-url";
+import { isPublishedWormholeSiteId } from "@/features/wormhole-sites/catalogue-boundary";
+import { parseNumericRouteId } from "@/lib/route-id";
 
 // The one host that should ever be indexed. Every other host that reaches the
 // app — preview/branch aliases, a stray `www`, or the production `*.vercel.app`
@@ -9,6 +11,14 @@ import { SITE_URL } from "@/config/site-url";
 // that's a dashboard toggle; stamping the header here is the code-level
 // guarantee that they can never be indexed even if protection is turned off.
 const CANONICAL_HOST = new URL(SITE_URL).host;
+
+function isUnpublishedDirectSitePath(pathname: string): boolean {
+  const rawId = /^\/sites\/([^/]+)$/.exec(pathname)?.[1];
+  if (rawId === undefined) return false;
+
+  const id = parseNumericRouteId(rawId);
+  return id === null || !isPublishedWormholeSiteId(id);
+}
 
 // The Convex backend origin for connect-src (3.4.3). A literal NEXT_PUBLIC_*
 // read is inlined into this bundle at BUILD time (define-env covers the
@@ -31,7 +41,11 @@ const CONVEX_CONNECT_SRC = (() => {
 })();
 
 /**
- * Per-request Content-Security-Policy. Through 3.0.4.5 this used a fresh
+ * Applies request security and publication policy: unpublished direct site
+ * paths become 404/noindex responses, every matched response receives CSP, and
+ * non-canonical hosts receive noindex.
+ *
+ * Through 3.0.4.5 the CSP used a fresh
  * per-request nonce (`script-src 'self' 'nonce-…' 'strict-dynamic'`), which
  * forced every route to dynamic rendering. 3.0.4.6 retired the nonce — the
  * conversion-track enabler — for a basic origin-locked policy: scripts load
@@ -78,15 +92,18 @@ export function proxy(request: NextRequest): NextResponse {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const response = NextResponse.next();
+  const isUnpublishedSite = isUnpublishedDirectSitePath(request.nextUrl.pathname);
+  const response = isUnpublishedSite
+    ? NextResponse.rewrite(new URL("/_not-found", request.url), { status: 404 })
+    : NextResponse.next();
   response.headers.set("Content-Security-Policy", cspHeader);
 
-  // Anything that isn't positively the canonical host must never be indexed —
-  // see CANONICAL_HOST above. Fail closed: an absent/unknown Host (never the
-  // case for a real HTTP/1.1 request) is treated as non-canonical too, so the
-  // only host that stays indexable is lgi.tools itself.
+  // Unpublished site paths and anything that isn't positively the canonical
+  // host must never be indexed — see CANONICAL_HOST above. Fail closed: an
+  // absent/unknown Host (never the case for a real HTTP/1.1 request) is treated
+  // as non-canonical too, so only valid routes on lgi.tools stay indexable.
   const host = request.headers.get("host");
-  if (!host || host !== CANONICAL_HOST) {
+  if (isUnpublishedSite || !host || host !== CANONICAL_HOST) {
     response.headers.set("X-Robots-Tag", "noindex");
   }
   return response;

@@ -106,19 +106,6 @@
 
 ## Sites & content
 
-- **Invalid site detail emits React #419 in production runtime.** *What:* a
-  nonexistent site such as `/sites/100` returns the correct 404, not-found title,
-  and `noindex`, but the production client emits React #419 twice while the valid
-  `/sites/3` control remains clean. Session 3.8.4.1.1 tested the narrow candidate
-  of returning explicit noindex metadata instead of throwing from
-  `generateMetadata`; a real-browser Vercel preview and the tracked Playwright
-  probe proved the errors remained, so the candidate was reverted. *Why
-  deferred:* the approved narrow boundary was exhausted; further work requires a
-  dedicated Next.js routing/streamed-metadata diagnosis and must not expand the
-  security release. *Size:* M. *Trigger:* Session 3.9.3.3; preserve static detail
-  rendering and begin from
-  the captured 404/noindex/React #419 evidence rather than repeating the failed
-  metadata candidate.
 - **Site editorial layer** (deferred from 3.8.3.5.1). *What:* optional
   per-site meta-description overrides and server-rendered prose blurbs,
   repo-shipped by site id and merged over the Neon catalogue read with the

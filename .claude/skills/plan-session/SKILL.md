@@ -5,11 +5,12 @@ description: >-
   implementation plan for one session contract. Normally dispatched by
   start-session; use directly for "plan this", "start a session on...", "design this feature",
   "let's build X", or when start-session finds no approved current plan.
+  Includes mandatory adversarial review of every complete draft before approval.
 ---
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 22 -->
+<!-- shared-policy-revision: 23 -->
 
 Run the resolver and require its directive to name `plan-session` as the handler.
 Otherwise report it and return control to `start-session`; never select a sibling
@@ -19,8 +20,14 @@ approval state. Drive `docs/SESSION_PLANNING.md` in Claude Code Plan mode. Read
 the native task list from every numbered planning step.
 
 Reconcile the contract with Graphify, live code, dependencies, and current
-primary docs. Present the fixed-schema plan—including alternatives, tests, scope
-guard, and baseline effect—and wait for Ryan's approval without writing files.
+primary docs. Use the global headless `gpt-5.6-sol` subagent routing in
+`AGENTS.md` and `CLAUDE.md` as useful during authoring. Once the fixed-schema
+draft is complete, launch a fresh read-only xhigh worker to adversarially review
+the full draft, contract, and cited evidence. Reconcile every finding and rerun
+review if the response materially changes architecture, scope, or
+verification. Then present the reviewed plan—including alternatives, tests,
+scope guard, and baseline effect—and wait for Ryan's approval without writing
+files.
 After approval in execution mode, write the deterministic
 `docs/session-plans/X.Y/<session>.md` path with
 approval, contract-digest, and pending-execution markers. Rerun the resolver,

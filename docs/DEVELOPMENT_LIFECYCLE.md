@@ -179,6 +179,12 @@ terminal before evidence exists, choose a reconciliation branch before the
 resolver rerun, open a second PR solely for reconciliation, or push directly to
 `main` to eliminate the lag.
 
+Planning handlers may use the headless GPT workers defined in `AGENTS.md` to
+author their planning artifact. A fresh read-only `gpt-5.6-sol` xhigh worker
+adversarially reviews every complete draft before Ryan sees it. The primary
+planning session reconciles that feedback and retains all judgment,
+operator-question, approval, and persistence ownership.
+
 **Planning outcomes are session-terminal: a session that planned an artifact
 never executes it.** Runtime plan-mode acceptance authorizes artifact
 persistence only. After a planning handler persists its approved artifact,
