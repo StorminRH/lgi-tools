@@ -302,14 +302,6 @@
   disproportionate add for one column hidden below 900px. **Ratified** in 3.6.7b (ledger #3):
   the omission stands. *Size:* M (new ESI name-resolution surface). *Home/Trigger:* fold into
   the deferred dedicated `/jobs` reskin.
-- **RATIFIED §5 deviation: header slot counts are used-only, not used/total.** *What:* the
-  spec (`handoff-3.6/README.md:199`) mandates `manufacturing 3/5 · science 2/3 · reactions
-  0/1` (used/**total**); the shipped header (`IndustrySlotMeta.tsx`) shows the used count
-  only. *Why deferred:* deriving each `/total` needs skills wiring (max-slot math from the
-  character's industry skills), which isn't built yet. **Ratified** in 3.6.7b (ledger #4):
-  used-only stands. *Size:* M (skills wiring). *Home/Trigger:* when character skills are
-  wired in.
-
 ## fallow code-health (from the fallow-adoption chore) — CLOSED
 
 > fallow is the adopted static gate (replaced knip; `chore/fallow-adopt`, PR #116). The
