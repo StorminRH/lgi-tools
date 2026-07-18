@@ -253,6 +253,36 @@ const datasetTtlSelectors = [
   },
 ];
 
+// UI-library import rail (3.9.2.9, PL-012): feature and app code consume
+// Base UI and sonner only through the wrap-once library in
+// src/components/ui/. Factored like the selector families above because
+// flat-config rule options REPLACE per matching file — every block that
+// re-states no-restricted-imports must re-list the bans it keeps.
+const baseUiImportPatterns = [
+  {
+    group: ["@base-ui/react", "@base-ui/react/*"],
+    message:
+      "Base UI is consumed only through the shared wrappers in @/components/ui — import the primitive (Dialog, Select, Tooltip, …), not the package. See CONTRIBUTING.md (Component system).",
+  },
+];
+
+// The pre-1.0 package name; never a valid dependency in this repo.
+const deprecatedBaseUiImportPatterns = [
+  {
+    group: ["@base-ui-components/react", "@base-ui-components/react/*"],
+    message:
+      "@base-ui-components/react is the deprecated Base UI package — the repo uses @base-ui/react, and only through the shared wrappers in @/components/ui.",
+  },
+];
+
+const sonnerImportPatterns = [
+  {
+    group: ["sonner"],
+    message:
+      "sonner is consumed only through @/components/ui/toast (the sole Toaster owner) — import its toast helpers instead. See CONTRIBUTING.md (Component system).",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -284,6 +314,21 @@ const eslintConfig = defineConfig([
     files: ["src/**/*.{ts,tsx,mts}"],
     ignores: [
       "src/components/eve-image.tsx",
+      "src/components/ui/checkbox.tsx",
+      "src/components/ui/combobox.tsx",
+      "src/components/ui/dialog.tsx",
+      "src/components/ui/field.tsx",
+      "src/components/ui/menu.tsx",
+      "src/components/ui/navigation-menu.tsx",
+      "src/components/ui/popover.tsx",
+      "src/components/ui/radio-group.tsx",
+      "src/components/ui/segmented.tsx",
+      "src/components/ui/select.tsx",
+      "src/components/ui/stepper.tsx",
+      "src/components/ui/switch.tsx",
+      "src/components/ui/tabs.tsx",
+      "src/components/ui/toast.tsx",
+      "src/components/ui/tooltip.tsx",
       "src/lib/esi-datasets/**/*.{ts,tsx,mts}",
     ],
     rules: {
@@ -303,6 +348,79 @@ const eslintConfig = defineConfig([
               message:
                 "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
             },
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // Base UI wrappers retain package access but remain subject to every other
+  // import rail, including sonner exclusivity.
+  {
+    files: [
+      "src/components/ui/checkbox.tsx",
+      "src/components/ui/combobox.tsx",
+      "src/components/ui/dialog.tsx",
+      "src/components/ui/field.tsx",
+      "src/components/ui/menu.tsx",
+      "src/components/ui/navigation-menu.tsx",
+      "src/components/ui/popover.tsx",
+      "src/components/ui/radio-group.tsx",
+      "src/components/ui/segmented.tsx",
+      "src/components/ui/select.tsx",
+      "src/components/ui/stepper.tsx",
+      "src/components/ui/switch.tsx",
+      "src/components/ui/tabs.tsx",
+      "src/components/ui/tooltip.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/image",
+              message:
+                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/staleness"],
+              message:
+                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+            },
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // toast.tsx is the sole sonner owner; Base UI remains restricted here.
+  {
+    files: ["src/components/ui/toast.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/image",
+              message:
+                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/staleness"],
+              message:
+                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+            },
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
           ],
         },
       ],
@@ -322,6 +440,11 @@ const eslintConfig = defineConfig([
               message:
                 "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
             },
+          ],
+          patterns: [
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
           ],
         },
       ],
@@ -373,6 +496,9 @@ const eslintConfig = defineConfig([
               message:
                 "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
             },
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
           ],
         },
       ],

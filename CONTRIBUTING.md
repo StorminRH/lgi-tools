@@ -142,6 +142,9 @@ Interactive UI is built on adopted libraries, each **wrapped once in
   importer).
 - **Node graphs** → React Flow; **drag / reorder** → dnd-kit; **charts** → visx.
 
+Scoped `no-restricted-imports` rules enforce the Base UI wrapper allowlist and
+the sole sonner owner; the deprecated Base UI package is banned everywhere.
+
 Style className-first with tone tokens (no inline `style` — see [Security &
 CSP](#security--csp)). Configure each library's built-in dismiss / focus /
 keyboard behavior rather than re-implementing it. When adding a route — including
