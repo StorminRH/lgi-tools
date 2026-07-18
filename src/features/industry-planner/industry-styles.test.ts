@@ -44,6 +44,12 @@ describe('priceConfidence', () => {
     expect(c.reasons).toContain('Stale — price may have moved');
   });
 
+  it('is medium at the exact stale-after boundary', () => {
+    const c = priceConfidence(liveRow({ staleAfterMs: NOW }), NOW);
+    expect(c.level).toBe('medium');
+    expect(c.reasons).toContain('Stale — price may have moved');
+  });
+
   it('is medium when the source is the fallback, not ESI', () => {
     const c = priceConfidence(liveRow({ source: 'fuzzwork-fallback' }), NOW);
     expect(c.level).toBe('medium');
@@ -92,6 +98,13 @@ describe('aggregateConfidence', () => {
     expect(aggregateConfidence(rows, NOW)).toEqual({
       level: 'high',
       summary: '1 stale · 1 missing',
+    });
+  });
+
+  it('counts a row at the exact stale-after boundary as stale', () => {
+    expect(aggregateConfidence([liveRow({ staleAfterMs: NOW })], NOW)).toEqual({
+      level: 'low',
+      summary: '1 stale',
     });
   });
 
