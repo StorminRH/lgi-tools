@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 21 -->
+<!-- shared-policy-revision: 22 -->
 
 This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
 `docs/SESSION_CONTRACTS.md` own the procedure and artifact schemas;

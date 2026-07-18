@@ -12,7 +12,7 @@ description: >-
 
 # Start an LGI.tools session
 
-<!-- shared-policy-revision: 21 -->
+<!-- shared-policy-revision: 22 -->
 
 `docs/DEVELOPMENT_LIFECYCLE.md` defines lifecycle semantics and
 `docs/SESSION_CONTRACTS.md` owns artifact meaning. The resolver is the sole
