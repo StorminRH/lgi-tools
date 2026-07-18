@@ -8,6 +8,7 @@
 // against the render clock — a finishing job flips to ready with no reload and
 // no scheduler.
 import { useEffect, useRef } from 'react';
+import { TypeIcon } from '@/components/type-icon';
 import { Pill } from '@/components/ui/pill';
 import { initials } from '@/lib/format/names';
 import type { IndustryJob } from '../esi-projection';
@@ -50,7 +51,7 @@ function JobRow({
   names: Record<string, string>;
   now: number;
 }) {
-  const { headlineId, remainingMs } = jobRowModel(job, now);
+  const { headlineId, icon, remainingMs } = jobRowModel(job, now);
   const name = names[String(headlineId)] ?? `Type #${headlineId}`;
   const activity = jobActivityPill(job.activity_id);
   const isComplete = job.status === 'ready';
@@ -67,7 +68,7 @@ function JobRow({
       </div>
       <span className="industry-job-runs">×{job.runs}</span>
       <span className="industry-job-bp">
-        <span className="industry-mono-bp">{initials(name)}</span>
+        <TypeIcon {...icon} size={26} mono={initials(name)} />
         <span className="name">{name}</span>
       </span>
       <span>

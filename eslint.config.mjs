@@ -223,6 +223,23 @@ const esiHostSelectors = [
   },
 ];
 
+// EVE type-image rendition ownership (3.9.3.2): callers state intent through
+// the resolver instead of choosing CCP endpoint variants at render sites. Both
+// JSX props and descriptor object literals are covered; the resolver module and
+// its characterization test are the only sanctioned owners below.
+const imageVariantSelectors = [
+  {
+    selector: 'JSXAttribute[name.name="variant"][value.value=/^(icon|render|bp|bpc)$/]',
+    message:
+      'Do not choose EVE type-image variants at call sites — use an intent resolver from @/data/eve-data/type-images.',
+  },
+  {
+    selector: 'Property[key.name="variant"][value.value=/^(icon|render|bp|bpc)$/]',
+    message:
+      'Do not construct EVE type-image descriptors at call sites — use an intent resolver from @/data/eve-data/type-images.',
+  },
+];
+
 // Typed-env enforcement (3.4.T): server code reads env through the validated
 // registry in src/lib/env.ts, never process.env directly. Exempted by the
 // selector itself: NODE_ENV (bundler-inlined, must stay a direct read) and
@@ -531,6 +548,7 @@ const eslintConfig = defineConfig([
         ...rgbaColorSelectors,
         ...apiFetchSelectors,
         ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -549,6 +567,7 @@ const eslintConfig = defineConfig([
         ...directPostgresSelectors,
         ...postgresConnectionStringSelectors,
         ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -574,6 +593,7 @@ const eslintConfig = defineConfig([
         ...selectElementSelectors,
         ...inputClassSelectors,
         ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -596,6 +616,7 @@ const eslintConfig = defineConfig([
         ...selectElementSelectors,
         ...inputClassSelectors,
         ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -616,6 +637,7 @@ const eslintConfig = defineConfig([
         ...selectElementSelectors,
         ...inputClassSelectors,
         ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -637,6 +659,7 @@ const eslintConfig = defineConfig([
         ...selectElementSelectors,
         ...inputClassSelectors,
         ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -653,6 +676,7 @@ const eslintConfig = defineConfig([
         ...processEnvSelectors,
         ...esiHostSelectors,
         ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -676,6 +700,7 @@ const eslintConfig = defineConfig([
         ...selectElementSelectors,
         ...inputClassSelectors,
         ...datasetTtlSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -697,6 +722,7 @@ const eslintConfig = defineConfig([
         ...roundedSizeSelectors,
         ...selectElementSelectors,
         ...inputClassSelectors,
+        ...imageVariantSelectors,
       ],
     },
   },
@@ -711,6 +737,43 @@ const eslintConfig = defineConfig([
         ...hexColorSelectors,
         ...rgbaColorSelectors,
         ...apiFetchSelectors,
+        ...imageVariantSelectors,
+      ],
+    },
+  },
+  // The resolver owns rendition literals. Re-state every production-source
+  // syntax rail except the image-variant selectors (flat-config replacement).
+  {
+    files: ["src/data/eve-data/type-images.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...processEnvSelectors,
+        ...esiHostSelectors,
+        ...textSizeSelectors,
+        ...roundedSizeSelectors,
+        ...selectElementSelectors,
+        ...inputClassSelectors,
+        ...datasetTtlSelectors,
+      ],
+    },
+  },
+  // The co-located resolver test constructs expected descriptors and keeps all
+  // other source-test rails while sharing the owner's rendition exemption.
+  {
+    files: ["src/data/eve-data/type-images.test.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...cspSelectors,
+        ...hexColorSelectors,
+        ...rgbaColorSelectors,
+        ...apiFetchSelectors,
+        ...datasetTtlSelectors,
       ],
     },
   },

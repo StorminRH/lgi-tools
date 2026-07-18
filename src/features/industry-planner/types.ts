@@ -5,9 +5,9 @@ import type { AttrMap } from '@/data/eve-data/types';
 import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
 
 /**
- * One searchable blueprint: its own type ID, plus the type ID and name of the
- * item it builds (the product, so the search dropdown can show the product's
- * icon). Feeds the lazy Blueprints search source.
+ * One searchable blueprint: its own type ID and display name plus the product
+ * type ID. The source shows the blueprint scroll while retaining product identity
+ * for search-recents compatibility. Feeds the lazy Blueprints source.
  */
 export interface BlueprintIndexEntry {
   blueprintTypeId: number;

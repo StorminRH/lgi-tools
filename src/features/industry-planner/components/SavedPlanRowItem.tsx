@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { TypeIcon } from '@/components/type-icon';
+import { blueprintImage } from '@/data/eve-data/type-images';
 import { MAX_SAVED_PLAN_NAME_LEN, type SavedPlanRow } from '../api-contract';
 import { savedPlanRowLabels } from '../saved-plans-view';
 
@@ -74,7 +75,7 @@ export function SavedPlanRowItem({
           disabled={busy}
           className="group/load flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left disabled:cursor-not-allowed"
         >
-          <TypeIcon typeId={row.productTypeId} size={16} />
+          <TypeIcon {...blueprintImage(row.blueprintTypeId)} size={16} />
           <span className="truncate font-mono text-ui text-text transition-colors group-hover/load:text-isk">
             {row.name}
           </span>

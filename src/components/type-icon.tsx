@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { TypeIconVariant } from '@/data/eve-data/type-images';
 import { EveImage, type EveImageFamily } from './eve-image';
 import { cn } from './ui/cn';
 
@@ -11,12 +12,6 @@ import { cn } from './ui/cn';
 // EveImage sends requests directly to CCP's discrete image sizes without using
 // Vercel's optimizer. On a 404 this swaps to a tone-styled monogram rather than
 // leaving a broken image.
-
-/**
- * Closed presentation vocabulary for type icon variant; feature callers map domain meaning to
- * these abstract values before rendering.
- */
-export type TypeIconVariant = 'icon' | 'render' | 'bp' | 'bpc';
 
 const IMAGE_FAMILY: Record<TypeIconVariant, EveImageFamily> = {
   icon: 'type-icon',
@@ -31,6 +26,7 @@ const IMAGE_FAMILY: Record<TypeIconVariant, EveImageFamily> = {
 // the row-icon size.
 const FALLBACK_SIZE_CLASS: Record<number, string> = {
   22: 'size-icon-lg',
+  26: 'w-[26px] h-[26px]',
   32: 'w-[32px] h-[32px]',
   64: 'w-[64px] h-[64px]',
   88: 'w-[88px] h-[88px]',

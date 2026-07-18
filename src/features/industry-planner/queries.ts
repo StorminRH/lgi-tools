@@ -17,6 +17,7 @@ import {
   type TypeLabel,
 } from '@/data/eve-data/queries';
 import { computeHeights, type TreeNode } from '@/data/eve-data/tree-resolver';
+import { isRenderableCategory } from '@/data/eve-data/type-images';
 import { getAdjustedPrices, getSystemCostIndices } from '@/data/industry-indices/queries';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { toPlainPriceFigures } from '@/data/market-prices/narrow';
@@ -30,7 +31,7 @@ import {
   type PriceLite,
 } from './build-pricing';
 import { toBuildTree } from './build-tree';
-import { classifyRaw, isRenderableCategory } from './industry-styles';
+import { classifyRaw } from './industry-styles';
 import type {
   BlueprintIndexEntry,
   BlueprintPricing,

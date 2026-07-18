@@ -1,5 +1,15 @@
 import type { SearchResult, SearchSection } from '@/search';
 import { pillToneClasses, type PillTone } from '@/components/ui/pill';
+import { itemImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
+
+/**
+ * Resolves a search row's image with source-owned descriptors taking precedence over the generic
+ * item image derived from typeId; rows with neither identity keep their glyph badge.
+ */
+export function searchRowImage(row: SearchResult): EveImageDescriptor | undefined {
+  if (row.icon) return row.icon;
+  return row.typeId !== undefined ? itemImage(row.typeId) : undefined;
+}
 
 /**
  * Splits a label into matched / unmatched runs for highlight rendering. Adjacent

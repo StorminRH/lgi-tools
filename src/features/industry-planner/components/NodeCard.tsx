@@ -4,7 +4,8 @@ import type { ReactNode } from 'react';
 import { cn } from '@/components/ui/cn';
 import { Popover, PopoverHeading } from '@/components/ui/popover';
 import { QtyRing } from '@/components/ui/qty-ring';
-import { TypeIcon, type TypeIconVariant } from '@/components/type-icon';
+import { TypeIcon } from '@/components/type-icon';
+import type { EveImageDescriptor } from '@/data/eve-data/type-images';
 import { formatQuantity } from '@/lib/format/number';
 import { ProvenanceRows } from './MeAdjuster';
 import type { NodeMeState } from '../me-overrides';
@@ -196,7 +197,7 @@ function BuildableIcon({
   detail,
 }: {
   // The rendition to show — the producing blueprint's `bp` icon for a buildable.
-  icon: { typeId: number; variant: TypeIconVariant };
+  icon: EveImageDescriptor;
   name: string;
   efficiency: NodeEfficiency;
   // The owned blueprint's owner/location, shown under the adjusters (owned only).
@@ -209,7 +210,7 @@ function BuildableIcon({
         side="bottom"
         openOnHover={false}
         triggerClassName={cn(FRAME, FRAME_TONE[efficiency.state], 'cursor-pointer')}
-        trigger={<TypeIcon typeId={icon.typeId} variant={icon.variant} size={30} mono={name.slice(0, 2)} />}
+        trigger={<TypeIcon {...icon} size={30} mono={name.slice(0, 2)} />}
       >
         <PopoverHeading>Blueprint Research Adjusters</PopoverHeading>
         {efficiency.adjusters}
@@ -237,11 +238,9 @@ export function NodeCard({
   onSelect,
 }: {
   typeId: number;
-  // The rendition the icon should show. Absent → the item's own `icon` (today's
-  // default). A buildable/reaction node passes its producing blueprint/formula
-  // in the `bp` rendition — the icon of what you run. TypeIcon stays
-  // domain-agnostic; this component just forwards the chosen variant.
-  icon?: { typeId: number; variant: TypeIconVariant };
+  // The resolved image descriptor to forward as-is. Absent → nodeCardView asks
+  // the shared resolver for the item's own icon.
+  icon?: EveImageDescriptor;
   name: string;
   label: string;
   qty: number;
@@ -286,7 +285,7 @@ export function NodeCard({
         <BuildableIcon icon={view.iconDesc} name={name} efficiency={efficiency} detail={detail} />
       ) : (
         <span className={cn(FRAME, 'border-transparent')}>
-          <TypeIcon typeId={view.iconDesc.typeId} variant={view.iconDesc.variant} size={30} mono={name.slice(0, 2)} />
+          <TypeIcon {...view.iconDesc} size={30} mono={name.slice(0, 2)} />
         </span>
       )}
       {/* Name + type. */}

@@ -3,6 +3,7 @@
 // the most recently-clicked row floats to the top.
 
 import { z } from 'zod';
+import { blueprintImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
 import type { SearchResult } from '@/search';
 
 const STORAGE_KEY = 'lgi:search:recents';
@@ -12,9 +13,9 @@ const MAX_RECENTS = 10;
 // the dropdown verbatim when the user refocuses an empty input. Storing
 // `kind` lets the dropdown re-tone the icon, while `originKind` records
 // which source produced the row so future cleanup logic can target one
-// kind specifically without parsing strings. `typeId` is kept so a recent
-// row that maps to an EVE type still renders its icon (else it would fall
-// back to the `iconText` glyph it was stored with).
+// kind specifically without parsing strings. `typeId` preserves the source's
+// product/type identity; blueprint image intent is reconstructed from the stable
+// `blueprint:<id>` row id on read rather than persisting a rendition string.
 type StoredRecent = Pick<
   SearchResult,
   'kind' | 'id' | 'label' | 'sub' | 'href' | 'iconText' | 'iconTone' | 'typeId'
@@ -44,15 +45,24 @@ function safeStorage(): Storage | null {
   }
 }
 
-// Recent kinds whose row maps to a real EVE type and therefore renders the item's
-// image (via TypeIcon). Blueprints are the only such kind today.
-const ITEM_KINDS = new Set(['blueprint']);
+const BLUEPRINT_KIND = 'blueprint';
+const BLUEPRINT_ID_PREFIX = 'blueprint:';
 
-// An item-bearing recent MUST carry a typeId to render its image. A stored row of
-// that kind without one is a stale entry from before the typeId was recorded —
-// drop it so it never falls back to a meaningless monogram instead of the icon.
+function storedBlueprintTypeId(r: StoredRecent): number | undefined {
+  if (r.kind !== BLUEPRINT_KIND || !r.id.startsWith(BLUEPRINT_ID_PREFIX)) return undefined;
+  const typeId = Number(r.id.slice(BLUEPRINT_ID_PREFIX.length));
+  return Number.isSafeInteger(typeId) && typeId > 0 ? typeId : undefined;
+}
+
+function recentImage(r: StoredRecent): EveImageDescriptor | undefined {
+  const blueprintTypeId = storedBlueprintTypeId(r);
+  return blueprintTypeId !== undefined ? blueprintImage(blueprintTypeId) : undefined;
+}
+
+// A blueprint recent must retain its product typeId for compatibility and carry
+// a valid stable blueprint id so replay can reconstruct the blueprint rendition.
 function rendersIcon(r: StoredRecent): boolean {
-  return !ITEM_KINDS.has(r.kind) || r.typeId != null;
+  return r.kind !== BLUEPRINT_KIND || (r.typeId !== undefined && recentImage(r) !== undefined);
 }
 
 /**
@@ -62,11 +72,15 @@ function rendersIcon(r: StoredRecent): boolean {
 export function readRecents(): SearchResult[] {
   return readStored()
     .slice(0, MAX_RECENTS)
-    .map((r) => ({
-      ...r,
-      kind: 'recent',
-      originKind: r.kind,
-    }));
+    .map((r) => {
+      const icon = recentImage(r);
+      return {
+        ...r,
+        ...(icon ? { icon } : {}),
+        kind: 'recent',
+        originKind: r.kind,
+      };
+    });
 }
 
 /** Moves one search selection to the front of the bounded, deduplicated recent list. */

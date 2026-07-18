@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { blueprintImage } from '@/data/eve-data/type-images';
 import type { SearchResult } from '@/search';
 
 // vitest runs in node by default — shim a minimal in-memory localStorage so
@@ -51,13 +52,14 @@ describe('search-recents storage', () => {
     expect(out[0]!.originKind).toBe('site');
   });
 
-  it('preserves a typeId so a recent EVE-type row keeps its icon', () => {
+  it('preserves product typeId but reconstructs a blueprint recent image from its stable id', () => {
     pushRecent({
       kind: 'blueprint',
       id: 'blueprint:691',
       label: 'Rifter',
       sub: 'Blueprint',
       href: '/industry/691',
+      icon: blueprintImage(691),
       typeId: 587,
       iconText: 'BP',
       iconTone: 'tool',
@@ -65,7 +67,10 @@ describe('search-recents storage', () => {
     const out = readRecents();
     expect(out).toHaveLength(1);
     expect(out[0]!.typeId).toBe(587);
+    expect(out[0]!.icon).toEqual(blueprintImage(691));
     expect(out[0]!.originKind).toBe('blueprint');
+    const stored = JSON.parse(window.localStorage.getItem(__TEST_ONLY__.STORAGE_KEY)!);
+    expect(stored[0].icon).toBeUndefined();
   });
 
   it('drops stale item recents that predate the typeId (so they never render "BP")', () => {
@@ -73,6 +78,22 @@ describe('search-recents storage', () => {
       __TEST_ONLY__.STORAGE_KEY,
       JSON.stringify([
         { kind: 'blueprint', id: 'blueprint:1', label: 'old', href: '/industry/1', iconText: 'BP' },
+      ]),
+    );
+    expect(readRecents()).toEqual([]);
+  });
+
+  it('drops a blueprint recent whose stable id cannot reconstruct a blueprint image', () => {
+    window.localStorage.setItem(
+      __TEST_ONLY__.STORAGE_KEY,
+      JSON.stringify([
+        {
+          kind: 'blueprint',
+          id: 'blueprint:not-an-id',
+          label: 'bad',
+          href: '/industry/691',
+          typeId: 587,
+        },
       ]),
     );
     expect(readRecents()).toEqual([]);

@@ -3,6 +3,10 @@
 // make inline (headline choice, countdown gating, subtitle/status text, the shared
 // row-frame props) lives here so it is unit-tested and the JSX shells stay trivial.
 import type { Tone } from '@/components/ui/tones';
+import {
+  jobImage,
+  type EveImageDescriptor,
+} from '@/data/eve-data/type-images';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob, JobStatus } from './esi-projection';
 import { JOB_STATUS_META, jobActivityLabel } from './industry-jobs-styles';
@@ -12,12 +16,14 @@ import type { CharacterJobsData } from './types';
 /**
  * The shared per-job row derivation across the three surfaces. headlineId = the product
  * where one exists (manufacturing / invention / reactions), else the blueprint (research
- * / copy jobs are about the blueprint itself); remainingMs = time to done, only while
- * ACTIVE with a finite end (paused / ready / delivered show none); showBar = whether a
- * progress bar renders (active or paused).
+ * / copy jobs are about the blueprint itself); icon = the resolved product-or-blueprint
+ * rendition for that same identity; remainingMs = time to done, only while ACTIVE with
+ * a finite end (paused / ready / delivered show none); showBar = whether a progress bar
+ * renders (active or paused).
  */
 export interface JobRowModel {
   headlineId: number;
+  icon: EveImageDescriptor;
   remainingMs: number | null;
   showBar: boolean;
 }
@@ -27,6 +33,7 @@ export function jobRowModel(job: IndustryJob, now: number): JobRowModel {
   const end = Date.parse(job.end_date);
   return {
     headlineId: job.product_type_id ?? job.blueprint_type_id,
+    icon: jobImage(job.product_type_id, job.blueprint_type_id),
     remainingMs: job.status === 'active' && Number.isFinite(end) ? end - now : null,
     showBar: job.status === 'active' || job.status === 'paused',
   };
@@ -34,11 +41,12 @@ export function jobRowModel(job: IndustryJob, now: number): JobRowModel {
 
 /**
  * The prop bundle the shared JobRowFrame renders — the personal panel and the corp board
- * build the identical set (name / runs / activity / countdown / status pill / bar), so it
- * lives here once. The corp board adds barTone + the runner footer at the call site.
+ * build the identical set (image / name / runs / activity / countdown / status pill / bar),
+ * so it lives here once. The corp board adds barTone + the runner footer at the call site.
  */
 export interface JobRowFrameData {
   headlineName: string;
+  icon: EveImageDescriptor;
   runs: number;
   activityLabel: string;
   remainingLabel: string;
@@ -53,9 +61,10 @@ export function jobRowFrameData(
   names: Record<string, string>,
   now: number,
 ): JobRowFrameData {
-  const { headlineId, remainingMs, showBar } = jobRowModel(job, now);
+  const { headlineId, icon, remainingMs, showBar } = jobRowModel(job, now);
   return {
     headlineName: names[String(headlineId)] ?? `Type #${headlineId}`,
+    icon,
     runs: job.runs,
     activityLabel: jobActivityLabel(job.activity_id),
     remainingLabel: remainingMs !== null ? `done in ${formatRemaining(remainingMs)}` : '',
