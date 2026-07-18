@@ -8,6 +8,7 @@ import { toneTextClass, type Tone } from '@/components/ui/tones';
 import type { TypeIconVariant } from '@/components/type-icon';
 import { ACTIVITY_ID_LABEL } from '@/data/eve-data/constants';
 import type { PriceSource } from '@/data/market-prices/types';
+import { isBoundaryStaleMs } from '@/lib/esi-datasets/freshness';
 
 // Below this percentage a positive margin is "thin" (orange) rather than
 // healthy (green). A rough cut for at-a-glance scanning, not a trading signal.
@@ -243,7 +244,9 @@ export function priceConfidence(input: ConfidenceInput, nowMs: number): RowConfi
     return { level: 'low', reasons: ['No live price — excluded from cost'] };
   }
   const reasons: string[] = [];
-  if (input.staleAfterMs <= nowMs) reasons.push('Stale — price may have moved');
+  if (isBoundaryStaleMs(input.staleAfterMs, nowMs)) {
+    reasons.push('Stale — price may have moved');
+  }
   if (input.source !== null && input.source !== 'esi') reasons.push('Fallback price source');
   if (input.buyVolume !== null && input.buyVolume < THIN_LIQUIDITY_UNITS) {
     reasons.push('Thin market depth');
@@ -368,7 +371,7 @@ function classifyInput(input: ConfidenceInput, nowMs: number): RowCounts {
   if (level === 'high') counts.high = 1;
   if (level === 'low' || level === 'unknown') counts.missing = 1;
   if (input.staleAfterMs !== null && input.unitBuy !== null) {
-    if (input.staleAfterMs <= nowMs) counts.stale = 1;
+    if (isBoundaryStaleMs(input.staleAfterMs, nowMs)) counts.stale = 1;
     if (input.source !== null && input.source !== 'esi') counts.fallback = 1;
     if (input.buyVolume !== null && input.buyVolume < THIN_LIQUIDITY_UNITS) counts.thin = 1;
   }

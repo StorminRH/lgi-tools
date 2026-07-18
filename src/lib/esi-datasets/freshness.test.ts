@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   freshnessGate,
   isBoundaryStale,
+  isBoundaryStaleMs,
 } from './freshness';
 
 type StaticWindowDatasetName = Parameters<typeof freshnessGate>[0];
@@ -51,5 +52,21 @@ describe('isBoundaryStale', () => {
 
   it('treats a reached boundary as stale', () => {
     expect(isBoundaryStale(NOW, NOW)).toBe(true);
+  });
+});
+
+describe('isBoundaryStaleMs', () => {
+  const nowMs = NOW.getTime();
+
+  it('treats a reached boundary as stale', () => {
+    expect(isBoundaryStaleMs(nowMs, nowMs)).toBe(true);
+  });
+
+  it('treats an earlier boundary as stale', () => {
+    expect(isBoundaryStaleMs(nowMs - 1, nowMs)).toBe(true);
+  });
+
+  it('keeps a later boundary fresh', () => {
+    expect(isBoundaryStaleMs(nowMs + 1, nowMs)).toBe(false);
   });
 });
