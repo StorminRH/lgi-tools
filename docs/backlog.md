@@ -293,12 +293,6 @@
 > correctness/a11y/§5 findings went to Ryan's 3.6.7b ledger; these are the lower-
 > severity drift + missing-test gaps with no version commitment.
 
-- **Leftover fallow-trial artifacts in gitignored `docs/`.** *What:* `fallow-audit-full.json`
-  (748 KB), `fallow-*.txt/json/md`, `compass_artifact_*.md` — one-off outputs from the
-  fallow-tooling trial; plus the unused `fallowTotal` const in `scripts/fallow-trial-log.mjs:149`
-  (the lone `pnpm lint` warning). *Why deferred:* gitignored (harmless to the repo), but
-  stale working-memory clutter. *Size:* S (cleanup). *Trigger:* when the fallow trial closes
-  out or `docs/` clutter annoys.
 - **RATIFIED §5 deviation: Active jobs table omits the Facility column.** *What:* the
   handoff spec (`handoff-3.6/README.md:220-231`) mandates a 6-column grid `Status / Runs /
   Blueprint / Activity / Facility / End`, with Facility hidden only `<900px`; the shipped
