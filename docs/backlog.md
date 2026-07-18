@@ -258,14 +258,6 @@
   mode so dev serves a small slice, not the full SDE. *Why deferred:* needs profiling +
   an architectural change; out of polish scope. *Size:* M–L. *Trigger:* the dedicated
   dev-perf session (next).
-- **`<img>` → next/image migration is now unblocked** (from OOB.1.1). *What:* EVE images
-  (character portraits, type icons) render via plain `<img>` with `@next/next/no-img-element`
-  turned off. The original blocker — next/image injects an inline `style="color:transparent"`
-  attribute that the old `style-src 'self'` CSP dropped — no longer applies now that `style-src`
-  carries `'unsafe-inline'`. Migrating to next/image would buy automatic sizing/lazy-loading/
-  format negotiation. *Why deferred:* OOB.1.1 was a CSP-only change; the migration is its own
-  task (re-enable the lint rule, swap call sites, verify the EVE image server domain is allowed
-  in `images.remotePatterns`). *Size:* M. *Trigger:* an image-perf or rendering pass.
 - **Client-settled static for the session-gated pages** (surfaced 2026-07-11 by the 3.7.35.1
   conformance route-optimality diagnosis). *What:* `/skills`, `/jobs`, `/structures`, `/settings`,
   `/characters` are `◐` partial because each does a server-side session-gated linked-character read
