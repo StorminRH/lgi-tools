@@ -125,8 +125,10 @@ justify no work.
   enabled; `AnyPgDb`/`PostgresJsDb` still have one typed home; `neon.ts` retains
   production protection and bounded preview compute/TTL policy.
 - **UI:** semantic token and primitive guards remain lint-enforced. `EveImage`
-  is still the sole `next/image` importer; the chart/table dialect remains the
-  admin presentation standard.
+  is still the sole `next/image` importer; Base UI package access is limited to
+  its explicit shared wrappers, sonner access to `toast.tsx`, and the deprecated
+  Base UI package is banned. The chart/table dialect remains the admin
+  presentation standard.
 - **SEO:** catalogue/detail crawler links, truthful sitemap dates, page-specific
   social metadata, JSON-LD, and GSC instrumentation remain present. Editorial
   copy and promotional outreach remain explicit backlog/operator deferrals.

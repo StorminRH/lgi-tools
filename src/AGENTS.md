@@ -22,6 +22,9 @@ Adopted categories:
 - Future free-form mapper: React Flow v12 (`@xyflow/react`), reinstalled only when the mapper lands on a real route.
 - Future drag/reorder: classic dnd-kit packages. Give every `<DndContext>` a stable explicit `id` to prevent SSR `aria-describedby` hydration drift, and apply transforms through CSSOM rather than JSX `style`.
 
+The Base UI wrapper allowlist and sole sonner owner are lint-enforced through
+scoped `no-restricted-imports` rules; do not widen those exemptions inline.
+
 ## Styling and security
 
 Prefer `className` with Tailwind and established tokens. JSX `style` is lint-banned as house style, not by CSP. Runtime-dynamic values use a CSS custom property set after mount with `ref.current.style.setProperty(...)`, consumed by a stylesheet rule.

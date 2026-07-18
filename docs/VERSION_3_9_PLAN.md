@@ -69,7 +69,7 @@ campaign: none — the queue is empty.
 | 3.9.2.5 | ux-check probe harness (Combine ~30 one-off probes) | 1 | SHIPPED |
 | 3.9.2.6 | Dataset declaration manifest (judged: fold purge/growth into the 3.9.2.3 registry, or Keep) | 1 | SHIPPED |
 | 3.9.2.7 | Primitives-scoped audit & ledger (report; Ryan decides extensions) | 1 | SHIPPED |
-| 3.9.2.8 | Planner freshness consumption (PL-011 Expand) | 1 | PLANNED |
+| 3.9.2.8 | Planner freshness consumption (PL-011 Expand) | 1 | SHIPPED |
 | 3.9.2.9 | UI wrapper import rail (PL-012 Expand) | 1 | PLANNED |
 | 3.9.2.10 | Token-vend scope cleanup (PL-013 Delete) | 1 | PLANNED |
 | **Phase 3 — Backlog clearance** | | | |
@@ -1136,6 +1136,9 @@ pricing surfaces as an existing hotspot and avoid unrelated cleanup.
 tests; no direct planner staleness comparison; `pnpm verify`; standard
 close-out. `UX gate: No` because the approved end-state is
 behavior-preserving.
+
+**Delivered 2026-07-17.** PR #262, squash `1234379`; production
+`dpl_Cg4X3Kvvt9hDXfa6jKgvSBC3MJ8x` is Ready on `lgi.tools`.
 
 ---
 
