@@ -81,7 +81,7 @@ campaign: none — the queue is empty.
 | **Remaining active sequence** | | | |
 | 3.9.3.8 | Public document truth pass (README/CONTRIBUTING/templates/.env.example/legal) | 1 | SHIPPED |
 | **Phase 4 — Continuity & recovery** | | | |
-| 3.9.4.1 | Smoke confirmation, security-report verification & DB-privilege hardening (amended 2026-07-19) | 1 | PLANNED |
+| 3.9.4.1 | Smoke confirmation, security-report verification & DB-privilege hardening (amended 2026-07-19) | 1 | SHIPPED |
 
 *(Elective health campaign: none scheduled — decision recorded below the
 phase narratives. The cycle-2 campaign queue is empty. Sessions 3.9.3.6,
@@ -1501,6 +1501,24 @@ remain below as the preserved source for future reprioritization.
 ---
 
 ### 3.9.4.1 — Smoke confirmation, security-report verification & DB-privilege hardening
+
+**Delivered 2026-07-19.** PR #272, squash `ef2e7df`; production deployment
+`lgi-tools-5lmig91vr` Ready on `lgi.tools` at v3.9.4.1 with no error-level
+runtime logs. All twelve security findings verified against live code into
+`docs/security/disposition-register.md` (LGI-08 acted on; the rest routed to the
+backlog with no behavior change); the least-privilege `lgi_runtime` role +
+migration `0049` + `resolveMigrationUrl` seam were drilled on a disposable
+production child branch (full positive/negative probe matrix, then explicit
+teardown) and documented in `docs/security/db-privilege-runbook.md`, shipping
+inert with cutover deferred by operator decision. The browser-first production
+smoke confirmed v3.9.4.1 with a clean console and the historical browser-runtime
+failure did not reproduce. `pnpm verify` passed (3,536 tests + 1 skip); fresh
+full coverage (85.56/83.21/81.74/86.49) and origin/main-pinned Fallow were clean;
+the review-effort rider landed with the drift gate green at policy revision 26.
+Greptile reached current-head 5/5 after both P2 findings were justified (one a
+verified false positive: the drizzle history table is in the `drizzle` schema,
+not `public`); CI and semgrep green. This is the final v3.9 row — every roadmap
+row is now terminal.
 
 **Amended 2026-07-19 with Ryan's recorded approval.** The original
 smoke-restoration objective was overtaken by events — the 3.9.3.8
