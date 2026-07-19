@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { cache, Suspense } from 'react';
 import { cookieNameFor, readPreferenceCookieValue, sitesView } from '@/lib/preferences';
+import { Banner } from '@/components/ui/banner';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
 import { UrlSync } from '@/components/ui/url-sync';
@@ -10,11 +11,11 @@ import {
   type SiteCardItem,
 } from '@/features/wormhole-sites/components/SitesFilterLayout';
 import { SitesTable } from '@/features/wormhole-sites/components/SitesTable';
+import { selectDevSampleSites } from '@/features/wormhole-sites/dev-sample';
 import { overlayLivePrices } from '@/features/wormhole-sites/live-prices';
 import { listSiteDetails } from '@/features/wormhole-sites/queries';
 import { siteClassSet } from '@/features/wormhole-sites/site-filter';
 import { parseSortDir, parseSortKey } from '@/features/wormhole-sites/sort';
-import type { SiteDetail } from '@/features/wormhole-sites/types';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
 /** Static search and social metadata for the /sites route. */
@@ -35,10 +36,33 @@ type SitesSearchParams = {
 // Per-request memo for the whole priced catalogue. Filtering moved client-side,
 // so the server loads ALL sites once (no type/class searchParams) and overlays
 // live prices in a single pass shared by the cards and the table.
-const loadAllSites = cache(async (): Promise<SiteDetail[]> => {
+const loadAllSites = cache(async () => {
   const rawSites = await listSiteDetails({});
-  return overlayLivePrices(rawSites);
+  const sample = selectDevSampleSites(rawSites);
+  const sites = await overlayLivePrices(sample ?? rawSites);
+  return { sites, fullCount: rawSites.length, sampled: sample !== null };
 });
+
+function DevSampleBanner({
+  sampled,
+  shown,
+  total,
+}: {
+  sampled: boolean;
+  shown: number;
+  total: number;
+}) {
+  if (!sampled) return null;
+  return (
+    <div data-dev-sample={`${shown}/${total}`} className="mb-4">
+      <Banner tone="warn">
+        DEV SAMPLE MODE — showing {shown} of {total} sites
+        {' '}
+        (LGI_SITES_SAMPLE=1)
+      </Banner>
+    </div>
+  );
+}
 
 // Request-time region: reads the table sort from the URL, loads the priced
 // catalogue, and builds the server-rendered card + table nodes for the client
@@ -57,7 +81,7 @@ async function SitesContent({
     (await cookies()).get(cookieNameFor(sitesView))?.value,
     sitesView,
   );
-  const sites = await loadAllSites();
+  const { sites, fullCount, sampled } = await loadAllSites();
 
   const cards: SiteCardItem[] = sites.map((site) => ({
     meta: { id: site.id, type: site.siteType, clsSet: siteClassSet(site) },
@@ -78,12 +102,15 @@ async function SitesContent({
   );
 
   return (
-    <SitesFilterLayout
-      cards={cards}
-      table={table}
-      total={sites.length}
-      initialView={initialView}
-    />
+    <>
+      <DevSampleBanner sampled={sampled} shown={sites.length} total={fullCount} />
+      <SitesFilterLayout
+        cards={cards}
+        table={table}
+        total={sites.length}
+        initialView={initialView}
+      />
+    </>
   );
 }
 

@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 Drive `docs/SESSION_PLANNING.md`; do not restate it. Treat
 `docs/DESIGN_PRINCIPLES.md` as the constitution,
@@ -37,8 +37,8 @@ contract as the product boundary.
    xhigh worker to adversarially review the draft, contract, and cited
    evidence. Reconcile every finding; rerun review if the response materially
    changes architecture, scope, or verification.
-6. Present the reviewed plan and wait for Ryan's approval. Do not persist it in Plan
-   mode.
+6. Present a short plain-English summary alongside the reviewed plan before
+   requesting Ryan's approval. Do not persist it in Plan mode.
 7. After approval in execution mode, write the deterministic
    `docs/session-plans/X.Y/<session>.md` with the required approval, contract
    digest, and pending execution markers.

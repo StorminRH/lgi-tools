@@ -15,7 +15,59 @@
 
 ## Now
 
-**CURRENT = v3.9 "Refit" in flight; 3.9.3.1 and 3.9.3.2 are SHIPPED, and 3.9.3.3 is in close-out. NEXT = the resolver's post-merge directive.** The invalid-site production preview proved the proxy-owned closed catalogue boundary returns the shared 404/noindex response without React #419 while valid site and image routes remain intact; every Vercel and Convex preview was removed. The same operator-approved rider retired `drive-session` in favor of the Claude subagent rule below. Observed image context still not owned by the roadmap: blueprint-listing surfaces show the blueprint `bp` scroll, the planner hero is the only product-image surface, and job rows stay product-first.
+**CURRENT = v3.9 "Refit" in flight; 3.9.3.1–3.9.3.3 are SHIPPED and sessions 3.9.3.4.1–3.9.3.4.2 are implementation-complete on the shared 3.9.3.4 branch. NEXT = close-out verification and Ryan's required two-stage local browser review of normal mode followed by sample mode before the shared PR opens.** The dev-only representative selector deterministically reduces the current 69-site catalogue to 20 sites while covering every type × class pair, preserves catalogue order, and cannot activate outside `NODE_ENV=development` with `LGI_SITES_SAMPLE=1`. Normal and sample UX sweeps plus the both-surfaces lazy-detail probe are clean apart from the expected absent local Convex websocket. The counterbalanced six-run measurement gate passed, so the stale local-dev performance backlog item is removed. Master-plan §3.9.3.4 still contains the superseded eager-render root cause and requires a later operator-approved `plan-version` truth reconciliation; 3.9.3.8 does not own that master-plan edit.
+
+### 3.9.3.4.2 sample-mode gate — session-final readout
+
+The counterbalanced sequence (`after-1`, `sample-1`, `sample-2`, `after-2`,
+`after-3`, `sample-3`) completed on 2026-07-18 with all six runs healthy, the
+normal catalogue fixed at 69 cards, the sample catalogue fixed at 20 cards, and
+no cold request above 60 seconds.
+
+| Metric | Normal mode | Sample mode |
+| --- | ---: | ---: |
+| Cold `/sites` median | 1.361 s | 1.091 s |
+| Cold range | 1.353–1.386 s | 1.087–1.113 s |
+| Warm `/sites` median | 519 ms | 241 ms |
+| Warm range | 513–534 ms | 216–278 ms |
+
+The sample cold median is 80.2% of normal, inside the required 110% ceiling,
+and the historical watcher/swap stall did not recur. The authoritative raw
+suite is the ignored local artifact
+`docs/ux-check/profiles/sites-suite-20260719T025802308Z.json`; only this compact
+readout is durable repository state.
+
+### 3.9.3.4.1 current dev profile — session .2 "before" readout
+
+The bounded profiler ran twice on 2026-07-18 with local Postgres reachable,
+Next 16.2.6, zero starting swap, normal macOS memory pressure, and >9 GiB
+free+inactive memory. The interrupt proof terminated the owned process group
+with SIGTERM (no SIGKILL), then independently confirmed the group gone and port
+3000 closed. Both full runs returned `status: ok`; the historical watcher/swap
+melt was **not reproduced**.
+
+| Metric | June 15 healthy proof | Session .2 before — as found | Session .2 before — clean `.next` |
+| --- | ---: | ---: | ---: |
+| `.next` at start | clean | 45.4 MiB | 0 B |
+| Idle process-group RSS / CPU | 330 MiB / 0% | 480 MiB avg / 2.6% avg | 755 MiB avg / 13.6% avg |
+| Cold `/sites` full-body time | ~1.7 s | 1.34 s | 1.32 s |
+| Cold dev-log split | app 1.417 s | next 442 ms / proxy 2 ms / app 893 ms | next 414 ms / proxy 2 ms / app 896 ms |
+| Warm `/sites` full-body time | 1.1–1.4 s | 526 ms / 497 ms | 511 ms / 498 ms |
+| Warm `application-code` | ~1.1 s | 520 ms / 491 ms | 506 ms / 491 ms |
+| Overlapped homepage probe | not recorded | passed, 558 ms full body | passed, 512 ms full body |
+| Peak process-group RSS | 2.9 GiB | 2.19 GiB | 2.36 GiB |
+| Swap growth | 0 | 0 | 0 |
+| Detail-only sentinels in collapsed `/sites` HTML | not recorded | Wave Spawns 0 / No Sleeper presence 0 | Wave Spawns 0 / No Sleeper presence 0 |
+
+Interpretation: `.next` hygiene is currently healthy and the old >60 s stall is
+absent. Warm request cost is now ~0.5 s and remains almost entirely the
+`application-code` bucket; the existing per-request live-price overlay's two
+batched reads remain candidates only, not attributed causes and not `.1` fix
+scope. The committed both-surfaces structural probe is the authoritative lazy
+contract; sentinel counts are secondary evidence. Master-plan §3.9.3.4 still
+states the superseded eager-render root cause and requires a later
+operator-approved `plan-version` truth reconciliation; session `.2` planning
+must reconcile its cross-references plan-only before implementing sample mode.
 
 **⭐⭐ NEW durable gotcha (memory: [[convex-bundles-lib-esi-no-next-imports]]):** Convex bundles the ESI-gate chain (`convex/onlineStatusSync.ts` → `@/lib/esi` → dispatch → everything it imports) into its isolate. ANY `next/server` import in that chain fails ONLY the post-merge production Convex push (`__dirname` in Next's compiled ua-parser-js) — invisible to `pnpm verify`/CI. That is exactly how the first 3.9.2.2 deploy (`dpl_27dx4yFQKHCYRKNBfW4jCbeRSomL`) failed; production kept serving the prior Ready build throughout. Also: two Greptile P2s resolved (marker scheduling reverted-by-design with the constraint documented at the write site; affiliations `outcome:'refreshed'` label justified as preserved behavior — Greptile accepted). CI-only CRAP gotcha confirmed live: a function whose only test is a `*.db.test.ts` suite scores 0% coverage in Postgres-less CI (fix = add off-database unit coverage in the sibling unit suite).
 
@@ -75,6 +127,7 @@ _Reset at the 3.7→3.8 boundary._ Durable gotchas now live in their permanent h
 
 _Reset at the 3.7→3.8 boundary._ Per-sub-version ship history is in `content/changelog/` + git + the `feature-*.md` memory files; the complete pre-3.8 ledger is in `SCRATCHPAD_3.7_pre-compaction.md` (Document Archive). New 3.8 sub-versions get a one-liner here as they ship.
 
+- **3.9.3.3** — Unknown wormhole-site ids now stop at the proxy-owned closed-catalogue boundary and render the shared 404/noindex response without resuming a partial-render shell; valid site and social-image routes are unchanged. The same operator-approved rider removed `drive-session`, routes every Claude subagent through headless `gpt-5.6-sol` at the equivalent high/medium/low effort, and gives each complete planning draft a fresh xhigh adversarial review while preserving the session-terminal planning boundary. `pnpm verify` passed 3,461 tests plus one skip; fresh full-Postgres coverage and origin/main-pinned Fallow were clean, and all 14 DB suites passed 86 tests. PR #267, squash `a2a6a4f`, reached current-head Greptile 5/5 with zero findings and green CI. Production `dpl_AJjrHqvjxZP2R5T3K1cy1qfYFPho` is Ready on `lgi.tools` with no error-level runtime logs; signed-in Safari smoke confirmed v3.9.3.3, the valid detail route, the clean shared 404, and the admin gate without React #419.
 - **3.9.3.2** — One shared per-intent EVE type-image resolver (`src/data/eve-data/type-images.ts`) now owns every rendition decision; the two drifted call-site decisions are deleted, `/industry` landing rows upgraded from monograms to images (★ moved to a name suffix), search rows carry a source-owned resolved descriptor, and a variant-literal lint rail with a red/green fixture guards recurrence. Executed by the delegated sol@high workflow in three rounds; the orchestrator acceptance gate caught a vacuous rail-fixture owner test (JSX at a `.ts` path parse-errors and the filter hid it) and a wrong-id recents icon (blueprint id fed to the item intent — blueprints serve no icon rendition), and the operator re-specced blueprint-listing surfaces to the `bp` scroll mid-review (amendment recorded in the plan). `pnpm verify` green (3,444 tests); origin/main-pinned coverage-backed Fallow clean across 44 changed files; DB suites (14 files / 86 tests) green natively — the codex sandbox silently skips them. PR #266, squash `d094393`, Greptile 5/5 on the first pass with zero findings; CI green. Production `dpl_5mBJz1C21VeacGF6L6TDN2oHzceH` Ready on `lgi.tools` with all-200 runtime logs; browser smoke again unavailable (Chrome extension not connected) — CLI evidence plus the pre-merge operator preview review stand in.
 - **3.9.3.1** — The development backlog was re-verified end to end: five stale entries whose work already shipped were deleted with named supersessions in per-deletion commits, entries owned by planned 3.9 slices now name their owning sessions as triggers, and the closed fallow code-health record collapsed to an archive pointer; the paired `drive-session` skill (policy revision 22) shipped in the same PR. Implementation was executed by the delegated sol@high codex workflow with orchestrator-owned acceptance. `pnpm verify` passed 3,423 tests plus one skip with the DB suites on local Postgres; fresh full coverage passed at 85.33/83.36/81.34/86.23 and origin/main-pinned coverage-backed Fallow was clean across all 32 changed files; baseline-claims and watch-trigger checkers reported zero warnings. PR #265, squash `a719a7b`, reached current-head Greptile 5/5 after its one cosmetic finding (manifest trailing newline) was fixed and its thread resolved; CI was green. Production `dpl_6WRunL4CQkyGWtakVbSVzXoMHntC` is Ready and aliased on `lgi.tools` with zero runtime errors and all-200 logs; browser smoke was unavailable (Chrome extension not connected; deployment URLs SSO-gated; public edge 429s scripted clients) — 3.9.4.1 scope.
 - **3.9.2.10** — The internal token-vend reply now carries only the access token; the divergent whitespace-only scope parser is deleted and `scope-health.ts` remains the sole stored-scope decoder. PL-013 is Delivered. `pnpm verify` passed 3,423 tests plus one skip; the concurrency DB suite passed 4/4 against local Postgres; fresh full-Postgres coverage passed at 85.33/83.36/81.34/86.23 and exact-`origin/main` coverage-backed Fallow was clean. PR #264, squash `f1e29d9`, reached current-head Greptile 5/5 after its one P2 (stale baseline delta notes) was fixed and re-reviewed clean; CI was green. Production `dpl_ABxcnsUkaKjT4WMpYHyRqYYCm6N4` is Ready on `lgi.tools` with clean all-200 runtime logs and no error-level entries; browser smoke was unavailable this session (Chrome extension not connected). Implementation was executed by the delegated `codex exec` GPT-5.6-sol workflow trial with the Claude session as orchestrator/acceptance gate; sol's code drew zero Greptile findings.

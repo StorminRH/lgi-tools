@@ -50,8 +50,10 @@ export function LazySiteDetails({
     return () => details.removeEventListener('toggle', onToggle);
   }, [open]);
 
+  // Stable probe hook: the wrapper is empty until first open (the lazy contract
+  // docs/ux-check/probes/sites-lazy-detail.mjs locks on both catalogue surfaces).
   return (
-    <div ref={ref} className={zoom ? 'sites-detail-zoom' : 'contents'}>
+    <div ref={ref} data-lazy-details className={zoom ? 'sites-detail-zoom' : 'contents'}>
       {open ? <SiteDetailsBody site={site} /> : null}
     </div>
   );

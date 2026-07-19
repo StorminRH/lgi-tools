@@ -1,5 +1,5 @@
 {
-  "policyRevision": 23,
+  "policyRevision": 24,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -49,6 +49,7 @@
         "read-only",
         "xhigh",
         "adversarial",
+        "present[^.]*plain-English summary[^.]*before[^.]*approval",
         "session-terminal"
       ],
       "forbidden": []
@@ -69,6 +70,7 @@
         "read-only",
         "xhigh",
         "adversarial",
+        "present[^.]*plain-English summary[^.]*before[^.]*approval",
         "session-terminal"
       ],
       "forbidden": [
@@ -169,6 +171,7 @@
         "read-only",
         "xhigh",
         "adversarial",
+        "present[^.]*plain-English summary[^.]*before[^.]*approval",
         "session-terminal"
       ],
       "forbidden": []
@@ -196,6 +199,7 @@
         "read-only",
         "xhigh",
         "adversarial",
+        "present[^.]*plain-English summary[^.]*before[^.]*approval",
         "session-terminal"
       ],
       "forbidden": []

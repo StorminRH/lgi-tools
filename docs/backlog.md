@@ -237,16 +237,6 @@
   the primitives are functional, accessible, and already shipped; Ryan chose to merge the
   completed arc and handle additional visual judgment later. *Size:* S. *Trigger:* Session
   3.9.3.6.
-- **Local dev is slow + memory-heavy on DB pages** (from the 3.6.8 polish session; full
-  diagnosis in `DEV_PERF_DIAGNOSIS.md` at the Document Archive root). *What:* a cold
-  `/sites` in `pnpm dev` takes
-  >60s and blocks the Node event loop (the whole dev server stops answering), driving a
-  24 GB machine ~10 GB into swap. Root cause: the page assembles the entire catalogue and
-  eagerly server-renders every site's full detail body (all waves/NPCs) every request,
-  with no build-prerender warm cache like prod. Plan (A/B/C in the doc): profile/confirm
-  the stall, lazy-render detail bodies (helps dev + prod), and add a dev-only sample-data
-  mode so dev serves a small slice, not the full SDE. *Why deferred:* needs profiling +
-  an architectural change; out of polish scope. *Size:* M–L. *Trigger:* Session 3.9.3.4.
 - **Client-settled static for the session-gated pages** (surfaced 2026-07-11 by the 3.7.35.1
   conformance route-optimality diagnosis). *What:* `/skills`, `/jobs`, `/structures`, `/settings`,
   `/characters` are `◐` partial because each does a server-side session-gated linked-character read

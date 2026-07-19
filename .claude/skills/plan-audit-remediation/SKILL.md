@@ -10,7 +10,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 Use Claude Code Plan mode and the native task list. Require the lifecycle
 resolver directive to name `plan-audit-remediation` as the handler. Otherwise
@@ -35,8 +35,9 @@ normal close-out.
 Use the global headless `gpt-5.6-sol` routing as useful for bounded finding
 exploration, decomposition, and drafting. Give the complete extension,
 contract set, ledger, and evidence to a fresh read-only xhigh adversarial
-reviewer and reconcile every finding. Present the reviewed extension for Ryan's
-approval without writing files. After approval in execution mode, append the
+reviewer and reconcile every finding. Present a short plain-English summary
+alongside the reviewed extension before requesting Ryan's approval. Do not
+write files before approval. After approval in execution mode, append the
 roadmap rows, reconcile the contract index/files, mark mapped findings Planned,
 set the audit to Remediation in progress, and update SCRATCHPAD. Do not write
 session implementation plans.

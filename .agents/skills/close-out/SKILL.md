@@ -11,7 +11,7 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 This skill sequences canonical documents and carries merge authorization; it
 does not restate their procedures. Read `docs/DESIGN_PRINCIPLES.md` as the

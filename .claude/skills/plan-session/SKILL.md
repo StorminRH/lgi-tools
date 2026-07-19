@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 Run the resolver and require its directive to name `plan-session` as the handler.
 Otherwise report it and return control to `start-session`; never select a sibling
@@ -26,7 +26,8 @@ draft is complete, launch a fresh read-only xhigh worker to adversarially review
 the full draft, contract, and cited evidence. Reconcile every finding and rerun
 review if the response materially changes architecture, scope, or
 verification. Then present the reviewed plan—including alternatives, tests,
-scope guard, and baseline effect—and wait for Ryan's approval without writing
+scope guard, and baseline effect. Present a short plain-English summary alongside
+the formal plan before requesting Ryan's approval, then wait without writing
 files.
 After approval in execution mode, write the deterministic
 `docs/session-plans/X.Y/<session>.md` path with

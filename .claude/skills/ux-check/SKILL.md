@@ -13,7 +13,7 @@ description: >-
 
 # Run the LGI.tools UX check
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 Use this scripted workflow instead of Claude Desktop preview/auto-verification.
 The command is diagnostic, not a pass/fail gate: inspect artifacts even when it
