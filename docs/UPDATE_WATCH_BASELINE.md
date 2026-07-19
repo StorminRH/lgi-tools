@@ -43,10 +43,16 @@ remains unacknowledged. This invariant cannot be verified against live pages
 by the checker; it is owned by this procedure.
 
 The baseline below was seeded from a manual sweep of every registry source on
-2026-07-19. All feed items visible at sweep time predate the sweep and are
-dated, so every `acknowledgedItems` list starts empty. The advisory list
-records the five findings `pnpm audit` reported that day (all in transitive
-development tooling).
+2026-07-19. The feed-backed sources' items all predate the sweep and are
+dated, so those `acknowledgedItems` lists start empty. The EVE developer
+documentation source instead watches the rendered docs sitemap's URL set —
+cloud-session GitHub egress is scoped to the routine's own repository, and
+the MkDocs sitemap build-stamps every page's lastmod — so its baseline
+acknowledges all 81 page URLs present at sweep time: new or removed pages
+surface by identity, while in-place edits are a documented non-signal (the
+dev blog announces material ESI changes). The advisory list records the five
+findings `pnpm audit` reported that day (all in transitive development
+tooling).
 
 ```update-watch-baseline
 {
@@ -152,10 +158,92 @@ development tooling).
     },
     {
       "name": "EVE developer documentation",
-      "watch": ["https://api.github.com/repos/esi/esi-docs/commits?per_page=50"],
+      "watch": ["https://developers.eveonline.com/docs/sitemap.xml"],
       "idRule": "url",
       "scanSince": "2026-07-19",
-      "acknowledgedItems": []
+      "acknowledgedItems": [
+        "https://developers.eveonline.com/docs",
+        "https://developers.eveonline.com/docs/community",
+        "https://developers.eveonline.com/docs/community/abyss-tracker",
+        "https://developers.eveonline.com/docs/community/alliance-auth",
+        "https://developers.eveonline.com/docs/community/django-esi",
+        "https://developers.eveonline.com/docs/community/dscan-icu",
+        "https://developers.eveonline.com/docs/community/dscan-icu/index_cn",
+        "https://developers.eveonline.com/docs/community/elt",
+        "https://developers.eveonline.com/docs/community/eve-ai-agent",
+        "https://developers.eveonline.com/docs/community/eve-api-for-golang",
+        "https://developers.eveonline.com/docs/community/eve-api-for-php",
+        "https://developers.eveonline.com/docs/community/eve-api-for-typescript",
+        "https://developers.eveonline.com/docs/community/eve-auth-for-django",
+        "https://developers.eveonline.com/docs/community/eve-auth-for-go",
+        "https://developers.eveonline.com/docs/community/eve-auth-for-python",
+        "https://developers.eveonline.com/docs/community/eve-buddy",
+        "https://developers.eveonline.com/docs/community/eve-esi-proxy",
+        "https://developers.eveonline.com/docs/community/eve-kill-com",
+        "https://developers.eveonline.com/docs/community/eve-online-sde-documentation",
+        "https://developers.eveonline.com/docs/community/eve-preview-manager",
+        "https://developers.eveonline.com/docs/community/eve-ref",
+        "https://developers.eveonline.com/docs/community/eve-srp",
+        "https://developers.eveonline.com/docs/community/eve-sso-for-php",
+        "https://developers.eveonline.com/docs/community/eve-workbench",
+        "https://developers.eveonline.com/docs/community/eve-wrench",
+        "https://developers.eveonline.com/docs/community/eveRwrapper",
+        "https://developers.eveonline.com/docs/community/evecia-online",
+        "https://developers.eveonline.com/docs/community/evecompanion",
+        "https://developers.eveonline.com/docs/community/evemissioneer",
+        "https://developers.eveonline.com/docs/community/eveops",
+        "https://developers.eveonline.com/docs/community/evepandora",
+        "https://developers.eveonline.com/docs/community/eveship-fit",
+        "https://developers.eveonline.com/docs/community/innominate-appraisal",
+        "https://developers.eveonline.com/docs/community/jeveassets",
+        "https://developers.eveonline.com/docs/community/jitaspace",
+        "https://developers.eveonline.com/docs/community/killfeed-by-lak-moore",
+        "https://developers.eveonline.com/docs/community/localisprimary-esi",
+        "https://developers.eveonline.com/docs/community/marquette",
+        "https://developers.eveonline.com/docs/community/mutamarket",
+        "https://developers.eveonline.com/docs/community/neucore",
+        "https://developers.eveonline.com/docs/community/rift-intel-fusion-tool",
+        "https://developers.eveonline.com/docs/community/sample-service",
+        "https://developers.eveonline.com/docs/community/sde-conversion",
+        "https://developers.eveonline.com/docs/community/sde-rest-api",
+        "https://developers.eveonline.com/docs/community/seat",
+        "https://developers.eveonline.com/docs/community/smt",
+        "https://developers.eveonline.com/docs/community/socketkill.com",
+        "https://developers.eveonline.com/docs/community/theorycrafter",
+        "https://developers.eveonline.com/docs/community/tritanium",
+        "https://developers.eveonline.com/docs/community/tritanium/index_cn",
+        "https://developers.eveonline.com/docs/community/turtle-alternate-icons",
+        "https://developers.eveonline.com/docs/community/ueberauth-eve-online",
+        "https://developers.eveonline.com/docs/community/upwell-gg",
+        "https://developers.eveonline.com/docs/community/wanderer",
+        "https://developers.eveonline.com/docs/community/wormholesystems",
+        "https://developers.eveonline.com/docs/community/zkillboard-com",
+        "https://developers.eveonline.com/docs/contributors",
+        "https://developers.eveonline.com/docs/guides/fitting",
+        "https://developers.eveonline.com/docs/guides/glossary",
+        "https://developers.eveonline.com/docs/guides/id-ranges",
+        "https://developers.eveonline.com/docs/guides/map-data",
+        "https://developers.eveonline.com/docs/guides/pi",
+        "https://developers.eveonline.com/docs/guides/route-calculation",
+        "https://developers.eveonline.com/docs/guides/staticdata",
+        "https://developers.eveonline.com/docs/guides/system-security",
+        "https://developers.eveonline.com/docs/guides/useful-formulae",
+        "https://developers.eveonline.com/docs/menu",
+        "https://developers.eveonline.com/docs/resources",
+        "https://developers.eveonline.com/docs/resources/license",
+        "https://developers.eveonline.com/docs/services/esi/best-practices",
+        "https://developers.eveonline.com/docs/services/esi/endpoints",
+        "https://developers.eveonline.com/docs/services/esi/overview",
+        "https://developers.eveonline.com/docs/services/esi/pagination/cursor-based",
+        "https://developers.eveonline.com/docs/services/esi/pagination/from-id",
+        "https://developers.eveonline.com/docs/services/esi/pagination/x-pages",
+        "https://developers.eveonline.com/docs/services/esi/rate-limiting",
+        "https://developers.eveonline.com/docs/services/iec",
+        "https://developers.eveonline.com/docs/services/image-server",
+        "https://developers.eveonline.com/docs/services/sso",
+        "https://developers.eveonline.com/docs/services/static-data",
+        "https://developers.eveonline.com/docs/support"
+      ]
     }
   ]
 }

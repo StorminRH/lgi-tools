@@ -80,11 +80,16 @@ SOURCE_REGISTRY: tuple[Source, ...] = (
         ("developers.eveonline.com",),
         "url",
     ),
+    # The docs source watches the rendered site's sitemap URL set rather than
+    # the esi-docs GitHub repo: cloud-session GitHub egress is scoped to the
+    # routine's own repository, and the MkDocs sitemap build-stamps lastmod,
+    # so new/removed pages surface by URL identity while in-place edits are a
+    # documented non-signal (the dev blog announces material ESI changes).
     Source(
         "eve-developer-docs",
         "EVE developer documentation",
         "eveSurface",
-        ("api.github.com",),
+        ("developers.eveonline.com",),
         "url",
     ),
 )

@@ -32,7 +32,9 @@ def valid_block(dependencies: dict | None = None) -> dict:
         block[source.section].append(
             {
                 "name": source.name,
-                "watch": [f"https://{domain}/feed.xml" for domain in source.domains],
+                # Slug-unique paths keep watch URLs globally distinct even when
+                # two sources share a domain (both EVE sources do).
+                "watch": [f"https://{domain}/{source.slug}/feed.xml" for domain in source.domains],
                 "idRule": source.id_rule,
                 "scanSince": "2026-07-19",
                 "acknowledgedItems": [],
