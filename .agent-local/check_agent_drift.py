@@ -360,18 +360,30 @@ def check_development_state_tests(errors: list[str]) -> None:
             errors.append(f"{relative(path, ROOT)} fixture tests failed:\n{detail}")
 
 
-def check_lifecycle_checkers(errors: list[str]) -> list[str]:
-    """Run the cross-artifact checkers and return their non-blocking warnings."""
+LIFECYCLE_CHECKERS = (
+    ".agent-local/check_env_example.py",
+    ".agent-local/check_doc_refs.py",
+    ".agent-local/check_lifecycle_evidence.py",
+    ".agent-local/check_release_consistency.py",
+)
+
+
+def check_lifecycle_checkers(
+    errors: list[str],
+    *,
+    root: Path = ROOT,
+    checkers: tuple[str, ...] = LIFECYCLE_CHECKERS,
+) -> list[str]:
+    """Run the cross-artifact checkers and return their non-blocking warnings.
+
+    Injectable root/checkers let a fixture drive the real runner against a
+    temporary tree without re-entering the full drift CLI.
+    """
     warnings: list[str] = []
-    for raw_path in (
-        ".agent-local/check_env_example.py",
-        ".agent-local/check_doc_refs.py",
-        ".agent-local/check_lifecycle_evidence.py",
-        ".agent-local/check_release_consistency.py",
-    ):
+    for raw_path in checkers:
         result = subprocess.run(
-            [sys.executable, str(ROOT / raw_path)],
-            cwd=ROOT,
+            [sys.executable, str(root / raw_path), "--root", str(root)],
+            cwd=root,
             text=True,
             capture_output=True,
             check=False,
