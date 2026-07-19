@@ -136,6 +136,31 @@ _ALLOWLIST = (
         "approved future gitignored per-mode evidence directory created by Session 3.9.3.4.2",
     ),
     (
+        "docs/session-plans/3.9/3.9.3.5.md",
+        "docs/UPDATE_WATCH_BASELINE.md",
+        "approved future artifact created by Session 3.9.3.5",
+    ),
+    (
+        "docs/session-plans/3.9/3.9.3.5.md",
+        ".agent-local/check_update_watch_baseline.py",
+        "approved future artifact created by Session 3.9.3.5",
+    ),
+    (
+        "docs/session-plans/3.9/3.9.3.5.md",
+        ".agent-local/update_watch_collect.py",
+        "approved future artifact created by Session 3.9.3.5",
+    ),
+    (
+        "docs/session-plans/3.9/3.9.3.5.md",
+        ".claude/skills/update-watch/SKILL.md",
+        "approved future artifact created by Session 3.9.3.5",
+    ),
+    (
+        "docs/session-plans/3.9/3.9.3.5.md",
+        ".agents/skills/update-watch/SKILL.md",
+        "approved future artifact created by Session 3.9.3.5",
+    ),
+    (
         "docs/session-plans/3.9/3.9.1.5.md",
         ".agent-local/pr-privacy-local-patterns.txt",
         "approved deliberately-untracked local pattern file created by Session 3.9.1.5; never resolves on a fresh clone",
