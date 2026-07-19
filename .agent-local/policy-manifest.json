@@ -262,6 +262,23 @@
       "forbidden": [
         "pnpm dev.*i\\.e\\. `next dev -H"
       ]
+    },
+    "update-watch": {
+      "required": [
+        "never[^.]*commit",
+        "never[^.]*push",
+        "never[^.]*(create[^.]*branch|pull request)",
+        "never[^.]*pnpm (add|update)",
+        "never[^.]*edit[^.]*(baseline|repository file)",
+        "at most one issue",
+        "no other outward write",
+        "untrusted",
+        "refus(e|ed)[^.]*failure",
+        "update_watch_collect",
+        "update-watch-deltas",
+        "end-of-run summary"
+      ],
+      "forbidden": []
     }
   },
   "runtimeForbidden": {
@@ -312,6 +329,10 @@
     ".agent-local/audit_tooling_parity.py",
     ".agent-local/check_tooling_parity.py",
     ".agent-local/sync_vercel_plugin.py",
+    ".agent-local/check_update_watch_baseline.py",
+    ".agent-local/test_update_watch_baseline.py",
+    ".agent-local/update_watch_collect.py",
+    ".agent-local/test_update_watch_collect.py",
     ".codex/hooks.json",
     ".claude/settings.json",
     "docs/CODE_HEALTH_BASELINE.md",
