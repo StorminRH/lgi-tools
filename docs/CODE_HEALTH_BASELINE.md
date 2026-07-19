@@ -21,12 +21,12 @@
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
 | Production TS/TSX files | 760 | 758 | +1 from the 3.9.3.2 shared EVE image resolver module, +1 at 3.9.3.3 for the catalogue publication boundary owner; recount 760 at 3.9.3.3 close-out |
-| Production TS/TSX LOC | 72,972 | 72,215 | +619 through 3.9.2.10 (registry/gate/route-contract work), +110 at 3.9.3.2 (resolver + search descriptor threading), +28 at 3.9.3.3 (site-route boundary handling); recount 72,972 at 3.9.3.3 close-out |
+| Production TS/TSX LOC | 72,974 | 72,215 | +619 through 3.9.2.10 (registry/gate/route-contract work), +110 at 3.9.3.2 (resolver + search descriptor threading), +28 at 3.9.3.3 (site-route boundary handling), +2 at 3.9.3.4.1 for the lazy-detail probe hook; recount 72,974 at 3.9.3.4.1 close-out |
 | Test files | 361 | 357 | +4 at 3.9.3.2 (resolver, type-icon render, blueprint-row image, and image-variant-rail suites), +1 at 3.9.3.3 (proxy route-boundary suite); recount 361 at 3.9.3.3 close-out |
-| Coverage — statements | 85.08% | 85.06% | 8,252 / 9,699 from fresh full-Postgres coverage; all 3,398 tests passed |
-| Coverage — branches | 83.32% | 83.29% | 4,908 / 5,890 |
-| Coverage — functions | 80.48% | 80.37% | 2,058 / 2,557 |
-| Coverage — lines | 85.95% | 85.94% | 7,270 / 8,458 |
+| Coverage — statements | 85.46% | 85.08% | 8,495 / 9,940 from fresh full-Postgres coverage at 3.9.3.4.1 close-out; all 3,507 tests passed |
+| Coverage — branches | 83.05% | 83.32% | 5,059 / 6,091 |
+| Coverage — functions | 81.56% | 80.48% | 2,133 / 2,615 |
+| Coverage — lines | 86.40% | 85.95% | 7,494 / 8,673 |
 | Fallow health score | 78 (B) | 78 (B) | Carried from the previous full measurement; this targeted pass changed no threshold or hotspot-score policy |
 | Functions above health thresholds | 0 | 0 | Previous full result carried forward; fresh origin/main-pinned coverage-backed Fallow found zero changed-function issues |
 | Auth query hub exports | 0 | 0 | Hub deleted; seven focused owner/private modules verified in place; the only remaining `features/auth/queries` string is a devlog parser test fixture |

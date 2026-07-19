@@ -114,6 +114,7 @@ owned centrally by the runner.
 | `multibuy-panel` | Tier toggles, nested help, toast, and clipboard payload |
 | `nav-menu` | Mobile open, navigation close, Enter open, and Escape close |
 | `overlay-open` | Desktop hover/keyboard and mobile tap for planner help overlays |
+| `sites-lazy-detail` | Cards/table summary parity and first-open-only lazy detail mounting |
 | `templates-menu` | Signed-out saved-template panel, 401 toast, and unknown-plan cleanup |
 
 ## Add or explore a probe

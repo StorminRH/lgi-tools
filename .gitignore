@@ -45,6 +45,7 @@ yarn-error.log*
 .agent-local/pr-*.md
 .agent-local/pr-privacy-local-patterns.txt
 docs/ux-check/captures/
+docs/ux-check/profiles/
 docs/margin-audit/
 graphify-out/
 

@@ -17,6 +17,38 @@
 
 **CURRENT = v3.9 "Refit" in flight; 3.9.3.1–3.9.3.3 are SHIPPED. NEXT = execute session 3.9.3.4.1 (approved plan `docs/session-plans/3.9/3.9.3.4.1.md`, pending execution, fresh `start-session`).** Planning found the contract's lazy-render deliverable ALREADY SHIPPED (PR #115/#139, `LazySiteDetails` on both catalogue surfaces) and the dev melt long-resolved as `.next` watcher-spin hygiene (archive doc addendum). Ryan chose plan-only reconciliation: contract byte-unamended (digest in the plan header), the approved plan records the interpretation; .1 = profile (bounded `profile:sites-dev` script) + verify (both-surfaces probe) with a stop-for-Ryan triage rule. Known lifecycle drift recorded: master plan §3.9.3.4's root-cause narrative is superseded and needs a later operator-approved `plan-version` reconciliation (3.9.3.8 does NOT own `VERSION_3_9_PLAN.md`); `.2`'s cross-refs to ".1's lazy rendering / user-facing change" reconcile plan-only in `.2`'s planning. Three sol@xhigh adversarial rounds ran; all findings reconciled. The invalid-site production preview proved the proxy-owned closed catalogue boundary returns the shared 404/noindex response without React #419 while valid site and image routes remain intact; every Vercel and Convex preview was removed. The same operator-approved rider retired `drive-session` in favor of the Claude subagent rule below. Observed image context still not owned by the roadmap: blueprint-listing surfaces show the blueprint `bp` scroll, the planner hero is the only product-image surface, and job rows stay product-first.
 
+### 3.9.3.4.1 current dev profile — session .2 "before" readout
+
+The bounded profiler ran twice on 2026-07-18 with local Postgres reachable,
+Next 16.2.6, zero starting swap, normal macOS memory pressure, and >9 GiB
+free+inactive memory. The interrupt proof terminated the owned process group
+with SIGTERM (no SIGKILL), then independently confirmed the group gone and port
+3000 closed. Both full runs returned `status: ok`; the historical watcher/swap
+melt was **not reproduced**.
+
+| Metric | June 15 healthy proof | Session .2 before — as found | Session .2 before — clean `.next` |
+| --- | ---: | ---: | ---: |
+| `.next` at start | clean | 45.4 MiB | 0 B |
+| Idle process-group RSS / CPU | 330 MiB / 0% | 480 MiB avg / 2.6% avg | 755 MiB avg / 13.6% avg |
+| Cold `/sites` full-body time | ~1.7 s | 1.34 s | 1.32 s |
+| Cold dev-log split | app 1.417 s | next 442 ms / proxy 2 ms / app 893 ms | next 414 ms / proxy 2 ms / app 896 ms |
+| Warm `/sites` full-body time | 1.1–1.4 s | 526 ms / 497 ms | 511 ms / 498 ms |
+| Warm `application-code` | ~1.1 s | 520 ms / 491 ms | 506 ms / 491 ms |
+| Overlapped homepage probe | not recorded | passed, 558 ms full body | passed, 512 ms full body |
+| Peak process-group RSS | 2.9 GiB | 2.19 GiB | 2.36 GiB |
+| Swap growth | 0 | 0 | 0 |
+| Detail-only sentinels in collapsed `/sites` HTML | not recorded | Wave Spawns 0 / No Sleeper presence 0 | Wave Spawns 0 / No Sleeper presence 0 |
+
+Interpretation: `.next` hygiene is currently healthy and the old >60 s stall is
+absent. Warm request cost is now ~0.5 s and remains almost entirely the
+`application-code` bucket; the existing per-request live-price overlay's two
+batched reads remain candidates only, not attributed causes and not `.1` fix
+scope. The committed both-surfaces structural probe is the authoritative lazy
+contract; sentinel counts are secondary evidence. Master-plan §3.9.3.4 still
+states the superseded eager-render root cause and requires a later
+operator-approved `plan-version` truth reconciliation; session `.2` planning
+must reconcile its cross-references plan-only before implementing sample mode.
+
 **⭐⭐ NEW durable gotcha (memory: [[convex-bundles-lib-esi-no-next-imports]]):** Convex bundles the ESI-gate chain (`convex/onlineStatusSync.ts` → `@/lib/esi` → dispatch → everything it imports) into its isolate. ANY `next/server` import in that chain fails ONLY the post-merge production Convex push (`__dirname` in Next's compiled ua-parser-js) — invisible to `pnpm verify`/CI. That is exactly how the first 3.9.2.2 deploy (`dpl_27dx4yFQKHCYRKNBfW4jCbeRSomL`) failed; production kept serving the prior Ready build throughout. Also: two Greptile P2s resolved (marker scheduling reverted-by-design with the constraint documented at the write site; affiliations `outcome:'refreshed'` label justified as preserved behavior — Greptile accepted). CI-only CRAP gotcha confirmed live: a function whose only test is a `*.db.test.ts` suite scores 0% coverage in Postgres-less CI (fix = add off-database unit coverage in the sibling unit suite).
 
 **⭐ Claude subagent routing (supersedes `drive-session` in 3.9.3.3):** every Claude subagent is a headless `gpt-5.6-sol` Codex CLI worker. Select effort by the Claude seat the task would have used: Opus 4.8 → high, Sonnet → medium, Haiku → low; use xhigh only when a workflow explicitly requires it or high cannot resolve the task. Background titles state `gpt-5.6-sol@<effort>` visibly. Every complete plan gets a fresh read-only xhigh adversarial review before approval. The active stage skill and main Claude session retain lifecycle ownership; approved-plan persistence remains session-terminal and there is no generic delegated-session executor. Background `codex exec` needs closed stdin (or a heredoc) and `--output-last-message`; stop superseded tasks explicitly.
