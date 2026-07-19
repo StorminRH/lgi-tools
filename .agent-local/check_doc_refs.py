@@ -126,6 +126,31 @@ _ALLOWLIST = (
         "deferred stale-artifact cleanup remains owned by the 3.9.3.1 backlog triage",
     ),
     (
+        "docs/**",
+        "scripts/profile-sites-dev.mjs",
+        "approved future artifact created by Session 3.9.3.4.1",
+    ),
+    (
+        "docs/**",
+        "scripts/profile-parse.mjs",
+        "approved future artifact created by Session 3.9.3.4.1",
+    ),
+    (
+        "docs/**",
+        "scripts/profile-parse.test.mjs",
+        "approved future artifact created by Session 3.9.3.4.1",
+    ),
+    (
+        "docs/**",
+        "docs/ux-check/profiles/",
+        "approved future gitignored profiler-output directory created by Session 3.9.3.4.1",
+    ),
+    (
+        "docs/**",
+        "docs/ux-check/probes/sites-lazy-detail.mjs",
+        "approved future probe definition created by Session 3.9.3.4.1",
+    ),
+    (
         "docs/session-plans/3.9/3.9.1.5.md",
         ".agent-local/pr-privacy-local-patterns.txt",
         "approved deliberately-untracked local pattern file created by Session 3.9.1.5; never resolves on a fresh clone",
