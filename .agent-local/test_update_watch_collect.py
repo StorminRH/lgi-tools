@@ -366,6 +366,16 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual("refused", payload["verdict"])
         self.assertEqual([], payload["deltas"])
 
+    def test_refused_summary_still_counts_pending_candidates(self) -> None:
+        # A failure clears the reportable set, but the operator still needs to
+        # see how many deltas were pending — the count must not read zero.
+        state = state_with(failures=["watch:neon:https://neon.com/x: HTTP 500"])
+        payload = finalize_verdict(state, [], [])
+        self.assertEqual("refused", payload["verdict"])
+        self.assertEqual([], payload["deltas"])
+        self.assertIn("candidates found: 1", payload["summary"])
+        self.assertIn("deltas suppressed by open issues: 0", payload["summary"])
+
 
 class RegistryTests(unittest.TestCase):
     def test_registry_covers_all_required_sources_once(self) -> None:

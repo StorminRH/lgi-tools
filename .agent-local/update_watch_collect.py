@@ -455,8 +455,15 @@ def render_key_block(keys: list[str]) -> str:
     return f"```{DELTAS_FENCE}\n{body}\n```"
 
 
-def render_summary(state: dict, deltas: list[dict], suppressed: list[str], verdict: str) -> str:
-    """Render the mandatory end-of-run summary printed verbatim by the skill."""
+def render_summary(
+    state: dict, candidate_count: int, suppressed: list[str], verdict: str
+) -> str:
+    """Render the mandatory end-of-run summary printed verbatim by the skill.
+
+    ``candidate_count`` is the total number of candidates found before the
+    refusal gate clears the reportable set, so a refused run's summary still
+    tells the operator how many deltas were pending when it failed.
+    """
     lines = ["update-watch end-of-run summary:"]
     for slug, source_state in sorted(state.get("watch", {}).items()):
         pages = source_state.get("pages", {})
@@ -468,7 +475,7 @@ def render_summary(state: dict, deltas: list[dict], suppressed: list[str], verdi
         + f" ({len(state.get('advisories', []))} advisories observed)"
     )
     lines.append(f"- open update-watch issues scanned: {len(state.get('openIssues', []))}")
-    lines.append(f"- candidates found: {len(deltas) + len(suppressed)}")
+    lines.append(f"- candidates found: {candidate_count}")
     lines.append(f"- deltas suppressed by open issues: {len(suppressed)}")
     failures = state.get("failures", [])
     if failures:
@@ -491,6 +498,9 @@ def finalize_verdict(state: dict, items: list[dict], fresh_issues: list[dict]) -
     """
     failures: list[str] = list(state.get("failures", []))
     deltas = compute_deltas(state, items, failures)
+    # The true candidate count is fixed before the refusal gate clears the
+    # reportable set, so the summary never understates pending deltas.
+    candidate_count = len(deltas)
 
     reported_keys = {key for issue in fresh_issues for key in issue.get("keys", [])}
     suppressed = [delta["key"] for delta in deltas if delta["key"] in reported_keys]
@@ -512,7 +522,7 @@ def finalize_verdict(state: dict, items: list[dict], fresh_issues: list[dict]) -
         "deltas": remaining,
         "suppressed": suppressed,
         "keyBlock": render_key_block([delta["key"] for delta in remaining]),
-        "summary": render_summary(summary_state, remaining, suppressed, verdict),
+        "summary": render_summary(summary_state, candidate_count, suppressed, verdict),
     }
 
 
