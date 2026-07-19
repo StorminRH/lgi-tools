@@ -11,7 +11,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 24 -->
+<!-- shared-policy-revision: 25 -->
 
 This is the Plan-mode owner for converting a failed version-close audit into a
 bounded extension of the same master version. It creates no separate remediation
@@ -42,10 +42,15 @@ session plans, and audit finding ledger remain authoritative.
    to scope absent from the audit. Each contract states its finding ids,
    dependencies, behavior locks, end-state, verification, baseline effect,
    pre-PR design evidence, and normal branch/PR close-out.
-5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful for bounded
+5. Discuss the extension's intended shape with Ryan in plain English before
+   drafting sub-versions or contracts. Use task-scoped `gpt-5.6-sol` workers
+   under `AGENTS.md` as useful for bounded
    finding exploration, decomposition, and drafting. Give the complete
    extension, contract set, ledger, and evidence to a fresh read-only xhigh
-   adversarial reviewer, then reconcile every finding.
+   adversarial reviewer, then reconcile every finding. The review budget is a
+   hard cap of one mandatory pass plus at most one rerun after material
+   reconciliation; later findings are reconciled by planner judgment and
+   disclosed at approval.
 6. Present a short plain-English summary alongside the reviewed master-plan
    extension and contract set before requesting Ryan's approval. Plan mode is
    read-only; do not mutate artifacts before approval.

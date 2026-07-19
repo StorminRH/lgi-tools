@@ -1,5 +1,5 @@
 {
-  "policyRevision": 24,
+  "policyRevision": 25,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -50,6 +50,7 @@
         "xhigh",
         "adversarial",
         "present[^.]*plain-English summary[^.]*before[^.]*approval",
+        "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
         "session-terminal"
       ],
       "forbidden": []
@@ -71,6 +72,7 @@
         "xhigh",
         "adversarial",
         "present[^.]*plain-English summary[^.]*before[^.]*approval",
+        "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
         "session-terminal"
       ],
       "forbidden": [
@@ -172,6 +174,7 @@
         "xhigh",
         "adversarial",
         "present[^.]*plain-English summary[^.]*before[^.]*approval",
+        "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
         "session-terminal"
       ],
       "forbidden": []
@@ -200,6 +203,7 @@
         "xhigh",
         "adversarial",
         "present[^.]*plain-English summary[^.]*before[^.]*approval",
+        "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
         "session-terminal"
       ],
       "forbidden": []

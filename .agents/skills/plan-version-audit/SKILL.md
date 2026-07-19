@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 24 -->
+<!-- shared-policy-revision: 25 -->
 
 Plan from `docs/VERSION_AUDIT.md` and `docs/DEVELOPMENT_LIFECYCLE.md` without
 copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
@@ -32,13 +32,18 @@ copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
 3. Create a native Codex todo list for context reconciliation, measurement
    design, hotspot review, classification, baseline replacement, verification,
    and conditional archival.
-4. Produce an approval-ready audit plan naming the mode, exact version/ref,
+4. Discuss the audit's intended shape with Ryan in plain English before
+   drafting the plan. Produce an approval-ready audit plan naming the mode,
+   exact version/ref,
    metrics and commands, artifact inventory, likely drift questions, baseline
    overwrite, verification, and—only for version close—archive destination.
 5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful to explore
    audit surfaces, design measurement workflows, and draft bounded sections.
    Give the complete plan and its evidence to a fresh read-only xhigh
-   adversarial reviewer, then reconcile every finding.
+   adversarial reviewer, then reconcile every finding. The review budget is a
+   hard cap of one mandatory pass plus at most one rerun after material
+   reconciliation; later findings are reconciled by planner judgment and
+   disclosed at approval.
 6. Present a short plain-English summary alongside the reviewed audit plan
    before requesting Ryan's approval; Plan mode remains read-only.
 7. After approval in execution mode, overwrite a new plan with `Audit status:

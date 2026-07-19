@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 24 -->
+<!-- shared-policy-revision: 25 -->
 
 This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
 `docs/SESSION_CONTRACTS.md` own the procedure and artifact schemas;
@@ -28,12 +28,17 @@ This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
    model, active master plan, SCRATCHPAD, and relevant backlog items.
 3. Create a native Codex todo list from the lifecycle's contract-generation
    phase and keep exactly one item in progress.
-4. In Codex Plan mode, reconcile roadmap intent with live repository state and
-   propose the ordered contract/index set. Include dependencies, acceptance
+4. In Codex Plan mode, reconcile roadmap intent with live repository state,
+   discuss the intended shape of the decomposition with Ryan in plain English
+   before drafting contracts, and propose the ordered contract/index set.
+   Include dependencies, acceptance
    gates, hotspot contact, and at most one selected health campaign.
 5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful during
    authoring. Give the complete draft to a fresh read-only xhigh adversarial
-   reviewer with its source evidence, then reconcile every finding.
+   reviewer with its source evidence, then reconcile every finding. The review
+   budget is a hard cap of one mandatory pass plus at most one rerun after
+   material reconciliation; later findings are reconciled by planner judgment
+   and disclosed at approval.
 6. Present a short plain-English summary alongside the reviewed decomposition
    before requesting Ryan's approval. Plan mode is read-only; do not create or
    rewrite contract files before approval.

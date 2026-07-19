@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 24 -->
+<!-- shared-policy-revision: 25 -->
 
 Drive `docs/SESSION_PLANNING.md`; do not restate it. Treat
 `docs/DESIGN_PRINCIPLES.md` as the constitution,
@@ -30,13 +30,18 @@ contract as the product boundary.
 3. Create a native Codex todo list from the planning document's numbered steps;
    keep one item in progress and reopen invalidated checks.
 4. Reconcile the contract with Graphify, live code, dependencies, and current
-   primary documentation. Produce the fixed-schema plan, including design
+   primary documentation. Discuss the plan's intended shape with Ryan in
+   plain English before any fixed-schema drafting. Then produce the
+   fixed-schema plan, including design
    alternatives, tests, scope guard, and baseline effect.
 5. Use the task-scoped `gpt-5.6-sol` assistance policy in `AGENTS.md` as useful
    during authoring. After the complete draft exists, launch a fresh read-only
    xhigh worker to adversarially review the draft, contract, and cited
-   evidence. Reconcile every finding; rerun review if the response materially
-   changes architecture, scope, or verification.
+   evidence. Reconcile every finding; rerun review at most once, and only when
+   the reconciliation materially changes architecture, scope, or verification.
+   The review budget is a hard cap of one mandatory pass plus at most one
+   rerun; later findings are reconciled by planner judgment and disclosed at
+   approval.
 6. Present a short plain-English summary alongside the reviewed plan before
    requesting Ryan's approval. Do not persist it in Plan mode.
 7. After approval in execution mode, write the deterministic

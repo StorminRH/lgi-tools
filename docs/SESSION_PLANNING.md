@@ -38,6 +38,12 @@ lifecycle judgment.
 The contract is product intent; live code is current fact. Report material
 conflicts and stop for Ryan rather than planning through them.
 
+Close Step 1 with the first plain-English checkpoint: after context is loaded
+and before any Step 3+ design work, present the intended shape of the solution
+in plain English and discuss the open shape-level decisions with Ryan. This
+discussion happens before drafting; the design steps proceed from the shape
+Ryan endorses.
+
 ## Step 2 — Check hotspot proximity
 
 Use the **current hotspot table in `docs/CODE_HEALTH_BASELINE.md`**, then run a
@@ -155,7 +161,8 @@ Use this fixed order:
 10. **Scope guard** — explicit non-goals and backlog routing.
 
 Before requesting approval, present a short plain-English summary alongside the
-formal plan. State the intended outcome, the main implementation shape and
+formal plan — the second plain-English checkpoint, after Step 1's pre-draft
+shape discussion. State the intended outcome, the main implementation shape and
 tradeoff, the evidence that will prove success, and the most important scope
 boundary without requiring Ryan to decode the fixed schema first.
 
@@ -180,8 +187,11 @@ After the authoring session has a complete draft, but before Ryan sees it:
    insufficient verification, and contradictions with current code or primary
    documentation;
 4. reconcile every finding into the draft or record why it does not apply;
-5. rerun the review when the reconciliation materially changes the plan's
-   architecture, scope, or verification strategy.
+5. rerun the review at most once, and only when the reconciliation materially
+   changes the plan's architecture, scope, or verification strategy. The review
+   budget is a hard cap: one mandatory pass on the complete draft plus at most
+   one rerun. Findings that surface after the cap are reconciled by planner
+   judgment and disclosed at approval instead of triggering another pass.
 
 The reviewer is supplementary and never owns the plan. The planning session
 retains judgment, surfaces real product or scope conflicts to Ryan, and only
@@ -206,6 +216,7 @@ After Ryan approves and the runtime is in execution mode:
 
 - [ ] Correct lifecycle stage and contract selected?
 - [ ] Constitution and current baseline read first?
+- [ ] Intended shape discussed with Ryan in plain English before drafting?
 - [ ] Every new export hides a nameable decision and has a real caller?
 - [ ] Two decompositions considered for each non-trivial ownership decision?
 - [ ] Hotspot protected or preparatory seam planned first?
