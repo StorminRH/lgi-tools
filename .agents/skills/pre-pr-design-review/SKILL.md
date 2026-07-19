@@ -9,7 +9,7 @@ description: >-
 
 # Run the pre-PR design review
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 Follow `docs/PRE_PR_DESIGN_REVIEW.md` in full. It owns the review; this skill
 sequences it. `docs/DESIGN_PRINCIPLES.md` is the constitution and

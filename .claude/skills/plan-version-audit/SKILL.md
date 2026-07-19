@@ -9,7 +9,7 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 Run the resolver and require its directive to name `plan-version-audit` as the
 handler for lifecycle-driven Version close. Otherwise report it and return
@@ -29,7 +29,8 @@ overwrite, and archive destination when applicable. Use the global headless
 `gpt-5.6-sol` routing as useful to explore audit surfaces, design measurement
 workflows, and draft bounded sections. Give the complete plan and its evidence
 to a fresh read-only xhigh adversarial reviewer, reconcile every finding, then
-present it. Wait for Ryan's approval, then write a new
+present it. Present a short plain-English summary alongside the formal audit
+plan before requesting Ryan's approval. Wait for approval, then write a new
 `docs/version-audits/X.Y/PLAN.md` with `Audit status: Approved`,
 `Audit cycle: 1`, the full `Audited ref`,
 `Audit mode: Periodic` or `Audit mode: Version close`, and the required

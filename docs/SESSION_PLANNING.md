@@ -154,6 +154,11 @@ Use this fixed order:
 9. **Baseline effect and update**.
 10. **Scope guard** — explicit non-goals and backlog routing.
 
+Before requesting approval, present a short plain-English summary alongside the
+formal plan. State the intended outcome, the main implementation shape and
+tradeoff, the evidence that will prove success, and the most important scope
+boundary without requiring Ryan to decode the fixed schema first.
+
 For an audit-remediation contract, also name every `AF-NNN` finding it resolves,
 show how the selected decomposition satisfies its principle diagnosis, and name
 the pre-PR evidence that will allow close-out to mark it Delivered. The plan may

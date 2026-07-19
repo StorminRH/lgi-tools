@@ -11,7 +11,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 This is the Plan-mode owner for converting a failed version-close audit into a
 bounded extension of the same master version. It creates no separate remediation
@@ -46,8 +46,9 @@ session plans, and audit finding ledger remain authoritative.
    finding exploration, decomposition, and drafting. Give the complete
    extension, contract set, ledger, and evidence to a fresh read-only xhigh
    adversarial reviewer, then reconcile every finding.
-6. Present the reviewed master-plan extension and contract set for Ryan's
-   approval. Plan mode is read-only; do not mutate artifacts before approval.
+6. Present a short plain-English summary alongside the reviewed master-plan
+   extension and contract set before requesting Ryan's approval. Plan mode is
+   read-only; do not mutate artifacts before approval.
 7. After approval in execution mode, append the approved rows to the current
    master plan, reconcile `docs/session-contracts/X.Y/INDEX.md` and its contract
    files, change each mapped finding from Open to Planned, set `Audit status` to

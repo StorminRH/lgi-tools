@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  EXPECTED_FULL_SITE_COUNT,
   PROFILE_THRESHOLDS,
+  assessModeExpectation,
+  buildCatalogueModeEvidence,
   countDetailSentinels,
   evaluateAbort,
+  extractCardCount,
+  extractDevSampleMarker,
   isClaimableDevLog,
   isLocalDatabaseTarget,
   isValidProfileLabel,
@@ -17,6 +22,7 @@ import {
   resolveProfileOutcome,
   selectPreflightRefusal,
   shapeProfileResult,
+  summariseProfileSuite,
   summarisePhaseSamples,
 } from './profile-parse.mjs';
 
@@ -329,6 +335,179 @@ describe('detail sentinel counting', () => {
     expect(
       countDetailSentinels('Wave Spawns ... Wave Spawns ... No Sleeper presence'),
     ).toEqual({ waveSpawns: 2, noSleeperPresence: 1 });
+  });
+});
+
+describe('catalogue markup extraction', () => {
+  const html = `
+    <main>
+      <article data-lazy-details="one"></article>
+      <details class="site" data-lazy-details></details>
+      <div data-dev-sample="20/69"></div>
+      <script>self.__next_f.push("<article data-lazy-details></article><div data-dev-sample=\\"1/2\\">")</script>
+    </main>
+  `;
+
+  it('counts rendered card markers without counting RSC script decoys', () => {
+    expect(extractCardCount(html)).toBe(2);
+  });
+
+  it('extracts the rendered sample marker and ignores script content', () => {
+    expect(extractDevSampleMarker(html)).toEqual({ present: true, shown: 20, total: 69 });
+    expect(extractDevSampleMarker('<main></main>')).toEqual({
+      present: false,
+      shown: null,
+      total: null,
+    });
+    expect(extractDevSampleMarker('<div data-dev-sample="oops"></div>')).toEqual({
+      present: true,
+      shown: null,
+      total: null,
+    });
+  });
+});
+
+describe('catalogue mode expectation', () => {
+  const marker = (shown, total) => ({ present: true, shown, total });
+  const absent = { present: false, shown: null, total: null };
+  const assess = (overrides = {}) => assessModeExpectation({
+    cardCount: EXPECTED_FULL_SITE_COUNT,
+    marker: absent,
+    sampleEnv: false,
+    expectedFullCount: EXPECTED_FULL_SITE_COUNT,
+    ...overrides,
+  });
+
+  it('passes the normal full catalogue and the labeled reduced sample', () => {
+    expect(assess()).toBe('pass');
+    expect(assess({
+      cardCount: 20,
+      marker: marker(20, EXPECTED_FULL_SITE_COUNT),
+      sampleEnv: true,
+    })).toBe('pass');
+  });
+
+  it.each([
+    [{ sampleEnv: false, cardCount: 20 }, 'marker-absent reduced normal count'],
+    [{ sampleEnv: false, marker: marker(69, 69) }, 'marker present in normal mode'],
+    [{ sampleEnv: true, cardCount: 20 }, 'sample marker absent'],
+    [{ sampleEnv: true, cardCount: 20, marker: marker(20, 68) }, 'wrong full-count oracle'],
+    [{ sampleEnv: true, cardCount: 19, marker: marker(20, 69) }, 'card/marker mismatch'],
+    [{ sampleEnv: true, cardCount: 69, marker: marker(69, 69) }, 'unreduced sample'],
+    [{
+      sampleEnv: true,
+      cardCount: 20,
+      marker: { present: true, shown: null, total: null },
+    }, 'malformed marker'],
+  ])('fails %s', (overrides) => {
+    expect(assess(overrides)).toBe('fail');
+  });
+});
+
+describe('catalogue mode evidence', () => {
+  it('shapes a passing sampled result from the measured cold request', () => {
+    expect(buildCatalogueModeEvidence(
+      {
+        cardCount: 20,
+        devSampleMarker: { present: true, shown: 20, total: 69 },
+      },
+      { sampleEnv: true },
+    )).toEqual({
+      sampleEnv: true,
+      expectedFullCount: 69,
+      cardCount: 20,
+      devSampleMarker: { present: true, shown: 20, total: 69 },
+      modeCheck: 'pass',
+    });
+  });
+
+  it('shapes an explicit failure when no cold measurement exists', () => {
+    expect(buildCatalogueModeEvidence(undefined, { sampleEnv: false })).toEqual({
+      sampleEnv: false,
+      expectedFullCount: 69,
+      cardCount: null,
+      devSampleMarker: { present: false, shown: null, total: null },
+      modeCheck: 'fail',
+    });
+  });
+});
+
+describe('profile suite aggregation', () => {
+  function run(label, sampleEnv, coldMs, warmMs = [500, 510], overrides = {}) {
+    return {
+      label,
+      status: 'ok',
+      modeCheck: 'pass',
+      sampleEnv,
+      measurements: {
+        coldSites: { durationMs: coldMs },
+        warmSites: warmMs.map((durationMs) => ({ durationMs })),
+      },
+      ...overrides,
+    };
+  }
+
+  function passingRuns() {
+    return [
+      run('after-1', false, 1000, [500, 510]),
+      run('sample-1', true, 1050, [450, 460]),
+      run('sample-2', true, 1100, [455, 465]),
+      run('after-2', false, 1100, [520, 530]),
+      run('after-3', false, 1200, [540, 550]),
+      run('sample-3', true, 1150, [470, 480]),
+    ];
+  }
+
+  it('reports raw values, medians, ranges, and a passing completion gate', () => {
+    const summary = summariseProfileSuite(passingRuns());
+
+    expect(summary.conditions.after.cold).toEqual({
+      valuesMs: [1000, 1100, 1200],
+      medianMs: 1100,
+      rangeMs: { min: 1000, max: 1200 },
+    });
+    expect(summary.conditions.sample.warm.valuesMs).toHaveLength(6);
+    expect(summary.gates).toEqual({
+      allRunsPresent: true,
+      allRunsOk: true,
+      allModeChecksPass: true,
+      allColdBelowLimit: true,
+      sampleColdNoRegression: true,
+      passed: true,
+    });
+  });
+
+  it('fails the exact 60-second cold boundary', () => {
+    const runs = passingRuns();
+    runs[0].measurements.coldSites.durationMs = 60_000;
+
+    expect(summariseProfileSuite(runs).gates.allColdBelowLimit).toBe(false);
+    expect(summariseProfileSuite(runs).gates.passed).toBe(false);
+  });
+
+  it('fails a sample median above 110 percent of the normal median', () => {
+    const runs = passingRuns().map((candidate) => ({
+      ...candidate,
+      measurements: {
+        ...candidate.measurements,
+        coldSites: { durationMs: candidate.sampleEnv ? 1101 : 1000 },
+      },
+    }));
+
+    expect(summariseProfileSuite(runs).gates.sampleColdNoRegression).toBe(false);
+  });
+
+  it('fails missing, aborted, or mode-mismatched runs', () => {
+    const missing = passingRuns().slice(0, 5);
+    expect(summariseProfileSuite(missing).gates.allRunsPresent).toBe(false);
+
+    const failed = passingRuns();
+    failed[0] = { ...failed[0], status: 'aborted' };
+    failed[1] = { ...failed[1], modeCheck: 'fail' };
+    const summary = summariseProfileSuite(failed);
+    expect(summary.gates.allRunsOk).toBe(false);
+    expect(summary.gates.allModeChecksPass).toBe(false);
+    expect(summary.gates.passed).toBe(false);
   });
 });
 

@@ -61,6 +61,7 @@ const VERBATIM_ENV = {
   VERCEL_URL: verbatim,
   NEXT_RUNTIME: verbatim,
   LGI_FORCE_TREE_REBUILD: verbatim,
+  LGI_SITES_SAMPLE: verbatim,
 } as const;
 
 const SERVER_ENV = { ...REQUIRED_ENV, ...VERBATIM_ENV };

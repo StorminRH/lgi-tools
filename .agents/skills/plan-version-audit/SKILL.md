@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 Plan from `docs/VERSION_AUDIT.md` and `docs/DEVELOPMENT_LIFECYCLE.md` without
 copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
@@ -39,7 +39,8 @@ copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
    audit surfaces, design measurement workflows, and draft bounded sections.
    Give the complete plan and its evidence to a fresh read-only xhigh
    adversarial reviewer, then reconcile every finding.
-6. Present the reviewed plan and wait for Ryan's approval; Plan mode remains read-only.
+6. Present a short plain-English summary alongside the reviewed audit plan
+   before requesting Ryan's approval; Plan mode remains read-only.
 7. After approval in execution mode, overwrite a new plan with `Audit status:
    Approved`, `Audit cycle: 1`, the full `Audited ref`, approval date, version,
    mode, procedure, and procedure-digest markers. When reconciling a stale

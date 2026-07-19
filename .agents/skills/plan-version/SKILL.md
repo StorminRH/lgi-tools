@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
 `docs/SESSION_CONTRACTS.md` own the procedure and artifact schemas;
@@ -34,8 +34,9 @@ This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
 5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful during
    authoring. Give the complete draft to a fresh read-only xhigh adversarial
    reviewer with its source evidence, then reconcile every finding.
-6. Present the reviewed decomposition for Ryan's approval. Plan mode is read-only; do not
-   create or rewrite contract files before approval.
+6. Present a short plain-English summary alongside the reviewed decomposition
+   before requesting Ryan's approval. Plan mode is read-only; do not create or
+   rewrite contract files before approval.
 7. After approval in execution mode, write or reconcile only the deterministic
    `docs/session-contracts/X.Y/INDEX.md` and contract paths. Do not create a
    session implementation plan here.

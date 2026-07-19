@@ -85,7 +85,10 @@ old contract becomes stale; never silently bend it around the new scope.
 
 Use `plan-session` in Plan mode. It follows `docs/SESSION_PLANNING.md`, checks the
 contract against live code and current external documentation, and presents the
-detailed implementation plan before writing anything.
+detailed implementation plan before writing anything. Before requesting
+approval, it also presents a short plain-English summary alongside the formal
+plan so the outcome, main tradeoff, success evidence, and scope boundary are
+clear at a glance.
 
 After Ryan approves and the runtime returns to execution mode, persist the plan
 at:

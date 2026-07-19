@@ -15,7 +15,27 @@
 
 ## Now
 
-**CURRENT = v3.9 "Refit" in flight; 3.9.3.1–3.9.3.3 are SHIPPED and session 3.9.3.4.1 is COMPLETE at implementation commit `4104d5f` on the shared 3.9.3.4 branch. NEXT = fresh `start-session` for session 3.9.3.4.2 planning/execution of the dev-only representative sample mode; no PR opens until `.2` completes.** The bounded `profile:sites-dev` protocol and both-surfaces lazy-detail probe are now committed for `.2` reuse. As-found and clean runs were healthy: the historical watcher/swap stall was not reproduced, cold `/sites` was ~1.3 s, warm was ~0.5 s, peak RSS stayed below 2.4 GiB, swap growth was zero, and collapsed detail bodies remained absent on cards and table. `.2` must capture matching `after`/`sample` readouts, reconcile its stale ".1 lazy-render/user-facing change" cross-references plan-only, and carry the clean sweep/probe evidence to Ryan's required local browser review before the shared PR. Master-plan §3.9.3.4 still contains the superseded eager-render root cause and requires a later operator-approved `plan-version` truth reconciliation; 3.9.3.8 does not own that master-plan edit.
+**CURRENT = v3.9 "Refit" in flight; 3.9.3.1–3.9.3.3 are SHIPPED and sessions 3.9.3.4.1–3.9.3.4.2 are implementation-complete on the shared 3.9.3.4 branch. NEXT = close-out verification and Ryan's required two-stage local browser review of normal mode followed by sample mode before the shared PR opens.** The dev-only representative selector deterministically reduces the current 69-site catalogue to 20 sites while covering every type × class pair, preserves catalogue order, and cannot activate outside `NODE_ENV=development` with `LGI_SITES_SAMPLE=1`. Normal and sample UX sweeps plus the both-surfaces lazy-detail probe are clean apart from the expected absent local Convex websocket. The counterbalanced six-run measurement gate passed, so the stale local-dev performance backlog item is removed. Master-plan §3.9.3.4 still contains the superseded eager-render root cause and requires a later operator-approved `plan-version` truth reconciliation; 3.9.3.8 does not own that master-plan edit.
+
+### 3.9.3.4.2 sample-mode gate — session-final readout
+
+The counterbalanced sequence (`after-1`, `sample-1`, `sample-2`, `after-2`,
+`after-3`, `sample-3`) completed on 2026-07-18 with all six runs healthy, the
+normal catalogue fixed at 69 cards, the sample catalogue fixed at 20 cards, and
+no cold request above 60 seconds.
+
+| Metric | Normal mode | Sample mode |
+| --- | ---: | ---: |
+| Cold `/sites` median | 1.361 s | 1.091 s |
+| Cold range | 1.353–1.386 s | 1.087–1.113 s |
+| Warm `/sites` median | 519 ms | 241 ms |
+| Warm range | 513–534 ms | 216–278 ms |
+
+The sample cold median is 80.2% of normal, inside the required 110% ceiling,
+and the historical watcher/swap stall did not recur. The authoritative raw
+suite is the ignored local artifact
+`docs/ux-check/profiles/sites-suite-20260719T025802308Z.json`; only this compact
+readout is durable repository state.
 
 ### 3.9.3.4.1 current dev profile — session .2 "before" readout
 

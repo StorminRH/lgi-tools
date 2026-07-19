@@ -9,7 +9,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 23 -->
+<!-- shared-policy-revision: 24 -->
 
 Use Claude Code Plan mode and the native task list. Sequence
 `docs/DEVELOPMENT_LIFECYCLE.md` and `docs/SESSION_CONTRACTS.md`; do not duplicate
@@ -23,8 +23,9 @@ intent with live state, dependencies, hotspot contact, and at most one health
 campaign. Use the global headless `gpt-5.6-sol` routing as useful during
 authoring, then give the complete proposal and its source evidence to a fresh
 read-only xhigh adversarial reviewer. Reconcile every finding before presenting
-the reviewed index/contract proposal for Ryan's approval. Plan mode remains
-read-only. After approval in execution mode, write only the deterministic
+the reviewed index/contract proposal. Present a short plain-English summary
+alongside the formal proposal before requesting Ryan's approval. Plan mode
+remains read-only. After approval in execution mode, write only the deterministic
 contract index and contract files. Rerun the resolver, report its new directive,
 run the agent drift check, and stop — planning outcomes are session-terminal;
 execution begins in a fresh `start-session`. Material contract changes require

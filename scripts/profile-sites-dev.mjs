@@ -20,8 +20,11 @@ import path from 'node:path';
 import { config as loadDotenv } from 'dotenv';
 import {
   PROFILE_THRESHOLDS,
+  buildCatalogueModeEvidence,
   countDetailSentinels,
   evaluateAbort,
+  extractCardCount,
+  extractDevSampleMarker,
   isClaimableDevLog,
   isLocalDatabaseTarget,
   isValidProfileLabel,
@@ -436,6 +439,8 @@ async function measureRequest(name, route, timeoutMs) {
       durationMs: drainedAtMs - startedAtMs,
       bodyBytes: Buffer.byteLength(body),
       sentinels: countDetailSentinels(body),
+      cardCount: extractCardCount(body),
+      devSampleMarker: extractDevSampleMarker(body),
       devLog,
     };
   } catch (error) {
@@ -482,8 +487,12 @@ async function runMeasurements() {
 function resultDetails(outputFile) {
   const numericRss = runtime.samples.map((sample) => sample.totalRssBytes).filter(Number.isFinite);
   const numericCpu = runtime.samples.map((sample) => sample.totalCpuPercent).filter(Number.isFinite);
+  const modeEvidence = buildCatalogueModeEvidence(runtime.measurements.coldSites, {
+    sampleEnv: process.env.LGI_SITES_SAMPLE === '1',
+  });
   return {
     outputFile: path.relative(ROOT, outputFile),
+    ...modeEvidence,
     preconditions: runtime.preconditions,
     process: {
       pgid: runtime.pgid,

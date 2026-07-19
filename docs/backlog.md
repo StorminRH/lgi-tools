@@ -237,16 +237,6 @@
   the primitives are functional, accessible, and already shipped; Ryan chose to merge the
   completed arc and handle additional visual judgment later. *Size:* S. *Trigger:* Session
   3.9.3.6.
-- **Local dev is slow + memory-heavy on DB pages** (from the 3.6.8 polish session; full
-  diagnosis in `DEV_PERF_DIAGNOSIS.md` at the Document Archive root). *What:* a cold
-  `/sites` in `pnpm dev` once took >60s and blocked the Node event loop, driving a 24 GB
-  machine ~10 GB into swap. The diagnosis later proved the melt was a bloated 3.1 GB
-  `.next` cache spinning Turbopack's watcher while the machine was memory-starved; clearing
-  `.next` restored ~1.7s cold / ~1.1s warm loads. Lazy detail rendering shipped separately
-  in PR #115 and still avoids eager card/table detail bodies. Remaining work is a bounded
-  current readout plus the dev-only sample-data mode so visual iteration can use a small,
-  representative catalogue. *Why deferred:* sample-mode design and measurement needed a
-  dedicated slice. *Size:* M. *Trigger:* Session 3.9.3.4.2.
 - **Client-settled static for the session-gated pages** (surfaced 2026-07-11 by the 3.7.35.1
   conformance route-optimality diagnosis). *What:* `/skills`, `/jobs`, `/structures`, `/settings`,
   `/characters` are `◐` partial because each does a server-side session-gated linked-character read

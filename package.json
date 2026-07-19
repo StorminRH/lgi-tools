@@ -14,6 +14,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:sample": "LGI_SITES_SAMPLE=1 next dev",
     "predev:all": "docker compose up -d",
     "dev:all": "concurrently -k -n next,convex -c cyan,magenta \"next dev\" \"convex dev\"",
     "build": "next build",
@@ -38,6 +39,7 @@
     "validate:resolver": "tsx scripts/validate-resolver-output.ts",
     "validate:resolver:prod": "DOTENV_PATH=.env.production.local tsx scripts/validate-resolver-output.ts",
     "profile:sites-dev": "node scripts/profile-sites-dev.mjs",
+    "profile:sites-suite": "node scripts/profile-sites-suite.mjs",
     "ux-check": "node scripts/ux-capture.mjs",
     "verify:site-routes": "node scripts/verify-site-detail-routes.mjs",
     "test": "vitest run",

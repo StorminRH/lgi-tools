@@ -18,6 +18,8 @@ export const PROFILE_THRESHOLDS = Object.freeze({
   minMemoryPressureFreePercent: 10,
 });
 
+export const EXPECTED_FULL_SITE_COUNT = 69;
+
 export function profileReason(code, message, details = {}) {
   return { code, message, ...details };
 }
@@ -317,6 +319,157 @@ export function countDetailSentinels(html) {
   return {
     waveSpawns: text.split('Wave Spawns').length - 1,
     noSleeperPresence: text.split('No Sleeper presence').length - 1,
+  };
+}
+
+function renderedTagsWithAttribute(html, attribute) {
+  const rendered = String(html).replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+  const pattern = new RegExp(
+    `<[a-z][^>]*\\s${attribute}(?:\\s|=|>)[^>]*>`,
+    'gi',
+  );
+  return rendered.match(pattern) ?? [];
+}
+
+export function extractCardCount(html) {
+  return renderedTagsWithAttribute(html, 'data-lazy-details').length;
+}
+
+export function extractDevSampleMarker(html) {
+  const [tag] = renderedTagsWithAttribute(html, 'data-dev-sample');
+  if (!tag) return { present: false, shown: null, total: null };
+  const value = tag.match(/\sdata-dev-sample\s*=\s*"(\d+)\/(\d+)"/i);
+  return {
+    present: true,
+    shown: value ? Number(value[1]) : null,
+    total: value ? Number(value[2]) : null,
+  };
+}
+
+export function assessModeExpectation({
+  cardCount,
+  marker,
+  sampleEnv,
+  expectedFullCount,
+}) {
+  if (!Number.isInteger(cardCount) || !Number.isInteger(expectedFullCount)) return 'fail';
+  if (!sampleEnv) {
+    return !marker.present && cardCount === expectedFullCount ? 'pass' : 'fail';
+  }
+  const validSample = marker.present
+    && Number.isInteger(marker.shown)
+    && Number.isInteger(marker.total)
+    && marker.shown >= 0
+    && marker.shown < marker.total
+    && marker.total === expectedFullCount
+    && cardCount === marker.shown;
+  return validSample ? 'pass' : 'fail';
+}
+
+export function buildCatalogueModeEvidence(
+  coldSites,
+  {
+    sampleEnv,
+    expectedFullCount = EXPECTED_FULL_SITE_COUNT,
+  },
+) {
+  const cardCount = coldSites?.cardCount ?? null;
+  const devSampleMarker = coldSites?.devSampleMarker ?? {
+    present: false,
+    shown: null,
+    total: null,
+  };
+  return {
+    sampleEnv,
+    expectedFullCount,
+    cardCount,
+    devSampleMarker,
+    modeCheck: assessModeExpectation({
+      cardCount,
+      marker: devSampleMarker,
+      sampleEnv,
+      expectedFullCount,
+    }),
+  };
+}
+
+function durationSummary(values) {
+  const valuesMs = values.filter(Number.isFinite);
+  if (valuesMs.length === 0) {
+    return { valuesMs, medianMs: null, rangeMs: { min: null, max: null } };
+  }
+  const sorted = valuesMs.toSorted((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  const medianMs = sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
+  return {
+    valuesMs,
+    medianMs,
+    rangeMs: { min: sorted[0], max: sorted.at(-1) },
+  };
+}
+
+function conditionSummary(runs) {
+  return {
+    cold: durationSummary(runs.map((run) => run.measurements?.coldSites?.durationMs)),
+    warm: durationSummary(
+      runs.flatMap((run) => (
+        run.measurements?.warmSites?.map((request) => request.durationMs) ?? []
+      )),
+    ),
+  };
+}
+
+export function summariseProfileSuite(
+  runs,
+  {
+    expectedRunCount = 6,
+    coldLimitMs = 60_000,
+    sampleColdRegressionRatio = 1.1,
+  } = {},
+) {
+  const afterRuns = runs.filter((run) => run.sampleEnv === false);
+  const sampleRuns = runs.filter((run) => run.sampleEnv === true);
+  const conditions = {
+    after: conditionSummary(afterRuns),
+    sample: conditionSummary(sampleRuns),
+  };
+  const expectedPerCondition = expectedRunCount / 2;
+  const allRunsPresent = runs.length === expectedRunCount
+    && afterRuns.length === expectedPerCondition
+    && sampleRuns.length === expectedPerCondition;
+  const allRunsOk = runs.every((run) => run.status === 'ok');
+  const allModeChecksPass = runs.every((run) => run.modeCheck === 'pass');
+  const coldValues = runs
+    .map((run) => run.measurements?.coldSites?.durationMs)
+    .filter(Number.isFinite);
+  const allColdBelowLimit = coldValues.length === runs.length
+    && coldValues.every((durationMs) => durationMs < coldLimitMs);
+  const afterColdMedian = conditions.after.cold.medianMs;
+  const sampleColdMedian = conditions.sample.cold.medianMs;
+  const sampleColdNoRegression = Number.isFinite(afterColdMedian)
+    && Number.isFinite(sampleColdMedian)
+    && sampleColdMedian <= afterColdMedian * sampleColdRegressionRatio;
+  const passed = allRunsPresent
+    && allRunsOk
+    && allModeChecksPass
+    && allColdBelowLimit
+    && sampleColdNoRegression;
+
+  return {
+    expectedRunCount,
+    runCount: runs.length,
+    thresholds: { coldLimitMs, sampleColdRegressionRatio },
+    conditions,
+    gates: {
+      allRunsPresent,
+      allRunsOk,
+      allModeChecksPass,
+      allColdBelowLimit,
+      sampleColdNoRegression,
+      passed,
+    },
   };
 }
 
