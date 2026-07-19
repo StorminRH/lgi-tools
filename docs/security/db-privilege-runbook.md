@@ -1,8 +1,9 @@
 # Database privilege runbook (LGI-08)
 
 **Status:** privilege policy authored and drilled; production credential cutover
-**not yet performed** (operator-gated). Last drilled 2026-07-19 (session 3.9.4.1)
-on a disposable production child branch.
+**deferred by operator decision (2026-07-19)** — the migration ships inert and
+the runtime becomes least-privilege only when the §7 cutover is run. Last
+drilled 2026-07-19 (session 3.9.4.1) on a disposable production child branch.
 
 This runbook owns the database's runtime-privilege posture: the risk model, the
 least-privilege runtime role, how the drill was run, credential custody, and the
