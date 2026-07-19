@@ -84,7 +84,7 @@ SOURCE_REGISTRY: tuple[Source, ...] = (
         "eve-developer-docs",
         "EVE developer documentation",
         "eveSurface",
-        ("github.com",),
+        ("api.github.com",),
         "url",
     ),
 )
@@ -176,8 +176,17 @@ def _fetch(url: str) -> tuple[int, str]:
 
 
 def nwo_from_remote_url(url: str) -> str | None:
-    """Extract owner/repo from an https or ssh GitHub remote URL, or None."""
-    match = re.search(r"github\.com[:/]([^/]+/[^/\s]+?)(?:\.git)?/?$", url.strip())
+    """Extract owner/repo from a GitHub or platform-proxy remote URL, or None.
+
+    Cloud sessions clone through a local credential proxy whose remote looks
+    like ``http://local_proxy@127.0.0.1:<port>/git/<owner>/<repo>``, so the
+    github.com form is tried first and any ``/git/<owner>/<repo>`` tail second.
+    """
+    cleaned = url.strip()
+    match = re.search(r"github\.com[:/]([^/]+/[^/\s]+?)(?:\.git)?/?$", cleaned)
+    if match:
+        return match.group(1)
+    match = re.search(r"/git/([^/\s]+/[^/\s]+?)(?:\.git)?/?$", cleaned)
     return match.group(1) if match else None
 
 

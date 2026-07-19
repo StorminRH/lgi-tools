@@ -128,6 +128,10 @@ class ParsingTests(unittest.TestCase):
             "StorminRH/lgi-tools",
             nwo_from_remote_url("https://github.com/StorminRH/lgi-tools"),
         )
+        self.assertEqual(
+            "StorminRH/lgi-tools",
+            nwo_from_remote_url("http://local_proxy@127.0.0.1:41729/git/StorminRH/lgi-tools"),
+        )
         self.assertIsNone(nwo_from_remote_url("https://example.com/not/github"))
 
     def test_issue_filter_drops_pull_requests_and_foreign_titles(self) -> None:

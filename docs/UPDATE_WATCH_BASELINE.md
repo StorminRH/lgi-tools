@@ -152,7 +152,7 @@ development tooling).
     },
     {
       "name": "EVE developer documentation",
-      "watch": ["https://github.com/esi/esi-docs/commits/main.atom"],
+      "watch": ["https://api.github.com/repos/esi/esi-docs/commits?per_page=50"],
       "idRule": "url",
       "scanSince": "2026-07-19",
       "acknowledgedItems": []
