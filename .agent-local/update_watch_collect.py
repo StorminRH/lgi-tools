@@ -27,14 +27,18 @@ partial digest is worse than a missed day, and a run that fetched nothing
 must not masquerade as a clean no-delta run.
 
 Read-only by construction: no repository writes, no issue-creating
-commands; the skill owns the single outward ``gh issue create`` only on a
-clean report verdict.
+commands; the skill owns the single outward issue creation only on a
+clean report verdict. Issue listing uses the GitHub REST API directly so
+the collector runs identically in local shells and cloud sessions that
+lack the ``gh`` CLI; a missing binary or transport failure is a named
+failure, never a crash.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -171,45 +175,18 @@ def _fetch(url: str) -> tuple[int, str]:
         return response.status, response.read().decode("utf-8", "replace")
 
 
-def _list_open_issues(repo_root: Path, failures: list[str]) -> list[dict]:
-    """Enumerate all open update-watch issues exhaustively via the paginated API.
+def nwo_from_remote_url(url: str) -> str | None:
+    """Extract owner/repo from an https or ssh GitHub remote URL, or None."""
+    match = re.search(r"github\.com[:/]([^/]+/[^/\s]+?)(?:\.git)?/?$", url.strip())
+    return match.group(1) if match else None
 
-    Records a named failure (and returns []) when the repo identity or the
-    listing cannot be established; pull requests are filtered out.
+
+def filter_update_watch_issues(raw_issues: list[dict]) -> list[dict]:
+    """Reduce a REST issue listing to update-watch issues with parsed key blocks.
+
+    Pull requests are dropped (the issues endpoint returns them too) and only
+    titles starting with the exact ``Update watch`` prefix survive.
     """
-    nwo = subprocess.run(
-        ["gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
-        cwd=repo_root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if nwo.returncode != 0:
-        failures.append(f"issue-listing: gh repo view failed: {nwo.stderr.strip()}")
-        return []
-    repo = nwo.stdout.strip()
-    listing = subprocess.run(
-        ["gh", "api", f"repos/{repo}/issues?state=open&per_page=100", "--paginate"],
-        cwd=repo_root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if listing.returncode != 0:
-        failures.append(f"issue-listing: gh api failed: {listing.stderr.strip()}")
-        return []
-    try:
-        # --paginate concatenates JSON arrays; normalize into one list.
-        pages = re.sub(r"\]\s*\[", ",", listing.stdout.strip())
-        raw_issues = json.loads(pages) if pages else []
-    except json.JSONDecodeError as exc:
-        failures.append(f"issue-listing: unparseable gh api output: {exc}")
-        return []
-    if len(raw_issues) >= 10_000:
-        # Sanity cap: a listing this large means pagination went wrong; refuse
-        # rather than trust a possibly truncated suppression set.
-        failures.append(f"issue-listing-truncation: {len(raw_issues)} issues returned")
-        return []
     issues = []
     for issue in raw_issues:
         if "pull_request" in issue:
@@ -225,6 +202,62 @@ def _list_open_issues(repo_root: Path, failures: list[str]) -> list[dict]:
             }
         )
     return issues
+
+
+def _list_open_issues(repo_root: Path, failures: list[str]) -> list[dict]:
+    """Enumerate all open update-watch issues exhaustively via the REST API.
+
+    Uses urllib directly (no ``gh`` dependency — cloud sessions do not ship
+    the CLI) with the origin remote for repo identity and an optional
+    GH_TOKEN/GITHUB_TOKEN bearer header. Records a named failure (and returns
+    []) when the repo identity or the listing cannot be established.
+    """
+    try:
+        remote = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        failures.append(f"issue-listing: git unavailable: {exc}")
+        return []
+    if remote.returncode != 0:
+        failures.append(f"issue-listing: git remote lookup failed: {remote.stderr.strip()}")
+        return []
+    nwo = nwo_from_remote_url(remote.stdout)
+    if nwo is None:
+        failures.append(f"issue-listing: unrecognized origin remote {remote.stdout.strip()!r}")
+        return []
+
+    headers = {"User-Agent": _USER_AGENT, "Accept": "application/vnd.github+json"}
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    raw_issues: list[dict] = []
+    page = 1
+    while True:
+        url = f"https://api.github.com/repos/{nwo}/issues?state=open&per_page=100&page={page}"
+        try:
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, timeout=_FETCH_TIMEOUT) as response:
+                batch = json.loads(response.read().decode("utf-8", "replace"))
+        except Exception as exc:  # noqa: BLE001 - each failure is named, never guessed
+            failures.append(f"issue-listing: page {page} failed: {exc}")
+            return []
+        if not isinstance(batch, list):
+            failures.append(f"issue-listing: page {page} returned a non-list payload")
+            return []
+        raw_issues.extend(batch)
+        if len(raw_issues) >= 10_000:
+            # Sanity cap: a listing this large means pagination went wrong;
+            # refuse rather than trust a possibly truncated suppression set.
+            failures.append(f"issue-listing-truncation: {len(raw_issues)} issues returned")
+            return []
+        if len(batch) < 100:
+            return filter_update_watch_issues(raw_issues)
+        page += 1
 
 
 def _ensure_outside_repo(path: Path, repo_root: Path) -> None:
@@ -260,28 +293,34 @@ def run_collect(repo_root: Path, out_path: Path) -> int:
         except Exception as exc:  # noqa: BLE001 - each failure is named, never guessed
             failures.append(f"registry-query:{name}: {exc}")
 
-    audit = subprocess.run(
-        ["pnpm", "audit", "--json"],
-        cwd=repo_root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    # pnpm audit exits non-zero when advisories exist; only unparseable output fails.
     try:
-        audit_data = json.loads(audit.stdout)
-        state["advisories"] = [
-            {
-                "id": advisory.get("github_advisory_id"),
-                "module": advisory.get("module_name"),
-                "range": advisory.get("vulnerable_versions"),
-                "severity": advisory.get("severity"),
-                "title": advisory.get("title"),
-            }
-            for advisory in audit_data.get("advisories", {}).values()
-        ]
-    except (json.JSONDecodeError, AttributeError) as exc:
-        failures.append(f"audit: unparseable pnpm audit output: {exc}")
+        audit = subprocess.run(
+            ["pnpm", "audit", "--json"],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        audit = None
+        failures.append(f"audit: pnpm unavailable: {exc}")
+    if audit is not None:
+        # pnpm audit exits non-zero when advisories exist; only unparseable
+        # output fails.
+        try:
+            audit_data = json.loads(audit.stdout)
+            state["advisories"] = [
+                {
+                    "id": advisory.get("github_advisory_id"),
+                    "module": advisory.get("module_name"),
+                    "range": advisory.get("vulnerable_versions"),
+                    "severity": advisory.get("severity"),
+                    "title": advisory.get("title"),
+                }
+                for advisory in audit_data.get("advisories", {}).values()
+            ]
+        except (json.JSONDecodeError, AttributeError) as exc:
+            failures.append(f"audit: unparseable pnpm audit output: {exc}")
 
     watch: dict[str, dict] = {}
     state["watch"] = watch

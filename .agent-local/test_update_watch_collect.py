@@ -11,9 +11,11 @@ from update_watch_collect import (
     canonical_url,
     compute_deltas,
     dep_major_key,
+    filter_update_watch_issues,
     finalize_verdict,
     item_key,
     major_of,
+    nwo_from_remote_url,
     parse_baseline,
     parse_issue_keys,
     render_key_block,
@@ -112,6 +114,32 @@ class ParsingTests(unittest.TestCase):
     def test_render_key_block_round_trips_through_the_parser(self) -> None:
         keys = ["dep-major:clsx:2", "advisory:GHSA-a-b-c"]
         self.assertEqual(keys, parse_issue_keys(render_key_block(keys)))
+
+    def test_nwo_parses_https_and_ssh_remotes(self) -> None:
+        self.assertEqual(
+            "StorminRH/lgi-tools",
+            nwo_from_remote_url("https://github.com/StorminRH/lgi-tools.git"),
+        )
+        self.assertEqual(
+            "StorminRH/lgi-tools",
+            nwo_from_remote_url("git@github.com:StorminRH/lgi-tools.git"),
+        )
+        self.assertEqual(
+            "StorminRH/lgi-tools",
+            nwo_from_remote_url("https://github.com/StorminRH/lgi-tools"),
+        )
+        self.assertIsNone(nwo_from_remote_url("https://example.com/not/github"))
+
+    def test_issue_filter_drops_pull_requests_and_foreign_titles(self) -> None:
+        issues = filter_update_watch_issues(
+            [
+                {"number": 1, "title": "Update watch — 2026-07-19", "body": render_key_block(["advisory:GHSA-a-b-c"])},
+                {"number": 2, "title": "Update watch — 2026-07-18", "pull_request": {}, "body": ""},
+                {"number": 3, "title": "Unrelated bug report", "body": render_key_block(["dep-major:x:9"])},
+            ]
+        )
+        self.assertEqual(1, len(issues))
+        self.assertEqual(["advisory:GHSA-a-b-c"], issues[0]["keys"])
 
 
 class WindowTests(unittest.TestCase):
@@ -308,8 +336,10 @@ class VerdictTests(unittest.TestCase):
             "audit: unparseable pnpm audit output: boom",
             "watch:neon:https://neon.com/docs/changelog/rss.xml: HTTP 500",
             "watch:eve-developers-blog:https://developers.eveonline.com/feed.xml: timeout",
-            "issue-listing: gh api failed: 401",
+            "issue-listing: git unavailable: [Errno 2] No such file or directory: 'git'",
+            "issue-listing: page 1 failed: HTTP Error 403: rate limit exceeded",
             "issue-listing-truncation: 10000 issues returned",
+            "audit: pnpm unavailable: [Errno 2] No such file or directory: 'pnpm'",
             "baseline: expected exactly one update-watch-baseline block, found 0",
             "judged-items: Expecting value: line 1 column 1 (char 0)",
         ]

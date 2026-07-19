@@ -43,8 +43,11 @@ description: >-
    .agent-local/update_watch_collect.py finalize --state
    <state-dir>/state.json --items <state-dir>/items.json --out
    <state-dir>/verdict.json`.
-5. Only on a clean `report` verdict, run the single outward write: `gh issue
-   create` titled `Update watch — YYYY-MM-DD` (the run date). The body
+5. Only on a clean `report` verdict, run the single outward write: create the
+   digest issue through the session's GitHub tooling — `gh issue create`
+   where the CLI is available, otherwise the environment's GitHub
+   issue-creation tool — titled `Update watch — YYYY-MM-DD` (the run date).
+   The body
    carries priority-ordered sections **Security advisories**, **Major
    versions**, and **Service/EVE surface changes**; every item names its
    source, acknowledged state, and observed state. Include the
