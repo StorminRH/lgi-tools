@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 25 -->
+<!-- shared-policy-revision: 26 -->
 
 This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
 `docs/SESSION_CONTRACTS.md` own the procedure and artifact schemas;
@@ -34,7 +34,7 @@ This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
    Include dependencies, acceptance
    gates, hotspot contact, and at most one selected health campaign.
 5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful during
-   authoring. Give the complete draft to a fresh read-only xhigh adversarial
+   authoring. Give the complete draft to a fresh read-only high adversarial
    reviewer with its source evidence, then reconcile every finding. The review
    budget is a hard cap of one mandatory pass plus at most one rerun after
    material reconciliation; later findings are reconciled by planner judgment

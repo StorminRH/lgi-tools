@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 25 -->
+<!-- shared-policy-revision: 26 -->
 
 Run the resolver and require its directive to name `plan-session` as the handler.
 Otherwise report it and return control to `start-session`; never select a sibling
@@ -24,7 +24,7 @@ primary docs. After context is loaded, discuss the plan's intended shape with
 Ryan in plain English before any fixed-schema drafting. Use the global headless
 `gpt-5.6-sol` subagent routing in
 `AGENTS.md` and `CLAUDE.md` as useful during authoring. Once the fixed-schema
-draft is complete, launch a fresh read-only xhigh worker to adversarially review
+draft is complete, launch a fresh read-only high worker to adversarially review
 the full draft, contract, and cited evidence. Reconcile every finding; rerun
 the review at most once, and only when the reconciliation materially changes
 architecture, scope, or verification — one mandatory pass plus at most one

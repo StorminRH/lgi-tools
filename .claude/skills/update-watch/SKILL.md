@@ -10,7 +10,7 @@ description: >-
 
 # Update watch (report-only)
 
-<!-- shared-policy-revision: 25 -->
+<!-- shared-policy-revision: 26 -->
 
 ## Hard rules
 

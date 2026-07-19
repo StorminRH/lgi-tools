@@ -242,6 +242,20 @@
 
 ## Infra & bundle
 
+- **Dev-log shared-cache write is rejected in production** (found during the 3.9.3.8
+  production smoke). *What:* `/devlog` still returns and renders HTTP 200, but the
+  `loadDevlog()` value introduced to `'use cache: remote'` in 3.9.3.5 is rejected by
+  Vercel's remote cache with HTTP 413; the function then exits 128. Determine whether
+  the highlighted full-document tree must be split into smaller cache entries or moved
+  back to a cache profile that can hold it, while preserving the content-browser
+  performance intent. *Why deferred:* discovered after the description-only 3.9.3.8 PR
+  had merged; the fix changes runtime caching and needs its own characterization and
+  production verification. **Deferred to a later app-wide fix (Ryan, 2026-07-19):** it
+  renders 200 in production, so it is not a version-close blocker; fold it into the
+  app-wide caching/bundle pass rather than a standalone hotfix. *Size:* S–M. *Trigger:*
+  the app-wide caching/perf initiative; reproduce against a cold cache and prove zero
+  deployment-targeted error logs after the fix.
+
 - **F3 — app-wide First Load JS trim.** *What:* `/industry/[id]` ships 332 KB gz First
   Load JS, but 312 KB is the shared framework/app baseline every route pays (`/` is the
   same); only 19 KB is planner-specific. Remediation: bundle analyzer + shared-chunk
@@ -401,6 +415,16 @@ is reprioritized.
 
 ## Workflow & docs
 
+- **Fail-closed merge helper counts resolved Greptile replies as findings** (found during
+  the 3.9.3.8 close-out). *What:* `.agent-local/merge_clean_pr.py` treats every
+  Greptile-authored inline comment as an open finding, so an accepted justification thread
+  still fails after Greptile replies "No change needed" and GitHub marks the thread resolved.
+  Make the gate consume review-thread resolution and root-finding state instead of counting
+  every bot reply. *Why deferred:* discovered only after PR #271 had passed every canonical
+  merge gate and received explicit merge approval; changing the shared merge tool requires its
+  own reviewed workflow change. *Size:* S. *Trigger:* before the next PR merge that contains
+  any Greptile inline thread.
+
 - **Telemetry query-retention comment contradicts the implementation** (found during the
   3.9.3.8 public-document truth pass). *What:* the boundary comment in
   `src/components/telemetry/page-view-metadata.ts` says raw query values are not retained, but
@@ -417,3 +441,110 @@ is reprioritized.
   for 3.9 (contract hard constraint); example citations are still P-text. *Size:* XS.
   *Trigger:* the 3.9 version-close audit's constitution review, or Ryan approves the one-line
   amendment sooner.
+
+## Security (deep-research report, 2026-07-19)
+
+> From the external Security Deep-Research Report (snapshot `141e914`, findings
+> LGI-01…LGI-12), verified against live code in session 3.9.4.1. Full verdicts +
+> evidence: `docs/security/disposition-register.md`. **LGI-08 was acted on that
+> session** (see `docs/security/db-privilege-runbook.md`) and is NOT a backlog
+> item. Everything below is confirmed-but-deferred, no behavior changed yet.
+> Context that bounds all of these: EVE scopes are read-only, there are no
+> payments, and there is effectively one admin.
+
+- **Authentication-lifecycle hardening (LGI-01 + LGI-02 + LGI-06).** *What:*
+  (LGI-01) close the null-`ownerHash` bootstrap gap — a character transferred
+  before an account's second login is silently backfilled instead of purged, a
+  takeover path; persist the verified owner atomically at account creation and
+  give legacy-null its own explicit migration state. (LGI-02) add fresh/step-up
+  proof for destructive + admin actions (deletion, role change, reassign, unlink,
+  session revoke, token reissue): a short-lived action-bound authorization token
+  and cookie-cache bypass on sensitive validation, since `freshAge: 0` + 7-day
+  sessions + 5-min cookie cache make an ordinary session fully destructive.
+  (LGI-06) write an encrypted revocation outbox before local purge with bounded
+  retries + dead-letter, so a transient EVE outage cannot strand an unrevoked
+  grant. *Why deferred:* verify-only session; each is a real behavior change to
+  the identity/credential state machine. *Size:* L (LGI-01), L (LGI-02), M
+  (LGI-06). *Trigger:* the next security-remediation tranche; LGI-01 first, and
+  before any EVE write scope, additional admin, or provider-complete-deletion
+  claim. Start LGI-01 with an installed-Better-Auth integration test (first link
+  → transfer → next login).
+
+- **Request-intent enforcement (LGI-03).** *What:* the shared mutation wrapper's
+  same-origin check only logs; convert explicit `Origin`/`Referer` mismatches to
+  403 after reviewing telemetry for legitimate callers, and add a Fetch-Metadata /
+  content-type policy for missing provenance, keeping cron/service routes on
+  separate caller-auth. *Why deferred:* verify-only; enforcement flip needs a
+  telemetry review + negative tests. *Size:* M. *Trigger:* with the LGI-02 tranche
+  or before adding another cookie-authenticated mutation surface or a trusted
+  sibling subdomain.
+
+- **ESI abuse resilience (LGI-04).** *What:* `/api/eve/names` is public, takes 200
+  IDs, and fans each cache miss out to its own upstream ESI call; add per-IP/
+  per-user limits + a cache-miss-weighted cost budget, lower the batch cap, and
+  reserve ESI capacity for authenticated features. *Why deferred:* verify-only;
+  the shared ESI floor already prevents CCP-limit exhaustion. *Size:* M.
+  *Trigger:* the next abuse-resilience slice, or if ESI-budget refusal telemetry
+  rises.
+
+- **Internal service-credential separation (LGI-05).** *What:* one static
+  `CONVEX_SERVICE_SECRET` authenticates four capabilities across both directions;
+  split credentials by direction/capability and move to short-lived
+  audience-and-request-bound assertions with expiry + replay protection. *Why
+  deferred:* verify-only; blast-radius/containment, not a demonstrated leak.
+  *Size:* M. *Trigger:* before adding another service-authenticated capability,
+  or on any suspected secret exposure.
+
+- **Strict CSP prototype (LGI-07).** *What:* `script-src` allows `'unsafe-inline'`
+  (needed today for Next's inline RSC flight scripts); prototype nonce/hash or
+  Trusted Types on high-value pages and measure the Cache Components rendering
+  tradeoff, keeping the raw-HTML lint ban. *Why deferred:* verify-only; a known
+  documented static-rendering tradeoff, not new. *Size:* M. *Trigger:* before a
+  new HTML/script sink or third-party script, or when a report-only prototype can
+  measure the tradeoff.
+
+- **Route-guard constructors for the remaining families (LGI-09).** *What:* marker
+  presence is proven but enforcement is not; mutations (`runMutationRoute`) and
+  cron (`defineCronRoute`) already have guard-owning constructors — extend the same
+  pattern to the public/auth/admin/service families plus a mechanical
+  marker-to-guard test. *Why deferred:* verify-only; partially mitigated already.
+  *Size:* M. *Trigger:* when adding the next protected route family or materially
+  reworking route plumbing; do not rewrite already-negative-tested routes.
+
+- **Independent audit-event sink (LGI-10).** *What:* domain-event/usage-log writes
+  are best-effort and share the app Postgres trust domain; define a critical
+  security-event schema, a transactional outbox, and an independently protected
+  append-only sink with alerts. *Why deferred:* verify-only; forensics/detection,
+  not a direct escalation path. *Size:* L. *Trigger:* before expanding admin or
+  token-issuance capabilities.
+
+- **Bearer-token cache/log hygiene (LGI-11).** *What:* add explicit
+  `Cache-Control: no-store, private` to the internal token response + tests,
+  replace the OAuth **exchange** failure's full-body exception with a bounded
+  classification (refresh already does this), and add a logging-redaction canary.
+  *Why deferred:* verify-only; Low — endpoint is authenticated/dynamic/POST.
+  *Size:* S. *Trigger:* the next authentication/token hardening slice.
+
+- **Repository supply-chain controls (LGI-12).** *What:* after confirming live
+  GitHub security settings, add the missing repo-controlled controls — CodeQL/
+  SAST on PRs + default branch, Dependabot policy, secret scanning + push
+  protection with custom patterns (`CONVEX_SERVICE_SECRET`, EVE keys, Better Auth
+  secret, token-encryption key, Neon/Upstash URLs), immutable-SHA action pinning,
+  documented triage SLAs — keeping the 3.9.3.5 update-watch as the broader
+  monitor. *Why deferred:* verify-only; partially mitigated by update-watch;
+  GitHub-side settings unverifiable from source. *Size:* M. *Trigger:* after a
+  live GitHub security-settings audit.
+
+- **RLS tenant-isolation campaign (LGI-08 follow-on, deferred by design).** *What:*
+  add row-level-security as either defense-in-depth or a formal tenant boundary
+  across user/corporation-owned tables. Requires an app-wide identity-propagation
+  campaign — wrapping every protected query with verified per-request identity via
+  a transaction-local `set_config('app.user_id', …, true)`, with default-deny on
+  missing context — touching every query call site. The neon-http `batch()`
+  transaction is recorded as a viable mechanism (it runs real non-interactive
+  transactions). The report's LGI-08 §G/H is the seed. *Why deferred:* app-wide
+  design campaign, not a single-session change; and the "defense-in-depth vs.
+  formal tenant boundary" decision must be made first. *Size:* XL. *Trigger:* a
+  dedicated future version. **Standing invariant meanwhile:** application
+  authorization is the sole tenant boundary and the Neon Data API stays disabled
+  (enabling it without RLS would expose tables to client queries).

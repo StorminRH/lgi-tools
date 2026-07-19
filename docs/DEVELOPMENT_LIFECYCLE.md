@@ -180,7 +180,7 @@ resolver rerun, open a second PR solely for reconciliation, or push directly to
 `main` to eliminate the lag.
 
 Planning handlers may use the headless GPT workers defined in `AGENTS.md` to
-author their planning artifact. A fresh read-only `gpt-5.6-sol` xhigh worker
+author their planning artifact. A fresh read-only `gpt-5.6-sol` high worker
 adversarially reviews every complete draft before Ryan sees it. The primary
 planning session reconciles that feedback and retains all judgment,
 operator-question, approval, and persistence ownership. After loading context
