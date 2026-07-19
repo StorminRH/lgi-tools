@@ -25,9 +25,12 @@ function ContentItemLink({
   activeSlug: string | null;
 }) {
   const active = item.slug === activeSlug;
+  // Both document browsers mount their full index; automatic viewport
+  // prefetch would render every linked route segment in one burst.
   return (
     <Link
       href={contentBrowserHref(basePath, item.slug, landingSlug)}
+      prefetch={false}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'content-browser-nav-item',

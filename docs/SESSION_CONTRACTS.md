@@ -29,7 +29,10 @@ constitution for standing policy.
 
 Use `plan-version` in Plan mode to extrapolate an approved master version plan
 into session contracts. The skill proposes the complete decomposition before
-writing. Approval authorizes it to create or reconcile:
+writing, with both plain-English checkpoints: it discusses the intended shape
+of the decomposition with Ryan in plain English before drafting, and presents
+a short plain-English summary alongside the formal proposal before requesting
+approval. Approval authorizes it to create or reconcile:
 
 ```text
 docs/session-contracts/X.Y/INDEX.md
@@ -85,10 +88,12 @@ old contract becomes stale; never silently bend it around the new scope.
 
 Use `plan-session` in Plan mode. It follows `docs/SESSION_PLANNING.md`, checks the
 contract against live code and current external documentation, and presents the
-detailed implementation plan before writing anything. Before requesting
-approval, it also presents a short plain-English summary alongside the formal
-plan so the outcome, main tradeoff, success evidence, and scope boundary are
-clear at a glance.
+detailed implementation plan before writing anything. Both plain-English
+checkpoints apply: after loading context and before drafting, it discusses the
+plan's intended shape with Ryan in plain English; before requesting approval,
+it also presents a short plain-English summary alongside the formal plan so
+the outcome, main tradeoff, success evidence, and scope boundary are clear at
+a glance.
 
 After Ryan approves and the runtime returns to execution mode, persist the plan
 at:

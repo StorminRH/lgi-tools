@@ -14,6 +14,9 @@ const OFFLINE_STATUS_CACHE = { stale: 30, revalidate: 5, expire: 300 };
  * prerender, so letting a cold-miss error escape would make every static route's
  * build depend on the scoreboard being reachable. The failure entry revalidates
  * quickly, while expire stays at five minutes so the cache remains prerenderable.
+ * The remote cache keeps that one result in storage shared across serverless
+ * instances, reducing how often post-expiry refills consult the scoreboard and
+ * ESI per instance; it does not guarantee concurrent cold misses coalesce.
  *
  * Non-interactive (the gate's default): the dot is render-driven across every
  * route, so it must fail closed and never claim the scarce interactive trickle.
@@ -21,7 +24,7 @@ const OFFLINE_STATUS_CACHE = { stale: 30, revalidate: 5, expire: 300 };
  * budget-refusal/timeout already throw inside the gate.
  */
 export async function getNavServerStatus(): Promise<ServerStatus> {
-  'use cache';
+  'use cache: remote';
   cacheTag(EVE_STATUS_TAG);
   let status: ServerStatus;
   try {

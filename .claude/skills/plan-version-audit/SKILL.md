@@ -9,7 +9,7 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 24 -->
+<!-- shared-policy-revision: 25 -->
 
 Run the resolver and require its directive to name `plan-version-audit` as the
 handler for lifecycle-driven Version close. Otherwise report it and return
@@ -24,12 +24,16 @@ its cycle history, `AF-NNN` finding ledger, statuses, and mapped sub-versions.
 
 Create a native Claude Code task list for reconciliation, measurement design, hotspot review,
 classification, baseline replacement, verification, and conditional archival.
+Discuss the audit's intended shape with Ryan in plain English before drafting
+the plan.
 Present a plan naming mode, version/ref, commands, artifact inventory, baseline
 overwrite, and archive destination when applicable. Use the global headless
 `gpt-5.6-sol` routing as useful to explore audit surfaces, design measurement
 workflows, and draft bounded sections. Give the complete plan and its evidence
 to a fresh read-only xhigh adversarial reviewer, reconcile every finding, then
-present it. Present a short plain-English summary alongside the formal audit
+present it; the review budget is a hard cap of one mandatory pass plus at most
+one rerun after material reconciliation, with later findings reconciled by
+planner judgment and disclosed at approval. Present a short plain-English summary alongside the formal audit
 plan before requesting Ryan's approval. Wait for approval, then write a new
 `docs/version-audits/X.Y/PLAN.md` with `Audit status: Approved`,
 `Audit cycle: 1`, the full `Audited ref`,

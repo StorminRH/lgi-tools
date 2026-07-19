@@ -44,13 +44,15 @@ export async function readDevlogSource(): Promise<string> {
 
 /**
  * The dev log only changes on deploy, so cache the file reads + parse + syntax highlight
- * and let the build id invalidate it — this keeps /devlog in the static prerender shell
- * instead of forcing the route dynamic on an uncached file read (the /changelog pattern).
- * Highlighting runs here (server-side, once per deploy) so zero Shiki reaches the client;
- * the tokens ride the cached tree as plain data.
+ * in the shared remote cache and let the build id invalidate it. Remote storage is
+ * operator-directed hardening on the shared-storage pattern: instances share one cached
+ * tree instead of each holding an in-memory copy. This keeps /devlog in the static
+ * prerender shell instead of forcing the route dynamic on an uncached file read (the
+ * /changelog pattern). Highlighting remains server-only; the tokens ride the cached
+ * tree as plain data.
  */
 export async function loadDevlog(): Promise<DevlogTree> {
-  'use cache';
+  'use cache: remote';
   cacheLife('max');
   return highlightTree(parseDevlog(await readDevlogSource()));
 }

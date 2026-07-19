@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 24 -->
+<!-- shared-policy-revision: 25 -->
 
 Run the resolver and require its directive to name `plan-session` as the handler.
 Otherwise report it and return control to `start-session`; never select a sibling
@@ -20,12 +20,16 @@ approval state. Drive `docs/SESSION_PLANNING.md` in Claude Code Plan mode. Read
 the native task list from every numbered planning step.
 
 Reconcile the contract with Graphify, live code, dependencies, and current
-primary docs. Use the global headless `gpt-5.6-sol` subagent routing in
+primary docs. After context is loaded, discuss the plan's intended shape with
+Ryan in plain English before any fixed-schema drafting. Use the global headless
+`gpt-5.6-sol` subagent routing in
 `AGENTS.md` and `CLAUDE.md` as useful during authoring. Once the fixed-schema
 draft is complete, launch a fresh read-only xhigh worker to adversarially review
-the full draft, contract, and cited evidence. Reconcile every finding and rerun
-review if the response materially changes architecture, scope, or
-verification. Then present the reviewed plan—including alternatives, tests,
+the full draft, contract, and cited evidence. Reconcile every finding; rerun
+the review at most once, and only when the reconciliation materially changes
+architecture, scope, or verification — one mandatory pass plus at most one
+rerun is a hard cap, and later findings are reconciled by planner judgment and
+disclosed at approval. Then present the reviewed plan—including alternatives, tests,
 scope guard, and baseline effect. Present a short plain-English summary alongside
 the formal plan before requesting Ryan's approval, then wait without writing
 files.

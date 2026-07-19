@@ -183,11 +183,12 @@ Planning handlers may use the headless GPT workers defined in `AGENTS.md` to
 author their planning artifact. A fresh read-only `gpt-5.6-sol` xhigh worker
 adversarially reviews every complete draft before Ryan sees it. The primary
 planning session reconciles that feedback and retains all judgment,
-operator-question, approval, and persistence ownership. Before asking for
-approval, every planning handler presents a short plain-English summary
-alongside the formal reviewed artifact so the intended outcome, important
-tradeoffs, and scope boundary are understandable without reading the full
-artifact first.
+operator-question, approval, and persistence ownership. After loading context
+and before drafting, every planning handler discusses the intended shape of
+its artifact with Ryan in plain English. Before asking for approval, it
+presents a short plain-English summary alongside the formal reviewed artifact
+so the intended outcome, important tradeoffs, and scope boundary are
+understandable without reading the full artifact first.
 
 **Planning outcomes are session-terminal: a session that planned an artifact
 never executes it.** Runtime plan-mode acceptance authorizes artifact
