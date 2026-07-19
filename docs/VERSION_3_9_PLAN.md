@@ -79,7 +79,7 @@ campaign: none — the queue is empty.
 | 3.9.3.4 | Local dev performance | 2 (one branch) | SHIPPED |
 | 3.9.3.5 | Update-watch routine (report-only dependency/service watch) | 1 | SHIPPED |
 | **Remaining active sequence** | | | |
-| 3.9.3.8 | Public document truth pass (README/CONTRIBUTING/templates/.env.example/legal) | 1 | PLANNED |
+| 3.9.3.8 | Public document truth pass (README/CONTRIBUTING/templates/.env.example/legal) | 1 | SHIPPED |
 | **Phase 4 — Continuity & recovery** | | | |
 | 3.9.4.1 | Production smoke restoration (browser-control diagnosis) | 1 | PLANNED |
 
@@ -1462,6 +1462,16 @@ pass lands. **UX gate: Yes** (the `/legal` wording is Ryan's call).
 **Baseline note.** Neutral. **Delivery evidence.** The rewritten page
 live in local review; each document's diff summarized in the PR notes;
 env-example checker green; standard close-out.
+
+**Shipped evidence (2026-07-19).** PR #271 merged as squash `7babdd3`
+after current-head Greptile 5/5, one accepted-and-resolved justification,
+and green CI. Exact-SHA production deployment
+`dpl_9GXKo6jBxL4e57nBqgivD6Ua9QLn` reached Ready on `lgi.tools`;
+browser-first review confirmed v3.9.3.8, the privacy page and release
+entry, the dev-log link, signed-out character/admin gates, and a clean
+console. The smoke also exposed a pre-existing dev-log remote-cache 413,
+recorded in the backlog rather than absorbed into this description-only
+session.
 
 ## Phase 4 — Continuity & recovery (3.9.4.x)
 

@@ -242,6 +242,18 @@
 
 ## Infra & bundle
 
+- **Dev-log shared-cache write is rejected in production** (found during the 3.9.3.8
+  production smoke). *What:* `/devlog` still returns and renders HTTP 200, but the
+  `loadDevlog()` value introduced to `'use cache: remote'` in 3.9.3.5 is rejected by
+  Vercel's remote cache with HTTP 413; the function then exits 128. Determine whether
+  the highlighted full-document tree must be split into smaller cache entries or moved
+  back to a cache profile that can hold it, while preserving the content-browser
+  performance intent. *Why deferred:* discovered after the description-only 3.9.3.8 PR
+  had merged; the fix changes runtime caching and needs its own characterization and
+  production verification. *Size:* S–M. *Trigger:* urgent hotfix before the v3.9
+  version-close audit; reproduce against a cold cache and prove zero deployment-targeted
+  error logs after the fix.
+
 - **F3 — app-wide First Load JS trim.** *What:* `/industry/[id]` ships 332 KB gz First
   Load JS, but 312 KB is the shared framework/app baseline every route pays (`/` is the
   same); only 19 KB is planner-specific. Remediation: bundle analyzer + shared-chunk
@@ -400,6 +412,16 @@ is reprioritized.
   addition creating stale links in the wild (the CLAUDE.md batched-scope-decision event).
 
 ## Workflow & docs
+
+- **Fail-closed merge helper counts resolved Greptile replies as findings** (found during
+  the 3.9.3.8 close-out). *What:* `.agent-local/merge_clean_pr.py` treats every
+  Greptile-authored inline comment as an open finding, so an accepted justification thread
+  still fails after Greptile replies "No change needed" and GitHub marks the thread resolved.
+  Make the gate consume review-thread resolution and root-finding state instead of counting
+  every bot reply. *Why deferred:* discovered only after PR #271 had passed every canonical
+  merge gate and received explicit merge approval; changing the shared merge tool requires its
+  own reviewed workflow change. *Size:* S. *Trigger:* before the next PR merge that contains
+  any Greptile inline thread.
 
 - **Telemetry query-retention comment contradicts the implementation** (found during the
   3.9.3.8 public-document truth pass). *What:* the boundary comment in
