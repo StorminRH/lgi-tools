@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 25 -->
+<!-- shared-policy-revision: 26 -->
 
 Drive `docs/SESSION_PLANNING.md`; do not restate it. Treat
 `docs/DESIGN_PRINCIPLES.md` as the constitution,
@@ -36,7 +36,7 @@ contract as the product boundary.
    alternatives, tests, scope guard, and baseline effect.
 5. Use the task-scoped `gpt-5.6-sol` assistance policy in `AGENTS.md` as useful
    during authoring. After the complete draft exists, launch a fresh read-only
-   xhigh worker to adversarially review the draft, contract, and cited
+   high worker to adversarially review the draft, contract, and cited
    evidence. Reconcile every finding; rerun review at most once, and only when
    the reconciliation materially changes architecture, scope, or verification.
    The review budget is a hard cap of one mandatory pass plus at most one

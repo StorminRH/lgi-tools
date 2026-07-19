@@ -280,7 +280,7 @@ handled the task:
 
 Use xhigh only when a workflow explicitly requires it or a high-effort worker
 cannot resolve the task. Every complete planning draft receives a fresh
-read-only `gpt-5.6-sol` xhigh adversarial review before operator approval. The
+read-only `gpt-5.6-sol` high adversarial review before operator approval. The
 primary session reconciles worker output and retains lifecycle judgment,
 operator questions, approval, persistence, commits, and close-out unless the
 active workflow explicitly delegates a narrower responsibility.

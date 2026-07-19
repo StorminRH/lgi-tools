@@ -9,7 +9,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 25 -->
+<!-- shared-policy-revision: 26 -->
 
 Use Claude Code Plan mode and the native task list. Sequence
 `docs/DEVELOPMENT_LIFECYCLE.md` and `docs/SESSION_CONTRACTS.md`; do not duplicate
@@ -24,7 +24,7 @@ campaign. Discuss the intended shape of the decomposition with Ryan in
 plain English before drafting contracts. Use the global headless `gpt-5.6-sol`
 routing as useful during
 authoring, then give the complete proposal and its source evidence to a fresh
-read-only xhigh adversarial reviewer. Reconcile every finding before presenting
+read-only high adversarial reviewer. Reconcile every finding before presenting
 the reviewed index/contract proposal; the review budget is a hard cap of one
 mandatory pass plus at most one rerun after material reconciliation, with later
 findings reconciled by planner judgment and disclosed at approval. Present a short plain-English summary

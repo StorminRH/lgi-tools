@@ -179,7 +179,7 @@ The complete draft proceeds to Step 9 before it is presented for approval.
 
 After the authoring session has a complete draft, but before Ryan sees it:
 
-1. launch a fresh read-only `gpt-5.6-sol` worker at xhigh effort;
+1. launch a fresh read-only `gpt-5.6-sol` worker at high effort;
 2. give it the complete draft plus the contract and the specific evidence the
    draft relies on, without coaching it toward the author's conclusions;
 3. require an adversarial review for unsupported assumptions, scope drift,
@@ -224,5 +224,5 @@ After Ryan approves and the runtime is in execution mode:
 - [ ] Rail conflicts resolved deliberately?
 - [ ] Baseline effect classified and update step included when required?
 - [ ] Scope guard explicit?
-- [ ] Complete draft adversarially reviewed by a fresh xhigh planning worker?
+- [ ] Complete draft adversarially reviewed by a fresh high-effort planning worker?
 - [ ] No file written before approval?

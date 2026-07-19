@@ -10,7 +10,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 25 -->
+<!-- shared-policy-revision: 26 -->
 
 Use Claude Code Plan mode and the native task list. Require the lifecycle
 resolver directive to name `plan-audit-remediation` as the handler. Otherwise
@@ -36,7 +36,7 @@ Discuss the extension's intended shape with Ryan in plain English before
 drafting sub-versions or contracts.
 Use the global headless `gpt-5.6-sol` routing as useful for bounded finding
 exploration, decomposition, and drafting. Give the complete extension,
-contract set, ledger, and evidence to a fresh read-only xhigh adversarial
+contract set, ledger, and evidence to a fresh read-only high adversarial
 reviewer and reconcile every finding; the review budget is a hard cap of one
 mandatory pass plus at most one rerun after material reconciliation, with
 later findings reconciled by planner judgment and disclosed at approval.
