@@ -35,13 +35,13 @@ primitives — six pre-judged, code-verified verdicts followed by a
 primitives-scoped audit that maps every area (UI, API, data, infra, agent
 tools/workflow, auth/trust) and reports what remains — so repeated agent
 decisions become owned decisions; (3) **Backlog clearance**: triage
-`docs/backlog.md` and ship the refit-shaped items — stale entries deleted,
-small deferrals landed, and the well-documented medium items (image
-resolver, dev-perf, update-watch, the invalid-route error) delivered;
-(4) **Continuity & recovery**: verify the system — and the process that
-builds it — survives losing a machine or a service: workspace continuity,
-database and Convex recovery drills, the secrets/bootstrap runbook, and
-restoring the broken production browser smoke.
+`docs/backlog.md` and ship the selected refit-shaped items — stale entries
+deleted and the well-documented medium items (image resolver, dev-perf,
+update-watch, the invalid-route error) delivered; (4) **Continuity &
+recovery**: restore the broken production browser smoke. The remaining small
+polish, operator measurements, and continuity/recovery drills were explicitly
+deferred back to the unversioned backlog on 2026-07-19 so this version can
+close without implying they shipped.
 The version starts from the verified 3.8 cycle-2 baseline (2026-07-16,
 `291ee78`): all five v3.8 campaigns Verified, the campaign queue empty,
 and four Watch findings carried forward (AF-006 telemetry queries, AF-007
@@ -77,19 +77,16 @@ campaign: none — the queue is empty.
 | 3.9.3.2 | EVE image resolver & app-wide adoption | 1 | SHIPPED |
 | 3.9.3.3 | Invalid-route rendering fix (React #419) | 1 | SHIPPED |
 | 3.9.3.4 | Local dev performance | 2 (one branch) | SHIPPED |
-| 3.9.3.5 | Update-watch routine (report-only dependency/service watch) | 1 | PLANNED |
-| 3.9.3.6 | Planner polish pair (multibuy pinned row + primitive fidelity) | 1 | PLANNED |
-| 3.9.3.7 | Operator verification session (Convex/Upstash usage cells) | 1 | PLANNED |
+| 3.9.3.5 | Update-watch routine (report-only dependency/service watch) | 1 | SHIPPED |
+| **Remaining active sequence** | | | |
 | 3.9.3.8 | Public document truth pass (README/CONTRIBUTING/templates/.env.example/legal) | 1 | PLANNED |
 | **Phase 4 — Continuity & recovery** | | | |
 | 3.9.4.1 | Production smoke restoration (browser-control diagnosis) | 1 | PLANNED |
-| 3.9.4.2 | Workspace continuity (mechanism + restore drill) | 1 | PLANNED |
-| 3.9.4.3 | Neon recovery posture & drill | 1 | PLANNED |
-| 3.9.4.4 | Convex regenerability drill | 1 | PLANNED |
-| 3.9.4.5 | Secrets & bootstrap runbook | 1 | PLANNED |
 
 *(Elective health campaign: none scheduled — decision recorded below the
-phase narratives. The cycle-2 campaign queue is empty.)*
+phase narratives. The cycle-2 campaign queue is empty. Sessions 3.9.3.6,
+3.9.3.7, and 3.9.4.2–3.9.4.5 were retired from the active status sequence
+and moved to the unversioned backlog on 2026-07-19.)*
 
 
 ## Phase 1 — Workflow mechanization (3.9.1.x)
@@ -1379,6 +1376,9 @@ seeded-delta demonstration); drift gate green; `UX gate: No`.
 
 ### 3.9.3.6 — Planner polish pair
 
+**Disposition.** Deferred to the unversioned backlog by operator decision on
+2026-07-19 to expedite version completion.
+
 **Objective.** Two ratified-small UX deferrals land together: the
 multibuy panel's always-built product row (XS — a pinned, checked,
 disabled product row above Tier 1), and the primitive-reference fidelity
@@ -1397,6 +1397,9 @@ close-out.
 ---
 
 ### 3.9.3.7 — Operator verification session
+
+**Disposition.** Deferred to the unversioned backlog by operator decision on
+2026-07-19 to expedite version completion.
 
 **Objective.** The four standing measurement cells clear in one
 no-branch operator session (the 3.8.3.3 precedent): Convex char-token
@@ -1481,6 +1484,10 @@ each secret lives and how to re-obtain it, never values); every drill
 produces a written runbook + a timed result in SCRATCHPAD; operator-mode
 steps are explicit (several slices are agent+Ryan hybrids).
 
+**2026-07-19 disposition.** Only 3.9.4.1 remains in this version. Sessions
+3.9.4.2–3.9.4.5 are deferred to the unversioned backlog; their specifications
+remain below as the preserved source for future reprioritization.
+
 ---
 
 ### 3.9.4.1 — Production smoke restoration
@@ -1516,6 +1523,9 @@ readout; updated procedure text; drift gate green if skills changed.
 
 ### 3.9.4.2 — Workspace continuity (mechanism + restore drill)
 
+**Disposition.** Deferred to the unversioned backlog by operator decision on
+2026-07-19.
+
 **Objective.** The gitignored workspace — `docs/`, agent guides, both
 skill trees, `.agent-local/`, memory files — and the Document Archive
 survive machine loss, deletion, and corruption, verifiably.
@@ -1542,6 +1552,9 @@ runbook committed to the workspace (and therefore itself now backed up).
 
 ### 3.9.4.3 — Neon recovery posture & drill
 
+**Disposition.** Deferred to the unversioned backlog by operator decision on
+2026-07-19.
+
 **Objective.** The database's actual restore capability is known,
 documented, and exercised once.
 
@@ -1562,6 +1575,9 @@ insufficient — Ryan decides); any production mutation.
 
 ### 3.9.4.4 — Convex regenerability drill
 
+**Disposition.** Deferred to the unversioned backlog by operator decision on
+2026-07-19.
+
 **Objective.** The standing claim "Convex state is fully derived —
 teardown + resync reproduces it" is verified by doing it, not asserted.
 
@@ -1581,6 +1597,9 @@ readout; the committed runbook.
 ---
 
 ### 3.9.4.5 — Secrets & bootstrap runbook
+
+**Disposition.** Deferred to the unversioned backlog by operator decision on
+2026-07-19.
 
 **Objective.** From zero — new machine, no local state — the operator
 can reconstruct a working development environment and, if needed,
@@ -1627,13 +1646,12 @@ the 3.9 version-close audit.
 - Every Status row is a specified, approved commitment; rows are appended
   mid-version only through the master-plan-amendment path (the 3.9.2.7
   report or a tripped Watch trigger), with Ryan's recorded approval.
-- Phase 3 ordering: 3.9.3.1 (triage) runs first in the phase; the rest
-  order freely; 3.9.3.7 schedules at Ryan's convenience; 3.9.3.8 prefers
-  running after 3.9.1.1/.3 so the truth loop exists when the pass lands.
-- Phase 4 ordering: 3.9.4.1 (smoke restoration) runs as early in the
-  version as practical — every close-out benefits; 3.9.4.5 follows
-  3.9.4.2; the drills (.3/.4) schedule freely and never touch production
-  state. Phase 3 may
+- Phase 3 ordering: 3.9.3.1 (triage) ran first in the phase; 3.9.3.8 is
+  the remaining Phase 3 session. Sessions 3.9.3.6/.7 were retired from
+  the active status sequence and live in the unversioned backlog.
+- Phase 4 ordering: 3.9.4.1 (smoke restoration) is the only remaining
+  Phase 4 session. Sessions 3.9.4.2–.5 were retired from the active status
+  sequence and live in the unversioned backlog. Phase 3 may
   interleave with Phases 1–2 after 3.9.3.1, except 3.9.3.2 waits for the
   3.9.2.7 ledger only for its ledger-row update, never for its delivery.
 - Phase 2 ordering: 3.9.2.1 (harness) runs first in the original arc;
@@ -1687,13 +1705,12 @@ the 3.9 version-close audit.
       with the arc's verdicts Delivered and every Proposed row dispositioned
       by Ryan (approved rows terminal, deferred rows in backlog with their
       `PL-NNN`, rejections recorded — none silently implemented).
-- [ ] Phase 3 delivered per its specs, each shipped item deleted from the
-      backlog, and the triage sweep's dispositions resolved; the Phase 4
-      no-campaign decision stands unless a Watch trigger tripped (then the
-      trip is dispositioned, not ignored).
-- [ ] Phase 4: the smoke runs browser-first again; the continuity
-      mechanism is live with a passed restore drill; both recovery drills
-      executed with committed runbooks; the secrets/bootstrap runbook
-      validated dev-side.
+- [ ] Every retained Phase 3 session delivered per its spec, every deferred
+      session preserved in the unversioned backlog, and the triage sweep's
+      dispositions resolved; the no-campaign decision stands unless a Watch
+      trigger tripped (then the trip is dispositioned, not ignored).
+- [ ] Phase 4: the smoke runs browser-first again; the deferred continuity,
+      recovery-drill, and bootstrap intent remains preserved in the
+      unversioned backlog.
 - [ ] Version-close audit planned and run per `docs/VERSION_AUDIT.md`
       (which, after 3.9.1.1, no longer names version-specific surfaces).

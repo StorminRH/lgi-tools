@@ -6,12 +6,16 @@ players, built by Lo-Gang Industries. The live deployment is at
 
 The current tool catalogue:
 
-- **Wormhole Sites** — browse every wormhole site with live combat
+- **[Wormhole Sites](https://lgi.tools/sites)** — browse every wormhole site with live combat
   numbers (computed from EVE SDE) and live Jita resource pricing.
-- **Industry Planner** — manufacturing profitability for blueprints and
+- **[Industry Planner](https://lgi.tools/industry)** — manufacturing profitability for blueprints and
   reactions, with build-location and market scoring.
-- **Wormhole Roll Calculator** *(coming soon)* — plan hole rolls with
-  live mass tracking.
+- **[Skill Queues](https://lgi.tools/skills)** — view the live training queues
+  for every linked character.
+- **[Industry Jobs](https://lgi.tools/jobs)** — view personal and corporation
+  industry jobs, including their scheduled completion.
+- **[Structures](https://lgi.tools/structures)** — build custom structures or
+  share corporation structures for use as build locations in the planner.
 
 ## Tech stack
 
@@ -23,7 +27,7 @@ The current tool catalogue:
 - [Tailwind CSS v4](https://tailwindcss.com)
 - [Drizzle ORM](https://orm.drizzle.team) on Postgres
 - [Neon](https://neon.tech) (production) / Postgres 16 in Docker (local dev)
-- [Convex](https://convex.dev) — live reactive backend for per-character state
+- [Convex](https://convex.dev) — live reactive backend for online-status state
   (runs on `:3210` in local dev)
 - [Better Auth](https://better-auth.com) — sessions and EVE Online SSO
 - [Upstash Redis](https://upstash.com) — rate limiting (production)
@@ -59,8 +63,8 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
    exercise the full surface:
    - Register a dev app at
      [developers.eveonline.com/applications](https://developers.eveonline.com/applications)
-     with the scopes listed in `.env.example` (`publicData` plus the
-     `esi-skills` / `esi-industry` read scopes) and callback
+     with the scopes in the authoritative
+     [`EVE_SCOPES`](src/features/auth/eve-sso.ts) array and callback
      `http://localhost:3000/api/auth/oauth2/callback/eve`. Paste the
      resulting client id/secret into `EVE_CLIENT_ID` / `EVE_CLIENT_SECRET`.
    - Generate a session secret: `openssl rand -base64 32`. Paste into
@@ -83,8 +87,8 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
    pnpm db:refresh-sde
    ```
 
-6. **Start the dev server.** `pnpm dev` runs only Next. Signed-in features
-   (the home character roster, skills, industry jobs) also need the local
+6. **Start the dev server.** `pnpm dev` runs only Next. The complete signed-in
+   experience, including the live online-status indicator, also needs the local
    Convex backend on `:3210`, so use the one-command startup:
    ```
    pnpm dev:all
@@ -129,9 +133,8 @@ See `package.json` for the full set.
   registry).
 - `src/app/api/` — Next.js route handlers (auth, telemetry, feedback,
   cron).
-- `convex/` — the live reactive backend: per-character state (skills,
-  industry jobs) the browser subscribes to, plus EVE SSO via a Better
-  Auth-issued JWT.
+- `convex/` — the derived, regenerable live online-status projection, authenticated
+  with a Better Auth-issued JWT. Neon remains authoritative.
 - `drizzle/` — generated migrations. Schema sources live in each
   feature slice.
 
