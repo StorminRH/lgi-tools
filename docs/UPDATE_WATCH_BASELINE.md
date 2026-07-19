@@ -80,7 +80,7 @@ tooling).
     "@vitest/coverage-istanbul": { "acknowledgedMajor": 4 },
     "better-auth": { "acknowledgedMajor": 1 },
     "class-variance-authority": { "acknowledgedMajor": 0 },
-    "clsx": { "acknowledgedMajor": 1 },
+    "clsx": { "acknowledgedMajor": 2 },
     "concurrently": { "acknowledgedMajor": 10 },
     "convex": { "acknowledgedMajor": 1 },
     "convex-test": { "acknowledgedMajor": 0 },
@@ -251,6 +251,8 @@ tooling).
 
 ## Seeded state note (3.9.3.5 demonstration)
 
-`clsx` is deliberately acknowledged at major 1 while major 2 is current — the
-seeded delta for the routine's demonstration runs. The demonstration's final
-step absorbs it back to the true acknowledged major.
+`clsx` was deliberately acknowledged at major 1 while major 2 was current —
+the seeded delta for the routine's demonstration runs. The demonstration's
+report and suppressed-quiet runs completed against that seed (digest issue
+#269), after which this absorption raised the acknowledgment to the true
+major 2, exactly as the absorption procedure prescribes.
