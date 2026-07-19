@@ -179,27 +179,66 @@
 
 > From the 3.5.4a audit operator-checklist — prod-only cells a solo agent can't
 > measure (a Convex deploy key can't run internal functions; the bot challenge blocks
-> anonymous prod browsing). Run in Session 3.9.3.7 during Ryan's signed-in prod /
-> Convex-dashboard session.
+> anonymous prod browsing). Deferred from Session 3.9.3.7 by operator decision on
+> 2026-07-19; run as one signed-in production/dashboard measurement pass when
+> operational cost verification is reprioritized.
 
 - **Cell i — char token groups.** *What:* signed-in prod ~2 min on `/skills` + `/jobs`,
   then read Upstash `lgi:esi:rl:group:char-detail` / `…:char-industry` (or the
   `rlGroup/rlLimit/rlRemaining/rlUsed` fields on the prod `syncSubjects` rows). *Expect:*
-  remaining > 0 throughout. *Size:* S (measurement). *Trigger:* Session 3.9.3.7.
+  remaining > 0 throughout. *Size:* S (measurement). *Trigger:* the next
+  operator-attended Convex/Upstash cost-verification pass.
 - **Cell ii — 3.5.e1 DB-I/O drop — VERIFICATION PENDING OF A SHIPPED CLAIM**
   (code-verified at `convex/engine.ts:121-143`, never dashboard-measured). *What:* Convex
   dashboard → Functions → `engine:heartbeat`, over a ≥3-min visible `/skills` window —
   compare bytes-read for an `interval` beat vs a `mount`/`visible` beat. *Expect:*
   interval-beat bytes-read ≈ one small `syncPresence` doc AND independent of how many
-  characters are linked. *Size:* S (measurement). *Trigger:* Session 3.9.3.7.
+  characters are linked. *Size:* S (measurement). *Trigger:* the next
+  operator-attended Convex/Upstash cost-verification pass.
 - **Cell iii — sweep db-op budget.** *What:* Convex dashboard → Data: note row counts of
   `syncSubjects` and `syncPresence` (expect small) → the three indexed sweep passes are
   ≪ the ~4096 db-op per-mutation budget; also grep prod `vercel logs` for
-  `retention_batch_capped` (expect absent). *Size:* S. *Trigger:* Session 3.9.3.7.
+  `retention_batch_capped` (expect absent). *Size:* S. *Trigger:* the next
+  operator-attended Convex/Upstash cost-verification pass.
 - **Archon reference fixture has no third-party validation** (blueprint tools are
   JS-rendered / unfetchable). *What:* a standing known-gap — first regression target if
   planner Archon costs ever differ in-game. *Size:* note. *Trigger:* a planner cost
   regression.
+
+## Continuity & recovery
+
+> Sessions 3.9.4.2–3.9.4.5 were explicitly deferred on 2026-07-19 to expedite
+> version 3.9 completion. Their preserved contracts remain the detailed source
+> if any item is pulled into a future version.
+
+- **Workspace continuity mechanism + restore drill** (deferred from 3.9.4.2).
+  *What:* protect the gitignored lifecycle workspace, both agent skill trees,
+  `.agent-local/`, memory files, and the Document Archive with an off-device,
+  deletion-recoverable mechanism; exclude secrets; then prove a clean restore
+  by running the resolver and drift checker from the recovered copy. *Why
+  deferred:* version-completion priority; no replacement date assigned.
+  *Size:* M–L. *Trigger:* continuity work is reprioritized, before the secrets
+  and bootstrap runbook.
+- **Neon recovery posture + disposable restore drill** (deferred from 3.9.4.3).
+  *What:* record the live tier's point-in-time recovery guarantees, restore a
+  disposable branch, verify migrations and authoritative-table row counts, and
+  document what restores versus re-syncs. *Why deferred:* version-completion
+  priority; production remains untouched. *Size:* M. *Trigger:* database
+  disaster-recovery work is reprioritized or the Neon plan changes materially.
+- **Convex regenerability drill** (deferred from 3.9.4.4). *What:* clear a
+  non-production Convex deployment, run the documented resync path, and prove
+  subjects, projections, and sweep health reconverge; record or automate any
+  manual step discovered. *Why deferred:* version-completion priority; the
+  standing derived-state claim remains unexercised. *Size:* M. *Trigger:* live
+  sync recovery is reprioritized or the regeneration path changes.
+- **Secrets inventory + zero-state bootstrap runbook** (deferred from
+  3.9.4.5). *What:* document where every required value lives, how it is
+  regenerated or re-obtained, the CCP application scope ceiling, the local
+  bring-up sequence, and rotation impact—without storing values—then dry-run
+  the development half. *Why deferred:* version-completion priority and its
+  intended durable home depends on workspace continuity. *Size:* M.
+  *Dependency/trigger:* after the workspace continuity mechanism exists and
+  bootstrap/recovery documentation is reprioritized.
 
 ## Infra & bundle
 
@@ -213,16 +252,17 @@
   1M / 1 GB / 20 GB-hr Free caps) + Upstash console → Usage (commands vs 500K). **Re-
   estimate Upstash commands accounting for F1** — the ESI body cache is more active than
   the old "near-dormant" model assumed: every per-type orders / small-history fetch does
-  ~4 extra Upstash ops (≈2 SET + 2 GET). *Size:* S (measurement). *Trigger:* Session
-  3.9.3.7.
+  ~4 extra Upstash ops (≈2 SET + 2 GET). *Size:* S (measurement). *Trigger:* the
+  next operator-attended Convex/Upstash cost-verification pass.
 - **3.8 primitive-reference fidelity polish.** *What:* reconcile the few remaining
   presentational differences found in the post-arc reference review: Tooltip's direct
   surface should use the dedicated tooltip treatment, the checked Checkbox should be
   compared against the full-fill HTML reference, and Field/default-density plus invalid
   states should be represented explicitly in the admin primitive preview. *Why deferred:*
   the primitives are functional, accessible, and already shipped; Ryan chose to merge the
-  completed arc and handle additional visual judgment later. *Size:* S. *Trigger:* Session
-  3.9.3.6.
+  completed arc and handle additional visual judgment later, and Session 3.9.3.6 was
+  explicitly deferred on 2026-07-19 to expedite version completion. *Size:* S.
+  *Trigger:* when shared-primitive visual polish is reprioritized.
 - **Client-settled static for the session-gated pages** (surfaced 2026-07-11 by the 3.7.35.1
   conformance route-optimality diagnosis). *What:* `/skills`, `/jobs`, `/structures`, `/settings`,
   `/characters` are `◐` partial because each does a server-side session-gated linked-character read
@@ -344,7 +384,9 @@ genuinely un-extractable from the DOM, where a render/interaction test earns the
 every tier unchecked the list still holds the product's direct inputs, which read as surprising).
 *What:* show that the product itself is always built — a pinned, checked, disabled row above Tier 1
 (e.g. "Jaguar · the product") or an explainer clause. *Why deferred:* Ryan chose to keep the panel
-minimal at ship; explainer already trimmed to one line. *Size:* XS. *Trigger:* Session 3.9.3.6.
+minimal at ship; explainer already trimmed to one line, and Session 3.9.3.6 was explicitly
+deferred on 2026-07-19 to expedite version completion. *Size:* XS. *Trigger:* when planner polish
+is reprioritized.
 
 - **Slots readout: scope-mismatch hint (probably unnecessary).** When a linked character's
   corp-installed jobs are visible (via a corp-eligible reader) but their personal job board
