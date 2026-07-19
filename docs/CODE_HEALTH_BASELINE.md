@@ -21,7 +21,7 @@
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
 | Production TS/TSX files | 761 | 758 | +1 from the 3.9.3.2 shared EVE image resolver module, +1 at 3.9.3.3 for the catalogue publication boundary owner, +1 at 3.9.3.4.2 for the dev-only representative selector; recount 761 at 3.9.3.4.2 close-out |
-| Production TS/TSX LOC | 73,048 | 72,215 | +619 through 3.9.2.10 (registry/gate/route-contract work), +110 at 3.9.3.2 (resolver + search descriptor threading), +28 at 3.9.3.3 (site-route boundary handling), +2 at 3.9.3.4.1 for the lazy-detail probe hook, +66 at 3.9.3.4.2 for sample selection and catalogue labeling, +8 at 3.9.3.5 for the burst-render hotfix comments and prefetch prop; recount 73,048 at 3.9.3.5 close-out |
+| Production TS/TSX LOC | 73,037 | 72,215 | +619 through 3.9.2.10 (registry/gate/route-contract work), +110 at 3.9.3.2 (resolver + search descriptor threading), +28 at 3.9.3.3 (site-route boundary handling), +2 at 3.9.3.4.1 for the lazy-detail probe hook, +66 at 3.9.3.4.2 for sample selection and catalogue labeling, +8 at 3.9.3.5 for the burst-render hotfix comments and prefetch prop, -11 at 3.9.3.8 from simplifying the privacy-page prose; recount 73,037 at 3.9.3.8 close-out |
 | Test files | 362 | 357 | +4 at 3.9.3.2 (resolver, type-icon render, blueprint-row image, and image-variant-rail suites), +1 at 3.9.3.3 (proxy route-boundary suite), +1 at 3.9.3.4.2 (dev-sample selector suite); recount 362 at 3.9.3.4.2 close-out |
 | Coverage — statements | 85.46% | 85.08% | 8,495 / 9,940 from fresh full-Postgres coverage at 3.9.3.4.1 close-out; all 3,507 tests passed |
 | Coverage — branches | 83.05% | 83.32% | 5,059 / 6,091 |
