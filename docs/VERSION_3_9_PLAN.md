@@ -81,7 +81,7 @@ campaign: none — the queue is empty.
 | **Remaining active sequence** | | | |
 | 3.9.3.8 | Public document truth pass (README/CONTRIBUTING/templates/.env.example/legal) | 1 | SHIPPED |
 | **Phase 4 — Continuity & recovery** | | | |
-| 3.9.4.1 | Production smoke restoration (browser-control diagnosis) | 1 | PLANNED |
+| 3.9.4.1 | Smoke confirmation, security-report verification & DB-privilege hardening (amended 2026-07-19) | 1 | PLANNED |
 
 *(Elective health campaign: none scheduled — decision recorded below the
 phase narratives. The cycle-2 campaign queue is empty. Sessions 3.9.3.6,
@@ -1500,34 +1500,49 @@ remain below as the preserved source for future reprioritization.
 
 ---
 
-### 3.9.4.1 — Production smoke restoration
+### 3.9.4.1 — Smoke confirmation, security-report verification & DB-privilege hardening
 
-**Objective.** The browser-first post-merge production smoke works again
-from the agent runtime, so every 3.9 close-out gets its required real-
-browser verification instead of the "Browser runtime could not
-initialize" fallback that recurred through 3.8.
+**Amended 2026-07-19 with Ryan's recorded approval.** The original
+smoke-restoration objective was overtaken by events — the 3.9.3.8
+close-out ran the browser-first production smoke end-to-end successfully
+— and Ryan folded the externally sourced security deep-research report
+(2026-07-19, snapshot `141e914`, findings LGI-01…LGI-12) into this final
+session: act only on LGI-08 (database privilege separation), verify and
+triage everything else, and close the smoke question honestly. The
+original specification is preserved in git history.
 
-**Evidence.** Four 3.8 shipped-ledger entries record the smoke skipped
-(`Cannot redefine property: process`); operator context: the failure
-involves local permissions and the agent driving the Brave browser.
+**Objective.** Three outcomes in one session: (1) every security-report
+finding verified against live code into a disposition register, with
+confirmed non-LGI-08 work routed to the backlog and no behavior changes
+for those findings; (2) LGI-08 acted on — an actor/credential/capability
+risk model measured on a disposable Neon child branch (never production
+SQL), a migration-owned least-privilege `NOLOGIN` runtime role proven
+against the application workload there (including the SDE cron's
+table-scoped `TRUNCATE`), a `DATABASE_MIGRATION_URL` seam, and an
+operator-gated production credential cutover prepared with rollback;
+(3) the working smoke confirmed via a bounded reproduction attempt and
+its procedure recorded where close-out points, with the session's own
+close-out smoke as the demonstrated run. A workflow rider changes the
+mandatory planning adversarial-review effort xhigh→high.
 
-**Done means.** Diagnosis-first: reproduce the failure, separate the
-runtime error from the macOS permission/browser-selection question, and
-present the root cause before any fix. The fix may be configuration
-(permissions, a designated automation browser/profile) rather than code;
-if Brave is the blocker, a dedicated automation profile or browser is an
-acceptable outcome — Ryan decides the browser policy from the diagnosis.
-Success = a demonstrated end-to-end production smoke (version, an
-affected route, an auth gate, console) run by the agent, and the
-procedure recorded where close-out already points.
+**Done means.** The amended contract's done conditions govern:
+disposition register with evidence and routing; the DB-privilege runbook
+with drill readouts, custody/rotation, and cutover + rollback; the
+fail-closed grants migration and migrate-URL seam passing the
+child-branch probe matrix; the honest smoke record; the rider applied
+with the drift gate green. Production cutover is explicitly **not** a
+done condition — it is Ryan's point-of-action decision from the
+diagnosis.
 
-**In scope.** The agent-runtime browser tooling, local permissions,
-smoke procedure docs. **Out of scope.** Replacing the browser-first
-policy with scripted HTTP (the policy stands — the edge rate-limits
-scripts). **Dependencies.** None — runs **first in the version** if
-practical, since every subsequent close-out benefits.
-**Delivery evidence.** The recorded diagnosis; one real smoke run's
-readout; updated procedure text; drift gate green if skills changed.
+**In scope / out of scope / gates.** Per the amended contract:
+verification-only for non-LGI-08 findings; RLS policy deployment
+deferred as a future identity-propagation campaign; point-of-action
+operator approvals for the redacted production-URL username read,
+child-branch creation/deletion, and cutover; browser-first smoke policy
+stands. **Dependencies.** None; final session before the version-close
+audit. **Delivery evidence.** The register, the runbook with probe
+readouts, the merged migration/seam with green focused tests, the smoke
+record, and the close-out smoke readout.
 
 ---
 
@@ -1659,7 +1674,8 @@ the 3.9 version-close audit.
 - Phase 3 ordering: 3.9.3.1 (triage) ran first in the phase; 3.9.3.8 is
   the remaining Phase 3 session. Sessions 3.9.3.6/.7 were retired from
   the active status sequence and live in the unversioned backlog.
-- Phase 4 ordering: 3.9.4.1 (smoke restoration) is the only remaining
+- Phase 4 ordering: 3.9.4.1 (amended 2026-07-19: smoke confirmation +
+  security-report verification + DB-privilege hardening) is the only remaining
   Phase 4 session. Sessions 3.9.4.2–.5 were retired from the active status
   sequence and live in the unversioned backlog. Phase 3 may
   interleave with Phases 1–2 after 3.9.3.1, except 3.9.3.2 waits for the
