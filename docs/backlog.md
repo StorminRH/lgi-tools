@@ -401,6 +401,15 @@ is reprioritized.
 
 ## Workflow & docs
 
+- **Telemetry query-retention comment contradicts the implementation** (found during the
+  3.9.3.8 public-document truth pass). *What:* the boundary comment in
+  `src/components/telemetry/page-view-metadata.ts` says raw query values are not retained, but
+  the page-view payload stores the raw search string. Decide whether the product should stop
+  retaining it or correct the comment to describe the current behavior. *Why deferred:* changing
+  stored telemetry is a behavior/privacy decision, while editing the source contract independently
+  would pre-empt that choice; 3.9.3.8 is description-only. *Size:* XS if comment-only, S if storage
+  behavior changes. *Trigger:* the next telemetry or privacy-data pass.
+
 - **DESIGN_PRINCIPLES P7 cites deleted example surfaces** (found by the 3.9.1.1 doc-ref sweep).
   *What:* P7's comment-style examples name `src/features/auth/queries.ts` section banners and the
   `PricingContextValue` field docs — both deleted by the 3.8.5.x remediation. Replace with live

@@ -46,14 +46,17 @@ read the relevant guide under `node_modules/next/dist/docs/` (present after
 
 Two things this means in practice:
 
-- **Static by default.** Every route prerenders a static shell; only genuinely
-  request-time data (search params, cookies/session, per-request DB) streams in
-  from a `<Suspense>` boundary. Cache global, slow-changing reads with the
-  `'use cache'` directive (plus `cacheLife`/`cacheTag`).
-- **Live per-character state lives in Convex**, not Postgres. Postgres (via
-  Drizzle) is authoritative for global/shared data; Convex is the derived,
-  regenerable store for live per-character data (skills, industry jobs), which the
-  browser subscribes to directly.
+- **Use the most static honest render mode.** Fully static routes are preferred.
+  Routes that need limited request-time data (search params, cookies/session,
+  per-request DB work) can keep a static shell and stream that work from a
+  `<Suspense>` boundary; genuinely request-specific surfaces may be fully dynamic.
+  Cache global, slow-changing reads with the `'use cache'` directive (plus
+  `cacheLife`/`cacheTag`).
+- **Neon Postgres is authoritative.** It holds global/shared data and slower
+  personal datasets such as skills and industry jobs. Convex is a derived,
+  regenerable live projection for data cached for at most two minutes; its
+  current application dataset is character online status, which the browser
+  subscribes to directly.
 
 ## Security & CSP
 

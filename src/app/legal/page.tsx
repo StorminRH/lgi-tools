@@ -10,7 +10,7 @@ import { buildPageMetadata } from '@/lib/page-metadata';
 export const metadata = buildPageMetadata({
   title: 'Privacy',
   description:
-    'How LGI.tools handles your data — anonymous site usage, and the EVE character data you grant via EVE SSO.',
+    'How LGI.tools handles site usage data and the EVE character data you grant through EVE SSO.',
   canonical: '/legal',
 });
 
@@ -41,164 +41,151 @@ export default function LegalPage() {
         title="Privacy"
         meta={
           <span>
-            Last updated <b className="text-name font-semibold">25 Jun 2026</b>
+            Last updated <b className="text-name font-semibold">19 Jul 2026</b>
           </span>
         }
       />
 
       <div className="pb-16">
         <div className="legal-prose">
-          <h2 className={`${SECTION_HEAD} mb-3`}>Personal Data</h2>
-          <p className="mb-7">
-            What the site itself records about your visit — no EVE sign-in required.
-          </p>
+          <h2 className={`${SECTION_HEAD} mb-3`}>Site Usage</h2>
+          <p className="mb-7">What the site records about your visit.</p>
 
-          <LegalSection label="What we collect">
+          <LegalSection label="In-house telemetry">
             <p>
-              <strong>LGI.tools (Lo-Gang Industries)</strong> records its own usage in our own{' '}
-              <a href="https://neon.com/security" target="_blank" rel="noopener noreferrer">
-                Neon Postgres
+              LGI.tools (Lo-Gang Industries) keeps a limited set of data points about how the site is
+              used: which pages and options get used, how visitors move through them, and what brought
+              them here—for example, if you came from Google, Reddit, the EVE forums, etc. That data
+              is held in our{' '}
+              <a href="https://neon.com" target="_blank" rel="noopener noreferrer">
+                Neon
               </a>{' '}
-              database — no third-party trackers, no <strong>Google Analytics</strong>,{' '}
-              <strong>Plausible</strong>, or <strong>PostHog</strong>. We record:
-            </p>
-            <ul>
-              <li>
-                The <strong>URL path</strong> you visit (e.g. <strong>/sites</strong>).
-              </li>
-              <li>
-                The <strong>site</strong> that linked you here (e.g. <strong>discord.com</strong>)
-                and any campaign tags (<strong>utm_source</strong>, <strong>utm_medium</strong>,{' '}
-                <strong>utm_campaign</strong>) on the link you arrived through — never the full web
-                address, just the site.
-              </li>
-              <li>
-                A random ID stored in your browser, used only to tell a first-time visitor from a
-                returning one. Clearing your browser data removes it.
-              </li>
-              <li>
-                Your <strong>EVE character ID</strong>, if you are logged in via EVE SSO.
-              </li>
-              <li>
-                <strong>Feedback button:</strong>{' '}
-                the page you were on and your message&apos;s length. The text is forwarded to a
-                private Discord channel for the developer — not stored in our database.
-              </li>
-            </ul>
-          </LegalSection>
-
-          <LegalSection label="What we don't collect">
-            <p>
-              We do <strong>not</strong>{' '}
-              record your IP address, the browser or device you&apos;re using, or any kind of device
-              fingerprint.
+              database on a 180-day retention schedule and is shown on the LGI.tools admin dashboard.
             </p>
           </LegalSection>
 
-          <LegalSection label="How it's used & opting out">
+          <LegalSection label="Performance & rate limiting">
             <p>
-              This data is used only to understand how the site is used so we can make it better. To
-              avoid being attributed by character, log out via the header and keep using the site —
-              your visits are then recorded anonymously.
-            </p>
-          </LegalSection>
-
-          <LegalSection label="Performance telemetry">
-            <p>
-              Load time, layout shift, and other{' '}
-              <a href="https://web.dev/articles/vitals" target="_blank" rel="noopener noreferrer">
-                Core Web Vitals
+              Like any website, we handle ordinary request and network information to deliver pages,
+              keep the service running, and prevent abuse. This includes storing your IP address in
+              the rate-limit service{' '}
+              <a href="https://upstash.com" target="_blank" rel="noopener noreferrer">
+                Upstash Redis
               </a>{' '}
-              are collected anonymously by <strong>Vercel Speed Insights</strong>, aggregated to
-              surface slow pages we can fix. Performance only — no behavioural tracking, advertising
-              profile, or cross-site identity.
+              to enforce limits and record whether requests were allowed or blocked. The IP address
+              is not added to our in-house usage log.
+            </p>
+            <p>
+              We also measure page performance anonymously to find and fix slow pages.
+            </p>
+          </LegalSection>
+
+          <LegalSection label="Cookies & local storage">
+            <p>
+              We store a random visitor ID in your browser&apos;s local storage. It lets us recognize
+              a returning browser and connect page views from the same browser. Clearing this
+              site&apos;s stored data removes it, and the site treats that browser as a first-time
+              visitor again. When you log in, the site also uses a session cookie to keep you signed
+              in.
             </p>
           </LegalSection>
 
           <h2 className={`${SECTION_HEAD} mt-12 pt-10 border-t border-border-soft mb-3`}>
-            EVE SSO Data
+            EVE Data
           </h2>
           <p className="mb-7">
-            What we read from your EVE characters once you sign in, and how we protect it.
+            What signing in shares, why the site needs it, and what control you keep.
           </p>
 
           <LegalSection label="What signing in shares">
             <p>
-              When you sign in with <strong>EVE SSO</strong>, you grant LGI.tools read-only access to
-              a small, fixed set of your character data. We read that data on our own servers and keep
-              a synced copy so the live tools — your skills, skill queue, and industry jobs — stay
-              current. So this is <strong>not an operator-blind service</strong>: the server genuinely
-              reads the EVE data you grant in order to run the tools. What keeps it safe is everything
-              below — we ask for the least access possible, all of it read-only, we store it
-              encrypted, and we delete it when you&apos;re done.
-            </p>
-          </LegalSection>
-
-          <LegalSection label="The access we ask for">
-            <p>We request exactly four read-only scopes — nothing more:</p>
-            <ul>
-              <li>Read your public character info</li>
-              <li>Read your trained skills</li>
-              <li>Read your skill queue</li>
-              <li>Read your industry jobs</li>
-            </ul>
-            <p>
-              That is the whole list. We have <strong>zero write access</strong> — we cannot train
-              skills, start or cancel jobs, move assets, send mail, or change anything on your
-              character or account. We do not request your <strong>location</strong>,{' '}
-              <strong>wallet</strong>, <strong>mail</strong>, <strong>assets</strong>,{' '}
-              <strong>contacts</strong>, or <strong>fittings</strong>. If a future feature ever needs
-              more, we will ask for it narrowly, only when that feature ships, and disclose it here
-              first. You can see exactly what each of your characters has granted on your{' '}
-              <Link href="/characters">Characters</Link> page.
-            </p>
-          </LegalSection>
-
-          <LegalSection label="How long we keep it">
-            <p>
-              Your synced EVE data is a <strong>regenerable cache</strong>, not a record we own — it
-              can be rebuilt from EVE at any time. We delete a character&apos;s data when you{' '}
-              <strong>unlink</strong> it, and we wipe it automatically if a character{' '}
-              <strong>changes hands</strong>. When a character is sold or transferred, EVE issues a
-              new owner stamp; we check it on every sign-in and purge the previous owner&apos;s data,
-              so it never follows the character to its new pilot.
-            </p>
-          </LegalSection>
-
-          <LegalSection label="How it's stored">
-            <p>
-              Every call we make to EVE goes through a single gated path on our servers. Your access
-              tokens are <strong>encrypted at rest</strong> (AES-256-GCM), and the long-lived refresh
-              token <strong>never leaves our database</strong> — the live tools only ever receive
-              short-lived access tokens.
-            </p>
-          </LegalSection>
-
-          <LegalSection label="We don't share it">
-            <p>
-              We never sell your EVE data or share it with third parties. For the anonymous usage data
-              the site itself records, see <strong>Personal Data</strong> above.
+              When you log in with{' '}
+              <strong>
+                <a
+                  href="https://developers.eveonline.com/docs/services/sso/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  EVE SSO
+                </a>
+              </strong>
+              , EVE tells us who your character is, and you grant LGI.tools access to some of your EVE
+              character data. EVE lists the requested scopes on its consent screen. You can review
+              the granted scopes afterward on your EVE account&apos;s{' '}
+              <a href={EVE_AUTHORIZED_APPS_URL} target="_blank" rel="noopener noreferrer">
+                Authorized Applications page
+              </a>
+              . The <Link href="/characters">Characters page</Link> also shows what each linked
+              character has granted.
             </p>
           </LegalSection>
 
           <LegalSection label="You stay in control">
-            <ul>
-              <li>
-                See exactly what each character has granted on your{' '}
-                <Link href="/characters">Characters</Link> page.
-              </li>
-              <li>
-                Revoke LGI.tools entirely, at any time, from your{' '}
-                <a href={EVE_AUTHORIZED_APPS_URL} target="_blank" rel="noopener noreferrer">
-                  EVE authorized apps
-                </a>{' '}
-                page.
-              </li>
-              <li>
-                Unlink any character yourself from the{' '}
-                <Link href="/characters">Characters</Link> page.
-              </li>
-            </ul>
+            <p>
+              You control your data. The <strong>Purge</strong> control on your{' '}
+              <Link href="/characters">Characters page</Link>{' '}
+              deletes the private EVE data stored for one character and removes LGI.tools access to
+              it. Deleting your entire account removes the account, its sessions and linked
+              characters, along with the rest of any account-specific data. Public or
+              corporation-shared EVE records are not private account data and are not removed by this
+              control. For example, if you had access to a corporation&apos;s structures as a member
+              of that corp and you delete your character from LGI.tools, there is an audit record
+              saved for that corporation showing you had access at one point.
+            </p>
+          </LegalSection>
+
+          <LegalSection label="Corporation audit records">
+            <p>
+              Corporation-access audit records are retained for 400 days. They contain the user,
+              character, and corporation identifiers involved in an access decision, the
+              allow-or-deny result, and the reason. They let LGI.tools investigate and verify past
+              access decisions; they are not used for analytics.
+            </p>
+          </LegalSection>
+
+          <LegalSection label="Character transfer detection">
+            <p>
+              Each time a character logs in, we check whether it has changed hands in the game, such
+              as through a sale on the{' '}
+              <a
+                href="https://forums.eveonline.com/c/marketplace/character-bazaar/60"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Character Bazaar
+              </a>
+              . If it has, we remove the previous owner&apos;s account link and stored credentials
+              before the login completes. The new pilot is then treated as a different LGI.tools user
+              and cannot enter the previous pilot&apos;s account. Corporation access is checked
+              separately against the new account&apos;s current linked characters, corporation
+              membership, and roles, so the new pilot does not inherit the previous owner&apos;s
+              corporation access.
+            </p>
+          </LegalSection>
+
+          <h2 className={`${SECTION_HEAD} mt-12 pt-10 border-t border-border-soft mb-7`}>
+            Our Privacy Stance
+          </h2>
+
+          <LegalSection label="What we never do">
+            <p>
+              We never sell your data—the usage records or the EVE data—and we never provide it to
+              anyone for their own advertising, marketing, or profiling. LGI.tools relies on
+              third-party infrastructure and{' '}
+              <a
+                href="https://developers.eveonline.com/docs/services/esi/overview/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                EVE&apos;s official APIs
+              </a>{' '}
+              to operate, so those services process only the data necessary to deliver and protect
+              the site.
+            </p>
+            <p>
+              There is no advertising anywhere on LGI.tools: no ad networks, no cross-site tracking,
+              and no device fingerprinting.
+            </p>
           </LegalSection>
 
           <LegalSection label="Open-source licensing">
@@ -219,8 +206,10 @@ export default function LegalPage() {
               >
                 github.com/StorminRH/lgi-tools
               </a>
-              , so every claim on this page is auditable. Issues, feature requests, and pull requests
-              are welcome.
+              , so every claim on this page is auditable. You may also visit the dev log{' '}
+              <Link href="/devlog">Under the Hood</Link> for a guided walkthrough on how this app is
+              being built and a more technical overview of all the privacy-related features. The dev
+              log is not always current; I update it as I build periodically.
             </p>
           </LegalSection>
 
