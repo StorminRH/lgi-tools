@@ -151,6 +151,21 @@ _ALLOWLIST = (
         "approved future probe definition created by Session 3.9.3.4.1",
     ),
     (
+        "docs/**",
+        "src/features/wormhole-sites/dev-sample.ts",
+        "approved future artifact created by Session 3.9.3.4.2",
+    ),
+    (
+        "docs/**",
+        "scripts/profile-sites-suite.mjs",
+        "approved future artifact created by Session 3.9.3.4.2",
+    ),
+    (
+        "docs/**",
+        "docs/ux-check/profiles/3.9.3.4/normal/",
+        "approved future gitignored per-mode evidence directory created by Session 3.9.3.4.2",
+    ),
+    (
         "docs/session-plans/3.9/3.9.1.5.md",
         ".agent-local/pr-privacy-local-patterns.txt",
         "approved deliberately-untracked local pattern file created by Session 3.9.1.5; never resolves on a fresh clone",
