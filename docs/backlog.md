@@ -203,20 +203,6 @@
 
 ## Infra & bundle
 
-- **Update-watch routine** (deferred from 3.8.4.9). *What:* a committed
-  baseline covering every direct dependency and devDependency, the platform
-  services (Neon, Convex, Upstash, Vercel/Next.js), and the EVE surface; an
-  explicit watchlist including developers.eveonline.com and the official EVE
-  developer documentation; and a self-contained routine instruction skill.
-  A daily cloud routine compares live state with that baseline and opens a
-  GitHub digest issue only for deltas, prioritizing major versions and security
-  advisories. It remains report-only: no package changes, baseline edits,
-  commits, pushes, or PRs. *Why deferred:* operator chose on 2026-07-14 to
-  revisit the work within whichever version is active at that time, rather than
-  complete it in 3.8. *Size:* M. *Trigger:* Session 3.9.3.5; re-plan against current
-  Claude Code runtime
-  and scheduling documentation before any account, GitHub, or network access is
-  configured.
 - **F3 — app-wide First Load JS trim.** *What:* `/industry/[id]` ships 332 KB gz First
   Load JS, but 312 KB is the shared framework/app baseline every route pays (`/` is the
   same); only 19 KB is planner-specific. Remediation: bundle analyzer + shared-chunk
