@@ -29,16 +29,13 @@ let interruptedBy = null;
 
 const diagnostic = (message) => process.stderr.write(`${message}\n`);
 
-function profileModeLabel(sampleEnv) {
-  return sampleEnv ? 'sample' : 'normal';
-}
-
 function timestampSlug(iso) {
   return iso.replace(/[-:.]/g, '');
 }
 
 function runProfiler({ label, sampleEnv }) {
   return new Promise((resolve, reject) => {
+    diagnostic(`[suite] starting ${label} (${sampleEnv ? 'sample' : 'normal'})`);
     const env = {
       ...process.env,
       LGI_SITES_SAMPLE: sampleEnv ? '1' : '0',
@@ -122,7 +119,6 @@ async function collectProfileRuns() {
   for (const run of profileRunsUntilInterrupted()) {
     diagnostic(`[suite] clearing .next before ${run.label}`);
     await rm(path.join(ROOT, '.next'), { recursive: true, force: true });
-    diagnostic(`[suite] starting ${run.label} (${profileModeLabel(run.sampleEnv)})`);
     const outcome = await runProfilerSafely(run);
     runs.push(outcome.runResult);
     if (outcome.suiteError) return { runs, suiteError: outcome.suiteError };

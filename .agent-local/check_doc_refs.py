@@ -127,38 +127,8 @@ _ALLOWLIST = (
     ),
     (
         "docs/**",
-        "scripts/profile-sites-dev.mjs",
-        "approved future artifact created by Session 3.9.3.4.1",
-    ),
-    (
-        "docs/**",
-        "scripts/profile-parse.mjs",
-        "approved future artifact created by Session 3.9.3.4.1",
-    ),
-    (
-        "docs/**",
-        "scripts/profile-parse.test.mjs",
-        "approved future artifact created by Session 3.9.3.4.1",
-    ),
-    (
-        "docs/**",
         "docs/ux-check/profiles/",
         "approved future gitignored profiler-output directory created by Session 3.9.3.4.1",
-    ),
-    (
-        "docs/**",
-        "docs/ux-check/probes/sites-lazy-detail.mjs",
-        "approved future probe definition created by Session 3.9.3.4.1",
-    ),
-    (
-        "docs/**",
-        "src/features/wormhole-sites/dev-sample.ts",
-        "approved future artifact created by Session 3.9.3.4.2",
-    ),
-    (
-        "docs/**",
-        "scripts/profile-sites-suite.mjs",
-        "approved future artifact created by Session 3.9.3.4.2",
     ),
     (
         "docs/**",
