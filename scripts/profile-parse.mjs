@@ -322,10 +322,11 @@ export function countDetailSentinels(html) {
   };
 }
 
-function renderedTagsWithAttribute(html, attribute) {
+export function renderedTagsWithAttribute(html, attribute) {
   const rendered = String(html).replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
+  const escapedAttribute = attribute.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(
-    `<[a-z][^>]*\\s${attribute}(?:\\s|=|>)[^>]*>`,
+    `<[a-z][^>]*\\s${escapedAttribute}(?:\\s|=|>)[^>]*>`,
     'gi',
   );
   return rendered.match(pattern) ?? [];

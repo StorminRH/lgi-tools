@@ -19,6 +19,7 @@ import {
   parsePsGroup,
   parseSwapUsage,
   parseVmStat,
+  renderedTagsWithAttribute,
   resolveProfileOutcome,
   selectPreflightRefusal,
   shapeProfileResult,
@@ -350,6 +351,15 @@ describe('catalogue markup extraction', () => {
 
   it('counts rendered card markers without counting RSC script decoys', () => {
     expect(extractCardCount(html)).toBe(2);
+  });
+
+  it('treats regex metacharacters in attribute names literally', () => {
+    expect(
+      renderedTagsWithAttribute(
+        '<div data.probe></div><div dataXprobe></div>',
+        'data.probe',
+      ),
+    ).toHaveLength(1);
   });
 
   it('extracts the rendered sample marker and ignores script content', () => {
