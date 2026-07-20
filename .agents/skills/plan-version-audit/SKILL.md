@@ -10,10 +10,10 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 28 -->
 
-Plan from `docs/VERSION_AUDIT.md` and `docs/DEVELOPMENT_LIFECYCLE.md` without
-copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
+Plan from `docs/VERSION_AUDIT.md` and the resolver directive without copying
+their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
 `docs/CODE_HEALTH_BASELINE.md` supplies the previous comparison.
 
 ## Sequence

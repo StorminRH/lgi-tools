@@ -11,7 +11,7 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 28 -->
 
 This skill sequences canonical documents and carries merge authorization; it
 does not restate their procedures. Read `docs/DESIGN_PRINCIPLES.md` as the
@@ -26,8 +26,8 @@ a failed gate or any unrelated production action.
 
 ## Sequence
 
-1. Read `docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and
-   `docs/DEVELOPMENT_LIFECYCLE.md`. Create a native Codex todo list from every
+1. Read `docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and the current resolver
+   directive. Create a native Codex todo list from every
    applicable phase and gate; keep one item in progress and reopen invalidated
    verification after fixes.
 2. Follow `docs/SESSION_END.md` completely. A branch push creates no Vercel

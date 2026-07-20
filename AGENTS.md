@@ -9,7 +9,7 @@ LGI.tools (Lo-Gang Industries) is a multi-tool web platform for EVE Online playe
 Before changing code:
 
 1. Run `python3 .agent-local/resolve_development_state.py --pretty`, then read
-   `docs/DEVELOPMENT_LIFECYCLE.md`, `docs/DESIGN_PRINCIPLES.md`, the current
+   `docs/DESIGN_PRINCIPLES.md`, the current
    `docs/CODE_HEALTH_BASELINE.md`, `docs/SCRATCHPAD.md`, and the resolved
    roadmap/contract/approved session plan in `docs/`.
 2. If `graphify-out/graph.json` exists, skim `graphify-out/GRAPH_REPORT.md` and query Graphify before searching source files.
@@ -24,8 +24,9 @@ primary artifact, and pause) before dispatching it. Stage skills own one
 procedure and return control to `start-session` after their outcome instead of
 selecting sibling skills. Planning directives require runtime Plan mode and
 Ryan's approval before their canonical artifact is written.
-`docs/SESSION_CONTRACTS.md` defines the source model; do not create or maintain a
-separate agent prompt.
+`docs/workflows/schema/session-contract.md` and
+`docs/workflows/schema/session-plan.md` define the artifact forms; the approved
+plan is the agent's execution prompt, so do not maintain a separate prompt.
 
 ## This is not the Next.js you remember
 
@@ -132,7 +133,8 @@ One hybrid TSDoc-lite style repo-wide:
 - Deferred work routes to `docs/backlog.md`, never a source `TODO`/`FIXME`.
 - Write interface comments before implementing; if the comment is hard to
   write, the interface is wrong (P7). Session plans include the draft
-  interface comments for every new export (`docs/SESSION_PLANNING.md` Step 8).
+  interface comments for every new export
+  (`docs/workflows/schema/session-plan.md`, Interfaces and contracts).
 - Comment quality is a judgment gate (pre-PR review), never a coverage or
   density metric (P10). A comment that restates the signature fails review.
 
@@ -314,8 +316,8 @@ This file and `src/AGENTS.md` are the canonical shared guidance for both Codex a
 
 - Keep shared project policy in `AGENTS.md`, `src/AGENTS.md`,
   `docs/AGENT_TOOLING.md`, `docs/DESIGN_PRINCIPLES.md`,
-  `docs/DEVELOPMENT_LIFECYCLE.md`, `docs/SESSION_CONTRACTS.md`,
-  `docs/SESSION_PLANNING.md`, `docs/SESSION_END.md`,
+  `docs/workflows/schema/session-contract.md`,
+  `docs/workflows/schema/session-plan.md`, `docs/SESSION_END.md`,
   `docs/PRE_PR_DESIGN_REVIEW.md`, `docs/PR_REVIEW.md`,
   `docs/VERSION_AUDIT.md`, or `docs/SELF_REVIEW.md`—never in two agent-specific
   copies. `docs/CODE_HEALTH_BASELINE.md` is living state, not policy.

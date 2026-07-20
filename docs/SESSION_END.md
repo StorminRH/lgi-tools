@@ -4,7 +4,7 @@
 > close out. It decides whether the session ends with a commit or a PR, and how
 > to update session memory. Companion files: `docs/PRE_PR_DESIGN_REVIEW.md`
 > (the design-decay gate), `PR_REVIEW.md` (the PR + Greptile loop),
-> `docs/DEVELOPMENT_LIFECYCLE.md` (version transitions),
+> `.agent-local/resolve_development_state.py` (version transitions),
 > `docs/SCRATCHPAD.md` (session memory — discoveries/gotchas),
 > `docs/backlog.md` (deferred work — the un-prioritized someday pile), and
 > `docs/SELF_REVIEW.md` (rules to follow at the end of a session, things to

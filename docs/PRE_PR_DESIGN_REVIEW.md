@@ -94,8 +94,8 @@ Did you leave the code you *touched* a little better than you found it — one
 rename, one dead branch removed, one leaked constant pulled home? Aim for
 exactly one small opportunistic cleanup per PR, inside the files already in the
 diff. Anything bigger you noticed goes to `docs/backlog.md` with a one-line
-diagnosis and a hotspot tag — not into this PR (the scope guard from
-`docs/SESSION_PLANNING.md` Step 8 applies to review time too).
+diagnosis and a hotspot tag — not into this PR (the approved plan's schema-owned
+Scope coverage applies to review time too).
 
 ## 6. Rail-conflict reconciliation (P10, DESIGN_PRINCIPLES §4)
 

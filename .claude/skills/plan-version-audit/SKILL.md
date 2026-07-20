@@ -9,14 +9,14 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 28 -->
 
 Run the resolver and require its directive to name `plan-version-audit` as the
 handler for lifecycle-driven Version close. Otherwise report it and return
 control to `start-session`; never select a sibling handler here. An explicit
 on-demand Periodic plan remains allowed and never archives. Use Claude Code Plan mode
-and sequence `docs/VERSION_AUDIT.md` with
-`docs/DEVELOPMENT_LIFECYCLE.md`. Read `docs/DESIGN_PRINCIPLES.md` and the current
+and sequence `docs/VERSION_AUDIT.md` with the resolver directive. Read
+`docs/DESIGN_PRINCIPLES.md` and the current
 `docs/CODE_HEALTH_BASELINE.md` first. A version-close mode requires every roadmap
 row terminal; an explicit on-demand run may be Periodic and never archives.
 If a stale procedure digest interrupts an existing remediation cycle, preserve

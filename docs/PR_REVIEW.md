@@ -336,7 +336,7 @@ automatically. After merge:
   Mark a mapped finding Delivered only after all its sub-versions have terminal
   merge evidence, report the resolver directive, and return control to
   `start-session` without selecting the next handler. Only a fresh clean audit
-  may archive the bundle per `docs/DEVELOPMENT_LIFECYCLE.md`.
+  may archive the bundle under the resolver's `archive-needed` directive.
 
 ---
 

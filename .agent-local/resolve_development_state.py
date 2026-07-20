@@ -14,8 +14,12 @@ from pathlib import Path
 
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
+CONTRACT_SCHEMA_RELPATH = "docs/workflows/schema/session-contract.md"
+PLAN_SCHEMA_RELPATH = "docs/workflows/schema/session-plan.md"
+POLICY_MANIFEST_RELPATH = ".agent-local/policy-manifest.json"
+RELEASE_CONSISTENCY_GATE = "python3 .agent-local/check_release_consistency.py --check"
 TERMINAL = ("SHIPPED", "COMPLETE", "DEFERRED", "CANCELLED")
-# Closed, case-sensitive marker vocabularies owned by docs/SESSION_CONTRACTS.md.
+# Closed, case-sensitive marker vocabularies owned by the canonical schemas.
 # Binding-era artifacts report any other present value with its file and value.
 MARKER_VOCABULARY = {
     "Execution status": ("Pending", "Complete"),
@@ -30,6 +34,27 @@ AUDIT_STATUSES = {
 }
 FINDING_CLASSES = {"floss", "campaign", "watch"}
 FINDING_STATUSES = {"open", "planned", "delivered", "verified", "watch"}
+CONTRACT_ID_SECTIONS = {
+    "DEP": "Current context and dependencies",
+    "DC": "Done conditions",
+    "IS": "In scope",
+    "OOS": "Out of scope",
+    "HC": "Hard constraints",
+    "PD": "Decisions the session plan must resolve",
+    "AC": "Acceptance criteria",
+    "V": "Verification",
+    "G": "UX/operator gates",
+}
+PLAN_ID_SECTIONS = {
+    "DEP": "Current state and prerequisites",
+    "IS": "Scope (the destination)",
+    "OOS": "Scope (the destination)",
+    "PD": "Resolved implementation decisions",
+    "DC": "Success criteria (agent-runnable — show the output)",
+    "AC": "Success criteria (agent-runnable — show the output)",
+    "V": "Success criteria (agent-runnable — show the output)",
+    "G": "Success criteria (agent-runnable — show the output)",
+}
 
 
 @dataclass(frozen=True)
@@ -74,6 +99,7 @@ class WorkflowDirective:
             "authority": self.authority,
             "primaryArtifact": self.primary_artifact,
             "pause": self.pause,
+            "preDispatchGate": RELEASE_CONSISTENCY_GATE if self.handler is not None else None,
         }
 
 
@@ -175,10 +201,303 @@ def marker(path: Path, label: str) -> str | None:
     return match.group(1).strip().strip("`") if match else None
 
 
+def schema_headings(path: Path, level: int) -> list[str] | None:
+    """Return one schema's ordered headings, or None when its form is unusable."""
+    if not path.is_file():
+        return None
+    headings = re.findall(rf"^{'#' * level} (.+?)\s*$", path.read_text(encoding="utf-8"), re.MULTILINE)
+    if not headings or len(headings) != len(set(headings)):
+        return None
+    return headings
+
+
+def required_contract_sections(root: Path) -> list[str] | None:
+    """Return the schema-derived numbered contract titles, or None when unusable."""
+    path = root / CONTRACT_SCHEMA_RELPATH
+    if not path.is_file():
+        return None
+    parsed = [
+        (int(number), title.strip())
+        for number, title in re.findall(
+            r"^## (\d+)\. (.+?)\s*$",
+            path.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+    ]
+    if not parsed:
+        return None
+    numbers = [number for number, _ in parsed]
+    titles = [title for _, title in parsed]
+    if numbers != list(range(1, len(parsed) + 1)) or len(titles) != len(set(titles)):
+        return None
+    return titles
+
+
+def contract_section_titles(contract: Path) -> list[str]:
+    """Return ordered numbered titles, preserving missing-file error ownership."""
+    if not contract.is_file():
+        return []
+    return [
+        title.strip()
+        for _, title in re.findall(
+            r"^## (\d+)\. (.+?)\s*$",
+            contract.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+    ]
+
+
+def section_bodies(path: Path, level: int) -> dict[str, str]:
+    """Split a Markdown artifact into bodies owned by one heading level."""
+    if not path.is_file():
+        return {}
+    text = path.read_text(encoding="utf-8")
+    pattern = re.compile(rf"^{'#' * level} (.+?)\s*$", re.MULTILINE)
+    matches = list(pattern.finditer(text))
+    return {
+        match.group(1).strip(): text[match.end() : matches[index + 1].start() if index + 1 < len(matches) else len(text)].strip()
+        for index, match in enumerate(matches)
+    }
+
+
+def legacy_schema_artifacts(root: Path) -> set[str]:
+    """Return exact repository-relative artifacts grandfathered by policy."""
+    path = root / POLICY_MANIFEST_RELPATH
+    if not path.is_file():
+        return set()
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return set()
+    values = manifest.get("developmentState", {}).get("legacySchemaArtifacts", [])
+    return {value for value in values if isinstance(value, str)} if isinstance(values, list) else set()
+
+
+def schema_allowlisted(path: Path, root: Path) -> bool:
+    try:
+        relative = str(path.relative_to(root))
+    except ValueError:
+        return False
+    return relative in legacy_schema_artifacts(root)
+
+
+def contract_item_ids(path: Path) -> dict[str, list[str]]:
+    """Return schema-owned item definitions found in their canonical sections."""
+    bodies = section_bodies(path, 2)
+    definitions: dict[str, list[str]] = {}
+    for prefix, title in CONTRACT_ID_SECTIONS.items():
+        body = bodies.get(next((heading for heading in bodies if heading.endswith(f". {title}")), ""), "")
+        definitions[prefix] = re.findall(
+            rf"^\s*-\s+\*\*({prefix}-\d+)(?:\s*[:—])",
+            body,
+            re.MULTILINE,
+        )
+    return definitions
+
+
+def contract_schema_violations(path: Path, root: Path) -> list[str]:
+    """Return structural and reference violations for a non-legacy contract."""
+    required = required_contract_sections(root)
+    if required is None:
+        return [f"canonical contract schema is unusable: {CONTRACT_SCHEMA_RELPATH}"]
+    titles = contract_section_titles(path)
+    expected = required
+    violations: list[str] = []
+    text = path.read_text(encoding="utf-8")
+    first = next((line for line in text.splitlines() if line.strip()), "")
+    if not first.startswith(f"## Session {path.stem} — "):
+        violations.append(f"first heading must identify Session {path.stem}")
+    subversion = marker(path, "Sub-version")
+    if subversion is None or not re.match(r"\d+\.\d+\.\d+(?:\.\d+)*\b", subversion):
+        violations.append("Sub-version marker is missing or invalid")
+    master_plan = marker(path, "Master plan")
+    if master_plan is None or not re.match(r"docs/VERSION_\d+_\d+_PLAN\.md`?\s+§\d+\.\d+\.\d+", master_plan):
+        violations.append("Master plan marker is missing or invalid")
+    if marker(path, "UX gate") not in MARKER_VOCABULARY["UX gate"]:
+        violations.append("UX gate must be Yes or No")
+    numbered = [
+        (int(number), title.strip())
+        for number, title in re.findall(r"^## (\d+)\. (.+?)\s*$", text, re.MULTILINE)
+    ]
+    all_h2 = re.findall(r"^## (.+?)\s*$", text, re.MULTILINE)
+    expected_h2 = [first.removeprefix("## ")] + [
+        f"{number}. {title}" for number, title in enumerate(expected, start=1)
+    ]
+    if all_h2 != expected_h2 or [number for number, _ in numbered] != list(
+        range(1, len(expected) + 1)
+    ):
+        violations.append(
+            "contract headings must be the session heading plus canonical numbered sections only"
+        )
+    if titles != expected:
+        missing = [title for title in expected if title not in titles]
+        if missing:
+            violations.append("missing required sections: " + ", ".join(missing))
+        if not missing or titles != [title for title in expected if title in titles]:
+            violations.append("numbered sections must appear exactly once in canonical order")
+        return violations
+    bodies = section_bodies(path, 2)
+    for number, title in enumerate(expected, start=1):
+        if not bodies.get(f"{number}. {title}", "").strip():
+            violations.append(f"section {number}. {title} is empty")
+
+    definitions = contract_item_ids(path)
+    for prefix, identifiers in definitions.items():
+        if prefix == "G" and not identifiers:
+            continue
+        expected_ids = [f"{prefix}-{number}" for number in range(1, len(identifiers) + 1)]
+        if not identifiers:
+            violations.append(f"{CONTRACT_ID_SECTIONS[prefix]} must define at least one {prefix}-N item")
+        elif identifiers != expected_ids:
+            violations.append(f"{prefix}-N definitions must be unique and contiguous from {prefix}-1")
+
+    defined = {identifier for identifiers in definitions.values() for identifier in identifiers}
+    referenced = set(re.findall(r"\b(?:DEP|DC|IS|OOS|HC|PD|AC|V|G)-\d+\b", text))
+    unknown = sorted(referenced - defined)
+    if unknown:
+        violations.append("references undefined contract identifiers: " + ", ".join(unknown))
+    acceptance_body = bodies.get("8. Acceptance criteria", "")
+    for acceptance in definitions["AC"]:
+        item = re.search(
+            rf"^\s*-\s+\*\*{re.escape(acceptance)}(?:\s*[:—])([\s\S]*?)(?=^\s*-\s+\*\*AC-\d+(?:\s*[:—])|\Z)",
+            acceptance_body,
+            re.MULTILINE,
+        )
+        if item is None or not re.search(r"\bDC-\d+\b", item.group(1)):
+            violations.append(f"{acceptance} must name the DC-N condition it proves")
+    for done in definitions["DC"]:
+        if done not in acceptance_body:
+            violations.append(f"{done} is not proved by any AC-N item")
+    if re.search(r"\b(?:TBD|TODO|FIXME)\b|\bX\.Y\.N\b", text, re.IGNORECASE):
+        violations.append("contract contains a placeholder token")
+    return violations
+
+
+def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
+    """Return machine-verifiable plan-form and contract-coverage violations."""
+    schema = root / PLAN_SCHEMA_RELPATH
+    required_h2 = schema_headings(schema, 2)
+    required_h3 = schema_headings(schema, 3)
+    if required_h2 is None or required_h3 is None:
+        return [f"canonical session-plan schema is unusable: {PLAN_SCHEMA_RELPATH}"]
+    text = path.read_text(encoding="utf-8")
+    actual_h2 = re.findall(r"^## (.+?)\s*$", text, re.MULTILINE)
+    actual_h3 = re.findall(r"^### (.+?)\s*$", text, re.MULTILINE)
+    violations: list[str] = []
+    if actual_h2 != required_h2:
+        violations.append("required ## sections must appear exactly once in canonical order")
+    if actual_h3 != required_h3:
+        violations.append("required ### subsections must appear exactly once in canonical order")
+    bodies = section_bodies(path, 2)
+    schema_bodies = section_bodies(schema, 2)
+    for title in required_h2:
+        expected_subsections = re.findall(r"^### (.+?)\s*$", schema_bodies.get(title, ""), re.MULTILINE)
+        actual_subsections = re.findall(r"^### (.+?)\s*$", bodies.get(title, ""), re.MULTILINE)
+        if actual_subsections != expected_subsections:
+            violations.append(f"section {title!r} has misplaced or missing subsections")
+    for title in required_h2:
+        if not bodies.get(title, "").strip():
+            violations.append(f"section {title!r} is empty")
+
+    relative_contract = str(contract.relative_to(root))
+    first = next((line for line in text.splitlines() if line.strip()), "")
+    if not first.startswith(f"# Session {path.stem} Implementation Plan — "):
+        violations.append(f"first heading must identify Session {path.stem} Implementation Plan")
+    expected_markers = {
+        "Plan status": "Approved",
+        "Contract": relative_contract,
+        "Contract digest": f"sha256:{sha256(contract)}",
+        "Planning standard": PLAN_SCHEMA_RELPATH,
+    }
+    for label, expected_value in expected_markers.items():
+        if marker(path, label) != expected_value:
+            violations.append(f"{label} must be {expected_value!r}")
+    approved = marker(path, "Approved")
+    if approved is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", approved):
+        violations.append("Approved must be a YYYY-MM-DD date")
+    if marker(path, "Execution status") not in MARKER_VOCABULARY["Execution status"]:
+        violations.append("Execution status must be Pending or Complete")
+    baseline_effect = marker(path, "Baseline effect")
+    if baseline_effect not in MARKER_VOCABULARY["Baseline effect"]:
+        violations.append("Baseline effect has an invalid value")
+    ux_gate = marker(contract, "UX gate")
+    plan_ux_match = re.search(
+        r"^\*\*Contract UX gate:\*\*\s+`?(Yes|No)`?\s+·\s+\*\*required pause:\*\*\s+\S",
+        text,
+        re.MULTILINE,
+    )
+    if plan_ux_match is None or plan_ux_match.group(1) != ux_gate:
+        violations.append("Contract UX gate must match the contract marker")
+    if not re.search(r"^\*\*Branch:\*\*\s+\S.+\*\*ends in PR:\*\*\s+(?:yes|no)\s+·\s+\*\*gate:\*\*\s+\S", text, re.MULTILINE | re.IGNORECASE):
+        violations.append("Bottom line must contain the exact Branch / ends in PR / gate marker")
+    if "<hard_constraints>" not in bodies.get("Bottom line (READ FIRST)", "") or "</hard_constraints>" not in bodies.get("Bottom line (READ FIRST)", ""):
+        violations.append("Bottom line must contain the hard_constraints block")
+    for label in ("GOAL:", "DONE =", "OUT OF SCOPE:"):
+        if not re.search(rf"^\s*-\s+\*\*{re.escape(label)}\*\*\s+\S", bodies.get("Bottom line (READ FIRST)", ""), re.MULTILINE):
+            violations.append(f"Bottom line must contain a non-empty {label} item")
+    if re.search(r"\b(?:TBD|TODO|FIXME)\b|\bX\.Y\.N\b|\b(?:DEP|DC|IS|OOS|HC|PD|AC|V|G|SC)-N\b", text, re.IGNORECASE):
+        violations.append("plan contains a placeholder token")
+
+    definitions = contract_item_ids(contract)
+    expected_locations = dict(PLAN_ID_SECTIONS)
+    expected_locations["HC"] = "Bottom line (READ FIRST)"
+    for prefix, identifiers in definitions.items():
+        location = expected_locations[prefix]
+        body = bodies.get(location, "")
+        for identifier in identifiers:
+            if identifier not in body:
+                violations.append(f"{identifier} is missing from {location}")
+    defined = {identifier for identifiers in definitions.values() for identifier in identifiers}
+    referenced = set(re.findall(r"\b(?:DEP|DC|IS|OOS|HC|PD|AC|V|G)-\d+\b", text))
+    unknown = sorted(referenced - defined)
+    if unknown:
+        violations.append("plan references undefined contract identifiers: " + ", ".join(unknown))
+
+    prerequisites = bodies.get("Current state and prerequisites", "")
+    for dependency in definitions["DEP"]:
+        if not re.search(rf"^\|\s*`?{re.escape(dependency)}`?\s*\|\s*`?Verified`?\s*\|", prerequisites, re.MULTILINE):
+            violations.append(f"{dependency} must have a Verified prerequisite row")
+    if re.search(r"\|\s*`?Blocking`?\s*\|", prerequisites):
+        violations.append("an approved plan cannot contain a Blocking prerequisite")
+
+    success = bodies.get("Success criteria (agent-runnable — show the output)", "")
+    success_ids = re.findall(r"^\s*-\s+\*\*(SC-\d+)\s+—", success, re.MULTILINE)
+    expected_success = [f"SC-{number}" for number in range(1, len(success_ids) + 1)]
+    if not success_ids or success_ids != expected_success:
+        violations.append("SC-N criteria must be unique and contiguous from SC-1")
+    for success_id in success_ids:
+        match = re.search(
+            rf"^\s*-\s+\*\*{re.escape(success_id)}\s+—([\s\S]*?)(?=^\s*-\s+\*\*SC-\d+\s+—|\Z)",
+            success,
+            re.MULTILINE,
+        )
+        if match is None or "`" not in match.group(1) or "→" not in match.group(1):
+            violations.append(f"{success_id} must pair a runnable command or inspection with exact output")
+    bottom = bodies.get("Bottom line (READ FIRST)", "")
+    if success_ids:
+        explicit = all(identifier in bottom for identifier in success_ids)
+        ranged = f"SC-1 through {success_ids[-1]}" in bottom
+        if not explicit and not ranged:
+            violations.append("DONE must reference every SC-N criterion")
+    if baseline_effect and not re.search(rf"\*\*Effect:\*\*\s+`?{re.escape(baseline_effect)}`?\b", bodies.get("Design pressure and baseline effect", "")):
+        violations.append("Baseline effect body must match the header marker")
+    end = bodies.get("End of session", "")
+    for label in ("Delivery", "Lifecycle artifacts", "Handoff"):
+        if not re.search(rf"^\s*-\s+\*\*{re.escape(label)}:\*\*\s+\S", end, re.MULTILINE):
+            violations.append(f"End of session must contain a non-empty {label} item")
+    return violations
+
+
 def vocabulary_binds(version: str) -> bool:
     """Return whether active artifacts must satisfy the 3.9 marker schema."""
     major, minor = (int(part) for part in version.split(".", maxsplit=1))
     return (major, minor) >= (3, 9)
+
+
+def workflow_schema_binds(version: str) -> bool:
+    """Return whether the canonical contract and plan forms are mandatory."""
+    major, minor = (int(part) for part in version.split(".", maxsplit=1))
+    return (major, minor) >= (3, 10)
 
 
 def marker_value_error(
@@ -257,6 +576,10 @@ def approved_session_plan(
             return False, "The session plan has invalid marker values.", marker_errors
         if values["Baseline effect"] is None:
             return False, "The session plan is missing its Baseline effect marker.", []
+    if workflow_schema_binds(version) and not schema_allowlisted(path, root):
+        violations = plan_schema_violations(path, contract, root)
+        if violations:
+            return False, "The session plan does not conform to the canonical schema.", violations
     return True, "The approved session plan matches the current contract.", []
 
 
@@ -439,6 +762,38 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
             )
 
         session, contract, plan = remaining[0]
+        if not contract.is_file():
+            return invalid_state(
+                common,
+                f"contract index entry {session} points to missing {contract.relative_to(root)}",
+                errors,
+            )
+        if (
+            workflow_schema_binds(version)
+            and not schema_allowlisted(contract, root)
+            and required_contract_sections(root) is None
+        ):
+            return invalid_state(
+                common,
+                f"The canonical contract schema is missing or unusable: {CONTRACT_SCHEMA_RELPATH}",
+                errors,
+            )
+        if workflow_schema_binds(version) and not schema_allowlisted(contract, root):
+            violations = contract_schema_violations(contract, root)
+            if violations:
+                required = required_contract_sections(root) or []
+                actual = contract_section_titles(contract)
+                missing = [title for title in required if title not in actual]
+                return {
+                    **common,
+                    "stage": "contract-repair-needed",
+                    "subversion": incomplete.subversion,
+                    "session": session,
+                    "contract": str(contract.relative_to(root)),
+                    "missingContractSections": missing,
+                    "contractSchemaViolations": violations,
+                    "reason": "The selected contract does not conform to the canonical schema.",
+                }, errors
         ux_gate: str | None = None
         if vocabulary_binds(version):
             ux_gate = marker(contract, "UX gate")
@@ -593,6 +948,16 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Read-only until the contract decomposition is approved.",
             primary_artifact=str(state["masterPlan"]),
             pause="Contract decomposition approval is required.",
+        )
+    if stage == "contract-repair-needed":
+        violations = "; ".join(str(item) for item in state.get("contractSchemaViolations", []))
+        return WorkflowDirective(
+            action=f"Repair contract {state['contract']} to the canonical schema: {violations}",
+            handler=None,
+            mode="report",
+            authority="Limited to restoring the named contract's required schema on the active branch.",
+            primary_artifact=str(state["contract"]),
+            pause="Contract repair is required before the session can be planned or executed.",
         )
     if stage == "session-plan-needed":
         return WorkflowDirective(

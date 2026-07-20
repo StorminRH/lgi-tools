@@ -6,7 +6,7 @@ version, or an approved periodic health pass for a long-running version.
 approved `docs/version-audits/X.Y/PLAN.md` exists, including after audit
 remediation; periodic audits use the same procedure without archival.
 **Constitution:** `docs/DESIGN_PRINCIPLES.md`.
-**Lifecycle:** `docs/DEVELOPMENT_LIFECYCLE.md`.
+**Lifecycle:** `.agent-local/resolve_development_state.py`.
 **Output:** a complete replacement of `docs/CODE_HEALTH_BASELINE.md`, backlog and
 campaign decisions, any warranted rail/doc corrections, and—at version close—a
 verified archived version bundle.
@@ -85,8 +85,8 @@ commands live in the version's approved audit plan, derived from the baseline's
 current rows.
 
 The churn window here is deliberately the **version lens** — since the previous
-baseline ref/date — and intentionally differs from `docs/SESSION_PLANNING.md`
-Step 2's rolling three-month proximity window: the audit measures a version's
+baseline ref/date — and intentionally differs from the session-plan schema's
+Hotspot proximity evidence: the audit measures a version's
 accumulated pressure, planning measures current neighborhood risk.
 
 `fallow:health` is expected to exit nonzero when it reports existing health
@@ -283,7 +283,7 @@ For a clean version close:
    cycle to contain no new actionable finding;
 3. require every audit gate to pass and the refreshed baseline Code ref to equal
    `Audited ref`, then set `**Audit status:** Complete`;
-4. follow `docs/DEVELOPMENT_LIFECYCLE.md` §7 to archive the master plan,
+4. follow the resolver's `archive-needed` directive to archive the master plan,
    contract directory, session-plan directory, and audit-plan directory as one
    version bundle;
 5. keep `docs/CODE_HEALTH_BASELINE.md` active;

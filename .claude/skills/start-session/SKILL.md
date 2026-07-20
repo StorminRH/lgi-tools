@@ -11,10 +11,11 @@ description: >-
 
 # Start an LGI.tools session
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 28 -->
 
-`docs/DEVELOPMENT_LIFECYCLE.md` defines lifecycle semantics; the resolver is the
-sole mechanical owner of current-state validation and handler selection. Treat
+The resolver is the sole mechanical owner of lifecycle semantics, current-state
+validation, and handler selection. The session contract and plan schemas own
+artifact meaning. Treat
 `docs/DESIGN_PRINCIPLES.md` as the constitution and
 `docs/CODE_HEALTH_BASELINE.md` as current health. Contracts are product intent,
 SCRATCHPAD is observed handoff, and live code is current fact.
@@ -28,8 +29,8 @@ owning document, and keep one task active. Plan mode directives stay read-only
 until Ryan approves and the handler persists its canonical artifact. Never
 create a separate prompt file.
 
-After reporting the directive and before dispatch, run `python3
-.agent-local/check_release_consistency.py --check`. Both valid signatures are
+After reporting the directive and before dispatch, run its `preDispatchGate`,
+currently `python3 .agent-local/check_release_consistency.py --check`. Both valid signatures are
 accepted; any other release identity blocks dispatch as lifecycle drift.
 
 Every handler returns control here after its artifact or delivery outcome.
@@ -40,7 +41,7 @@ artifact, report the resolver's new directive and stop instead of dispatching
 it; execution begins in a fresh `start-session`, whichever runtime runs it.
 
 When the directive names `start-session` as its handler, read the instruction
-chain, lifecycle, constitution, baseline, master-plan context, contract/index,
+chain, constitution, baseline, master-plan context, contract/index,
 approved session plan, SCRATCHPAD, and relevant backlog entries. Follow
 Graphify-first exploration; verify moving APIs from current primary docs.
 Reconcile the contract digest, branch/worktree, and prerequisites. Material

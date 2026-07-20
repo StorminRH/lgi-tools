@@ -10,16 +10,17 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 28 -->
 
 Use Claude Code Plan mode and the native task list. Require the lifecycle
 resolver directive to name `plan-audit-remediation` as the handler. Otherwise
 report it and return control to `start-session`; never select a sibling handler
 or create a separate prompt/remediation execution artifact here.
 
-Read `docs/DESIGN_PRINCIPLES.md`, `docs/SESSION_PLANNING.md`,
+Read `docs/DESIGN_PRINCIPLES.md`, `docs/workflows/schema/session-contract.md`,
+`docs/workflows/schema/session-plan.md`,
 `docs/PRE_PR_DESIGN_REVIEW.md`, and `docs/VERSION_AUDIT.md` in full and in that
-order. Then read the lifecycle, contract schema, current baseline, audit plan
+order. Then read the resolver directive, current baseline, audit plan
 and `AF-NNN` ledger, `docs/CODE_HEALTH_BASELINE.md`, master plan, SCRATCHPAD,
 relevant backlog, Graphify output, and live code.
 
