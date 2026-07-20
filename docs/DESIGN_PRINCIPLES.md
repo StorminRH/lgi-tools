@@ -185,7 +185,7 @@ either fix it in-flow (small) or file it to `docs/backlog.md` (large):
 | Temporal decomposition | Modules named for pipeline steps instead of owned knowledge |
 | Pass-through layer | Function/component that forwards with no added abstraction |
 | Wide public surface | Context value / barrel / props object where consumers use ≤3 of many fields |
-| Mixed change axes | One file that changes for unrelated reasons (see auth/queries.ts, §5) |
+| Mixed change axes | One file that changes for unrelated product, persistence, and presentation reasons |
 | Conjoined methods | You can't understand one function without reading its sibling |
 | Special-case creep | Flags/optional params multiplying to route around a design |
 | Voodoo constant | A threshold/magic value exported for callers to pass back in |
