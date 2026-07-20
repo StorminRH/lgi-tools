@@ -107,7 +107,7 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
 | --- | --- |
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
-| `pnpm build` | Production build |
+| `pnpm build` | Production build (CI/Vercel only — do not run locally) |
 | `pnpm verify` | Definition-of-done bundle: typecheck + lint + test + fallow |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm test` | Run the Vitest suite once |

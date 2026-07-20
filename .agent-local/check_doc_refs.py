@@ -166,6 +166,11 @@ _ALLOWLIST = (
         "approved deliberately-untracked local pattern file created by Session 3.9.1.5; never resolves on a fresh clone",
     ),
     (
+        "docs/session-plans/3.9/3.9.5.1.md",
+        "src/lib/eve-image.test.ts",
+        "approved future artifact created by Session 3.9.5.1",
+    ),
+    (
         "docs/**",
         ".agent-local/comment-sweep/",
         "approved deliberately-untracked scratch tooling directory for the 3.9.1.7 slice (plans .1/.2 and the SCRATCHPAD handoff); deleted at sub-version close and never resolves on a fresh clone",

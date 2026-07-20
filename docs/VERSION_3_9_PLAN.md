@@ -82,6 +82,9 @@ campaign: none — the queue is empty.
 | 3.9.3.8 | Public document truth pass (README/CONTRIBUTING/templates/.env.example/legal) | 1 | SHIPPED |
 | **Phase 4 — Continuity & recovery** | | | |
 | 3.9.4.1 | Smoke confirmation, security-report verification & DB-privilege hardening (amended 2026-07-19) | 1 | SHIPPED |
+| **Phase 5 — Audit remediation** | | | |
+| 3.9.5.1 | Audit-hygiene remediation (AF-010/011/012 docs truth; AF-014 image size; AF-015 saved-plan naming) | 1 | PLANNED |
+| 3.9.5.2 | Coverage remediation for four untested modules (AF-013) | 1 | PLANNED |
 
 *(Elective health campaign: none scheduled — decision recorded below the
 phase narratives. The cycle-2 campaign queue is empty. Sessions 3.9.3.6,
@@ -1328,12 +1331,14 @@ only).
 the Node event loop, and driving the machine into swap.
 
 **Evidence (backlog: "Infra & bundle"; full diagnosis in
-`DEV_PERF_DIAGNOSIS.md`, archived in the Document Archive root).** Root cause already diagnosed: the page
-assembles the entire catalogue and eagerly server-renders every site's
-full detail body per request with no prerender warm cache. The doc's
-A/B/C plan is the session-plan seed: profile/confirm the stall,
-lazy-render detail bodies (helps dev *and* prod), and a dev-only
-sample-data mode. **Done means.** The stall is profiled and confirmed
+`DEV_PERF_DIAGNOSIS.md`, archived in the Document Archive root).** Profiling
+found that the historical >60-second stall did not recur from a clean `.next`;
+the measured cause was a bloated `.next` watcher spin plus memory starvation,
+not per-request eager detail rendering. The shipped lazy-detail change keeps
+collapsed catalogue HTML free of detail bodies. The delivered opt-in,
+development-only sample mode renders a representative 20 of 69 sites; its
+counterbalanced cold median was 80.2% of normal, inside the 110% ceiling, with
+no cold request above 60 seconds. **Done means.** The stall is profiled and confirmed
 (diagnosis-first — the doc predates 3.8's changes); the lazy-render step
 ships behavior-preserving with the prod rendering modes unchanged in
 `route-classification.json` unless justified; the dev sample mode is
@@ -1664,6 +1669,41 @@ rotations (report staleness findings); storing values.
 home. **Delivery evidence.** The committed runbook; the dev dry-run
 readout.
 
+## Phase 5 — Audit remediation (3.9.5.x)
+
+**Arc thesis.** The 3.9 version-close audit (cycle 1, `ef2e7df`) confirmed the
+codebase's structure is healthy but surfaced six actionable findings that block
+archive. This phase is the deliberate, lifecycle-sanctioned reopening of the
+terminal roadmap (`docs/DEVELOPMENT_LIFECYCLE.md` §3/§6) to remediate them before
+a clean cycle-2 audit archives the version. It is **not** an elective health
+campaign — the no-campaign decision below still stands. Every finding is a
+truth-or-hygiene defect; no product API, schema, route, or UI behavior changes.
+
+Two sessions, strict-sequenced:
+
+- **3.9.5.1 — Audit-hygiene remediation** (trivial-tier, one PR). Three
+  documentation-truth fixes — the archived §3.9.3.4 dev-performance root-cause
+  narrative (AF-010), the README local production-build invitation (AF-011), and
+  the constitution's P7 exemplar citations to files deleted in v3.8 (AF-012) —
+  plus two behavior-preserving code tidy-ups: one lower-layer owner for the EVE
+  image size vocabulary (AF-014) and making the unimported render-verdict type
+  file-local so it stops colliding with the saved-plans controller name (AF-015).
+
+- **3.9.5.2 — Coverage remediation** (one PR). AF-013, re-diagnosed. Reproducing
+  the pinned audit proved the six "introduced complexity" findings are
+  coverage-driven CRAP (all under the raw complexity thresholds) on four modules
+  with genuinely zero test coverage (`skill-queue/queries.ts`,
+  `eve-data/ingest.ts`, `eve-data/station-names.ts`, `db/skills-sync.ts`); the
+  3.9.1.7 comment migration merely pulled them into the whole-version lens. The
+  honest fix is real behavioral coverage (constitution default; never a waiver),
+  after which the pinned gate passes on its own — no Fallow change, upgrade, or
+  custom tooling.
+
+**Delivery.** Normal `plan-session` → execution → `close-out` per session; each
+finding is marked Delivered on terminal merge evidence. When both sub-versions
+are terminal, the resolver restarts a complete cycle-2 audit against the advanced
+`main`; a clean cycle archives v3.9.
+
 ## Elective health campaign: none (decision recorded)
 
 Per the one-elective-campaign rule: **no structural campaign is scheduled
@@ -1756,5 +1796,9 @@ the 3.9 version-close audit.
 - [ ] Phase 4: the smoke runs browser-first again; the deferred continuity,
       recovery-drill, and bootstrap intent remains preserved in the
       unversioned backlog.
+- [ ] Phase 5: every cycle-1 audit finding (AF-010–AF-015) is Delivered through
+      its mapped sub-version and the cycle-2 audit verifies each required outcome
+      (docs truth restored, image-size vocabulary single-owner, saved-plan names
+      distinct, the four modules covered and the pinned Fallow gate green).
 - [ ] Version-close audit planned and run per `docs/VERSION_AUDIT.md`
       (which, after 3.9.1.1, no longer names version-specific surfaces).
