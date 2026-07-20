@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { characterPortraitUrl, corporationLogoUrl, type EveImageSize } from './eve-image';
 
-const EXISTING_IMAGE_SIZES: EveImageSize[] = [32, 64, 128, 256, 512];
+const IMAGE_SIZES: EveImageSize[] = [32, 64, 128, 256, 512, 1024];
 
 describe('EVE image URL builders', () => {
   it('keeps the default portrait and corporation URLs at 64 pixels', () => {
@@ -13,7 +13,7 @@ describe('EVE image URL builders', () => {
     );
   });
 
-  it.each(EXISTING_IMAGE_SIZES)(
+  it.each(IMAGE_SIZES)(
     'keeps portrait and corporation URLs byte-identical at %i pixels',
     (size) => {
       expect(characterPortraitUrl(2112625428, size)).toBe(

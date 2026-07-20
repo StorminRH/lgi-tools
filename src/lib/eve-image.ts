@@ -9,7 +9,7 @@ const IMAGE_HOST = 'https://images.evetech.net';
  * Supported square EVE image rendition in pixels; requests are snapped upward to one of these
  * server-backed sizes.
  */
-export type EveImageSize = 32 | 64 | 128 | 256 | 512;
+export type EveImageSize = 32 | 64 | 128 | 256 | 512 | 1024;
 
 /** Builds the canonical EVE character-portrait URL for a supported square pixel size. */
 export function characterPortraitUrl(characterId: number, size: EveImageSize = 64): string {
