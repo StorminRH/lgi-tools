@@ -121,7 +121,7 @@ Cross-slice composition belongs above the participating slices; `src/db/sde-pipe
 
 ## Comment standard
 
-One hybrid TSDoc-lite style repo-wide (enforcement lands with 3.9.1.7):
+One hybrid TSDoc-lite style repo-wide:
 
 - Every exported surface in `src/` and `convex/` production code carries a
   `/** */` interface comment: summary prose stating the contract — what it
@@ -262,15 +262,20 @@ Use repository skills for their matching workflows:
   sub-versions/contracts for every actionable close-audit finding.
 - `version-audit`: execute the approved audit, overwrite the live health baseline, and archive a completed version only after the audit passes.
 - `triage-issue`: validate an issue/contribution and report options before taking outward action.
+- `update-watch`: run the report-only daily dependency, security, platform, and EVE update watch.
 - `ux-check`: scripted desktop/mobile capture and console/network review for changed UI routes.
 
 ### Claude subagent routing
 
-Claude Code never launches a native Claude subagent. Whenever any workflow
-calls for a subagent—planning, exploration, execution support, triage, audit
-work, or review—Claude launches a headless `gpt-5.6-sol` worker through the
-Codex CLI. Choose its effort from the Claude seat that would otherwise have
-handled the task:
+Delegate to subagents proactively—at least as often as you would reach for a
+native subagent, and ideally more. Fan exploration, research, design synthesis,
+review, triage, and audit legwork out to parallel workers by default instead of
+doing it inline; a task a native Claude subagent would handle is a task to
+delegate here. The one constraint is *how*: every subagent is a headless
+`gpt-5.6-sol` worker launched through the Codex CLI, never a native Claude
+agent. Whenever a workflow—or your own judgment—could use a subagent, launch
+one. Choose its effort from the Claude seat that would otherwise have handled
+the task:
 
 | Equivalent Claude seat | Headless Codex worker | Typical use |
 | --- | --- | --- |

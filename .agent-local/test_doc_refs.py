@@ -144,6 +144,62 @@ class DocRefsTests(unittest.TestCase):
         )
         self.assertEqual([], self.rendered())
 
+    def test_record_sources_suppress_repository_path_errors(self) -> None:
+        record_sources = (
+            "session-plans/3.10/3.10.0.1.md",
+            "session-contracts/3.10/nested/contract.md",
+            "version-audits/3.10/PLAN.md",
+            "SCRATCHPAD.md",
+            "VERSION_3_10_PLAN.md",
+            "backlog.md",
+            "CODE_HEALTH_BASELINE.md",
+        )
+        for source in record_sources:
+            with self.subTest(source=source):
+                self.fixture.write(source, "Future record: `docs/not-created-yet.md`.\n")
+                self.assertEqual([], self.rendered())
+
+    def test_record_source_archive_redirect_still_warns(self) -> None:
+        self.fixture.write(
+            "VERSION_3_10_PLAN.md",
+            "Historical evidence: `docs/SCALING_AUDIT_FINDINGS.md`.\n",
+        )
+        self.assertEqual(
+            [
+                (
+                    "warn",
+                    "docs/VERSION_3_10_PLAN.md:1: archive reference does not resolve: "
+                    "../LGI Tools Document Archive/SCALING_AUDIT_FINDINGS.md",
+                )
+            ],
+            self.rendered(),
+        )
+
+    def test_record_source_relative_reference_still_warns(self) -> None:
+        self.fixture.write("backlog.md", "Future archive: `../missing`.\n")
+        self.assertEqual(
+            [
+                (
+                    "warn",
+                    "docs/backlog.md:1: archive reference does not resolve: ../missing",
+                )
+            ],
+            self.rendered(),
+        )
+
+    def test_non_record_source_still_reports_repository_path_errors(self) -> None:
+        self.fixture.write("CONVEX.md", "See `docs/not-created-yet.md`.\n")
+        self.assertEqual(
+            [
+                (
+                    "error",
+                    "docs/CONVEX.md:1: repository path does not resolve: "
+                    "docs/not-created-yet.md",
+                )
+            ],
+            self.rendered(),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

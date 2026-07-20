@@ -14,7 +14,7 @@ description: >-
 
 # UX check (LGI.tools)
 
-<!-- shared-policy-revision: 26 -->
+<!-- shared-policy-revision: 27 -->
 
 A fast, scripted replacement for the Codex Desktop auto-verify preview loop, **for
 UI verification only**. Drives a headless Chromium over the running dev server,
