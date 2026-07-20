@@ -1,39 +1,9 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import {
-  EVE_IMAGE_SIZES,
-  EveImage,
-  type EveImageFamily,
-  eveImageUrl,
-  snapEveImageSize,
-} from './eve-image';
-
-const FAMILIES: EveImageFamily[] = [
-  'character-portrait',
-  'corporation-logo',
-  'alliance-logo',
-  'type-icon',
-  'type-render',
-  'type-bp',
-  'type-bpc',
-];
+import { EveImage, eveImageUrl } from './eve-image';
 
 describe('EveImage loader', () => {
-  it('snaps up the CCP size ladder and caps at its maximum', () => {
-    expect(snapEveImageSize('character-portrait', 1)).toBe(32);
-    expect(snapEveImageSize('character-portrait', 32)).toBe(32);
-    expect(snapEveImageSize('character-portrait', 33)).toBe(64);
-    expect(snapEveImageSize('character-portrait', 1024)).toBe(1024);
-    expect(snapEveImageSize('character-portrait', 2048)).toBe(1024);
-  });
-
-  it.each(FAMILIES)('uses the documented ladder for %s', (family) => {
-    expect(EVE_IMAGE_SIZES.map((size) => snapEveImageSize(family, size))).toEqual(
-      EVE_IMAGE_SIZES,
-    );
-  });
-
   it('replaces size while preserving other image-server parameters', () => {
     const result = eveImageUrl('type-render', {
       src: 'https://images.evetech.net/types/587/render?tenant=singularity&size=32',

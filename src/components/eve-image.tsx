@@ -1,39 +1,7 @@
 'use client';
 
 import Image, { type ImageLoaderProps, type ImageProps } from 'next/image';
-
-/**
- * Canonical components policy for eve image sizes; consumers derive behavior from this single
- * ordered definition.
- */
-export const EVE_IMAGE_SIZES = [32, 64, 128, 256, 512, 1024] as const;
-const MAX_EVE_IMAGE_SIZE = 1024;
-
-/**
- * Supported square EVE image rendition in pixels; requests are snapped upward to one of these
- * server-backed sizes.
- */
-export type EveImageSize = (typeof EVE_IMAGE_SIZES)[number];
-
-/** Closed set of EVE image-server endpoint families supported by the shared image wrapper. */
-export type EveImageFamily =
-  | 'character-portrait'
-  | 'corporation-logo'
-  | 'alliance-logo'
-  | 'type-icon'
-  | 'type-render'
-  | 'type-bp'
-  | 'type-bpc';
-
-const FAMILY_SIZES: Record<EveImageFamily, readonly EveImageSize[]> = {
-  'character-portrait': EVE_IMAGE_SIZES,
-  'corporation-logo': EVE_IMAGE_SIZES,
-  'alliance-logo': EVE_IMAGE_SIZES,
-  'type-icon': EVE_IMAGE_SIZES,
-  'type-render': EVE_IMAGE_SIZES,
-  'type-bp': EVE_IMAGE_SIZES,
-  'type-bpc': EVE_IMAGE_SIZES,
-};
+import { snapEveImageSize, type EveImageFamily } from '@/lib/eve-image';
 
 type SharedImageProps = Omit<
   ImageProps,
@@ -57,15 +25,6 @@ type StaticEveImageProps = SharedImageProps & {
 
 /** Caller contract for rendering eve image; the component owns presentation while callers own domain data. */
 export type EveImageProps = RemoteEveImageProps | StaticEveImageProps;
-
-/** Rounds a requested pixel size up to the nearest supported EVE image rendition, capped at 1024 pixels. */
-export function snapEveImageSize(
-  family: EveImageFamily,
-  requestedWidth: number,
-): EveImageSize {
-  const sizes = FAMILY_SIZES[family];
-  return sizes.find((size) => size >= requestedWidth) ?? MAX_EVE_IMAGE_SIZE;
-}
 
 /** Builds the canonical EVE image-server URL for one family, identifier, rendition, and snapped pixel size. */
 export function eveImageUrl(
