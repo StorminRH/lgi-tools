@@ -9,26 +9,26 @@
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-07-19 |
-| App version | 3.9.5.1 |
-| Code ref | `fd64745e58a715b4484aa2e7219ef9e3f5e8f236` on `codex/3.9-version-close-audit` (pre-merge targeted pass) |
-| Measurement scope | Targeted: EVE image-size ownership and saved-plan state contracts |
-| Previous comparison | 2026-07-19 / 3.9.4.1 / `ef2e7dfc79548c0ca47ddbe81200b04cbd7204ae` (full audit) |
-| Health trend | The duplicated EVE image-size policy now has one lower-layer owner and the saved-plan render verdict is private and distinctly named; generated URLs, rendering, and controller behavior remain unchanged. |
+| Date | 2026-07-20 |
+| App version | 3.9.5.2 |
+| Code ref | `250816eba53a4b827804450548db1be7369d0814` on `codex/3.9.5.2-coverage-remediation` (pre-merge targeted pass) |
+| Measurement scope | Targeted: AF-013 coverage remediation for four previously untested modules |
+| Previous comparison | 2026-07-19 / 3.9.5.1 / `fd64745e58a715b4484aa2e7219ef9e3f5e8f236` (targeted pass) |
+| Health trend | Real behavioral coverage now exercises the six coverage-driven CRAP findings through existing seams; the version-start-pinned Fallow audit passes with no production-logic, threshold, waiver, baseline, or suppression change. |
 
 ## Step 1 metrics
 
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
 | Production TS/TSX files | 762 | 762 | Flat versus the previous baseline; whole-version shape grew from 749 at `291ee78` (+13) |
-| Production TS/TSX LOC | 73,072 | 73,064 | +8 from centralizing the image-size policy and distinguishing the saved-plan view verdict |
-| Test files | 364 | 363 | +1 co-located EVE image URL and size-policy characterization suite |
-| Coverage — statements | 85.57% | 85.56% | +0.01 pp; 8,574 / 10,019 from fresh full-Postgres coverage; all 3,544 tests passed |
-| Coverage — branches | 83.22% | 83.19% | +0.03 pp; 5,126 / 6,159 |
-| Coverage — functions | 81.78% | 81.74% | +0.04 pp; 2,159 / 2,640 |
-| Coverage — lines | 86.50% | 86.49% | +0.01 pp; 7,557 / 8,736 |
+| Production TS/TSX LOC | 73,072 | 73,072 | Flat; the four flagged production modules remain byte-unchanged |
+| Test files | 368 | 364 | +4 co-located behavioral suites for the AF-013 modules |
+| Coverage — statements | 86.90% | 85.57% | +1.33 pp; 8,707 / 10,019 from fresh full-Postgres coverage; 3,553 tests passed plus one unrelated skip |
+| Coverage — branches | 84.25% | 83.22% | +1.03 pp; 5,189 / 6,159 |
+| Coverage — functions | 82.84% | 81.78% | +1.06 pp; 2,187 / 2,640 |
+| Coverage — lines | 87.90% | 86.50% | +1.40 pp; 7,679 / 8,736 |
 | Fallow health score | 78 (B) | 78 (B) | Carried from the previous full audit; the targeted pass changed no threshold or health-score policy |
-| Functions above health thresholds | 6 | 6 | Carried from the previous full audit; this targeted pass did not touch the AF-013 modules |
+| Functions above health thresholds | 0 | 6 | All six coverage-driven CRAP findings clear through real behavioral coverage |
 | Auth query-hub exports | 0 | 0 | Deleted surface remains absent |
 | `PricingContextValue` fields | 0 | 0 | Deleted interface remains absent |
 | `usePricing()` call sites | 0 | 0 | Deleted hook remains absent |
@@ -40,7 +40,7 @@
 | ESI dataset registry entries | 13 | — | New tracked v3.9 surface; one complete placement/freshness/refresh declaration per dataset |
 | Freshness leaf breadth | 3 functions / 15 production importers | — | New tracked v3.9 surface; 19 importers including tests |
 | Cron shell declarations | 7 | — | New tracked v3.9 surface; every scheduled route declares through `defineCronRoute` |
-| Real-Postgres harness consumers | 14 | — | New tracked v3.9 test-infrastructure surface |
+| Real-Postgres harness consumers | 17 | 14 | +3 DB suites; the shared harness remains the only lifecycle owner |
 | Dataset declaration census | 56 tables / 4 index tests | — | New tracked v3.9 rail joining identity, purge, growth, and ESI declarations |
 | API contract completeness | 52 routes / 17 contract modules | — | New tracked v3.9 surface; live gate green |
 | EVE type-image resolver breadth | 8 exports / 6 functions / 16 production importers | — | New tracked v3.9 surface; 22 importers including tests |
@@ -48,7 +48,7 @@
 | Source suppressions | 21 | 21 | Flat: 5 generated / 7 test-only / 9 production |
 | Whole-version Fallow clone groups | 0 | 0 | No clone groups in the version-start-pinned run |
 | Accepted duplication baseline clone groups | 0 | 0 | `fallow-baselines/dupes.json` remains empty |
-| Version-start-pinned Fallow verdict | Fail | — | JSON attributes five unchanged complexity findings as introduced, marks all six rows `introduced: true`, and correctly classifies two duplicate-export pairs as inherited; AF-013 |
+| Version-start-pinned Fallow verdict | Pass | Fail | Fresh full-Postgres coverage clears AF-013 with zero introduced findings across 993 changed files |
 
 The version-start shape was extracted from
 `291ee78bb1f0231f06a021b910f1181ad8c39bff` and measured under the same
@@ -103,11 +103,11 @@ mistaken for product pressure.
 | `src/data/esi-refresh-jobs/queries.ts` | 13 exports and 17 direct importers around one durable queue lifecycle | Preserve lifecycle cohesion and keep Redis pending-signal ownership separate; extract only on a second persistence concern | Watch (AF-007); countable trigger below |
 | ESI dataset registry and freshness leaf | 13 declarations; the 3-function leaf has 15 production importers; one rationale-bearing `market_history` waiver owns the dynamic expiry exception | Keep declarations complete and the verdict leaf narrow; new trigger, retry, and persistence policies stay with their owning layers | Enforced wide primitive; no finding |
 | Cron declaration shell | Seven route declarations centralize auth, wake, lock, and recording policy; both sub-daily idle paths are covered | Keep `defineCronRoute` the sole route-policy owner and preserve schedule/import rails | AF-009 Closed; no renewed clone pressure |
-| Real-Postgres harness and dataset census | One harness serves all 14 DB suites; the 56-table census joins four declaration concerns through tests without merging their vocabularies | Keep test lifecycle and declaration completeness centralized while registry semantics remain with their owners | Enforced test infrastructure; no finding |
+| Real-Postgres harness and dataset census | One harness serves all 17 DB suites; the 56-table census joins four declaration concerns through tests without merging their vocabularies | Keep test lifecycle and declaration completeness centralized while registry semantics remain with their owners | Enforced test infrastructure; no finding |
 | API contract surface | 52 routes are checked against 17 owning contract modules, markers, and endpoint-object use | Add schemas and endpoint objects in the owning slice; keep composition and validation in route handlers | Enforced wide surface; no finding |
 | EVE type-image intent resolver | Eight exports (six functions) serve 16 production importers; rendition literals outside the owner are lint-blocked | Grow the intent vocabulary only for a real new rendition decision; keep raw variants private | Enforced wide primitive; no finding |
-| EVE image size policy | `src/lib/eve-image.ts` is the sole owner of the 32–1024 ladder, family support, snapping, and portrait/logo URL types; the `next/image` adapter consumes it, with defaults and every rendition characterized byte-for-byte | Keep server-capability facts in lib and rendering in the component; add a size or family only at the lib owner with behavior evidence | AF-014 Floss; remediation implemented in 3.9.5.1, delivery pending |
-| Saved-plan state contracts | The view-only verdict is file-local `SavedPlansViewState`; the unchanged client controller remains the sole exported `SavedPlansState` | Keep the render verdict private and the controller contract with its hook; do not recreate a shared name for distinct concepts | AF-015 Floss; remediation implemented in 3.9.5.1, delivery pending |
+| EVE image size policy | `src/lib/eve-image.ts` is the sole owner of the 32–1024 ladder, family support, snapping, and portrait/logo URL types; the `next/image` adapter consumes it, with defaults and every rendition characterized byte-for-byte | Keep server-capability facts in lib and rendering in the component; add a size or family only at the lib owner with behavior evidence | AF-014 Delivered in 3.9.5.1; cycle-2 verification pending |
+| Saved-plan state contracts | The view-only verdict is file-local `SavedPlansViewState`; the unchanged client controller remains the sole exported `SavedPlansState` | Keep the render verdict private and the controller contract with its hook; do not recreate a shared name for distinct concepts | AF-015 Delivered in 3.9.5.1; cycle-2 verification pending |
 
 ### Watch triggers
 
@@ -124,11 +124,10 @@ AF-008: files(zone:auth-surface) >= 4
 ```
 
 Protected deep modules remain non-goals: `tree-resolver.ts`, `convex/engine.ts`,
-`src/lib/esi/`, `src/lib/api-client.ts`, and `src/lib/env.ts`. The fresh health
-report's six above-threshold functions are inherited from v3.8, have modest
-cyclomatic/cognitive scores, and each owns one cohesive transformation or query
-axis. Breadth, unrelated churn, and amplification do not coincide, so P10
-records the signal without creating work.
+`src/lib/esi/`, `src/lib/api-client.ts`, and `src/lib/env.ts`. The six formerly
+above-threshold functions remain cohesive and byte-unchanged; real behavioral
+coverage now clears their coverage-driven CRAP without fragmenting their
+interfaces or creating metric-shaped production code.
 
 ## Rails and exceptions
 
@@ -140,11 +139,10 @@ records the signal without creating work.
   contract and inline-endpoint checks; Base UI/sonner ownership; EVE image
   variant ownership; exported-surface comment rules; and the dataset declaration
   census all pass their durable seeded-red/live-green suites.
-- **Pinned Fallow attribution:** the required version-start audit is red. Its
-  JSON correctly marks both duplicate-export pairs inherited, but attributes
-  five comment-only complexity findings as introduced while all six finding
-  rows say `introduced: true`. AF-013 requires semantic, internally consistent
-  attribution without a waiver, baseline, or coverage-padding workaround.
+- **Pinned Fallow attribution:** the required version-start audit is green after
+  fresh full-Postgres coverage. All six AF-013 functions execute through real
+  seams, and the audit reports zero introduced findings without a waiver,
+  baseline, suppression, or attribution workaround.
 - **Standing rails:** the ESI dispatch gate, `EveImage` ownership, route
   classification, same-origin coverage, purge/growth registries, and environment
   registry remain connected.
@@ -152,11 +150,10 @@ records the signal without creating work.
   `global-cron-names-route` waiver because the ESI response supplies a dynamic
   `Expires` boundary and on-view refresh has no cron owner. The rationale remains
   specific and current.
-- **Lifecycle/public truth:** all 34 indexed contracts exist, all 28 executed
-  plans are approved and complete, and the six deferred contracts are preserved
-  intentionally beside their backlog dispositions. Public-document truth holds
-  except for the three bounded AF-010–AF-012 findings recorded in the approved
-  audit plan.
+- **Lifecycle/public truth:** all 34 indexed contracts exist; 29 session plans
+  are approved, with the 28 delivered plans complete and 3.9.5.2 pending terminal
+  merge evidence. The six deferred contracts remain preserved beside their
+  backlog dispositions, and AF-010–AF-012 documentation truth is delivered.
 
 ### Standing Fallow threshold overrides
 
@@ -184,10 +181,10 @@ None. `thresholdOverrides` is empty.
 
 | Priority | Campaign | Charter summary | Status | Trigger / next action |
 | ---: | --- | --- | --- | --- |
-| 1 | AF-013 — coverage for four untested modules | Add real behavioral coverage to the four zero-coverage modules (`skill-queue/queries.ts`, `eve-data/ingest.ts`, `eve-data/station-names.ts`, `db/skills-sync.ts`) whose coverage-driven CRAP the whole-version lens flags; re-diagnosed from the cycle-1 attribution theory, the pinned gate clears once the code is genuinely tested | Planned | 3.9.5.2 session plan |
+| 1 | AF-013 — coverage for four untested modules | Real behavioral coverage now exercises the flagged skill-save, SDE-ingest, station-name, and queued-skill-name paths through their existing seams; the four production modules remain byte-unchanged and the pinned gate passes without an exception | Planned | Mark Delivered on 3.9.5.2 merge, then verify in the complete cycle-2 audit |
 
 AF-006–AF-008 remain Watch. AF-013 was reclassified Campaign → Floss during
-remediation planning (a genuine coverage gap, not a tooling defect — see the
-audit ledger's re-diagnosis note). AF-010–AF-015 are all bounded Floss routed
-through the Phase 5 audit remediation (3.9.5.1 hygiene, 3.9.5.2 coverage) before
-version archive.
+remediation planning; its required outcome is green on the current 3.9.5.2
+branch, but terminal merge evidence is still required before Delivered, and only
+the complete cycle-2 audit may mark it Verified. AF-010–AF-015 are all bounded
+Floss routed through the Phase 5 audit remediation before version archive.
