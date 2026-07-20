@@ -177,6 +177,22 @@ _ALLOWLIST = (
     ),
 )
 
+# RECORD documents preserve historical decisions or machine-owned lifecycle
+# state. Each entry is (source glob, reason); only unresolved repository-path
+# errors are exempted, while archive and relative-reference warnings still run.
+_RECORD_SOURCES = (
+    ("docs/session-plans/**", "approved implementation plans are frozen history"),
+    ("docs/session-contracts/**", "approved session contracts are frozen history"),
+    ("docs/version-audits/**", "version audit plans and evidence are frozen history"),
+    ("docs/SCRATCHPAD.md", "session handoff history is a durable record"),
+    ("docs/VERSION_*_PLAN.md", "the active roadmap is resolver-owned living state"),
+    ("docs/backlog.md", "deferred work is machine-owned living state"),
+    (
+        "docs/CODE_HEALTH_BASELINE.md",
+        "the health baseline is validated by purpose-built checkers",
+    ),
+)
+
 # Old tokens retained in historical prose map to their verified archive homes.
 # A missing operator-machine archive warns instead of blocking another machine.
 _ARCHIVE_REDIRECTS = (
@@ -261,6 +277,23 @@ def _allowlisted(source: str, token: str) -> bool:
     return any(
         fnmatch(source, source_glob) and token == allowed_token and bool(reason.strip())
         for source_glob, allowed_token, reason in _ALLOWLIST
+    )
+
+
+def _is_record_source(source: str) -> bool:
+    """Return whether a scanned document is RECORD (exempt from path errors).
+
+    RECORD is frozen history (prior/current plans, contracts, audits, and
+    SCRATCHPAD) and machine-owned living state (the active roadmap, backlog,
+    and code-health baseline). These legitimately reference archived, deleted,
+    or not-yet-created paths, are never rewritten to satisfy this checker, and
+    have their real validity owned by the resolver and check_baseline_claims —
+    not by generic path existence. Only the plain unresolved-repository-path
+    error is suppressed; archive-redirect and ``../`` warnings still fire.
+    """
+    return any(
+        fnmatch(source, source_glob) and bool(reason.strip())
+        for source_glob, reason in _RECORD_SOURCES
     )
 
 
@@ -358,7 +391,7 @@ def collect_findings(root: Path) -> list[Finding]:
                             )
                         )
                     continue
-                if not _path_exists(root, token):
+                if not _path_exists(root, token) and not _is_record_source(source):
                     findings.append(
                         Finding(
                             source,

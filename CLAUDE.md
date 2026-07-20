@@ -10,9 +10,12 @@
   the current session; start a new session only if that top-level tree was
   created after the session began.
 - Use Claude's background Bash execution for long-lived polls or servers and Claude's image/file reading tools for local UX artifacts.
-- Never launch native Claude subagents. When a workflow needs a subagent, run a
-  headless `codex exec -m gpt-5.6-sol` background task with
-  `-c model_reasoning_effort="<effort>"`. Map the Claude seat to Codex effort:
+- Use subagents proactively and liberally—at least as much as you would use
+  native subagents. Delegate exploration, research, design synthesis, review, and
+  audit legwork to parallel workers by default rather than doing it inline. Every
+  subagent is a headless `codex exec -m gpt-5.6-sol` background task (never a
+  native Claude agent), run with `-c model_reasoning_effort="<effort>"`. Map the
+  Claude seat to Codex effort:
   Opus 4.8 → `high`, Sonnet → `medium`, Haiku → `low`; use `xhigh` only when
   the workflow explicitly requires it or high cannot resolve the task. Set the
   Claude background task's visible description to

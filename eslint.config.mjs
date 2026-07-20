@@ -77,7 +77,7 @@ const rgbaColorSelectors = [
 
 // Type-scale enforcement (3.8.2.1): raw bracketed pixel font sizes belong on the
 // named ladder — the `--text-*` scale in globals.css `@theme` (micro, label, ui,
-// body, lead, h3, stat, h2, display). Mirrors the hex-color ban: a plain className
+// body, lead, h3, stat, h2, display, hero). Mirrors the hex-color ban: a plain className
 // Literal and an interpolated (cva/clsx/cn) TemplateElement. The regex matches only
 // a bracketed numeric px/rem/em value, so it never fires on clamp() or var()
 // arbitrary values, width brackets, or leading utilities. Deliberately NOT added to
@@ -90,7 +90,7 @@ const textSizeSelectors = [
   {
     selector: "Literal[value=/text-\\[[0-9.]+(px|rem|em)\\]/]",
     message:
-      "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display), backed by the `--text-*` tokens in globals.css `@theme`. See CONTRIBUTING.md (Type scale).",
+      "No raw arbitrary font sizes — use the named type scale (micro/label/ui/body/lead/h3/stat/h2/display/hero), backed by the `--text-*` tokens in globals.css `@theme`. See CONTRIBUTING.md (Type scale).",
   },
   {
     selector: "TemplateElement[value.raw=/text-\\[[0-9.]+(px|rem|em)\\]/]",
@@ -819,7 +819,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Gitignored working docs (SCRATCHPAD, plan/audit artifacts) — not source.
+    // Tracked workflow and product docs are prose, not lint source.
     "docs/**",
     // Gitignored local-only Claude Code state, incl. harness worktrees under
     // .claude/worktrees/** (a full repo copy whose prefixed paths bypass the

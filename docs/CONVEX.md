@@ -77,8 +77,7 @@ A query's **read set** is the exact set of index ranges + document IDs it touche
 range the query scanned, does NOT re-run it. So the primary lever for low invalidation
 (and low re-read I/O) is to **scope every subscription to the narrowest index range that
 serves the UI**: `withIndex()` records a tight read set; an unindexed `.filter()` /
-`.collect()` records the whole scanned range AND counts filtered-out rows. Index-over-
-filter is lint-enforced (`@convex-dev/eslint-plugin`).
+`.collect()` records the whole scanned range AND counts filtered-out rows.
 
 Two corollaries that refine the rules below:
 
@@ -152,8 +151,9 @@ sections below already own one-engine, cadence floors, and ETag/304 — not repe
    the gate's ETag/304 reuse.)
 4. **Bound every collection read; subscribe to the smallest slice.** Any query over a
    *growing* set (subjects, signatures, "all X for map/user") uses `.take()` +
-   continuation — never unbounded `.collect()` (the per-mutation read ceiling, §below;
-   the `engine.ts:208-211` scan is a known latent breach to fix before ~41k users).
+   continuation — never unbounded `.collect()` (the per-mutation read ceiling, §below).
+   The sync engine follows this rule with indexed, oldest-first batches that drain over
+   subsequent runs.
    Views subscribe to the minimal doc, never the whole blob "just in case."
    **Failure mode — over-sharding:** "one doc per data point" is wrong when it makes a
    collection (200 signatures = 200 docs ⇒ "load the map" reads 200 docs toward the

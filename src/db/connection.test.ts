@@ -73,6 +73,7 @@ describe('request-path db (Neon HTTP driver)', () => {
   });
 
   it('lazily constructs the neon-http client off DATABASE_URL on first use', async () => {
+    vi.stubEnv('LOCAL_DB_DRIVER', '');
     vi.stubEnv('DATABASE_URL', POOLED);
     const { db } = await import('./index');
     expect(neonMock).not.toHaveBeenCalled(); // import alone holds no connection

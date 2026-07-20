@@ -1,5 +1,5 @@
 {
-  "policyRevision": 26,
+  "policyRevision": 27,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -356,6 +356,7 @@
   "ignoredPaths": [
     ".claude/settings.local.json",
     ".claude/launch.json",
+    ".claude/worktrees/",
     "docs/ux-check/captures/",
     "docs/margin-audit/",
     ".agent-local/tooling-parity-report.json",

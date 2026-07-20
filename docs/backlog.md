@@ -434,6 +434,28 @@ is reprioritized.
   would pre-empt that choice; 3.9.3.8 is description-only. *Size:* XS if comment-only, S if storage
   behavior changes. *Trigger:* the next telemetry or privacy-data pass.
 
+- **Release-consistency gate false-positives at the new-version boundary** (found
+  2026-07-20 opening v3.10). *What:* `check_release_consistency.py --check` — which
+  `start-session` runs as a pre-dispatch gate — fails with
+  `content/changelog/vX.Y.md: missing parseable changelog entry` at the exact moment
+  a new master roadmap lands but no sub-version has shipped (previous version
+  archived, all `VERSION_X_Y_PLAN.md` rows `PLANNED`, `APP_VERSION` still the last
+  shipped value). This is structural, not drift: a version's changelog file and its
+  `APP_VERSION` bump are opened *by its first sub-version's PR* (v3.9 precedent —
+  commit `c094dd2` "Open v3.9…", #247, created `v3.9.md` and bumped
+  `3.8.5.5`→`3.9.1.1` together), so neither the `pre-pr` nor the `reconciled`
+  signature can hold before that first session ships. The checker mechanically
+  can't be green through the entire plan-version/plan-session(X.Y.first) window,
+  so the dispatch gate "blocks" on a benign, self-resolving transient (it clears
+  when the first sub-version merges). Directly analogous to the already-understood
+  archived→"no active roadmap" transient. *Why deferred:* the checker is correct
+  everywhere else; teaching it (and the `start-session` gate) to recognize the
+  "version opened, first session not yet shipped" state as a valid transient is a
+  deliberate lifecycle-tooling change, and how to encode that state is itself a
+  decision. *Size:* S. *Trigger:* the next lifecycle-tooling pass; natural fit for
+  a 3.10 Phase 0 resolver/checker slice (e.g. 3.10.0.1 "green the gate honestly"),
+  but left here deferred per operator instruction rather than auto-absorbed.
+
 ## Security (deep-research report, 2026-07-19)
 
 > From the external Security Deep-Research Report (snapshot `141e914`, findings
