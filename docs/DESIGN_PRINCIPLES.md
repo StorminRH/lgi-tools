@@ -62,7 +62,8 @@ lives in exactly one module; nothing else may need to know it exists.
 execution order (`validate → transform → persist → notify` files). Structure
 around who *owns the knowledge*. This repo already does this well
 (`membership.ts` = pure verdicts, `affiliation.ts` = orchestration,
-`queries.ts` = DB half); preserve that separation of "policy vs. plumbing".
+`affiliation-store.ts` = DB half); preserve that separation of "policy vs.
+plumbing".
 
 ### P3 — New layer, new abstraction
 
@@ -116,10 +117,11 @@ special case, or a widened context object "just for now".
 
 Comments exist to hold what code cannot express: interface contracts, design
 rationale, invariants, units, ownership, why-not-the-obvious-way. This repo's
-rationale-dense comment style (see the section banners in
-`src/features/auth/queries.ts`, the field docs in `PricingContextValue`) is
-correct — keep it. Write interface comments **before** implementing; if the
-comment is hard to write, the interface is wrong.
+rationale-dense comment style (see the module prologue in
+`src/features/auth/membership.ts`, the field docs in `PlannerConfigValue` in
+`src/features/industry-planner/components/planner-contexts.tsx`) is correct —
+keep it. Write interface comments **before** implementing; if the comment is
+hard to write, the interface is wrong.
 
 > **Test:** Does the comment say something the signature doesn't? Delete
 > comments that restate code. Add comments wherever a reviewer would ask "why?".
@@ -183,7 +185,7 @@ either fix it in-flow (small) or file it to `docs/backlog.md` (large):
 | Temporal decomposition | Modules named for pipeline steps instead of owned knowledge |
 | Pass-through layer | Function/component that forwards with no added abstraction |
 | Wide public surface | Context value / barrel / props object where consumers use ≤3 of many fields |
-| Mixed change axes | One file that changes for unrelated reasons (see auth/queries.ts, §5) |
+| Mixed change axes | One file that changes for unrelated product, persistence, and presentation reasons |
 | Conjoined methods | You can't understand one function without reading its sibling |
 | Special-case creep | Flags/optional params multiplying to route around a design |
 | Voodoo constant | A threshold/magic value exported for callers to pass back in |

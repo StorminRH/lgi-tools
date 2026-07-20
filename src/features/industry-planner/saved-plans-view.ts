@@ -32,16 +32,20 @@ export function savedEmptyLine(args: { listFailed: boolean; signedOut: boolean }
  * The /industry/templates manager's render state: `blank` while the very first
  * read (or roster) is still in flight, `empty` (with its cause line) for a
  * settled-empty / failed / signed-out list, else `list`. Pure so the page stays a
- * render shell over the shared list hook.
+ * render shell over the shared list hook. File-local because only the view
+ * builder consumes this verdict.
  */
-export type SavedPlansState = { kind: 'blank' } | { kind: 'empty'; line: string } | { kind: 'list' };
+type SavedPlansViewState =
+  | { kind: 'blank' }
+  | { kind: 'empty'; line: string }
+  | { kind: 'list' };
 
 /** Derives loading, empty, populated, and quota state for the saved-plans manager. */
 export function savedPlansViewState(
   plans: readonly SavedPlanRow[] | null,
   roster: readonly unknown[] | null,
   listFailed: boolean,
-): SavedPlansState {
+): SavedPlansViewState {
   const signedOut = roster !== null && roster.length === 0;
   const settledEmpty = plans !== null && plans.length === 0;
   if (plans === null || (settledEmpty && !listFailed && roster === null)) return { kind: 'blank' };

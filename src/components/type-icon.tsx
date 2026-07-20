@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import type { TypeIconVariant } from '@/data/eve-data/type-images';
-import { EveImage, type EveImageFamily } from './eve-image';
+import type { EveImageFamily } from '@/lib/eve-image';
+import { EveImage } from './eve-image';
 import { cn } from './ui/cn';
 
 // Renders an item image from the EVE image server, with a graceful fallback.

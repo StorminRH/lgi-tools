@@ -434,14 +434,6 @@ is reprioritized.
   would pre-empt that choice; 3.9.3.8 is description-only. *Size:* XS if comment-only, S if storage
   behavior changes. *Trigger:* the next telemetry or privacy-data pass.
 
-- **DESIGN_PRINCIPLES P7 cites deleted example surfaces** (found by the 3.9.1.1 doc-ref sweep).
-  *What:* P7's comment-style examples name `src/features/auth/queries.ts` section banners and the
-  `PricingContextValue` field docs — both deleted by the 3.8.5.x remediation. Replace with live
-  examples (e.g. the auth owner modules, `tree-resolver.ts`). *Why deferred:* P1–P10 text is frozen
-  for 3.9 (contract hard constraint); example citations are still P-text. *Size:* XS.
-  *Trigger:* the 3.9 version-close audit's constitution review, or Ryan approves the one-line
-  amendment sooner.
-
 ## Security (deep-research report, 2026-07-19)
 
 > From the external Security Deep-Research Report (snapshot `141e914`, findings
