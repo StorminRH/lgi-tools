@@ -10,25 +10,25 @@
 | Field | Value |
 | --- | --- |
 | Date | 2026-07-19 |
-| App version | 3.9.4.1 |
-| Code ref | `ef2e7dfc79548c0ca47ddbe81200b04cbd7204ae` |
-| Measurement scope | Full audit |
-| Previous comparison | 2026-07-18 / 3.9.3.2 / `38d1a6d7ca5e00f706f0be821926fac814486bc8` |
-| Health trend | Structural metrics held, but the full audit found five bounded Floss defects and a Fallow attribution Campaign; the version-start-pinned gate is red until remediation makes introduced-vs-inherited reporting truthful. |
+| App version | 3.9.5.1 |
+| Code ref | `fd64745e58a715b4484aa2e7219ef9e3f5e8f236` on `codex/3.9-version-close-audit` (pre-merge targeted pass) |
+| Measurement scope | Targeted: EVE image-size ownership and saved-plan state contracts |
+| Previous comparison | 2026-07-19 / 3.9.4.1 / `ef2e7dfc79548c0ca47ddbe81200b04cbd7204ae` (full audit) |
+| Health trend | The duplicated EVE image-size policy now has one lower-layer owner and the saved-plan render verdict is private and distinctly named; generated URLs, rendering, and controller behavior remain unchanged. |
 
 ## Step 1 metrics
 
 | Metric | Current | Previous | Delta / note |
 | --- | ---: | ---: | --- |
 | Production TS/TSX files | 762 | 762 | Flat versus the previous baseline; whole-version shape grew from 749 at `291ee78` (+13) |
-| Production TS/TSX LOC | 73,064 | 73,064 | Flat versus the previous baseline; whole-version shape grew from 66,348 (+6,716) |
-| Test files | 363 | 363 | Flat versus the previous baseline; whole-version shape grew from 352 (+11) |
-| Coverage — statements | 85.56% | 85.46% | +0.10 pp; 8,571 / 10,017 from fresh full-Postgres coverage; all 3,537 tests passed |
-| Coverage — branches | 83.19% | 83.05% | +0.14 pp; 5,124 / 6,159 |
-| Coverage — functions | 81.74% | 81.56% | +0.18 pp; 2,158 / 2,640 |
-| Coverage — lines | 86.49% | 86.40% | +0.09 pp; 7,555 / 8,735 |
-| Fallow health score | 78 (B) | 78 (B) | Flat |
-| Functions above health thresholds | 6 | 0 | Fresh health report corrected the carried zero; all six are inherited cohesive routines and are P10 signals, while AF-013 tracks their false introduced attribution |
+| Production TS/TSX LOC | 73,072 | 73,064 | +8 from centralizing the image-size policy and distinguishing the saved-plan view verdict |
+| Test files | 364 | 363 | +1 co-located EVE image URL and size-policy characterization suite |
+| Coverage — statements | 85.57% | 85.56% | +0.01 pp; 8,574 / 10,019 from fresh full-Postgres coverage; all 3,544 tests passed |
+| Coverage — branches | 83.22% | 83.19% | +0.03 pp; 5,126 / 6,159 |
+| Coverage — functions | 81.78% | 81.74% | +0.04 pp; 2,159 / 2,640 |
+| Coverage — lines | 86.50% | 86.49% | +0.01 pp; 7,557 / 8,736 |
+| Fallow health score | 78 (B) | 78 (B) | Carried from the previous full audit; the targeted pass changed no threshold or health-score policy |
+| Functions above health thresholds | 6 | 6 | Carried from the previous full audit; this targeted pass did not touch the AF-013 modules |
 | Auth query-hub exports | 0 | 0 | Deleted surface remains absent |
 | `PricingContextValue` fields | 0 | 0 | Deleted interface remains absent |
 | `usePricing()` call sites | 0 | 0 | Deleted hook remains absent |
@@ -106,8 +106,8 @@ mistaken for product pressure.
 | Real-Postgres harness and dataset census | One harness serves all 14 DB suites; the 56-table census joins four declaration concerns through tests without merging their vocabularies | Keep test lifecycle and declaration completeness centralized while registry semantics remain with their owners | Enforced test infrastructure; no finding |
 | API contract surface | 52 routes are checked against 17 owning contract modules, markers, and endpoint-object use | Add schemas and endpoint objects in the owning slice; keep composition and validation in route handlers | Enforced wide surface; no finding |
 | EVE type-image intent resolver | Eight exports (six functions) serve 16 production importers; rendition literals outside the owner are lint-blocked | Grow the intent vocabulary only for a real new rendition decision; keep raw variants private | Enforced wide primitive; no finding |
-| EVE image size policy | `src/components/eve-image.tsx` exports a 32–1024 ladder while `src/lib/eve-image.ts` separately exports a 32–512 type for the same server-backed size decision | Give the size vocabulary one lower-layer owner and have the wrapper and URL builders consume it without changing rendered URLs | AF-014 Floss; Planned (3.9.5.1) |
-| Saved-plan state contracts | `saved-plans-view.ts` and `use-saved-plans.ts` export different concepts under the same `SavedPlansState` name | Name the render verdict and client controller distinctly, keeping each contract with its current owner | AF-015 Floss; Planned (3.9.5.1) |
+| EVE image size policy | `src/lib/eve-image.ts` is the sole owner of the 32–1024 ladder, family support, snapping, and portrait/logo URL types; the `next/image` adapter consumes it, with defaults and every rendition characterized byte-for-byte | Keep server-capability facts in lib and rendering in the component; add a size or family only at the lib owner with behavior evidence | AF-014 Floss; remediation implemented in 3.9.5.1, delivery pending |
+| Saved-plan state contracts | The view-only verdict is file-local `SavedPlansViewState`; the unchanged client controller remains the sole exported `SavedPlansState` | Keep the render verdict private and the controller contract with its hook; do not recreate a shared name for distinct concepts | AF-015 Floss; remediation implemented in 3.9.5.1, delivery pending |
 
 ### Watch triggers
 
