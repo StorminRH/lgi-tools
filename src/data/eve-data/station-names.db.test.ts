@@ -89,7 +89,8 @@ describe.skipIf(!harness.reachable)('resolveNpcStationNames executes against Pos
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(String(url)).toContain('/universe/names/');
     expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body).sort()).toEqual([60_000_001, 60_000_002]);
+    const requestedIds = JSON.parse(String(init.body)) as number[];
+    expect(requestedIds.sort((left, right) => left - right)).toEqual([60_000_001, 60_000_002]);
 
     const rows = await harness.db.select().from(eveNpcStations);
     expect(new Map(rows.map((row) => [row.id, row.name]))).toEqual(
