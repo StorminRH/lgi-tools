@@ -336,7 +336,7 @@ design.)
 
 | Cycle | Audited ref | Result | Baseline ref |
 | ---: | --- | --- | --- |
-| 1 | `ef2e7dfc79548c0ca47ddbe81200b04cbd7204ae` | Remediation required — AF-010–AF-015 Open | `ef2e7dfc79548c0ca47ddbe81200b04cbd7204ae` |
+| 1 | `ef2e7dfc79548c0ca47ddbe81200b04cbd7204ae` | Remediation required — AF-013 Planned; AF-010/011/012/014/015 Delivered | `ef2e7dfc79548c0ca47ddbe81200b04cbd7204ae` |
 
 (A cycle-2 row is added if cycle 1 records actionable findings and remediation
 advances `main`, per §6.)
@@ -356,12 +356,12 @@ measured context lives in prose, not schema cells.
 | AF-006 | 1 | Watch | Telemetry query module (carried from v3.8) broad enough to monitor for another change axis. | Promote on a 26th export or renewed multi-session growth. | — | Watch |
 | AF-007 | 1 | Watch | Refresh-job query module (carried from v3.8) large but cohesive around one queue lifecycle. | Promote above 15 exports or on a second persistence concern. | — | Watch |
 | AF-008 | 1 | Watch | `auth-surface` (carried from v3.8) is a deliberate exact three-file platform-contract exception. | Promote if any work proposes a fourth file; prefer a real platform module. | — | Watch |
-| AF-010 | 1 | Floss | The archived master-plan narrative for 3.9.3.4 attributes the dev stall to eager full-detail rendering, after profiling proved watcher-spin/memory starvation and lazy rendering had already shipped. | Reconcile §3.9.3.4 to the measured root cause, shipped lazy-render state, and delivered sample-mode outcome without changing terminal scope. | 3.9.5.1 | Planned |
-| AF-011 | 1 | Floss | README presents `pnpm build` as a useful local command while repository policy forbids local and pre-merge production builds. | Remove the local-build invitation or state that production builds are Vercel-only, leaving `pnpm verify` as the local definition of done. | 3.9.5.1 | Planned |
-| AF-012 | 1 | Floss | Constitution P7 cites deleted `src/features/auth/queries.ts` and `PricingContextValue` surfaces as comment exemplars. | Replace only the stale citations with live rationale-dense and interface-comment exemplars; preserve the principle text. | 3.9.5.1 | Planned |
+| AF-010 | 1 | Floss | The archived master-plan narrative for 3.9.3.4 attributes the dev stall to eager full-detail rendering, after profiling proved watcher-spin/memory starvation and lazy rendering had already shipped. | Reconcile §3.9.3.4 to the measured root cause, shipped lazy-render state, and delivered sample-mode outcome without changing terminal scope. | 3.9.5.1 | Delivered |
+| AF-011 | 1 | Floss | README presents `pnpm build` as a useful local command while repository policy forbids local and pre-merge production builds. | Remove the local-build invitation or state that production builds are Vercel-only, leaving `pnpm verify` as the local definition of done. | 3.9.5.1 | Delivered |
+| AF-012 | 1 | Floss | Constitution P7 cites deleted `src/features/auth/queries.ts` and `PricingContextValue` surfaces as comment exemplars. | Replace only the stale citations with live rationale-dense and interface-comment exemplars; preserve the principle text. | 3.9.5.1 | Delivered |
 | AF-013 | 1 | Floss | *(Corrected during remediation planning — see the note below.)* Four modules (`skill-queue/queries.ts`, `eve-data/ingest.ts`, `eve-data/station-names.ts`, `db/skills-sync.ts`) contain moderate-complexity functions with zero test coverage; the 3.9.1.7 comment migration pulled them into the whole-version CRAP lens, where coverage-driven CRAP exceeds the cap and reads as introduced because the base ref carries no coverage to attribute against. | Add meaningful behavioral coverage for the flagged functions so their CRAP falls below threshold and the version-start-pinned audit passes honestly, with no waiver, baseline, suppression, or coverage padding. | 3.9.5.2 | Planned |
-| AF-014 | 1 | Floss | EVE image size support is declared twice: the shared wrapper owns 32–1024 while the lower-layer URL builders separately own 32–512. | Establish one lower-layer size vocabulary consumed by both surfaces, with existing URL and snapping behavior characterized and unchanged. | 3.9.5.1 | Planned |
-| AF-015 | 1 | Floss | The saved-plan render verdict and client controller are distinct concepts exported under the same `SavedPlansState` name. | Give both contracts distinct intent-revealing names (or make a file-local type private) without changing view or mutation behavior. | 3.9.5.1 | Planned |
+| AF-014 | 1 | Floss | EVE image size support is declared twice: the shared wrapper owns 32–1024 while the lower-layer URL builders separately own 32–512. | Establish one lower-layer size vocabulary consumed by both surfaces, with existing URL and snapping behavior characterized and unchanged. | 3.9.5.1 | Delivered |
+| AF-015 | 1 | Floss | The saved-plan render verdict and client controller are distinct concepts exported under the same `SavedPlansState` name. | Give both contracts distinct intent-revealing names (or make a file-local type private) without changing view or mutation behavior. | 3.9.5.1 | Delivered |
 
 At the audited ref: telemetry 25 exports (< 26), refresh-jobs 13 (≤ 15),
 `auth-surface` 3 files (< 4) — all below trigger. Execution re-checks each and

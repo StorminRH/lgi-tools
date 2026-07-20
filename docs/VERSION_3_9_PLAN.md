@@ -83,7 +83,7 @@ campaign: none — the queue is empty.
 | **Phase 4 — Continuity & recovery** | | | |
 | 3.9.4.1 | Smoke confirmation, security-report verification & DB-privilege hardening (amended 2026-07-19) | 1 | SHIPPED |
 | **Phase 5 — Audit remediation** | | | |
-| 3.9.5.1 | Audit-hygiene remediation (AF-010/011/012 docs truth; AF-014 image size; AF-015 saved-plan naming) | 1 | PLANNED |
+| 3.9.5.1 | Audit-hygiene remediation (AF-010/011/012 docs truth; AF-014 image size; AF-015 saved-plan naming) | 1 | SHIPPED |
 | 3.9.5.2 | Coverage remediation for four untested modules (AF-013) | 1 | PLANNED |
 
 *(Elective health campaign: none scheduled — decision recorded below the
@@ -1688,6 +1688,15 @@ Two sessions, strict-sequenced:
   plus two behavior-preserving code tidy-ups: one lower-layer owner for the EVE
   image size vocabulary (AF-014) and making the unimported render-verdict type
   file-local so it stops colliding with the saved-plans controller name (AF-015).
+
+  **Delivered 2026-07-19.** PR #273, squash `d0eae4f`; exact-SHA production
+  deployment `dpl_BsAddxW8a2gWrLjPKQsobF6GJ39G` is Ready on `lgi.tools` at
+  v3.9.5.1 with no recent error-level runtime logs. The browser-first smoke
+  confirmed the version, all 69 wormhole sites, the settled signed-out industry
+  view, and zero console warnings/errors. `pnpm verify` passed 3,543 tests plus
+  one skip; fresh full-Postgres coverage passed all 3,544 tests at
+  85.57/83.22/81.78/86.50, and origin/main-pinned Fallow was clean. Greptile
+  reached 5/5 with zero findings; CI and Semgrep were green.
 
 - **3.9.5.2 — Coverage remediation** (one PR). AF-013, re-diagnosed. Reproducing
   the pinned audit proved the six "introduced complexity" findings are
