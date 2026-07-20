@@ -11,7 +11,7 @@
 | --- | --- |
 | Date | 2026-07-20 |
 | App version | 3.9.5.2 |
-| Code ref | `250816eba53a4b827804450548db1be7369d0814` on `codex/3.9.5.2-coverage-remediation` (pre-merge targeted pass) |
+| Code ref | `f35cdb35f73513600991ce1162001369046cb11a` on `main` (post-merge target; measurements from the byte-equivalent pre-merge tree) |
 | Measurement scope | Targeted: AF-013 coverage remediation for four previously untested modules |
 | Previous comparison | 2026-07-19 / 3.9.5.1 / `fd64745e58a715b4484aa2e7219ef9e3f5e8f236` (targeted pass) |
 | Health trend | Real behavioral coverage now exercises the six coverage-driven CRAP findings through existing seams; the version-start-pinned Fallow audit passes with no production-logic, threshold, waiver, baseline, or suppression change. |
@@ -151,9 +151,9 @@ interfaces or creating metric-shaped production code.
   `Expires` boundary and on-view refresh has no cron owner. The rationale remains
   specific and current.
 - **Lifecycle/public truth:** all 34 indexed contracts exist; 29 session plans
-  are approved, with the 28 delivered plans complete and 3.9.5.2 pending terminal
-  merge evidence. The six deferred contracts remain preserved beside their
-  backlog dispositions, and AF-010–AF-012 documentation truth is delivered.
+  are approved and complete. The six deferred contracts remain preserved beside
+  their backlog dispositions, and AF-010–AF-015 are Delivered pending complete
+  cycle-2 verification.
 
 ### Standing Fallow threshold overrides
 
@@ -181,10 +181,9 @@ None. `thresholdOverrides` is empty.
 
 | Priority | Campaign | Charter summary | Status | Trigger / next action |
 | ---: | --- | --- | --- | --- |
-| 1 | AF-013 — coverage for four untested modules | Real behavioral coverage now exercises the flagged skill-save, SDE-ingest, station-name, and queued-skill-name paths through their existing seams; the four production modules remain byte-unchanged and the pinned gate passes without an exception | Planned | Mark Delivered on 3.9.5.2 merge, then verify in the complete cycle-2 audit |
+| 1 | AF-013 — coverage for four untested modules | Real behavioral coverage now exercises the flagged skill-save, SDE-ingest, station-name, and queued-skill-name paths through their existing seams; the four production modules remain byte-unchanged and the pinned gate passes without an exception | Delivered | Verify in the complete cycle-2 audit |
 
 AF-006–AF-008 remain Watch. AF-013 was reclassified Campaign → Floss during
-remediation planning; its required outcome is green on the current 3.9.5.2
-branch, but terminal merge evidence is still required before Delivered, and only
-the complete cycle-2 audit may mark it Verified. AF-010–AF-015 are all bounded
-Floss routed through the Phase 5 audit remediation before version archive.
+remediation planning and is Delivered by the merged 3.9.5.2 coverage evidence;
+only the complete cycle-2 audit may mark it Verified. AF-010–AF-015 are all
+Delivered bounded Floss awaiting that complete restart before version archive.

@@ -84,7 +84,7 @@ campaign: none — the queue is empty.
 | 3.9.4.1 | Smoke confirmation, security-report verification & DB-privilege hardening (amended 2026-07-19) | 1 | SHIPPED |
 | **Phase 5 — Audit remediation** | | | |
 | 3.9.5.1 | Audit-hygiene remediation (AF-010/011/012 docs truth; AF-014 image size; AF-015 saved-plan naming) | 1 | SHIPPED |
-| 3.9.5.2 | Coverage remediation for four untested modules (AF-013) | 1 | PLANNED |
+| 3.9.5.2 | Coverage remediation for four untested modules (AF-013) | 1 | SHIPPED |
 
 *(Elective health campaign: none scheduled — decision recorded below the
 phase narratives. The cycle-2 campaign queue is empty. Sessions 3.9.3.6,
@@ -1707,6 +1707,19 @@ Two sessions, strict-sequenced:
   honest fix is real behavioral coverage (constitution default; never a waiver),
   after which the pinned gate passes on its own — no Fallow change, upgrade, or
   custom tooling.
+
+  **Delivered 2026-07-20.** PR #274, squash `f35cdb3`; exact-SHA production
+  deployment `dpl_9Yz6WGi7SmWRq2dUiAQiKGXupHDJ` is Ready on `lgi.tools` at
+  v3.9.5.2 with no error-level runtime logs. Browser-first smoke confirmed the
+  release entry, all 69 wormhole sites, the settled signed-out industry view,
+  and zero console warnings/errors. `pnpm verify` passed 3,553 tests plus one
+  unrelated skip; fresh full-Postgres coverage passed all 3,554 tests at
+  86.90/84.25/82.84/87.90, and both the exact-`origin/main` and version-start
+  pinned Fallow gates were clean. Greptile reached current-head 5/5 after its
+  one numeric-sort finding was fixed and resolved; CI and Semgrep were green.
+  The Vercel build completed with route classification green; one handled ESI
+  scoreboard timeout appeared during static generation without a failed route
+  or production error.
 
 **Delivery.** Normal `plan-session` → execution → `close-out` per session; each
 finding is marked Delivered on terminal merge evidence. When both sub-versions
