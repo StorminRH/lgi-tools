@@ -295,10 +295,11 @@ automatically. After merge:
 - Change the merged session plan's `Execution status` to `Complete` and mark the
   master-plan row terminal with the actual PR/merge evidence. These two updates
   are what let the lifecycle resolver advance safely.
-- Rerun the resolver after that reconciliation. Create a fresh branch from the
-  updated `main` only after the resolver names the next lifecycle action, and
-  name the branch for that selected action rather than choosing a nearby task.
-  Make the reconciliation its first commit, then require
+- Rerun the resolver after that reconciliation, then hand control to
+  `start-session`, which opens the next branch from updated `main` only after the
+  resolver names the next lifecycle action and names it from the directive's
+  `branch` authority rather than a nearby task. That branch's first commit is the
+  reconciliation; then require
   `python3 .agent-local/check_release_consistency.py --check --expect reconciled`
   to pass. The commit remains local until that next branch's normal PR.
 - **At version close** (the final master-plan row became terminal): do not

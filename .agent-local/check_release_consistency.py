@@ -93,6 +93,27 @@ def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
     changelog_path = root / changelog_rel
     changelog_versions = _changelog_versions(changelog_path)
     if not changelog_versions:
+        # New-version opening transient: a fresh roadmap has landed (every row
+        # nonterminal) but APP_VERSION still names the previous version, and the new
+        # changelog file opens only with the first sub-version's PR. That triplet is a
+        # legal, self-clearing state, not a contradiction. It clears the moment the
+        # first sub-version merges.
+        opening = (
+            app_version is not None
+            and not any(row.terminal for row in rows)
+            and app_version.split(".")[:2] != active_version.split(".")
+        )
+        if opening:
+            if args.expect is not None:
+                findings.append(
+                    Finding(
+                        roadmap_rel,
+                        find_line(roadmap_path, "## Status"),
+                        f"release state is opening, expected {args.expect}",
+                        "error",
+                    )
+                )
+            return findings
         findings.append(
             Finding(changelog_rel, 1, "missing parseable changelog entry", "error")
         )

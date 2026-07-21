@@ -41,15 +41,6 @@
             "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
           }
         ]
-      },
-      {
-        "matcher": "Agent|Task",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/redirect_subagent_to_codex.py\""
-          }
-        ]
       }
     ]
   }
