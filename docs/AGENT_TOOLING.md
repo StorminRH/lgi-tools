@@ -11,7 +11,10 @@ runtime implements the other's plugin surface.
   (`next`, TypeScript, Vitest, Playwright, Drizzle, Fallow, and related tools).
 - Authenticated operator CLIs stay user-level so both apps share credentials and
   project linkage: `vercel`, `neon`, and `gh`. The `codegraph` code-graph CLI is
-  also user-level, installed via `npm i -g @colbymchenry/codegraph`.
+  also user-level, installed pinned to the audited version via
+  `npm i -g @colbymchenry/codegraph@1.4.1` (the package is published from an
+  individual npm account, so anchor to a known-good version rather than floating
+  `latest`).
 - Context7 is a user-level CLI (`ctx7`) shared by both apps. The paired
   `find-docs` skills must remain byte-identical.
 - PyYAML is a user-level Python tooling dependency used by the official skill
