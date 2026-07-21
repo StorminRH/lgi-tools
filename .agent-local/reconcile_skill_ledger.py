@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Restamp the skill-reconciliation ledger after a deliberate policy re-review.
 
-Replaces the old ``bump_policy_revision.py``. For each paired skill (or one named
-skill), recompute the digest of that skill's declared policy deps and write it to
+For each paired skill (or one named skill), recompute the digest of that skill's
+declared policy deps and write it to
 ``skillReconciliation[<skill>].reconciledHash`` in the manifest. Run this only
 after re-reviewing the affected skills against the changed policy docs — the
 restamp is the human attestation the drift gate checks.
