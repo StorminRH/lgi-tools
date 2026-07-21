@@ -1,8 +1,8 @@
 # Design Principles (LGI.tools)
 
 **Audience:** AI agents writing code in this repo, and the maintainer reviewing it.
-**Role:** This is the constitution. The stage documents — `docs/SESSION_PLANNING.md`,
-`docs/PRE_PR_DESIGN_REVIEW.md`, `docs/VERSION_AUDIT.md` — all defer to this file.
+**Role:** This is the constitution. The session schemas,
+`docs/PRE_PR_DESIGN_REVIEW.md`, and `docs/VERSION_AUDIT.md` all defer to this file.
 `docs/CODE_HEALTH_BASELINE.md` records the current evidence produced by those
 procedures; it is state, not a competing source of design policy.
 When any rule elsewhere (including a fallow threshold or a slice boundary) conflicts
@@ -111,7 +111,7 @@ special case, or a widened context object "just for now".
 
 > **Test:** If your plan contains the words "for now", "temporarily", "hack",
 > or adds a second copy of existing logic — stop and re-plan
-> (see `docs/SESSION_PLANNING.md` §3).
+> (see `docs/workflows/schema/session-plan.md`, Design pressure and baseline effect).
 
 ### P7 — Comments carry non-obvious knowledge
 
@@ -167,7 +167,7 @@ can pass them while making the system worse.
 **Audit-remediation corollary:** a version-close audit is design feedback, not a
 score-reporting ceremony. Every confirmed Floss or Campaign extends the current
 master version until a fresh audit verifies the underlying design outcome.
-Remediation planning must also apply `docs/SESSION_PLANNING.md` and define the
+Remediation planning must also apply both session schemas and define the
 later `docs/PRE_PR_DESIGN_REVIEW.md` evidence before implementation begins.
 Watch is the only non-blocking classification because it records pressure that
 does not yet justify intervention; every Watch names the evidence that would
@@ -228,7 +228,8 @@ the right design needs a boundary redrawn (e.g., promoting shared contracts out
 of a feature slice, splitting a slice, adding a composition layer):
 
 1. Propose the redraw **in the planning session**, not mid-implementation
-   (`docs/SESSION_PLANNING.md` §6). State which decision the new boundary hides
+   (`docs/workflows/schema/session-plan.md`, Resolved implementation decisions).
+   State which decision the new boundary hides
    and which imports it will newly allow/forbid.
 2. Update both representations in one commit: `.fallowrc.json` zones/rules and
    the prose in CONTRIBUTING.md. Fallow is the single mechanical owner; do not

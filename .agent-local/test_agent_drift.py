@@ -3,11 +3,15 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from check_agent_drift import (
+    check_development_state,
     check_paths,
     check_probe_layout,
     check_session_contracts,
@@ -44,13 +48,13 @@ class DriftFixture:
                 "strayPattern": "*-probe.mjs",
             },
             "sessionContracts": {
-                "scan": ["docs/SESSION_CONTRACTS.md"],
+                "scan": ["docs/workflows/schema/session-contract.md"],
                 "forbidden": ["retired contract policy"],
             },
         }
         self.write("AGENTS.md", "guide\n")
         self.write(".agent-local/check_agent_drift.py", "checker\n")
-        self.write("docs/SESSION_CONTRACTS.md", "contract standard\n")
+        self.write("docs/workflows/schema/session-contract.md", "contract standard\n")
         self.write("docs/ux-check/run-probes.mjs", "runner\n")
         self.write("docs/ux-check/probes/example.mjs", "export default {};\n")
         self.write(
@@ -249,6 +253,99 @@ class AgentDriftTests(unittest.TestCase):
         self.fixture.write("docs/ux-check/captures/generated-probe.mjs", "capture\n")
         self.fixture.write("node_modules/package-probe.mjs", "dependency\n")
         self.assertEqual([], self.check_probes())
+
+    def test_dispatchable_directive_requires_the_manifest_gate(self) -> None:
+        manifest = {
+            "pairedSkills": {"start-session": {}},
+            "developmentState": {
+                "resolver": ".agent-local/resolve_development_state.py",
+                "allowedStages": ["session-ready"],
+                "allowedHandlers": ["start-session"],
+                "allowedModes": ["execute"],
+                "directiveFields": [
+                    "action",
+                    "reason",
+                    "handler",
+                    "mode",
+                    "authority",
+                    "primaryArtifact",
+                    "pause",
+                    "preDispatchGate",
+                ],
+                "preDispatchGate": "release gate",
+            },
+        }
+        directive = {
+            "action": "Execute",
+            "reason": "Ready",
+            "handler": "start-session",
+            "mode": "execute",
+            "authority": "Approved plan",
+            "primaryArtifact": "plan.md",
+            "pause": "On conflict",
+            "preDispatchGate": None,
+        }
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps({"stage": "session-ready", "directive": directive}),
+            stderr="",
+        )
+        errors: list[str] = []
+        with patch("check_agent_drift.subprocess.run", return_value=result):
+            check_development_state(manifest, errors)
+        self.assertIn(
+            "development state directive preDispatchGate must be 'release gate' "
+            "when handler is 'start-session'",
+            errors,
+        )
+
+    def test_operator_stop_requires_a_null_predispatch_gate(self) -> None:
+        manifest = {
+            "pairedSkills": {},
+            "developmentState": {
+                "resolver": ".agent-local/resolve_development_state.py",
+                "allowedStages": ["contract-repair-needed"],
+                "allowedHandlers": [],
+                "allowedModes": ["report"],
+                "directiveFields": [
+                    "action",
+                    "reason",
+                    "handler",
+                    "mode",
+                    "authority",
+                    "primaryArtifact",
+                    "pause",
+                    "preDispatchGate",
+                ],
+                "preDispatchGate": "release gate",
+            },
+        }
+        directive = {
+            "action": "Repair",
+            "reason": "Invalid contract",
+            "handler": None,
+            "mode": "report",
+            "authority": "Repair only",
+            "primaryArtifact": "contract.md",
+            "pause": "Repair required",
+            "preDispatchGate": "release gate",
+        }
+        result = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps(
+                {"stage": "contract-repair-needed", "directive": directive}
+            ),
+            stderr="",
+        )
+        errors: list[str] = []
+        with patch("check_agent_drift.subprocess.run", return_value=result):
+            check_development_state(manifest, errors)
+        self.assertIn(
+            "development state directive preDispatchGate must be None when handler is None",
+            errors,
+        )
 
 
 if __name__ == "__main__":

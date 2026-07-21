@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the version-archive transition of DEVELOPMENT_LIFECYCLE section 7.
+"""Verify the resolver-owned version-archive transition.
 
 The pre phase checks the four file-state preconditions for archival. The post
 phase also proves that the copied roadmap, contract set, session plans, and

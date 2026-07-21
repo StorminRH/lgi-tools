@@ -11,7 +11,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 29 -->
 
 This is the Plan-mode owner for converting a failed version-close audit into a
 bounded extension of the same master version. It creates no separate remediation
@@ -26,9 +26,10 @@ session plans, and audit finding ledger remain authoritative.
    sibling handler here. Create a native Codex todo list from the steps below and
    keep one item in progress.
 2. Require Codex Plan mode. Read in full, in this order:
-   `docs/DESIGN_PRINCIPLES.md`, `docs/SESSION_PLANNING.md`,
+   `docs/DESIGN_PRINCIPLES.md`, `docs/workflows/schema/session-contract.md`,
+   `docs/workflows/schema/session-plan.md`,
    `docs/PRE_PR_DESIGN_REVIEW.md`, and `docs/VERSION_AUDIT.md`. Then read the
-   lifecycle, contract schema, current `docs/CODE_HEALTH_BASELINE.md`, audit plan
+   resolver directive, current `docs/CODE_HEALTH_BASELINE.md`, audit plan
    and finding ledger, master plan, SCRATCHPAD, relevant backlog, Graphify
    results, and live code.
 3. For every open Floss or Campaign, diagnose the violated ownership,
@@ -43,11 +44,9 @@ session plans, and audit finding ledger remain authoritative.
    dependencies, behavior locks, end-state, verification, baseline effect,
    pre-PR design evidence, and normal branch/PR close-out.
 5. Discuss the extension's intended shape with Ryan in plain English before
-   drafting sub-versions or contracts. Use task-scoped `gpt-5.6-sol` workers
-   under `AGENTS.md` as useful for bounded
-   finding exploration, decomposition, and drafting. Give the complete
+   drafting sub-versions or contracts. Give the complete
    extension, contract set, ledger, and evidence to a fresh read-only high
-   adversarial reviewer, then reconcile every finding. The review budget is a
+   `gpt-5.6-sol` adversarial reviewer, then reconcile every finding. The review budget is a
    hard cap of one mandatory pass plus at most one rerun after material
    reconciliation; later findings are reconciled by planner judgment and
    disclosed at approval.

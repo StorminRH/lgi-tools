@@ -10,7 +10,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from resolve_development_state import active_roadmap, parse_contract_index
+from resolve_development_state import (
+    active_roadmap,
+    contract_schema_violations,
+    parse_contract_index,
+)
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -253,6 +257,8 @@ def check_session_contracts(manifest: dict, root: Path, errors: list[str]) -> No
     policy = manifest.get("sessionContracts", {})
     expected, version = derived_session_contracts(root)
     scan_paths = [*policy.get("scan", []), *expected]
+    schema_path = policy.get("schema")
+    legacy = set(manifest.get("developmentState", {}).get("legacySchemaArtifacts", []))
 
     if version is not None:
         contract_root = root / "docs/session-contracts" / version
@@ -275,6 +281,9 @@ def check_session_contracts(manifest: dict, root: Path, errors: list[str]) -> No
             )
         if re.search(r"^# Phase ", text, flags=re.MULTILINE):
             errors.append(f"{raw_path}: contains a stray phase heading from the archive")
+        if schema_path and raw_path not in legacy:
+            for violation in contract_schema_violations(path, root):
+                errors.append(f"{raw_path}: contract schema violation: {violation}")
 
     for raw_path in scan_paths:
         text = read_text(root / raw_path, root, errors)
@@ -287,6 +296,24 @@ def check_session_contracts(manifest: dict, root: Path, errors: list[str]) -> No
 
 def check_development_state(manifest: dict, errors: list[str]) -> None:
     policy = manifest.get("developmentState", {})
+    legacy = policy.get("legacySchemaArtifacts", [])
+    if not isinstance(legacy, list):
+        errors.append("developmentState.legacySchemaArtifacts must be a list")
+    else:
+        for raw_path in legacy:
+            if (
+                not isinstance(raw_path, str)
+                or any(token in raw_path for token in ("*", "?", "["))
+                or not raw_path.startswith(
+                    ("docs/session-contracts/", "docs/session-plans/")
+                )
+            ):
+                errors.append(
+                    "developmentState legacy schema exemptions must be exact contract or plan paths: "
+                    f"{raw_path!r}"
+                )
+            elif not (ROOT / raw_path).is_file():
+                errors.append(f"developmentState legacy schema artifact is missing: {raw_path}")
     unknown_handlers = set(policy.get("allowedHandlers", [])) - set(manifest.get("pairedSkills", {}))
     if unknown_handlers:
         errors.append(
@@ -342,6 +369,12 @@ def check_development_state(manifest: dict, errors: list[str]) -> None:
         primary = directive.get("primaryArtifact")
         if primary is not None and not isinstance(primary, str):
             errors.append("development state directive primaryArtifact must be a string or null")
+        expected_gate = policy.get("preDispatchGate") if handler is not None else None
+        if directive.get("preDispatchGate") != expected_gate:
+            errors.append(
+                "development state directive preDispatchGate must be "
+                f"{expected_gate!r} when handler is {handler!r}"
+            )
     for detail in state.get("errors", []):
         errors.append(f"development lifecycle state error: {detail}")
 
@@ -361,6 +394,7 @@ def check_development_state_tests(errors: list[str]) -> None:
 
 
 LIFECYCLE_CHECKERS = (
+    ".agent-local/check_baseline_claims.py",
     ".agent-local/check_env_example.py",
     ".agent-local/check_doc_refs.py",
     ".agent-local/check_lifecycle_evidence.py",

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -20,6 +21,21 @@ class LifecycleFixture:
         self.write_roadmap("PLANNED")
         self.contract = self.write_contract()
         self.write_plan("Pending")
+        manifest = self.root / ".agent-local/policy-manifest.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(
+            json.dumps(
+                {
+                    "developmentState": {
+                        "legacySchemaArtifacts": [
+                            "docs/session-contracts/9.9/9.9.1.1.md",
+                            "docs/session-plans/9.9/9.9.1.1.md",
+                        ]
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
         self.write_scratchpad("9.9.1.1")
         self.write_baseline("")
 

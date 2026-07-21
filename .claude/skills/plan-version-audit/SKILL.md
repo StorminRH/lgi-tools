@@ -9,14 +9,14 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 29 -->
 
 Run the resolver and require its directive to name `plan-version-audit` as the
 handler for lifecycle-driven Version close. Otherwise report it and return
 control to `start-session`; never select a sibling handler here. An explicit
 on-demand Periodic plan remains allowed and never archives. Use Claude Code Plan mode
-and sequence `docs/VERSION_AUDIT.md` with
-`docs/DEVELOPMENT_LIFECYCLE.md`. Read `docs/DESIGN_PRINCIPLES.md` and the current
+and sequence `docs/VERSION_AUDIT.md` with the resolver directive. Read
+`docs/DESIGN_PRINCIPLES.md` and the current
 `docs/CODE_HEALTH_BASELINE.md` first. A version-close mode requires every roadmap
 row terminal; an explicit on-demand run may be Periodic and never archives.
 If a stale procedure digest interrupts an existing remediation cycle, preserve
@@ -27,10 +27,9 @@ classification, baseline replacement, verification, and conditional archival.
 Discuss the audit's intended shape with Ryan in plain English before drafting
 the plan.
 Present a plan naming mode, version/ref, commands, artifact inventory, baseline
-overwrite, and archive destination when applicable. Use the global headless
-`gpt-5.6-sol` routing as useful to explore audit surfaces, design measurement
-workflows, and draft bounded sections. Give the complete plan and its evidence
-to a fresh read-only high adversarial reviewer, reconcile every finding, then
+overwrite, and archive destination when applicable. Give the complete plan and
+its evidence to a fresh read-only high `gpt-5.6-sol` adversarial reviewer,
+reconcile every finding, then
 present it; the review budget is a hard cap of one mandatory pass plus at most
 one rerun after material reconciliation, with later findings reconciled by
 planner judgment and disclosed at approval. Present a short plain-English summary alongside the formal audit

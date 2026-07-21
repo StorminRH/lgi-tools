@@ -11,10 +11,10 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 29 -->
 
-This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
-`docs/SESSION_CONTRACTS.md` own the procedure and artifact schemas;
+This is a thin Plan-mode orchestrator. The resolver owns dispatch and
+`docs/workflows/schema/session-contract.md` owns the exact contract form;
 `docs/DESIGN_PRINCIPLES.md` is the constitution and
 `docs/CODE_HEALTH_BASELINE.md` is current health state.
 
@@ -24,17 +24,16 @@ This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
    its directive to name `plan-version` as the handler. Otherwise report the
    directive and return control to `start-session`; do not select a sibling
    handler here.
-2. Read the constitution and baseline first, then the lifecycle, contract
-   model, active master plan, SCRATCHPAD, and relevant backlog items.
-3. Create a native Codex todo list from the lifecycle's contract-generation
-   phase and keep exactly one item in progress.
+2. Read the constitution and baseline first, then the contract schema, active
+   master plan, SCRATCHPAD, and relevant backlog items.
+3. Create a native Codex todo list from this sequence and the schema gates; keep
+   exactly one item in progress.
 4. In Codex Plan mode, reconcile roadmap intent with live repository state,
    discuss the intended shape of the decomposition with Ryan in plain English
    before drafting contracts, and propose the ordered contract/index set.
    Include dependencies, acceptance
    gates, hotspot contact, and at most one selected health campaign.
-5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful during
-   authoring. Give the complete draft to a fresh read-only high adversarial
+5. Give the complete draft to a fresh read-only high `gpt-5.6-sol` adversarial
    reviewer with its source evidence, then reconcile every finding. The review
    budget is a hard cap of one mandatory pass plus at most one rerun after
    material reconciliation; later findings are reconciled by planner judgment
@@ -43,8 +42,9 @@ This is a thin Plan-mode orchestrator. `docs/DEVELOPMENT_LIFECYCLE.md` and
    before requesting Ryan's approval. Plan mode is read-only; do not create or
    rewrite contract files before approval.
 7. After approval in execution mode, write or reconcile only the deterministic
-   `docs/session-contracts/X.Y/INDEX.md` and contract paths. Do not create a
-   session implementation plan here.
+   `docs/session-contracts/X.Y/INDEX.md` and contract paths. Every contract must
+   conform completely to the schema or the resolver will refuse it. Do not
+   create a session implementation plan here.
 8. Rerun the resolver, report its new directive, run
    `python3 .agent-local/check_agent_drift.py`, and stop — planning outcomes
    are session-terminal. A session that planned an artifact never executes it;

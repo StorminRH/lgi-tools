@@ -1,13 +1,14 @@
 {
-  "policyRevision": 27,
+  "policyRevision": 29,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
     "docs/AGENT_TOOLING.md",
     "docs/DESIGN_PRINCIPLES.md",
-    "docs/DEVELOPMENT_LIFECYCLE.md",
-    "docs/SESSION_CONTRACTS.md",
-    "docs/SESSION_PLANNING.md",
+    "docs/workflows/schema/code-health-baseline.md",
+    "docs/workflows/schema/changelog-entry.md",
+    "docs/workflows/schema/session-contract.md",
+    "docs/workflows/schema/session-plan.md",
     "docs/SESSION_END.md",
     "docs/PRE_PR_DESIGN_REVIEW.md",
     "docs/PR_REVIEW.md",
@@ -21,7 +22,8 @@
   "hookConfigs": {
     ".claude/settings.json": [
       "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash",
-      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read",
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/redirect_subagent_to_codex.py\""
     ],
     ".codex/hooks.json": [
       "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash",
@@ -37,8 +39,7 @@
       "required": [
         "DESIGN_PRINCIPLES",
         "CODE_HEALTH_BASELINE",
-        "DEVELOPMENT_LIFECYCLE",
-        "SESSION_CONTRACTS",
+        "workflows/schema/session-contract\\.md",
         "master plan",
         "Plan mode",
         "approval",
@@ -57,9 +58,9 @@
     },
     "plan-session": {
       "required": [
-        "SESSION_PLANNING",
-        "DESIGN_PRINCIPLES",
-        "CODE_HEALTH_BASELINE",
+        "workflows/schema/session-plan\\.md",
+        "active agent guide",
+        "code-health",
         "Plan mode",
         "approval",
         "session-plans",
@@ -71,12 +72,14 @@
         "read-only",
         "high",
         "adversarial",
+        "review history",
         "present[^.]*plain-English summary[^.]*before[^.]*approval",
         "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
         "session-terminal"
       ],
       "forbidden": [
-        "write[^.]*before[^.]*approval"
+        "write[^.]*before[^.]*approval",
+        "SESSION_PLANNING"
       ]
     },
     "start-session": {
@@ -87,6 +90,7 @@
         "authority",
         "primary artifact|primaryArtifact",
         "pause",
+        "preDispatchGate",
         "DESIGN_PRINCIPLES",
         "CODE_HEALTH_BASELINE",
         "todo list|task list",
@@ -158,7 +162,7 @@
     "plan-version-audit": {
       "required": [
         "VERSION_AUDIT",
-        "DEVELOPMENT_LIFECYCLE",
+        "resolver",
         "DESIGN_PRINCIPLES",
         "CODE_HEALTH_BASELINE",
         "Plan mode",
@@ -182,7 +186,7 @@
     "plan-audit-remediation": {
       "required": [
         "DESIGN_PRINCIPLES",
-        "SESSION_PLANNING",
+        "workflows/schema/session-(contract|plan)\\.md",
         "PRE_PR_DESIGN_REVIEW",
         "VERSION_AUDIT",
         "CODE_HEALTH_BASELINE",
@@ -326,6 +330,8 @@
     ".agent-local/test_baseline_claims.py",
     ".agent-local/test_watch_triggers.py",
     ".agent-local/graphify_guard.py",
+    ".agent-local/redirect_subagent_to_codex.py",
+    ".agent-local/test_redirect_subagent_to_codex.py",
     ".agent-local/audit_tooling_parity.py",
     ".agent-local/check_tooling_parity.py",
     ".agent-local/sync_vercel_plugin.py",
@@ -333,6 +339,8 @@
     ".agent-local/test_update_watch_baseline.py",
     ".agent-local/update_watch_collect.py",
     ".agent-local/test_update_watch_collect.py",
+    "docs/workflows/schema/session-contract.md",
+    "docs/workflows/schema/session-plan.md",
     ".codex/hooks.json",
     ".claude/settings.json",
     "docs/CODE_HEALTH_BASELINE.md",
@@ -363,8 +371,9 @@
     ".agent-local/pr-privacy-local-patterns.txt"
   ],
   "sessionContracts": {
+    "schema": "docs/workflows/schema/session-contract.md",
     "scan": [
-      "docs/SESSION_CONTRACTS.md"
+      "docs/workflows/schema/session-contract.md"
     ],
     "forbidden": [
       "Version_3_8_Prompts",
@@ -378,6 +387,7 @@
     "allowedStages": [
       "master-plan-needed",
       "contracts-needed",
+      "contract-repair-needed",
       "session-plan-needed",
       "session-ready",
       "audit-plan-needed",
@@ -407,7 +417,15 @@
       "mode",
       "authority",
       "primaryArtifact",
-      "pause"
+      "pause",
+      "preDispatchGate"
+    ],
+    "preDispatchGate": "python3 .agent-local/check_release_consistency.py --check",
+    "legacySchemaArtifacts": [
+      "docs/session-contracts/3.10/3.10.0.1.md",
+      "docs/session-plans/3.10/3.10.0.1.md",
+      "docs/session-contracts/3.10/3.10.0.2.1.md",
+      "docs/session-plans/3.10/3.10.0.2.1.md"
     ]
   }
 }

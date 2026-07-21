@@ -10,10 +10,10 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 29 -->
 
-Plan from `docs/VERSION_AUDIT.md` and `docs/DEVELOPMENT_LIFECYCLE.md` without
-copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
+Plan from `docs/VERSION_AUDIT.md` and the resolver directive without copying
+their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
 `docs/CODE_HEALTH_BASELINE.md` supplies the previous comparison.
 
 ## Sequence
@@ -37,10 +37,8 @@ copying their procedure. `docs/DESIGN_PRINCIPLES.md` is the constitution and
    exact version/ref,
    metrics and commands, artifact inventory, likely drift questions, baseline
    overwrite, verification, and—only for version close—archive destination.
-5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful to explore
-   audit surfaces, design measurement workflows, and draft bounded sections.
-   Give the complete plan and its evidence to a fresh read-only high
-   adversarial reviewer, then reconcile every finding. The review budget is a
+5. Give the complete plan and its evidence to a fresh read-only high
+   `gpt-5.6-sol` adversarial reviewer, then reconcile every finding. The review budget is a
    hard cap of one mandatory pass plus at most one rerun after material
    reconciliation; later findings are reconciled by planner judgment and
    disclosed at approval.

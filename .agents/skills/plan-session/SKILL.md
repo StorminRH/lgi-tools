@@ -11,12 +11,12 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 29 -->
 
-Drive `docs/SESSION_PLANNING.md`; do not restate it. Treat
-`docs/DESIGN_PRINCIPLES.md` as the constitution,
-`docs/CODE_HEALTH_BASELINE.md` as current state, and the selected session
-contract as the product boundary.
+Use `docs/workflows/schema/session-plan.md` as the canonical authoring guide and
+output schema; do not restate it. Treat the active agent guide and current
+code-health state as standing context, and the selected session contract as the
+product boundary.
 
 ## Sequence
 
@@ -25,28 +25,28 @@ contract as the product boundary.
    `start-session`; do not select a sibling handler here. An explicit re-planning
    request may proceed only after reconciling the current contract and approval
    state.
-2. Require Codex Plan mode for plan creation. Read every document required by
-   `docs/SESSION_PLANNING.md`, beginning with the constitution and baseline.
-3. Create a native Codex todo list from the planning document's numbered steps;
-   keep one item in progress and reopen invalidated checks.
+2. Require Codex Plan mode for plan creation. Read and reconcile the schema's
+   authoring inputs before drafting.
+3. Create a native Codex todo list from this sequence and the schema's
+   authoring, drafting, review, approval, and persistence gates; keep one item
+   in progress and reopen invalidated checks.
 4. Reconcile the contract with Graphify, live code, dependencies, and current
    primary documentation. Discuss the plan's intended shape with Ryan in
-   plain English before any fixed-schema drafting. Then produce the
-   fixed-schema plan, including design
-   alternatives, tests, scope guard, and baseline effect.
-5. Use the task-scoped `gpt-5.6-sol` assistance policy in `AGENTS.md` as useful
-   during authoring. After the complete draft exists, launch a fresh read-only
-   high worker to adversarially review the draft, contract, and cited
-   evidence. Reconcile every finding; rerun review at most once, and only when
+   plain English before drafting. Then produce a complete schema-conforming plan
+   with no missing required section, mapping, marker, or unresolved placeholder.
+5. After the complete draft exists, launch a fresh read-only
+   high `gpt-5.6-sol` worker to adversarially review the draft, contract, and
+   cited evidence. Reconcile every finding; rerun review at most once, and only when
    the reconciliation materially changes architecture, scope, or verification.
    The review budget is a hard cap of one mandatory pass plus at most one
-   rerun; later findings are reconciled by planner judgment and disclosed at
-   approval.
+   rerun. Reconcile review findings into the final design or stop on a material
+   conflict; never persist review history, transcripts, pass counts, or
+   superseded draft content in the plan.
 6. Present a short plain-English summary alongside the reviewed plan before
    requesting Ryan's approval. Do not persist it in Plan mode.
 7. After approval in execution mode, write the deterministic
    `docs/session-plans/X.Y/<session>.md` with the required approval, contract
-   digest, and pending execution markers.
+   digest, planning-schema, and pending execution markers.
 8. Rerun the resolver, report its new directive, run
    `python3 .agent-local/check_agent_drift.py`, and stop — planning outcomes
    are session-terminal. A session that planned an artifact never executes it;

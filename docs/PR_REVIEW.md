@@ -217,56 +217,26 @@ plain pilot language, an internal one in a plain sentence a teammate would under
 surface just gets an all-internal entry; it still carries a version + date, and still
 bumps `APP_VERSION`.
 
-Format is strict (the parser, `src/features/changelog/parse.ts`, is intentionally
-narrow). The changelog is a **version timeline grouped into master-version
-chapters**: each release is one entry tagging its changes by type, and the
-changelog page automatically files it under its **master version** — the first two
-version segments, so `3.7.0.1` and `3.6.28` fall under `v3.7` and `v3.6`. The
-grouping is *derived from the version prefix*, so you add no grouping markup per
-entry — write the entry as usual.
+The exact entry and new-master frames are owned by
+`docs/workflows/schema/changelog-entry.md`; follow that canonical form literally.
+The parser (`src/features/changelog/parse.ts`) is intentionally narrow. The
+changelog is a **version timeline grouped into master-version chapters**: each
+release is one entry tagging its changes by type, and the changelog page
+automatically files it under its **master version** — the first two version
+segments, so `3.7.0.1` and `3.6.28` fall under `v3.7` and `v3.6`. The grouping is
+derived from the version prefix, so no grouping markup is added per entry.
 
 **Where it lives.** The changelog is split into one file per master version under
 `content/changelog/` — `v3.8.md`, `v3.7.md`, … plus `_preamble.md` for the title and
 intro. To add a release, prepend your `### v<version> — date` entry to the top of its
 master's file (`content/changelog/vX.Y.md`), directly under the `## vX.Y — Title`
 heading + summary, so entries stay newest-first. The loader concatenates the files
-(preamble first, masters newest-first) before parsing, so the format below is unchanged.
-
-```
-### v<version> — YYYY-MM-DD
-
-#### Added
-- One user-facing change per bullet, written for someone who doesn't know the codebase.
-
-#### Changed
-- …
-
-#### Fixed
-- …
-
-#### Removed
-- …
-```
-
-Entries are newest-first; each heading is `v<version>` + an em-dash (or hyphen) +
-the ISO ship date. Under it, only the
-`#### Added | Changed | Fixed | Removed` groups that apply, each with `- ` bullets.
-Within a bullet, **bold** and `inline code` are passed through as raw markdown text
-(the renderer shows them literally) — keep prose plain.
+(preamble first, masters newest-first) before parsing.
 
 **New master version → new file with a theme heading.** When your entry is the *first*
-release of a master version that has no file yet (e.g. the first `v3.8.x` ships), create
-`content/changelog/v3.8.md` starting with the themed heading, its summary, then the entry.
-The loader sorts masters newest-first, so the new file auto-renders at the top:
-
-```
-## v3.8 — <the version's theme>
-
-<a one- or two-sentence plain-language summary of what the version delivers for players>
-
-### v3.8.0.1 — YYYY-MM-DD
-…
-```
+release of a master version that has no file yet (e.g. the first `v3.8.x` ships),
+create `content/changelog/v3.8.md` from the canonical form, then add the entry. The
+loader sorts masters newest-first, so the new file auto-renders at the top.
 
 The heading is a level-2 `## vX.Y — Title` (master version + em-dash/hyphen + theme),
 followed by a short **summary** — the plain prose paragraph(s) between the heading and
@@ -278,7 +248,8 @@ from its plan doc's stated master title; the summary is written at close-out fro
 whole master's shipped work, in plain pilot language (**plain text only** — no
 `**bold**` or `[links]`; the renderer shows raw markdown literally). Grow the parser
 first if a future entry needs anything beyond the master/version/date headings + master
-summary, the four change-type groups, and flat bullets.
+summary, the four change-type groups, and flat bullets; update the canonical form
+and parser together before using a wider grammar.
 
 Bump `APP_VERSION` (`src/config/app-version.ts`) to match — the footer surfaces it
 as a link to /changelog, and the changelog header reads it as the current version.
@@ -336,7 +307,7 @@ automatically. After merge:
   Mark a mapped finding Delivered only after all its sub-versions have terminal
   merge evidence, report the resolver directive, and return control to
   `start-session` without selecting the next handler. Only a fresh clean audit
-  may archive the bundle per `docs/DEVELOPMENT_LIFECYCLE.md`.
+  may archive the bundle under the resolver's `archive-needed` directive.
 
 ---
 

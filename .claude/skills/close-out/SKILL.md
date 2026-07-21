@@ -10,12 +10,12 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 27 -->
+<!-- shared-policy-revision: 29 -->
 
 Sequence the canonical docs; do not duplicate them. Read
 `docs/DESIGN_PRINCIPLES.md`, `docs/CODE_HEALTH_BASELINE.md`,
-`docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and
-`docs/DEVELOPMENT_LIFECYCLE.md`. Create a native Claude Code task list from every applicable
+`docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and the current resolver directive.
+Create a native Claude Code task list from every applicable
 phase/gate, keep one active, and reopen invalidated verification after fixes.
 
 Invocation authorizes this sub-version's squash merge only with a current-head
