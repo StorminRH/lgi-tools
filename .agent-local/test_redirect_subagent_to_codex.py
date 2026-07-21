@@ -38,7 +38,9 @@ class RedirectSubagentTests(unittest.TestCase):
         reason = decision["permissionDecisionReason"]
         self.assertIn("Please re-issue this Explore", reason)
         self.assertIn("codex exec -m gpt-5.6-sol", reason)  # command inline
-        self.assertIn("prompt you just wrote", reason)  # no echo; refers to context
+        self.assertIn("'Find callers.'", reason)
+        self.assertNotIn("<effort>", reason)
+        self.assertNotIn("<file>", reason)
 
     def test_reason_is_encouraging_not_prohibitive(self) -> None:
         # The Agent call is the trigger; prohibition language would train the
@@ -52,16 +54,32 @@ class RedirectSubagentTests(unittest.TestCase):
         self.assertNotIn("do not retry", reason)
         self.assertNotIn("don't retry", reason)
 
-    def test_effort_map_is_in_the_text(self) -> None:
-        # The map lives in the text; the hook does not pre-pick an effort.
+    def test_requested_model_selects_the_effort(self) -> None:
         _, output = run_payload({
             "tool_name": "Task",
-            "tool_input": {"subagent_type": "Plan", "prompt": "x"},
+            "tool_input": {
+                "subagent_type": "Plan",
+                "prompt": "x",
+                "model": "claude-opus-4-8",
+            },
         })
         self.assertIn(
-            "opus=high, sonnet=medium, haiku=low",
+            'model_reasoning_effort="high"',
             output["hookSpecificOutput"]["permissionDecisionReason"],
         )
+
+    def test_prompt_is_shell_quoted_without_reconstruction(self) -> None:
+        prompt = "Inspect $(touch /tmp/never-run) and quote 'exactly'."
+        _, output = run_payload({
+            "tool_name": "Agent",
+            "tool_input": {"subagent_type": "Explore", "prompt": prompt},
+        })
+        reason = output["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertIn(
+            "'Inspect $(touch /tmp/never-run) and quote '\"'\"'exactly'\"'\"'.'",
+            reason,
+        )
+        self.assertIn("reasoning effort medium", reason)
 
     def test_non_subagent_tool_passes_through(self) -> None:
         code, output = run_payload({"tool_name": "Bash", "tool_input": {"command": "ls"}})

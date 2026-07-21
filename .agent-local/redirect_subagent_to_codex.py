@@ -21,8 +21,12 @@ Agent tool to redirect, so there is deliberately no `.codex/hooks.json` peer.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import shlex
 import sys
+import tempfile
+from pathlib import Path
 
 
 # Native subagent tools this hook governs. The settings.json matcher already
@@ -33,6 +37,11 @@ SUBAGENT_TOOLS = {"Agent", "Task"}
 # "never native." Add an exact type here only for a deliberate, documented
 # exception (e.g. a Claude-internals helper Codex cannot replicate).
 ALLOW_NATIVE: set[str] = set()
+EFFORT_BY_MODEL = {
+    "opus": "high",
+    "sonnet": "medium",
+    "haiku": "low",
+}
 
 
 def load_payload() -> dict:
@@ -51,17 +60,39 @@ def deny(reason: str) -> None:
     }}))
 
 
-def build_reason(subagent_type: str) -> str:
+def effort_for(model: str) -> str:
+    """Map the requested Claude model family to the Codex reasoning effort."""
+    normalized = model.casefold()
+    return next(
+        (effort for family, effort in EFFORT_BY_MODEL.items() if family in normalized),
+        "medium",
+    )
+
+
+def build_reason(subagent_type: str, prompt: str, model: str) -> str:
+    """Return one complete shell-safe Codex replacement for the denied task."""
     requested = subagent_type or "subagent"
+    effort = effort_for(model)
+    digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:12]
+    output = Path(tempfile.gettempdir()) / f"codex-subagent-{digest}.md"
+    command = " ".join(
+        (
+            "codex exec",
+            "-m gpt-5.6-sol",
+            "-c",
+            shlex.quote(f'model_reasoning_effort="{effort}"'),
+            "--output-last-message",
+            shlex.quote(str(output)),
+            shlex.quote(prompt),
+        )
+    )
     return (
         f"Please re-issue this {requested} as a headless gpt-5.6-sol Codex "
-        f"worker: run a background Bash task that feeds the prompt you just wrote "
-        f"to\n\n"
-        f"  codex exec -m gpt-5.6-sol -c model_reasoning_effort=\"<effort>\" "
-        f"--output-last-message <file>\n\n"
-        f"and title it `gpt-5.6-sol@<effort>: <purpose>`. Set <effort> from the "
-        f"model of the agent you called: opus=high, sonnet=medium, haiku=low "
-        f"(xhigh only if required)."
+        f"worker by running this complete shell-safe command as a background "
+        f"Bash task:\n\n  {command}\n\n"
+        f"The original delegated prompt is included exactly, the final message "
+        f"will be written to {output}, and the requested model maps to "
+        f"reasoning effort {effort}."
     )
 
 
@@ -77,7 +108,13 @@ def main() -> int:
     if subagent_type in ALLOW_NATIVE:
         return 0
 
-    deny(build_reason(subagent_type))
+    deny(
+        build_reason(
+            subagent_type,
+            str(tool_input.get("prompt") or ""),
+            str(tool_input.get("model") or ""),
+        )
+    )
     return 0
 
 
