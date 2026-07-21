@@ -47,18 +47,22 @@ Confirm scripts against `package.json` when they may have changed.
 - Definition of done: `pnpm verify`
 - Post-merge Vercel build entry point (never run locally): `pnpm vercel-build`
 
-`pnpm verify` runs typecheck, zero-warning lint, Vitest, and Fallow. Run it before committing. Close-out additionally requires a fresh full-coverage run followed by coverage-backed Fallow pinned to `origin/main`; this catches CRAP failures that reference-based local attribution can miss. CI additionally runs `pnpm assert:routes-present`; the post-merge Vercel production build runs the heavier route render-mode assertion.
+`pnpm verify` runs typecheck, zero-warning lint, one coverage-enabled Vitest
+suite, and coverage-backed Fallow. It is the sole definition-of-done command;
+run it before committing. The canonical close-out procedure supplies its
+`origin/main` pin once on the finalized head and governs evidence reuse and
+conditional reruns. CI additionally runs `pnpm assert:routes-present`; the
+post-merge Vercel production build runs the heavier route render-mode assertion.
+`pnpm test` remains the non-coverage development suite and accepts focused
+Vitest arguments.
 
 **Never use a production-mode build for local or pre-merge testing.** Do not run `pnpm build`, `next build`, `pnpm vercel-build`, or an equivalent production build locally or on a feature branch. Before merge, verify with `pnpm verify`, route-presence checks, the local dev server, and `ux-check` as applicable. Only Vercel may run the production build, and only after the change has merged to `main`.
 
 Fallow is a required gate, not a report to route around. It enforces dead code, unused exports/dependencies, architecture boundaries, introduced duplication, and universal complexity caps (cyclomatic 20, cognitive 15, CRAP 30). Both Fallow baselines are intentionally empty. Fix introduced complexity or add meaningful behavioral coverage in the same session; never add a waiver or baseline entry. `pnpm fallow:health` is a non-gating dashboard.
 
-For CI-equivalent CRAP results, generate coverage first:
-
-```bash
-pnpm test:coverage
-FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm fallow
-```
+For CI-equivalent CRAP results during close-out, use the single pinned
+definition-of-done checkpoint in `docs/workflows/close-out.md`; do not split it
+into a second coverage/Fallow cycle.
 
 When counting TypeScript diagnostics or validating a strictness migration, use `npx tsc --noEmit --incremental false` with the flag under test. Cached incremental runs can under-report diagnostics.
 

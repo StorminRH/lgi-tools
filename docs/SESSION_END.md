@@ -94,24 +94,13 @@ sub-version's scope?* If yes — fix it. If no — it's a backlog item.
   during the session: Claude local settings/launchers/worktrees, generated tooling
   reports and UX captures, margin-audit artifacts, temporary PR body-files, and
   `.codegraph/`. Remove credential-bearing permissions and session-only artifacts,
-  update both runtime adapters and the shared-policy revision when required, then
+  update both runtime adapters and restamp affected skill-ledger entries when required, then
   run `python3 .agent-local/check_agent_drift.py` after policy changes.
-- Run `pnpm verify` before committing — the definition-of-done bundle (typecheck +
-  lint + test + the Fallow static-analysis gate covering dead code, duplication,
-  complexity, and architecture boundaries).
-- **Then reproduce CI's coverage-backed complexity gate locally, every close-out.**
-  This is mandatory even when `pnpm verify` is green:
-
-  ```bash
-  pnpm test:coverage
-  FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm fallow
-  ```
-
-  The coverage run must be fresh and complete. If Fallow reports CRAP or complexity,
-  add meaningful behavioral coverage or simplify the function; never add a waiver or
-  baseline entry. Re-run both commands after the fix. Remove the generated `coverage/`
-  directory after the final coverage-backed Fallow pass so a later session cannot
-  accidentally reuse stale attribution.
+- Run the single pinned, coverage-backed definition-of-done checkpoint owned by
+  `docs/workflows/close-out.md` after local and design review have settled the
+  final head. It covers typecheck, zero-warning lint, one coverage-enabled Vitest
+  suite, and Fallow. Do not add a second coverage/Fallow cycle. Preserve failed
+  coverage for diagnosis and remove it after the final successful pass.
 - Run `python3 .agent-local/check_baseline_claims.py --pretty` and `python3
   .agent-local/check_watch_triggers.py --pretty`. At a final-session close-out,
   reconcile every baseline-claims warning or explain it in the PR notes, and
@@ -162,8 +151,9 @@ In short:
 **YES — the sub-version is complete and works end-to-end:**
 > If the sub-version changed a user-facing surface, **pause first for the operator's
 > review on the local dev server** — continue only after he approves (a non-UX
-> sub-version skips this pause). Then run `pre-pr-design-review` against
-> `docs/PRE_PR_DESIGN_REVIEW.md`. Fix every in-scope design finding and update
+> sub-version skips this pause). Then run `pre-pr-design-review` against the
+> completed implementation and local evidence, before the final full checkpoint,
+> using `docs/PRE_PR_DESIGN_REVIEW.md`. Fix every in-scope design finding and update
 > `docs/CODE_HEALTH_BASELINE.md` in the same change when a measured hotspot
 > surface changed. Only after that gate passes, proceed to `PR_REVIEW.md`: open
 > one PR for the whole sub-version, fill the test plan, and run the Greptile

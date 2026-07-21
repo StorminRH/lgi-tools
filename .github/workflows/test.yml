@@ -45,7 +45,7 @@ jobs:
       # complex/duplicated file into its diff — which a cross-cutting refactor
       # (e.g. repointing a shared util's imports across many feature files)
       # inevitably does. Real coverage makes the inherited-vs-introduced call
-      # accurate, matching what `pnpm test:coverage && pnpm fallow` does locally.
+      # accurate, semantically matching the coverage-backed `pnpm verify` gate.
       - run: pnpm test:coverage
 
       # fallow audit is the static gate of record (dead code, duplication,

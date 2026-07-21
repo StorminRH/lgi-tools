@@ -47,7 +47,7 @@
     "test:coverage": "vitest run --coverage",
     "fallow": "fallow audit --fail-on-issues",
     "fallow:health": "fallow health --coverage coverage/coverage-final.json",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm fallow"
+    "verify": "pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm fallow"
   },
   "dependencies": {
     "@base-ui/react": "1.6.0",

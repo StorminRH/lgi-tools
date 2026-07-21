@@ -141,7 +141,7 @@
         "check_release_consistency",
         "scrub_pr_body",
         "verify_archive",
-        "pnpm test:coverage",
+        "workflows/close-out",
         "coverage-backed",
         "browser-first",
         "resolver",
@@ -428,7 +428,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "e57eed97b75d2baeaf6a067f7967a2f637360017251e61acc4af555ced0511c3"
+      "reconciledHash": "e9266fc7ee5c4bb163dba5c09af6504611685a01d33ec7a7250c7bf1a30ca3eb"
     },
     "plan-session": {
       "deps": [
@@ -437,7 +437,7 @@
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "f1b1d8f0653f0c2ada437f066d55dc3c85839e5a9080455fa31d6bc28548d9e6"
+      "reconciledHash": "f425ef5b4c9fcaa47feec252c51ee72e573ed87f8ead4a6bc78dbd20567b38e0"
     },
     "start-session": {
       "deps": [
@@ -445,7 +445,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/SESSION_END.md"
       ],
-      "reconciledHash": "e538135257d2766577d47f8ea1f962f5bd962b42633a9383ecdc7829755a8844"
+      "reconciledHash": "1d4e0999e731465300f7befc6aea07cb145dd162050e915dc17423ee6b5f0d9a"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -453,7 +453,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/PRE_PR_DESIGN_REVIEW.md"
       ],
-      "reconciledHash": "9318e241eb12eaf2ffd22ee064ba2c58a91d04bb2a7acf641a83fdc6a014baef"
+      "reconciledHash": "e4064f5e8bd1bafecf75ff58a33058804a482804666a355b9c68498c78402adc"
     },
     "close-out": {
       "deps": [
@@ -465,7 +465,7 @@
         "docs/SELF_REVIEW.md",
         "docs/workflows/schema/changelog-entry.md"
       ],
-      "reconciledHash": "06993a8964295748517eaa28ae704e752ef331a7cfbac340785d757e765db45c"
+      "reconciledHash": "2e833930818a9576c14b3b2b54e059a30c88d65f070a28f570bff14391411c30"
     },
     "plan-version-audit": {
       "deps": [
@@ -473,7 +473,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/VERSION_AUDIT.md"
       ],
-      "reconciledHash": "8f0b2929fa696e85ec509a587675ebbc7e91325223af4932e0e02f7387eb75b6"
+      "reconciledHash": "5fc77cec49b7d7d14173b7e3d1b10eee7aa306ab4bf02a277d89ca74abb2c264"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -484,7 +484,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "2b52ce8d12688489ffe1fc66c98ecc16af1bbb3cc9cefcef2652dc2cb5b22897"
+      "reconciledHash": "f1a97cb164e70007fb7af39424631ea530166ad5113501fb803c1095cbcb71bf"
     },
     "version-audit": {
       "deps": [
@@ -493,7 +493,7 @@
         "docs/VERSION_AUDIT.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "0f93bd8d5cc1118765975391a3748f16b2ebf8d5fe3b99661d21046d1739ba61"
+      "reconciledHash": "f9b53b2dce7b9dc3617c36dc77bfdd3fb52ae71191fc03d07924adaee37a3b40"
     },
     "triage-issue": {
       "deps": [
@@ -501,21 +501,21 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/schema/changelog-entry.md"
       ],
-      "reconciledHash": "a2811074633bc7a5d57d289a22ffd2adcb36f5234594e29cf225390f754eb068"
+      "reconciledHash": "3b9e8294fac7d96dd55846ea9a2cfec64daa636c440a7390731550ce4287efd7"
     },
     "ux-check": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md"
       ],
-      "reconciledHash": "0d53782fdff14731d22b5b4f9ebc8d2b8f1a41ea8267b3d1694e1b6436c6de4e"
+      "reconciledHash": "0d6be39cf90b988d6c08c72a24bd62e158ceb1274a75916b7fe04e1d8a1ddb6c"
     },
     "update-watch": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md"
       ],
-      "reconciledHash": "0d53782fdff14731d22b5b4f9ebc8d2b8f1a41ea8267b3d1694e1b6436c6de4e"
+      "reconciledHash": "0d6be39cf90b988d6c08c72a24bd62e158ceb1274a75916b7fe04e1d8a1ddb6c"
     }
   }
 }

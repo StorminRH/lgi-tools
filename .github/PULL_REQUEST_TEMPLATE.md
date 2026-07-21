@@ -21,4 +21,4 @@ project, not the file-by-file details.
 
 <!-- What did you run or verify? Write completed checks as past-tense evidence. -->
 
-- [ ] `pnpm verify` passes locally (typecheck + lint + test + fallow)
+- [ ] `pnpm verify` passes locally (typecheck + lint + coverage Vitest + fallow)

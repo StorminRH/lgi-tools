@@ -1,8 +1,8 @@
 # Pre-PR Design Review (LGI.tools)
 
 **Audience:** the agent about to open (or hand off) a PR.
-**When invoked:** after implementation is complete and `pnpm verify` passes,
-**before** the PR is opened and before the external review loop
+**When invoked:** after implementation and focused/local proof are complete,
+**before** the finalized-head definition-of-done checkpoint, PR opening, and external review loop
 (`docs/PR_REVIEW.md`) runs. This review is about *design decay*, which
 mechanical gates and line-oriented reviewers don't catch.
 **Constitution:** `docs/DESIGN_PRINCIPLES.md` (P-numbers refer to it).
@@ -12,7 +12,9 @@ fixes applied in-branch, and backlog entries for anything found-but-out-of-scope
 
 Preconditions — do not start this review until:
 
-- [ ] `pnpm verify` green locally (typecheck, lint, test, fallow).
+- [ ] The changed behavior has focused and local/UX proof appropriate to the
+      surface. The coverage-backed definition-of-done checkpoint follows this
+      review so any design fix is included in the final tested head.
 - [ ] The branch is small and single-purpose. If the diff mixes a behavior
       change with an unrelated structural change, split it now — reviewers must
       be able to trust "refactor commit = no behavior change" (P9).

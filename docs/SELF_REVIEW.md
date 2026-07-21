@@ -1,7 +1,7 @@
 # Self-Review — the judgment gate
 
 > Read at close-out, after `SESSION_END.md`'s "fix before you close" and before
-> the commit + `pnpm verify`. Walk the session's diff against the checks below;
+> the final-head definition-of-done checkpoint and commit. Walk the session's diff against the checks below;
 > fix what's off in-branch. If a check here and `CLAUDE.md` ever disagree,
 > `CLAUDE.md` wins.
 

@@ -338,15 +338,18 @@ repair directive (test); a baseline with an injected prose note fails
 ### 3.10.0.3 — Migrate close-out (2 sessions, one branch)
 
 **Objective.** The whole close-out workflow is one canonical procedure the
-skills adapt over, with the recorded close-out decisions baked in.
+skills adapt over, with the recorded close-out decisions baked in and one
+coverage-backed definition-of-done pass on the finalized head.
 
 **Done means.** `SESSION_END` + `SELF_REVIEW` + `PR_REVIEW` become one canonical
 `docs/workflows/close-out.md` written as actionable steps in the real sequence:
 end-of-session gates, the judgment review (SELF_REVIEW's checks as mandatory
 numbered steps, not self-declared companion material), and the PR loop. The
 hand-rolled Greptile poll and merge recipes are replaced by citing
-`poll_pr_gate.py` / `merge_clean_pr.py`; the duplicated coverage-backed Fallow
-re-run at PR open is stated once (required iff a commit intervened); the
+`poll_pr_gate.py` / `merge_clean_pr.py`; `pnpm verify` becomes the sole
+coverage-backed definition-of-done command; the canonical procedure owns its
+one `origin/main`-pinned invocation; unchanged-head evidence is reused at PR
+open; later changes rerun only the gates they invalidate; the
 3.0/3.7-era narratives shrink to one line plus an archive pointer. Recorded
 decisions are baked in: the contract `UX gate` marker is the pause authority
 with judgment as the off-lifecycle fallback (A2); `merge_clean_pr.py` is named
@@ -354,17 +357,24 @@ the gate of record and the Greptile/CI/mergeability checklist stops being
 restated in prose (A3); final sessions mark `Execution status: Complete` only
 after merge (A10). The `.claude` and `.agents` close-out skills are split into
 thin adapters over the canonical procedure — shared steps to
-`workflows/close-out.md`, only genuine per-runtime mechanics (native task-lists
-vs `codex exec`) in each adapter (the ~111 differing lines today). The three
-source docs are deleted; manifest/refs updated; revision bumped.
+`workflows/close-out.md`, only genuine per-runtime task-list and
+background-launch syntax in each adapter (the ~111 differing lines today). The
+three source docs are deleted; manifest/refs updated; affected skill-ledger
+entries reviewed and restamped.
 
-**In scope.** The three-into-one canonical procedure, the poll/merge script
-citations, the A2/A3/A10 wording, the skill adapter split,
-`canonicalGuides`/`pairedSkills` + `check_doc_refs` allowlist updates.
+**In scope.** Session A authors the canonical procedure, upgrades `pnpm verify`
+to its coverage-backed sequence, aligns every live ordinary-close-out owner and
+both adapters without thinning them, reconciles the lifecycle artifacts, and
+delivers the operator-authored Codegraph-hook improvement with explicit proof.
+Session B performs the adapter split and source retirement, then updates
+`canonicalGuides`/`pairedSkills` + the `check_doc_refs` allowlist and ships the
+sub-version.
 
 **Out of scope.** Planning/design migration (0.4); the pre-pr procedure
-internals (0.4) — close-out references the `pre-pr-design-review` skill as it
-stands; any map/policy change.
+questions and broader internals (0.4) — session A changes only its invocation
+order; any map-policy consolidation, checker redesign, CI-command
+restructuring, specialized Convex/version-audit verification change, or
+application behavior change.
 
 **Dependencies.** 3.10.0.2 (frame exists).
 
@@ -377,9 +387,11 @@ sections.
 **Baseline & hotspot note.** Improves (removes ~6.5k words of duplicated
 process; one canonical owner replaces three docs plus two skill copies).
 
-**Delivery evidence.** `docs/workflows/close-out.md` exists; both close-out
-skills point to it and carry only runtime mechanics; the three source docs are
-gone and their references redirect; `check_agent_drift.py` green. Standard
+**Delivery evidence.** Session A proves the exact `verify` sequence, one pinned
+canonical invocation, unchanged CI commands, the Codegraph hook behavior, all
+11 paired skills reconciled, and no `src/`/`convex/` change. Session B proves
+both close-out skills are thin adapters, the three source docs are gone and
+their references redirect, and `check_agent_drift.py` is green. Standard
 close-out.
 
 ---

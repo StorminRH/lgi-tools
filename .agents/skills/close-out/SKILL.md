@@ -24,7 +24,8 @@ a failed gate or any unrelated production action.
 
 ## Sequence
 
-1. Read `docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and the current resolver
+1. Read `docs/workflows/close-out.md`, `docs/SESSION_END.md`,
+   `docs/SELF_REVIEW.md`, and the current resolver
    directive. Create a native Codex todo list from every
    applicable phase and gate; keep one item in progress and reopen invalidated
    verification after fixes.
@@ -44,8 +45,9 @@ a failed gate or any unrelated production action.
    `docs/PRE_PR_DESIGN_REVIEW.md` to pass. Reconcile any changed hotspot surface
    in the baseline before external review.
 6. Only then read and follow `docs/PR_REVIEW.md`: open the one PR using
-   `## What this does`, `## Why`, `## Notes`, and `## Test plan`; run fresh
-   `pnpm test:coverage` plus coverage-backed Fallow as required; complete the
+   `## What this does`, `## Why`, `## Notes`, and `## Test plan`; consume the
+   canonical coverage-backed current-head checkpoint without rerunning it at a
+   workflow boundary, and rerun only evidence a later change invalidates; complete the
    required personal information scrub; require
    `check_release_consistency.py --check --expect pre-pr` and
    `scrub_pr_body.py --check --body-file ... --title ...`; create the body through

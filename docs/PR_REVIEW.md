@@ -62,12 +62,11 @@ Expect Greptile to find real issues; that's the point of consolidating the revie
 
   After GitHub read-back, rerun `scrub_pr_body.py --check` against the published
   body-file and title; a finding blocks the review loop.
-- Confirm the local close-out gates are green: `pnpm verify`, then a fresh
-  `pnpm test:coverage`, then
-  `FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm fallow`. The second Fallow
-  pass uses real coverage for CI-equivalent CRAP attribution; a red result blocks
-  the PR and must be fixed with meaningful behavioral coverage or simpler code.
-  Record the coverage-backed pass in `## Test plan`.
+- Confirm the canonical close-out checkpoint is green for the current head. If
+  HEAD and its verification inputs have not changed since close-out, reuse that
+  evidence instead of rerunning the suite merely because the PR is opening.
+  Record the coverage-backed pass in `## Test plan`; after later changes, rerun
+  only the gates those changed inputs invalidate.
 
 > If this sub-version changed a user-facing surface, the operator's local-dev review
 > happens **before** the PR opens (see `SESSION_END.md`). Don't open the PR on a

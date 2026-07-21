@@ -208,7 +208,7 @@ feat: add API endpoints for browsing and filtering wormhole sites
 
 1. Branch off `main` and open your PR back into `main`.
 2. Run **`pnpm verify`** locally and confirm it passes — this bundles
-   `typecheck`, `lint`, `test`, and `fallow` (the static-analysis gate: dead code,
+   `typecheck`, `lint`, one coverage-enabled Vitest suite, and `fallow` (the static-analysis gate: dead code,
    duplication, complexity, architecture boundaries). CI runs the same gates plus
    a route-classification presence check (`assert:routes-present`).
 3. Fill in the PR template's **test plan** — what you verified and how.

@@ -12,7 +12,8 @@ description: >-
 
 Sequence the canonical docs; do not duplicate them. Read
 `docs/DESIGN_PRINCIPLES.md`, `docs/CODE_HEALTH_BASELINE.md`,
-`docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and the current resolver directive.
+`docs/workflows/close-out.md`, `docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and
+the current resolver directive.
 Create a native Claude Code task list from every applicable
 phase/gate, keep one active, and reopen invalidated verification after fixes.
 
@@ -22,8 +23,9 @@ does not authorize bypassing a gate or unrelated production work.
 
 Follow `docs/SESSION_END.md` completely, including the narrow ignored local-state boundary,
 the APP_VERSION/changelog rule for every completed sub-version, no
-production-mode build before merge, and its full coverage plus coverage-backed
-Fallow gate (`pnpm test:coverage` plus the documented pinned-base command). A
+production-mode build before merge, and the canonical coverage-backed
+current-head checkpoint. Do not rerun it merely because the workflow enters
+pre-PR or PR-opening; rerun only evidence a later change invalidates. A
 branch push creates no Vercel preview; any manual preview follows
 the documented exception. Run `check_baseline_claims` and
 `check_watch_triggers`; reconcile or explain every claims warning and surface
