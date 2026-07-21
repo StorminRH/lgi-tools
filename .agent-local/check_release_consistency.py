@@ -101,7 +101,7 @@ def collect_findings(root: Path, args: argparse.Namespace) -> list[Finding]:
         opening = (
             app_version is not None
             and not any(row.terminal for row in rows)
-            and app_version.split(".")[:2] != active_version.split(".")
+            and app_version.split(".")[:2] != active_version.split(".")[:2]
         )
         if opening:
             if args.expect is not None:
