@@ -1,3 +1,9 @@
+# Delay installation of freshly published versions to reduce supply-chain risk
+# from a compromised release: a version must be at least 7 days (10080 minutes)
+# old before pnpm will install it. Security patches we deliberately pin through
+# `pnpm.overrides` in package.json are unaffected once they clear this window.
+minimumReleaseAge: 10080
+
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
