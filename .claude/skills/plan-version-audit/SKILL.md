@@ -9,7 +9,7 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 29 -->
+<!-- shared-policy-revision: 30 -->
 
 Run the resolver and require its directive to name `plan-version-audit` as the
 handler for lifecycle-driven Version close. Otherwise report it and return

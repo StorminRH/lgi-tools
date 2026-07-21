@@ -93,7 +93,7 @@ sub-version's scope?* If yes — fix it. If no — it's a backlog item.
   ship through normal commits. Audit only deliberately ignored local state touched
   during the session: Claude local settings/launchers/worktrees, generated tooling
   reports and UX captures, margin-audit artifacts, temporary PR body-files, and
-  `graphify-out/`. Remove credential-bearing permissions and session-only artifacts,
+  `.codegraph/`. Remove credential-bearing permissions and session-only artifacts,
   update both runtime adapters and the shared-policy revision when required, then
   run `python3 .agent-local/check_agent_drift.py` after policy changes.
 - Run `pnpm verify` before committing — the definition-of-done bundle (typecheck +

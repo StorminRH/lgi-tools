@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Emit shared Graphify-first guidance for Claude Code and Codex hooks."""
+"""Emit shared Codegraph-first guidance for Claude Code and Codex hooks."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Anchored to this file, not the process cwd: hook commands inherit the
 # session's persisted working directory, which is not always the repo root.
-GRAPH_PATH = Path(__file__).resolve().parents[1] / "graphify-out/graph.json"
+GRAPH_PATH = Path(__file__).resolve().parents[1] / ".codegraph/codegraph.db"
 SEARCH_COMMAND = re.compile(
     r"(^|[\s;&|])(grep|rg|ripgrep|find|fd|ack|ag)(?=\s|$)",
     flags=re.IGNORECASE,
@@ -46,9 +46,9 @@ def guard_bash(tool_input: dict) -> None:
     command = str(tool_input.get("command") or tool_input.get("cmd") or "")
     if SEARCH_COMMAND.search(command):
         emit(
-            "MANDATORY: graphify-out/graph.json exists. You MUST run "
-            "`graphify query \"<question>\"` before grepping raw files. Only grep "
-            "after Graphify has oriented you, or to modify/debug specific lines."
+            "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
+            "`codegraph explore \"<question>\"` before grepping raw files. Only grep "
+            "after Codegraph has oriented you, or to modify/debug specific lines."
         )
 
 
@@ -56,17 +56,17 @@ def guard_read(tool_input: dict) -> None:
     candidate = " ".join(
         str(tool_input.get(key) or "") for key in ("file_path", "pattern", "path")
     ).lower().replace("\\", "/")
-    if "graphify-out/" in candidate:
+    if ".codegraph/" in candidate:
         return
     if any(extension in candidate for extension in SOURCE_EXTENSIONS):
         emit(
-            "MANDATORY: graphify-out/graph.json exists. You MUST run Graphify "
-            "before reading source files. Use: `graphify query \"<question>\"` "
-            "(scoped subgraph), `graphify explain \"<concept>\"`, or `graphify path "
-            "\"<A>\" \"<B>\"`. Only read raw files after Graphify has oriented "
-            "you, or to modify/debug specific lines. This rule applies to "
-            "subagents too—include it in every subagent prompt involving code "
-            "exploration."
+            "MANDATORY: .codegraph/codegraph.db exists. You MUST run Codegraph "
+            "before reading source files. Use: `codegraph explore \"<question>\"` "
+            "(relevant symbols and call paths), `codegraph query \"<symbol>\"`, or "
+            "`codegraph callers \"<symbol>\"` / `codegraph impact \"<symbol>\"`. Only "
+            "read raw files after Codegraph has oriented you, or to modify/debug "
+            "specific lines. This rule applies to subagents too—include it in every "
+            "subagent prompt involving code exploration."
         )
 
 

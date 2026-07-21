@@ -47,7 +47,7 @@ yarn-error.log*
 docs/ux-check/captures/
 docs/ux-check/profiles/
 docs/margin-audit/
-graphify-out/
+.codegraph/
 
 # typescript
 *.tsbuildinfo

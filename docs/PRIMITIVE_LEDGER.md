@@ -85,7 +85,7 @@ Part 2 uses the fixed lifecycle classes `create`, `combine`, `delete`,
 | PR privacy and clean-merge tooling | `.agent-local/scrub_pr_body.py`, `.agent-local/poll_pr_gate.py`, `.agent-local/merge_clean_pr.py` | Scrub public metadata, read the current-head review state, and permit only a fully green clean merge. | `.agent-local/test_scrub_pr_body.py` plus close-out workflow gates |
 | Archive verifier | `.agent-local/verify_archive.py` | Validate version bundle completeness and manifest integrity before and after archival without mutating the archive. | `.agent-local/test_verify_archive.py` and resolver archive states |
 | UX probe harness | `scripts/ux-capture.mjs`, `scripts/ux-capture-args.mjs`, `.agents/skills/ux-check/` | Derive route probes from changed UI scope and capture desktop/mobile console, network, and screenshot evidence consistently. | Probe-layout and paired-skill checks in `.agent-local/check_agent_drift.py` plus `scripts/ux-capture-args.test.mjs` |
-| Graphify-first guard | `.agent-local/graphify_guard.py`, `.codex/hooks.json`, `.claude/settings.json` | Require structural queries before broad source search while allowing targeted confirmation after the graph narrows scope. | Hook parity and path checks in `.agent-local/check_agent_drift.py` |
+| Codegraph-first guard | `.agent-local/codegraph_guard.py`, `.codex/hooks.json`, `.claude/settings.json` | Require structural queries before broad source search while allowing targeted confirmation after the graph narrows scope. | Hook parity and path checks in `.agent-local/check_agent_drift.py` |
 
 ### Auth/trust
 

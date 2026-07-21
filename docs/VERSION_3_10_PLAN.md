@@ -941,7 +941,7 @@ intermediate, the devlog visualization component/asset, one devlog prose
 passage introducing the map, `ux-check` coverage of the changed route.
 
 **Out of scope.** File-level or symbol-level graphs (zone-level only;
-Graphify already owns fine-grained structure); a live/interactive graph
+Codegraph already owns fine-grained structure); a live/interactive graph
 explorer (backlog if ever); restyling any other devlog section; new heavy
 client dependencies — a client-side Mermaid runtime is presumed rejected
 in favor of build-time SVG or a small owned component unless the session

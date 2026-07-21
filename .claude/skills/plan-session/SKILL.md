@@ -10,7 +10,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 29 -->
+<!-- shared-policy-revision: 30 -->
 
 Run the resolver and require its directive to name `plan-session` as the handler.
 Otherwise report it and return control to `start-session`; never select a sibling
@@ -22,7 +22,7 @@ read and reconcile the schema's authoring inputs, then create the native task li
 from this sequence and the schema's authoring, drafting, review, approval,
 and persistence gates.
 
-Reconcile the contract with Graphify, live code, dependencies, and current
+Reconcile the contract with Codegraph, live code, dependencies, and current
 primary docs. After context is loaded, discuss the plan's intended shape with
 Ryan in plain English before any fixed-schema drafting. Once the fixed-schema
 draft is complete, launch a fresh read-only high `gpt-5.6-sol` worker to

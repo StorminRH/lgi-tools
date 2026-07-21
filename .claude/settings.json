@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash"
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" bash"
           }
         ]
       },
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" read"
           }
         ]
       },

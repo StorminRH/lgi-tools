@@ -12,7 +12,7 @@ Before changing code:
    `docs/DESIGN_PRINCIPLES.md`, the current
    `docs/CODE_HEALTH_BASELINE.md`, `docs/SCRATCHPAD.md`, and the resolved
    roadmap/contract/approved session plan in `docs/`.
-2. If `graphify-out/graph.json` exists, skim `graphify-out/GRAPH_REPORT.md` and query Graphify before searching source files.
+2. If `.codegraph/codegraph.db` exists, query Codegraph (`codegraph explore`) before searching source files.
 3. For library- or framework-specific work, verify current APIs with the `find-docs` skill/Context7 during planning. Do not rely on remembered APIs.
 4. Read the relevant guide under `node_modules/next/dist/docs/` before changing Next.js routing, rendering, caching, or configuration.
 5. Raise a conflict before proceeding if the requested work violates an invariant in this file or an approved plan.
@@ -219,7 +219,7 @@ All changes ship through PRs to `main`, the only automatic deployment target. Wo
 - Branch previews are manual and on-demand only. Use `vercel deploy` only when local data cannot represent the required behavior, and remove the preview promptly afterward.
 - Production deployment review is browser-first after Vercel reports Ready. Verify the shipped version, affected routes, auth/admin gates, and browser console in a real browser; scripted HTTP/curl smoke checks are not the production review surface because the public edge may deliberately rate-limit them. Keep the Vercel CLI for deployment state and runtime logs.
 - Before ending any coding session, read `docs/SESSION_END.md` and invoke the `close-out` skill when the user asks to wrap up or ship. A final session must pass `pre-pr-design-review` before `docs/PR_REVIEW.md` begins.
-- Workspace docs, agent configuration, and local utilities are tracked and ship through normal commits. At close-out, audit only the deliberately ignored local-state paths (`.claude/settings.local.json`, `.claude/launch.json`, `.claude/worktrees/`, `.agent-local/pr-privacy-local-patterns.txt`, generated reports/captures, margin-audit artifacts, temporary PR body-files, and `graphify-out/`): keep no credential-bearing permissions or session-only artifacts, reconcile both runtime adapters, and run the drift gate after policy changes.
+- Workspace docs, agent configuration, and local utilities are tracked and ship through normal commits. At close-out, audit only the deliberately ignored local-state paths (`.claude/settings.local.json`, `.claude/launch.json`, `.claude/worktrees/`, `.agent-local/pr-privacy-local-patterns.txt`, generated reports/captures, margin-audit artifacts, temporary PR body-files, and `.codegraph/`): keep no credential-bearing permissions or session-only artifacts, reconcile both runtime adapters, and run the drift gate after policy changes.
 - If more sessions remain, finish with a verified commit/push and updated session memory; do not open a PR.
 - Tracked lifecycle status is reconciled locally immediately after merge, then carried as the first commit on a branch created and named only after the resolver selects the next lifecycle action. Require the reconciled release-consistency check to pass. The remote documents intentionally have a one-PR lag; do not open a follow-up PR or push directly to `main` solely to publish that reconciliation.
 - If a user-facing sub-version is complete, run the `ux-check` skill and pause for Ryan's local browser review before opening the PR.
@@ -292,17 +292,18 @@ This file and `src/AGENTS.md` are the canonical shared guidance for both Codex a
 - After changing global CLIs, plugins, MCP configuration, or Claude's Vercel plugin, follow `docs/AGENT_TOOLING.md`; tooling parity is part of the drift gate.
 - When shared policy changes, bump the revision in `.agent-local/policy-manifest.json`, audit both skill trees, and update their `shared-policy-revision` markers.
 
-## Graphify-first exploration
+## Codegraph-first exploration
 
-The local `graphify-out/graph.json` is the structural index for the codebase. It is code-only and untracked.
+The local `.codegraph/codegraph.db` is the structural index for the codebase. It is code-only and untracked, and a file watcher keeps it synced as you edit.
 
 Before grepping or broadly reading source:
 
 ```bash
-graphify query "<question>"
-graphify explain "<symbol>"
-graphify path "<A>" "<B>"
-graphify affected "<symbol>"
+codegraph explore "<question>"
+codegraph query "<symbol>"
+codegraph callers "<symbol>"
+codegraph callees "<symbol>"
+codegraph impact "<symbol>"
 ```
 
-Use the result to open only the relevant files and confirm exact code. Apply the same rule to any delegated code-exploration task. Hooks reinforce this behavior. The graph updates on commit/checkout; after a large refactor use `graphify update .` (or `--force` if node counts unexpectedly fall).
+Use the result to open only the relevant files and confirm exact code. Apply the same rule to any delegated code-exploration task. Hooks reinforce this behavior. The watcher auto-syncs on edit; use `codegraph sync` for an explicit incremental update, and `codegraph index --force` to rebuild after a large refactor.

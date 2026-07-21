@@ -1,5 +1,5 @@
 {
-  "policyRevision": 29,
+  "policyRevision": 30,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -21,13 +21,13 @@
   },
   "hookConfigs": {
     ".claude/settings.json": [
-      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash",
-      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read",
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" bash",
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" read",
       "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/redirect_subagent_to_codex.py\""
     ],
     ".codex/hooks.json": [
-      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash",
-      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" bash",
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" read"
     ]
   },
   "skillRoots": {
@@ -96,7 +96,7 @@
         "todo list|task list",
         "Plan mode",
         "separate prompt",
-        "Graphify",
+        "Codegraph",
         "check_release_consistency",
         "close-out",
         "Ryan",
@@ -240,7 +240,7 @@
         "Every completed sub-version",
         "APP_VERSION",
         "changelog",
-        "Graphify",
+        "Codegraph",
         "user chooses",
         "close-out"
       ],
@@ -253,7 +253,7 @@
       "required": [
         "DESIGN_PRINCIPLES",
         "todo list|task list",
-        "Graphify",
+        "Codegraph",
         "localhost:3000",
         "127\\.0\\.0\\.1",
         "logged-out",
@@ -329,7 +329,7 @@
     ".agent-local/test_repo_measures.py",
     ".agent-local/test_baseline_claims.py",
     ".agent-local/test_watch_triggers.py",
-    ".agent-local/graphify_guard.py",
+    ".agent-local/codegraph_guard.py",
     ".agent-local/redirect_subagent_to_codex.py",
     ".agent-local/test_redirect_subagent_to_codex.py",
     ".agent-local/audit_tooling_parity.py",

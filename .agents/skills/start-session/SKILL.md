@@ -12,7 +12,7 @@ description: >-
 
 # Start an LGI.tools session
 
-<!-- shared-policy-revision: 29 -->
+<!-- shared-policy-revision: 30 -->
 
 The resolver is the sole mechanical owner of lifecycle semantics, current-state
 validation, and handler selection. The session contract and plan schemas own
@@ -51,7 +51,7 @@ it; execution begins in a fresh `start-session`, whichever runtime runs it.
 When the directive names `start-session` as its handler, read the active
 instruction chain, constitution, baseline, master-plan context,
 contract/index, approved session plan, SCRATCHPAD, and relevant backlog entries.
-Follow Graphify-first exploration and verify moving API assumptions from current
+Follow Codegraph-first exploration and verify moving API assumptions from current
 primary documentation.
 
 Reconcile the contract digest, branch/worktree, prerequisites, named interfaces,
