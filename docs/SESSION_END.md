@@ -93,7 +93,7 @@ sub-version's scope?* If yes — fix it. If no — it's a backlog item.
   ship through normal commits. Audit only deliberately ignored local state touched
   during the session: Claude local settings/launchers/worktrees, generated tooling
   reports and UX captures, margin-audit artifacts, temporary PR body-files, and
-  `graphify-out/`. Remove credential-bearing permissions and session-only artifacts,
+  `.codegraph/`. Remove credential-bearing permissions and session-only artifacts,
   update both runtime adapters and the shared-policy revision when required, then
   run `python3 .agent-local/check_agent_drift.py` after policy changes.
 - Run `pnpm verify` before committing — the definition-of-done bundle (typecheck +
@@ -142,10 +142,11 @@ In short:
 - Delete anything that shipped this session.
 - Do **not** write a forensic session log here. Discoveries and gotchas only.
 - **Carry post-merge lifecycle evidence forward by one PR.** After a merge,
-  reconcile the tracked roadmap, session plan, and SCRATCHPAD locally, then make
-  that reconciliation the first commit on a branch created only after rerunning
-  the resolver and named for its selected next action. The branch is not an
-  agent choice. After the reconciliation commit, require `python3
+  reconcile the tracked roadmap, session plan, and SCRATCHPAD. That reconciliation
+  is not committed at close-out: `start-session` opens the branch for the
+  resolver's next action — cut at the start of that action, named from the
+  directive's `branch` authority, never an agent choice — and makes the
+  reconciliation the branch's first commit. After that commit, require `python3
   .agent-local/check_release_consistency.py --check --expect reconciled` to pass.
   The remote documents intentionally lag by one PR; do not open a follow-up PR
   or push directly to `main` solely to publish the status update.

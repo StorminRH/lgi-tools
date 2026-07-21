@@ -12,7 +12,7 @@ Before changing code:
    `docs/DESIGN_PRINCIPLES.md`, the current
    `docs/CODE_HEALTH_BASELINE.md`, `docs/SCRATCHPAD.md`, and the resolved
    roadmap/contract/approved session plan in `docs/`.
-2. If `graphify-out/graph.json` exists, skim `graphify-out/GRAPH_REPORT.md` and query Graphify before searching source files.
+2. If `.codegraph/codegraph.db` exists, query Codegraph (`codegraph explore`) before searching source files.
 3. For library- or framework-specific work, verify current APIs with the `find-docs` skill/Context7 during planning. Do not rely on remembered APIs.
 4. Read the relevant guide under `node_modules/next/dist/docs/` before changing Next.js routing, rendering, caching, or configuration.
 5. Raise a conflict before proceeding if the requested work violates an invariant in this file or an approved plan.
@@ -219,9 +219,10 @@ All changes ship through PRs to `main`, the only automatic deployment target. Wo
 - Branch previews are manual and on-demand only. Use `vercel deploy` only when local data cannot represent the required behavior, and remove the preview promptly afterward.
 - Production deployment review is browser-first after Vercel reports Ready. Verify the shipped version, affected routes, auth/admin gates, and browser console in a real browser; scripted HTTP/curl smoke checks are not the production review surface because the public edge may deliberately rate-limit them. Keep the Vercel CLI for deployment state and runtime logs.
 - Before ending any coding session, read `docs/SESSION_END.md` and invoke the `close-out` skill when the user asks to wrap up or ship. A final session must pass `pre-pr-design-review` before `docs/PR_REVIEW.md` begins.
-- Workspace docs, agent configuration, and local utilities are tracked and ship through normal commits. At close-out, audit only the deliberately ignored local-state paths (`.claude/settings.local.json`, `.claude/launch.json`, `.claude/worktrees/`, `.agent-local/pr-privacy-local-patterns.txt`, generated reports/captures, margin-audit artifacts, temporary PR body-files, and `graphify-out/`): keep no credential-bearing permissions or session-only artifacts, reconcile both runtime adapters, and run the drift gate after policy changes.
+- Workspace docs, agent configuration, and local utilities are tracked and ship through normal commits. At close-out, audit only the deliberately ignored local-state paths (`.claude/settings.local.json`, `.claude/launch.json`, `.claude/worktrees/`, `.agent-local/pr-privacy-local-patterns.txt`, generated reports/captures, margin-audit artifacts, temporary PR body-files, and `.codegraph/`): keep no credential-bearing permissions or session-only artifacts, reconcile both runtime adapters, and run the drift gate after policy changes.
 - If more sessions remain, finish with a verified commit/push and updated session memory; do not open a PR.
-- Tracked lifecycle status is reconciled locally immediately after merge, then carried as the first commit on a branch created and named only after the resolver selects the next lifecycle action. Require the reconciled release-consistency check to pass. The remote documents intentionally have a one-PR lag; do not open a follow-up PR or push directly to `main` solely to publish that reconciliation.
+- Tracked lifecycle status is reconciled locally immediately after merge; `start-session` then opens the branch for the next action and carries that reconciliation as the branch's first commit. The branch is cut at the start of the next action, never at the end of the finishing session, and its name is the resolver's authority — the directive's `branch` field, not an agent choice. Require the reconciled release-consistency check to pass. The remote documents intentionally have a one-PR lag; do not open a follow-up PR or push directly to `main` solely to publish that reconciliation.
+- Small one-offs that do not warrant the full lifecycle ride a `rider/*` branch: the resolver reports a `rider` flow-track directive and steps aside. Riders never touch `APP_VERSION`, the changelog, or the roadmap, which keeps them invisible to the release-consistency gate; their merge timing (fold into the next sub-version, or merge on their own when later work builds on them) is case-by-case. Work that needs a version bump, changelog entry, or roadmap row is planned-track, not a rider.
 - If a user-facing sub-version is complete, run the `ux-check` skill and pause for Ryan's local browser review before opening the PR.
 - When the sub-version is ready, follow `docs/PR_REVIEW.md` for the single PR, Greptile loop, changelog/version update, merge gates, and plan archiving.
 - Every notable sub-version, including internal/CI/infrastructure/tooling work, gets an `APP_VERSION` bump and changelog entry in the correct `content/changelog/vX.Y.md` master file.
@@ -290,19 +291,20 @@ This file and `src/AGENTS.md` are the canonical shared guidance for both Codex a
 - Keep shared enforcement logic in `.agent-local/`; Claude and Codex hook/config wrappers may point to it using their native schemas.
 - After changing any agent guide, skill, hook, or shared workflow policy, run `python3 .agent-local/check_agent_drift.py`. A failing drift check is in-scope work and blocks close-out.
 - After changing global CLIs, plugins, MCP configuration, or Claude's Vercel plugin, follow `docs/AGENT_TOOLING.md`; tooling parity is part of the drift gate.
-- When shared policy changes, bump the revision in `.agent-local/policy-manifest.json`, audit both skill trees, and update their `shared-policy-revision` markers.
+- When shared policy changes, re-review every affected skill against the changed canonical docs across both skill trees, then restamp the skill-reconciliation ledger with `python3 .agent-local/reconcile_skill_ledger.py`. The drift gate hashes each skill's declared policy deps in `skillReconciliation` and flags exactly the skills whose deps moved until they are restamped; the restamp is the human attestation that the re-review happened.
 
-## Graphify-first exploration
+## Codegraph-first exploration
 
-The local `graphify-out/graph.json` is the structural index for the codebase. It is code-only and untracked.
+The local `.codegraph/codegraph.db` is the structural index for the codebase. It is code-only and untracked, and a file watcher keeps it synced as you edit.
 
 Before grepping or broadly reading source:
 
 ```bash
-graphify query "<question>"
-graphify explain "<symbol>"
-graphify path "<A>" "<B>"
-graphify affected "<symbol>"
+codegraph explore "<question>"
+codegraph query "<symbol>"
+codegraph callers "<symbol>"
+codegraph callees "<symbol>"
+codegraph impact "<symbol>"
 ```
 
-Use the result to open only the relevant files and confirm exact code. Apply the same rule to any delegated code-exploration task. Hooks reinforce this behavior. The graph updates on commit/checkout; after a large refactor use `graphify update .` (or `--force` if node counts unexpectedly fall).
+Use the result to open only the relevant files and confirm exact code. Apply the same rule to any delegated code-exploration task. Hooks reinforce this behavior. The watcher auto-syncs on edit; use `codegraph sync` for an explicit incremental update, and `codegraph index --force` to rebuild after a large refactor.

@@ -12,8 +12,6 @@ description: >-
 
 # Triage an issue or contribution
 
-<!-- shared-policy-revision: 29 -->
-
 Produce a validated diagnosis before taking outward action. Read `CLAUDE.md` and
 the recent changelog/scratchpad context that could reframe the report.
 
@@ -39,8 +37,8 @@ Ask which issue/PR if none is identifiable.
 
 ## 2. Validate every claim
 
-Query Graphify before broad source searches. Use `query`, `explain`, `path`, or
-`affected`, then open the exact files and lines needed for proof.
+Query Codegraph before broad source searches. Use `explore`, `query`, `callers`,
+or `impact`, then open the exact files and lines needed for proof.
 
 For each claim, confirm current code and behavior, reproduce safely when useful,
 distinguish application bugs from environment/auth/rate-limit/schema/deployment

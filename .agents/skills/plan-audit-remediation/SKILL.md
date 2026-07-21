@@ -11,8 +11,6 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 29 -->
-
 This is the Plan-mode owner for converting a failed version-close audit into a
 bounded extension of the same master version. It creates no separate remediation
 prompt or execution plan: the master plan, session contracts, later approved
@@ -30,7 +28,7 @@ session plans, and audit finding ledger remain authoritative.
    `docs/workflows/schema/session-plan.md`,
    `docs/PRE_PR_DESIGN_REVIEW.md`, and `docs/VERSION_AUDIT.md`. Then read the
    resolver directive, current `docs/CODE_HEALTH_BASELINE.md`, audit plan
-   and finding ledger, master plan, SCRATCHPAD, relevant backlog, Graphify
+   and finding ledger, master plan, SCRATCHPAD, relevant backlog, Codegraph
    results, and live code.
 3. For every open Floss or Campaign, diagnose the violated ownership,
    interface, change-axis, or coverage principle rather than repeating a metric.

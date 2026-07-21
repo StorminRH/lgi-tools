@@ -32,7 +32,7 @@ CLI_NAMES = (
     "neon",
     "neonctl",
     "gh",
-    "graphify",
+    "codegraph",
     "playwright",
     "python3",
 )
@@ -47,7 +47,7 @@ VERSION_ARGS = {
     "neon": ("--version",),
     "neonctl": ("--version",),
     "gh": ("--version",),
-    "graphify": ("--version",),
+    "codegraph": ("--version",),
     "playwright": ("--version",),
     "python3": ("--version",),
 }

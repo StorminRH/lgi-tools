@@ -11,8 +11,6 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 29 -->
-
 Use `docs/workflows/schema/session-plan.md` as the canonical authoring guide and
 output schema; do not restate it. Treat the active agent guide and current
 code-health state as standing context, and the selected session contract as the
@@ -30,7 +28,7 @@ product boundary.
 3. Create a native Codex todo list from this sequence and the schema's
    authoring, drafting, review, approval, and persistence gates; keep one item
    in progress and reopen invalidated checks.
-4. Reconcile the contract with Graphify, live code, dependencies, and current
+4. Reconcile the contract with Codegraph, live code, dependencies, and current
    primary documentation. Discuss the plan's intended shape with Ryan in
    plain English before drafting. Then produce a complete schema-conforming plan
    with no missing required section, mapping, marker, or unresolved placeholder.

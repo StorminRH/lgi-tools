@@ -12,7 +12,7 @@ from audit_tooling_parity import HOME, ROOT, build_report
 from sync_vercel_plugin import DEFAULT_AGENTS_TARGET, DEFAULT_SOURCE, DEFAULT_TARGET, check
 
 
-REQUIRED_PATH_COMMANDS = ("node", "pnpm", "ctx7", "vercel", "neon", "gh", "graphify")
+REQUIRED_PATH_COMMANDS = ("node", "pnpm", "ctx7", "vercel", "neon", "gh", "codegraph")
 REQUIRED_CODEX_AGENTS = (
     "ai-architect.toml",
     "deployment-expert.toml",

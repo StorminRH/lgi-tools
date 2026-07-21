@@ -10,8 +10,6 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 29 -->
-
 Sequence the canonical docs; do not duplicate them. Read
 `docs/DESIGN_PRINCIPLES.md`, `docs/CODE_HEALTH_BASELINE.md`,
 `docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and the current resolver directive.
@@ -48,11 +46,11 @@ after-merge reconciliation.
 
 After merge/reconciliation, mark a mapped `AF-NNN` finding Delivered only after
 all of its remediation sub-versions have terminal merge evidence. Do not archive
-here. Run the resolver, report its directive, and return control to
-`start-session`; close-out never selects the next lifecycle handler itself. Keep
-the tracked reconciliation local and, only after the resolver rerun, carry it as
-the first commit on the branch named for the selected lifecycle action. Require
-`check_release_consistency.py --check --expect reconciled` after that commit;
+here, and do not cut the next branch here. Run the resolver, report its directive,
+and return control to `start-session`; close-out never selects the next lifecycle
+handler itself. `start-session` opens the resolver-named branch at the start of the
+next action and makes the carried lifecycle reconciliation that branch's first
+commit, then requires `check_release_consistency.py --check --expect reconciled`;
 the intentional one-PR lag never justifies a follow-up PR or direct push to
 `main`. `verify_archive.py` belongs only to the resolver-selected version-audit
 archive transition, not close-out.

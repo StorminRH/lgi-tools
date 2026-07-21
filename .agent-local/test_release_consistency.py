@@ -121,6 +121,34 @@ class ReleaseConsistencyTests(unittest.TestCase):
         )
         self.assertTrue(any("terminal prefix" in message for message in self.fixture.messages()))
 
+    def test_opening_transient_is_clean(self) -> None:
+        # New version opened: all rows planned, APP_VERSION still on the previous
+        # version, no changelog entry yet. --check is clean; --expect still pins.
+        self.fixture.seed(
+            "9.8.1.5",
+            [],
+            [("9.9.1.1", "PLANNED"), ("9.9.1.2", "PLANNED")],
+        )
+        self.assertEqual([], self.fixture.messages())
+        self.assertTrue(
+            any(
+                "release state is opening, expected reconciled" in message
+                for message in self.fixture.messages("reconciled")
+            )
+        )
+
+    def test_missing_changelog_for_current_version_is_red(self) -> None:
+        # APP_VERSION already names the active version but its changelog is missing:
+        # a real contradiction, not the opening transient.
+        self.fixture.seed(
+            "9.9.1.1",
+            [],
+            [("9.9.1.1", "PLANNED")],
+        )
+        self.assertTrue(
+            any("missing parseable changelog entry" in message for message in self.fixture.messages())
+        )
+
     def test_check_mode_blocks_seeded_mismatch(self) -> None:
         self.fixture.seed(
             "9.9.1.3",

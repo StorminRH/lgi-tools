@@ -9,6 +9,7 @@ from update_watch_collect import (
     SOURCE_REGISTRY,
     advisory_key,
     canonical_url,
+    classify_scope,
     compute_deltas,
     dep_major_key,
     filter_update_watch_issues,
@@ -18,6 +19,7 @@ from update_watch_collect import (
     nwo_from_remote_url,
     parse_baseline,
     parse_issue_keys,
+    render_issue_body,
     render_key_block,
     source_by_name,
     window_class,
@@ -375,6 +377,120 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual([], payload["deltas"])
         self.assertIn("candidates found: 1", payload["summary"])
         self.assertIn("deltas suppressed by open issues: 0", payload["summary"])
+
+
+class ScopeTests(unittest.TestCase):
+    def test_one_production_consumer_makes_the_advisory_production(self) -> None:
+        scope = classify_scope(
+            [".>next>foo", ".>eslint>foo"], {"next"}, {"eslint"}
+        )
+        self.assertEqual("production", scope)
+
+    def test_all_dev_consumers_make_the_advisory_development(self) -> None:
+        scope = classify_scope(
+            [".>eslint>minimatch>brace-expansion", ".>concurrently>shell-quote"],
+            {"next"},
+            {"eslint", "concurrently"},
+        )
+        self.assertEqual("development", scope)
+
+    def test_unknown_when_no_set_decides_or_data_missing(self) -> None:
+        self.assertEqual("unknown", classify_scope([".>mystery>x"], {"next"}, {"eslint"}))
+        self.assertEqual("unknown", classify_scope([], {"next"}, {"eslint"}))
+        self.assertEqual("unknown", classify_scope([".>eslint>x"], set(), set()))
+
+
+class RenderTests(unittest.TestCase):
+    def _report_body(self) -> str:
+        state = state_with(
+            baseline=baseline_with(
+                dependencies={"clsx": {"acknowledgedMajor": 1}}, acknowledgedAdvisories=[]
+            ),
+            npmLatest={"clsx": {"version": "2.1.1", "major": 2}},
+            advisories=[
+                {
+                    "id": "GHSA-395f-4hp3-45gv",
+                    "module": "shell-quote",
+                    "range": "<=1.8.4",
+                    "severity": "high",
+                    "title": "Quadratic DoS in parse()",
+                    "installed": "1.8.4",
+                    "patched": ">=1.8.5",
+                    "scope": "development",
+                    "url": "https://github.com/advisories/GHSA-395f-4hp3-45gv",
+                }
+            ],
+        )
+        deltas = compute_deltas(
+            state,
+            [
+                {
+                    "source": "Neon",
+                    "title": "Pipe | and newline\nin the title",
+                    "date": None,
+                    "url": "https://neon.com/docs/changelog/x",
+                }
+            ],
+            [],
+        )
+        return render_issue_body(deltas)
+
+    def test_body_has_all_three_sections_and_the_key_block(self) -> None:
+        body = self._report_body()
+        self.assertIn("## Security advisories", body)
+        self.assertIn("## Major versions", body)
+        self.assertIn("## Service/EVE surface changes", body)
+        self.assertIn("## Absorption note", body)
+        # Sections render before the key block, which renders before the note.
+        self.assertLess(body.index("## Security advisories"), body.index("## Major versions"))
+        self.assertLess(body.index(f"```{ 'update-watch-deltas' }"), body.index("## Absorption note"))
+        self.assertEqual(
+            ["advisory:GHSA-395f-4hp3-45gv", "dep-major:clsx:2", "service:neon:https://neon.com/docs/changelog/x"],
+            parse_issue_keys(body),
+        )
+
+    def test_advisory_row_carries_installed_patched_scope_and_link(self) -> None:
+        body = self._report_body()
+        self.assertIn("| `shell-quote` | high | `1.8.4` | `<=1.8.4` | `>=1.8.5` | development |", body)
+        self.assertIn("[GHSA-395f-4hp3-45gv](https://github.com/advisories/GHSA-395f-4hp3-45gv)", body)
+        # The range is code-spanned, never HTML-escaped as the old prose form was.
+        self.assertNotIn("&lt;", body)
+
+    def test_untrusted_titles_are_pipe_escaped_and_flattened(self) -> None:
+        body = self._report_body()
+        self.assertIn("Pipe \\| and newline in the title", body)
+
+    def test_service_link_is_hyperlinked_like_the_advisory_section(self) -> None:
+        body = self._report_body()
+        self.assertIn(
+            "[https://neon.com/docs/changelog/x](https://neon.com/docs/changelog/x)",
+            body,
+        )
+
+    def test_empty_sections_render_a_none_line(self) -> None:
+        deltas = compute_deltas(
+            state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}}), [], []
+        )
+        # No candidates at all → all three sections show their empty message.
+        body = render_issue_body(deltas)
+        self.assertIn("No unacknowledged security advisories.", body)
+        self.assertIn("No unacknowledged major-version deltas.", body)
+        self.assertIn("No unacknowledged service or EVE-surface changes.", body)
+
+    def test_issue_body_present_on_report_and_empty_otherwise(self) -> None:
+        report = finalize_verdict(state_with(), [], [])
+        self.assertEqual("report", report["verdict"])
+        self.assertIn("## Security advisories", report["issueBody"])
+        quiet = finalize_verdict(
+            state_with(),
+            [],
+            [{"number": 1, "title": "Update watch — 2026-07-19", "keys": ["dep-major:clsx:2"]}],
+        )
+        self.assertEqual("quiet", quiet["verdict"])
+        self.assertEqual("", quiet["issueBody"])
+        refused = finalize_verdict(state_with(failures=["registry-query:clsx: HTTP 503"]), [], [])
+        self.assertEqual("refused", refused["verdict"])
+        self.assertEqual("", refused["issueBody"])
 
 
 class RegistryTests(unittest.TestCase):

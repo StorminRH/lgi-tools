@@ -12,8 +12,6 @@ description: >-
 
 # Start an LGI.tools session
 
-<!-- shared-policy-revision: 29 -->
-
 The resolver is the sole mechanical owner of lifecycle semantics, current-state
 validation, and handler selection. The session contract and plan schemas own
 artifact meaning. Treat
@@ -25,13 +23,23 @@ as current health, SCRATCHPAD as observed handoff, and live code as current fact
 Run `python3 .agent-local/resolve_development_state.py --pretty`. Read its
 `directive` as the complete dispatch contract; do not maintain another
 stage-to-skill routing table. Before acting, report the directive's action,
-reason, authority, primary artifact, and pause in plain language.
+reason, authority, primary artifact, branch, and pause in plain language.
 
 After reporting the directive and before dispatch, run the directive's
 `preDispatchGate`. It currently resolves to `python3
-.agent-local/check_release_consistency.py --check`. Both the pre-PR and
-reconciled signatures are valid rest states; any other release identity blocks
-dispatch as lifecycle drift.
+.agent-local/check_release_consistency.py --check`. The recognized release-identity
+signatures — pre-PR, reconciled, and the new-version opening transient — are valid
+rest states; any other release identity blocks dispatch as lifecycle drift.
+
+The resolver owns the branch name: cut it at the start of the action, never at the
+end of the previous one. The directive's `branch` field is that authority — for an
+execute session it names the sub-version the branch must embed, so open a
+`<runtime>/<sub-version>-<slug>` branch (never `main`) before executing and make any
+carried post-merge lifecycle reconciliation that branch's first commit, then run
+`check_release_consistency.py --check --expect reconciled`. A `rider` stage — a null
+handler on a `rider/*` branch — is an unversioned flow-track one-off: do the declared
+change and stop; never bump `APP_VERSION`, the changelog, or the roadmap, and dispatch
+no lifecycle handler.
 
 If `handler` is null, stop at the named pause. Otherwise follow only the named
 handler skill, create the native Codex todo list from that handler and its owning
@@ -51,7 +59,7 @@ it; execution begins in a fresh `start-session`, whichever runtime runs it.
 When the directive names `start-session` as its handler, read the active
 instruction chain, constitution, baseline, master-plan context,
 contract/index, approved session plan, SCRATCHPAD, and relevant backlog entries.
-Follow Graphify-first exploration and verify moving API assumptions from current
+Follow Codegraph-first exploration and verify moving API assumptions from current
 primary documentation.
 
 Reconcile the contract digest, branch/worktree, prerequisites, named interfaces,

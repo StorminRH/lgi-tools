@@ -18,8 +18,6 @@ description: >-
 
 # Triage an issue / contribution (LGI.tools)
 
-<!-- shared-policy-revision: 29 -->
-
 Turns an incoming issue into a validated diagnosis and a short menu of response
 directions, then acts only on the one the user chooses. The point is to **respond
 from evidence, not from the issue's say-so** — a confident, well-written report
@@ -59,8 +57,8 @@ and any **direction they proposed** (e.g. "option 1/2/3, your call").
 For **each** claim, confirm it independently. Don't trust line numbers or "X was
 removed" / "Y is broken" — check:
 
-- The cited files/lines exist and say what's claimed. Orient with Graphify first
-  (`graphify query` / `graphify explain`) before grepping or reading raw source.
+- The cited files/lines exist and say what's claimed. Orient with Codegraph first
+  (`codegraph explore` / `codegraph query`) before grepping or reading raw source.
 - Behavioral claims hold against live state, not just memory. (E.g. "this page
   404s" → does the route file exist? does the live URL actually 404, or is a 429
   rate-limit being misread as gone? `curl -sS -o /dev/null -w "%{http_code}"`.)

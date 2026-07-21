@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash"
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" bash"
           }
         ]
       },
@@ -38,16 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
-          }
-        ]
-      },
-      {
-        "matcher": "Agent|Task",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/redirect_subagent_to_codex.py\""
+            "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" read"
           }
         ]
       }

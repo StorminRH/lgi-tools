@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -14,6 +15,7 @@ from resolve_development_state import (
     active_roadmap,
     contract_schema_violations,
     parse_contract_index,
+    sha256,
 )
 
 
@@ -140,7 +142,6 @@ def check_hooks(manifest: dict, errors: list[str]) -> None:
 
 
 def check_skill_pairs(manifest: dict, root: Path, errors: list[str]) -> None:
-    revision = str(manifest["policyRevision"])
     roots = {name: root / value for name, value in manifest["skillRoots"].items()}
     expected_names = set(manifest["pairedSkills"])
 
@@ -165,10 +166,6 @@ def check_skill_pairs(manifest: dict, root: Path, errors: list[str]) -> None:
                     f"match folder {skill_name!r}"
                 )
 
-            marker = f"<!-- shared-policy-revision: {revision} -->"
-            if marker not in body:
-                errors.append(f"{relative(path, root)}: missing marker {marker}")
-
             for pattern in policy["required"]:
                 if not matches(body, pattern):
                     errors.append(
@@ -184,6 +181,50 @@ def check_skill_pairs(manifest: dict, root: Path, errors: list[str]) -> None:
                     errors.append(
                         f"{relative(path, root)}: contains wrong-runtime language /{pattern}/"
                     )
+
+
+def ledger_digest(root: Path, deps: list[str]) -> str:
+    """Return one digest over the current content of a skill's policy deps.
+
+    Each dep contributes its own file sha256; the concatenation is hashed in the
+    manifest-declared order, so a changed dep or a changed dep list both move the
+    result. Missing deps are skipped here and reported by check_paths.
+    """
+    combined = "".join(sha256(root / dep) for dep in deps if (root / dep).is_file())
+    return hashlib.sha256(combined.encode("utf-8")).hexdigest()
+
+
+def check_skill_reconciliation(manifest: dict, root: Path, errors: list[str]) -> None:
+    """Verify each skill was reconciled against the current text of its policy deps.
+
+    Replaces the old per-file revision marker. The ledger records, per skill, the
+    canonical policy docs it derives from and a digest of their content at reconcile
+    time. A changed dep moves the digest and flags exactly the skills that depend on
+    it; `reconcile_skill_ledger.py` restamps them after a deliberate re-review.
+    """
+    ledger = manifest.get("skillReconciliation", {})
+    canonical = set(manifest["canonicalGuides"])
+    for skill_name in manifest["pairedSkills"]:
+        entry = ledger.get(skill_name)
+        if not isinstance(entry, dict):
+            errors.append(f"skillReconciliation is missing an entry for {skill_name}")
+            continue
+        deps = entry.get("deps", [])
+        if not isinstance(deps, list) or not deps:
+            errors.append(
+                f"skillReconciliation[{skill_name}] must list at least one policy dep"
+            )
+            continue
+        for dep in deps:
+            if dep not in canonical:
+                errors.append(
+                    f"skillReconciliation[{skill_name}] dep is not a canonical guide: {dep}"
+                )
+        if ledger_digest(root, deps) != entry.get("reconciledHash"):
+            errors.append(
+                f"{skill_name}: skill is stale against its policy deps; re-review it and "
+                "run reconcile_skill_ledger.py to restamp reconciledHash"
+            )
 
 
 def check_paths(manifest: dict, root: Path, errors: list[str]) -> None:
@@ -217,7 +258,7 @@ def check_probe_layout(manifest: dict, root: Path) -> list[str]:
     if not stray_pattern:
         return []
 
-    pruned = {".git", "node_modules", ".next", "graphify-out"}
+    pruned = {".git", "node_modules", ".next", ".codegraph"}
     captures_dir = root / "docs/ux-check/captures"
     warnings: list[str] = []
     for current, directories, files in os.walk(root):
@@ -469,6 +510,7 @@ def main() -> int:
     check_imports(manifest, errors)
     check_hooks(manifest, errors)
     check_skill_pairs(manifest, ROOT, errors)
+    check_skill_reconciliation(manifest, ROOT, errors)
     check_ignored(manifest, errors)
     check_session_contracts(manifest, ROOT, errors)
     check_development_state_tests(errors)
@@ -488,8 +530,7 @@ def main() -> int:
 
     print(
         "agent drift check passed: "
-        f"policy revision {manifest['policyRevision']}, "
-        f"{len(manifest['pairedSkills'])} paired skills"
+        f"{len(manifest['pairedSkills'])} paired skills reconciled"
     )
     return 0
 

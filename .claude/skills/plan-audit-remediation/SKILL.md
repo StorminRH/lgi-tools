@@ -10,8 +10,6 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 29 -->
-
 Use Claude Code Plan mode and the native task list. Require the lifecycle
 resolver directive to name `plan-audit-remediation` as the handler. Otherwise
 report it and return control to `start-session`; never select a sibling handler
@@ -22,7 +20,7 @@ Read `docs/DESIGN_PRINCIPLES.md`, `docs/workflows/schema/session-contract.md`,
 `docs/PRE_PR_DESIGN_REVIEW.md`, and `docs/VERSION_AUDIT.md` in full and in that
 order. Then read the resolver directive, current baseline, audit plan
 and `AF-NNN` ledger, `docs/CODE_HEALTH_BASELINE.md`, master plan, SCRATCHPAD,
-relevant backlog, Graphify output, and live code.
+relevant backlog, Codegraph output, and live code.
 
 For every open Floss or Campaign, diagnose the principle-level ownership,
 interface, change-axis, or coverage problem. Define the end-state, compare two
@@ -35,8 +33,8 @@ normal close-out.
 
 Discuss the extension's intended shape with Ryan in plain English before
 drafting sub-versions or contracts. Give the complete extension,
-contract set, ledger, and evidence to a fresh read-only high `gpt-5.6-sol`
-adversarial reviewer and reconcile every finding; the review budget is a hard cap of one
+contract set, ledger, and evidence to a fresh read-only Claude subagent for
+high-effort adversarial review and reconcile every finding; the review budget is a hard cap of one
 mandatory pass plus at most one rerun after material reconciliation, with
 later findings reconciled by planner judgment and disclosed at approval.
 Present a short plain-English summary

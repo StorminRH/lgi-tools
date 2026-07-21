@@ -527,14 +527,15 @@ new check makes single-owner mechanical so the sprawl cannot silently regrow.
 
 **Done means.** `policy-manifest.json` `canonicalGuides` and `pairedSkills` are
 rewritten against the `docs/workflows/` procedures, the thin adapters, and the
-map set; `bump_policy_revision.py` sets a fresh revision across all markers; the
+map set; `skillReconciliation` declares the settled dependency set and is
+regenerated with `reconcile_skill_ledger.py` after the final whole-set review; the
 `check_doc_refs.py` historical/future allowlist is pruned to what the
 consolidated tree still needs. A new drift-gate check fails when the same
 normative sentence (a hash over normalized text) appears in more than one
 canonical file — spanning the `workflows/` procedures, the maps, and the two
 skill adapters. All `.agent-local/test_*.py` fixtures are updated to match.
 
-**In scope.** Manifest rewrite, revision bump, allowlist prune, the
+**In scope.** Manifest rewrite, skill-ledger reconciliation, allowlist prune, the
 anti-duplication check plus its tests, fixture updates.
 
 **Out of scope.** Any further content change (the corpus is settled by 0.6);
@@ -941,7 +942,7 @@ intermediate, the devlog visualization component/asset, one devlog prose
 passage introducing the map, `ux-check` coverage of the changed route.
 
 **Out of scope.** File-level or symbol-level graphs (zone-level only;
-Graphify already owns fine-grained structure); a live/interactive graph
+Codegraph already owns fine-grained structure); a live/interactive graph
 explorer (backlog if ever); restyling any other devlog section; new heavy
 client dependencies — a client-side Mermaid runtime is presumed rejected
 in favor of build-time SVG or a small owned component unless the session
