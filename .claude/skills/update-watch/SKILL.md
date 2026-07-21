@@ -10,8 +10,6 @@ description: >-
 
 # Update watch (report-only)
 
-<!-- shared-policy-revision: 30 -->
-
 ## Hard rules
 
 - Never commit.
@@ -46,18 +44,17 @@ description: >-
 5. Only on a clean `report` verdict, run the single outward write: create the
    digest issue through the session's GitHub tooling — `gh issue create`
    where the CLI is available, otherwise the environment's GitHub
-   issue-creation tool — titled `Update watch — YYYY-MM-DD` (the run date).
-   The body
-   carries priority-ordered sections **Security advisories**, **Major
-   versions**, and **Service/EVE surface changes**; every item names its
-   source, acknowledged state, and observed state. Include the
-   collector-rendered fenced `update-watch-deltas` key block verbatim, then a
-   closing absorption note: add each reported canonical id to its source's
-   `acknowledgedItems` (or raise the `acknowledgedMajor` / record the
-   advisory with observed applicability) in
-   `docs/UPDATE_WATCH_BASELINE.md` during a normal session, and advance
-   `scanSince` only when every currently in-window item for that source is
-   acknowledged — partial absorption keeps the window.
+   issue-creation tool — titled `Update watch — YYYY-MM-DD` (the run date),
+   with the verdict document's `issueBody` posted verbatim as the body. The
+   collector renders that body: the priority-ordered sections **Security
+   advisories**, **Major versions**, and **Service/EVE surface changes** as
+   Markdown tables — each item naming its source, observed, and
+   patched-or-acknowledged state — followed by the fenced
+   `update-watch-deltas` key block and the absorption note (record each
+   reported canonical id in `docs/UPDATE_WATCH_BASELINE.md` during a normal
+   session, advancing `scanSince` only when every currently in-window item for
+   that source is acknowledged — partial absorption keeps the window). Do not
+   hand-author, reorder, or re-escape the body.
 6. On a `quiet` or `refused` verdict, perform no outward write.
 7. Print the collector's end-of-run summary verbatim as the final output.
 

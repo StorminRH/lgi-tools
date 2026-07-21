@@ -11,8 +11,6 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 30 -->
-
 This skill sequences canonical documents and carries merge authorization; it
 does not restate their procedures. Read `docs/DESIGN_PRINCIPLES.md` as the
 constitution and `docs/CODE_HEALTH_BASELINE.md` as current health state.
@@ -56,12 +54,13 @@ a failed gate or any unrelated production action.
    merge only under the authorization above; and complete browser-first
    after-merge reconciliation.
 7. After merge/reconciliation, mark an audit finding Delivered only when all
-   mapped sub-versions have terminal merge evidence. Do not archive here. Run
-   the resolver, report its directive, and return control to `start-session`;
-   close-out never selects the next lifecycle handler itself. Keep the tracked
-   reconciliation local and, only after the resolver rerun, carry it as the
-   first commit on the branch named for the selected lifecycle action. Require
-   `check_release_consistency.py --check --expect reconciled` after that commit;
+   mapped sub-versions have terminal merge evidence. Do not archive here, and do
+   not cut the next branch here. Run the resolver, report its directive, and
+   return control to `start-session`; close-out never selects the next lifecycle
+   handler itself. `start-session` opens the resolver-named branch at the start of
+   the next action and makes the carried lifecycle reconciliation that branch's
+   first commit, then requires
+   `check_release_consistency.py --check --expect reconciled`;
    the intentional one-PR lag never justifies a follow-up PR or direct push to
    `main`. `verify_archive.py` is not run here: the resolver-selected
    `version-audit` handler owns its pre-copy and post-copy archive gates.

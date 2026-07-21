@@ -12,8 +12,6 @@ description: >-
 
 # Run an LGI.tools version audit
 
-<!-- shared-policy-revision: 30 -->
-
 Follow `docs/VERSION_AUDIT.md`; it owns measurement, classification, the fixed
 baseline schema, and completion rules. `docs/DESIGN_PRINCIPLES.md` is the
 constitution. The approved `docs/version-audits/X.Y/PLAN.md` supplies this run's

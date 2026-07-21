@@ -9,8 +9,6 @@ description: >-
 
 # Plan an LGI.tools version audit
 
-<!-- shared-policy-revision: 30 -->
-
 Run the resolver and require its directive to name `plan-version-audit` as the
 handler for lifecycle-driven Version close. Otherwise report it and return
 control to `start-session`; never select a sibling handler here. An explicit
@@ -28,8 +26,8 @@ Discuss the audit's intended shape with Ryan in plain English before drafting
 the plan.
 Present a plan naming mode, version/ref, commands, artifact inventory, baseline
 overwrite, and archive destination when applicable. Give the complete plan and
-its evidence to a fresh read-only high `gpt-5.6-sol` adversarial reviewer,
-reconcile every finding, then
+its evidence to a fresh read-only Claude subagent for high-effort adversarial
+review, reconcile every finding, then
 present it; the review budget is a hard cap of one mandatory pass plus at most
 one rerun after material reconciliation, with later findings reconciled by
 planner judgment and disclosed at approval. Present a short plain-English summary alongside the formal audit

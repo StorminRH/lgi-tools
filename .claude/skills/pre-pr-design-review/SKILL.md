@@ -8,8 +8,6 @@ description: >-
 
 # Run the pre-PR design review
 
-<!-- shared-policy-revision: 30 -->
-
 Follow `docs/PRE_PR_DESIGN_REVIEW.md` in full. Read
 `docs/DESIGN_PRINCIPLES.md`, `docs/CODE_HEALTH_BASELINE.md`, the approved session
 plan, and complete branch diff first. Create a native Claude Code task list from every

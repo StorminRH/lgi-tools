@@ -9,8 +9,6 @@ description: >-
 
 # Run the pre-PR design review
 
-<!-- shared-policy-revision: 30 -->
-
 Follow `docs/PRE_PR_DESIGN_REVIEW.md` in full. It owns the review; this skill
 sequences it. `docs/DESIGN_PRINCIPLES.md` is the constitution and
 `docs/CODE_HEALTH_BASELINE.md` is the current hotspot record.

@@ -173,6 +173,44 @@ def observed_applicability(module: str, vulnerable_range: str) -> str:
     return f"{module}@{vulnerable_range}"
 
 
+def load_dependency_scopes(repo_root: Path) -> tuple[set[str], set[str]]:
+    """Return (production, development) top-level dependency names from package.json.
+
+    Used only to annotate advisories with a dev/prod scope hint for the report.
+    A missing or unparseable manifest yields empty sets — scope then renders as
+    ``unknown`` — because scope is presentational and never affects delta
+    identity or the verdict, so it must not force a refusal.
+    """
+    try:
+        manifest = json.loads((repo_root / "package.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set(), set()
+    return set(manifest.get("dependencies", {})), set(manifest.get("devDependencies", {}))
+
+
+def classify_scope(paths: list[str], production: set[str], development: set[str]) -> str:
+    """Classify an advisory as ``production`` or ``development`` by its audit paths.
+
+    The first segment after the ``.>`` root of each `pnpm audit` dependency path
+    is the top-level consumer. One production consumer makes the whole advisory
+    production-scoped; otherwise it is development when every consumer is a known
+    dev dependency, and ``unknown`` when neither set decides it (or scope data is
+    unavailable).
+    """
+    tops = {
+        segments[0]
+        for path in paths
+        if (segments := [seg for seg in path.split(">") if seg not in ("", ".")])
+    }
+    if not tops or not (production or development):
+        return "unknown"
+    if tops & production:
+        return "production"
+    if tops <= development:
+        return "development"
+    return "unknown"
+
+
 def _fetch(url: str) -> tuple[int, str]:
     """GET one URL raw; returns (status, body) or raises on transport failure."""
     request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
@@ -323,16 +361,27 @@ def run_collect(repo_root: Path, out_path: Path) -> int:
         # output fails.
         try:
             audit_data = json.loads(audit.stdout)
-            state["advisories"] = [
-                {
-                    "id": advisory.get("github_advisory_id"),
-                    "module": advisory.get("module_name"),
-                    "range": advisory.get("vulnerable_versions"),
-                    "severity": advisory.get("severity"),
-                    "title": advisory.get("title"),
-                }
-                for advisory in audit_data.get("advisories", {}).values()
-            ]
+            production, development = load_dependency_scopes(repo_root)
+            advisories = []
+            for advisory in audit_data.get("advisories", {}).values():
+                findings = advisory.get("findings") or []
+                installed = sorted({f.get("version") for f in findings if f.get("version")})
+                paths = [path for f in findings for path in (f.get("paths") or [])]
+                advisories.append(
+                    {
+                        "id": advisory.get("github_advisory_id"),
+                        "module": advisory.get("module_name"),
+                        "range": advisory.get("vulnerable_versions"),
+                        "severity": advisory.get("severity"),
+                        "title": advisory.get("title"),
+                        "installed": ", ".join(installed),
+                        "patched": advisory.get("patched_versions"),
+                        "paths": paths,
+                        "scope": classify_scope(paths, production, development),
+                        "url": advisory.get("url"),
+                    }
+                )
+            state["advisories"] = advisories
         except (json.JSONDecodeError, AttributeError) as exc:
             failures.append(f"audit: unparseable pnpm audit output: {exc}")
 
@@ -390,6 +439,16 @@ def compute_deltas(state: dict, items: list[dict], failures: list[str]) -> list[
                     "acknowledged with different applicability" if previously else "not acknowledged"
                 ),
                 "observed": f"{observed} ({advisory.get('severity', '?')}: {advisory.get('title', '?')})",
+                "fields": {
+                    "package": advisory.get("module", "?"),
+                    "severity": advisory.get("severity", "?"),
+                    "installed": advisory.get("installed") or "?",
+                    "vulnerable": advisory.get("range", "?"),
+                    "patched": advisory.get("patched") or "?",
+                    "scope": advisory.get("scope", "unknown"),
+                    "advisory": advisory.get("id", "?"),
+                    "url": advisory.get("url"),
+                },
             }
         )
 
@@ -408,6 +467,12 @@ def compute_deltas(state: dict, items: list[dict], failures: list[str]) -> list[
                     "source": "npm registry",
                     "acknowledged": f"major {acknowledged_major}",
                     "observed": f"latest {latest['version']} (major {latest['major']})",
+                    "fields": {
+                        "package": name,
+                        "acknowledgedMajor": acknowledged_major,
+                        "latest": latest["version"],
+                        "latestMajor": latest["major"],
+                    },
                 }
             )
 
@@ -444,6 +509,13 @@ def compute_deltas(state: dict, items: list[dict], failures: list[str]) -> list[
                     f"({judged.get('date') or 'undated'}, "
                     f"{window_class(judged.get('date'), scan_since)}) {canonical_id}"
                 ),
+                "fields": {
+                    "source": source.name,
+                    "title": judged.get("title", "?"),
+                    "date": judged.get("date") or "undated",
+                    "window": window_class(judged.get("date"), scan_since),
+                    "link": canonical_id,
+                },
             }
         )
     return deltas
@@ -453,6 +525,144 @@ def render_key_block(keys: list[str]) -> str:
     """Render the fenced delta-key block embedded in every digest issue."""
     body = "\n".join(keys)
     return f"```{DELTAS_FENCE}\n{body}\n```"
+
+
+# Priority order the digest presents its sections in; also the render order.
+SECTION_ORDER = (
+    "Security advisories",
+    "Major versions",
+    "Service/EVE surface changes",
+)
+
+ABSORPTION_NOTE = (
+    "## Absorption note\n\n"
+    "During a normal session, add each reported canonical id to its source's "
+    "`acknowledgedItems` (or raise `acknowledgedMajor` / record the advisory "
+    "with its observed applicability) in `docs/UPDATE_WATCH_BASELINE.md`, then "
+    "advance `scanSince` only once every currently in-window item for that "
+    "source is acknowledged. Partial absorption keeps the window."
+)
+
+
+def _cell(value: object) -> str:
+    """Render one Markdown table cell: coerce to str, escape pipes, flatten newlines.
+
+    Feed titles and advisory text are untrusted, so a literal ``|`` is escaped
+    to keep it inside its column and newlines are collapsed to a single space.
+    """
+    text = "" if value is None else str(value)
+    return text.replace("|", "\\|").replace("\r", " ").replace("\n", " ").strip()
+
+
+def _advisory_link(fields: dict) -> str:
+    """Render the advisory id as a Markdown link when a url is present, else plain."""
+    identifier = _cell(fields.get("advisory", "?"))
+    url = fields.get("url")
+    return f"[{identifier}]({url})" if url else identifier
+
+
+def _service_link(fields: dict) -> str:
+    """Render the canonical id as a Markdown link when it is a URL, else plain text.
+
+    Mirrors ``_advisory_link`` so both tables link consistently; a non-URL
+    canonical id (should one ever appear) renders as plain escaped text.
+    """
+    link = fields.get("link", "?")
+    text = _cell(link)
+    return f"[{text}]({link})" if isinstance(link, str) and link.startswith("http") else text
+
+
+def _render_table(header: str, alignment: str, rows: list[str], empty: str) -> str:
+    """Assemble a Markdown table, or return the ``empty`` line when there are no rows."""
+    if not rows:
+        return empty
+    return "\n".join([header, alignment, *rows])
+
+
+def render_advisory_section(deltas: list[dict]) -> str:
+    """Render the security-advisory table. Version ranges are code-spanned so a
+    literal ``<`` never renders as HTML — the escaping bug the prose form had."""
+    rows = [
+        (
+            f"| `{_cell(f.get('package', '?'))}` | {_cell(f.get('severity', '?'))} "
+            f"| `{_cell(f.get('installed', '?'))}` | `{_cell(f.get('vulnerable', '?'))}` "
+            f"| `{_cell(f.get('patched', '?'))}` | {_cell(f.get('scope', 'unknown'))} "
+            f"| {_advisory_link(f)} |"
+        )
+        for delta in deltas
+        if (f := delta.get("fields", {}))
+    ]
+    return _render_table(
+        "| Package | Severity | Installed | Vulnerable | Patched in | Scope | Advisory |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+        rows,
+        "No unacknowledged security advisories.",
+    )
+
+
+def render_major_section(deltas: list[dict]) -> str:
+    """Render the acknowledged-major-vs-latest table for dependency deltas."""
+    rows = [
+        (
+            f"| `{_cell(f.get('package', '?'))}` | {_cell(f.get('acknowledgedMajor', '?'))} "
+            f"| `{_cell(f.get('latest', '?'))}` (major {_cell(f.get('latestMajor', '?'))}) |"
+        )
+        for delta in deltas
+        if (f := delta.get("fields", {}))
+    ]
+    return _render_table(
+        "| Package | Acknowledged major | Latest |",
+        "| --- | --- | --- |",
+        rows,
+        "No unacknowledged major-version deltas.",
+    )
+
+
+def render_service_section(deltas: list[dict]) -> str:
+    """Render the service/EVE announcement table with window classification."""
+    rows = [
+        (
+            f"| {_cell(f.get('source', '?'))} | {_cell(f.get('title', '?'))} "
+            f"| {_cell(f.get('date', 'undated'))} | {_cell(f.get('window', '?'))} "
+            f"| {_service_link(f)} |"
+        )
+        for delta in deltas
+        if (f := delta.get("fields", {}))
+    ]
+    return _render_table(
+        "| Source | Item | Published | Window | Link |",
+        "| --- | --- | --- | --- | --- |",
+        rows,
+        "No unacknowledged service or EVE-surface changes.",
+    )
+
+
+_SECTION_RENDERERS = {
+    "Security advisories": render_advisory_section,
+    "Major versions": render_major_section,
+    "Service/EVE surface changes": render_service_section,
+}
+
+
+def render_issue_body(deltas: list[dict]) -> str:
+    """Render the full digest issue body verbatim for the skill to post.
+
+    Emits the three priority-ordered sections as Markdown tables, each item
+    naming its source and observed/patched-or-acknowledged state, then the
+    fenced `update-watch-deltas` key block finalize suppresses against, then the
+    absorption note. Deterministic and free of the run date, which the skill
+    owns in the issue title — so nothing here is ever hand-authored or re-escaped.
+    """
+    by_section: dict[str, list[dict]] = {section: [] for section in SECTION_ORDER}
+    for delta in deltas:
+        by_section.setdefault(delta.get("section", ""), []).append(delta)
+    parts = [
+        f"## {section}\n\n{_SECTION_RENDERERS[section](by_section[section])}"
+        for section in SECTION_ORDER
+    ]
+    parts.append(render_key_block([delta["key"] for delta in deltas]))
+    parts.append(ABSORPTION_NOTE)
+    return "\n\n".join(parts)
 
 
 def render_summary(
@@ -522,6 +732,7 @@ def finalize_verdict(state: dict, items: list[dict], fresh_issues: list[dict]) -
         "deltas": remaining,
         "suppressed": suppressed,
         "keyBlock": render_key_block([delta["key"] for delta in remaining]),
+        "issueBody": render_issue_body(remaining) if verdict == "report" else "",
         "summary": render_summary(summary_state, candidate_count, suppressed, verdict),
     }
 

@@ -1,5 +1,4 @@
 {
-  "policyRevision": 30,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
@@ -22,8 +21,7 @@
   "hookConfigs": {
     ".claude/settings.json": [
       "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" bash",
-      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" read",
-      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/redirect_subagent_to_codex.py\""
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" read"
     ],
     ".codex/hooks.json": [
       "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/codegraph_guard.py\" bash",
@@ -46,7 +44,6 @@
         "todo list|task list",
         "directive",
         "start-session",
-        "gpt-5\\.6-sol",
         "read-only",
         "high",
         "adversarial",
@@ -68,7 +65,6 @@
         "separate prompt",
         "directive",
         "start-session",
-        "gpt-5\\.6-sol",
         "read-only",
         "high",
         "adversarial",
@@ -173,7 +169,6 @@
         "Version close",
         "directive",
         "start-session",
-        "gpt-5\\.6-sol",
         "read-only",
         "high",
         "adversarial",
@@ -202,7 +197,6 @@
         "todo list|task list",
         "start-session",
         "separate (prompt|remediation)",
-        "gpt-5\\.6-sol",
         "read-only",
         "high",
         "adversarial",
@@ -294,7 +288,6 @@
       "background Bash job"
     ],
     "claude": [
-      "Explore subagents",
       "long-lived Codex terminal",
       "Codex's local image",
       "generic Codex preview"
@@ -330,8 +323,6 @@
     ".agent-local/test_baseline_claims.py",
     ".agent-local/test_watch_triggers.py",
     ".agent-local/codegraph_guard.py",
-    ".agent-local/redirect_subagent_to_codex.py",
-    ".agent-local/test_redirect_subagent_to_codex.py",
     ".agent-local/audit_tooling_parity.py",
     ".agent-local/check_tooling_parity.py",
     ".agent-local/sync_vercel_plugin.py",
@@ -395,6 +386,7 @@
       "audit-remediation-plan-needed",
       "audit-restart-ready",
       "archive-needed",
+      "rider",
       "invalid"
     ],
     "allowedHandlers": [
@@ -418,6 +410,7 @@
       "authority",
       "primaryArtifact",
       "pause",
+      "branch",
       "preDispatchGate"
     ],
     "preDispatchGate": "python3 .agent-local/check_release_consistency.py --check",
@@ -427,5 +420,102 @@
       "docs/session-contracts/3.10/3.10.0.2.1.md",
       "docs/session-plans/3.10/3.10.0.2.1.md"
     ]
+  },
+  "skillReconciliation": {
+    "plan-version": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/workflows/schema/session-contract.md"
+      ],
+      "reconciledHash": "e57eed97b75d2baeaf6a067f7967a2f637360017251e61acc4af555ced0511c3"
+    },
+    "plan-session": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/workflows/schema/session-plan.md",
+        "src/AGENTS.md"
+      ],
+      "reconciledHash": "f1b1d8f0653f0c2ada437f066d55dc3c85839e5a9080455fa31d6bc28548d9e6"
+    },
+    "start-session": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/SESSION_END.md"
+      ],
+      "reconciledHash": "e538135257d2766577d47f8ea1f962f5bd962b42633a9383ecdc7829755a8844"
+    },
+    "pre-pr-design-review": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/PRE_PR_DESIGN_REVIEW.md"
+      ],
+      "reconciledHash": "9318e241eb12eaf2ffd22ee064ba2c58a91d04bb2a7acf641a83fdc6a014baef"
+    },
+    "close-out": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/SESSION_END.md",
+        "docs/PRE_PR_DESIGN_REVIEW.md",
+        "docs/PR_REVIEW.md",
+        "docs/SELF_REVIEW.md",
+        "docs/workflows/schema/changelog-entry.md"
+      ],
+      "reconciledHash": "06993a8964295748517eaa28ae704e752ef331a7cfbac340785d757e765db45c"
+    },
+    "plan-version-audit": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/VERSION_AUDIT.md"
+      ],
+      "reconciledHash": "8f0b2929fa696e85ec509a587675ebbc7e91325223af4932e0e02f7387eb75b6"
+    },
+    "plan-audit-remediation": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/VERSION_AUDIT.md",
+        "docs/PRE_PR_DESIGN_REVIEW.md",
+        "docs/workflows/schema/session-contract.md",
+        "docs/workflows/schema/session-plan.md"
+      ],
+      "reconciledHash": "2b52ce8d12688489ffe1fc66c98ecc16af1bbb3cc9cefcef2652dc2cb5b22897"
+    },
+    "version-audit": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/VERSION_AUDIT.md",
+        "docs/workflows/schema/code-health-baseline.md"
+      ],
+      "reconciledHash": "0f93bd8d5cc1118765975391a3748f16b2ebf8d5fe3b99661d21046d1739ba61"
+    },
+    "triage-issue": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md",
+        "docs/workflows/schema/changelog-entry.md"
+      ],
+      "reconciledHash": "a2811074633bc7a5d57d289a22ffd2adcb36f5234594e29cf225390f754eb068"
+    },
+    "ux-check": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md"
+      ],
+      "reconciledHash": "0d53782fdff14731d22b5b4f9ebc8d2b8f1a41ea8267b3d1694e1b6436c6de4e"
+    },
+    "update-watch": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md"
+      ],
+      "reconciledHash": "0d53782fdff14731d22b5b4f9ebc8d2b8f1a41ea8267b3d1694e1b6436c6de4e"
+    }
   }
 }

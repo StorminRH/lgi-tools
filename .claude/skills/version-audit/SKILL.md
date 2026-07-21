@@ -11,8 +11,6 @@ description: >-
 
 # Run an LGI.tools version audit
 
-<!-- shared-policy-revision: 30 -->
-
 Follow `docs/VERSION_AUDIT.md`; read `docs/DESIGN_PRINCIPLES.md`, the current
 baseline, and the approved audit plan first. Invocation authorizes audit-local
 documentation changes and the verified archive transition for an approved

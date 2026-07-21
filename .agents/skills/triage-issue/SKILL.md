@@ -18,8 +18,6 @@ description: >-
 
 # Triage an issue / contribution (LGI.tools)
 
-<!-- shared-policy-revision: 30 -->
-
 Turns an incoming issue into a validated diagnosis and a short menu of response
 directions, then acts only on the one the user chooses. The point is to **respond
 from evidence, not from the issue's say-so** — a confident, well-written report
