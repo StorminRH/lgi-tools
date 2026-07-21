@@ -89,6 +89,7 @@ class WorkflowDirective:
     authority: str
     primary_artifact: str | None
     pause: str
+    branch: str | None = None
 
     def as_dict(self, reason: str) -> dict[str, str | None]:
         return {
@@ -99,6 +100,7 @@ class WorkflowDirective:
             "authority": self.authority,
             "primaryArtifact": self.primary_artifact,
             "pause": self.pause,
+            "branch": self.branch,
             "preDispatchGate": RELEASE_CONSISTENCY_GATE if self.handler is not None else None,
         }
 
@@ -982,6 +984,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Changes are limited to the approved session plan and contract.",
             primary_artifact=str(state["sessionPlan"]),
             pause=pause,
+            branch=str(state["subversion"]),
         )
     if stage == "audit-plan-needed":
         return WorkflowDirective(
@@ -1041,35 +1044,44 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
     raise ValueError(f"unsupported workflow stage: {stage}")
 
 
+def _run_git(root: Path, *args: str) -> str | None:
+    """Return stripped stdout of a git command under root, or None on failure."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), *args],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except OSError:
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def head_branch(root: Path) -> str | None:
+    """Return the current checked-out branch name, or None outside a work tree."""
+    if _run_git(root, "rev-parse", "--is-inside-work-tree") != "true":
+        return None
+    return _run_git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
+
+
 def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     """Return non-blocking warnings from the current local git snapshot.
 
     Execute directives check branch naming, plan directives check worktree
     cleanliness, and every state checks whether local main trails the existing
-    origin/main ref. Missing git state degrades to no warning and never changes
-    the resolved lifecycle stage.
+    origin/main ref. Rider branches and missing git state degrade to no warning
+    and never change the resolved lifecycle stage.
     """
 
-    def git(*args: str) -> str | None:
-        try:
-            result = subprocess.run(
-                ["git", "-C", str(root), *args],
-                check=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-        except OSError:
-            return None
-        return result.stdout.strip() if result.returncode == 0 else None
-
-    if git("rev-parse", "--is-inside-work-tree") != "true":
+    if _run_git(root, "rev-parse", "--is-inside-work-tree") != "true":
         return []
 
     warnings: list[str] = []
     directive = state.get("directive")
     mode = directive.get("mode") if isinstance(directive, dict) else None
-    branch = git("symbolic-ref", "--quiet", "--short", "HEAD")
+    branch = _run_git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
     subversion = state.get("subversion")
 
     if mode == "execute" and branch and isinstance(subversion, str):
@@ -1077,7 +1089,7 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
             warnings.append(
                 f"current branch is main; create the {subversion} sub-version branch"
             )
-        elif not branch.startswith("codex/"):
+        elif not branch.startswith(("codex/", "rider/")):
             expected = (
                 rf"^[a-z][a-z0-9-]*/{re.escape(subversion)}"
                 rf"(?:\.\d+)?-[a-z0-9-]+$"
@@ -1088,14 +1100,15 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
                 )
 
     if mode == "plan":
-        worktree = git("status", "--porcelain")
+        worktree = _run_git(root, "status", "--porcelain")
         if worktree:
             warnings.append("plan-mode directive has a dirty worktree")
 
-    local_main = git("rev-parse", "--verify", "refs/heads/main")
-    origin_main = git("rev-parse", "--verify", "refs/remotes/origin/main")
+    local_main = _run_git(root, "rev-parse", "--verify", "refs/heads/main")
+    origin_main = _run_git(root, "rev-parse", "--verify", "refs/remotes/origin/main")
     if local_main and origin_main and local_main != origin_main:
-        behind_count = git(
+        behind_count = _run_git(
+            root,
             "rev-list",
             "--count",
             "refs/heads/main..refs/remotes/origin/main",
@@ -1106,7 +1119,43 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     return warnings
 
 
+def rider_state(root: Path) -> dict[str, object] | None:
+    """Return a flow-track directive when HEAD is a rider/* branch, else None.
+
+    A rider is an unversioned one-off: the lifecycle resolver steps aside so the
+    change can ride its own branch. Riders never touch APP_VERSION, the changelog,
+    or the roadmap, so they stay invisible to the release-consistency gate and the
+    merge timing is a case-by-case choice.
+    """
+    branch = head_branch(root.resolve())
+    if not branch or not branch.startswith("rider/"):
+        return None
+    reason = (
+        "On a rider/* branch: unversioned flow-track one-off; the lifecycle "
+        "resolver stays out of the way."
+    )
+    directive = WorkflowDirective(
+        action=f"Execute the rider on {branch}",
+        handler=None,
+        mode="execute",
+        authority=(
+            "Limited to the declared one-off change on this rider branch; do not "
+            "bump APP_VERSION, edit the changelog, or change the roadmap."
+        ),
+        primary_artifact=None,
+        pause=(
+            "Pause if the one-off grows into work that needs a version bump, a "
+            "changelog entry, or a roadmap row — that is planned-track work."
+        ),
+        branch=branch,
+    ).as_dict(reason)
+    return {"stage": "rider", "branch": branch, "reason": reason, "directive": directive}
+
+
 def resolve(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[str]]:
+    rider = rider_state(root)
+    if rider is not None:
+        return rider, []
     state, errors = resolve_state(root)
     directive = directive_for(state).as_dict(str(state["reason"]))
     # UX gate is directive input, not a new top-level payload field; keeping it

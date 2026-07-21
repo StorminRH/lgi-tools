@@ -357,6 +357,7 @@ class DevelopmentStateTests(unittest.TestCase):
                 "authority",
                 "primaryArtifact",
                 "pause",
+                "branch",
                 "preDispatchGate",
             },
             set(directive),
@@ -679,6 +680,31 @@ class DevelopmentStateTests(unittest.TestCase):
             "Pause on a material scope/design conflict or an explicit operator gate.",
             directive["pause"],
         )
+
+    def test_session_ready_directive_carries_subversion_branch(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract)
+        state = self.resolved()
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual(state["subversion"], directive["branch"])
+
+    def test_rider_branch_overrides_lifecycle_with_flow_track(self) -> None:
+        # A valid session-ready setup that a rider/* checkout must override.
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract)
+        self.fixture.init_git("rider/quick-fix")
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("rider", state["stage"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertIsNone(directive["handler"])
+        self.assertEqual("execute", directive["mode"])
+        self.assertEqual("rider/quick-fix", directive["branch"])
+        self.assertIsNone(directive["preDispatchGate"])
 
     def test_pre_3_9_artifacts_are_exempt_from_binding_markers(self) -> None:
         (self.fixture.docs / "VERSION_9_9_PLAN.md").unlink()

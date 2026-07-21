@@ -16,6 +16,8 @@ from check_agent_drift import (
     check_probe_layout,
     check_session_contracts,
     check_skill_pairs,
+    check_skill_reconciliation,
+    ledger_digest,
 )
 
 
@@ -24,7 +26,6 @@ class DriftFixture:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.manifest = {
-            "policyRevision": 19,
             "canonicalGuides": ["AGENTS.md"],
             "requiredPaths": [".agent-local/check_agent_drift.py"],
             "forbiddenPaths": ["docs/retired.md"],
@@ -77,6 +78,12 @@ class DriftFixture:
         )
         self.write_skill("codex")
         self.write_skill("claude")
+        self.manifest["skillReconciliation"] = {
+            "demo": {
+                "deps": ["AGENTS.md"],
+                "reconciledHash": ledger_digest(self.root, ["AGENTS.md"]),
+            }
+        }
 
     def close(self) -> None:
         self.temporary.cleanup()
@@ -93,7 +100,6 @@ class DriftFixture:
             "name: demo\n"
             "description: Fixture skill.\n"
             "---\n"
-            "<!-- shared-policy-revision: 19 -->\n"
             f"{body}\n",
         )
 
@@ -123,11 +129,17 @@ class AgentDriftTests(unittest.TestCase):
     def check_probes(self) -> list[str]:
         return check_probe_layout(self.fixture.manifest, self.fixture.root)
 
+    def check_reconciliation(self) -> list[str]:
+        errors: list[str] = []
+        check_skill_reconciliation(self.fixture.manifest, self.fixture.root, errors)
+        return errors
+
     def test_affected_checks_accept_the_passing_fixture(self) -> None:
         self.assertEqual([], self.check_paths())
         self.assertEqual([], self.check_skills())
         self.assertEqual([], self.check_contracts())
         self.assertEqual([], self.check_probes())
+        self.assertEqual([], self.check_reconciliation())
 
     def test_paths_report_missing_and_retired_entries(self) -> None:
         (self.fixture.root / "AGENTS.md").unlink()
@@ -176,18 +188,30 @@ class AgentDriftTests(unittest.TestCase):
             errors,
         )
 
-    def test_skill_bodies_report_a_missing_revision_marker(self) -> None:
-        path = self.fixture.root / ".agents/skills/demo/SKILL.md"
-        path.write_text(
-            path.read_text(encoding="utf-8").replace(
-                "<!-- shared-policy-revision: 19 -->\n", ""
-            ),
-            encoding="utf-8",
+    def test_reconciliation_flags_a_skill_stale_against_its_deps(self) -> None:
+        # A changed policy dep moves the digest and flags the skill until restamped.
+        self.fixture.write("AGENTS.md", "guide changed\n")
+        self.assertTrue(
+            any(
+                "demo: skill is stale against its policy deps" in error
+                for error in self.check_reconciliation()
+            )
         )
+
+    def test_reconciliation_reports_a_missing_ledger_entry(self) -> None:
+        self.fixture.manifest["skillReconciliation"] = {}
         self.assertIn(
-            ".agents/skills/demo/SKILL.md: missing marker "
-            "<!-- shared-policy-revision: 19 -->",
-            self.check_skills(),
+            "skillReconciliation is missing an entry for demo",
+            self.check_reconciliation(),
+        )
+
+    def test_reconciliation_rejects_a_noncanonical_dep(self) -> None:
+        self.fixture.manifest["skillReconciliation"]["demo"]["deps"] = ["docs/random.md"]
+        self.assertTrue(
+            any(
+                "dep is not a canonical guide" in error
+                for error in self.check_reconciliation()
+            )
         )
 
     def test_contracts_report_each_existing_violation_class(self) -> None:
