@@ -11,7 +11,7 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-<!-- shared-policy-revision: 28 -->
+<!-- shared-policy-revision: 29 -->
 
 This is the Plan-mode owner for converting a failed version-close audit into a
 bounded extension of the same master version. It creates no separate remediation

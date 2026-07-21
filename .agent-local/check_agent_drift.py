@@ -394,6 +394,7 @@ def check_development_state_tests(errors: list[str]) -> None:
 
 
 LIFECYCLE_CHECKERS = (
+    ".agent-local/check_baseline_claims.py",
     ".agent-local/check_env_example.py",
     ".agent-local/check_doc_refs.py",
     ".agent-local/check_lifecycle_evidence.py",

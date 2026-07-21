@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 28 -->
+<!-- shared-policy-revision: 29 -->
 
 This is a thin Plan-mode orchestrator. The resolver owns dispatch and
 `docs/workflows/schema/session-contract.md` owns the exact contract form;

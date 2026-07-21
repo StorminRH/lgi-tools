@@ -9,7 +9,7 @@ description: >-
 
 # Plan an LGI.tools version
 
-<!-- shared-policy-revision: 28 -->
+<!-- shared-policy-revision: 29 -->
 
 Use Claude Code Plan mode and the native task list. The resolver owns dispatch;
 `docs/workflows/schema/session-contract.md` owns the exact contract form. Read

@@ -11,7 +11,7 @@ description: >-
 
 # Plan an LGI.tools session
 
-<!-- shared-policy-revision: 28 -->
+<!-- shared-policy-revision: 29 -->
 
 Use `docs/workflows/schema/session-plan.md` as the canonical authoring guide and
 output schema; do not restate it. Treat the active agent guide and current

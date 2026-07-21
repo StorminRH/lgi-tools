@@ -1,10 +1,12 @@
 {
-  "policyRevision": 28,
+  "policyRevision": 29,
   "canonicalGuides": [
     "AGENTS.md",
     "src/AGENTS.md",
     "docs/AGENT_TOOLING.md",
     "docs/DESIGN_PRINCIPLES.md",
+    "docs/workflows/schema/code-health-baseline.md",
+    "docs/workflows/schema/changelog-entry.md",
     "docs/workflows/schema/session-contract.md",
     "docs/workflows/schema/session-plan.md",
     "docs/SESSION_END.md",

@@ -12,7 +12,7 @@ description: >-
 
 # Start an LGI.tools session
 
-<!-- shared-policy-revision: 28 -->
+<!-- shared-policy-revision: 29 -->
 
 The resolver is the sole mechanical owner of lifecycle semantics, current-state
 validation, and handler selection. The session contract and plan schemas own

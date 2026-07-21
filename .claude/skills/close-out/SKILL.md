@@ -10,7 +10,7 @@ description: >-
 
 # Close out an LGI.tools session
 
-<!-- shared-policy-revision: 28 -->
+<!-- shared-policy-revision: 29 -->
 
 Sequence the canonical docs; do not duplicate them. Read
 `docs/DESIGN_PRINCIPLES.md`, `docs/CODE_HEALTH_BASELINE.md`,

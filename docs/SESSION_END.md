@@ -188,7 +188,8 @@ Every sub-version that merges gets a changelog entry (in its master file under
 `content/changelog/`) and an `APP_VERSION` bump —
 **including** internal, CI, and infrastructure work (the old "user-facing only"
 changelog rule is retired; an all-internal sub-version just gets an all-internal
-entry). `docs/PR_REVIEW.md` owns the entry format.
+entry). `docs/workflows/schema/changelog-entry.md` owns the entry format;
+`docs/PR_REVIEW.md` owns the delivery procedure.
 
 When the merged sub-version makes every row in the master plan terminal, do not
 archive or start the next master version during close-out. Mark the roadmap row
