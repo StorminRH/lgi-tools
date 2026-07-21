@@ -258,7 +258,7 @@ def check_probe_layout(manifest: dict, root: Path) -> list[str]:
     if not stray_pattern:
         return []
 
-    pruned = {".git", "node_modules", ".next", "graphify-out"}
+    pruned = {".git", "node_modules", ".next", ".codegraph"}
     captures_dir = root / "docs/ux-check/captures"
     warnings: list[str] = []
     for current, directories, files in os.walk(root):

@@ -39,8 +39,8 @@ git diff --name-only            # include uncommitted work
 
 Map changed files to routes:
 - `src/app/<path>/page.tsx` → `/<path>` (drop route-group `(…)` segments).
-- A changed feature/UI component → the route(s) that render it. Use Graphify
-  (`graphify query` / `graphify affected`) to find every rendered consumer of a
+- A changed feature/UI component → the route(s) that render it. Use Codegraph
+  (`codegraph explore` / `codegraph impact`) to find every rendered consumer of a
   shared component — e.g. a wormhole-sites component → `/sites` and a `/sites/<id>`.
 - For a dynamic route, substitute a **real id** so the page actually renders —
   `/sites/[id]` → `/sites/30002`, `/industry/[id]` → a real blueprint id. Grab one

@@ -14,7 +14,7 @@ persisted plan.** Before drafting, reconcile:
   index, selected contract, and exact contract bytes;
 - the active agent-guide chain, current code-health state, SCRATCHPAD, and only
   the backlog entries relevant to the contracted boundary;
-- Graphify orientation, the live code and tests that own the affected behavior,
+- Codegraph orientation, the live code and tests that own the affected behavior,
   and current primary documentation for moving external APIs; and
 - every inherited dependency, assumption, and boundary against live evidence.
 

@@ -24,7 +24,7 @@ really an ownership or interface-design problem.
 ## 1. Select affected routes
 
 Use session context plus committed and uncommitted diffs. Map direct pages to
-routes; for shared feature/UI changes, use Graphify to find every rendered
+routes; for shared feature/UI changes, use Codegraph to find every rendered
 consumer. Replace dynamic segments with real local IDs. Capture authenticated
 routes too, but report that the logged-out sweep proves only their gated shell.
 

@@ -20,7 +20,7 @@ Read `docs/DESIGN_PRINCIPLES.md`, `docs/workflows/schema/session-contract.md`,
 `docs/PRE_PR_DESIGN_REVIEW.md`, and `docs/VERSION_AUDIT.md` in full and in that
 order. Then read the resolver directive, current baseline, audit plan
 and `AF-NNN` ledger, `docs/CODE_HEALTH_BASELINE.md`, master plan, SCRATCHPAD,
-relevant backlog, Graphify output, and live code.
+relevant backlog, Codegraph output, and live code.
 
 For every open Floss or Campaign, diagnose the principle-level ownership,
 interface, change-axis, or coverage problem. Define the end-state, compare two

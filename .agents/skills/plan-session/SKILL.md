@@ -28,7 +28,7 @@ product boundary.
 3. Create a native Codex todo list from this sequence and the schema's
    authoring, drafting, review, approval, and persistence gates; keep one item
    in progress and reopen invalidated checks.
-4. Reconcile the contract with Graphify, live code, dependencies, and current
+4. Reconcile the contract with Codegraph, live code, dependencies, and current
    primary documentation. Discuss the plan's intended shape with Ryan in
    plain English before drafting. Then produce a complete schema-conforming plan
    with no missing required section, mapping, marker, or unresolved placeholder.

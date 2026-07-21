@@ -53,7 +53,7 @@ it; execution begins in a fresh `start-session`, whichever runtime runs it.
 When the directive names `start-session` as its handler, read the instruction
 chain, constitution, baseline, master-plan context, contract/index,
 approved session plan, SCRATCHPAD, and relevant backlog entries. Follow
-Graphify-first exploration; verify moving APIs from current primary docs.
+Codegraph-first exploration; verify moving APIs from current primary docs.
 Reconcile the contract digest, branch/worktree, and prerequisites. Material
 scope/design conflicts require re-planning; otherwise execute only the approved
 plan through its verification tasks. User-facing work requires `ux-check`

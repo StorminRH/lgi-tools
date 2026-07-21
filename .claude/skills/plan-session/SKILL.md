@@ -20,7 +20,7 @@ read and reconcile the schema's authoring inputs, then create the native task li
 from this sequence and the schema's authoring, drafting, review, approval,
 and persistence gates.
 
-Reconcile the contract with Graphify, live code, dependencies, and current
+Reconcile the contract with Codegraph, live code, dependencies, and current
 primary docs. After context is loaded, discuss the plan's intended shape with
 Ryan in plain English before any fixed-schema drafting. Once the fixed-schema
 draft is complete, launch a fresh read-only Claude subagent at high effort to
