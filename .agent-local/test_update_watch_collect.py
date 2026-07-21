@@ -460,6 +460,13 @@ class RenderTests(unittest.TestCase):
         body = self._report_body()
         self.assertIn("Pipe \\| and newline in the title", body)
 
+    def test_service_link_is_hyperlinked_like_the_advisory_section(self) -> None:
+        body = self._report_body()
+        self.assertIn(
+            "[https://neon.com/docs/changelog/x](https://neon.com/docs/changelog/x)",
+            body,
+        )
+
     def test_empty_sections_render_a_none_line(self) -> None:
         deltas = compute_deltas(
             state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}}), [], []

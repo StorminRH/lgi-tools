@@ -561,6 +561,17 @@ def _advisory_link(fields: dict) -> str:
     return f"[{identifier}]({url})" if url else identifier
 
 
+def _service_link(fields: dict) -> str:
+    """Render the canonical id as a Markdown link when it is a URL, else plain text.
+
+    Mirrors ``_advisory_link`` so both tables link consistently; a non-URL
+    canonical id (should one ever appear) renders as plain escaped text.
+    """
+    link = fields.get("link", "?")
+    text = _cell(link)
+    return f"[{text}]({link})" if isinstance(link, str) and link.startswith("http") else text
+
+
 def _render_table(header: str, alignment: str, rows: list[str], empty: str) -> str:
     """Assemble a Markdown table, or return the ``empty`` line when there are no rows."""
     if not rows:
@@ -613,7 +624,7 @@ def render_service_section(deltas: list[dict]) -> str:
         (
             f"| {_cell(f.get('source', '?'))} | {_cell(f.get('title', '?'))} "
             f"| {_cell(f.get('date', 'undated'))} | {_cell(f.get('window', '?'))} "
-            f"| {_cell(f.get('link', '?'))} |"
+            f"| {_service_link(f)} |"
         )
         for delta in deltas
         if (f := delta.get("fields", {}))
