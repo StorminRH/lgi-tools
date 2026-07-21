@@ -34,11 +34,9 @@ behavior locks, acceptance gates, baseline effect, design-review evidence, and
 normal close-out.
 
 Discuss the extension's intended shape with Ryan in plain English before
-drafting sub-versions or contracts.
-Use the global headless `gpt-5.6-sol` routing as useful for bounded finding
-exploration, decomposition, and drafting. Give the complete extension,
-contract set, ledger, and evidence to a fresh read-only high adversarial
-reviewer and reconcile every finding; the review budget is a hard cap of one
+drafting sub-versions or contracts. Give the complete extension,
+contract set, ledger, and evidence to a fresh read-only high `gpt-5.6-sol`
+adversarial reviewer and reconcile every finding; the review budget is a hard cap of one
 mandatory pass plus at most one rerun after material reconciliation, with
 later findings reconciled by planner judgment and disclosed at approval.
 Present a short plain-English summary

@@ -33,8 +33,7 @@ This is a thin Plan-mode orchestrator. The resolver owns dispatch and
    before drafting contracts, and propose the ordered contract/index set.
    Include dependencies, acceptance
    gates, hotspot contact, and at most one selected health campaign.
-5. Use task-scoped `gpt-5.6-sol` workers under `AGENTS.md` as useful during
-   authoring. Give the complete draft to a fresh read-only high adversarial
+5. Give the complete draft to a fresh read-only high `gpt-5.6-sol` adversarial
    reviewer with its source evidence, then reconcile every finding. The review
    budget is a hard cap of one mandatory pass plus at most one rerun after
    material reconciliation; later findings are reconciled by planner judgment

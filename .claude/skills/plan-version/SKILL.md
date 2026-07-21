@@ -21,10 +21,9 @@ select a sibling handler here. Read the active master plan/SCRATCHPAD/backlog an
 create one task per applicable contract-generation phase. Reconcile roadmap
 intent with live state, dependencies, hotspot contact, and at most one health
 campaign. Discuss the intended shape of the decomposition with Ryan in
-plain English before drafting contracts. Use the global headless `gpt-5.6-sol`
-routing as useful during
-authoring, then give the complete proposal and its source evidence to a fresh
-read-only high adversarial reviewer. Reconcile every finding before presenting
+plain English before drafting contracts, then give the complete proposal and its
+source evidence to a fresh read-only high `gpt-5.6-sol` adversarial reviewer.
+Reconcile every finding before presenting
 the reviewed index/contract proposal; the review budget is a hard cap of one
 mandatory pass plus at most one rerun after material reconciliation, with later
 findings reconciled by planner judgment and disclosed at approval. Present a short plain-English summary

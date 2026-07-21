@@ -44,11 +44,9 @@ session plans, and audit finding ledger remain authoritative.
    dependencies, behavior locks, end-state, verification, baseline effect,
    pre-PR design evidence, and normal branch/PR close-out.
 5. Discuss the extension's intended shape with Ryan in plain English before
-   drafting sub-versions or contracts. Use task-scoped `gpt-5.6-sol` workers
-   under `AGENTS.md` as useful for bounded
-   finding exploration, decomposition, and drafting. Give the complete
+   drafting sub-versions or contracts. Give the complete
    extension, contract set, ledger, and evidence to a fresh read-only high
-   adversarial reviewer, then reconcile every finding. The review budget is a
+   `gpt-5.6-sol` adversarial reviewer, then reconcile every finding. The review budget is a
    hard cap of one mandatory pass plus at most one rerun after material
    reconciliation; later findings are reconciled by planner judgment and
    disclosed at approval.

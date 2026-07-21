@@ -20,7 +20,8 @@
   "hookConfigs": {
     ".claude/settings.json": [
       "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash",
-      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read"
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" read",
+      "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/redirect_subagent_to_codex.py\""
     ],
     ".codex/hooks.json": [
       "python3 \"${CLAUDE_PROJECT_DIR:-.}/.agent-local/graphify_guard.py\" bash",
@@ -327,6 +328,8 @@
     ".agent-local/test_baseline_claims.py",
     ".agent-local/test_watch_triggers.py",
     ".agent-local/graphify_guard.py",
+    ".agent-local/redirect_subagent_to_codex.py",
+    ".agent-local/test_redirect_subagent_to_codex.py",
     ".agent-local/audit_tooling_parity.py",
     ".agent-local/check_tooling_parity.py",
     ".agent-local/sync_vercel_plugin.py",

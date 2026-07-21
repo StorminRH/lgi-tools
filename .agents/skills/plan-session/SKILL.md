@@ -34,10 +34,9 @@ product boundary.
    primary documentation. Discuss the plan's intended shape with Ryan in
    plain English before drafting. Then produce a complete schema-conforming plan
    with no missing required section, mapping, marker, or unresolved placeholder.
-5. Use the task-scoped `gpt-5.6-sol` assistance policy in `AGENTS.md` as useful
-   during authoring. After the complete draft exists, launch a fresh read-only
-   high worker to adversarially review the draft, contract, and cited
-   evidence. Reconcile every finding; rerun review at most once, and only when
+5. After the complete draft exists, launch a fresh read-only
+   high `gpt-5.6-sol` worker to adversarially review the draft, contract, and
+   cited evidence. Reconcile every finding; rerun review at most once, and only when
    the reconciliation materially changes architecture, scope, or verification.
    The review budget is a hard cap of one mandatory pass plus at most one
    rerun. Reconcile review findings into the final design or stop on a material
