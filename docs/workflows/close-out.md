@@ -1,13 +1,40 @@
 # Close-out procedure
 
-This is the canonical end-to-end close-out procedure. Runtime skills adapt this
-sequence and retain only their native task-list and background-process syntax.
+This is the sole end-to-end close-out sequence. Runtime skills supply only
+native task-list and background-process mechanics.
 
-Before acting, create one native runtime task list from every applicable step.
-Keep exactly one item active, attach evidence before completing it, and reopen
-only verification items that a later change actually invalidates. Moving to the
-next section, editing a PR body, or adding a lifecycle-only status commit does
-not by itself invalidate current-head test evidence.
+## Execution contract
+
+Required inputs:
+
+1. The current resolver directive, approved contract and plan, master-plan
+   status, and complete branch diff.
+2. Focused behavior, local, and UX evidence required by the changed surface.
+3. Current design-review, release, health-baseline, and workflow-policy state.
+
+Required outputs are exactly one of:
+
+- `SESSION_HANDOFF`: another approved session remains; the verified scope is
+  committed and pushed, lifecycle status points to the next session, and no PR
+  is opened.
+- `MERGED`: the final session passes design review and verification, the PR is
+  reviewed and merged through the gate of record, exact production proof is
+  complete, local lifecycle reconciliation is prepared, and the resolver
+  directive is reported.
+- `BLOCKED`: a named operator gate, scope conflict, failed mandatory check, or
+  external-state condition prevents a truthful handoff or merge.
+
+Stop with `BLOCKED` rather than bypassing, weakening, or substituting for a gate.
+Do not infer approval for a merge, deployment, promotion, production mutation,
+or destructive recovery beyond the runtime skill's explicit authorization.
+
+Before acting, create one native runtime task for each applicable phase below
+and one final result task. Keep exactly one task active. Attach the phase's
+required evidence before completing its task; a bare assertion such as
+"checked" or "looks good" is not evidence. Reopen only phases and verification
+invalidated by a later change. Moving to another phase, editing PR metadata, or
+adding a lifecycle-only status commit does not invalidate current-head
+application evidence.
 
 ## End-of-session review and local proof
 
@@ -43,12 +70,18 @@ not by itself invalidate current-head test evidence.
    represent the behavior. Never run `pnpm build`, `next build`,
    `pnpm vercel-build`, or another production-mode build before merge.
 
+Phase evidence: disposition of every session finding, one verdict for each
+judgment-review surface, and the focused/local/UX proof or explicit
+not-applicable reason.
+
 ## Session memory and the final-session fork
 
 One sub-version uses one branch and one eventual PR; multiple scoped sessions
 may contribute verified commits before that PR opens.
 
-1. Decide whether another approved session remains in the sub-version.
+1. Determine from the approved contract index, master-plan row, and session
+   plan whether another approved session remains in the sub-version. Record the
+   next session id or `Final session`; do not infer from branch age or filenames.
 2. If more sessions remain, skip the pre-PR design review and continue at
    **Finalize and verify the current head**. After that section's commit-and-push
    evidence exists, change the approved plan's `Execution status` from `Pending`
@@ -63,6 +96,10 @@ may contribute verified commits before that PR opens.
    server remains available; `No` skips that pause. For work outside the
    lifecycle with no applicable marker, use judgment to decide whether behavior
    or appearance requires the same review.
+
+Phase evidence: `Remaining session: <id>` or `Final session`, the applicable UX
+gate value, and any operator-review outcome. A required operator review that has
+not completed returns `BLOCKED`.
 
 ## Pre-PR design-review gate
 
@@ -88,24 +125,37 @@ public-truth review.
    Complete these changes before the final current-head gates and before opening
    the PR.
 
+Phase evidence: the exact `PASS` result returned by the pre-PR design-review
+procedure, reconciled hotspot/baseline state or a not-applicable verdict, and
+the finalized changelog, version, and PR design notes.
+
 ## Finalize and verify the current head
 
 This is the single full verification checkpoint for the completed session head.
 Do not repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
 
-1. Shut down the Next.js and local Convex development processes after all agent
+1. Inspect the finalized diff against the session contract, approved plan,
+   prohibited surfaces, and stated scope. Remove anything outside those
+   boundaries, confirm every required surface is present, and screen all tracked
+   content for personal information before mechanical verification begins.
+2. Run every cheap workflow check that can still lead to an edit: agent drift
+   after changing shared guides, skills, hooks, or workflow policy; document
+   references after changing live documentation; release consistency; the
+   read-only baseline-claims and watch-trigger reporters; and any specialized
+   checker named by the approved plan. Fix or reconcile every finding before the
+   definition-of-done checkpoint; surface every `promote AF-NNN` result to the
+   operator because neither reporter promotes findings itself.
+3. Shut down the Next.js and local Convex development processes after all agent
    and operator local review is finished, confirm their ports no longer answer,
    and clear `.next`. Leave the small persistent Docker Postgres service running
-   unless the session has another reason to stop it. The historical dev-cache
-   failure analysis is archived at
-   `../LGI Tools Document Archive/DEV_PERF_DIAGNOSIS.md`.
-2. Reconcile only deliberately ignored local state touched by the session:
+   unless the session has another reason to stop it.
+4. Reconcile only deliberately ignored local state touched by the session:
    runtime-local settings and worktrees, generated reports or captures,
    temporary PR body files, `.codegraph/`, and comparable declared local
    artifacts. Remove credential-bearing permissions and session-only output;
    tracked guides, skills, hooks, workspace docs, and `.agent-local/` utilities
    ship normally.
-3. Run the sole coverage-backed definition-of-done checkpoint once on the
+5. Run the sole coverage-backed definition-of-done checkpoint once on the
    finalized head:
 
    ```bash
@@ -118,23 +168,23 @@ Do not repeat it at the pre-PR or PR-opening boundary when the head is unchanged
    leaves `coverage/` available for diagnosis; remove it only after the final
    successful pass so no later session can reuse stale attribution. Entering a
    later workflow section does not make current-head evidence stale.
-4. Run `python3 .agent-local/check_baseline_claims.py --pretty` and `python3
-   .agent-local/check_watch_triggers.py --pretty` after any design-review
-   baseline reconciliation. Reconcile every final-session baseline warning or
-   explain it in the PR notes, and surface every `promote AF-NNN` result to the
-   operator; neither checker promotes findings.
-5. Run conditional workflow checks at their owning boundary: agent drift after
-   changing shared guides, skills, hooks, or workflow policy; document references
-   after changing live documentation; and any session-plan-specific checker the
-   approved plan names. Do not turn an unrelated docs-only handoff into another
-   application test run.
-6. Commit the verified session scope in the repository's plain-English style and
+6. After the successful checkpoint, make a read-only confirmation that the
+   worktree still matches the preflighted scope and that no application, test,
+   executable, dependency, or verification-configuration change occurred after
+   it. Any such change invalidates the checkpoint and returns to the applicable
+   preflight and verification steps; a lifecycle-only record does not.
+7. Commit the verified session scope in the repository's plain-English style and
    push the sub-version branch. No preview is created automatically.
-7. Update `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and
+8. Update `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and
    contract cannot know. Remove shipped or superseded detail and keep deferred
    work only in `docs/backlog.md`. Follow the fork above: a non-final session
    completes its plan and stops; a final session leaves its plan pending and
    continues to the PR.
+
+Phase evidence: finalized-diff boundary verdict, output from every applicable
+cheap workflow check, the successful pinned `pnpm verify` result tied to the
+verified head, read-only no-change confirmation, commit SHA, push result, and
+the lifecycle-memory disposition.
 
 ## The PR and Greptile loop
 
@@ -180,6 +230,11 @@ Do not repeat it at the pre-PR or PR-opening boundary when the head is unchanged
    Push the fix only after the required current-head evidence is green, then
    repeat Greptile review against that head.
 
+Phase evidence: PR URL, published title/body scrub result, current head SHA,
+green CI result, current-head Greptile score, unresolved-finding count, and the
+disposition of every review finding. Any pending justification returns
+`BLOCKED`.
+
 ## Merge
 
 1. Declare the PR review-ready only when the live Greptile result is 5/5 and
@@ -191,6 +246,10 @@ Do not repeat it at the pre-PR or PR-opening boundary when the head is unchanged
 3. If an accepted or resolved finding leaves a Greptile inline comment that the
    helper rejects, stop and escalate to the operator. Do not merge around the
    fail-closed result.
+
+Phase evidence: successful `merge_clean_pr.py` result, expected pre-merge head,
+actual merge SHA, and remote-branch deletion result. A rejected helper result
+returns `BLOCKED`.
 
 ## After merge and resolver handoff
 
@@ -222,3 +281,34 @@ Do not repeat it at the pre-PR or PR-opening boundary when the head is unchanged
 7. If the merge made every master-plan row terminal, leave the active plan,
    contracts, session plans, and SCRATCHPAD in place. Close-out does not archive
    the version or select its next audit action; the resolver owns that decision.
+
+Phase evidence: exact merge-SHA deployment identity and Ready state,
+deployment-targeted runtime-log verdict, real-browser route/auth/console proof,
+the uncommitted lifecycle reconciliation diff, and the resolver's complete new
+directive.
+
+## Return the result
+
+Return this exact structure:
+
+```text
+Close-out result: SESSION_HANDOFF | MERGED | BLOCKED
+Session: <id>
+Branch head: <full SHA>
+Session review: <evidence summary>
+Focused/local/UX proof: <evidence summary or not applicable>
+Design review: <PASS result or not applicable>
+Final verification: <command and result or not reached>
+PR and review: <URL, head, CI, Greptile, findings or not opened>
+Merge: <merge SHA or not merged>
+Production: <deployment and browser proof or not reached>
+Lifecycle state: <committed handoff or uncommitted reconciliation>
+Resolver directive: <complete directive or not rerun>
+Blocker: <exact blocker or none>
+```
+
+Return `SESSION_HANDOFF` only after the non-final session's verified commit,
+push, plan status, and SCRATCHPAD handoff are complete. Return `MERGED` only
+after exact production proof and resolver handoff are complete. Otherwise
+return `BLOCKED` with the first unresolved mandatory gate and preserve all
+completed evidence for resumption.

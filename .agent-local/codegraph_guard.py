@@ -46,12 +46,12 @@ def guard_bash(tool_input: dict) -> None:
     command = str(tool_input.get("command") or tool_input.get("cmd") or "")
     if SEARCH_COMMAND.search(command):
         emit(
-    "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
-    "codegraph explore \"<question>\" for an unfamiliar area, "
-    "or codegraph query \"<symbol>\" when you already know the symbol, "
-    "before grepping raw files. Only grep "
-    "after Codegraph has oriented you, or to modify/debug specific lines."
-)
+            "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
+            "codegraph explore \"<question>\" for an unfamiliar area, "
+            "or codegraph query \"<symbol>\" when you already know the symbol, "
+            "before grepping raw files. Only grep "
+            "after Codegraph has oriented you, or to modify/debug specific lines."
+        )
 
 
 def guard_read(tool_input: dict) -> None:

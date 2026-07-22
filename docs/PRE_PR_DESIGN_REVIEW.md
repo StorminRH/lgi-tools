@@ -1,170 +1,197 @@
-# Pre-PR Design Review (LGI.tools)
+# Pre-PR design-review procedure
 
-**Audience:** the agent about to open (or hand off) a PR.
-**When invoked:** after implementation and focused/local proof are complete,
-**before** the finalized-head definition-of-done checkpoint, PR opening, and external review loop
-(`docs/PR_REVIEW.md`) runs. This review is about *design decay*, which
-mechanical gates and line-oriented reviewers don't catch.
-**Constitution:** `docs/DESIGN_PRINCIPLES.md` (P-numbers refer to it).
-**Current health:** `docs/CODE_HEALTH_BASELINE.md`.
-**Output:** a short design-notes section for the PR description, zero-or-more
-fixes applied in-branch, and backlog entries for anything found-but-out-of-scope.
+Run this procedure after implementation and focused local or UX proof, but
+before the finalized-head definition-of-done checkpoint and before any PR is
+opened. `docs/DESIGN_PRINCIPLES.md` owns design policy;
+`docs/CODE_HEALTH_BASELINE.md` owns current hotspot state. This procedure owns
+the required design judgment and its evidence.
 
-Preconditions — do not start this review until:
+## Execution contract
 
-- [ ] The changed behavior has focused and local/UX proof appropriate to the
-      surface. The coverage-backed definition-of-done checkpoint follows this
-      review so any design fix is included in the final tested head.
-- [ ] The branch is small and single-purpose. If the diff mixes a behavior
-      change with an unrelated structural change, split it now — reviewers must
-      be able to trust "refactor commit = no behavior change" (P9).
+Required inputs:
 
-Work from the actual diff: `git diff main...HEAD` (and `--stat` for shape).
-Create a native runtime todo list with one item for each numbered section below,
-plus a return-to-verification item whenever the review produces a code fix.
+1. The approved session contract and plan.
+2. The complete sub-version diff against its merge base.
+3. Focused behavior, local, and UX evidence applicable to the changed surface.
+4. The current design principles and code-health baseline.
 
----
+Required outputs:
 
-## 1. Interface audit — the core of this review
+1. One review result using the exact result form in **Return the result**.
+2. Every in-scope design defect fixed on the branch.
+3. Every genuinely out-of-scope finding recorded once in `docs/backlog.md` with
+   its diagnosis, size, and trigger.
+4. A concise `Design notes:` block ready for the PR's canonical `## Notes`
+   section.
+5. The list of verification evidence invalidated by review fixes.
 
-For **every export added or changed** in the diff:
+Stop with `BLOCKED` instead of returning to close-out when a required input is
+missing, the diff violates an approved scope boundary, or a material design fix
+needs operator approval. This procedure grants no authority to open, merge,
+deploy, promote, or archive.
 
-- **Depth (P1):** count the concepts a caller must learn (params, modes, types,
-  preconditions, call-order rules). Is the surface much simpler than what it
-  hides? A new export whose doc comment mostly explains *how to hold it
-  correctly* is shallow — rework before opening the PR.
-- **Hidden decision (P2):** name the decision it owns. If the same decision is
-  still known elsewhere after this diff (shape, ordering rule, constant), the
-  leak survived — finish pulling it in.
-- **Pass-through (P3):** any new function/hook/component that forwards to one
-  callee without adding an abstraction gets deleted, not shipped.
-- **Speculative surface (P4):** every new param/flag/export has a real caller in
-  this diff or the existing repo. Remove the rest.
-- **Error posture (P5):** did the diff export any new failure modes to callers
-  that the module could have absorbed, defaulted, or defined away? Are there
-  caught-and-swallowed errors that hide real faults?
+Before reviewing, create one native runtime task for each numbered phase below
+and one final return-to-verification task. Keep exactly one task active. Attach
+the phase evidence before completing its task; a bare assertion such as
+"checked" or "looks good" is not evidence.
 
-**Widening tripwires** — these specific diffs are frozen without written
-justification against DESIGN_PRINCIPLES §5 and the current baseline:
+## 1. Establish the review boundary
 
-- [ ] No new field on any context value the current baseline names as wide or
-      monitored (e.g. the planner concern contexts — fields go only to their
-      owning concern).
-- [ ] No new export feeding a surface the current baseline holds under a Watch
-      finding (check the baseline's `watch-trigger` blocks before widening any
-      named module).
-- [ ] No new file in the `auth-surface` zone; no new zone `allow` entries.
-- [ ] No second wrapper over `apiFetch` / `esiFetch` / `readEnv` / ui primitives.
+1. Resolve the branch merge base and inspect the complete diff, name-status,
+   and stat views.
+2. Group the changed files by logical change. Name the contract or approved
+   rider that authorizes each group.
+3. Confirm focused proof exists for every changed behavior. Record which
+   surfaces legitimately need no runtime or UX proof.
+4. Record every added or changed exported surface. If there are none, record
+   `Exports: none` and continue.
 
-## 2. Change-amplification audit
+Evidence: merge-base SHA, logical-change groups with their authority, proof
+inventory, and export inventory.
 
-Look at `git diff main...HEAD --stat`:
+## 2. Review interface depth and decision ownership
 
-- How many files did the *logical* change require touching? If one conceptual
-  change fanned out across many files (same edit repeated, parallel switch
-  statements, a rename cascade), that's leaked knowledge — note where the single
-  owner should be. Fix now if small; backlog it with the diagnosis if not.
-- Did the diff add a **special case** at call sites (a flag, an `if` keyed to
-  one caller) instead of generalizing the callee (P4/P5)?
-- Duplication: did you copy a block because the abstraction wasn't quite right?
-  Copying is a design verdict — either fix the abstraction or record why not
-  in the PR notes. (Fallow's dupes gate catches token-level copies; you are
-  responsible for the semantic ones it can't see.)
+For every added or changed export, record:
 
-## 3. Comments and rationale (P7)
+1. The decision the owning module hides.
+2. What the caller must know: parameters, modes, preconditions, units, failure
+   cases, and call-order rules.
+3. The real caller that requires each new parameter, option, type, or variant.
+4. Whether the module absorbs edge cases or pushes avoidable complexity to its
+   callers.
+5. Verdict: `PASS`, `FIX`, or `BLOCKED`.
 
-- Every non-obvious decision the diff makes (ordering, invariant, unit, why not
-  the simpler way) has a rationale comment **at the owning site**.
-- No comment papers over a bad interface ("call X before Y", field-navigation
-  maps). That's an interface bug wearing a comment.
-- Interface comments on new exports read like a contract, not an implementation
-  summary.
+Apply these actions:
 
-## 4. Tests as design evidence (P9)
+- If callers must understand implementation detail or sibling state, deepen the
+  interface before continuing.
+- If the same decision is encoded outside its owner, move the decision to one
+  owner and remove the duplicate knowledge.
+- If a new layer only renames arguments and forwards to one callee, delete it.
+- If a parameter, flag, variant, or export has no current caller, remove it.
+- If the module can define away or absorb a failure mode, do so instead of
+  exporting that burden.
 
-- New branching logic has co-located tests; behavior, not layout
-  (CONTRIBUTING.md). Logic that was hard to test and got extracted into a pure
-  function = good; logic left tangled in a component with a TODO = not done.
-- If this PR restructured existing code: point to the characterization tests
-  that locked behavior before the moves. If they don't exist, the refactor is
-  unverified — add them or shrink the claim.
-- No coverage backfill padding.
+Also inspect the diff for monitored-context widening, a new export on a Watch
+surface, a widened boundary exception, or a second wrapper over an adopted
+platform gate. Any occurrence requires an explicit design-principle
+justification and current baseline evidence; otherwise classify it `FIX`.
 
-## 5. Camp-site check (opportunistic, bounded)
+Evidence: one verdict record per changed export and one widening verdict for
+the complete diff.
 
-Did you leave the code you *touched* a little better than you found it — one
-rename, one dead branch removed, one leaked constant pulled home? Aim for
-exactly one small opportunistic cleanup per PR, inside the files already in the
-diff. Anything bigger you noticed goes to `docs/backlog.md` with a one-line
-diagnosis and a hotspot tag — not into this PR (the approved plan's schema-owned
-Scope coverage applies to review time too).
+## 3. Review change amplification and semantic duplication
 
-## 6. Rail-conflict reconciliation (P10, DESIGN_PRINCIPLES §4)
+1. For each logical change group, identify every file that had to know the
+   changed decision.
+2. Treat repeated conditionals, parallel switch cases, caller-specific flags,
+   copied policy blocks, and rename cascades as evidence that ownership leaked.
+3. Move leaked knowledge to one owner when the fix is in scope.
+4. Let the mechanical Fallow gate own token-level duplication. This phase owns
+   semantic duplication the mechanical gate cannot detect.
 
-If fallow or lint pushed back during this branch:
+Evidence: one amplification verdict per logical change group, naming its single
+owner or the corrective action taken.
 
-- Any threshold override / suppression added must carry a dated `// note`
-  naming the principle that justified it — silent suppressions are reverted.
-- Confirm the code was **not** contorted to appease a metric (shallow splits,
-  fragment hooks, test-shaped padding). If it was, undo it and take the
-  documented override instead.
-- Any boundary change ships with both authoritative representations updated
-  together: `.fallowrc.json` as the sole mechanical owner and CONTRIBUTING.md
-  as public prose. Do not recreate an ESLint boundary mirror.
+## 4. Review rationale and comments
 
-## 7. Reconcile the live baseline
+1. Verify every changed exported surface has an interface comment that states
+   its contract without restating its signature.
+2. Verify non-obvious ordering, invariants, units, ownership, and rejected
+   simpler alternatives are recorded at the owning site.
+3. Treat comments that explain call order, field navigation, or a workaround as
+   interface defects. Fix the interface rather than polishing the apology.
+4. Remove commentary that merely narrates visible code.
 
-Compare the branch with `docs/CODE_HEALTH_BASELINE.md`.
+Evidence: the changed interface-comment inventory and the location of every
+added or corrected rationale comment, or `Rationale changes: none`.
 
-- If the branch changes a listed hotspot's LOC, public surface, consumer count,
-  override/suppression state, duplication state, direction, or campaign status,
-  update the affected metric and row in the same change.
-- Update only evidence the branch actually changed. Do not run a partial audit
-  or rewrite unrelated hotspot rows.
-- Preserve the fixed baseline schema, but advance the snapshot date, app
-  version, code ref, previous-comparison identity, and one-line health trend.
-  Set Measurement scope to `Targeted: <surface>` and mark unchanged Step 1
-  metrics as carried from the previous full measurement. The next full version
-  audit remeasures and replaces the whole file.
-- If the branch creates a newly credible hotspot, add it with evidence and a
-  direction of fix; if that judgment is too broad for the PR, backlog the
-  classification for the audit and mark the touched surface as `watch` now.
+## 5. Review tests as design evidence
 
-No changed hotspot surface may reach PR open with a stale baseline.
+1. Map every new or changed behavior branch to a behavioral test.
+2. For structural changes, identify the characterization evidence that held
+   behavior constant before the move.
+3. If branching logic remains difficult to test because presentation and policy
+   are tangled, separate the policy at its natural seam and test it there.
+4. Reject assertions added only to raise coverage or satisfy a metric without
+   proving behavior.
 
-## 8. Write the design notes
+Evidence: behavior-to-test mapping, characterization evidence for structural
+changes, and any verification items invalidated by fixes.
 
-Add a short `Design notes:` block inside the canonical `## Notes` section of the
-PR description (3–8 lines). Do not add a fifth top-level PR heading.
+## 6. Reconcile rail pressure and the live baseline
 
-1. The decision(s) this PR gives a single home to, and where.
-2. Any interface consciously kept deep instead of split (and why), or any
-   override taken (and its note location).
-3. Anything found and backlogged, so the version audit sees it.
+1. Inspect any lint, Fallow, complexity, duplication, suppression, or boundary
+   pressure encountered by the branch.
+2. Confirm the implementation was not fragmented, padded with tests, or wrapped
+   in pass-through layers solely to satisfy a metric.
+3. Apply the current design-principle procedure for every override or
+   suppression and retain its required rationale.
+4. When a boundary changes, update its mechanical owner and public description
+   together; do not create a second enforcement representation.
+5. Compare every touched hotspot or Watch surface with the current baseline.
+   Update only the affected measurements and required snapshot identity. Do not
+   perform a partial rewrite of unrelated baseline evidence.
+6. If the diff creates a credible new hotspot, add evidence and a direction of
+   fix now or stop for an operator decision. Do not hide the judgment in prose.
 
-Then return to `close-out`, which proceeds to the external review loop in
-`docs/PR_REVIEW.md`.
+Evidence: rail-pressure verdict, override/suppression inventory, boundary
+verdict, and baseline update or `Baseline update: not required` with the reason.
 
-For audit remediation, the design notes also name the mapped `AF-NNN` findings
-and show how the delivered shape meets each required outcome. Passing this
-review is necessary but not sufficient for Verified: close-out marks Delivered
-after merge, and only the next complete audit may mark the finding Verified.
+## 7. Resolve findings without widening the branch
 
----
+Classify every finding exactly once:
 
-## Fast checklist (all must be true to open the PR)
+- `FIXED`: the defect was in scope and is corrected on the branch.
+- `DEFERRED`: the finding is outside the whole sub-version and now has one
+  actionable backlog entry with diagnosis, size, and trigger.
+- `BLOCKED`: correcting it would change approved product scope, architecture,
+  or policy and requires operator approval.
 
-- [ ] Every new export passes the depth test; zero pass-throughs; zero
-      speculative surface.
-- [ ] No widening tripwire hit (wide/monitored context values, baseline Watch
-      surfaces, auth-surface, sanctioned gates).
-- [ ] One logical change ≈ one place edited; semantic duplication resolved or
-      justified.
-- [ ] Rationale comments present; no comment-as-apology.
-- [ ] Refactor commits behavior-preserving and test-locked; behavior commits
-      tested.
-- [ ] One bounded camp-site cleanup; bigger finds backlogged.
-- [ ] All overrides/suppressions dated and justified; boundaries changed in
-      triplicate or not at all.
-- [ ] Changed hotspot surfaces reconciled in `CODE_HEALTH_BASELINE.md`.
-- [ ] Design notes written inside the PR description's `## Notes` section.
+Do not add an arbitrary cleanup quota. Make only cleanup required to leave the
+touched design coherent. Re-run every phase affected by a fix and list the
+mechanical verification that the fix invalidated.
+
+Evidence: finding ledger with classification, disposition, and affected review
+or verification phases.
+
+## 8. Prepare PR design notes
+
+Produce a three-to-eight-line `Design notes:` block for the PR's `## Notes`
+section. State:
+
+1. Which decisions now have one owner.
+2. Which interfaces were deliberately kept deep or changed, and why.
+3. Any override, suppression, or boundary decision and its evidence location.
+4. Any deferred finding and its backlog entry.
+
+For audit remediation, also name each mapped `AF-NNN` finding and state how the
+delivered shape meets its required outcome. Do not mark an audit finding
+Verified here; only a later complete audit can do that.
+
+Evidence: the exact PR-ready `Design notes:` block.
+
+## Return the result
+
+Return this exact structure to `close-out`:
+
+```text
+Design review: PASS | BLOCKED
+Merge base: <full SHA>
+Scope groups: <group -> authority>
+Exports reviewed: <count or none>
+Interface verdict: <summary>
+Amplification verdict: <summary>
+Rationale verdict: <summary>
+Test-design verdict: <summary>
+Rail and baseline verdict: <summary>
+Findings: <FIXED / DEFERRED / BLOCKED ledger or none>
+Invalidated verification: <items or none>
+Design notes:
+<three to eight PR-ready lines>
+```
+
+Return `PASS` only when no `FIX` or `BLOCKED` finding remains, every required
+evidence field is populated, any affected baseline state is current, and the
+design notes are ready. A `PASS` returns control to
+`docs/workflows/close-out.md`; it does not itself authorize PR creation.
