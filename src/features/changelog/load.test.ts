@@ -1,3 +1,5 @@
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { toChangelogDocuments } from './browser';
 import { readChangelogSource } from './load';
@@ -32,5 +34,21 @@ describe('readChangelogSource', () => {
     const entries = parseChangelog(source);
     const documents = toChangelogDocuments(parseChangelogMasters(source));
     expect(documents.flatMap((document) => document.master.subVersions)).toEqual(entries);
+  });
+
+  // The pending inbox (content/changelog/pending/) holds out-of-band release notes that
+  // must never reach the live site until a planned release folds them in. The loader's
+  // non-recursive readdir + vX.Y.md filter already excludes the subdirectory; this pins
+  // that guarantee so a future loader change can't silently start rendering fragments.
+  it('renders exactly the top-level vX.Y.md masters and never the pending inbox', async () => {
+    const dir = join(process.cwd(), 'content', 'changelog');
+    const entries = await readdir(dir, { withFileTypes: true });
+    const masterVersions = entries
+      .filter((entry) => entry.isFile() && /^v[\d.]+\.md$/.test(entry.name))
+      .map((entry) => entry.name.slice(1, -3));
+    const masters = parseChangelogMasters(await readChangelogSource());
+    expect(new Set(masters.map((master) => master.version))).toEqual(new Set(masterVersions));
+    // The inbox is a real directory the loader deliberately steps over.
+    expect(entries.some((entry) => entry.isDirectory() && entry.name === 'pending')).toBe(true);
   });
 });

@@ -136,7 +136,7 @@ and no separate elective campaign is scheduled.
 | **Phase 0 — Documentation & lifecycle consolidation** | | | |
 | 3.10.0.1 | Green the gate honestly: exempt history, fix real stale map-facts (decision-free) | 1 | SHIPPED |
 | 3.10.0.2 | Canonical frame: `docs/workflows/`, contract + strict data-only baseline forms, resolver-enforced (parser in scope); retire the lifecycle narrative | 2 (one branch) | SHIPPED |
-| 3.10.0.3 | Migrate close-out (SESSION_END + SELF_REVIEW + PR_REVIEW → one procedure + thin adapters) | 2 (one branch) | PLANNED |
+| 3.10.0.3 | Migrate close-out (SESSION_END + SELF_REVIEW + PR_REVIEW → one procedure + thin adapters) | 2 (one branch) | SHIPPED |
 | 3.10.0.4 | Migrate planning + design review (SESSION_PLANNING + PRE_PR + DESIGN_PRINCIPLES) | 2 (one branch) | PLANNED |
 | 3.10.0.5 | Migrate version-audit + de-duplicate the self-contained skills | 1 | PLANNED |
 | 3.10.0.6 | Maps & policy single-owner: AGENTS dedup, precedence, ledger archive | 1 | PLANNED |

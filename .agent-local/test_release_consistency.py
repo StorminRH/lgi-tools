@@ -80,6 +80,40 @@ class ReleaseConsistencyTests(unittest.TestCase):
         )
         self.assertEqual([], self.fixture.messages("reconciled"))
 
+    def test_truthful_release_candidate_pr_is_clean(self) -> None:
+        # A planned final PR is authored in the reconciled state: the delivered
+        # sub-version's row is already terminal and APP_VERSION matches it, while
+        # later planned sub-versions stay nonterminal. It passes the gate the final
+        # PR now uses (--expect reconciled) and is correctly NOT pre-pr, which is
+        # why post-merge reconciliation is no longer needed.
+        self.fixture.seed(
+            "9.9.1.2",
+            ["9.9.1.2", "9.9.1.1"],
+            [("9.9.1.1", "SHIPPED"), ("9.9.1.2", "SHIPPED"), ("9.9.1.3", "PLANNED")],
+        )
+        self.assertEqual([], self.fixture.messages("reconciled"))
+        self.assertTrue(
+            any(
+                "release state is reconciled, expected pre-pr" in message
+                for message in self.fixture.messages("pre-pr")
+            )
+        )
+
+    def test_pending_fragments_do_not_perturb_release_identity(self) -> None:
+        # The pending inbox is neutral to release consistency: fragment files under
+        # content/changelog/pending/ never change the version triplet.
+        self.fixture.seed(
+            "9.9.1.2",
+            ["9.9.1.2", "9.9.1.1"],
+            [("9.9.1.1", "SHIPPED"), ("9.9.1.2", "SHIPPED"), ("9.9.1.3", "PLANNED")],
+        )
+        self.fixture.write(
+            "content/changelog/pending/2026-07-22-fix.md",
+            "---\ndate: 2026-07-22\n---\n\n#### Fixed\n- An out-of-band fix.\n",
+        )
+        self.assertEqual([], self.fixture.messages())
+        self.assertEqual([], self.fixture.messages("reconciled"))
+
     def test_expect_pins_the_required_signature(self) -> None:
         self.fixture.seed(
             "9.9.1.2",

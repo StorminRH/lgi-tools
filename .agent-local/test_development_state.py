@@ -14,6 +14,7 @@ import unittest
 
 from resolve_development_state import (
     RELEASE_CONSISTENCY_GATE,
+    lifecycle_branch,
     required_contract_sections,
     resolve,
 )
@@ -328,6 +329,16 @@ No runtime data flow changes.
     def init_git(self, branch: str) -> None:
         subprocess.run(
             ["git", "init", "-b", branch, str(self.root)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    def set_head(self, branch: str) -> None:
+        """Point HEAD at a (possibly unborn) branch without touching the tree."""
+        subprocess.run(
+            ["git", "-C", str(self.root), "symbolic-ref", "HEAD", f"refs/heads/{branch}"],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -681,30 +692,107 @@ class DevelopmentStateTests(unittest.TestCase):
             directive["pause"],
         )
 
-    def test_session_ready_directive_carries_subversion_branch(self) -> None:
+    def test_session_ready_directive_carries_deterministic_lifecycle_branch(self) -> None:
         self.fixture.write_roadmap("PLANNED")
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract)
         state = self.resolved()
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertEqual(state["subversion"], directive["branch"])
+        subversion = str(state["subversion"])
+        # The branch is a pure function of the sub-version: no runtime prefix, no slug.
+        self.assertEqual(f"lifecycle/{subversion}", directive["branch"])
+        self.assertEqual(lifecycle_branch(subversion), directive["branch"])
 
-    def test_rider_branch_overrides_lifecycle_with_flow_track(self) -> None:
-        # A valid session-ready setup that a rider/* checkout must override.
+    def test_lifecycle_branch_helper_is_prefix_free(self) -> None:
+        self.assertEqual("lifecycle/3.10.0.4", lifecycle_branch("3.10.0.4"))
+        self.assertEqual("lifecycle/9.9.1.1", lifecycle_branch("9.9.1.1"))
+
+    def test_planning_directives_carry_the_lifecycle_branch(self) -> None:
+        # The deterministic branch also carries planning, so start-session can
+        # discover and resume the same branch for the whole sub-version.
+        self.fixture.write_roadmap("PLANNED")
+        self.fixture.write_contract()  # contract present, no session plan yet
+        state = self.resolved()
+        self.assertEqual("session-plan-needed", state["stage"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("lifecycle/9.9.1.1", directive["branch"])
+
+    def test_resolver_output_ignores_the_checked_out_branch(self) -> None:
+        # Branch names carry no lifecycle meaning: every checkout — including a
+        # rider/* or codex/ one — yields the identical stage and directive branch.
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract)
+        baseline, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("session-ready", baseline["stage"])
+        baseline_directive = baseline["directive"]
+        assert isinstance(baseline_directive, dict)
+        self.assertEqual("lifecycle/9.9.1.1", baseline_directive["branch"])
+        self.fixture.init_git("main")
+        for branch in ("main", "feature/x", "codex/x", "rider/quick-fix", "misc"):
+            self.fixture.set_head(branch)
+            state, branch_errors = resolve(self.fixture.root)
+            self.assertEqual([], branch_errors)
+            directive = state["directive"]
+            assert isinstance(directive, dict)
+            self.assertEqual(baseline["stage"], state["stage"])
+            self.assertEqual(baseline_directive["branch"], directive["branch"])
+
+    def test_rider_branch_has_no_special_meaning(self) -> None:
+        # The retired rider system: a rider/* checkout resolves like any other —
+        # a normal session-ready directive with the release gate, never a bypass.
         self.fixture.write_roadmap("PLANNED")
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract)
         self.fixture.init_git("rider/quick-fix")
         state, errors = resolve(self.fixture.root)
         self.assertEqual([], errors)
-        self.assertEqual("rider", state["stage"])
+        self.assertEqual("session-ready", state["stage"])
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertIsNone(directive["handler"])
-        self.assertEqual("execute", directive["mode"])
-        self.assertEqual("rider/quick-fix", directive["branch"])
-        self.assertIsNone(directive["preDispatchGate"])
+        self.assertEqual("start-session", directive["handler"])
+        self.assertEqual("lifecycle/9.9.1.1", directive["branch"])
+        self.assertEqual(RELEASE_CONSISTENCY_GATE, directive["preDispatchGate"])
+
+    def test_resolver_has_no_flow_track_bypass(self) -> None:
+        # Ordinary work never invokes the resolver, and the resolver itself keeps
+        # no branch bypass: rider_state is gone and no branch yields a rider stage.
+        import resolve_development_state as module
+
+        self.assertFalse(hasattr(module, "rider_state"))
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract)
+        self.fixture.init_git("main")
+        for branch in ("main", "rider/quick-fix", "codex/tooling"):
+            self.fixture.set_head(branch)
+            state, _ = resolve(self.fixture.root)
+            self.assertNotEqual("rider", state["stage"])
+
+    def test_completed_subversion_is_not_redispatched_after_merge(self) -> None:
+        # A fresh checkout after a final planned merge resolves the NEXT real
+        # action, never re-dispatching the already-shipped sub-version's session.
+        (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
+            "# Version 9.9\n\n## Status\n\n"
+            "| Sub-version | Theme | Sessions | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 9.9.1.1 | Shipped work | 1 | SHIPPED |\n"
+            "| 9.9.1.2 | Next work | 1 | PLANNED |\n",
+            encoding="utf-8",
+        )
+        # 9.9.1.1's contract/plan exist and are complete; the resolver advances past them.
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("contracts-needed", state["stage"])
+        self.assertEqual("9.9.1.2", state["subversion"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertEqual("lifecycle/9.9.1.2", directive["branch"])
 
     def test_pre_3_9_artifacts_are_exempt_from_binding_markers(self) -> None:
         (self.fixture.docs / "VERSION_9_9_PLAN.md").unlink()
@@ -740,11 +828,12 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertEqual("session-ready", state["stage"])
 
-    def test_git_warnings_cover_plan_mode_and_execute_branch_drift(self) -> None:
+    def test_git_warnings_cover_plan_worktree_and_execute_branch_drift(self) -> None:
         self.fixture.write_roadmap("PLANNED")
         self.fixture.write_contract()
         self.fixture.init_git("misc")
 
+        # Plan mode (no session plan yet) warns on the dirty fixture worktree.
         plan_result = self.cli("--git")
         self.assertEqual(0, plan_result.returncode)
         plan_payload = json.loads(plan_result.stdout)
@@ -752,49 +841,39 @@ class DevelopmentStateTests(unittest.TestCase):
 
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract)
-        execute_result = self.cli("--git")
-        self.assertEqual(0, execute_result.returncode)
-        execute_payload = json.loads(execute_result.stdout)
+
+        # Execute mode off the deterministic lifecycle branch warns and names the
+        # exact lifecycle/<sub-version> branch to check out.
+        misc_payload = json.loads(self.cli("--git").stdout)
         self.assertTrue(
-            any("does not embed sub-version 9.9.1.1" in warning for warning in execute_payload["warnings"])
+            any(
+                "is not the lifecycle/9.9.1.1 lifecycle branch" in warning
+                for warning in misc_payload["warnings"]
+            )
         )
 
-        subprocess.run(
-            [
-                "git",
-                "-C",
-                str(self.fixture.root),
-                "symbolic-ref",
-                "HEAD",
-                "refs/heads/codex/tooling",
-            ],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+        # A codex/* branch has no special meaning any more: it warns like any other.
+        self.fixture.set_head("codex/tooling")
         codex_payload = json.loads(self.cli("--git").stdout)
-        self.assertFalse(
-            any("current branch" in warning for warning in codex_payload["warnings"])
+        self.assertTrue(
+            any(
+                "is not the lifecycle/9.9.1.1 lifecycle branch" in warning
+                for warning in codex_payload["warnings"]
+            )
         )
 
-        subprocess.run(
-            [
-                "git",
-                "-C",
-                str(self.fixture.root),
-                "symbolic-ref",
-                "HEAD",
-                "refs/heads/main",
-            ],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
+        # On the correct lifecycle branch there is no branch-drift warning.
+        self.fixture.set_head("lifecycle/9.9.1.1")
+        on_branch_payload = json.loads(self.cli("--git").stdout)
+        self.assertFalse(
+            any("lifecycle branch" in warning for warning in on_branch_payload["warnings"])
         )
+
+        # main gets the explicit check-out-the-lifecycle-branch message.
+        self.fixture.set_head("main")
         main_payload = json.loads(self.cli("--git").stdout)
         self.assertIn(
-            "current branch is main; create the 9.9.1.1 sub-version branch",
+            "current branch is main; check out the lifecycle/9.9.1.1 lifecycle branch",
             main_payload["warnings"],
         )
 

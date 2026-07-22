@@ -39,8 +39,8 @@ the phase evidence before completing its task; a bare assertion such as
 
 1. Resolve the branch merge base and inspect the complete diff, name-status,
    and stat views.
-2. Group the changed files by logical change. Name the contract or approved
-   rider that authorizes each group.
+2. Group the changed files by logical change. Name the contract or direct
+   request that authorizes each group.
 3. Confirm focused proof exists for every changed behavior. Record which
    surfaces legitimately need no runtime or UX proof.
 4. Record every added or changed exported surface. If there are none, record

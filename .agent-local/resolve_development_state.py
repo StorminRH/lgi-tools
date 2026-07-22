@@ -105,6 +105,20 @@ class WorkflowDirective:
         }
 
 
+LIFECYCLE_BRANCH_PREFIX = "lifecycle/"
+
+
+def lifecycle_branch(subversion: str) -> str:
+    """Return the deterministic lifecycle branch for a planned sub-version.
+
+    One stable branch carries a sub-version's planning and every session until
+    its single PR merges, e.g. ``lifecycle/3.10.0.4``. The name is a pure
+    function of the sub-version with no runtime prefix or slug, so any session
+    resolves the same branch and a fresh clone can rediscover in-flight work.
+    """
+    return f"{LIFECYCLE_BRANCH_PREFIX}{subversion}"
+
+
 def version_from_path(path: Path) -> str | None:
     match = re.fullmatch(r"VERSION_(\d+)_(\d+)_PLAN\.md", path.name)
     if not match:
@@ -950,6 +964,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Read-only until the contract decomposition is approved.",
             primary_artifact=str(state["masterPlan"]),
             pause="Contract decomposition approval is required.",
+            branch=lifecycle_branch(str(state["subversion"])),
         )
     if stage == "contract-repair-needed":
         violations = "; ".join(str(item) for item in state.get("contractSchemaViolations", []))
@@ -957,9 +972,10 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             action=f"Repair contract {state['contract']} to the canonical schema: {violations}",
             handler=None,
             mode="report",
-            authority="Limited to restoring the named contract's required schema on the active branch.",
+            authority="Limited to restoring the named contract's required schema on the lifecycle branch.",
             primary_artifact=str(state["contract"]),
             pause="Contract repair is required before the session can be planned or executed.",
+            branch=lifecycle_branch(str(state["subversion"])),
         )
     if stage == "session-plan-needed":
         return WorkflowDirective(
@@ -969,6 +985,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Read-only until the session implementation plan is approved.",
             primary_artifact=str(state["contract"]),
             pause="Session-plan approval is required.",
+            branch=lifecycle_branch(str(state["subversion"])),
         )
     if stage == "session-ready":
         pause = "Pause on a material scope/design conflict or an explicit operator gate."
@@ -984,7 +1001,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Changes are limited to the approved session plan and contract.",
             primary_artifact=str(state["sessionPlan"]),
             pause=pause,
-            branch=str(state["subversion"]),
+            branch=lifecycle_branch(str(state["subversion"])),
         )
     if stage == "audit-plan-needed":
         return WorkflowDirective(
@@ -1059,20 +1076,15 @@ def _run_git(root: Path, *args: str) -> str | None:
     return result.stdout.strip() if result.returncode == 0 else None
 
 
-def head_branch(root: Path) -> str | None:
-    """Return the current checked-out branch name, or None outside a work tree."""
-    if _run_git(root, "rev-parse", "--is-inside-work-tree") != "true":
-        return None
-    return _run_git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
-
-
 def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     """Return non-blocking warnings from the current local git snapshot.
 
-    Execute directives check branch naming, plan directives check worktree
-    cleanliness, and every state checks whether local main trails the existing
-    origin/main ref. Rider branches and missing git state degrade to no warning
-    and never change the resolved lifecycle stage.
+    Execute directives check that the checkout is the deterministic lifecycle
+    branch the directive names, plan directives check worktree cleanliness, and
+    every state checks whether local main trails the existing origin/main ref.
+    Branch names carry no lifecycle meaning: an unexpected branch only warns and
+    never changes the resolved stage or authorizes a bypass. Missing git state
+    degrades to no warning.
     """
 
     if _run_git(root, "rev-parse", "--is-inside-work-tree") != "true":
@@ -1081,23 +1093,18 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     warnings: list[str] = []
     directive = state.get("directive")
     mode = directive.get("mode") if isinstance(directive, dict) else None
+    directive_branch = directive.get("branch") if isinstance(directive, dict) else None
     branch = _run_git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
-    subversion = state.get("subversion")
 
-    if mode == "execute" and branch and isinstance(subversion, str):
+    if mode == "execute" and branch and isinstance(directive_branch, str):
         if branch == "main":
             warnings.append(
-                f"current branch is main; create the {subversion} sub-version branch"
+                f"current branch is main; check out the {directive_branch} lifecycle branch"
             )
-        elif not branch.startswith(("codex/", "rider/")):
-            expected = (
-                rf"^[a-z][a-z0-9-]*/{re.escape(subversion)}"
-                rf"(?:\.\d+)?-[a-z0-9-]+$"
+        elif branch != directive_branch:
+            warnings.append(
+                f"current branch {branch!r} is not the {directive_branch} lifecycle branch"
             )
-            if not re.fullmatch(expected, branch):
-                warnings.append(
-                    f"current branch {branch!r} does not embed sub-version {subversion}"
-                )
 
     if mode == "plan":
         worktree = _run_git(root, "status", "--porcelain")
@@ -1119,43 +1126,7 @@ def git_warnings(root: Path, state: dict[str, object]) -> list[str]:
     return warnings
 
 
-def rider_state(root: Path) -> dict[str, object] | None:
-    """Return a flow-track directive when HEAD is a rider/* branch, else None.
-
-    A rider is an unversioned one-off: the lifecycle resolver steps aside so the
-    change can ride its own branch. Riders never touch APP_VERSION, the changelog,
-    or the roadmap, so they stay invisible to the release-consistency gate and the
-    merge timing is a case-by-case choice.
-    """
-    branch = head_branch(root.resolve())
-    if not branch or not branch.startswith("rider/"):
-        return None
-    reason = (
-        "On a rider/* branch: unversioned flow-track one-off; the lifecycle "
-        "resolver stays out of the way."
-    )
-    directive = WorkflowDirective(
-        action=f"Execute the rider on {branch}",
-        handler=None,
-        mode="execute",
-        authority=(
-            "Limited to the declared one-off change on this rider branch; do not "
-            "bump APP_VERSION, edit the changelog, or change the roadmap."
-        ),
-        primary_artifact=None,
-        pause=(
-            "Pause if the one-off grows into work that needs a version bump, a "
-            "changelog entry, or a roadmap row — that is planned-track work."
-        ),
-        branch=branch,
-    ).as_dict(reason)
-    return {"stage": "rider", "branch": branch, "reason": reason, "directive": directive}
-
-
 def resolve(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[str]]:
-    rider = rider_state(root)
-    if rider is not None:
-        return rider, []
     state, errors = resolve_state(root)
     directive = directive_for(state).as_dict(str(state["reason"]))
     # UX gate is directive input, not a new top-level payload field; keeping it

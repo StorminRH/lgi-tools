@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Cross-check release identity before a PR and after reconciliation.
+"""Cross-check release identity for a PR and on main.
 
 Owns one decision: whether APP_VERSION, the newest active changelog entry, and
 the active roadmap delivery rows tell one consistent story. The valid stories
 are ``pre-pr`` (the triplet names the first nonterminal row) and ``reconciled``
-(the triplet names the latest terminal row). The checker is read-only.
+(the triplet names the latest terminal row). A planned final PR is authored
+directly in the ``reconciled`` state — it already carries the delivered
+sub-version's terminal row and matching APP_VERSION — so main is truthful the
+moment it merges, with no separate post-merge reconciliation. The checker is
+read-only. Ordinary out-of-band work does not touch this triplet at all: it
+leaves APP_VERSION and the roadmap untouched and records a hidden pending
+changelog fragment, so the resting state stays ``reconciled``.
 """
 
 from __future__ import annotations

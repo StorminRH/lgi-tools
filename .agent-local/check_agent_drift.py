@@ -440,6 +440,7 @@ LIFECYCLE_CHECKERS = (
     ".agent-local/check_doc_refs.py",
     ".agent-local/check_lifecycle_evidence.py",
     ".agent-local/check_release_consistency.py",
+    ".agent-local/check_pending_changelog.py",
     ".agent-local/check_update_watch_baseline.py",
 )
 
