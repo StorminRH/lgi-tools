@@ -123,29 +123,44 @@ tooling).
       "name": "Vercel / Next.js",
       "watch": ["https://vercel.com/atom", "https://nextjs.org/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-19",
-      "acknowledgedItems": []
+      "scanSince": "2026-07-22",
+      "acknowledgedItems": [
+        "https://vercel.com/blog/how-searchable-ships-customer-requested-features-in-30-minutes-on-vercel",
+        "https://vercel.com/blog/vercel-agent",
+        "https://vercel.com/changelog/python-function-bundles-now-include-precompiled-bytecode",
+        "https://vercel.com/changelog/vercel-connect-preset-connectors",
+        "https://vercel.com/changelog/vercel-mcp-now-supports-purchases",
+        "https://vercel.com/changelog/laguna-s-2-1-is-now-available-on-ai-gateway",
+        "https://vercel.com/changelog/gemini-3-6-flash-3-5-flash-lite-on-ai-gateway",
+        "https://vercel.com/changelog/service-tiers-now-available-on-ai-gateway",
+        "https://vercel.com/changelog/configure-where-run-state-lives-in-vercel-workflows",
+        "https://vercel.com/changelog/purge-your-remote-caches-build-and-ci-artifacts",
+        "https://nextjs.org/blog/july-2026-security-release"
+      ]
     },
     {
       "name": "Neon",
       "watch": ["https://neon.com/docs/changelog/rss.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-19",
+      "scanSince": "2026-07-22",
       "acknowledgedItems": []
     },
     {
       "name": "Convex",
       "watch": ["https://news.convex.dev/rss/"],
       "idRule": "url",
-      "scanSince": "2026-07-19",
+      "scanSince": "2026-07-22",
       "acknowledgedItems": []
     },
     {
       "name": "Upstash",
       "watch": ["https://upstash.com/blog/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-19",
-      "acknowledgedItems": []
+      "scanSince": "2026-07-22",
+      "acknowledgedItems": [
+        "https://upstash.com/blog/durable-workflow-engines-compared-every-major-option-in-2026",
+        "https://upstash.com/blog/context7-vs-static-llm-knowledge-benchmarking-coding-assistants"
+      ]
     }
   ],
   "eveSurface": [
@@ -153,14 +168,16 @@ tooling).
       "name": "EVE Developers blog",
       "watch": ["https://developers.eveonline.com/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-19",
-      "acknowledgedItems": []
+      "scanSince": "2026-07-22",
+      "acknowledgedItems": [
+        "https://developers.eveonline.com/blog/a-splash-of-color-corporation-palette-and-a-few-fresh-fields"
+      ]
     },
     {
       "name": "EVE developer documentation",
       "watch": ["https://developers.eveonline.com/docs/sitemap.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-19",
+      "scanSince": "2026-07-22",
       "acknowledgedItems": [
         "https://developers.eveonline.com/docs",
         "https://developers.eveonline.com/docs/community",
@@ -195,6 +212,7 @@ tooling).
         "https://developers.eveonline.com/docs/community/evepandora",
         "https://developers.eveonline.com/docs/community/eveship-fit",
         "https://developers.eveonline.com/docs/community/innominate-appraisal",
+        "https://developers.eveonline.com/docs/community/isk-gg",
         "https://developers.eveonline.com/docs/community/jeveassets",
         "https://developers.eveonline.com/docs/community/jitaspace",
         "https://developers.eveonline.com/docs/community/killfeed-by-lak-moore",
