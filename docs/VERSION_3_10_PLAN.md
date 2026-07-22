@@ -151,7 +151,7 @@ and no separate elective campaign is scheduled.
 | 3.10.0.1 | Green the gate honestly: exempt history, fix real stale map-facts (decision-free) | 1 | SHIPPED |
 | 3.10.0.2 | Canonical frame: `docs/workflows/`, contract + strict data-only baseline forms, resolver-enforced (parser in scope); retire the lifecycle narrative | 2 (one branch) | SHIPPED |
 | 3.10.0.3 | Migrate close-out (SESSION_END + SELF_REVIEW + PR_REVIEW → one procedure + thin adapters); PR #282, squash `93d08d1` | 2 (one branch) | SHIPPED |
-| 3.10.0.4 | Complete the agent workflow and lifecycle consolidation | 1 | PLANNED |
+| 3.10.0.4 | Complete the agent workflow and lifecycle consolidation | 1 | SHIPPED |
 | **Phase 1 — Close the structural loopholes** | | | |
 | 3.10.1.1 | Full boundary coverage: every source area a named zone | 1 | PLANNED |
 | 3.10.1.2 | Shared→composition split; cycles become blocking | 1 | PLANNED |
