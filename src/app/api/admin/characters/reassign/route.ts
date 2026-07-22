@@ -44,7 +44,14 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const { sourceDeleted } = await reassignCharacter({ characterId, fromUserId, toUserId });
   if (!sourceDeleted) {
-    await reconcileAfterCharacterRemoval(fromUserId, characterId);
+    try {
+      await reconcileAfterCharacterRemoval(fromUserId, characterId);
+    } catch (err) {
+      console.error(
+        '[admin/characters/reassign] source identity rebind failed after the move committed',
+        err,
+      );
+    }
   }
 
   void logUsageEvent({
