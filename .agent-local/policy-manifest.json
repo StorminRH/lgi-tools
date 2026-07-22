@@ -252,6 +252,24 @@
         "end-of-run summary"
       ],
       "forbidden": []
+    },
+    "resolve-update-watch": {
+      "required": [
+        "never[^.]*merge",
+        "Closes #",
+        "minimumReleaseAge|quarantine",
+        "overrides",
+        "UPDATE_WATCH_BASELINE",
+        "acknowledgedItems",
+        "untrusted",
+        "leave the (PR|pull request) open",
+        "defer",
+        "operator",
+        "check_update_watch_baseline",
+        "comment on the digest issue",
+        "closes on merge"
+      ],
+      "forbidden": []
     }
   },
   "runtimeForbidden": {
@@ -484,6 +502,13 @@
       "reconciledHash": "36383dc5bfe7c96a4d5e8ba38ccb3bb44b429e0e9361c9e44e7ca02780008751"
     },
     "update-watch": {
+      "deps": [
+        "AGENTS.md",
+        "docs/DESIGN_PRINCIPLES.md"
+      ],
+      "reconciledHash": "36383dc5bfe7c96a4d5e8ba38ccb3bb44b429e0e9361c9e44e7ca02780008751"
+    },
+    "resolve-update-watch": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md"
