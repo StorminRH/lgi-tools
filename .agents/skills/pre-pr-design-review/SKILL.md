@@ -9,16 +9,18 @@ description: >-
 
 # Run the pre-PR design review
 
-Follow `docs/PRE_PR_DESIGN_REVIEW.md` as the sole design-review procedure. It
-owns the ordering, judgment rules, evidence requirements, result form, and stop
-conditions.
+Procedure: `docs/workflows/pre-pr-design-review.md`.
+
+## Invocation authority
+
+Invocation permits read-only review. Parent-authorized fixes remain in scope. No delivery or archive authority is added.
 
 ## Codex runtime mechanics
 
-- Create a native Codex task list from the procedure and its final
-  return-to-verification task. Keep one item in progress.
-- Attach each phase's required evidence before completing its task.
-- Return the procedure's exact result form to `close-out`. Reopen every review
-  or verification task invalidated by a fix.
+- Create native Codex tasks; keep one active.
+- Use the long-lived terminal for commands and polling.
+- Request fresh read-only review when the procedure requires it.
 
-This skill grants no authority to open, merge, deploy, or archive anything.
+## Return
+
+Return PASS or BLOCKED with evidence. Identify checks invalidated by fixes.

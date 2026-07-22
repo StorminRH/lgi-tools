@@ -3,23 +3,10 @@
 This file is the canonical form for approved LGI.tools session plans. A plan is
 the execution prompt for one session: it binds the contract's product boundary
 to a concrete implementation blueprint an executing agent can follow without
-making material design choices. This schema owns both the inputs a planning
-agent must reconcile and the required output shape; runtime skills own only
-lifecycle, review, approval, persistence, and handoff mechanics.
-
-**Authoring inputs — schema guidance only; do not copy this inventory into the
-persisted plan.** Before drafting, reconcile:
-
-- the resolver-selected version-plan decisions and delivery fork, contract
-  index, selected contract, and exact contract bytes;
-- the active agent-guide chain, current code-health state, SCRATCHPAD, and only
-  the backlog entries relevant to the contracted boundary;
-- Codegraph orientation, the live code and tests that own the affected behavior,
-  and current primary documentation for moving external APIs; and
-- every inherited dependency, assumption, and boundary against live evidence.
-
-A material conflict or blocking prerequisite returns through the lifecycle; it
-is never converted into a speculative plan step.
+making material design choices. This schema owns the exact markers, headings,
+vocabularies, and contract-to-plan mappings. The canonical
+`docs/workflows/plan-session.md` procedure owns investigation, review, approval,
+persistence, and handoff; runtime skills only invoke that procedure.
 
 An approved plan starts with this frame:
 

@@ -1,19 +1,27 @@
-# VERSION 3.10 PLAN — Hull Integrity
+# VERSION 3.10 PLAN — Hull Integrity + SKIN
 
-> **This is a combined plan.** It brings together two movements: the
+> **This is a combined plan.** It brings together three movements: the
 > documentation/lifecycle consolidation (findings, contradiction register, and
 > the recorded Group A decisions and doc dispositions are in
 > `DOC_CONSOLIDATION_AUDIT_AND_PLAN.md`) and the architecture-hardening roadmap
-> sourced from the Sound Architecture report (2026-07-19). The consolidation
+> sourced from the Sound Architecture report (2026-07-19), followed by the
+> presentation-system completion roadmap sourced from the UploadThing UI
+> comparison audit (2026-07-19). The consolidation
 > is sequenced **first**, as Phase 0, because the architecture arcs write
 > their new rules into the guidance Phase 0 restructures — so each rule has a
-> single owner before anything new is added.
+> single owner before anything new is added. The presentation work is last
+> because it relies on those enforced architecture and ownership boundaries,
+> then closes the remaining primitive-adoption and visual-consistency gaps.
 >
 > Pairs with the canonical contract template (which Phase 0 extracts from
 > `docs/SESSION_CONTRACTS.md`, with the resolver validating contract structure
 > against it) and the contracts `plan-version` will derive from it.
-> The roadmap below is the source of truth for sequence/status; each session
-> contract is the source of truth for its session's executable requirements.
+> The roadmap below is the source of truth for goals, outcomes, invariants,
+> genuine dependencies, and approved sequence. Proposed sub-version, session,
+> branch, and PR boundaries are provisional until `plan-version` adversarially
+> reviews the delivery topology for frontier-agent execution. Each approved
+> session contract is then the source of truth for one execution bundle's
+> requirements.
 > Standing workflow: the lifecycle resolver selects every stage; branch per
 > sub-version; sessions commit in-branch with `pnpm verify`; one PR per
 > completed sub-version; Greptile on PR open is the gate of record; every
@@ -26,19 +34,16 @@
 > is a *sub-version*, not a "feature" — which Phase 0 itself makes canonical
 > across the guides; see 3.10.0.2 decision A4.)
 >
-> **Contract-extraction convention (carried from 3.9):** every sub-version
-> carries the fixed spec block — Objective / Done means / In scope / Out of
-> scope / Dependencies / Decisions the session plan must resolve / Baseline &
-> hotspot note / Delivery evidence. `plan-version` seeds the contract from
-> these fields and derives the remaining contract sections (hard constraints,
-> verification, gates, close-out behavior) from repo policy plus session
-> needs; the plan states *what must be true*, never implementation steps.
-> (Phase 0 replaces the older, inaccurate "maps 1:1 onto the contract shape"
-> claim with this seed-and-derive description; see 3.10.0.2 decision A5.)
+> **Contract-extraction convention:** roadmap spec blocks state what must be
+> true, never implementation steps. `plan-version` preserves their goals and
+> dependencies, attempts to combine every adjacent or tightly coupled slice,
+> obtains approval for the minimum safe execution bundles, updates the roadmap
+> topology, and only then creates contracts. A contract may cover multiple
+> roadmap sections; headings and outcome groups are not contract boundaries.
 
 ## What this is
 
-3.10 is a **hardening pass with no new flagship tools**, in two movements
+3.10 is a **hardening pass with no new flagship tools**, in three movements
 that share one thesis — *the intended design becomes the enforced design*:
 
 - **Phase 0 hardens the guidance itself.** The agent-facing document corpus
@@ -73,12 +78,21 @@ that share one thesis — *the intended design becomes the enforced design*:
   showcase: the architecture map generated from the finished Fallow zone
   config and published as a stylized devlog flowchart, so the map is rendered
   from enforcement, never drawn by hand.
+- **Phase 4 completes the presentation system**, sourced from the SKIN roadmap
+  and the UploadThing comparison audit. It first measures every live bypass of
+  an existing UI primitive, then migrates and rails those bypasses, refines the
+  primitives so improvements propagate site-wide, makes mobile a deliberate
+  mode, resolves operator-led polish, and ends with a clean adoption re-audit.
+  The entire site is in scope, including admin; no page is treated as a special
+  focus area and none is left behind.
 
-Everything in both movements extends rails that already exist (Fallow zones,
+Everything in all three movements extends rails that already exist (Fallow zones,
 the dataset-declaration census, the API-contract gate, the same-origin
 coverage inventory, the drift/parity manifest) rather than adding parallel
 machinery — P2's one-owner rule applied to the architecture and to the docs
-alike.
+alike. Phase 4 adds UI rails through the existing ESLint, Fallow, test, token,
+and source-guide owners rather than reviving the Phase-0-retired primitive
+ledger or design-principles guide.
 
 Verified evidence anchoring the architecture arcs (2026-07-20, clone of
 `main` @ `ef2e7df`):
@@ -136,11 +150,8 @@ and no separate elective campaign is scheduled.
 | **Phase 0 — Documentation & lifecycle consolidation** | | | |
 | 3.10.0.1 | Green the gate honestly: exempt history, fix real stale map-facts (decision-free) | 1 | SHIPPED |
 | 3.10.0.2 | Canonical frame: `docs/workflows/`, contract + strict data-only baseline forms, resolver-enforced (parser in scope); retire the lifecycle narrative | 2 (one branch) | SHIPPED |
-| 3.10.0.3 | Migrate close-out (SESSION_END + SELF_REVIEW + PR_REVIEW → one procedure + thin adapters) | 2 (one branch) | SHIPPED |
-| 3.10.0.4 | Migrate planning + design review (SESSION_PLANNING + PRE_PR + DESIGN_PRINCIPLES) | 2 (one branch) | PLANNED |
-| 3.10.0.5 | Migrate version-audit + de-duplicate the self-contained skills | 1 | PLANNED |
-| 3.10.0.6 | Maps & policy single-owner: AGENTS dedup, precedence, ledger archive | 1 | PLANNED |
-| 3.10.0.7 | Enforcement follow-through & anti-duplication check | 1 | PLANNED |
+| 3.10.0.3 | Migrate close-out (SESSION_END + SELF_REVIEW + PR_REVIEW → one procedure + thin adapters); PR #282, squash `93d08d1` | 2 (one branch) | SHIPPED |
+| 3.10.0.4 | Complete the agent workflow and lifecycle consolidation | 1 | PLANNED |
 | **Phase 1 — Close the structural loopholes** | | | |
 | 3.10.1.1 | Full boundary coverage: every source area a named zone | 1 | PLANNED |
 | 3.10.1.2 | Shared→composition split; cycles become blocking | 1 | PLANNED |
@@ -154,6 +165,7 @@ and no separate elective campaign is scheduled.
 | 3.10.3.1 | Capability telemetry names & SLIs | 1 | PLANNED |
 | 3.10.3.2 | Idempotency inventory (judged; may resolve to no code) | 1 | PLANNED |
 | 3.10.3.3 | Generated architecture map & devlog flowchart (UX gate: Yes) | 2 (one branch) | PLANNED |
+| **Phase 4 — Presentation-system completion** | Outcome groups below are inputs to adversarial decomposition, not fixed delivery boundaries | Set by `plan-version` after its live adoption survey | PLANNED |
 
 ## Phase 0 — Documentation & lifecycle consolidation (3.10.0.x)
 
@@ -194,23 +206,19 @@ duplicated. No application behavior changes anywhere in the arc; the only code
 touched is `.agent-local/` checkers/resolver (parser modification included) and
 `policy-manifest.json`.
 
-**Ordering rationale (P9 applied to the docs).** 3.10.0.1 makes the gate honest
+**Ordering rationale.** 3.10.0.1 makes the gate honest
 without restructuring. 3.10.0.2 builds the canonical frame the migrations move
 content into and retires the lifecycle narrative the resolver already replaces.
-3.10.0.3–0.5 migrate each workflow's steps into its one canonical procedure,
-baking the relevant recorded Group-A decision in at its destination — the
-decisions are applied where the content lands, not in a separate pass, because
-each migration is a rewrite (untangling shared steps from per-runtime mechanics
-and rewriting narrative into actionable steps), not a pure move. 3.10.0.6 makes
-the map/policy layer single-owner. 3.10.0.7 rewrites the enforcement machinery
-for the new set and adds the check that keeps it single-owner. Each sub-version
-updates `policy-manifest.json` and the checkers in the same slice, so the
-resolver and drift gate are green at every step.
+3.10.0.3 establishes the directly executable close-out model. The single
+3.10.0.4 execution bundle then migrates every remaining workflow, consolidates
+map and policy ownership, and rebuilds enforcement in ordered internal phases.
+The phases remain together because they modify the same owners and each phase
+supplies the settled inputs the next one validates.
 
 **Where the recorded Group-A decisions land** (each applied once, at the
 destination that owns it): A4/A5/A9 → 3.10.0.2 (contract template + resolver);
-A2/A3/A10 → 3.10.0.3 (close-out); A1/A4-b → 3.10.0.4 (planning/design);
-A6/A7/A8 → 3.10.0.6 (maps/policy).
+A2/A3/A10 → 3.10.0.3 (close-out); A1/A4-b/A6/A7/A8 → 3.10.0.4
+(planning, design, maps, and policy).
 
 ---
 
@@ -354,8 +362,9 @@ open; later changes rerun only the gates they invalidate; the
 decisions are baked in: the contract `UX gate` marker is the pause authority
 with judgment as the off-lifecycle fallback (A2); `merge_clean_pr.py` is named
 the gate of record and the Greptile/CI/mergeability checklist stops being
-restated in prose (A3); final sessions mark `Execution status: Complete` only
-after merge (A10). The `.claude` and `.agents` close-out skills are split into
+restated in prose (A3); final planned PRs carry `Execution status: Complete`
+and truthful release state before they open (A10). The `.claude` and `.agents`
+close-out skills are split into
 thin adapters over the canonical procedure — shared steps to
 `workflows/close-out.md`, only genuine per-runtime task-list and
 background-launch syntax in each adapter (the ~111 differing lines today). The
@@ -396,179 +405,88 @@ close-out.
 
 ---
 
-### 3.10.0.4 — Migrate planning + design review (2 sessions, one branch)
+### 3.10.0.4 — Complete the agent workflow and lifecycle consolidation
 
-**Objective.** Planning and design-review each become one canonical procedure
-the skills adapt over, and DESIGN_PRINCIPLES decomposes to its destinations.
+**Execution topology.** One frontier autonomous coding agent, one context-rich
+session (`3.10.0.4.1`), one lifecycle branch, and one PR. The former
+3.10.0.4–3.10.0.7 breakdown is superseded; planning, canonical-procedure
+migration, map/policy consolidation, enforcement, and document review are
+internal phases of this bundle.
 
-**Done means.** `SESSION_PLANNING` becomes `docs/workflows/plan-version.md` and
-`plan-session.md` (its version/session halves). `PRE_PR_DESIGN_REVIEW` +
-`DESIGN_PRINCIPLES §3` (the red-flag smells) become
-`docs/workflows/pre-pr-design-review.md`, with each smell written as a concrete
-step (scan → if found → split/extract) and its principle named inline as
-rationale; smells that Fallow already detects are stated as "the gate catches
-this," not re-described (those are CHECK, not STEP). `DESIGN_PRINCIPLES §2/§6`
-collapses to a one-paragraph creed at the head of the design procedure — the
-only philosophy that survives as prose. Recorded decisions baked in: the
-"data/plumbing before UX" ordering heuristic lands in `plan-session.md`,
-decoupled from numbering language (A4-b); the Fallow-threshold-override escape
-hatch (§4.1) is carried nowhere — split-or-cover is the only response to a
-complexity finding (A1). The `plan-version`, `plan-session`, and
-`pre-pr-design-review` skills (both trees) are thinned to adapters over the new
-procedures. `SESSION_PLANNING.md` and `PRE_PR_DESIGN_REVIEW.md` are deleted;
-`DESIGN_PRINCIPLES.md` is reduced to its §5 repo-map remnant (folded into the
-AGENTS map in 0.6, then deleted). Manifest/refs updated; revision bumped.
+**Objective.** Finish Phase Zero by giving every dispatched workflow one
+agent-executable canonical owner, reducing both runtime skill trees to thin
+adapters, making delivery-topology minimization part of `plan-version`, and
+mechanically preventing duplicated normative ownership.
 
-**In scope.** The three canonical procedures, the smell-to-step rewrite, the
-creed, A4-b + A1, the skill thinning, the two doc retirements, manifest updates.
+**Done means.**
 
-**Out of scope.** The §5 repo-map fold and final DESIGN_PRINCIPLES deletion
-(0.6); close-out (0.3); version-audit (0.5).
+- The live planning, start-session, design-review, audit, update-watch,
+  resolve-update-watch, UX-check, and issue-triage procedures live once under
+  `docs/workflows/`; close-out retains its existing canonical procedure.
+- Every Codex and Claude skill points to exactly one canonical procedure and
+  retains only invocation authority, runtime mechanics, and runtime-specific
+  return behavior.
+- `plan-version` preserves roadmap outcomes but treats proposed sub-version,
+  session, branch, and PR boundaries as provisional. It produces the fewest
+  safe frontier-agent execution bundles, obtains topology approval before
+  changing the roadmap, and creates one contract per approved bundle only after
+  the roadmap topology is reconciled.
+- Session contracts carry an execution profile, one-session/branch/PR delivery
+  unit, roadmap coverage, ordered internal phases, and hard split triggers;
+  `plan-session` cannot re-split an approved bundle without a recorded trigger
+  or material scope conflict.
+- Root and source agent maps, human contributor guidance, procedures, schemas,
+  reference documents, and state documents have one declared role. Source/UI
+  rules live only in `src/AGENTS.md`; the design creed and executable judgment
+  checks live in pre-PR design review; the code-health baseline remains
+  data-only.
+- `DESIGN_PRINCIPLES.md` and `PRIMITIVE_LEDGER.md` leave the live guide set
+  only after their surviving content and enforcement have identified owners and
+  byte-identical archive copies exist.
+- The policy manifest names the final canonical set and one procedure per skill,
+  the reconciliation ledger is regenerated from real dependencies, and the
+  drift gate rejects duplicated normalized normative sentences across declared
+  live workflows, maps, and adapters.
+- The full document corpus passes its mandatory operator wording review before
+  any PR opens. The final PR contains truthful completed 3.10.0.4 state and is
+  left review-ready and unmerged.
 
-**Dependencies.** 3.10.0.2. May run parallel to 3.10.0.3 (disjoint procedures),
-though sequential keeps revision bumps clean.
+**In scope.** Live workflow/map documentation, both skill trees, session
+contract/plan schemas, lifecycle and drift enforcement, policy fixtures and
+manifest, the consolidated 3.10.0.4 lifecycle records, the approved Phase 4/SKIN
+roadmap rider, external retired-guide archive copies, and final planned release
+records.
 
-**Decisions the session plan must resolve.** Which smells are "Fallow already
-catches this" (CHECK) vs genuine judgment steps (STEP); whether `plan-version`
-and `plan-session` are two procedures or one with two entry points; confirmation
-that removing §4.1 reintroduces no replacement pressure valve (A1 was explicit —
-none).
+**Out of scope.** Application behavior; production `src/` code other than agent
+guidance; Convex, UI, database, dependency, or lockfile changes; Phase 1
+architecture implementation; `DATA_SOURCES.md`, `AGENT_TOOLING.md`, and
+security-policy changes; the deferred `fast-uri` advisory; merge, deployment,
+and production proof.
 
-**Baseline & hotspot note.** Improves (collapses the 8-copy terminal rule and
-the 7-copy checkpoint rule toward single owners; retires the most-polluted
-timeless doc).
+**Dependencies.** PRs #284, #285, and #286 are merged. Preserve their update
+watch, ordinary/planned delivery, pending-changelog, deterministic-branch, and
+truthful pre-PR planned-state semantics while expressing them through the
+canonical owner architecture established by PR #282.
 
-**Delivery evidence.** The three procedures exist; the plan/design skills point
-to them; `rg` shows zero feature-code paths in the design procedure (the
-timeless-doc rule); `check_agent_drift.py` green. Standard close-out.
+**Decisions the session plan must resolve.** The exact contract execution-frame
+validation; the canonical procedure mapping for all paired skills; the narrow
+normalization and explicit-exception model for duplicate normative prose; the
+final root/source map split; and the focused verification invalidated by each
+operator wording change.
 
----
+**Baseline & hotspot note.** Improves workflow ownership and removes duplicated
+agent instructions without changing measured production surfaces. The live
+code-health baseline remains a strict state record and requires no metric
+refresh.
 
-### 3.10.0.5 — Migrate version-audit + de-duplicate the self-contained skills
-
-**Objective.** The remaining substantive workflow becomes canonical, and every
-skill — including the currently self-contained ones — is a thin adapter over one
-procedure.
-
-**Done means.** `VERSION_AUDIT.md` becomes `docs/workflows/version-audit.md`
-(its steps; the baseline template it emits was extracted in 0.2). The procedure
-writes the baseline in the **strict two-column metrics schema** from 0.2 — it
-updates the current column and records findings/rationale in the version-tagged
-audit report, never as prose in the baseline; at version close it captures the
-*next* version's frozen version-start snapshot (the one sanctioned write of that
-column). The `version-audit`, `plan-version-audit`, and
-`plan-audit-remediation` skills are thinned to adapters. The three currently-inlined skills are de-duplicated:
-`update-watch` (byte-identical across both trees today — pure waste), `ux-check`,
-and `triage-issue` have their shared procedure extracted to `docs/workflows/`
-with only genuine per-runtime mechanics (capture tooling, native syntax) left in
-each adapter. `VERSION_AUDIT.md` is deleted; manifest/refs updated; revision
-bumped.
-
-**In scope.** The version-audit procedure, the audit-skill thinning, the
-self-contained-trio de-duplication, the doc retirement, manifest updates.
-
-**Out of scope.** Maps/policy (0.6); the anti-dup check (0.7).
-
-**Dependencies.** 3.10.0.2 (baseline template).
-
-**Decisions the session plan must resolve.** Whether `ux-check`/`triage-issue`
-retain enough genuine per-runtime difference to justify separate adapter bodies
-or collapse to near-empty pointers like `update-watch`; the home of the audit's
-re-rank/classify steps that overlap `repo_measures.py` output (the STEP vs CHECK
-boundary).
-
-**Baseline & hotspot note.** Improves (removes the last skill-tree duplication).
-
-**Delivery evidence.** Every skill in both trees is a thin adapter over a
-`docs/workflows/` procedure; total words across both skill trees drop materially
-from today's 10,318; `check_agent_drift.py` green. Standard close-out.
-
----
-
-### 3.10.0.6 — Maps & policy single-owner
-
-**Objective.** The surviving map/policy layer states each rule once, and the
-recorded doc dispositions are executed.
-
-**Done means.** `src/AGENTS.md` becomes the sole owner of source/UI policy; the
-render-mode ladder, UI-wrapper list, route-registration, and hex/CSSOM rules are
-removed from root `AGENTS.md` and pointed at src. The seat→effort mapping gets
-one owner (`CLAUDE.md` as runtime mechanics; root AGENTS points there). The A7
-global precedence order (AGENTS → workflow procedures/skills, with the design
-creed as the architecture constitution) is stated once in root AGENTS; scattered
-tiebreakers (e.g. SELF_REVIEW's former "CLAUDE.md wins") are already gone with
-their retired docs. `DESIGN_PRINCIPLES §5` ("what deep means here") folds into
-the AGENTS codebase map, and `DESIGN_PRINCIPLES.md` is deleted. `CONTRIBUTING.md`
-keeps its human-facing role; only drifted shared rules are aligned — the A6
-data-slice hedge (plus a pointer to `.fallowrc.json` as the exception registry),
-the A8 removal of the React Flow / dnd-kit list (defer to src/AGENTS.md), and the
-understated CI-gate list (B13). `PRIMITIVE_LEDGER.md` is archived (its
-per-primitive rails already live in `eslint.config.mjs` / `.fallowrc.json`;
-confirm no going-forward doc needs its ownership rows first). `DATA_SOURCES.md`
-and `AGENT_TOOLING.md` are left unchanged (Ryan-deferred); `docs/security/*`
-untouched.
-
-**In scope.** Root/src AGENTS dedup, the seat→effort single-owner move, the A7
-precedence paragraph, the §5 fold + DESIGN_PRINCIPLES deletion, the three
-CONTRIBUTING alignments, the ledger archive, manifest updates.
-
-**Out of scope.** DATA_SOURCES / AGENT_TOOLING (deferred); any CONTRIBUTING
-slimming beyond drifted rules; `docs/security`.
-
-**Dependencies.** 3.10.0.2–0.5 (the precedence order references the final set;
-DESIGN_PRINCIPLES's steps must have migrated first).
-
-**Decisions the session plan must resolve.** The exact precedence wording and
-its home paragraph in root AGENTS; confirmation that PRIMITIVE_LEDGER's
-per-primitive ownership rows are unneeded going forward before archiving.
-
-**Baseline & hotspot note.** Improves (removes the last large prose
-duplications; two fewer standing docs).
-
-**Delivery evidence.** Root AGENTS no longer restates src rules;
-`DESIGN_PRINCIPLES.md` and `PRIMITIVE_LEDGER.md` are out of the standing set and
-in the archive with references redirected; `check_agent_drift.py` green.
-Standard close-out.
-
----
-
-### 3.10.0.7 — Enforcement follow-through & anti-duplication check
-
-**Objective.** The drift/parity machinery matches the consolidated set, and a
-new check makes single-owner mechanical so the sprawl cannot silently regrow.
-
-**Done means.** `policy-manifest.json` `canonicalGuides` and `pairedSkills` are
-rewritten against the `docs/workflows/` procedures, the thin adapters, and the
-map set; `skillReconciliation` declares the settled dependency set and is
-regenerated with `reconcile_skill_ledger.py` after the final whole-set review; the
-`check_doc_refs.py` historical/future allowlist is pruned to what the
-consolidated tree still needs. A new drift-gate check fails when the same
-normative sentence (a hash over normalized text) appears in more than one
-canonical file — spanning the `workflows/` procedures, the maps, and the two
-skill adapters. All `.agent-local/test_*.py` fixtures are updated to match.
-
-**In scope.** Manifest rewrite, skill-ledger reconciliation, allowlist prune, the
-anti-duplication check plus its tests, fixture updates.
-
-**Out of scope.** Any further content change (the corpus is settled by 0.6);
-architecture-phase work.
-
-**Dependencies.** 3.10.0.3–0.6 (the final set must exist to police it).
-
-**Decisions the session plan must resolve.** The normalization rule for the
-duplicate-sentence hash (whitespace/case/punctuation folding) and its
-false-positive tolerance (shared rule *names* and adapter boilerplate must not
-trip it); which files are in-scope for the uniqueness check vs deliberately
-shared boilerplate.
-
-**Baseline & hotspot note.** Neutral-to-Improves (checker code only; no
-production surface).
-
-**Delivery evidence.** A seeded duplicate normative sentence across two
-canonical files fails `check_agent_drift.py`; the full checker suite is green on
-the consolidated tree. **Phase 0 exit:** an agent's close-out reading path is one
-dispatched skill → one canonical procedure in `docs/workflows/`, and no rule has
-two owners. Standard close-out.
+**Delivery evidence.** Current-versus-proposed topology (four sub-versions,
+five sessions, four PRs → one/one/one); schema/resolver and drift fixtures;
+seeded duplicate failure plus legitimate adapter pass; retired-reference sweep;
+agent drift, document-reference, baseline/watch, pending-changelog, release,
+tooling, and Vercel-adapter checks; mandatory pushed document-review checkpoint;
+one final origin-main-pinned `pnpm verify`; current-head CI and Greptile 5/5
+with zero unresolved findings. No local production build or UX review. The PR
+remains unmerged.
 
 ## Phase 1 — Close the structural loopholes (3.10.1.x)
 
@@ -577,7 +495,7 @@ two owners. Standard close-out.
 > live in the **map** docs (CONTRIBUTING + src/AGENTS.md), lifecycle semantics
 > live in the **resolver**, workflow steps live in `docs/workflows/`, and any
 > new rule obeys the A7 precedence order and the single-owner anti-duplication
-> check from 3.10.0.7. Where a phase below says "guides state the rule," it
+> check from 3.10.0.4. Where a phase below says "guides state the rule," it
 > means the one owning file (a map, a procedure, or the resolver), never a copy
 > in each.
 >
@@ -934,8 +852,8 @@ recorded no-at-risk verdict; standard close-out.
 **Objective.** The architecture diagram is derived, never drawn: one
 generator emits the zone/dependency map from the live Fallow config, and a
 stylized version of that map ships on the public devlog — deliberately the
-final slice, so it renders the finished 3.10 graph before the version-close
-audit measures it.
+final architecture slice, so it renders the finished Phase 1–3 graph before
+presentation-system work begins.
 
 **Done means.** A stdlib-only (or existing-toolchain) generator reads
 `.fallowrc.json` zones and rules and emits a Mermaid source of the
@@ -961,7 +879,8 @@ in favor of build-time SVG or a small owned component unless the session
 plan proves otherwise.
 
 **Dependencies.** 3.10.1.1 and 3.10.1.2 (the map must show the completed,
-one-directional zone graph); sequenced as the roadmap's final slice.
+one-directional zone graph); sequenced as the architecture movement's final
+slice.
 
 **Decisions the session plan must resolve.** Rendering path (build-time
 Mermaid→SVG with tokenized styling vs. a small owned visx/SVG component
@@ -977,6 +896,325 @@ dependent devlog UX.
 **Delivery evidence.** Drift test red on a seeded zone-rule edit without a
 regenerated diagram; `ux-check` captures plus Ryan's approved browser
 review; standard close-out.
+
+## Phase 4 — Presentation-system completion (3.10.4.x)
+
+**Arc thesis.** A primitive without an enforcing rail is unfinished, and a
+surface bypassing an existing primitive is a defect. The 3.8 component-system
+arc built the primitives; Phase 4 makes their adoption universal and enforced,
+then improves the primitives so each improvement propagates site-wide. Mobile
+becomes a designed mode rather than a shrunken desktop, and the phase closes by
+re-running the adoption survey clean.
+
+The UploadThing comparison is a behavioral and visual reference only. Its docs
+UI derives from Tailwind UI; no component, markup, or stylesheet may be copied.
+Every adopted idea is re-expressed through LGI.tools primitives and tokens. The
+target is an EVE operations tool with documentation-grade clarity while keeping
+the near-black palette, ISK-green accent, Barlow page identity, and mono data.
+
+**Reference input.** Locate `LGI_UPLOADTHING_UI_AUDIT.md` in the repository's
+current document archive convention before decomposition. If the reference is
+not present, `plan-version` must report the missing source rather than inventing
+its detailed targets from this summary.
+
+**These are outcome groups, not contracts.** The labels A–D below preserve
+goals and dependency order. They do not prescribe one session or PR each.
+`plan-version` must apply its frontier-agent decomposition audit, attempt every
+sensible bundle, and create the fewest safe execution contracts. Internal
+phases, commits, UX pauses, different directories, and producer/consumer order
+are not by themselves split reasons.
+
+### Pre-contract adoption survey and operator disposition
+
+Before proposing Phase 4 contracts, `plan-version` must use Codegraph and live
+source inspection to build the inverse primitive map: for every live UI/design
+primitive, identify every hand-rolled variant in `src/` and whether a mechanical
+rail would have caught it.
+
+Persist the approved survey in the current version-tagged audit/report location,
+not in `docs/PRIMITIVE_LEDGER.md`; Phase 0 retires that document as a standing
+policy owner. Use stable `AD-NNN` rows with at least:
+
+`ID | Primitive | Bypass site(s) | Bypass form | Rail today | Rail gap | Estimated size | Disposition`
+
+The survey covers, at minimum:
+
+- raw `<button>` and link-as-button surfaces versus Button/`buttonVariants`
+- hand-rolled toggles versus Segmented
+- visible raw `<input>`/`<textarea>` and ad-hoc fields versus Field/Input/Textarea
+- loading text and shapes versus LoadingLabel/Skeleton
+- search wells versus Combobox/TerminalSearch
+- pills, chips, dots, and statuses versus their primitives
+- dialogs, popovers, and menus versus the Base UI overlay set
+- tables, rows, and pagination versus SortableTable/Row/Pagination
+- section chrome versus SectionHeader/SectionLabel/Card
+- every page-scoped CSS family in `globals.css`, including `.sites-*` and
+  `.industry-*`, mapped to the primitives or tone maps that supersede it
+- every primitive with no enforcing rail, even when the survey finds no current
+  bypass
+
+The survey is planning evidence, not a pre-created implementation session. It
+implements no product change. Present every row for operator disposition:
+approve into Phase 4, route to backlog with its `AD-NNN` citation and reason, or
+reject with a recorded reason. Use the dispositions and live ownership overlap
+to propose the minimum safe execution bundles. Obtain approval of that topology,
+amend the status table with concrete `3.10.4.x` rows, and only then create
+contracts.
+
+The detection method for every primitive family must be recorded so the closing
+re-audit can repeat it diffably. The original SKIN roster is a starting
+hypothesis, not a limit on the phase's end-state claim.
+
+### Phase-wide constraints
+
+- **Same-PR rail.** Any approved execution bundle that migrates surfaces onto a
+  primitive lands the strongest appropriate mechanical rail in the same PR:
+  ESLint selector/restricted import, Fallow boundary, registry/checker, or
+  behavior test. A migration without its rail does not close.
+- **Look-preserving adoption.** Adoption work migrates existing rendering; it
+  does not redesign it. If a surface cannot be represented by an existing
+  primitive, pause for an explicit variant or exemption decision. Never create
+  a silent local override.
+- **Explicit exemptions.** Legitimate raw usage, such as a hidden server-action
+  input or a primitive's own implementation, must be narrowly encoded in the
+  rail and listed in the adoption report. Zero silent bypasses.
+- **Single owners after Phase 0.** UI and rendering guidance belongs in
+  `src/AGENTS.md`; executable enforcement belongs in existing lint, Fallow,
+  checker, and test owners; version-scoped findings and rationale belong in the
+  Phase 4 adoption report. Do not revive `DESIGN_PRINCIPLES.md` or
+  `PRIMITIVE_LEDGER.md` as live policy.
+- **Token completion.** Every new `@theme` token family is registered with
+  `cn.ts`'s `extendTailwindMerge` in the same commit.
+- **Motion and access.** Every new transition honors reduced motion. Keyboard,
+  focus, zoom, and responsive behavior are acceptance criteria, not polish.
+- **UX gate.** Every visually changed execution bundle pauses for the
+  operator's local review before its PR opens. A pause may occur inside one
+  resumable session and does not automatically require another contract.
+- **Release records.** Each approved planned delivery bundle follows the live
+  planned close-out/versioning rules in force after Phase 0.
+
+### Outcome group A — Universal primitive adoption and enforcement
+
+**Objective.** Every approved `AD-NNN` bypass is migrated to its owning
+primitive or tone map without changing the intended look, and every migrated
+class of bypass becomes mechanically detectable in the same delivery bundle.
+
+**Done means.** All operator-approved adoption rows are Delivered or carry a
+new explicit disposition; the repeatable survey reports zero unexempted bypasses
+for the completed families; every surviving exemption is narrow and recorded;
+stale classes and local implementations are absent; each adopted primitive has
+an effective rail.
+
+**Required adoption outcomes.** The live survey controls the final roster, but
+the planner must account for these verified starting hypotheses:
+
+- **Actions.** Replace raw action buttons with Button and link actions with
+  `buttonVariants`; raw `<button>` outside primitive internals becomes a lint
+  failure unless narrowly exempted.
+- **Toggles.** Replace cockpit and other hand-rolled toggle groups with
+  Segmented. A compact/dense variant requires operator approval and must remain
+  a shared primitive decision.
+- **Fields.** Replace visible raw inputs and textareas with
+  Field/Input/Textarea. The raw-input rail may exempt only the smallest proven
+  hidden-field class.
+- **Loading language.** Establish one rule for LoadingLabel (inline/dense) and
+  Skeleton (shape-preserving region), migrate every loading surface, and detect
+  ad-hoc loading literals or structures through the strongest reliable rail.
+- **Legacy CSS.** Retire `.sites-*`, `.industry-*`, and any other superseded
+  page-scoped class families. Consumers move to primitives plus feature-owned
+  `*-styles.ts` tone maps. Deletion and stale-reference checks are the rail
+  where a new rule class is unnecessary.
+- **Residuals.** Deliver the remaining approved rows—search wells, chips,
+  overlays, tables, section chrome, or other families found live—and finish with
+  a clean family-by-family re-run.
+
+**In scope.** All operator-approved adoption rows across every route and admin
+surface; required primitive variants explicitly approved during a pause;
+mechanical rails; removal of superseded CSS and local implementations; adoption
+report status updates.
+
+**Out of scope.** Visual refinement owned by outcome group B; feature behavior;
+unrelated information architecture; speculative new primitives; broad
+exemptions.
+
+**Dependencies.** The approved pre-contract survey and disposition. Within the
+group, only real rail interactions and primitive dependencies constrain order;
+directory or primitive-family boundaries do not.
+
+**Decisions contracts may require.** Variant mapping where several existing
+variants are plausible; the narrow exemption form; whether a pattern needs an
+ESLint selector, restricted import, Fallow rule, registry test, or deletion-only
+stale-reference proof; true primitive gaps requiring operator ratification.
+
+**Baseline & hotspot note.** `globals.css` should shrink materially. Planner
+components may be touched, but PricingProvider AF-005 concern boundaries remain
+fixed and contracts must name them when applicable.
+
+**Delivery evidence.** Seeded rail failures followed by green tree-wide checks;
+stale-reference sweeps for deleted patterns; route-representative `ux-check`
+evidence; operator approval; standard close-out.
+
+### Outcome group B — Primitive and surface refinement
+
+**Objective.** Once adoption is complete and railed, refine typography,
+chrome, surfaces, and content navigation inside shared primitives and tokens so
+the result propagates across the entire site by construction.
+
+**Done means.** Semantic type roles and PageHead modes are shared; header chrome
+retains every capability with less decorative weight; each route declares an
+appropriate PageShell mode; Card and section hierarchy express deliberate
+object/control/data boundaries; the ContentBrowser rail has one layered state
+model; no feature-local style bypass is introduced.
+
+**Required refinement outcomes.** `plan-version` may bundle these where their
+owners and UX review overlap:
+
+- **Typography roles and scale.** `font-ui` (Geist) owns everyday navigation,
+  action, menu, and label text; `font-data` (JetBrains Mono) owns values,
+  status, code, compact technical metadata, and the wordmark. Uppercase and
+  tracking become special treatments rather than defaults. PageHead supports
+  `hero | page | compact`. Compare the audit's targets—navigation around
+  14px/1.6, body 16px/1.7, and title `clamp(28px, 2.6vw, 36px)`—and record any
+  operator-approved deviation.
+- **Header restraint.** Preserve the compact height, functional slots,
+  responsive collapse, and mono server-status instrumentation while removing
+  nonessential seams and weight. Spacing plus the existing active rule should
+  distinguish tools where borders are not load-bearing.
+- **Surface hierarchy and page modes.** PageShell gains
+  `workspace | reading | detail`; every route selects one. Classify Card uses as
+  object, control group, data region, or spacing wrapper; convert spacing-only
+  wrappers to borderless sections. Standardize label-to-content, peer-section,
+  and major-region rhythm through registered tokens. Keep glow for meaningful
+  interaction or live status only.
+- **Content rail.** Re-express the audit's layered state model in LGI.tools
+  tokens: neutral group guide, ISK-green active marker, and faint active-region
+  wash, with immediate reduced-motion behavior. Preserve pathname/Suspense and
+  server-rendered fallback behavior on every ContentBrowser consumer.
+
+**In scope.** `globals.css` tokens; `src/components/ui/`; PageHead, PageShell,
+Card and section primitives; header components; ContentBrowser; feature tone
+maps; minimal call-site changes needed to select shared modes or variants.
+
+**Out of scope.** Category-dropdown navigation; a general information-
+architecture rewrite; copying UploadThing/Tailwind UI code; feature-local
+one-off styling. Scroll-aware section links remain an explicit operator choice:
+include them only if the planner proves sufficient current-version value and
+bounded complexity; otherwise create one cited backlog entry.
+
+**Dependencies.** Outcome group A must be complete enough that shared changes
+propagate rather than chase hand-rolled stragglers. Typography precedes the
+header and other type-dependent judgments; surface modes precede final content-
+rail and responsive review.
+
+**Decisions contracts may require.** Type-role assignment per primitive; which
+uppercase treatments and header seams survive; route-to-PageShell-mode mapping;
+per-call-site Card classification; scroll-aware section links in or out.
+
+**Baseline & hotspot note.** Neutral. `globals.css` should continue shrinking
+as backdrop and rhythm variants consolidate.
+
+**Delivery evidence.** Before/after route captures across all surface modes and
+header breakpoints; reduced-motion verification; ContentBrowser proof on devlog
+and another consumer; operator UX approval; standard close-out.
+
+### Outcome group C — Mobile mode and responsive rationalization
+
+**Objective.** Mobile becomes an intentional composition and the site's
+breakpoint behavior becomes a declared, evidence-based system.
+
+**Done means.** The sub-860px ContentBrowser stack is replaced on every consumer
+by an accessible Base UI drawer or dialog with a compact current-chapter bar,
+full tree, close-on-navigation, and preserved focus; page settings are reachable
+from mobile navigation; the site's observed breakpoint set is reconciled into a
+declared ladder with a fit-based justification for every exception; all routes
+pass the reference width and zoom matrix.
+
+**In scope.** ContentBrowser mobile composition; the hamburger panel's settings
+affordance; breakpoint declarations across `globals.css` and components;
+keyboard, focus, zoom, and width-matrix verification.
+
+**Out of scope.** Category-dropdown navigation; unrelated new mobile features;
+forcing a generic framework breakpoint scale where observed fit supports a
+better house value.
+
+**Dependencies.** Outcome group B's content rail, header, type, and surface
+changes must be stable enough that responsive verification measures the final
+chrome. Drawer versus full-screen dialog at the smallest widths is a contract-
+time implementation decision, not a separate roadmap outcome.
+
+**Decisions contracts may require.** The observed-fit ladder; narrowest-width
+drawer/dialog mode; settings placement; disposition of defects found by the
+matrix.
+
+**Baseline & hotspot note.** Neutral.
+
+**Delivery evidence.** Route-by-route checks at 390, 768, 1024, 1366, 1440,
+and 1920px plus 200% zoom; keyboard and focus proof; reduced-motion proof;
+operator mobile/device-emulation review; standard close-out.
+
+### Outcome group D — Operator punch list and clean closure
+
+**Objective.** Resolve the remaining presentation defects found through live
+operator use, then repeat the adoption survey and prove the phase's universal
+claim.
+
+**Punch-list execution contract.** A contract binds an area and its rules, not
+an unknowable change list. The allowed fix vocabulary is existing primitives,
+feature `*-styles.ts` tone maps, and registered tokens—never a new one-off
+style. The operator reviews the live site and reports items; the agent resolves
+each item within the rules. A material primitive, token-family, layout, or
+architecture change outside the approved bundle pauses for amendment or is
+routed to backlog. Multiple sittings may resume the same execution session and
+branch; a sitting is not a new contract.
+
+**Seed planner items.** Preserve these known checks without treating them as a
+complete list:
+
+- cockpit KPI figures share one baseline whether or not tiles contain controls
+- ME/TE color meaning comes only from `industry-styles.ts`
+- owned-blueprint highlighting is consistent across NodeCard, HeroCard,
+  CockpitBuildPlan, and MeAdjuster
+
+**Done means.** The operator declares the planner and remaining site-wide punch
+lists resolved; each fix lives in a primitive, tone map, or token and therefore
+propagates to all consumers; the original recorded adoption method re-runs with
+zero unexempted hand-rolled variants, zero unrailed primitives, every exemption
+listed, and every `AD-NNN` row terminal. Any residue receives an explicit
+operator disposition, with an empty accepted-residual set as the expectation.
+
+**In scope.** Industry-planner routes and components; every remaining route;
+defects routed from the responsive matrix; the repeatable adoption re-audit;
+version-ship finalization.
+
+**Out of scope.** New flagship features; PricingProvider concern redesign;
+one-off visual patches; new primitives or token families without an approved
+amendment and their full shared enforcement; code-health version-close audit,
+which remains a separate standing lifecycle action.
+
+**Dependencies.** Outcome groups A–C. The planner may serve as the first polish
+area because it contains the known seed items, but a separate planner contract
+survives only if reviewability or a hard risk boundary justifies it.
+
+**Decisions contracts may require.** KPI alignment mechanism (shared grid track
+versus fixed label-row height); whether operator findings remain within the
+approved vocabulary; whether a genuinely large discovered set requires a
+master-plan amendment rather than another automatic session.
+
+**Baseline & hotspot note.** Planner work must preserve AF-005 concern
+boundaries. Otherwise neutral.
+
+**Delivery evidence.** Per-item punch-list dispositions and operator approval;
+the clean recorded adoption re-audit; terminal Phase 4 roadmap state; standard
+version-close handoff.
+
+### Phase 4 ship claim
+
+Phase 4 is complete only when every UI primitive is consumed everywhere its
+concern appears and an effective rail fails the build on regression; shared
+primitives carry the approved type, chrome, surface, and navigation treatment;
+mobile is an intentional mode verified across the width matrix; the operator's
+punch lists are resolved; and the repeatable re-audit is clean. Presentation
+drift then becomes a build failure, not a future version.
 
 ## Explicit non-goals
 
@@ -1004,29 +1242,44 @@ and repo precedent:
   live once in `docs/workflows/`, both runtime skills adapt over them; **no
   prose notes or free-text in `CODE_HEALTH_BASELINE`** — it is a data-only report
   the resolver enforces, and only its data points are updated.
+- **Phase 4 non-goals:** no copied UploadThing or Tailwind UI implementation;
+  no feature behavior or information-architecture rewrite disguised as polish;
+  no adoption sweep without a same-PR mechanical rail; no silent primitive
+  exemption; no one-off style, primitive, or token created merely to clear an
+  operator punch-list item; no resurrection of `PRIMITIVE_LEDGER.md` or
+  `DESIGN_PRINCIPLES.md` as live policy owners after Phase 0; no automatic
+  contract per primitive family, route family, outcome-group heading, review
+  sitting, or UX pause.
 
 ## Sequencing and dependencies
 
-**Phase 0 strictly precedes Phases 1–3.** The architecture arcs write new
+**Phase 0 strictly precedes Phases 1–4.** The later arcs write new
 rules into the homes Phase 0 establishes, so consolidating first avoids
 double-editing and guarantees the new rules land in single-owner files under
-the 3.10.0.7 anti-duplication check. Within Phase 0: 3.10.0.1 (green the gate)
-→ 3.10.0.2 (build the canonical frame, retire the lifecycle narrative) are
-ordered. 3.10.0.3 (close-out) and 3.10.0.4 (planning/design) may run in either
-order or parallel — disjoint procedures — both after 3.10.0.2; each bakes its
-own recorded Group-A decisions in as it migrates. 3.10.0.5 (version-audit +
-skill de-duplication) follows 3.10.0.2. 3.10.0.6 (maps/policy) follows
-3.10.0.3–0.5, since its precedence order references the final set and it
-completes DESIGN_PRINCIPLES's retirement. 3.10.0.7 is last — it rewrites the
-manifest for the finished set and adds the check that polices it.
+the 3.10.0.4 anti-duplication check. Within Phase 0, 3.10.0.1 greens the gate,
+3.10.0.2 builds the canonical frame, 3.10.0.3 establishes the close-out model,
+and 3.10.0.4 completes every remaining migration, ownership change, and
+enforcement update as one ordered execution bundle.
 
 Within the architecture movement: Phase 1 is strictly ordered (1.1 → 1.2 →
 1.3). Phase 2 may interleave with Phase 1 except 3.10.2.2, which follows
 3.10.2.1. Phase 3 follows 3.10.2.1 (codes) and 3.10.2.4 (retry declarations).
-3.10.3.3 is the deliberate final slice — it renders the completed zone graph
-and pauses for Ryan's UX review — after which every row is terminal and the
-resolver moves to `plan-version-audit`. Nothing here blocks on external
-vendors or new dependencies beyond the `server-only` package.
+3.10.3.3 is the architecture movement's deliberate final slice: it renders the
+completed zone graph and pauses for operator UX review. Phase 4 follows the
+completed architecture movement. Its live adoption survey is a prerequisite of
+delivery decomposition, not an automatically separate execution PR: the new
+`plan-version` performs the survey, obtains operator dispositions, adversarially
+bundles the approved outcomes, updates this status table with concrete
+`3.10.4.x` delivery rows, and only then creates contracts. Within Phase 4,
+adoption and its rails precede primitive refinement; stable refinement precedes
+responsive verification and operator punch-list closure; the clean adoption
+re-audit is last. Only after every Phase 4 row is terminal does the resolver
+move to `plan-version-audit`.
+
+Nothing in Phases 1–3 blocks on external vendors or new dependencies beyond the
+`server-only` package. Phase 4 must use the installed primitive stack and
+existing toolchain unless a separately approved amendment proves a dependency
+necessary.
 
 **Bootstrapping note.** Phase 0 edits the very lifecycle docs, skills, and
 `policy-manifest.json` that the resolver and drift gate validate against. Each

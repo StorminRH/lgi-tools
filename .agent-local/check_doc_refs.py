@@ -71,16 +71,6 @@ _ALLOWLIST = (
         "rejected design alternative records why the comment standard lives in AGENTS.md",
     ),
     (
-        "docs/VERSION_3_9_PLAN.md",
-        "docs/PRIMITIVE_LEDGER.md",
-        "approved future artifact created by Session 3.9.2.7",
-    ),
-    (
-        "docs/session-contracts/3.9/3.9.2.7.md",
-        "docs/PRIMITIVE_LEDGER.md",
-        "approved future artifact created by Session 3.9.2.7",
-    ),
-    (
         "docs/**",
         "src/lib/esi-datasets/types.ts",
         "approved future artifact created by Session 3.9.2.3.1",

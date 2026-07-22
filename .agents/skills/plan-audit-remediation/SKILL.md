@@ -11,57 +11,18 @@ description: >-
 
 # Plan LGI.tools audit remediation
 
-This is the Plan-mode owner for converting a failed version-close audit into a
-bounded extension of the same master version. It creates no separate remediation
-prompt or execution plan: the master plan, session contracts, later approved
-session plans, and audit finding ledger remain authoritative.
+Procedure: `docs/workflows/version-audit.md`.
 
-## Sequence
+## Invocation authority
 
-1. Run `python3 .agent-local/resolve_development_state.py --pretty` and require
-   its directive to name `plan-audit-remediation` as the handler. Otherwise
-   report the directive and return control to `start-session`; do not select a
-   sibling handler here. Create a native Codex todo list from the steps below and
-   keep one item in progress.
-2. Require Codex Plan mode. Read in full, in this order:
-   `docs/DESIGN_PRINCIPLES.md`, `docs/workflows/schema/session-contract.md`,
-   `docs/workflows/schema/session-plan.md`,
-   `docs/PRE_PR_DESIGN_REVIEW.md`, and `docs/VERSION_AUDIT.md`. Then read the
-   resolver directive, current `docs/CODE_HEALTH_BASELINE.md`, audit plan
-   and finding ledger, master plan, SCRATCHPAD, relevant backlog, Codegraph
-   results, and live code.
-3. For every open Floss or Campaign, diagnose the violated ownership,
-   interface, change-axis, or coverage principle rather than repeating a metric.
-   Define the intended interface/end-state, sketch two decompositions, record
-   the rejected alternative, and put characterization tests before structural
-   work. A cohesive deep function stays intact when coverage resolves the
-   signal; metrics never mandate fragment extraction.
-4. Group findings into independently shippable sub-versions by change axis.
-   Map every open `AF-NNN` finding to one or more contracts, and map no contract
-   to scope absent from the audit. Each contract states its finding ids,
-   dependencies, behavior locks, end-state, verification, baseline effect,
-   pre-PR design evidence, and normal branch/PR close-out.
-5. Discuss the extension's intended shape with Ryan in plain English before
-   drafting sub-versions or contracts. Give the complete
-   extension, contract set, ledger, and evidence to a fresh read-only high
-   `gpt-5.6-sol` adversarial reviewer, then reconcile every finding. The review budget is a
-   hard cap of one mandatory pass plus at most one rerun after material
-   reconciliation; later findings are reconciled by planner judgment and
-   disclosed at approval.
-6. Present a short plain-English summary alongside the reviewed master-plan
-   extension and contract set before requesting Ryan's approval. Plan mode is
-   read-only; do not mutate artifacts before approval.
-7. After approval in execution mode, append the approved rows to the current
-   master plan, reconcile `docs/session-contracts/X.Y/INDEX.md` and its contract
-   files, change each mapped finding from Open to Planned, set `Audit status` to
-   `Remediation in progress`, and update SCRATCHPAD to the first new session.
-   Do not create session implementation plans here.
-8. Rerun the resolver, report its new directive, run
-   `python3 .agent-local/check_agent_drift.py`, and stop — planning outcomes
-   are session-terminal. A session that planned an artifact never executes it;
-   execution begins in a fresh `start-session`.
+Invocation permits remediation planning. Unaudited product scope remains excluded.
 
-All confirmed Floss and Campaign findings block archive. Watch findings remain
-non-actionable only with an exact evidence trigger. If a fresh audit reopens a
-finding or adds another, repeat this skill using the next available sub-version
-numbers in the same master version.
+## Codex runtime mechanics
+
+- Create native Codex tasks; keep one active.
+- Use the long-lived terminal for commands and polling.
+- Request fresh read-only review when the procedure requires it.
+
+## Return
+
+Return the approved roadmap and contracts. Include the fresh directive; create no plans.

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Evaluate fenced Watch triggers from the live code-health baseline.
 
-The grammar is the closed trip-form specification in ``docs/VERSION_AUDIT.md``:
+The grammar is the closed trip-form specification in
+``docs/workflows/version-audit.md``:
 when an expression is true, its Watch finding is reported as a warning for
 operator review. The checker never edits the baseline or promotes a finding.
 Unparseable expressions and unmeasurable subjects are blocking contradictions.

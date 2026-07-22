@@ -3,15 +3,21 @@
     "AGENTS.md",
     "src/AGENTS.md",
     "docs/AGENT_TOOLING.md",
-    "docs/DESIGN_PRINCIPLES.md",
     "docs/workflows/schema/code-health-baseline.md",
     "docs/workflows/schema/changelog-entry.md",
     "docs/workflows/schema/changelog-pending.md",
     "docs/workflows/schema/session-contract.md",
     "docs/workflows/schema/session-plan.md",
+    "docs/workflows/plan-version.md",
+    "docs/workflows/plan-session.md",
+    "docs/workflows/start-session.md",
+    "docs/workflows/pre-pr-design-review.md",
     "docs/workflows/close-out.md",
-    "docs/PRE_PR_DESIGN_REVIEW.md",
-    "docs/VERSION_AUDIT.md"
+    "docs/workflows/version-audit.md",
+    "docs/workflows/triage-issue.md",
+    "docs/workflows/ux-check.md",
+    "docs/workflows/update-watch.md",
+    "docs/workflows/resolve-update-watch.md"
   ],
   "imports": {
     "CLAUDE.md": "@AGENTS.md",
@@ -34,243 +40,183 @@
   "pairedSkills": {
     "plan-version": {
       "required": [
-        "DESIGN_PRINCIPLES",
-        "CODE_HEALTH_BASELINE",
-        "workflows/schema/session-contract\\.md",
-        "master plan",
-        "Plan mode",
-        "approval",
-        "todo list|task list",
-        "directive",
-        "start-session",
-        "read-only",
-        "high",
-        "adversarial",
-        "present[^.]*plain-English summary[^.]*before[^.]*approval",
-        "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
-        "session-terminal"
+        "docs/workflows/plan-version\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
-      "forbidden": []
+      "forbidden": [
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/plan-version.md"
     },
     "plan-session": {
       "required": [
-        "workflows/schema/session-plan\\.md",
-        "active agent guide",
-        "code-health",
-        "Plan mode",
-        "approval",
-        "session-plans",
-        "todo list|task list",
-        "separate prompt",
-        "directive",
-        "start-session",
-        "read-only",
-        "high",
-        "adversarial",
-        "review history",
-        "present[^.]*plain-English summary[^.]*before[^.]*approval",
-        "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
-        "session-terminal"
+        "docs/workflows/plan-session\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
       "forbidden": [
-        "write[^.]*before[^.]*approval",
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
         "SESSION_PLANNING"
-      ]
+      ],
+      "procedure": "docs/workflows/plan-session.md"
     },
     "start-session": {
       "required": [
-        "resolve_development_state",
-        "directive",
-        "handler",
-        "authority",
-        "primary artifact|primaryArtifact",
-        "pause",
-        "preDispatchGate",
-        "DESIGN_PRINCIPLES",
-        "CODE_HEALTH_BASELINE",
-        "todo list|task list",
-        "Plan mode",
-        "separate prompt",
-        "Codegraph",
-        "check_release_consistency",
-        "close-out",
-        "Ryan",
-        "session-terminal"
+        "docs/workflows/start-session\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
       "forbidden": [
-        "generate a prompt for itself",
-        "Version_3_8_Prompts"
-      ]
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/start-session.md"
     },
     "pre-pr-design-review": {
       "required": [
-        "PRE_PR_DESIGN_REVIEW",
-        "todo list|task list",
-        "ordering",
-        "evidence",
-        "result",
-        "close-out",
-        "no authority"
+        "docs/workflows/pre-pr-design-review\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
       "forbidden": [
-        "DESIGN_PRINCIPLES|CODE_HEALTH_BASELINE|hotspot|## Notes"
-      ]
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/pre-pr-design-review.md"
     },
     "close-out": {
       "required": [
-        "workflows/close-out\\.md",
-        "todo list|task list",
-        "background",
-        "ordering",
-        "Greptile",
-        "merge",
-        "5/5"
+        "docs/workflows/close-out\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
       "forbidden": [
-        "if the work is user-facing, bump",
-        "verify the Vercel preview"
-      ]
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/close-out.md"
     },
     "plan-version-audit": {
       "required": [
-        "VERSION_AUDIT",
-        "resolver",
-        "DESIGN_PRINCIPLES",
-        "CODE_HEALTH_BASELINE",
-        "Plan mode",
-        "approval",
-        "Audit status",
-        "todo list|task list",
-        "Periodic",
-        "Version close",
-        "directive",
-        "start-session",
-        "read-only",
-        "high",
-        "adversarial",
-        "present[^.]*plain-English summary[^.]*before[^.]*approval",
-        "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
-        "session-terminal"
+        "docs/workflows/version-audit\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
-      "forbidden": []
+      "forbidden": [
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/version-audit.md"
     },
     "plan-audit-remediation": {
       "required": [
-        "DESIGN_PRINCIPLES",
-        "workflows/schema/session-(contract|plan)\\.md",
-        "PRE_PR_DESIGN_REVIEW",
-        "VERSION_AUDIT",
-        "CODE_HEALTH_BASELINE",
-        "resolver",
-        "directive",
-        "Plan mode",
-        "approval",
-        "AF-NNN",
-        "Floss",
-        "Campaign",
-        "Watch",
-        "characterization",
-        "todo list|task list",
-        "start-session",
-        "separate (prompt|remediation)",
-        "read-only",
-        "high",
-        "adversarial",
-        "present[^.]*plain-English summary[^.]*before[^.]*approval",
-        "discuss[^.]*shape[^.]*plain English[^.]*before[^.]*draft",
-        "session-terminal"
+        "docs/workflows/version-audit\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
-      "forbidden": []
+      "forbidden": [
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/version-audit.md"
     },
     "version-audit": {
       "required": [
-        "VERSION_AUDIT",
-        "DESIGN_PRINCIPLES",
-        "CODE_HEALTH_BASELINE",
-        "todo list|task list",
-        "replace",
-        "never\\s+append",
-        "campaign",
-        "AF-NNN",
-        "Remediation required",
-        "directive",
-        "start-session",
-        "restart",
-        "archive",
-        "verify_archive",
-        "resolver",
-        "drift"
+        "docs/workflows/version-audit\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
-      "forbidden": []
+      "forbidden": [
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/version-audit.md"
     },
     "triage-issue": {
       "required": [
-        "DESIGN_PRINCIPLES",
-        "todo list|task list",
-        "Every completed sub-version",
-        "APP_VERSION",
-        "changelog",
-        "Codegraph",
-        "user chooses",
-        "close-out"
+        "docs/workflows/triage-issue\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
       "forbidden": [
-        "non-user-facing\\s+change skips",
-        "user-facing\\s+change[^.]*version bump"
-      ]
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/triage-issue.md"
     },
     "ux-check": {
       "required": [
-        "DESIGN_PRINCIPLES",
-        "todo list|task list",
-        "Codegraph",
-        "localhost:3000",
-        "127\\.0\\.0\\.1",
-        "logged-out",
-        "run-probes\\.mjs",
-        "probe definition",
-        "scratch[^.]*drift[^.]*delete",
-        "Ryan",
-        "close-out"
+        "docs/workflows/ux-check\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
       "forbidden": [
-        "pnpm dev.*i\\.e\\. `next dev -H"
-      ]
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/ux-check.md"
     },
     "update-watch": {
       "required": [
-        "never[^.]*commit",
-        "never[^.]*push",
-        "never[^.]*(create[^.]*branch|pull request)",
-        "never[^.]*pnpm (add|update)",
-        "never[^.]*edit[^.]*(baseline|repository file)",
-        "at most one issue",
-        "no other outward write",
-        "untrusted",
-        "refus(e|ed)[^.]*failure",
-        "update_watch_collect",
-        "update-watch-deltas",
-        "end-of-run summary"
+        "docs/workflows/update-watch\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
-      "forbidden": []
+      "forbidden": [
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/update-watch.md"
     },
     "resolve-update-watch": {
       "required": [
-        "never[^.]*merge",
-        "Closes #",
-        "minimumReleaseAge|quarantine",
-        "overrides",
-        "UPDATE_WATCH_BASELINE",
-        "acknowledgedItems",
-        "untrusted",
-        "leave the (PR|pull request) open",
-        "defer",
-        "operator",
-        "check_update_watch_baseline",
-        "comment on the digest issue",
-        "closes on merge"
+        "docs/workflows/resolve-update-watch\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
       ],
-      "forbidden": []
+      "forbidden": [
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/resolve-update-watch.md"
     }
   },
   "runtimeForbidden": {
@@ -342,13 +288,27 @@
     ".agents/skills/pre-pr-design-review/agents/openai.yaml",
     ".agents/skills/plan-version-audit/agents/openai.yaml",
     ".agents/skills/plan-audit-remediation/agents/openai.yaml",
-    ".agents/skills/version-audit/agents/openai.yaml"
+    ".agents/skills/version-audit/agents/openai.yaml",
+    "docs/workflows/plan-version.md",
+    "docs/workflows/plan-session.md",
+    "docs/workflows/start-session.md",
+    "docs/workflows/pre-pr-design-review.md",
+    "docs/workflows/close-out.md",
+    "docs/workflows/version-audit.md",
+    "docs/workflows/triage-issue.md",
+    "docs/workflows/ux-check.md",
+    "docs/workflows/update-watch.md",
+    "docs/workflows/resolve-update-watch.md"
   ],
   "forbiddenPaths": [
     ".claude/rules/ui-styling.md",
     ".agents/skills/drive-session/SKILL.md",
     ".claude/skills/drive-session/SKILL.md",
-    "docs/Version_3_8_Prompts.md"
+    "docs/Version_3_8_Prompts.md",
+    "docs/DESIGN_PRINCIPLES.md",
+    "docs/PRIMITIVE_LEDGER.md",
+    "docs/PRE_PR_DESIGN_REVIEW.md",
+    "docs/VERSION_AUDIT.md"
   ],
   "ignoredPaths": [
     ".claude/settings.local.json",
@@ -415,110 +375,178 @@
       "docs/session-contracts/3.10/3.10.0.1.md",
       "docs/session-plans/3.10/3.10.0.1.md",
       "docs/session-contracts/3.10/3.10.0.2.1.md",
-      "docs/session-plans/3.10/3.10.0.2.1.md"
+      "docs/session-plans/3.10/3.10.0.2.1.md",
+      "docs/session-contracts/3.10/3.10.0.2.2.md",
+      "docs/session-contracts/3.10/3.10.0.3.1.md",
+      "docs/session-contracts/3.10/3.10.0.3.2.md"
     ]
   },
   "skillReconciliation": {
     "plan-version": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
+        "docs/workflows/plan-version.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "e19b783bde76c9a258eb3e3412f49c94ab2cb52a7c92d9edd414ce0869b690f1"
+      "reconciledHash": "d25d4d61f0a0c0c21cdf37a89f441d0747d9f7f17aeb39596bbb3e9edc77ff1f"
     },
     "plan-session": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
+        "docs/workflows/plan-session.md",
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "f4897753e3b5666c5d62a0f6ecd90d05c751ae05493160c9b89b58e354dbb7d2"
+      "reconciledHash": "b716412afc7fe74f4ee9f13b642eb1b2b633cbe563f1c4d27835e815bb3c3f73"
     },
     "start-session": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
+        "docs/workflows/start-session.md",
         "docs/workflows/close-out.md"
       ],
-      "reconciledHash": "65acd478c9cf62ed0b2aca4166cb6babd9fc2fe0d4f0604df2d53cc8c62a5612"
+      "reconciledHash": "5a55507938110b888fec050f6d4e13cec1c605079d80847b0e1fce67cce9962a"
     },
     "pre-pr-design-review": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
-        "docs/PRE_PR_DESIGN_REVIEW.md"
+        "docs/workflows/pre-pr-design-review.md",
+        "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "f6bcfb6b72422ddca529d6dec716a40015715ac036119bc6b30d533e7577fc42"
+      "reconciledHash": "26869446115396216a3c3d2b5ecff189b48a1ae45b8bd28d2d52712bfd36d9a9"
     },
     "close-out": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/close-out.md",
-        "docs/PRE_PR_DESIGN_REVIEW.md",
+        "docs/workflows/pre-pr-design-review.md",
         "docs/workflows/schema/changelog-entry.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "3cc2e919675b8e72af18fe70b415b5f2b0be1a37594ecd377f5e54055a1592df"
+      "reconciledHash": "9172ceb1fbdea7275434e3586a07ee534bac3efccaba05e53da5bc5f25b0bf0a"
     },
     "plan-version-audit": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
-        "docs/VERSION_AUDIT.md"
+        "docs/workflows/version-audit.md",
+        "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "359cfd0bd349e5329678752e5c07842d4b554f77256a8044490617fbdd66f657"
+      "reconciledHash": "560c4e2f33d7f471b7c9502a3e62f1ef73d1c8f29bae88a023a502f73b7e4cd9"
     },
     "plan-audit-remediation": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
-        "docs/VERSION_AUDIT.md",
-        "docs/PRE_PR_DESIGN_REVIEW.md",
+        "docs/workflows/version-audit.md",
+        "docs/workflows/plan-version.md",
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "2fbb3e6f35789f85b76e9a5861f3338b441f1b82078fbfd714769902a2f1559c"
+      "reconciledHash": "acdb94deb40c069947cb0fe7df59d3a79e8823b45973d4dede840671bddfc44a"
     },
     "version-audit": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
-        "docs/VERSION_AUDIT.md",
+        "docs/workflows/version-audit.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "c3ff16c216ac09dea1beba424c61760fddc18cd8302a2a72c6bc33109832a262"
+      "reconciledHash": "560c4e2f33d7f471b7c9502a3e62f1ef73d1c8f29bae88a023a502f73b7e4cd9"
     },
     "triage-issue": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md",
-        "docs/workflows/schema/changelog-entry.md"
+        "docs/workflows/triage-issue.md",
+        "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "a6591c4d3ebaf821a281e8bf2a1b835c1f1fb87b309b1ada4a4b1cb224019b94"
+      "reconciledHash": "6e059049b193134efe8922cce531befc666f809f95a26d9714d06030480aa2de"
     },
     "ux-check": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md"
+        "src/AGENTS.md",
+        "docs/workflows/ux-check.md"
       ],
-      "reconciledHash": "588b80718fcdafd0ec6545579b740fdd6c8657971b3d253ebdfd77340de7aa96"
+      "reconciledHash": "8824b13d59f0a60452b2bfbfab6fd3f610b9bf43f3a46a0ebbc73d34f6893b6d"
     },
     "update-watch": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md"
+        "docs/workflows/update-watch.md"
       ],
-      "reconciledHash": "588b80718fcdafd0ec6545579b740fdd6c8657971b3d253ebdfd77340de7aa96"
+      "reconciledHash": "06dd388366d59f37f54130eded44babf0683d48de6421ee9939a869a66a020eb"
     },
     "resolve-update-watch": {
       "deps": [
         "AGENTS.md",
-        "docs/DESIGN_PRINCIPLES.md"
+        "docs/workflows/resolve-update-watch.md"
       ],
-      "reconciledHash": "588b80718fcdafd0ec6545579b740fdd6c8657971b3d253ebdfd77340de7aa96"
+      "reconciledHash": "fcf42fbe2c05bdf097bc0f49a6197bd05c3d42a44430f57baf6f41d9f0311eb9"
     }
+  },
+  "procedurePolicies": {
+    "docs/workflows/plan-version.md": {
+      "orderedRequired": [
+        "Build the outcome ledger",
+        "Record and challenge the current topology",
+        "Attempt to combine every adjacent or tightly coupled slice",
+        "Produce the minimum safe bundles",
+        "fresh read-only high-effort\\s+adversarial reviewer",
+        "Obtain operator approval",
+        "update the master plan's delivery topology first",
+        "Create one schema-complete contract per approved bundle"
+      ]
+    },
+    "docs/workflows/plan-session.md": {
+      "orderedRequired": [
+        "Reconcile the bundle",
+        "Do not split it",
+        "recorded split trigger",
+        "Draft and review",
+        "operator approval",
+        "Persist the approved plan"
+      ]
+    }
+  },
+  "proseOwnership": {
+    "paths": [
+      "AGENTS.md",
+      "src/AGENTS.md",
+      "CONTRIBUTING.md",
+      "docs/workflows/plan-version.md",
+      "docs/workflows/plan-session.md",
+      "docs/workflows/start-session.md",
+      "docs/workflows/pre-pr-design-review.md",
+      "docs/workflows/close-out.md",
+      "docs/workflows/version-audit.md",
+      "docs/workflows/triage-issue.md",
+      "docs/workflows/ux-check.md",
+      "docs/workflows/update-watch.md",
+      "docs/workflows/resolve-update-watch.md",
+      ".agents/skills/plan-version/SKILL.md",
+      ".agents/skills/plan-session/SKILL.md",
+      ".agents/skills/start-session/SKILL.md",
+      ".agents/skills/pre-pr-design-review/SKILL.md",
+      ".agents/skills/close-out/SKILL.md",
+      ".agents/skills/plan-version-audit/SKILL.md",
+      ".agents/skills/plan-audit-remediation/SKILL.md",
+      ".agents/skills/version-audit/SKILL.md",
+      ".agents/skills/triage-issue/SKILL.md",
+      ".agents/skills/ux-check/SKILL.md",
+      ".agents/skills/update-watch/SKILL.md",
+      ".agents/skills/resolve-update-watch/SKILL.md",
+      ".claude/skills/plan-version/SKILL.md",
+      ".claude/skills/plan-session/SKILL.md",
+      ".claude/skills/start-session/SKILL.md",
+      ".claude/skills/pre-pr-design-review/SKILL.md",
+      ".claude/skills/close-out/SKILL.md",
+      ".claude/skills/plan-version-audit/SKILL.md",
+      ".claude/skills/plan-audit-remediation/SKILL.md",
+      ".claude/skills/version-audit/SKILL.md",
+      ".claude/skills/triage-issue/SKILL.md",
+      ".claude/skills/ux-check/SKILL.md",
+      ".claude/skills/update-watch/SKILL.md",
+      ".claude/skills/resolve-update-watch/SKILL.md"
+    ],
+    "minimumWords": 12,
+    "exceptions": []
   }
 }

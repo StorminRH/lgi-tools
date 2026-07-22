@@ -30,11 +30,25 @@ A contract starts with this frame:
 **Sub-version:** X.Y.N
 **Master plan:** `docs/VERSION_X_Y_PLAN.md` §X.Y.N
 **UX gate:** No
+**Execution profile:** Frontier autonomous coding agent
+**Delivery unit:** One agent session, one branch, one PR
+**Roadmap coverage:** §X.Y.N outcome or ordered outcome set
+**Internal phases:** 1. First outcome; 2. Second outcome; 3. Integration and proof
+**Split triggers:** Only the concrete conditions that require stopping or replanning
 ```
 
 `UX gate` is exactly `Yes` or `No`. It is the machine-readable authority for
 the operator's local browser-review pause. A contract uses `Yes` when the
 session changes user-facing behavior or appearance and `No` otherwise.
+
+`Execution profile` and `Delivery unit` use the exact values shown above.
+`Roadmap coverage`, `Internal phases`, and `Split triggers` are non-empty.
+Roadmap coverage may name several approved roadmap sections. Internal phases
+are ordered work inside the session, not new delivery boundaries. Split
+triggers name only conditions that invalidate the approved bundle, such as an
+external wait, a material scope conflict, a genuinely unreviewable combined
+diff, or an operator decision that changes later work. An ordinary review or
+operator pause that can resume on the same branch is not a split trigger.
 
 The version's contract index contains exactly three columns and maps identifiers
 to contract files only:
@@ -88,7 +102,7 @@ in the named sub-version. Do not prescribe its implementation.
 
 ## 2. Current context and dependencies
 
-Record the slice-relevant projection of inherited prerequisites, settled product
+Record the bundle-relevant projection of inherited prerequisites, settled product
 facts, cross-session dependencies, and ordering constraints as `DEP-N` items.
 The version plan remains authoritative. Leave live-code findings and
 implementation assumptions to the planning phase, which verifies every item.

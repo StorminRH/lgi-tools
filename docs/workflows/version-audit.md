@@ -1,27 +1,56 @@
-# Version Audit (LGI.tools)
+# Version-audit procedure
 
-**Audience:** the agent executing the approved final audit of a completed master
-version, or an approved periodic health pass for a long-running version.
-**When invoked:** after every current master-plan status row is terminal and an
-approved `docs/version-audits/X.Y/PLAN.md` exists, including after audit
-remediation; periodic audits use the same procedure without archival.
-**Constitution:** `docs/DESIGN_PRINCIPLES.md`.
-**Lifecycle:** `.agent-local/resolve_development_state.py`.
-**Output:** a complete replacement of `docs/CODE_HEALTH_BASELINE.md`, backlog and
-campaign decisions, any warranted rail/doc corrections, and—at version close—a
-verified archived version bundle.
+This procedure has three resolver-dispatched entry modes: plan an audit, plan
+remediation, and execute or resume an approved audit. All modes use the same
+classification, baseline, remediation, and archive semantics below.
 
-This is the self-healing loop. Session planning and pre-PR review prevent local
-design decay; the version audit measures accumulated pressure no single PR can
-see. Every confirmed Floss or Campaign extends the current version through
-bounded, reviewable work; Watch alone may remain with a precise trigger. A fresh
-complete audit—not delivery claims—decides whether remediation worked.
+## Shared authority and state
 
-The audit plan is version-specific execution state. This document remains the
-static procedure. Create a native runtime todo list from every numbered step and
-the approved audit plan before measuring anything.
+The resolver owns entry selection. The strict baseline schema owns the live
+data-only baseline form. Version-tagged audit plans own findings, rationale,
+cycles, approvals, and remediation mappings. This procedure grants no merge,
+deployment, production, or destructive-recovery authority.
 
----
+## Entry mode: plan-version-audit
+
+1. Require the resolver to name `plan-version-audit` for a lifecycle-driven
+   Version close. An explicit operator request may select Periodic, which never
+   archives.
+2. Read the current baseline, this procedure, master plan, contracts, session
+   plans, changelog, SCRATCHPAD, backlog, and live configuration.
+3. Design exact measurements, commands, artifact inventory, hotspot and drift
+   questions, baseline replacement, verification, and any version-close archive
+   destination.
+4. Present the shape before drafting, give the complete plan to one fresh
+   read-only high-effort adversarial reviewer, reconcile every finding, and
+   obtain operator approval. Permit at most one rerun after material change.
+5. Persist a new Approved cycle-1 plan with full audited ref and procedure
+   digest. When a procedure change made an in-progress plan stale, preserve its
+   cycle history, AF ledger, statuses, and mappings while reconciling scope.
+6. Rerun the resolver and drift gate, report the new directive, and stop.
+
+## Entry mode: plan-audit-remediation
+
+1. Require the resolver to name `plan-audit-remediation`; read the baseline,
+   audit plan and ledger, master plan, schemas, SCRATCHPAD, backlog, Codegraph
+   evidence, and live code.
+2. For every open Floss or Campaign, diagnose the violated ownership, interface,
+   change-axis, or coverage principle. Define the required end-state and
+   characterization evidence instead of copying a metric.
+3. Apply the plan-version topology audit to the complete finding set. Group the
+   findings into the fewest safe execution bundles, map every open AF id, and
+   map no unaudited scope.
+4. Present the topology before drafting, run one fresh read-only adversarial
+   review, reconcile findings, and obtain operator approval before mutation.
+5. Update the roadmap topology first, then contracts/index, then mark mapped
+   findings Planned and set Remediation in progress. Do not create session plans.
+6. Rerun the resolver and drift gate, report the new directive, and stop.
+
+## Entry mode: version-audit
+
+Require the resolver to name `version-audit`, then execute the approved plan and
+every numbered step below. A restart advances the cycle and audited ref and
+repeats the complete audit; it is never a targeted diff.
 
 ## Step 0 — Validate the transition
 
@@ -34,13 +63,13 @@ the approved audit plan before measuring anything.
    sessions remain only from an approved `Audit mode: Periodic` plan, and it
    never archives.
 3. Verify the plan's `Procedure digest` is the SHA-256 of the current exact
-   `docs/VERSION_AUDIT.md`; a mismatch returns to `plan-version-audit`.
+   `docs/workflows/version-audit.md`; a mismatch returns to `plan-version-audit`.
 4. On a complete-restart directive, verify every mapped remediation sub-version
    has terminal merge evidence, advance `Audit cycle`, set `Audited ref` to
    current canonical `main`, and set `Audit status: Approved`. Rerun every
    measurement and gate; a targeted diff is not an audit restart.
 5. Read, in order:
-   - `docs/DESIGN_PRINCIPLES.md`;
+   - `docs/workflows/pre-pr-design-review.md`;
    - the current `docs/CODE_HEALTH_BASELINE.md`;
    - the approved version audit plan;
    - the completed master plan and its version-close checklist;
@@ -107,17 +136,17 @@ not merely a long file. For every candidate, judge:
 | Cohesion defense | Is it deep and cohesive, or accreting? |
 
 Replace the baseline's current-hotspot table with the new ranking. Reaffirm
-protected non-goals from `DESIGN_PRINCIPLES.md` §5. Every hotspot row states a
+protected non-goals from `pre-pr-design-review.md` §5. Every hotspot row states a
 direction of fix; “make it smaller” is not sufficient.
 
-Do not copy live metrics or rows into the constitution. Amend the constitution
-only when the audit discovers a durable principle or classification rule, not a
-new number.
+Do not copy live metrics or rows into the pre-PR design procedure. Amend its
+design creed only when the audit discovers a durable principle or
+classification rule, not a new number.
 
 ## Step 3 — Review drift no PR-level gate sees
 
 - **Boundary drift:** inspect zone growth, new `allow` entries, and composition
-  placed inside a participating slice. Apply `DESIGN_PRINCIPLES.md` §4.2.
+  placed inside a participating slice. Apply `pre-pr-design-review.md` §4.2.
 - **Override staleness:** review every Fallow override and suppression as a loan.
   Remove stale entries; classify live ones with rationale and date.
 - **Duplication baseline:** classify every accepted clone group as boring shape
@@ -202,7 +231,7 @@ and table shape every time:
 ```markdown
 # Code Health Baseline (LGI.tools)
 
-> Living-state notice and constitution pointer.
+> Living-state notice and design-procedure pointer.
 
 ## Snapshot
 | Field | Value |

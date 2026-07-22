@@ -68,7 +68,9 @@ class ResolverFixture:
         self.root = Path(self.temporary.name)
         self.docs = self.root / "docs"
         self.docs.mkdir()
-        (self.docs / "VERSION_AUDIT.md").write_text("# Audit procedure\n", encoding="utf-8")
+        procedure = self.docs / "workflows/version-audit.md"
+        procedure.parent.mkdir(parents=True, exist_ok=True)
+        procedure.write_text("# Audit procedure\n", encoding="utf-8")
         self.write_schemas()
         self.write_roadmap("COMPLETE")
         self.write_baseline(SHA)
@@ -128,7 +130,7 @@ class ResolverFixture:
         )
 
     def write_audit(self, status: str, finding_status: str | None = None, *, digest: str | None = None) -> None:
-        procedure = self.docs / "VERSION_AUDIT.md"
+        procedure = self.docs / "workflows/version-audit.md"
         procedure_digest = digest or hashlib.sha256(procedure.read_bytes()).hexdigest()
         findings = ""
         if finding_status:
@@ -146,7 +148,7 @@ class ResolverFixture:
             "**Audit cycle:** 1\n"
             f"**Audited ref:** `{SHA}`\n"
             "**Audit mode:** Version close\n"
-            "**Procedure:** `docs/VERSION_AUDIT.md`\n"
+            "**Procedure:** `docs/workflows/version-audit.md`\n"
             f"**Procedure digest:** `sha256:{procedure_digest}`\n"
             f"{findings}",
             encoding="utf-8",
@@ -157,6 +159,13 @@ class ResolverFixture:
         directory.mkdir(parents=True, exist_ok=True)
         contract = directory / "9.9.1.1.1.md"
         ux_marker = f"\n**UX gate:** {ux_gate}\n" if ux_gate is not None else ""
+        execution_frame = (
+            "**Execution profile:** Frontier autonomous coding agent\n"
+            "**Delivery unit:** One agent session, one branch, one PR\n"
+            "**Roadmap coverage:** §9.9.1.1 fixture outcome\n"
+            "**Internal phases:** 1. Implement fixture; 2. Verify fixture\n"
+            "**Split triggers:** Material fixture scope conflict\n"
+        )
         bodies = {
             "Objective": "Fixture outcome.",
             "Current context and dependencies": "- **DEP-1:** Fixture dependency.",
@@ -175,7 +184,7 @@ class ResolverFixture:
             "## Session 9.9.1.1.1 — Fixture\n\n"
             "**Sub-version:** 9.9.1.1\n"
             "**Master plan:** `docs/VERSION_9_9_PLAN.md` §9.9.1.1\n"
-            f"{ux_marker}\n"
+            f"{ux_marker}{execution_frame}\n"
             + "\n\n".join(
                 f"## {number}. {title}\n\n{bodies[title]}"
                 for number, title in enumerate(CONTRACT_TITLES, start=1)
@@ -672,6 +681,51 @@ class DevelopmentStateTests(unittest.TestCase):
         self.assertEqual([], errors)
         self.assertEqual("contract-repair-needed", state["stage"])
         self.assertIn("UX gate must be Yes or No", state["contractSchemaViolations"])
+
+    def test_contract_execution_frame_is_required(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        cases = {
+            "profile": (
+                "**Execution profile:** Frontier autonomous coding agent\n",
+                "",
+                "Execution profile must be Frontier autonomous coding agent",
+            ),
+            "delivery unit": (
+                "**Delivery unit:** One agent session, one branch, one PR\n",
+                "**Delivery unit:** One branch\n",
+                "Delivery unit must be One agent session, one branch, one PR",
+            ),
+            "roadmap coverage": (
+                "**Roadmap coverage:** §9.9.1.1 fixture outcome\n",
+                "**Roadmap coverage:**   \n",
+                "Roadmap coverage must be non-empty",
+            ),
+            "ordered phases": (
+                "**Internal phases:** 1. Implement fixture; 2. Verify fixture\n",
+                "**Internal phases:** Implement fixture\n",
+                "Internal phases must be a contiguous ordered list starting at 1",
+            ),
+            "gapped phases": (
+                "**Internal phases:** 1. Implement fixture; 2. Verify fixture\n",
+                "**Internal phases:** 1. Implement fixture; 3. Verify fixture\n",
+                "Internal phases must be a contiguous ordered list starting at 1",
+            ),
+            "split triggers": (
+                "**Split triggers:** Material fixture scope conflict\n",
+                "**Split triggers:**   \n",
+                "Split triggers must be non-empty",
+            ),
+        }
+        original = contract.read_text(encoding="utf-8")
+        for label, (old, new, expected) in cases.items():
+            with self.subTest(label=label):
+                contract.write_text(original.replace(old, new), encoding="utf-8")
+                state, errors = resolve(self.fixture.root)
+                self.assertEqual([], errors)
+                self.assertEqual("contract-repair-needed", state["stage"])
+                self.assertIn(expected, state["contractSchemaViolations"])
+        contract.write_text(original, encoding="utf-8")
 
     def test_ux_gate_flows_into_session_ready_pause(self) -> None:
         self.fixture.write_roadmap("PLANNED")
