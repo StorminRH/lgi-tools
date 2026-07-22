@@ -12,21 +12,12 @@ Before changing code:
    `docs/DESIGN_PRINCIPLES.md`, the current
    `docs/CODE_HEALTH_BASELINE.md`, `docs/SCRATCHPAD.md`, and the resolved
    roadmap/contract/approved session plan in `docs/`.
-2. If `.codegraph/codegraph.db` exists, query Codegraph (`codegraph explore`) before searching source files.
-3. For library- or framework-specific work, verify current APIs with the `find-docs` skill/Context7 during planning. Do not rely on remembered APIs.
+2. Always use `codegraph explore "<question>"` for an unfamiliar area, or
+   `codegraph query "<symbol>"` when you already know the symbol before grepping.
+3. Always use `find-docs` skill/Context7 during planning for up-to-date
+   documentation. Do not rely on memory.
 4. Read the relevant guide under `node_modules/next/dist/docs/` before changing Next.js routing, rendering, caching, or configuration.
 5. Raise a conflict before proceeding if the requested work violates an invariant in this file or an approved plan.
-
-When beginning or resuming development, use `start-session`. The lifecycle
-resolver is the sole mechanical owner of current-state validation and handler
-selection; `start-session` reports its directive (action, reason, authority,
-primary artifact, and pause) before dispatching it. Stage skills own one
-procedure and return control to `start-session` after their outcome instead of
-selecting sibling skills. Planning directives require runtime Plan mode and
-Ryan's approval before their canonical artifact is written.
-`docs/workflows/schema/session-contract.md` and
-`docs/workflows/schema/session-plan.md` define the artifact forms; the approved
-plan is the agent's execution prompt, so do not maintain a separate prompt.
 
 ## This is not the Next.js you remember
 
@@ -45,7 +36,6 @@ Confirm scripts against `package.json` when they may have changed.
 - Lint: `pnpm lint`
 - Static-analysis gate: `pnpm fallow`
 - Definition of done: `pnpm verify`
-- Post-merge Vercel build entry point (never run locally): `pnpm vercel-build`
 
 `pnpm verify` runs typecheck, zero-warning lint, one coverage-enabled Vitest
 suite, and coverage-backed Fallow. It is the sole definition-of-done command;
@@ -112,14 +102,17 @@ Cross-slice composition belongs above the participating slices; `src/db/sde-pipe
 ## Engineering principles
 
 - Keep scope minimal. Implement only the approved task and changes clearly necessary for it.
-- Diagnose before fixing uncertain behavior. Verify the report, identify the root cause, test the hypothesis, and present evidence. If asked only to diagnose, stop after reporting.
+- Diagnose before fixing uncertain behavior. Verify the report, identify the root cause, test the hypothesis, and present evidence. If asked only to diagnose,
+  stop after reporting.
 - Prefer existing primitives and configuration. Extract a shared primitive when there is a real second consumer, not for hypothetical reuse.
 - Do not add speculative abstractions, configurability, defensive branches for impossible states, or commentary on untouched code.
-- Validate at system boundaries: user input, route payloads, environment variables, and external APIs. Do not add redundant checks between trusted internal layers.
+- Validate at system boundaries: user input, route payloads, environment variables, and external APIs. Do not add redundant checks between trusted internal
+  layers.
 - Keep types, variants, classes, and enums in one authoritative configuration. Adding a supported variant should normally be a config change.
 - Keep schemas extensible without rewriting existing content types.
 - Batch database work; do not introduce N+1 queries.
-- A non-null assertion is allowed only for a locally provable by-construction invariant, explained with a one-line comment. It is never a substitute for a guard or a way around Fallow.
+- A non-null assertion is allowed only for a locally provable by-construction invariant, explained with a one-line comment. It is never a substitute for a guard
+  or a way around Fallow.
 - Hold to the approved plan and its out-of-scope list. Surface newly discovered wider work instead of silently absorbing it.
 - Show command output or other evidence for verification. State plainly when a check was skipped or failed.
 - Ask before destructive, irreversible, production, shared-state, or force-push actions.
@@ -132,15 +125,8 @@ One hybrid TSDoc-lite style repo-wide:
   `/** */` interface comment: summary prose stating the contract — what it
   does, units, preconditions, what the caller owns. Use TSDoc tags only where
   they add information; there is no mandatory `@param` ceremony.
-- `//` comments are unchanged for module prologues, design rationale, and
-  implementation commentary.
 - Deferred work routes to `docs/backlog.md`, never a source `TODO`/`FIXME`.
-- Write interface comments before implementing; if the comment is hard to
-  write, the interface is wrong (P7). Session plans include the draft
-  interface comments for every new export
-  (`docs/workflows/schema/session-plan.md`, Interfaces and contracts).
-- Comment quality is a judgment gate (pre-PR review), never a coverage or
-  density metric (P10). A comment that restates the signature fails review.
+- Comment quality is a judgment gate at review.
 
 ## Architecture invariants
 
@@ -161,7 +147,8 @@ Cache global, slow-changing reads with `'use cache'`, `cacheLife`, and `cacheTag
 - The lazy DB proxy in `src/db/index.ts` must remain import-side-effect-free.
 - Session advisory locks use a reserved direct, unpooled connection and release in `finally`; never hold a transaction or pooled connection across network calls.
 - Every deploy migrates its own database branch. Branch pushes do not create previews automatically.
-- Every user/character-keyed Neon table must be claimed by a purge contributor or an explicit retained exemption. Follow the complete key-shape, purge, growth, and ESI checklist enforced by `src/db/dataset-declarations.test.ts`.
+- Every user/character-keyed Neon table must be claimed by a purge contributor or an explicit retained exemption. Follow the complete key-shape, purge, growth,
+  and ESI checklist enforced by `src/db/dataset-declarations.test.ts`.
 
 ### APIs, validation, and environment
 
