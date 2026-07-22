@@ -18,6 +18,7 @@ Procedure: `docs/workflows/version-audit.md`.
 Invocation permits audit-local records. Archival is permitted only after the
 clean-close checks and baseline replacement are complete and the resolver
 returns `archive-needed`. No merge or deployment is authorized.
+No production or destructive-recovery authority is authorized.
 
 ## Claude Code runtime mechanics
 
