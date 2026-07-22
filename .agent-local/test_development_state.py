@@ -725,6 +725,16 @@ class DevelopmentStateTests(unittest.TestCase):
                 self.assertEqual([], errors)
                 self.assertEqual("contract-repair-needed", state["stage"])
                 self.assertIn(expected, state["contractSchemaViolations"])
+        contract.write_text(
+            original.replace(
+                "1. Implement fixture; 2. Verify fixture",
+                "1. Handle TCP; UDP, and ICMP; 2. Verify fixture",
+            ),
+            encoding="utf-8",
+        )
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("session-plan-needed", state["stage"])
         contract.write_text(original, encoding="utf-8")
 
     def test_ux_gate_flows_into_session_ready_pause(self) -> None:

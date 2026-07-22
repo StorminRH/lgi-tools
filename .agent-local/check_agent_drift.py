@@ -259,7 +259,10 @@ def _prose_sentences(text: str) -> list[tuple[int, str]]:
         if not stripped:
             flush()
             continue
-        if stripped.startswith("#") or re.fullmatch(r"\|?\s*:?-{3,}:?.*", stripped):
+        table_separator = re.fullmatch(
+            r"\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)*\|?", stripped
+        )
+        if stripped.startswith("#") or table_separator:
             flush()
             continue
         list_match = re.match(r"^(?:[-*+] |\d+[.)] )(.*)$", stripped)

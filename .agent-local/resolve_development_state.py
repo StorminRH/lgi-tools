@@ -350,13 +350,14 @@ def contract_schema_violations(path: Path, root: Path) -> list[str]:
             violations.append(f"{label} must be non-empty")
     phases = marker(path, "Internal phases") or ""
     if phases:
+        phase_items = re.split(r";\s*(?=\d+\.\s+\S)", phases)
         phase_numbers = [
             int(match.group(1))
-            for item in phases.split(";")
+            for item in phase_items
             for match in [re.fullmatch(r"\s*(\d+)\.\s+\S.*", item)]
             if match is not None
         ]
-        expected_phases = list(range(1, len(phases.split(";")) + 1))
+        expected_phases = list(range(1, len(phase_items) + 1))
         if phase_numbers != expected_phases:
             violations.append(
                 "Internal phases must be a contiguous ordered list starting at 1"

@@ -296,6 +296,22 @@ class AgentDriftTests(unittest.TestCase):
         self.fixture.write("docs/two.md", shared)
         self.assertEqual([], self.check_prose())
 
+    def test_prose_scan_keeps_dash_prefixed_sentences(self) -> None:
+        sentence = "--- Agents must preserve the approved ownership boundary every time."
+        self.fixture.manifest["proseOwnership"]["paths"] = [
+            "docs/one.md",
+            "docs/two.md",
+        ]
+        self.fixture.write("docs/one.md", f"{sentence}\n")
+        self.fixture.write("docs/two.md", f"{sentence}\n")
+        self.assertEqual(
+            [
+                "duplicate normative prose [agents must preserve the approved ownership "
+                "boundary every time]: docs/one.md:1, docs/two.md:1"
+            ],
+            self.check_prose(),
+        )
+
     def test_exact_prose_exception_requires_sentence_paths_and_reason(self) -> None:
         sentence = "Agents must preserve the approved ownership boundary every time."
         self.fixture.manifest["proseOwnership"]["paths"] = [
