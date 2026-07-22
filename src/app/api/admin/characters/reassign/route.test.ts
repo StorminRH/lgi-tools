@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Admin reassign. Mock auth + the query layer so these exercise the admin gate,
 // the self-guard, the ownership check, and that the destination is fixed to the
@@ -16,6 +16,7 @@ const accountBelongsToUserMock = vi.fn();
 const reassignCharacterMock = vi.fn();
 const reconcileAfterCharacterRemovalMock = vi.fn();
 const logUsageEventMock = vi.fn();
+let errorSpy: ReturnType<typeof vi.spyOn>;
 
 vi.mock('@/features/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -62,6 +63,11 @@ describe('POST /api/admin/characters/reassign', () => {
     reconcileAfterCharacterRemovalMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
   });
 
   it('returns 403 for a non-admin', async () => {
@@ -118,6 +124,22 @@ describe('POST /api/admin/characters/reassign', () => {
 
     expect(res.status).toBe(303);
     expect(reconcileAfterCharacterRemovalMock).toHaveBeenCalledWith('eve-user-2', 200);
+    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the committed move successful when source reconciliation fails', async () => {
+    getSessionMock.mockResolvedValue(ADMIN_SESSION);
+    accountBelongsToUserMock.mockResolvedValue(true);
+    reassignCharacterMock.mockResolvedValue({ sourceDeleted: false });
+    reconcileAfterCharacterRemovalMock.mockRejectedValue(new Error('transient database failure'));
+
+    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
+
+    expect(res.status).toBe(303);
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[admin/characters/reassign] source identity rebind failed after the move committed',
+      expect.any(Error),
+    );
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
   });
 });
