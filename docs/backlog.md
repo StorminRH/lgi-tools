@@ -160,21 +160,6 @@
   *Trigger:* when the roster is prioritized — natural opener for the next cycle; pair with the
   panel-shell extraction in the fallow section.
 
-- **Admin reassign leaves a stale identity email on the source account** (found in the
-  ACCOUNT.3 / 3.7.14.1 security review; also flagged as a session chip). *What:* the admin
-  character-reassign's not-emptied fork moves the account row and repoints the active
-  character but never rebinds the source user's identity email, so the source can retain
-  the moved character's synthetic address indefinitely. If that character's account row is
-  later deleted (self-unlink, purge, transfer-purge), a fresh sign-in falls back to the
-  email match and re-links the character to the OLD account — resurrecting a
-  supposedly-detached account, potentially another person's. Second-order (needs an admin
-  merge in step one) but real. *Fix:* adopt the same post-move composition the absorb flow
-  uses — run the reconcile (email rebind) after a not-emptied reassign; decide compose-at-
-  caller vs fold-into-reassignCharacter (folding changes the reassign oracle's pinned write
-  counts, so that test would need a deliberate update). *Size:* S. *Trigger:* next
-  ACCOUNT-arc hygiene session, or immediately if an admin merge is performed on a
-  multi-character source account.
-
 ## Engine / Convex verification
 
 > From the 3.5.4a audit operator-checklist — prod-only cells a solo agent can't
