@@ -552,24 +552,33 @@ def _advisory_link(fields: dict) -> str:
     return f"[{identifier}]({url})" if url else identifier
 
 
+def _html_escape(text: str) -> str:
+    """Escape the HTML control characters that could break the digest's `<details>`
+    blocks. Ampersand is escaped first so the other escapes are not re-escaped."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _inline(value: object) -> str:
-    """Render untrusted text for a non-table (inline) context: coerce, flatten, strip.
+    """Render untrusted text for a non-table (inline) context: coerce, flatten, escape.
 
     Unlike ``_cell`` this leaves a literal ``|`` alone — the collapsible service
-    list has no columns — but still collapses newlines so a feed title or summary
-    can never break out of its own bullet.
+    list has no columns — but it collapses newlines so a feed title or summary can
+    never break out of its own bullet, and HTML-escapes ``&<>`` so a hostile
+    ``</details>`` in feed content cannot terminate its surrounding block.
     """
     text = "" if value is None else str(value)
-    return text.replace("\r", " ").replace("\n", " ").strip()
+    flattened = text.replace("\r", " ").replace("\n", " ").strip()
+    return _html_escape(flattened)
 
 
 def _link_text(value: object) -> str:
-    """Escape Markdown link-text brackets in untrusted text.
+    """Escape Markdown link-text delimiters in untrusted (already HTML-escaped) text.
 
-    A ``]`` in a feed title would otherwise close the link early, so both
-    brackets are backslash-escaped before the title is used as link text.
+    Backslashes are doubled before the brackets are escaped, so a title that
+    already contains ``\\]`` cannot pass an unescaped backslash-plus-bracket
+    through and close the link early.
     """
-    return _inline(value).replace("[", "\\[").replace("]", "\\]")
+    return _inline(value).replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
 
 
 def _render_table(header: str, alignment: str, rows: list[str], empty: str) -> str:

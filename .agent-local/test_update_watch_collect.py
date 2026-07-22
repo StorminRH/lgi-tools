@@ -502,6 +502,44 @@ class RenderTests(unittest.TestCase):
             render_issue_body(deltas),
         )
 
+    def test_hostile_service_summary_cannot_break_the_details_block(self) -> None:
+        state = state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}})
+        deltas = compute_deltas(
+            state,
+            [
+                {
+                    "source": "Neon",
+                    "title": "ok",
+                    "date": "2026-07-20",
+                    "url": "https://neon.com/x",
+                    "summary": "sneaky </details> here",
+                }
+            ],
+            [],
+        )
+        body = render_issue_body(deltas)
+        # The hostile close tag is HTML-escaped, so it cannot terminate the block.
+        self.assertIn("sneaky &lt;/details&gt; here", body)
+
+    def test_backslash_prefixed_bracket_title_stays_escaped(self) -> None:
+        state = state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}})
+        deltas = compute_deltas(
+            state,
+            [
+                {
+                    "source": "Neon",
+                    "title": "danger \\] end",
+                    "date": "2026-07-20",
+                    "url": "https://neon.com/x",
+                    "summary": "s",
+                }
+            ],
+            [],
+        )
+        # The backslash is doubled before the bracket is escaped, so the "]" cannot
+        # slip out and close the link.
+        self.assertIn(r"[danger \\\] end](https://neon.com/x)", render_issue_body(deltas))
+
     def test_empty_sections_render_a_none_line(self) -> None:
         deltas = compute_deltas(
             state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}}), [], []
