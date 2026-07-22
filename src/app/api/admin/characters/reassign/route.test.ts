@@ -14,6 +14,7 @@ const ADMIN_SESSION = {
 const getSessionMock = vi.fn();
 const accountBelongsToUserMock = vi.fn();
 const reassignCharacterMock = vi.fn();
+const reconcileAfterCharacterRemovalMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
 vi.mock('@/features/auth/auth', () => ({
@@ -26,6 +27,11 @@ vi.mock('@/features/auth/linked-characters', () => ({
 
 vi.mock('@/features/auth/admin-users', () => ({
   reassignCharacter: (args: unknown) => reassignCharacterMock(args),
+}));
+
+vi.mock('@/features/auth/account-purge', () => ({
+  reconcileAfterCharacterRemoval: (userId: string, characterId: number) =>
+    reconcileAfterCharacterRemovalMock(userId, characterId),
 }));
 
 vi.mock('@/data/telemetry/queries', () => ({
@@ -53,6 +59,7 @@ describe('POST /api/admin/characters/reassign', () => {
     getSessionMock.mockReset();
     accountBelongsToUserMock.mockReset();
     reassignCharacterMock.mockReset();
+    reconcileAfterCharacterRemovalMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
   });
@@ -97,6 +104,20 @@ describe('POST /api/admin/characters/reassign', () => {
       fromUserId: 'eve-user-2',
       toUserId: 'admin-1',
     });
+    expect(reconcileAfterCharacterRemovalMock).not.toHaveBeenCalled();
+    expect(logUsageEventMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rebinds the source identity after moving one of several characters', async () => {
+    getSessionMock.mockResolvedValue(ADMIN_SESSION);
+    accountBelongsToUserMock.mockResolvedValue(true);
+    reassignCharacterMock.mockResolvedValue({ sourceDeleted: false });
+    reconcileAfterCharacterRemovalMock.mockResolvedValue({ accountEmptied: false });
+
+    const res = await POST(buildRequest({ fromUserId: 'eve-user-2', characterId: '200' }));
+
+    expect(res.status).toBe(303);
+    expect(reconcileAfterCharacterRemovalMock).toHaveBeenCalledWith('eve-user-2', 200);
     expect(logUsageEventMock).toHaveBeenCalledTimes(1);
   });
 });

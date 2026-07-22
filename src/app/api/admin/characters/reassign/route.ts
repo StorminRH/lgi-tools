@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminReassignFormSchema } from '@/features/auth/api-contract';
+import { reconcileAfterCharacterRemoval } from '@/features/auth/account-purge';
 import { accountBelongsToUser } from '@/features/auth/linked-characters';
 import { reassignCharacter } from '@/features/auth/admin-users';
 import { requireAdmin } from '@/features/auth/route-guards';
@@ -12,8 +13,9 @@ import { parseFormBody } from '@/lib/route-body';
  * onto the acting admin's own account in one click (no OAuth re-login). Used to
  * consolidate the pre-linking standalone accounts. The destination is fixed to
  * the caller (session.user.id). If the source account is left empty it's removed
- * (see reassignCharacter). Never trust the posted owner — we verify the
- * character actually belongs to `fromUserId` first.
+ * (see reassignCharacter); otherwise its identity email is rebound to a surviving
+ * character. Never trust the posted owner — we verify the character actually
+ * belongs to `fromUserId` first.
  */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
@@ -41,6 +43,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const { sourceDeleted } = await reassignCharacter({ characterId, fromUserId, toUserId });
+  if (!sourceDeleted) {
+    await reconcileAfterCharacterRemoval(fromUserId, characterId);
+  }
 
   void logUsageEvent({
     action: 'admin_character_reassign',
