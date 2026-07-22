@@ -261,6 +261,24 @@ class AgentDriftTests(unittest.TestCase):
             self.check_procedures(),
         )
 
+    def test_procedure_checkpoints_report_every_missing_pattern(self) -> None:
+        self.fixture.manifest["procedurePolicies"]["docs/workflows/demo.md"][
+            "orderedRequired"
+        ] = ["first checkpoint", "second checkpoint", "third checkpoint"]
+        self.fixture.write(
+            "docs/workflows/demo.md",
+            "Complete the first checkpoint.\n",
+        )
+        self.assertEqual(
+            [
+                "docs/workflows/demo.md: missing or reordered procedure checkpoint "
+                "/second checkpoint/",
+                "docs/workflows/demo.md: missing or reordered procedure checkpoint "
+                "/third checkpoint/",
+            ],
+            self.check_procedures(),
+        )
+
     def test_normalized_prose_duplicates_are_sorted_and_substantive(self) -> None:
         self.fixture.manifest["proseOwnership"]["paths"] = [
             "docs/zeta.md",
@@ -328,6 +346,22 @@ class AgentDriftTests(unittest.TestCase):
         self.fixture.write("docs/one.md", f"{sentence}\n")
         self.fixture.write("docs/two.md", f"{sentence}\n")
         self.assertEqual([], self.check_prose())
+
+    def test_prose_exception_requires_two_distinct_paths(self) -> None:
+        self.fixture.manifest["proseOwnership"]["exceptions"] = [
+            {
+                "sentence": "Agents must preserve the approved ownership boundary.",
+                "paths": ["docs/one.md", "docs/one.md"],
+                "reason": "Invalid duplicate path fixture.",
+            }
+        ]
+        self.assertEqual(
+            [
+                "proseOwnership exception requires sentence, at least two exact paths, "
+                "and reason"
+            ],
+            self.check_prose(),
+        )
 
     def test_reconciliation_flags_a_skill_stale_against_its_deps(self) -> None:
         # A changed policy dep moves the digest and flags the skill until restamped.

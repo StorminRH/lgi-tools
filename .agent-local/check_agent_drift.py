@@ -210,7 +210,7 @@ def check_procedure_policies(manifest: dict, root: Path, errors: list[str]) -> N
                 errors.append(
                     f"{raw_path}: missing or reordered procedure checkpoint /{pattern}/"
                 )
-                break
+                continue
             cursor += match.end()
 
 
@@ -312,6 +312,7 @@ def check_prose_ownership(manifest: dict, root: Path, errors: list[str]) -> None
             or not isinstance(exception_paths, list)
             or len(exception_paths) < 2
             or not all(isinstance(path, str) for path in exception_paths)
+            or len(set(exception_paths)) < 2
             or not isinstance(reason, str)
             or not reason.strip()
         ):
