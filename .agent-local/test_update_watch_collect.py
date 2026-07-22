@@ -429,6 +429,7 @@ class RenderTests(unittest.TestCase):
                     "title": "Pipe | and newline\nin the title",
                     "date": None,
                     "url": "https://neon.com/docs/changelog/x",
+                    "summary": "A changelog note. Informational.",
                 }
             ],
             [],
@@ -440,10 +441,16 @@ class RenderTests(unittest.TestCase):
         self.assertIn("## Security advisories", body)
         self.assertIn("## Major versions", body)
         self.assertIn("## Service/EVE surface changes", body)
-        self.assertIn("## Absorption note", body)
-        # Sections render before the key block, which renders before the note.
+        # The dedup key block and absorption note live in a collapsed footer.
+        self.assertIn("Machine dedup keys and absorption steps", body)
+        self.assertIn("Partial absorption keeps the window.", body)
+        # Sections render before the housekeeping key block.
         self.assertLess(body.index("## Security advisories"), body.index("## Major versions"))
-        self.assertLess(body.index(f"```{ 'update-watch-deltas' }"), body.index("## Absorption note"))
+        self.assertLess(
+            body.index("## Service/EVE surface changes"),
+            body.index(f"```{ 'update-watch-deltas' }"),
+        )
+        # The key block still round-trips through the parser despite its <details> wrapper.
         self.assertEqual(
             ["advisory:GHSA-395f-4hp3-45gv", "dep-major:clsx:2", "service:neon:https://neon.com/docs/changelog/x"],
             parse_issue_keys(body),
@@ -456,16 +463,23 @@ class RenderTests(unittest.TestCase):
         # The range is code-spanned, never HTML-escaped as the old prose form was.
         self.assertNotIn("&lt;", body)
 
-    def test_untrusted_titles_are_pipe_escaped_and_flattened(self) -> None:
+    def test_untrusted_service_titles_are_flattened_into_the_link(self) -> None:
         body = self._report_body()
-        self.assertIn("Pipe \\| and newline in the title", body)
+        # The collapsible list is not a table, so the pipe stays literal, but the
+        # newline is flattened so an untrusted title cannot break out of its bullet.
+        self.assertIn("[Pipe | and newline in the title]", body)
+        self.assertNotIn("newline\nin the title", body)
 
-    def test_service_link_is_hyperlinked_like_the_advisory_section(self) -> None:
+    def test_service_items_render_as_collapsible_linked_titles_with_summaries(self) -> None:
         body = self._report_body()
+        self.assertIn("<details>", body)
+        self.assertIn("<summary><strong>Neon</strong>", body)
+        # Human title is the link text; the raw URL is the target, not the label.
         self.assertIn(
-            "[https://neon.com/docs/changelog/x](https://neon.com/docs/changelog/x)",
+            "[Pipe | and newline in the title](https://neon.com/docs/changelog/x)",
             body,
         )
+        self.assertIn("A changelog note. Informational.", body)
 
     def test_empty_sections_render_a_none_line(self) -> None:
         deltas = compute_deltas(

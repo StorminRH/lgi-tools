@@ -515,6 +515,7 @@ def compute_deltas(state: dict, items: list[dict], failures: list[str]) -> list[
                     "date": judged.get("date") or "undated",
                     "window": window_class(judged.get("date"), scan_since),
                     "link": canonical_id,
+                    "summary": judged.get("summary") or "",
                 },
             }
         )
@@ -534,16 +535,6 @@ SECTION_ORDER = (
     "Service/EVE surface changes",
 )
 
-ABSORPTION_NOTE = (
-    "## Absorption note\n\n"
-    "During a normal session, add each reported canonical id to its source's "
-    "`acknowledgedItems` (or raise `acknowledgedMajor` / record the advisory "
-    "with its observed applicability) in `docs/UPDATE_WATCH_BASELINE.md`, then "
-    "advance `scanSince` only once every currently in-window item for that "
-    "source is acknowledged. Partial absorption keeps the window."
-)
-
-
 def _cell(value: object) -> str:
     """Render one Markdown table cell: coerce to str, escape pipes, flatten newlines.
 
@@ -561,15 +552,24 @@ def _advisory_link(fields: dict) -> str:
     return f"[{identifier}]({url})" if url else identifier
 
 
-def _service_link(fields: dict) -> str:
-    """Render the canonical id as a Markdown link when it is a URL, else plain text.
+def _inline(value: object) -> str:
+    """Render untrusted text for a non-table (inline) context: coerce, flatten, strip.
 
-    Mirrors ``_advisory_link`` so both tables link consistently; a non-URL
-    canonical id (should one ever appear) renders as plain escaped text.
+    Unlike ``_cell`` this leaves a literal ``|`` alone — the collapsible service
+    list has no columns — but still collapses newlines so a feed title or summary
+    can never break out of its own bullet.
     """
-    link = fields.get("link", "?")
-    text = _cell(link)
-    return f"[{text}]({link})" if isinstance(link, str) and link.startswith("http") else text
+    text = "" if value is None else str(value)
+    return text.replace("\r", " ").replace("\n", " ").strip()
+
+
+def _link_text(value: object) -> str:
+    """Escape Markdown link-text brackets in untrusted text.
+
+    A ``]`` in a feed title would otherwise close the link early, so both
+    brackets are backslash-escaped before the title is used as link text.
+    """
+    return _inline(value).replace("[", "\\[").replace("]", "\\]")
 
 
 def _render_table(header: str, alignment: str, rows: list[str], empty: str) -> str:
@@ -618,23 +618,55 @@ def render_major_section(deltas: list[dict]) -> str:
     )
 
 
+def _service_source_order(name: str) -> tuple[int, str]:
+    """Sort key placing sources in registry order, unknowns last then alphabetical."""
+    names = [source.name for source in SOURCE_REGISTRY]
+    return (names.index(name) if name in names else len(names), name)
+
+
+def _render_service_item(fields: dict) -> str:
+    """Render one announcement as a linked-title bullet with an optional summary line."""
+    link = fields.get("link", "")
+    title = _link_text(fields.get("title", "?"))
+    linked = f"[{title}]({link})" if isinstance(link, str) and link.startswith("http") else title
+    meta = f"{_inline(fields.get('date', 'undated'))} · {_inline(fields.get('window', '?'))}"
+    bullet = f"- **{linked}** · {meta}"
+    summary = _inline(fields.get("summary", ""))
+    if summary:
+        # Two trailing spaces + indent keep the summary a continuation of the bullet.
+        bullet += f"  \n  {summary}"
+    return bullet
+
+
 def render_service_section(deltas: list[dict]) -> str:
-    """Render the service/EVE announcement table with window classification."""
-    rows = [
-        (
-            f"| {_cell(f.get('source', '?'))} | {_cell(f.get('title', '?'))} "
-            f"| {_cell(f.get('date', 'undated'))} | {_cell(f.get('window', '?'))} "
-            f"| {_service_link(f)} |"
+    """Render service/EVE announcements as one collapsible block per source.
+
+    Each source with items becomes a `<details>` whose summary counts them and
+    spans their dates; the body lists each item as a linked human title with a
+    one-line summary. Grouping keeps a busy digest short, and linking the title
+    (not the raw URL) renders reliably where a bare long URL did not.
+    """
+    if not deltas:
+        return "No unacknowledged service or EVE-surface changes."
+    by_source: dict[str, list[dict]] = {}
+    for delta in deltas:
+        fields = delta.get("fields", {})
+        by_source.setdefault(_inline(fields.get("source", "?")), []).append(fields)
+
+    blocks: list[str] = []
+    for name in sorted(by_source, key=_service_source_order):
+        items = by_source[name]
+        dated = sorted(
+            f.get("date") for f in items if f.get("date") and f.get("date") != "undated"
         )
-        for delta in deltas
-        if (f := delta.get("fields", {}))
-    ]
-    return _render_table(
-        "| Source | Item | Published | Window | Link |",
-        "| --- | --- | --- | --- | --- |",
-        rows,
-        "No unacknowledged service or EVE-surface changes.",
-    )
+        span = ""
+        if dated:
+            span = f" · {dated[0]}" if dated[0] == dated[-1] else f" · {dated[0]} → {dated[-1]}"
+        plural = "s" if len(items) != 1 else ""
+        summary = f"<summary><strong>{name}</strong> — {len(items)} item{plural}{span}</summary>"
+        bullets = "\n".join(_render_service_item(f) for f in items)
+        blocks.append(f"<details>\n{summary}\n\n{bullets}\n</details>")
+    return "\n\n".join(blocks)
 
 
 _SECTION_RENDERERS = {
@@ -644,14 +676,36 @@ _SECTION_RENDERERS = {
 }
 
 
+def render_housekeeping(keys: list[str]) -> str:
+    """Render the collapsed machine-facing footer: dedup key block + absorption note.
+
+    Both are internal, so they live inside a `<details>` to keep the human view
+    clean. The `update-watch-deltas` fence and its one-key-per-line grammar are
+    unchanged, so open-issue suppression still parses the keys verbatim through
+    the surrounding HTML.
+    """
+    return (
+        "<details>\n"
+        "<summary>Machine dedup keys and absorption steps — internal, do not edit</summary>\n\n"
+        f"{render_key_block(keys)}\n\n"
+        "_Absorption: during a normal session add each id above to its source's "
+        "`acknowledgedItems` in `docs/UPDATE_WATCH_BASELINE.md` (or raise "
+        "`acknowledgedMajor` / record the advisory with its observed applicability), "
+        "then advance `scanSince` only once every currently in-window item for that "
+        "source is acknowledged. Partial absorption keeps the window._\n"
+        "</details>"
+    )
+
+
 def render_issue_body(deltas: list[dict]) -> str:
     """Render the full digest issue body verbatim for the skill to post.
 
-    Emits the three priority-ordered sections as Markdown tables, each item
-    naming its source and observed/patched-or-acknowledged state, then the
-    fenced `update-watch-deltas` key block finalize suppresses against, then the
-    absorption note. Deterministic and free of the run date, which the skill
-    owns in the issue title — so nothing here is ever hand-authored or re-escaped.
+    Emits the three priority-ordered sections — advisories and major versions as
+    tables, service/EVE announcements as per-source collapsible lists — then a
+    single collapsed housekeeping block holding the fenced `update-watch-deltas`
+    key block finalize suppresses against and the absorption note. Deterministic
+    and free of the run date, which the skill owns in the issue title — so nothing
+    here is ever hand-authored or re-escaped.
     """
     by_section: dict[str, list[dict]] = {section: [] for section in SECTION_ORDER}
     for delta in deltas:
@@ -660,8 +714,7 @@ def render_issue_body(deltas: list[dict]) -> str:
         f"## {section}\n\n{_SECTION_RENDERERS[section](by_section[section])}"
         for section in SECTION_ORDER
     ]
-    parts.append(render_key_block([delta["key"] for delta in deltas]))
-    parts.append(ABSORPTION_NOTE)
+    parts.append(render_housekeeping([delta["key"] for delta in deltas]))
     return "\n\n".join(parts)
 
 
