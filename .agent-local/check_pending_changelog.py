@@ -16,6 +16,7 @@ unknown until a planned release absorbs it. See
 
 from __future__ import annotations
 
+import datetime as _dt
 from pathlib import Path
 import re
 import sys
@@ -32,6 +33,9 @@ ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 MASTER_FILE_RE = re.compile(r"^v[\d.]+\.md$")
 CATEGORY_HEADING_RE = re.compile(r"^####\s+(.+?)\s*$")
 BULLET_RE = re.compile(r"^-\s+(.+?)\s*$")
+# The renderer prints Markdown literally, so fragments stay plain text: reject
+# bold, inline code, and links (the same restriction as changelog-entry.md).
+MARKUP_RE = re.compile(r"\*\*|__|`|\[[^\]]*\]\([^)]*\)")
 
 
 def _parse_frontmatter(
@@ -62,6 +66,9 @@ def _parse_frontmatter(
         if key not in FRONTMATTER_KEYS:
             findings.append(Finding(rel, offset, f"unsupported frontmatter key {key!r}; allowed keys are {list(FRONTMATTER_KEYS)}", "error"))
             continue
+        if key in frontmatter:
+            findings.append(Finding(rel, offset, f"duplicate frontmatter key {key!r}", "error"))
+            continue
         frontmatter[key] = value
 
     date = frontmatter.get("date")
@@ -69,6 +76,11 @@ def _parse_frontmatter(
         findings.append(Finding(rel, 1, "frontmatter is missing the required date", "error"))
     elif not ISO_DATE_RE.match(date):
         findings.append(Finding(rel, 1, f"date must be an ISO YYYY-MM-DD value, got {date!r}", "error"))
+    else:
+        try:
+            _dt.date.fromisoformat(date)
+        except ValueError:
+            findings.append(Finding(rel, 1, f"date is not a real calendar date: {date!r}", "error"))
     return frontmatter, closing + 1
 
 
@@ -111,8 +123,11 @@ def _parse_body(
             if current is None:
                 findings.append(Finding(rel, line_number, "bullet is not under a #### <Category> group", "error"))
                 continue
+            text = bullet_match.group(1)
+            if MARKUP_RE.search(text):
+                findings.append(Finding(rel, line_number, "bullet must be plain text (no bold, inline code, or links)", "error"))
             group_bullets += 1
-            bullets.append((current, bullet_match.group(1)))
+            bullets.append((current, text))
             continue
         findings.append(Finding(rel, line_number, f"unrecognized fragment line: {line!r}", "error"))
 
@@ -141,10 +156,13 @@ def collect_findings(root: Path) -> list[Finding]:
         _frontmatter, body_start = _parse_frontmatter(rel, lines, findings)
         for category, bullet in _parse_body(rel, lines, body_start, findings):
             key = (category, bullet)
-            if key in seen_bullets and seen_bullets[key] != rel:
-                findings.append(Finding(rel, 1, f"duplicate {category} note already defined in {seen_bullets[key]}: {bullet!r}", "error"))
+            prior = seen_bullets.get(key)
+            if prior is None:
+                seen_bullets[key] = rel
+            elif prior == rel:
+                findings.append(Finding(rel, 1, f"duplicate {category} note within the fragment: {bullet!r}", "error"))
             else:
-                seen_bullets.setdefault(key, rel)
+                findings.append(Finding(rel, 1, f"duplicate {category} note already defined in {prior}: {bullet!r}", "error"))
     return findings
 
 

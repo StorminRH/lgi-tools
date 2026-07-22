@@ -21,7 +21,13 @@ from dataclasses import dataclass
 from pathlib import Path
 import sys
 
-from check_pending_changelog import CATEGORIES, CATEGORY_HEADING_RE, BULLET_RE, PENDING_DIR
+from check_pending_changelog import (
+    BULLET_RE,
+    CATEGORIES,
+    CATEGORY_HEADING_RE,
+    MASTER_FILE_RE,
+    PENDING_DIR,
+)
 
 
 @dataclass(frozen=True)
@@ -40,7 +46,11 @@ def read_fragments(root: Path) -> list[Fragment]:
     if not pending.is_dir():
         return fragments
     for path in sorted(pending.glob("*.md")):
-        if path.name == "README.md":
+        # Mirror the checker's inbox filter: README.md is documentation, and
+        # _preamble.md / version-like names are never fragments (the checker
+        # rejects them as errors). Skipping them keeps the fold's input
+        # assumptions explicit and consistent with check_pending_changelog.
+        if path.name in ("README.md", "_preamble.md") or MASTER_FILE_RE.match(path.name):
             continue
         lines = path.read_text(encoding="utf-8").splitlines()
         date = ""

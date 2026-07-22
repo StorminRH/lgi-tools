@@ -60,6 +60,14 @@ class FoldPendingChangelogTests(unittest.TestCase):
         fragments = read_fragments(self.root)
         self.assertEqual(["a.md"], [fragment.name for fragment in fragments])
 
+    def test_non_fragment_filenames_are_skipped(self) -> None:
+        # The fold helper mirrors the checker's inbox filter: README.md,
+        # _preamble.md, and version-like names are never treated as fragments.
+        (self.pending / "_preamble.md").write_text("## v9.9 — Theme\n", encoding="utf-8")
+        (self.pending / "v3.10.md").write_text("### v3.10.0.1 — 2026-07-20\n", encoding="utf-8")
+        self.write("a.md", "2026-07-20", "#### Added\n- A feature.\n")
+        self.assertEqual(["a.md"], [fragment.name for fragment in read_fragments(self.root)])
+
     def test_fold_is_a_pure_function_of_present_fragments(self) -> None:
         # A fragment added later is not retroactively consumed: the fold only ever
         # reflects what is present when it runs, so late fragments stay queued.

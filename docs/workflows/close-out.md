@@ -227,8 +227,10 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    executable, dependency, or verification-configuration change occurred after
    it. Any such change invalidates the checkpoint and returns to the applicable
    preflight and verification steps; a lifecycle-only record does not.
-7. Commit the verified scope in the repository's plain-English style and push the
-   branch. No preview is created automatically.
+7. Commit the verified scope in the repository's conventional plain-English style
+   — a conventional subject under 72 characters, lowercase after the prefix,
+   describing the project outcome rather than files or symbols (see `AGENTS.md`)
+   — and push the branch. No preview is created automatically.
 8. Update `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and
    contract cannot know. Remove shipped or superseded detail and keep deferred
    work only in `docs/backlog.md`. **(planned)** follow the fork above: a

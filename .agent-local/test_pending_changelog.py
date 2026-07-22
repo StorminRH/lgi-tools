@@ -71,6 +71,26 @@ class PendingChangelogTests(unittest.TestCase):
         self.write("x.md", "---\ndate: 22-07-2026\n---\n\n#### Changed\n- Body.\n")
         self.assertTrue(any("ISO YYYY-MM-DD" in m for m in self.messages()))
 
+    def test_impossible_calendar_date_is_rejected(self) -> None:
+        self.write("x.md", "---\ndate: 2026-02-30\n---\n\n#### Changed\n- Body.\n")
+        self.assertTrue(any("not a real calendar date" in m for m in self.messages()))
+
+    def test_duplicate_frontmatter_key_is_rejected(self) -> None:
+        self.write("x.md", "---\ndate: 2026-07-22\ndate: 2026-07-23\n---\n\n#### Changed\n- Body.\n")
+        self.assertTrue(any("duplicate frontmatter key" in m for m in self.messages()))
+
+    def test_markup_in_bullet_is_rejected(self) -> None:
+        for body in (
+            "#### Changed\n- A **bold** note.\n",
+            "#### Changed\n- An `inline code` note.\n",
+            "#### Changed\n- A [linked](https://example.com) note.\n",
+        ):
+            self.write("x.md", f"---\ndate: 2026-07-22\n---\n\n{body}")
+            self.assertTrue(
+                any("must be plain text" in m for m in self.messages()),
+                msg=f"expected plain-text rejection for: {body!r}",
+            )
+
     def test_unsupported_frontmatter_key_is_rejected(self) -> None:
         self.write("x.md", "---\ndate: 2026-07-22\npr: 999\n---\n\n#### Changed\n- Body.\n")
         self.assertTrue(any("unsupported frontmatter key" in m for m in self.messages()))
@@ -107,7 +127,14 @@ class PendingChangelogTests(unittest.TestCase):
         note = "---\ndate: 2026-07-22\n---\n\n#### Changed\n- The very same note.\n"
         self.write("a.md", note)
         self.write("b.md", note)
-        self.assertTrue(any("duplicate Changed note" in m for m in self.messages()))
+        self.assertTrue(any("already defined in" in m for m in self.messages()))
+
+    def test_duplicate_bullet_within_one_fragment_is_rejected(self) -> None:
+        self.write(
+            "a.md",
+            "---\ndate: 2026-07-22\n---\n\n#### Changed\n- Copy-pasted note.\n- Copy-pasted note.\n",
+        )
+        self.assertTrue(any("duplicate Changed note within the fragment" in m for m in self.messages()))
 
     def test_same_bullet_different_category_is_allowed(self) -> None:
         self.write("a.md", "---\ndate: 2026-07-22\n---\n\n#### Changed\n- Shared wording.\n")

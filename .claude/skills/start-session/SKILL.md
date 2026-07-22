@@ -30,13 +30,16 @@ create a separate prompt file.
 start-session owns deterministic lifecycle-branch selection before dispatch. The
 directive's `branch` field is the canonical `lifecycle/<sub-version>` name — a
 pure function of the sub-version with no runtime prefix and no slug. Enter it
-without destroying local work: (1) `git fetch origin main` without discarding
-local changes or force-moving refs; (2) resolve current `origin/main` far enough
-to read the active sub-version and its exact `lifecycle/<sub-version>` branch;
-(3) if the remote `lifecycle/<sub-version>` branch exists, check it out and
-fast-forward it, otherwise create it from current `origin/main`; (4) re-run the
-resolver on the selected branch and treat and report that second result as the
-authoritative directive. Block safely — moving or deleting nothing — on a dirty
+without destroying local work: (1) `git fetch origin main` to refresh
+`origin/main` without discarding local changes or force-moving refs; (2) resolve
+current `origin/main` far enough to read the active sub-version and compute its
+exact `lifecycle/<sub-version>` branch; (3) fetch that ref explicitly
+(`git fetch origin lifecycle/<sub-version>`, or `git ls-remote --heads origin
+lifecycle/<sub-version>` to test existence) so the decision reads true remote
+state, not a stale single-branch checkout; (4) if it exists on the remote, check
+it out and fast-forward it, otherwise create it from current `origin/main`;
+(5) re-run the resolver on the selected branch and treat and report that second
+result as the authoritative directive. Block safely — moving or deleting nothing — on a dirty
 or conflicting worktree. A fresh cloud session invoked from `main` therefore
 discovers a pushed non-final lifecycle branch and resumes the correct next
 session with no operator branch instructions. The current branch never changes

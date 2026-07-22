@@ -10,8 +10,9 @@ the required design judgment and its evidence.
 
 Required inputs:
 
-1. The approved session contract and plan.
-2. The complete sub-version diff against its merge base.
+1. For planned lifecycle work, the approved session contract and plan; for
+   ordinary out-of-band work, the direct request and its stated scope.
+2. The complete current-change diff against its merge base.
 3. Focused behavior, local, and UX evidence applicable to the changed surface.
 4. The current design principles and code-health baseline.
 

@@ -1,4 +1,4 @@
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { toChangelogDocuments } from './browser';
@@ -46,9 +46,24 @@ describe('readChangelogSource', () => {
     const masterVersions = entries
       .filter((entry) => entry.isFile() && /^v[\d.]+\.md$/.test(entry.name))
       .map((entry) => entry.name.slice(1, -3));
-    const masters = parseChangelogMasters(await readChangelogSource());
+    const source = await readChangelogSource();
+    const masters = parseChangelogMasters(source);
     expect(new Set(masters.map((master) => master.version))).toEqual(new Set(masterVersions));
     // The inbox is a real directory the loader deliberately steps over.
     expect(entries.some((entry) => entry.isDirectory() && entry.name === 'pending')).toBe(true);
+
+    // Stronger guarantee: no pending fragment's bullet text ever reaches the
+    // assembled source, so a future fold-into-an-existing-master regression that
+    // left the master list unchanged would still be caught.
+    const pendingDir = join(dir, 'pending');
+    const fragments = (await readdir(pendingDir)).filter(
+      (name) => name.endsWith('.md') && name !== 'README.md',
+    );
+    for (const fragment of fragments) {
+      const body = await readFile(join(pendingDir, fragment), 'utf8');
+      for (const bullet of body.split('\n').filter((line) => line.trimStart().startsWith('- '))) {
+        expect(source).not.toContain(bullet.trim());
+      }
+    }
   });
 });

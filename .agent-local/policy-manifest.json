@@ -424,7 +424,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/close-out.md"
       ],
-      "reconciledHash": "c6cf80bd2d471d392c2f0b3da44acf4abbda4f8bea87639bf4fcf7d2d0dcdf73"
+      "reconciledHash": "65acd478c9cf62ed0b2aca4166cb6babd9fc2fe0d4f0604df2d53cc8c62a5612"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -432,7 +432,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/PRE_PR_DESIGN_REVIEW.md"
       ],
-      "reconciledHash": "eff7a524727ecab5d8ba27af4d55733f0d966c598c3f56847a50a9e5f5119970"
+      "reconciledHash": "f6bcfb6b72422ddca529d6dec716a40015715ac036119bc6b30d533e7577fc42"
     },
     "close-out": {
       "deps": [
@@ -443,7 +443,7 @@
         "docs/workflows/schema/changelog-entry.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "5f629cb4c1054a8bb4a420c70156d410541c2b1e4a9357c3e636726e406cdf70"
+      "reconciledHash": "3cc2e919675b8e72af18fe70b415b5f2b0be1a37594ecd377f5e54055a1592df"
     },
     "plan-version-audit": {
       "deps": [
@@ -462,7 +462,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "30ead4cb1ae3722a8c6f6ffd7d44ba54a0cd77a8826a7b8cb1c67d2af2dd238b"
+      "reconciledHash": "2fbb3e6f35789f85b76e9a5861f3338b441f1b82078fbfd714769902a2f1559c"
     },
     "version-audit": {
       "deps": [
