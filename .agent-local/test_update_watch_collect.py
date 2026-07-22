@@ -481,6 +481,27 @@ class RenderTests(unittest.TestCase):
         )
         self.assertIn("A changelog note. Informational.", body)
 
+    def test_bracketed_service_titles_are_escaped_in_the_link(self) -> None:
+        state = state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}})
+        deltas = compute_deltas(
+            state,
+            [
+                {
+                    "source": "Neon",
+                    "title": "[v1.0] release",
+                    "date": "2026-07-20",
+                    "url": "https://neon.com/docs/changelog/v1",
+                    "summary": "Tag release.",
+                }
+            ],
+            [],
+        )
+        # Brackets in an untrusted title are escaped so they cannot close the link early.
+        self.assertIn(
+            "[\\[v1.0\\] release](https://neon.com/docs/changelog/v1)",
+            render_issue_body(deltas),
+        )
+
     def test_empty_sections_render_a_none_line(self) -> None:
         deltas = compute_deltas(
             state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}}), [], []

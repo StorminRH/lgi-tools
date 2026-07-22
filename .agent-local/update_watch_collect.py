@@ -618,10 +618,16 @@ def render_major_section(deltas: list[dict]) -> str:
     )
 
 
+# Source display order for the digest, resolved once: registry order first, then
+# any unknown source last (and alphabetical among unknowns via the name tiebreak).
+_SOURCE_REGISTRY_ORDER: dict[str, int] = {
+    source.name: index for index, source in enumerate(SOURCE_REGISTRY)
+}
+
+
 def _service_source_order(name: str) -> tuple[int, str]:
     """Sort key placing sources in registry order, unknowns last then alphabetical."""
-    names = [source.name for source in SOURCE_REGISTRY]
-    return (names.index(name) if name in names else len(names), name)
+    return (_SOURCE_REGISTRY_ORDER.get(name, len(SOURCE_REGISTRY)), name)
 
 
 def _render_service_item(fields: dict) -> str:
