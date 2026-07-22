@@ -9,25 +9,16 @@ description: >-
 
 # Run the pre-PR design review
 
-Follow `docs/PRE_PR_DESIGN_REVIEW.md` in full. It owns the review; this skill
-sequences it. `docs/DESIGN_PRINCIPLES.md` is the constitution and
-`docs/CODE_HEALTH_BASELINE.md` is the current hotspot record.
+Follow `docs/PRE_PR_DESIGN_REVIEW.md` as the sole design-review procedure. It
+owns the ordering, judgment rules, evidence requirements, result form, and stop
+conditions.
 
-## Sequence
+## Codex runtime mechanics
 
-1. Read the constitution, baseline, approved session plan, complete branch diff,
-   and the review document before judging the change.
-2. Create a native Codex todo list from every numbered review section and keep
-   one item in progress.
-3. Run the review against delivered behavior and design, not filenames alone.
-   Record evidence and classify every finding as blocking, in-scope fix, or
-   genuinely out of scope under the owning document's rules.
-4. Fix in-scope findings before the PR gate can pass, then rerun every affected
-   review and verification item.
-5. If any measured hotspot surface, override, suppression, duplication state,
-   or campaign status changed, update the relevant rows in
-   `docs/CODE_HEALTH_BASELINE.md` in the same change.
-6. Put the concise result in the PR body's canonical `## Notes` section and
-   return control to `close-out` before it opens the PR.
+- Create a native Codex task list from the procedure and its final
+  return-to-verification task. Keep one item in progress.
+- Attach each phase's required evidence before completing its task.
+- Return the procedure's exact result form to `close-out`. Reopen every review
+  or verification task invalidated by a fix.
 
 This skill grants no authority to open, merge, deploy, or archive anything.

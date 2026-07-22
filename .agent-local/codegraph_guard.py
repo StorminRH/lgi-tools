@@ -47,7 +47,9 @@ def guard_bash(tool_input: dict) -> None:
     if SEARCH_COMMAND.search(command):
         emit(
             "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
-            "`codegraph explore \"<question>\"` before grepping raw files. Only grep "
+            "codegraph explore \"<question>\" for an unfamiliar area, "
+            "or codegraph query \"<symbol>\" when you already know the symbol, "
+            "before grepping raw files. Only grep "
             "after Codegraph has oriented you, or to modify/debug specific lines."
         )
 

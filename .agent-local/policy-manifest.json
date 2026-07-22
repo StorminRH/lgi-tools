@@ -8,11 +8,9 @@
     "docs/workflows/schema/changelog-entry.md",
     "docs/workflows/schema/session-contract.md",
     "docs/workflows/schema/session-plan.md",
-    "docs/SESSION_END.md",
+    "docs/workflows/close-out.md",
     "docs/PRE_PR_DESIGN_REVIEW.md",
-    "docs/PR_REVIEW.md",
-    "docs/VERSION_AUDIT.md",
-    "docs/SELF_REVIEW.md"
+    "docs/VERSION_AUDIT.md"
   ],
   "imports": {
     "CLAUDE.md": "@AGENTS.md",
@@ -106,49 +104,26 @@
     "pre-pr-design-review": {
       "required": [
         "PRE_PR_DESIGN_REVIEW",
-        "DESIGN_PRINCIPLES",
-        "CODE_HEALTH_BASELINE",
         "todo list|task list",
-        "hotspot",
-        "## Notes",
-        "close-out"
+        "ordering",
+        "evidence",
+        "result",
+        "close-out",
+        "no authority"
       ],
-      "forbidden": []
+      "forbidden": [
+        "DESIGN_PRINCIPLES|CODE_HEALTH_BASELINE|hotspot|## Notes"
+      ]
     },
     "close-out": {
       "required": [
-        "DESIGN_PRINCIPLES",
-        "CODE_HEALTH_BASELINE",
-        "SESSION_END",
-        "PRE_PR_DESIGN_REVIEW",
-        "PR_REVIEW",
+        "workflows/close-out\\.md",
         "todo list|task list",
-        "current-head",
+        "background",
+        "ordering",
         "Greptile",
-        "APP_VERSION",
-        "changelog",
-        "branch push creates no\\s+Vercel\\s+preview",
-        "manual preview",
-        "production-mode build",
-        "What this does",
-        "## Why",
-        "## Notes",
-        "## Test plan",
-        "personal information",
-        "body-file",
-        "check_baseline_claims",
-        "check_watch_triggers",
-        "check_release_consistency",
-        "scrub_pr_body",
-        "verify_archive",
-        "pnpm test:coverage",
-        "coverage-backed",
-        "browser-first",
-        "resolver",
-        "directive",
-        "start-session",
-        "one-PR lag",
-        "do not\\s+archive"
+        "merge",
+        "5/5"
       ],
       "forbidden": [
         "if the work is user-facing, bump",
@@ -428,7 +403,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "e57eed97b75d2baeaf6a067f7967a2f637360017251e61acc4af555ced0511c3"
+      "reconciledHash": "9e7a71f0686ac2beb8b2203732040edbccdb26f80a3db73dcadf273ab4a285d2"
     },
     "plan-session": {
       "deps": [
@@ -437,15 +412,15 @@
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "f1b1d8f0653f0c2ada437f066d55dc3c85839e5a9080455fa31d6bc28548d9e6"
+      "reconciledHash": "d9c49731961340bbc982572459c9d6330020a922a6c80d7ce2dca907b9ebc5f1"
     },
     "start-session": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md",
-        "docs/SESSION_END.md"
+        "docs/workflows/close-out.md"
       ],
-      "reconciledHash": "e538135257d2766577d47f8ea1f962f5bd962b42633a9383ecdc7829755a8844"
+      "reconciledHash": "56031d34ad7ce9776c3133f4e09c13f361a51c3b4fc230bc5583077bc288b768"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -453,19 +428,17 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/PRE_PR_DESIGN_REVIEW.md"
       ],
-      "reconciledHash": "9318e241eb12eaf2ffd22ee064ba2c58a91d04bb2a7acf641a83fdc6a014baef"
+      "reconciledHash": "0804a6c3f245d82eda68b543c1d21030f5fbca71498183dd46368365d4b25ccd"
     },
     "close-out": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md",
-        "docs/SESSION_END.md",
+        "docs/workflows/close-out.md",
         "docs/PRE_PR_DESIGN_REVIEW.md",
-        "docs/PR_REVIEW.md",
-        "docs/SELF_REVIEW.md",
         "docs/workflows/schema/changelog-entry.md"
       ],
-      "reconciledHash": "06993a8964295748517eaa28ae704e752ef331a7cfbac340785d757e765db45c"
+      "reconciledHash": "b8abf1695fe27a16408e877504b71a1c05cbe6cac766db71701422274e6bdf14"
     },
     "plan-version-audit": {
       "deps": [
@@ -473,7 +446,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/VERSION_AUDIT.md"
       ],
-      "reconciledHash": "8f0b2929fa696e85ec509a587675ebbc7e91325223af4932e0e02f7387eb75b6"
+      "reconciledHash": "2c400609cebc34dc25f2ed032da1177aa7452ca80ae885364eaa61e06b2c2031"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -484,7 +457,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "2b52ce8d12688489ffe1fc66c98ecc16af1bbb3cc9cefcef2652dc2cb5b22897"
+      "reconciledHash": "9ef7b426c7f8bbe1c7c8aad6234361c3e5d189d6a1a1e10937096b7a3374e8e3"
     },
     "version-audit": {
       "deps": [
@@ -493,7 +466,7 @@
         "docs/VERSION_AUDIT.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "0f93bd8d5cc1118765975391a3748f16b2ebf8d5fe3b99661d21046d1739ba61"
+      "reconciledHash": "847f2d152bf105b6f10e3f171a7d753037b4e98f8b3e307b9ad37db74cb562f2"
     },
     "triage-issue": {
       "deps": [
@@ -501,21 +474,21 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/schema/changelog-entry.md"
       ],
-      "reconciledHash": "a2811074633bc7a5d57d289a22ffd2adcb36f5234594e29cf225390f754eb068"
+      "reconciledHash": "82e54aa683284af965b1d286b4b2ff8fe737fcbdf1347144e05cc7b7ca4c7589"
     },
     "ux-check": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md"
       ],
-      "reconciledHash": "0d53782fdff14731d22b5b4f9ebc8d2b8f1a41ea8267b3d1694e1b6436c6de4e"
+      "reconciledHash": "36383dc5bfe7c96a4d5e8ba38ccb3bb44b429e0e9361c9e44e7ca02780008751"
     },
     "update-watch": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md"
       ],
-      "reconciledHash": "0d53782fdff14731d22b5b4f9ebc8d2b8f1a41ea8267b3d1694e1b6436c6de4e"
+      "reconciledHash": "36383dc5bfe7c96a4d5e8ba38ccb3bb44b429e0e9361c9e44e7ca02780008751"
     }
   }
 }

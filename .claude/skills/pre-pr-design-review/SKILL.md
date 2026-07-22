@@ -8,14 +8,16 @@ description: >-
 
 # Run the pre-PR design review
 
-Follow `docs/PRE_PR_DESIGN_REVIEW.md` in full. Read
-`docs/DESIGN_PRINCIPLES.md`, `docs/CODE_HEALTH_BASELINE.md`, the approved session
-plan, and complete branch diff first. Create a native Claude Code task list from every
-numbered review section, keep one active, and reopen invalidated gates after
-fixes.
+Follow `docs/PRE_PR_DESIGN_REVIEW.md` as the sole design-review procedure. It
+owns the ordering, judgment rules, evidence requirements, result form, and stop
+conditions.
 
-Fix all in-scope findings before the gate passes. If the branch changes a
-measured hotspot surface, override, suppression, duplication state, or campaign
-status, update the relevant baseline rows in the same change. Put the concise
-outcome in the PR body's canonical `## Notes` and return to `close-out`. This
-skill does not authorize a PR, merge, deployment, or archive.
+## Claude Code runtime mechanics
+
+- Create a native Claude Code task list from the procedure and its final
+  return-to-verification task. Keep one item active.
+- Attach each phase's required evidence before completing its task.
+- Return the procedure's exact result form to `close-out`. Reopen every review
+  or verification task invalidated by a fix.
+
+This skill grants no authority to open, merge, deploy, or archive anything.

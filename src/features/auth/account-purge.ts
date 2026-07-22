@@ -29,9 +29,10 @@ import { syntheticEmail } from './synthetic-email';
 // `characterId` (which deletes its `account` row) before calling this — the
 // remaining-accounts count below must not still see the removed character, or it
 // would count itself a survivor and wrongly return accountEmptied=false. Both
-// callers (purgeOwnCharacter, purgeTransferredCharacter) run runPurge first.
-// The third caller (absorbLinkedCharacterOnProof) satisfies the same invariant
-// by MOVING the row first — the source's remaining-scan no longer sees it.
+// purge callers (purgeOwnCharacter, purgeTransferredCharacter) run runPurge first.
+// Transfer callers (absorbLinkedCharacterOnProof and the admin character-reassign
+// route) satisfy the same invariant by MOVING the row first — the source's
+// remaining-scan no longer sees it.
 /** @internal */
 export async function reconcileAfterCharacterRemoval(
   userId: string,

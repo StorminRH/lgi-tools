@@ -25,6 +25,9 @@ Adopted categories:
 The Base UI wrapper allowlist and sole sonner owner are lint-enforced through
 scoped `no-restricted-imports` rules; do not widen those exemptions inline.
 
+Keep `Collapsible` as a pure `<details>/<summary>` primitive with native open
+state.
+
 ## Styling and security
 
 Prefer `className` with Tailwind and established tokens. JSX `style` is lint-banned as house style, not by CSP. Runtime-dynamic values use a CSS custom property set after mount with `ref.current.style.setProperty(...)`, consumed by a stylesheet rule.
@@ -71,4 +74,10 @@ Choose the most static honest mode:
 2. Static shell with request-time work isolated in a `<Suspense>` hole (`◐`).
 3. Fully dynamic (`ƒ`) only when the entire surface is genuinely request-specific.
 
-Do not contort a genuinely dynamic screen into a fake static shell. Record the chosen mode and a one-line justification in the route classification file; the root `AGENTS.md` owns the full Cache Components policy.
+Cache global, slow-changing reads with `'use cache'`, `cacheLife`, and
+`cacheTag`; do not use `unstable_cache` or `experimental.useCache`. Keep request
+data inside Suspense children. In route handlers that must remain dynamic, call
+`connection()` before reading secrets or environment state.
+
+Do not contort a genuinely dynamic screen into a fake static shell. Record the
+chosen mode and a one-line justification in the route classification file.

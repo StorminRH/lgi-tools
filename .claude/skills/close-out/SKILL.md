@@ -1,57 +1,31 @@
 ---
 name: close-out
 description: >-
-  Run LGI.tools' end-of-session sequence and, for a complete sub-version, the
-  required design review before the PR/Greptile loop, clean merge, and production
-  reconciliation. Use for "close out", "wrap up", "ship it", "finish up and
-  merge", or "run the Greptile loop". Invocation grants conditional per-run
-  merge authorization only after every clean gate passes.
+  Run LGI.tools' end-of-session sequence: verify and commit the current session,
+  and for a complete sub-version run the required pre-PR design review before
+  the PR/Greptile loop, clean merge, and production reconciliation. Use for
+  "close out", "do the session end", "wrap up", "ship it", "run the Greptile
+  loop", "finish up and merge", or "take this to merge". Invocation is
+  conditional per-run authorization to merge only after every clean gate passes.
 ---
 
 # Close out an LGI.tools session
 
-Sequence the canonical docs; do not duplicate them. Read
-`docs/DESIGN_PRINCIPLES.md`, `docs/CODE_HEALTH_BASELINE.md`,
-`docs/SESSION_END.md`, `docs/SELF_REVIEW.md`, and the current resolver directive.
-Create a native Claude Code task list from every applicable
-phase/gate, keep one active, and reopen invalidated verification after fixes.
+Follow `docs/workflows/close-out.md` as the sole close-out sequence. The
+canonical procedure owns the ordering and every shared step.
 
-Invocation authorizes this sub-version's squash merge only with a current-head
-Greptile 5/5, zero unresolved findings, green CI, and a mergeable/CLEAN PR. It
-does not authorize bypassing a gate or unrelated production work.
+## Authorization
 
-Follow `docs/SESSION_END.md` completely, including the narrow ignored local-state boundary,
-the APP_VERSION/changelog rule for every completed sub-version, no
-production-mode build before merge, and its full coverage plus coverage-backed
-Fallow gate (`pnpm test:coverage` plus the documented pinned-base command). A
-branch push creates no Vercel preview; any manual preview follows
-the documented exception. Run `check_baseline_claims` and
-`check_watch_triggers`; reconcile or explain every claims warning and surface
-every `promote AF-NNN` warning to Ryan without auto-promoting it.
+Invocation authorizes the current sub-version's squash merge only when the
+current head has Greptile 5/5 with zero unresolved findings, green CI, and a
+mergeable/CLEAN PR. It does not authorize merging past a failed gate or any
+unrelated production action.
 
-After delivery evidence exists, mark the approved session plan's execution
-status Complete. If sessions remain, stop after commit/push/handoff. For a final session, present
-`ux-check` evidence and pause for the operator when user-facing, then invoke
-`pre-pr-design-review` and follow `docs/PRE_PR_DESIGN_REVIEW.md`. Reconcile any
-changed hotspot surface in the baseline
-before continuing. Only after that gate passes, follow `docs/PR_REVIEW.md`: use
-`## What this does`, `## Why`, `## Notes`, `## Test plan`; require
-`check_release_consistency.py --check --expect pre-pr` and
-`scrub_pr_body.py --check --body-file ... --title ...` to block personal information;
-create the body through
-a temporary Markdown body-file and rerun the scrub on the published read-back
-before polling; run the Greptile loop; perform the
-merge-time re-read; merge under the authorization above; and finish browser-first
-after-merge reconciliation.
+## Claude Code runtime mechanics
 
-After merge/reconciliation, mark a mapped `AF-NNN` finding Delivered only after
-all of its remediation sub-versions have terminal merge evidence. Do not archive
-here, and do not cut the next branch here. Run the resolver, report its directive,
-and return control to `start-session`; close-out never selects the next lifecycle
-handler itself. `start-session` opens the resolver-named branch at the start of the
-next action and makes the carried lifecycle reconciliation that branch's first
-commit, then requires `check_release_consistency.py --check --expect reconciled`;
-the intentional one-PR lag never justifies a follow-up PR or direct push to
-`main`. `verify_archive.py` belongs only to the resolver-selected version-audit
-archive transition, not close-out.
-Finish with the agent drift check.
+- Create a native Claude Code task list from the canonical procedure, keep one
+  item active, and reopen only verification that a later change invalidates.
+- When the procedure starts the PR-gate poll, launch it with Bash
+  `run_in_background: true` and continue useful close-out work.
+- When a Greptile justification awaits an inline reply on an unchanged head,
+  use the same background Bash mechanism to watch for that reply.

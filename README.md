@@ -108,9 +108,9 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
 | `pnpm dev` | Start the Next.js dev server |
 | `pnpm dev:all` | Start Postgres + Next + Convex together (full signed-in stack) |
 | `pnpm build` | Production build (CI/Vercel only — do not run locally) |
-| `pnpm verify` | Definition-of-done bundle: typecheck + lint + test + fallow |
+| `pnpm verify` | Coverage-backed definition-of-done bundle: typecheck + lint + Vitest coverage + fallow |
 | `pnpm typecheck` | TypeScript, no emit |
-| `pnpm test` | Run the Vitest suite once |
+| `pnpm test` | Run the non-coverage Vitest suite once; focused Vitest arguments are supported |
 | `pnpm test:watch` | Vitest in watch mode |
 | `pnpm lint` | ESLint |
 | `pnpm fallow` | Static-analysis gate (dead code, duplication, complexity, boundaries) |
@@ -149,13 +149,14 @@ Contributions are welcome. Before opening a PR:
    before code is written.
 2. Branch off `main` and open a PR back into `main`.
 3. Run `pnpm verify` locally and confirm it passes — this bundles
-   typecheck, lint, test, and the `fallow` static-analysis gate. (CI runs
+   typecheck, lint, one coverage-enabled Vitest suite, and the `fallow`
+   static-analysis gate. (CI runs
    the same gates plus a route-classification presence check.)
 4. Follow the commit-message style in [CONTRIBUTING.md](CONTRIBUTING.md#commit-style) —
    plain English in the subject line, no file paths or function names.
 5. Be civil. Reviews are conversations.
 
-CI runs typecheck, lint, the Vitest suite, and the `fallow` static-analysis
+CI runs typecheck, lint, the coverage-enabled Vitest suite, and the `fallow` static-analysis
 gate on every PR; a red check blocks merge. Branch deploys are off by
 default — preview deploys are spun up manually on demand when a change needs
 live data the local Docker database can't provide.
