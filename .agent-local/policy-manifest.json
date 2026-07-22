@@ -265,7 +265,9 @@
         "leave the (PR|pull request) open",
         "defer",
         "operator",
-        "check_update_watch_baseline"
+        "check_update_watch_baseline",
+        "comment on the digest issue",
+        "closes on merge"
       ],
       "forbidden": []
     }

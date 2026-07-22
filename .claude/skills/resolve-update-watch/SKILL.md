@@ -78,8 +78,10 @@ in the baseline, and takes a pull request up to, but not through, merge.
 7. Commit in plain English, push the branch, and open a PR whose body states what
    was fixed, what was deferred and why, and what was absorbed. Put `Closes #<issue>`
    in the body so the digest closes automatically when the operator merges — not
-   before. Note that any deferred advisory will re-surface in a future digest
-   until it is patched.
+   before. Then post a comment on the digest issue linking the PR with the same
+   fixed / deferred / absorbed breakdown, so the tracker records its disposition
+   while the PR is open. Note in both that any deferred advisory will re-surface
+   in a future digest until it is patched.
 8. Drive the PR to a mergeable state: run the checks that apply
    (`python3 .agent-local/check_update_watch_baseline.py`, the collector tests,
    and `pnpm verify` where the change touches TypeScript), let CI and the review
@@ -89,9 +91,26 @@ in the baseline, and takes a pull request up to, but not through, merge.
    breakdown and the CI and review status to the operator, and leave the PR open
    for their review.
 
+## Issue lifecycle
+
+The digest issue is the unit of work; own it end to end.
+
+- Link the PR to the issue with `Closes #<issue>` plus a disposition comment; the
+  issue then closes on merge, never before — the fixes and baseline edits only
+  reach the default branch on merge.
+- Do not close the issue by hand while the PR is open. A half-applied digest that
+  is closed early loses the tracker's signal.
+- Deferred findings are not lost when the issue closes: because they are neither
+  fixed nor acknowledged, the next watch run re-files them in a fresh digest. Say
+  so in the disposition comment.
+- If the digest has no remaining actionable or absorbable findings — already
+  handled, superseded, or a duplicate — do not open an empty PR. Close the issue
+  directly with a comment explaining why, and stop.
+
 ## End state
 
-A single open PR that clears the safely-fixable findings, records the
-informational ones, links the digest with `Closes #<issue>`, and is green and
-reviewed — waiting on the operator's merge. Nothing is merged, and nothing
-deferred is hidden.
+Either a single open PR that clears the safely-fixable findings, records the
+informational ones, links the digest with `Closes #<issue>` and a disposition
+comment, and is green and reviewed — waiting on the operator's merge — or, for a
+digest with nothing left to do, a closed issue with an explanatory comment.
+Nothing is merged, and nothing deferred is hidden.
