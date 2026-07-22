@@ -9,10 +9,9 @@ in lint, tests, Fallow, and hooks.
 
 Before changing code:
 
-1. Run `python3 .agent-local/resolve_development_state.py --pretty` and follow
-   the resolver-owned directive. Read `docs/DESIGN_PRINCIPLES.md`, the current
-   `docs/CODE_HEALTH_BASELINE.md`, `docs/SCRATCHPAD.md`, and the resolved
-   roadmap, contract, and approved session plan.
+1. Read `docs/DESIGN_PRINCIPLES.md`, the current `docs/CODE_HEALTH_BASELINE.md`,
+   and `docs/SCRATCHPAD.md`. When the work is already scoped to a roadmap,
+   contract, or approved session plan, read those too.
 2. Use `codegraph explore "<question>"` for an unfamiliar area or use
    `codegraph query "<symbol>"` for a known symbol before grepping. Use
    `callers`, `callees`, or `impact` when the change depends on relationships.
@@ -21,8 +20,18 @@ Before changing code:
    and do not substitute remembered behavior for current documentation.
 4. Read the relevant installed guide under `node_modules/next/dist/docs/`
    before changing Next.js routing, rendering, caching, or configuration.
-5. Stop and raise a conflict if the request violates this guide, the resolver
-   directive, or an approved plan. Do not silently widen the approved scope.
+5. Stop and raise a conflict if the request violates this guide or an approved
+   plan. Do not silently widen the approved scope.
+
+Ordinary task-scoped work — anything that begins from a direct request rather
+than through `start-session` — must not run the lifecycle resolver
+(`.agent-local/resolve_development_state.py`) or reconcile roadmap, contract, or
+session-plan state. The active version plan is one workstream, not a
+repository-wide lock. The resolver answers only "what is the next action in the
+active version plan?"; it is opt-in and owned by the lifecycle skills. Only
+`start-session` and the lifecycle workflows it dispatches run it. Nothing infers
+lifecycle participation from a branch name, `APP_VERSION`, or the existence of an
+active roadmap.
 
 LGI.tools is an incremental EVE Online multi-tool platform. Extend existing
 slices and shared infrastructure without rewriting unrelated working systems.
@@ -153,37 +162,49 @@ Use `pnpm dev:all` for Docker Postgres, Next on `:3000`, and local Convex on
 
 ## Delivery and authorization
 
-All changes ship through PRs to `main`, the only automatic deployment target.
-Use one branch per independently shippable sub-version, not per session.
-Multiple approved sessions may commit to that branch; open one PR only when the
-sub-version is complete.
+All changes ship through PRs to `main`, the only automatic deployment target,
+and every PR runs the shared `close-out` delivery pipeline. Two tracks feed it:
 
-- Version features as `X.Y.N`; use `X.Y.N.M` for ordered session slices.
-- Every notable sub-version, including internal tooling work, needs a matching
-  `APP_VERSION` bump and changelog entry.
-- Small one-offs use `rider/*` only when the resolver reports a rider directive.
-  Riders never change `APP_VERSION`, changelog, or roadmap state. Work needing
-  those changes belongs on the planned track.
+- **Ordinary/out-of-band work** begins from a direct request. It never consults
+  the lifecycle resolver, never reconciles roadmap or session-plan state, and
+  never runs the release-consistency checker. It does not bump `APP_VERSION` or
+  publish a version heading; instead it records one hidden pending changelog
+  fragment in `content/changelog/pending/` (see
+  `docs/workflows/schema/changelog-pending.md`). That fragment is ordinary
+  close-out's only durable lifecycle record.
+- **Planned lifecycle work** begins only through `start-session`, which owns the
+  deterministic `lifecycle/<sub-version>` branch and resolver dispatch. Use one
+  such branch per sub-version; it carries the sub-version's planning and every
+  session until the single sub-version PR merges, and multiple approved sessions
+  may commit to it before that PR opens. Version features as `X.Y.N`; use
+  `X.Y.N.M` for ordered session slices. The final session's PR publishes the
+  planned version, bumps `APP_VERSION`, and absorbs the pending fragments present
+  at its cutoff into the new changelog entry.
 - Branch previews are manual and on demand. They do not authorize production
   action and must be removed after use. Every deployment migrates its own
   database branch; a branch push does not create a preview automatically.
 - For changed user-facing behavior, run `ux-check` and pause for the operator's
   local browser review before opening the PR.
 - When asked to wrap up or ship, invoke `close-out` and follow
-  `docs/workflows/close-out.md`. It owns verification, the final-session design
-  gate, PR and Greptile review, conditional merge, exact production proof, and
-  resolver handoff.
-- `close-out` invocation authorizes only the current sub-version's squash merge
-  after its documented gates pass. It does not authorize merging around a gate
-  or any unrelated production action. A generic Vercel review cannot replace
-  the repository's Greptile gate.
+  `docs/workflows/close-out.md`. It runs the same delivery pipeline in ordinary
+  or planned mode; planned mode is selected only by the resolver directive
+  `start-session` passes it, and the absence of a directive is normal, not an
+  error. It owns verification, the final-session design gate, PR and Greptile
+  review, conditional merge, and exact production proof.
+- `close-out` invocation authorizes only the current change's squash merge after
+  its documented gates pass. It does not authorize merging around a gate or any
+  unrelated production action. A generic Vercel review cannot replace the
+  repository's Greptile gate.
 - PR titles and bodies are public. Exclude personal names, email addresses,
   account handles, machine names, local paths, browser-profile details, and
   private identifiers.
-- Post-merge lifecycle reconciliation remains local and uncommitted until
-  `start-session` creates the resolver-authorized next branch. Never open a
-  follow-up PR or push directly to `main` merely to publish that intentional
-  one-PR document lag.
+- A planned final PR already contains the state that must exist once it merges:
+  the final session marked `Execution status: Complete`, the delivered
+  sub-version's terminal roadmap row, the matching `APP_VERSION`, and the
+  published changelog entry with its absorbed fragments. There is no uncommitted
+  post-merge reconciliation and no follow-up lifecycle-only PR. After a merge,
+  close-out updates its local view from `origin/main`, and the next
+  `start-session` resolves the next action from that already-truthful state.
 
 Commit in plain English. Use a conventional subject under 72 characters,
 lowercase after the prefix, describing the project outcome rather than file or

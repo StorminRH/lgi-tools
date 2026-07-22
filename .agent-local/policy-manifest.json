@@ -6,6 +6,7 @@
     "docs/DESIGN_PRINCIPLES.md",
     "docs/workflows/schema/code-health-baseline.md",
     "docs/workflows/schema/changelog-entry.md",
+    "docs/workflows/schema/changelog-pending.md",
     "docs/workflows/schema/session-contract.md",
     "docs/workflows/schema/session-plan.md",
     "docs/workflows/close-out.md",
@@ -301,6 +302,8 @@
     ".agent-local/check_doc_refs.py",
     ".agent-local/check_lifecycle_evidence.py",
     ".agent-local/check_release_consistency.py",
+    ".agent-local/check_pending_changelog.py",
+    ".agent-local/fold_pending_changelog.py",
     ".agent-local/scrub_pr_body.py",
     ".agent-local/verify_archive.py",
     ".agent-local/repo_measures.py",
@@ -310,6 +313,8 @@
     ".agent-local/test_doc_refs.py",
     ".agent-local/test_lifecycle_evidence.py",
     ".agent-local/test_release_consistency.py",
+    ".agent-local/test_pending_changelog.py",
+    ".agent-local/test_fold_pending_changelog.py",
     ".agent-local/test_scrub_pr_body.py",
     ".agent-local/test_verify_archive.py",
     ".agent-local/test_repo_measures.py",
@@ -379,7 +384,6 @@
       "audit-remediation-plan-needed",
       "audit-restart-ready",
       "archive-needed",
-      "rider",
       "invalid"
     ],
     "allowedHandlers": [
@@ -421,7 +425,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "9e7a71f0686ac2beb8b2203732040edbccdb26f80a3db73dcadf273ab4a285d2"
+      "reconciledHash": "e19b783bde76c9a258eb3e3412f49c94ab2cb52a7c92d9edd414ce0869b690f1"
     },
     "plan-session": {
       "deps": [
@@ -430,7 +434,7 @@
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "d9c49731961340bbc982572459c9d6330020a922a6c80d7ce2dca907b9ebc5f1"
+      "reconciledHash": "f4897753e3b5666c5d62a0f6ecd90d05c751ae05493160c9b89b58e354dbb7d2"
     },
     "start-session": {
       "deps": [
@@ -438,7 +442,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/close-out.md"
       ],
-      "reconciledHash": "56031d34ad7ce9776c3133f4e09c13f361a51c3b4fc230bc5583077bc288b768"
+      "reconciledHash": "65acd478c9cf62ed0b2aca4166cb6babd9fc2fe0d4f0604df2d53cc8c62a5612"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -446,7 +450,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/PRE_PR_DESIGN_REVIEW.md"
       ],
-      "reconciledHash": "0804a6c3f245d82eda68b543c1d21030f5fbca71498183dd46368365d4b25ccd"
+      "reconciledHash": "f6bcfb6b72422ddca529d6dec716a40015715ac036119bc6b30d533e7577fc42"
     },
     "close-out": {
       "deps": [
@@ -454,9 +458,10 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/close-out.md",
         "docs/PRE_PR_DESIGN_REVIEW.md",
-        "docs/workflows/schema/changelog-entry.md"
+        "docs/workflows/schema/changelog-entry.md",
+        "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "b8abf1695fe27a16408e877504b71a1c05cbe6cac766db71701422274e6bdf14"
+      "reconciledHash": "3cc2e919675b8e72af18fe70b415b5f2b0be1a37594ecd377f5e54055a1592df"
     },
     "plan-version-audit": {
       "deps": [
@@ -464,7 +469,7 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/VERSION_AUDIT.md"
       ],
-      "reconciledHash": "2c400609cebc34dc25f2ed032da1177aa7452ca80ae885364eaa61e06b2c2031"
+      "reconciledHash": "359cfd0bd349e5329678752e5c07842d4b554f77256a8044490617fbdd66f657"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -475,7 +480,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "9ef7b426c7f8bbe1c7c8aad6234361c3e5d189d6a1a1e10937096b7a3374e8e3"
+      "reconciledHash": "2fbb3e6f35789f85b76e9a5861f3338b441f1b82078fbfd714769902a2f1559c"
     },
     "version-audit": {
       "deps": [
@@ -484,7 +489,7 @@
         "docs/VERSION_AUDIT.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "847f2d152bf105b6f10e3f171a7d753037b4e98f8b3e307b9ad37db74cb562f2"
+      "reconciledHash": "c3ff16c216ac09dea1beba424c61760fddc18cd8302a2a72c6bc33109832a262"
     },
     "triage-issue": {
       "deps": [
@@ -492,28 +497,28 @@
         "docs/DESIGN_PRINCIPLES.md",
         "docs/workflows/schema/changelog-entry.md"
       ],
-      "reconciledHash": "82e54aa683284af965b1d286b4b2ff8fe737fcbdf1347144e05cc7b7ca4c7589"
+      "reconciledHash": "a6591c4d3ebaf821a281e8bf2a1b835c1f1fb87b309b1ada4a4b1cb224019b94"
     },
     "ux-check": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md"
       ],
-      "reconciledHash": "36383dc5bfe7c96a4d5e8ba38ccb3bb44b429e0e9361c9e44e7ca02780008751"
+      "reconciledHash": "588b80718fcdafd0ec6545579b740fdd6c8657971b3d253ebdfd77340de7aa96"
     },
     "update-watch": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md"
       ],
-      "reconciledHash": "36383dc5bfe7c96a4d5e8ba38ccb3bb44b429e0e9361c9e44e7ca02780008751"
+      "reconciledHash": "588b80718fcdafd0ec6545579b740fdd6c8657971b3d253ebdfd77340de7aa96"
     },
     "resolve-update-watch": {
       "deps": [
         "AGENTS.md",
         "docs/DESIGN_PRINCIPLES.md"
       ],
-      "reconciledHash": "36383dc5bfe7c96a4d5e8ba38ccb3bb44b429e0e9361c9e44e7ca02780008751"
+      "reconciledHash": "588b80718fcdafd0ec6545579b740fdd6c8657971b3d253ebdfd77340de7aa96"
     }
   }
 }

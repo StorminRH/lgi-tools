@@ -25,21 +25,30 @@ Run `python3 .agent-local/resolve_development_state.py --pretty`. Read its
 stage-to-skill routing table. Before acting, report the directive's action,
 reason, authority, primary artifact, branch, and pause in plain language.
 
-After reporting the directive and before dispatch, run the directive's
+start-session owns deterministic lifecycle-branch selection before dispatch. The
+directive's `branch` field is the canonical `lifecycle/<sub-version>` name — a
+pure function of the sub-version with no runtime prefix and no slug. Enter it
+without destroying local work: (1) `git fetch origin main` to refresh
+`origin/main` without discarding local changes or force-moving refs; (2) resolve
+current `origin/main` far enough to read the active sub-version and compute its
+exact `lifecycle/<sub-version>` branch; (3) fetch that ref explicitly
+(`git fetch origin lifecycle/<sub-version>`, or `git ls-remote --heads origin
+lifecycle/<sub-version>` to test existence) so the decision reads true remote
+state, not a stale single-branch checkout; (4) if it exists on the remote, check
+it out and fast-forward it, otherwise create it from current `origin/main`;
+(5) re-run the resolver on the selected branch and treat and report that second
+result as the authoritative directive. Block safely — moving or deleting nothing — on a dirty
+or conflicting worktree. A fresh cloud session invoked from `main` therefore
+discovers a pushed non-final lifecycle branch and resumes the correct next
+session with no operator branch instructions. The current branch never changes
+the logical lifecycle stage or authorizes a bypass, and branch names carry no
+special meaning.
+
+After selecting the branch and before dispatch, run the authoritative directive's
 `preDispatchGate`. It currently resolves to `python3
 .agent-local/check_release_consistency.py --check`. The recognized release-identity
 signatures — pre-PR, reconciled, and the new-version opening transient — are valid
 rest states; any other release identity blocks dispatch as lifecycle drift.
-
-The resolver owns the branch name: cut it at the start of the action, never at the
-end of the previous one. The directive's `branch` field is that authority — for an
-execute session it names the sub-version the branch must embed, so open a
-`<runtime>/<sub-version>-<slug>` branch (never `main`) before executing and make any
-carried post-merge lifecycle reconciliation that branch's first commit, then run
-`check_release_consistency.py --check --expect reconciled`. A `rider` stage — a null
-handler on a `rider/*` branch — is an unversioned flow-track one-off: do the declared
-change and stop; never bump `APP_VERSION`, the changelog, or the roadmap, and dispatch
-no lifecycle handler.
 
 If `handler` is null, stop at the named pause. Otherwise follow only the named
 handler skill, create the native Codex todo list from that handler and its owning
