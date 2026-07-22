@@ -676,7 +676,10 @@ def render_service_section(deltas: list[dict]) -> str:
         )
         span = ""
         if dated:
-            span = f" · {dated[0]}" if dated[0] == dated[-1] else f" · {dated[0]} → {dated[-1]}"
+            # Escape the dates too: they come from the same untrusted feed content
+            # as the titles and land in the HTML <summary> tag.
+            low, high = _inline(dated[0]), _inline(dated[-1])
+            span = f" · {low}" if low == high else f" · {low} → {high}"
         plural = "s" if len(items) != 1 else ""
         summary = f"<summary><strong>{name}</strong> — {len(items)} item{plural}{span}</summary>"
         bullets = "\n".join(_render_service_item(f) for f in items)

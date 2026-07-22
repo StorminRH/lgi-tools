@@ -521,6 +521,25 @@ class RenderTests(unittest.TestCase):
         # The hostile close tag is HTML-escaped, so it cannot terminate the block.
         self.assertIn("sneaky &lt;/details&gt; here", body)
 
+    def test_hostile_service_date_is_escaped_in_the_summary(self) -> None:
+        state = state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}})
+        deltas = compute_deltas(
+            state,
+            [
+                {
+                    "source": "Neon",
+                    "title": "ok",
+                    "date": "2026-07-20</summary><script>",
+                    "url": "https://neon.com/x",
+                    "summary": "s",
+                }
+            ],
+            [],
+        )
+        # The date lands in the HTML <summary> tag, so it is escaped like every
+        # other untrusted field.
+        self.assertIn("2026-07-20&lt;/summary&gt;&lt;script&gt;", render_issue_body(deltas))
+
     def test_backslash_prefixed_bracket_title_stays_escaped(self) -> None:
         state = state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}})
         deltas = compute_deltas(
