@@ -113,7 +113,7 @@ and CI, then offer `approve & merge` (via `close-out`) · `request changes`
 
 ## The directions menu (quick reference)
 
-```
+```text
 Validity → Scope → Response
   valid / partial / false-positive / needs-info / duplicate / works-as-intended
   trivial / contained / tip-of-iceberg

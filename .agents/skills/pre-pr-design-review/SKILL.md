@@ -23,4 +23,5 @@ Invocation permits read-only review. Parent-authorized fixes remain in scope. No
 
 ## Return
 
-Return PASS or BLOCKED with evidence. Identify checks invalidated by fixes.
+Return the canonical procedure's exact result block unchanged, including the
+finding dispositions, invalidated verification, and `Design notes:` block.

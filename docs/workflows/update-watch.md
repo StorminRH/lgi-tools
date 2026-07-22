@@ -43,10 +43,11 @@
    surface changes** as one collapsible `<details>` block per source that lists
    each announcement as a linked title with its one-line summary, followed by a
    single collapsed housekeeping block holding the fenced `update-watch-deltas`
-   key block and the absorption note (record each reported canonical id in
-   `docs/UPDATE_WATCH_BASELINE.md` during a normal session, advancing
-   `scanSince` only when every currently in-window item for that source is
-   acknowledged — partial absorption keeps the window). Do not hand-author,
+   key block and the absorption note (`docs/workflows/resolve-update-watch.md`
+   owns normal-session absorption: record each reported canonical id in
+   `docs/UPDATE_WATCH_BASELINE.md`, advancing `scanSince` only when every
+   currently in-window item for that source is acknowledged — partial
+   absorption keeps the window). Do not hand-author,
    reorder, or re-escape the body.
 6. On a `quiet` or `refused` verdict, perform no outward write.
 7. Print the collector's end-of-run summary verbatim as the final output.

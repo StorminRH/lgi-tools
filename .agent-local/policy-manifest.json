@@ -457,7 +457,7 @@
         "docs/workflows/triage-issue.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "6e059049b193134efe8922cce531befc666f809f95a26d9714d06030480aa2de"
+      "reconciledHash": "92200d1ec9f91ad87ba51c1d5b921bd7561b3bf007679c2be5385d0740f52c55"
     },
     "ux-check": {
       "deps": [
@@ -472,7 +472,7 @@
         "AGENTS.md",
         "docs/workflows/update-watch.md"
       ],
-      "reconciledHash": "06dd388366d59f37f54130eded44babf0683d48de6421ee9939a869a66a020eb"
+      "reconciledHash": "933092fb1e70e5369f9bfa59f90a9815a29261ab6e79c1b01ebf528e537d7e3f"
     },
     "resolve-update-watch": {
       "deps": [
@@ -547,6 +547,47 @@
       ".claude/skills/resolve-update-watch/SKILL.md"
     ],
     "minimumWords": 12,
-    "exceptions": []
+    "exceptions": [
+      {
+        "sentence": "Invocation permits the current change's squash merge only through the canonical procedure's merge gate and only when the run is eligible to return MERGED; SESSION_HANDOFF and BLOCKED never authorize a merge.",
+        "paths": [
+          ".agents/skills/close-out/SKILL.md",
+          ".claude/skills/close-out/SKILL.md"
+        ],
+        "reason": "The paired runtime adapters must expose the same narrow merge authorization boundary."
+      },
+      {
+        "sentence": "Return the canonical procedure's exact result block unchanged, including the delivery outcome and fresh resolver directive.",
+        "paths": [
+          ".agents/skills/close-out/SKILL.md",
+          ".claude/skills/close-out/SKILL.md"
+        ],
+        "reason": "The paired runtime adapters must preserve the same canonical return shape."
+      },
+      {
+        "sentence": "After the procedure reruns the resolver and drift gate, return the approved audit plan and resulting fresh directive.",
+        "paths": [
+          ".agents/skills/plan-version-audit/SKILL.md",
+          ".claude/skills/plan-version-audit/SKILL.md"
+        ],
+        "reason": "The paired runtime adapters share the same audit-planning return precondition."
+      },
+      {
+        "sentence": "Archival is permitted only after the clean-close checks and baseline replacement are complete and the resolver returns archive-needed.",
+        "paths": [
+          ".agents/skills/version-audit/SKILL.md",
+          ".claude/skills/version-audit/SKILL.md"
+        ],
+        "reason": "The paired runtime adapters must expose the same archival authority boundary."
+      },
+      {
+        "sentence": "Return the canonical procedure's exact result block unchanged, including the finding dispositions, invalidated verification, and Design notes block.",
+        "paths": [
+          ".agents/skills/pre-pr-design-review/SKILL.md",
+          ".claude/skills/pre-pr-design-review/SKILL.md"
+        ],
+        "reason": "The paired runtime adapters must preserve the same design-review return shape."
+      }
+    ]
   }
 }

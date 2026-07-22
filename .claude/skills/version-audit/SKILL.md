@@ -15,7 +15,9 @@ Procedure: `docs/workflows/version-audit.md`.
 
 ## Invocation authority
 
-Invocation permits audit-local records. Approved clean close plans may permit verified archival. No merge or deployment is authorized.
+Invocation permits audit-local records. Archival is permitted only after the
+clean-close checks and baseline replacement are complete and the resolver
+returns `archive-needed`. No merge or deployment is authorized.
 
 ## Claude Code runtime mechanics
 

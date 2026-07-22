@@ -13,9 +13,9 @@
 > because it relies on those enforced architecture and ownership boundaries,
 > then closes the remaining primitive-adoption and visual-consistency gaps.
 >
-> Pairs with the canonical contract template (which Phase 0 extracts from
-> `docs/SESSION_CONTRACTS.md`, with the resolver validating contract structure
-> against it) and the contracts `plan-version` will derive from it.
+> Pairs with the canonical contract template at
+> `docs/workflows/schema/session-contract.md` and the contracts `plan-version`
+> will derive from it.
 > The roadmap below is the source of truth for goals, outcomes, invariants,
 > genuine dependencies, and approved sequence. Proposed sub-version, session,
 > branch, and PR boundaries are provisional until `plan-version` adversarially

@@ -16,7 +16,9 @@ Procedure: `docs/workflows/close-out.md`.
 
 ## Authorization
 
-Invocation permits the current change's squash merge.
+Invocation permits the current change's squash merge only through the
+canonical procedure's merge gate and only when the run is eligible to return
+`MERGED`; `SESSION_HANDOFF` and `BLOCKED` never authorize a merge.
 All documented gates must pass on the current head.
 No unrelated production action is authorized.
 The procedure selects planned or ordinary mode.
@@ -30,4 +32,5 @@ A missing directive means ordinary mode.
 
 ## Return
 
-Return the delivery outcome and fresh resolver directive.
+Return the canonical procedure's exact result block unchanged, including the
+delivery outcome and fresh resolver directive.
