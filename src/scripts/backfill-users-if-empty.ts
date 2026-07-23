@@ -19,8 +19,8 @@ config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 import postgres from 'postgres';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
-import { withAdvisoryLock, type ReservedConnection } from './advisory-lock';
-import { resolveLockConnectionUrl } from './index';
+import { withAdvisoryLock, type ReservedConnection } from '@/db/advisory-lock';
+import { resolveLockConnectionUrl } from '@/db';
 import { runScript } from './script-runtime';
 
 if (!readEnv('DATABASE_URL')) {

@@ -32,8 +32,8 @@ import {
 import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import { resolveAllTrees } from '../data/eve-data/tree-resolver';
-import { withAdvisoryLock } from './advisory-lock';
-import { resolveLockConnectionUrl } from './index';
+import { withAdvisoryLock } from '@/db/advisory-lock';
+import { resolveLockConnectionUrl } from '@/db';
 import { runScript } from './script-runtime';
 import { describeSdeStandDown, hasCompleteSdeData } from './sde-bootstrap';
 import { runSdePipeline } from '@/composition/pipelines/sde-pipeline';
@@ -56,7 +56,7 @@ try {
 }
 
 // max: 2 — one connection holds the advisory lock, the other runs the
-// data ops. Same pattern as src/db/refresh-prices.ts.
+// data ops. Same pattern as src/scripts/refresh-prices.ts.
 const client = postgres(lockUrl, { max: 2 });
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 

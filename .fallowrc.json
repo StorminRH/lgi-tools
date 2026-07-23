@@ -4,12 +4,12 @@
   "ignoreExportsUsedInFile": true,
 
   "entry": [
-    "src/db/migrate.ts",
-    "src/db/backfill-users-if-empty.ts",
-    "src/db/ingest-sde-if-empty.ts",
-    "src/db/ingest-sde.ts",
-    "src/db/refresh-prices.ts",
-    "src/db/refresh-sde.ts",
+    "src/scripts/migrate.ts",
+    "src/scripts/backfill-users-if-empty.ts",
+    "src/scripts/ingest-sde-if-empty.ts",
+    "src/scripts/ingest-sde.ts",
+    "src/scripts/refresh-prices.ts",
+    "src/scripts/refresh-sde.ts",
     "scripts/validate-resolver-output.ts",
     "scripts/assert-route-classification.mjs",
     "scripts/ux-capture.mjs",
@@ -99,6 +99,7 @@
       },
       { "name": "api", "patterns": ["src/app/api/**"] },
       { "name": "app", "patterns": ["src/app/**"] },
+      { "name": "scripts", "patterns": ["src/scripts/**"] },
       { "name": "transport", "patterns": ["src/transport/**"] },
       { "name": "db", "patterns": ["src/db/**"] },
       { "name": "config", "patterns": ["src/config/**"] },
@@ -258,6 +259,17 @@
           "platform/search",
           "platform/page-settings",
           "transport"
+        ]
+      },
+      {
+        "from": "scripts",
+        "allow": [
+          "composition",
+          "platform/auth",
+          "data",
+          "db",
+          "lib",
+          "config"
         ]
       },
       {

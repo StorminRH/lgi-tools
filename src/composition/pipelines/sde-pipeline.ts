@@ -5,8 +5,8 @@
 // those two slices isolated from each other (Industry Planner math
 // will compose them similarly).
 //
-// Callers: src/db/ingest-sde-if-empty.ts (vercel-build),
-//          src/db/refresh-sde.ts (CLI recovery hook),
+// Callers: src/scripts/ingest-sde-if-empty.ts (vercel-build),
+//          src/scripts/refresh-sde.ts (CLI recovery hook),
 //          src/app/api/cron/refresh-sde/route.ts (daily drift cron).
 
 import { sql } from 'drizzle-orm';
