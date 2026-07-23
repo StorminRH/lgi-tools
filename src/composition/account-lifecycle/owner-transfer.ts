@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { runPurge } from '@/purge/orchestrator';
+import { runPurge } from '@/composition/purge/orchestrator';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountMatch } from '@/platform/auth/eve-account-shared';
 import { classifyOwnerReconcile } from '@/platform/auth/owner-reconcile';

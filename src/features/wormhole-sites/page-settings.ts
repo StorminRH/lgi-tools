@@ -5,7 +5,7 @@
 // its control). Per D-7, /sites declares no character strip (it is pure settings).
 
 import { sitesView, sitesDetailMode } from '@/lib/preferences';
-import type { PageSettingsSpec } from '@/page-settings/types';
+import type { PageSettingsSpec } from '@/platform/page-settings/types';
 
 /** Declarative wormhole catalogue controls registered with the shared page-settings system. */
 export const sitesPageSettings: PageSettingsSpec = {

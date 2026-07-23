@@ -3,8 +3,8 @@
 // the per-keystroke matcher synchronous and zero-RPC, while the data
 // itself is server-rendered from `getSiteSearchIndex()`.
 
-import type { SearchResult, SearchSource } from '@/search';
-import { fuzzyMatch, type FuzzyMatch } from '@/search/match';
+import type { SearchResult, SearchSource } from '@/platform/search';
+import { fuzzyMatch, type FuzzyMatch } from '@/platform/search/match';
 import { formatIskCompact } from '@/lib/format/isk';
 import type { SiteSearchEntry } from './queries';
 import { CLASS_TONE, SITE_TYPE_LABEL } from './components/wormhole-styles';

@@ -1,8 +1,7 @@
 // The page-settings spec — the TYPE each feature exports to the settings
 // presentation registry (ACCOUNT.4). Leaf, value-free: a feature imports only
-// this type (`import type { PageSettingsSpec } from '@/page-settings/types'`),
-// so the type edge drags in no engine runtime (the @/purge/types precedent). The
-// engine (./index) and the wiring manifest (./register-all) build on it.
+// this type, so the type edge drags in no engine runtime. The platform engine
+// and composition wiring manifest build on it.
 //
 // A spec is pure DATA. It declares which value-registry settings a page surfaces
 // (by key) and where, plus an optional per-surface character-strip opt-in. It

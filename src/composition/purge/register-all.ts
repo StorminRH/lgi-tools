@@ -1,9 +1,6 @@
-// Purge-contributor wiring manifest. Lives in the unclassified src/purge/ layer
-// ABOVE the feature/data slices (the src/search/register-all.ts pattern): it PULLS
-// each slice's exported purge contributor and composes them into one list the
-// orchestrator runs and the CI gate audits. No slice imports a layer above itself —
-// slices import only the contributor TYPE from @/purge/types. This manifest is the
-// single consumer that keeps every contributor reachable (no unused-exports).
+// Purge-contributor wiring manifest. Composition pulls each slice's exported
+// purge contributor into the one list the orchestrator runs and the CI gate
+// audits. Slices import only the platform-owned contributor contract.
 //
 // The PURGE_CONTRIBUTORS array below is listed in tier order for readability (the
 // imports are path-grouped); the orchestrator sorts by tier regardless.
@@ -19,7 +16,7 @@ import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';
 import { esiRefreshJobsPurgeContributor } from '@/data/esi-refresh-jobs/purge';
 import { telemetryPurgeContributor } from '@/data/telemetry/purge';
-import type { PurgeContributor } from './types';
+import type { PurgeContributor } from '@/platform/purge/types';
 
 /**
  * Complete personal-data purge contributor registry; every user or character-keyed table must be

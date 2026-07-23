@@ -7,7 +7,7 @@
 // extended — never edited — by the scoped-invariants suite below them.
 //
 // Test-file rules that keep the anchor honest:
-//  - `import '@/search/register-all'` populates the module registry exactly as
+//  - `import '@/composition/search/register-all'` populates the module registry exactly as
 //    the app shell does at boot. NEVER call `__resetSearchSources()` here — it
 //    would empty the manifest-populated registry for the whole file. (Vitest
 //    gives each test file its own module registry, so search.test.ts's
@@ -46,8 +46,8 @@ vi.mock('@/transport/api-client', () => ({
       : { ok: true, status: 200, data: { blueprints: BP_FIXTURE } }),
 }));
 
-import '@/search/register-all';
-import { listRegisteredSources, searchAll, type SearchContext, type SearchResult, type SearchSection } from '@/search';
+import '@/composition/search/register-all';
+import { listRegisteredSources, searchAll, type SearchContext, type SearchResult, type SearchSection } from '@/platform/search';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import type { Session } from '@/platform/auth/types';

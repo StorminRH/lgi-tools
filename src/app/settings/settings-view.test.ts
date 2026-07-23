@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SharingCorpView } from '@/features/owned-structures/components/CorpSharingSettings';
 import type { CorpStructurePageView } from '@/features/owned-structures/types';
-import type { PageControlModel } from '@/page-settings/controls';
+import type { PageControlModel } from '@/platform/page-settings/controls';
 import { deriveSettingsView, settingsNeedsCorpSharing, toManagerCorps } from './settings-view';
 
 const preference = (key: string): PageControlModel => ({

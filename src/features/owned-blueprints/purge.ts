@@ -3,7 +3,7 @@
 // rows for this character, never the corp-shared rows. Regenerable ESI mirror.
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/purge/types';
+import type { PurgeContributor } from '@/platform/purge/types';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
 /**

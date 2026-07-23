@@ -5,9 +5,9 @@
 // name string — the gate reads the SQL name off the object) and provides the
 // teardown(s) the orchestrator runs.
 //
-// This is the leaf type module of the unclassified src/purge/ junction (the
-// src/search/ pattern): slices import ONLY this type from @/purge/types, never a
-// layer above themselves, so there is no cross-slice or feature→junction value edge.
+// Leaf purge socket: slices import only this platform contract, never a
+// registry or orchestrator. Composition pulls their exported contributors
+// together above them.
 import type { PgTable } from 'drizzle-orm/pg-core';
 
 /**

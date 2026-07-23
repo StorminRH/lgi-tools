@@ -20,7 +20,7 @@ import type { PanelCharacter } from '@/components/live-character-card';
 import { usePreference } from '@/components/PreferencesProvider';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import type { CharacterStripSpec } from '@/page-settings/types';
+import type { CharacterStripSpec } from '@/platform/page-settings/types';
 
 /**
  * Connects a page-settings character-strip declaration to roster and online state, then renders

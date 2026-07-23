@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SearchResult, SearchSection } from '@/search';
+import type { SearchResult, SearchSection } from '@/platform/search';
 import { pillToneClasses } from '@/components/ui/pill';
 import { blueprintImage, itemImage } from '@/data/eve-data/type-images';
 import {

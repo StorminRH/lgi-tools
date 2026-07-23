@@ -6,8 +6,8 @@
 
 import { apiFetch } from '@/transport/api-client';
 import { blueprintImage } from '@/data/eve-data/type-images';
-import type { SearchSource } from '@/search';
-import { rankFuzzyResults } from '@/search/rank';
+import type { SearchSource } from '@/platform/search';
+import { rankFuzzyResults } from '@/platform/search/rank';
 import { blueprintsEndpoint } from './api-contract';
 import type { BlueprintIndexEntry } from './types';
 

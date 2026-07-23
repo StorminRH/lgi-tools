@@ -5,9 +5,9 @@ import {
   listPageSettings,
   registerPageSettings,
   resolvePageSettings,
-} from '@/page-settings';
-import { FEATURE_CONTROL_IDS } from '@/page-settings/feature-controls';
-import { PAGE_SETTINGS_SPECS } from '@/page-settings/register-all';
+} from '@/platform/page-settings';
+import { FEATURE_CONTROL_IDS } from '@/platform/page-settings/feature-controls';
+import { PAGE_SETTINGS_SPECS } from '@/composition/page-settings/register-all';
 
 // Importing register-all (for PAGE_SETTINGS_SPECS) also runs its side-effect
 // registration once; reset before each test so the engine cases start clean. The

@@ -34,15 +34,24 @@
 //    For sources whose rows have no real navigation target yet (systems):
 //    the command bar never sees them, embedded pickers query them by id.
 
-import type { useRouter } from 'next/navigation';
-import type { EveImageDescriptor } from '@/data/eve-data/type-images';
-import type { Session } from '@/platform/auth/types';
-
 /**
  * Minimal navigation port required by global search so sources can navigate without depending on
  * the full Next.js router.
  */
-export type AppRouterInstance = ReturnType<typeof useRouter>;
+export type AppRouterInstance = {
+  push: (href: string) => void;
+};
+
+/** Image descriptor shape search sources may attach without depending on an owning data slice. */
+export type SearchImageDescriptor = {
+  typeId: number;
+  variant: 'icon' | 'render' | 'bp' | 'bpc';
+};
+
+/** Minimal authenticated-session shape needed by search-source visibility rules. */
+export type SearchSession = {
+  characterId: number;
+};
 
 /**
  * One display-ready global-search result with stable source identity, score, matched indexes, and
@@ -58,7 +67,7 @@ export type SearchResult = {
   iconTone?: string;
   // Resolved type-image descriptor set only by sources whose rows map to a
   // specific EVE image. Takes precedence over typeId when both are present.
-  icon?: EveImageDescriptor;
+  icon?: SearchImageDescriptor;
   // EVE product/type identity retained for ranking and search-recents
   // compatibility. When icon is absent, the dropdown renders this type's item
   // icon; when both are absent, it shows the iconText glyph.
@@ -84,7 +93,7 @@ export type SearchResult = {
 
 /** Runtime context supplied to search sources, including navigation and any shared catalogue data. */
 export type SearchContext = {
-  session: Session | null;
+  session: SearchSession | null;
   // Precomputed server-side because `isAdmin()` consults the env-only
   // `SUPERADMIN_CHARACTER_ID`. Don't try to recompute on the client.
   isAdmin: boolean;
@@ -167,7 +176,7 @@ export function registerSearchSource(source: SearchSource): void {
  *     load: () =\> import('./blueprints-source').then((m) =\> m.blueprintsSource),
  *   \};
  *
- *   // in src/search/register-all.ts:
+ *   // in src/composition/search/register-all.ts:
  *   registerLazySearchSource(blueprintsSearchSource);
  *
  * The wrapper presents the same SearchSource shape as a static source

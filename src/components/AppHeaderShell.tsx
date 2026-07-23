@@ -25,7 +25,7 @@ import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 // Component) because Next.js's server + client module graphs are separate
 // — each side has its own `sources[]` array, and the search dropdown
 // renders client-side.
-import '@/search/register-all';
+import '@/composition/search/register-all';
 
 /**
  * Composes the global header's navigation, search, page menu, status, and account controls from

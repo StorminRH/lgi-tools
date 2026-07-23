@@ -13,8 +13,8 @@ import {
   CorpSharingSettings,
   type SharingCorpView,
 } from '@/features/owned-structures/components/CorpSharingSettings';
-import { accountPageSettings } from '@/page-settings/account';
-import { resolvePageControls } from '@/page-settings/controls';
+import { accountPageSettings } from '@/platform/page-settings/account';
+import { resolvePageControls } from '@/platform/page-settings/controls';
 import { SettingsControlRow } from './settings-control-row';
 import {
   deriveSettingsView,

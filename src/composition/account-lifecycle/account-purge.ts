@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { runPurge } from '@/purge/orchestrator';
+import { runPurge } from '@/composition/purge/orchestrator';
 import { eveAccountsForUser } from '@/platform/auth/eve-account-shared';
 import { revokeCharacterToken } from '@/platform/auth/eve-token-service';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';

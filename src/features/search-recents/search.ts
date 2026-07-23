@@ -5,8 +5,8 @@
 // the SearchContext's `recents` array (populated by GlobalSearch on mount
 // via `readRecents()`).
 
-import type { SearchResult, SearchSource } from '@/search';
-import { fuzzyMatch } from '@/search/match';
+import type { SearchResult, SearchSource } from '@/platform/search';
+import { fuzzyMatch } from '@/platform/search/match';
 
 /**
  * Global-search source for recents search source; it owns matching and result mapping while the

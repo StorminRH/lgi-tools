@@ -2,7 +2,7 @@
 // rows are a regenerable ESI mirror keyed by character, torn down with the character.
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/purge/types';
+import type { PurgeContributor } from '@/platform/purge/types';
 import { characterSkills, characterSkillSyncs } from './schema';
 
 /**
