@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Poll a PR until Greptile reviews the current head or CI finishes.
+"""Poll a PR until Greptile reviews the current head, CI finishes, or every bot
+and check on the head goes quiet.
 
 Examples:
   python3 .agent-local/poll_pr_gate.py StorminRH/lgi-tools 228 greptile
   python3 .agent-local/poll_pr_gate.py StorminRH/lgi-tools 228 checks
+  python3 .agent-local/poll_pr_gate.py StorminRH/lgi-tools 228 quiescent
 
-The script prints only state changes, then the final review/check details. It
-returns 0 for a clean current-head Greptile 5/5 or green checks, and 2 when a
-completed gate contains findings or failures.
+The script prints only state changes, then the final details. `greptile` and
+`checks` return 0 for a clean current-head Greptile 5/5 or green checks and 2
+when a completed gate contains findings or failures. `quiescent` waits until the
+head's check-run set is complete and stable (so a late-registering bot is never
+missed) and always returns 0 — it reports that every reviewer is done so fixes
+can be batched before the next push, and leaves the pass/fail verdict to the
+`greptile` gate and the merge helper.
 """
 
 from __future__ import annotations
@@ -88,11 +94,32 @@ def checks_state(repo: str, number: int, token: str) -> tuple[str, bool, bool, d
     return label, done, clean, detail
 
 
+def quiescent_state(repo: str, number: int, token: str) -> tuple[str, frozenset[str], bool, dict[str, object]]:
+    pull = get(f"/repos/{repo}/pulls/{number}", token)
+    assert isinstance(pull, dict)
+    head_sha = str(pull["head"]["sha"])
+    checks = get(f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token)
+    assert isinstance(checks, dict)
+    runs = checks.get("check_runs", [])
+    assert isinstance(runs, list)
+    names = frozenset(str(run.get("name", "")) for run in runs if isinstance(run, dict))
+    completed = bool(runs) and all(run.get("status") == "completed" for run in runs)
+    detail = {
+        "head": head_sha,
+        "runs": [
+            {"name": run.get("name"), "status": run.get("status"), "conclusion": run.get("conclusion")}
+            for run in runs
+        ],
+    }
+    label = f"head={head_sha[:8]} checks={len(names)} completed={completed}"
+    return label, names, completed, detail
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("repo")
     parser.add_argument("number", type=int)
-    parser.add_argument("gate", choices=("greptile", "checks"))
+    parser.add_argument("gate", choices=("greptile", "checks", "quiescent"))
     parser.add_argument("--interval", type=int, default=30)
     parser.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args()
@@ -100,6 +127,7 @@ def main() -> int:
     token = github_token()
     deadline = time.monotonic() + args.timeout
     last_label = None
+    stable_names: frozenset[str] | None = None
     while time.monotonic() < deadline:
         now = dt.datetime.now().astimezone().strftime("%H:%M:%S")
         if args.gate == "greptile":
@@ -116,6 +144,17 @@ def main() -> int:
                     for finding in inline:
                         print(f"{finding.get('path')}:{finding.get('line')}\n{finding.get('body')}\n")
                 return 0 if clean else 2
+        elif args.gate == "quiescent":
+            label, names, completed, detail = quiescent_state(args.repo, args.number, token)
+            if label != last_label:
+                print(f"[{now}] {label}", flush=True)
+                last_label = label
+            # Require the completed check-run set to hold for one interval so a
+            # bot that has not yet registered its run cannot read as done.
+            if completed and names and names == stable_names:
+                print(detail)
+                return 0
+            stable_names = names if completed else None
         else:
             label, done, clean, detail = checks_state(args.repo, args.number, token)
             if label != last_label:

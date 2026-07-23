@@ -411,7 +411,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "c79829d1e00f64aa7d9bac32a03f11b6667cc5f856483c01dc5feeea772dbc7f"
+      "reconciledHash": "fa66c5320f802701313a824d27147d4b40af5d2a01a955d602d3d0f22d714451"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -431,7 +431,7 @@
         "docs/workflows/schema/changelog-entry.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "89c56e6b1f14db05dd1d5ab01bd79527bec3a29063d5e7a71e7e46a98ea9c3e4"
+      "reconciledHash": "8dd68f21ad32bfeb5b6d161928f8414c1ba27f3fcb49962e0838da556f303aec"
     },
     "plan-version-audit": {
       "deps": [
