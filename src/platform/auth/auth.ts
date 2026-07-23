@@ -1,3 +1,5 @@
+import 'server-only';
+
 // The Better Auth server instance — the spine of identity/authz (3.4.1a).
 //
 // Replaces the hand-rolled JWE-cookie + EVE PKCE flow with Better Auth on the

@@ -1,3 +1,5 @@
+import 'server-only';
+
 // Pure EVE SSO helpers. Zero DB imports, zero `next/headers` imports.
 // HTTP + JWT verification + claim parsing only.
 
