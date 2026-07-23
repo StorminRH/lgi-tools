@@ -16,7 +16,7 @@ import { v } from 'convex/values';
 import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import { parseOnlineBody } from '@/features/online-status/esi-projection';
 import { canSyncOnline } from '@/features/online-status/sync-eligibility';
-import { EsiBudgetExhaustedError } from '@/lib/esi';
+import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { internal } from './_generated/api';
 import { internalAction } from './_generated/server';
 import {
@@ -26,7 +26,7 @@ import {
   type SyncEnv,
   vendCharacterToken,
 } from './lib/characterSync';
-import { readEsiAuthed, type RlSnapshot } from '@/lib/esi/authed-read';
+import { readEsiAuthed, type RlSnapshot } from '@/platform/esi/authed-read';
 
 // Fallback freshness window when a response carries no parseable Expires header.
 // Matches the live-observed online cache (~60s) but is a last resort — the header

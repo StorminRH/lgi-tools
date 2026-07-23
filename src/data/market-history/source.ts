@@ -4,7 +4,7 @@ import {
   EsiContractError,
   esiFetch,
   esiUrl,
-} from '@/lib/esi';
+} from '@/platform/esi';
 import { dedupe } from '@/lib/array';
 import {
   HISTORY_FETCH_CONCURRENCY,
@@ -18,7 +18,7 @@ import type { HistoryDailyRow, RawHistory } from './types';
 //
 // Gate-level 304/body caching is deliberately NOT used here. As the app fetches
 // it (gzip), history is chunked with no Content-Length, so the gate's
-// captureBodyForCache skips it by design (see src/lib/esi/index.ts) — and our
+// captureBodyForCache skips it by design (see src/platform/esi/index.ts) — and our
 // own Expires-gated stale_after already deduplicates same-day re-fetches. After
 // the TTL (the Expires boundary = CCP's daily recompute) the data has changed,
 // so the refetch is a 200-with-new-data, not a 304 — the 304-reuse window is

@@ -1,7 +1,7 @@
 // The on-view corp owned-structures refresh (3.7.9; engine-backed). PURE
 // orchestration: refreshCorpStructuresForUser builds an OwnerSyncDescriptor from the
 // injected port (types.ts) + this slice's pure helpers and hands it to the shared
-// per-owner sync engine (src/lib/owner-sync). It imports no auth and no DB, so it
+// per-owner sync engine (src/platform/owner-sync). It imports no auth and no DB, so it
 // stays inside the feature boundary and is unit-tested with a fake port. The real
 // port is wired in src/db/corp-structures-sync.ts.
 //
@@ -14,7 +14,7 @@
 // no Station_Manager member resolves to `needs_role`, which — with NO saveGateState
 // defined — is a plain skip, so a role-less member never clobbers the shared catalogue.
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
-import { makeCorpDescriptor, planRead, runOwnerSync } from '@/lib/owner-sync';
+import { makeCorpDescriptor, planRead, runOwnerSync } from '@/platform/owner-sync';
 import { CORP_STRUCTURES_REQUIRED_ROLES, canSyncCorpStructures } from './corp-sync-eligibility';
 import { type ParsedCorpStructure, parseCorpStructuresBody } from './esi-projection';
 import type { CorpOwner, CorpStructuresPort, CorpStructuresSyncState } from './types';

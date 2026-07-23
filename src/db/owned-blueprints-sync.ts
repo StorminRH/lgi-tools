@@ -19,7 +19,7 @@ import {
 import { getOwnedBlueprintMap, readOwnerSyncState, saveOwnedBlueprints, stampOwnerFresh } from '@/features/owned-blueprints/queries';
 import { refreshOwnedBlueprintsForUser } from '@/features/owned-blueprints/refresh';
 import type { OwnedBlueprintsPort } from '@/features/owned-blueprints/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import {
   listCharactersWithHealth,
   readPagedEndpoint,

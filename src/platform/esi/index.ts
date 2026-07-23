@@ -49,7 +49,7 @@ import {
 // unreachable, trickle cap) — same flag, same degradation path.
 
 // The public error surface and the budget floor live in ./errors; re-exported
-// here so every consumer keeps importing them from '@/lib/esi'.
+// here so every consumer keeps importing them from '@/platform/esi'.
 export {
   EsiBudgetExhaustedError,
   EsiServerError,

@@ -1,5 +1,5 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { esiFetch, esiUrl } from '@/lib/esi';
+import { esiFetch, esiUrl } from '@/platform/esi';
 import { eveNpcStations } from './schema';
 import type { AnyPgDb } from '@/lib/db-types';
 

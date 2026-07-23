@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/esi', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/esi')>('@/lib/esi');
+vi.mock('@/platform/esi', async () => {
+  const actual = await vi.importActual<typeof import('@/platform/esi')>('@/platform/esi');
   return { ...actual, esiFetch: vi.fn() };
 });
 
-import { EsiBudgetExhaustedError } from '@/lib/esi';
-import { esiFetch } from '@/lib/esi';
+import { EsiBudgetExhaustedError } from '@/platform/esi';
+import { esiFetch } from '@/platform/esi';
 import {
   fetchHistoryFromSource,
   parseEsiHistory,

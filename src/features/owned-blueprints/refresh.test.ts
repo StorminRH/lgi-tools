@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { refreshOwnedBlueprintsForUser } from './refresh';
-import type { EnumeratedOwner, PagedOwnerReadResult, PagedOwnerSyncState } from '@/lib/owner-sync';
+import type { EnumeratedOwner, PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
 import type { OwnedBlueprintsPort } from './types';
 
 const NOW = new Date('2026-06-27T12:00:00Z');

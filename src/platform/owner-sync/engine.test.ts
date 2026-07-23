@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { EsiBudgetExhaustedError } from '@/lib/esi';
+import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { runOwnerSync } from './engine';
 import type { CorpOwnerAxis, EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
 

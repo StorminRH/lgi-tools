@@ -25,7 +25,7 @@ vi.mock('@/lib/alerts', () => ({
   alertPublicEsiBudgetExhaustion: mocks.alert,
   isOpsAlertConfigured: mocks.configured,
 }));
-vi.mock('@/lib/esi/exhaustion-marker', () => ({
+vi.mock('@/platform/esi/exhaustion-marker', () => ({
   hasRecentBudgetExhaustion: mocks.recentExhaustion,
 }));
 

@@ -19,7 +19,7 @@ import {
   stampCorpJobsFresh,
 } from '@/features/industry-jobs/queries';
 import type { CharacterJobsData, CorpJobsPort } from '@/features/industry-jobs/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { getLiveDatasetOnView, type OwnerRow } from './live-dataset-view';
 import { listCharactersWithHealth, readRolesFor, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';

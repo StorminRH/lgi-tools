@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EsiContractError } from '@/lib/esi';
+import { EsiContractError } from '@/platform/esi';
 import type { ServerStatus } from './types';
 
 // Boundary schema for GET /status/. ESI also sends server_version + start_time,

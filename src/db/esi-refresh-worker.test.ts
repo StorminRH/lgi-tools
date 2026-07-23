@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EsiRefreshJob } from '@/data/esi-refresh-jobs/types';
-import { EsiBudgetExhaustedError } from '@/lib/esi';
+import { EsiBudgetExhaustedError } from '@/platform/esi';
 
 const mocks = vi.hoisted(() => ({
   alertDeadLetter: vi.fn(async () => {}),

@@ -1,7 +1,7 @@
 // The on-view corp industry-jobs refresh (MIGRATE.B.3; engine-backed since
 // MIGRATE.D.2). PURE orchestration: refreshCorpJobsForUser builds an
 // OwnerSyncDescriptor from the injected port (types.ts) + this slice's pure helpers
-// and hands it to the shared per-owner sync engine (src/lib/owner-sync). It imports no
+// and hands it to the shared per-owner sync engine (src/platform/owner-sync). It imports no
 // auth and no DB, so it stays inside the feature boundary and is unit-tested with a
 // fake port. The real port is wired in src/db/corp-industry-jobs-sync.ts.
 //
@@ -18,7 +18,7 @@ import {
   type OwnerSyncRunOptions,
   planRead,
   runOwnerSync,
-} from '@/lib/owner-sync';
+} from '@/platform/owner-sync';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { CORP_INDUSTRY_JOBS_REQUIRED_ROLES, canSyncCorpIndustryJobs } from './corp-sync-eligibility';
 import { type IndustryJob, parseIndustryJobsBody } from './esi-projection';

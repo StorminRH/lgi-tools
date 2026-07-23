@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BULK_THRESHOLD } from './constants';
-import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
+import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 import { computeDepth, computeSide, fetchPricesFromSource } from './source';
 import type { RawMarketPrice } from './types';
 
-vi.mock('@/lib/esi', async () => {
+vi.mock('@/platform/esi', async () => {
   const actual =
-    await vi.importActual<typeof import('@/lib/esi')>('@/lib/esi');
+    await vi.importActual<typeof import('@/platform/esi')>('@/platform/esi');
   return {
     ...actual,
     esiFetch: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock('./source-fallback', () => ({
   fetchPricesFromFuzzwork: vi.fn(),
 }));
 
-import { esiFetch } from '@/lib/esi';
+import { esiFetch } from '@/platform/esi';
 import { fetchPricesFromFuzzwork } from './source-fallback';
 
 const JITA_44 = 60003760;

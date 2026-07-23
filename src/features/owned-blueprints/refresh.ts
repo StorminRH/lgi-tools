@@ -2,7 +2,7 @@
 // descriptor via the shared builder since 3.7.30.1). PURE orchestration:
 // refreshOwnedBlueprintsForUser builds a paged-owned OwnerSyncDescriptor from the
 // injected port (types.ts) + this slice's per-dataset knobs and hands it to the shared
-// per-owner sync engine (src/lib/owner-sync). It imports no auth and no DB, so it stays
+// per-owner sync engine (src/platform/owner-sync). It imports no auth and no DB, so it stays
 // inside the feature boundary and is unit-tested with a fake port. The real port is
 // wired in src/db/owned-blueprints-sync.ts.
 //
@@ -16,7 +16,7 @@ import {
   runOwnerSync,
   type OwnerSyncResult,
   type OwnerSyncRunOptions,
-} from '@/lib/owner-sync';
+} from '@/platform/owner-sync';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { CORP_BLUEPRINTS_REQUIRED_ROLES, canSyncCorpBlueprints } from './corp-sync-eligibility';
 import { parseBlueprintsBody } from './esi-projection';

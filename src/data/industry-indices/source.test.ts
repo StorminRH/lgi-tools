@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EsiContractError, EsiServerError } from '@/lib/esi';
+import { EsiContractError, EsiServerError } from '@/platform/esi';
 import {
   fetchAdjustedPrices,
   fetchCostIndices,
@@ -7,12 +7,12 @@ import {
   parseCostIndices,
 } from './source';
 
-vi.mock('@/lib/esi', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/esi')>('@/lib/esi');
+vi.mock('@/platform/esi', async () => {
+  const actual = await vi.importActual<typeof import('@/platform/esi')>('@/platform/esi');
   return { ...actual, esiFetch: vi.fn() };
 });
 
-import { esiFetch } from '@/lib/esi';
+import { esiFetch } from '@/platform/esi';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });

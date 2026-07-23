@@ -1,5 +1,5 @@
 import type { EsiSnapshotOwnerType } from './constants';
-import type { EsiResponseHeaders } from '@/lib/esi/response-metadata';
+import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
 
 /** Normalized cache and rate-limit response headers retained with a raw ESI snapshot. */
 export type EsiSnapshotResponseHeaders = EsiResponseHeaders;

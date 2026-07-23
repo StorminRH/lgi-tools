@@ -18,7 +18,7 @@ import {
 } from '@/features/industry-jobs/queries';
 import { refreshJobsForUser } from '@/features/industry-jobs/refresh';
 import type { CharacterJobsData, JobsPort } from '@/features/industry-jobs/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';
