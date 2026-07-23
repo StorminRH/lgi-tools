@@ -75,6 +75,23 @@
 
 ## Industry planner — structures
 
+- **Keep location selectors stable while available structures load or fail.**
+  *What:* the planner initializes `availableStructures` to `null`, fetches
+  `/api/account/structures` after hydration, and conditionally omits the
+  Reactions group plus both Station rows until that read settles. This produces
+  a visible pop-in locally; on a Vercel preview without the production-only auth
+  environment, the read can fail and leave those controls absent permanently
+  even though the public planner otherwise renders. This is client-side
+  conditional rendering, not a Cache Components/Suspense hole. Preserve the
+  full control footprint through loading, give failure an explicit settled
+  state, and keep anonymous/auth-env-absent behavior equivalent to the existing
+  empty-structures response. Cover delayed success and failed-read states so a
+  preview cannot silently resemble a reduced planner. *Why deferred:* surfaced
+  during the 3.10.1.2.1 relocation preview; fixing it changes planner loading
+  behavior outside that session's behavior-preservation scope. *Size:* S–M.
+  *Trigger:* the next planner UX/resilience pass, or any preview used for planner
+  acceptance.
+
 - **Manufacturing-Time-Efficiency-rig membership fix** (surfaced in 3.7.9.1.4). *What:*
   ~33 "Manufacturing Time Efficiency" rigs (dogma attr 2593 present but no 2594 material
   attr) are silently not offerable, because `isIndustryRig` keys on the 2594 material

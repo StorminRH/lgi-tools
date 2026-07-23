@@ -89,6 +89,32 @@ class WatchTriggerTests(unittest.TestCase):
             self.fixture.messages(),
         )
 
+    def test_explicit_path_set_counts_existing_files(self) -> None:
+        self.fixture.write("src/platform/auth/types.ts", "")
+        self.fixture.write("src/db/auth-schema.ts", "")
+        self.fixture.baseline(
+            "AF-008: files(paths:src/platform/auth/types.ts,"
+            "src/db/auth-schema.ts,src/platform/auth/missing.ts) >= 2\n"
+        )
+        self.assertEqual(
+            [
+                "docs/CODE_HEALTH_BASELINE.md:4: promote AF-008 — "
+                "files(paths:src/platform/auth/types.ts,src/db/auth-schema.ts,"
+                "src/platform/auth/missing.ts) = 2 (trigger: >= 2)"
+            ],
+            self.fixture.messages(),
+        )
+
+    def test_empty_explicit_path_set_is_an_error(self) -> None:
+        self.fixture.baseline("AF-008: files(paths:) >= 1\n")
+        self.assertEqual(
+            [
+                "docs/CODE_HEALTH_BASELINE.md:4: cannot measure files(paths:): "
+                "path set must contain safe repository-relative paths"
+            ],
+            self.fixture.messages(),
+        )
+
     def test_multiline_block_promotes_an_id_once_when_any_line_trips(self) -> None:
         self.fixture.write("src/queries.ts", "export const a = 1;\n")
         self.fixture.baseline(

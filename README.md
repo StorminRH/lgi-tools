@@ -64,7 +64,7 @@ You need Node 22+, pnpm, and Docker. (CI builds on Node 24.)
    - Register a dev app at
      [developers.eveonline.com/applications](https://developers.eveonline.com/applications)
      with the scopes in the authoritative
-     [`EVE_SCOPES`](src/features/auth/eve-sso.ts) array and callback
+     [`EVE_SCOPES`](src/platform/auth/eve-sso-constants.ts) array and callback
      `http://localhost:3000/api/auth/oauth2/callback/eve`. Paste the
      resulting client id/secret into `EVE_CLIENT_ID` / `EVE_CLIENT_SECRET`.
    - Generate a session secret: `openssl rand -base64 32`. Paste into
