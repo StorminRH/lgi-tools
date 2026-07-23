@@ -441,6 +441,18 @@ is reprioritized.
   a 3.10 Phase 0 resolver/checker slice (e.g. 3.10.0.1 "green the gate honestly"),
   but left here deferred per operator instruction rather than auto-absorbed.
 
+- **Codegraph guard over-matches source extensions by substring** (found 2026-07-23
+  during the orient-once hook review). *What:* `.agent-local/codegraph_guard.py`
+  detects a source file by testing whether any entry of `SOURCE_EXTENSIONS` is a
+  *substring* of the joined path/pattern, which correctly catches glob patterns
+  (`**/*.ts`) but over-matches real file paths — `data.json` matches `.js`,
+  `notes.csv` matches `.cs`. The read nudge therefore fires on some non-source
+  reads. A clean fix treats a Read `file_path` (suffix match) differently from a
+  Glob `pattern` (substring match). *Why deferred:* pre-existing and unrelated to
+  the orient-once timing change; splitting the match logic is its own small change
+  with its own review. *Size:* XS. *Trigger:* the next codegraph-hook or
+  agent-tooling pass, or if non-source-read nudges become noisy in practice.
+
 ## Security (deep-research report, 2026-07-19)
 
 > From the external Security Deep-Research Report (snapshot `141e914`, findings

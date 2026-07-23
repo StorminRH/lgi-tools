@@ -274,36 +274,42 @@ the lifecycle-memory disposition.
    Ordinary mode does not run release consistency. After publishing, read the
    GitHub body back into a temporary file and run the scrub again before polling.
    PR-body edits do not invalidate repository verification.
-5. Start the runtime's native background task for
-   `.agent-local/poll_pr_gate.py` as soon as the PR opens, and continue useful
-   close-out work while it runs. The helper owns waiting for current-head
-   Greptile 5/5 with zero current-head inline findings or for the PR checks to
-   finish; do not reproduce its polling recipe in prose or shell.
-6. Triage every Greptile finding, including non-blocking and stylistic findings:
-   1. **Fix** an in-scope problem on the branch, commit it, and explicitly
-      re-trigger Greptile with `@greptileai`.
-   2. **Justify** a deliberate choice by replying `@greptileai` with the
-      reasoning, then wait for Greptile's answer. Never merge while a
-      justification awaits a reply; because no commit changed, use the runtime
-      adapter's inline-reply watch rather than treating the unchanged head SHA
-      as a new pass.
+5. Drive the review as batched rounds and never push while a reviewer is
+   mid-pass — a push to the head cancels an in-flight Greptile or CodeRabbit
+   review before it reports. Begin each round by waiting for the head to go quiet
+   with the runtime's background `.agent-local/poll_pr_gate.py <repo> <pr>
+   quiescent`, which returns once every check run on the head — Greptile,
+   CodeRabbit, semgrep, CI — has completed and the set is stable. Continue useful
+   close-out work while it runs; do not reproduce its polling recipe in prose or
+   shell.
+6. On that quiet head, collect every finding from all reviewers at once: the
+   Greptile summary with its current-head inline findings, the gate of record,
+   and CodeRabbit's advisory findings. If no current-head finding remains and the
+   Greptile summary is 5/5 on the current head, the loop is done — go to
+   **Merge**. Otherwise triage every collected finding together, without widening
+   the branch:
+   1. **Fix** an in-scope problem on the branch.
+   2. **Justify** a deliberate choice by replying `@greptileai` (or the owning
+      bot) with the reasoning; a justification that leaves a live current-head
+      finding is not resolved, so wait for the reply rather than treating the
+      unchanged head as a new pass.
    3. **Defer** only genuinely out-of-scope work to `docs/backlog.md` with its
-      reason, size, and trigger, then explicitly re-trigger review.
-7. Repeat the poll, triage, fix, and explicit re-trigger cycle until every
-   finding is resolved. Later review passes may raise new findings, so each pass
-   is evaluated on its own live result.
-8. Rerun only the evidence invalidated by a review fix. Production or test code,
-   executable scripts, package or lockfile changes, and TypeScript, ESLint,
-   Vitest, coverage, or Fallow configuration invalidate the full checkpoint. A
-   prose-only workflow document, lifecycle record, or PR-metadata change runs
-   only its applicable document, release, drift, privacy, pending-changelog, or
-   diff checks. Push the fix only after the required current-head evidence is
-   green, then repeat Greptile review against that head.
+      reason, size, and trigger.
+7. Batch the round's whole disposition — every fix, justification reply,
+   re-trigger, and backlog entry — then make exactly one push, and only after the
+   evidence a fix invalidated is green again. Production or test code, executable
+   scripts, package or lockfile changes, and TypeScript, ESLint, Vitest,
+   coverage, or Fallow configuration invalidate the full checkpoint; a prose-only
+   workflow document, lifecycle record, or PR-metadata change runs only its
+   applicable document, release, drift, privacy, pending-changelog, or diff
+   checks. That push opens the next round; repeat until a quiet head carries zero
+   findings and a 5/5 Greptile summary. Later passes may raise new findings, so
+   judge each round on its own live result.
 
-Phase evidence: PR URL, published title/body scrub result, current head SHA,
-green CI result, current-head Greptile score, unresolved-finding count, and the
-disposition of every review finding. Any pending justification returns
-`BLOCKED`.
+Phase evidence: PR URL, published title/body scrub result, current head SHA, the
+quiescent check set per round, green CI result, current-head Greptile score,
+unresolved-finding count across all reviewers, and the disposition of every
+finding. Any pending justification returns `BLOCKED`.
 
 ## Merge (shared)
 

@@ -1,11 +1,24 @@
 #!/usr/bin/env python3
-"""Emit shared Codegraph-first guidance for Claude Code and Codex hooks."""
+"""Emit shared Codegraph-first guidance for Claude Code and Codex hooks.
+
+The reminder fires once per session — on the first source search or read — and
+then stays silent for the rest of that session, so the guidance appears when it
+is useful instead of on every subsequent source read. The per-session marker
+records only that the reminder has already been shown; the guard never tries to
+infer whether Codegraph was actually consulted (a hook cannot observe that
+reliably). Sessions are keyed by the ``session_id`` the hook receives on stdin;
+when that is absent (a caller that does not provide it) the guard falls back to
+reminding every time rather than going silent.
+"""
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -23,6 +36,10 @@ SOURCE_EXTENSIONS = (
     ".txt", ".mdx",
 )
 
+# One per-session marker (a 0-byte file the OS reclaims) records that this
+# session has already seen the reminder, so it fires only once.
+MARKER_DIR = Path(tempfile.gettempdir())
+
 
 def emit(message: str) -> None:
     print(json.dumps({"hookSpecificOutput": {
@@ -31,20 +48,40 @@ def emit(message: str) -> None:
     }}))
 
 
-def load_tool_input() -> dict:
+def marker_path(session_id: str) -> Path | None:
+    # Hash rather than strip unsafe characters: stripping is lossy, so two
+    # distinct sessions ("a/b" and "ab") could share a marker and one could
+    # suppress the other's reminder.
+    if not session_id:
+        return None
+    digest = hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+    return MARKER_DIR / f"codegraph-guard-reminded-{digest}"
+
+
+def claim_reminder(marker: Path | None) -> bool:
+    """True if this call should show the reminder.
+
+    Creating the per-session marker atomically (exclusive create) claims it, so
+    when several hooks race only the one that creates the file emits — a plain
+    exists-check-then-touch would let both emit before either marker exists.
+    With no marker (no session id) there is nothing to dedupe on, so every call
+    reminds.
+    """
+    if marker is None:
+        return True
     try:
-        payload = json.load(sys.stdin)
-    except (json.JSONDecodeError, OSError):
-        return {}
-    if not isinstance(payload, dict):
-        return {}
-    tool_input = payload.get("tool_input", payload)
-    return tool_input if isinstance(tool_input, dict) else {}
+        fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        return False
+    except OSError:
+        return True
+    os.close(fd)
+    return True
 
 
-def guard_bash(tool_input: dict) -> None:
+def guard_bash(tool_input: dict, marker: Path | None) -> None:
     command = str(tool_input.get("command") or tool_input.get("cmd") or "")
-    if SEARCH_COMMAND.search(command):
+    if SEARCH_COMMAND.search(command) and claim_reminder(marker):
         emit(
             "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
             "codegraph explore \"<question>\" for an unfamiliar area, "
@@ -54,13 +91,13 @@ def guard_bash(tool_input: dict) -> None:
         )
 
 
-def guard_read(tool_input: dict) -> None:
+def guard_read(tool_input: dict, marker: Path | None) -> None:
     candidate = " ".join(
         str(tool_input.get(key) or "") for key in ("file_path", "pattern", "path")
     ).lower().replace("\\", "/")
     if ".codegraph/" in candidate:
         return
-    if any(extension in candidate for extension in SOURCE_EXTENSIONS):
+    if any(extension in candidate for extension in SOURCE_EXTENSIONS) and claim_reminder(marker):
         emit(
             "MANDATORY: .codegraph/codegraph.db exists. You MUST run Codegraph "
             "before reading source files. Use: `codegraph explore \"<question>\"` "
@@ -72,14 +109,26 @@ def guard_read(tool_input: dict) -> None:
         )
 
 
+def load_payload() -> dict:
+    try:
+        payload = json.load(sys.stdin)
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
 def main() -> int:
     if not GRAPH_PATH.is_file() or len(sys.argv) != 2:
         return 0
-    tool_input = load_tool_input()
+    payload = load_payload()
+    tool_input = payload.get("tool_input", payload)
+    if not isinstance(tool_input, dict):
+        tool_input = {}
+    marker = marker_path(str(payload.get("session_id") or ""))
     if sys.argv[1] == "bash":
-        guard_bash(tool_input)
+        guard_bash(tool_input, marker)
     elif sys.argv[1] == "read":
-        guard_read(tool_input)
+        guard_read(tool_input, marker)
     return 0
 
 
