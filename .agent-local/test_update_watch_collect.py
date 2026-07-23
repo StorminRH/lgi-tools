@@ -328,6 +328,7 @@ class VerdictTests(unittest.TestCase):
         )
         self.assertEqual("quiet", payload["verdict"])
         self.assertEqual(["dep-major:clsx:2"], payload["suppressed"])
+        self.assertIn("## Update watch: `QUIET`", payload["summary"])
         self.assertIn("- **Outward action:** None", payload["summary"])
 
     def test_zero_candidate_clean_run_is_quiet(self) -> None:
