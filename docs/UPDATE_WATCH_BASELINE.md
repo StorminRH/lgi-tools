@@ -123,7 +123,7 @@ tooling).
       "name": "Vercel / Next.js",
       "watch": ["https://vercel.com/atom", "https://nextjs.org/feed.xml"],
       "idRule": "url",
-      "scanSince": "2026-07-22",
+      "scanSince": "2026-07-23",
       "acknowledgedItems": [
         "https://vercel.com/blog/how-searchable-ships-customer-requested-features-in-30-minutes-on-vercel",
         "https://vercel.com/blog/vercel-agent",
@@ -135,6 +135,8 @@ tooling).
         "https://vercel.com/changelog/service-tiers-now-available-on-ai-gateway",
         "https://vercel.com/changelog/configure-where-run-state-lives-in-vercel-workflows",
         "https://vercel.com/changelog/purge-your-remote-caches-build-and-ci-artifacts",
+        "https://vercel.com/changelog/ai-gateway-now-supports-streaming-transcription",
+        "https://vercel.com/changelog/eve-extensions",
         "https://nextjs.org/blog/july-2026-security-release"
       ]
     },
