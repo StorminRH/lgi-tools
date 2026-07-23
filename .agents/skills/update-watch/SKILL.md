@@ -24,4 +24,5 @@ Invocation permits one optional digest issue. Repository mutation remains exclud
 
 ## Return
 
-Print the collector summary verbatim. Perform no other outward write.
+Print the collector's rendered Markdown summary verbatim and without a code
+fence. Perform no other outward write.

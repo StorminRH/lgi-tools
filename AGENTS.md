@@ -176,8 +176,11 @@ Use `pnpm dev:all` for Docker Postgres, Next on `:3000`, and local Convex on
 
 ## Delivery and authorization
 
-All changes ship through PRs to `main`, the only automatic deployment target,
-and every PR runs the shared `close-out` delivery pipeline. Two tracks feed it:
+All changes ship through PRs to `main`, the only automatic deployment target.
+`close-out` is the sole merge-to-production pipeline. A canonical procedure may
+explicitly prepare and review an open PR while withholding merge authority; the
+change is not shipped until the operator later invokes `close-out` on that same
+branch and PR. Two tracks feed the delivery pipeline:
 
 - **Ordinary/out-of-band work** begins from a direct request. It never consults
   the lifecycle resolver, never reconciles roadmap or session-plan state, and

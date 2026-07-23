@@ -318,7 +318,7 @@ class VerdictTests(unittest.TestCase):
         self.assertEqual("report", payload["verdict"])
         self.assertEqual(["dep-major:clsx:2"], [delta["key"] for delta in payload["deltas"]])
         self.assertIn("dep-major:clsx:2", payload["keyBlock"])
-        self.assertIn("verdict: report", payload["summary"])
+        self.assertIn("## Update watch: `REPORT`", payload["summary"])
 
     def test_open_issue_suppression_yields_quiet(self) -> None:
         payload = finalize_verdict(
@@ -328,7 +328,7 @@ class VerdictTests(unittest.TestCase):
         )
         self.assertEqual("quiet", payload["verdict"])
         self.assertEqual(["dep-major:clsx:2"], payload["suppressed"])
-        self.assertIn("outward action: none", payload["summary"])
+        self.assertIn("- **Outward action:** None", payload["summary"])
 
     def test_zero_candidate_clean_run_is_quiet(self) -> None:
         state = state_with(npmLatest={"clsx": {"version": "1.9.9", "major": 1}})
@@ -360,7 +360,8 @@ class VerdictTests(unittest.TestCase):
                 payload = finalize_verdict(state, [], [])
                 self.assertEqual("refused", payload["verdict"])
                 self.assertEqual([], payload["deltas"])
-                self.assertIn(f"refused: {failure}", payload["summary"])
+                self.assertIn("## Update watch: `REFUSED`", payload["summary"])
+                self.assertIn(f"- **Blocker:** {failure}", payload["summary"])
 
     def test_refusal_beats_a_pending_report(self) -> None:
         state = state_with(failures=["registry-query:zod: HTTP 503"])
@@ -375,8 +376,8 @@ class VerdictTests(unittest.TestCase):
         payload = finalize_verdict(state, [], [])
         self.assertEqual("refused", payload["verdict"])
         self.assertEqual([], payload["deltas"])
-        self.assertIn("candidates found: 1", payload["summary"])
-        self.assertIn("deltas suppressed by open issues: 0", payload["summary"])
+        self.assertIn("- **Candidates found:** 1", payload["summary"])
+        self.assertIn("- **Suppressed by open issues:** 0", payload["summary"])
 
 
 class ScopeTests(unittest.TestCase):

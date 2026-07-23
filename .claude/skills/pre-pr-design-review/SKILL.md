@@ -22,5 +22,5 @@ Invocation permits read-only review. Parent-authorized fixes remain in scope. No
 
 ## Return
 
-Return the canonical procedure's exact result block unchanged, including the
-finding dispositions, invalidated verification, and `Design notes:` block.
+Render the canonical design-review Markdown result exactly and without a code
+fence. Preserve findings, invalidated verification, and PR-ready design notes.

@@ -35,9 +35,7 @@ class _BaselineEvidence:
     """Machine-readable AF carriers extracted from the live health baseline."""
 
     watch: dict[str, int]
-    verified: dict[str, int]
     triggers: dict[str, int]
-    queue: dict[str, tuple[str, int]]
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -68,31 +66,9 @@ def _heading_section(path: Path, heading: str) -> list[tuple[int, str]]:
     return result
 
 
-def _parse_campaign_queue(path: Path) -> dict[str, tuple[str, int]]:
-    """Return AF ids and status cells from the baseline Campaign queue table."""
-    section = _heading_section(path, "Campaign queue")
-    header: list[str] | None = None
-    status_index: int | None = None
-    rows: dict[str, tuple[str, int]] = {}
-    for line_number, line in section:
-        if not line.startswith("|"):
-            continue
-        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
-        if header is None and "Status" in cells:
-            header = cells
-            status_index = cells.index("Status")
-            continue
-        if header is None or status_index is None or len(cells) <= status_index:
-            continue
-        for identifier in _AF_ID.findall(line):
-            rows[identifier] = (cells[status_index], line_number)
-    return rows
-
-
 def _parse_baseline(path: Path) -> _BaselineEvidence:
-    """Extract Watch, Verified, trigger, and campaign-queue AF evidence."""
+    """Extract the baseline's canonical Watch carriers and triggers."""
     watch: dict[str, int] = {}
-    verified: dict[str, int] = {}
     triggers: dict[str, int] = {}
     if path.is_file():
         in_trigger = False
@@ -112,9 +88,7 @@ def _parse_baseline(path: Path) -> _BaselineEvidence:
                     triggers.setdefault(match.group(1), line_number)
             for match in re.finditer(r"Watch\s+\((AF-\d{3})\)", line):
                 watch.setdefault(match.group(1), line_number)
-            for match in re.finditer(r"\b(AF-\d{3})\b[^|\n]{0,48}\bVerified\b", line):
-                verified.setdefault(match.group(1), line_number)
-    return _BaselineEvidence(watch, verified, triggers, _parse_campaign_queue(path))
+    return _BaselineEvidence(watch, triggers)
 
 
 def _roadmap_line(path: Path, subversion: str) -> int:
@@ -254,11 +228,10 @@ def _audit_baseline_findings(
     baseline_path: Path,
     evidence: _BaselineEvidence,
 ) -> list[Finding]:
-    """Cross-check audit statuses against baseline Watch, Verified, and queue state."""
+    """Cross-check audit statuses against canonical baseline Watch state."""
     findings: list[Finding] = []
     raw_audit = _relative(root, audit_path)
     raw_baseline = _relative(root, baseline_path)
-    by_id = {finding.identifier: finding for finding in audit_findings}
 
     for finding in audit_findings:
         identifier = finding.identifier
@@ -272,10 +245,8 @@ def _audit_baseline_findings(
                 )
             )
         if finding.status == "verified":
-            carrier_line = (
-                evidence.watch.get(identifier)
-                or evidence.triggers.get(identifier)
-                or (evidence.queue.get(identifier) or ("", 0))[1]
+            carrier_line = evidence.watch.get(identifier) or evidence.triggers.get(
+                identifier
             )
             if carrier_line:
                 findings.append(
@@ -286,36 +257,6 @@ def _audit_baseline_findings(
                         "error",
                     )
                 )
-        elif identifier in evidence.verified:
-            findings.append(
-                Finding(
-                    raw_baseline,
-                    evidence.verified[identifier],
-                    f"baseline says {identifier} is Verified but audit ledger says {finding.status.title()}",
-                    "error",
-                )
-            )
-
-    for identifier, (queue_status, line_number) in evidence.queue.items():
-        finding = by_id.get(identifier)
-        if finding is None:
-            findings.append(
-                Finding(
-                    raw_baseline,
-                    line_number,
-                    f"campaign queue names {identifier} without a live audit finding",
-                    "error",
-                )
-            )
-        elif queue_status.casefold() != finding.status:
-            findings.append(
-                Finding(
-                    raw_baseline,
-                    line_number,
-                    f"campaign queue says {identifier} is {queue_status} but audit ledger says {finding.status.title()}",
-                    "error",
-                )
-            )
     return findings
 
 

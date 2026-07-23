@@ -4,10 +4,10 @@ description: >-
   Public lifecycle entry that resolves and runs the next LGI.tools development
   stage from the master roadmap,
   session contracts, approved per-session plans, scratchpad, health baseline,
-  and live repository state. Use when Ryan says "start the next session", "run
-  session X", "work from the plan", "continue the version", or invokes
-  `$start-session`. Missing contracts or plans are routed to the appropriate
-  planning skill before implementation.
+  and live repository state. Use when the operator says "start the next
+  session", "run session X", "work from the plan", "continue the version", or
+  invokes `$start-session`. Missing contracts or plans are routed to the
+  appropriate planning skill before implementation.
 ---
 
 # Start an LGI.tools session
@@ -26,4 +26,5 @@ Invocation permits only the resolver-selected action. Preserve its branch, artif
 
 ## Return
 
-Return the dispatched result and fresh directive. Never select a sibling handler.
+Render the procedure's Markdown result without a code fence. Preserve the
+dispatched handler's result and the complete fresh directive.

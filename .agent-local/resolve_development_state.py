@@ -340,9 +340,12 @@ def contract_schema_violations(path: Path, root: Path) -> list[str]:
         violations.append(
             "Execution profile must be Frontier autonomous coding agent"
         )
-    if marker(path, "Delivery unit") != "One agent session, one branch, one PR":
+    if marker(path, "Delivery unit") != (
+        "One agent session, one shared sub-version branch, one sub-version PR"
+    ):
         violations.append(
-            "Delivery unit must be One agent session, one branch, one PR"
+            "Delivery unit must be One agent session, one shared sub-version "
+            "branch, one sub-version PR"
         )
     for label in ("Roadmap coverage", "Internal phases", "Split triggers"):
         value = marker(path, label)
@@ -1022,7 +1025,7 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
         pause = "Pause on a material scope/design conflict or an explicit operator gate."
         if state.get("uxGate") == "Yes":
             pause = (
-                "UX gate: Ryan's local browser review is required before the PR opens; "
+                "UX gate: The operator's local browser review is required before the PR opens; "
                 "also pause on any material scope/design conflict."
             )
         return WorkflowDirective(

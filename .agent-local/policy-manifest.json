@@ -3,6 +3,7 @@
     "AGENTS.md",
     "src/AGENTS.md",
     "docs/AGENT_TOOLING.md",
+    "docs/workflows/schema/chat-result.md",
     "docs/workflows/schema/code-health-baseline.md",
     "docs/workflows/schema/changelog-entry.md",
     "docs/workflows/schema/changelog-pending.md",
@@ -378,7 +379,9 @@
       "docs/session-plans/3.10/3.10.0.2.1.md",
       "docs/session-contracts/3.10/3.10.0.2.2.md",
       "docs/session-contracts/3.10/3.10.0.3.1.md",
-      "docs/session-contracts/3.10/3.10.0.3.2.md"
+      "docs/session-contracts/3.10/3.10.0.3.2.md",
+      "docs/session-contracts/3.10/3.10.0.4.1.md",
+      "docs/session-plans/3.10/3.10.0.4.1.md"
     ]
   },
   "skillReconciliation": {
@@ -386,100 +389,112 @@
       "deps": [
         "AGENTS.md",
         "docs/workflows/plan-version.md",
+        "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "d25d4d61f0a0c0c21cdf37a89f441d0747d9f7f17aeb39596bbb3e9edc77ff1f"
+      "reconciledHash": "c7c33c48e12b0a5213783897606f5f46f68c234a07c500e7c790fecd0a9d0a2b"
     },
     "plan-session": {
       "deps": [
         "AGENTS.md",
         "docs/workflows/plan-session.md",
+        "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "b716412afc7fe74f4ee9f13b642eb1b2b633cbe563f1c4d27835e815bb3c3f73"
+      "reconciledHash": "bb28775db5f1a8166325dc4bc89ac2cd4a50dd0356ad0eca4b05edd0d8831190"
     },
     "start-session": {
       "deps": [
         "AGENTS.md",
         "docs/workflows/start-session.md",
-        "docs/workflows/close-out.md"
+        "docs/workflows/close-out.md",
+        "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "5a55507938110b888fec050f6d4e13cec1c605079d80847b0e1fce67cce9962a"
+      "reconciledHash": "6a23969e86ba01a90f78a2ebf1d05fef217eb5b0163e59b9777162227246d0ac"
     },
     "pre-pr-design-review": {
       "deps": [
         "AGENTS.md",
         "docs/workflows/pre-pr-design-review.md",
+        "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "26869446115396216a3c3d2b5ecff189b48a1ae45b8bd28d2d52712bfd36d9a9"
+      "reconciledHash": "2c83c53d0ea445858f79a550156499ab2ad8516c3bb12606a63842d6d738e3bc"
     },
     "close-out": {
       "deps": [
         "AGENTS.md",
         "docs/workflows/close-out.md",
         "docs/workflows/pre-pr-design-review.md",
+        "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/changelog-entry.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "9172ceb1fbdea7275434e3586a07ee534bac3efccaba05e53da5bc5f25b0bf0a"
+      "reconciledHash": "7f03b38338f618dddc7c0957279600ec480759c92182b09ca1a19fb21f98d752"
     },
     "plan-version-audit": {
       "deps": [
         "AGENTS.md",
         "docs/workflows/version-audit.md",
+        "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "560c4e2f33d7f471b7c9502a3e62f1ef73d1c8f29bae88a023a502f73b7e4cd9"
+      "reconciledHash": "3478f9c9d055f27bb57fd9d100b062f4d62082e8cc5d656f3d051cacc9d6404c"
     },
     "plan-audit-remediation": {
       "deps": [
         "AGENTS.md",
         "docs/workflows/version-audit.md",
         "docs/workflows/plan-version.md",
+        "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "acdb94deb40c069947cb0fe7df59d3a79e8823b45973d4dede840671bddfc44a"
+      "reconciledHash": "2a319e21dd77eec01e1d71fbab3621e322461029a13fa90efd969f188ec7c019"
     },
     "version-audit": {
       "deps": [
         "AGENTS.md",
         "docs/workflows/version-audit.md",
+        "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "560c4e2f33d7f471b7c9502a3e62f1ef73d1c8f29bae88a023a502f73b7e4cd9"
+      "reconciledHash": "3478f9c9d055f27bb57fd9d100b062f4d62082e8cc5d656f3d051cacc9d6404c"
     },
     "triage-issue": {
       "deps": [
         "AGENTS.md",
         "docs/workflows/triage-issue.md",
+        "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "92200d1ec9f91ad87ba51c1d5b921bd7561b3bf007679c2be5385d0740f52c55"
+      "reconciledHash": "306f141ae27333c560697d3d0ad6fbac8a08847fb3cd83ad5eff8847ff3556d5"
     },
     "ux-check": {
       "deps": [
         "AGENTS.md",
         "src/AGENTS.md",
-        "docs/workflows/ux-check.md"
+        "docs/workflows/ux-check.md",
+        "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "8824b13d59f0a60452b2bfbfab6fd3f610b9bf43f3a46a0ebbc73d34f6893b6d"
+      "reconciledHash": "7455d1af464e4e1c72f9751fa8fe13cea7459066e4f858f5fc9bf09d81e726a6"
     },
     "update-watch": {
       "deps": [
         "AGENTS.md",
-        "docs/workflows/update-watch.md"
+        "docs/workflows/update-watch.md",
+        "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "933092fb1e70e5369f9bfa59f90a9815a29261ab6e79c1b01ebf528e537d7e3f"
+      "reconciledHash": "e02a6e3c1b2d95b4dd8f21a59c9b0c934ef2a4b5e5b5298bf92886fc412c7c11"
     },
     "resolve-update-watch": {
       "deps": [
         "AGENTS.md",
-        "docs/workflows/resolve-update-watch.md"
+        "docs/workflows/resolve-update-watch.md",
+        "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "fcf42fbe2c05bdf097bc0f49a6197bd05c3d42a44430f57baf6f41d9f0311eb9"
+      "reconciledHash": "623bd130137a67a40b007f7a9fa6908d86f89ce885cefe2599fa7672fe70735e"
     }
   },
   "procedurePolicies": {
@@ -557,20 +572,12 @@
         "reason": "The paired runtime adapters must expose the same narrow merge authorization boundary."
       },
       {
-        "sentence": "Return the canonical procedure's exact result block unchanged, including the delivery outcome and fresh resolver directive.",
+        "sentence": "Render the canonical procedure's exact Markdown result unchanged, including the delivery outcome and resolver field: a fresh directive in planned mode, or Not applicable in ordinary mode.",
         "paths": [
           ".agents/skills/close-out/SKILL.md",
           ".claude/skills/close-out/SKILL.md"
         ],
         "reason": "The paired runtime adapters must preserve the same canonical return shape."
-      },
-      {
-        "sentence": "After the procedure reruns the resolver and drift gate, return the approved audit plan and resulting fresh directive.",
-        "paths": [
-          ".agents/skills/plan-version-audit/SKILL.md",
-          ".claude/skills/plan-version-audit/SKILL.md"
-        ],
-        "reason": "The paired runtime adapters share the same audit-planning return precondition."
       },
       {
         "sentence": "Archival is permitted only after the clean-close checks and baseline replacement are complete and the resolver returns archive-needed.",
@@ -581,12 +588,12 @@
         "reason": "The paired runtime adapters must expose the same archival authority boundary."
       },
       {
-        "sentence": "Return the canonical procedure's exact result block unchanged, including the finding dispositions, invalidated verification, and Design notes block.",
+        "sentence": "Render the canonical design-review Markdown result exactly and without a code fence.",
         "paths": [
           ".agents/skills/pre-pr-design-review/SKILL.md",
           ".claude/skills/pre-pr-design-review/SKILL.md"
         ],
-        "reason": "The paired runtime adapters must preserve the same design-review return shape."
+        "reason": "The paired runtime adapters must preserve the same design-review presentation contract."
       }
     ]
   }

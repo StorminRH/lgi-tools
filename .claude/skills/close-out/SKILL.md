@@ -32,5 +32,6 @@ A missing directive means ordinary mode.
 
 ## Return
 
-Return the canonical procedure's exact result block unchanged, including the
-delivery outcome and fresh resolver directive.
+Render the canonical procedure's exact Markdown result unchanged, including the
+delivery outcome and resolver field: a fresh directive in planned mode, or
+`Not applicable` in ordinary mode.

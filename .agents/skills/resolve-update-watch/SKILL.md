@@ -24,4 +24,5 @@ Invocation permits the bounded branch, fixes, disposition, and open PR. Merge re
 
 ## Return
 
-Return fixed, deferred, and absorbed findings. Include review state; leave the PR open.
+Render the procedure's Markdown result without a code fence. Preserve the exact
+outcome and evidence; keep a review-ready PR open.

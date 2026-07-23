@@ -3,10 +3,9 @@ name: plan-version
 description: >-
   Internal lifecycle handler that turns an LGI.tools master version plan into
   approved, ordered session contracts. Normally dispatched by start-session;
-  use directly when Ryan says
-  "plan the version", "break this roadmap into sessions", "generate session
-  contracts", "extrapolate the master plan", or when lifecycle resolution says
-  contracts are missing or stale.
+  use directly when the operator says "plan the version", "break this roadmap
+  into sessions", "generate session contracts", or "extrapolate the master
+  plan", or when lifecycle resolution says contracts are missing or stale.
 ---
 
 # Plan an LGI.tools version
@@ -25,4 +24,5 @@ Invocation permits read-only topology planning. Repository mutation requires ope
 
 ## Return
 
-Return approved contracts and the fresh directive. Never create session plans here.
+Render the procedure's Markdown result without a code fence. Include topology,
+contracts, approval, and the fresh directive; create no session plan.

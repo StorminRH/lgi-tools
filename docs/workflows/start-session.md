@@ -64,3 +64,30 @@ check, unexplained worktree state, or missing authority. Preserve completed
 evidence. On resumption, re-enter through this procedure, select the same
 deterministic branch, rerun the resolver and pre-dispatch gate, and reopen only
 work invalidated by changed state.
+
+## Return the result
+
+After the dispatched handler stops, apply
+`docs/workflows/schema/chat-result.md` to this exact field set:
+
+```markdown
+## Start session: `DISPATCHED` | `PAUSED` | `BLOCKED`
+
+- **Action:** `<resolver action>`
+- **Handler:** `<handler or None>`
+- **Branch:** `<branch or Not selected>`
+- **Primary artifact:** `<path or None>`
+
+### Dispatch
+
+- **Authority:** <resolver authority>
+- **Pre-dispatch gate:** <command and result or Not reached>
+- **Handler result:** <canonical handler result or Not dispatched>
+
+### Next state
+
+- **Resolver directive:** <complete fresh directive or unchanged blocking directive>
+- **Pause:** <named pause or None>
+- **Handoff:** <next operator or lifecycle action>
+- **Blocker:** <exact blocker or None>
+```

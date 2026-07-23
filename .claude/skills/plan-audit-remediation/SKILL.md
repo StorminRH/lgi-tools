@@ -24,4 +24,5 @@ Invocation permits remediation planning. Unaudited product scope remains exclude
 
 ## Return
 
-Return the approved roadmap and contracts. Include the fresh directive; create no plans.
+Use the remediation-planning Markdown result directly in chat. Report the
+roadmap, contracts, and fresh directive; create no session plans.

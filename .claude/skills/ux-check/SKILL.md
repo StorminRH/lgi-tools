@@ -1,14 +1,13 @@
 ---
 name: ux-check
 description: >-
-  Verify LGI.tools UI changes with the repository's scripted Playwright sweep.
-  Determine the affected routes, reuse or start the local dev server, run
-  `pnpm ux-check` for the affected routes at desktop and mobile sizes, inspect the JSON report
-  and screenshots, run durable interaction definitions through the shared probe
-  runner when needed, and present the
-  evidence before Ryan's browser review. Use when asked to "run the UX check",
-  "sweep/capture the UI", "check how it looks", or verify a user-facing change.
-  This is complementary to—not a replacement for—Ryan's visual/feel review.
+  Verify LGI.tools user-facing changes with the scripted Playwright route sweep
+  and shared interaction probes. Determine affected routes, establish the local
+  stack they require, inspect desktop and mobile diagnostics and captures, and
+  present evidence before the operator's browser review. Use after a UI change
+  or when asked to run the UX check, sweep or capture the UI, check appearance,
+  or verify a user-facing surface. Automated evidence does not replace operator
+  visual and interaction judgment.
 ---
 
 # Run the LGI.tools UX check
@@ -27,4 +26,5 @@ Invocation permits local route and interaction capture. Operator browser judgmen
 
 ## Return
 
-Return diagnostics and capture locations. Pause for operator review before PR creation.
+Use the canonical Markdown result directly in chat. Report diagnostics and
+captures, then stop for the operator's browser review.

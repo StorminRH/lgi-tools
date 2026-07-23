@@ -1,130 +1,145 @@
 # UX-check procedure
 
-A fast, scripted replacement for the generic automatic preview loop, **for
-UI verification only**. Drives a headless Chromium over the running dev server,
-screenshots the routes this session touched at desktop + mobile, and surfaces
-console errors, uncaught page errors, failed requests, and 4xx/5xx responses. You
-read the report; **the operator reviews visual + feel in his own browser.**
+Verify changed user-facing surfaces against the local development server. The
+agent owns route selection, automated diagnostics, capture inspection, and the
+evidence report. The operator owns the final browser judgment. A clean sweep
+does not replace that review.
 
-This is a dev-loop capture tool, not a gate: it never runs in `pnpm verify` or CI,
-and a clean sweep exits 0 even when it finds errors (the findings are the output).
+This procedure is a local development aid, not a `pnpm verify` or CI gate. The
+route sweep exits successfully after writing its report even when the report
+contains findings; the agent must read and disposition them. Use
+`docs/workflows/pre-pr-design-review.md` when a UX finding exposes ownership or
+interface decay rather than a local presentation defect.
 
-Use `docs/workflows/pre-pr-design-review.md` as the design-judgment owner when a
-UX failure reveals an ownership or interface problem rather than a visual defect.
+## Execution contract
 
-## Step 1 — Decide which routes to capture
+Required inputs:
 
-Capture **only what this session touched**, not a full sweep. Build the list from
-your session context plus the diff:
+1. The complete change diff and the user-facing routes it can affect.
+2. A running local stack capable of rendering those routes truthfully.
+3. Any durable open-state probe definitions required by changed interactions.
+
+Required output: `UX_EVIDENCE` naming the captured routes and viewports, route
+and probe diagnostics, inspected capture paths, authenticated-state limitations,
+and the operator-review status.
+
+Stop with `BLOCKED` when the local stack cannot represent required behavior, a
+diagnostic remains unexplained, or the operator review has not completed. Do not
+open a PR from this workflow.
+
+## 1. Resolve the capture surface
+
+Capture only routes affected by the change. Start from both committed and
+uncommitted changes:
 
 ```bash
 git diff --name-only $(git merge-base HEAD origin/main)..HEAD
-git diff --name-only            # include uncommitted work
+git diff --name-only
 ```
 
-Map changed files to routes:
-- `src/app/<path>/page.tsx` → `/<path>` (drop route-group `(…)` segments).
-- A changed feature/UI component → the route(s) that render it. Use Codegraph
-  (`codegraph explore` / `codegraph impact`) to find every rendered consumer of a
-  shared component — e.g. a wormhole-sites component → `/sites` and a `/sites/<id>`.
-- For a dynamic route, substitute a **real id** so the page actually renders —
-  `/sites/[id]` → `/sites/30002`, `/industry/[id]` → a real blueprint id. Grab one
-  from the local DB or the list page if you don't have it handy. The capture script
-  takes concrete paths; it never derives ids.
+Map route files directly. For shared feature or UI code, use `codegraph explore`
+or `codegraph impact` to find every rendered consumer. Replace each dynamic
+segment with a real locally available identifier obtained from the owning list
+page or database; never treat an example identifier as a fixture.
 
-Note the v1 boundary: the sweep runs **logged-out** (EVE SSO can't be scripted
-headlessly), so signed-in routes (`/skills`, `/jobs`, `/characters`, the home
-roster, `/industry` live jobs) capture their gated shell, not populated
-per-character data. Capture them to check the gated state; flag in your report that
-the authenticated view needs the operator's logged-in eyes.
+The sweep is logged out. Capture authenticated routes to verify their signed-out
+gate, then record that populated account state requires the operator's logged-in
+review.
 
-## Step 2 — Make sure the dev server is up (don't collide with the operator's)
+## 2. Establish the local server
 
-Probe first — if a server already answers, reuse it; only start one if it's down:
+Probe before starting another process:
 
 ```bash
 curl -sf -o /dev/null http://localhost:3000 && echo UP || echo DOWN
 ```
 
-- **UP** → use it as-is.
-- **DOWN** → start it in the background on the loopback host (bypasses the macOS
-  firewall re-prompt): `pnpm dev --hostname 127.0.0.1`. The capture script polls for
-  readiness, so you can start it and run the sweep right after. (Logged-out capture
-  needs only Next; you don't need Convex/Docker for it.)
+- Reuse an answering server when it represents the current worktree.
+- Otherwise start the stack required by the selected routes. `pnpm dev` starts
+  Next.js and expects configured local Docker Postgres; use `pnpm dev:all` when
+  the route also needs the repository-managed Postgres and Convex services.
+- Launching Next on `127.0.0.1` is allowed, but browse
+  `http://localhost:3000`. Do not pass a `127.0.0.1` base URL: Next development
+  origin checks can prevent client hydration while leaving a misleading server
+  shell.
 
-> **Launch host vs browsed URL.** Launching with `pnpm dev --hostname 127.0.0.1` is
-> fine (macOS firewall bypass) — but the **browsed** URL must be
-> `http://localhost:3000`, which is the capture script's default. Next dev
-> (Turbopack) blocks `/_next/*` dev resources cross-origin from a `127.0.0.1`
-> Host (`allowedDevOrigins`), so against `127.0.0.1` the HMR handshake fails and
-> hydration silently never completes: the sweep captures the SSR shell with NO
-> client-fetched content, zero `/api/*` requests, and no errors (confirmed on the
-> 3.7.5.4 probes and the 3.7.12.2 sweep). Never pass
-> `--base-url=http://127.0.0.1:3000`.
-
-Ensure the browser binary is present once (idempotent — no-op if already installed):
+Ensure Chromium is available before the first run:
 
 ```bash
 pnpm exec playwright install chromium
 ```
 
-## Step 3 — Run the sweep
+## 3. Run closed-state route captures
+
+Pass concrete paths only:
 
 ```bash
-pnpm ux-check /sites /sites/30002 /industry      # the routes from Step 1
+pnpm ux-check /sites /sites/<real-site-id> /industry
 ```
 
-Both viewports (desktop 1440×900, mobile 390×844) run by default; the mobile pass
-also captures the hamburger opened. Flags if needed: `--viewport=desktop`,
-`--base-url=…`, `--settle=2000`. Artifacts land in the gitignored
-**`docs/ux-check/captures/`** (auto-wiped at the start of every run).
+The default run covers desktop 1440×900 and mobile 390×844; mobile also opens
+the navigation menu. Use `--viewport=desktop`, `--base-url=...`, or
+`--settle=2000` only when the evidence requires them. The run refreshes the
+gitignored `docs/ux-check/captures/` directory.
 
-## Step 3b — Open-state probes (overlays / interactions)
+## 4. Run required open-state probes
 
-`pnpm ux-check` captures only the **closed** static shell. For durable dialogs,
-popovers, menus, toasts, mock-backed states, or other interactions, run the shared
-runner against the tracked probe definitions in `docs/ux-check/probes/`:
+The route sweep captures the closed shell. Use the shared probe runner for
+dialogs, popovers, menus, toasts, mock-backed states, or other durable
+interactions:
 
 ```bash
 node docs/ux-check/run-probes.mjs --list
 node docs/ux-check/run-probes.mjs nav-menu overlay-open
-node docs/ux-check/run-probes.mjs                 # all definitions
+node docs/ux-check/run-probes.mjs
 ```
 
-The runner executes desktop and mobile in isolated browser contexts, installs
-standard CSP/console/page/network diagnostics, writes screenshots plus
-`report.json` under `docs/ux-check/captures/probes/`, and exits nonzero for a
-failed check, probe crash, `style-src` violation, unfiltered console error, or
-uncaught page error. Network failures remain reported evidence rather than a
-default failure gate.
+The runner uses isolated desktop and mobile contexts and writes screenshots plus
+`docs/ux-check/captures/probes/report.json`. It fails for a failed assertion,
+probe crash, `style-src` violation, unfiltered console error, or uncaught page
+error; reported network failures still require agent disposition.
 
-For a recurring interaction, add or update a **probe definition** in
-`docs/ux-check/probes/`; do not create another standalone Playwright launcher.
-Follow `docs/ux-check/README.md` for the definition contract, context helpers,
-mock setup, and runner flags. A temporary `*-probe.mjs` scratch script is allowed
-during diagnosis, but the drift gate warns about it and you must delete it at
-close-out.
+Add recurring interactions as definitions under `docs/ux-check/probes/` using
+`docs/ux-check/README.md`. Do not add another standalone Playwright launcher.
+Delete any temporary `*-probe.mjs` diagnosis script before close-out. The route
+sweep refreshes all captures; the probe runner refreshes only `captures/probes/`.
 
-The route sweep refreshes `docs/ux-check/captures/`. The probe runner refreshes
-only `docs/ux-check/captures/probes/`, so preserve any evidence needed for the
-handoff before rerunning the same workflow.
+## 5. Inspect and report
 
-## Step 4 — Report findings inline
+1. Read `docs/ux-check/captures/report.json` and, when probes ran,
+   `docs/ux-check/captures/probes/report.json`.
+2. Report every console or page error, failed request, and 4xx/5xx response by
+   route or probe and viewport. Include the first diagnostic message and its
+   disposition.
+3. Inspect representative desktop, mobile, and open-state screenshots for
+   overlap, empty regions, broken layout, and missing content. Do not present
+   agent inspection as the final visual judgment.
+4. Return `UX_EVIDENCE`, point to the capture directory, and pause for the
+   operator's browser review before PR creation.
 
-- Read `docs/ux-check/captures/report.json` for the route sweep and
-  `docs/ux-check/captures/probes/report.json` for runner probes. Surface, per route
-  or definition × viewport:
-  console/page errors, failed requests, and 4xx/5xx responses. Quote the first
-  message of each.
-- `Read` a few key `docs/ux-check/captures/*.png` to flag obvious visual breakage
-  (overlap, empty regions, broken layout) — but don't substitute your read for
-  the operator's review.
-- If nothing's wrong, say so plainly and point at the `docs/ux-check/captures/` dir.
+The required sequence is `ux-check` evidence → operator review → `close-out`.
 
-## Step 5 — Hand off
+## Return the result
 
-For a UX / user-facing session, this is the review point: present the findings +
-the screenshot dir, then **pause for the operator to review visual + feel in his own
-browser** before `/close-out` opens the PR. The session sequence is:
+Use `docs/workflows/schema/chat-result.md` for this field set:
 
-> `ux-check` sweep → the operator review pause → `close-out`
+```markdown
+## UX check: `READY_FOR_REVIEW` | `BLOCKED`
+
+- **Routes:** <concrete captured routes>
+- **Viewports:** <desktop, mobile, or both>
+- **Captures:** `<capture directory>`
+
+### Automated evidence
+
+- **Route diagnostics:** <errors and dispositions or None>
+- **Interaction probes:** <definitions and results or Not applicable>
+- **Capture inspection:** <agent visual findings or None>
+- **Authenticated-state limits:** <limitations or None>
+
+### Next state
+
+- **Operator review:** Pending | Approved | Changes requested
+- **Handoff:** <Pause for review, return to implementation, or continue to close-out>
+- **Blocker:** <exact blocker or None>
+```

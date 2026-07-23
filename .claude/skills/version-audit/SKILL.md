@@ -2,8 +2,8 @@
 name: version-audit
 description: >-
   Internal lifecycle handler that executes an approved LGI.tools version audit
-  or health pass, fully replaces the
-  live baseline, and archive a completed version bundle only after its audit.
+  or health pass, fully replaces the live baseline, and archives a completed
+  version bundle only after its audit.
   Use for "version audit", "baseline the codebase", "health pass", "refresh the
   baseline", or "finish the version audit". Normally dispatched by start-session
   except for an explicitly requested periodic health pass.
@@ -28,4 +28,5 @@ No production or destructive-recovery authority is authorized.
 
 ## Return
 
-Return the reconciled audit state and fresh directive. Do not predict siblings.
+Use the active audit mode's canonical Markdown result directly in chat. Include
+the reconciled state and fresh directive without predicting siblings.

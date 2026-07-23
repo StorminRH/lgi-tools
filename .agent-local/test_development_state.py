@@ -161,7 +161,7 @@ class ResolverFixture:
         ux_marker = f"\n**UX gate:** {ux_gate}\n" if ux_gate is not None else ""
         execution_frame = (
             "**Execution profile:** Frontier autonomous coding agent\n"
-            "**Delivery unit:** One agent session, one branch, one PR\n"
+            "**Delivery unit:** One agent session, one shared sub-version branch, one sub-version PR\n"
             "**Roadmap coverage:** §9.9.1.1 fixture outcome\n"
             "**Internal phases:** 1. Implement fixture; 2. Verify fixture\n"
             "**Split triggers:** Material fixture scope conflict\n"
@@ -692,9 +692,9 @@ class DevelopmentStateTests(unittest.TestCase):
                 "Execution profile must be Frontier autonomous coding agent",
             ),
             "delivery unit": (
-                "**Delivery unit:** One agent session, one branch, one PR\n",
+                "**Delivery unit:** One agent session, one shared sub-version branch, one sub-version PR\n",
                 "**Delivery unit:** One branch\n",
-                "Delivery unit must be One agent session, one branch, one PR",
+                "Delivery unit must be One agent session, one shared sub-version branch, one sub-version PR",
             ),
             "roadmap coverage": (
                 "**Roadmap coverage:** §9.9.1.1 fixture outcome\n",
@@ -744,7 +744,7 @@ class DevelopmentStateTests(unittest.TestCase):
         state = self.resolved()
         directive = state["directive"]
         assert isinstance(directive, dict)
-        self.assertIn("Ryan's local browser review is required", directive["pause"])
+        self.assertIn("The operator's local browser review is required", directive["pause"])
 
         contract = self.fixture.write_contract(ux_gate="No")
         self.fixture.write_session_plan(contract)

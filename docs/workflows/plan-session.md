@@ -54,3 +54,28 @@ to the executor.
 3. Run the resolver and drift gate again, report the new directive, and stop.
    Execution begins through a fresh `start-session`; overwrite a re-approved
    plan in place rather than appending history or creating a separate prompt.
+
+## Return the result
+
+Use `docs/workflows/schema/chat-result.md` for this field set:
+
+```markdown
+## Plan session: `APPROVED` | `BLOCKED`
+
+- **Session:** `<id>`
+- **Contract:** `<path and digest>`
+- **Plan:** `<path or Not written>`
+
+### Review and approval
+
+- **Implementation shape:** <plain-English summary>
+- **Contract coverage:** <complete mapping summary or Not reached>
+- **Adversarial review:** <review result and finding disposition or Not reached>
+- **Operator approval:** <approval evidence or Not approved>
+
+### Next state
+
+- **Resolver directive:** <complete fresh directive or Not reached>
+- **Handoff:** <fresh start-session action or planning correction>
+- **Blocker:** <exact blocker or None>
+```

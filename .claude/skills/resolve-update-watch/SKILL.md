@@ -24,4 +24,5 @@ Invocation permits the bounded branch, fixes, disposition, and open PR. Merge re
 
 ## Return
 
-Return fixed, deferred, and absorbed findings. Include review state; leave the PR open.
+Use the canonical Markdown result directly in chat. Preserve its evidence and
+leave the PR open whenever the outcome is `REVIEW_READY`.

@@ -23,5 +23,5 @@ Invocation authorizes the procedure's plan-version-audit entry mode. Audit artif
 
 ## Return
 
-After the procedure reruns the resolver and drift gate, return the approved
-audit plan and resulting fresh directive. Do not execute it.
+Use the audit-planning Markdown result directly in chat after the resolver and
+drift gate. Report the plan and fresh directive without executing it.

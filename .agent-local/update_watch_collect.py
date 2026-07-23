@@ -739,33 +739,57 @@ def render_issue_body(deltas: list[dict]) -> str:
 def render_summary(
     state: dict, candidate_count: int, suppressed: list[str], verdict: str
 ) -> str:
-    """Render the mandatory end-of-run summary printed verbatim by the skill.
+    """Render the mandatory Markdown summary printed verbatim by the skill.
 
     ``candidate_count`` is the total number of candidates found before the
     refusal gate clears the reportable set, so a refused run's summary still
     tells the operator how many deltas were pending when it failed.
     """
-    lines = ["update-watch end-of-run summary:"]
-    for slug, source_state in sorted(state.get("watch", {}).items()):
+    failures = state.get("failures", [])
+    outcome = "REFUSED" if failures else verdict.upper()
+    outward_action = "Open one digest issue" if verdict == "report" else "None"
+    lines = [
+        f"## Update watch: `{outcome}`",
+        "",
+        f"- **Verdict:** {outcome.title()}",
+        f"- **Outward action:** {outward_action}",
+        "",
+        "### Collection",
+        "",
+        "- **Sources:**",
+    ]
+    sources = sorted(state.get("watch", {}).items())
+    for slug, source_state in sources:
         pages = source_state.get("pages", {})
-        lines.append(f"- source {slug}: {len(pages)} page(s) fetched")
-    lines.append(f"- dependencies checked: {len(state.get('npmLatest', {}))}")
+        lines.append(f"  - **{slug}:** {len(pages)} page(s) fetched")
+    if not sources:
+        lines.append("  - None")
+    lines.append(f"- **Dependencies checked:** {len(state.get('npmLatest', {}))}")
     lines.append(
-        "- advisory query: "
-        + ("ok" if "advisories" in state else "failed")
+        "- **Advisory query:** "
+        + ("OK" if "advisories" in state else "Failed")
         + f" ({len(state.get('advisories', []))} advisories observed)"
     )
-    lines.append(f"- open update-watch issues scanned: {len(state.get('openIssues', []))}")
-    lines.append(f"- candidates found: {candidate_count}")
-    lines.append(f"- deltas suppressed by open issues: {len(suppressed)}")
-    failures = state.get("failures", [])
-    if failures:
-        lines.append(f"- verdict: refused: {'; '.join(failures)}")
-    else:
-        lines.append(f"- verdict: {verdict}")
-    lines.append(
-        "- outward action: "
-        + ("open one digest issue" if verdict == "report" else "none")
+    lines.extend(
+        [
+            "- **Open update-watch issues scanned:** "
+            + str(len(state.get("openIssues", []))),
+            "",
+            "### Delta review",
+            "",
+            f"- **Candidates found:** {candidate_count}",
+            f"- **Suppressed by open issues:** {len(suppressed)}",
+            "",
+            "### Next state",
+            "",
+            "- **Handoff:** "
+            + (
+                "Create one from the rendered issue body"
+                if verdict == "report"
+                else "Not created"
+            ),
+            "- **Blocker:** " + ("; ".join(failures) if failures else "None"),
+        ]
     )
     return "\n".join(lines)
 
