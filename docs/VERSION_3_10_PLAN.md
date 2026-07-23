@@ -581,7 +581,7 @@ possible small file-count churn, no LOC growth).
 
 > *Delivered within sub-version 3.10.1.2, together with §3.10.1.2 (see the
 > Status table). No separate 3.10.1.3 delivery row exists; this block states
-> the §1.3 requirements the 3.10.1.2 bundle must satisfy.*
+> the §3.10.1.3 requirements the 3.10.1.2 bundle must satisfy.*
 
 **Objective.** Server-only modules — database, secret-bearing config,
 privileged auth, vendor adapters — mechanically cannot enter the client
@@ -820,7 +820,7 @@ return live values; standard close-out.
 
 > *Delivered within sub-version 3.10.3.1, together with §3.10.3.1 (see the
 > Status table). No separate 3.10.3.2 delivery row exists; this block states
-> the §3.2 requirements the 3.10.3.1 bundle must satisfy.*
+> the §3.10.3.2 requirements the 3.10.3.1 bundle must satisfy.*
 
 **Objective.** Every retryable or redeliverable mutation/job is inventoried
 and judged: inherently idempotent, key-protected, or accepted-risk — with
@@ -896,8 +896,8 @@ vs. component-owned); whether the drift test also publishes the Mermaid
 source into the devlog for copy-paste.
 
 **Baseline & hotspot note.** Neutral (one small script, one component, one
-test). Two sessions on one branch: generator/drift plumbing first, then the
-dependent devlog UX.
+test). One session with two ordered internal phases: generator/drift plumbing
+first, then the dependent devlog UX.
 
 **Delivery evidence.** Drift test red on a seeded zone-rule edit without a
 regenerated diagram; `ux-check` captures plus Ryan's approved browser
