@@ -18,19 +18,19 @@ const reconcileAfterCharacterRemovalMock = vi.fn();
 const logUsageEventMock = vi.fn();
 let errorSpy: ReturnType<typeof vi.spyOn>;
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
 }));
 
-vi.mock('@/features/auth/admin-users', () => ({
+vi.mock('@/platform/auth/admin-users', () => ({
   reassignCharacter: (args: unknown) => reassignCharacterMock(args),
 }));
 
-vi.mock('@/features/auth/account-purge', () => ({
+vi.mock('@/platform/auth/account-purge', () => ({
   reconcileAfterCharacterRemoval: (userId: string, characterId: number) =>
     reconcileAfterCharacterRemovalMock(userId, characterId),
 }));

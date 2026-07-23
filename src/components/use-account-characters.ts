@@ -11,9 +11,9 @@
 // open to the mirror instead of loading forever. The pure derivation
 // (deriveRoster) is unit-tested; this shell stays fetch-only.
 import { useEffect, useState } from 'react';
-import { accountCharactersEndpoint } from '@/features/auth/api-contract';
+import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/lib/api-client';
-import { useAuth } from '@/features/auth/components/AuthProvider';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { deriveRoster, type BuildCharacter } from './run-as-state';
 
 /**

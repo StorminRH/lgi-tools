@@ -9,7 +9,7 @@ import {
   buildAvailableStructures,
   collectDogmaTypeIds,
 } from '@/features/industry-planner/available-structures';
-import { getCurrentUserId } from '@/features/auth/session';
+import { getCurrentUserId } from '@/platform/auth/session';
 
 /**
  * GET /api/account/structures. The structures the caller can place a build in:

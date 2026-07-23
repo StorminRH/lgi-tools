@@ -13,17 +13,17 @@ import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
-import { AdminForceLogoutForm } from '@/features/auth/components/AdminForceLogoutForm';
-import { AdminReassignCharacterForm } from '@/features/auth/components/AdminReassignCharacterForm';
-import { AdminUnlinkCharacterForm } from '@/features/auth/components/AdminUnlinkCharacterForm';
-import { requireAdminPage } from '@/features/auth/route-guards';
+import { AdminForceLogoutForm } from '@/platform/auth/components/AdminForceLogoutForm';
+import { AdminReassignCharacterForm } from '@/platform/auth/components/AdminReassignCharacterForm';
+import { AdminUnlinkCharacterForm } from '@/platform/auth/components/AdminUnlinkCharacterForm';
+import { requireAdminPage } from '@/platform/auth/route-guards';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,
   type LinkedCharacter,
-} from '@/features/auth/linked-characters';
-import { getActiveSessionCount, getUserById } from '@/features/auth/admin-users';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
+} from '@/platform/auth/linked-characters';
+import { getActiveSessionCount, getUserById } from '@/platform/auth/admin-users';
+import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { resolveErrorMessage } from '@/lib/error-copy';
 import { deriveUserDetailView } from './user-detail-view';
 

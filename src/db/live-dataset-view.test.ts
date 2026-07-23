@@ -21,7 +21,7 @@ vi.mock('@/data/eve-data/queries', () => ({
 
 // listLinkedCharacters enumerates a user's characters (readCharacterOwners' first step).
 const linkedByUser: Record<string, Array<{ characterId: number }>> = {};
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(async (userId: string) => linkedByUser[userId] ?? []),
 }));
 

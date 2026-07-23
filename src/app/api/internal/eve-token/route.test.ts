@@ -6,10 +6,10 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('@/features/auth/eve-token-service', () => ({
+vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: h.serviceMock,
 }));
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   accountBelongsToUser: h.accountBelongsToUserMock,
 }));
 

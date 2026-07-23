@@ -34,7 +34,7 @@ const RESPONSE_PIN_RE = /\bsatisfies\s+([A-Za-z_$][\w$]*)/g;
 
 // Routes whose wire shapes are owned by a library, not by us. The better-auth
 // catch-all's contract IS the better-auth version in package.json; the two
-// endpoints we call directly are hand-pinned in features/auth/api-contract.ts.
+// endpoints we call directly are hand-pinned in platform/auth/api-contract.ts.
 const LIBRARY_OWNED = new Set(['auth/[...all]/route.ts']);
 
 // Recursive walk using withFileTypes only — `fs.globSync` and the `recursive`

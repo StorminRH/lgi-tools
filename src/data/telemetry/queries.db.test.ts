@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createDbTestHarness } from '@/db/test-support/db-test-harness';
-import { characters } from '@/features/auth/schema';
+import { characters } from '@/db/auth-schema';
 import {
   claimPublicEsiBudgetAlert,
   completePublicEsiBudgetAlertClaim,

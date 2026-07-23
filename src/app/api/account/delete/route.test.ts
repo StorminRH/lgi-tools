@@ -18,11 +18,11 @@ const getSessionMock = vi.fn();
 const nukeAccountMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/account-purge', () => ({
+vi.mock('@/composition/account-lifecycle/account-purge', () => ({
   nukeAccount: (u: string) => nukeAccountMock(u),
 }));
 

@@ -1,10 +1,11 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { type PurgeCharacterResponse, purgeCharacterRequestSchema } from '@/features/auth/api-contract';
-import { accountBelongsToUser } from '@/features/auth/linked-characters';
-import { purgeOwnCharacter } from '@/features/auth/account-purge';
-import { requireSession } from '@/features/auth/route-guards';
+import { type PurgeCharacterResponse, purgeCharacterRequestSchema } from '@/platform/auth/api-contract';
+import { accountBelongsToUser } from '@/platform/auth/linked-characters';
+import '@/composition/account-lifecycle/register-owner-reconciler';
+import { purgeOwnCharacter } from '@/composition/account-lifecycle/account-purge';
+import { requireSession } from '@/platform/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseJsonBody } from '@/lib/route-body';
 

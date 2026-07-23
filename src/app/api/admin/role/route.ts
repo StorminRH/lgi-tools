@@ -2,10 +2,10 @@ import type { NextRequest } from 'next/server';
 import {
   ADMIN_ACCESS_QUERY_MAX_LENGTH,
   adminRoleFormSchema,
-} from '@/features/auth/api-contract';
-import { getUserById, setUserRole } from '@/features/auth/admin-users';
-import { requireAdmin } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
+} from '@/platform/auth/api-contract';
+import { getUserById, setUserRole } from '@/platform/auth/admin-users';
+import { requireAdmin } from '@/platform/auth/route-guards';
+import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { sanitiseUserText } from '@/lib/sanitise';

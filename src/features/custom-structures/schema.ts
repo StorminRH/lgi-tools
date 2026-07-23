@@ -1,5 +1,5 @@
 import { doublePrecision, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { user } from '@/features/auth/schema';
+import { user } from '@/db/auth-schema';
 
 /**
  * Per-user, APP-AUTHORED custom structures (3.7.9) — a saved Upwell structure

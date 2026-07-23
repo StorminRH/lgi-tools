@@ -13,7 +13,7 @@ import {
   sql,
 } from 'drizzle-orm';
 import { db } from '@/db';
-import { characters } from '@/features/auth/schema';
+import { characters } from '@/db/auth-schema';
 import { usageLogs } from './schema';
 import { inRange, jsonInt } from './sql';
 import type {

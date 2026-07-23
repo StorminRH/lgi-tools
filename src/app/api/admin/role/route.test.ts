@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AdminUser } from '@/features/auth/admin-users';
+import type { AdminUser } from '@/platform/auth/admin-users';
 
 // The route reads the viewer (admin gate + own userId) straight off the Better
 // Auth session and mutates per-user roles. Mock the auth instance + query layer
@@ -29,11 +29,11 @@ const getUserByIdMock = vi.fn();
 const setUserRoleMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/admin-users', () => ({
+vi.mock('@/platform/auth/admin-users', () => ({
   getUserById: (id: string) => getUserByIdMock(id),
   setUserRole: (id: string, role: string) => setUserRoleMock(id, role),
 }));

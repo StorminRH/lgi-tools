@@ -14,14 +14,14 @@ import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
-import { RoleToggleForm } from '@/features/auth/components/RoleToggleForm';
-import { requireAdminPage } from '@/features/auth/route-guards';
+import { RoleToggleForm } from '@/platform/auth/components/RoleToggleForm';
+import { requireAdminPage } from '@/platform/auth/route-guards';
 import {
   getUserByCharacterId,
   listAdminUsers,
   searchUsersByLinkedCharacterName,
   type AdminUser,
-} from '@/features/auth/admin-users';
+} from '@/platform/auth/admin-users';
 import { readEnv } from '@/lib/env';
 import { sanitiseUserText } from '@/lib/sanitise';
 import {

@@ -22,7 +22,7 @@ const repointActiveToOldestMock = vi.fn();
 const getStoredActiveCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: {
     api: {
       getSession: () => getSessionMock(),
@@ -31,7 +31,7 @@ vi.mock('@/features/auth/auth', () => ({
   },
 }));
 
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
   repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
   getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),

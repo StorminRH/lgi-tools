@@ -36,7 +36,7 @@
 
 import type { useRouter } from 'next/navigation';
 import type { EveImageDescriptor } from '@/data/eve-data/type-images';
-import type { Session } from '@/features/auth/types';
+import type { Session } from '@/platform/auth/types';
 
 /**
  * Minimal navigation port required by global search so sources can navigate without depending on

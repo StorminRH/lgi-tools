@@ -2,15 +2,15 @@ import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { unlinkCharacterFormSchema } from '@/features/auth/api-contract';
-import { auth } from '@/features/auth/auth';
-import { EVE_PROVIDER_ID } from '@/features/auth/eve-sso';
+import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
+import { auth } from '@/platform/auth/auth';
+import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
 import {
   getStoredActiveCharacterId,
   listLinkedCharacters,
   repointActiveToOldest,
-} from '@/features/auth/linked-characters';
-import { requireSession } from '@/features/auth/route-guards';
+} from '@/platform/auth/linked-characters';
+import { requireSession } from '@/platform/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseFormBody } from '@/lib/route-body';
 

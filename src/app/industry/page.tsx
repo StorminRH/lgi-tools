@@ -8,7 +8,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
 import { SITE_URL } from '@/config/site-url';
 import { IndustryTypedHint } from '@/features/industry-planner/components/IndustryTypedHint';
-import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
+import { LinkCharacterButton } from '@/platform/auth/components/LinkCharacterButton';
 import { IndustrySlotMeta } from '@/features/industry-jobs/components/IndustrySlotMeta';
 import { activeJobCharacterIds, corpJobsAccess } from './active-job-character-ids';
 import { IndustryDashboardGrid } from './IndustryDashboardGrid';

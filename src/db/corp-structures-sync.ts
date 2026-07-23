@@ -11,10 +11,10 @@
 // by corporation ALONE (shared across members), so the read scope comes from the
 // viewer's corp membership (the 3.7.3 corp-access gate), not their own sync rows.
 import { after } from 'next/server';
-import { refreshStaleAffiliationsForUser } from '@/features/auth/affiliation';
-import { decideCorpAccess } from '@/features/auth/corp-access';
-import { memberCharacterIdsInCorp, memberCorpIds } from '@/features/auth/membership';
-import { getUserAffiliations } from '@/features/auth/affiliation-store';
+import { refreshStaleAffiliationsForUser } from '@/platform/auth/affiliation';
+import { decideCorpAccess } from '@/platform/auth/corp-access';
+import { memberCharacterIdsInCorp, memberCorpIds } from '@/platform/auth/membership';
+import { getUserAffiliations } from '@/platform/auth/affiliation-store';
 import {
   getCorpStructureRigs,
   getCorpStructures,

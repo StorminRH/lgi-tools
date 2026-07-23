@@ -10,7 +10,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import * as schema from '@/db/schema';
 import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
-import { refreshAffiliations } from '@/features/auth/affiliation';
+import { refreshAffiliations } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
 import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {

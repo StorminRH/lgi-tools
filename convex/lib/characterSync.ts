@@ -4,7 +4,7 @@
 // resolution, and the engine subject-row stamp. Pure-ish leaves only (no Convex
 // function exports), so nothing here lands on the deployed API surface. The
 // per-dataset reads, parses, and apply bodies stay in their own tracker module.
-import type { EveCharactersResponse, EveTokenOkResponse } from '@/features/auth/api-contract';
+import type { EveCharactersResponse, EveTokenOkResponse } from '@/platform/auth/api-contract';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { minCacheWindow } from '@/lib/sync-engine';
 import type { Id } from '../_generated/dataModel';

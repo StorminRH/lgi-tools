@@ -1,5 +1,5 @@
-import type { AccountCharactersResponse } from '@/features/auth/api-contract';
-import type { Session } from '@/features/auth/types';
+import type { AccountCharactersResponse } from '@/platform/auth/api-contract';
+import type { Session } from '@/platform/auth/types';
 
 /**
  * One linked character as the account-characters endpoint projects it — the

@@ -4,7 +4,7 @@ const h = vi.hoisted(() => ({
   requireSameOriginMock: vi.fn(),
 }));
 
-vi.mock('@/features/auth/same-origin', () => ({
+vi.mock('@/platform/auth/same-origin', () => ({
   requireSameOrigin: (request: Request) => h.requireSameOriginMock(request),
 }));
 

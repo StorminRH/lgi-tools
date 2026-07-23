@@ -11,7 +11,7 @@
 // template-pure write-behind (never awaits the refresh). The shared auth + ESI port
 // wiring lives in owner-sync-port.ts (MIGRATE.D.2).
 import { after } from 'next/server';
-import { listLinkedCharacters } from '@/features/auth/linked-characters';
+import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import {
   getCharacterSkillLevels,
   getSkillLevelsForCharacters,

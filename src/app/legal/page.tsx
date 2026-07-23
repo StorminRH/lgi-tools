@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionLabel } from '@/components/ui/section-label';
-import { EVE_AUTHORIZED_APPS_URL } from '@/features/auth/eve-sso';
+import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { buildPageMetadata } from '@/lib/page-metadata';
 
 /** Static search and social metadata for the /legal route. */

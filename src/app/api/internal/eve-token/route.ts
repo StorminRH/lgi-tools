@@ -11,9 +11,9 @@ import {
   eveTokenRequestSchema,
   type EveTokenErrorResponse,
   type EveTokenOkResponse,
-} from '@/features/auth/api-contract';
-import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
-import { accountBelongsToUser } from '@/features/auth/linked-characters';
+} from '@/platform/auth/api-contract';
+import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
+import { accountBelongsToUser } from '@/platform/auth/linked-characters';
 import { parseJsonBody } from '@/lib/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';
 

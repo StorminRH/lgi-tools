@@ -6,7 +6,7 @@ import {
   type SearchContext,
 } from '@/search';
 import { commandsSearchSource } from './search';
-import type { Session } from '@/features/auth/types';
+import type { Session } from '@/platform/auth/types';
 
 // Each vitest file gets its own module graph, so we start with a clean
 // registry, then register the Commands source the way the wiring manifest

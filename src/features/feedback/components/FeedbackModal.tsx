@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Field } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/input';
-import type { Session } from '@/features/auth/types';
+import type { Session } from '@/platform/auth/types';
 import { apiFetch } from '@/lib/api-client';
 import { feedbackEndpoint } from '../api-contract';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from '../constants';

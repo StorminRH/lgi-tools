@@ -5,7 +5,7 @@ import {
   type OwnedBlueprintsBadRequest,
 } from '@/features/industry-planner/api-contract';
 import type { OwnedBlueprintsResponse } from '@/features/industry-planner/types';
-import { getCurrentUserId } from '@/features/auth/session';
+import { getCurrentUserId } from '@/platform/auth/session';
 import { parseJsonBody } from '@/lib/route-body';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 

@@ -76,7 +76,7 @@ describe('same-origin mutation coverage', () => {
     const source = readFileSync(join(API_DIR, route), 'utf8');
 
     expect(source).toContain(
-      "import { requireSameOrigin } from '@/features/auth/same-origin';",
+      "import { requireSameOrigin } from '@/platform/auth/same-origin';",
     );
     expect(source).toContain('requireSameOrigin(request);');
   });
@@ -85,7 +85,7 @@ describe('same-origin mutation coverage', () => {
     const source = readFileSync(join(API_DIR, 'mutation-route.ts'), 'utf8');
 
     expect(source).toContain(
-      "import { requireSameOrigin } from '@/features/auth/same-origin';",
+      "import { requireSameOrigin } from '@/platform/auth/same-origin';",
     );
     expect(source).toContain('requireSameOrigin(request);');
   });

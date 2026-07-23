@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { telemetryRequestSchema } from '@/data/telemetry/api-contract';
 import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { getSessionCharacterId } from '@/features/auth/session';
+import { getSessionCharacterId } from '@/platform/auth/session';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseJsonBody } from '@/lib/route-body';
 

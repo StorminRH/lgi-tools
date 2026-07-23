@@ -6,10 +6,10 @@
 // No token material, no raw scope string. No user input to validate.
 // authz: auth
 // input: none
-import type { AccountCharactersResponse } from '@/features/auth/api-contract';
-import { toPanelCharacter } from '@/features/auth/panel-character';
-import { listLinkedCharacters } from '@/features/auth/linked-characters';
-import { getCurrentUserId } from '@/features/auth/session';
+import type { AccountCharactersResponse } from '@/platform/auth/api-contract';
+import { toPanelCharacter } from '@/platform/auth/panel-character';
+import { listLinkedCharacters } from '@/platform/auth/linked-characters';
+import { getCurrentUserId } from '@/platform/auth/session';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 
 /**

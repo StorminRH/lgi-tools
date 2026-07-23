@@ -6,10 +6,10 @@
 // composition layer) because it touches the auth slice (token vend, affiliation/scope
 // reads) AND lib/esi — a cross-slice join the feature boundary forbids inside a slice.
 // Each wrapper composes these with its own slice-specific Neon read/save/stamp methods.
-import { getFreshAccessTokenForCharacter } from '@/features/auth/eve-token-service';
-import { getUserAffiliations } from '@/features/auth/affiliation-store';
-import { listLinkedCharacters } from '@/features/auth/linked-characters';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
+import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
+import { getUserAffiliations } from '@/platform/auth/affiliation-store';
+import { listLinkedCharacters } from '@/platform/auth/linked-characters';
+import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
 import { readEsiAuthed, readEsiPagedAuthed } from '@/lib/esi/authed-read';
 import type { OwnerKey } from '@/lib/owner-sync';

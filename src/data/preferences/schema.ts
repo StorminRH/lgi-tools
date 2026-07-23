@@ -1,5 +1,5 @@
 import { jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
-import { user } from '@/features/auth/schema';
+import { user } from '@/db/auth-schema';
 
 /**
  * Generic per-user preference store (F4). The authoritative tier for a logged-in

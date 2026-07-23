@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { HeroBanner } from '@/components/HeroBanner';
 import { HomeRosterPanel } from '@/components/HomeRosterPanel';
-import { useAuth } from '@/features/auth/components/AuthProvider';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 
 /**
  * The home page's ONLY auth-conditional region. The anonymous hero is rendered

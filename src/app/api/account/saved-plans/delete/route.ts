@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { requireUserId } from '@/features/auth/route-guards';
+import { requireUserId } from '@/platform/auth/route-guards';
 import {
   deleteSavedPlanRequestSchema,
   type SavedPlansResponse,

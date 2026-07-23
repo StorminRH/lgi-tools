@@ -21,7 +21,7 @@ import { cva } from 'class-variance-authority';
 import { Button } from '@/components/ui/button';
 import { CharacterPortrait } from '@/components/character-portrait';
 import type { PanelCharacter } from '@/components/live-character-card';
-import { startCharacterLink } from '@/features/auth/components/LinkCharacterButton';
+import { startCharacterLink } from '@/platform/auth/link-character';
 import { type StripCharacterState, stripState, toggleDimmed } from './character-strip-model';
 
 const portraitButton = cva(

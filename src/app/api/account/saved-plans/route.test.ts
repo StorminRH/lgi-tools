@@ -11,10 +11,10 @@ const h = vi.hoisted(() => ({
   logUsageEventMock: vi.fn(),
 }));
 
-vi.mock('@/features/auth/session', () => ({
+vi.mock('@/platform/auth/session', () => ({
   getCurrentUserId: (...args: unknown[]) => h.getCurrentUserIdMock(...args),
 }));
-vi.mock('@/features/auth/route-guards', () => ({
+vi.mock('@/platform/auth/route-guards', () => ({
   requireUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
 vi.mock('@/features/industry-planner/queries', () => ({

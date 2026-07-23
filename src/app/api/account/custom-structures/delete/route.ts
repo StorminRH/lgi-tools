@@ -8,7 +8,7 @@ import {
   deleteCustomStructure,
   listCustomStructures,
 } from '@/features/custom-structures/queries';
-import { requireUserId } from '@/features/auth/route-guards';
+import { requireUserId } from '@/platform/auth/route-guards';
 import { parseJsonBody } from '@/lib/route-body';
 
 /**

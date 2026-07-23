@@ -1,5 +1,5 @@
 import { bigint, bigserial, index, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { characters } from '@/features/auth/schema';
+import { characters } from '@/db/auth-schema';
 
 /**
  * First-party usage log. One row per tracked action (page view, terminal

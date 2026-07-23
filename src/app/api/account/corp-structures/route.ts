@@ -1,5 +1,5 @@
 import { getCorpStructuresForUserOnView } from '@/db/corp-structures-sync';
-import { getCurrentUserId } from '@/features/auth/session';
+import { getCurrentUserId } from '@/platform/auth/session';
 import type { CorpStructuresResponse } from '@/features/owned-structures/api-contract';
 
 /**

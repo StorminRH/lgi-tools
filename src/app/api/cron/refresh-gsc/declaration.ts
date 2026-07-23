@@ -19,12 +19,12 @@ import { pruneUsageLogs } from '@/data/telemetry/queries';
 import { db } from '@/db';
 import type { CronRouteDeclaration } from '@/db/cron-gate';
 import { pruneEsiSnapshots } from '@/db/esi-snapshot-retention';
-import { pruneCorpAccessAudit } from '@/features/auth/affiliation-store';
+import { pruneCorpAccessAudit } from '@/platform/auth/affiliation-store';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
-} from '@/features/auth/constants';
-import { pruneExpiredVerifications } from '@/features/auth/verification-retention';
+} from '@/platform/auth/constants';
+import { pruneExpiredVerifications } from '@/platform/auth/verification-retention';
 import { swallow } from '@/lib/cron';
 
 /**

@@ -18,7 +18,7 @@ import { readEnv } from '@/lib/env';
 config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 
 import postgres from 'postgres';
-import { syntheticEmail } from '../features/auth/synthetic-email';
+import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { withAdvisoryLock, type ReservedConnection } from './advisory-lock';
 import { resolveLockConnectionUrl } from './index';
 import { runScript } from './script-runtime';

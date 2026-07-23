@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Session } from '@/features/auth/types';
+import type { Session } from '@/platform/auth/types';
 import {
   deriveRoster,
   resolveBuildCharacter,

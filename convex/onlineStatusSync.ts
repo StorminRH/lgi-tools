@@ -13,7 +13,7 @@
 // a recorded per-character or run-level error so a hopeless run is never retried
 // and partial results are never lost.
 import { v } from 'convex/values';
-import type { EveCharactersResponse } from '@/features/auth/api-contract';
+import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import { parseOnlineBody } from '@/features/online-status/esi-projection';
 import { canSyncOnline } from '@/features/online-status/sync-eligibility';
 import { EsiBudgetExhaustedError } from '@/lib/esi';

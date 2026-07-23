@@ -13,7 +13,7 @@
 
 import { useState } from 'react';
 import { GlobalSearch } from '@/components/GlobalSearch';
-import { LoginButton } from '@/features/auth/components/LoginButton';
+import { LoginButton } from '@/platform/auth/components/LoginButton';
 import { NavMenu } from '@/components/NavMenu';
 import { NavTools } from '@/components/NavTools';
 import { ServerStatus } from '@/components/ServerStatus';

@@ -1,5 +1,5 @@
 import { boolean, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
-import { user } from '@/features/auth/schema';
+import { user } from '@/db/auth-schema';
 import type { PlanSnapshotWire } from './template-snapshot';
 
 /**

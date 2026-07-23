@@ -3,8 +3,8 @@ import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contra
 import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { parseRange } from '@/app/admin/period';
-import { requireAdmin } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
+import { requireAdmin } from '@/platform/auth/route-guards';
+import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 
 /**

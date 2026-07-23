@@ -20,11 +20,11 @@ const accountBelongsToUserMock = vi.fn();
 const setActiveCharacterMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
   setActiveCharacter: (u: string, c: number) => setActiveCharacterMock(u, c),
 }));

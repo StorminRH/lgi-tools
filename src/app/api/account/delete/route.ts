@@ -1,9 +1,10 @@
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import type { AccountDeleteResponse } from '@/features/auth/api-contract';
-import { nukeAccount } from '@/features/auth/account-purge';
-import { requireSession } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
+import type { AccountDeleteResponse } from '@/platform/auth/api-contract';
+import '@/composition/account-lifecycle/register-owner-reconciler';
+import { nukeAccount } from '@/composition/account-lifecycle/account-purge';
+import { requireSession } from '@/platform/auth/route-guards';
+import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
 /**
