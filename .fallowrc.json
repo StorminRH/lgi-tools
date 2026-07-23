@@ -74,14 +74,6 @@
 
   "boundaries": {
     "zones": [
-      {
-        "// note": "Interim first-match rule retained until the final layer-map tightening retires auth-surface.",
-        "name": "auth-surface",
-        "patterns": [
-          "src/platform/auth/types.ts",
-          "src/platform/auth/api-contract.ts"
-        ]
-      },
       { "name": "ui", "patterns": ["src/components/ui/**"] },
       { "name": "platform/auth", "patterns": ["src/platform/auth/**"] },
       { "name": "platform/owner-sync", "patterns": ["src/platform/owner-sync/**"] },
@@ -98,7 +90,7 @@
       { "name": "data", "autoDiscover": ["src/data"] },
       { "name": "lib", "patterns": ["src/lib/**"] },
       {
-        "name": "shared",
+        "name": "components",
         "patterns": ["src/components/*.tsx", "src/components/*.ts", "src/components/telemetry/**"]
       },
       { "name": "api", "patterns": ["src/app/api/**"] },
@@ -113,44 +105,56 @@
     ],
     "rules": [
       {
-        "from": "auth-surface",
-        "allow": ["auth-surface", "lib", "config", "transport"]
-      },
-      {
-        "from": "platform/auth",
+        "from": "app",
         "allow": [
+          "components-composition",
+          "composition",
+          "components",
           "ui",
-          "data",
-          "lib",
-          "shared",
-          "auth-surface",
-          "db",
-          "config",
+          "features",
+          "platform/auth",
           "platform/esi",
-          "platform/search",
-          "platform/purge",
           "platform/page-settings",
-          "transport"
+          "data",
+          "transport",
+          "lib",
+          "config"
         ]
       },
-      { "from": "platform/owner-sync", "allow": ["platform/esi", "lib"] },
-      { "from": "platform/esi", "allow": ["lib", "config"] },
-      { "from": "platform/search", "allow": ["lib"] },
-      { "from": "platform/purge", "allow": ["lib"] },
-      { "from": "platform/page-settings", "allow": ["lib"] },
+      {
+        "from": "api",
+        "allow": [
+          "transport",
+          "composition",
+          "features",
+          "platform/auth",
+          "platform/esi",
+          "data",
+          "db",
+          "lib",
+          "config"
+        ]
+      },
+      {
+        "from": "scripts",
+        "allow": ["composition", "platform/auth", "data", "db", "lib"]
+      },
+      {
+        "from": "runtime",
+        "allow": ["transport", "features", "data", "lib", "config"]
+      },
       {
         "from": "composition",
         "allow": [
+          "features",
           "platform/auth",
           "platform/owner-sync",
           "platform/esi",
           "platform/search",
           "platform/purge",
           "platform/page-settings",
-          "transport",
-          "auth-surface",
-          "features",
           "data",
+          "transport",
           "db",
           "lib",
           "config"
@@ -160,15 +164,11 @@
         "from": "components-composition",
         "allow": [
           "composition",
-          "shared",
+          "components",
           "ui",
           "features",
-          "auth-surface",
           "platform/auth",
-          "platform/owner-sync",
-          "platform/esi",
           "platform/search",
-          "platform/purge",
           "platform/page-settings",
           "data",
           "transport",
@@ -179,167 +179,84 @@
       {
         "from": "features",
         "allow": [
-          "ui",
-          "data",
-          "lib",
-          "shared",
-          "auth-surface",
-          "db",
-          "config",
           "platform/auth",
           "platform/owner-sync",
-          "platform/esi",
           "platform/search",
           "platform/purge",
           "platform/page-settings",
-          "transport"
+          "data",
+          "transport",
+          "db",
+          "lib",
+          "config",
+          "ui",
+          "components"
+        ]
+      },
+      {
+        "from": "components",
+        "allow": [
+          "ui",
+          "platform/auth",
+          "platform/search",
+          "platform/page-settings",
+          "data",
+          "transport",
+          "lib"
         ]
       },
       {
         "from": "data",
         "allow": [
-          "lib",
-          "auth-surface",
-          "db",
-          "config",
-          "platform/auth",
-          "platform/owner-sync",
-          "platform/esi",
-          "platform/search",
-          "platform/purge",
-          "transport"
-        ]
-      },
-      {
-        "from": "data/npc-stats",
-        "allow": [
-          "lib",
-          "auth-surface",
           "data/eve-data",
-          "db",
-          "config",
-          "platform/auth",
-          "platform/owner-sync",
           "platform/esi",
+          "platform/owner-sync",
           "platform/search",
           "platform/purge",
-          "transport"
-        ]
-      },
-      { "from": "lib", "allow": ["lib", "config"] },
-      { "from": "ui", "allow": ["lib"] },
-      {
-        "from": "shared",
-        "allow": [
-          "ui",
-          "lib",
-          "data",
-          "features",
-          "auth-surface",
-          "config",
-          "platform/auth",
-          "composition",
-          "platform/owner-sync",
-          "platform/esi",
-          "platform/search",
-          "platform/page-settings",
-          "transport"
-        ]
-      },
-      {
-        "from": "api",
-        "allow": [
           "transport",
-          "composition",
-          "features",
-          "platform/auth",
-          "platform/owner-sync",
-          "platform/esi",
-          "data",
-          "db",
-          "lib",
-          "config",
-          "auth-surface",
-          "platform/search",
-          "platform/purge",
-          "platform/page-settings"
-        ]
-      },
-      {
-        "from": "app",
-        "allow": [
-          "features",
-          "data",
-          "ui",
-          "shared",
-          "db",
-          "config",
-          "auth-surface",
-          "lib",
-          "platform/auth",
-          "composition",
-          "components-composition",
-          "platform/owner-sync",
-          "platform/esi",
-          "platform/search",
-          "platform/page-settings",
-          "transport"
-        ]
-      },
-      {
-        "from": "scripts",
-        "allow": [
-          "composition",
-          "platform/auth",
-          "data",
           "db",
           "lib",
           "config"
         ]
       },
       {
-        "from": "db",
+        "from": "platform/auth",
         "allow": [
-          "data",
-          "features",
-          "config",
-          "auth-surface",
-          "esi-datasets",
-          "lib",
-          "platform/auth",
-          "composition",
-          "platform/owner-sync",
           "platform/esi",
           "platform/purge",
-          "transport"
+          "data",
+          "transport",
+          "db",
+          "lib",
+          "config"
         ]
       },
-      { "from": "transport", "allow": ["lib", "config"] },
-      { "from": "config", "allow": ["lib"] },
+      { "from": "platform/owner-sync", "allow": ["platform/esi"] },
+      { "from": "platform/esi", "allow": ["lib", "config"] },
+      { "from": "platform/search", "allow": [] },
+      { "from": "platform/purge", "allow": [] },
+      { "from": "platform/page-settings", "allow": ["lib"] },
+      { "from": "transport", "allow": ["lib"] },
+      { "from": "db", "allow": ["lib", "config"] },
+      { "from": "lib", "allow": ["config"] },
+      { "from": "ui", "allow": [] },
+      { "from": "config", "allow": [] },
+      {
+        "from": "convex",
+        "allow": ["platform/esi", "auth-surface", "data", "lib"]
+      },
       {
         "from": "esi-datasets",
         "allow": [
-          "data",
+          "composition",
           "db",
-          "features",
-          "lib",
-          "platform/auth",
-          "platform/owner-sync",
-          "platform/esi",
-          "platform/purge",
-          "composition"
-        ]
-      },
-      {
-        "from": "convex",
-        "allow": [
           "data",
-          "auth-surface",
-          "lib",
-          "platform/esi"
+          "features",
+          "platform/auth",
+          "platform/purge",
+          "lib"
         ]
-      },
-      { "from": "runtime", "allow": ["config", "data", "features", "lib", "transport"] }
+      }
     ],
     "coverage": {
       "requireAllFiles": true,
