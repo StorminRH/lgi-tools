@@ -269,7 +269,7 @@ trackers' departure so the mapper can rebuild on it.
 ## The ESI gate
 
 - **One ESI gate.** EVERY ESI call — pricing and character alike, future consumers
-  including killmails — routes through the single `esiFetch` in `src/lib/esi/`,
+  including killmails — routes through the single `esiFetch` in `src/platform/esi/`,
   whose budget lives in the shared Upstash Redis scoreboard: both CCP limit systems
   (legacy error limit + token buckets), fail-closed, refusal at ~80% of the error
   budget spent, ETag/304 reuse, Expires + rate headers exposed to callers,

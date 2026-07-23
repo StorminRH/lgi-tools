@@ -101,6 +101,7 @@ tooling).
     "postgres": { "acknowledgedMajor": 3 },
     "react": { "acknowledgedMajor": 19 },
     "react-dom": { "acknowledgedMajor": 19 },
+    "server-only": { "acknowledgedMajor": 0 },
     "shiki": { "acknowledgedMajor": 4 },
     "sonner": { "acknowledgedMajor": 2 },
     "tailwind-merge": { "acknowledgedMajor": 3 },

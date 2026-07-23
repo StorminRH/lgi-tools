@@ -40,7 +40,7 @@ values (`0` when equal), and an em dash (`—`) for every other value shape.
 | Concern-hook consumers | `<value>` | `<value>` | `<derived>` |
 | Telemetry query breadth | `<value>` | `<value>` | `<derived>` |
 | ESI refresh-job query exports | `<value>` | `<value>` | `<derived>` |
-| `auth-surface` files | `<value>` | `<value>` | `<derived>` |
+| Auth contract paths (`src/platform/auth/types.ts`, `src/db/auth-schema.ts`, `src/platform/auth/api-contract.ts`) | `<value>` | `<value>` | `<derived>` |
 | ESI dataset registry entries | `<value>` | `<value>` | `<derived>` |
 | Freshness leaf breadth | `<value>` | `<value>` | `<derived>` |
 | Cron shell declarations | `<value>` | `<value>` | `<derived>` |
@@ -60,7 +60,9 @@ values (`0` when equal), and an em dash (`—`) for every other value shape.
 
 When an audit leaves a Watch active, carry it as one data-only bullet and one
 machine-readable trigger fence. Omit this pair when no Watch is active. Repeat
-the pair for each active Watch.
+the pair for each active Watch. `files(zone:<name>)` counts one explicit Fallow
+zone; `files(paths:<path>,<path>,...)` counts one fixed repository-relative path
+set when ownership moves make a zone-level counter misleading.
 
 - Watch (AF-nnn)
 

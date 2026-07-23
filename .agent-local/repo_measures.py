@@ -110,6 +110,22 @@ def export_count(root: Path, rel_path: str) -> int:
     )
 
 
+def named_file_count(root: Path, rel_paths: Iterable[str]) -> int:
+    """Count existing files from one explicit repository-relative path set."""
+    paths = tuple(rel_paths)
+    if not paths:
+        raise MeasureError("path set is empty")
+    normalized = tuple(Path(rel_path) for rel_path in paths)
+    if any(
+        not rel_path
+        or path.is_absolute()
+        or ".." in path.parts
+        for rel_path, path in zip(paths, normalized)
+    ):
+        raise MeasureError("path set must contain safe repository-relative paths")
+    return sum((root / path).is_file() for path in normalized)
+
+
 def _pattern_matches(rel_path: str, pattern: str) -> bool:
     """Match Fallow's slash-separated glob patterns for explicit zones."""
     if pattern.endswith("/**") and rel_path.startswith(pattern[:-3] + "/"):

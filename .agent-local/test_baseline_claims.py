@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -11,7 +10,10 @@ from unittest.mock import patch
 
 from check_agent_drift import LIFECYCLE_CHECKERS
 from check_baseline_claims import (
+    AUTH_CONTRACT_METRIC,
+    AUTH_CONTRACT_PATHS,
     BASELINE_TEMPLATE_RELPATH,
+    LEGACY_AUTH_SURFACE_METRIC,
     BaselineAnchor,
     BaselineSchema,
     _derived_delta,
@@ -45,7 +47,7 @@ CANONICAL_METRICS = (
     "Concern-hook consumers",
     "Telemetry query breadth",
     "ESI refresh-job query exports",
-    "`auth-surface` files",
+    AUTH_CONTRACT_METRIC,
     "ESI dataset registry entries",
     "Freshness leaf breadth",
     "Cron shell declarations",
@@ -76,13 +78,13 @@ class BaselineFixture:
         self.root = Path(self.temporary.name)
         self.write("src/queries.ts", "export const one = 1;\n")
         self.write("src/queries.test.ts", "test();\n")
-        self.write("src/auth/a.ts", "")
+        for rel_path in AUTH_CONTRACT_PATHS:
+            self.write(rel_path, "")
         self.write("src/data/telemetry/queries.ts", "export const telemetry = 1;\n")
         self.write(
             "src/data/esi-refresh-jobs/queries.ts",
             "export const refreshJobs = 1;\n",
         )
-        self.write_zones(["src/auth/a.ts"])
         self.write(
             BASELINE_TEMPLATE_RELPATH,
             (REAL_ROOT / BASELINE_TEMPLATE_RELPATH).read_text(encoding="utf-8"),
@@ -96,18 +98,6 @@ class BaselineFixture:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
-    def write_zones(self, patterns: list[str]) -> None:
-        self.write(
-            ".fallowrc.json",
-            json.dumps(
-                {
-                    "boundaries": {
-                        "zones": [{"name": "auth-surface", "patterns": patterns}]
-                    }
-                }
-            ),
-        )
-
     def default_values(self) -> dict[str, str]:
         values = {key: "0" for key in CANONICAL_METRICS}
         values.update(
@@ -117,7 +107,7 @@ class BaselineFixture:
                 "Test files": str(test_file_count(self.root)),
                 "Source suppressions": str(suppression_count(self.root)),
                 "Whole-version Fallow clone groups": "1",
-                "`auth-surface` files": "1",
+                AUTH_CONTRACT_METRIC: "3",
                 "`src/data/telemetry/queries.ts`": "1 exports",
                 "`src/data/esi-refresh-jobs/queries.ts`": "1 exports",
             }
@@ -253,15 +243,13 @@ class BaselineClaimTests(unittest.TestCase):
             current={
                 "Production TS/TSX files": "9",
                 "`src/data/telemetry/queries.ts`": "3 exports",
-                "`auth-surface` files": "1",
+                AUTH_CONTRACT_METRIC: "2",
             }
         )
-        self.fixture.write("src/auth/b.ts", "")
-        self.fixture.write_zones(["src/auth/a.ts", "src/auth/b.ts"])
         messages = self.fixture.messages()
         self.assertTrue(any("Production TS/TSX files asserted 9" in message for message in messages))
         self.assertTrue(any("exports asserted 3, measured 1" in message for message in messages))
-        self.assertTrue(any("auth-surface files asserted 1, measured 2" in message for message in messages))
+        self.assertTrue(any("auth contract paths asserted 2, measured 3" in message for message in messages))
 
     def test_export_claim_reads_current_not_version_start(self) -> None:
         self.fixture.baseline(
@@ -272,31 +260,29 @@ class BaselineClaimTests(unittest.TestCase):
             any("telemetry/queries.ts exports asserted" in message for message in self.fixture.messages())
         )
 
-    def test_absent_auth_surface_metric_is_a_warning(self) -> None:
-        self.fixture.baseline(omit_key="`auth-surface` files")
+    def test_absent_auth_contract_metric_is_a_warning(self) -> None:
+        self.fixture.baseline(omit_key=AUTH_CONTRACT_METRIC)
         self.assertTrue(
             any(
-                finding.severity == "warn" and "no parseable auth-surface" in finding.message
+                finding.severity == "warn" and "no parseable auth contract" in finding.message
                 for finding in self.fixture.findings()
             )
         )
 
-    def test_auth_surface_finding_uses_the_metric_line(self) -> None:
-        self.fixture.baseline()
-        self.fixture.write("src/auth/b.ts", "")
-        self.fixture.write_zones(["src/auth/a.ts", "src/auth/b.ts"])
+    def test_auth_contract_finding_uses_the_metric_line(self) -> None:
+        self.fixture.baseline(current={AUTH_CONTRACT_METRIC: "2"})
         baseline_lines = (
             self.fixture.root / "docs/CODE_HEALTH_BASELINE.md"
         ).read_text(encoding="utf-8").splitlines()
         expected_line = next(
             index
             for index, line in enumerate(baseline_lines, start=1)
-            if line.startswith("| `auth-surface` files |")
+            if line.startswith(f"| {AUTH_CONTRACT_METRIC} |")
         )
         finding = next(
             finding
             for finding in self.fixture.findings()
-            if "auth-surface files asserted" in finding.message
+            if "auth contract paths asserted" in finding.message
         )
         self.assertEqual(expected_line, finding.line)
 
@@ -307,6 +293,13 @@ class BaselineClaimTests(unittest.TestCase):
         main_text = self.fixture.baseline()
         anchor = self._strict_anchor(main_text)
         self.assertEqual("enforced", anchor.state)
+        self.assertEqual([], self.fixture.messages(anchor))
+
+    def test_legacy_auth_metric_anchor_preserves_the_frozen_value(self) -> None:
+        current_text = self.fixture.baseline()
+        legacy_text = current_text.replace(AUTH_CONTRACT_METRIC, LEGACY_AUTH_SURFACE_METRIC)
+        anchor = self._strict_anchor(legacy_text)
+        self.assertIn((AUTH_CONTRACT_METRIC, "3"), anchor.values)
         self.assertEqual([], self.fixture.messages(anchor))
 
     def test_changed_version_start_is_an_error(self) -> None:

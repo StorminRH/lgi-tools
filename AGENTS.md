@@ -80,16 +80,21 @@ failures.
 - Every production source file belongs to a named, deny-by-default Fallow zone.
   [`docs/architecture-boundaries.md`](docs/architecture-boundaries.md) is the
   single prose owner of zone ownership, allowed dependency directions, and
-  narrow exceptions; `.fallowrc.json` is the mechanical authority.
+  narrow runtime exemptions; `.fallowrc.json` is the mechanical authority and
+  carries no cross-layer exception entries.
 - `src/features/<name>/` owns product slices and never imports peer features.
   `src/data/<name>/` owns reusable schemas, ingest, queries, and types and never
-  imports features or peer data slices outside a declared narrow exception.
-- `src/components/ui/` owns domain-neutral primitives; `src/components/` owns
-  shared cross-feature composition; `src/lib/` owns cross-cutting leaf
-  utilities.
-- `src/app/` owns route and page composition. `src/db/`, `src/search/`,
-  `src/purge/`, `src/page-settings/`, and `src/esi-datasets/` compose their
-  declared concerns; `src/config/` owns application configuration.
+  imports features or a peer data slice other than the shared
+  `src/data/eve-data/` reference core.
+- `src/components/ui/` owns domain-neutral primitives; the root of
+  `src/components/` owns reusable leaf presentation; and
+  `src/components/composition/` owns app-shell and account UI composition.
+- `src/composition/` owns server-side cross-slice orchestration.
+  `src/platform/` owns reusable authentication, ESI, owner-sync, search, purge,
+  and page-settings capabilities. `src/transport/` owns transport helpers.
+- `src/app/` owns routes and page composition. `src/db/` owns database
+  foundations; `src/esi-datasets/` owns test-only cross-slice registry checks;
+  `src/lib/` and `src/config/` own cross-cutting leaves and configuration.
 - `convex/` owns regenerable live projections and sync behavior.
   `src/proxy*.ts` and `src/instrumentation*.ts` are process-level runtime entry
   points.
@@ -98,9 +103,10 @@ failures.
   deferred, unassigned work to `docs/backlog.md`.
 
 Cross-slice composition belongs above the participating slices. Follow the
-established `src/db/sde-pipeline.ts`, `src/search/register-all.ts`, and
-`src/purge/` patterns; Fallow enforces the import map and its explicit
-exceptions and rejects unclassified source files.
+established `src/composition/pipelines/sde-pipeline.ts`,
+`src/composition/search/register-all.ts`, and
+`src/composition/purge/orchestrator.ts` patterns. Fallow rejects upward edges,
+peer-slice edges, and unclassified source files.
 
 Protect established deep modules whose small interfaces hide cohesive
 complexity: the EVE tree resolver, Convex sync engine, shared ESI/API/env gates,
@@ -145,7 +151,8 @@ registration rules.
   calls.
 - Every user- or character-keyed Neon table needs a purge contributor or an
   explicit retained exemption. Follow the declaration, key-shape, purge,
-  growth, and ESI checks enforced by `src/db/dataset-declarations.test.ts`.
+  growth, and ESI checks enforced by
+  `src/esi-datasets/dataset-declarations.test.ts`.
 - Validate JSON bodies in route handlers with the owning slice's Zod
   `api-contract.ts`. Keep response types and endpoint definitions there, and
   use `apiFetch` from clients. Raw `fetch('/api/...')` is forbidden.

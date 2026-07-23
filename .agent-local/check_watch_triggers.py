@@ -16,7 +16,13 @@ import re
 import sys
 
 from checker_common import Finding, run_checker
-from repo_measures import MeasureError, clone_file_counts, export_count, zone_file_count
+from repo_measures import (
+    MeasureError,
+    clone_file_counts,
+    export_count,
+    named_file_count,
+    zone_file_count,
+)
 
 
 BASELINE = "docs/CODE_HEALTH_BASELINE.md"
@@ -75,9 +81,12 @@ def _measure(
     if metric == "exports":
         return export_count(root, argument), clone_counts
     if metric == "files":
-        if not argument.startswith("zone:") or len(argument) == len("zone:"):
-            raise MeasureError("files() requires a zone:<name> subject")
-        return zone_file_count(root, argument.removeprefix("zone:")), clone_counts
+        if argument.startswith("zone:") and len(argument) > len("zone:"):
+            return zone_file_count(root, argument.removeprefix("zone:")), clone_counts
+        if argument.startswith("paths:"):
+            paths = tuple(path.strip() for path in argument.removeprefix("paths:").split(","))
+            return named_file_count(root, paths), clone_counts
+        raise MeasureError("files() requires a zone:<name> or paths:<path,...> subject")
     if metric == "clones":
         if not argument.startswith("dup:") or len(argument) == len("dup:"):
             raise MeasureError("clones() requires a dup:<fingerprint> subject")
