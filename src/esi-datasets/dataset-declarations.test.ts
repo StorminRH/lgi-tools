@@ -29,11 +29,11 @@ import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
 import {
   TABLE_GROWTH_STORIES,
   tableGrowthKey,
-} from './table-growth-registry';
-import { reflectedSchemaTables } from './test-support/schema-reflection';
+} from '@/composition/table-growth-registry';
+import { reflectedSchemaTables } from '@/db/test-support/schema-reflection';
 
 const GROWTH_DECLARATION =
-  'growth story -> src/db/table-growth-registry.ts';
+  'growth story -> src/composition/table-growth-registry.ts';
 const PURGE_DECLARATION =
   'purge claim or retained entry -> the owning slice purge.ts';
 const ESI_DECLARATION =

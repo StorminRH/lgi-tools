@@ -27,7 +27,7 @@ vi.mock('@/data/esi-refresh-jobs/pending-signal', () => ({
 vi.mock('@/platform/esi/exhaustion-marker', () => ({
   hasRecentBudgetExhaustion: mocks.recentExhaustion,
 }));
-vi.mock('@/db/esi-refresh-worker', () => ({
+vi.mock('@/composition/sync/esi-refresh-worker', () => ({
   drainEsiRefreshJobs: mocks.drain,
 }));
 vi.mock('./public-budget-alert', () => ({

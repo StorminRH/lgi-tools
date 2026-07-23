@@ -7,7 +7,7 @@
 // wiring, NOT a clone), and exposes the on-view seam the corp-structures API route
 // consumes: read the member's corps' shared catalogues, fire a stale-gated
 // write-behind refresh behind the response (zero added latency). A direct mirror of
-// src/db/corp-industry-jobs-sync.ts, with the KEY divergence that the store is keyed
+// src/composition/sync/corp-industry-jobs-sync.ts, with the KEY divergence that the store is keyed
 // by corporation ALONE (shared across members), so the read scope comes from the
 // viewer's corp membership (the 3.7.3 corp-access gate), not their own sync rows.
 import { after } from 'next/server';

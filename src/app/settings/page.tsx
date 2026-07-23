@@ -7,7 +7,7 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
-import { getCorpStructuresPageData } from '@/db/corp-structures-sync';
+import { getCorpStructuresPageData } from '@/composition/sync/corp-structures-sync';
 import { auth } from '@/platform/auth/auth';
 import {
   CorpSharingSettings,

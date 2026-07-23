@@ -2,7 +2,7 @@
 // GlobalSearch component consumes. Each searchable surface (sites, tools,
 // commands, blueprints, recents) exports a SearchSource value from its own
 // slice; the wiring manifest in ./register-all PULLS those values and
-// registers them here — composition above the slices (the src/db/sde-pipeline.ts
+// registers them here — composition above the slices (the src/composition/pipelines/sde-pipeline.ts
 // pattern), so no slice has to reach across a boundary to register itself. The
 // registry then dispatches a single user query across every registered source
 // in parallel.

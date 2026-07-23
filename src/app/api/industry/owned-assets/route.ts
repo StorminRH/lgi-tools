@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { getOwnedAssetDetailOnView } from '@/db/owned-assets-sync';
+import { getOwnedAssetDetailOnView } from '@/composition/sync/owned-assets-sync';
 import {
   ownedAssetsRequestSchema,
   type OwnedAssetsBadRequest,

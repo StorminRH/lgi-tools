@@ -2,7 +2,7 @@ import { asc } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { esiSnapshots } from '@/data/esi-snapshots/schema';
 import { ownedAssets } from '@/features/owned-assets/schema';
-import { createDbTestHarness } from './test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 import { pruneEsiSnapshots } from './esi-snapshot-retention';
 
 const harness = await createDbTestHarness({

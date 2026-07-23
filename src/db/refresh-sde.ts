@@ -26,7 +26,10 @@ import { withAdvisoryLock } from './advisory-lock';
 import { resolveLockConnectionUrl } from './index';
 import { runScript } from './script-runtime';
 import { formatSdeVersions, shouldReingestSde } from './sde-bootstrap';
-import { runSdePipeline, summarizeMarketPricesRowCount } from './sde-pipeline';
+import {
+  runSdePipeline,
+  summarizeMarketPricesRowCount,
+} from '@/composition/pipelines/sde-pipeline';
 
 const force = process.argv.includes('--force');
 

@@ -38,7 +38,7 @@ vi.mock('@/platform/auth/verification-retention', () => ({
   pruneExpiredVerifications: (...args: unknown[]) => pruneVerificationMock(...args),
 }));
 
-vi.mock('@/db/esi-snapshot-retention', () => ({
+vi.mock('@/composition/pipelines/esi-snapshot-retention', () => ({
   pruneEsiSnapshots: (...args: unknown[]) => pruneSnapshotsMock(...args),
 }));
 
@@ -48,7 +48,7 @@ vi.mock('@/data/esi-refresh-jobs/queries', () => ({
 
 vi.mock('@/db', () => ({ db: {}, directClient: {} }));
 
-vi.mock('@/db/cron-gate', () => ({
+vi.mock('@/composition/pipelines/cron-gate', () => ({
   defineCronRoute:
     (declaration: {
       work: (

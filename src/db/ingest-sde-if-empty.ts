@@ -36,7 +36,7 @@ import { withAdvisoryLock } from './advisory-lock';
 import { resolveLockConnectionUrl } from './index';
 import { runScript } from './script-runtime';
 import { describeSdeStandDown, hasCompleteSdeData } from './sde-bootstrap';
-import { runSdePipeline } from './sde-pipeline';
+import { runSdePipeline } from '@/composition/pipelines/sde-pipeline';
 
 if (!readEnv('DATABASE_URL')) {
   console.log('Skipping SDE auto-ingest (DATABASE_URL is not set).');

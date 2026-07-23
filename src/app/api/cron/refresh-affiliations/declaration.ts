@@ -4,7 +4,7 @@ import {
   refreshAffiliations,
 } from '@/platform/auth/affiliation';
 import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
-import type { CronRouteDeclaration } from '@/db/cron-gate';
+import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 
 /**
  * Declares the nightly stale-affiliation backstop as a lock-guarded batch job;

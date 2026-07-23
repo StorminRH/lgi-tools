@@ -1,5 +1,5 @@
 import type { CronSyncSweeperResponse } from '@/data/convex/api-contract';
-import { defineCronRoute } from '@/db/cron-gate';
+import { defineCronRoute } from '@/composition/pipelines/cron-gate';
 import { syncSweeperDeclaration } from './declaration';
 
 /**

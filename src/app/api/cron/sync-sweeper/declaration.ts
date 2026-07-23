@@ -1,5 +1,5 @@
 import type { CronSyncSweeperResponse } from '@/data/convex/api-contract';
-import type { CronRouteDeclaration } from '@/db/cron-gate';
+import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';

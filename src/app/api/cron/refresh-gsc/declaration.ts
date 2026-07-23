@@ -17,8 +17,8 @@ import {
 import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import { pruneUsageLogs } from '@/data/telemetry/queries';
 import { db } from '@/db';
-import type { CronRouteDeclaration } from '@/db/cron-gate';
-import { pruneEsiSnapshots } from '@/db/esi-snapshot-retention';
+import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
+import { pruneEsiSnapshots } from '@/composition/pipelines/esi-snapshot-retention';
 import { pruneCorpAccessAudit } from '@/platform/auth/affiliation-store';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,

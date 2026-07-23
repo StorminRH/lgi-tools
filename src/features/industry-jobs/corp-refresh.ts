@@ -3,7 +3,7 @@
 // OwnerSyncDescriptor from the injected port (types.ts) + this slice's pure helpers
 // and hands it to the shared per-owner sync engine (src/platform/owner-sync). It imports no
 // auth and no DB, so it stays inside the feature boundary and is unit-tested with a
-// fake port. The real port is wired in src/db/corp-industry-jobs-sync.ts.
+// fake port. The real port is wired in src/composition/sync/corp-industry-jobs-sync.ts.
 //
 // Corp jobs is the corp-only axis, keyed (userId, corporationId) — boards stay
 // per-user/private. The engine checks the staleness gate BEFORE any vend or roles read

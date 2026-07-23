@@ -1,4 +1,4 @@
-import { getJobsForUserOnView } from '@/db/industry-jobs-sync';
+import { getJobsForUserOnView } from '@/composition/sync/industry-jobs-sync';
 import { getCurrentUserId } from '@/platform/auth/session';
 import type { JobsResponse } from '@/features/industry-jobs/api-contract';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';

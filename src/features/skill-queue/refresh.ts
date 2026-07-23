@@ -3,7 +3,7 @@
 // injected port (types.ts) + this slice's pure helpers and hands it to the shared
 // per-owner sync engine (src/platform/owner-sync). It imports no auth and no DB, so it
 // stays inside the feature boundary and is unit-tested with a fake port. The real
-// port is wired in src/db/skills-sync.ts. Skills is per-character only — one parallel
+// port is wired in src/composition/sync/skills-sync.ts. Skills is per-character only — one parallel
 // pass, no corp axis.
 //
 // The engine checks the staleness gate BEFORE any token vend or ESI call (a fresh

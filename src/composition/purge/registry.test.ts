@@ -12,7 +12,7 @@
 import { is } from 'drizzle-orm';
 import { getTableConfig, integer, PgTable, pgTable, text } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import * as schema from '@/db/schema';
+import * as schema from '@/composition/drizzle-schema';
 import {
   NON_NEON_HOMES,
   findIdentityFkLeaks,

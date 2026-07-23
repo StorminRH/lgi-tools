@@ -10,7 +10,7 @@ import {
 } from '@/data/esi-refresh-jobs/queries';
 import { esiRefreshJobs } from '@/data/esi-refresh-jobs/schema';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
-import { createDbTestHarness } from './test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 
 const harness = await createDbTestHarness({
   schema: 'test_esi_refresh_jobs',

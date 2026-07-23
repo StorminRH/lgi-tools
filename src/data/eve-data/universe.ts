@@ -30,7 +30,7 @@ import type { AnyPgDb } from '@/lib/db-types';
 // There is deliberately NO `Emitter` interface/registry — only one emitter
 // exists today, and an abstraction for a single v4.0-deferred consumer would be
 // speculative. Adding the CDN head later is purely additive: a composition-layer
-// build script (at/above `src/db/sde-pipeline.ts`) imports `parseUniverse` +
+// build script (at/above `src/composition/pipelines/sde-pipeline.ts`) imports `parseUniverse` +
 // `UniverseDataset` and serializes `public/universe/*.json` — ZERO edits here.
 //
 // WHY THE CORE LIVES IN eve-data (not `sde-pipeline.ts` as RQ-5 phrased it):

@@ -2,7 +2,7 @@
 // the refresh orchestration (refresh.ts) can depend on the port abstraction WITHOUT
 // importing the DB layer (queries.ts) or the auth slice — which it may not
 // (feature→feature is boundary-banned). The non-zone wrapper
-// (src/db/corp-structures-sync.ts) builds the real port; the orchestration is
+// (src/composition/sync/corp-structures-sync.ts) builds the real port; the orchestration is
 // unit-tested against a fake one. Mirrors the owned-assets types, corp-only +
 // keyed by corporation alone (the shared-per-corp divergence).
 import type { SecurityClass } from '@/data/eve-data/security';
@@ -102,7 +102,7 @@ export type CorpStructuresReadResult =
 /**
  * The injected I/O the corp refresh runs over: auth (member enumeration, token vend,
  * in-game roles read), the one paged authed ESI gate read per corp, and Neon storage.
- * The real implementations are wired in src/db/corp-structures-sync.ts.
+ * The real implementations are wired in src/composition/sync/corp-structures-sync.ts.
  */
 export interface CorpStructuresPort {
   now(): Date;

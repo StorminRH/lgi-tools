@@ -2,7 +2,7 @@
 // so the refresh orchestration (refresh.ts) can depend on the port abstraction WITHOUT
 // importing the DB layer (queries.ts) or the auth slice — which it may not
 // (feature→feature is boundary-banned). The non-zone wrapper
-// (src/db/industry-jobs-sync.ts) builds the real port; the orchestration is
+// (src/composition/sync/industry-jobs-sync.ts) builds the real port; the orchestration is
 // unit-tested against a fake one. Mirrors the skill-queue slice, simplified to ONE
 // single-page endpoint (one held etag, no two-halves split).
 import type { IndustryJob } from './esi-projection';
@@ -50,7 +50,7 @@ export type JobsEsiRead =
 /**
  * The injected I/O the refresh runs over: auth (character enumeration, token vend),
  * the one authed ESI gate read, and Neon storage. The real implementations are wired
- * in src/db/industry-jobs-sync.ts.
+ * in src/composition/sync/industry-jobs-sync.ts.
  */
 export interface JobsPort {
   now(): Date;
@@ -96,7 +96,7 @@ export interface CorpJobsSyncState {
 /**
  * The injected I/O the corp refresh runs over: auth (member enumeration, token vend,
  * in-game roles read), the one authed ESI gate read per corp, and Neon storage. The
- * real implementations are wired in src/db/corp-industry-jobs-sync.ts. Reuses
+ * real implementations are wired in src/composition/sync/corp-industry-jobs-sync.ts. Reuses
  * JobsEsiRead (the corp board is the same single endpoint shape as the character one).
  */
 export interface CorpJobsPort {

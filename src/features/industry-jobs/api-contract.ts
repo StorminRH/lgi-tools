@@ -1,7 +1,7 @@
 // API wire contract owned by the industry-jobs feature (MIGRATE.B.2). Runtime-light by
 // design — zod plus the same-slice job schema only, no server imports — so the client
 // island and the route share one wire shape. The personal job board moved off the live
-// Convex websocket onto a Neon stale-gated on-view read (src/db/industry-jobs-sync.ts);
+// Convex websocket onto a Neon stale-gated on-view read (src/composition/sync/industry-jobs-sync.ts);
 // this is the GET the client fetches on view.
 import { z } from 'zod';
 import type { ApiEndpoint } from '@/transport/api-client';

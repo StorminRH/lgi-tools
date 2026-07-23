@@ -1,5 +1,5 @@
 import type { CronRefreshIndustryIndicesResponse } from '@/data/industry-indices/api-contract';
-import { defineCronRoute } from '@/db/cron-gate';
+import { defineCronRoute } from '@/composition/pipelines/cron-gate';
 import { refreshIndustryIndicesDeclaration } from './declaration';
 
 /**

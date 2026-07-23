@@ -9,7 +9,7 @@ import { requireCronAuth } from '@/transport/cron';
 import {
   withAdvisoryLock,
   type ReservedConnection,
-} from './advisory-lock';
+} from '@/db/advisory-lock';
 
 type Sql = ReturnType<typeof postgres>;
 

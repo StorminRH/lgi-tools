@@ -8,7 +8,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import * as schema from '@/db/schema';
+import * as schema from '@/composition/drizzle-schema';
 import { ESI_REFRESH_DATASETS } from '@/data/esi-refresh-jobs/constants';
 import { refreshAffiliations } from '@/platform/auth/affiliation';
 import { refreshCorpStructuresForUser } from '@/features/owned-structures/refresh';
