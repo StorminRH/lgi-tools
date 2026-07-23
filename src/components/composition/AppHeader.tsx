@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AppHeaderShell } from '@/components/AppHeaderShell';
+import { AppHeaderShell } from '@/components/composition/AppHeaderShell';
 import { getNavServerStatus } from '@/data/eve-status/queries';
 import { getSiteSearchIndex } from '@/features/wormhole-sites/queries';
 

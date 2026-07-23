@@ -13,9 +13,9 @@ import { PageShell } from '@/components/ui/page-shell';
 import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
-import { AdminForceLogoutForm } from '@/platform/auth/components/AdminForceLogoutForm';
-import { AdminReassignCharacterForm } from '@/platform/auth/components/AdminReassignCharacterForm';
-import { AdminUnlinkCharacterForm } from '@/platform/auth/components/AdminUnlinkCharacterForm';
+import { AdminForceLogoutForm } from '@/components/composition/account/AdminForceLogoutForm';
+import { AdminReassignCharacterForm } from '@/components/composition/account/AdminReassignCharacterForm';
+import { AdminUnlinkCharacterForm } from '@/components/composition/account/AdminUnlinkCharacterForm';
 import { requireAdminPage } from '@/platform/auth/route-guards';
 import {
   getStoredActiveCharacterId,

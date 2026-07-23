@@ -3,9 +3,9 @@
 import { CharacterPortrait } from '@/components/character-portrait';
 import { EveImage } from '@/components/eve-image';
 import { Chip } from '@/components/ui/chip';
-import { authClient } from '../auth-client';
+import { authClient } from '@/platform/auth/auth-client';
 import { AccountMenu } from './AccountMenu';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 
 type SignedInSession = NonNullable<ReturnType<typeof useAuth>['session']>;
 

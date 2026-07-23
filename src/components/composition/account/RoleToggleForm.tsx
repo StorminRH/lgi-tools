@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import type { CharacterRole } from '../types';
+import type { CharacterRole } from '@/platform/auth/types';
 import { deriveRoleToggle } from './role-toggle-view';
 
 /**

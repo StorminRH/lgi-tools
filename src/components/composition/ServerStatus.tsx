@@ -1,4 +1,4 @@
-import { serverStatusPresentation } from '@/components/server-status-presentation';
+import { serverStatusPresentation } from '@/components/composition/server-status-presentation';
 import { StatusDot } from '@/components/ui/status-dot';
 import type { ServerStatus as ServerStatusValue } from '@/data/eve-status/types';
 

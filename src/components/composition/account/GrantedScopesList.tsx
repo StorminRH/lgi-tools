@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Chip } from '@/components/ui/chip';
-import type { GrantedScope } from '../scope-health';
+import type { GrantedScope } from '@/platform/auth/scope-health';
 
 /**
  * Read-only readout of the scopes a character has actually granted (3.7.1.4).

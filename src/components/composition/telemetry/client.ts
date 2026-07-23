@@ -6,7 +6,10 @@
 
 import { telemetryEndpoint } from '@/data/telemetry/api-contract';
 import { apiFetch } from '@/transport/api-client';
-import { buildTelemetryPayload, type TelemetryInput } from './telemetry-payload';
+import {
+  buildTelemetryPayload,
+  type TelemetryInput,
+} from '@/components/telemetry/telemetry-payload';
 
 /**
  * Queues one privacy-bounded telemetry event with keepalive delivery; browser or network failure

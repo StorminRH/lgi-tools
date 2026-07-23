@@ -1,8 +1,8 @@
-import { HomeFeatureCards } from '@/components/HomeFeatureCards';
-import { HomeHero } from '@/components/HomeHero';
-import { HomeLeftColumn } from '@/components/HomeLeftColumn';
-import { HomeLiveStats } from '@/components/HomeLiveStats';
-import { HomeNewsCard } from '@/components/HomeNewsCard';
+import { HomeFeatureCards } from '@/components/composition/HomeFeatureCards';
+import { HomeHero } from '@/components/composition/HomeHero';
+import { HomeLeftColumn } from '@/components/composition/HomeLeftColumn';
+import { HomeLiveStats } from '@/components/composition/HomeLiveStats';
+import { HomeNewsCard } from '@/components/composition/HomeNewsCard';
 
 /**
  * The redesigned home. A hero band leads with the anonymous pitch (or the

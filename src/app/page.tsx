@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
-import { HomeDashboard } from '@/components/HomeDashboard';
-import { HomeRosterPanel } from '@/components/HomeRosterPanel';
-import { JsonLd } from '@/components/JsonLd';
+import { HomeDashboard } from '@/components/composition/HomeDashboard';
+import { HomeRosterPanel } from '@/components/composition/HomeRosterPanel';
+import { JsonLd } from '@/components/composition/JsonLd';
 import { Callout } from '@/components/ui/callout';
 import { PageShell } from '@/components/ui/page-shell';
 import { SITE_URL } from '@/config/site-url';

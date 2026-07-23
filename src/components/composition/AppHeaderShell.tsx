@@ -12,11 +12,11 @@
 // LoginButton, so it is not threaded through here.
 
 import { useState } from 'react';
-import { GlobalSearch } from '@/components/GlobalSearch';
-import { LoginButton } from '@/platform/auth/components/LoginButton';
-import { NavMenu } from '@/components/NavMenu';
-import { NavTools } from '@/components/NavTools';
-import { ServerStatus } from '@/components/ServerStatus';
+import { GlobalSearch } from '@/components/composition/GlobalSearch';
+import { LoginButton } from '@/components/composition/account/LoginButton';
+import { NavMenu } from '@/components/composition/NavMenu';
+import { NavTools } from '@/components/composition/NavTools';
+import { ServerStatus } from '@/components/composition/ServerStatus';
 import type { ServerStatus as ServerStatusValue } from '@/data/eve-status/types';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 

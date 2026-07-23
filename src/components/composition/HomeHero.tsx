@@ -1,5 +1,5 @@
-import { HeroBanner } from '@/components/HeroBanner';
-import { HomeLoginCta } from '@/components/HomeLoginCta';
+import { HeroBanner } from '@/components/composition/HeroBanner';
+import { HomeLoginCta } from '@/components/composition/HomeLoginCta';
 
 /**
  * The anonymous landing pitch: the bracket-stamp wordmark banner, one factual

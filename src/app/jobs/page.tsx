@@ -5,7 +5,7 @@ import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { auth } from '@/platform/auth/auth';
-import { LinkCharacterButton } from '@/platform/auth/components/LinkCharacterButton';
+import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
 import { toPanelCharacter } from '@/platform/auth/panel-character';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';

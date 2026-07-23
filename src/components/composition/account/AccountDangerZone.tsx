@@ -17,9 +17,9 @@ import {
   runDeleteAccount,
   runLogoutEverywhere,
   runPurgeCharacter,
-} from '../account-actions';
-import { authClient } from '../auth-client';
-import { confirmGateReducer, INITIAL_CONFIRM_PHASE } from '../confirm-gate';
+} from '@/platform/auth/account-actions';
+import { authClient } from '@/platform/auth/auth-client';
+import { confirmGateReducer, INITIAL_CONFIRM_PHASE } from '@/platform/auth/confirm-gate';
 import { RevokeRedirectLightbox } from './RevokeRedirectLightbox';
 
 /**
