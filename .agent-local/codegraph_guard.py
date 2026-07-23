@@ -26,10 +26,13 @@ SEARCH_COMMAND = re.compile(
     r"(^|[\s;&|])(grep|rg|ripgrep|find|fd|ack|ag)(?=\s|$)",
     flags=re.IGNORECASE,
 )
-# A codegraph invocation IS orientation — recognizing it lets the guard fall
-# quiet for the rest of the session.
+# A real codegraph invocation IS orientation — recognizing it lets the guard
+# fall quiet for the rest of the session. Match only codegraph in COMMAND
+# position (start of the command or right after a shell separator) followed by a
+# subcommand, so a command that merely mentions the word — `echo codegraph`,
+# `grep codegraph` — does not falsely mark the session oriented.
 CODEGRAPH_COMMAND = re.compile(
-    r"(^|[\s;&|])codegraph(?=\s|$)",
+    r"(?:^|[;&|(\n])\s*codegraph\s+[a-z]",
     flags=re.IGNORECASE,
 )
 SOURCE_EXTENSIONS = (

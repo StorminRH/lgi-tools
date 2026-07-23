@@ -46,6 +46,16 @@ class OrientationGuard(unittest.TestCase):
         self.assertEqual(out, "")
         self.assertTrue(self.marker.is_file())
 
+    def test_mere_mention_does_not_mark(self) -> None:
+        # codegraph in argument position (not a real invocation) must not
+        # orient the session.
+        for command in ("echo codegraph", "grep -rn codegraph src/", 'echo "codegraph query"'):
+            capture(guard_bash, {"command": command}, self.marker)
+            self.assertFalse(self.marker.is_file(), command)
+        # A real invocation at command position (here after `&&`) does orient.
+        capture(guard_bash, {"command": "ls && codegraph explore foo"}, self.marker)
+        self.assertTrue(self.marker.is_file())
+
     def test_read_silent_after_orientation(self) -> None:
         mark_oriented(self.marker)
         out = capture(guard_read, {"file_path": "src/foo.ts"}, self.marker)
