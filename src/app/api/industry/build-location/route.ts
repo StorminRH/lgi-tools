@@ -5,7 +5,7 @@ import {
   type BuildLocationResponse,
 } from '@/features/industry-planner/api-contract';
 import { getBuildLocation } from '@/features/industry-planner/queries';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/industry/build-location

@@ -1,6 +1,6 @@
 // API wire contract owned by the market-history slice (3.4.T pattern).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { ON_DEMAND_HISTORY_MAX_TYPE_IDS } from './constants';
 import type { MarketHistoryInputs } from './types';
 

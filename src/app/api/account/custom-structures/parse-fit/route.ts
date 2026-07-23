@@ -6,7 +6,7 @@ import {
 } from '@/features/custom-structures/api-contract';
 import { parseStructureFit } from '@/features/industry-planner/structure-fit-parse';
 import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures/parse-fit. Turns a pasted in-game structure

@@ -6,7 +6,7 @@
 // creates no runtime edge or cycle. Same for ./systems-search — that module
 // imports THIS one at runtime, not the reverse.
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import type { SdePipelineSummary } from '@/db/sde-pipeline';
 import type { SystemSearchEntry } from './systems-search';
 

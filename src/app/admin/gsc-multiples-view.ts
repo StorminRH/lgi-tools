@@ -1,4 +1,4 @@
-import { computeDelta, type Delta } from './period';
+import { computeDelta, type Delta } from '@/composition/admin-period';
 
 // The three GSC headline metrics as small-multiples cell headers: current value,
 // period-over-period delta, and — for avg position — the invert flag (a falling

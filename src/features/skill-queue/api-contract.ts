@@ -4,7 +4,7 @@
 // live Convex websocket onto a Neon stale-gated on-view read (src/db/skills-sync.ts);
 // this is the GET the client fetches on view.
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { skillQueueEntrySchema } from './esi-projection';
 
 // ── GET /api/account/skills (authz: auth) ───────────────────────────────

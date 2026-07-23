@@ -2,7 +2,7 @@
 // via apiFetch; the route imports the request schema and parses it. A renamed
 // field fails tsc on both sides.
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { PREFERENCE_KEYS } from '@/lib/preferences';
 
 // The key must be one the registry knows; the value is refined per-key in the

@@ -3,7 +3,7 @@ import { ADVISORY_LOCK_ESI_REFRESH_QUEUE } from '@/data/esi-refresh-jobs/constan
 import { readPendingWorkSignal } from '@/data/esi-refresh-jobs/pending-signal';
 import type { CronRouteDeclaration } from '@/db/cron-gate';
 import { drainEsiRefreshJobs } from '@/db/esi-refresh-worker';
-import { swallow } from '@/lib/cron';
+import { swallow } from '@/transport/cron';
 import { hasRecentBudgetExhaustion } from '@/platform/esi/exhaustion-marker';
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 

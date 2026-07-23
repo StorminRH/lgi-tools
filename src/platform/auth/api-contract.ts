@@ -4,7 +4,7 @@
 // eslint.config.mjs) and the eve-token contract below is the type-import
 // surface for the Convex actions layer (3.4.3).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { CHARACTER_ROLES } from '@/config/character-roles';
 
 // Better Auth ids are opaque strings — nanoid for new logins, `eve-user-<id>`

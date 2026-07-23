@@ -7,7 +7,7 @@ import {
 } from '@/data/market-prices/cache';
 import type { CronRouteDeclaration } from '@/db/cron-gate';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
-import { swallow } from '@/lib/cron';
+import { swallow } from '@/transport/cron';
 
 /**
  * Declares the nightly price backstop as a deliberately lock-free batch; its

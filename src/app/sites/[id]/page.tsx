@@ -6,7 +6,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';
-import { loadNumericRouteEntity, parseNumericRouteId } from '@/lib/route-id';
+import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-id';
 import { SiteCard } from '@/features/wormhole-sites/components/SiteCard';
 import { SiteMetaStrip } from '@/features/wormhole-sites/components/SiteMetaStrip';
 import { RelatedSites } from '@/features/wormhole-sites/components/RelatedSites';

@@ -4,7 +4,7 @@
 // blueprint keystroke. The index is fetched once from /api/industry/blueprints
 // and memoized for the session.
 
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { blueprintImage } from '@/data/eve-data/type-images';
 import type { SearchSource } from '@/search';
 import { rankFuzzyResults } from '@/search/rank';

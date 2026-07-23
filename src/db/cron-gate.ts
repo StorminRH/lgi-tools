@@ -5,7 +5,7 @@ import type postgres from 'postgres';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
 import { directClient } from '@/db';
-import { requireCronAuth } from '@/lib/cron';
+import { requireCronAuth } from '@/transport/cron';
 import {
   withAdvisoryLock,
   type ReservedConnection,

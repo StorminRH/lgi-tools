@@ -154,12 +154,12 @@ const apiFetchSelectors = [
   {
     selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.value=/^\/api\//]`,
     message:
-      "Raw fetch('/api/…') bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
+      "Raw fetch('/api/…') bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
   },
   {
     selector: String.raw`CallExpression[callee.name='fetch'][arguments.0.quasis.0.value.raw=/^\/api\//]`,
     message:
-      "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/lib/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
+      "Raw fetch(`/api/…`) bypasses the shared API contracts — call apiFetch (src/transport/api-client.ts) with the endpoint object from the owning slice's api-contract.ts. See CONTRIBUTING.md (Architecture invariants).",
   },
   // An inline object literal as apiFetch's first argument bypasses the
   // declared-endpoint convention (it typechecks against ApiEndpoint).
@@ -472,7 +472,7 @@ const eslintConfig = defineConfig([
                 "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
             },
             {
-              name: "@/lib/cron",
+              name: "@/transport/cron",
               importNames: ["requireCronAuth"],
               message:
                 "Cron routes declare auth through defineCronRoute; do not bypass the shell ordering.",

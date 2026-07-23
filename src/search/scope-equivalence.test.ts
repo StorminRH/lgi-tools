@@ -39,7 +39,7 @@ const { BP_FIXTURE, SYSTEMS_FIXTURE } = vi.hoisted(() => ({
   ],
 }));
 
-vi.mock('@/lib/api-client', () => ({
+vi.mock('@/transport/api-client', () => ({
   apiFetch: vi.fn(async (endpoint: { path: string }) =>
     endpoint.path === '/api/industry/systems'
       ? { ok: true, status: 200, data: { systems: SYSTEMS_FIXTURE } }

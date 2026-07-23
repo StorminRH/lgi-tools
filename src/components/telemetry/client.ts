@@ -5,7 +5,7 @@
 // directly in queries.ts.
 
 import { telemetryEndpoint } from '@/data/telemetry/api-contract';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { buildTelemetryPayload, type TelemetryInput } from './telemetry-payload';
 
 /**

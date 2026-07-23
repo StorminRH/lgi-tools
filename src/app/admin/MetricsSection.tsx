@@ -8,7 +8,7 @@ import { zeroFillDaily } from './aggregate';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
 import { MetricTable } from './MetricTable';
 import { buildMetricRows } from './metric-view';
-import { previousRange, type RangeKey } from './period';
+import { previousRange, type RangeKey } from '@/composition/admin-period';
 import { SectionUnavailable } from './SectionUnavailable';
 
 // The dashboard's headline metrics section. Each metric queries its current

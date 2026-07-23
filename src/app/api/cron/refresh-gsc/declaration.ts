@@ -1,4 +1,4 @@
-import { getSitemapEntries } from '@/app/sitemap';
+import { getSitemapEntries } from '@/composition/sitemap';
 import { DOMAIN_EVENT_RETENTION_DAYS } from '@/data/domain-events/constants';
 import { pruneDomainEvents } from '@/data/domain-events/queries';
 import { ESI_REFRESH_JOB_RETENTION_DAYS } from '@/data/esi-refresh-jobs/constants';
@@ -25,7 +25,7 @@ import {
   VERIFICATION_RETENTION_DAYS,
 } from '@/platform/auth/constants';
 import { pruneExpiredVerifications } from '@/platform/auth/verification-retention';
-import { swallow } from '@/lib/cron';
+import { swallow } from '@/transport/cron';
 
 /**
  * Declares the daily GSC sync and its piggybacked retention sweep as one

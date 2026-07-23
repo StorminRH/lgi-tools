@@ -4,7 +4,7 @@ import { toneHex } from '@/components/ui/tones';
 import { loadSocialCardFonts } from '@/app/_social-card/fonts';
 import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { deriveSiteSocialCardContent } from '@/features/wormhole-sites/site-social-card';
-import { parseNumericRouteId } from '@/lib/route-id';
+import { parseNumericRouteId } from '@/transport/route-id';
 
 /** Accessible alternative text embedded in this generated social image. */
 export const alt = 'LGI.tools wormhole site overview';

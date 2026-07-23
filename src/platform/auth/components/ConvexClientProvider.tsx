@@ -14,7 +14,7 @@
 import { useCallback, useMemo } from 'react';
 import { ConvexProviderWithAuth } from 'convex/react';
 import { convexClient } from '@/data/convex/client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { tokenEndpoint } from '../api-contract';
 import { useAuth } from './AuthProvider';
 

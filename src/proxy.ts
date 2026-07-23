@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SITE_URL } from "@/config/site-url";
 import { isPublishedWormholeSiteId } from "@/features/wormhole-sites/catalogue-boundary";
-import { parseNumericRouteId } from "@/lib/route-id";
+import { parseNumericRouteId } from "@/transport/route-id";
 
 // The one host that should ever be indexed. Every other host that reaches the
 // app — preview/branch aliases, a stray `www`, or the production `*.vercel.app`

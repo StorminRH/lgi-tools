@@ -42,7 +42,7 @@ import {
   summarizeDomainEvent,
   type OpsMetricRow,
 } from './ops-view';
-import { trendSeries, type RangeKey } from './period';
+import { trendSeries, type RangeKey } from '@/composition/admin-period';
 import { RetryJobForm } from './RetryJobForm';
 import { SectionUnavailable } from './SectionUnavailable';
 

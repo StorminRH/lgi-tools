@@ -8,7 +8,7 @@ import { getPreferencesForUser, upsertPreference } from '@/data/preferences/quer
 import { getCurrentUserId } from '@/platform/auth/session';
 import { requireUserId } from '@/platform/auth/route-guards';
 import { validatePreferenceValue } from '@/lib/preferences';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * Both handlers are scoped to the authenticated caller's own user rows; an

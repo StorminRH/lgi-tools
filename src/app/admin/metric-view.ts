@@ -1,4 +1,4 @@
-import { computeDelta, type Delta } from './period';
+import { computeDelta, type Delta } from '@/composition/admin-period';
 
 // The dashboard's headline metrics as MetricTable row view-models: current
 // value, per-day average over the window, a period-over-period delta (each

@@ -15,7 +15,7 @@
 // better-auth version in package.json.
 
 import { signInOauth2Endpoint, signOutEndpoint } from '@/platform/auth/api-contract';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import type { AppRouterInstance, SearchContext, SearchSource } from '@/search';
 import { rankFuzzyResults } from '@/search/rank';
 

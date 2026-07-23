@@ -8,7 +8,7 @@ import { ON_DEMAND_HISTORY_LIMIT_PER_MINUTE } from '@/data/market-history/consta
 import { getLiveHistory } from '@/data/market-history/refresh-on-view';
 import { emitCostMetric } from '@/data/telemetry/cost-metrics';
 import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 // POST /api/market-history/refresh
 // Body: { typeIds: number[] }

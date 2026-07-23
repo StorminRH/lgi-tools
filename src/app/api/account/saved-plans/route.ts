@@ -15,7 +15,7 @@ import {
   deleteSavedPlan,
   listSavedPlans,
 } from '@/features/industry-planner/saved-plans-queries';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * GET /api/account/saved-plans — the caller's saved build templates. The

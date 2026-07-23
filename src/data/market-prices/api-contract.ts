@@ -1,6 +1,6 @@
 // API wire contracts owned by the market-prices slice (3.4.T).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
 import type { DepthBand, PriceSource, RegionalDiscount } from './types';
 
