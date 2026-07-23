@@ -25,4 +25,5 @@ Invocation permits only the resolver-selected action. Preserve its branch, artif
 
 ## Return
 
-Return the dispatched result and fresh directive. Never select a sibling handler.
+Use the canonical Markdown result directly in chat. Carry through the handler
+result and complete fresh directive without selecting a sibling.

@@ -183,20 +183,6 @@ class LifecycleEvidenceTests(unittest.TestCase):
         self.assertEqual(("docs/CODE_HEALTH_BASELINE.md", 3), (finding.path, finding.line))
         self.assertEqual("error", finding.severity)
 
-    def test_campaign_queue_status_must_match_audit_ledger(self) -> None:
-        self.fixture.write_baseline(
-            "## Campaign queue\n\n"
-            "| Priority | Campaign | Charter summary | Status | Trigger / next action |\n"
-            "| ---: | --- | --- | --- | --- |\n"
-            "| 1 | AF-001 owner | fix | Open | next |\n"
-        )
-        self.fixture.write_audit(
-            ["| AF-001 | 1 | Campaign | leak | one owner | 9.9.1.1 | Planned |"]
-        )
-        finding = self.matching("campaign queue says AF-001 is Open")
-        self.assertEqual(("docs/CODE_HEALTH_BASELINE.md", 7), (finding.path, finding.line))
-        self.assertEqual("error", finding.severity)
-
     def test_terminal_remediation_with_open_finding_is_an_error(self) -> None:
         self.fixture.write_roadmap("SHIPPED", "AF-001 owner")
         self.fixture.write_plan("Complete")

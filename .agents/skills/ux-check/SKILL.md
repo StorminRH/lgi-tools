@@ -1,15 +1,13 @@
 ---
 name: ux-check
 description: >-
-  Run the LGI.tools scripted UX sweep at the end of a session that touched the
-  UI. Figure out which routes the session changed, make sure the local dev server
-  is up, run `pnpm ux-check` with the affected routes, and report the
-  console/network findings + screenshots inline. Use the shared probe runner for
-  durable interaction checks and focused open-state evidence. Use this skill
-  whenever you've changed a user-facing surface and want to check it before Ryan's
-  review — phrasings like "ux check", "sweep the UI", "capture the pages", "check
-  how it looks", "verify the UI". Ryan still reviews visual + feel in his own
-  browser; this sweep is complementary, not a replacement for his eyeball.
+  Verify LGI.tools user-facing changes with the repository's scripted route
+  sweep and shared interaction probes. Resolve affected routes, establish the
+  required local stack, run `pnpm ux-check`, inspect diagnostics and captures,
+  and return evidence before the operator's browser review. Use after changing a
+  UI surface or when asked for a UX check, UI sweep, route capture, appearance
+  check, or UI verification. Automated evidence never replaces operator visual
+  and interaction judgment.
 ---
 
 # Run the LGI.tools UX check
@@ -28,4 +26,5 @@ Invocation permits local route and interaction capture. Operator browser judgmen
 
 ## Return
 
-Return diagnostics and capture locations. Pause for operator review before PR creation.
+Render the procedure's Markdown result without a code fence. Include diagnostics
+and capture locations, then pause for operator review.

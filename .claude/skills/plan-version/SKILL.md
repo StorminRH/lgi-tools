@@ -23,4 +23,5 @@ Invocation permits read-only topology planning. Repository mutation requires ope
 
 ## Return
 
-Return approved contracts and the fresh directive. Never create session plans here.
+Use the canonical Markdown result directly in chat. Include the approved
+topology, contracts, and fresh directive; never create session plans here.

@@ -26,4 +26,5 @@ Invocation permits retrieval, validation, and recommendations. Outward actions r
 
 ## Return
 
-Return the verdict, evidence, recommendation, and choices. Await the operator's direction.
+Use the canonical Markdown result directly in chat. Present the verdict,
+evidence, recommendation, and choices, then await operator direction.

@@ -75,8 +75,9 @@ repeats the complete audit; it is never a targeted diff.
    - the completed master plan and its version-close checklist;
    - the version's contract index, contracts, session plans, changelog entries,
      and SCRATCHPAD shipped evidence.
-6. Record the previous baseline's date, code ref, metrics, hotspot rows, rails,
-   and campaign queue before overwriting it.
+6. Record the previous baseline's Snapshot and Metrics values before overwriting
+   it. Read classifications, hotspot analysis, rails, and campaign routing from
+   the audit plan and backlog, where those judgments belong.
 
 ## Step 1 — Measure
 
@@ -135,9 +136,10 @@ not merely a long file. For every candidate, judge:
 | Amplification | Did one logical change fan out through consumers? |
 | Cohesion defense | Is it deep and cohesive, or accreting? |
 
-Replace the baseline's current-hotspot table with the new ranking. Reaffirm
-protected non-goals from `pre-pr-design-review.md` §5. Every hotspot row states a
-direction of fix; “make it smaller” is not sufficient.
+Record the new ranking and each direction of fix in the audit plan. Reaffirm the
+protected-module and bounded-cleanup rules from
+`docs/workflows/pre-pr-design-review.md`; “make it smaller” is not a sufficient
+direction.
 
 Do not copy live metrics or rows into the pre-PR design procedure. Amend its
 design creed only when the audit discovers a durable principle or
@@ -146,7 +148,8 @@ classification rule, not a new number.
 ## Step 3 — Review drift no PR-level gate sees
 
 - **Boundary drift:** inspect zone growth, new `allow` entries, and composition
-  placed inside a participating slice. Apply `pre-pr-design-review.md` §4.2.
+  placed inside a participating slice. Apply the decision-ownership and
+  change-amplification reviews in `docs/workflows/pre-pr-design-review.md`.
 - **Override staleness:** review every Fallow override and suppression as a loan.
   Remove stale entries; classify live ones with rationale and date.
 - **Duplication baseline:** classify every accepted clone group as boring shape
@@ -176,11 +179,12 @@ Put every finding in exactly one bucket:
    baseline with the exact metric or trigger that would promote it to Floss or
    Campaign. Watch is the only non-blocking close-audit classification.
 
-   **Watch promotion triggers have one owner: the baseline's Watch rows.** The
+   **Watch promotion triggers have one owner: the baseline's Watch findings.** The
    ledger row records `Watch` status and cites the AF id only — it never
    restates the trigger. Each Watch finding's countable trigger is written as
-   one fenced `watch-trigger` block in the baseline's `### Watch triggers`
-   section (schema in Step 5), in this closed grammar:
+   one fenced `watch-trigger` block beneath its baseline Watch carrier, using
+   the canonical form in `docs/workflows/schema/code-health-baseline.md` and this
+   closed grammar:
 
    ```text
    AF-NNN: <metric>(<arg>) <op> <integer>
@@ -196,9 +200,9 @@ Put every finding in exactly one bucket:
      trigger fired. A block may hold multiple lines for one AF id; any line
      true trips it.
    - A tripped trigger is a **warn** — the checker reports `promote AF-NNN`;
-     classification remains an audit decision (P10). Judgment conditions that
-     are not countable ("a new change axis", "renewed growth") stay in the
-     Watch row's prose and never enter a trigger block.
+     classification remains an audit decision. Judgment conditions that are not
+     countable ("a new change axis", "renewed growth") stay in the audit plan's
+     finding diagnosis and never enter the data-only baseline.
    - The grammar is a closed set. Adding a metric kind is a change to this
      specification, not a checker feature.
 
@@ -215,8 +219,9 @@ Allocate ids monotonically within the version. Status is `Open`, `Planned`,
 delivered outcome failed; it returns that finding to Open rather than creating
 a duplicate. New findings receive the next id.
 
-The campaign queue is living state in `docs/CODE_HEALTH_BASELINE.md`; this
-procedure contains no standing queue.
+The audit-plan ledger owns classifications, remediation routing, and campaign
+order. The baseline owns only its registered metric values and optional Watch
+trigger carriers.
 
 Campaigns split by change axis, not helper type. Temporary façades exist only
 for migration and are removed. Every structural step preserves behavior and
@@ -224,65 +229,21 @@ keeps focused tests green.
 
 ## Step 5 — Overwrite the baseline
 
-Replace `docs/CODE_HEALTH_BASELINE.md` in full. Do not append an audit entry and
-do not preserve prior rows below the new snapshot. Use this exact heading order
-and table shape every time:
+Replace `docs/CODE_HEALTH_BASELINE.md` in full using only
+`docs/workflows/schema/code-health-baseline.md`. That schema exclusively owns
+the allowed headings, identity fields, registered metric rows, table columns,
+delta rules, and Watch carrier shape; do not restate or extend its form here.
 
-```markdown
-# Code Health Baseline (LGI.tools)
+For a full audit, measure every registered row, set `Measurement scope` to
+`Full audit`, and advance the Snapshot identity to the audited ref. Preserve the
+master version's frozen `Version-start` cells and update every `Current` and
+derived `Delta` cell. Put hotspot rankings, trend interpretation, rails review,
+classifications, and campaign scheduling in the audit plan or backlog, never in
+the baseline.
 
-> Living-state notice and design-procedure pointer.
-
-## Snapshot
-| Field | Value |
-| Date | YYYY-MM-DD |
-| App version | X.Y.N |
-| Code ref | full SHA |
-| Measurement scope | Full audit |
-| Previous comparison | prior date, version, and ref |
-| Health trend | one line versus the previous baseline |
-
-## Step 1 metrics
-| Metric | Current | Previous | Delta / note |
-
-### Largest production files
-| Rank | File | LOC | Classification |
-
-### Current churn signals
-| File | Recent commits | Current evidence | Verdict |
-
-## Current hotspots
-| Hotspot | Evidence | Direction of the fix | Live status |
-
-### Watch triggers
-One fenced `watch-trigger` block per Watch finding (grammar in Step 4)
-
-## Rails and exceptions
-### Standing Fallow threshold overrides
-### Suppressions
-### Duplication baseline
-
-## Campaign queue
-| Priority | Campaign | Charter summary | Status | Trigger / next action |
-```
-
-Required Step 1 metric rows are: production file count, production LOC, test
-file count, four coverage percentages, Fallow health score, above-threshold
-function count, known-wide interface counts, threshold override count,
-suppression count, and duplication clone-group count. Use numeric zero rather
-than omitting an empty category.
-
-The health trend is one sentence that distinguishes real improvement from metric
-movement. Examples: “Pricing context breadth fell while suppressions and
-duplication stayed flat,” or “Metrics held; churn moved toward auth, so the auth
-campaign moved ahead of pricing.”
-
-Between full audits, pre-PR review may perform a targeted overwrite after a
-measured hotspot surface changes. It preserves this exact schema, advances Date,
-App version, Code ref, Previous comparison, and Health trend, and sets
-Measurement scope to `Targeted: <surface>`. It remeasures affected rows and marks
-untouched Step 1 rows as carried from the prior full measurement in their note.
-It never appends a history section.
+Between full audits, the pre-PR design review may perform only the targeted
+`Current` updates allowed by the schema. It does not invent carried-value notes,
+comparison fields, or history sections.
 
 ## Step 6 — Remediate, repeat, or archive
 
@@ -321,3 +282,31 @@ For a clean version close:
 7. run the workflow-state resolver and `python3 .agent-local/check_agent_drift.py`.
 
 Never archive before the baseline replacement is verified.
+
+## Return the result
+
+For every entry mode, apply `docs/workflows/schema/chat-result.md` to this exact
+field set:
+
+```markdown
+## Version audit: `PLANNED` | `REMEDIATION_PLANNED` | `REMEDIATION_REQUIRED` | `COMPLETE` | `BLOCKED`
+
+- **Mode:** Plan version audit | Plan audit remediation | Version audit
+- **Version:** `<X.Y>`
+- **Audit cycle:** <number or Not applicable>
+- **Primary artifact:** <audit plan, roadmap, baseline, archive path, or Not written>
+
+### Audit evidence
+
+- **Measurements:** <measurement and gate summary or Not reached>
+- **Findings:** <class and status summary or None>
+- **Baseline:** <replacement/current-state summary or Not reached>
+- **Review and approval:** <review and operator approval or Not applicable>
+- **Archive:** <archived bundle, Not authorized, or Not reached>
+
+### Next state
+
+- **Resolver directive:** <complete fresh directive or Not reached>
+- **Handoff:** <next lifecycle action>
+- **Blocker:** <exact blocker or None>
+```

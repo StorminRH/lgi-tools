@@ -3,9 +3,11 @@ name: plan-session
 description: >-
   Internal lifecycle handler that designs and persists an approved LGI.tools
   implementation plan for one session contract. Normally dispatched by
-  start-session; use directly for "plan this", "start a session on...", "design this feature",
-  "let's build X", or when start-session finds no approved current plan.
-  Includes mandatory adversarial review of every complete draft before approval.
+  start-session; use directly only when the operator invokes `/plan-session`,
+  asks to plan a named lifecycle session or contract, or when start-session
+  finds no approved plan for the selected session. Generic feature-planning
+  requests remain ordinary work. Includes mandatory adversarial review of every
+  complete draft before approval.
 ---
 
 # Plan an LGI.tools session
@@ -24,4 +26,5 @@ Invocation authorizes read-only investigation and planning. Persist the canonica
 
 ## Return
 
-Return the approved plan path and fresh directive. Create no separate prompt.
+Use the canonical Markdown result directly in chat. Report approval, the plan
+path, and the fresh directive; create no separate prompt.

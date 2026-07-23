@@ -38,8 +38,8 @@ Vercel reference when project policy differs. Verify version-sensitive Vercel,
 Next.js, and library behavior from current primary documentation. This adapter
 does not authorize deployment, promotion, rollback, production environment or
 domain changes, cache purges, merges, or other externally consequential writes:
-obtain Ryan's explicit approval at the point of action. LGI.tools keeps Greptile
-as its PR review gate of record; Vercel review guidance is supplementary.
+obtain the operator's explicit approval at the point of action. LGI.tools keeps
+Greptile as its PR review gate of record; Vercel review guidance is supplementary.
 """
 
 
@@ -112,7 +112,9 @@ def command_skill(source: Path, target: Path) -> None:
     metadata, body = read_frontmatter(source)
     command = source.stem
     description = str(metadata.get("description") or f"Run the Vercel {command} workflow.")
-    body = body.replace("$ARGUMENTS", "the arguments in Ryan's request")
+    body = body.replace(
+        "$ARGUMENTS", "the arguments in the operator's request"
+    )
     for source_name in COMMAND_NAMES:
         body = body.replace(f"`/{source_name}`", f"`$vercel-{source_name}`")
     target.mkdir(parents=True, exist_ok=True)

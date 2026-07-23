@@ -71,3 +71,31 @@ create session implementation plans here.
    cover several roadmap sections and must include the execution frame.
 6. Rerun the resolver and agent drift check, report the new directive, and stop.
    Material topology or contract changes require renewed approval.
+
+## Return the result
+
+Use `docs/workflows/schema/chat-result.md` for this field set:
+
+```markdown
+## Version topology: `APPROVED` | `BLOCKED`
+
+- **Master version:** `<X.Y>`
+- **Roadmap:** `<path>`
+- **Contract index:** `<path or Not written>`
+
+### Topology and approval
+
+- **Outcome coverage:** <complete coverage summary>
+- **Delivery counts:** <current counts → approved counts>
+- **Execution bundles:** <approved bundle and internal-phase summary>
+- **Boundary decisions:** <surviving boundaries and reasons, or None>
+- **Adversarial review:** <review result and finding disposition or Not reached>
+- **Operator approval:** <approval evidence or Not approved>
+
+### Next state
+
+- **Artifacts:** <created, reconciled, or Not written>
+- **Resolver directive:** <complete fresh directive or Not reached>
+- **Handoff:** <next lifecycle action>
+- **Blocker:** <exact blocker or None>
+```

@@ -31,7 +31,7 @@ A contract starts with this frame:
 **Master plan:** `docs/VERSION_X_Y_PLAN.md` §X.Y.N
 **UX gate:** No
 **Execution profile:** Frontier autonomous coding agent
-**Delivery unit:** One agent session, one branch, one PR
+**Delivery unit:** One agent session, one shared sub-version branch, one sub-version PR
 **Roadmap coverage:** §X.Y.N outcome or ordered outcome set
 **Internal phases:** 1. First outcome; 2. Second outcome; 3. Integration and proof
 **Split triggers:** Only the concrete conditions that require stopping or replanning
@@ -41,7 +41,9 @@ A contract starts with this frame:
 the operator's local browser-review pause. A contract uses `Yes` when the
 session changes user-facing behavior or appearance and `No` otherwise.
 
-`Execution profile` and `Delivery unit` use the exact values shown above.
+`Execution profile` and `Delivery unit` use the exact values shown above. Every
+session in a sub-version works on the same lifecycle branch; only the final
+session opens the sub-version PR.
 `Roadmap coverage`, `Internal phases`, and `Split triggers` are non-empty.
 Roadmap coverage may name several approved roadmap sections. Internal phases
 are ordered work inside the session, not new delivery boundaries. Split

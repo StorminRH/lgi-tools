@@ -50,7 +50,8 @@
    absorption keeps the window). Do not hand-author,
    reorder, or re-escape the body.
 6. On a `quiet` or `refused` verdict, perform no outward write.
-7. Print the collector's end-of-run summary verbatim as the final output.
+7. Print the collector's end-of-run summary, rendered according to
+   `docs/workflows/schema/chat-result.md`, verbatim as the final output.
 
 ## Quietness scope
 
@@ -63,8 +64,8 @@ assumption.
 
 ## End-of-run summary (mandatory, all runs)
 
-The collector renders it; print it verbatim. It reports per-source fetch
-results, dependencies checked, advisory query status, open update-watch
-issues scanned, candidates found, deltas suppressed by open issues, the
-verdict (`report` / `quiet` / `refused: <failures>`), and the outward action
-taken.
+The collector renders it in the shared chat format; print it verbatim. Its
+outcome heading is `REPORT`, `QUIET`, or `REFUSED`. The Collection section
+reports sources, dependencies, advisory status, and open issues; Delta review
+reports candidates and suppressions; Next state reports the handoff and any
+blocker.

@@ -114,8 +114,9 @@ owner or the corrective action taken, plus the red-flag sweep ledger.
 
 ## 4. Review rationale and comments
 
-1. Verify every changed exported surface has an interface comment that states
-   its contract without restating its signature.
+1. Verify every changed exported production surface under `src/` or `convex/`
+   has the concise contract comment required by `AGENTS.md`, without restating
+   its signature.
 2. Verify non-obvious ordering, invariants, units, ownership, and rejected
    simpler alternatives are recorded at the owning site.
 3. Treat comments that explain call order, field navigation, or a workaround as
@@ -194,22 +195,36 @@ Evidence: the exact PR-ready `Design notes:` block.
 
 ## Return the result
 
-Return this exact structure to `close-out`:
+Apply `docs/workflows/schema/chat-result.md` to this exact field set and return
+it to `close-out`:
 
-```text
-Design review: PASS | BLOCKED
-Merge base: <full SHA>
-Scope groups: <group -> authority>
-Exports reviewed: <count or none>
-Interface verdict: <summary>
-Amplification verdict: <summary>
-Rationale verdict: <summary>
-Test-design verdict: <summary>
-Rail and baseline verdict: <summary>
-Findings: <FIXED / DEFERRED / BLOCKED ledger or none>
-Invalidated verification: <items or none>
-Design notes:
-<three to eight PR-ready lines>
+```markdown
+## Design review: `PASS` | `BLOCKED`
+
+- **Merge base:** `<full SHA>`
+- **Scope groups:** <group → authority mapping>
+- **Exports reviewed:** <count or None>
+
+### Design evidence
+
+- **Interface depth:** <verdict summary>
+- **Change amplification:** <verdict summary>
+- **Rationale and comments:** <verdict summary>
+- **Test design:** <verdict summary>
+- **Rails and baseline:** <verdict summary>
+
+### Findings and follow-up
+
+- **Findings:** <FIXED, DEFERRED, and BLOCKED ledger or None>
+- **Invalidated verification:** <items or None>
+- **Design notes:**
+  - <first PR-ready note>
+  - <additional notes, for three to eight total>
+
+### Next state
+
+- **Handoff:** <Return to close-out or Stop for operator decision>
+- **Blocker:** <exact blocker or None>
 ```
 
 Return `PASS` only when no `FIX` or `BLOCKED` finding remains, every required

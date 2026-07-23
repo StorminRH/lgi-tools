@@ -24,4 +24,5 @@ Invocation permits one optional digest issue. Repository mutation remains exclud
 
 ## Return
 
-Print the collector summary verbatim. Perform no other outward write.
+Place the collector's Markdown summary directly in chat without alteration or a
+code fence. Perform no other outward write.

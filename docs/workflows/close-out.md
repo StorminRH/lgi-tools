@@ -98,6 +98,11 @@ application evidence.
    as appropriate, and use a manual preview only when local data cannot
    represent the behavior. Never run `pnpm build`, `next build`,
    `pnpm vercel-build`, or another production-mode build before merge.
+4. **(ordinary)** If the change affects user-facing behavior or appearance,
+   invoke `ux-check`, present its diagnostics and captures, and pause for the
+   operator's local-browser review. Do not enter the pre-PR gate until the
+   operator completes that review. Planned execution receives the same gate from
+   its contract through `start-session`.
 
 Phase evidence: disposition of every session finding, one verdict for each
 judgment-review surface, and the focused/local/UX proof or explicit
@@ -190,7 +195,13 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    plus prohibited surfaces. Remove anything outside those boundaries, confirm
    every required surface is present, and screen all tracked content for personal
    information before mechanical verification begins.
-2. Run every cheap workflow check that can still lead to an edit: agent drift
+2. Reconcile durable memory before any final mechanical gate can be invalidated
+   by another documentation edit. **(ordinary and planned final session)** update
+   `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and contract
+   cannot know; remove shipped or superseded detail and keep deferred work only
+   in `docs/backlog.md`. **(planned non-final session)** defer the session status
+   and handoff pointer to the lifecycle-only commit in the fork above.
+3. Run every cheap workflow check that can still lead to an edit: agent drift
    after changing shared guides, skills, hooks, or workflow policy; document
    references after changing live documentation; the pending-changelog checker
    whenever a fragment changed; the read-only baseline-claims and watch-trigger
@@ -199,17 +210,17 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    Fix or reconcile every finding before the definition-of-done checkpoint;
    surface every `promote AF-NNN` result to the operator because neither reporter
    promotes findings itself.
-3. Shut down the Next.js and local Convex development processes after all agent
+4. Shut down the Next.js and local Convex development processes after all agent
    and operator local review is finished, confirm their ports no longer answer,
    and clear `.next`. Leave the small persistent Docker Postgres service running
    unless the session has another reason to stop it.
-4. Reconcile only deliberately ignored local state touched by the session:
+5. Reconcile only deliberately ignored local state touched by the session:
    runtime-local settings and worktrees, generated reports or captures,
    temporary PR body files, `.codegraph/`, and comparable declared local
    artifacts. Remove credential-bearing permissions and session-only output;
    tracked guides, skills, hooks, workspace docs, and `.agent-local/` utilities
    ship normally.
-5. Run the sole coverage-backed definition-of-done checkpoint once on the
+6. Run the sole coverage-backed definition-of-done checkpoint once on the
    finalized head:
 
    ```bash
@@ -222,20 +233,19 @@ repeat it at the pre-PR or PR-opening boundary when the head is unchanged.
    leaves `coverage/` available for diagnosis; remove it only after the final
    successful pass so no later session can reuse stale attribution. Entering a
    later workflow section does not make current-head evidence stale.
-6. After the successful checkpoint, make a read-only confirmation that the
+7. After the successful checkpoint, make a read-only confirmation that the
    worktree still matches the preflighted scope and that no application, test,
    executable, dependency, or verification-configuration change occurred after
    it. Any such change invalidates the checkpoint and returns to the applicable
    preflight and verification steps; a lifecycle-only record does not.
-7. Commit the verified scope in the repository's conventional plain-English style
+8. Commit the verified scope in the repository's conventional plain-English style
    — a conventional subject under 72 characters, lowercase after the prefix,
    describing the project outcome rather than files or symbols (see `AGENTS.md`)
    — and push the branch. No preview is created automatically.
-8. Update `docs/SCRATCHPAD.md` with only durable discoveries the roadmap and
-   contract cannot know. Remove shipped or superseded detail and keep deferred
-   work only in `docs/backlog.md`. **(planned)** follow the fork above: a
-   non-final session completes its plan and stops; a final session has already
-   set its plan `Complete` during finalization and continues to the PR.
+9. **(planned)** Follow the fork above: a non-final session completes its plan
+   and SCRATCHPAD handoff in the lifecycle-only commit, then stops; a final
+   session has already set its plan `Complete` during finalization and continues
+   to the PR.
 
 Phase evidence: finalized-diff boundary verdict, output from every applicable
 cheap workflow check, the successful pinned `pnpm verify` result tied to the
@@ -247,7 +257,8 @@ the lifecycle-memory disposition.
 1. Before opening the PR, confirm the verification evidence names the current
    head. If the head has not changed since **Finalize and verify the current
    head**, reuse that evidence and do not rerun the test suite or coverage.
-2. Open one PR from the branch to `main`. Describe the coherent project outcome,
+2. Open one PR from the branch to `main`, or reuse the one open PR already owned
+   by a canonical review-only workflow. Describe the coherent project outcome,
    not a file list, using these headings in order: `## What this does`, `## Why`,
    `## Notes`, and `## Test plan`. Record the existing verification as past-tense
    evidence.
@@ -346,23 +357,35 @@ new directive against committed main (planned).
 
 ## Return the result
 
-Return this exact structure:
+Use `docs/workflows/schema/chat-result.md` for this field set:
 
-```text
-Close-out result: SESSION_HANDOFF | MERGED | BLOCKED
-Mode: ordinary | planned
-Session: <id or not applicable>
-Branch head: <full SHA>
-Session review: <evidence summary>
-Focused/local/UX proof: <evidence summary or not applicable>
-Design review: <PASS result or not applicable>
-Final verification: <command and result or not reached>
-PR and review: <URL, head, CI, Greptile, findings or not opened>
-Merge: <merge SHA or not merged>
-Production: <deployment and browser proof or not reached>
-Lifecycle state: <pending fragment path (ordinary), committed handoff or truthful merged state (planned)>
-Resolver directive: <complete directive against committed main (planned) or not applicable (ordinary)>
-Blocker: <exact blocker or none>
+```markdown
+## Close-out: `SESSION_HANDOFF` | `MERGED` | `BLOCKED`
+
+- **Mode:** Ordinary | Planned
+- **Session:** `<id>` | Not applicable
+- **Branch head:** `<full SHA>`
+
+### Review and verification
+
+- **Session review:** <evidence summary>
+- **Focused/local/UX:** <evidence summary or Not applicable>
+- **Design review:** <PASS result or Not applicable>
+- **Final verification:** <command and result or Not reached>
+
+### Delivery
+
+- **PR and review:** <URL, head, CI, Greptile, findings or Not opened>
+- **Merge:** <merge SHA or Not merged>
+- **Production:** <deployment and browser proof or Not reached>
+- **Lifecycle state:** <pending fragment path in ordinary mode, or committed
+  handoff/truthful merged state in planned mode>
+
+### Next state
+
+- **Resolver directive:** <complete directive against committed main in planned
+  mode, or Not applicable in ordinary mode>
+- **Blocker:** <exact blocker or None>
 ```
 
 Return `SESSION_HANDOFF` only after a non-final planned session's verified
