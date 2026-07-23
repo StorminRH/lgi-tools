@@ -107,8 +107,8 @@ Use `docs/workflows/schema/chat-result.md` for this field set:
 
 ### Evidence
 
-- <first current file, behavior, or command finding>
-- <additional evidence or None>
+- **Primary evidence:** <first current file, behavior, or command finding>
+- **Additional evidence:** <additional evidence or None>
 
 ### Recommendation
 

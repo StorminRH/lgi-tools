@@ -469,7 +469,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "306f141ae27333c560697d3d0ad6fbac8a08847fb3cd83ad5eff8847ff3556d5"
+      "reconciledHash": "4c19157441d4cab65579dedeb9278a23289ce23bf06fc489cbf7ce04f752adc3"
     },
     "ux-check": {
       "deps": [
@@ -478,7 +478,7 @@
         "docs/workflows/ux-check.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "7455d1af464e4e1c72f9751fa8fe13cea7459066e4f858f5fc9bf09d81e726a6"
+      "reconciledHash": "95820a1b713f09981798754313e64fdcefeda49cdc3fe219b9a665c4a3305410"
     },
     "update-watch": {
       "deps": [

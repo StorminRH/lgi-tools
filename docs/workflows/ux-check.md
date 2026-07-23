@@ -23,9 +23,10 @@ Required output: `UX_EVIDENCE` naming the captured routes and viewports, route
 and probe diagnostics, inspected capture paths, authenticated-state limitations,
 and the operator-review status.
 
-Stop with `BLOCKED` when the local stack cannot represent required behavior, a
-diagnostic remains unexplained, or the operator review has not completed. Do not
-open a PR from this workflow.
+Stop with `BLOCKED` when the local stack cannot represent required behavior or a
+diagnostic remains unexplained. A completed clean sweep returns
+`READY_FOR_REVIEW` with the operator review marked `Pending`, then pauses for
+that review. Do not open a PR from this workflow.
 
 ## 1. Resolve the capture surface
 
@@ -74,7 +75,7 @@ pnpm exec playwright install chromium
 Pass concrete paths only:
 
 ```bash
-pnpm ux-check /sites /sites/<real-site-id> /industry
+pnpm ux-check /sites /sites/100 /industry
 ```
 
 The default run covers desktop 1440×900 and mobile 390×844; mobile also opens
