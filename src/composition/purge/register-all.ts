@@ -10,7 +10,7 @@ import { authPurgeContributor } from '@/platform/auth/purge';
 import { industryJobsPurgeContributor } from '@/features/industry-jobs/purge';
 import { ownedAssetsPurgeContributor } from '@/features/owned-assets/purge';
 import { ownedBlueprintsPurgeContributor } from '@/features/owned-blueprints/purge';
-import { onlineStatusPurgeContributor } from '@/features/online-status/purge';
+import { onlineStatusPurgeContributor } from '@/data/online-status/purge';
 import { skillQueuePurgeContributor } from '@/features/skill-queue/purge';
 import { preferencesPurgeContributor } from '@/data/preferences/purge';
 import { esiSnapshotsPurgeContributor } from '@/data/esi-snapshots/purge';

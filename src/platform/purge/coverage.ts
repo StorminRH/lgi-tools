@@ -82,7 +82,7 @@ export const NON_NEON_HOMES = [
     home: 'convex:characterOnline',
     coveredBy:
       'explicit teardown via the online-status purge contributor (POST /purge-online → convex/onlineStatus.purgeForUser); lazy orphan-clean in convex/onlineStatus.applySyncResults is the backstop',
-    explicitTeardown: 'src/features/online-status/purge.ts — shipped ACCOUNT.2',
+    explicitTeardown: 'src/data/online-status/purge.ts — shipped ACCOUNT.2',
     reason:
       'a Convex table is invisible to the schema-reflection gate, so this non-Neon home is accounted for here. Lazy orphan-clean alone cannot cover an account-nuke (no later sync re-enumerates a removed account), so the online-status contributor tears it down explicitly during runPurge.',
   },

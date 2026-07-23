@@ -299,11 +299,9 @@
           "data",
           "auth-surface",
           "lib",
-          "features/online-status",
           "platform/auth",
           "platform/esi"
-        ],
-        "// note": "Narrow exception: online-status Convex sync reuses the feature's runtime-light pure ESI-projection + eligibility helpers by design (documented at the import sites). Precedent: data/npc-stats -> data/eve-data. Relocation to a data leaf is future work."
+        ]
       },
       { "from": "runtime", "allow": ["config", "data", "features", "lib", "transport"] }
     ],

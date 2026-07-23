@@ -14,8 +14,8 @@
 // and partial results are never lost.
 import { v } from 'convex/values';
 import type { EveCharactersResponse } from '@/platform/auth/api-contract';
-import { parseOnlineBody } from '@/features/online-status/esi-projection';
-import { canSyncOnline } from '@/features/online-status/sync-eligibility';
+import { parseOnlineBody } from '@/data/online-status/esi-projection';
+import { canSyncOnline } from '@/data/online-status/sync-eligibility';
 import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { internal } from './_generated/api';
 import { internalAction } from './_generated/server';
