@@ -14,7 +14,7 @@ import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { getRoleChangeAudit, lastNDaysRange } from '@/data/telemetry/queries';
-import { RoleToggleForm } from '@/platform/auth/components/RoleToggleForm';
+import { RoleToggleForm } from '@/components/composition/account/RoleToggleForm';
 import { requireAdminPage } from '@/platform/auth/route-guards';
 import {
   getUserByCharacterId,

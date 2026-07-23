@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache, Suspense } from 'react';
-import { JsonLd } from '@/components/JsonLd';
+import { JsonLd } from '@/components/composition/JsonLd';
 import { PageShell } from '@/components/ui/page-shell';
 import { getCachedPricesFreshness } from '@/data/market-prices/cache';
 import { SITE_URL } from '@/config/site-url';

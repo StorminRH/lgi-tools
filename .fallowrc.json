@@ -90,6 +90,10 @@
       { "name": "platform/purge", "patterns": ["src/platform/purge/**"] },
       { "name": "platform/page-settings", "patterns": ["src/platform/page-settings/**"] },
       { "name": "composition", "patterns": ["src/composition/**"] },
+      {
+        "name": "components-composition",
+        "patterns": ["src/components/composition/**"]
+      },
       { "name": "features", "autoDiscover": ["src/features"] },
       { "name": "data", "autoDiscover": ["src/data"] },
       { "name": "lib", "patterns": ["src/lib/**"] },
@@ -148,6 +152,26 @@
           "features",
           "data",
           "db",
+          "lib",
+          "config"
+        ]
+      },
+      {
+        "from": "components-composition",
+        "allow": [
+          "composition",
+          "shared",
+          "ui",
+          "features",
+          "auth-surface",
+          "platform/auth",
+          "platform/owner-sync",
+          "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings",
+          "data",
+          "transport",
           "lib",
           "config"
         ]
@@ -254,6 +278,7 @@
           "lib",
           "platform/auth",
           "composition",
+          "components-composition",
           "platform/owner-sync",
           "platform/esi",
           "platform/search",

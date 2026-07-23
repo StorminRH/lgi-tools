@@ -1,4 +1,4 @@
-import type { CharacterRole } from '../types';
+import type { CharacterRole } from '@/platform/auth/types';
 
 /**
  * Display-ready role toggle state for auth; consumers can render it without reconstructing storage

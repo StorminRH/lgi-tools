@@ -1,8 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { HeroBanner } from '@/components/HeroBanner';
-import { HomeRosterPanel } from '@/components/HomeRosterPanel';
+import { HeroBanner } from '@/components/composition/HeroBanner';
+import { HomeRosterPanel } from '@/components/composition/HomeRosterPanel';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 
 /**

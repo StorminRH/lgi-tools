@@ -20,7 +20,7 @@
 // only.) No usePathname and no Suspense here — PageMenuProvider already
 // isolates the request-time read (the #182 lesson).
 
-import { usePageSettings } from '@/components/PageMenuProvider';
+import { usePageSettings } from '@/components/composition/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { resolveMenuControls, type MenuControlModel } from '@/platform/page-settings/controls';

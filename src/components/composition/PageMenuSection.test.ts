@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // missing PreferencesProvider — values fall back to each def's default.
 vi.mock('next/navigation', () => ({ usePathname: () => null }));
 
-import { PageMenuProvider } from '@/components/PageMenuProvider';
-import { PageMenuSection } from '@/components/PageMenuSection';
+import { PageMenuProvider } from '@/components/composition/PageMenuProvider';
+import { PageMenuSection } from '@/components/composition/PageMenuSection';
 import { __resetPageSettings, registerPageSettings } from '@/platform/page-settings';
 
 function renderAt(pathname: string): string {

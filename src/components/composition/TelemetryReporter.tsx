@@ -2,13 +2,13 @@
 
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
-import { postTelemetry } from './client';
+import { postTelemetry } from '@/components/composition/telemetry/client';
 import {
   buildPageViewMetadata,
   readUtmTags,
   referrerHostFrom,
   shouldSkip,
-} from './page-view-metadata';
+} from '@/components/telemetry/page-view-metadata';
 
 const VISITOR_KEY = 'lgi:visitor_id';
 const SESSION_FLAG_KEY = 'lgi:session_started';

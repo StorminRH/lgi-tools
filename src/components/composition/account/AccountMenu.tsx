@@ -14,11 +14,11 @@
 
 import Link from 'next/link';
 import { CharacterPortrait } from '@/components/character-portrait';
-import { PageMenuSection } from '@/components/PageMenuSection';
+import { PageMenuSection } from '@/components/composition/PageMenuSection';
 import { Menu, MenuItem, MenuLinkItem, MenuSeparator } from '@/components/ui/menu';
-import { authClient } from '../auth-client';
-import type { Session } from '../types';
-import { startCharacterLink } from '../link-character';
+import { authClient } from '@/platform/auth/auth-client';
+import type { Session } from '@/platform/auth/types';
+import { startCharacterLink } from '@/platform/auth/link-character';
 
 /**
  * Renders the signed-in account menu with character, settings, administrator, and sign-out actions

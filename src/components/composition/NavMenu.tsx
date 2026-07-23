@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
-import { LoginButton } from '@/platform/auth/components/LoginButton';
+import { LoginButton } from '@/components/composition/account/LoginButton';
 import { Menu, MenuLinkItem } from '@/components/ui/menu';
 import { cn } from '@/components/ui/cn';
 import { deriveNavToolItem, visibleNavTools } from '@/data/tools/registry';

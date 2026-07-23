@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
-import { authClient } from '../auth-client';
-import { EVE_AUTHORIZED_APPS_URL } from '../eve-sso-constants';
+import { authClient } from '@/platform/auth/auth-client';
+import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 
 // The D-5 redirect lightbox. Shown ONLY when a destructive action emptied the
 // account — a last-character purge or a full delete — never on a one-of-many purge

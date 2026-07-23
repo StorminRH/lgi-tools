@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { startCharacterLink } from '../link-character';
+import { startCharacterLink } from '@/platform/auth/link-character';
 
 /** Starts the EVE OAuth character-link flow while preserving the current return path. */
 export function LinkCharacterButton({
