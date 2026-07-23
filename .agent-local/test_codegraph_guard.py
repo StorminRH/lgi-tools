@@ -10,10 +10,9 @@ import unittest
 from pathlib import Path
 
 from codegraph_guard import (
-    already_reminded,
+    claim_reminder,
     guard_bash,
     guard_read,
-    mark_reminded,
     marker_path,
 )
 
@@ -29,8 +28,8 @@ def capture(fn, *args) -> str:
 class FireOnceReminder(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
-        # A fresh temp path stands in for a session that has not been reminded;
-        # touching it marks the reminder as shown.
+        # A path that does not yet exist stands in for a session that has not
+        # been reminded; the guard claims it by creating the file.
         self.marker = Path(self._tmp.name) / "reminded"
 
     def tearDown(self) -> None:
@@ -47,38 +46,25 @@ class FireOnceReminder(unittest.TestCase):
         self.assertTrue(self.marker.is_file())
 
     def test_reminder_fires_only_once(self) -> None:
-        first = capture(guard_read, {"file_path": "src/a.ts"}, self.marker)
-        self.assertIn("MANDATORY", first)
-        second = capture(guard_read, {"file_path": "src/b.ts"}, self.marker)
-        self.assertEqual(second, "")
+        self.assertIn("MANDATORY", capture(guard_read, {"file_path": "src/a.ts"}, self.marker))
+        self.assertEqual(capture(guard_read, {"file_path": "src/b.ts"}, self.marker), "")
 
     def test_one_reminder_shared_across_search_and_read(self) -> None:
         capture(guard_bash, {"command": "grep -rn foo src/"}, self.marker)
-        out = capture(guard_read, {"file_path": "src/foo.ts"}, self.marker)
-        self.assertEqual(out, "")
-
-    def test_silent_after_reminder(self) -> None:
-        mark_reminded(self.marker)
         self.assertEqual(capture(guard_read, {"file_path": "src/foo.ts"}, self.marker), "")
-        self.assertEqual(capture(guard_bash, {"command": "grep foo"}, self.marker), "")
 
     def test_codegraph_command_neither_reminds_nor_marks(self) -> None:
-        # Running codegraph is not a search or read, so it does nothing — the
-        # guard never tries to infer that the graph was consulted.
         out = capture(guard_bash, {"command": "codegraph query esiFetch"}, self.marker)
         self.assertEqual(out, "")
         self.assertFalse(self.marker.is_file())
 
     def test_missing_session_always_reminds(self) -> None:
-        # No session_id -> no marker -> the guard reminds every time rather than
-        # going silent.
+        # No session_id -> no marker -> remind every time rather than go silent.
         self.assertIsNone(marker_path(""))
-        out = capture(guard_read, {"file_path": "src/foo.ts"}, None)
-        self.assertIn("MANDATORY", out)
+        self.assertIn("MANDATORY", capture(guard_read, {"file_path": "src/foo.ts"}, None))
+        self.assertIn("MANDATORY", capture(guard_read, {"file_path": "src/foo.ts"}, None))
 
     def test_non_source_read_is_ignored(self) -> None:
-        # "photo.png" contains no source-extension substring, so it is not a
-        # source read and must neither remind nor mark.
         out = capture(guard_read, {"file_path": "photo.png"}, self.marker)
         self.assertEqual(out, "")
         self.assertFalse(self.marker.is_file())
@@ -88,17 +74,38 @@ class FireOnceReminder(unittest.TestCase):
         self.assertEqual(out, "")
         self.assertFalse(self.marker.is_file())
 
-    def test_marker_path_sanitizes_session_id(self) -> None:
-        path = marker_path("a/b c..d")
-        self.assertIsNotNone(path)
-        self.assertNotIn("/", path.name)
-        self.assertNotIn(" ", path.name)
 
-    def test_already_reminded_reflects_marker_state(self) -> None:
-        self.assertFalse(already_reminded(self.marker))
-        self.assertFalse(already_reminded(None))
-        mark_reminded(self.marker)
-        self.assertTrue(already_reminded(self.marker))
+class MarkerPath(unittest.TestCase):
+    def test_empty_session_has_no_marker(self) -> None:
+        self.assertIsNone(marker_path(""))
+
+    def test_distinct_sessions_get_distinct_markers(self) -> None:
+        # Hashing, not character stripping: lossy stripping made "a/b" and "ab"
+        # collide, so one session could suppress another's reminder.
+        self.assertNotEqual(marker_path("a/b"), marker_path("ab"))
+        self.assertIsNotNone(marker_path("!!!"))
+
+    def test_marker_name_is_filesystem_safe(self) -> None:
+        name = marker_path("a/b c").name
+        self.assertNotIn("/", name)
+        self.assertNotIn(" ", name)
+
+
+class ClaimReminder(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.marker = Path(self._tmp.name) / "reminded"
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_claim_is_won_once_then_lost(self) -> None:
+        self.assertTrue(claim_reminder(self.marker))
+        self.assertFalse(claim_reminder(self.marker))
+
+    def test_no_marker_always_claims(self) -> None:
+        self.assertTrue(claim_reminder(None))
+        self.assertTrue(claim_reminder(None))
 
 
 if __name__ == "__main__":

@@ -13,7 +13,9 @@ reminding every time rather than going silent.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
 import sys
 import tempfile
@@ -47,30 +49,39 @@ def emit(message: str) -> None:
 
 
 def marker_path(session_id: str) -> Path | None:
-    safe = re.sub(r"[^A-Za-z0-9_-]", "", session_id or "")
-    if not safe:
+    # Hash rather than strip unsafe characters: stripping is lossy, so two
+    # distinct sessions ("a/b" and "ab") could share a marker and one could
+    # suppress the other's reminder.
+    if not session_id:
         return None
-    return MARKER_DIR / f"codegraph-guard-reminded-{safe}"
+    digest = hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+    return MARKER_DIR / f"codegraph-guard-reminded-{digest}"
 
 
-def already_reminded(marker: Path | None) -> bool:
-    return marker is not None and marker.is_file()
+def claim_reminder(marker: Path | None) -> bool:
+    """True if this call should show the reminder.
 
-
-def mark_reminded(marker: Path | None) -> None:
+    Creating the per-session marker atomically (exclusive create) claims it, so
+    when several hooks race only the one that creates the file emits — a plain
+    exists-check-then-touch would let both emit before either marker exists.
+    With no marker (no session id) there is nothing to dedupe on, so every call
+    reminds.
+    """
     if marker is None:
-        return
+        return True
     try:
-        marker.touch()
+        fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        return False
     except OSError:
-        pass
+        return True
+    os.close(fd)
+    return True
 
 
 def guard_bash(tool_input: dict, marker: Path | None) -> None:
-    if already_reminded(marker):
-        return
     command = str(tool_input.get("command") or tool_input.get("cmd") or "")
-    if SEARCH_COMMAND.search(command):
+    if SEARCH_COMMAND.search(command) and claim_reminder(marker):
         emit(
             "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
             "codegraph explore \"<question>\" for an unfamiliar area, "
@@ -78,18 +89,15 @@ def guard_bash(tool_input: dict, marker: Path | None) -> None:
             "before grepping raw files. Only grep "
             "after Codegraph has oriented you, or to modify/debug specific lines."
         )
-        mark_reminded(marker)
 
 
 def guard_read(tool_input: dict, marker: Path | None) -> None:
-    if already_reminded(marker):
-        return
     candidate = " ".join(
         str(tool_input.get(key) or "") for key in ("file_path", "pattern", "path")
     ).lower().replace("\\", "/")
     if ".codegraph/" in candidate:
         return
-    if any(extension in candidate for extension in SOURCE_EXTENSIONS):
+    if any(extension in candidate for extension in SOURCE_EXTENSIONS) and claim_reminder(marker):
         emit(
             "MANDATORY: .codegraph/codegraph.db exists. You MUST run Codegraph "
             "before reading source files. Use: `codegraph explore \"<question>\"` "
@@ -99,7 +107,6 @@ def guard_read(tool_input: dict, marker: Path | None) -> None:
             "specific lines. This rule applies to subagents too—include it in every "
             "subagent prompt involving code exploration."
         )
-        mark_reminded(marker)
 
 
 def load_payload() -> dict:

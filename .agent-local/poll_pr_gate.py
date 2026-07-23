@@ -94,25 +94,51 @@ def checks_state(repo: str, number: int, token: str) -> tuple[str, bool, bool, d
     return label, done, clean, detail
 
 
+def quiescence(runs: list[object], status: dict[str, object]) -> tuple[frozenset[str], bool]:
+    """The reviewer set and whether every reviewer on the head has settled.
+
+    Reviewers report either as check runs (Greptile, semgrep, CI) or as legacy
+    commit statuses (some bots, e.g. CodeRabbit). Both must be accounted for, or
+    a bot that has not finished reads as quiet. Pure over its inputs so the
+    settled rule is unit-testable.
+    """
+    run_names = frozenset(
+        str(run.get("name", "")) for run in runs if isinstance(run, dict)
+    )
+    status_list = status.get("statuses") if isinstance(status, dict) else []
+    status_names = frozenset(
+        str(item.get("context", ""))
+        for item in (status_list or [])
+        if isinstance(item, dict)
+    )
+    runs_completed = bool(runs) and all(
+        run.get("status") == "completed" for run in runs if isinstance(run, dict)
+    )
+    legacy_pending = bool(status_names) and status.get("state") == "pending"
+    settled = runs_completed and not legacy_pending
+    return run_names | status_names, settled
+
+
 def quiescent_state(repo: str, number: int, token: str) -> tuple[str, frozenset[str], bool, dict[str, object]]:
     pull = get(f"/repos/{repo}/pulls/{number}", token)
     assert isinstance(pull, dict)
     head_sha = str(pull["head"]["sha"])
     checks = get(f"/repos/{repo}/commits/{head_sha}/check-runs?per_page=100", token)
-    assert isinstance(checks, dict)
+    status = get(f"/repos/{repo}/commits/{head_sha}/status", token)
+    assert isinstance(checks, dict) and isinstance(status, dict)
     runs = checks.get("check_runs", [])
     assert isinstance(runs, list)
-    names = frozenset(str(run.get("name", "")) for run in runs if isinstance(run, dict))
-    completed = bool(runs) and all(run.get("status") == "completed" for run in runs)
+    names, settled = quiescence(runs, status)
     detail = {
         "head": head_sha,
         "runs": [
             {"name": run.get("name"), "status": run.get("status"), "conclusion": run.get("conclusion")}
             for run in runs
         ],
+        "legacy_state": status.get("state"),
     }
-    label = f"head={head_sha[:8]} checks={len(names)} completed={completed}"
-    return label, names, completed, detail
+    label = f"head={head_sha[:8]} reviewers={len(names)} settled={settled}"
+    return label, names, settled, detail
 
 
 def main() -> int:
@@ -145,16 +171,16 @@ def main() -> int:
                         print(f"{finding.get('path')}:{finding.get('line')}\n{finding.get('body')}\n")
                 return 0 if clean else 2
         elif args.gate == "quiescent":
-            label, names, completed, detail = quiescent_state(args.repo, args.number, token)
+            label, names, settled, detail = quiescent_state(args.repo, args.number, token)
             if label != last_label:
                 print(f"[{now}] {label}", flush=True)
                 last_label = label
-            # Require the completed check-run set to hold for one interval so a
-            # bot that has not yet registered its run cannot read as done.
-            if completed and names and names == stable_names:
+            # Require the settled reviewer set to hold for one interval so a bot
+            # that has not yet registered its run or status cannot read as done.
+            if settled and names and names == stable_names:
                 print(detail)
                 return 0
-            stable_names = names if completed else None
+            stable_names = names if settled else None
         else:
             label, done, clean, detail = checks_state(args.repo, args.number, token)
             if label != last_label:
