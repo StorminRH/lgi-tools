@@ -15,8 +15,11 @@ conventions and workflow for working in the repo. For local setup, see the
 ## Project layout & slice boundaries
 
 The codebase is organized into self-contained slices. The import direction
-between them is **enforced in CI** by `pnpm fallow` (the zones and rules live in
-[`.fallowrc.json`](.fallowrc.json)), so a violating import fails the build:
+between them is **enforced in CI** by `pnpm fallow`: every production source
+file must belong to a named zone, and a violating cross-zone import fails the
+build. The complete ownership map and dependency directions live in
+[`docs/architecture-boundaries.md`](docs/architecture-boundaries.md);
+[`.fallowrc.json`](.fallowrc.json) is the mechanical authority.
 
 - `src/features/<name>/` — self-contained feature slices (their own
   `components/`, `schema.ts`, `queries.ts`, `types.ts` as needed). **Two features
@@ -30,9 +33,14 @@ between them is **enforced in CI** by `pnpm fallow` (the zones and rules live in
   `tone` props (`green`, `red`, …); only feature-level style maps know that, say,
   "C5 is red". UI primitives import only from `src/lib`.
 - `src/lib/` — cross-cutting helpers importable from anywhere; `lib` imports only
-  `lib`, never a feature, data, or ui module.
-- `src/app/` — routes and API handlers. `convex/` — the live reactive backend
-  (see below).
+  `lib` and application configuration, never a feature, data, or ui module.
+- `src/app/` owns routes and API handlers. `src/db/`, `src/search/`,
+  `src/purge/`, `src/page-settings/`, and `src/esi-datasets/` are composition
+  zones for their declared concerns; `src/config/` owns application
+  configuration.
+- `convex/` owns the live reactive backend (see below);
+  `src/proxy*.ts` and `src/instrumentation*.ts` are process-level runtime entry
+  points.
 
 Two guiding principles: **reusable primitives over one-off components** (extract a
 primitive when a second real consumer exists, not speculatively), and **minimal by

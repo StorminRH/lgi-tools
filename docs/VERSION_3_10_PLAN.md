@@ -153,18 +153,16 @@ and no separate elective campaign is scheduled.
 | 3.10.0.3 | Migrate close-out (SESSION_END + SELF_REVIEW + PR_REVIEW → one procedure + thin adapters); PR #282, squash `93d08d1` | 2 (one branch) | SHIPPED |
 | 3.10.0.4 | Complete the agent workflow and lifecycle consolidation | 1 | SHIPPED |
 | **Phase 1 — Close the structural loopholes** | | | |
-| 3.10.1.1 | Full boundary coverage: every source area a named zone | 1 | PLANNED |
-| 3.10.1.2 | Shared→composition split; cycles become blocking | 1 | PLANNED |
-| 3.10.1.3 | `server-only` rails on the browser/server boundary | 1 | PLANNED |
+| 3.10.1.1 | Full boundary coverage: every source area a named zone (§3.10.1.1) | 1 | SHIPPED |
+| 3.10.1.2 | Boundary hardening: shared→composition split, blocking cycles, `server-only` rails (§3.10.1.2 + §3.10.1.3) | 1 | PLANNED |
 | **Phase 2 — Production flow contracts** | | | |
-| 3.10.2.1 | Typed error contract & RFC 9457 problem mapper | 2 (one branch) | PLANNED |
-| 3.10.2.2 | Mutation pipeline: declared order & same-origin enforcement (LGI-03) | 1 | PLANNED |
-| 3.10.2.3 | Data ownership, transaction & RLS registry | 1 | PLANNED |
-| 3.10.2.4 | Vendor resilience registry (timeouts, retries, idempotency) | 1 | PLANNED |
+| 3.10.2.1 | Typed error contract & RFC 9457 problem mapper (§3.10.2.1) | 1 | PLANNED |
+| 3.10.2.2 | Mutation pipeline: declared order & same-origin enforcement (LGI-03) (§3.10.2.2) | 1 | PLANNED |
+| 3.10.2.3 | Data ownership, transaction & RLS registry (§3.10.2.3) | 1 | PLANNED |
+| 3.10.2.4 | Vendor resilience registry (timeouts, retries, idempotency) (§3.10.2.4) | 1 | PLANNED |
 | **Phase 3 — Operability** | | | |
-| 3.10.3.1 | Capability telemetry names & SLIs | 1 | PLANNED |
-| 3.10.3.2 | Idempotency inventory (judged; may resolve to no code) | 1 | PLANNED |
-| 3.10.3.3 | Generated architecture map & devlog flowchart (UX gate: Yes) | 2 (one branch) | PLANNED |
+| 3.10.3.1 | Capability telemetry, SLIs & idempotency inventory (§3.10.3.1 + §3.10.3.2) | 1 | PLANNED |
+| 3.10.3.3 | Generated architecture map & devlog flowchart, UX gate: Yes (§3.10.3.3) | 1 | PLANNED |
 | **Phase 4 — Presentation-system completion** | Outcome groups below are inputs to adversarial decomposition, not fixed delivery boundaries | Set by `plan-version` after its live adoption survey | PLANNED |
 
 ## Phase 0 — Documentation & lifecycle consolidation (3.10.0.x)
@@ -581,6 +579,10 @@ possible small file-count churn, no LOC growth).
 
 ### 3.10.1.3 — `server-only` rails on the browser/server boundary
 
+> *Delivered within sub-version 3.10.1.2, together with §3.10.1.2 (see the
+> Status table). No separate 3.10.1.3 delivery row exists; this block states
+> the §3.10.1.3 requirements the 3.10.1.2 bundle must satisfy.*
+
 **Objective.** Server-only modules — database, secret-bearing config,
 privileged auth, vendor adapters — mechanically cannot enter the client
 graph.
@@ -816,6 +818,10 @@ return live values; standard close-out.
 
 ### 3.10.3.2 — Idempotency inventory (judged)
 
+> *Delivered within sub-version 3.10.3.1, together with §3.10.3.1 (see the
+> Status table). No separate 3.10.3.2 delivery row exists; this block states
+> the §3.10.3.2 requirements the 3.10.3.1 bundle must satisfy.*
+
 **Objective.** Every retryable or redeliverable mutation/job is inventoried
 and judged: inherently idempotent, key-protected, or accepted-risk — with
 code changes only where duplicate/loss risk is real.
@@ -890,8 +896,8 @@ vs. component-owned); whether the drift test also publishes the Mermaid
 source into the devlog for copy-paste.
 
 **Baseline & hotspot note.** Neutral (one small script, one component, one
-test). Two sessions on one branch: generator/drift plumbing first, then the
-dependent devlog UX.
+test). One session with two ordered internal phases: generator/drift plumbing
+first, then the dependent devlog UX.
 
 **Delivery evidence.** Drift test red on a seeded zone-rule edit without a
 regenerated diagram; `ux-check` captures plus Ryan's approved browser

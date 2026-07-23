@@ -77,15 +77,22 @@ failures.
 
 ## Repository boundaries
 
-- `src/features/<name>/` owns product slices. Features never import peer
-  features.
-- `src/data/<name>/` owns shared schemas, ingest, queries, and types. Data
-  slices never import features or peer data slices.
-- `src/components/ui/` owns domain-neutral primitives and imports only `src/lib/`.
-- `src/lib/` owns cross-cutting utilities and imports only lib.
-- `src/search/`, `src/db/`, and `src/purge/` are composition layers for their
-  declared concerns; `src/app/` may compose routes and pages.
-- `convex/` contains regenerable live projections and sync behavior.
+- Every production source file belongs to a named, deny-by-default Fallow zone.
+  [`docs/architecture-boundaries.md`](docs/architecture-boundaries.md) is the
+  single prose owner of zone ownership, allowed dependency directions, and
+  narrow exceptions; `.fallowrc.json` is the mechanical authority.
+- `src/features/<name>/` owns product slices and never imports peer features.
+  `src/data/<name>/` owns reusable schemas, ingest, queries, and types and never
+  imports features or peer data slices outside a declared narrow exception.
+- `src/components/ui/` owns domain-neutral primitives; `src/components/` owns
+  shared cross-feature composition; `src/lib/` owns cross-cutting leaf
+  utilities.
+- `src/app/` owns route and page composition. `src/db/`, `src/search/`,
+  `src/purge/`, `src/page-settings/`, and `src/esi-datasets/` compose their
+  declared concerns; `src/config/` owns application configuration.
+- `convex/` owns regenerable live projections and sync behavior.
+  `src/proxy*.ts` and `src/instrumentation*.ts` are process-level runtime entry
+  points.
 - `content/changelog/` and `content/devlog/` contain assembled public content.
 - `docs/SCRATCHPAD.md` holds short cross-session memory. Route genuinely
   deferred, unassigned work to `docs/backlog.md`.
@@ -93,7 +100,7 @@ failures.
 Cross-slice composition belongs above the participating slices. Follow the
 established `src/db/sde-pipeline.ts`, `src/search/register-all.ts`, and
 `src/purge/` patterns; Fallow enforces the import map and its explicit
-exceptions.
+exceptions and rejects unclassified source files.
 
 Protect established deep modules whose small interfaces hide cohesive
 complexity: the EVE tree resolver, Convex sync engine, shared ESI/API/env gates,

@@ -75,7 +75,7 @@
   "boundaries": {
     "zones": [
       {
-        "// note": "First-match-wins: auth-surface is listed BEFORE the features autoDiscover zone so these 3 files classify here, not into features/auth. Verified via `fallow list --boundaries` (auth-surface=3 files, classified ahead of the larger features/auth zone). Fallow is the sole mechanical boundary owner; CONTRIBUTING.md carries the public prose.",
+        "// note": "First-match-wins: auth-surface is listed BEFORE the features autoDiscover zone so these 3 files classify here, not into features/auth. Verified via `fallow list --boundaries` (auth-surface=3 files, classified ahead of the larger features/auth zone). Fallow is the sole mechanical boundary owner; docs/architecture-boundaries.md carries the single prose map.",
         "name": "auth-surface",
         "patterns": [
           "src/features/auth/types.ts",
@@ -87,17 +87,114 @@
       { "name": "features", "autoDiscover": ["src/features"] },
       { "name": "data", "autoDiscover": ["src/data"] },
       { "name": "lib", "patterns": ["src/lib/**"] },
-      { "name": "shared", "patterns": ["src/components/*.tsx", "src/components/telemetry/**"] }
+      {
+        "name": "shared",
+        "patterns": ["src/components/*.tsx", "src/components/*.ts", "src/components/telemetry/**"]
+      },
+      { "name": "app", "patterns": ["src/app/**"] },
+      { "name": "db", "patterns": ["src/db/**"] },
+      { "name": "config", "patterns": ["src/config/**"] },
+      { "name": "purge", "patterns": ["src/purge/**"] },
+      { "name": "search", "patterns": ["src/search/**"] },
+      { "name": "page-settings", "patterns": ["src/page-settings/**"] },
+      { "name": "esi-datasets", "patterns": ["src/esi-datasets/**"] },
+      { "name": "convex", "patterns": ["convex/**"] },
+      { "name": "runtime", "patterns": ["src/proxy*.ts", "src/instrumentation*.ts"] }
     ],
     "rules": [
       { "from": "auth-surface", "allow": ["auth-surface", "lib"] },
-      { "from": "features", "allow": ["ui", "data", "lib", "shared", "auth-surface"] },
-      { "from": "data", "allow": ["lib", "auth-surface"] },
-      { "from": "data/npc-stats", "allow": ["lib", "auth-surface", "data/eve-data"] },
-      { "from": "lib", "allow": ["lib"] },
+      {
+        "from": "features",
+        "allow": [
+          "ui",
+          "data",
+          "lib",
+          "shared",
+          "auth-surface",
+          "db",
+          "config",
+          "purge",
+          "search",
+          "page-settings"
+        ]
+      },
+      { "from": "data", "allow": ["lib", "auth-surface", "db", "config", "search", "purge"] },
+      {
+        "from": "data/npc-stats",
+        "allow": [
+          "lib",
+          "auth-surface",
+          "data/eve-data",
+          "db",
+          "config",
+          "search",
+          "purge"
+        ]
+      },
+      { "from": "lib", "allow": ["lib", "config"] },
       { "from": "ui", "allow": ["lib"] },
-      { "from": "shared", "allow": ["ui", "lib", "data", "features", "auth-surface"] }
-    ]
+      {
+        "from": "shared",
+        "allow": [
+          "ui",
+          "lib",
+          "data",
+          "features",
+          "auth-surface",
+          "config",
+          "page-settings",
+          "search"
+        ]
+      },
+      {
+        "from": "app",
+        "allow": [
+          "features",
+          "data",
+          "ui",
+          "shared",
+          "db",
+          "config",
+          "page-settings",
+          "auth-surface",
+          "lib"
+        ]
+      },
+      {
+        "from": "db",
+        "allow": [
+          "data",
+          "features",
+          "config",
+          "auth-surface",
+          "purge",
+          "esi-datasets",
+          "lib"
+        ]
+      },
+      { "from": "config", "allow": ["lib"] },
+      { "from": "purge", "allow": ["data", "features", "db", "lib"] },
+      { "from": "search", "allow": ["data", "features", "auth-surface", "lib"] },
+      { "from": "page-settings", "allow": ["features", "lib"] },
+      { "from": "esi-datasets", "allow": ["data", "db", "features", "lib"] },
+      {
+        "from": "convex",
+        "allow": ["data", "auth-surface", "lib", "features/online-status"],
+        "// note": "Narrow exception: online-status Convex sync reuses the feature's runtime-light pure ESI-projection + eligibility helpers by design (documented at the import sites). Precedent: data/npc-stats -> data/eve-data. Relocation to a data leaf is future work."
+      },
+      { "from": "runtime", "allow": ["config", "data", "features", "lib"] }
+    ],
+    "coverage": {
+      "requireAllFiles": true,
+      "allowUnmatched": [
+        "scripts/**",
+        "neon.ts",
+        "next.config.ts",
+        "drizzle.config.ts",
+        "vitest.config.ts",
+        "eslint.config.mjs"
+      ]
+    }
   },
 
   "audit": {
