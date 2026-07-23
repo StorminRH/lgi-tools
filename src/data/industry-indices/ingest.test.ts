@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EsiServerError } from '@/lib/esi';
+import { EsiServerError } from '@/platform/esi';
 import { UPSERT_CHUNK_SIZE } from './constants';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
 

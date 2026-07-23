@@ -11,7 +11,7 @@ vi.mock('next/cache', () => ({
   cacheTag: h.cacheTag,
 }));
 
-vi.mock('@/lib/esi', () => ({
+vi.mock('@/platform/esi', () => ({
   EsiContractError: class EsiContractError extends Error {},
   EsiServerError: class EsiServerError extends Error {},
   esiFetch: h.esiFetch,

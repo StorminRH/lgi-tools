@@ -9,7 +9,7 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { type BlueprintMapInput, type OwnedBlueprintMap, toOwnedBlueprintMap } from './blueprint-map';
 import type { OwnedBlueprint } from './esi-projection';
-import type { OwnerKey, PagedOwnerSyncState } from '@/lib/owner-sync';
+import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedBlueprints, ownedBlueprintSyncs } from './schema';
 
 /** One cache tag per owner so a refresh busts exactly that owner's cached read. */

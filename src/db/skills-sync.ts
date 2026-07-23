@@ -22,7 +22,7 @@ import {
 } from '@/features/skill-queue/queries';
 import { refreshSkillsForUser } from '@/features/skill-queue/refresh';
 import type { CharacterSkillData, SkillsPort } from '@/features/skill-queue/types';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { characterRow, getLiveDatasetOnView, readCharacterOwners } from './live-dataset-view';
 import { listCharactersWithHealth, readSingleEndpoint, vendTokenFor } from './owner-sync-port';
 import { enqueueBudgetDeferral, targetedOwnerResult } from './esi-refresh-owner-sync';

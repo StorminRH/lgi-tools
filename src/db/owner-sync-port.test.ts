@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
+import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
 
 const readEsiAuthedMock = vi.hoisted(() => vi.fn());
 
@@ -15,7 +15,7 @@ vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(),
 }));
 
-vi.mock('@/lib/esi/authed-read', () => ({
+vi.mock('@/platform/esi/authed-read', () => ({
   readEsiAuthed: (...args: unknown[]) => readEsiAuthedMock(...args),
   readEsiPagedAuthed: vi.fn(),
 }));

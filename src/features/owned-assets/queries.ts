@@ -10,7 +10,7 @@ import { cacheLife, cacheTag, revalidateTag } from 'next/cache';
 import { db } from '@/db';
 import { type AssetMapInput, buildOwnedAssetMap, type OwnedAssetMap } from './asset-map';
 import type { OwnedAsset } from './esi-projection';
-import type { OwnerKey, PagedOwnerSyncState } from '@/lib/owner-sync';
+import type { OwnerKey, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { ownedAssets, ownedAssetSyncs } from './schema';
 
 /** One cache tag per owner so a refresh busts exactly that owner's cached read. */

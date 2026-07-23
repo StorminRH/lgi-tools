@@ -204,7 +204,7 @@ const postgresConnectionStringSelectors = [
 // ESI gate enforcement (3.4.5): CCP's error limit is per-IP and shared across
 // every ESI call the app makes — one un-gated call burns budget the shared
 // scoreboard can't see, and overrunning the limit is a permanent IP-wide ban.
-// Banning the host literal outside src/lib/esi means the only way to target
+// Banning the host literal outside src/platform/esi means the only way to target
 // ESI is the gate's own exports (esiUrl + esiFetch). Scoped to the API host
 // exactly: images.evetech.net (the EVE image server) stays legitimately used
 // across the UI. Test files are exempt (they mock with host URLs); the gate
@@ -214,12 +214,12 @@ const esiHostSelectors = [
   {
     selector: String.raw`Literal[value=/esi\.evetech\.net/]`,
     message:
-      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/lib/esi): the gate owns CCP's shared per-IP error budget. See CONTRIBUTING.md (Architecture invariants).",
+      "Don't hand-write ESI URLs — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget. See CONTRIBUTING.md (Architecture invariants).",
   },
   {
     selector: String.raw`TemplateElement[value.raw=/esi\.evetech\.net/]`,
     message:
-      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/lib/esi): the gate owns CCP's shared per-IP error budget. See CONTRIBUTING.md (Architecture invariants).",
+      "Don't hand-write ESI URLs (template literal) — build them with esiUrl() and dispatch through esiFetch (@/platform/esi): the gate owns CCP's shared per-IP error budget. See CONTRIBUTING.md (Architecture invariants).",
   },
 ];
 
@@ -601,7 +601,7 @@ const eslintConfig = defineConfig([
   // whole point of the ban is to funnel consumers here. Re-state every other
   // ban without the host selectors (replace semantics).
   {
-    files: ["src/lib/esi/**/*.{ts,tsx,mts}"],
+    files: ["src/platform/esi/**/*.{ts,tsx,mts}"],
     ignores: ["**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [

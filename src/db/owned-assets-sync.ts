@@ -28,7 +28,7 @@ import {
 } from '@/data/esi-snapshots/queries';
 import { snapshotRequestHash } from '@/data/esi-snapshots/request-hash';
 import type { EsiSnapshotSource } from '@/data/esi-snapshots/types';
-import type { OwnerKey, OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
+import type { OwnerKey, OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import {
   listCharactersWithHealth,
   readPagedEndpoint,

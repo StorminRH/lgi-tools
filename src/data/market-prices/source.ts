@@ -14,7 +14,7 @@ import {
   EsiServerError,
   esiFetch,
   esiUrl,
-} from '@/lib/esi';
+} from '@/platform/esi';
 import { dedupe } from '@/lib/array';
 import {
   computeDepth,

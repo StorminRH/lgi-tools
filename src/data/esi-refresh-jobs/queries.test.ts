@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AnyPgDb } from '@/lib/db-types';
-import { EsiBudgetExhaustedError } from '@/lib/esi';
+import { EsiBudgetExhaustedError } from '@/platform/esi';
 
 const mocks = vi.hoisted(() => ({
   advancePendingWorkSignal: vi.fn(async () => {}),

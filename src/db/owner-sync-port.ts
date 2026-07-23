@@ -10,10 +10,10 @@ import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-servi
 import { getUserAffiliations } from '@/platform/auth/affiliation-store';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
-import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
-import { readEsiAuthed, readEsiPagedAuthed } from '@/lib/esi/authed-read';
-import type { OwnerKey } from '@/lib/owner-sync';
-import type { EsiResponseHeaders } from '@/lib/esi/response-metadata';
+import { EsiBudgetExhaustedError, EsiServerError } from '@/platform/esi';
+import { readEsiAuthed, readEsiPagedAuthed } from '@/platform/esi/authed-read';
+import type { OwnerKey } from '@/platform/owner-sync';
+import type { EsiResponseHeaders } from '@/platform/esi/response-metadata';
 
 /**
  * A linked character with derived scope health — the shape every per-owner refresh

@@ -4,7 +4,7 @@ import { readPendingWorkSignal } from '@/data/esi-refresh-jobs/pending-signal';
 import type { CronRouteDeclaration } from '@/db/cron-gate';
 import { drainEsiRefreshJobs } from '@/db/esi-refresh-worker';
 import { swallow } from '@/lib/cron';
-import { hasRecentBudgetExhaustion } from '@/lib/esi/exhaustion-marker';
+import { hasRecentBudgetExhaustion } from '@/platform/esi/exhaustion-marker';
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
 
 function zeroSummary(

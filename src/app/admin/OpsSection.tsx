@@ -27,7 +27,7 @@ import type {
   FallbackRateData,
 } from '@/data/telemetry/types';
 import { listRecentDomainEvents } from '@/data/domain-events/queries';
-import { readEsiBudgetSnapshot } from '@/lib/esi/scoreboard';
+import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { AdminBarChart, AdminTrendChart } from './charts';
 import {
   getBudgetExhaustionCountShared,

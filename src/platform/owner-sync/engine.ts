@@ -1,4 +1,4 @@
-import { EsiBudgetExhaustedError } from '@/lib/esi';
+import { EsiBudgetExhaustedError } from '@/platform/esi';
 import { classifyCorpDirector } from './director';
 import type {
   CorpMemberCandidate,

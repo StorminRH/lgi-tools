@@ -12,7 +12,7 @@
 // X-Compatibility-Date header.
 import { z } from 'zod';
 import { chunk, dedupe } from '@/lib/array';
-import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/lib/esi';
+import { EsiBudgetExhaustedError, EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
 
 // ESI's per-request id cap (maxItems). One bulk call covers up to 1000 chars.
 const AFFILIATION_BATCH_MAX = 1000;

@@ -6,7 +6,7 @@ import {
 } from '@/data/telemetry/queries';
 import { emitDomainEvent } from '@/data/domain-events/queries';
 import { alertPublicEsiBudgetExhaustion, isOpsAlertConfigured } from '@/lib/alerts';
-import { hasRecentBudgetExhaustion } from '@/lib/esi/exhaustion-marker';
+import { hasRecentBudgetExhaustion } from '@/platform/esi/exhaustion-marker';
 
 /**
  * Canonical App Router policy for public esi budget alert window minutes; consumers derive
