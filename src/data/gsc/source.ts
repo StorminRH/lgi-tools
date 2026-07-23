@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { JWT } from 'google-auth-library';
 import { requireEnv } from '@/lib/env';
 import {

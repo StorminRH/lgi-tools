@@ -317,6 +317,27 @@ const sonnerImportPatterns = [
   },
 ];
 
+const serverRootImportPatterns = [
+  {
+    group: [
+      "@/db",
+      "@/db/*",
+      "@/scripts/*",
+      "@/lib/env",
+      "@/platform/esi",
+      "@/platform/esi/*",
+      "@/platform/auth/auth",
+      "@/platform/auth/eve-sso",
+      "@/lib/rate-limit",
+      "@/data/gsc/source",
+      "@/data/eve-data/source",
+      "@/data/esi-refresh-jobs/pending-signal",
+    ],
+    message:
+      "Client modules cannot import server roots. Move the read behind a server boundary or import a client-safe contract.",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -377,6 +398,68 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Client-addressable modules retain the shared import rails and additionally
+  // reject every declared server root. App-local client directives are closed
+  // by the transitive filesystem test because flat globs cannot distinguish
+  // server and client modules under src/app.
+  {
+    files: [
+      "src/components/**/*.{ts,tsx,mts}",
+      "src/features/**/components/**/*.{ts,tsx,mts}",
+      "src/features/**/use-*.{ts,tsx}",
+      "src/data/**/use-*.{ts,tsx}",
+      "src/platform/auth/auth-client.ts",
+      "src/platform/auth/components/**/*.{ts,tsx,mts}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "next/image",
+              message:
+                "Import EveImage from @/components/eve-image. It is the only module allowed to select CCP's custom loader or the explicit unoptimized static path.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/staleness"],
+              message:
+                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+            },
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
+  // EveImage owns the one permitted next/image import but keeps every other
+  // client import rail from the overlapping block above.
+  {
+    files: ["src/components/eve-image.tsx"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/staleness"],
+              message:
+                "Import freshness verdicts from @/lib/esi-datasets/freshness; feature-local staleness modules duplicate registry policy.",
+            },
+            ...baseUiImportPatterns,
+            ...deprecatedBaseUiImportPatterns,
+            ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
+          ],
+        },
+      ],
+    },
+  },
   // Base UI wrappers retain package access but remain subject to every other
   // import rail, including sonner exclusivity.
   {
@@ -400,6 +483,7 @@ const eslintConfig = defineConfig([
             },
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
           ],
         },
       ],
@@ -427,6 +511,7 @@ const eslintConfig = defineConfig([
             },
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
+            ...serverRootImportPatterns,
           ],
         },
       ],
@@ -451,6 +536,7 @@ const eslintConfig = defineConfig([
             ...baseUiImportPatterns,
             ...deprecatedBaseUiImportPatterns,
             ...sonnerImportPatterns,
+            ...serverRootImportPatterns,
           ],
         },
       ],
