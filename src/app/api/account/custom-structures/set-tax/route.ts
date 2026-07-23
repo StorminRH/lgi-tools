@@ -6,7 +6,7 @@ import {
 } from '@/features/custom-structures/api-contract';
 import { listCustomStructures, setCustomStructureTax } from '@/features/custom-structures/queries';
 import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures/set-tax — set or clear (taxPct: null) the

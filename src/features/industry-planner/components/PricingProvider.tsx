@@ -23,7 +23,7 @@ import { useLoadingToast } from '@/components/ui/loading-toast';
 import { usePreference, usePreferencesReady } from '@/components/PreferencesProvider';
 import { resolveBuildCharacter } from '@/components/run-as-state';
 import { useAccountCharacters } from '@/components/use-account-characters';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { industryCostBasis, plannerBuildCharacter, plannerBuildLocation } from '@/lib/preferences';
 import {
   collectBlueprintTypeIds,

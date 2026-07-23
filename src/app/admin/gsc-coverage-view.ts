@@ -1,5 +1,5 @@
 import type { GscCoverageDailyPoint, GscUrlStatus } from '@/data/gsc/types';
-import { trendSeries } from './period';
+import { trendSeries } from '@/composition/admin-period';
 
 /**
  * Display-ready gsc coverage row produced by App Router; values retain their domain units and

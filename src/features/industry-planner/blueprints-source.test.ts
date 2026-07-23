@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { blueprintImage } from '@/data/eve-data/type-images';
 
-vi.mock('@/lib/api-client', () => ({
+vi.mock('@/transport/api-client', () => ({
   apiFetch: vi.fn(async () => ({
     ok: true,
     status: 200,

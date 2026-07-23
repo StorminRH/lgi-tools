@@ -13,7 +13,7 @@ import {
   startCostTimer,
 } from '@/data/telemetry/cost-metrics';
 import { SITE_URL } from '@/config/site-url';
-import { loadNumericRouteEntity, parseNumericRouteId } from '@/lib/route-id';
+import { loadNumericRouteEntity, parseNumericRouteId } from '@/transport/route-id';
 import { buildBreadcrumbList } from '@/lib/structured-data';
 import {
   cookieNameFor,

@@ -1,7 +1,7 @@
 // API wire contract owned by the industry-planner feature (3.4.T).
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { planSnapshotWireSchema } from './template-snapshot';
 import type {
   AssetHolding,

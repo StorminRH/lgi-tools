@@ -11,7 +11,7 @@
 // it never rejects. That keeps the confirm gate from freezing mid-call — a rejected
 // action would skip the gate's error dispatch and strand its phase in `running`.
 
-import type { ApiEndpoint, ApiResult } from '@/lib/api-client';
+import type { ApiEndpoint, ApiResult } from '@/transport/api-client';
 import {
   accountDeleteEndpoint,
   purgeCharacterEndpoint,

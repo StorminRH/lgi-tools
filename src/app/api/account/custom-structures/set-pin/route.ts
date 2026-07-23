@@ -7,7 +7,7 @@ import {
 import { listCustomStructures, setCustomStructurePin } from '@/features/custom-structures/queries';
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures/set-pin — pin one of the caller's own

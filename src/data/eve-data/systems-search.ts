@@ -13,7 +13,7 @@
 // transient mount-time fetch failure can't leave suggestions working while
 // parse stays permanently empty.
 
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import type { SearchSource } from '@/search';
 import { fuzzyMatch } from '@/search/match';
 import { rankFuzzyResults } from '@/search/rank';

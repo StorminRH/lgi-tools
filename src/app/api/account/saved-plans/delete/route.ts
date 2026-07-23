@@ -6,7 +6,7 @@ import {
   type SavedPlansResponse,
 } from '@/features/industry-planner/api-contract';
 import { deleteSavedPlan, listSavedPlans } from '@/features/industry-planner/saved-plans-queries';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/saved-plans/delete — delete one of the caller's OWN

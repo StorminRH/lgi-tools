@@ -1,6 +1,6 @@
 // API wire contract owned by the feedback feature (3.4.T).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from './constants';
 
 /**

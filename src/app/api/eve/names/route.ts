@@ -9,7 +9,7 @@ import {
   type EntityNamesResponse,
 } from '@/data/eve-data/api-contract';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * Handles POST requests for /api/eve/names; this route owns its authorization, boundary

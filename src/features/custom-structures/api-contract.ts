@@ -4,7 +4,7 @@
 // GET/POST, so delete is a POST sub-route, not an HTTP DELETE.
 import { z } from 'zod';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import type { CustomStructureRow } from './types';
 
 // Postgres 32-bit `integer` ceiling — structure/rig type ids are int4 columns.

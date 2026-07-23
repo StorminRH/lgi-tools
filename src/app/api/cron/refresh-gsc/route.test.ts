@@ -68,7 +68,7 @@ vi.mock('@/db/cron-gate', () => ({
     },
 }));
 
-vi.mock('@/app/sitemap', () => ({
+vi.mock('@/composition/sitemap', () => ({
   getSitemapEntries: (...args: unknown[]) => getSitemapEntriesMock(...args),
 }));
 

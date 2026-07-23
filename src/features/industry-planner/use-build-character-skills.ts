@@ -9,7 +9,7 @@
 // failure arm settles `levels: null` (fail-open to the no-skill baseline,
 // never an error).
 import { useEffect, useState } from 'react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { skillLevelsEndpoint } from './api-contract';
 
 // One-shot reconcile for a cold character: the on-view write-behind is

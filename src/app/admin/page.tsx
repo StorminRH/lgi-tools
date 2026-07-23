@@ -13,7 +13,7 @@ import { formatIsoDay } from '@/lib/format/time';
 import { getSession, isAdmin } from '@/platform/auth/session';
 import { MetricsSection } from './MetricsSection';
 import { OpsSection } from './OpsSection';
-import { parseRange, RANGES, rangeFor, type RangeKey } from './period';
+import { parseRange, RANGES, rangeFor, type RangeKey } from '@/composition/admin-period';
 import { PrintButton } from './PrintButton';
 import { StatusStrip } from './StatusStrip';
 import { TrafficSection } from './TrafficSection';

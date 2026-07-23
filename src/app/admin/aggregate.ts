@@ -1,5 +1,5 @@
-import type { Delta } from './period';
-import { computeDelta } from './period';
+import type { Delta } from '@/composition/admin-period';
+import { computeDelta } from '@/composition/admin-period';
 
 // Pure daily-series analytics for the admin dashboard's Part D charts. No I/O,
 // no clock — callers pass the sparse query rows plus the calendar bounds, and

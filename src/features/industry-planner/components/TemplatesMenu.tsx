@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover } from '@/components/ui/popover';
 import { toast } from '@/components/ui/toast';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { createSavedPlanEndpoint, MAX_SAVED_PLAN_NAME_LEN } from '../api-contract';
 import { saveErrorCopy, templatesEmptyLine } from '../saved-plans-view';
 import { captureTemplate } from '../template-manifest';

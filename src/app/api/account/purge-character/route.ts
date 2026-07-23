@@ -7,7 +7,7 @@ import '@/composition/account-lifecycle/register-owner-reconciler';
 import { purgeOwnCharacter } from '@/composition/account-lifecycle/account-purge';
 import { requireSession } from '@/platform/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST-only. Purge one of the CALLER's OWN linked characters — the destructive

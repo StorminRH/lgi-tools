@@ -18,7 +18,7 @@ import { LinkCharacterButton } from '@/platform/auth/components/LinkCharacterBut
 import { RosterCard } from '@/features/skill-queue/components/RosterCard';
 import { buildRosterCard, type RosterViewModel } from '@/features/skill-queue/roster-view-model';
 import { useSkillsLive } from '@/features/skill-queue/use-skills-live';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 
 /**
  * Loads and renders the signed-in character roster, or renders supplied demo rows; account loading

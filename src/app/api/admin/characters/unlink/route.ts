@@ -3,7 +3,7 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminUnlinkFormSchema } from '@/platform/auth/api-contract';
 import { requireAdmin } from '@/platform/auth/route-guards';
-import { parseFormBody } from '@/lib/route-body';
+import { parseFormBody } from '@/transport/route-body';
 import {
   accountBelongsToUser,
   getStoredActiveCharacterId,

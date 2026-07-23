@@ -13,7 +13,7 @@ import {
 import { validateCorpStructureRigs } from '@/features/owned-structures/rig-validation';
 import { requireUserId } from '@/platform/auth/route-guards';
 import { stationManagerGate } from '@/db/corp-structures-sync';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * Gated further by corp membership + the in-game Station_Manager role (below).

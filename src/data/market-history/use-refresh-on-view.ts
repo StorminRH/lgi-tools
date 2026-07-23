@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { refreshHistoryEndpoint } from './api-contract';
 import type { MarketHistoryInputs } from './types';
 

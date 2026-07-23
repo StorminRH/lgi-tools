@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import type { RangeKey } from './period';
+import type { RangeKey } from '@/composition/admin-period';
 
 /**
  * Renders the retry job form surface; this component owns local presentation and interaction

@@ -9,7 +9,7 @@ import {
   listCustomStructures,
 } from '@/features/custom-structures/queries';
 import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures/delete. Deletes one of the caller's OWN

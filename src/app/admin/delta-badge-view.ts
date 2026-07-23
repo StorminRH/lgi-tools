@@ -1,4 +1,4 @@
-import type { Delta } from './period';
+import type { Delta } from '@/composition/admin-period';
 
 /**
  * The period-over-period delta badge, resolved to a render-ready shape: a metric

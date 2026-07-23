@@ -12,7 +12,7 @@ import { FEEDBACK_MESSAGE_MAX_LENGTH } from '@/features/feedback/constants';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { readEnv } from '@/lib/env';
 import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 import { sanitiseUserText } from '@/lib/sanitise';
 
 // Per-IP rate limit. Feedback POSTs fan out to a Discord webhook, so an

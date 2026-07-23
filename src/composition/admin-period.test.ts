@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_TIME_FROM, computeDelta, parseRange, previousRange, rangeFor } from './period';
+import {
+  ALL_TIME_FROM,
+  computeDelta,
+  parseRange,
+  previousRange,
+  rangeFor,
+} from './admin-period';
 
 const NOW = new Date('2026-06-09T12:00:00Z');
 

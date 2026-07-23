@@ -1,5 +1,5 @@
 import { deriveDeltaBadge } from './delta-badge-view';
-import type { Delta } from './period';
+import type { Delta } from '@/composition/admin-period';
 
 /**
  * The period-over-period delta badge, shared by the MetricTable rows and the

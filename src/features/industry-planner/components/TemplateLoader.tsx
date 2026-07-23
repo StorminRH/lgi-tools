@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { usePreferencesReady } from '@/components/PreferencesProvider';
 import { toast } from '@/components/ui/toast';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { savedPlansEndpoint } from '../api-contract';
 import {
   loadToastFor,

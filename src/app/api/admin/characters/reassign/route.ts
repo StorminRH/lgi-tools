@@ -6,7 +6,7 @@ import { accountBelongsToUser } from '@/platform/auth/linked-characters';
 import { reassignCharacter } from '@/platform/auth/admin-users';
 import { requireAdmin } from '@/platform/auth/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
-import { parseFormBody } from '@/lib/route-body';
+import { parseFormBody } from '@/transport/route-body';
 
 /**
  * POST-only. Admin reassign — move a character from a standalone/other account

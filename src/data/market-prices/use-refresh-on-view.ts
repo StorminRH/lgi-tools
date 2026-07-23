@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { chunk } from '@/lib/array';
 import { refreshPricesEndpoint } from './api-contract';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';

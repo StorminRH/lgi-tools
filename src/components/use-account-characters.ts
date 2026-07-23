@@ -12,7 +12,7 @@
 // (deriveRoster) is unit-tested; this shell stays fetch-only.
 import { useEffect, useState } from 'react';
 import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { deriveRoster, type BuildCharacter } from './run-as-state';
 

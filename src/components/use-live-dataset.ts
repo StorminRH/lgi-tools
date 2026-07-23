@@ -10,7 +10,7 @@
 // src/components (an unzoned .ts, like use-account-characters.ts) so both feature slices
 // consume it without importing each other; it imports only lib.
 import { useEffect, useState } from 'react';
-import { type ApiEndpoint, apiFetch } from '@/lib/api-client';
+import { type ApiEndpoint, apiFetch } from '@/transport/api-client';
 import { shouldReconcile } from '@/lib/live-dataset';
 
 // Re-render cadence for the client-side timestamp math — countdowns and the ready flip

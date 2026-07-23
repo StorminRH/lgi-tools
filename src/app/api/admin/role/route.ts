@@ -6,7 +6,7 @@ import {
 import { getUserById, setUserRole } from '@/platform/auth/admin-users';
 import { requireAdmin } from '@/platform/auth/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
-import { parseFormBody } from '@/lib/route-body';
+import { parseFormBody } from '@/transport/route-body';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { sanitiseUserText } from '@/lib/sanitise';
 
