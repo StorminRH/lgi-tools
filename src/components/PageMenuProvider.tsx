@@ -28,14 +28,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { resolvePageSettings } from '@/page-settings';
-import type { PageSettingsSpec } from '@/page-settings/types';
+import { resolvePageSettings } from '@/platform/page-settings';
+import type { PageSettingsSpec } from '@/platform/page-settings/types';
 
 // Side-effect import: fills the CLIENT registry with every page-settings spec.
 // Lives here (a client module) for the same reason AppHeaderShell imports
-// '@/search/register-all' — the server and client module graphs each have their
+// '@/composition/search/register-all' — the server and client module graphs each have their
 // own registry array, and the slot resolves client-side.
-import '@/page-settings/register-all';
+import '@/composition/page-settings/register-all';
 
 // null = no spec governs the current route (the menu's dynamic half is empty).
 const PageMenuContext = createContext<PageSettingsSpec | null>(null);

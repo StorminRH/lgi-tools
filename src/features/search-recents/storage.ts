@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { blueprintImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
-import type { SearchResult } from '@/search';
+import type { SearchResult } from '@/platform/search';
 
 const STORAGE_KEY = 'lgi:search:recents';
 const MAX_RECENTS = 10;

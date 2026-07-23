@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLoadedSystems, loadSystems, matchSystem, type SystemSearchEntry } from '@/data/eve-data/systems-search';
-import { searchAll } from '@/search';
+import { searchAll } from '@/platform/search';
 
 // The read-only universe-system search for a TerminalSearch picker — SHARED
 // zone: the planner's two location slots (Build at / React at) and the

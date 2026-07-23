@@ -18,7 +18,7 @@ import {
   findIdentityFkLeaks,
   findUnclaimed,
   isUserDataTable,
-} from './coverage';
+} from '@/platform/purge/coverage';
 import { PURGE_CONTRIBUTORS } from './register-all';
 
 // The schema barrel re-exports pgTable objects alongside enums + const arrays;

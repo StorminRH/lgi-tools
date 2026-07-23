@@ -4,7 +4,7 @@ import type {
   FeatureControlModel,
   MenuControlModel,
   PageControlModel,
-} from '@/page-settings/controls';
+} from '@/platform/page-settings/controls';
 
 // The pure decision logic behind the account settings page, split from the
 // request-time shell so it is tested here rather than by eye. React-free: it

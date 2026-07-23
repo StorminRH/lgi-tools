@@ -1,7 +1,7 @@
 'use client';
 
 // The in-nav global search component. Spotlight-style cross-source navigator
-// that consumes the registry in `src/search/`, now built on the shared Combobox
+// that consumes the platform search registry, now built on the shared Combobox
 // primitive (Base UI Autocomplete) — so the listbox, roving highlight,
 // aria-activedescendant, Esc + outside-press dismiss are the library's, not
 // hand-rolled. This component keeps only what Base UI can't own:
@@ -19,7 +19,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { searchAll, type SearchResult, type SearchSection } from '@/search';
+import { searchAll, type SearchResult, type SearchSection } from '@/platform/search';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { readRecents, pushRecent } from '@/features/search-recents/storage';

@@ -26,7 +26,7 @@ const { chain, state } = vi.hoisted(() => {
 vi.mock('@/db', () => ({ db: chain }));
 
 const runPurgeMock = vi.fn();
-vi.mock('@/purge/orchestrator', () => ({
+vi.mock('@/composition/purge/orchestrator', () => ({
   runPurge: (...args: unknown[]) => runPurgeMock(...args),
 }));
 

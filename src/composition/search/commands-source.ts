@@ -9,15 +9,14 @@
 // POSTs Better Auth's OAuth sign-in for the SSO redirect URL and hard-navigates
 // to it (router.push can't reach the cross-origin SSO chain).
 //
-// This is a data slice, so it can't import the auth feature's client — it talks
-// to Better Auth's REST endpoints through the typed contracts on auth's shared
-// surface (platform/auth/api-contract.ts), whose shapes are pinned by the
-// better-auth version in package.json.
+// This application-composition source talks to Better Auth's REST endpoints
+// through the identity capability's typed contracts. The shapes stay pinned by
+// the better-auth version in package.json.
 
 import { signInOauth2Endpoint, signOutEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/transport/api-client';
-import type { AppRouterInstance, SearchContext, SearchSource } from '@/search';
-import { rankFuzzyResults } from '@/search/rank';
+import type { AppRouterInstance, SearchContext, SearchSource } from '@/platform/search';
+import { rankFuzzyResults } from '@/platform/search/rank';
 
 type CommandEntry = {
   id: string;

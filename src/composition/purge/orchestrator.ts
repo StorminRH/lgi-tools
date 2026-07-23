@@ -5,7 +5,7 @@
 // request-path neon-http client — the same accepted non-atomic trade-off as
 // reassignCharacter; a purge is rare and low-rate.
 import { PURGE_CONTRIBUTORS } from './register-all';
-import type { PurgeSubject, PurgeTier } from './types';
+import type { PurgeSubject, PurgeTier } from '@/platform/purge/types';
 
 const TIER_ORDER: readonly PurgeTier[] = ['credential', 'cache', 'durable'];
 

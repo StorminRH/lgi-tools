@@ -86,6 +86,9 @@
       { "name": "platform/auth", "patterns": ["src/platform/auth/**"] },
       { "name": "platform/owner-sync", "patterns": ["src/platform/owner-sync/**"] },
       { "name": "platform/esi", "patterns": ["src/platform/esi/**"] },
+      { "name": "platform/search", "patterns": ["src/platform/search/**"] },
+      { "name": "platform/purge", "patterns": ["src/platform/purge/**"] },
+      { "name": "platform/page-settings", "patterns": ["src/platform/page-settings/**"] },
       { "name": "composition", "patterns": ["src/composition/**"] },
       { "name": "features", "autoDiscover": ["src/features"] },
       { "name": "data", "autoDiscover": ["src/data"] },
@@ -99,9 +102,6 @@
       { "name": "transport", "patterns": ["src/transport/**"] },
       { "name": "db", "patterns": ["src/db/**"] },
       { "name": "config", "patterns": ["src/config/**"] },
-      { "name": "purge", "patterns": ["src/purge/**"] },
-      { "name": "search", "patterns": ["src/search/**"] },
-      { "name": "page-settings", "patterns": ["src/page-settings/**"] },
       { "name": "esi-datasets", "patterns": ["src/esi-datasets/**"] },
       { "name": "convex", "patterns": ["convex/**"] },
       { "name": "runtime", "patterns": ["src/proxy*.ts", "src/instrumentation*.ts"] }
@@ -121,27 +121,32 @@
           "auth-surface",
           "db",
           "config",
-          "purge",
-          "search",
-          "page-settings",
           "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings",
           "transport"
         ]
       },
       { "from": "platform/owner-sync", "allow": ["platform/esi", "lib"] },
       { "from": "platform/esi", "allow": ["lib", "config"] },
+      { "from": "platform/search", "allow": ["lib"] },
+      { "from": "platform/purge", "allow": ["lib"] },
+      { "from": "platform/page-settings", "allow": ["lib"] },
       {
         "from": "composition",
         "allow": [
           "platform/auth",
           "platform/owner-sync",
           "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings",
           "transport",
           "auth-surface",
           "features",
           "data",
           "db",
-          "purge",
           "lib",
           "config"
         ]
@@ -156,12 +161,12 @@
           "auth-surface",
           "db",
           "config",
-          "purge",
-          "search",
-          "page-settings",
           "platform/auth",
           "platform/owner-sync",
           "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings",
           "transport"
         ]
       },
@@ -172,11 +177,11 @@
           "auth-surface",
           "db",
           "config",
-          "search",
-          "purge",
           "platform/auth",
           "platform/owner-sync",
           "platform/esi",
+          "platform/search",
+          "platform/purge",
           "transport"
         ]
       },
@@ -188,11 +193,11 @@
           "data/eve-data",
           "db",
           "config",
-          "search",
-          "purge",
           "platform/auth",
           "platform/owner-sync",
           "platform/esi",
+          "platform/search",
+          "platform/purge",
           "transport"
         ]
       },
@@ -207,12 +212,12 @@
           "features",
           "auth-surface",
           "config",
-          "page-settings",
-          "search",
           "platform/auth",
           "composition",
           "platform/owner-sync",
           "platform/esi",
+          "platform/search",
+          "platform/page-settings",
           "transport"
         ]
       },
@@ -230,9 +235,9 @@
           "lib",
           "config",
           "auth-surface",
-          "purge",
-          "search",
-          "page-settings"
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings"
         ]
       },
       {
@@ -244,13 +249,14 @@
           "shared",
           "db",
           "config",
-          "page-settings",
           "auth-surface",
           "lib",
           "platform/auth",
           "composition",
           "platform/owner-sync",
           "platform/esi",
+          "platform/search",
+          "platform/page-settings",
           "transport"
         ]
       },
@@ -261,35 +267,18 @@
           "features",
           "config",
           "auth-surface",
-          "purge",
           "esi-datasets",
           "lib",
           "platform/auth",
           "composition",
           "platform/owner-sync",
           "platform/esi",
+          "platform/purge",
           "transport"
         ]
       },
       { "from": "transport", "allow": ["lib", "config"] },
       { "from": "config", "allow": ["lib"] },
-      {
-        "from": "purge",
-        "allow": ["data", "features", "db", "lib", "platform/auth", "platform/esi"]
-      },
-      {
-        "from": "search",
-        "allow": [
-          "data",
-          "features",
-          "auth-surface",
-          "lib",
-          "platform/auth",
-          "platform/esi",
-          "transport"
-        ]
-      },
-      { "from": "page-settings", "allow": ["features", "lib", "platform/auth"] },
       {
         "from": "esi-datasets",
         "allow": [

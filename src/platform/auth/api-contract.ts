@@ -144,7 +144,7 @@ export const adminRevokeSessionsFormSchema = z.object({
 
 // ── Better Auth REST endpoints (library-owned, hand-pinned) ─────────────
 // These two shapes are pinned by the better-auth version in package.json —
-// verify them against the library on every upgrade. data/commands/search.ts
+// verify them against the library on every upgrade. The composition command source
 // consumes them: as a data slice it cannot import the auth feature's client
 // (data → feature edge is banned), so it talks to Better Auth's REST routes
 // through these contracts instead.

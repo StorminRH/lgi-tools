@@ -1,4 +1,4 @@
-import type { SearchResult, SearchSection } from '@/search';
+import type { SearchResult, SearchSection } from '@/platform/search';
 import { pillToneClasses, type PillTone } from '@/components/ui/pill';
 import { itemImage, type EveImageDescriptor } from '@/data/eve-data/type-images';
 

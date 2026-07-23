@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { SearchContext } from '@/search';
+import type { SearchContext } from '@/platform/search';
 import { formatSec, matchSystem, type SystemSearchEntry } from './systems-search';
 
 const { apiFetchMock } = vi.hoisted(() => ({ apiFetchMock: vi.fn() }));

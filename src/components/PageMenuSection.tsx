@@ -23,7 +23,7 @@
 import { usePageSettings } from '@/components/PageMenuProvider';
 import { usePreference } from '@/components/PreferencesProvider';
 import { SegmentedControl } from '@/components/ui/segmented';
-import { resolveMenuControls, type MenuControlModel } from '@/page-settings/controls';
+import { resolveMenuControls, type MenuControlModel } from '@/platform/page-settings/controls';
 
 // Own component so usePreference is never called inside a map.
 function ControlRow({ model }: { model: MenuControlModel }) {

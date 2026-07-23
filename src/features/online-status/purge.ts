@@ -6,7 +6,7 @@
 // for a removed account.
 //
 // BEST-EFFORT, NEVER THROWS: the orchestrator awaits each contributor with no
-// try/catch (src/purge/orchestrator.ts), so a thrown error here would abort the Neon
+// try/catch (composition/purge/orchestrator.ts), so a thrown error here would abort the Neon
 // purge mid-tier. A lost Convex delete just leaves a regenerable, never-re-synced
 // orphan row (Neon is authoritative; Convex is derived), which is harmless. Mirrors
 // the cron sweeper's transport (deriveConvexSiteUrl + Bearer CONVEX_SERVICE_SECRET +
@@ -14,7 +14,7 @@
 import { readEnv } from '@/lib/env';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { deriveConvexSiteUrl } from '@/lib/sync-engine';
-import type { PurgeContributor } from '@/purge/types';
+import type { PurgeContributor } from '@/platform/purge/types';
 
 // Fire the bearer-gated teardown POST at the deployment's HTTP-actions origin.
 // characterId null tears down the whole user (an account-nuke); a number tears down

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { deriveStripView, stripPreferenceBinding } from './character-strip-view';
 import type { PanelCharacter } from './live-character-card';
 import { stripDimmedDef } from '@/lib/preferences';
-import type { CharacterStripSpec } from '@/page-settings/types';
+import type { CharacterStripSpec } from '@/platform/page-settings/types';
 
 const character = (characterId: number, needsReconnect = false): PanelCharacter => ({
   characterId,

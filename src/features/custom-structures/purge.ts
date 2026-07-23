@@ -2,7 +2,7 @@
 // non-regenerable per-user saved structure definitions; torn down with the user.
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/purge/types';
+import type { PurgeContributor } from '@/platform/purge/types';
 import { customStructures } from './schema';
 
 /**

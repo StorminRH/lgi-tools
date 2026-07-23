@@ -1,16 +1,13 @@
-// The settings *presentation* registry — the third instance of the register-all
-// / unclassified-junction pattern (after src/search/ and src/purge/). Each
-// feature exports a PageSettingsSpec describing the contextual settings for its
-// route(s); the wiring manifest in ./register-all PULLS those values and
-// registers them here, and a route→spec resolver hands the current route's spec
-// to the page-menu slot (src/components/PageMenuProvider). The global shell never
-// imports a feature — it reads the resolved spec.
+// The settings presentation registry. Each feature exports a PageSettingsSpec
+// describing its contextual settings; the composition manifest pulls those
+// values into this platform-owned registry, and a route-to-spec resolver hands
+// the current route's spec to the page-menu slot.
 //
-// Mirrors src/search/index.ts: a module-level array, a register fn, a list
+// Mirrors platform/search/index.ts: a module-level array, a register fn, a list
 // accessor, a test-only reset. Like search, the server and client module graphs
 // each get their own `specs[]`; the side-effect import that fills it
-// (./register-all) lives in the CLIENT provider, since the slot resolves
-// client-side (the AppHeaderShell.tsx '@/search/register-all' precedent).
+// (composition/page-settings/register-all) lives in the client provider, since
+// the slot resolves client-side.
 
 import { resolveSpecForPath } from './resolve';
 import type { PageSettingsSpec } from './types';

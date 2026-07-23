@@ -9,7 +9,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => null }));
 
 import { PageMenuProvider } from '@/components/PageMenuProvider';
 import { PageMenuSection } from '@/components/PageMenuSection';
-import { __resetPageSettings, registerPageSettings } from '@/page-settings';
+import { __resetPageSettings, registerPageSettings } from '@/platform/page-settings';
 
 function renderAt(pathname: string): string {
   return renderToStaticMarkup(

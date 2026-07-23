@@ -4,8 +4,8 @@ import {
   listRegisteredSources,
   __resetSearchSources,
   type SearchContext,
-} from '@/search';
-import { commandsSearchSource } from './search';
+} from '@/platform/search';
+import { commandsSearchSource } from './commands-source';
 import type { Session } from '@/platform/auth/types';
 
 // Each vitest file gets its own module graph, so we start with a clean

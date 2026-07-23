@@ -2,7 +2,7 @@
 // `systems` search source and every system picker (the planner's two
 // build-location slots, the custom-structure pin control). Lives in the
 // eve-data slice because TWO features consume it and features never import
-// each other; both may import a data slice. The `@/search` type/matcher
+// each other; both may import a data slice. The platform search type/matcher
 // imports are the proven data→engine edge (the tools/commands precedent).
 //
 // The index is the full persistent universe (~8.6k systems: K-space, Pochven,
@@ -14,9 +14,9 @@
 // parse stays permanently empty.
 
 import { apiFetch } from '@/transport/api-client';
-import type { SearchSource } from '@/search';
-import { fuzzyMatch } from '@/search/match';
-import { rankFuzzyResults } from '@/search/rank';
+import type { SearchSource } from '@/platform/search';
+import { fuzzyMatch } from '@/platform/search/match';
+import { rankFuzzyResults } from '@/platform/search/rank';
 import { systemsEndpoint } from './api-contract';
 
 /**

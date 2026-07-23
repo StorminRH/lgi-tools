@@ -1,6 +1,6 @@
 import { getTableConfig, integer, pgTable, type PgTable } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { PURGE_CONTRIBUTORS } from '@/purge/register-all';
+import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
 import { reflectedSchemaTables } from './test-support/schema-reflection';
 import {
   DRIZZLE_MIGRATIONS_TABLE,
