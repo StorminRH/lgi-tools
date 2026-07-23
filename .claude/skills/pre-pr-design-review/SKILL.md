@@ -8,16 +8,19 @@ description: >-
 
 # Run the pre-PR design review
 
-Follow `docs/PRE_PR_DESIGN_REVIEW.md` as the sole design-review procedure. It
-owns the ordering, judgment rules, evidence requirements, result form, and stop
-conditions.
+Procedure: `docs/workflows/pre-pr-design-review.md`.
+
+## Invocation authority
+
+Invocation permits read-only review. Parent-authorized fixes remain in scope. No delivery or archive authority is added.
 
 ## Claude Code runtime mechanics
 
-- Create a native Claude Code task list from the procedure and its final
-  return-to-verification task. Keep one item active.
-- Attach each phase's required evidence before completing its task.
-- Return the procedure's exact result form to `close-out`. Reopen every review
-  or verification task invalidated by a fix.
+- Create native Claude tasks; keep one active.
+- Use background Bash for long-running work.
+- Request fresh read-only review when the procedure requires it.
 
-This skill grants no authority to open, merge, deploy, or archive anything.
+## Return
+
+Return the canonical procedure's exact result block unchanged, including the
+finding dispositions, invalidated verification, and `Design notes:` block.

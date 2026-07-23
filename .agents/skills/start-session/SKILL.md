@@ -12,74 +12,18 @@ description: >-
 
 # Start an LGI.tools session
 
-The resolver is the sole mechanical owner of lifecycle semantics, current-state
-validation, and handler selection. The session contract and plan schemas own
-artifact meaning. Treat
-`docs/DESIGN_PRINCIPLES.md` as the constitution, `docs/CODE_HEALTH_BASELINE.md`
-as current health, SCRATCHPAD as observed handoff, and live code as current fact.
+Procedure: `docs/workflows/start-session.md`.
 
-## 1. Resolve before acting
+## Invocation authority
 
-Run `python3 .agent-local/resolve_development_state.py --pretty`. Read its
-`directive` as the complete dispatch contract; do not maintain another
-stage-to-skill routing table. Before acting, report the directive's action,
-reason, authority, primary artifact, branch, and pause in plain language.
+Invocation permits only the resolver-selected action. Preserve its branch, artifact, gate, and pauses.
 
-start-session owns deterministic lifecycle-branch selection before dispatch. The
-directive's `branch` field is the canonical `lifecycle/<sub-version>` name — a
-pure function of the sub-version with no runtime prefix and no slug. Enter it
-without destroying local work: (1) `git fetch origin main` to refresh
-`origin/main` without discarding local changes or force-moving refs; (2) resolve
-current `origin/main` far enough to read the active sub-version and compute its
-exact `lifecycle/<sub-version>` branch; (3) fetch that ref explicitly
-(`git fetch origin lifecycle/<sub-version>`, or `git ls-remote --heads origin
-lifecycle/<sub-version>` to test existence) so the decision reads true remote
-state, not a stale single-branch checkout; (4) if it exists on the remote, check
-it out and fast-forward it, otherwise create it from current `origin/main`;
-(5) re-run the resolver on the selected branch and treat and report that second
-result as the authoritative directive. Block safely — moving or deleting nothing — on a dirty
-or conflicting worktree. A fresh cloud session invoked from `main` therefore
-discovers a pushed non-final lifecycle branch and resumes the correct next
-session with no operator branch instructions. The current branch never changes
-the logical lifecycle stage or authorizes a bypass, and branch names carry no
-special meaning.
+## Codex runtime mechanics
 
-After selecting the branch and before dispatch, run the authoritative directive's
-`preDispatchGate`. It currently resolves to `python3
-.agent-local/check_release_consistency.py --check`. The recognized release-identity
-signatures — pre-PR, reconciled, and the new-version opening transient — are valid
-rest states; any other release identity blocks dispatch as lifecycle drift.
+- Create native Codex tasks; keep one active.
+- Use the long-lived terminal for commands and polling.
+- Request fresh read-only review when the procedure requires it.
 
-If `handler` is null, stop at the named pause. Otherwise follow only the named
-handler skill, create the native Codex todo list from that handler and its owning
-document, and keep exactly one item in progress. Planning directives require
-Plan mode and remain read-only until Ryan approves; their handler persists the
-canonical artifact afterward. Never maintain a separate prompt file.
+## Return
 
-Every handler returns control here after its approved artifact or delivery
-outcome. Rerun the resolver instead of predicting the next handler, then report
-and dispatch the new directive or stop at its pause. Exception: planning
-outcomes are session-terminal — after a planning handler persists its approved
-artifact, report the resolver's new directive and stop instead of dispatching
-it; execution begins in a fresh `start-session`, whichever runtime runs it.
-
-## 2. Execute an approved session plan
-
-When the directive names `start-session` as its handler, read the active
-instruction chain, constitution, baseline, master-plan context,
-contract/index, approved session plan, SCRATCHPAD, and relevant backlog entries.
-Follow Codegraph-first exploration and verify moving API assumptions from current
-primary documentation.
-
-Reconcile the contract digest, branch/worktree, prerequisites, named interfaces,
-and plan assumptions against live code. Mechanical drift may be corrected during
-the approved work;
-material product, scope, or design conflict returns to `plan-session` for Ryan's
-approval. Then convert the approved plan's ordered work and verification gates
-into the runtime todo list and execute only that scope.
-
-Honor every pause. User-facing work requires `ux-check` evidence and Ryan's own
-browser review. Finish through `close-out`, which runs the pre-PR design gate and
-returns its delivery outcome here. Re-resolve after close-out; do not infer
-whether the next action is another session, audit planning, remediation, audit
-restart, or archival.
+Return the dispatched result and fresh directive. Never select a sibling handler.

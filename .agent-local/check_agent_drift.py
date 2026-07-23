@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 from resolve_development_state import (
@@ -144,6 +145,7 @@ def check_hooks(manifest: dict, errors: list[str]) -> None:
 def check_skill_pairs(manifest: dict, root: Path, errors: list[str]) -> None:
     roots = {name: root / value for name, value in manifest["skillRoots"].items()}
     expected_names = set(manifest["pairedSkills"])
+    canonical = set(manifest["canonicalGuides"])
 
     for runtime, skill_root in roots.items():
         actual_names = {
@@ -166,6 +168,16 @@ def check_skill_pairs(manifest: dict, root: Path, errors: list[str]) -> None:
                     f"match folder {skill_name!r}"
                 )
 
+            procedure = policy.get("procedure")
+            if not isinstance(procedure, str) or procedure not in canonical:
+                errors.append(
+                    f"pairedSkills[{skill_name}].procedure must name one canonical guide"
+                )
+            elif body.count(procedure) != 1:
+                errors.append(
+                    f"{relative(path, root)}: must point to {procedure} exactly once"
+                )
+
             for pattern in policy["required"]:
                 if not matches(body, pattern):
                     errors.append(
@@ -181,6 +193,154 @@ def check_skill_pairs(manifest: dict, root: Path, errors: list[str]) -> None:
                     errors.append(
                         f"{relative(path, root)}: contains wrong-runtime language /{pattern}/"
                     )
+
+
+def check_procedure_policies(manifest: dict, root: Path, errors: list[str]) -> None:
+    """Require declared procedure checkpoints to occur in canonical order."""
+    canonical = set(manifest["canonicalGuides"])
+    for raw_path, policy in manifest.get("procedurePolicies", {}).items():
+        if raw_path not in canonical:
+            errors.append(f"procedurePolicies path is not canonical: {raw_path}")
+            continue
+        text = read_text(root / raw_path, root, errors)
+        cursor = 0
+        for pattern in policy.get("orderedRequired", []):
+            match = re.search(pattern, text[cursor:], flags=re.IGNORECASE | re.DOTALL)
+            if match is None:
+                errors.append(
+                    f"{raw_path}: missing or reordered procedure checkpoint /{pattern}/"
+                )
+                continue
+            cursor += match.end()
+
+
+def _normalized_prose(value: str) -> str:
+    """Return deterministic exact-match prose normalization."""
+    value = re.sub(r"\[([^]]+)]\([^)]+\)", r"\1", value)
+    value = value.replace("`", "")
+    value = unicodedata.normalize("NFKC", value).casefold()
+    value = "".join(character if character.isalnum() else " " for character in value)
+    return " ".join(value.split())
+
+
+def _prose_sentences(text: str) -> list[tuple[int, str]]:
+    """Extract prose while ignoring frontmatter, headings, fences, and labels."""
+    lines = text.splitlines()
+    start = 0
+    if lines and lines[0] == "---":
+        try:
+            start = lines.index("---", 1) + 1
+        except ValueError:
+            start = 0
+    sentences: list[tuple[int, str]] = []
+    paragraph: list[str] = []
+    paragraph_line = 0
+    fenced = False
+
+    def flush() -> None:
+        nonlocal paragraph, paragraph_line
+        if not paragraph:
+            return
+        joined = " ".join(paragraph).strip()
+        for sentence in re.split(r"(?<=[.!?])\s+", joined):
+            if sentence.strip():
+                sentences.append((paragraph_line, sentence.strip()))
+        paragraph = []
+        paragraph_line = 0
+
+    for number, line in enumerate(lines[start:], start=start + 1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            flush()
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if not stripped:
+            flush()
+            continue
+        table_separator = re.fullmatch(
+            r"\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)*\|?", stripped
+        )
+        if stripped.startswith("#") or table_separator:
+            flush()
+            continue
+        list_match = re.match(r"^(?:[-*+] |\d+[.)] )(.*)$", stripped)
+        if list_match:
+            flush()
+            paragraph_line = number
+            paragraph = [list_match.group(1)]
+            continue
+        if paragraph_line == 0:
+            paragraph_line = number
+        paragraph.append(stripped)
+    flush()
+    return sentences
+
+
+def check_prose_ownership(manifest: dict, root: Path, errors: list[str]) -> None:
+    """Reject exact normalized normative sentences with more than one owner."""
+    policy = manifest.get("proseOwnership", {})
+    paths = policy.get("paths", [])
+    minimum_words = policy.get("minimumWords", 12)
+    if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
+        errors.append("proseOwnership.paths must be a string list")
+        return
+    if not isinstance(minimum_words, int) or minimum_words < 4:
+        errors.append("proseOwnership.minimumWords must be an integer of at least 4")
+        return
+
+    occurrences: dict[str, list[tuple[str, int]]] = {}
+    for raw_path in paths:
+        text = read_text(root / raw_path, root, errors)
+        for line, sentence in _prose_sentences(text):
+            normalized = _normalized_prose(sentence)
+            if len(normalized.split()) < minimum_words:
+                continue
+            occurrences.setdefault(normalized, []).append((raw_path, line))
+
+    exceptions: dict[tuple[str, tuple[str, ...]], str] = {}
+    for entry in policy.get("exceptions", []):
+        if not isinstance(entry, dict):
+            errors.append("proseOwnership exception must be an object")
+            continue
+        sentence = entry.get("sentence")
+        exception_paths = entry.get("paths")
+        reason = entry.get("reason")
+        if (
+            not isinstance(sentence, str)
+            or not isinstance(exception_paths, list)
+            or len(exception_paths) < 2
+            or not all(isinstance(path, str) for path in exception_paths)
+            or len(set(exception_paths)) < 2
+            or not isinstance(reason, str)
+            or not reason.strip()
+        ):
+            errors.append(
+                "proseOwnership exception requires sentence, at least two exact paths, and reason"
+            )
+            continue
+        key = (_normalized_prose(sentence), tuple(sorted(set(exception_paths))))
+        exceptions[key] = reason
+
+    used: set[tuple[str, tuple[str, ...]]] = set()
+    for normalized, raw_occurrences in sorted(occurrences.items()):
+        unique = sorted(set(raw_occurrences))
+        owned_paths = tuple(sorted({path for path, _ in unique}))
+        if len(owned_paths) < 2:
+            continue
+        key = (normalized, owned_paths)
+        if key in exceptions:
+            used.add(key)
+            continue
+        locations = ", ".join(f"{path}:{line}" for path, line in unique)
+        errors.append(f"duplicate normative prose [{normalized}]: {locations}")
+
+    for key in sorted(set(exceptions) - used):
+        errors.append(
+            "unused proseOwnership exception: "
+            f"[{key[0]}] for {', '.join(key[1])}"
+        )
 
 
 def ledger_digest(root: Path, deps: list[str]) -> str:
@@ -511,6 +671,8 @@ def main() -> int:
     check_imports(manifest, errors)
     check_hooks(manifest, errors)
     check_skill_pairs(manifest, ROOT, errors)
+    check_procedure_policies(manifest, ROOT, errors)
+    check_prose_ownership(manifest, ROOT, errors)
     check_skill_reconciliation(manifest, ROOT, errors)
     check_ignored(manifest, errors)
     check_session_contracts(manifest, ROOT, errors)

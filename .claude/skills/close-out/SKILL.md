@@ -12,23 +12,25 @@ description: >-
 
 # Close out an LGI.tools session
 
-Follow `docs/workflows/close-out.md` as the sole close-out sequence. The
-canonical procedure owns the ordering, mode selection, and every shared step.
+Procedure: `docs/workflows/close-out.md`.
 
 ## Authorization
 
-Invocation authorizes the current change's squash merge only when the current
-head has Greptile 5/5 with zero unresolved findings, green CI, and a
-mergeable/CLEAN PR. It does not authorize merging past a failed gate or any
-unrelated production action. Mode is the procedure's to choose: planned when
-`start-session` passed a valid resolver directive, ordinary otherwise, and the
-absence of a directive is normal.
+Invocation permits the current change's squash merge only through the
+canonical procedure's merge gate and only when the run is eligible to return
+`MERGED`; `SESSION_HANDOFF` and `BLOCKED` never authorize a merge.
+All documented gates must pass on the current head.
+No unrelated production action is authorized.
+The procedure selects planned or ordinary mode.
+A missing directive means ordinary mode.
 
 ## Claude Code runtime mechanics
 
-- Create a native Claude Code task list from the canonical procedure, keep one
-  item active, and reopen only verification that a later change invalidates.
-- When the procedure starts the PR-gate poll, launch it with Bash
-  `run_in_background: true` and continue useful close-out work.
-- When a Greptile justification awaits an inline reply on an unchanged head,
-  use the same background Bash mechanism to watch for that reply.
+- Create native Claude tasks; keep one active.
+- Run procedure polls with background Bash.
+- Reopen only checks invalidated by later changes.
+
+## Return
+
+Return the canonical procedure's exact result block unchanged, including the
+delivery outcome and fresh resolver directive.

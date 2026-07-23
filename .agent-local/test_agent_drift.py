@@ -13,7 +13,9 @@ from unittest.mock import patch
 from check_agent_drift import (
     check_development_state,
     check_paths,
+    check_procedure_policies,
     check_probe_layout,
+    check_prose_ownership,
     check_session_contracts,
     check_skill_pairs,
     check_skill_reconciliation,
@@ -26,7 +28,7 @@ class DriftFixture:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.manifest = {
-            "canonicalGuides": ["AGENTS.md"],
+            "canonicalGuides": ["AGENTS.md", "docs/workflows/demo.md"],
             "requiredPaths": [".agent-local/check_agent_drift.py"],
             "forbiddenPaths": ["docs/retired.md"],
             "skillRoots": {
@@ -37,6 +39,7 @@ class DriftFixture:
                 "demo": {
                     "required": ["load-bearing"],
                     "forbidden": ["retired policy"],
+                    "procedure": "docs/workflows/demo.md",
                 }
             },
             "runtimeForbidden": {
@@ -52,8 +55,23 @@ class DriftFixture:
                 "scan": ["docs/workflows/schema/session-contract.md"],
                 "forbidden": ["retired contract policy"],
             },
+            "procedurePolicies": {
+                "docs/workflows/demo.md": {
+                    "orderedRequired": ["first checkpoint", "second checkpoint"],
+                }
+            },
+            "proseOwnership": {
+                "paths": ["AGENTS.md", "docs/workflows/demo.md"],
+                "minimumWords": 8,
+                "exceptions": [],
+            },
         }
         self.write("AGENTS.md", "guide\n")
+        self.write(
+            "docs/workflows/demo.md",
+            "# Demonstration procedure\n\n"
+            "Complete the first checkpoint before the second checkpoint.\n",
+        )
         self.write(".agent-local/check_agent_drift.py", "checker\n")
         self.write("docs/workflows/schema/session-contract.md", "contract standard\n")
         self.write("docs/ux-check/run-probes.mjs", "runner\n")
@@ -93,7 +111,17 @@ class DriftFixture:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
-    def write_skill(self, runtime: str, body: str = "load-bearing") -> None:
+    def write_skill(
+        self,
+        runtime: str,
+        body: str = (
+            "Follow docs/workflows/demo.md.\n\n"
+            "Invocation authority is fixture-scoped.\n\n"
+            "Use runtime mechanics.\n\n"
+            "Return the result.\n\n"
+            "load-bearing"
+        ),
+    ) -> None:
         self.write(
             f".{runtime if runtime == 'claude' else 'agents'}/skills/demo/SKILL.md",
             "---\n"
@@ -129,6 +157,16 @@ class AgentDriftTests(unittest.TestCase):
     def check_probes(self) -> list[str]:
         return check_probe_layout(self.fixture.manifest, self.fixture.root)
 
+    def check_procedures(self) -> list[str]:
+        errors: list[str] = []
+        check_procedure_policies(self.fixture.manifest, self.fixture.root, errors)
+        return errors
+
+    def check_prose(self) -> list[str]:
+        errors: list[str] = []
+        check_prose_ownership(self.fixture.manifest, self.fixture.root, errors)
+        return errors
+
     def check_reconciliation(self) -> list[str]:
         errors: list[str] = []
         check_skill_reconciliation(self.fixture.manifest, self.fixture.root, errors)
@@ -139,6 +177,8 @@ class AgentDriftTests(unittest.TestCase):
         self.assertEqual([], self.check_skills())
         self.assertEqual([], self.check_contracts())
         self.assertEqual([], self.check_probes())
+        self.assertEqual([], self.check_procedures())
+        self.assertEqual([], self.check_prose())
         self.assertEqual([], self.check_reconciliation())
 
     def test_paths_report_missing_and_retired_entries(self) -> None:
@@ -186,6 +226,141 @@ class AgentDriftTests(unittest.TestCase):
         self.assertIn(
             ".agents/skills/demo/SKILL.md: contains wrong-runtime language /claude-only/",
             errors,
+        )
+
+    def test_skill_bodies_require_the_exact_canonical_procedure_once(self) -> None:
+        self.fixture.write_skill(
+            "codex",
+            "load-bearing\nInvocation authority\nruntime mechanics\nReturn",
+        )
+        self.assertIn(
+            ".agents/skills/demo/SKILL.md: must point to docs/workflows/demo.md exactly once",
+            self.check_skills(),
+        )
+
+        self.fixture.write_skill(
+            "codex",
+            "docs/workflows/demo.md docs/workflows/demo.md\n"
+            "load-bearing\nInvocation authority\nruntime mechanics\nReturn",
+        )
+        self.assertIn(
+            ".agents/skills/demo/SKILL.md: must point to docs/workflows/demo.md exactly once",
+            self.check_skills(),
+        )
+
+    def test_procedure_checkpoints_must_remain_in_order(self) -> None:
+        self.fixture.write(
+            "docs/workflows/demo.md",
+            "Complete the second checkpoint before the first checkpoint.\n",
+        )
+        self.assertEqual(
+            [
+                "docs/workflows/demo.md: missing or reordered procedure checkpoint "
+                "/second checkpoint/"
+            ],
+            self.check_procedures(),
+        )
+
+    def test_procedure_checkpoints_report_every_missing_pattern(self) -> None:
+        self.fixture.manifest["procedurePolicies"]["docs/workflows/demo.md"][
+            "orderedRequired"
+        ] = ["first checkpoint", "second checkpoint", "third checkpoint"]
+        self.fixture.write(
+            "docs/workflows/demo.md",
+            "Complete the first checkpoint.\n",
+        )
+        self.assertEqual(
+            [
+                "docs/workflows/demo.md: missing or reordered procedure checkpoint "
+                "/second checkpoint/",
+                "docs/workflows/demo.md: missing or reordered procedure checkpoint "
+                "/third checkpoint/",
+            ],
+            self.check_procedures(),
+        )
+
+    def test_normalized_prose_duplicates_are_sorted_and_substantive(self) -> None:
+        self.fixture.manifest["proseOwnership"]["paths"] = [
+            "docs/zeta.md",
+            "docs/alpha.md",
+        ]
+        self.fixture.write(
+            "docs/zeta.md",
+            "Agents MUST preserve the approved ownership_boundary, every time.\n",
+        )
+        self.fixture.write(
+            "docs/alpha.md",
+            "Agents must preserve—the approved ownership boundary every time!\n",
+        )
+        self.assertEqual(
+            [
+                "duplicate normative prose [agents must preserve the approved ownership "
+                "boundary every time]: docs/alpha.md:1, docs/zeta.md:1"
+            ],
+            self.check_prose(),
+        )
+
+    def test_prose_scan_ignores_headings_fences_and_short_labels(self) -> None:
+        self.fixture.manifest["proseOwnership"]["paths"] = [
+            "docs/one.md",
+            "docs/two.md",
+        ]
+        shared = (
+            "# Agents must preserve the approved ownership boundary every time\n\n"
+            "```text\nAgents must preserve the approved ownership boundary every time.\n```\n\n"
+            "Short label.\n"
+        )
+        self.fixture.write("docs/one.md", shared)
+        self.fixture.write("docs/two.md", shared)
+        self.assertEqual([], self.check_prose())
+
+    def test_prose_scan_keeps_dash_prefixed_sentences(self) -> None:
+        sentence = "--- Agents must preserve the approved ownership boundary every time."
+        self.fixture.manifest["proseOwnership"]["paths"] = [
+            "docs/one.md",
+            "docs/two.md",
+        ]
+        self.fixture.write("docs/one.md", f"{sentence}\n")
+        self.fixture.write("docs/two.md", f"{sentence}\n")
+        self.assertEqual(
+            [
+                "duplicate normative prose [agents must preserve the approved ownership "
+                "boundary every time]: docs/one.md:1, docs/two.md:1"
+            ],
+            self.check_prose(),
+        )
+
+    def test_exact_prose_exception_requires_sentence_paths_and_reason(self) -> None:
+        sentence = "Agents must preserve the approved ownership boundary every time."
+        self.fixture.manifest["proseOwnership"]["paths"] = [
+            "docs/one.md",
+            "docs/two.md",
+        ]
+        self.fixture.manifest["proseOwnership"]["exceptions"] = [
+            {
+                "sentence": sentence,
+                "paths": ["docs/two.md", "docs/one.md"],
+                "reason": "Required adapter boilerplate.",
+            }
+        ]
+        self.fixture.write("docs/one.md", f"{sentence}\n")
+        self.fixture.write("docs/two.md", f"{sentence}\n")
+        self.assertEqual([], self.check_prose())
+
+    def test_prose_exception_requires_two_distinct_paths(self) -> None:
+        self.fixture.manifest["proseOwnership"]["exceptions"] = [
+            {
+                "sentence": "Agents must preserve the approved ownership boundary.",
+                "paths": ["docs/one.md", "docs/one.md"],
+                "reason": "Invalid duplicate path fixture.",
+            }
+        ]
+        self.assertEqual(
+            [
+                "proseOwnership exception requires sentence, at least two exact paths, "
+                "and reason"
+            ],
+            self.check_prose(),
         )
 
     def test_reconciliation_flags_a_skill_stale_against_its_deps(self) -> None:

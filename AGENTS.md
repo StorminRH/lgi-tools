@@ -1,17 +1,25 @@
 # LGI.tools agent guide
 
 This file contains the repository-wide instructions that every coding agent
-must follow. Keep repeatable procedures in `.agents/skills/`, detailed reference
-material in `docs/`, source-only rules in `src/AGENTS.md`, and mechanical policy
-in lint, tests, Fallow, and hooks.
+must follow. Keep shared executable procedures in `docs/workflows/`, exact
+artifact forms in `docs/workflows/schema/`, runtime adapters in the paired skill
+trees, source-only rules in `src/AGENTS.md`, and mechanical policy in lint,
+tests, Fallow, and hooks.
+
+Precedence is: the operator's explicit current instruction and approved scope;
+the nearest applicable `AGENTS.md`; the invoked canonical procedure under
+`docs/workflows/`; the owning artifact schema; then reference and state
+documents. Mechanical gates remain authoritative for the behavior they check.
+Stop on a real conflict instead of blending two owners.
 
 ## Required preflight
 
 Before changing code:
 
-1. Read `docs/DESIGN_PRINCIPLES.md`, the current `docs/CODE_HEALTH_BASELINE.md`,
-   and `docs/SCRATCHPAD.md`. When the work is already scoped to a roadmap,
-   contract, or approved session plan, read those too.
+1. Read the current `docs/CODE_HEALTH_BASELINE.md` and `docs/SCRATCHPAD.md`.
+   When work is scoped to a roadmap, contract, approved plan, or canonical
+   procedure, read those owning artifacts too. Use
+   `docs/workflows/pre-pr-design-review.md` for design judgment.
 2. Use `codegraph explore "<question>"` for an unfamiliar area or use
    `codegraph query "<symbol>"` for a known symbol before grepping. Use
    `callers`, `callees`, or `impact` when the change depends on relationships.
@@ -87,8 +95,14 @@ established `src/db/sde-pipeline.ts`, `src/search/register-all.ts`, and
 `src/purge/` patterns; Fallow enforces the import map and its explicit
 exceptions.
 
+Protect established deep modules whose small interfaces hide cohesive
+complexity: the EVE tree resolver, Convex sync engine, shared ESI/API/env gates,
+and the industry planner's pure-logic pairs. A long cohesive owner is not a
+reason to create shallow helpers; split only when callers or change axes differ.
+
 For work under `src/`, follow `src/AGENTS.md`. It owns source-level rendering,
-UI, styling, accessibility, and interaction rules.
+UI, styling, accessibility, interaction, wrapper selection, and route
+registration rules.
 
 ## Engineering invariants
 
@@ -217,10 +231,8 @@ Claude Code. Claude's `CLAUDE.md` files import them and contain only
 Claude-specific execution notes.
 
 - Shared policy belongs in these guides or the appropriate canonical document:
-  `docs/AGENT_TOOLING.md`, `docs/DESIGN_PRINCIPLES.md`,
-  `docs/workflows/schema/session-contract.md`,
-  `docs/workflows/schema/session-plan.md`, `docs/workflows/close-out.md`,
-  `docs/PRE_PR_DESIGN_REVIEW.md`, or `docs/VERSION_AUDIT.md`.
+  `docs/AGENT_TOOLING.md`, an owning procedure under `docs/workflows/`, or an
+  exact artifact form under `docs/workflows/schema/`.
   `docs/CODE_HEALTH_BASELINE.md` is living state, not policy.
 - Keep `.agents/skills/` and `.claude/skills/` as runtime adapters with behavior
   parity, not verbatim implementations. Keep shared enforcement in

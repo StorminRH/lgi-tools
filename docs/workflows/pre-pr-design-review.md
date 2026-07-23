@@ -2,9 +2,16 @@
 
 Run this procedure after implementation and focused local or UX proof, but
 before the finalized-head definition-of-done checkpoint and before any PR is
-opened. `docs/DESIGN_PRINCIPLES.md` owns design policy;
-`docs/CODE_HEALTH_BASELINE.md` owns current hotspot state. This procedure owns
-the required design judgment and its evidence.
+opened. `docs/CODE_HEALTH_BASELINE.md` owns current hotspot state. This procedure
+owns the repository's design creed, required judgment, and review evidence.
+
+**Design creed.** Make the next change cheaper: keep caller-facing interfaces
+small and implementations deep; give each decision one owner; require every
+layer to hide real complexity; build only for current callers; absorb edge
+cases below stable interfaces; repair resistant structure before adding
+behavior; preserve non-obvious rationale; avoid fragmenting cohesive modules;
+refactor in behavior-preserving tested steps; and treat metrics as signals, not
+design instructions.
 
 ## Execution contract
 
@@ -14,7 +21,7 @@ Required inputs:
    ordinary out-of-band work, the direct request and its stated scope.
 2. The complete current-change diff against its merge base.
 3. Focused behavior, local, and UX evidence applicable to the changed surface.
-4. The current design principles and code-health baseline.
+4. This procedure's design creed and the current code-health baseline.
 
 Required outputs:
 
@@ -31,10 +38,8 @@ missing, the diff violates an approved scope boundary, or a material design fix
 needs operator approval. This procedure grants no authority to open, merge,
 deploy, promote, or archive.
 
-Before reviewing, create one native runtime task for each numbered phase below
-and one final return-to-verification task. Keep exactly one task active. Attach
-the phase evidence before completing its task; a bare assertion such as
-"checked" or "looks good" is not evidence.
+Run every numbered phase below and attach its evidence before continuing; a
+bare assertion such as "checked" or "looks good" is not evidence.
 
 ## 1. Establish the review boundary
 
@@ -91,8 +96,21 @@ the complete diff.
 4. Let the mechanical Fallow gate own token-level duplication. This phase owns
    semantic duplication the mechanical gate cannot detect.
 
+Run this red-flag sweep explicitly; name every hit in the finding ledger:
+
+| Red flag | Executable check |
+| --- | --- |
+| Shallow module or pass-through layer | Find new exports or components that only rename, forward, or expose more concepts than they hide; delete or deepen them. |
+| Information leakage | Search the diff and repository for another copy of each changed shape, ordering rule, policy, or constant; move duplicates to one owner. |
+| Temporal decomposition | Flag modules organized around pipeline order rather than owned knowledge; regroup only when the touched structure exhibits the leak. |
+| Wide public surface | Compare every changed context, barrel, props object, or options type with its real consumers; remove unused breadth or create a narrower owned seam. |
+| Mixed change axes or conjoined methods | Identify files or functions that require unrelated reasons to change, or siblings that cannot be understood independently; split only along the proven ownership axis. |
+| Special-case creep or voodoo constant | Trace every new flag, optional parameter, mode, threshold, and magic value to a current caller and one owner; remove speculative or caller-round-tripped policy. |
+| Comment as apology | Find comments that navigate fields, call order, or workarounds; repair the interface instead of explaining its shallowness. |
+| Hack around pressure | Search changed prose and code for temporary copies, widened exceptions, and “for now” workarounds; re-plan the resisting structure. |
+
 Evidence: one amplification verdict per logical change group, naming its single
-owner or the corrective action taken.
+owner or the corrective action taken, plus the red-flag sweep ledger.
 
 ## 4. Review rationale and comments
 
@@ -126,8 +144,10 @@ changes, and any verification items invalidated by fixes.
    pressure encountered by the branch.
 2. Confirm the implementation was not fragmented, padded with tests, or wrapped
    in pass-through layers solely to satisfy a metric.
-3. Apply the current design-principle procedure for every override or
-   suppression and retain its required rationale.
+3. Do not add a complexity or CRAP threshold override. Split by a real change
+   axis, simplify the design, or add meaningful behavioral coverage. A proposed
+   suppression or boundary exception is `BLOCKED` until the operator approves
+   its narrow owner and rationale.
 4. When a boundary changes, update its mechanical owner and public description
    together; do not create a second enforcement representation.
 5. Compare every touched hotspot or Watch surface with the current baseline.

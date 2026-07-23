@@ -22,8 +22,10 @@ between them is **enforced in CI** by `pnpm fallow` (the zones and rules live in
   `components/`, `schema.ts`, `queries.ts`, `types.ts` as needed). **Two features
   never import from each other.**
 - `src/data/` — shared data layers (EVE SDE, market prices, telemetry). A data
-  slice **never imports a feature**, and two data slices never import each other.
-  Cross-slice composition lives in a layer *above* both.
+  slice **never imports a feature**. Peer-data imports are forbidden except for
+  narrow composition exceptions declared in the authoritative
+  [`.fallowrc.json`](.fallowrc.json); ordinary cross-slice composition lives in
+  a layer *above* both.
 - `src/components/ui/` — domain-agnostic UI primitives. These accept abstract
   `tone` props (`green`, `red`, …); only feature-level style maps know that, say,
   "C5 is red". UI primitives import only from `src/lib`.
@@ -135,23 +137,11 @@ site (**lint-enforced**):
 
 ## UI components & overlays
 
-Interactive UI is built on adopted libraries, each **wrapped once in
-`src/components/ui/`** as a tone-prop primitive and consumed from features via
-`@/components/ui/*` — a feature never imports the raw library:
-
-- **Overlays** (tooltip / popover / dialog / menu / nav) → Base UI
-  (`@base-ui/react`).
-- **Toasts** → sonner, through `components/ui/toast.tsx` (the only sonner
-  importer).
-- **Node graphs** → React Flow; **drag / reorder** → dnd-kit; **charts** → visx.
-
-Scoped `no-restricted-imports` rules enforce the Base UI wrapper allowlist and
-the sole sonner owner; the deprecated Base UI package is banned everywhere.
-
-Style className-first with tone tokens (no inline `style` — see [Security &
-CSP](#security--csp)). Configure each library's built-in dismiss / focus /
-keyboard behavior rather than re-implementing it. When adding a route — including
-a sandbox demo — register it in `scripts/route-classification.json`.
+Interactive source work follows [`src/AGENTS.md`](src/AGENTS.md), the sole owner
+of the adopted-library roster, wrapper seams, styling rules, accessibility
+behavior, and route-registration requirements. Contributors consume the shared
+`src/components/ui/` primitives instead of importing their underlying libraries
+from feature code.
 
 ## Architecture invariants
 
@@ -208,9 +198,10 @@ feat: add API endpoints for browsing and filtering wormhole sites
 
 1. Branch off `main` and open your PR back into `main`.
 2. Run **`pnpm verify`** locally and confirm it passes — this bundles
-   `typecheck`, `lint`, one coverage-enabled Vitest suite, and `fallow` (the static-analysis gate: dead code,
-   duplication, complexity, architecture boundaries). CI runs the same gates plus
-   a route-classification presence check (`assert:routes-present`).
+   `typecheck`, zero-warning `lint`, one coverage-enabled Vitest suite, and
+   `fallow` (dead code, duplication, complexity, and architecture boundaries).
+   CI installs with the frozen lockfile, runs those same four gates, and also
+   runs the route-classification presence check (`assert:routes-present`).
 3. Fill in the PR template's **test plan** — what you verified and how.
 4. Reference the issue the PR resolves (e.g. `Fixes #123`).
 

@@ -16,6 +16,7 @@ from pathlib import Path
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_SCHEMA_RELPATH = "docs/workflows/schema/session-contract.md"
 PLAN_SCHEMA_RELPATH = "docs/workflows/schema/session-plan.md"
+AUDIT_PROCEDURE_RELPATH = "docs/workflows/version-audit.md"
 POLICY_MANIFEST_RELPATH = ".agent-local/policy-manifest.json"
 RELEASE_CONSISTENCY_GATE = "python3 .agent-local/check_release_consistency.py --check"
 TERMINAL = ("SHIPPED", "COMPLETE", "DEFERRED", "CANCELLED")
@@ -213,7 +214,11 @@ def marker(path: Path, label: str) -> str | None:
     if not path.is_file():
         return None
     text = path.read_text(encoding="utf-8")
-    match = re.search(rf"\*\*{re.escape(label)}:\*\*\s+(.+?)\s*$", text, re.I | re.M)
+    match = re.search(
+        rf"\*\*{re.escape(label)}:\*\*[ \t]+([^\r\n]+?)[ \t]*$",
+        text,
+        re.I | re.M,
+    )
     return match.group(1).strip().strip("`") if match else None
 
 
@@ -331,6 +336,32 @@ def contract_schema_violations(path: Path, root: Path) -> list[str]:
         violations.append("Master plan marker is missing or invalid")
     if marker(path, "UX gate") not in MARKER_VOCABULARY["UX gate"]:
         violations.append("UX gate must be Yes or No")
+    if marker(path, "Execution profile") != "Frontier autonomous coding agent":
+        violations.append(
+            "Execution profile must be Frontier autonomous coding agent"
+        )
+    if marker(path, "Delivery unit") != "One agent session, one branch, one PR":
+        violations.append(
+            "Delivery unit must be One agent session, one branch, one PR"
+        )
+    for label in ("Roadmap coverage", "Internal phases", "Split triggers"):
+        value = marker(path, label)
+        if value is None or not value.strip():
+            violations.append(f"{label} must be non-empty")
+    phases = marker(path, "Internal phases") or ""
+    if phases:
+        phase_items = re.split(r";\s*(?=\d+\.\s+\S)", phases)
+        phase_numbers = [
+            int(match.group(1))
+            for item in phase_items
+            for match in [re.fullmatch(r"\s*(\d+)\.\s+\S.*", item)]
+            if match is not None
+        ]
+        expected_phases = list(range(1, len(phase_items) + 1))
+        if phase_numbers != expected_phases:
+            violations.append(
+                "Internal phases must be a contiguous ordered list starting at 1"
+            )
     numbered = [
         (int(number), title.strip())
         for number, title in re.findall(r"^## (\d+)\. (.+?)\s*$", text, re.MULTILINE)
@@ -649,7 +680,7 @@ def audit_contract(path: Path, root: Path) -> tuple[str | None, list[AuditFindin
     if (marker(path, "Audit mode") or "").casefold() != "version close":
         return None, [], errors, "The audit plan is not a Version close plan."
 
-    procedure = docs / "VERSION_AUDIT.md"
+    procedure = root / AUDIT_PROCEDURE_RELPATH
     expected = f"sha256:{sha256(procedure)}"
     if marker(path, "Procedure digest") != expected:
         return None, [], errors, "The audit plan is stale because its procedure digest does not match."
