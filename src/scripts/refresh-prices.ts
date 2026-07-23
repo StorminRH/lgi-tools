@@ -7,7 +7,7 @@ import postgres from 'postgres';
 import { refreshStalePrices } from '../data/market-prices/cache';
 import { refreshPrices } from '../data/market-prices/ingest';
 import { getPrices } from '../data/market-prices/queries';
-import { resolveLockConnectionUrl } from './index';
+import { resolveLockConnectionUrl } from '@/db';
 import { parseArgs } from './refresh-prices-args';
 import { runScript } from './script-runtime';
 

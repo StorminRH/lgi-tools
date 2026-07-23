@@ -22,8 +22,8 @@ import {
 } from '../data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
-import { withAdvisoryLock } from './advisory-lock';
-import { resolveLockConnectionUrl } from './index';
+import { withAdvisoryLock } from '@/db/advisory-lock';
+import { resolveLockConnectionUrl } from '@/db';
 import { runScript } from './script-runtime';
 import { formatSdeVersions, shouldReingestSde } from './sde-bootstrap';
 import {
