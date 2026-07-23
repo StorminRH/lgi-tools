@@ -78,8 +78,9 @@ class MergeGate(unittest.TestCase):
         self.assertTrue(any("does not name the current head" in r for r in blockers(issue_comments=cs)))
 
     def test_newer_greptile_comment_blocks(self) -> None:
-        cs = clean_inputs()["issue_comments"] + [
-            {"user": {"login": GREPTILE}, "id": 2, "updated_at": "2026-07-23T11:00:00Z", "body": "on it"}
+        cs = [
+            *clean_inputs()["issue_comments"],
+            {"user": {"login": GREPTILE}, "id": 2, "updated_at": "2026-07-23T11:00:00Z", "body": "on it"},
         ]
         self.assertTrue(any("newer than the live summary" in r for r in blockers(issue_comments=cs)))
 

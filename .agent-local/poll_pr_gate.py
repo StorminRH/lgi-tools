@@ -10,9 +10,9 @@ Examples:
 The script prints only state changes, then the final details. `greptile` and
 `checks` return 0 for a clean current-head Greptile 5/5 or green checks and 2
 when a completed gate contains findings or failures. `quiescent` waits until the
-head's check-run set is complete and stable (so a late-registering bot is never
-missed) and always returns 0 — it reports that every reviewer is done so fixes
-can be batched before the next push, and leaves the pass/fail verdict to the
+head's reviewer set is complete and stable (so a late-registering bot is never
+missed); it returns 0 once every reviewer is done — so fixes can be batched
+before the next push — and 1 on timeout, leaving the pass/fail verdict to the
 `greptile` gate and the merge helper.
 """
 
@@ -119,6 +119,17 @@ def quiescence(runs: list[object], status: dict[str, object]) -> tuple[frozenset
     return run_names | status_names, settled
 
 
+def stable_key(head: str, names: frozenset[str], settled: bool) -> tuple[str, frozenset[str]] | None:
+    """The head-scoped stability key for a settled, non-empty reviewer set.
+
+    Returns None until the set is settled and non-empty, so the caller treats
+    the head as quiet only after the same (head, reviewers) holds for two polls.
+    Keying on the head as well as the names resets the wait when a new push
+    lands, even if its reviewer set matches the previous head's.
+    """
+    return (head, names) if settled and names else None
+
+
 def quiescent_state(repo: str, number: int, token: str) -> tuple[str, frozenset[str], bool, dict[str, object]]:
     pull = get(f"/repos/{repo}/pulls/{number}", token)
     assert isinstance(pull, dict)
@@ -153,7 +164,7 @@ def main() -> int:
     token = github_token()
     deadline = time.monotonic() + args.timeout
     last_label = None
-    stable_names: frozenset[str] | None = None
+    stable_marker: tuple[str, frozenset[str]] | None = None
     while time.monotonic() < deadline:
         now = dt.datetime.now().astimezone().strftime("%H:%M:%S")
         if args.gate == "greptile":
@@ -175,12 +186,14 @@ def main() -> int:
             if label != last_label:
                 print(f"[{now}] {label}", flush=True)
                 last_label = label
-            # Require the settled reviewer set to hold for one interval so a bot
-            # that has not yet registered its run or status cannot read as done.
-            if settled and names and names == stable_names:
+            # Require the settled (head, reviewer set) to hold for one interval,
+            # so a bot that has not yet registered its run or status cannot read
+            # as done and a fresh push restarts the wait.
+            key = stable_key(str(detail.get("head", "")), names, settled)
+            if key is not None and key == stable_marker:
                 print(detail)
                 return 0
-            stable_names = names if settled else None
+            stable_marker = key
         else:
             label, done, clean, detail = checks_state(args.repo, args.number, token)
             if label != last_label:
