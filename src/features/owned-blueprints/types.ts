@@ -10,6 +10,6 @@ import type { OwnedBlueprint } from './esi-projection';
 
 /**
  * The injected I/O the refresh runs over — the shared paged-owned port over this
- * slice's row. The real implementation is wired in src/db/owned-blueprints-sync.ts.
+ * slice's row. The real implementation is wired in src/composition/sync/owned-blueprints-sync.ts.
  */
 export type OwnedBlueprintsPort = OwnedDatasetPort<OwnedBlueprint>;

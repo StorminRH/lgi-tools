@@ -5,7 +5,7 @@ import {
   PRICES_FRESHNESS_TAG,
   refreshStalePrices,
 } from '@/data/market-prices/cache';
-import type { CronRouteDeclaration } from '@/db/cron-gate';
+import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { alertPriceSourceDegradation } from '@/lib/alerts';
 import { swallow } from '@/transport/cron';
 

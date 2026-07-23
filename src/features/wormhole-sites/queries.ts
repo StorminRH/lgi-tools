@@ -1,7 +1,7 @@
 import { and, count, eq, inArray } from 'drizzle-orm';
 import { cacheLife, cacheTag } from 'next/cache';
 import { db } from '@/db';
-import { npcs, siteResources, sites, waves } from '@/db/schema';
+import { npcs, siteResources, sites, waves } from './schema';
 import { PRICES_FRESHNESS_TAG } from '@/data/market-prices/cache';
 import { getCombatStatsBatch } from '@/data/npc-stats/queries';
 import { summariseWave } from '@/data/npc-stats/math';

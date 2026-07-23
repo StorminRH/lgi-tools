@@ -8,11 +8,11 @@ import {
 } from '@/data/eve-data/constants';
 import { getSdeMetaValue, setSdeMetaValue } from '@/data/eve-data/meta';
 import { getRemoteSdeVersion } from '@/data/eve-data/source';
-import type { CronRouteDeclaration } from '@/db/cron-gate';
+import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import {
   runSdePipeline,
   summarizeMarketPricesRowCount,
-} from '@/db/sde-pipeline';
+} from '@/composition/pipelines/sde-pipeline';
 
 type SdePreLock = {
   db: ReturnType<typeof drizzle>;

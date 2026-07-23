@@ -14,7 +14,7 @@ const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag))
 vi.mock('@/db', () => ({
   directClient: { reserve: (...args: unknown[]) => reserveMock(...args) },
 }));
-vi.mock('./advisory-lock', () => ({
+vi.mock('@/db/advisory-lock', () => ({
   withAdvisoryLock: (...args: unknown[]) => withAdvisoryLockMock(...args),
 }));
 vi.mock('@/data/telemetry/queries', () => ({

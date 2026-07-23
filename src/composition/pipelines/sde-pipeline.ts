@@ -10,13 +10,11 @@
 //          src/app/api/cron/refresh-sde/route.ts (daily drift cron).
 
 import { sql } from 'drizzle-orm';
-import { runIngest, type IngestSummary } from '@/data/eve-data/ingest';
+import type { SdePipelineSummary } from '@/data/eve-data/api-contract';
+import { runIngest } from '@/data/eve-data/ingest';
 import { listTrackedTypeIds } from '@/data/eve-data/queries';
 import { resolveNpcStationNames } from '@/data/eve-data/station-names';
-import {
-  resolveAllTrees,
-  type ResolveSummary,
-} from '@/data/eve-data/tree-resolver';
+import { resolveAllTrees } from '@/data/eve-data/tree-resolver';
 import { listMissingTypeIds } from '@/data/market-prices/queries';
 import { marketPrices } from '@/data/market-prices/schema';
 import type { PostgresJsDb } from '@/lib/db-types';
@@ -32,15 +30,6 @@ export type SeedSummary = {
   tracked: number;
   missing: number;
   inserted: number;
-};
-
-/** Complete SDE pipeline outcome combining ingest and derived-table row counts. */
-export type SdePipelineSummary = {
-  ingest: IngestSummary;
-  resolve: ResolveSummary;
-  seed: SeedSummary;
-  stationNames: { resolved: number };
-  durationMs: number;
 };
 
 /**

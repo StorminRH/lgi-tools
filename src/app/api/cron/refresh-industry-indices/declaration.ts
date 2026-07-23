@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import type { CronRefreshIndustryIndicesResponse } from '@/data/industry-indices/api-contract';
 import { ADVISORY_LOCK_INDUSTRY_INDICES } from '@/data/industry-indices/constants';
 import { refreshIndustryIndices } from '@/data/industry-indices/ingest';
-import type { CronRouteDeclaration } from '@/db/cron-gate';
+import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 
 /**
  * Declares the daily cost-index and adjusted-price refresh as one lock-guarded

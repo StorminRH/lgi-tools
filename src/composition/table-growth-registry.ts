@@ -10,7 +10,7 @@ import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
 } from '@/platform/auth/constants';
-import * as schema from './schema';
+import * as schema from './drizzle-schema';
 
 interface ManagedTableName {
   readonly schema: string;

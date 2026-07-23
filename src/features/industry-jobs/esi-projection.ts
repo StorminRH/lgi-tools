@@ -85,7 +85,7 @@ export function parseIndustryJobsBody(body: unknown): IndustryJob[] | null {
  * batch. Reads only the `data.jobs` each entry carries, so the per-character
  * (personal) and per-corporation (corp) live shapes both satisfy it. Lives here
  * in the runtime-light projection (not the 'use client' panel) so the Neon
- * server wrapper (src/db/industry-jobs-sync.ts) can resolve names server-side and
+ * server wrapper (src/composition/sync/industry-jobs-sync.ts) can resolve names server-side and
  * the corp board can still resolve them client-side — one shared extraction.
  */
 export function jobTypeIds(entries: { data: { jobs: IndustryJob[] } | null }[]): number[] {

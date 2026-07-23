@@ -13,7 +13,7 @@ import {
 import { pruneCorpAccessAudit } from '@/platform/auth/affiliation-store';
 import { pruneExpiredVerifications } from '@/platform/auth/verification-retention';
 import { corpAccessAudit, verification } from '@/db/auth-schema';
-import { createDbTestHarness } from './test-support/db-test-harness';
+import { createDbTestHarness } from '@/db/test-support/db-test-harness';
 
 const harness = await createDbTestHarness({
   schema: 'test_table_retention',

@@ -11,7 +11,7 @@ import {
   eveTypes,
   industryBlueprints,
   typeDogma,
-} from '@/db/schema';
+} from './schema';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import {
   BLUEPRINT_STRUCTURE_TAG,

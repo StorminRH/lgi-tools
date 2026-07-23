@@ -5,7 +5,7 @@
 // sde-pipeline.ts pattern). This wires the real corp port the pure refresh runs over,
 // and exposes the on-view seam the corp-jobs API route consumes: read the cached
 // per-corp boards, fire a stale-gated write-behind refresh behind the response (zero
-// added latency). A direct mirror of src/db/industry-jobs-sync.ts, corp-keyed, with the
+// added latency). A direct mirror of src/composition/sync/industry-jobs-sync.ts, corp-keyed, with the
 // Director resolution (vend + roles read) supplied by the shared owner-sync-port.ts
 // wiring (MIGRATE.D.2).
 import { refreshCorpJobsForUser } from '@/features/industry-jobs/corp-refresh';

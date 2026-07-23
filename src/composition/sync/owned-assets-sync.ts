@@ -6,7 +6,7 @@
 // orchestration runs over, and exposes the on-view seam the planner's asset ledger
 // consumes: read the current owned-asset detail, fire a stale-gated write-behind
 // refresh behind the response (zero added latency, like the owned-blueprints seam).
-// A direct mirror of src/db/owned-blueprints-sync.ts; the shared auth + ESI port
+// A direct mirror of src/composition/sync/owned-blueprints-sync.ts; the shared auth + ESI port
 // wiring lives in owner-sync-port.ts (MIGRATE.D.2).
 import { after } from 'next/server';
 import { emitDomainEvent } from '@/data/domain-events/queries';

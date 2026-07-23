@@ -1,13 +1,12 @@
 // API wire contract owned by the eve-data slice (3.4.T).
 //
-// Type-only import from the composition layer: the SDE cron's reingested arm
-// embeds the pipeline summary that src/db/sde-pipeline.ts (the layer above
-// this slice) assembles. `import type` is erased at compile time, so this
-// creates no runtime edge or cycle. Same for ./systems-search — that module
-// imports THIS one at runtime, not the reverse.
+// The SDE cron's reingested arm embeds the composition pipeline summary, so
+// this boundary owns that wire shape while the higher layer satisfies it.
+// ./systems-search imports this module at runtime, not the reverse.
 import { z } from 'zod';
 import type { ApiEndpoint } from '@/transport/api-client';
-import type { SdePipelineSummary } from '@/db/sde-pipeline';
+import type { IngestSummary } from './ingest';
+import type { ResolveSummary } from './tree-resolver';
 import type { SystemSearchEntry } from './systems-search';
 
 // ── POST /api/eve/names (authz: none — public ESI read) ─────────────────
@@ -34,6 +33,19 @@ const entityNamesResponseSchema = z.object({
 });
 /** Resolved EVE entity names keyed by numeric ID; unresolved IDs are intentionally absent. */
 export type EntityNamesResponse = z.infer<typeof entityNamesResponseSchema>;
+
+/** Complete SDE pipeline outcome returned by the refresh cron after a reingest. */
+export type SdePipelineSummary = {
+  ingest: IngestSummary;
+  resolve: ResolveSummary;
+  seed: {
+    tracked: number;
+    missing: number;
+    inserted: number;
+  };
+  stationNames: { resolved: number };
+  durationMs: number;
+};
 
 /**
  * Typed endpoint definition for entity names endpoint; method, path, request, and response

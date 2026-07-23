@@ -1,7 +1,7 @@
 // API wire contract owned by the skill-queue feature (MIGRATE.B.1). Runtime-light by
 // design — zod plus the same-slice entry schema only, no server imports — so the
 // client island and the route share one wire shape. The skills queue moved off the
-// live Convex websocket onto a Neon stale-gated on-view read (src/db/skills-sync.ts);
+// live Convex websocket onto a Neon stale-gated on-view read (src/composition/sync/skills-sync.ts);
 // this is the GET the client fetches on view.
 import { z } from 'zod';
 import type { ApiEndpoint } from '@/transport/api-client';

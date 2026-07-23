@@ -4,7 +4,7 @@
 // slice's per-dataset knobs and hands it to the shared per-owner sync engine
 // (src/platform/owner-sync). It imports no auth and no DB, so it stays inside the feature
 // boundary and is unit-tested with a fake port. The real port is wired in
-// src/db/owned-assets-sync.ts. A direct mirror of owned-blueprints.
+// src/composition/sync/owned-assets-sync.ts. A direct mirror of owned-blueprints.
 //
 // The engine checks the staleness gate BEFORE any token vend or ESI call (a fresh owner
 // does zero work — for both owner types), runs the character pass then the corp pass,

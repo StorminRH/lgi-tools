@@ -1,5 +1,5 @@
 import type { EsiRefreshWorkerSummary } from '@/data/esi-refresh-jobs/api-contract';
-import { defineCronRoute } from '@/db/cron-gate';
+import { defineCronRoute } from '@/composition/pipelines/cron-gate';
 import { drainEsiRefreshJobsDeclaration } from './declaration';
 
 /** Maximum Vercel function execution window in seconds for this route's bounded background work. */

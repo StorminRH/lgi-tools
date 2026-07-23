@@ -1,6 +1,6 @@
 import { inArray, lt, sql } from 'drizzle-orm';
 import { db as defaultDb } from '@/db';
-import { marketPrices } from '@/db/schema';
+import { marketPrices } from './schema';
 import type { MarketPrice, PriceSource } from './types';
 import type { AnyPgDb } from '@/lib/db-types';
 

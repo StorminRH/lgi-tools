@@ -1,5 +1,5 @@
 import type { CronRefreshGscResponse } from '@/data/gsc/api-contract';
-import { defineCronRoute } from '@/db/cron-gate';
+import { defineCronRoute } from '@/composition/pipelines/cron-gate';
 import { refreshGscDeclaration } from './declaration';
 
 // Vercel-cron endpoint, scheduled in vercel.json ("0 9 * * *" — daily, clear of

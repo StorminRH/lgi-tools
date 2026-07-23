@@ -4,7 +4,7 @@
 //
 // PURE (no I/O): name resolution is injected as a plain `names` record + a station
 // formatter, so this reduce is unit-tested directly and the real ESI resolver is
-// wired above it (src/db/owned-blueprints-sync.ts) — the refresh.ts DI pattern.
+// wired above it (src/composition/sync/owned-blueprints-sync.ts) — the refresh.ts DI pattern.
 // Readout only: nothing here feeds the cost/ME compute path.
 import type { OwnedBlueprintMap } from './blueprint-map';
 import type { OwnedBlueprintOwnerType } from './schema';

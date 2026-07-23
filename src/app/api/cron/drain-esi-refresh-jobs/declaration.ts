@@ -1,8 +1,8 @@
 import type { EsiRefreshWorkerSummary } from '@/data/esi-refresh-jobs/api-contract';
 import { ADVISORY_LOCK_ESI_REFRESH_QUEUE } from '@/data/esi-refresh-jobs/constants';
 import { readPendingWorkSignal } from '@/data/esi-refresh-jobs/pending-signal';
-import type { CronRouteDeclaration } from '@/db/cron-gate';
-import { drainEsiRefreshJobs } from '@/db/esi-refresh-worker';
+import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
+import { drainEsiRefreshJobs } from '@/composition/sync/esi-refresh-worker';
 import { swallow } from '@/transport/cron';
 import { hasRecentBudgetExhaustion } from '@/platform/esi/exhaustion-marker';
 import { maybeAlertPublicEsiBudgetExhaustion } from './public-budget-alert';
