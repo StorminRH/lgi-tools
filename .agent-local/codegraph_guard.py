@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Emit shared Codegraph-first guidance for Claude Code and Codex hooks.
 
-The guidance fires until the session has oriented via Codegraph, then goes
-silent. The first time a ``codegraph`` command runs in a session, a per-session
-marker is written and every later grep/read nudge for that session is
-suppressed — so the reminder appears once, when it is useful, instead of on
-every subsequent source read. Sessions are keyed by the ``session_id`` the hook
-receives on stdin; when that is absent (a caller that does not provide it) the
-guard degrades to the old always-nudge behavior rather than over-suppressing.
+The reminder fires once per session — on the first source search or read — and
+then stays silent for the rest of that session, so the guidance appears when it
+is useful instead of on every subsequent source read. The per-session marker
+records only that the reminder has already been shown; the guard never tries to
+infer whether Codegraph was actually consulted (a hook cannot observe that
+reliably). Sessions are keyed by the ``session_id`` the hook receives on stdin;
+when that is absent (a caller that does not provide it) the guard falls back to
+reminding every time rather than going silent.
 """
 
 from __future__ import annotations
@@ -26,15 +27,6 @@ SEARCH_COMMAND = re.compile(
     r"(^|[\s;&|])(grep|rg|ripgrep|find|fd|ack|ag)(?=\s|$)",
     flags=re.IGNORECASE,
 )
-# A real codegraph invocation IS orientation — recognizing it lets the guard
-# fall quiet for the rest of the session. Match only codegraph in COMMAND
-# position (start of the command or right after a shell separator) followed by a
-# subcommand, so a command that merely mentions the word — `echo codegraph`,
-# `grep codegraph` — does not falsely mark the session oriented.
-CODEGRAPH_COMMAND = re.compile(
-    r"(?:^|[;&|(\n])\s*codegraph\s+[a-z]",
-    flags=re.IGNORECASE,
-)
 SOURCE_EXTENSIONS = (
     ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java",
     ".rb", ".c", ".h", ".cpp", ".hpp", ".cc", ".cs", ".kt",
@@ -42,8 +34,8 @@ SOURCE_EXTENSIONS = (
     ".txt", ".mdx",
 )
 
-# Per-session orientation markers live in the system temp dir (0-byte files the
-# OS reclaims on its own); one per session_id.
+# One per-session marker (a 0-byte file the OS reclaims) records that this
+# session has already seen the reminder, so it fires only once.
 MARKER_DIR = Path(tempfile.gettempdir())
 
 
@@ -58,14 +50,14 @@ def marker_path(session_id: str) -> Path | None:
     safe = re.sub(r"[^A-Za-z0-9_-]", "", session_id or "")
     if not safe:
         return None
-    return MARKER_DIR / f"codegraph-guard-oriented-{safe}"
+    return MARKER_DIR / f"codegraph-guard-reminded-{safe}"
 
 
-def is_oriented(marker: Path | None) -> bool:
+def already_reminded(marker: Path | None) -> bool:
     return marker is not None and marker.is_file()
 
 
-def mark_oriented(marker: Path | None) -> None:
+def mark_reminded(marker: Path | None) -> None:
     if marker is None:
         return
     try:
@@ -75,13 +67,9 @@ def mark_oriented(marker: Path | None) -> None:
 
 
 def guard_bash(tool_input: dict, marker: Path | None) -> None:
+    if already_reminded(marker):
+        return
     command = str(tool_input.get("command") or tool_input.get("cmd") or "")
-    # Running codegraph is the orientation we want — record it and stay silent.
-    if CODEGRAPH_COMMAND.search(command):
-        mark_oriented(marker)
-        return
-    if is_oriented(marker):
-        return
     if SEARCH_COMMAND.search(command):
         emit(
             "MANDATORY: .codegraph/codegraph.db exists. You MUST run "
@@ -90,10 +78,11 @@ def guard_bash(tool_input: dict, marker: Path | None) -> None:
             "before grepping raw files. Only grep "
             "after Codegraph has oriented you, or to modify/debug specific lines."
         )
+        mark_reminded(marker)
 
 
 def guard_read(tool_input: dict, marker: Path | None) -> None:
-    if is_oriented(marker):
+    if already_reminded(marker):
         return
     candidate = " ".join(
         str(tool_input.get(key) or "") for key in ("file_path", "pattern", "path")
@@ -110,6 +99,7 @@ def guard_read(tool_input: dict, marker: Path | None) -> None:
             "specific lines. This rule applies to subagents too—include it in every "
             "subagent prompt involving code exploration."
         )
+        mark_reminded(marker)
 
 
 def load_payload() -> dict:
