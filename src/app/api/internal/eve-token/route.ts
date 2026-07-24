@@ -18,7 +18,7 @@ import {
   dependencyUnavailableFailure,
   notFoundFailure,
 } from '@/lib/failure';
-import { requireServiceAuth } from '@/lib/service-auth';
+import { requireBearerSecret } from '@/lib/service-auth';
 import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
@@ -27,7 +27,7 @@ import { readJsonBody } from '@/transport/route-body';
  * validation, and typed response mapping.
  */
 export async function POST(req: Request): Promise<Response> {
-  const denied = await requireServiceAuth(req);
+  const denied = await requireBearerSecret(req, 'CONVEX_SERVICE_SECRET');
   if (denied) return denied;
 
   const parsed = await readJsonBody(req, eveTokenRequestSchema);

@@ -68,11 +68,3 @@ export async function requireBearerSecret(
   const result = await checkBearerSecret(req, envVar);
   return result.ok ? null : problemResponse(result.failure);
 }
-
-/**
- * Guard for the internal service routes (`authz: service`): a Convex action
- * authenticates with the shared CONVEX_SERVICE_SECRET bearer.
- */
-export function requireServiceAuth(req: Request): Promise<Response | null> {
-  return requireBearerSecret(req, 'CONVEX_SERVICE_SECRET');
-}

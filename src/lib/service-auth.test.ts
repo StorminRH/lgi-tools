@@ -7,7 +7,6 @@ import {
   bearerMatches,
   checkBearerSecret,
   requireBearerSecret,
-  requireServiceAuth,
 } from './service-auth';
 
 const SECRET = 'shared-secret';
@@ -95,18 +94,29 @@ describe('checkBearerSecret', () => {
   });
 });
 
-describe('requireServiceAuth', () => {
+describe('requireBearerSecret for internal service auth', () => {
   it('authenticates against CONVEX_SERVICE_SECRET', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', 'service-only');
-    expect(await requireServiceAuth(makeRequest('Bearer service-only'))).toBeNull();
+    expect(
+      await requireBearerSecret(
+        makeRequest('Bearer service-only'),
+        'CONVEX_SERVICE_SECRET',
+      ),
+    ).toBeNull();
 
-    const denied = await requireServiceAuth(makeRequest(`Bearer ${SECRET}`));
+    const denied = await requireBearerSecret(
+      makeRequest(`Bearer ${SECRET}`),
+      'CONVEX_SERVICE_SECRET',
+    );
     expect(denied?.status).toBe(401);
   });
 
   it('names CONVEX_SERVICE_SECRET in its unconfigured 500', async () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', '');
-    const res = await requireServiceAuth(makeRequest('Bearer anything'));
+    const res = await requireBearerSecret(
+      makeRequest('Bearer anything'),
+      'CONVEX_SERVICE_SECRET',
+    );
     expect(res?.status).toBe(500);
     expect(problemBodySchema.parse(await res?.json())).toMatchObject({
       status: 500,
