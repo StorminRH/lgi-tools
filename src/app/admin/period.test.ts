@@ -5,7 +5,7 @@ import {
   parseRange,
   previousRange,
   rangeFor,
-} from './admin-period';
+} from '@/composition/admin-period';
 
 const NOW = new Date('2026-06-09T12:00:00Z');
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SITE_URL } from '@/config/site-url';
-import { buildSitemapEntries } from './sitemap';
+import { buildSitemapEntries } from '@/composition/sitemap';
 
 const sitemap = buildSitemapEntries({
   sites: [{ id: 1 }, { id: 2 }],
