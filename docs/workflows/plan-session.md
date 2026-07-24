@@ -8,8 +8,14 @@ review, approval, persistence, and handoff.
 ## Execution contract
 
 Inputs: a `plan-session` resolver directive, the selected contract and exact
-bytes, the active guide chain, baseline/state, live repository, and current
-primary documentation.
+bytes, the active guide chain, prior session as-built records in the active
+version, baseline/state, live repository, and current primary documentation.
+
+The contract is the planning prompt: verify its claims against live code and
+prior as-built records, honor its intent, and let in-session operator
+direction supersede its text. Contracts are never edited during or after
+planning; divergences settle in the plan, and the executed session's as-built
+record closes the loop.
 
 Output: one approved plan at `docs/session-plans/X.Y/<session>.md` whose digest
 matches the contract and whose steps leave no material implementation decision

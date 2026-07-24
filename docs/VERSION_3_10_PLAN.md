@@ -156,7 +156,7 @@ and no separate elective campaign is scheduled.
 | 3.10.1.1 | Full boundary coverage: every source area a named zone (§3.10.1.1) | 1 | SHIPPED |
 | 3.10.1.2 | Day-one responsibility-layer restructure: composition band, platform/transport layers, zero-exception boundaries, blocking cycles, `server-only` rails (§3.10.1.2 + §3.10.1.3) | 1 | SHIPPED |
 | **Phase 2 — Production flow contracts** | | | |
-| 3.10.2.1 | Typed error contract & RFC 9457 problem mapper (§3.10.2.1) | 1 | PLANNED |
+| 3.10.2.1 | Typed error contract & RFC 9457 problem mapper (§3.10.2.1) | 3 | PLANNED |
 | 3.10.2.2 | Mutation pipeline: declared order & same-origin enforcement (LGI-03) (§3.10.2.2) | 1 | PLANNED |
 | 3.10.2.3 | Data ownership, transaction & RLS registry (§3.10.2.3) | 1 | PLANNED |
 | 3.10.2.4 | Vendor resilience registry (timeouts, retries, idempotency) (§3.10.2.4) | 1 | PLANNED |
