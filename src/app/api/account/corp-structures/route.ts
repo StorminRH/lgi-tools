@@ -1,6 +1,7 @@
 import { getCorpStructuresForUserOnView } from '@/composition/sync/corp-structures-sync';
 import { getCurrentUserId } from '@/platform/auth/session';
-import type { CorpStructuresResponse } from '@/features/owned-structures/api-contract';
+import { corpStructuresEndpoint } from '@/features/owned-structures/api-contract';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * GET /api/account/corp-structures
@@ -20,8 +21,8 @@ import type { CorpStructuresResponse } from '@/features/owned-structures/api-con
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return Response.json({ corporations: [] } satisfies CorpStructuresResponse);
+    return apiResponse(corpStructuresEndpoint, 200, { corporations: [] });
   }
   const result = await getCorpStructuresForUserOnView(userId);
-  return Response.json(result satisfies CorpStructuresResponse);
+  return apiResponse(corpStructuresEndpoint, 200, result);
 }

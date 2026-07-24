@@ -3,9 +3,9 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import {
+  createCustomStructureEndpoint,
   createCustomStructureRequestSchema,
   MAX_CUSTOM_STRUCTURES_PER_USER,
-  type CustomStructuresResponse,
 } from '@/features/custom-structures/api-contract';
 import {
   countCustomStructures,
@@ -14,7 +14,9 @@ import {
 } from '@/features/custom-structures/queries';
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { validateCustomStructureSelection } from '@/features/custom-structures/validation';
+import { conflictFailure, validationFailure } from '@/lib/failure';
 import { checkUserId } from '@/platform/auth/route-guards';
+import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
 /**
@@ -32,13 +34,23 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ userId }, body) => {
       const [types, rigs] = await Promise.all([getStructureTypes(), getStructureRigs()]);
       const check = validateCustomStructureSelection(body, types, rigs);
-      if (!check.ok) return new Response(check.reason, { status: 400 });
+      if (!check.ok) {
+        return apiResponse(
+          createCustomStructureEndpoint,
+          400,
+          validationFailure('invalid_structure', check.reason),
+        );
+      }
 
       const badPin = await rejectUnknownSystemPin(body.systemId);
-      if (badPin) return badPin;
+      if (badPin) return apiResponse(createCustomStructureEndpoint, 400, badPin);
 
       if ((await countCustomStructures(userId)) >= MAX_CUSTOM_STRUCTURES_PER_USER) {
-        return new Response('structure limit reached', { status: 409 });
+        return apiResponse(
+          createCustomStructureEndpoint,
+          409,
+          conflictFailure('structure_limit', 'structure limit reached'),
+        );
       }
 
       await createCustomStructure(userId, {
@@ -50,7 +62,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         taxPct: body.taxPct,
       });
       const structures = await listCustomStructures(userId);
-      return Response.json({ structures } satisfies CustomStructuresResponse, { status: 201 });
+      return apiResponse(createCustomStructureEndpoint, 201, { structures });
     },
   });
 }

@@ -1,14 +1,15 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import {
+  deleteCustomStructureEndpoint,
   deleteCustomStructureRequestSchema,
-  type CustomStructuresResponse,
 } from '@/features/custom-structures/api-contract';
 import {
   deleteCustomStructure,
   listCustomStructures,
 } from '@/features/custom-structures/queries';
 import { checkUserId } from '@/platform/auth/route-guards';
+import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
 /**
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ userId }, { id }) => {
       await deleteCustomStructure(userId, id);
       const structures = await listCustomStructures(userId);
-      return Response.json({ structures } satisfies CustomStructuresResponse);
+      return apiResponse(deleteCustomStructureEndpoint, 200, { structures });
     },
   });
 }

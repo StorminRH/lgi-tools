@@ -24,11 +24,12 @@ describe('rejectUnknownSystemPin', () => {
     expect(h.solarSystemExistsMock).toHaveBeenCalledWith(30000142);
   });
 
-  it('returns the 400 for a pin to an unknown system', async () => {
+  it('returns a typed validation failure for a pin to an unknown system', async () => {
     h.solarSystemExistsMock.mockResolvedValue(false);
-    const res = await rejectUnknownSystemPin(99999999);
-    expect(res).not.toBeNull();
-    expect(res?.status).toBe(400);
-    expect(await res?.text()).toBe('unknown system');
+    expect(await rejectUnknownSystemPin(99999999)).toEqual({
+      category: 'validation',
+      code: 'unknown_system',
+      detail: 'unknown system',
+    });
   });
 });

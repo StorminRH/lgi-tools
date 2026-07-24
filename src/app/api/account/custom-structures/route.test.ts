@@ -24,8 +24,9 @@ vi.mock('@/features/custom-structures/queries', () => ({
   listCustomStructures: (...args: unknown[]) => h.listCustomStructuresMock(...args),
 }));
 
-import type { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { MAX_CUSTOM_STRUCTURES_PER_USER } from '@/features/custom-structures/api-contract';
+import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
 // SDE fixtures: an Azbel (group 1404, L rigs) + one fitting L manufacturing rig.
@@ -47,11 +48,11 @@ const savedRow = {
 };
 
 function makeRequest(body: unknown): NextRequest {
-  return new Request('http://localhost:3000/api/account/custom-structures', {
+  return new NextRequest('http://localhost:3000/api/account/custom-structures', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: typeof body === 'string' ? body : JSON.stringify(body),
-  }) as unknown as NextRequest;
+  });
 }
 
 const VALID_BODY = {
@@ -92,21 +93,30 @@ describe('POST /api/account/custom-structures', () => {
   it('returns 400 for a selection that fails validation', async () => {
     const res = await POST(makeRequest({ ...VALID_BODY, structureTypeId: 99999 }));
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('unknown structure type');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_structure',
+      detail: 'unknown structure type',
+    });
   });
 
   it('returns 400 for a pin to an unknown system', async () => {
     h.solarSystemExistsMock.mockResolvedValue(false);
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('unknown system');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'unknown_system',
+      detail: 'unknown system',
+    });
   });
 
   it('returns 409 when the per-user cap is reached', async () => {
     h.countCustomStructuresMock.mockResolvedValue(MAX_CUSTOM_STRUCTURES_PER_USER);
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(409);
-    expect(await res.text()).toBe('structure limit reached');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'structure_limit',
+      detail: 'structure limit reached',
+    });
     expect(h.createCustomStructureMock).not.toHaveBeenCalled();
   });
 

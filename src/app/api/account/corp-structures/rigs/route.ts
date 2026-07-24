@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
 import {
-  type CorpStructureRigsResponse,
+  setCorpStructureRigsEndpoint,
   setCorpStructureRigsRequestSchema,
 } from '@/features/owned-structures/api-contract';
 import {
@@ -13,6 +13,8 @@ import {
 import { validateCorpStructureRigs } from '@/features/owned-structures/rig-validation';
 import { checkUserId } from '@/platform/auth/route-guards';
 import { stationManagerGate } from '@/composition/sync/corp-structures-sync';
+import { validationFailure } from '@/lib/failure';
+import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
 /**
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       const { corporationId, structureId, rigTypeIds, taxPct } = body;
 
       const denied = await stationManagerGate(userId, corporationId);
-      if (denied) return denied;
+      if (denied) return apiResponse(setCorpStructureRigsEndpoint, 403, denied);
 
       const [corpStructures, types, rigs] = await Promise.all([
         getCorpStructures([corporationId]),
@@ -45,15 +47,21 @@ export async function POST(request: NextRequest): Promise<Response> {
         types,
         rigs,
       );
-      if (!check.ok) return new Response(check.reason, { status: 400 });
+      if (!check.ok) {
+        return apiResponse(
+          setCorpStructureRigsEndpoint,
+          400,
+          validationFailure('invalid_structure', check.reason),
+        );
+      }
 
       await upsertCorpStructureRigs(corporationId, structureId, rigTypeIds, taxPct);
       const saved = (await getCorpStructureRigs([corporationId])).get(structureId);
-      return Response.json({
+      return apiResponse(setCorpStructureRigsEndpoint, 200, {
         structureId,
         rigTypeIds,
         taxPct: saved?.taxPct ?? null,
-      } satisfies CorpStructureRigsResponse);
+      });
     },
   });
 }
