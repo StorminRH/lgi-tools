@@ -21,7 +21,10 @@ export const FEEDBACK_PATH_MAX_LENGTH = 512;
  */
 export const feedbackRequestSchema = z.object({
   message: z.string().min(1).max(FEEDBACK_MESSAGE_MAX_LENGTH * 4),
-  path: z.string().max(FEEDBACK_PATH_MAX_LENGTH * 4),
+  path: z
+    .string()
+    .regex(/^\//, 'path must start with /')
+    .max(FEEDBACK_PATH_MAX_LENGTH * 4),
 });
 
 /** Complete request and per-status response contract for feedback submission. */

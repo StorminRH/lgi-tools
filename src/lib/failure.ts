@@ -67,8 +67,16 @@ export function rateLimitedFailure(
   retryAfterSeconds: number,
   code = 'rate_limited',
   detail?: string,
-): AppFailure {
-  return failure('rate_limited', code, { detail, retryAfterSeconds });
+): AppFailure & {
+  category: 'rate_limited';
+  retryAfterSeconds: number;
+} {
+  return {
+    category: 'rate_limited',
+    code,
+    detail,
+    retryAfterSeconds,
+  };
 }
 
 /** Creates a dependency failure whose explicit status distinguishes unavailable from failed. */

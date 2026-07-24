@@ -167,7 +167,8 @@ describe('POST /api/feedback', () => {
     getSessionMock.mockResolvedValue(SESSION);
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ message: 'hi', path: 'not-a-path' }));
-    await expectProblem(res, 400, 'path_invalid', 'path must start with /');
+    await expectProblem(res, 400, 'invalid_body', 'path: path must start with /');
+    expect(checkRateLimitMock).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

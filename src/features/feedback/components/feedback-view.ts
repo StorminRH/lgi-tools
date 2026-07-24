@@ -8,6 +8,10 @@ export type SubmitState =
   | { kind: 'success' }
   | { kind: 'error'; message: string };
 
+/** Canonical user-facing copy for feedback submissions that fail at the network boundary. */
+export const FEEDBACK_NETWORK_ERROR_MESSAGE =
+  'Network error — your feedback did not send. Try again.';
+
 /**
  * Whether a submit should proceed: `busy` while one is already in flight (silent
  * no-op), `empty` for a blank message (show the inline error), else `ok`.
@@ -25,7 +29,7 @@ export function feedbackErrorMessage(
   result: Exclude<OutcomeOf<typeof feedbackEndpoint>, { ok: true }>,
 ): string {
   if (result.kind === 'network') {
-    return 'Network error — your feedback did not send. Try again.';
+    return FEEDBACK_NETWORK_ERROR_MESSAGE;
   }
   if (result.kind === 'protocol') {
     return 'Something went wrong sending your feedback. Try again.';

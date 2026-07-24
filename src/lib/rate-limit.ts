@@ -2,7 +2,7 @@ import 'server-only';
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
-import { rateLimitedFailure, type AppFailure } from "@/lib/failure";
+import { rateLimitedFailure } from "@/lib/failure";
 import { resolveUpstashRest } from "@/lib/upstash";
 
 // Shared sliding-window rate limiter backed by Upstash Redis. Stateless
@@ -130,7 +130,7 @@ export type RateLimitGuardResult = { ok: true } | { ok: false; response: Respons
 /** Typed rate-limit core result carrying an application failure instead of an HTTP response. */
 export type CheckRateLimitResult =
   | { ok: true }
-  | { ok: false; failure: AppFailure };
+  | { ok: false; failure: ReturnType<typeof rateLimitedFailure> };
 
 /** Checks one request's named rate-limit bucket without constructing an HTTP response. */
 export async function checkRateLimit(
@@ -155,7 +155,7 @@ export async function rateLimitGuard(
 ): Promise<RateLimitGuardResult> {
   const limit = await checkRateLimit(request, options);
   if (limit.ok) return limit;
-  const retryAfter = limit.failure.retryAfterSeconds ?? 1;
+  const retryAfter = limit.failure.retryAfterSeconds;
   return {
     ok: false,
     response: Response.json(

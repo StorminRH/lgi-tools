@@ -9,7 +9,12 @@ import type { Session } from '@/platform/auth/types';
 import { apiFetch } from '@/transport/api-client';
 import { feedbackEndpoint } from '../api-contract';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from '../constants';
-import { feedbackErrorMessage, feedbackSubmitGate, type SubmitState } from './feedback-view';
+import {
+  FEEDBACK_NETWORK_ERROR_MESSAGE,
+  feedbackErrorMessage,
+  feedbackSubmitGate,
+  type SubmitState,
+} from './feedback-view';
 
 // Fire the feedback request and map the outcome to the next state — the friendly
 // error copy per status lives in {@link feedbackErrorMessage}.
@@ -19,7 +24,7 @@ async function submitFeedback(message: string, path: string): Promise<SubmitStat
     if (!result.ok) return { kind: 'error', message: feedbackErrorMessage(result) };
     return { kind: 'success' };
   } catch {
-    return { kind: 'error', message: 'Network error — your feedback did not send. Try again.' };
+    return { kind: 'error', message: FEEDBACK_NETWORK_ERROR_MESSAGE };
   }
 }
 

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { feedbackErrorMessage, feedbackSubmitGate } from './feedback-view';
+import {
+  FEEDBACK_NETWORK_ERROR_MESSAGE,
+  feedbackErrorMessage,
+  feedbackSubmitGate,
+} from './feedback-view';
 
 describe('feedbackSubmitGate', () => {
   it('is busy while a submit is in flight', () => {
@@ -85,7 +89,7 @@ describe('feedbackErrorMessage', () => {
         aborted: false,
         cause: new TypeError('failed'),
       }),
-    ).toBe('Network error — your feedback did not send. Try again.');
+    ).toBe(FEEDBACK_NETWORK_ERROR_MESSAGE);
     expect(
       feedbackErrorMessage({
         ok: false,

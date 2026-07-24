@@ -204,6 +204,18 @@ describe('apiFetch v2', () => {
     }
   });
 
+  it('returns undefined data for a declared empty success response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+
+    const result = await apiFetch(typedEndpoint, { body: { value: 'request' } });
+
+    expect(result).toEqual({
+      ok: true,
+      status: 204,
+      data: undefined,
+    });
+  });
+
   it('returns a declared problem through its narrowed API arm', async () => {
     vi.stubGlobal(
       'fetch',
@@ -344,8 +356,17 @@ describe('apiFetch v2', () => {
       // @ts-expect-error The request body must satisfy the endpoint schema input.
       apiFetch(typedEndpoint, { body: { value: 42 } });
     }
-    expectTypeOf<OutcomeOf<typeof typedEndpoint>>().toMatchTypeOf<
-      Awaited<ReturnType<() => Promise<OutcomeOf<typeof typedEndpoint>>>>
-    >();
+    expectTypeOf<{
+      ok: false;
+      kind: 'protocol';
+      status: number;
+      detail: string;
+    }>().toExtend<OutcomeOf<typeof typedEndpoint>>();
+    expectTypeOf<{
+      ok: false;
+      kind: 'network';
+      aborted: boolean;
+      cause: unknown;
+    }>().toExtend<OutcomeOf<typeof typedEndpoint>>();
   });
 });
