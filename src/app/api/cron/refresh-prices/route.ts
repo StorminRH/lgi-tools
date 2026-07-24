@@ -1,5 +1,5 @@
 import type { CronRefreshPricesResponse } from '@/data/market-prices/api-contract';
-import { defineCronRoute } from '@/db/cron-gate';
+import { defineCronRoute } from '@/composition/pipelines/cron-gate';
 import { refreshPricesDeclaration } from './declaration';
 
 // Vercel-cron endpoint, scheduled in vercel.json. Vercel's cron invoker

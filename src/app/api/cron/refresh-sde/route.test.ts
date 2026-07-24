@@ -25,7 +25,7 @@ vi.mock('@/data/eve-data/source', () => ({
   getRemoteSdeVersion: (...args: unknown[]) => getRemoteSdeVersionMock(...args),
 }));
 
-vi.mock('@/db/sde-pipeline', () => ({
+vi.mock('@/composition/pipelines/sde-pipeline', () => ({
   runSdePipeline: (...args: unknown[]) => runSdePipelineMock(...args),
   summarizeMarketPricesRowCount: (...args: unknown[]) =>
     summarizeMarketPricesRowCountMock(...args),

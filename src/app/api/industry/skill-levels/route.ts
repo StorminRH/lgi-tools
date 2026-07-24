@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { getSkillLevelsForCharacterOnView } from '@/db/skills-sync';
+import { getSkillLevelsForCharacterOnView } from '@/composition/sync/skills-sync';
 import { getCurrentUserId } from '@/platform/auth/session';
 import {
   skillLevelsRequestSchema,

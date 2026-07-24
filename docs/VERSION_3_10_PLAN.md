@@ -154,7 +154,7 @@ and no separate elective campaign is scheduled.
 | 3.10.0.4 | Complete the agent workflow and lifecycle consolidation | 1 | SHIPPED |
 | **Phase 1 — Close the structural loopholes** | | | |
 | 3.10.1.1 | Full boundary coverage: every source area a named zone (§3.10.1.1) | 1 | SHIPPED |
-| 3.10.1.2 | Day-one responsibility-layer restructure: composition band, platform/transport layers, zero-exception boundaries, blocking cycles, `server-only` rails (§3.10.1.2 + §3.10.1.3) | 1 | PLANNED |
+| 3.10.1.2 | Day-one responsibility-layer restructure: composition band, platform/transport layers, zero-exception boundaries, blocking cycles, `server-only` rails (§3.10.1.2 + §3.10.1.3) | 1 | SHIPPED |
 | **Phase 2 — Production flow contracts** | | | |
 | 3.10.2.1 | Typed error contract & RFC 9457 problem mapper (§3.10.2.1) | 1 | PLANNED |
 | 3.10.2.2 | Mutation pipeline: declared order & same-origin enforcement (LGI-03) (§3.10.2.2) | 1 | PLANNED |
@@ -739,8 +739,9 @@ telemetry review argues for deferral — record the decision either way.
 directly vs. short reject-log-then-enforce window); how missing-provenance
 requests (no Origin, no Referer) are classified.
 
-**Baseline & hotspot note.** Neutral. Touches `auth-surface`-adjacent files;
-AF-008 Watch trigger must be rechecked in the same change.
+**Baseline & hotspot note.** Neutral. Touches the relocated auth-contract
+paths; AF-008's convention-matched auth-contract Watch trigger must be
+rechecked in the same change.
 
 **Delivery evidence.** Cross-origin mutation returns 403 in integration
 tests; a seeded unclassified mutating route fails the coverage test;

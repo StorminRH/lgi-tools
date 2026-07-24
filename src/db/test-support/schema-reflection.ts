@@ -1,7 +1,7 @@
 import { is } from 'drizzle-orm';
 import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 
-const schemaLoaders = import.meta.glob('../../**/schema.ts') as Record<
+const schemaLoaders = import.meta.glob(['../../**/schema.ts', '../auth-schema.ts']) as Record<
   string,
   () => Promise<unknown>
 >;

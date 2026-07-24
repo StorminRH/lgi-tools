@@ -15,11 +15,11 @@ import { Pill } from '@/components/ui/pill';
 import { EntityRow } from '@/components/ui/row';
 import { SectionHeader } from '@/components/ui/section-header';
 import { auth } from '@/platform/auth/auth';
-import { AccountDangerZone } from '@/platform/auth/components/AccountDangerZone';
-import { GrantedScopesList } from '@/platform/auth/components/GrantedScopesList';
-import { LinkCharacterButton } from '@/platform/auth/components/LinkCharacterButton';
-import { SwitchCharacterForm } from '@/platform/auth/components/SwitchCharacterForm';
-import { UnlinkCharacterForm } from '@/platform/auth/components/UnlinkCharacterForm';
+import { AccountDangerZone } from '@/components/composition/account/AccountDangerZone';
+import { GrantedScopesList } from '@/components/composition/account/GrantedScopesList';
+import { LinkCharacterButton } from '@/components/composition/account/LinkCharacterButton';
+import { SwitchCharacterForm } from '@/components/composition/account/SwitchCharacterForm';
+import { UnlinkCharacterForm } from '@/components/composition/account/UnlinkCharacterForm';
 import { EVE_AUTHORIZED_APPS_URL } from '@/platform/auth/eve-sso-constants';
 import { listLinkedCharacters, type LinkedCharacter } from '@/platform/auth/linked-characters';
 import { resolveErrorMessage } from '@/lib/error-copy';
@@ -48,13 +48,13 @@ function CharacterRowActions({
   needsReconnect: boolean;
 }) {
   return (
-    <span className="flex items-center gap-2 justify-end">
+    <div className="flex items-center gap-2 justify-end">
       {needsReconnect ? (
         <LinkCharacterButton label="Reconnect" emphasis="reconnect" />
       ) : null}
       {isActive ? null : <SwitchCharacterForm characterId={characterId} />}
       <UnlinkCharacterForm characterId={characterId} disabled={isOnlyCharacter} />
-    </span>
+    </div>
   );
 }
 

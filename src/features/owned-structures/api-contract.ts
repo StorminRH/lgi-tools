@@ -1,7 +1,7 @@
 // API wire contract owned by the owned-structures feature (3.7.9). Runtime-light by
 // design — zod only, no server imports — so the route and (next session) the client
 // island share one wire shape. The per-corp owned-structures catalogue moved onto a
-// Neon stale-gated on-view read (src/db/corp-structures-sync.ts); this is the GET the
+// Neon stale-gated on-view read (src/composition/sync/corp-structures-sync.ts); this is the GET the
 // planner's build-location selector will fetch on view.
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';

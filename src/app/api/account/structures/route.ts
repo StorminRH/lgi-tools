@@ -1,5 +1,5 @@
 import { getStructureTypes, getTypeAttributesBatch } from '@/data/eve-data/queries';
-import { getAvailableCorpStructuresForUser } from '@/db/corp-structures-sync';
+import { getAvailableCorpStructuresForUser } from '@/composition/sync/corp-structures-sync';
 import { listCustomStructures } from '@/features/custom-structures/queries';
 // The available-structures wire shape is owned by the consuming slice (the
 // planner), the same consumer-owns-the-contract pattern as owned-blueprints —

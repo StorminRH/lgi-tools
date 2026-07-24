@@ -14,7 +14,7 @@ vi.mock('@/platform/auth/session', () => ({
   getCurrentUserId: () => getCurrentUserIdMock(),
 }));
 
-vi.mock('@/db/skills-sync', () => ({
+vi.mock('@/composition/sync/skills-sync', () => ({
   getSkillLevelsForCharacterOnView: (userId: string, characterId: number) =>
     getSkillLevelsForCharacterOnViewMock(userId, characterId),
 }));

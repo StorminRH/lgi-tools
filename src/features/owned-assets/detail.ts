@@ -5,7 +5,7 @@
 //
 // PURE (no I/O): name resolution is injected as a plain `names` record + a station
 // formatter, so this reduce is unit-tested directly and the real ESI resolver is
-// wired above it (src/db/owned-assets-sync.ts) — the refresh.ts DI pattern. A
+// wired above it (src/composition/sync/owned-assets-sync.ts) — the refresh.ts DI pattern. A
 // mirror of the owned-blueprints detail.ts, with one divergence: an asset holding
 // carries `location_type`, so the location-name resolution BRANCHES on it (a
 // blueprint is always at a station/structure; an asset can be in a station, a

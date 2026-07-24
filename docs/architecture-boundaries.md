@@ -1,49 +1,119 @@
 # Architecture boundaries
 
-This document is the single prose owner of LGI.tools' source-zone ownership and
-dependency directions. [`.fallowrc.json`](../.fallowrc.json) is the mechanical
-authority: every production source file must match a named zone, and every
-cross-zone import must match that zone's allow-list. `pnpm fallow` enforces both
-rules.
+This document is the single prose owner of LGI.tools' source-zone ownership,
+responsibility bands, and dependency directions. [`.fallowrc.json`](../.fallowrc.json)
+is the mechanical authority: every production source file must match a named
+zone, and every cross-zone import must match that zone's allow-list.
+`pnpm fallow` enforces both rules.
 
-The table records permissions, not a requirement to use every permitted edge.
-An unlisted dependency is forbidden. The `features` and `data` entries are
-logical groups whose direct child directories become individual Fallow zones;
-the `data/npc-stats` row records its one child-specific override.
+The map is deny-by-default. A listed edge is permission, not a requirement to
+use that dependency. An unlisted edge is forbidden. The final map has no
+cross-layer exception entries.
 
-| Area | Owns | May depend on | Must not own |
-| --- | --- | --- | --- |
-| `auth-surface` | Shared authentication schemas, API contracts, and boundary types | `auth-surface`, `lib` | Authentication workflows, persistence, UI, or composition |
-| `features/<name>` | One product capability, including its behavior, contracts, queries, and feature UI | `ui`, `data`, `lib`, `shared`, `auth-surface`, `db`, `config`, `purge`, `search`, `page-settings` (type-only today) | Peer-feature behavior or cross-feature composition |
-| `data/<name>` | Reusable schemas, ingest, queries, and data-domain types | `lib`, `auth-surface`, `db`, `config`, `search`, `purge` (type-only today) | Feature behavior, peer-data behavior, UI, or application composition |
-| `data/npc-stats` | The NPC-statistics data slice | The normal `data` dependencies plus the narrow `data/eve-data` exception | Any other peer-data dependency |
-| `ui` | Domain-neutral primitives under `src/components/ui/` | `lib` | Product meaning, application composition, or data access |
-| `lib` | Cross-cutting leaf utilities | `lib`, `config` | Product, data, UI, persistence, or composition ownership |
-| `shared` | Cross-feature components and their co-located hooks/view models | `ui`, `lib`, `data`, `features`, `auth-surface`, `config`, `page-settings`, `search` | Feature-owned behavior or infrastructure ownership |
-| `app` | Next.js routes, pages, layouts, and route-level composition | `features`, `data`, `ui`, `shared`, `db`, `config`, `page-settings`, `auth-surface`, `lib` | Reusable product or infrastructure behavior |
-| `db` | Database composition, pipelines, schema aggregation, migrations, and database tooling | `data`, `features`, `config`, `auth-surface`, `purge`, `esi-datasets`, `lib` | Feature presentation or route ownership |
-| `config` | Authoritative application configuration values | `lib` | Product workflows, persistence, or application composition |
-| `purge` | Account-data purge composition and contributor contracts | `data`, `features`, `db`, `lib` | Slice-owned deletion behavior outside the contributor contract |
-| `search` | Global-search composition, registration, matching, and shared search contracts | `data`, `features`, `auth-surface`, `lib` | Slice-owned search result meaning |
-| `page-settings` | Page-settings composition, registration, and shared page-setting contracts | `features`, `lib` | Feature-owned setting definitions |
-| `esi-datasets` | Cross-slice ESI dataset declarations and registry checks | `data`, `db`, `features` (all test-only today), `lib` | Dataset implementation or feature behavior |
-| `convex` | Regenerable live projections and synchronization behavior | `data`, `auth-surface`, `lib`, and the narrow `features/online-status` exception described below | Neon authority, reusable product behavior, or unrelated feature dependencies |
-| `runtime` | Next.js process entry points: proxy and instrumentation modules | `config`, `data`, `features`, `lib` | Route, feature, or infrastructure implementation |
+## Responsibility bands
 
-## Declared exceptions
+Dependencies point downward through these bands. A zone may use only the lower
+zones named in its Fallow rule; membership in a band does not grant blanket
+access to the rest of that band.
 
-- `data/npc-stats` may reuse `data/eve-data`; its child-specific rule prevents
-  that exception from opening peer-data imports for the rest of `data`.
-- `convex/onlineStatusSync.ts` may reuse the runtime-light
-  `features/online-status` ESI projection and eligibility helpers. Relocating
-  those helpers to a data leaf would cross multiple ownership surfaces, so the
-  dependency remains visible as a narrow allow-list exception instead of being
-  hidden by a waiver or baseline.
+1. **Entry points** — `app`, `api`, `scripts`, and `runtime` translate framework
+   or process entry into application calls.
+2. **Composition** — `composition` owns server-side cross-slice orchestration;
+   `components-composition` owns app-shell, dashboard, page-menu, and account UI
+   composition.
+3. **Product and presentation** — auto-discovered `features/<name>` zones own
+   product capabilities; `components` and `ui` own reusable presentation.
+4. **Data** — auto-discovered `data/<name>` zones own reusable schemas, ingest,
+   queries, and data-domain types.
+5. **Platform capabilities** — authentication, ESI, owner synchronization,
+   search, purge, and page-settings contracts that multiple higher bands use.
+6. **Foundations** — `transport`, `db`, `lib`, and `config` are leafward
+   infrastructure.
 
-## Coverage boundary
+`convex` is a regenerable live-projection runtime beside the entry-point band.
+`esi-datasets` is a test-only cross-slice registry-check zone. It deliberately
+sits outside the composition band because its governance suites audit that
+band: zone-internal checks may inspect data, features, platform contracts, the
+Drizzle aggregator, and composition registries without making composition
+responsible for auditing itself.
+
+## Zone permissions
+
+| Zone | Owns | May depend on |
+| --- | --- | --- |
+| `app` | Next.js pages, layouts, metadata, and page-owned tests | `components-composition`, `composition`, `components`, `ui`, `features`, `platform/auth`, `platform/esi`, `platform/page-settings`, `data`, `transport`, `lib`, `config` |
+| `api` | Next.js route handlers and route-owned tests | `transport`, `composition`, `features`, `platform/auth`, `platform/esi`, `data`, `db`, `lib`, `config` |
+| `scripts` | Executable application-maintenance commands | `composition`, `platform/auth`, `data`, `db`, `lib` |
+| `runtime` | Next.js proxy and instrumentation entry points | `transport`, `features`, `data`, `lib`, `config` |
+| `composition` | Server-side cross-slice workflows, registries, and pipelines | `features`, every required platform capability, `data`, `transport`, `db`, `lib`, `config` |
+| `components-composition` | Cross-feature shell and account presentation | `composition`, `components`, `ui`, `features`, `platform/auth`, `platform/search`, `platform/page-settings`, `data`, `transport`, `lib`, `config` |
+| `features/<name>` | One product capability and its feature UI | Platform contracts, `data`, `transport`, `db`, `lib`, `config`, `ui`, `components`; never a peer feature |
+| `components` | Reusable domain-aware leaf components and telemetry presentation | `ui`, `platform/auth`, `platform/search`, `platform/page-settings`, `data`, `transport`, `lib` |
+| `ui` | Domain-neutral UI primitives | No cross-zone dependencies |
+| `data/<name>` | One reusable data slice | `data/eve-data`, `platform/esi`, `platform/owner-sync`, `platform/search`, `platform/purge`, `transport`, `db`, `lib`, `config`; never another peer data slice |
+| `platform/auth` | Authentication, EVE SSO, auth contracts, and identity boundaries | `platform/esi`, `platform/purge`, `data`, `transport`, `db`, `lib`, `config` |
+| `platform/owner-sync` | Owner-reconciliation registration seam | `platform/esi` |
+| `platform/esi` | Shared ESI client, URL, budget, and error capabilities | `lib`, `config` |
+| `platform/search` | Search registration and matching contracts | No cross-zone dependencies |
+| `platform/purge` | Purge contributor contracts | No cross-zone dependencies |
+| `platform/page-settings` | Page-setting contracts | `lib` |
+| `transport` | HTTP/API transport helpers | `lib` |
+| `db` | Database connection, schema aggregation, and harness foundations | `lib`, `config` |
+| `lib` | Cross-cutting leaf utilities | `config` |
+| `config` | Authoritative application configuration | No cross-zone dependencies |
+| `convex` | Regenerable live projections and synchronization | `platform/esi`, `platform/auth`, `data`, `lib` |
+| `esi-datasets` | Test-only declaration, purge-coverage, and registry governance | `composition`, `db`, `data`, `features`, `platform/auth`, `platform/purge`, `lib` |
+
+The platform band has an explicit internal order. `platform/auth` may use the
+lower ESI and purge contracts; `platform/owner-sync` may use ESI; the ESI,
+search, purge, and page-settings owners remain leaves except for the narrow
+foundation dependencies shown above.
+
+The data band's only peer edge is its shared reference core:
+`data/<name> -> data/eve-data`. Fallow's auto-discovered child zones keep every
+other data-to-data import forbidden.
+
+## Inversion and runtime seams
+
+Authentication exposes the owner-reconciliation hook at
+`src/platform/auth/owner-reconcile-hook.ts`. Route composition activates its
+implementation by importing
+`src/composition/account-lifecycle/register-owner-reconciler.ts`. This keeps
+authentication pointed downward while composition wires the participating
+capabilities above it.
+
+Server-only ownership is declared with the `server-only` marker in exactly four
+modules:
+
+- `src/platform/auth/auth.ts`
+- `src/platform/auth/eve-sso.ts`
+- `src/lib/rate-limit.ts`
+- `src/data/gsc/source.ts`
+
+The marker protects client import graphs. The lint policy carries narrow
+runtime exemptions where a server module is owned by a different executable
+environment:
+
+- `db`, `scripts`, and environment access for `tsx` CLI commands
+- `platform/esi` for Convex
+- the EVE data source for the SDE CLI
+- the pending-signal owner for its CLI worker
+
+These are runtime-entry exemptions, not architecture-boundary exceptions.
+
+## Coverage and records
 
 Fallow coverage is deny-by-default for source code. The only unmatched paths
 are enumerated non-production tooling: `scripts/**`, `neon.ts`,
 `next.config.ts`, `drizzle.config.ts`, `vitest.config.ts`, and
 `eslint.config.mjs`. Adding a new source area therefore requires an explicit
 ownership and dependency decision.
+
+Tests remain co-located with the owner they verify. App page tests stay under
+`src/app/`; route tests stay under `src/app/api/`. A gate signal must be fixed
+in the zone map or raised as a design conflict, never hidden by relocating an
+owner's test.
+
+`content/devlog/` and `content/changelog/` are assembled historical records.
+They are deliberately excluded from living-path sweeps; old paths in dated
+records describe the code as it existed when the entry was published.

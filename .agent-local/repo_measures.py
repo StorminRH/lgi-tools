@@ -110,6 +110,22 @@ def export_count(root: Path, rel_path: str) -> int:
     )
 
 
+def named_file_count(root: Path, rel_paths: Iterable[str]) -> int:
+    """Count existing files from one explicit repository-relative path set."""
+    paths = tuple(rel_paths)
+    if not paths:
+        raise MeasureError("path set is empty")
+    if any(
+        not rel_path
+        or Path(rel_path).is_absolute()
+        or ".." in Path(rel_path).parts
+        for rel_path in paths
+    ):
+        raise MeasureError("path set must contain safe repository-relative paths")
+    normalized = tuple(dict.fromkeys(Path(rel_path) for rel_path in paths))
+    return sum((root / path).is_file() for path in normalized)
+
+
 def _pattern_matches(rel_path: str, pattern: str) -> bool:
     """Match Fallow's slash-separated glob patterns for explicit zones."""
     if pattern.endswith("/**") and rel_path.startswith(pattern[:-3] + "/"):
@@ -141,6 +157,19 @@ def _pattern_files(root: Path, patterns: Iterable[str]) -> set[str]:
             if _pattern_matches(rel_path, pattern):
                 matches.add(rel_path)
     return matches
+
+
+def pattern_file_count(root: Path, patterns: Iterable[str]) -> int:
+    """Count distinct repository files matching one nonempty glob-pattern set."""
+    normalized = tuple(dict.fromkeys(pattern.strip() for pattern in patterns))
+    if not normalized or any(
+        not pattern
+        or Path(pattern).is_absolute()
+        or ".." in Path(pattern).parts
+        for pattern in normalized
+    ):
+        raise MeasureError("glob set must contain safe repository-relative patterns")
+    return len(_pattern_files(root, normalized))
 
 
 def zone_file_count(root: Path, zone_name: str) -> int:

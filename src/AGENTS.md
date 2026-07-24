@@ -2,6 +2,13 @@
 
 This file extends the root `AGENTS.md` for work under `src/`. Apply the UI-specific sections when changing TSX, CSS, `*-styles.ts`, UI primitives, or interactive behavior. For non-UI source work, keep only the relevant routing, rendering, and security constraints in scope.
 
+Reusable presentation stays in the leaf owners under `src/components/`;
+app-shell, dashboard, PageMenu, and account composition belong under
+`src/components/composition/`. Server-side cross-slice wiring belongs under
+`src/composition/`; follow `src/composition/search/register-all.ts` and
+`src/composition/purge/orchestrator.ts`. Feature UI may import reusable
+components and primitives, but never the composition homes or a peer feature.
+
 ## Interactive UI
 
 Use the already-adopted library for each interaction category. Do not hand-roll behavior that the library provides, and do not add a competing library without explicit written justification.

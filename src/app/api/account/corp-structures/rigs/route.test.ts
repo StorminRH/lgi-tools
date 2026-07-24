@@ -13,7 +13,7 @@ const h = vi.hoisted(() => ({
 vi.mock('@/platform/auth/route-guards', () => ({
   requireUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
-vi.mock('@/db/corp-structures-sync', () => ({
+vi.mock('@/composition/sync/corp-structures-sync', () => ({
   stationManagerGate: (...args: unknown[]) => h.stationManagerGateMock(...args),
 }));
 vi.mock('@/features/owned-structures/queries', () => ({

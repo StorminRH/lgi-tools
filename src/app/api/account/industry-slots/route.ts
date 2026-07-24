@@ -1,4 +1,4 @@
-import { getSkillLevelsForUserOnView } from '@/db/skills-sync';
+import { getSkillLevelsForUserOnView } from '@/composition/sync/skills-sync';
 import { getCurrentUserId } from '@/platform/auth/session';
 import type { IndustrySlotsResponse } from '@/features/industry-jobs/api-contract';
 import { slotCapacity } from '@/features/industry-jobs/slots';

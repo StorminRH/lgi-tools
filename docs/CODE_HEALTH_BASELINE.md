@@ -29,7 +29,7 @@
 | Concern-hook consumers | 22 calls / 11 files | 22 calls / 11 files | — |
 | Telemetry query breadth | 25 exports / 50 fan-in files | 25 exports / 50 fan-in files | — |
 | ESI refresh-job query exports | 13 | 13 | 0 |
-| `auth-surface` files | 3 | 3 | 0 |
+| Auth contract paths (`src/platform/auth/types.ts`, `src/db/auth-schema.ts`, `src/platform/auth/api-contract.ts`) | 3 | 3 | 0 |
 | ESI dataset registry entries | 13 | 13 | 0 |
 | Freshness leaf breadth | 3 functions / 15 production importers | 3 functions / 15 production importers | — |
 | Cron shell declarations | 7 | 7 | 0 |
@@ -62,5 +62,5 @@ AF-007: exports(src/data/esi-refresh-jobs/queries.ts) > 15
 - Watch (AF-008)
 
 ```watch-trigger
-AF-008: files(zone:auth-surface) >= 4
+AF-008: files(globs:src/platform/auth/*types.ts,src/platform/auth/*-contract.ts,src/db/*auth*schema.ts) >= 4
 ```

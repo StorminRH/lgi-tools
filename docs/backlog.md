@@ -75,6 +75,23 @@
 
 ## Industry planner — structures
 
+- **Keep location selectors stable while available structures load or fail.**
+  *What:* the planner initializes `availableStructures` to `null`, fetches
+  `/api/account/structures` after hydration, and conditionally omits the
+  Reactions group plus both Station rows until that read settles. This produces
+  a visible pop-in locally; on a Vercel preview without the production-only auth
+  environment, the read can fail and leave those controls absent permanently
+  even though the public planner otherwise renders. This is client-side
+  conditional rendering, not a Cache Components/Suspense hole. Preserve the
+  full control footprint through loading, give failure an explicit settled
+  state, and keep anonymous/auth-env-absent behavior equivalent to the existing
+  empty-structures response. Cover delayed success and failed-read states so a
+  preview cannot silently resemble a reduced planner. *Why deferred:* surfaced
+  during the 3.10.1.2.1 relocation preview; fixing it changes planner loading
+  behavior outside that session's behavior-preservation scope. *Size:* S–M.
+  *Trigger:* the next planner UX/resilience pass, or any preview used for planner
+  acceptance.
+
 - **Manufacturing-Time-Efficiency-rig membership fix** (surfaced in 3.7.9.1.4). *What:*
   ~33 "Manufacturing Time Efficiency" rigs (dogma attr 2593 present but no 2594 material
   attr) are silently not offerable, because `isIndustryRig` keys on the 2594 material
@@ -124,6 +141,23 @@
   decision (each was scoped out of 3.0 deliberately).
 
 ## Navigation
+
+- **Clear dismissed global-search results synchronously.** *What:* cancel the
+  pending 120 ms query and clear rendered sections when Escape or outside-press
+  dismisses the combobox, so an immediate refocus cannot briefly reopen results
+  for the cleared query. Add an interaction regression that covers
+  dismiss-then-refocus inside the debounce window. *Why deferred:* the behavior
+  predates the 3.10.1.2 ownership-only move and changing the live interaction
+  would require the route UX gate rather than a review-time relocation fix.
+  *Size:* S. *Trigger:* the next shell/search interaction pass, or a report of
+  stale results reopening.
+
+- **Make the application footer wrap below desktop widths.** *What:* replace
+  the fixed feedback-button clearance and non-wrapping link row with responsive
+  stacking/wrapping that preserves the desktop layout without horizontal
+  overflow. *Why deferred:* the layout predates the 3.10.1.2 ownership-only move;
+  changing it requires mobile UX capture and operator review. *Size:* S.
+  *Trigger:* the next responsive-shell pass, or a mobile overflow report.
 
 - **Category-dropdown top nav + module expansion** (from the 3.6.8 polish session —
   deferred to its own session). *What:* replace the flat tool strip with category

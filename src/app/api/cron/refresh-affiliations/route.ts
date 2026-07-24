@@ -1,4 +1,4 @@
-import { defineCronRoute } from '@/db/cron-gate';
+import { defineCronRoute } from '@/composition/pipelines/cron-gate';
 import type { CronRefreshAffiliationsResponse } from '@/platform/auth/api-contract';
 import { refreshAffiliationsDeclaration } from './declaration';
 

@@ -12,7 +12,7 @@
 // Shared zone (not ui/): it's character-domain-aware (reads the online context),
 // so it composes the domain-agnostic StatusDot primitive rather than living
 // beside it. House style: className-only, no JSX style.
-import { deriveOnlineState } from '@/features/online-status/online-state';
+import { deriveOnlineState } from '@/data/online-status/online-state';
 import { characterPortraitUrl } from '@/lib/eve-image';
 import { EveImage } from './eve-image';
 import { cn } from './ui/cn';

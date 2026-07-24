@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { userPreferences } from '@/db/schema';
+import { userPreferences } from './schema';
 
 // Per-user preference reads/writes. Values are already validated by the route
 // (validatePreferenceValue against the owning key's schema), so these accept

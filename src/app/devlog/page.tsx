@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { JsonLd } from '@/components/JsonLd';
+import { JsonLd } from '@/components/composition/JsonLd';
 import { buildDevlogArticleJsonLd } from '@/features/devlog/article-json-ld';
 import { DocumentView } from '@/features/devlog/components/DocumentView';
 import { loadDevlog } from '@/features/devlog/load';

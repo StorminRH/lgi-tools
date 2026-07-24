@@ -44,7 +44,7 @@ const REQUIRED_ENV = {
 const VERBATIM_ENV = {
   // Read via the injectable param of resolveLockConnectionUrl (db/index.ts).
   DATABASE_URL_UNPOOLED: verbatim,
-  // Schema-owner credential for migrations only (db/migrate-url.ts). Empty ≡
+  // Schema-owner credential for migrations only (scripts/migrate-url.ts). Empty ≡
   // unset there — it falls back to DATABASE_URL, so single-role envs are
   // unaffected. Never read by the request path.
   DATABASE_MIGRATION_URL: verbatim,

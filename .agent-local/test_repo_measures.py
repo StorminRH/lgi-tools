@@ -12,6 +12,8 @@ from repo_measures import (
     MeasureError,
     clone_file_counts,
     export_count,
+    named_file_count,
+    pattern_file_count,
     production_file_count,
     production_loc,
     suppression_count,
@@ -82,6 +84,25 @@ class RepoMeasureTests(unittest.TestCase):
         self.assertEqual(2, export_count(self.fixture.root, "src/a.ts"))
         with self.assertRaisesRegex(MeasureError, "missing file"):
             export_count(self.fixture.root, "src/missing.ts")
+
+    def test_named_and_pattern_counts_deduplicate_inputs(self) -> None:
+        self.fixture.write("src/platform/auth/types.ts", "")
+        self.fixture.write("src/platform/auth/api-contract.ts", "")
+
+        self.assertEqual(
+            1,
+            named_file_count(
+                self.fixture.root,
+                ("src/platform/auth/types.ts", "src/platform/auth/types.ts"),
+            ),
+        )
+        self.assertEqual(
+            2,
+            pattern_file_count(
+                self.fixture.root,
+                ("src/platform/auth/*.ts", "src/platform/auth/*contract.ts"),
+            ),
+        )
 
     def test_invalid_utf8_is_a_path_specific_measure_error(self) -> None:
         self.fixture.write_bytes("src/invalid.ts", b"export const value = \xff;\n")

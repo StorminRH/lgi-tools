@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { getOwnedBlueprintDetailOnView } from '@/db/owned-blueprints-sync';
+import { getOwnedBlueprintDetailOnView } from '@/composition/sync/owned-blueprints-sync';
 import {
   ownedBlueprintsRequestSchema,
   type OwnedBlueprintsBadRequest,

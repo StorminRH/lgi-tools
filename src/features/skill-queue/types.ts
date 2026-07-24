@@ -1,7 +1,7 @@
 // Shared types for the skill-queue Neon slice (MIGRATE.B.1). Kept I/O-free so the
 // refresh orchestration (refresh.ts) can depend on the port abstraction WITHOUT
 // importing the DB layer (queries.ts) or the auth slice — which it may not
-// (feature→feature is boundary-banned). The non-zone wrapper (src/db/skills-sync.ts)
+// (feature→feature is boundary-banned). The non-zone wrapper (src/composition/sync/skills-sync.ts)
 // builds the real port; the orchestration is unit-tested against a fake one. Mirrors
 // the owned-blueprints slice, simplified to a character-only owner axis.
 import type { SkillQueueEntry } from './esi-projection';
@@ -68,7 +68,7 @@ export interface SkillsSaveHalves {
 /**
  * The injected I/O the refresh runs over: auth (character enumeration, token vend),
  * the two authed ESI gate reads, and Neon storage. The real implementations are
- * wired in src/db/skills-sync.ts.
+ * wired in src/composition/sync/skills-sync.ts.
  */
 export interface SkillsPort {
   now(): Date;

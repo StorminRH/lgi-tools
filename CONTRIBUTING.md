@@ -34,10 +34,11 @@ build. The complete ownership map and dependency directions live in
   "C5 is red". UI primitives import only from `src/lib`.
 - `src/lib/` — cross-cutting helpers importable from anywhere; `lib` imports only
   `lib` and application configuration, never a feature, data, or ui module.
-- `src/app/` owns routes and API handlers. `src/db/`, `src/search/`,
-  `src/purge/`, `src/page-settings/`, and `src/esi-datasets/` are composition
-  zones for their declared concerns; `src/config/` owns application
-  configuration.
+- `src/app/` owns routes and API handlers. `src/composition/` and
+  `src/components/composition/` own server and UI composition;
+  `src/platform/` owns reusable capabilities; `src/transport/` and `src/db/`
+  own foundations; and `src/esi-datasets/` owns test-only registry checks.
+  `src/config/` owns application configuration.
 - `convex/` owns the live reactive backend (see below);
   `src/proxy*.ts` and `src/instrumentation*.ts` are process-level runtime entry
   points.
@@ -167,7 +168,7 @@ These are load-bearing constraints, several **lint-enforced**:
   (`src/lib/env.ts`), the one validated registry — never `process.env` directly.
   (`NODE_ENV` and `NEXT_PUBLIC_*` stay direct reads.)
 - **The ESI gate.** Every call to EVE's ESI API routes through the single
-  `esiFetch` in `src/lib/esi/` and its shared rate-limit budget — never a second
+  `esiFetch` in `src/platform/esi/` and its shared rate-limit budget — never a second
   wrapper. Build URLs with `esiUrl()`.
 - **One source of truth for config.** Postgres enums are driven from TypeScript
   `as const` arrays; types/variants are constants defined in one place. Adding one

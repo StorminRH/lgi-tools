@@ -1,5 +1,5 @@
 import type { CronRefreshSdeResponse } from '@/data/eve-data/api-contract';
-import { defineCronRoute } from '@/db/cron-gate';
+import { defineCronRoute } from '@/composition/pipelines/cron-gate';
 import { refreshSdeDeclaration } from './declaration';
 
 type SdePreLockState = Parameters<typeof refreshSdeDeclaration.work>[1];

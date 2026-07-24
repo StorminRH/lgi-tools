@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { LoadingLabel } from '@/components/ui/loading-label';
 import { PageShell } from '@/components/ui/page-shell';
-import { JsonLd } from '@/components/JsonLd';
+import { JsonLd } from '@/components/composition/JsonLd';
 import { getMarketHistoryInputs } from '@/data/market-history/queries';
 import {
   elapsedCostTimer,

@@ -191,10 +191,11 @@ Put every finding in exactly one bucket:
    ```
 
    - `<metric>` is exactly one of: `exports` (count of `^export` lines in the
-     named repo file), `files` (count of files assigned to the named Fallow
-     zone, written `zone:<name>`, from `.fallowrc.json`), or `clones` (count of
-     files in the named clone group, written with its Fallow `dup:` id, from a
-     whole-version pinned Fallow run).
+     named repo file), `files` (either files assigned to the named Fallow zone,
+     written `zone:<name>`, or existing files in a fixed repository-relative
+     set, written `paths:<path>,<path>,...`), or `clones` (count of files in the
+     named clone group, written with its Fallow `dup:` id, from a whole-version
+     pinned Fallow run).
    - `<op>` is one of `>=`, `>`, `<=`, `<`, `==`.
    - Semantics are **trip-form**: the expression evaluating true means the
      trigger fired. A block may hold multiple lines for one AF id; any line

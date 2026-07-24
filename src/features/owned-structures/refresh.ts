@@ -3,7 +3,7 @@
 // injected port (types.ts) + this slice's pure helpers and hands it to the shared
 // per-owner sync engine (src/platform/owner-sync). It imports no auth and no DB, so it
 // stays inside the feature boundary and is unit-tested with a fake port. The real
-// port is wired in src/db/corp-structures-sync.ts.
+// port is wired in src/composition/sync/corp-structures-sync.ts.
 //
 // The SHARED-PER-CORP descriptor (the first of its kind): the corp axis's `ownerOf`
 // IGNORES the userId, so every eligible member's refresh resolves to the SAME

@@ -21,11 +21,11 @@ from repo_measures import (
     MeasureError,
     clone_file_counts,
     export_count,
+    named_file_count,
     production_file_count,
     production_loc,
     suppression_count,
     test_file_count,
-    zone_file_count,
 )
 
 
@@ -34,6 +34,16 @@ BASELINE_TEMPLATE_RELPATH = "docs/workflows/schema/code-health-baseline.md"
 NAMED_FILE = re.compile(r"`((?:src|convex)/[^`]+\.[A-Za-z0-9]+)`")
 EXPORTS = re.compile(r"\b(\d[\d,]*)\s+exports\b")
 WATCH_CARRIER = re.compile(r"^- Watch \(AF-\d{3}\)$")
+AUTH_CONTRACT_PATHS = (
+    "src/platform/auth/types.ts",
+    "src/db/auth-schema.ts",
+    "src/platform/auth/api-contract.ts",
+)
+AUTH_CONTRACT_METRIC = (
+    "Auth contract paths (`src/platform/auth/types.ts`, "
+    "`src/db/auth-schema.ts`, `src/platform/auth/api-contract.ts`)"
+)
+LEGACY_AUTH_SURFACE_METRIC = "`auth-surface` files"
 
 
 @dataclass(frozen=True)
@@ -363,9 +373,16 @@ def _anchor_values(text: str) -> tuple[tuple[str, str], ...] | None:
         cells = _cells(line)
         if _is_separator(cells):
             continue
-        if len(cells) != 4 or not cells[0] or any(key == cells[0] for key, _value in values):
+        if len(cells) != 4:
             return ()
-        values.append((cells[0], cells[1]))
+        key = (
+            AUTH_CONTRACT_METRIC
+            if cells[0] == LEGACY_AUTH_SURFACE_METRIC
+            else cells[0]
+        )
+        if not key or any(saved == key for saved, _value in values):
+            return ()
+        values.append((key, cells[1]))
     return tuple(values)
 
 
@@ -531,33 +548,33 @@ def _named_file_claims(
     return findings
 
 
-def _auth_surface_claim(
+def _auth_contract_paths_claim(
     root: Path,
     rows: list[tuple[int, str]],
     schema: BaselineSchema,
 ) -> list[Finding]:
-    """Diff the registered auth-surface metric's Current file count."""
+    """Diff the registered auth-contract path set's Current file count."""
     matched = next(
         (
             (line_number, row)
             for line_number, row in rows
-            if re.match(r"^\|\s*`auth-surface` files\s*\|", row)
+            if row.startswith(f"| {AUTH_CONTRACT_METRIC} |")
         ),
         None,
     )
     if matched is None:
-        return [Finding(BASELINE, 1, "no parseable auth-surface exact-file claim", "warn")]
+        return [Finding(BASELINE, 1, "no parseable auth contract path claim", "warn")]
     line_number, row = matched
     asserted = _integer(_current_cell(row, schema))
     if asserted is None:
-        return [Finding(BASELINE, line_number, "unparseable auth-surface Current value", "error")]
+        return [Finding(BASELINE, line_number, "unparseable auth contract path Current value", "error")]
     try:
-        measured = zone_file_count(root, "auth-surface")
+        measured = named_file_count(root, AUTH_CONTRACT_PATHS)
     except MeasureError as error:
-        return [Finding(BASELINE, line_number, f"cannot measure auth-surface files: {error}", "error")]
+        return [Finding(BASELINE, line_number, f"cannot measure auth contract paths: {error}", "error")]
     if asserted == measured:
         return []
-    return [Finding(BASELINE, line_number, f"auth-surface files asserted {asserted}, measured {measured}", "warn")]
+    return [Finding(BASELINE, line_number, f"auth contract paths asserted {asserted}, measured {measured}", "warn")]
 
 
 def collect_findings(root: Path) -> list[Finding]:
@@ -585,7 +602,7 @@ def collect_findings(root: Path) -> list[Finding]:
     return [
         *_step_one_claims(root, rows, schema),
         *_named_file_claims(root, rows, schema),
-        *_auth_surface_claim(root, rows, schema),
+        *_auth_contract_paths_claim(root, rows, schema),
         *_schema_only_findings(root, lines, schema),
         *_version_start_findings(root, working, anchor),
     ]
