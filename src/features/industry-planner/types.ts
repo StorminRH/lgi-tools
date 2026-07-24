@@ -2,6 +2,7 @@ import type { Tone } from '@/components/ui/tones';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
 import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
 
+/** Schema-derived structure wire types retained at the feature's established type surface. */
 export type {
   AvailableStructure,
   AvailableStructuresResponse,

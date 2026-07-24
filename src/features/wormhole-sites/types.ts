@@ -1,6 +1,7 @@
 import type { SiteType, WormholeClass } from './schema';
 
 export type { SiteType, WormholeClass };
+/** Schema-derived site-detail wire types retained at the feature's established type surface. */
 export type { Npc, SiteDetail, SiteResource, Wave } from './api-contract';
 
 /**
