@@ -41,7 +41,8 @@ export interface ApiEndpoint<TIn, TData> {
 
 type CallInit = Pick<RequestInit, 'signal' | 'cache' | 'keepalive'>;
 
-type EndpointCallArgs<TEndpoint extends EndpointContract> =
+/** Fetch arguments inferred from whether an endpoint declares a request body. */
+export type EndpointCallArgs<TEndpoint extends EndpointContract> =
   TEndpoint['request'] extends null
     ? [init?: CallInit]
     : [init: CallInit & { body: RequestInputOf<TEndpoint> }];

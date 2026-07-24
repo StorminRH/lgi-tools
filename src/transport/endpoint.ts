@@ -43,6 +43,10 @@ export interface EndpointContract<
   responses: TResponses;
 }
 
+type EndpointDefinition =
+  | (EndpointContract<null> & { method: 'GET'; request: null })
+  | (EndpointContract & { method: 'POST' });
+
 /** Declares a non-transforming JSON response codec. */
 export function jsonBody<T>(schema: z.ZodType<T, T>): JsonCodec<T> {
   return { kind: 'json', schema };
@@ -69,12 +73,9 @@ export function textBody(): TextCodec {
 }
 
 /** Defines an endpoint while preserving its literal method, path, statuses, and codecs. */
-export function defineEndpoint<
-  const TRequest extends z.ZodTypeAny | null,
-  const TResponses extends EndpointResponseMap,
->(
-  endpoint: EndpointContract<TRequest, TResponses>,
-): EndpointContract<TRequest, TResponses> {
+export function defineEndpoint<const TEndpoint extends EndpointDefinition>(
+  endpoint: TEndpoint,
+): TEndpoint {
   return endpoint;
 }
 

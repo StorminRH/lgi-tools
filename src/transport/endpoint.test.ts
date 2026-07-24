@@ -27,9 +27,20 @@ const endpoint = defineEndpoint({
   },
 });
 
+const getEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/test/typed',
+  request: null,
+  responses: {
+    200: jsonBody(responseSchema),
+  },
+});
+
 describe('endpoint contracts', () => {
   it('preserves literal statuses, request input, and per-status bodies', () => {
     expect(endpoint.path).toBe('/api/test/typed');
+    expectTypeOf(endpoint.method).toEqualTypeOf<'POST'>();
+    expectTypeOf(getEndpoint.method).toEqualTypeOf<'GET'>();
     expectTypeOf<DeclaredStatus<typeof endpoint>>().toEqualTypeOf<
       201 | 204 | 400 | 409
     >();
@@ -65,6 +76,21 @@ describe('endpoint contracts', () => {
     if (false) {
       // @ts-expect-error Response codecs require identical Zod input and output types.
       jsonBody(z.string().transform((value) => value.length));
+    }
+    expect(true).toBe(true);
+  });
+
+  it('prevents GET contracts from declaring a request body', () => {
+    if (false) {
+      // @ts-expect-error GET endpoint contracts cannot declare request bodies.
+      defineEndpoint({
+        method: 'GET',
+        path: '/api/test/invalid-get',
+        request: requestSchema,
+        responses: {
+          200: jsonBody(responseSchema),
+        },
+      });
     }
     expect(true).toBe(true);
   });
