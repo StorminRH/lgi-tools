@@ -348,6 +348,14 @@ finding. Any pending justification returns `BLOCKED`.
 
 1. Declare the PR review-ready only when the live Greptile result is 5/5 and
    zero Greptile inline comments remain. A score alone is not sufficient.
+   When Greptile did not review the PR at all — no summary comment and no
+   `Greptile Review` check, which is what an exhausted Greptile quota looks
+   like — CodeRabbit becomes the gate of record for that PR instead, and it is
+   review-ready only when its check passes and every CodeRabbit review thread on
+   the current head is resolved. This is a fallback, never an alternative: any
+   PR Greptile did review is decided by Greptile, so a Greptile finding can
+   never be waived by pointing at a green CodeRabbit. The merge helper owns this
+   selection and fails closed; do not choose the gate by hand.
 2. Use `.agent-local/merge_clean_pr.py` as the gate of record. It owns the final
    fail-closed live revalidation and expected-head squash merge, and deletes the
    remote branch after a successful merge; do not restate or manually substitute

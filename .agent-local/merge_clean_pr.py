@@ -2,10 +2,19 @@
 """Revalidate a clean LGI.tools PR and squash-merge it through GitHub REST.
 
 The script uses the credential already held by git, prints no credential data,
-and refuses to merge unless the live Greptile summary, inline comments, CI,
-mergeability, and expected head SHA all satisfy the repository close-out gate.
-Greptile is the gate of record; other bots (e.g. CodeRabbit) are advisory and do
-not appear in the required-check set.
+and refuses to merge unless the live review gate, CI, mergeability, and expected
+head SHA all satisfy the repository close-out gate.
+
+Greptile is the gate of record. CodeRabbit is a fallback, not an alternative:
+it gates only when Greptile did not review this PR at all — no summary comment
+and no `Greptile Review` check — which is what a Greptile quota exhaustion looks
+like. Whenever Greptile did review, its summary and inline findings decide the
+merge and CodeRabbit stays advisory, so a Greptile finding can never be waived
+by pointing at a green CodeRabbit.
+
+The fallback counts a CodeRabbit finding as live until its review thread is
+resolved, so an addressed or withdrawn finding must be resolved on the PR before
+the merge is allowed.
 
 Usage:
   python3 .agent-local/merge_clean_pr.py 228 <expected-head-sha>
@@ -24,13 +33,82 @@ from github_api import github_token, request
 OWNER = "StorminRH"
 REPO = "lgi-tools"
 GREPTILE = "greptile-apps[bot]"
-REQUIRED_CHECKS = {"Greptile Review", "semgrep-cloud-platform/scan", "test"}
+CODERABBIT = "coderabbitai[bot]"
+GREPTILE_CHECK = "Greptile Review"
+CODERABBIT_CHECK = "CodeRabbit"
+BASE_REQUIRED_CHECKS = {"semgrep-cloud-platform/scan", "test"}
+REQUIRED_CHECKS = BASE_REQUIRED_CHECKS | {GREPTILE_CHECK}
+# CodeRabbit reports as a commit status rather than a check run, and its status
+# can pass while saying "Review rate limited". The fallback therefore proves the
+# review happened from the review record itself, not from a named check.
+FALLBACK_REQUIRED_CHECKS = BASE_REQUIRED_CHECKS
 PASSING_CONCLUSIONS = {"success", "neutral", "skipped"}
+
+
+RESOLVED_THREADS_QUERY = """
+query($owner:String!,$repo:String!,$pr:Int!,$cursor:String){
+  repository(owner:$owner,name:$repo){
+    pullRequest(number:$pr){
+      reviewThreads(first:100, after:$cursor){
+        pageInfo{ hasNextPage endCursor }
+        nodes{ isResolved comments(first:1){ nodes{ databaseId } } }
+      }
+    }
+  }
+}
+"""
 
 
 def get(path: str, token: str) -> object:
     body, _ = request("GET", path, token, None)
     return body
+
+
+def resolved_thread_roots(pr_number: int, token: str) -> frozenset[int]:
+    """Database ids of the first comment in every resolved review thread.
+
+    Review-thread resolution is GraphQL-only; REST comment payloads carry no
+    resolved flag. Any transport or shape failure propagates so the gate fails
+    closed rather than treating unknown threads as resolved.
+    """
+    resolved: set[int] = set()
+    cursor: str | None = None
+    while True:
+        body, _ = request(
+            "POST",
+            "/graphql",
+            token,
+            {
+                "query": RESOLVED_THREADS_QUERY,
+                "variables": {
+                    "owner": OWNER,
+                    "repo": REPO,
+                    "pr": pr_number,
+                    "cursor": cursor,
+                },
+            },
+        )
+        require(isinstance(body, dict), "GraphQL response was not an object")
+        require("errors" not in body, f"GraphQL reported errors: {body.get('errors')}")
+        threads = (
+            body.get("data", {})
+            .get("repository", {})
+            .get("pullRequest", {})
+            .get("reviewThreads", {})
+        )
+        require(isinstance(threads, dict), "GraphQL response had no reviewThreads")
+        for node in threads.get("nodes", []):
+            if not isinstance(node, dict) or not node.get("isResolved"):
+                continue
+            comments = node.get("comments", {}).get("nodes", [])
+            if comments and isinstance(comments[0], dict):
+                database_id = comments[0].get("databaseId")
+                if isinstance(database_id, int):
+                    resolved.add(database_id)
+        page = threads.get("pageInfo", {})
+        if not isinstance(page, dict) or not page.get("hasNextPage"):
+            return frozenset(resolved)
+        cursor = str(page.get("endCursor"))
 
 
 def require(condition: bool, message: str) -> None:
@@ -63,6 +141,44 @@ def live_inline_findings(
     ]
 
 
+def live_coderabbit_findings(
+    inline_comments: list[object],
+    head_sha: str,
+    resolved_roots: frozenset[int],
+) -> list[dict[str, object]]:
+    """CodeRabbit inline findings that still apply and are not resolved.
+
+    Only thread roots count: CodeRabbit's replies (including its own "addressed"
+    and "withdrawing" notes) hang off a root and are not separate findings. A
+    root stops blocking once its review thread is resolved on the PR, which is
+    the same "no finding left standing" bar the Greptile path enforces.
+    """
+    return [
+        item
+        for item in inline_comments
+        if isinstance(item, dict)
+        and actor_login(item) == CODERABBIT
+        and item.get("in_reply_to_id") is None
+        and str(item.get("commit_id", "")) == head_sha
+        and int(item.get("id", 0)) not in resolved_roots
+    ]
+
+
+def greptile_reviewed(issue_comments: list[object], runs: list[object]) -> bool:
+    """True when Greptile took part in this PR at all.
+
+    Absence of both its summary and its check is what an exhausted Greptile
+    quota looks like, and is the only condition that hands the gate to the
+    CodeRabbit fallback.
+    """
+    if greptile_summary(issue_comments) is not None:
+        return True
+    return any(
+        isinstance(run, dict) and str(run.get("name", "")) == GREPTILE_CHECK
+        for run in runs
+    )
+
+
 def greptile_summary(issue_comments: list[object]) -> dict[str, object] | None:
     """The newest Greptile summary comment, or None if Greptile has not posted one."""
     summaries = [
@@ -77,32 +193,13 @@ def greptile_summary(issue_comments: list[object]) -> dict[str, object] | None:
     return max(summaries, key=lambda item: str(item.get("updated_at", "")))
 
 
-def merge_blockers(
-    pr: dict[str, object],
+def greptile_blockers(
     issue_comments: list[object],
     inline_comments: list[object],
-    runs: list[object],
-    expected_head: str,
+    head_sha: str,
 ) -> list[str]:
-    """Every reason the PR must not merge; an empty list means the gate is clean.
-
-    Pure over its inputs so each block path is unit-testable without the network.
-    """
+    """Gate-of-record reasons: the live Greptile summary and its inline findings."""
     reasons: list[str] = []
-
-    head = pr.get("head")
-    head_sha = str(head.get("sha", "")) if isinstance(head, dict) else ""
-    if head_sha != expected_head:
-        reasons.append(f"head moved: {head_sha}")
-    if pr.get("state") != "open":
-        reasons.append("pull request is not open")
-    if pr.get("draft"):
-        reasons.append("pull request is still a draft")
-    if pr.get("mergeable") is not True:
-        reasons.append("pull request is not mergeable")
-    if pr.get("mergeable_state") != "clean":
-        reasons.append(f"merge state is {pr.get('mergeable_state')}")
-
     summary = greptile_summary(issue_comments)
     if summary is None:
         reasons.append("no Greptile summary found")
@@ -127,12 +224,82 @@ def merge_blockers(
     findings = live_inline_findings(inline_comments, head_sha)
     if findings:
         reasons.append(f"Greptile has {len(findings)} inline finding(s)")
+    return reasons
+
+
+def coderabbit_reviewed_head(reviews: list[object], head_sha: str) -> bool:
+    """True when CodeRabbit filed a review against the exact current head.
+
+    This is the fallback's proof that a review actually happened. CodeRabbit's
+    commit status reports `success` even when its body says "Review rate
+    limited", so the status alone would let an unreviewed head merge.
+    """
+    return any(
+        isinstance(item, dict)
+        and actor_login(item) == CODERABBIT
+        and str(item.get("commit_id", "")) == head_sha
+        for item in reviews
+    )
+
+
+def coderabbit_blockers(
+    reviews: list[object],
+    inline_comments: list[object],
+    head_sha: str,
+    resolved_roots: frozenset[int],
+) -> list[str]:
+    """Fallback reasons, used only when Greptile did not review this PR."""
+    reasons: list[str] = []
+    if not coderabbit_reviewed_head(reviews, head_sha):
+        reasons.append("no CodeRabbit review on the current head")
+    findings = live_coderabbit_findings(inline_comments, head_sha, resolved_roots)
+    if findings:
+        reasons.append(f"CodeRabbit has {len(findings)} unresolved inline finding(s)")
+    return reasons
+
+
+def merge_blockers(
+    pr: dict[str, object],
+    issue_comments: list[object],
+    inline_comments: list[object],
+    runs: list[object],
+    expected_head: str,
+    resolved_roots: frozenset[int] = frozenset(),
+    reviews: list[object] | None = None,
+) -> list[str]:
+    """Every reason the PR must not merge; an empty list means the gate is clean.
+
+    Pure over its inputs so each block path is unit-testable without the network.
+    """
+    reasons: list[str] = []
+
+    head = pr.get("head")
+    head_sha = str(head.get("sha", "")) if isinstance(head, dict) else ""
+    if head_sha != expected_head:
+        reasons.append(f"head moved: {head_sha}")
+    if pr.get("state") != "open":
+        reasons.append("pull request is not open")
+    if pr.get("draft"):
+        reasons.append("pull request is still a draft")
+    if pr.get("mergeable") is not True:
+        reasons.append("pull request is not mergeable")
+    if pr.get("mergeable_state") != "clean":
+        reasons.append(f"merge state is {pr.get('mergeable_state')}")
+
+    if greptile_reviewed(issue_comments, runs):
+        reasons.extend(greptile_blockers(issue_comments, inline_comments, head_sha))
+        required = REQUIRED_CHECKS
+    else:
+        reasons.extend(
+            coderabbit_blockers(reviews or [], inline_comments, head_sha, resolved_roots)
+        )
+        required = FALLBACK_REQUIRED_CHECKS
 
     if not runs:
         reasons.append("no check runs found")
     else:
         names = {str(run.get("name", "")) for run in runs if isinstance(run, dict)}
-        missing = REQUIRED_CHECKS - names
+        missing = required - names
         if missing:
             reasons.append(f"missing required checks: {sorted(missing)}")
         failing = [
@@ -171,7 +338,24 @@ def main() -> int:
     runs = checks.get("check_runs")
     require(isinstance(runs, list), "check-runs response had no run list")
 
-    blockers = merge_blockers(pr, issue_comments, inline_comments, runs, args.expected_head)
+    fallback = not greptile_reviewed(issue_comments, runs)
+    resolved_roots: frozenset[int] = frozenset()
+    reviews: list[object] = []
+    if fallback:
+        resolved_roots = resolved_thread_roots(args.pr, token)
+        reviews_body = get(f"{root}/pulls/{args.pr}/reviews?per_page=100", token)
+        require(isinstance(reviews_body, list), "reviews response was not a list")
+        reviews = reviews_body
+
+    blockers = merge_blockers(
+        pr,
+        issue_comments,
+        inline_comments,
+        runs,
+        args.expected_head,
+        resolved_roots,
+        reviews,
+    )
     require(not blockers, "; ".join(blockers))
 
     merge, _ = request(
@@ -192,7 +376,10 @@ def main() -> int:
     print(json.dumps({
         "pr": args.pr,
         "head": head_sha,
-        "greptile": "5/5, zero findings",
+        "review_gate": "coderabbit (greptile did not review)" if fallback else "greptile",
+        "review_result": (
+            "zero unresolved findings" if fallback else "5/5, zero findings"
+        ),
         "checks": sorted(names),
         "merge_sha": merge.get("sha"),
         "remote_branch_deleted": branch,

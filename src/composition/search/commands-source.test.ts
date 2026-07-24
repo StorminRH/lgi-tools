@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   registerSearchSource,
   listRegisteredSources,
@@ -7,6 +7,13 @@ import {
 } from '@/platform/search';
 import { commandsSearchSource } from './commands-source';
 import type { Session } from '@/platform/auth/types';
+
+const signOut = vi.hoisted(() => vi.fn());
+const signInOauth2 = vi.hoisted(() => vi.fn());
+
+vi.mock('@/platform/auth/auth-client', () => ({
+  authClient: { signOut, signIn: { oauth2: signInOauth2 } },
+}));
 
 // Each vitest file gets its own module graph, so we start with a clean
 // registry, then register the Commands source the way the wiring manifest
@@ -85,5 +92,79 @@ describe('commands search source', () => {
   it('filters by substring match against the label', async () => {
     const out = await runCommands('changelog', ctx());
     expect(out.map((r) => r.label)).toEqual(['Open changelog']);
+  });
+});
+
+// The two side-effecting rows delegate to the official Better Auth client.
+// These pin the navigation semantics the hand-rolled REST calls used to own.
+describe('command auth side effects', () => {
+  const stubLocation = () => {
+    const location = { href: '' };
+    vi.stubGlobal('window', { location });
+    return location;
+  };
+
+  const fire = async (label: string, context: SearchContext) => {
+    const row = (await runCommands('log', context)).find((r) => r.label === label);
+    if (!row?.onSelect) throw new Error(`${label} has no onSelect handler`);
+    row.onSelect({} as never);
+    await vi.waitFor(() => {
+      expect(signOut.mock.calls.length + signInOauth2.mock.calls.length).toBeGreaterThan(0);
+    });
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetAllMocks();
+  });
+
+  it('navigates home only after sign-out succeeds', async () => {
+    const location = stubLocation();
+    signOut.mockResolvedValue({ data: { success: true }, error: null });
+
+    await fire('Log out', ctx({ session: mockSession() }));
+
+    await vi.waitFor(() => {
+      expect(location.href).toBe('/');
+    });
+  });
+
+  it('stays put when sign-out returns an error', async () => {
+    const location = stubLocation();
+    signOut.mockResolvedValue({ data: null, error: { status: 500 } });
+
+    await fire('Log out', ctx({ session: mockSession() }));
+
+    await Promise.resolve();
+    expect(location.href).toBe('');
+  });
+
+  it('stays put when sign-out rejects', async () => {
+    const location = stubLocation();
+    signOut.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await fire('Log out', ctx({ session: mockSession() }));
+
+    await Promise.resolve();
+    expect(location.href).toBe('');
+  });
+
+  it('asks the client for the EVE provider with the home callback', async () => {
+    stubLocation();
+    signInOauth2.mockResolvedValue({ data: { url: 'https://login.eveonline.test' }, error: null });
+
+    await fire('Log in with EVE', ctx());
+
+    expect(signInOauth2).toHaveBeenCalledWith({ providerId: 'eve', callbackURL: '/' });
+  });
+
+  it('navigates nowhere when sign-in rejects', async () => {
+    const location = stubLocation();
+    signInOauth2.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await fire('Log in with EVE', ctx());
+
+    await Promise.resolve();
+    expect(location.href).toBe('');
   });
 });

@@ -19,10 +19,7 @@ function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiIte
 // authz: public
 // input: query
 export async function GET(request: NextRequest): Promise<Response> {
-  const parsed = parseSitesQuery(
-    request.nextUrl.searchParams.get('type'),
-    request.nextUrl.searchParams.get('class'),
-  );
+  const parsed = parseSitesQuery(request.nextUrl.searchParams);
   if (!parsed.ok) {
     return apiResponse(sitesEndpoint, 400, parsed.failure);
   }

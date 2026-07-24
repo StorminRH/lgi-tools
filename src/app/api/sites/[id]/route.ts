@@ -1,7 +1,4 @@
-import {
-  siteDetailEndpoint,
-  siteIdParamSchema,
-} from '@/features/wormhole-sites/api-contract';
+import { siteDetailEndpoint } from '@/features/wormhole-sites/api-contract';
 import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
 import { notFoundFailure, validationFailure } from '@/lib/failure';
 import { apiResponse } from '@/transport/api-response';
@@ -11,12 +8,12 @@ import { apiResponse } from '@/transport/api-response';
  * validation, and typed response mapping.
  */
 // authz: public
-// input: query
+// input: path
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const parsed = siteIdParamSchema.safeParse(await params);
+  const parsed = siteDetailEndpoint.params.safeParse(await params);
   if (!parsed.success) {
     return apiResponse(
       siteDetailEndpoint,

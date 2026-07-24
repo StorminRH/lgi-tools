@@ -31,7 +31,6 @@ const PROTECTED_RESPONSE_EXPORTS = new Set([
   'src/lib/problem.ts:problemResponse',
   'src/lib/problem.ts:serializeProblem',
   'src/platform/auth/absorb-redirect.ts:decorateAbsorbRedirect',
-  'src/transport/api-client.ts:apiFetch',
   'src/transport/api-response.ts:apiResponse',
 ]);
 

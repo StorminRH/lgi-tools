@@ -13,9 +13,9 @@
 
 | Metric | Version-start | Current | Delta |
 | --- | ---: | ---: | ---: |
-| Production TS/TSX files | 762 | 762 | 0 |
-| Production TS/TSX LOC | 73,072 | 73,085 | +13 |
-| Test files | 368 | 368 | 0 |
+| Production TS/TSX files | 762 | 776 | +14 |
+| Production TS/TSX LOC | 73,072 | 73,972 | +900 |
+| Test files | 368 | 388 | +20 |
 | Coverage — statements | 86.90% | 86.90% | — |
 | Coverage — branches | 84.25% | 84.25% | — |
 | Coverage — functions | 82.84% | 82.84% | — |
@@ -38,7 +38,7 @@
 | API contract completeness | 52 routes / 17 contract modules | 52 routes / 17 contract modules | — |
 | EVE type-image resolver breadth | 8 exports / 6 functions / 16 production importers | 8 exports / 6 functions / 16 production importers | — |
 | Threshold overrides | 0 | 0 | 0 |
-| Source suppressions | 21 | 21 | 0 |
+| Source suppressions | 21 | 42 | +21 |
 | Whole-version Fallow clone groups | 0 | 0 | 0 |
 | Accepted duplication baseline clone groups | 0 | 0 | 0 |
 | Version-start-pinned Fallow verdict | Pass | Pass | — |

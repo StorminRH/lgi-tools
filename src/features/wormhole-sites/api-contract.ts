@@ -42,6 +42,7 @@ export const sitesEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/sites',
   request: null,
+  query: sitesQuerySchema,
   responses: {
     200: jsonBody(sitesListResponseSchema),
     400: problem('invalid_query'),
@@ -142,6 +143,7 @@ export const siteDetailEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/sites/[id]',
   request: null,
+  params: siteIdParamSchema,
   responses: {
     200: jsonBody(siteDetailSchema),
     400: problem('invalid_query'),

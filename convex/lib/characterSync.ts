@@ -4,8 +4,12 @@
 // resolution, and the engine subject-row stamp. Pure-ish leaves only (no Convex
 // function exports), so nothing here lands on the deployed API surface. The
 // per-dataset reads, parses, and apply bodies stay in their own tracker module.
-import type { EveCharactersResponse, EveTokenOkResponse } from '@/platform/auth/api-contract';
-import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import type { EveCharactersResponse } from '@/platform/auth/api-contract';
+import {
+  eveCharactersEndpoint,
+  eveTokenEndpoint,
+} from '@/platform/auth/api-contract';
+import { serviceFetch } from '@/platform/auth/service-client';
 import { minCacheWindow } from '@/lib/sync-engine';
 import type { Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
@@ -34,25 +38,29 @@ export function requireSyncEnv(): SyncEnv {
 
 /**
  * The ownership boundary: which characters this user actually owns, read from
- * Neon on every run (no client-posted id carries authority). fetchWithTimeout
- * (not bare fetch): a hung Next.js endpoint must fail fast into the Action
- * Retrier rather than holding the action open until the platform kills it. A
- * non-ok response is Neon-side trouble — transient by assumption; throw so the
- * retrier retries.
+ * Neon on every run (no client-posted id carries authority). serviceFetch (not
+ * bare fetch): a hung Next.js endpoint must fail fast into the Action Retrier
+ * rather than holding the action open until the platform kills it, and the
+ * response is validated against the endpoint's contract instead of asserted. A
+ * non-success outcome is Neon-side trouble — transient by assumption; throw so
+ * the retrier retries. A network/timeout rejection rethrows its original cause,
+ * exactly as the bare-fetch call it replaced did.
  */
 export async function fetchEnumeratedCharacters(
   env: SyncEnv,
   userId: string,
 ): Promise<EveCharactersResponse['characters']> {
-  const res = await fetchWithTimeout(`${env.siteUrl}/api/internal/eve-characters`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.secret}` },
-    body: JSON.stringify({ userId }),
+  const outcome = await serviceFetch(eveCharactersEndpoint, {
+    baseUrl: env.siteUrl,
+    secret: env.secret,
+    body: { userId },
   });
-  if (!res.ok) {
-    throw new Error(`eve-characters returned ${res.status}`);
+  if (outcome.ok) return outcome.data.characters;
+  if (outcome.kind === 'network') throw outcome.cause;
+  if (outcome.kind === 'protocol') {
+    throw new Error(`eve-characters response failed its contract: ${outcome.detail}`);
   }
-  return ((await res.json()) as EveCharactersResponse).characters;
+  throw new Error(`eve-characters returned ${outcome.status}`);
 }
 
 /**
@@ -71,22 +79,27 @@ export type TokenVend =
 /**
  * Vends one short-lived EVE access token without exposing refresh-token custody; returns the
  * documented skip, reauth, or unavailable state for non-success responses.
+ *
+ * A response that claims success but fails the endpoint's contract now maps to
+ * `unavailable` rather than propagating an unvalidated token shape. Network and
+ * timeout rejections rethrow their original cause so the Action Retrier sees the
+ * same failure the bare-fetch call site produced.
  */
 export async function vendCharacterToken(
   env: SyncEnv,
   userId: string,
   characterId: number,
 ): Promise<TokenVend> {
-  const res = await fetchWithTimeout(`${env.siteUrl}/api/internal/eve-token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.secret}` },
-    body: JSON.stringify({ userId, characterId }),
+  const outcome = await serviceFetch(eveTokenEndpoint, {
+    baseUrl: env.siteUrl,
+    secret: env.secret,
+    body: { userId, characterId },
   });
-  if (res.status === 404) return { kind: 'skip' };
-  if (res.status === 409) return { kind: 'reauth' };
-  if (!res.ok) return { kind: 'unavailable' };
-  const token = (await res.json()) as EveTokenOkResponse;
-  return { kind: 'token', accessToken: token.accessToken };
+  if (outcome.ok) return { kind: 'token', accessToken: outcome.data.accessToken };
+  if (outcome.kind === 'network') throw outcome.cause;
+  if (outcome.status === 404) return { kind: 'skip' };
+  if (outcome.status === 409) return { kind: 'reauth' };
+  return { kind: 'unavailable' };
 }
 
 /**

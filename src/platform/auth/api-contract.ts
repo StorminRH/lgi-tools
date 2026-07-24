@@ -4,7 +4,6 @@
 // eslint.config.mjs) and the eve-token contract below is the type-import
 // surface for the Convex actions layer (3.4.3).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/transport/api-client';
 import { CHARACTER_ROLES } from '@/config/character-roles';
 import {
   defineEndpoint,
@@ -163,58 +162,10 @@ export const adminRevokeSessionsFormSchema = z.object({
   userId: userIdField,
 });
 
-// ── Better Auth REST endpoints (library-owned, hand-pinned) ─────────────
-// These two shapes are pinned by the better-auth version in package.json —
-// verify them against the library on every upgrade. The composition command source
-// consumes them: as a data slice it cannot import the auth feature's client
-// (data → feature edge is banned), so it talks to Better Auth's REST routes
-// through these contracts instead.
-
-const signOutRequestSchema = z.object({});
-/**
- * Boundary validator for sign out endpoint; successful parsing yields the normalized auth input
- * consumed internally.
- */
-export const signOutEndpoint: ApiEndpoint<z.input<typeof signOutRequestSchema>, undefined> = {
-  method: 'POST',
-  path: '/api/auth/sign-out',
-  request: signOutRequestSchema,
-  response: null, // status-only; the body is never read
-};
-
-const signInOauth2RequestSchema = z.object({
-  providerId: z.string(),
-  callbackURL: z.string(),
-});
-const signInOauth2ResponseSchema = z.object({ url: z.string().optional() });
-/**
- * Boundary validator for sign in oauth2 endpoint; successful parsing yields the normalized auth
- * input consumed internally.
- */
-export const signInOauth2Endpoint: ApiEndpoint<
-  z.input<typeof signInOauth2RequestSchema>,
-  z.infer<typeof signInOauth2ResponseSchema>
-> = {
-  method: 'POST',
-  path: '/api/auth/sign-in/oauth2',
-  request: signInOauth2RequestSchema,
-  response: signInOauth2ResponseSchema,
-};
-
-// GET /api/auth/token — the jwt plugin's mint endpoint (session-gated; 401
-// when anonymous). The Convex client bridge (3.4.3) pulls the ES256 JWT here
-// on (re)connect; each call mints fresh, so there's no client-side caching.
-const tokenResponseSchema = z.object({ token: z.string() });
-/**
- * Boundary validator for token endpoint; successful parsing yields the normalized auth input
- * consumed internally.
- */
-export const tokenEndpoint: ApiEndpoint<null, z.infer<typeof tokenResponseSchema>> = {
-  method: 'GET',
-  path: '/api/auth/token',
-  request: null, // GET — no body
-  response: tokenResponseSchema,
-};
+// Better Auth's own REST endpoints (sign-out, OAuth sign-in, and the jwt
+// plugin's token mint) are reached through the official typed client in
+// `auth-client.ts`, not through contracts declared here. The library owns those
+// wire shapes; re-pinning them by hand would only be a copy that can drift.
 
 // ── GET /api/account/characters (authz: auth) ───────────────────────────
 // The signed-in user's linked EVE characters, the client-safe projection the

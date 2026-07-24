@@ -14,24 +14,15 @@
 import { useCallback, useMemo } from 'react';
 import { ConvexProviderWithAuth } from 'convex/react';
 import { convexClient } from '@/data/convex/client';
-import { apiFetch } from '@/transport/api-client';
-import { tokenEndpoint } from '../api-contract';
+import { fetchConvexAccessToken } from '../auth-client';
 import { useAuth } from './AuthProvider';
 
 function useAuthForConvex() {
   const { session, loading } = useAuth();
   const isAuthenticated = session !== null;
 
-  const fetchAccessToken = useCallback(async () => {
-    // Convex's contract wants null on failure — a thrown network error (DNS,
-    // connection reset) would wedge its auth state machine until reload.
-    try {
-      const result = await apiFetch(tokenEndpoint);
-      return result.ok ? result.data.token : null;
-    } catch {
-      return null;
-    }
-  }, []);
+  // The jwt client plugin owns the mint call and its null-on-failure contract.
+  const fetchAccessToken = useCallback(() => fetchConvexAccessToken(), []);
 
   return useMemo(
     () => ({ isLoading: loading, isAuthenticated, fetchAccessToken }),
