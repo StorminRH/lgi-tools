@@ -2,6 +2,9 @@ import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { validationFailure } from '@/lib/failure';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { problemResponse } from '@/lib/problem';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
 import { auth } from '@/platform/auth/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
@@ -10,8 +13,7 @@ import {
   listLinkedCharacters,
   repointActiveToOldest,
 } from '@/platform/auth/linked-characters';
-import { requireSession } from '@/platform/auth/route-guards';
-import { rateLimitGuard } from '@/lib/rate-limit';
+import { checkSession } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 function redirectWithError(request: NextRequest, code: string): Response {
@@ -33,19 +35,19 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected
   // at the cheapest point. Unlinking is rare and deliberate — 10/min is plenty
   // for a human and stops scripted hammering of the unlink + token deletion.
-  const limit = await rateLimitGuard(request, {
+  const limit = await checkRateLimit(request, {
     name: 'account-unlink',
     perMinute: 10,
   });
-  if (!limit.ok) return limit.response;
+  if (!limit.ok) return problemResponse(limit.failure);
 
   return runMutationRoute(request, {
-    authorize: requireSession,
+    authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,
       unlinkCharacterFormSchema,
       (form) => ({ characterId: form.get('characterId') }),
-      () => new Response('Invalid character', { status: 400 }),
+      () => validationFailure('invalid_form_field', 'Invalid character'),
     ),
     handle: async ({ session }, { characterId }) => {
       const linked = await listLinkedCharacters(session.user.id);

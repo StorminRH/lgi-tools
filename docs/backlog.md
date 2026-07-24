@@ -103,6 +103,17 @@
   *Size:* S. *Trigger:* the next industry-planner data pass; confirm the exact rig set
   against the SDE (`docs/3.7.9_VERIFIED_CONSTANTS.md` is the reference).
 
+## Custom structures
+
+- **Enforce the per-user custom-structure cap under concurrent saves.**
+  *What:* replace the route's count-then-insert limit check with an atomic
+  database guarantee or a concurrency-safe insert/recount rollback, and cover
+  simultaneous saves so a user cannot exceed
+  `MAX_CUSTOM_STRUCTURES_PER_USER`. *Why deferred:* the race predates the typed
+  API migration, and fixing database concurrency semantics would violate that
+  session's behavior-preservation boundary. *Size:* S–M. *Trigger:* the next
+  custom-structure integrity pass or a report of an account exceeding the cap.
+
 ## Market score & pricing
 
 - **F2.3 composite tempering.** *What:* temper the composite score itself by a stale

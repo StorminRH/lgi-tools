@@ -1,12 +1,15 @@
+import type { AppFailure } from '@/lib/failure';
+import { problemResponse } from '@/lib/problem';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
-import type { ParsedBody } from '@/transport/route-body';
 
 type AuthorizationSuccess = { ok: true };
-type AuthorizationFailure = { ok: false; response: Response };
+type FailureResult = { ok: false; failure: AppFailure };
 type MaybePromise<T> = T | Promise<T>;
-type AuthorizationFunction = () => Promise<AuthorizationSuccess | AuthorizationFailure>;
-type ParseFunction = (request: Request) => Promise<ParsedBody<unknown>>;
-type AuthorizationResult<T extends AuthorizationSuccess> = T | AuthorizationFailure;
+type AuthorizationFunction = () => Promise<AuthorizationSuccess | FailureResult>;
+type ParseFunction = (
+  request: Request,
+) => Promise<{ ok: true; data: unknown } | FailureResult>;
+type AuthorizationResult<T extends AuthorizationSuccess> = T | FailureResult;
 
 interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess> {
   authorize: () => Promise<AuthorizationResult<TAuthorization>>;
@@ -15,7 +18,9 @@ interface BodylessMutationOptions<TAuthorization extends AuthorizationSuccess> {
 
 interface BodyfulMutationOptions<TAuthorization extends AuthorizationSuccess, TBody> {
   authorize: () => Promise<AuthorizationResult<TAuthorization>>;
-  parse: (request: Request) => Promise<ParsedBody<TBody>>;
+  parse: (
+    request: Request,
+  ) => Promise<{ ok: true; data: TBody } | FailureResult>;
   handle: (authorization: TAuthorization, body: TBody) => MaybePromise<Response>;
 }
 
@@ -27,7 +32,7 @@ interface RuntimeMutationOptions {
 
 /**
  * Runs authorize, same-origin observation, optional parsing, then the handler.
- * Guard and parser failures pass through unchanged; unexpected errors propagate.
+ * Guard and parser failures map through the problem owner; unexpected errors propagate.
  * Caller-owned rate limits run before this boundary.
  */
 export function runMutationRoute<TAuthorization extends AuthorizationSuccess, TBody>(
@@ -36,7 +41,7 @@ export function runMutationRoute<TAuthorization extends AuthorizationSuccess, TB
 ): Promise<Response>;
 /**
  * Runs authorization, same-origin observation, optional body parsing, and the mutation handler in
- * order; guard and parser responses pass through unchanged.
+ * order; guard and parser failures map through the problem owner.
  */
 export function runMutationRoute<TAuthorization extends AuthorizationSuccess>(
   request: Request,
@@ -47,13 +52,13 @@ export async function runMutationRoute(request: Request, options: unknown): Prom
   // runtime view only erases those generics after the caller has been checked.
   const runtime = options as RuntimeMutationOptions;
   const authorization = await runtime.authorize();
-  if (!authorization.ok) return authorization.response;
+  if (!authorization.ok) return problemResponse(authorization.failure);
 
   requireSameOrigin(request);
 
   if (runtime.parse) {
     const parsed = await runtime.parse(request);
-    if (!parsed.ok) return parsed.response;
+    if (!parsed.ok) return problemResponse(parsed.failure);
     return runtime.handle(authorization, parsed.data);
   }
 

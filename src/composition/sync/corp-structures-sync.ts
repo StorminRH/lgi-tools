@@ -34,6 +34,7 @@ import type {
 } from '@/features/owned-structures/types';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
 import type { SecurityClass } from '@/data/eve-data/security';
+import { forbiddenFailure, type AppFailure } from '@/lib/failure';
 import { listCharactersWithHealth, readPagedEndpoint, readRolesFor, vendTokenFor } from './owner-sync-port';
 
 // The real corp port: the shared auth + ESI wiring (owner-sync-port.ts) plus this
@@ -246,19 +247,30 @@ export async function userHoldsCorpRole(
  * The two-step Station_Manager gate shared by the corp-structure mutation routes
  * (sharing toggle + the rig/tax completion): membership first (decideCorpAccess —
  * fail-closed + audited; also refreshes affiliations), then the in-game role on
- * the freshly refreshed set. Returns the 403 Response to send, or null when the
- * caller may proceed. Lives here beside userHoldsCorpRole because it composes the
+ * the freshly refreshed set. Returns a typed failure union so the caller owns
+ * HTTP delivery. Lives here beside userHoldsCorpRole because it composes the
  * auth slice's access decision with this layer's role read — the same cross-slice
  * join reason the rest of the file exists.
  */
 export async function stationManagerGate(
   userId: string,
   corporationId: number,
-): Promise<Response | null> {
+): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
   const access = await decideCorpAccess({ userId, corporationId });
-  if (!access.allowed) return new Response('Not a member of this corporation', { status: 403 });
-  if (!(await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
-    return new Response('Requires the Station Manager role', { status: 403 });
+  if (!access.allowed) {
+    return {
+      ok: false,
+      failure: forbiddenFailure('not_corp_member', 'Not a member of this corporation'),
+    };
   }
-  return null;
+  if (!(await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
+    return {
+      ok: false,
+      failure: forbiddenFailure(
+        'not_station_manager',
+        'Requires the Station Manager role',
+      ),
+    };
+  }
+  return { ok: true };
 }

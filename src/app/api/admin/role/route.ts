@@ -1,10 +1,12 @@
 import type { NextRequest } from 'next/server';
+import { notFoundFailure, validationFailure } from '@/lib/failure';
+import { problemResponse } from '@/lib/problem';
 import {
   ADMIN_ACCESS_QUERY_MAX_LENGTH,
   adminRoleFormSchema,
 } from '@/platform/auth/api-contract';
 import { getUserById, setUserRole } from '@/platform/auth/admin-users';
-import { requireAdmin } from '@/platform/auth/route-guards';
+import { checkAdmin } from '@/platform/auth/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { parseFormBody } from '@/transport/route-body';
 import { logUsageEvent } from '@/data/telemetry/queries';
@@ -32,8 +34,8 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
  */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return gate.response;
+  const gate = await checkAdmin();
+  if (!gate.ok) return problemResponse(gate.failure);
   requireSameOrigin(request);
   const viewerUserId = gate.session.user.id;
   const actorCharacterId = gate.session.characterId;
@@ -49,21 +51,25 @@ export async function POST(request: NextRequest): Promise<Response> {
     (error) => {
       const issue = error.issues[0];
       const detail = issue ? `Invalid ${issue.path.join('.') || 'field'}` : 'Invalid form';
-      return new Response(detail, { status: 400 });
+      return validationFailure('invalid_form_field', detail);
     },
   );
-  if (!parsed.ok) return parsed.response;
+  if (!parsed.ok) return problemResponse(parsed.failure);
   const { userId, nextRole } = parsed.data;
 
   // Self-toggle guard. The UI disables this button on the viewer's own row,
   // but a crafted POST would still arrive here — this is the real defense.
   if (userId === viewerUserId) {
-    return new Response('Cannot toggle your own role', { status: 400 });
+    return problemResponse(
+      validationFailure('self_role', 'Cannot toggle your own role'),
+    );
   }
 
   const target = await getUserById(userId);
   if (!target) {
-    return new Response('User not found', { status: 404 });
+    return problemResponse(
+      notFoundFailure('user_not_found', 'User not found'),
+    );
   }
 
   const previousRole = target.role;

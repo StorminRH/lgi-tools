@@ -5,20 +5,21 @@
 // names never live in Convex. Per-request by nature (client-posted ids).
 // authz: public
 import {
+  entityNamesEndpoint,
   entityNamesRequestSchema,
-  type EntityNamesResponse,
 } from '@/data/eve-data/api-contract';
 import { resolveEntityNames } from '@/data/eve-data/entity-names';
-import { parseJsonBody } from '@/transport/route-body';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * Handles POST requests for /api/eve/names; this route owns its authorization, boundary
  * validation, and typed response mapping.
  */
 export async function POST(req: Request): Promise<Response> {
-  const parsed = await parseJsonBody(req, entityNamesRequestSchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(req, entityNamesRequestSchema);
+  if (!parsed.ok) return apiResponse(entityNamesEndpoint, 400, parsed.failure);
 
   const names = await resolveEntityNames(parsed.data.ids);
-  return Response.json({ names } satisfies EntityNamesResponse);
+  return apiResponse(entityNamesEndpoint, 200, { names });
 }

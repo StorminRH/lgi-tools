@@ -4,6 +4,12 @@
 // updated) — consumers never re-sort, so the cut here is a plain slice.
 import type { SavedPlanRow } from './api-contract';
 
+/** Closed saved-plan echo shape shared by all four mutation endpoints. */
+export type SavedPlansEchoResult =
+  | { ok: true; data: { plans: SavedPlanRow[] } }
+  | { ok: false; status: number }
+  | { ok: false; kind: 'network'; aborted: boolean; cause: unknown };
+
 /**
  * Inclusive upper bound for saved tiles; validation and UI limits share this value.
  */
@@ -113,9 +119,11 @@ export function savedPlanRowLabels(
  * stays a thin shell.
  */
 export function echoOutcome(
-  res: { ok: true; data: { plans: SavedPlanRow[] } } | { ok: false; status: number } | null,
+  res: SavedPlansEchoResult | null,
   errorFor: (status: number) => string,
 ): { plans: SavedPlanRow[] } | { error: string } {
   if (res !== null && res.ok) return { plans: res.data.plans };
-  return { error: errorFor(res === null ? 0 : res.status) };
+  return {
+    error: errorFor(res === null || !('status' in res) ? 0 : res.status),
+  };
 }

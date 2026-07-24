@@ -1,11 +1,11 @@
 import type { NextRequest } from 'next/server';
 import {
+  buildLocationEndpoint,
   buildLocationRequestSchema,
-  type BuildLocationBadRequest,
-  type BuildLocationResponse,
 } from '@/features/industry-planner/api-contract';
 import { getBuildLocation } from '@/features/industry-planner/queries';
-import { parseJsonBody } from '@/transport/route-body';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/industry/build-location
@@ -18,17 +18,9 @@ import { parseJsonBody } from '@/transport/route-body';
  */
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
-  const parsed = await parseJsonBody(request, buildLocationRequestSchema, {
-    invalidJson: () =>
-      Response.json({ error: 'invalid_json' } satisfies BuildLocationBadRequest, { status: 400 }),
-    invalidBody: (error) =>
-      Response.json(
-        { error: 'invalid_request', issues: error.issues } satisfies BuildLocationBadRequest,
-        { status: 400 },
-      ),
-  });
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, buildLocationRequestSchema);
+  if (!parsed.ok) return apiResponse(buildLocationEndpoint, 400, parsed.failure);
 
   const data = await getBuildLocation(parsed.data.systemId, parsed.data.blueprintId);
-  return Response.json(data satisfies BuildLocationResponse);
+  return apiResponse(buildLocationEndpoint, 200, data);
 }

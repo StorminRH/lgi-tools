@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { problemBodySchema } from '@/lib/problem';
 
 const h = vi.hoisted(() => ({
   serviceMock: vi.fn(),
@@ -37,24 +38,36 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe('POST /api/internal/eve-token', () => {
   it('returns 500 when the service secret is not configured', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubEnv('CONVEX_SERVICE_SECRET', '');
     const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
     expect(res.status).toBe(500);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'not_configured',
+      detail: 'service authentication is not configured',
+    });
     expect(h.serviceMock).not.toHaveBeenCalled();
   });
 
   it('returns 401 for a missing bearer token', async () => {
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(401);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'unauthenticated',
+    });
   });
 
   it('returns 401 for a wrong bearer token', async () => {
     const res = await POST(makeRequest(VALID_BODY, 'Bearer nope'));
     expect(res.status).toBe(401);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'unauthenticated',
+    });
     expect(h.serviceMock).not.toHaveBeenCalled();
   });
 
@@ -104,13 +117,15 @@ describe('POST /api/internal/eve-token', () => {
     expect(h.serviceMock).toHaveBeenCalledWith(90000001);
   });
 
-  it('returns the existing 404 envelope without vending when ownership fails', async () => {
+  it('returns a not-found problem without vending when ownership fails', async () => {
     h.accountBelongsToUserMock.mockResolvedValue(false);
 
     const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
 
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: 'not_found' });
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'not_found',
+    });
     expect(h.accountBelongsToUserMock).toHaveBeenCalledWith('user-1', 1);
     expect(h.serviceMock).not.toHaveBeenCalled();
   });
@@ -119,20 +134,26 @@ describe('POST /api/internal/eve-token', () => {
     h.serviceMock.mockResolvedValue({ kind: 'not_found' });
     const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: 'not_found' });
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'not_found',
+    });
   });
 
   it('maps reauth_required → 409', async () => {
     h.serviceMock.mockResolvedValue({ kind: 'reauth_required' });
     const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
     expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ error: 'reauth_required' });
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'reauth_required',
+    });
   });
 
   it('maps upstream_error → 502', async () => {
     h.serviceMock.mockResolvedValue({ kind: 'upstream_error' });
     const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
     expect(res.status).toBe(502);
-    expect(await res.json()).toEqual({ error: 'upstream_error' });
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'upstream_error',
+    });
   });
 });

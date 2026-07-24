@@ -11,7 +11,11 @@
 // it never rejects. That keeps the confirm gate from freezing mid-call — a rejected
 // action would skip the gate's error dispatch and strand its phase in `running`.
 
-import type { ApiEndpoint, ApiResult } from '@/transport/api-client';
+import type { EndpointCallArgs } from '@/transport/api-client';
+import type {
+  EndpointContract,
+  OutcomeOf,
+} from '@/transport/endpoint';
 import {
   accountDeleteEndpoint,
   purgeCharacterEndpoint,
@@ -20,15 +24,14 @@ import {
 import { EVE_AUTHORIZED_APPS_URL } from './eve-sso-constants';
 
 /**
- * The minimal slice of `apiFetch` the runners use: the no-body call and the
- * body call. The real `apiFetch` is assignable to this (its init params are
- * optional); a test stub is too. Keeps these runners off a hard import of the
- * client function while staying fully typed.
+ * Accepts an endpoint with its inferred call arguments and returns that
+ * endpoint's typed outcome. The real `apiFetch` and narrow test stubs both
+ * satisfy this seam without coupling these runners to the client function.
  */
-export interface AccountApiCaller {
-  <TData>(endpoint: ApiEndpoint<null, TData>): Promise<ApiResult<TData>>;
-  <TIn, TData>(endpoint: ApiEndpoint<TIn, TData>, init: { body: TIn }): Promise<ApiResult<TData>>;
-}
+export type AccountApiCaller = <E extends EndpointContract>(
+  endpoint: E,
+  ...args: EndpointCallArgs<E>
+) => Promise<OutcomeOf<E>>;
 
 /**
  * Purging a character either empties the account (it was the last one → the user

@@ -3,7 +3,8 @@ import '@/composition/account-lifecycle/register-owner-reconciler';
 import { runWithAbsorbTracking } from '@/platform/auth/absorb-context';
 import { decorateAbsorbRedirect } from '@/platform/auth/absorb-redirect';
 import { auth } from '@/platform/auth/auth';
-import { rateLimitGuard } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { problemResponse } from '@/lib/problem';
 
 // Better Auth's catch-all: login (EVE OAuth start + callback), sign-out, and
 // get-session all mount under /api/auth/*. These are public auth endpoints —
@@ -41,8 +42,8 @@ const OAUTH_ENTRY_LIMITS = new Map<string, { name: string; perMinute: number }>(
 export async function POST(request: Request): Promise<Response> {
   const policy = OAUTH_ENTRY_LIMITS.get(new URL(request.url).pathname);
   if (policy) {
-    const limit = await rateLimitGuard(request, policy);
-    if (!limit.ok) return limit.response;
+    const limit = await checkRateLimit(request, policy);
+    if (!limit.ok) return problemResponse(limit.failure);
   }
   return betterAuthPost(request);
 }

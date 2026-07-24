@@ -4,7 +4,11 @@
 // GET/POST, so delete is a POST sub-route, not an HTTP DELETE.
 import { z } from 'zod';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
-import type { ApiEndpoint } from '@/transport/api-client';
+import {
+  defineEndpoint,
+  jsonBody,
+  problem,
+} from '@/transport/endpoint';
 import type { CustomStructureRow } from './types';
 
 // Postgres 32-bit `integer` ceiling — structure/rig type ids are int4 columns.
@@ -86,15 +90,17 @@ export type CreateCustomStructureRequest = z.input<typeof createCustomStructureR
  * Typed endpoint definition for create custom structure endpoint; method, path, request, and
  * response contracts remain coupled here.
  */
-export const createCustomStructureEndpoint: ApiEndpoint<
-  CreateCustomStructureRequest,
-  CustomStructuresResponse
-> = {
+export const createCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures',
   request: createCustomStructureRequestSchema,
-  response: customStructuresResponseSchema,
-};
+  responses: {
+    201: jsonBody(customStructuresResponseSchema),
+    400: problem('invalid_json', 'invalid_body', 'invalid_structure', 'unknown_system'),
+    401: problem('unauthenticated'),
+    409: problem('structure_limit'),
+  },
+});
 
 /**
  * ── POST /api/account/custom-structures/delete ───────────────────────────
@@ -113,15 +119,16 @@ export type DeleteCustomStructureRequest = z.input<typeof deleteCustomStructureR
  * Typed endpoint definition for delete custom structure endpoint; method, path, request, and
  * response contracts remain coupled here.
  */
-export const deleteCustomStructureEndpoint: ApiEndpoint<
-  DeleteCustomStructureRequest,
-  CustomStructuresResponse
-> = {
+export const deleteCustomStructureEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/delete',
   request: deleteCustomStructureRequestSchema,
-  response: customStructuresResponseSchema,
-};
+  responses: {
+    200: jsonBody(customStructuresResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+  },
+});
 
 /**
  * ── POST /api/account/custom-structures/set-pin ──────────────────────────
@@ -142,15 +149,16 @@ export type SetCustomStructurePinRequest = z.input<typeof setCustomStructurePinR
  * Typed endpoint definition for set custom structure pin endpoint; method, path, request, and
  * response contracts remain coupled here.
  */
-export const setCustomStructurePinEndpoint: ApiEndpoint<
-  SetCustomStructurePinRequest,
-  CustomStructuresResponse
-> = {
+export const setCustomStructurePinEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/set-pin',
   request: setCustomStructurePinRequestSchema,
-  response: customStructuresResponseSchema,
-};
+  responses: {
+    200: jsonBody(customStructuresResponseSchema),
+    400: problem('invalid_json', 'invalid_body', 'unknown_system'),
+    401: problem('unauthenticated'),
+  },
+});
 
 /**
  * ── POST /api/account/custom-structures/set-tax ──────────────────────────
@@ -172,15 +180,16 @@ export type SetCustomStructureTaxRequest = z.input<typeof setCustomStructureTaxR
  * Typed endpoint definition for set custom structure tax endpoint; method, path, request, and
  * response contracts remain coupled here.
  */
-export const setCustomStructureTaxEndpoint: ApiEndpoint<
-  SetCustomStructureTaxRequest,
-  CustomStructuresResponse
-> = {
+export const setCustomStructureTaxEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/set-tax',
   request: setCustomStructureTaxRequestSchema,
-  response: customStructuresResponseSchema,
-};
+  responses: {
+    200: jsonBody(customStructuresResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+  },
+});
 
 /**
  * ── POST /api/account/custom-structures/parse-fit ────────────────────────
@@ -216,12 +225,13 @@ export type ParseStructureFitResponse = z.infer<typeof parseStructureFitResponse
  * Typed endpoint definition for parse structure fit endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const parseStructureFitEndpoint: ApiEndpoint<
-  ParseStructureFitRequest,
-  ParseStructureFitResponse
-> = {
+export const parseStructureFitEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/custom-structures/parse-fit',
   request: parseStructureFitRequestSchema,
-  response: parseStructureFitResponseSchema,
-};
+  responses: {
+    200: jsonBody(parseStructureFitResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+  },
+});

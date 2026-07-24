@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { rateLimitedFailure } from '@/lib/failure';
 
 // The route logs the caller out everywhere (revokes all their sessions). Mock auth +
 // the revoke query so these exercise the session gate + the act-on-self wiring.
@@ -16,7 +17,7 @@ const SESSION = {
 
 const getSessionMock = vi.fn();
 const revokeUserSessionsMock = vi.fn();
-const rateLimitGuardMock = vi.fn();
+const checkRateLimitMock = vi.fn();
 
 vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
@@ -27,7 +28,7 @@ vi.mock('@/platform/auth/admin-users', () => ({
 }));
 
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimitGuard: (...args: unknown[]) => rateLimitGuardMock(...args),
+  checkRateLimit: (...args: unknown[]) => checkRateLimitMock(...args),
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
@@ -42,20 +43,25 @@ describe('POST /api/account/sessions/revoke', () => {
   beforeEach(() => {
     getSessionMock.mockReset();
     revokeUserSessionsMock.mockReset();
-    rateLimitGuardMock.mockReset().mockResolvedValue({ ok: true });
+    checkRateLimitMock.mockReset().mockResolvedValue({ ok: true });
   });
 
   it('returns the rate-limit response before reading the session', async () => {
-    const response = Response.json(
-      { error: 'rate_limited', retryAfter: 10 },
-      { status: 429, headers: { 'Retry-After': '10' } },
-    );
-    rateLimitGuardMock.mockResolvedValue({ ok: false, response });
+    checkRateLimitMock.mockResolvedValue({
+      ok: false,
+      failure: rateLimitedFailure(10),
+    });
 
     const res = await POST(buildRequest());
 
-    expect(res).toBe(response);
-    expect(rateLimitGuardMock).toHaveBeenCalledWith(expect.any(Request), {
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('10');
+    expect(await res.json()).toMatchObject({
+      status: 429,
+      code: 'rate_limited',
+      retryAfterSeconds: 10,
+    });
+    expect(checkRateLimitMock).toHaveBeenCalledWith(expect.any(Request), {
       name: 'account-logout-everywhere',
       perMinute: 10,
     });

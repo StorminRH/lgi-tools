@@ -7,7 +7,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
-  requireUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
+  checkUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
 vi.mock('@/platform/auth/session', () => ({
   getCurrentUserId: vi.fn(),
@@ -18,6 +18,7 @@ vi.mock('@/data/preferences/queries', () => ({
 }));
 
 import type { NextRequest } from 'next/server';
+import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
 function makeRequest(body: unknown): NextRequest {
@@ -40,7 +41,7 @@ describe('POST /api/preferences', () => {
   it('returns 401 for an anonymous caller', async () => {
     h.requireUserIdMock.mockResolvedValue({
       ok: false,
-      response: new Response('Unauthorized', { status: 401 }),
+      failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
 
     const res = await POST(makeRequest(VALID_BODY));
@@ -53,7 +54,10 @@ describe('POST /api/preferences', () => {
     const res = await POST(makeRequest('{not valid json'));
 
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('Invalid JSON');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_json',
+      detail: 'Invalid JSON',
+    });
     expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
   });
 
@@ -68,7 +72,10 @@ describe('POST /api/preferences', () => {
     const res = await POST(makeRequest({ key: 'sites.view', value: 'grid' }));
 
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('invalid value for key');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_value',
+      detail: 'invalid value for key',
+    });
     expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
   });
 

@@ -1,14 +1,17 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import {
+  getPreferencesEndpoint,
+  putPreferenceEndpoint,
   putPreferenceRequestSchema,
-  type GetPreferencesResponse,
 } from '@/data/preferences/api-contract';
 import { getPreferencesForUser, upsertPreference } from '@/data/preferences/queries';
 import { getCurrentUserId } from '@/platform/auth/session';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
+import { validationFailure } from '@/lib/failure';
 import { validatePreferenceValue } from '@/lib/preferences';
-import { parseJsonBody } from '@/transport/route-body';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * Both handlers are scoped to the authenticated caller's own user rows; an
@@ -22,10 +25,10 @@ import { parseJsonBody } from '@/transport/route-body';
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return Response.json({ preferences: [] } satisfies GetPreferencesResponse);
+    return apiResponse(getPreferencesEndpoint, 200, { preferences: [] });
   }
   const preferences = await getPreferencesForUser(userId);
-  return Response.json({ preferences } satisfies GetPreferencesResponse);
+  return apiResponse(getPreferencesEndpoint, 200, { preferences });
 }
 
 /**
@@ -36,15 +39,19 @@ export async function GET(): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, putPreferenceRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, putPreferenceRequestSchema),
     handle: async ({ userId }, { key, value }) => {
       if (!validatePreferenceValue(key, value)) {
-        return new Response('invalid value for key', { status: 400 });
+        return apiResponse(
+          putPreferenceEndpoint,
+          400,
+          validationFailure('invalid_value', 'invalid value for key'),
+        );
       }
 
       await upsertPreference(userId, key, value);
-      return new Response(null, { status: 204 });
+      return apiResponse(putPreferenceEndpoint, 204);
     },
   });
 }

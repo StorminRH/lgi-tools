@@ -1,13 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { getOwnedBlueprintDetailOnView } from '@/composition/sync/owned-blueprints-sync';
 import {
+  ownedBlueprintsEndpoint,
   ownedBlueprintsRequestSchema,
-  type OwnedBlueprintsBadRequest,
 } from '@/features/industry-planner/api-contract';
-import type { OwnedBlueprintsResponse } from '@/features/industry-planner/types';
 import { getCurrentUserId } from '@/platform/auth/session';
-import { parseJsonBody } from '@/transport/route-body';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/industry/owned-blueprints
@@ -23,20 +23,12 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  const parsed = await parseJsonBody(request, ownedBlueprintsRequestSchema, {
-    invalidJson: () =>
-      Response.json({ error: 'invalid_json' } satisfies OwnedBlueprintsBadRequest, { status: 400 }),
-    invalidBody: (error) =>
-      Response.json(
-        { error: 'invalid_request', issues: error.issues } satisfies OwnedBlueprintsBadRequest,
-        { status: 400 },
-      ),
-  });
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, ownedBlueprintsRequestSchema);
+  if (!parsed.ok) return apiResponse(ownedBlueprintsEndpoint, 400, parsed.failure);
 
   const userId = await getCurrentUserId();
   if (!userId) {
-    return Response.json({ blueprints: [] } satisfies OwnedBlueprintsResponse);
+    return apiResponse(ownedBlueprintsEndpoint, 200, { blueprints: [] });
   }
 
   const blueprintTypeIds = Array.from(new Set(parsed.data.blueprintTypeIds));
@@ -47,5 +39,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     returned: (value) => value.length,
   });
 
-  return Response.json({ blueprints } satisfies OwnedBlueprintsResponse);
+  return apiResponse(ownedBlueprintsEndpoint, 200, { blueprints });
 }

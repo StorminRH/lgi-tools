@@ -1,12 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import {
+  setCustomStructureTaxEndpoint,
   setCustomStructureTaxRequestSchema,
-  type CustomStructuresResponse,
 } from '@/features/custom-structures/api-contract';
 import { listCustomStructures, setCustomStructureTax } from '@/features/custom-structures/queries';
-import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/transport/route-body';
+import { checkUserId } from '@/platform/auth/route-guards';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures/set-tax — set or clear (taxPct: null) the
@@ -19,12 +20,12 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, setCustomStructureTaxRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, setCustomStructureTaxRequestSchema),
     handle: async ({ userId }, { id, taxPct }) => {
       await setCustomStructureTax(userId, id, taxPct);
       const structures = await listCustomStructures(userId);
-      return Response.json({ structures } satisfies CustomStructuresResponse);
+      return apiResponse(setCustomStructureTaxEndpoint, 200, { structures });
     },
   });
 }

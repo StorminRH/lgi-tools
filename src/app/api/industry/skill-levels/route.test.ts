@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { problemBodySchema } from '@/lib/problem';
 
 // The route serves the selected build character's trained levels. Mock the
 // session + the composition read so these exercise the validation arms and the
@@ -45,14 +46,17 @@ describe('POST /api/industry/skill-levels', () => {
   it('returns 400 invalid_json for a non-JSON body', async () => {
     const res = await POST(buildRequest('not json'));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: 'invalid_json' });
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_json',
+    });
   });
 
-  it('returns 400 invalid_request for a malformed character id', async () => {
+  it('returns 400 invalid_body for a malformed character id', async () => {
     const res = await POST(buildRequest(JSON.stringify({ characterId: -1 })));
     expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBe('invalid_request');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_body',
+    });
     expect(getSkillLevelsForCharacterOnViewMock).not.toHaveBeenCalled();
   });
 

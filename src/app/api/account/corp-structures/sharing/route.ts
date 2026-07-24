@@ -1,14 +1,15 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import {
-  type CorpStructureSharingResponse,
+  setCorpStructureSharingEndpoint,
   setCorpStructureSharingRequestSchema,
 } from '@/features/owned-structures/api-contract';
 import { setCorpStructureSharing } from '@/features/owned-structures/queries';
 import { getSessionCharacterId } from '@/platform/auth/session';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
 import { stationManagerGate } from '@/composition/sync/corp-structures-sync';
-import { parseJsonBody } from '@/transport/route-body';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * Gated further by corp membership + the in-game Station_Manager role (below).
@@ -22,16 +23,18 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, setCorpStructureSharingRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, setCorpStructureSharingRequestSchema),
     handle: async ({ userId }, { corporationId, enabled }) => {
       // Membership first (fail-closed + audited; also refreshes affiliations), then the
       // Station_Manager role on the freshly-refreshed set — the shared two-step gate.
-      const denied = await stationManagerGate(userId, corporationId);
-      if (denied) return denied;
+      const stationManager = await stationManagerGate(userId, corporationId);
+      if (!stationManager.ok) {
+        return apiResponse(setCorpStructureSharingEndpoint, 403, stationManager.failure);
+      }
 
       await setCorpStructureSharing(corporationId, enabled, await getSessionCharacterId());
-      return Response.json({ corporationId, enabled } satisfies CorpStructureSharingResponse);
+      return apiResponse(setCorpStructureSharingEndpoint, 200, { corporationId, enabled });
     },
   });
 }

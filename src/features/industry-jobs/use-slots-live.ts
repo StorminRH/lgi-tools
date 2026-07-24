@@ -12,7 +12,8 @@
 // doesn't poll forever; no manual refresh control (the live-surface
 // invariant).
 import { useEffect, useState } from 'react';
-import { type ApiResult, apiFetch } from '@/transport/api-client';
+import { apiFetch } from '@/transport/api-client';
+import type { OutcomeOf } from '@/transport/endpoint';
 import { industrySlotsEndpoint, type IndustrySlotsResponse, type ViewerSlots } from './api-contract';
 
 const RECONCILE_DELAY_MS = 5_000;
@@ -45,7 +46,7 @@ export function useSlotsLive(): { characters: ViewerSlots[]; loading: boolean } 
       if (!cancelled) onResult(result);
     }
 
-    function onResult(result: ApiResult<IndustrySlotsResponse> | null): void {
+    function onResult(result: OutcomeOf<typeof industrySlotsEndpoint> | null): void {
       if (result !== null && result.ok) {
         setResponse(result.data);
         if (anyUnsynced(result.data.characters)) retry();

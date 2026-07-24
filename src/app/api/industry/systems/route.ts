@@ -1,5 +1,6 @@
-import type { SystemsResponse } from '@/data/eve-data/api-contract';
+import { systemsEndpoint } from '@/data/eve-data/api-contract';
 import { getSystemSearchIndex } from '@/data/eve-data/queries';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * GET /api/industry/systems
@@ -13,5 +14,5 @@ import { getSystemSearchIndex } from '@/data/eve-data/queries';
 // input: none
 export async function GET(): Promise<Response> {
   const systems = await getSystemSearchIndex();
-  return Response.json({ systems } satisfies SystemsResponse);
+  return apiResponse(systemsEndpoint, 200, { systems });
 }

@@ -52,6 +52,12 @@ describe('echoOutcome', () => {
 
   it('treats a network failure (null) as status 0', () => {
     expect(echoOutcome(null, (status) => `status ${status}`)).toEqual({ error: 'status 0' });
+    expect(
+      echoOutcome(
+        { ok: false, kind: 'network', aborted: false, cause: new Error('offline') },
+        (status) => `status ${status}`,
+      ),
+    ).toEqual({ error: 'status 0' });
   });
 });
 

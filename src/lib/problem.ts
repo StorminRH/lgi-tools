@@ -12,8 +12,9 @@ export interface ProblemBody {
   retryAfterSeconds?: number;
 }
 
+// Extension members are rejected by design because client and server deploy together.
 /** Structural client-side parser for the stable HTTP problem body. */
-export const problemBodySchema: z.ZodType<ProblemBody, ProblemBody> = z.object({
+export const problemBodySchema: z.ZodType<ProblemBody, ProblemBody> = z.strictObject({
   type: z.string(),
   title: z.string(),
   status: z.number().int(),

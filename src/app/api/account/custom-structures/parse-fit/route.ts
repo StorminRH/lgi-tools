@@ -1,12 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { getStructureFitNameIndex } from '@/data/eve-data/queries';
 import {
+  parseStructureFitEndpoint,
   parseStructureFitRequestSchema,
-  type ParseStructureFitResponse,
 } from '@/features/custom-structures/api-contract';
 import { parseStructureFit } from '@/features/industry-planner/structure-fit-parse';
-import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/transport/route-body';
+import { checkUserId } from '@/platform/auth/route-guards';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures/parse-fit. Turns a pasted in-game structure
@@ -18,13 +19,13 @@ import { parseJsonBody } from '@/transport/route-body';
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireUserId();
-  if (!gate.ok) return gate.response;
+  const gate = await checkUserId();
+  if (!gate.ok) return apiResponse(parseStructureFitEndpoint, 401, gate.failure);
 
-  const parsed = await parseJsonBody(request, parseStructureFitRequestSchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, parseStructureFitRequestSchema);
+  if (!parsed.ok) return apiResponse(parseStructureFitEndpoint, 400, parsed.failure);
 
   const nameIndex = await getStructureFitNameIndex();
   const result = parseStructureFit(parsed.data.fit, (name) => nameIndex.get(name));
-  return Response.json({ parsed: result } satisfies ParseStructureFitResponse);
+  return apiResponse(parseStructureFitEndpoint, 200, { parsed: result });
 }

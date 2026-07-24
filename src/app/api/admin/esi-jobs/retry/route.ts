@@ -2,8 +2,10 @@ import type { NextRequest } from 'next/server';
 import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contract';
 import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { notFoundFailure, validationFailure } from '@/lib/failure';
+import { problemResponse } from '@/lib/problem';
 import { parseRange } from '@/composition/admin-period';
-import { requireAdmin } from '@/platform/auth/route-guards';
+import { checkAdmin } from '@/platform/auth/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { parseFormBody } from '@/transport/route-body';
 
@@ -14,8 +16,8 @@ import { parseFormBody } from '@/transport/route-body';
  */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return gate.response;
+  const gate = await checkAdmin();
+  if (!gate.ok) return problemResponse(gate.failure);
   requireSameOrigin(request);
 
   const parsed = await parseFormBody(
@@ -25,13 +27,15 @@ export async function POST(request: NextRequest): Promise<Response> {
       jobId: form.get('jobId'),
       range: form.get('range') ?? undefined,
     }),
-    () => new Response('Invalid form', { status: 400 }),
+    () => validationFailure('invalid_form_field', 'Invalid form'),
   );
-  if (!parsed.ok) return parsed.response;
+  if (!parsed.ok) return problemResponse(parsed.failure);
 
   const result = await requeueDeadLetteredJob(parsed.data.jobId);
   if (result.outcome === 'not_found') {
-    return new Response('Dead-lettered job not found', { status: 404 });
+    return problemResponse(
+      notFoundFailure('job_not_found', 'Dead-lettered job not found'),
+    );
   }
 
   void logUsageEvent({

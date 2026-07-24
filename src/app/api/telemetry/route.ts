@@ -1,10 +1,15 @@
 import type { NextRequest } from 'next/server';
-import { telemetryRequestSchema } from '@/data/telemetry/api-contract';
+import {
+  telemetryEndpoint,
+  telemetryRequestSchema,
+} from '@/data/telemetry/api-contract';
 import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSessionCharacterId } from '@/platform/auth/session';
-import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseJsonBody } from '@/transport/route-body';
+import { validationFailure } from '@/lib/failure';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 // Hard cap on serialised metadata to keep one bad payload from filling the
 // table. 2KB is generous for page-view + search shapes; rejecting larger
@@ -23,8 +28,10 @@ const MAX_METADATA_BYTES = 2048;
  */
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
-  const parsed = await parseJsonBody(request, telemetryRequestSchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, telemetryRequestSchema);
+  if (!parsed.ok) {
+    return apiResponse(telemetryEndpoint, 400, parsed.failure);
+  }
 
   const safeMetadata = parsed.data.metadata ?? {};
   // Byte-cap is a separate concern from shape validation; Zod can't bound
@@ -33,15 +40,21 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (parsed.data.metadata !== undefined) {
     const serialised = JSON.stringify(safeMetadata);
     if (new TextEncoder().encode(serialised).length > MAX_METADATA_BYTES) {
-      return new Response('metadata too large', { status: 400 });
+      return apiResponse(
+        telemetryEndpoint,
+        400,
+        validationFailure('metadata_too_large', 'metadata too large'),
+      );
     }
   }
 
-  const limit = await rateLimitGuard(request, {
+  const limit = await checkRateLimit(request, {
     name: 'telemetry',
     perMinute: TELEMETRY_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) return limit.response;
+  if (!limit.ok) {
+    return apiResponse(telemetryEndpoint, 429, limit.failure);
+  }
 
   // Fire-and-forget: read the id from the session and write the row without
   // blocking the response. Telemetry must never break a user flow, so any
@@ -57,5 +70,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     )
     .catch((err) => console.error('[telemetry] failed to record usage event', err));
 
-  return new Response(null, { status: 204 });
+  return apiResponse(telemetryEndpoint, 204);
 }

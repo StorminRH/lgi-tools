@@ -11,7 +11,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
-  requireUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
+  checkUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
 vi.mock('@/composition/sync/corp-structures-sync', () => ({
   stationManagerGate: (...args: unknown[]) => h.stationManagerGateMock(...args),
@@ -26,7 +26,8 @@ vi.mock('@/data/eve-data/queries', () => ({
   getStructureRigs: (...args: unknown[]) => h.getStructureRigsMock(...args),
 }));
 
-import type { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
+import { problemBodySchema } from '@/lib/problem';
 import { POST } from './route';
 
 // SDE fixtures: an Azbel (group 1404, L rigs) + one fitting L manufacturing rig.
@@ -46,18 +47,18 @@ const corpStructure = {
 };
 
 function makeRequest(body: unknown): NextRequest {
-  return new Request('http://localhost:3000/api/account/corp-structures/rigs', {
+  return new NextRequest('http://localhost:3000/api/account/corp-structures/rigs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: typeof body === 'string' ? body : JSON.stringify(body),
-  }) as unknown as NextRequest;
+  });
 }
 
 const VALID_BODY = { corporationId: 2001, structureId: 1001, rigTypeIds: [37170], taxPct: 1.5 };
 
 beforeEach(() => {
   h.requireUserIdMock.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
-  h.stationManagerGateMock.mockReset().mockResolvedValue(null);
+  h.stationManagerGateMock.mockReset().mockResolvedValue({ ok: true });
   h.getCorpStructuresMock.mockReset().mockResolvedValue(new Map([[2001, [corpStructure]]]));
   h.getCorpStructureRigsMock
     .mockReset()
@@ -71,7 +72,7 @@ describe('POST /api/account/corp-structures/rigs', () => {
   it('returns 401 for an anonymous caller', async () => {
     h.requireUserIdMock.mockResolvedValue({
       ok: false,
-      response: new Response('Unauthorized', { status: 401 }),
+      failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(401);
@@ -84,10 +85,21 @@ describe('POST /api/account/corp-structures/rigs', () => {
     expect(h.stationManagerGateMock).not.toHaveBeenCalled();
   });
 
-  it('returns the station-manager denial as-is', async () => {
-    h.stationManagerGateMock.mockResolvedValue(new Response('Forbidden', { status: 403 }));
+  it('maps the station-manager denial to the endpoint problem contract', async () => {
+    h.stationManagerGateMock.mockResolvedValue({
+      ok: false,
+      failure: {
+        category: 'forbidden',
+        code: 'not_station_manager',
+        detail: 'Requires the Station Manager role',
+      },
+    });
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(403);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'not_station_manager',
+      detail: 'Requires the Station Manager role',
+    });
     expect(h.upsertCorpStructureRigsMock).not.toHaveBeenCalled();
   });
 
@@ -95,13 +107,19 @@ describe('POST /api/account/corp-structures/rigs', () => {
     h.getCorpStructuresMock.mockResolvedValue(new Map());
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('Unknown structure for this corporation');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_structure',
+      detail: 'Unknown structure for this corporation',
+    });
   });
 
   it('returns 400 for a rig that does not fit the structure', async () => {
     const res = await POST(makeRequest({ ...VALID_BODY, rigTypeIds: [46490] }));
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('One or more rigs do not fit this structure');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_structure',
+      detail: 'One or more rigs do not fit this structure',
+    });
     expect(h.upsertCorpStructureRigsMock).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  unauthenticatedFailure,
+  validationFailure,
+} from '@/lib/failure';
+import { problemBodySchema } from '@/lib/problem';
 
 const h = vi.hoisted(() => ({
   requireSameOriginMock: vi.fn(),
@@ -19,18 +24,23 @@ describe('runMutationRoute', () => {
     h.requireSameOriginMock.mockReset();
   });
 
-  it('returns an authorization failure without observing, parsing, or handling', async () => {
-    const response = new Response('Unauthorized', { status: 401 });
+  it('maps an authorization failure without observing, parsing, or handling', async () => {
     const parse = vi.fn();
     const handle = vi.fn();
 
     const result = await runMutationRoute(request(), {
-      authorize: async () => ({ ok: false, response }),
+      authorize: async () => ({
+        ok: false,
+        failure: unauthenticatedFailure(),
+      }),
       parse,
       handle,
     });
 
-    expect(result).toBe(response);
+    expect(problemBodySchema.parse(await result.json())).toMatchObject({
+      status: 401,
+      code: 'unauthenticated',
+    });
     expect(h.requireSameOriginMock).not.toHaveBeenCalled();
     expect(parse).not.toHaveBeenCalled();
     expect(handle).not.toHaveBeenCalled();
@@ -58,17 +68,23 @@ describe('runMutationRoute', () => {
     expect(calls).toEqual(['authorize', 'origin', 'handle']);
   });
 
-  it('returns a parser failure unchanged without calling the handler', async () => {
-    const response = new Response('Invalid JSON', { status: 400 });
+  it('maps a parser failure without calling the handler', async () => {
     const handle = vi.fn();
 
     const result = await runMutationRoute(request(), {
       authorize: async () => ({ ok: true as const, userId: 'user-1' }),
-      parse: async () => ({ ok: false, response }),
+      parse: async () => ({
+        ok: false,
+        failure: validationFailure('invalid_json', 'Invalid JSON'),
+      }),
       handle,
     });
 
-    expect(result).toBe(response);
+    expect(problemBodySchema.parse(await result.json())).toMatchObject({
+      status: 400,
+      code: 'invalid_json',
+      detail: 'Invalid JSON',
+    });
     expect(h.requireSameOriginMock).toHaveBeenCalledOnce();
     expect(handle).not.toHaveBeenCalled();
   });

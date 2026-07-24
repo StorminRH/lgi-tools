@@ -1,12 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
 import {
+  renameSavedPlanEndpoint,
   renameSavedPlanRequestSchema,
-  type SavedPlansResponse,
 } from '@/features/industry-planner/api-contract';
 import { listSavedPlans, renameSavedPlan } from '@/features/industry-planner/saved-plans-queries';
-import { parseJsonBody } from '@/transport/route-body';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/saved-plans/rename — rename one of the caller's OWN
@@ -16,12 +17,12 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, renameSavedPlanRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, renameSavedPlanRequestSchema),
     handle: async ({ userId }, { id, name }) => {
       await renameSavedPlan(userId, id, name);
       const plans = await listSavedPlans(userId);
-      return Response.json({ plans } satisfies SavedPlansResponse);
+      return apiResponse(renameSavedPlanEndpoint, 200, { plans });
     },
   });
 }

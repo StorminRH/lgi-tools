@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import { z } from 'zod';
+import { problemBodySchema } from '@/lib/problem';
 import { apiFetch, type ApiEndpoint } from './api-client';
 import {
   defineEndpoint,
@@ -177,13 +178,14 @@ const emptyWireEndpoint = defineEndpoint({
   },
 });
 
-const problemResponseBody = (code = 'invalid_body', status = 400) => ({
-  type: 'https://lgi.tools/problems/validation',
-  title: 'Invalid request',
-  status,
-  code,
-  correlationId: 'correlation-id',
-});
+const problemResponseBody = (code = 'invalid_body', status = 400) =>
+  problemBodySchema.parse({
+    type: 'https://lgi.tools/problems/validation',
+    title: 'Invalid request',
+    status,
+    code,
+    correlationId: 'correlation-id',
+  });
 
 describe('apiFetch v2', () => {
   it('returns raw JSON through the exact declared success arm', async () => {
@@ -233,6 +235,23 @@ describe('apiFetch v2', () => {
     if (!result.ok && result.kind === 'api' && result.status === 400) {
       expectTypeOf(result.error.code).toEqualTypeOf<'invalid_body'>();
     }
+  });
+
+  it('rejects undeclared problem extension members as protocol drift', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({ ...problemResponseBody(), stack: 'private stack' }, 400),
+      ),
+    );
+
+    await expect(
+      apiFetch(typedEndpoint, { body: { value: 'request' } }),
+    ).resolves.toMatchObject({
+      ok: false,
+      kind: 'protocol',
+      status: 400,
+    });
   });
 
   it.each(['development', 'production'] as const)(

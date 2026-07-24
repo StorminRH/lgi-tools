@@ -2,11 +2,12 @@ import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { getCurrentUserId } from '@/platform/auth/session';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
 import {
+  createSavedPlanEndpoint,
   createSavedPlanRequestSchema,
   MAX_SAVED_PLANS_PER_USER,
-  type SavedPlansResponse,
+  savedPlansEndpoint,
 } from '@/features/industry-planner/api-contract';
 import { getBlueprintStructure } from '@/features/industry-planner/queries';
 import {
@@ -15,7 +16,9 @@ import {
   deleteSavedPlan,
   listSavedPlans,
 } from '@/features/industry-planner/saved-plans-queries';
-import { parseJsonBody } from '@/transport/route-body';
+import { conflictFailure, validationFailure } from '@/lib/failure';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * GET /api/account/saved-plans — the caller's saved build templates. The
@@ -26,9 +29,9 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
-  if (!userId) return Response.json({ plans: [] } satisfies SavedPlansResponse);
+  if (!userId) return apiResponse(savedPlansEndpoint, 200, { plans: [] });
   const plans = await listSavedPlans(userId);
-  return Response.json({ plans } satisfies SavedPlansResponse);
+  return apiResponse(savedPlansEndpoint, 200, { plans });
 }
 
 /**
@@ -41,14 +44,24 @@ export async function GET(): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, createSavedPlanRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, createSavedPlanRequestSchema),
     handle: async ({ userId }, body) => {
       const structure = await getBlueprintStructure(body.snapshot.blueprintTypeId);
-      if (!structure) return new Response('unknown blueprint', { status: 400 });
+      if (!structure) {
+        return apiResponse(
+          createSavedPlanEndpoint,
+          400,
+          validationFailure('unknown_blueprint', 'unknown blueprint'),
+        );
+      }
 
       if ((await countSavedPlans(userId)) >= MAX_SAVED_PLANS_PER_USER) {
-        return new Response('template limit reached', { status: 409 });
+        return apiResponse(
+          createSavedPlanEndpoint,
+          409,
+          conflictFailure('template_limit', 'template limit reached'),
+        );
       }
 
       const id = randomUUID();
@@ -66,10 +79,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       // saves converge at or under the cap instead of past it.
       if ((await countSavedPlans(userId)) > MAX_SAVED_PLANS_PER_USER) {
         await deleteSavedPlan(userId, id);
-        return new Response('template limit reached', { status: 409 });
+        return apiResponse(
+          createSavedPlanEndpoint,
+          409,
+          conflictFailure('template_limit', 'template limit reached'),
+        );
       }
       const plans = await listSavedPlans(userId);
-      return Response.json({ plans } satisfies SavedPlansResponse, { status: 201 });
+      return apiResponse(createSavedPlanEndpoint, 201, { plans });
     },
   });
 }

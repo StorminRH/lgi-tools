@@ -8,44 +8,50 @@
 // authz: service
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 import {
+  eveTokenEndpoint,
   eveTokenRequestSchema,
-  type EveTokenErrorResponse,
-  type EveTokenOkResponse,
 } from '@/platform/auth/api-contract';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
-import { parseJsonBody } from '@/transport/route-body';
-import { requireServiceAuth } from '@/lib/service-auth';
+import {
+  conflictFailure,
+  dependencyUnavailableFailure,
+  notFoundFailure,
+} from '@/lib/failure';
+import { checkBearerSecret } from '@/lib/service-auth';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * Handles POST requests for /api/internal/eve-token; this route owns its authorization, boundary
  * validation, and typed response mapping.
  */
 export async function POST(req: Request): Promise<Response> {
-  const denied = await requireServiceAuth(req);
-  if (denied) return denied;
+  const auth = await checkBearerSecret(req, 'CONVEX_SERVICE_SECRET');
+  if (!auth.ok) return apiResponse(eveTokenEndpoint, auth.failure.code === 'not_configured' ? 500 : 401, auth.failure);
 
-  const parsed = await parseJsonBody(req, eveTokenRequestSchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(req, eveTokenRequestSchema);
+  if (!parsed.ok) return apiResponse(eveTokenEndpoint, 400, parsed.failure);
 
   if (!(await accountBelongsToUser(parsed.data.userId, parsed.data.characterId))) {
-    return Response.json(
-      { error: 'not_found' } satisfies EveTokenErrorResponse,
-      { status: 404 },
-    );
+    return apiResponse(eveTokenEndpoint, 404, notFoundFailure());
   }
 
   const result = await getFreshAccessTokenForCharacter(parsed.data.characterId);
   switch (result.kind) {
     case 'ok':
-      return Response.json({
+      return apiResponse(eveTokenEndpoint, 200, {
         accessToken: result.accessToken,
-      } satisfies EveTokenOkResponse);
+      });
     case 'not_found':
-      return Response.json({ error: 'not_found' } satisfies EveTokenErrorResponse, { status: 404 });
+      return apiResponse(eveTokenEndpoint, 404, notFoundFailure());
     case 'reauth_required':
-      return Response.json({ error: 'reauth_required' } satisfies EveTokenErrorResponse, { status: 409 });
+      return apiResponse(eveTokenEndpoint, 409, conflictFailure('reauth_required'));
     case 'upstream_error':
-      return Response.json({ error: 'upstream_error' } satisfies EveTokenErrorResponse, { status: 502 });
+      return apiResponse(
+        eveTokenEndpoint,
+        502,
+        dependencyUnavailableFailure('upstream_error', 502),
+      );
   }
 }

@@ -10,7 +10,8 @@
 // src/components (an unzoned .ts, like use-account-characters.ts) so both feature slices
 // consume it without importing each other; it imports only lib.
 import { useEffect, useState } from 'react';
-import { type ApiEndpoint, apiFetch } from '@/transport/api-client';
+import { apiFetch } from '@/transport/api-client';
+import type { EndpointContract, JsonCodec } from '@/transport/endpoint';
 import { shouldReconcile } from '@/lib/live-dataset';
 
 // Re-render cadence for the client-side timestamp math — countdowns and the ready flip
@@ -24,7 +25,9 @@ const RECONCILE_DELAY_MS = 4_000;
  * where required and render the returned state.
  */
 export function useLiveDataset<TResponse, TKey extends string | boolean>(
-  endpoint: ApiEndpoint<null, TResponse>,
+  endpoint: EndpointContract<null, { 200: JsonCodec<TResponse> }> & {
+    method: 'GET';
+  },
   // The primitive reload key: a change re-runs the load. Character trackers pass the
   // deduped eligible-id string; the corp tracker passes a "has eligible" boolean.
   coldKey: TKey,

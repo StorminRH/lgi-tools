@@ -6,7 +6,11 @@
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
-import type { ApiEndpoint } from '@/transport/api-client';
+import {
+  defineEndpoint,
+  jsonBody,
+  problem,
+} from '@/transport/endpoint';
 
 // ── GET /api/account/corp-structures (authz: auth) ───────────────────────
 // The signed-in user's owned-structure catalogues, one per corporation they are a
@@ -32,9 +36,8 @@ const viewerCorpStructuresSchema = z.object({
 });
 
 /**
- * Exported as the slice's canonical wire shape: the route derives its response type
- * from it (below), and next session's client adds the typed `apiFetch` endpoint that
- * validates against it (`response: corpStructuresResponseSchema`).
+ * Exported as the slice's canonical wire shape: the route response and typed
+ * endpoint below both derive from it.
  */
 export const corpStructuresResponseSchema = z.object({
   corporations: z.array(viewerCorpStructuresSchema),
@@ -45,6 +48,16 @@ export const corpStructuresResponseSchema = z.object({
  * metadata for the current read.
  */
 export type CorpStructuresResponse = z.infer<typeof corpStructuresResponseSchema>;
+
+/** Typed corporation-structure catalogue endpoint for the current viewer. */
+export const corpStructuresEndpoint = defineEndpoint({
+  method: 'GET',
+  path: '/api/account/corp-structures',
+  request: null,
+  responses: {
+    200: jsonBody(corpStructuresResponseSchema),
+  },
+});
 
 /**
  * ── POST /api/account/corp-structures/sharing (authz: auth + Station_Manager) ──
@@ -81,15 +94,17 @@ export type CorpStructureSharingResponse = z.infer<typeof corpStructureSharingRe
  * Typed endpoint definition for set corp structure sharing endpoint; method, path, request, and
  * response contracts remain coupled here.
  */
-export const setCorpStructureSharingEndpoint: ApiEndpoint<
-  SetCorpStructureSharingRequest,
-  CorpStructureSharingResponse
-> = {
+export const setCorpStructureSharingEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/corp-structures/sharing',
   request: setCorpStructureSharingRequestSchema,
-  response: corpStructureSharingResponseSchema,
-};
+  responses: {
+    200: jsonBody(corpStructureSharingResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    403: problem('not_corp_member', 'not_station_manager'),
+  },
+});
 
 // ── POST /api/account/corp-structures/rigs (authz: auth + Station_Manager) ─────
 // Record the authored completion for one corp structure: its fitted rigs and its
@@ -141,12 +156,14 @@ export type CorpStructureRigsResponse = z.infer<typeof corpStructureRigsResponse
  * Typed endpoint definition for set corp structure rigs endpoint; method, path, request, and
  * response contracts remain coupled here.
  */
-export const setCorpStructureRigsEndpoint: ApiEndpoint<
-  SetCorpStructureRigsRequest,
-  CorpStructureRigsResponse
-> = {
+export const setCorpStructureRigsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/corp-structures/rigs',
   request: setCorpStructureRigsRequestSchema,
-  response: corpStructureRigsResponseSchema,
-};
+  responses: {
+    200: jsonBody(corpStructureRigsResponseSchema),
+    400: problem('invalid_json', 'invalid_body', 'invalid_structure'),
+    401: problem('unauthenticated'),
+    403: problem('not_corp_member', 'not_station_manager'),
+  },
+});
