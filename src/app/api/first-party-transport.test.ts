@@ -24,10 +24,12 @@ const CONVEX_DIR = join(REPO_ROOT, 'convex');
 const TEMPLATE_FETCH_RE = /\b(?:fetch|fetchWithTimeout)\s*\(\s*`[^`]*\/api\//g;
 
 /**
- * A response body asserted into a type. `as unknown` is the sanctioned widening
- * idiom and is deliberately excluded — it asserts nothing about the shape.
+ * A response body asserted into a type. Bare `as unknown` is the sanctioned
+ * widening idiom and is excluded because it claims nothing about the shape —
+ * but only when nothing follows it, so the `as unknown as T` double assertion
+ * (the obvious way around a ban on `as T`) is still rejected.
  */
-const RESPONSE_ASSERTION_RE = /\.json\(\)\s*\)?\s+as\s+(?!unknown\b)/g;
+const RESPONSE_ASSERTION_RE = /\.json\(\)\s*\)?\s+as\s+(?!unknown\s*(?:[;,)\]]|$))/gm;
 
 /**
  * External, untrusted upstreams whose bodies are deliberately not first-party
@@ -112,12 +114,16 @@ describe('sweep gate red fixtures', () => {
     ['parenthesised await', 'const body = (await res.json()) as { id: number };'],
     ['direct call', 'const body = await res.json() as { id: number };'],
     ['interface assertion', 'const token = (await response.json()) as EveTokenOkResponse;'],
+    ['double assertion', 'const t = (await res.json()) as unknown as EveTokenOkResponse;'],
+    ['double assertion, no parens', 'const t = await res.json() as unknown as Shape;'],
   ])('rejects a first-party response assertion: %s', (_label, source) => {
     expect(matches(RESPONSE_ASSERTION_RE, source)).toBe(true);
   });
 
   it.each([
     ['sanctioned unknown widening', 'const body = (await res.json()) as unknown;'],
+    ['unknown widening in a call argument', 'handle((await res.json()) as unknown);'],
+    ['unknown widening at end of line', 'const body = (await res.json()) as unknown'],
     ['validated body', 'const body = schema.safeParse(await res.json());'],
     ['plain read', 'const body: unknown = await res.json();'],
   ])('accepts %s', (_label, source) => {

@@ -13,12 +13,19 @@ function protocolFailure(status: number, detail: string) {
   return { ok: false, kind: 'protocol' as const, status, detail };
 }
 
+// A caller's AbortController produces `AbortError`; the shared outbound timeout
+// in `fetchWithTimeout` (and `AbortSignal.timeout`) produces `TimeoutError`.
+// Both mean the request was cancelled rather than answered, so both set
+// `aborted` — otherwise a real timeout would report as an ordinary network fault.
+const ABORTED_ERROR_NAMES: ReadonlySet<string> = new Set(['AbortError', 'TimeoutError']);
+
 function isAbortError(cause: unknown): boolean {
   return (
     typeof cause === 'object' &&
     cause !== null &&
     'name' in cause &&
-    cause.name === 'AbortError'
+    typeof cause.name === 'string' &&
+    ABORTED_ERROR_NAMES.has(cause.name)
   );
 }
 

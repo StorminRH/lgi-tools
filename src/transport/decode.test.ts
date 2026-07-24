@@ -186,4 +186,18 @@ describe('networkFailure', () => {
       cause: failed,
     });
   });
+
+  it('flags the shared outbound timeout as aborted, not as a network fault', () => {
+    // fetchWithTimeout aborts with DOMException('signal timed out', 'TimeoutError'),
+    // so a real timeout must not be reported as an ordinary connection failure.
+    const timedOut = new DOMException('signal timed out', 'TimeoutError');
+
+    expect(networkFailure(timedOut)).toMatchObject({ aborted: true, cause: timedOut });
+  });
+
+  it('does not treat an unnamed or non-object cause as aborted', () => {
+    expect(networkFailure({ name: 42 })).toMatchObject({ aborted: false });
+    expect(networkFailure('boom')).toMatchObject({ aborted: false });
+    expect(networkFailure(null)).toMatchObject({ aborted: false });
+  });
 });

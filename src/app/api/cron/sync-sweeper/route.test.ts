@@ -124,6 +124,18 @@ describe('GET /api/cron/sync-sweeper', () => {
     });
   });
 
+  it.each([
+    ['a malformed body', () => Promise.reject(new SyntaxError('Unexpected end of JSON input'))],
+    ['fractional counts', () => Promise.resolve({ dispatched: 1.5, retired: 0, deleted: 0 })],
+    ['negative counts', () => Promise.resolve({ dispatched: -1, retired: 0, deleted: 0 })],
+  ])('reports sweep_invalid_response for %s', async (_label, json) => {
+    h.fetchMock.mockResolvedValue({ ok: true, status: 200, json });
+    const res = await GET(authedRequest());
+    const body = await res.json();
+    expect(body.status).toBe('failed');
+    expect(body.reason).toBe('sweep_invalid_response');
+  });
+
   it('fails with the error name when the sweep POST throws', async () => {
     h.fetchMock.mockRejectedValue(new Error('boom'));
     const res = await GET(authedRequest());

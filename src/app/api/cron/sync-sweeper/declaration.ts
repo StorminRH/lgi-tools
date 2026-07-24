@@ -41,10 +41,24 @@ export const syncSweeperDeclaration: CronRouteDeclaration<CronSyncSweeperRespons
 // The engine's sweep mutation owns these counts; this is the wire boundary
 // where they enter the cron route's telemetry.
 const sweepCountsSchema = z.object({
-  dispatched: z.number(),
-  retired: z.number(),
-  deleted: z.number(),
+  dispatched: z.number().int().nonnegative(),
+  retired: z.number().int().nonnegative(),
+  deleted: z.number().int().nonnegative(),
 });
+
+/** Reads the sweep's declared counts, or null when the body is unreadable or drifted. */
+async function readSweepCounts(
+  response: Response,
+): Promise<z.infer<typeof sweepCountsSchema> | null> {
+  try {
+    const parsed = sweepCountsSchema.safeParse(await response.json());
+    return parsed.success ? parsed.data : null;
+  } catch {
+    // A malformed or empty body is the same protocol drift as a wrong shape;
+    // it must not surface as the outer catch's transport-failure reason.
+    return null;
+  }
+}
 
 async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
   const base = {
@@ -96,8 +110,8 @@ async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
     }
     // First-party service response, but still validated: a drifted body used to
     // propagate silently into the telemetry counts.
-    const counts = sweepCountsSchema.safeParse(await response.json());
-    if (!counts.success) {
+    const counts = await readSweepCounts(response);
+    if (counts === null) {
       return {
         status: 'failed',
         reason: 'sweep_invalid_response',
@@ -107,7 +121,7 @@ async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
     }
     return {
       status: 'swept',
-      ...counts.data,
+      ...counts,
       durationMs: Date.now() - started,
     };
   } catch (err) {
