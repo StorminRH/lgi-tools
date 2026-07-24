@@ -25,6 +25,17 @@ const DELIVERY_WRAPPERS = new Set([
   'src/transport/cron.ts:requireCronAuth',
 ]);
 
+const PROTECTED_RESPONSE_EXPORTS = new Set([
+  ...DELIVERY_WRAPPERS,
+  'src/lib/discord.ts:postDiscordWebhook',
+  'src/lib/fetch-with-timeout.ts:fetchWithTimeout',
+  'src/lib/problem.ts:problemResponse',
+  'src/lib/problem.ts:serializeProblem',
+  'src/platform/auth/absorb-redirect.ts:decorateAbsorbRedirect',
+  'src/transport/api-client.ts:apiFetch',
+  'src/transport/api-response.ts:apiResponse',
+]);
+
 const REVERSE_SWEEP_ROOTS = [
   'src/platform/auth',
   'src/lib',
@@ -216,19 +227,20 @@ describe('guard and parser emission boundaries', () => {
     expect(violations).toEqual([]);
   });
 
-  it('reverse-sweeps protected layers for new Response-returning guard exports', () => {
-    const responseExports = program
-      .getSourceFiles()
-      .filter((file) =>
-        REVERSE_SWEEP_ROOTS.some((root) =>
-          relative(REPO_ROOT, file.fileName).startsWith(`${root}/`),
-        ),
-      )
-      .flatMap(exportedFunctions)
-      .filter((fn) => /^(check|read|parse|reject|stationManagerGate)/.test(fn.name))
-      .filter((fn) => returnsResponse(fn.declaration, checker))
-      .map((fn) => fn.key);
-    expect(responseExports).toEqual([]);
+  it('reverse-sweeps protected layers for every Response-returning export', () => {
+    const responseExports = new Set(
+      program
+        .getSourceFiles()
+        .filter((file) =>
+          REVERSE_SWEEP_ROOTS.some((root) =>
+            relative(REPO_ROOT, file.fileName).startsWith(`${root}/`),
+          ),
+        )
+        .flatMap(exportedFunctions)
+        .filter((fn) => returnsResponse(fn.declaration, checker))
+        .map((fn) => fn.key),
+    );
+    expect([...responseExports].sort()).toEqual([...PROTECTED_RESPONSE_EXPORTS].sort());
   });
 });
 
