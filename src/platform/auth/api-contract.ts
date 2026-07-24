@@ -30,24 +30,28 @@ export const eveTokenRequestSchema = z.object({
 });
 
 /**
- * 200 — pinned with `satisfies` in the route; type-imported by convex/ in
- * 3.4.3. Carries ONLY the short-lived access token: the consumer's ESI reads
- * own their freshness windows, so no expiry/identity/scope metadata rides
- * this wire (PL-013).
+ * 200 response type imported by convex/ in 3.4.3. Carries ONLY the short-lived
+ * access token: the consumer's ESI reads own their freshness windows, so no
+ * expiry/identity/scope metadata rides this wire (PL-013).
  */
-export interface EveTokenOkResponse {
-  accessToken: string;
-}
+const eveTokenResponseSchema = z.object({ accessToken: z.string() });
+/** Fresh EVE access token vended to the authenticated internal sync caller. */
+export type EveTokenOkResponse = z.infer<typeof eveTokenResponseSchema>;
 
-/** 404 | 409 | 502 JSON envelope. 400/401/500 are plain text — uncontracted. */
-export type EveTokenErrorCode = 'not_found' | 'reauth_required' | 'upstream_error';
-/**
- * JSON error envelope for token vending; the code determines whether the caller treats the
- * character as missing, reauth-required, or upstream-failed.
- */
-export interface EveTokenErrorResponse {
-  error: EveTokenErrorCode;
-}
+/** Internal token-vending endpoint with closed success and failure statuses. */
+export const eveTokenEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/internal/eve-token',
+  request: eveTokenRequestSchema,
+  responses: {
+    200: jsonBody(eveTokenResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+    404: problem('not_found'),
+    409: problem('reauth_required'),
+    502: problem('upstream_error'),
+  },
+});
 
 // ── POST /api/internal/eve-characters (authz: service) ──────────────────
 // The Convex action → character-enumeration boundary (3.4.7). Convex asserts
@@ -65,29 +69,39 @@ export const eveCharactersRequestSchema = z.object({
 });
 
 /**
- * 200 — pinned with `satisfies` in the route; type-imported by convex/.
- * `hasRefreshToken` + `missingScopes` (from the shipped scope-health
- * derivation) let a consumer decide eligibility against ITS OWN scope needs —
- * the skill tracker only requires the two skill scopes, not the full
- * superset — and skip token vends that would only 409. No token material.
+ * 200 response type imported by convex/. `hasRefreshToken` + `missingScopes`
+ * (from the shipped scope-health derivation) let a consumer decide eligibility
+ * against ITS OWN scope needs — the skill tracker only requires the two skill
+ * scopes, not the full superset — and skip token vends that would only 409. No
+ * token material.
  */
-export interface EveCharacterEntry {
-  characterId: number;
-  name: string;
-  hasRefreshToken: boolean;
-  missingScopes: string[];
+const eveCharacterEntrySchema = z.object({
+  characterId: z.number().int().positive(),
+  name: z.string(),
+  hasRefreshToken: z.boolean(),
+  missingScopes: z.array(z.string()),
   // Cached corp affiliation (3.7.3.2). The Convex corp sync reads this instead of
   // an inline public /characters/{id} ESI call (resolveCorpSubjects); null until
   // the character's affiliation has been refreshed at least once.
-  corporationId: number | null;
-}
-/**
- * Internal character enumeration returned to Convex; each entry carries the identity and
- * corporation context needed for synchronization.
- */
-export interface EveCharactersResponse {
-  characters: EveCharacterEntry[];
-}
+  corporationId: z.number().int().positive().nullable(),
+});
+const eveCharactersResponseSchema = z.object({
+  characters: z.array(eveCharacterEntrySchema),
+});
+/** Internal character enumeration returned to Convex with sync eligibility and corp context. */
+export type EveCharactersResponse = z.infer<typeof eveCharactersResponseSchema>;
+
+/** Internal linked-character enumeration endpoint with closed success and failure statuses. */
+export const eveCharactersEndpoint = defineEndpoint({
+  method: 'POST',
+  path: '/api/internal/eve-characters',
+  request: eveCharactersRequestSchema,
+  responses: {
+    200: jsonBody(eveCharactersResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+  },
+});
 
 /**
  * ── GET /api/cron/refresh-affiliations (authz: cron) ────────────────────

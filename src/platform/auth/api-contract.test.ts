@@ -5,8 +5,9 @@
 // server-only transitive imports — exactly how convex/ will consume it.
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
+  eveCharactersEndpoint,
+  eveTokenEndpoint,
   eveTokenRequestSchema,
-  type EveTokenErrorResponse,
   type EveTokenOkResponse,
 } from './api-contract';
 
@@ -17,10 +18,13 @@ describe('eve-token contract', () => {
     }>();
   });
 
-  it('pins the error envelope and its codes', () => {
-    expectTypeOf<EveTokenErrorResponse>().toEqualTypeOf<{
-      error: 'not_found' | 'reauth_required' | 'upstream_error';
-    }>();
+  it('pins the internal endpoints and their closed statuses', () => {
+    expect(Object.keys(eveTokenEndpoint.responses).map(Number)).toEqual([
+      200, 400, 401, 404, 409, 502,
+    ]);
+    expect(Object.keys(eveCharactersEndpoint.responses).map(Number)).toEqual([
+      200, 400, 401,
+    ]);
   });
 
   it('accepts an owning user id and positive integer characterId', () => {

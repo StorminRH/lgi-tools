@@ -10,14 +10,15 @@
 import { after } from 'next/server';
 import { refreshAffiliations } from '@/platform/auth/affiliation';
 import {
+  eveCharactersEndpoint,
   eveCharactersRequestSchema,
-  type EveCharactersResponse,
 } from '@/platform/auth/api-contract';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
-import { parseJsonBody } from '@/transport/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');
 
@@ -29,8 +30,8 @@ export async function POST(req: Request): Promise<Response> {
   const denied = await requireServiceAuth(req);
   if (denied) return denied;
 
-  const parsed = await parseJsonBody(req, eveCharactersRequestSchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(req, eveCharactersRequestSchema);
+  if (!parsed.ok) return apiResponse(eveCharactersEndpoint, 400, parsed.failure);
 
   // An unknown userId simply has no linked characters — same response shape,
   // empty list; the caller's sync writes nothing.
@@ -52,7 +53,7 @@ export async function POST(req: Request): Promise<Response> {
     after(() => refreshAffiliations(staleIds));
   }
 
-  return Response.json({
+  return apiResponse(eveCharactersEndpoint, 200, {
     characters: linked.map((character) => {
       const health = deriveCharacterHealth({
         scope: character.scope,
@@ -66,5 +67,5 @@ export async function POST(req: Request): Promise<Response> {
         corporationId: character.corporationId,
       };
     }),
-  } satisfies EveCharactersResponse);
+  });
 }
