@@ -394,7 +394,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "9af037b7f8bc91f5fc36d092f67ca61f981a51cafaf725e2df24838674b696f6"
+      "reconciledHash": "5f8651bc47428132e941be0edfe575537838ac39e0a66cc98a66e7a89887b122"
     },
     "plan-session": {
       "deps": [
@@ -413,7 +413,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "bbc02fc4260a356a7fc0081e98e8e0ed3b83659b8874cf46ccd77f0648080ed9"
+      "reconciledHash": "4f21ad080e49162f2f7abacd5775855bbd8fa3dc5ff9876b3b22a3ec8eedda51"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -434,7 +434,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "77964715a1e5544255f77dfd3f73f6b3e0f74dd7106f9db8f271cb222fe35b22"
+      "reconciledHash": "5c19d519ffff620fa432290344846ec9d6f7ee80405233b620c3fe69943903e1"
     },
     "plan-version-audit": {
       "deps": [
@@ -454,7 +454,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "ae36af5d7708240e7e3fe987e7aaa30d22da49e7c9b182c3c0e9ec7be3bb5d0b"
+      "reconciledHash": "dec0b0c9ce9b124c4864dbd7aae791704858d04e1ec2f3c604ad92f3562d8845"
     },
     "version-audit": {
       "deps": [
