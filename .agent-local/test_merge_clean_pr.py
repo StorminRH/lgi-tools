@@ -7,8 +7,13 @@ import copy
 import unittest
 
 from merge_clean_pr import (
+    CODERABBIT,
+    FALLBACK_REQUIRED_CHECKS,
     GREPTILE,
+    GREPTILE_CHECK,
     REQUIRED_CHECKS,
+    greptile_reviewed,
+    live_coderabbit_findings,
     live_inline_findings,
     merge_blockers,
 )
@@ -127,6 +132,112 @@ class LiveInlineFindings(unittest.TestCase):
 
     def test_ignores_non_dict_items(self) -> None:
         self.assertEqual(live_inline_findings([None, "x"], HEAD), [])
+
+
+def cr_root(comment_id: int = 10, commit: str = HEAD) -> dict:
+    return {
+        "user": {"login": CODERABBIT},
+        "id": comment_id,
+        "commit_id": commit,
+        "in_reply_to_id": None,
+        "line": 5,
+    }
+
+
+def fallback_inputs() -> dict:
+    """A PR Greptile never reviewed: no summary comment and no Greptile check."""
+    data = clean_inputs()
+    data["issue_comments"] = []
+    data["runs"] = [
+        {"name": name, "status": "completed", "conclusion": "success"}
+        for name in FALLBACK_REQUIRED_CHECKS
+    ]
+    return data
+
+
+def fallback_blockers(resolved: frozenset[int] = frozenset(), **overrides) -> list[str]:
+    data = fallback_inputs()
+    data.update(overrides)
+    return merge_blockers(
+        data["pr"],
+        data["issue_comments"],
+        data["inline_comments"],
+        data["runs"],
+        data["expected_head"],
+        resolved,
+    )
+
+
+class GreptileParticipation(unittest.TestCase):
+    def test_summary_counts_as_reviewed(self) -> None:
+        comments = [summary_comment("Greptile Summary\nConfidence Score: 5/5")]
+        self.assertTrue(greptile_reviewed(comments, []))
+
+    def test_check_alone_counts_as_reviewed(self) -> None:
+        runs = [{"name": GREPTILE_CHECK, "status": "completed", "conclusion": "success"}]
+        self.assertTrue(greptile_reviewed([], runs))
+
+    def test_absent_summary_and_check_is_not_reviewed(self) -> None:
+        runs = [{"name": "test", "status": "completed", "conclusion": "success"}]
+        self.assertFalse(greptile_reviewed([], runs))
+
+
+class CodeRabbitFallback(unittest.TestCase):
+    def test_fallback_gate_is_clean_with_no_findings(self) -> None:
+        self.assertEqual(fallback_blockers(), [])
+
+    def test_unresolved_finding_blocks(self) -> None:
+        reasons = fallback_blockers(inline_comments=[cr_root()])
+        self.assertTrue(any("CodeRabbit has 1 unresolved" in r for r in reasons))
+
+    def test_resolved_finding_does_not_block(self) -> None:
+        self.assertEqual(fallback_blockers(frozenset({10}), inline_comments=[cr_root()]), [])
+
+    def test_finding_on_an_older_head_does_not_block(self) -> None:
+        self.assertEqual(fallback_blockers(inline_comments=[cr_root(commit="old")]), [])
+
+    def test_bot_reply_is_not_a_finding(self) -> None:
+        reply = cr_root(11) | {"in_reply_to_id": 10}
+        self.assertEqual(fallback_blockers(inline_comments=[reply]), [])
+
+    def test_missing_coderabbit_check_blocks(self) -> None:
+        runs = [{"name": "test", "status": "completed", "conclusion": "success"}]
+        reasons = fallback_blockers(runs=runs)
+        self.assertTrue(any("missing required checks" in r for r in reasons))
+
+    def test_fallback_does_not_require_the_greptile_check(self) -> None:
+        self.assertFalse(any("Greptile Review" in r for r in fallback_blockers()))
+
+    def test_greptile_findings_are_never_waived_by_a_green_coderabbit(self) -> None:
+        # Greptile reviewed, so its inline finding decides the merge even though
+        # CodeRabbit is clean — the fallback must not become an alternative.
+        data = clean_inputs()
+        reasons = merge_blockers(
+            data["pr"],
+            data["issue_comments"],
+            [{"user": {"login": GREPTILE}, "commit_id": HEAD, "line": 5}],
+            data["runs"],
+            data["expected_head"],
+            frozenset(),
+        )
+        self.assertTrue(any("Greptile has 1 inline finding" in r for r in reasons))
+
+    def test_missing_greptile_summary_still_blocks_when_greptile_checked(self) -> None:
+        runs = [
+            {"name": name, "status": "completed", "conclusion": "success"}
+            for name in REQUIRED_CHECKS
+        ]
+        reasons = fallback_blockers(runs=runs)
+        self.assertTrue(any("no Greptile summary found" in r for r in reasons))
+
+
+class LiveCodeRabbitFindings(unittest.TestCase):
+    def test_ignores_non_dict_items(self) -> None:
+        self.assertEqual(live_coderabbit_findings([None, "x"], HEAD, frozenset()), [])
+
+    def test_ignores_other_authors(self) -> None:
+        other = cr_root() | {"user": {"login": GREPTILE}}
+        self.assertEqual(live_coderabbit_findings([other], HEAD, frozenset()), [])
 
 
 if __name__ == "__main__":

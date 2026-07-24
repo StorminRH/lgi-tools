@@ -242,7 +242,9 @@ code first, then prior as-built records, then the prompt chain.
 - `close-out` invocation authorizes only the current change's squash merge after
   its documented gates pass. It does not authorize merging around a gate or any
   unrelated production action. A generic Vercel review cannot replace the
-  repository's Greptile gate.
+  repository's Greptile gate. CodeRabbit is the one sanctioned fallback, and
+  only for a PR Greptile did not review at all; the merge helper selects the
+  gate and fails closed, so never pick one by hand.
 - PR titles and bodies are public. Exclude personal names, email addresses,
   account handles, machine names, local paths, browser-profile details, and
   private identifiers.
