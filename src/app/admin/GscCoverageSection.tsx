@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { MultiplesCell, MultiplesGrid } from '@/components/ui/multiples-grid';
 import { Pill, type PillTone } from '@/components/ui/pill';
 import { SectionHeader } from '@/components/ui/section-header';
-import { getSitemapEntries } from '@/app/sitemap';
+import { getSitemapEntries } from '@/composition/sitemap';
 import { isGscConfigured } from '@/data/gsc/constants';
 import { getCoverageTrend, getLatestUrlCoverage } from '@/data/gsc/queries';
 import type { GscRange } from '@/data/gsc/types';

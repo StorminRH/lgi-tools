@@ -2,8 +2,8 @@
 // (including SOON entries — they render dimmed so users learn the
 // platform's full surface area even before each tool is live).
 
-import type { SearchSource } from '@/search';
-import { rankFuzzyResults } from '@/search/rank';
+import type { SearchSource } from '@/platform/search';
+import { rankFuzzyResults } from '@/platform/search/rank';
 import { TOOLS } from './registry';
 
 /**

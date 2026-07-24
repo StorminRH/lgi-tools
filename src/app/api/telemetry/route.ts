@@ -4,7 +4,7 @@ import { TELEMETRY_LIMIT_PER_MINUTE } from '@/data/telemetry/constants';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { getSessionCharacterId } from '@/platform/auth/session';
 import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 // Hard cap on serialised metadata to keep one bad payload from filling the
 // table. 2KB is generous for page-view + search shapes; rejecting larger

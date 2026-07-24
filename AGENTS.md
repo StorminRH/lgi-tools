@@ -87,9 +87,11 @@ failures.
 - `src/components/ui/` owns domain-neutral primitives; `src/components/` owns
   shared cross-feature composition; `src/lib/` owns cross-cutting leaf
   utilities.
-- `src/app/` owns route and page composition. `src/db/`, `src/search/`,
-  `src/purge/`, `src/page-settings/`, and `src/esi-datasets/` compose their
-  declared concerns; `src/config/` owns application configuration.
+- `src/app/` owns route and page composition. `src/composition/` owns extracted
+  cross-slice wiring. `src/platform/` owns reusable authentication, ESI,
+  owner-sync, search, purge, and page-settings capabilities; `src/transport/`
+  owns transport helpers. `src/db/` and `src/esi-datasets/` compose their
+  remaining declared concerns; `src/config/` owns application configuration.
 - `convex/` owns regenerable live projections and sync behavior.
   `src/proxy*.ts` and `src/instrumentation*.ts` are process-level runtime entry
   points.
@@ -98,9 +100,9 @@ failures.
   deferred, unassigned work to `docs/backlog.md`.
 
 Cross-slice composition belongs above the participating slices. Follow the
-established `src/db/sde-pipeline.ts`, `src/search/register-all.ts`, and
-`src/purge/` patterns; Fallow enforces the import map and its explicit
-exceptions and rejects unclassified source files.
+established `src/db/sde-pipeline.ts`, `src/composition/search/register-all.ts`,
+and `src/composition/purge/orchestrator.ts` patterns; Fallow enforces the import
+map and its explicit exceptions and rejects unclassified source files.
 
 Protect established deep modules whose small interfaces hide cohesive
 complexity: the EVE tree resolver, Convex sync engine, shared ESI/API/env gates,

@@ -16,7 +16,7 @@ import {
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';
 
 const AFFILIATION_FRESHNESS = freshnessGate('affiliations');

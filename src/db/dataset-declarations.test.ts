@@ -24,8 +24,8 @@ import { ESI_DATASET_ENTRIES } from '@/lib/esi-datasets/entries';
 import {
   findIdentityFkLeaks,
   isUserDataTable,
-} from '@/purge/coverage';
-import { PURGE_CONTRIBUTORS } from '@/purge/register-all';
+} from '@/platform/purge/coverage';
+import { PURGE_CONTRIBUTORS } from '@/composition/purge/register-all';
 import {
   TABLE_GROWTH_STORIES,
   tableGrowthKey,

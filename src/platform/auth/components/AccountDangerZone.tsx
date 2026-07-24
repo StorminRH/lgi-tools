@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Popover, PopoverHeading, PopoverRow } from '@/components/ui/popover';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from '@/components/ui/toast';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import {
   isDeleteAcknowledged,
   redirectTargetFor,

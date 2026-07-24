@@ -5,7 +5,7 @@ import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometr
 import type { SparklineTone } from '@/components/ui/sparkline';
 import type { BarDatum } from '@/components/ui/bar-chart';
 import { endLabelFor } from './end-label';
-import type { Delta } from './period';
+import type { Delta } from '@/composition/admin-period';
 
 // Client-only chart wrappers for the admin dashboard. `ssr: false` keeps the
 // interactive SVG/tooltip markup out of the server-rendered shell (it can only

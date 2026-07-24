@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('next/navigation', () => ({ usePathname: () => null }));
 
 import { PageMenuProvider, usePageSettings } from '@/components/PageMenuProvider';
-import { __resetPageSettings, registerPageSettings } from '@/page-settings';
+import { __resetPageSettings, registerPageSettings } from '@/platform/page-settings';
 
 // Reads the slot and emits the resolved spec's route + control keys + strip, or
 // EMPTY when no spec governs the route.

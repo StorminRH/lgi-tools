@@ -15,7 +15,7 @@ import {
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { validateCustomStructureSelection } from '@/features/custom-structures/validation';
 import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures — save one custom structure for the signed-in

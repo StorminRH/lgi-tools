@@ -2,7 +2,7 @@
 // non-regenerable per-user build templates; torn down with the user.
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/purge/types';
+import type { PurgeContributor } from '@/platform/purge/types';
 import { savedPlans } from './schema';
 
 /**

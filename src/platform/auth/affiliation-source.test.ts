@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { __resetEsiGateForTests, __setScoreboardForTests } from '@/lib/esi';
+import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { fetchAffiliations } from './affiliation-source';
 
 // Drive the REAL gate (so the real esiFetch + error classes are exercised, with

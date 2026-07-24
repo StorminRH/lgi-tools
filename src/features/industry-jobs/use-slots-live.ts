@@ -12,7 +12,7 @@
 // doesn't poll forever; no manual refresh control (the live-surface
 // invariant).
 import { useEffect, useState } from 'react';
-import { type ApiResult, apiFetch } from '@/lib/api-client';
+import { type ApiResult, apiFetch } from '@/transport/api-client';
 import { industrySlotsEndpoint, type IndustrySlotsResponse, type ViewerSlots } from './api-contract';
 
 const RECONCILE_DELAY_MS = 5_000;

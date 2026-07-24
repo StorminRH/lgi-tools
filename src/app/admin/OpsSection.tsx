@@ -27,7 +27,7 @@ import type {
   FallbackRateData,
 } from '@/data/telemetry/types';
 import { listRecentDomainEvents } from '@/data/domain-events/queries';
-import { readEsiBudgetSnapshot } from '@/lib/esi/scoreboard';
+import { readEsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 import { AdminBarChart, AdminTrendChart } from './charts';
 import {
   getBudgetExhaustionCountShared,
@@ -42,7 +42,7 @@ import {
   summarizeDomainEvent,
   type OpsMetricRow,
 } from './ops-view';
-import { trendSeries, type RangeKey } from './period';
+import { trendSeries, type RangeKey } from '@/composition/admin-period';
 import { RetryJobForm } from './RetryJobForm';
 import { SectionUnavailable } from './SectionUnavailable';
 

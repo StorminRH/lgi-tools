@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EsiContractError, EsiServerError, esiFetch, esiUrl } from '@/lib/esi';
+import { EsiContractError, EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
 import { INDUSTRY_ACTIVITIES, type IndustryActivity } from './constants';
 import type { RawAdjustedPrice, RawCostIndex } from './types';
 

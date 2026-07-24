@@ -24,7 +24,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 vi.mock('@/data/esi-refresh-jobs/pending-signal', () => ({
   readPendingWorkSignal: mocks.pendingWork,
 }));
-vi.mock('@/lib/esi/exhaustion-marker', () => ({
+vi.mock('@/platform/esi/exhaustion-marker', () => ({
   hasRecentBudgetExhaustion: mocks.recentExhaustion,
 }));
 vi.mock('@/db/esi-refresh-worker', () => ({

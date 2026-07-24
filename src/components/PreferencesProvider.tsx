@@ -25,7 +25,7 @@ import {
 import { getPreferencesEndpoint, putPreferenceEndpoint } from '@/data/preferences/api-contract';
 import { processPreferencesResponse } from '@/data/preferences/parse-server-preferences';
 import { authClient } from '@/platform/auth/auth-client';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import {
   PREFERENCES,
   peekLocalPreference,

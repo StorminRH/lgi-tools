@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
 import { MAX_FACILITY_TAX_PCT } from '@/data/industry-math/fees';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 
 // ── GET /api/account/corp-structures (authz: auth) ───────────────────────
 // The signed-in user's owned-structure catalogues, one per corporation they are a

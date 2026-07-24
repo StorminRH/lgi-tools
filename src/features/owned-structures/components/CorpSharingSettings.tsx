@@ -6,7 +6,7 @@ import { Dialog, DialogClose } from '@/components/ui/dialog';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import { setCorpStructureSharingEndpoint } from '../api-contract';
 
 // The corp structure-sharing consent control (3.7.9), relocated from /structures

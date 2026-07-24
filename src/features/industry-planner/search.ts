@@ -1,10 +1,10 @@
 // The Blueprints search source descriptor. Lazy: the registry memoizes the
 // dynamic import of ./blueprints-source so its matcher + fetched index only load
 // on the user's first matching keystroke, never in the initial bundle. The
-// wiring manifest (src/search/register-all) passes this to
+// composition search wiring manifest passes this to
 // registerLazySearchSource.
 
-import type { LazySearchSource } from '@/search';
+import type { LazySearchSource } from '@/platform/search';
 
 /**
  * Global-search source for blueprints search source; it owns matching and result mapping while the

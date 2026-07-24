@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from 'next/cache';
-import { EsiServerError, esiFetch, esiUrl } from '@/lib/esi';
+import { EsiServerError, esiFetch, esiUrl } from '@/platform/esi';
 import { ESI_STATUS_PATH, EVE_STATUS_TAG } from './constants';
 import { parseServerStatus } from './parse';
 import type { ServerStatus } from './types';

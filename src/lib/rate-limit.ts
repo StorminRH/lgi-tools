@@ -120,7 +120,7 @@ export async function rateLimit(
  * (RateLimitedBody JSON + Retry-After header) — so a handler's happy path is
  * `if (!limit.ok) return limit.response;` instead of the repeated
  * clientIdentifier + Response.json construction. Same ok/response union shape
- * as parseJsonBody (src/lib/route-body.ts).
+ * as parseJsonBody (src/transport/route-body.ts).
  */
 export type RateLimitGuardResult = { ok: true } | { ok: false; response: Response };
 

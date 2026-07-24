@@ -7,7 +7,7 @@
 // `satisfies` (not an annotation) keeps `strip` non-optional on the inferred
 // type, so consumers read `skillsPageSettings.strip` without a null guard.
 
-import type { PageSettingsSpec } from '@/page-settings/types';
+import type { PageSettingsSpec } from '@/platform/page-settings/types';
 
 /** Declarative skill-queue controls registered with the shared page-settings system. */
 export const skillsPageSettings = {

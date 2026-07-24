@@ -10,7 +10,7 @@
 // only the data.
 import { useCallback, useRef, useState } from 'react';
 import { toast } from '@/components/ui/toast';
-import { apiFetch, type ApiResult } from '@/lib/api-client';
+import { apiFetch, type ApiResult } from '@/transport/api-client';
 import {
   deleteSavedPlanEndpoint,
   favoriteSavedPlanEndpoint,

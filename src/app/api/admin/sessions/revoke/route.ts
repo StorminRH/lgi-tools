@@ -4,7 +4,7 @@ import { logUsageEvent } from '@/data/telemetry/queries';
 import { adminRevokeSessionsFormSchema } from '@/platform/auth/api-contract';
 import { getUserById, revokeUserSessions } from '@/platform/auth/admin-users';
 import { requireAdmin } from '@/platform/auth/route-guards';
-import { parseFormBody } from '@/lib/route-body';
+import { parseFormBody } from '@/transport/route-body';
 
 /**
  * POST-only. Admin force-logout: deletes every session row for the target user,

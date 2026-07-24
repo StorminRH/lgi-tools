@@ -18,7 +18,7 @@ import {
 } from '@/components/live-character-card';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import type { CharacterStripSpec } from '@/page-settings/types';
+import type { CharacterStripSpec } from '@/platform/page-settings/types';
 import { formatRemaining } from '@/lib/format/time';
 import type { IndustryJob } from '../esi-projection';
 import { jobRowFrameData, jobsCardModel } from '../job-view';

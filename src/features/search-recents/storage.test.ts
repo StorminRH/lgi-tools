@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { blueprintImage } from '@/data/eve-data/type-images';
-import type { SearchResult } from '@/search';
+import type { SearchResult } from '@/platform/search';
 
 // vitest runs in node by default — shim a minimal in-memory localStorage so
 // the storage helpers (which guard on `typeof window`) operate. Imports of

@@ -84,6 +84,11 @@
       },
       { "name": "ui", "patterns": ["src/components/ui/**"] },
       { "name": "platform/auth", "patterns": ["src/platform/auth/**"] },
+      { "name": "platform/owner-sync", "patterns": ["src/platform/owner-sync/**"] },
+      { "name": "platform/esi", "patterns": ["src/platform/esi/**"] },
+      { "name": "platform/search", "patterns": ["src/platform/search/**"] },
+      { "name": "platform/purge", "patterns": ["src/platform/purge/**"] },
+      { "name": "platform/page-settings", "patterns": ["src/platform/page-settings/**"] },
       { "name": "composition", "patterns": ["src/composition/**"] },
       { "name": "features", "autoDiscover": ["src/features"] },
       { "name": "data", "autoDiscover": ["src/data"] },
@@ -92,18 +97,20 @@
         "name": "shared",
         "patterns": ["src/components/*.tsx", "src/components/*.ts", "src/components/telemetry/**"]
       },
+      { "name": "api", "patterns": ["src/app/api/**"] },
       { "name": "app", "patterns": ["src/app/**"] },
+      { "name": "transport", "patterns": ["src/transport/**"] },
       { "name": "db", "patterns": ["src/db/**"] },
       { "name": "config", "patterns": ["src/config/**"] },
-      { "name": "purge", "patterns": ["src/purge/**"] },
-      { "name": "search", "patterns": ["src/search/**"] },
-      { "name": "page-settings", "patterns": ["src/page-settings/**"] },
       { "name": "esi-datasets", "patterns": ["src/esi-datasets/**"] },
       { "name": "convex", "patterns": ["convex/**"] },
       { "name": "runtime", "patterns": ["src/proxy*.ts", "src/instrumentation*.ts"] }
     ],
     "rules": [
-      { "from": "auth-surface", "allow": ["auth-surface", "lib", "config"] },
+      {
+        "from": "auth-surface",
+        "allow": ["auth-surface", "lib", "config", "transport"]
+      },
       {
         "from": "platform/auth",
         "allow": [
@@ -114,14 +121,35 @@
           "auth-surface",
           "db",
           "config",
-          "purge",
-          "search",
-          "page-settings"
+          "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings",
+          "transport"
         ]
       },
+      { "from": "platform/owner-sync", "allow": ["platform/esi", "lib"] },
+      { "from": "platform/esi", "allow": ["lib", "config"] },
+      { "from": "platform/search", "allow": ["lib"] },
+      { "from": "platform/purge", "allow": ["lib"] },
+      { "from": "platform/page-settings", "allow": ["lib"] },
       {
         "from": "composition",
-        "allow": ["platform/auth", "auth-surface", "data", "db", "purge", "lib", "config"]
+        "allow": [
+          "platform/auth",
+          "platform/owner-sync",
+          "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings",
+          "transport",
+          "auth-surface",
+          "features",
+          "data",
+          "db",
+          "lib",
+          "config"
+        ]
       },
       {
         "from": "features",
@@ -133,15 +161,29 @@
           "auth-surface",
           "db",
           "config",
-          "purge",
-          "search",
-          "page-settings",
-          "platform/auth"
+          "platform/auth",
+          "platform/owner-sync",
+          "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings",
+          "transport"
         ]
       },
       {
         "from": "data",
-        "allow": ["lib", "auth-surface", "db", "config", "search", "purge", "platform/auth"]
+        "allow": [
+          "lib",
+          "auth-surface",
+          "db",
+          "config",
+          "platform/auth",
+          "platform/owner-sync",
+          "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "transport"
+        ]
       },
       {
         "from": "data/npc-stats",
@@ -151,9 +193,12 @@
           "data/eve-data",
           "db",
           "config",
-          "search",
-          "purge",
-          "platform/auth"
+          "platform/auth",
+          "platform/owner-sync",
+          "platform/esi",
+          "platform/search",
+          "platform/purge",
+          "transport"
         ]
       },
       { "from": "lib", "allow": ["lib", "config"] },
@@ -167,10 +212,32 @@
           "features",
           "auth-surface",
           "config",
-          "page-settings",
-          "search",
           "platform/auth",
-          "composition"
+          "composition",
+          "platform/owner-sync",
+          "platform/esi",
+          "platform/search",
+          "platform/page-settings",
+          "transport"
+        ]
+      },
+      {
+        "from": "api",
+        "allow": [
+          "transport",
+          "composition",
+          "features",
+          "platform/auth",
+          "platform/owner-sync",
+          "platform/esi",
+          "data",
+          "db",
+          "lib",
+          "config",
+          "auth-surface",
+          "platform/search",
+          "platform/purge",
+          "platform/page-settings"
         ]
       },
       {
@@ -182,11 +249,15 @@
           "shared",
           "db",
           "config",
-          "page-settings",
           "auth-surface",
           "lib",
           "platform/auth",
-          "composition"
+          "composition",
+          "platform/owner-sync",
+          "platform/esi",
+          "platform/search",
+          "platform/page-settings",
+          "transport"
         ]
       },
       {
@@ -196,30 +267,43 @@
           "features",
           "config",
           "auth-surface",
-          "purge",
           "esi-datasets",
           "lib",
           "platform/auth",
+          "composition",
+          "platform/owner-sync",
+          "platform/esi",
+          "platform/purge",
+          "transport"
+        ]
+      },
+      { "from": "transport", "allow": ["lib", "config"] },
+      { "from": "config", "allow": ["lib"] },
+      {
+        "from": "esi-datasets",
+        "allow": [
+          "data",
+          "db",
+          "features",
+          "lib",
+          "platform/auth",
+          "platform/owner-sync",
+          "platform/esi",
           "composition"
         ]
       },
-      { "from": "config", "allow": ["lib"] },
-      { "from": "purge", "allow": ["data", "features", "db", "lib", "platform/auth"] },
-      {
-        "from": "search",
-        "allow": ["data", "features", "auth-surface", "lib", "platform/auth"]
-      },
-      { "from": "page-settings", "allow": ["features", "lib", "platform/auth"] },
-      {
-        "from": "esi-datasets",
-        "allow": ["data", "db", "features", "lib", "platform/auth", "composition"]
-      },
       {
         "from": "convex",
-        "allow": ["data", "auth-surface", "lib", "features/online-status"],
+        "allow": [
+          "data",
+          "auth-surface",
+          "lib",
+          "features/online-status",
+          "platform/esi"
+        ],
         "// note": "Narrow exception: online-status Convex sync reuses the feature's runtime-light pure ESI-projection + eligibility helpers by design (documented at the import sites). Precedent: data/npc-stats -> data/eve-data. Relocation to a data leaf is future work."
       },
-      { "from": "runtime", "allow": ["config", "data", "features", "lib"] }
+      { "from": "runtime", "allow": ["config", "data", "features", "lib", "transport"] }
     ],
     "coverage": {
       "requireAllFiles": true,

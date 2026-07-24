@@ -1,4 +1,4 @@
-import { trendSeries } from './period';
+import { trendSeries } from '@/composition/admin-period';
 
 /**
  * A ranked list as DistributionBars rows: the label doubles as the React key

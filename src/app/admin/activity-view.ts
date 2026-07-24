@@ -1,6 +1,6 @@
 import type { DailyChartSeries } from '@/components/ui/chart/daily-chart-geometry';
 import { movingAverage, weekOverWeekDelta, zeroFillDaily } from './aggregate';
-import type { Delta } from './period';
+import type { Delta } from '@/composition/admin-period';
 import type { DateRange } from '@/data/telemetry/types';
 
 // Server-side derivation for the Activity chart (AnnotatedDailyChart): expand the

@@ -2,10 +2,10 @@ import type { NextRequest } from 'next/server';
 import { retryEsiRefreshJobFormSchema } from '@/data/esi-refresh-jobs/api-contract';
 import { requeueDeadLetteredJob } from '@/data/esi-refresh-jobs/queries';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { parseRange } from '@/app/admin/period';
+import { parseRange } from '@/composition/admin-period';
 import { requireAdmin } from '@/platform/auth/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
-import { parseFormBody } from '@/lib/route-body';
+import { parseFormBody } from '@/transport/route-body';
 
 /**
  * Admin-only form POST. Re-enqueues a dead-lettered refresh through the normal

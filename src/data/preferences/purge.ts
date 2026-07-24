@@ -3,7 +3,7 @@
 // regenerable caches), keyed by user.
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/purge/types';
+import type { PurgeContributor } from '@/platform/purge/types';
 import { userPreferences } from './schema';
 
 /**

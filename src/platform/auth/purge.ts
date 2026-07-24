@@ -15,7 +15,7 @@
 // the registry boundary keeps table ownership separate from auth orchestration.
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/purge/types';
+import type { PurgeContributor } from '@/platform/purge/types';
 import { EVE_PROVIDER_ID } from './eve-sso';
 import { account, characters, corpAccessAudit, session } from '@/db/auth-schema';
 

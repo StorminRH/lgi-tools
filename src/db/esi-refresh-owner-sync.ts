@@ -4,7 +4,7 @@ import type {
   OwnerSyncResult,
   OwnerSyncRunOptions,
   OwnerSyncTarget,
-} from '@/lib/owner-sync';
+} from '@/platform/owner-sync';
 
 /**
  * Records a budget-blocked owner refresh in the durable queue and returns the existing deferred

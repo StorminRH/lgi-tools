@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { EnumeratedOwner, PagedOwnerReadResult, PagedOwnerSyncState } from '@/lib/owner-sync';
+import type { EnumeratedOwner, PagedOwnerReadResult, PagedOwnerSyncState } from '@/platform/owner-sync';
 import { refreshOwnedAssetsForUser } from './refresh';
 import type { OwnedAssetsPort } from './types';
 

@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag } from 'next/cache';
-import { esiFetch, esiUrl } from '@/lib/esi';
+import { esiFetch, esiUrl } from '@/platform/esi';
 
 // Resolve EVE entity ids (characters, corporations) → in-game names through the
 // one ESI gate (/universe/names). The merged active-jobs board reads these for

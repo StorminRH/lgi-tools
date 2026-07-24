@@ -1,6 +1,6 @@
 import { toneHex } from '@/components/ui/tones';
 import { deriveDeltaBadge } from './delta-badge-view';
-import type { Delta } from './period';
+import type { Delta } from '@/composition/admin-period';
 
 /**
  * Public App Router data contract for end label display; fields are owned here so callers do not

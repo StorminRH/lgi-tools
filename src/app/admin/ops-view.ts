@@ -7,8 +7,8 @@ import type {
 } from '@/data/telemetry/cost-queries';
 import type { DegradationCallerCount, FallbackRateData } from '@/data/telemetry/types';
 import type { DomainEventRow } from '@/data/domain-events/types';
-import { ESI_BUDGET_FLOOR } from '@/lib/esi';
-import type { EsiBudgetSnapshot } from '@/lib/esi/scoreboard';
+import { ESI_BUDGET_FLOOR } from '@/platform/esi';
+import type { EsiBudgetSnapshot } from '@/platform/esi/scoreboard';
 
 /**
  * Display-ready ops metric row produced by App Router; values retain their domain units and

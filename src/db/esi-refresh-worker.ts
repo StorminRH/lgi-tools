@@ -22,8 +22,8 @@ import type {
   EsiRefreshJob,
 } from '@/data/esi-refresh-jobs/types';
 import { alertEsiRefreshDeadLetter } from '@/lib/alerts';
-import { swallow } from '@/lib/cron';
-import type { OwnerSyncResult, OwnerSyncTarget } from '@/lib/owner-sync';
+import { swallow } from '@/transport/cron';
+import type { OwnerSyncResult, OwnerSyncTarget } from '@/platform/owner-sync';
 import { runCorporationIndustryJobsRefreshJob } from './corp-industry-jobs-sync';
 import { runCharacterIndustryJobsRefreshJob } from './industry-jobs-sync';
 import { runOwnedAssetsRefreshJob } from './owned-assets-sync';

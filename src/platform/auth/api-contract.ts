@@ -4,7 +4,7 @@
 // eslint.config.mjs) and the eve-token contract below is the type-import
 // surface for the Convex actions layer (3.4.3).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { CHARACTER_ROLES } from '@/config/character-roles';
 
 // Better Auth ids are opaque strings — nanoid for new logins, `eve-user-<id>`
@@ -144,7 +144,7 @@ export const adminRevokeSessionsFormSchema = z.object({
 
 // ── Better Auth REST endpoints (library-owned, hand-pinned) ─────────────
 // These two shapes are pinned by the better-auth version in package.json —
-// verify them against the library on every upgrade. data/commands/search.ts
+// verify them against the library on every upgrade. The composition command source
 // consumes them: as a data slice it cannot import the auth feature's client
 // (data → feature edge is banned), so it talks to Better Auth's REST routes
 // through these contracts instead.

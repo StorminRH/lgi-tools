@@ -1,5 +1,5 @@
-import type { EsiBudgetExhaustedError } from '@/lib/esi';
-import type { OwnerSyncTarget } from '@/lib/owner-sync';
+import type { EsiBudgetExhaustedError } from '@/platform/esi';
+import type { OwnerSyncTarget } from '@/platform/owner-sync';
 import type {
   ESI_REFRESH_DATASETS,
   ESI_REFRESH_JOB_STATUSES,

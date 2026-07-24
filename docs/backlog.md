@@ -473,6 +473,29 @@ is reprioritized.
   the next affiliation or ESI-resilience change, or an observed malformed
   affiliation response.
 
+- **Preserve paginated ESI cardinality across conditional 304 responses.**
+  *What:* retain the last known `X-Pages` count with held page ETags, or use an
+  unconditional page-one probe before scheduling the remaining pages. *Why
+  deferred:* the cache and pagination behavior predates this relocation, and
+  changing its fetch semantics is outside the move-only slice. *Size:* S–M.
+  *Trigger:* the next ESI-gate or paged owner-sync change, or an observed partial
+  dataset after revalidation.
+
+## Transport robustness
+
+- **Reject unsafe numeric route identifiers.** *What:* require parsed route IDs
+  to be safe integers as well as positive integers. *Why deferred:* the accepted
+  input behavior predates the transport relocation, and tightening it changes
+  route behavior. *Size:* S. *Trigger:* the next route-input hardening pass, or
+  before adding another numeric-ID route.
+
+- **Normalize malformed form decoding to route-owned 400 responses.** *What:*
+  catch request form-decoding failures and return the same caller-owned bad-input
+  response shape used for schema failures. *Why deferred:* malformed-form
+  behavior predates the transport relocation and changes error semantics rather
+  than ownership. *Size:* S. *Trigger:* the next mutation/body hardening pass,
+  or an observed malformed-form error.
+
 ## Security (deep-research report, 2026-07-19)
 
 > From the external Security Deep-Research Report (snapshot `141e914`, findings

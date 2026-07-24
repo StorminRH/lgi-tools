@@ -1,6 +1,6 @@
 // API wire contract owned by the telemetry slice (3.4.T).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/lib/api-client';
+import type { ApiEndpoint } from '@/transport/api-client';
 import { CLIENT_USAGE_ACTIONS } from './types';
 
 /**

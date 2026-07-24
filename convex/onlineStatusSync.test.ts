@@ -1,7 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { __resetEsiGateForTests, __setScoreboardForTests } from '@/lib/esi';
+import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { internal } from './_generated/api';
 import schema from './schema';
 

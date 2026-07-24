@@ -6,7 +6,7 @@
 // queries — searchAll(q, ctx, ['systems']) from the build-location pickers
 // and the custom-structure pin control — ever reach it.
 
-import type { LazySearchSource } from '@/search';
+import type { LazySearchSource } from '@/platform/search';
 
 /**
  * Global-search source for systems search source; it owns matching and result mapping while the

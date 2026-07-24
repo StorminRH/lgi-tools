@@ -26,7 +26,7 @@ import {
 } from './esi-source-shared';
 import { getLastSyncedAtShared } from './last-synced';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { trendSeries } from './period';
+import { trendSeries } from '@/composition/admin-period';
 import { SectionUnavailable } from './SectionUnavailable';
 import { StatusRow } from './StatusRow';
 

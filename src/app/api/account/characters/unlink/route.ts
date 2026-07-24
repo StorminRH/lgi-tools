@@ -12,7 +12,7 @@ import {
 } from '@/platform/auth/linked-characters';
 import { requireSession } from '@/platform/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseFormBody } from '@/lib/route-body';
+import { parseFormBody } from '@/transport/route-body';
 
 function redirectWithError(request: NextRequest, code: string): Response {
   const url = new URL('/characters', request.url);

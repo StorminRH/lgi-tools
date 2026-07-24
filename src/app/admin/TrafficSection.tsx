@@ -34,7 +34,7 @@ import { loadDeployMarkers } from './deploy-markers';
 import { deriveGscMultiples } from './gsc-multiples-view';
 import { getLastSyncedAtShared } from './last-synced';
 import { loadSection, SECTION_LOAD_FAILED } from './load-section';
-import { previousRange, type RangeKey } from './period';
+import { previousRange, type RangeKey } from '@/composition/admin-period';
 import { GscCoverageSection } from './GscCoverageSection';
 import { deriveGscPerformanceView, deriveTrafficView, type BarRows } from './traffic-view';
 import { SectionUnavailable } from './SectionUnavailable';

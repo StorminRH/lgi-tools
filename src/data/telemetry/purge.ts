@@ -1,11 +1,11 @@
 // Telemetry purge contributor (ACCOUNT.1) — cache tier. D-6: a character's usage
 // rows go with the character; the anonymous (character_id IS NULL) rows stay —
 // they're the identity-free reach counter, not personal data. A data slice imports
-// the contributor type from @/purge/types the same boundary-clean way a feature does
-// (the proven src/data/tools/search.ts → @/search edge).
+// the contributor type from @/platform/purge/types the same boundary-clean way a feature does
+// (the proven src/data/tools/search.ts → platform/search edge).
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import type { PurgeContributor } from '@/purge/types';
+import type { PurgeContributor } from '@/platform/purge/types';
 import { usageLogs } from './schema';
 
 /**

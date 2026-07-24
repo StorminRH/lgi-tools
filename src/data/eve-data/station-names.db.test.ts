@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbTestHarness } from '@/db/test-support/db-test-harness';
-import { __resetEsiGateForTests, __setScoreboardForTests } from '@/lib/esi';
+import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { resolveNpcStationNames } from './station-names';
 import { eveNpcStations } from './schema';
 

@@ -2,7 +2,7 @@
 
 import { usePreference } from '@/components/PreferencesProvider';
 import { SegmentedControl } from '@/components/ui/segmented';
-import type { MenuControlModel } from '@/page-settings/controls';
+import type { MenuControlModel } from '@/platform/page-settings/controls';
 
 /**
  * The account settings page's segmented preference row — the page-styled twin

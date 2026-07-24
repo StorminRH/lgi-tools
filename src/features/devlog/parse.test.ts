@@ -257,7 +257,7 @@ describe('parseDevlog — excerpt ref attribute', () => {
     'Cites code.<sup><a href="#code-r">1</a></sup>',
     '',
     '<!-- uth:code-excerpts:start -->',
-    '<!-- uth:code id="code-r" file="src/lib/cron.ts" lines="7-23" lang="ts" ref="5d16c056340da1fa70ad385dd7bab0b1140f7282" -->',
+    '<!-- uth:code id="code-r" file="src/transport/cron.ts" lines="7-23" lang="ts" ref="5d16c056340da1fa70ad385dd7bab0b1140f7282" -->',
     '```ts',
     'export const x = 1;',
     '```',
@@ -309,8 +309,8 @@ describe('excerpt line + permalink helpers', () => {
   it('githubUrl needs a full commit SHA + file; pins the SHA; fragments only clean ranges', () => {
     const base = 'https://github.com/StorminRH/lgi-tools/blob';
     const sha = '5d16c056340da1fa70ad385dd7bab0b1140f7282';
-    expect(githubUrl({ ref: sha, file: 'src/lib/cron.ts', lines: '7-23' })).toBe(
-      `${base}/${sha}/src/lib/cron.ts#L7-L23`,
+    expect(githubUrl({ ref: sha, file: 'src/transport/cron.ts', lines: '7-23' })).toBe(
+      `${base}/${sha}/src/transport/cron.ts#L7-L23`,
     );
     expect(githubUrl({ ref: sha, file: 'x.ts', lines: '238' })).toBe(`${base}/${sha}/x.ts#L238`);
     expect(githubUrl({ ref: sha, file: 'x.ts', lines: '9-9' })).toBe(`${base}/${sha}/x.ts#L9`);

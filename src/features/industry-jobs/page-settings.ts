@@ -6,7 +6,7 @@
 // register-all → PageMenuProvider. `satisfies` keeps `strip` non-optional on
 // the inferred type, so consumers read `jobsPageSettings.strip` unguarded.
 
-import type { PageSettingsSpec } from '@/page-settings/types';
+import type { PageSettingsSpec } from '@/platform/page-settings/types';
 
 /** Declarative industry-jobs controls registered with the shared page-settings system. */
 export const jobsPageSettings = {

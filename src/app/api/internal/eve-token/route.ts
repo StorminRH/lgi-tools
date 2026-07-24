@@ -14,7 +14,7 @@ import {
 } from '@/platform/auth/api-contract';
 import { getFreshAccessTokenForCharacter } from '@/platform/auth/eve-token-service';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';
 
 /**

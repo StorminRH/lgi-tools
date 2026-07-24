@@ -22,7 +22,7 @@ import {
   parseFacilityTaxDraft,
   taxDraftFromStored,
 } from '@/data/industry-math/fees';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch } from '@/transport/api-client';
 import {
   createCustomStructureEndpoint,
   deleteCustomStructureEndpoint,

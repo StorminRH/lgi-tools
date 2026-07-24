@@ -1,5 +1,5 @@
 import { requireSameOrigin } from '@/platform/auth/same-origin';
-import type { ParsedBody } from '@/lib/route-body';
+import type { ParsedBody } from '@/transport/route-body';
 
 type AuthorizationSuccess = { ok: true };
 type AuthorizationFailure = { ok: false; response: Response };

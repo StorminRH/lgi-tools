@@ -9,7 +9,7 @@ import {
   listSavedPlans,
   setSavedPlanFavorite,
 } from '@/features/industry-planner/saved-plans-queries';
-import { parseJsonBody } from '@/lib/route-body';
+import { parseJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/saved-plans/favorite — star/unstar one of the caller's OWN
