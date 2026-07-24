@@ -12,6 +12,7 @@ from merge_clean_pr import (
     GREPTILE,
     GREPTILE_CHECK,
     REQUIRED_CHECKS,
+    coderabbit_reviewed_head,
     greptile_reviewed,
     live_coderabbit_findings,
     live_inline_findings,
@@ -152,6 +153,7 @@ def fallback_inputs() -> dict:
         {"name": name, "status": "completed", "conclusion": "success"}
         for name in FALLBACK_REQUIRED_CHECKS
     ]
+    data["reviews"] = [{"user": {"login": CODERABBIT}, "commit_id": HEAD}]
     return data
 
 
@@ -165,6 +167,7 @@ def fallback_blockers(resolved: frozenset[int] = frozenset(), **overrides) -> li
         data["runs"],
         data["expected_head"],
         resolved,
+        data["reviews"],
     )
 
 
@@ -229,6 +232,30 @@ class CodeRabbitFallback(unittest.TestCase):
         ]
         reasons = fallback_blockers(runs=runs)
         self.assertTrue(any("no Greptile summary found" in r for r in reasons))
+
+
+class CodeRabbitReviewedHead(unittest.TestCase):
+    def test_review_on_the_current_head_counts(self) -> None:
+        reviews = [{"user": {"login": CODERABBIT}, "commit_id": HEAD}]
+        self.assertTrue(coderabbit_reviewed_head(reviews, HEAD))
+
+    def test_review_on_an_older_head_does_not_count(self) -> None:
+        reviews = [{"user": {"login": CODERABBIT}, "commit_id": "older"}]
+        self.assertFalse(coderabbit_reviewed_head(reviews, HEAD))
+
+    def test_human_review_does_not_count(self) -> None:
+        reviews = [{"user": {"login": "StorminRH"}, "commit_id": HEAD}]
+        self.assertFalse(coderabbit_reviewed_head(reviews, HEAD))
+
+    def test_rate_limited_head_blocks_the_merge(self) -> None:
+        # CodeRabbit's commit status reports success even when it says
+        # "Review rate limited", so an unreviewed head must still block.
+        reasons = fallback_blockers(reviews=[{"user": {"login": CODERABBIT}, "commit_id": "older"}])
+        self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
+
+    def test_no_reviews_at_all_blocks_the_merge(self) -> None:
+        reasons = fallback_blockers(reviews=[])
+        self.assertTrue(any("no CodeRabbit review on the current head" in r for r in reasons))
 
 
 class LiveCodeRabbitFindings(unittest.TestCase):

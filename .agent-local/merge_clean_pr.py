@@ -38,7 +38,10 @@ GREPTILE_CHECK = "Greptile Review"
 CODERABBIT_CHECK = "CodeRabbit"
 BASE_REQUIRED_CHECKS = {"semgrep-cloud-platform/scan", "test"}
 REQUIRED_CHECKS = BASE_REQUIRED_CHECKS | {GREPTILE_CHECK}
-FALLBACK_REQUIRED_CHECKS = BASE_REQUIRED_CHECKS | {CODERABBIT_CHECK}
+# CodeRabbit reports as a commit status rather than a check run, and its status
+# can pass while saying "Review rate limited". The fallback therefore proves the
+# review happened from the review record itself, not from a named check.
+FALLBACK_REQUIRED_CHECKS = BASE_REQUIRED_CHECKS
 PASSING_CONCLUSIONS = {"success", "neutral", "skipped"}
 
 
@@ -224,16 +227,35 @@ def greptile_blockers(
     return reasons
 
 
+def coderabbit_reviewed_head(reviews: list[object], head_sha: str) -> bool:
+    """True when CodeRabbit filed a review against the exact current head.
+
+    This is the fallback's proof that a review actually happened. CodeRabbit's
+    commit status reports `success` even when its body says "Review rate
+    limited", so the status alone would let an unreviewed head merge.
+    """
+    return any(
+        isinstance(item, dict)
+        and actor_login(item) == CODERABBIT
+        and str(item.get("commit_id", "")) == head_sha
+        for item in reviews
+    )
+
+
 def coderabbit_blockers(
+    reviews: list[object],
     inline_comments: list[object],
     head_sha: str,
     resolved_roots: frozenset[int],
 ) -> list[str]:
     """Fallback reasons, used only when Greptile did not review this PR."""
+    reasons: list[str] = []
+    if not coderabbit_reviewed_head(reviews, head_sha):
+        reasons.append("no CodeRabbit review on the current head")
     findings = live_coderabbit_findings(inline_comments, head_sha, resolved_roots)
     if findings:
-        return [f"CodeRabbit has {len(findings)} unresolved inline finding(s)"]
-    return []
+        reasons.append(f"CodeRabbit has {len(findings)} unresolved inline finding(s)")
+    return reasons
 
 
 def merge_blockers(
@@ -243,6 +265,7 @@ def merge_blockers(
     runs: list[object],
     expected_head: str,
     resolved_roots: frozenset[int] = frozenset(),
+    reviews: list[object] | None = None,
 ) -> list[str]:
     """Every reason the PR must not merge; an empty list means the gate is clean.
 
@@ -267,7 +290,9 @@ def merge_blockers(
         reasons.extend(greptile_blockers(issue_comments, inline_comments, head_sha))
         required = REQUIRED_CHECKS
     else:
-        reasons.extend(coderabbit_blockers(inline_comments, head_sha, resolved_roots))
+        reasons.extend(
+            coderabbit_blockers(reviews or [], inline_comments, head_sha, resolved_roots)
+        )
         required = FALLBACK_REQUIRED_CHECKS
 
     if not runs:
@@ -314,10 +339,22 @@ def main() -> int:
     require(isinstance(runs, list), "check-runs response had no run list")
 
     fallback = not greptile_reviewed(issue_comments, runs)
-    resolved_roots = resolved_thread_roots(args.pr, token) if fallback else frozenset()
+    resolved_roots: frozenset[int] = frozenset()
+    reviews: list[object] = []
+    if fallback:
+        resolved_roots = resolved_thread_roots(args.pr, token)
+        reviews_body = get(f"{root}/pulls/{args.pr}/reviews?per_page=100", token)
+        require(isinstance(reviews_body, list), "reviews response was not a list")
+        reviews = reviews_body
 
     blockers = merge_blockers(
-        pr, issue_comments, inline_comments, runs, args.expected_head, resolved_roots
+        pr,
+        issue_comments,
+        inline_comments,
+        runs,
+        args.expected_head,
+        resolved_roots,
+        reviews,
     )
     require(not blockers, "; ".join(blockers))
 
