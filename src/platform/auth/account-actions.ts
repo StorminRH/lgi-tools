@@ -11,7 +11,11 @@
 // it never rejects. That keeps the confirm gate from freezing mid-call — a rejected
 // action would skip the gate's error dispatch and strand its phase in `running`.
 
-import type { ApiEndpoint, ApiResult } from '@/transport/api-client';
+import type { EndpointCallArgs } from '@/transport/api-client';
+import type {
+  EndpointContract,
+  OutcomeOf,
+} from '@/transport/endpoint';
 import {
   accountDeleteEndpoint,
   purgeCharacterEndpoint,
@@ -25,10 +29,10 @@ import { EVE_AUTHORIZED_APPS_URL } from './eve-sso-constants';
  * optional); a test stub is too. Keeps these runners off a hard import of the
  * client function while staying fully typed.
  */
-export interface AccountApiCaller {
-  <TData>(endpoint: ApiEndpoint<null, TData>): Promise<ApiResult<TData>>;
-  <TIn, TData>(endpoint: ApiEndpoint<TIn, TData>, init: { body: TIn }): Promise<ApiResult<TData>>;
-}
+export type AccountApiCaller = <E extends EndpointContract>(
+  endpoint: E,
+  ...args: EndpointCallArgs<E>
+) => Promise<OutcomeOf<E>>;
 
 /**
  * Purging a character either empties the account (it was the last one → the user

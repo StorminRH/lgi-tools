@@ -1,11 +1,12 @@
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import type { AccountDeleteResponse } from '@/platform/auth/api-contract';
+import { accountDeleteEndpoint } from '@/platform/auth/api-contract';
 import '@/composition/account-lifecycle/register-owner-reconciler';
 import { nukeAccount } from '@/composition/account-lifecycle/account-purge';
-import { requireSession } from '@/platform/auth/route-guards';
+import { checkSession } from '@/platform/auth/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
-import { rateLimitGuard } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * POST-only. Nuke the CALLER's entire account — every linked character's derived
@@ -17,11 +18,18 @@ import { rateLimitGuard } from '@/lib/rate-limit';
 // authz: auth
 // input: none
 export async function POST(request: NextRequest): Promise<Response> {
-  const limit = await rateLimitGuard(request, { name: 'account-delete', perMinute: 5 });
-  if (!limit.ok) return limit.response;
+  const limit = await checkRateLimit(request, {
+    name: 'account-delete',
+    perMinute: 5,
+  });
+  if (!limit.ok) {
+    return apiResponse(accountDeleteEndpoint, 429, limit.failure);
+  }
 
-  const gate = await requireSession();
-  if (!gate.ok) return gate.response;
+  const gate = await checkSession();
+  if (!gate.ok) {
+    return apiResponse(accountDeleteEndpoint, 401, gate.failure);
+  }
   requireSameOrigin(request);
   const session = gate.session;
 
@@ -33,5 +41,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     metadata: { scope: 'account' },
   }).catch((err) => console.error('[account/delete] telemetry write failed', err));
 
-  return Response.json({ ok: true } satisfies AccountDeleteResponse);
+  return apiResponse(accountDeleteEndpoint, 200, { ok: true });
 }

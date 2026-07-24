@@ -2,8 +2,13 @@
 // via apiFetch; the route imports the request schema and parses it. A renamed
 // field fails tsc on both sides.
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/transport/api-client';
 import { PREFERENCE_KEYS } from '@/lib/preferences';
+import {
+  defineEndpoint,
+  emptyBody,
+  jsonBody,
+  problem,
+} from '@/transport/endpoint';
 
 // The key must be one the registry knows; the value is refined per-key in the
 // route (validatePreferenceValue) — the server trust boundary.
@@ -16,12 +21,14 @@ const getPreferencesResponseSchema = z.object({
 export type GetPreferencesResponse = z.infer<typeof getPreferencesResponseSchema>;
 
 /** GET /api/preferences — every saved preference for the logged-in caller. */
-export const getPreferencesEndpoint: ApiEndpoint<null, GetPreferencesResponse> = {
+export const getPreferencesEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/preferences',
   request: null,
-  response: getPreferencesResponseSchema,
-};
+  responses: {
+    200: jsonBody(getPreferencesResponseSchema),
+  },
+});
 
 /**
  * Boundary validator for put preference request schema; successful parsing yields the normalized
@@ -33,12 +40,13 @@ export const putPreferenceRequestSchema = z.object({
 });
 
 /** POST /api/preferences — upsert one of the caller's preferences. 204 on success. */
-export const putPreferenceEndpoint: ApiEndpoint<
-  z.input<typeof putPreferenceRequestSchema>,
-  undefined
-> = {
+export const putPreferenceEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/preferences',
   request: putPreferenceRequestSchema,
-  response: null,
-};
+  responses: {
+    204: emptyBody(),
+    400: problem('invalid_json', 'invalid_body', 'invalid_value'),
+    401: problem('unauthenticated'),
+  },
+});

@@ -1,11 +1,12 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { problemBodySchema } from '@/lib/problem';
 
 const CHARACTER_ID = 1000000000;
 
 const getSessionCharacterIdMock = vi.fn();
 const logUsageEventMock = vi.fn();
-const rateLimitGuardMock = vi.fn();
+const checkRateLimitMock = vi.fn();
 
 vi.mock('@/platform/auth/session', async () => {
   const actual = await vi.importActual<typeof import('@/platform/auth/session')>(
@@ -24,7 +25,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 // The guard's own 429 construction + IP keying are pinned in
 // src/lib/rate-limit.test.ts; here we only drive its ok/denied union.
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimitGuard: (...args: unknown[]) => rateLimitGuardMock(...args),
+  checkRateLimit: (...args: unknown[]) => checkRateLimitMock(...args),
 }));
 
 async function importRoute() {
@@ -46,8 +47,8 @@ describe('POST /api/telemetry', () => {
     getSessionCharacterIdMock.mockResolvedValue(null);
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
-    rateLimitGuardMock.mockReset();
-    rateLimitGuardMock.mockResolvedValue({ ok: true });
+    checkRateLimitMock.mockReset();
+    checkRateLimitMock.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -99,14 +100,22 @@ describe('POST /api/telemetry', () => {
   });
 
   it('rate-limits a flooding caller with 429 + Retry-After and skips the write', async () => {
-    rateLimitGuardMock.mockResolvedValue({
+    checkRateLimitMock.mockResolvedValue({
       ok: false,
-      response: new Response(null, { status: 429, headers: { 'Retry-After': '42' } }),
+      failure: {
+        category: 'rate_limited',
+        code: 'rate_limited',
+        retryAfterSeconds: 42,
+      },
     });
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ action: 'page_view', metadata: { path: '/' } }));
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('42');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'rate_limited',
+      retryAfterSeconds: 42,
+    });
     expect(getSessionCharacterIdMock).not.toHaveBeenCalled();
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
@@ -139,6 +148,10 @@ describe('POST /api/telemetry', () => {
     const big = { blob: 'x'.repeat(3000) };
     const res = await POST(buildRequest({ action: 'page_view', metadata: big }));
     expect(res.status).toBe(400);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'metadata_too_large',
+      detail: 'metadata too large',
+    });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
@@ -151,6 +164,9 @@ describe('POST /api/telemetry', () => {
     });
     const res = await POST(req);
     expect(res.status).toBe(400);
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_json',
+    });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 });

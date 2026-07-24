@@ -6,11 +6,12 @@
 // No token material, no raw scope string. No user input to validate.
 // authz: auth
 // input: none
-import type { AccountCharactersResponse } from '@/platform/auth/api-contract';
+import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
 import { toPanelCharacter } from '@/platform/auth/panel-character';
 import { listLinkedCharacters } from '@/platform/auth/linked-characters';
 import { getCurrentUserId } from '@/platform/auth/session';
 import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * Handles GET requests for /api/account/characters; this route owns its authorization, boundary
@@ -19,11 +20,11 @@ import { canSyncSkillQueue } from '@/features/skill-queue/sync-eligibility';
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return Response.json({ characters: [] } satisfies AccountCharactersResponse);
+    return apiResponse(accountCharactersEndpoint, 200, { characters: [] });
   }
 
   const linked = await listLinkedCharacters(userId);
-  return Response.json({
+  return apiResponse(accountCharactersEndpoint, 200, {
     characters: linked.map((character) => toPanelCharacter(character, canSyncSkillQueue)),
-  } satisfies AccountCharactersResponse);
+  });
 }

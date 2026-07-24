@@ -72,7 +72,10 @@ describe('POST /api/preferences', () => {
     const res = await POST(makeRequest({ key: 'sites.view', value: 'grid' }));
 
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('invalid value for key');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_value',
+      detail: 'invalid value for key',
+    });
     expect(h.upsertPreferenceMock).not.toHaveBeenCalled();
   });
 

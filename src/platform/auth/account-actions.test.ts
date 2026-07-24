@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { apiFetch } from '@/transport/api-client';
 import {
-  type AccountApiCaller,
   isDeleteAcknowledged,
   redirectTargetFor,
   runDeleteAccount,
@@ -10,93 +10,112 @@ import {
 import { accountDeleteEndpoint, purgeCharacterEndpoint, sessionsRevokeEndpoint } from './api-contract';
 import { EVE_AUTHORIZED_APPS_URL } from './eve-sso';
 
-// A stubbed apiFetch seam: resolves a fixed result and records its calls. The
-// runners only read `res.ok`/`res.data`, so the failure `response` can be a stub.
-function okCaller(data: unknown) {
-  const fn = vi.fn(async () => ({ ok: true, status: 200, data }));
-  return { fn, call: fn as unknown as AccountApiCaller };
+function jsonResponse(data: unknown): Response {
+  return Response.json(data, { status: 200 });
 }
-function errCaller(status = 500) {
-  const fn = vi.fn(async () => ({ ok: false, status, response: {} as Response }));
-  return { fn, call: fn as unknown as AccountApiCaller };
+
+function rateLimitedResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      type: 'https://lgi.tools/problems/rate_limited',
+      title: 'Too many requests',
+      status: 429,
+      code: 'rate_limited',
+      correlationId: 'test-correlation-id',
+      retryAfterSeconds: 10,
+    }),
+    {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/problem+json',
+        'Retry-After': '10',
+      },
+    },
+  );
 }
-// A caller that REJECTS — the apiFetch network-failure path (offline, DNS, abort),
-// where `fetch` throws rather than resolving to a non-2xx `{ ok: false }`.
-function throwingCaller() {
-  const fn = vi.fn(async () => {
-    throw new Error('network down');
-  });
-  return { fn, call: fn as unknown as AccountApiCaller };
+
+function stubFetch(response: Response) {
+  const fetchMock = vi.fn().mockResolvedValue(response);
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('runPurgeCharacter', () => {
   it('a one-of-many purge ({accountEmptied:false}) → stayed, and stayed never redirects', async () => {
-    const { fn, call } = okCaller({ accountEmptied: false });
-    const outcome = await runPurgeCharacter(123, call);
+    const fetchMock = stubFetch(jsonResponse({ accountEmptied: false }));
+    const outcome = await runPurgeCharacter(123, apiFetch);
     expect(outcome).toEqual({ kind: 'stayed' });
     expect(redirectTargetFor(outcome)).toBeNull(); // no lightbox, no navigation
-    expect(fn).toHaveBeenCalledWith(purgeCharacterEndpoint, { body: { characterId: 123 } });
+    expect(fetchMock).toHaveBeenCalledWith(purgeCharacterEndpoint.path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ characterId: 123 }),
+    });
   });
 
   it('a last-character purge ({accountEmptied:true}) → emptied, which redirects to EVE authorized apps', async () => {
-    const { call } = okCaller({ accountEmptied: true });
-    const outcome = await runPurgeCharacter(456, call);
+    stubFetch(jsonResponse({ accountEmptied: true }));
+    const outcome = await runPurgeCharacter(456, apiFetch);
     expect(outcome).toEqual({ kind: 'emptied' });
     expect(redirectTargetFor(outcome)).toBe(EVE_AUTHORIZED_APPS_URL);
   });
 
   it('a non-2xx purge → error, which does not redirect', async () => {
-    const { call } = errCaller(429);
-    const outcome = await runPurgeCharacter(789, call);
+    stubFetch(rateLimitedResponse());
+    const outcome = await runPurgeCharacter(789, apiFetch);
     expect(outcome).toEqual({ kind: 'error' });
     expect(redirectTargetFor(outcome)).toBeNull();
   });
 
   it('a network-level throw → error, and never rejects (the gate can’t freeze)', async () => {
-    const { call } = throwingCaller();
-    await expect(runPurgeCharacter(1, call)).resolves.toEqual({ kind: 'error' });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+    await expect(runPurgeCharacter(1, apiFetch)).resolves.toEqual({ kind: 'error' });
   });
 });
 
 describe('runDeleteAccount', () => {
   it('success empties the account and redirects to EVE authorized apps', async () => {
-    const { fn, call } = okCaller({ ok: true });
-    const outcome = await runDeleteAccount(call);
+    const fetchMock = stubFetch(jsonResponse({ ok: true }));
+    const outcome = await runDeleteAccount(apiFetch);
     expect(outcome).toEqual({ kind: 'emptied' });
     expect(redirectTargetFor(outcome)).toBe(EVE_AUTHORIZED_APPS_URL);
-    expect(fn).toHaveBeenCalledWith(accountDeleteEndpoint);
+    expect(fetchMock).toHaveBeenCalledWith(accountDeleteEndpoint.path, { method: 'POST' });
   });
 
   it('a non-2xx delete → error', async () => {
-    const { call } = errCaller();
-    expect(await runDeleteAccount(call)).toEqual({ kind: 'error' });
+    stubFetch(rateLimitedResponse());
+    expect(await runDeleteAccount(apiFetch)).toEqual({ kind: 'error' });
   });
 
   it('a network-level throw → error, and never rejects', async () => {
-    const { call } = throwingCaller();
-    await expect(runDeleteAccount(call)).resolves.toEqual({ kind: 'error' });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+    await expect(runDeleteAccount(apiFetch)).resolves.toEqual({ kind: 'error' });
   });
 });
 
 describe('runLogoutEverywhere', () => {
   it('calls /sessions/revoke and, on success, sends the now-signed-out browser home', async () => {
-    const { fn, call } = okCaller({ revoked: 3 });
-    const outcome = await runLogoutEverywhere(call);
+    const fetchMock = stubFetch(jsonResponse({ revoked: 3 }));
+    const outcome = await runLogoutEverywhere(apiFetch);
     expect(outcome).toEqual({ kind: 'done' });
-    expect(fn).toHaveBeenCalledWith(sessionsRevokeEndpoint);
+    expect(fetchMock).toHaveBeenCalledWith(sessionsRevokeEndpoint.path, { method: 'POST' });
     expect(redirectTargetFor(outcome)).toBe('/');
   });
 
   it('a non-2xx revoke → error, which does not redirect', async () => {
-    const { call } = errCaller();
-    const outcome = await runLogoutEverywhere(call);
+    stubFetch(rateLimitedResponse());
+    const outcome = await runLogoutEverywhere(apiFetch);
     expect(outcome).toEqual({ kind: 'error' });
     expect(redirectTargetFor(outcome)).toBeNull();
   });
 
   it('a network-level throw → error, and never rejects', async () => {
-    const { call } = throwingCaller();
-    await expect(runLogoutEverywhere(call)).resolves.toEqual({ kind: 'error' });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+    await expect(runLogoutEverywhere(apiFetch)).resolves.toEqual({ kind: 'error' });
   });
 });
 

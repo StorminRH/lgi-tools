@@ -1,13 +1,17 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { type PurgeCharacterResponse, purgeCharacterRequestSchema } from '@/platform/auth/api-contract';
+import {
+  purgeCharacterEndpoint,
+  purgeCharacterRequestSchema,
+} from '@/platform/auth/api-contract';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
 import '@/composition/account-lifecycle/register-owner-reconciler';
 import { purgeOwnCharacter } from '@/composition/account-lifecycle/account-purge';
 import { validationFailure } from '@/lib/failure';
 import { checkSession } from '@/platform/auth/route-guards';
-import { rateLimitGuard } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
 /**
@@ -21,11 +25,13 @@ import { readJsonBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected at
   // the cheapest point. A purge is a rare, deliberate action — 10/min is generous.
-  const limit = await rateLimitGuard(request, {
+  const limit = await checkRateLimit(request, {
     name: 'account-purge-character',
     perMinute: 10,
   });
-  if (!limit.ok) return limit.response;
+  if (!limit.ok) {
+    return apiResponse(purgeCharacterEndpoint, 429, limit.failure);
+  }
 
   return runMutationRoute(request, {
     authorize: checkSession,
@@ -45,7 +51,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       // The security-critical line: never trust the posted id. Only purge among the
       // user's own linked characters.
       if (!(await accountBelongsToUser(session.user.id, characterId))) {
-        return new Response('Character not linked to your account', { status: 400 });
+        return apiResponse(
+          purgeCharacterEndpoint,
+          400,
+          validationFailure(
+            'not_linked',
+            'Character not linked to your account',
+          ),
+        );
       }
 
       const result = await purgeOwnCharacter(session.user.id, characterId);
@@ -56,7 +69,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         metadata: { scope: 'character' },
       }).catch((err) => console.error('[account/purge-character] telemetry write failed', err));
 
-      return Response.json(result satisfies PurgeCharacterResponse);
+      return apiResponse(purgeCharacterEndpoint, 200, result);
     },
   });
 }

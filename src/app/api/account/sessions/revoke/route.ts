@@ -1,9 +1,10 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import type { SessionsRevokeResponse } from '@/platform/auth/api-contract';
+import { sessionsRevokeEndpoint } from '@/platform/auth/api-contract';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
 import { checkSession } from '@/platform/auth/route-guards';
-import { rateLimitGuard } from '@/lib/rate-limit';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * POST-only. Log the CALLER out everywhere — revoke all of their sessions. Acts on
@@ -15,17 +16,19 @@ import { rateLimitGuard } from '@/lib/rate-limit';
 // authz: auth
 // input: none
 export async function POST(request: NextRequest): Promise<Response> {
-  const limit = await rateLimitGuard(request, {
+  const limit = await checkRateLimit(request, {
     name: 'account-logout-everywhere',
     perMinute: 10,
   });
-  if (!limit.ok) return limit.response;
+  if (!limit.ok) {
+    return apiResponse(sessionsRevokeEndpoint, 429, limit.failure);
+  }
 
   return runMutationRoute(request, {
     authorize: checkSession,
     handle: async ({ session }) => {
       const revoked = await revokeUserSessions(session.user.id);
-      return Response.json({ revoked } satisfies SessionsRevokeResponse);
+      return apiResponse(sessionsRevokeEndpoint, 200, { revoked });
     },
   });
 }

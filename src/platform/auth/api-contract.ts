@@ -6,6 +6,11 @@
 import { z } from 'zod';
 import type { ApiEndpoint } from '@/transport/api-client';
 import { CHARACTER_ROLES } from '@/config/character-roles';
+import {
+  defineEndpoint,
+  jsonBody,
+  problem,
+} from '@/transport/endpoint';
 
 // Better Auth ids are opaque strings — nanoid for new logins, `eve-user-<id>`
 // for backfilled pilots; the charset gate keeps junk out.
@@ -219,12 +224,14 @@ export type AccountCharactersResponse = z.infer<typeof accountCharactersResponse
  * Typed endpoint definition for account characters endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const accountCharactersEndpoint: ApiEndpoint<null, AccountCharactersResponse> = {
+export const accountCharactersEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/characters',
-  request: null, // GET — no body
-  response: accountCharactersResponseSchema,
-};
+  request: null,
+  responses: {
+    200: jsonBody(accountCharactersResponseSchema),
+  },
+});
 
 // ── Self-service account safety (ACCOUNT.2, authz: auth) ─────────────────
 // The plumbing layer's wire shapes; the account-page UI (later sub-version) wires
@@ -254,33 +261,38 @@ export type PurgeCharacterResponse = z.infer<typeof purgeCharacterResponseSchema
  * Boundary validator for purge character endpoint; successful parsing yields the normalized auth
  * input consumed internally.
  */
-export const purgeCharacterEndpoint: ApiEndpoint<
-  z.input<typeof purgeCharacterRequestSchema>,
-  PurgeCharacterResponse
-> = {
+export const purgeCharacterEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/purge-character',
   request: purgeCharacterRequestSchema,
-  response: purgeCharacterResponseSchema,
-};
+  responses: {
+    200: jsonBody(purgeCharacterResponseSchema),
+    400: problem('invalid_json', 'invalid_body', 'not_linked'),
+    401: problem('unauthenticated'),
+    429: problem('rate_limited'),
+  },
+});
 
 // POST /api/account/delete — nuke the caller's entire account. No request body.
 const accountDeleteResponseSchema = z.object({ ok: z.literal(true) });
 /**
- * Successful full-account deletion acknowledgement; failures use the route's non-JSON error
- * responses.
+ * Successful full-account deletion acknowledgement.
  */
 export type AccountDeleteResponse = z.infer<typeof accountDeleteResponseSchema>;
 /**
  * Boundary validator for account delete endpoint; successful parsing yields the normalized auth
  * input consumed internally.
  */
-export const accountDeleteEndpoint: ApiEndpoint<null, AccountDeleteResponse> = {
+export const accountDeleteEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/delete',
-  request: null, // no body
-  response: accountDeleteResponseSchema,
-};
+  request: null,
+  responses: {
+    200: jsonBody(accountDeleteResponseSchema),
+    401: problem('unauthenticated'),
+    429: problem('rate_limited'),
+  },
+});
 
 // POST /api/account/sessions/revoke — log the caller out everywhere. No request
 // body; `revoked` is the number of sessions removed.
@@ -293,9 +305,13 @@ export type SessionsRevokeResponse = z.infer<typeof sessionsRevokeResponseSchema
  * Typed endpoint definition for sessions revoke endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const sessionsRevokeEndpoint: ApiEndpoint<null, SessionsRevokeResponse> = {
+export const sessionsRevokeEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/sessions/revoke',
-  request: null, // no body
-  response: sessionsRevokeResponseSchema,
-};
+  request: null,
+  responses: {
+    200: jsonBody(sessionsRevokeResponseSchema),
+    401: problem('unauthenticated'),
+    429: problem('rate_limited'),
+  },
+});
