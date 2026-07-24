@@ -210,7 +210,20 @@ branch and PR. Two tracks feed the delivery pipeline:
   may commit to it before that PR opens. Version features as `X.Y.N`; use
   `X.Y.N.M` for ordered session slices. The final session's PR publishes the
   planned version, bumps `APP_VERSION`, and absorbs the pending fragments present
-  at its cutoff into the new changelog entry.
+  at its cutoff into the new changelog entry. A contract whose `Delivery unit`
+  declares one PR per session instead ships each of its sessions through its own
+  PR from that branch, recreated from `origin/main` after each squash merge;
+  its non-final session PRs publish no version records.
+Master plans, session contracts, and session plans are frozen prompts: each is
+the starting input for its stage, its claims are verified against live code
+when consumed, in-session operator direction supersedes its text, and it is
+never edited after its stage completes. The session as-built record
+(`docs/workflows/schema/session-as-built.md`) is the record of what a session
+actually delivered; close-out authors it at session close, the resolver
+requires a valid record for every completed session, and it archives with the
+version bundle. Planning reads live code first, then prior as-built records,
+then the prompt chain.
+
 - Branch previews are manual and on demand. They do not authorize production
   action and must be removed after use. Every deployment migrates its own
   database branch; a branch push does not create a preview automatically.
@@ -230,9 +243,10 @@ branch and PR. Two tracks feed the delivery pipeline:
   account handles, machine names, local paths, browser-profile details, and
   private identifiers.
 - A planned final PR already contains the state that must exist once it merges:
-  the final session marked `Execution status: Complete`, the delivered
-  sub-version's terminal roadmap row, the matching `APP_VERSION`, and the
-  published changelog entry with its absorbed fragments. There is no uncommitted
+  the final session marked `Execution status: Complete`, its as-built record
+  carrying the PR number, the delivered sub-version's terminal roadmap row, the
+  matching `APP_VERSION`, and the published changelog entry with its absorbed
+  fragments. There is no uncommitted
   post-merge reconciliation and no follow-up lifecycle-only PR. After a merge,
   close-out updates its local view from `origin/main`, and the next
   `start-session` resolves the next action from that already-truthful state.

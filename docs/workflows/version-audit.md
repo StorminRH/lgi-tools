@@ -275,8 +275,8 @@ For a clean version close:
 3. require every audit gate to pass and the refreshed baseline Code ref to equal
    `Audited ref`, then set `**Audit status:** Complete`;
 4. follow the resolver's `archive-needed` directive to archive the master plan,
-   contract directory, session-plan directory, and audit-plan directory as one
-   version bundle;
+   contract directory, session-plan directory, session-as-built directory, and
+   audit-plan directory as one version bundle;
 5. keep `docs/CODE_HEALTH_BASELINE.md` active;
 6. update SCRATCHPAD to the next master-plan handoff or to a clear
    `awaiting master plan` state;

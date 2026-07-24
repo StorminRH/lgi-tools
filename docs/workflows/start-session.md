@@ -45,8 +45,8 @@ the operator has explicitly approved a one-time bootstrap transition.
 ## Execute an approved session
 
 When the handler is `start-session`, read the approved contract and plan,
-master-plan context, agent-guide chain, baseline, SCRATCHPAD, and relevant
-backlog. Reconcile their digests, prerequisites, interfaces, branch, and
+prior session as-built records in the active version, master-plan context,
+agent-guide chain, baseline, SCRATCHPAD, and relevant backlog. Reconcile their digests, prerequisites, interfaces, branch, and
 assumptions against live code and current primary documentation. Correct
 mechanical drift in scope; return a material scope or design conflict to
 `plan-session` for approval.
