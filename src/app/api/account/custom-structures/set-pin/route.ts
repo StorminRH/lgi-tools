@@ -23,8 +23,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     authorize: checkUserId,
     parse: (incoming) => readJsonBody(incoming, setCustomStructurePinRequestSchema),
     handle: async ({ userId }, { id, systemId }) => {
-      const badPin = await rejectUnknownSystemPin(systemId);
-      if (badPin) return apiResponse(setCustomStructurePinEndpoint, 400, badPin);
+      const pin = await rejectUnknownSystemPin(systemId);
+      if (!pin.ok) return apiResponse(setCustomStructurePinEndpoint, 400, pin.failure);
 
       await setCustomStructurePin(userId, id, systemId);
       const structures = await listCustomStructures(userId);

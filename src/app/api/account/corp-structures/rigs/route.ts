@@ -32,8 +32,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ userId }, body) => {
       const { corporationId, structureId, rigTypeIds, taxPct } = body;
 
-      const denied = await stationManagerGate(userId, corporationId);
-      if (denied) return apiResponse(setCorpStructureRigsEndpoint, 403, denied);
+      const stationManager = await stationManagerGate(userId, corporationId);
+      if (!stationManager.ok) {
+        return apiResponse(setCorpStructureRigsEndpoint, 403, stationManager.failure);
+      }
 
       const [corpStructures, types, rigs] = await Promise.all([
         getCorpStructures([corporationId]),

@@ -38,6 +38,7 @@ describe('rateLimit', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it('returns ok with finite remaining when the limiter says success', async () => {
@@ -230,6 +231,7 @@ describe('checkRateLimit', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   const guardRequest = () =>
@@ -258,10 +260,12 @@ describe('checkRateLimit', () => {
     vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
     vi.stubEnv('NODE_ENV', 'production');
+    const now = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(now);
     limitMock.mockResolvedValue({
       success: false,
       remaining: 0,
-      reset: Date.now() + 30_500,
+      reset: now + 7_200,
       pending: Promise.resolve(),
     });
 
@@ -275,11 +279,8 @@ describe('checkRateLimit', () => {
       failure: {
         category: 'rate_limited',
         code: 'rate_limited',
-        retryAfterSeconds: expect.any(Number),
+        retryAfterSeconds: 8,
       },
     });
-    if (!result.ok) {
-      expect(result.failure.retryAfterSeconds).toBeGreaterThanOrEqual(1);
-    }
   });
 });

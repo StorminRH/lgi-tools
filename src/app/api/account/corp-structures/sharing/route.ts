@@ -28,8 +28,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ userId }, { corporationId, enabled }) => {
       // Membership first (fail-closed + audited; also refreshes affiliations), then the
       // Station_Manager role on the freshly-refreshed set — the shared two-step gate.
-      const denied = await stationManagerGate(userId, corporationId);
-      if (denied) return apiResponse(setCorpStructureSharingEndpoint, 403, denied);
+      const stationManager = await stationManagerGate(userId, corporationId);
+      if (!stationManager.ok) {
+        return apiResponse(setCorpStructureSharingEndpoint, 403, stationManager.failure);
+      }
 
       await setCorpStructureSharing(corporationId, enabled, await getSessionCharacterId());
       return apiResponse(setCorpStructureSharingEndpoint, 200, { corporationId, enabled });

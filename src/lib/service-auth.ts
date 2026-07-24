@@ -39,12 +39,13 @@ export async function checkBearerSecret(
   await connection();
   const secret = readEnv(envVar);
   if (!secret) {
+    console.error('[service-auth] missing required environment variable', envVar);
     return {
       ok: false,
       failure: unexpectedFailure(
         'not_configured',
         undefined,
-        `${envVar} not configured`,
+        'service authentication is not configured',
       ),
     };
   }

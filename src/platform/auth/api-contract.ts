@@ -49,6 +49,7 @@ export const eveTokenEndpoint = defineEndpoint({
     401: problem('unauthenticated'),
     404: problem('not_found'),
     409: problem('reauth_required'),
+    500: problem('not_configured'),
     502: problem('upstream_error'),
   },
 });
@@ -100,6 +101,7 @@ export const eveCharactersEndpoint = defineEndpoint({
     200: jsonBody(eveCharactersResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+    500: problem('not_configured'),
   },
 });
 

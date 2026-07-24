@@ -1,3 +1,5 @@
+// Anti-drift, not anti-malice: class methods, re-exports, and subclass-typed
+// response returns are deliberate non-goals of this delivery-boundary gate.
 import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,9 +20,6 @@ const CORE_EXPORTS = new Map([
 ]);
 
 const DELIVERY_WRAPPERS = new Set([
-  'src/platform/auth/route-guards.ts:requireSession',
-  'src/platform/auth/route-guards.ts:requireAdmin',
-  'src/platform/auth/route-guards.ts:requireUserId',
   'src/lib/service-auth.ts:requireBearerSecret',
   'src/transport/cron.ts:requireCronAuth',
 ]);
@@ -136,6 +135,89 @@ function returnsResponse(
     typeContainsResponse(checker.getReturnTypeOfSignature(signature), checker);
 }
 
+function isAnyOrUnknown(type: ts.Type): boolean {
+  return (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) !== 0;
+}
+
+function returnTypeOf(
+  declaration: FunctionLike,
+  checker: ts.TypeChecker,
+): ts.Type | undefined {
+  const signature = checker.getSignatureFromDeclaration(declaration);
+  return signature === undefined ? undefined : checker.getReturnTypeOfSignature(signature);
+}
+
+function returnsAnyOrUnknown(
+  declaration: FunctionLike,
+  checker: ts.TypeChecker,
+): boolean {
+  const returnType = returnTypeOf(declaration, checker);
+  return returnType !== undefined && isAnyOrUnknown(returnType);
+}
+
+function propertyType(
+  type: ts.Type,
+  name: string,
+  checker: ts.TypeChecker,
+): ts.Type | undefined {
+  const property = checker.getPropertyOfType(type, name);
+  const declaration = property?.valueDeclaration ?? property?.declarations?.[0];
+  return property && declaration
+    ? checker.getTypeOfSymbolAtLocation(property, declaration)
+    : undefined;
+}
+
+function unwrapPromiseType(type: ts.Type, checker: ts.TypeChecker): ts.Type {
+  if (
+    !isTypeReference(type) ||
+    (type.symbol?.getName() !== 'Promise' &&
+      type.target.symbol?.getName() !== 'Promise')
+  ) {
+    return type;
+  }
+  return checker.getTypeArguments(type)[0] ?? type;
+}
+
+type FailureUnionArm = 'success' | 'failure';
+
+function failureUnionArm(
+  member: ts.Type,
+  checker: ts.TypeChecker,
+  appFailureType: ts.Type,
+): FailureUnionArm | null {
+  if (isAnyOrUnknown(member)) return null;
+  const ok = propertyType(member, 'ok', checker);
+  if (!ok) return null;
+  const discriminant = checker.typeToString(ok);
+  if (discriminant === 'true') return 'success';
+  if (discriminant !== 'false') return null;
+  const failure = propertyType(member, 'failure', checker);
+  return failure &&
+    !isAnyOrUnknown(failure) &&
+    checker.isTypeAssignableTo(failure, appFailureType)
+    ? 'failure'
+    : null;
+}
+
+function returnsFailureUnion(
+  declaration: FunctionLike,
+  checker: ts.TypeChecker,
+  appFailureType: ts.Type,
+): boolean {
+  const declared = returnTypeOf(declaration, checker);
+  if (!declared || isAnyOrUnknown(declared)) return false;
+  const result = unwrapPromiseType(declared, checker);
+  if (isAnyOrUnknown(result) || !result.isUnion()) return false;
+  const arms = result.types.map((member) =>
+    failureUnionArm(member, checker, appFailureType),
+  );
+  return (
+    arms.every((arm) => arm !== null) &&
+    arms.includes('success') &&
+    arms.includes('failure')
+  );
+}
+
 function createProjectProgram(): ts.Program {
   const configPath = join(REPO_ROOT, 'tsconfig.json');
   const config = ts.readConfigFile(configPath, (file) => readFileSync(file, 'utf8'));
@@ -150,6 +232,47 @@ function sourceFor(program: ts.Program, relativePath: string): ts.SourceFile {
   return source;
 }
 
+function declaredType(
+  sourceFile: ts.SourceFile,
+  name: string,
+  checker: ts.TypeChecker,
+): ts.Type {
+  let declaration: ts.InterfaceDeclaration | ts.TypeAliasDeclaration | undefined;
+  for (const statement of sourceFile.statements) {
+    if (
+      (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) &&
+      statement.name.text === name
+    ) {
+      declaration = statement;
+      break;
+    }
+  }
+  const symbol = declaration
+    ? checker.getSymbolAtLocation(declaration.name)
+    : undefined;
+  if (!symbol) throw new Error(`TypeScript program omitted type ${name}`);
+  return checker.getDeclaredTypeOfSymbol(symbol);
+}
+
+function functionProducesResponse(
+  fn: ExportedFunction,
+  checker: ts.TypeChecker,
+): boolean {
+  let producesResponse = false;
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isCallExpression(node) || ts.isNewExpression(node)) &&
+      typeContainsResponse(checker.getTypeAtLocation(node), checker)
+    ) {
+      producesResponse = true;
+      return;
+    }
+    if (!producesResponse) ts.forEachChild(node, visit);
+  };
+  if (fn.declaration.body) visit(fn.declaration.body);
+  return producesResponse;
+}
+
 function responseProducingExpressions(
   sourceFile: ts.SourceFile,
   checker: ts.TypeChecker,
@@ -158,22 +281,15 @@ function responseProducingExpressions(
   const exported = exportedFunctions(sourceFile);
   for (const fn of exported) {
     if (DELIVERY_WRAPPERS.has(fn.key)) continue;
-    const visit = (node: ts.Node): void => {
-      if (
-        (ts.isCallExpression(node) || ts.isNewExpression(node)) &&
-        typeContainsResponse(checker.getTypeAtLocation(node), checker)
-      ) {
-        violations.push(fn.key);
-        return;
-      }
-      ts.forEachChild(node, visit);
-    };
-    if (fn.declaration.body) visit(fn.declaration.body);
+    if (functionProducesResponse(fn, checker)) violations.push(fn.key);
   }
   return violations;
 }
 
-function fixtureViolations(source: string): string[] {
+function fixtureProject(source: string): {
+  checker: ts.TypeChecker;
+  file: ts.SourceFile;
+} {
   const fileName = '/fixture/src/lib/new-guard.ts';
   const options = {
     lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'],
@@ -194,21 +310,55 @@ function fixtureViolations(source: string): string[] {
   const checker = program.getTypeChecker();
   const file = program.getSourceFile(fileName);
   if (!file) throw new Error('Fixture program omitted its source file');
-  return exportedFunctions(file)
-    .filter((fn) => returnsResponse(fn.declaration, checker))
+  return { checker, file };
+}
+
+function reverseSweepFunctions(
+  sourceFile: ts.SourceFile,
+  checker: ts.TypeChecker,
+): ExportedFunction[] {
+  return exportedFunctions(sourceFile).filter(
+    (fn) =>
+      returnsResponse(fn.declaration, checker) ||
+      (returnsAnyOrUnknown(fn.declaration, checker) &&
+        functionProducesResponse(fn, checker)),
+  );
+}
+
+function fixtureViolations(source: string): string[] {
+  const { checker, file } = fixtureProject(source);
+  return reverseSweepFunctions(file, checker)
     .map((fn) => fn.name);
+}
+
+function fixtureExpressionViolations(source: string): string[] {
+  const { checker, file } = fixtureProject(source);
+  return responseProducingExpressions(file, checker);
+}
+
+function fixtureReturnsFailureUnion(source: string): boolean {
+  const { checker, file } = fixtureProject(source);
+  const core = exportedFunctions(file)[0];
+  if (!core) throw new Error('Fixture program omitted its exported core');
+  return returnsFailureUnion(
+    core.declaration,
+    checker,
+    declaredType(file, 'AppFailure', checker),
+  );
 }
 
 const program = createProjectProgram();
 const checker = program.getTypeChecker();
+const appFailureType = declaredType(
+  sourceFor(program, 'src/lib/failure.ts'),
+  'AppFailure',
+  checker,
+);
 
 describe('guard and parser emission boundaries', () => {
   it('pins the exact delivery-wrapper allowlist', () => {
     expect([...DELIVERY_WRAPPERS].sort()).toEqual([
       'src/lib/service-auth.ts:requireBearerSecret',
-      'src/platform/auth/route-guards.ts:requireAdmin',
-      'src/platform/auth/route-guards.ts:requireSession',
-      'src/platform/auth/route-guards.ts:requireUserId',
       'src/transport/cron.ts:requireCronAuth',
     ]);
   });
@@ -217,7 +367,11 @@ describe('guard and parser emission boundaries', () => {
     const functions = exportedFunctions(sourceFor(program, file));
     const cores = functions.filter((fn) => coreNames.has(fn.name));
     expect(cores.map((core) => core.name).sort()).toEqual([...coreNames].sort());
-    expect(cores.filter((core) => returnsResponse(core.declaration, checker))).toEqual([]);
+    expect(
+      cores.filter(
+        (core) => !returnsFailureUnion(core.declaration, checker, appFailureType),
+      ),
+    ).toEqual([]);
   });
 
   it('finds no response-producing expression outside delivery wrappers in core modules', () => {
@@ -237,7 +391,12 @@ describe('guard and parser emission boundaries', () => {
           ),
         )
         .flatMap(exportedFunctions)
-        .filter((fn) => returnsResponse(fn.declaration, checker))
+        .filter(
+          (fn) =>
+            returnsResponse(fn.declaration, checker) ||
+            (returnsAnyOrUnknown(fn.declaration, checker) &&
+              functionProducesResponse(fn, checker)),
+        )
         .map((fn) => fn.key),
     );
     expect([...responseExports].sort()).toEqual([...PROTECTED_RESPONSE_EXPORTS].sort());
@@ -272,5 +431,33 @@ describe('seeded red fixtures', () => {
     ],
   ])('rejects the %s fixture', (_label, source) => {
     expect(fixtureViolations(source).length).toBeGreaterThan(0);
+  });
+
+  it('runs the body scanner against a response-producing core fixture', () => {
+    expect(
+      fixtureExpressionViolations(
+        'export function checkJson() { return Response.json({ ok: false }); }',
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it.each([
+    [
+      'unknown response core',
+      'export function checkUnknown(): unknown { return new Response(); }',
+    ],
+    ['any core', 'export function checkAny(): any { return { ok: true }; }'],
+    ['boolean core', 'export function checkBoolean(): boolean { return true; }'],
+  ])('rejects the %s as a failure-union core', (_label, declaration) => {
+    const source = `interface AppFailure { category: 'validation'; code: string }
+${declaration}`;
+    expect(fixtureReturnsFailureUnion(source)).toBe(false);
+  });
+
+  it('reverse-sweeps an unknown-typed export whose body creates a response', () => {
+    const source =
+      'export function checkUnknown(): unknown { return new Response(); }';
+    expect(fixtureViolations(source)).toContain('checkUnknown');
+    expect(fixtureExpressionViolations(source).length).toBeGreaterThan(0);
   });
 });

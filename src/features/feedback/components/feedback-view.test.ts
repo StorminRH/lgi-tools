@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  problemBodySchema,
+  type ProblemBody,
+} from '@/lib/problem';
+import {
   FEEDBACK_NETWORK_ERROR_MESSAGE,
   feedbackErrorMessage,
   feedbackSubmitGate,
@@ -29,38 +33,38 @@ describe('feedbackErrorMessage', () => {
     ok: false as const,
     kind: 'api' as const,
     status: 400 as const,
-    error: {
+    error: problemBodySchema.parse({
       type: 'https://lgi.tools/problems/test',
       title: 'Test',
       status: 400,
       code,
       correlationId: 'correlation-id',
       ...(detail === undefined ? {} : { detail }),
-    },
+    }) as ProblemBody & { code: typeof code },
   });
   const problem429 = {
     ok: false as const,
     kind: 'api' as const,
     status: 429 as const,
-    error: {
+    error: problemBodySchema.parse({
       type: 'https://lgi.tools/problems/test',
       title: 'Test',
       status: 429,
       code: 'rate_limited' as const,
       correlationId: 'correlation-id',
-    },
+    }) as ProblemBody & { code: 'rate_limited' },
   };
   const problem502 = {
     ok: false as const,
     kind: 'api' as const,
     status: 502 as const,
-    error: {
+    error: problemBodySchema.parse({
       type: 'https://lgi.tools/problems/test',
       title: 'Test',
       status: 502,
       code: 'discord_failed' as const,
       correlationId: 'correlation-id',
-    },
+    }) as ProblemBody & { code: 'discord_failed' },
   };
 
   it('surfaces a 400 validation detail, or a fallback for an empty body', () => {

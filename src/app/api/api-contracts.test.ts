@@ -137,6 +137,14 @@ function classifyV2Route(source: string): V2Classification {
   let mixedRawResponse = false;
 
   const visit = (node: ts.Node): void => {
+    if (
+      (ts.isNewExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === 'Response') ||
+      (ts.isIdentifier(node) && node.text === 'NextResponse')
+    ) {
+      mixedRawResponse = true;
+    }
     if (ts.isCallExpression(node)) {
       if (
         ts.isIdentifier(node.expression) &&
@@ -194,6 +202,25 @@ describe('route-source classifiers', () => {
 ${responseImport}
 apiResponse(exampleEndpoint, 200, { ok: true });
 Response.json({ error: 'raw' }, { status: 400 });`);
+    expect(result.apiResponseCalls).toBe(1);
+    expect(result.mixedRawResponse).toBe(true);
+  });
+
+  it('rejects a v2 route that constructs a raw Response', () => {
+    const result = classifyV2Route(`${endpointImport}
+${responseImport}
+apiResponse(exampleEndpoint, 200, { ok: true });
+new Response('x', { status: 400 });`);
+    expect(result.apiResponseCalls).toBe(1);
+    expect(result.mixedRawResponse).toBe(true);
+  });
+
+  it('rejects a v2 route that imports NextResponse', () => {
+    const result = classifyV2Route(`${endpointImport}
+${responseImport}
+import { NextResponse } from 'next/server';
+apiResponse(exampleEndpoint, 200, { ok: true });
+NextResponse.json({ error: 'raw' }, { status: 400 });`);
     expect(result.apiResponseCalls).toBe(1);
     expect(result.mixedRawResponse).toBe(true);
   });

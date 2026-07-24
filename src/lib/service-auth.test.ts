@@ -25,6 +25,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe('bearerMatches', () => {
@@ -37,15 +38,20 @@ describe('bearerMatches', () => {
 });
 
 describe('requireBearerSecret', () => {
-  it('returns a 500 problem naming the env var when the secret is unset', async () => {
+  it('returns a safe 500 problem and logs the missing env var server-side', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubEnv('CRON_SECRET', '');
     const res = await requireBearerSecret(makeRequest(`Bearer ${SECRET}`), 'CRON_SECRET');
     expect(res?.status).toBe(500);
     expect(problemBodySchema.parse(await res?.json())).toMatchObject({
       status: 500,
       code: 'not_configured',
-      detail: 'CRON_SECRET not configured',
+      detail: 'service authentication is not configured',
     });
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[service-auth] missing required environment variable',
+      'CRON_SECRET',
+    );
   });
 
   it('returns a 401 problem for a missing bearer', async () => {
@@ -70,6 +76,7 @@ describe('requireBearerSecret', () => {
 
 describe('checkBearerSecret', () => {
   it('returns typed failures and preserves successful admission', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubEnv('CRON_SECRET', '');
     await expect(
       checkBearerSecret(makeRequest(`Bearer ${SECRET}`), 'CRON_SECRET'),
@@ -79,7 +86,7 @@ describe('checkBearerSecret', () => {
         category: 'unexpected',
         code: 'not_configured',
         cause: undefined,
-        detail: 'CRON_SECRET not configured',
+        detail: 'service authentication is not configured',
       },
     });
 
@@ -111,7 +118,8 @@ describe('requireBearerSecret for internal service auth', () => {
     expect(denied?.status).toBe(401);
   });
 
-  it('names CONVEX_SERVICE_SECRET in its unconfigured 500', async () => {
+  it('keeps CONVEX_SERVICE_SECRET out of its unconfigured 500 body', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubEnv('CONVEX_SERVICE_SECRET', '');
     const res = await requireBearerSecret(
       makeRequest('Bearer anything'),
@@ -121,7 +129,11 @@ describe('requireBearerSecret for internal service auth', () => {
     expect(problemBodySchema.parse(await res?.json())).toMatchObject({
       status: 500,
       code: 'not_configured',
-      detail: 'CONVEX_SERVICE_SECRET not configured',
+      detail: 'service authentication is not configured',
     });
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[service-auth] missing required environment variable',
+      'CONVEX_SERVICE_SECRET',
+    );
   });
 });

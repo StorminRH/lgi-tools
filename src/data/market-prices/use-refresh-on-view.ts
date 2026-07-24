@@ -120,7 +120,10 @@ export function useRefreshOnView(
               cache: 'no-store',
               signal: controller.signal,
             });
-            if (!result.ok) continue; // rate-limited / error → keep what we have
+            if (!result.ok) {
+              if (result.kind === 'network' && result.aborted) break;
+              continue; // rate-limited / non-aborted network error → keep what we have
+            }
             for (const p of result.data.prices) {
               map.set(p.typeId, {
                 typeId: p.typeId,

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { problemBodySchema } from '@/lib/problem';
 import { apiFetch } from '@/transport/api-client';
 import {
   isDeleteAcknowledged,
@@ -16,14 +17,16 @@ function jsonResponse(data: unknown): Response {
 
 function rateLimitedResponse(): Response {
   return new Response(
-    JSON.stringify({
-      type: 'https://lgi.tools/problems/rate_limited',
-      title: 'Too many requests',
-      status: 429,
-      code: 'rate_limited',
-      correlationId: 'test-correlation-id',
-      retryAfterSeconds: 10,
-    }),
+    JSON.stringify(
+      problemBodySchema.parse({
+        type: 'https://lgi.tools/problems/rate_limited',
+        title: 'Too many requests',
+        status: 429,
+        code: 'rate_limited',
+        correlationId: 'test-correlation-id',
+        retryAfterSeconds: 10,
+      }),
+    ),
     {
       status: 429,
       headers: {

@@ -58,7 +58,7 @@ const VALID_BODY = { corporationId: 2001, structureId: 1001, rigTypeIds: [37170]
 
 beforeEach(() => {
   h.requireUserIdMock.mockReset().mockResolvedValue({ ok: true, userId: 'user-1' });
-  h.stationManagerGateMock.mockReset().mockResolvedValue(null);
+  h.stationManagerGateMock.mockReset().mockResolvedValue({ ok: true });
   h.getCorpStructuresMock.mockReset().mockResolvedValue(new Map([[2001, [corpStructure]]]));
   h.getCorpStructureRigsMock
     .mockReset()
@@ -87,9 +87,12 @@ describe('POST /api/account/corp-structures/rigs', () => {
 
   it('maps the station-manager denial to the endpoint problem contract', async () => {
     h.stationManagerGateMock.mockResolvedValue({
-      category: 'forbidden',
-      code: 'not_station_manager',
-      detail: 'Requires the Station Manager role',
+      ok: false,
+      failure: {
+        category: 'forbidden',
+        code: 'not_station_manager',
+        detail: 'Requires the Station Manager role',
+      },
     });
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(403);

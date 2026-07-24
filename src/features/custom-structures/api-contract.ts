@@ -232,5 +232,6 @@ export const parseStructureFitEndpoint = defineEndpoint({
   responses: {
     200: jsonBody(parseStructureFitResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
   },
 });

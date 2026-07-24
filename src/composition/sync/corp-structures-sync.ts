@@ -247,21 +247,30 @@ export async function userHoldsCorpRole(
  * The two-step Station_Manager gate shared by the corp-structure mutation routes
  * (sharing toggle + the rig/tax completion): membership first (decideCorpAccess —
  * fail-closed + audited; also refreshes affiliations), then the in-game role on
- * the freshly refreshed set. Returns a typed forbidden failure, or null when the
- * caller may proceed. Lives here beside userHoldsCorpRole because it composes the
+ * the freshly refreshed set. Returns a typed failure union so the caller owns
+ * HTTP delivery. Lives here beside userHoldsCorpRole because it composes the
  * auth slice's access decision with this layer's role read — the same cross-slice
  * join reason the rest of the file exists.
  */
 export async function stationManagerGate(
   userId: string,
   corporationId: number,
-): Promise<AppFailure | null> {
+): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
   const access = await decideCorpAccess({ userId, corporationId });
   if (!access.allowed) {
-    return forbiddenFailure('not_corp_member', 'Not a member of this corporation');
+    return {
+      ok: false,
+      failure: forbiddenFailure('not_corp_member', 'Not a member of this corporation'),
+    };
   }
   if (!(await userHoldsCorpRole(userId, corporationId, CORP_STRUCTURES_REQUIRED_ROLES))) {
-    return forbiddenFailure('not_station_manager', 'Requires the Station Manager role');
+    return {
+      ok: false,
+      failure: forbiddenFailure(
+        'not_station_manager',
+        'Requires the Station Manager role',
+      ),
+    };
   }
-  return null;
+  return { ok: true };
 }

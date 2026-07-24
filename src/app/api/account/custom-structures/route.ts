@@ -42,8 +42,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         );
       }
 
-      const badPin = await rejectUnknownSystemPin(body.systemId);
-      if (badPin) return apiResponse(createCustomStructureEndpoint, 400, badPin);
+      const pin = await rejectUnknownSystemPin(body.systemId);
+      if (!pin.ok) return apiResponse(createCustomStructureEndpoint, 400, pin.failure);
 
       if ((await countCustomStructures(userId)) >= MAX_CUSTOM_STRUCTURES_PER_USER) {
         return apiResponse(

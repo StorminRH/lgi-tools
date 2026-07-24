@@ -20,10 +20,10 @@ describe('eve-token contract', () => {
 
   it('pins the internal endpoints and their closed statuses', () => {
     expect(Object.keys(eveTokenEndpoint.responses).map(Number)).toEqual([
-      200, 400, 401, 404, 409, 502,
+      200, 400, 401, 404, 409, 500, 502,
     ]);
     expect(Object.keys(eveCharactersEndpoint.responses).map(Number)).toEqual([
-      200, 400, 401,
+      200, 400, 401, 500,
     ]);
   });
 

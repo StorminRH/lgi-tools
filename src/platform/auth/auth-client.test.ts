@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { problemBodySchema } from '@/lib/problem';
 
 const fetchMock = vi.fn();
 
@@ -18,14 +19,16 @@ describe('authClient OAuth failures', () => {
   it('exposes a problem response through Better Fetch without throwing', async () => {
     fetchMock.mockResolvedValue(
       new Response(
-        JSON.stringify({
-          type: 'https://lgi.tools/problems/rate_limited',
-          title: 'Too many requests',
-          status: 429,
-          code: 'rate_limited',
-          correlationId: 'test-correlation-id',
-          retryAfterSeconds: 23,
-        }),
+        JSON.stringify(
+          problemBodySchema.parse({
+            type: 'https://lgi.tools/problems/rate_limited',
+            title: 'Too many requests',
+            status: 429,
+            code: 'rate_limited',
+            correlationId: 'test-correlation-id',
+            retryAfterSeconds: 23,
+          }),
+        ),
         {
           status: 429,
           statusText: 'Too Many Requests',

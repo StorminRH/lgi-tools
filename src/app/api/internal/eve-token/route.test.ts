@@ -38,16 +38,18 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe('POST /api/internal/eve-token', () => {
   it('returns 500 when the service secret is not configured', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubEnv('CONVEX_SERVICE_SECRET', '');
     const res = await POST(makeRequest(VALID_BODY, `Bearer ${SECRET}`));
     expect(res.status).toBe(500);
     expect(problemBodySchema.parse(await res.json())).toMatchObject({
       code: 'not_configured',
-      detail: 'CONVEX_SERVICE_SECRET not configured',
+      detail: 'service authentication is not configured',
     });
     expect(h.serviceMock).not.toHaveBeenCalled();
   });

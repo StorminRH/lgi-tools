@@ -177,7 +177,7 @@ beforeEach(() => {
   h.fetchWithTimeout.mockReset().mockResolvedValue(new Response(null, { status: 204 }));
   h.tokenService.mockReset().mockResolvedValue({ kind: 'ok', accessToken: 'token' });
   h.accountBelongsToUser.mockReset().mockResolvedValue(true);
-  h.stationManagerGate.mockReset().mockResolvedValue(null);
+  h.stationManagerGate.mockReset().mockResolvedValue({ ok: true });
   h.getCorpStructures.mockReset().mockResolvedValue(new Map());
   h.getCorpStructureRigs.mockReset().mockResolvedValue(new Map());
   h.getStructureTypes.mockReset().mockResolvedValue([
@@ -195,7 +195,7 @@ beforeEach(() => {
     product: { typeId: 22544, name: 'Hulk' },
   });
   h.countSavedPlans.mockReset().mockResolvedValue(0);
-  h.rejectUnknownSystemPin.mockReset().mockResolvedValue(null);
+  h.rejectUnknownSystemPin.mockReset().mockResolvedValue({ ok: true });
   h.countCustomStructures.mockReset().mockResolvedValue(0);
   h.getPricedSiteDetail.mockReset().mockResolvedValue(null);
 });
@@ -251,9 +251,12 @@ describe('route-level problem status matrix', () => {
     );
 
     h.stationManagerGate.mockResolvedValue({
-      category: 'forbidden',
-      code: 'not_station_manager',
-      detail: 'Requires the Station Manager role',
+      ok: false,
+      failure: {
+        category: 'forbidden',
+        code: 'not_station_manager',
+        detail: 'Requires the Station Manager role',
+      },
     });
     await expectProblem(
       await postCorpRigs(
@@ -373,5 +376,18 @@ describe('route-level problem status matrix', () => {
     const text = await expectProblem(response, 502, 'upstream_error');
     expect(text).not.toContain(seededSecret);
     expect(text).toContain('Safe dependency failure');
+  });
+
+  it('never leaks a rejected feedback webhook cause through the real route', async () => {
+    const seededSecret = 'seeded-feedback-webhook-secret';
+    h.fetchWithTimeout.mockRejectedValueOnce(new Error(seededSecret));
+
+    const response = await postFeedback(
+      jsonRequest('/api/feedback', { message: 'hello', path: '/sites' }),
+    );
+    const text = await expectProblem(response, 502, 'discord_failed');
+
+    expect(text).not.toContain(seededSecret);
+    expect(text).toContain('Could not reach Discord');
   });
 });
