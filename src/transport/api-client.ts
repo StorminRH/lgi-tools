@@ -4,6 +4,12 @@
 // fetch('/api/…') is lint-banned. The helper deliberately changes nothing on
 // the wire: same method/headers/body bytes as the call sites it replaced.
 import type { z } from 'zod';
+import { problemBodySchema } from '@/lib/problem';
+import type {
+  EndpointContract,
+  OutcomeOf,
+  RequestInputOf,
+} from './endpoint';
 
 /** Closed typed API outcome: validated success data or a declared error payload and HTTP status. */
 export type ApiResult<TData> =
@@ -35,6 +41,16 @@ export interface ApiEndpoint<TIn, TData> {
 
 type CallInit = Pick<RequestInit, 'signal' | 'cache' | 'keepalive'>;
 
+type EndpointCallArgs<TEndpoint extends EndpointContract> =
+  TEndpoint['request'] extends null
+    ? [init?: CallInit]
+    : [init: CallInit & { body: RequestInputOf<TEndpoint> }];
+
+/** Calls a v2 endpoint and returns its closed status-discriminated outcome. */
+export async function apiFetch<const TEndpoint extends EndpointContract>(
+  endpoint: TEndpoint,
+  ...args: EndpointCallArgs<TEndpoint>
+): Promise<OutcomeOf<TEndpoint>>;
 /**
  * Calls a typed same-origin endpoint, validates its response contract, and returns the closed
  * success or API-error result without throwing for declared HTTP failures.
@@ -52,9 +68,13 @@ export async function apiFetch<TIn, TData>(
   init: CallInit & { body: TIn },
 ): Promise<ApiResult<TData>>;
 export async function apiFetch(
-  endpoint: ApiEndpoint<unknown, unknown>,
+  endpoint: ApiEndpoint<unknown, unknown> | EndpointContract,
   init: CallInit & { body?: unknown } = {},
-): Promise<ApiResult<unknown>> {
+): Promise<unknown> {
+  if ('responses' in endpoint) {
+    return executeEndpoint(endpoint, init);
+  }
+
   const { body, ...rest } = init;
   const res = await fetch(endpoint.path, {
     method: endpoint.method,
@@ -79,4 +99,140 @@ export async function apiFetch(
     }
   }
   return { ok: true, status: res.status, data };
+}
+
+function protocolFailure(status: number, detail: string) {
+  return { ok: false, kind: 'protocol' as const, status, detail };
+}
+
+function isAbortError(cause: unknown): boolean {
+  return (
+    typeof cause === 'object' &&
+    cause !== null &&
+    'name' in cause &&
+    cause.name === 'AbortError'
+  );
+}
+
+function networkFailure(cause: unknown) {
+  return {
+    ok: false,
+    kind: 'network' as const,
+    aborted: isAbortError(cause),
+    cause,
+  };
+}
+
+async function readJson(
+  response: Response,
+): Promise<
+  | { ok: true; data: unknown }
+  | { ok: false; kind: 'invalid-json' }
+  | { ok: false; kind: 'network'; cause: unknown }
+> {
+  try {
+    return { ok: true, data: await response.json() };
+  } catch (cause) {
+    return cause instanceof SyntaxError
+      ? { ok: false, kind: 'invalid-json' }
+      : { ok: false, kind: 'network', cause };
+  }
+}
+
+async function executeEndpoint(
+  endpoint: EndpointContract,
+  init: CallInit & { body?: unknown },
+): Promise<unknown> {
+  const { body, ...rest } = init;
+  let response: Response;
+  try {
+    response = await fetch(endpoint.path, {
+      method: endpoint.method,
+      ...(endpoint.request === null
+        ? {}
+        : {
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }),
+      ...rest,
+    });
+  } catch (cause) {
+    return networkFailure(cause);
+  }
+
+  try {
+    return await decodeEndpointResponse(endpoint, response);
+  } catch (cause) {
+    return networkFailure(cause);
+  }
+}
+
+function declaredOutcome(response: Response, body: unknown) {
+  return response.ok
+    ? { ok: true, status: response.status, data: body }
+    : { ok: false, kind: 'api' as const, status: response.status, error: body };
+}
+
+async function decodeEndpointResponse(
+  endpoint: EndpointContract,
+  response: Response,
+): Promise<unknown> {
+  const codec = endpoint.responses[response.status];
+  if (codec === undefined) {
+    return protocolFailure(response.status, 'Endpoint returned an undeclared status');
+  }
+
+  if (codec.kind === 'empty') {
+    return decodeEmptyResponse(response);
+  }
+
+  if (codec.kind === 'text') {
+    return declaredOutcome(response, await response.text());
+  }
+
+  const decoded = await readJson(response);
+  if (!decoded.ok) {
+    if (decoded.kind === 'network') return networkFailure(decoded.cause);
+    return protocolFailure(response.status, 'Endpoint returned invalid JSON');
+  }
+
+  if (codec.kind === 'json') {
+    return decodeJsonResponse(response, decoded.data, codec.schema);
+  }
+
+  return decodeProblemResponse(response, decoded.data, codec.codes);
+}
+
+async function decodeEmptyResponse(response: Response): Promise<unknown> {
+  const wireBody = await response.text();
+  if (wireBody.length > 0) {
+    return protocolFailure(response.status, 'Endpoint returned a body for an empty response');
+  }
+  return declaredOutcome(response, undefined);
+}
+
+function decodeJsonResponse(
+  response: Response,
+  data: unknown,
+  schema: z.ZodType<unknown, unknown>,
+): unknown {
+  if (!schema.safeParse(data).success) {
+    return protocolFailure(response.status, 'Endpoint response failed its schema');
+  }
+  return declaredOutcome(response, data);
+}
+
+function decodeProblemResponse(
+  response: Response,
+  data: unknown,
+  codes: readonly string[],
+): unknown {
+  const parsed = problemBodySchema.safeParse(data);
+  if (!parsed.success || parsed.data.status !== response.status) {
+    return protocolFailure(response.status, 'Endpoint returned an invalid problem body');
+  }
+  if (codes.length > 0 && !codes.includes(parsed.data.code)) {
+    return protocolFailure(response.status, 'Endpoint returned an undeclared problem code');
+  }
+  return declaredOutcome(response, data);
 }

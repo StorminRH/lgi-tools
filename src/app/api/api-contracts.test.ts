@@ -28,7 +28,7 @@ const CONTRACT_NAMED_IMPORT_RE =
   /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['"][^'"]*api-contract['"]/g;
 const INPUT_MARKER_RE = /^[ \t]*\/\/[ \t]*input:[ \t]*([a-z]+)[ \t]*$/gm;
 const VALID_INPUT_CLASSES = new Set(['none', 'query']);
-const SCHEMA_CONSUMPTION_RE = /\bparse(?:Json|Form)Body\b/;
+const SCHEMA_CONSUMPTION_RE = /\b(?:parse(?:Json|Form)Body|readJsonBody)\b/;
 const JSON_RESPONSE_RE = /\.json\(/;
 const RESPONSE_PIN_RE = /\bsatisfies\s+([A-Za-z_$][\w$]*)/g;
 
@@ -141,6 +141,24 @@ ${pinnedResponse}`;
     expect(hasSchemaConsumption(source)).toBe(true);
     expect(findInputMarkers(source)).toEqual([]);
     expect(hasContractResponsePin(source)).toBe(true);
+  });
+
+  it('accepts the v2 readJsonBody and endpoint-bound apiResponse pattern', () => {
+    const source = `${contractImport}
+const parsed = await readJsonBody(request, requestSchema);
+return apiResponse(exampleEndpoint, 400, parsed.failure);`;
+    expect(hasSchemaConsumption(source)).toBe(true);
+    expect(findInputMarkers(source)).toEqual([]);
+    expect(hasContractResponsePin(source)).toBe(true);
+  });
+
+  it('rejects a v2 route that also builds an unpinned raw JSON response', () => {
+    const source = `${contractImport}
+const parsed = await readJsonBody(request, requestSchema);
+if (!parsed.ok) return apiResponse(exampleEndpoint, 400, parsed.failure);
+return Response.json({ ok: true });`;
+    expect(hasSchemaConsumption(source)).toBe(true);
+    expect(hasContractResponsePin(source)).toBe(false);
   });
 });
 

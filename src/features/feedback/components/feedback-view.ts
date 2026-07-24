@@ -1,3 +1,6 @@
+import type { OutcomeOf } from '@/transport/endpoint';
+import { feedbackEndpoint } from '../api-contract';
+
 /** Closed feedback submission state for idle, sending, success, and failure presentation. */
 export type SubmitState =
   | { kind: 'idle' }
@@ -16,16 +19,19 @@ export function feedbackSubmitGate(message: string, state: SubmitState): 'busy' 
 }
 
 /**
- * The user-facing error line for a failed submit, gated on status so a raw error
- * body never reaches the UI: 400 carries a human-readable validation detail;
- * 429 / 5xx get a friendly line each.
+ * The user-facing error line for a failed typed submit outcome.
  */
-export async function feedbackErrorMessage(result: {
-  status: number;
-  response: Response;
-}): Promise<string> {
+export function feedbackErrorMessage(
+  result: Exclude<OutcomeOf<typeof feedbackEndpoint>, { ok: true }>,
+): string {
+  if (result.kind === 'network') {
+    return 'Network error — your feedback did not send. Try again.';
+  }
+  if (result.kind === 'protocol') {
+    return 'Something went wrong sending your feedback. Try again.';
+  }
   if (result.status === 400) {
-    return (await result.response.text()) || 'Please check your message and try again.';
+    return result.error.detail || 'Please check your message and try again.';
   }
   if (result.status === 429) {
     return 'Too much feedback too fast — please wait a minute and try again.';

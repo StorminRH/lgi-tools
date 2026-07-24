@@ -276,4 +276,54 @@ describe('rateLimitGuard', () => {
       expect(body.retryAfter).toBeGreaterThanOrEqual(1);
     }
   });
+
+  it('keeps the wrapper wire response equivalent to the typed core failure', async () => {
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
+    vi.stubEnv('NODE_ENV', 'production');
+    const now = Date.now();
+    vi.spyOn(Date, 'now').mockReturnValue(now);
+    limitMock
+      .mockResolvedValueOnce({
+        success: false,
+        remaining: 0,
+        reset: now + 7_200,
+        pending: Promise.resolve(),
+      })
+      .mockResolvedValueOnce({
+        success: false,
+        remaining: 0,
+        reset: now + 7_200,
+        pending: Promise.resolve(),
+      });
+
+    const { checkRateLimit, rateLimitGuard } = await importHelper();
+    const core = await checkRateLimit(guardRequest(), {
+      name: 'feedback-core',
+      perMinute: 5,
+    });
+    const wrapped = await rateLimitGuard(guardRequest(), {
+      name: 'feedback-wrapper',
+      perMinute: 5,
+    });
+
+    expect(core).toMatchObject({
+      ok: false,
+      failure: {
+        category: 'rate_limited',
+        code: 'rate_limited',
+        retryAfterSeconds: 8,
+      },
+    });
+    expect(wrapped.ok).toBe(false);
+    if (!core.ok && !wrapped.ok) {
+      expect(await wrapped.response.json()).toEqual({
+        error: 'rate_limited',
+        retryAfter: core.failure.retryAfterSeconds,
+      });
+      expect(wrapped.response.headers.get('Retry-After')).toBe(
+        String(core.failure.retryAfterSeconds),
+      );
+    }
+  });
 });

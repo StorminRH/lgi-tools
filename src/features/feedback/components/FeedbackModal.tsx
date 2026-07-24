@@ -16,7 +16,7 @@ import { feedbackErrorMessage, feedbackSubmitGate, type SubmitState } from './fe
 async function submitFeedback(message: string, path: string): Promise<SubmitState> {
   try {
     const result = await apiFetch(feedbackEndpoint, { body: { message, path } });
-    if (!result.ok) return { kind: 'error', message: await feedbackErrorMessage(result) };
+    if (!result.ok) return { kind: 'error', message: feedbackErrorMessage(result) };
     return { kind: 'success' };
   } catch {
     return { kind: 'error', message: 'Network error — your feedback did not send. Try again.' };

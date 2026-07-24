@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { parseFormBody, parseJsonBody } from './route-body';
+import { parseFormBody, parseJsonBody, readJsonBody } from './route-body';
 
 const schema = z.object({ name: z.string().min(1), count: z.number() });
 const req = (body: string) =>
@@ -38,6 +38,50 @@ describe('parseJsonBody', () => {
     const r = await parseJsonBody(req(JSON.stringify('not an object')), schema);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(await r.response.text()).toContain('body');
+  });
+});
+
+describe('readJsonBody', () => {
+  it('returns typed validation failures without constructing a Response', async () => {
+    const invalidJson = await readJsonBody(req('{not valid json'), schema);
+    expect(invalidJson).toMatchObject({
+      ok: false,
+      failure: {
+        category: 'validation',
+        code: 'invalid_json',
+        detail: 'Invalid JSON',
+      },
+    });
+
+    const invalidBody = await readJsonBody(
+      req(JSON.stringify({ name: '', count: 'x' })),
+      schema,
+    );
+    expect(invalidBody).toMatchObject({
+      ok: false,
+      failure: {
+        category: 'validation',
+        code: 'invalid_body',
+      },
+      zodError: expect.anything(),
+    });
+  });
+
+  it('keeps the wrapper wire bytes identical to its typed core detail', async () => {
+    const core = await readJsonBody(
+      req(JSON.stringify({ name: '', count: 'x' })),
+      schema,
+    );
+    const wrapped = await parseJsonBody(
+      req(JSON.stringify({ name: '', count: 'x' })),
+      schema,
+    );
+    expect(core.ok).toBe(false);
+    expect(wrapped.ok).toBe(false);
+    if (!core.ok && !wrapped.ok) {
+      expect(await wrapped.response.text()).toBe(core.failure.detail);
+      expect(wrapped.response.status).toBe(400);
+    }
   });
 });
 

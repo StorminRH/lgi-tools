@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import { validationFailure, type AppFailure } from '@/lib/failure';
 
 /** Typed success-or-error result shared by transport-level request-body parsers. */
 export type ParsedBody<T> = { ok: true; data: T } | { ok: false; response: Response };
@@ -11,6 +12,41 @@ export type ParsedBody<T> = { ok: true; data: T } | { ok: false; response: Respo
 export interface ParseJsonBodyErrors {
   invalidJson: () => Response;
   invalidBody: (error: z.ZodError) => Response;
+}
+
+/** Typed JSON-body core result carrying application failures instead of HTTP responses. */
+export type ReadJsonBodyResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; failure: AppFailure; zodError?: z.ZodError };
+
+/** Parses and validates JSON while leaving delivery-boundary response construction to the caller. */
+export async function readJsonBody<S extends z.ZodTypeAny>(
+  request: Request,
+  schema: S,
+): Promise<ReadJsonBodyResult<z.infer<S>>> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return {
+      ok: false,
+      failure: validationFailure('invalid_json', 'Invalid JSON'),
+    };
+  }
+
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const detail = issue
+      ? `${issue.path.join('.') || 'body'}: ${issue.message}`
+      : 'invalid body';
+    return {
+      ok: false,
+      failure: validationFailure('invalid_body', detail),
+      zodError: parsed.error,
+    };
+  }
+  return { ok: true, data: parsed.data };
 }
 
 /**
@@ -41,21 +77,18 @@ export async function parseJsonBody<S extends z.ZodTypeAny>(
   schema: S,
   errors?: ParseJsonBodyErrors,
 ): Promise<ParsedBody<z.infer<S>>> {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
+  const parsed = await readJsonBody(request, schema);
+  if (parsed.ok) return parsed;
+  if (errors) {
     return {
       ok: false,
-      response: errors ? errors.invalidJson() : new Response('Invalid JSON', { status: 400 }),
+      response: parsed.zodError
+        ? errors.invalidBody(parsed.zodError)
+        : errors.invalidJson(),
     };
   }
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    if (errors) return { ok: false, response: errors.invalidBody(parsed.error) };
-    const issue = parsed.error.issues[0];
-    const detail = issue ? `${issue.path.join('.') || 'body'}: ${issue.message}` : 'invalid body';
-    return { ok: false, response: new Response(detail, { status: 400 }) };
-  }
-  return { ok: true, data: parsed.data };
+  return {
+    ok: false,
+    response: new Response(parsed.failure.detail ?? 'invalid body', { status: 400 }),
+  };
 }

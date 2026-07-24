@@ -2,6 +2,7 @@ import 'server-only';
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { rateLimitedFailure, type AppFailure } from "@/lib/failure";
 import { resolveUpstashRest } from "@/lib/upstash";
 
 // Shared sliding-window rate limiter backed by Upstash Redis. Stateless
@@ -126,6 +127,24 @@ export async function rateLimit(
  */
 export type RateLimitGuardResult = { ok: true } | { ok: false; response: Response };
 
+/** Typed rate-limit core result carrying an application failure instead of an HTTP response. */
+export type CheckRateLimitResult =
+  | { ok: true }
+  | { ok: false; failure: AppFailure };
+
+/** Checks one request's named rate-limit bucket without constructing an HTTP response. */
+export async function checkRateLimit(
+  request: Request,
+  options: RateLimitOptions,
+): Promise<CheckRateLimitResult> {
+  const limit = await rateLimit(clientIdentifier(request.headers), options);
+  if (limit.ok) return { ok: true };
+  return {
+    ok: false,
+    failure: rateLimitedFailure(limit.retryAfter),
+  };
+}
+
 /**
  * Checks and records one named rate-limit bucket, returning a closed allowed or denied result with
  * retry timing instead of throwing.
@@ -134,15 +153,16 @@ export async function rateLimitGuard(
   request: Request,
   options: RateLimitOptions,
 ): Promise<RateLimitGuardResult> {
-  const limit = await rateLimit(clientIdentifier(request.headers), options);
-  if (limit.ok) return { ok: true };
+  const limit = await checkRateLimit(request, options);
+  if (limit.ok) return limit;
+  const retryAfter = limit.failure.retryAfterSeconds ?? 1;
   return {
     ok: false,
     response: Response.json(
-      { error: "rate_limited", retryAfter: limit.retryAfter } satisfies RateLimitedBody,
+      { error: "rate_limited", retryAfter } satisfies RateLimitedBody,
       {
         status: 429,
-        headers: { "Retry-After": String(limit.retryAfter) },
+        headers: { "Retry-After": String(retryAfter) },
       },
     ),
   };
