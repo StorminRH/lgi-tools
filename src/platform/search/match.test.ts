@@ -14,15 +14,16 @@ describe('fuzzyMatch', () => {
   it('finds an initials-style subsequence match (ffrd -> FFRD)', () => {
     const out = fuzzyMatch('ffrd', 'Forgotten Frontier Recursive Depot');
     expect(out).not.toBeNull();
+    if (out === null) throw new Error('expected initials-style subsequence match');
     // Indices into the target where F, F, R, D land.
     const target = 'Forgotten Frontier Recursive Depot';
     // The matcher is case-insensitive; we just check that one F, another F,
     // an R, and a D were chosen — and that they appear in ascending order.
-    expect(out!.matchIndices).toHaveLength(4);
-    const chars = out!.matchIndices.map((i) => target[i]!.toLowerCase());
+    expect(out.matchIndices).toHaveLength(4);
+    const chars = out.matchIndices.map((i) => target[i]?.toLowerCase());
     expect(chars).toEqual(['f', 'f', 'r', 'd']);
-    for (let i = 1; i < out!.matchIndices.length; i++) {
-      expect(out!.matchIndices[i]).toBeGreaterThan(out!.matchIndices[i - 1]!);
+    for (let i = 1; i < out.matchIndices.length; i++) {
+      expect(out.matchIndices[i]).toBeGreaterThan(out.matchIndices[i - 1] ?? -1);
     }
   });
 
@@ -30,10 +31,9 @@ describe('fuzzyMatch', () => {
     const contiguous = fuzzyMatch('forg', 'Forgotten Frontier');
     const scattered = fuzzyMatch('forg', 'Find Other Random Group');
     expect(contiguous).not.toBeNull();
-    // scattered may be null if fuzzysort rejects it; either way it's worse.
-    if (scattered !== null) {
-      expect(contiguous!.score).toBeGreaterThan(scattered.score);
-    }
+    expect(scattered).not.toBeNull();
+    if (contiguous === null || scattered === null) throw new Error('expected both ranking fixtures to match');
+    expect(contiguous.score).toBeGreaterThan(scattered.score);
   });
 
   it('ranks a prefix match above a middle match', () => {
@@ -41,7 +41,8 @@ describe('fuzzyMatch', () => {
     const middle = fuzzyMatch('forg', 'In the Forgotten Forest');
     expect(prefix).not.toBeNull();
     expect(middle).not.toBeNull();
-    expect(prefix!.score).toBeGreaterThan(middle!.score);
+    if (prefix === null || middle === null) throw new Error('expected both ranking fixtures to match');
+    expect(prefix.score).toBeGreaterThan(middle.score);
   });
 
   it('is case-insensitive in both directions', () => {

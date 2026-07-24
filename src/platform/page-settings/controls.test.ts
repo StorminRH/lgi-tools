@@ -27,6 +27,7 @@ describe('resolveMenuControls', () => {
       ]),
     );
     expect(models.map((m) => m.key)).toEqual(['sites.view', 'sites.detailMode']);
+    // The preceding equality assertion guarantees both indexed models exist.
     expect(models[0]!.options).toEqual(['cards', 'table']);
     expect(models[1]!.options).toEqual(['lightbox', 'expand']);
     expect(models[0]!.def.key).toBe('sites.view');
@@ -115,6 +116,7 @@ describe('resolvePageControls', () => {
   it('resolves an enum preference key at inline placement (D-8: one registry entry lights a page setting)', () => {
     const models = resolvePageControls(spec([{ key: 'sites.view', placement: 'inline' }]));
     expect(models).toHaveLength(1);
+    // The preceding length assertion guarantees the first indexed model exists.
     const model = models[0]!;
     expect(model.kind).toBe('preference');
     if (model.kind === 'preference') {

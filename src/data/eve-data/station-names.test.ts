@@ -5,7 +5,7 @@ const esiFetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/platform/esi', () => ({
   esiFetch: (...args: unknown[]) => esiFetchMock(...args),
-  esiUrl: (path: string) => new URL(path, 'https://esi.example'),
+  esiUrl: (path: string) => `https://esi.example${path}`,
 }));
 
 import { resolveNpcStationNames } from './station-names';
@@ -47,7 +47,7 @@ describe('resolveNpcStationNames', () => {
 
     await expect(resolveNpcStationNames(db)).resolves.toEqual({ resolved: 1 });
     expect(esiFetchMock).toHaveBeenCalledWith(
-      new URL('/universe/names/', 'https://esi.example'),
+      'https://esi.example/universe/names/',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify([60_000_001, 60_000_002]),

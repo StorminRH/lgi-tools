@@ -5,8 +5,9 @@
 // OwnerSyncDescriptor scaffold (now / enumerate / vendToken / staleness gate / the
 // identity ownerOf / readState / stampFresh) into one builder; each slice supplies its
 // staleness + eligibility predicates, its own fetch→plan (single vs dual endpoint), and
-// its save. It lives in src/lib beside the engine, so a slice's refresh.ts stays
-// boundary-legal (feature → lib) and its fake-port tests pass unchanged.
+// its save. It lives in src/platform/owner-sync beside the engine, so a slice's
+// refresh.ts stays boundary-legal (feature → platform capability) and its
+// fake-port tests pass unchanged.
 import type { EnumeratedOwner, OwnerSyncDescriptor, PersistVerdict } from './types';
 
 /**

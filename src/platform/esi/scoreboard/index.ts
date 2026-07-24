@@ -69,7 +69,7 @@ function resolveConcreteScoreboard(): ResolvedScoreboard | null {
 
 /**
  * Selects the Redis-backed scoreboard when configured and otherwise the in-memory development
- * implementation, returning one shared promise.
+ * implementation, reusing one shared instance per backend.
  */
 export function resolveScoreboard(): EsiScoreboard | null {
   return resolveConcreteScoreboard()?.scoreboard ?? null;

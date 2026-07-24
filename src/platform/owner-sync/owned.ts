@@ -4,8 +4,9 @@
 // paged sync-state shape. This factors the identical OwnerSyncDescriptor scaffold into
 // one builder; each slice supplies its port + the handful of genuinely per-dataset
 // knobs (staleness, eligibility, the Director role, the resource path segment, and the
-// projection parse). It lives in src/lib beside the engine, so a slice's refresh.ts
-// stays boundary-legal (feature → lib) and its fake-port tests pass unchanged.
+// projection parse). It lives in src/platform/owner-sync beside the engine, so a
+// slice's refresh.ts stays boundary-legal (feature → platform capability) and
+// its fake-port tests pass unchanged.
 import { planRead } from './plan';
 import type { EnumeratedOwner, OwnerKey, OwnerSyncDescriptor, PagedOwnerSyncState } from './types';
 import type { EsiResponseHeaders } from '../esi/response-metadata';

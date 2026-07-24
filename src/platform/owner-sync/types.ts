@@ -5,8 +5,8 @@
 // → stale-gate-before-vend → token / Director resolution → conditional fetch + plan
 // → write-behind dispatch. Each slice supplies an OwnerSyncDescriptor (its port
 // wiring + per-feature projection / eligibility / TTL); the engine knows nothing
-// about any feature. It lives in src/lib so the boundary rules (lib → lib only)
-// STRUCTURALLY forbid an engine → feature import.
+// about any feature. Its peer-isolated platform zone structurally forbids an
+// engine → feature import.
 
 /**
  * A linked character as a refresh enumerates it — identity, cached corp id, and the

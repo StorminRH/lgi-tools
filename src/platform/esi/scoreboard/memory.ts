@@ -124,10 +124,7 @@ export function createMemoryScoreboard(): MemoryScoreboard {
   return new MemoryScoreboard();
 }
 
-/**
- * Returns a point-in-time budget snapshot from the in-memory scoreboard using the supplied
- * epoch-millisecond clock.
- */
+/** Returns a point-in-time budget snapshot from the in-memory scoreboard. */
 export function readMemoryBudgetSnapshot(
   scoreboard: MemoryScoreboard,
 ): Promise<EsiBudgetSnapshot> {

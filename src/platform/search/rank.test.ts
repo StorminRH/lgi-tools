@@ -44,6 +44,6 @@ describe('rankFuzzyResults', () => {
       { id: 'strong', label: 'Trit' },
     ];
     const out = rankFuzzyResults(shuffled, 'trit', (i) => i.label, toResult);
-    expect(out[0]!.id).toBe('strong');
+    expect(out[0]?.id).toBe('strong');
   });
 });
