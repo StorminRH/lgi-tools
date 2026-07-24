@@ -3,10 +3,10 @@ import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { validationFailure } from '@/lib/failure';
 import { problemResponse } from '@/lib/problem';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { switchCharacterFormSchema } from '@/platform/auth/api-contract';
 import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked-characters';
 import { checkSession } from '@/platform/auth/route-guards';
-import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseFormBody } from '@/transport/route-body';
 
 /**
@@ -20,8 +20,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Per-IP rate limit, checked before the session read so a flood is rejected
   // at the cheapest point. Every accepted switch writes the DB; 30/min covers
   // any real pilot flipping characters and cuts a scripted loop off fast.
-  const limit = await rateLimitGuard(request, { name: 'account-switch', perMinute: 30 });
-  if (!limit.ok) return limit.response;
+  const limit = await checkRateLimit(request, { name: 'account-switch', perMinute: 30 });
+  if (!limit.ok) return problemResponse(limit.failure);
 
   return runMutationRoute(request, {
     authorize: checkSession,

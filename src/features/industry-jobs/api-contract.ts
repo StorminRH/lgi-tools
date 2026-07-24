@@ -4,7 +4,7 @@
 // Convex websocket onto a Neon stale-gated on-view read (src/composition/sync/industry-jobs-sync.ts);
 // this is the GET the client fetches on view.
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/transport/api-client';
+import { defineEndpoint, jsonBody } from '@/transport/endpoint';
 import { industryJobSchema } from './esi-projection';
 
 // ── GET /api/account/industry-jobs (authz: auth) ─────────────────────────
@@ -41,12 +41,14 @@ export type JobsResponse = z.infer<typeof jobsResponseSchema>;
  * Boundary validator for industry jobs endpoint; successful parsing yields the normalized industry
  * jobs input consumed internally.
  */
-export const industryJobsEndpoint: ApiEndpoint<null, JobsResponse> = {
+export const industryJobsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/industry-jobs',
-  request: null, // GET — no body
-  response: jobsResponseSchema,
-};
+  request: null,
+  responses: {
+    200: jsonBody(jobsResponseSchema),
+  },
+});
 
 // ── GET /api/account/corp-industry-jobs (authz: auth) ────────────────────
 // The signed-in user's per-corporation active job boards, read from Neon with a
@@ -78,12 +80,14 @@ export type CorpJobsResponse = z.infer<typeof corpJobsResponseSchema>;
  * Boundary validator for corp industry jobs endpoint; successful parsing yields the normalized
  * industry jobs input consumed internally.
  */
-export const corpIndustryJobsEndpoint: ApiEndpoint<null, CorpJobsResponse> = {
+export const corpIndustryJobsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/corp-industry-jobs',
-  request: null, // GET — no body
-  response: corpJobsResponseSchema,
-};
+  request: null,
+  responses: {
+    200: jsonBody(corpJobsResponseSchema),
+  },
+});
 
 // ── GET /api/account/industry-slots (authz: auth) ─────────────────────────
 // Per linked character, the industry slot CAPACITY per activity — computed
@@ -125,9 +129,11 @@ export type IndustrySlotsResponse = z.infer<typeof industrySlotsResponseSchema>;
  * Typed endpoint definition for industry slots endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const industrySlotsEndpoint: ApiEndpoint<null, IndustrySlotsResponse> = {
+export const industrySlotsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/industry-slots',
-  request: null, // GET — no body
-  response: industrySlotsResponseSchema,
-};
+  request: null,
+  responses: {
+    200: jsonBody(industrySlotsResponseSchema),
+  },
+});

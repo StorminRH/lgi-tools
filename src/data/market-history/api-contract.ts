@@ -1,6 +1,6 @@
 // API wire contract owned by the market-history slice (3.4.T pattern).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/transport/api-client';
+import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
 import { ON_DEMAND_HISTORY_MAX_TYPE_IDS } from './constants';
 import type { MarketHistoryInputs } from './types';
 
@@ -47,21 +47,17 @@ export const refreshHistoryResponseSchema = z.object({
 /** Typed market-history refresh result with source, freshness, and write-behind state. */
 export type RefreshHistoryResponse = z.infer<typeof refreshHistoryResponseSchema>;
 
-/** 400 arms; 429 is the shared RateLimitedBody (src/lib/rate-limit.ts). */
-export type RefreshHistoryBadRequest =
-  | { error: 'invalid_json' }
-  | { error: 'invalid_request'; issues: unknown[] };
-
 /**
  * Typed endpoint definition for refresh history endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const refreshHistoryEndpoint: ApiEndpoint<
-  z.input<typeof refreshHistoryRequestSchema>,
-  RefreshHistoryResponse
-> = {
+export const refreshHistoryEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/market-history/refresh',
   request: refreshHistoryRequestSchema,
-  response: refreshHistoryResponseSchema,
-};
+  responses: {
+    200: jsonBody(refreshHistoryResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    429: problem('rate_limited'),
+  },
+});

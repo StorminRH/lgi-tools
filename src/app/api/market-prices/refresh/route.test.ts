@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MarketPrice } from '@/data/market-prices/types';
+import { problemBodySchema } from '@/lib/problem';
 
 const getLivePricesMock = vi.fn();
-const rateLimitGuardMock = vi.fn();
+const checkRateLimitMock = vi.fn();
 const emitCostMetricMock = vi.fn();
 
 vi.mock('@/data/market-prices/refresh-on-view', () => ({
@@ -14,10 +15,8 @@ vi.mock('@/data/telemetry/cost-metrics', () => ({
   emitCostMetric: (...args: unknown[]) => emitCostMetricMock(...args),
 }));
 
-// The guard's own 429 construction + IP keying are pinned in
-// src/lib/rate-limit.test.ts; here we only drive its ok/denied union.
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimitGuard: (...args: unknown[]) => rateLimitGuardMock(...args),
+  checkRateLimit: (...args: unknown[]) => checkRateLimitMock(...args),
 }));
 
 function buildRequest(body: unknown, ip = '1.2.3.4'): NextRequest {
@@ -76,9 +75,9 @@ describe('POST /api/market-prices/refresh', () => {
   beforeEach(() => {
     vi.resetModules();
     getLivePricesMock.mockReset();
-    rateLimitGuardMock.mockReset();
+    checkRateLimitMock.mockReset();
     emitCostMetricMock.mockReset();
-    rateLimitGuardMock.mockResolvedValue({ ok: true });
+    checkRateLimitMock.mockResolvedValue({ ok: true });
     getLivePricesMock.mockResolvedValue(cleanResult([price(34, 'esi')]));
   });
 
@@ -191,8 +190,8 @@ describe('POST /api/market-prices/refresh', () => {
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ typeIds: [] }));
     expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBe('invalid_request');
+    const body = problemBodySchema.parse(await res.json());
+    expect(body.code).toBe('invalid_body');
     expect(getLivePricesMock).not.toHaveBeenCalled();
   });
 
@@ -221,32 +220,37 @@ describe('POST /api/market-prices/refresh', () => {
     const { POST } = await importRoute();
     const res = await POST(buildRequest('{ not json'));
     expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBe('invalid_json');
+    const body = problemBodySchema.parse(await res.json());
+    expect(body.code).toBe('invalid_json');
   });
 
-  it('returns the guard 429 verbatim when the limiter denies', async () => {
-    rateLimitGuardMock.mockResolvedValueOnce({
+  it('maps a denied limiter result to the shared problem response', async () => {
+    checkRateLimitMock.mockResolvedValueOnce({
       ok: false,
-      response: Response.json(
-        { error: 'rate_limited', retryAfter: 42 },
-        { status: 429, headers: { 'Retry-After': '42' } },
-      ),
+      failure: {
+        category: 'rate_limited',
+        code: 'rate_limited',
+        retryAfterSeconds: 42,
+      },
     });
     const { POST } = await importRoute();
     const res = await POST(buildRequest({ typeIds: [34] }));
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('42');
-    const body = await res.json();
-    expect(body).toEqual({ error: 'rate_limited', retryAfter: 42 });
+    const body = problemBodySchema.parse(await res.json());
+    expect(body).toMatchObject({
+      status: 429,
+      code: 'rate_limited',
+      retryAfterSeconds: 42,
+    });
     expect(getLivePricesMock).not.toHaveBeenCalled();
   });
 
   it('hands the request and the slice limit policy to the guard', async () => {
     const { POST } = await importRoute();
     await POST(buildRequest({ typeIds: [34] }, '203.0.113.99'));
-    expect(rateLimitGuardMock).toHaveBeenCalledTimes(1);
-    const [guardedRequest, options] = rateLimitGuardMock.mock.calls[0] as [Request, unknown];
+    expect(checkRateLimitMock).toHaveBeenCalledTimes(1);
+    const [guardedRequest, options] = checkRateLimitMock.mock.calls[0] ?? [];
     expect(guardedRequest.headers.get('x-forwarded-for')).toBe('203.0.113.99');
     expect(options).toEqual(
       expect.objectContaining({ name: 'market-prices-refresh', perMinute: expect.any(Number) }),

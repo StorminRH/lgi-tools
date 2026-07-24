@@ -2,11 +2,9 @@
 //
 // Route-kit dividing rule: these guards need the Better Auth instance, so they
 // live in the auth slice (lib may import only lib); the auth-AGNOSTIC route
-// plumbing (parseJsonBody, rateLimitGuard, requireBearerSecret) lives in
-// src/lib beside route-body.ts. Same return-based ok/response union as
-// parseJsonBody — a handler's happy path stays
-// `if (!gate.ok) return gate.response;`, and guard ORDER (e.g. rate-limit
-// before session) remains the route's own composition.
+// plumbing (readJsonBody, checkRateLimit, requireBearerSecret) lives in
+// src/lib beside route-body.ts. The route owns guard ordering and maps each
+// returned application failure at its delivery boundary.
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import {

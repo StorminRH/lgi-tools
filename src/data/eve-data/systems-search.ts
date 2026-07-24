@@ -48,7 +48,10 @@ export function loadSystems(): Promise<SystemSearchEntry[]> {
   if (!indexPromise) {
     indexPromise = apiFetch(systemsEndpoint)
       .then((result) => {
-        if (!result.ok) throw new Error(`system index ${result.status}`);
+        if (!result.ok) {
+          const reason = 'status' in result ? result.status : result.kind;
+          throw new Error(`system index ${reason}`);
+        }
         loadedIndex = result.data.systems;
         return loadedIndex;
       })

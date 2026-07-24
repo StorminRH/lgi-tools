@@ -1,11 +1,12 @@
 import type { NextRequest } from 'next/server';
 import type {
-  ApiError,
   SiteListApiItem,
 } from '@/features/wormhole-sites/api-contract';
+import { sitesEndpoint } from '@/features/wormhole-sites/api-contract';
 import { listSites } from '@/features/wormhole-sites/queries';
 import { parseSitesQuery } from '@/features/wormhole-sites/sites-query';
 import type { SiteListItem } from '@/features/wormhole-sites/types';
+import { apiResponse } from '@/transport/api-response';
 
 function toApiShape({ resourceValueIsk, ...rest }: SiteListItem): SiteListApiItem {
   return { ...rest, sheetResourceValueIsk: resourceValueIsk };
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     request.nextUrl.searchParams.get('class'),
   );
   if (!parsed.ok) {
-    return Response.json(parsed.error satisfies ApiError, { status: 400 });
+    return apiResponse(sitesEndpoint, 400, parsed.failure);
   }
 
   const result: SiteListItem[] = await listSites({
@@ -31,5 +32,5 @@ export async function GET(request: NextRequest): Promise<Response> {
     wormholeClass: parsed.data.class,
   });
 
-  return Response.json(result.map(toApiShape) satisfies SiteListApiItem[]);
+  return apiResponse(sitesEndpoint, 200, result.map(toApiShape));
 }

@@ -1,7 +1,8 @@
 import { getJobsForUserOnView } from '@/composition/sync/industry-jobs-sync';
 import { getCurrentUserId } from '@/platform/auth/session';
-import type { JobsResponse } from '@/features/industry-jobs/api-contract';
+import { industryJobsEndpoint } from '@/features/industry-jobs/api-contract';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * GET /api/account/industry-jobs
@@ -19,12 +20,12 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return Response.json({ characters: [], names: {} } satisfies JobsResponse);
+    return apiResponse(industryJobsEndpoint, 200, { characters: [], names: {} });
   }
   const result = await measureOwnedDataRead({
     endpoint: '/api/account/industry-jobs',
     read: () => getJobsForUserOnView(userId),
     returned: (value) => value.characters.length,
   });
-  return Response.json(result satisfies JobsResponse);
+  return apiResponse(industryJobsEndpoint, 200, result);
 }

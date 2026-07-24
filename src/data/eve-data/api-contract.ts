@@ -4,7 +4,11 @@
 // this boundary owns that wire shape while the higher layer satisfies it.
 // ./systems-search imports this module at runtime, not the reverse.
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/transport/api-client';
+import {
+  defineEndpoint,
+  jsonBody,
+  problem,
+} from '@/transport/endpoint';
 import type { IngestSummary } from './ingest';
 import type { ResolveSummary } from './tree-resolver';
 import type { SystemSearchEntry } from './systems-search';
@@ -51,15 +55,15 @@ export type SdePipelineSummary = {
  * Typed endpoint definition for entity names endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const entityNamesEndpoint: ApiEndpoint<
-  z.input<typeof entityNamesRequestSchema>,
-  EntityNamesResponse
-> = {
+export const entityNamesEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/eve/names',
   request: entityNamesRequestSchema,
-  response: entityNamesResponseSchema,
-};
+  responses: {
+    200: jsonBody(entityNamesResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
 
 /**
  * ── GET /api/cron/refresh-sde (authz: cron) ─────────────────────────────
@@ -105,9 +109,11 @@ export type SystemsResponse = z.infer<typeof systemsResponseSchema>;
  * Typed endpoint definition for systems endpoint; method, path, request, and response contracts
  * remain coupled here.
  */
-export const systemsEndpoint: ApiEndpoint<null, SystemsResponse> = {
+export const systemsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/industry/systems',
   request: null,
-  response: systemsResponseSchema,
-};
+  responses: {
+    200: jsonBody(systemsResponseSchema),
+  },
+});

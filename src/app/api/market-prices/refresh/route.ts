@@ -1,14 +1,13 @@
 import type { NextRequest } from "next/server";
 import {
-  refreshPricesRequestSchema,
-  type RefreshPricesBadRequest,
-  type RefreshPricesResponse,
+  refreshPricesEndpoint,
 } from "@/data/market-prices/api-contract";
 import { ON_DEMAND_REFRESH_LIMIT_PER_MINUTE } from "@/data/market-prices/constants";
 import { getLivePrices } from "@/data/market-prices/refresh-on-view";
 import { emitCostMetric } from "@/data/telemetry/cost-metrics";
-import { rateLimitGuard } from "@/lib/rate-limit";
-import { parseJsonBody } from "@/transport/route-body";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { apiResponse } from "@/transport/api-response";
+import { readJsonBody } from "@/transport/route-body";
 
 // POST /api/market-prices/refresh
 // Body: { typeIds: number[] }
@@ -39,22 +38,14 @@ export const maxDuration = 60;
  * boundary validation, and typed response mapping.
  */
 export async function POST(request: NextRequest): Promise<Response> {
-  const parsed = await parseJsonBody(request, refreshPricesRequestSchema, {
-    invalidJson: () =>
-      Response.json({ error: "invalid_json" } satisfies RefreshPricesBadRequest, { status: 400 }),
-    invalidBody: (error) =>
-      Response.json(
-        { error: "invalid_request", issues: error.issues } satisfies RefreshPricesBadRequest,
-        { status: 400 },
-      ),
-  });
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, refreshPricesEndpoint.request);
+  if (!parsed.ok) return apiResponse(refreshPricesEndpoint, 400, parsed.failure);
 
-  const limit = await rateLimitGuard(request, {
+  const limit = await checkRateLimit(request, {
     name: "market-prices-refresh",
     perMinute: ON_DEMAND_REFRESH_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) return limit.response;
+  if (!limit.ok) return apiResponse(refreshPricesEndpoint, 429, limit.failure);
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
   const startedAt = Date.now();
@@ -82,7 +73,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     });
   }
 
-  return Response.json({
+  return apiResponse(refreshPricesEndpoint, 200, {
     prices: typeIds
       .map((typeId) => prices.get(typeId))
       .filter((row): row is NonNullable<typeof row> => row !== undefined)
@@ -101,5 +92,5 @@ export async function POST(request: NextRequest): Promise<Response> {
         staleAfter: row.staleAfter.toISOString(),
         source: row.source,
       })),
-  } satisfies RefreshPricesResponse);
+  });
 }

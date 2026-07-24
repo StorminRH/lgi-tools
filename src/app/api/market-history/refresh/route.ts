@@ -1,14 +1,13 @@
 import type { NextRequest } from 'next/server';
 import {
-  refreshHistoryRequestSchema,
-  type RefreshHistoryBadRequest,
-  type RefreshHistoryResponse,
+  refreshHistoryEndpoint,
 } from '@/data/market-history/api-contract';
 import { ON_DEMAND_HISTORY_LIMIT_PER_MINUTE } from '@/data/market-history/constants';
 import { getLiveHistory } from '@/data/market-history/refresh-on-view';
 import { emitCostMetric } from '@/data/telemetry/cost-metrics';
-import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseJsonBody } from '@/transport/route-body';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 // POST /api/market-history/refresh
 // Body: { typeIds: number[] }
@@ -41,22 +40,14 @@ export const maxDuration = 60;
  * boundary validation, and typed response mapping.
  */
 export async function POST(request: NextRequest): Promise<Response> {
-  const parsed = await parseJsonBody(request, refreshHistoryRequestSchema, {
-    invalidJson: () =>
-      Response.json({ error: 'invalid_json' } satisfies RefreshHistoryBadRequest, { status: 400 }),
-    invalidBody: (error) =>
-      Response.json(
-        { error: 'invalid_request', issues: error.issues } satisfies RefreshHistoryBadRequest,
-        { status: 400 },
-      ),
-  });
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, refreshHistoryEndpoint.request);
+  if (!parsed.ok) return apiResponse(refreshHistoryEndpoint, 400, parsed.failure);
 
-  const limit = await rateLimitGuard(request, {
+  const limit = await checkRateLimit(request, {
     name: 'market-history-refresh',
     perMinute: ON_DEMAND_HISTORY_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) return limit.response;
+  if (!limit.ok) return apiResponse(refreshHistoryEndpoint, 429, limit.failure);
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
   const startedAt = Date.now();
@@ -80,9 +71,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  return Response.json({
+  return apiResponse(refreshHistoryEndpoint, 200, {
     inputs: typeIds
       .map((typeId) => inputs.get(typeId))
       .filter((row): row is NonNullable<typeof row> => row !== undefined),
-  } satisfies RefreshHistoryResponse);
+  });
 }

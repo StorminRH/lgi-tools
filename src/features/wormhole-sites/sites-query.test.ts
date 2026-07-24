@@ -24,21 +24,33 @@ describe('parseSitesQuery', () => {
   it('formats an invalid type with the allowed values', () => {
     expect(parseSitesQuery('bogus', null)).toEqual({
       ok: false,
-      error: { error: 'Invalid type. Must be one of: combat, gas, ore, relic, data' },
+      failure: {
+        category: 'validation',
+        code: 'invalid_query',
+        detail: 'Invalid type. Must be one of: combat, gas, ore, relic, data',
+      },
     });
   });
 
   it('formats an invalid class with the allowed values', () => {
     expect(parseSitesQuery(null, 'C9')).toEqual({
       ok: false,
-      error: { error: 'Invalid class. Must be one of: C1, C2, C3, C4, C5, C6' },
+      failure: {
+        category: 'validation',
+        code: 'invalid_query',
+        detail: 'Invalid class. Must be one of: C1, C2, C3, C4, C5, C6',
+      },
     });
   });
 
   it('reports the first invalid field when both are invalid', () => {
     expect(parseSitesQuery('bogus', 'C9')).toEqual({
       ok: false,
-      error: { error: 'Invalid type. Must be one of: combat, gas, ore, relic, data' },
+      failure: {
+        category: 'validation',
+        code: 'invalid_query',
+        detail: 'Invalid type. Must be one of: combat, gas, ore, relic, data',
+      },
     });
   });
 });

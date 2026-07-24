@@ -1,9 +1,10 @@
 import {
-  type ApiError,
+  siteDetailEndpoint,
   siteIdParamSchema,
-  type SiteDetail,
 } from '@/features/wormhole-sites/api-contract';
 import { getPricedSiteDetail } from '@/features/wormhole-sites/queries';
+import { notFoundFailure, validationFailure } from '@/lib/failure';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * Handles GET requests for /api/sites/[id]; this route owns its authorization, boundary
@@ -17,14 +18,22 @@ export async function GET(
 ): Promise<Response> {
   const parsed = siteIdParamSchema.safeParse(await params);
   if (!parsed.success) {
-    return Response.json({ error: 'Invalid id' } satisfies ApiError, { status: 400 });
+    return apiResponse(
+      siteDetailEndpoint,
+      400,
+      validationFailure('invalid_query', 'Invalid id'),
+    );
   }
 
-  const site: SiteDetail | null = await getPricedSiteDetail(parsed.data.id);
+  const site = await getPricedSiteDetail(parsed.data.id);
 
   if (!site) {
-    return Response.json({ error: 'Not found' } satisfies ApiError, { status: 404 });
+    return apiResponse(
+      siteDetailEndpoint,
+      404,
+      notFoundFailure('not_found', 'Not found'),
+    );
   }
 
-  return Response.json(site satisfies SiteDetail);
+  return apiResponse(siteDetailEndpoint, 200, site);
 }

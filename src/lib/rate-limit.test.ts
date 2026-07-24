@@ -222,7 +222,7 @@ describe('clientIdentifier', () => {
   });
 });
 
-describe('rateLimitGuard', () => {
+describe('checkRateLimit', () => {
   beforeEach(() => {
     vi.resetModules();
     limitMock.mockReset();
@@ -249,12 +249,12 @@ describe('rateLimitGuard', () => {
       pending: Promise.resolve(),
     });
 
-    const { rateLimitGuard } = await importHelper();
-    const result = await rateLimitGuard(guardRequest(), { name: 'feedback', perMinute: 5 });
+    const { checkRateLimit } = await importHelper();
+    const result = await checkRateLimit(guardRequest(), { name: 'feedback', perMinute: 5 });
     expect(result).toEqual({ ok: true });
   });
 
-  it('returns the pinned 429 body and Retry-After header when over the limit', async () => {
+  it('returns a typed failure with retry timing when over the limit', async () => {
     vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
     vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
     vi.stubEnv('NODE_ENV', 'production');
@@ -265,65 +265,21 @@ describe('rateLimitGuard', () => {
       pending: Promise.resolve(),
     });
 
-    const { rateLimitGuard } = await importHelper();
-    const result = await rateLimitGuard(guardRequest(), { name: 'feedback', perMinute: 5 });
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.response.status).toBe(429);
-      const body = (await result.response.json()) as { error: string; retryAfter: number };
-      expect(body.error).toBe('rate_limited');
-      expect(result.response.headers.get('Retry-After')).toBe(String(body.retryAfter));
-      expect(body.retryAfter).toBeGreaterThanOrEqual(1);
-    }
-  });
-
-  it('keeps the wrapper wire response equivalent to the typed core failure', async () => {
-    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://example.upstash.io');
-    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'token');
-    vi.stubEnv('NODE_ENV', 'production');
-    const now = Date.now();
-    vi.spyOn(Date, 'now').mockReturnValue(now);
-    limitMock
-      .mockResolvedValueOnce({
-        success: false,
-        remaining: 0,
-        reset: now + 7_200,
-        pending: Promise.resolve(),
-      })
-      .mockResolvedValueOnce({
-        success: false,
-        remaining: 0,
-        reset: now + 7_200,
-        pending: Promise.resolve(),
-      });
-
-    const { checkRateLimit, rateLimitGuard } = await importHelper();
-    const core = await checkRateLimit(guardRequest(), {
-      name: 'feedback-core',
+    const { checkRateLimit } = await importHelper();
+    const result = await checkRateLimit(guardRequest(), {
+      name: 'feedback',
       perMinute: 5,
     });
-    const wrapped = await rateLimitGuard(guardRequest(), {
-      name: 'feedback-wrapper',
-      perMinute: 5,
-    });
-
-    expect(core).toMatchObject({
+    expect(result).toMatchObject({
       ok: false,
       failure: {
         category: 'rate_limited',
         code: 'rate_limited',
-        retryAfterSeconds: 8,
+        retryAfterSeconds: expect.any(Number),
       },
     });
-    expect(wrapped.ok).toBe(false);
-    if (!core.ok && !wrapped.ok) {
-      expect(await wrapped.response.json()).toEqual({
-        error: 'rate_limited',
-        retryAfter: core.failure.retryAfterSeconds,
-      });
-      expect(wrapped.response.headers.get('Retry-After')).toBe(
-        String(core.failure.retryAfterSeconds),
-      );
+    if (!result.ok) {
+      expect(result.failure.retryAfterSeconds).toBeGreaterThanOrEqual(1);
     }
   });
 });

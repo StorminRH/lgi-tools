@@ -1,6 +1,6 @@
 // API wire contracts owned by the market-prices slice (3.4.T).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/transport/api-client';
+import { defineEndpoint, jsonBody, problem } from '@/transport/endpoint';
 import { ON_DEMAND_REFRESH_MAX_TYPE_IDS } from './constants';
 import type { DepthBand, PriceSource, RegionalDiscount } from './types';
 
@@ -71,24 +71,20 @@ export const refreshPricesResponseSchema = z.object({ prices: z.array(wirePriceS
 /** Typed market-price refresh result with source counts, freshness, and write-behind state. */
 export type RefreshPricesResponse = z.infer<typeof refreshPricesResponseSchema>;
 
-/** 400 arms; 429 is the shared RateLimitedBody (src/lib/rate-limit.ts). */
-export type RefreshPricesBadRequest =
-  | { error: 'invalid_json' }
-  | { error: 'invalid_request'; issues: unknown[] };
-
 /**
  * Typed endpoint definition for refresh prices endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const refreshPricesEndpoint: ApiEndpoint<
-  z.input<typeof refreshPricesRequestSchema>,
-  RefreshPricesResponse
-> = {
+export const refreshPricesEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/market-prices/refresh',
   request: refreshPricesRequestSchema,
-  response: refreshPricesResponseSchema,
-};
+  responses: {
+    200: jsonBody(refreshPricesResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    429: problem('rate_limited'),
+  },
+});
 
 /**
  * ── GET /api/cron/refresh-prices (authz: cron) ──────────────────────────

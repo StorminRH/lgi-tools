@@ -1,7 +1,8 @@
 import { getCorpJobsForUserOnView } from '@/composition/sync/corp-industry-jobs-sync';
 import { getCurrentUserId } from '@/platform/auth/session';
-import type { CorpJobsResponse } from '@/features/industry-jobs/api-contract';
+import { corpIndustryJobsEndpoint } from '@/features/industry-jobs/api-contract';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * GET /api/account/corp-industry-jobs
@@ -20,12 +21,12 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return Response.json({ corporations: [], names: {} } satisfies CorpJobsResponse);
+    return apiResponse(corpIndustryJobsEndpoint, 200, { corporations: [], names: {} });
   }
   const result = await measureOwnedDataRead({
     endpoint: '/api/account/corp-industry-jobs',
     read: () => getCorpJobsForUserOnView(userId),
     returned: (value) => value.corporations.length,
   });
-  return Response.json(result satisfies CorpJobsResponse);
+  return apiResponse(corpIndustryJobsEndpoint, 200, result);
 }

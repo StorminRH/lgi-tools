@@ -4,7 +4,7 @@
 // live Convex websocket onto a Neon stale-gated on-view read (src/composition/sync/skills-sync.ts);
 // this is the GET the client fetches on view.
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/transport/api-client';
+import { defineEndpoint, jsonBody } from '@/transport/endpoint';
 import { skillQueueEntrySchema } from './esi-projection';
 
 // ── GET /api/account/skills (authz: auth) ───────────────────────────────
@@ -42,9 +42,11 @@ export type SkillsResponse = z.infer<typeof skillsResponseSchema>;
  * Typed endpoint definition for skills endpoint; method, path, request, and response contracts
  * remain coupled here.
  */
-export const skillsEndpoint: ApiEndpoint<null, SkillsResponse> = {
+export const skillsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/skills',
-  request: null, // GET — no body
-  response: skillsResponseSchema,
-};
+  request: null,
+  responses: {
+    200: jsonBody(skillsResponseSchema),
+  },
+});

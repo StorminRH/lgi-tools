@@ -29,15 +29,6 @@ export interface RateLimitDenied {
 /** Closed rate-limit result requiring callers to handle allowed and denied outcomes explicitly. */
 export type RateLimitResult = RateLimitOk | RateLimitDenied;
 
-/**
- * Wire shape of the 429 body every rate-limited route constructs itself —
- * pinned with `satisfies` at those call sites (3.4.T contract pattern).
- */
-export interface RateLimitedBody {
-  error: "rate_limited";
-  retryAfter: number;
-}
-
 interface RateLimitOptions {
   perMinute: number;
   name: string;
@@ -117,16 +108,6 @@ export async function rateLimit(
   return { ok: false, retryAfter };
 }
 
-/**
- * Route-guard form of the limiter: keys on the client IP and, when over the
- * limit, hands back the exact 429 every rate-limited route returns as-is
- * (RateLimitedBody JSON + Retry-After header) — so a handler's happy path is
- * `if (!limit.ok) return limit.response;` instead of the repeated
- * clientIdentifier + Response.json construction. Same ok/response union shape
- * as parseJsonBody (src/transport/route-body.ts).
- */
-export type RateLimitGuardResult = { ok: true } | { ok: false; response: Response };
-
 /** Typed rate-limit core result carrying an application failure instead of an HTTP response. */
 export type CheckRateLimitResult =
   | { ok: true }
@@ -142,29 +123,6 @@ export async function checkRateLimit(
   return {
     ok: false,
     failure: rateLimitedFailure(limit.retryAfter),
-  };
-}
-
-/**
- * Checks and records one named rate-limit bucket, returning a closed allowed or denied result with
- * retry timing instead of throwing.
- */
-export async function rateLimitGuard(
-  request: Request,
-  options: RateLimitOptions,
-): Promise<RateLimitGuardResult> {
-  const limit = await checkRateLimit(request, options);
-  if (limit.ok) return limit;
-  const retryAfter = limit.failure.retryAfterSeconds;
-  return {
-    ok: false,
-    response: Response.json(
-      { error: "rate_limited", retryAfter } satisfies RateLimitedBody,
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfter) },
-      },
-    ),
   };
 }
 

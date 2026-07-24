@@ -2,14 +2,14 @@ import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getLiveHistoryMock = vi.fn();
-const rateLimitGuardMock = vi.fn();
+const checkRateLimitMock = vi.fn();
 const emitCostMetricMock = vi.fn();
 
 vi.mock('@/data/market-history/refresh-on-view', () => ({
   getLiveHistory: (...args: unknown[]) => getLiveHistoryMock(...args),
 }));
 vi.mock('@/lib/rate-limit', () => ({
-  rateLimitGuard: (...args: unknown[]) => rateLimitGuardMock(...args),
+  checkRateLimit: (...args: unknown[]) => checkRateLimitMock(...args),
 }));
 vi.mock('@/data/telemetry/cost-metrics', () => ({
   emitCostMetric: (...args: unknown[]) => emitCostMetricMock(...args),
@@ -28,7 +28,7 @@ function request(typeIds: number[]): NextRequest {
 describe('POST /api/market-history/refresh telemetry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    rateLimitGuardMock.mockResolvedValue({ ok: true });
+    checkRateLimitMock.mockResolvedValue({ ok: true });
     getLiveHistoryMock.mockResolvedValue({
       inputs: new Map(),
       degraded: { fetched: 0, budgetExhausted: true },
