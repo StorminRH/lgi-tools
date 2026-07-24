@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Watch"
+  short_description: "Run the report-only update watch"
+  default_prompt: "Use $update-watch to run the LGI.tools update collector and report any unacknowledged deltas."

@@ -16,7 +16,8 @@ Procedure: `docs/workflows/triage-issue.md`.
 
 ## Invocation authority
 
-Invocation permits retrieval, validation, and recommendations. Outward actions require the operator's chosen direction.
+Invocation permits retrieval, validation, and recommendations. Outward actions
+require the operator's chosen direction.
 
 ## Claude Code runtime mechanics
 

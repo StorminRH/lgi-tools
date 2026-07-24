@@ -11,6 +11,21 @@ data-only baseline form. Version-tagged audit plans own findings, rationale,
 cycles, approvals, and remediation mappings. This procedure grants no merge,
 deployment, production, or destructive-recovery authority.
 
+## Execution contract
+
+Required input is the resolver directive and the owning approved artifacts for
+the selected entry mode. A directly requested periodic audit also requires an
+approved `Audit mode: Periodic` plan.
+
+Required output is exactly one canonical `PLANNED`, `REMEDIATION_PLANNED`,
+`REMEDIATION_REQUIRED`, `COMPLETE`, or `BLOCKED` result. Planning modes persist
+only their approved artifacts. Execution replaces the baseline and may archive
+only through the resolver's verified `archive-needed` transition.
+
+Stop with `BLOCKED` on a stale procedure digest, missing approval, incomplete
+measurement, unresolved actionable finding, failed gate, or invalid resolver
+transition.
+
 ## Entry mode: plan-version-audit
 
 1. Require the resolver to name `plan-version-audit` for a lifecycle-driven
@@ -57,11 +72,11 @@ repeats the complete audit; it is never a targeted diff.
 1. Run `python3 .agent-local/resolve_development_state.py --pretty`.
 2. Require the directive to name `version-audit` as its handler. Its action
    distinguishes an initial/resumed close audit, a complete restart after
-   remediation, or a verified archive transition. Otherwise report the
-   directive and return control to `start-session`; this procedure never selects
-   a sibling handler. An explicitly requested periodic pass may run while
-   sessions remain only from an approved `Audit mode: Periodic` plan, and it
-   never archives.
+   remediation, or a verified archive transition. Otherwise return `BLOCKED`
+   with the complete directive as the invalid-transition evidence; this
+   procedure never selects a sibling handler. An explicitly requested periodic
+   pass may run while sessions remain only from an approved
+   `Audit mode: Periodic` plan, and it never archives.
 3. Verify the plan's `Procedure digest` is the SHA-256 of the current exact
    `docs/workflows/version-audit.md`; a mismatch returns to `plan-version-audit`.
 4. On a complete-restart directive, verify every mapped remediation sub-version
@@ -93,8 +108,9 @@ find src convex \( -name "*.ts" -o -name "*.tsx" \) \
   ! -name "*.test.*" ! -path "*_generated*" -print0 \
   | xargs -0 wc -l | sort -rn | head -16
 
-# Churn since the previous baseline ref/date
-git log --since="<previous baseline date>" --name-only --pretty=format: -- src convex \
+# Churn since the previous baseline ref/date. Resolve and export
+# PREVIOUS_BASELINE_DATE before running this command.
+git log --since="$PREVIOUS_BASELINE_DATE" --name-only --pretty=format: -- src convex \
   | sort | uniq -c | sort -rn | head -25
 
 # Coverage and health
@@ -103,7 +119,8 @@ pnpm fallow:health
 
 # Rails and accepted debt
 grep -n "thresholdOverrides" -A 20 .fallowrc.json
-git diff <previous-baseline-code-ref> -- fallow-baselines/dupes.json .fallowrc.json
+# Resolve and export PREVIOUS_BASELINE_REF before running this command.
+git diff "$PREVIOUS_BASELINE_REF" -- fallow-baselines/dupes.json .fallowrc.json
 grep -rn "eslint-disable\|@ts-expect-error\|fallow-ignore" src convex | wc -l
 ```
 

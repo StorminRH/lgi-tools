@@ -12,7 +12,8 @@ Procedure: `docs/workflows/pre-pr-design-review.md`.
 
 ## Invocation authority
 
-Invocation permits read-only review. Parent-authorized fixes remain in scope. No delivery or archive authority is added.
+Invocation permits read-only review. Parent-authorized fixes remain in scope.
+No delivery or archive authority is added.
 
 ## Claude Code runtime mechanics
 

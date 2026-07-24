@@ -20,8 +20,8 @@ Before changing code:
    When work is scoped to a roadmap, contract, approved plan, or canonical
    procedure, read those owning artifacts too. Use
    `docs/workflows/pre-pr-design-review.md` for design judgment.
-2. Use `codegraph explore "<question>"` for an unfamiliar area or use
-   `codegraph query "<symbol>"` for a known symbol before grepping. Use
+2. Use `codegraph explore "authentication request flow"` for an unfamiliar area
+   or use `codegraph query "apiFetch"` for a known symbol before grepping. Use
    `callers`, `callees`, or `impact` when the change depends on relationships.
 3. Use the global `find-docs` skill/Context7 at the beginning of every coding
    task, including routine React and framework work. Resolve installed versions
@@ -52,7 +52,7 @@ Upstash Redis, Vercel, pnpm, Vitest, and visx.
 Confirm script definitions against `package.json` when they may have changed.
 
 - Development: `pnpm dev`; complete local stack: `pnpm dev:all`
-- Focused tests: `pnpm test <arguments>`
+- Focused tests: pass the resolved test path or Vitest filter to `pnpm test`.
 - Typecheck: `pnpm typecheck`; lint: `pnpm lint`
 - Coverage: `pnpm test:coverage`; static analysis: `pnpm fallow`
 - Sole definition of done: `pnpm verify`
@@ -214,15 +214,18 @@ branch and PR. Two tracks feed the delivery pipeline:
   declares one PR per session instead ships each of its sessions through its own
   PR from that branch, recreated from `origin/main` after each squash merge;
   its non-final session PRs publish no version records.
+
 Master plans, session contracts, and session plans are frozen prompts: each is
 the starting input for its stage, its claims are verified against live code
-when consumed, in-session operator direction supersedes its text, and it is
-never edited after its stage completes. The session as-built record
+when consumed, and in-session operator direction supersedes its text. Do not
+rewrite an approved contract or the approved plan body after its stage
+completes. Close-out may change only the plan's owned `Execution status`
+marker. The session as-built record
 (`docs/workflows/schema/session-as-built.md`) is the record of what a session
 actually delivered; close-out authors it at session close, the resolver
 requires a valid record for every completed session from the record's binding
-floor forward, and it archives with the version bundle. Planning reads live code first, then prior as-built records,
-then the prompt chain.
+floor forward, and it archives with the version bundle. Planning reads live
+code first, then prior as-built records, then the prompt chain.
 
 - Branch previews are manual and on demand. They do not authorize production
   action and must be removed after use. Every deployment migrates its own
@@ -268,10 +271,13 @@ Claude-specific execution notes.
 - Keep `.agents/skills/` and `.claude/skills/` as runtime adapters with behavior
   parity, not verbatim implementations. Keep shared enforcement in
   `.agent-local/`.
+- Invoke `agent-policy-audit` for a cross-surface review or repair of guides,
+  workflows, schemas, paired skills, hooks, manifests, and drift tooling.
 - After changing a guide, skill, hook, or shared workflow policy, re-review all
   affected skills in both trees, then run
   `python3 .agent-local/reconcile_skill_ledger.py` and
-  `python3 .agent-local/check_agent_drift.py`. A failing drift check blocks
-  close-out.
+  `python3 .agent-local/check_agent_drift.py`. The drift command is safe for
+  ordinary work: it never invokes the lifecycle resolver or release consistency.
+  A failing drift check blocks close-out.
 - After changing global CLIs, plugins, MCP configuration, or Claude's Vercel
   plugin, follow `docs/AGENT_TOOLING.md`.

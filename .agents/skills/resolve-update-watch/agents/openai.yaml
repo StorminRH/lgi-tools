@@ -1,0 +1,4 @@
+interface:
+  display_name: "Resolve Update Watch"
+  short_description: "Resolve an update-watch digest into a reviewed PR"
+  default_prompt: "Use $resolve-update-watch to resolve the open LGI.tools update-watch digest without merging it."

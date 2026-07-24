@@ -75,7 +75,7 @@ pnpm exec playwright install chromium
 Pass concrete paths only:
 
 ```bash
-pnpm ux-check /sites /sites/100 /industry
+pnpm ux-check /sites /industry
 ```
 
 The default run covers desktop 1440×900 and mobile 390×844; mobile also opens
