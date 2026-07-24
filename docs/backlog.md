@@ -574,11 +574,11 @@ is reprioritized.
 - **Missing-provenance mutation policy.** *What:* evaluate a Fetch-Metadata or
   content-type policy for browser mutations that carry neither `Origin` nor
   `Referer`. *Why deferred:* explicit provenance mismatches now return 403,
-  Better Auth cookies remain `SameSite=Lax`, and no missing-provenance abuse is
-  observed; adding a second policy now would widen the completed LGI-03
-  behavior boundary without evidence. *Size:* S. *Trigger:* a trusted sibling
-  subdomain, a new cookie-authenticated mutation class, or observed
-  missing-provenance abuse.
+  Better Auth cookies remain `SameSite=Lax`, and current telemetry does not
+  measure missing-provenance requests; adding a second policy now would widen
+  the completed LGI-03 behavior boundary without evidence. *Size:* S.
+  *Trigger:* a trusted sibling subdomain, a new cookie-authenticated mutation
+  class, or observed missing-provenance abuse.
 
 - **ESI abuse resilience (LGI-04).** *What:* `/api/eve/names` is public, takes 200
   IDs, and fans each cache miss out to its own upstream ESI call; add per-IP/
