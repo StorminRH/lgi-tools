@@ -157,7 +157,8 @@ registration rules.
   `api-contract.ts`. Keep response types and endpoint definitions there, and
   use `apiFetch` from clients. Raw `fetch('/api/...')` is forbidden.
 - Routes without a JSON or form body declare exactly one own-line marker:
-  `// input: none` or `// input: query`. Body-consuming routes carry neither.
+  `// input: none`, `// input: query`, or `// input: path`. Body-consuming
+  routes carry neither.
 - Read server environment through `readEnv` or `requireEnv`; direct access is
   limited to `NODE_ENV` and `NEXT_PUBLIC_*`.
 - Every EVE ESI request uses `esiFetch` and `esiUrl` through the shared Redis

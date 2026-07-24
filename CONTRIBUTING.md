@@ -159,11 +159,13 @@ These are load-bearing constraints, several **lint-enforced**:
 - **API contracts.** Every input-accepting JSON route validates with a Zod schema
   in the **route handler** (not in queries). The schema and the route's response
   types live in the owning slice's `api-contract.ts`; clients call `apiFetch`
-  (`src/lib/api-client.ts`) with that slice's endpoint object — never a raw
-  `fetch('/api/…')`. Routes without a JSON/form body declare exactly one
-  own-line marker: `// input: none` when they read no caller input, or
-  `// input: query` when they read query/path input; body-consuming routes carry
-  no input marker.
+  (`src/transport/api-client.ts`) with that slice's endpoint object — never a
+  raw `fetch('/api/…')`. Server-to-server callers use `serviceFetch`
+  (`src/platform/auth/service-client.ts`); both decode through the same shared
+  core. Routes without a JSON/form body declare exactly one own-line marker:
+  `// input: none` when they read no caller input, `// input: query` when they
+  read query parameters, or `// input: path` when they read a dynamic path
+  segment; body-consuming routes carry no input marker.
 - **Server env.** Read server-side env through `readEnv`/`requireEnv`
   (`src/lib/env.ts`), the one validated registry — never `process.env` directly.
   (`NODE_ENV` and `NEXT_PUBLIC_*` stay direct reads.)

@@ -1,6 +1,7 @@
 // @vitest-environment edge-runtime
 import { convexTest, type TestConvex } from 'convex-test';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EveCharactersResponse } from '@/platform/auth/api-contract';
 import { __resetEsiGateForTests, __setScoreboardForTests } from '@/platform/esi';
 import { internal } from './_generated/api';
 import schema from './schema';
@@ -38,10 +39,18 @@ const RL = {
   'X-Ratelimit-Used': '1',
 };
 
-type Character = { characterId: number; hasRefreshToken: boolean; missingScopes: string[] };
+// Bound to the endpoint contract the enumeration actually validates against, so
+// a fixture can no longer describe a wire shape the route would never send.
+type Character = EveCharactersResponse['characters'][number];
 
 function eligible(characterId = 101): Character {
-  return { characterId, hasRefreshToken: true, missingScopes: [] };
+  return {
+    characterId,
+    name: `Pilot ${characterId}`,
+    hasRefreshToken: true,
+    missingScopes: [],
+    corporationId: null,
+  };
 }
 
 function stubFetch(opts: {
@@ -206,7 +215,7 @@ describe('onlineStatusSync.syncUser', () => {
     await seedSubject(t);
     const fetchFn = stubFetch({
       characters: [
-        { characterId: 101, hasRefreshToken: true, missingScopes: ['esi-location.read_online.v1'] },
+        { ...eligible(101), missingScopes: ['esi-location.read_online.v1'] },
       ],
     });
 

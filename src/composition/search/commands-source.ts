@@ -4,17 +4,17 @@
 // logged-in users see "Log out", and admins additionally see "Open admin".
 //
 // Rows with side effects use `onSelect(router)` instead of `href`-driven
-// navigation. Log out POSTs Better Auth's sign-out then hard-reloads (drops
+// navigation. Log out calls Better Auth's sign-out then hard-reloads (drops
 // cached server-component output that referenced the now-gone session); Log in
-// POSTs Better Auth's OAuth sign-in for the SSO redirect URL and hard-navigates
-// to it (router.push can't reach the cross-origin SSO chain).
+// calls Better Auth's OAuth sign-in, whose client redirect plugin hard-navigates
+// to the SSO URL (router.push can't reach the cross-origin SSO chain).
 //
-// This application-composition source talks to Better Auth's REST endpoints
-// through the identity capability's typed contracts. The shapes stay pinned by
-// the better-auth version in package.json.
+// This application-composition source uses the official typed Better Auth
+// client, so the library owns these wire shapes. Composition may import
+// platform/auth, and this module is only ever pulled into the client shell
+// (AppHeaderShell → register-all).
 
-import { signInOauth2Endpoint, signOutEndpoint } from '@/platform/auth/api-contract';
-import { apiFetch } from '@/transport/api-client';
+import { authClient } from '@/platform/auth/auth-client';
 import type { AppRouterInstance, SearchContext, SearchSource } from '@/platform/search';
 import { rankFuzzyResults } from '@/platform/search/rank';
 
@@ -68,14 +68,15 @@ const COMMANDS: CommandEntry[] = [
     href: '/',
     iconText: '⏏',
     onSelect: () => {
-      // Only redirect on success — if the POST fails (network drop, 4xx,
-      // or 5xx) the server never cleared the session, so landing on / would
-      // silently look "logged out" while the session is still active. apiFetch
-      // only rejects on network errors, so `result.ok` is the load-bearing
-      // check for HTTP-level failures.
-      void apiFetch(signOutEndpoint, { body: {} })
-        .then((result) => {
-          if (result.ok) window.location.href = '/';
+      // Only redirect on success — if sign-out fails (network drop, 4xx, or
+      // 5xx) the server never cleared the session, so landing on / would
+      // silently look "logged out" while the session is still active. The
+      // client resolves HTTP failures into `error`, so that is the
+      // load-bearing check.
+      void authClient
+        .signOut()
+        .then(({ error }) => {
+          if (!error) window.location.href = '/';
           // else: server returned an error; stay put so the user can retry.
         })
         .catch(() => {
@@ -91,15 +92,12 @@ const COMMANDS: CommandEntry[] = [
     href: '/',
     iconText: '↪',
     onSelect: () => {
-      // Better Auth's OAuth sign-in is a POST returning the SSO redirect URL;
-      // hard-navigate the browser to it. On any failure, stay put.
-      void apiFetch(signInOauth2Endpoint, { body: { providerId: 'eve', callbackURL: '/' } })
-        .then((result) => {
-          if (result.ok && result.data.url) window.location.href = result.data.url;
-        })
-        .catch(() => {
-          // Network error; stay put.
-        });
+      // The client's built-in redirect plugin hard-navigates to the SSO URL the
+      // server returns, which is exactly what the hand-rolled assignment did.
+      // On any failure it navigates nowhere and the user stays put.
+      void authClient.signIn.oauth2({ providerId: 'eve', callbackURL: '/' }).catch(() => {
+        // Network error; stay put.
+      });
     },
     visible: (ctx) => ctx.session === null,
   },

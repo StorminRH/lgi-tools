@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -11,7 +11,7 @@ const ROUTE_BODY_MODULE = '@/transport/route-body';
 const API_RESPONSE_MODULE = '@/transport/api-response';
 const SCHEMA_HELPERS = new Set(['parseFormBody', 'readJsonBody']);
 const INPUT_MARKER_RE = /^[ \t]*\/\/[ \t]*input:[ \t]*([a-z]+)[ \t]*$/gm;
-const VALID_INPUT_CLASSES = new Set(['none', 'query']);
+const VALID_INPUT_CLASSES = new Set(['none', 'query', 'path']);
 
 const CRON_ROUTES = new Set([
   'cron/drain-esi-refresh-jobs/route.ts',
@@ -185,6 +185,94 @@ function countV2Endpoints(): number {
     }, 0);
 }
 
+interface DeclaredEndpoint {
+  /** The exported binding name callers and routes import. */
+  name: string;
+  method: string;
+  path: string;
+  /** Repo-relative contract module that declares it. */
+  contract: string;
+}
+
+function stringProperty(literal: ts.ObjectLiteralExpression, key: string): string | undefined {
+  for (const property of literal.properties) {
+    if (
+      ts.isPropertyAssignment(property) &&
+      ts.isIdentifier(property.name) &&
+      property.name.text === key &&
+      ts.isStringLiteralLike(property.initializer)
+    ) {
+      return property.initializer.text;
+    }
+  }
+  return undefined;
+}
+
+/** Every `defineEndpoint` declaration in the repository, with its exported name. */
+function collectDeclaredEndpoints(): DeclaredEndpoint[] {
+  const declared: DeclaredEndpoint[] = [];
+  for (const file of findFiles(SRC_DIR, (name) => name === 'api-contract.ts')) {
+    const source = ts.createSourceFile(
+      file,
+      readFileSync(file, 'utf8'),
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS,
+    );
+    const visit = (node: ts.Node): void => {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer !== undefined &&
+        ts.isCallExpression(node.initializer) &&
+        ts.isIdentifier(node.initializer.expression) &&
+        node.initializer.expression.text === 'defineEndpoint'
+      ) {
+        const [argument] = node.initializer.arguments;
+        if (argument !== undefined && ts.isObjectLiteralExpression(argument)) {
+          const method = stringProperty(argument, 'method');
+          const path = stringProperty(argument, 'path');
+          if (method !== undefined && path !== undefined) {
+            declared.push({ name: node.name.text, method, path, contract: relative(REPO_ROOT, file) });
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+  }
+  return declared;
+}
+
+/**
+ * An endpoint's declared path → the route file that must serve it. Template
+ * segments pass through verbatim, matching `scripts/route-presence.mjs`.
+ */
+function routeFileForPath(path: string): string {
+  return join(API_DIR, path.replace(/^\/api\/?/, ''), 'route.ts');
+}
+
+function exportsMethod(source: string, method: string): boolean {
+  const file = sourceFile(source);
+  for (const statement of file.statements) {
+    const modifiers = ts.canHaveModifiers(statement) ? ts.getModifiers(statement) : undefined;
+    const exported = modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+    if (!exported) continue;
+    if (ts.isFunctionDeclaration(statement) && statement.name?.text === method) return true;
+    if (
+      ts.isVariableStatement(statement) &&
+      statement.declarationList.declarations.some(
+        (declaration) => ts.isIdentifier(declaration.name) && declaration.name.text === method,
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const DECLARED_ENDPOINTS = collectDeclaredEndpoints();
+
 describe('route-source classifiers', () => {
   const endpointImport =
     "import { exampleEndpoint } from '@/features/example/api-contract';";
@@ -300,5 +388,76 @@ describe('API route inventories', () => {
     const source = readFileSync(join(API_DIR, route), 'utf8');
     expect(source).not.toMatch(/\bnew\s+Response\s*\(/);
     expect(source).not.toMatch(/\bResponse\.json\s*\(/);
+  });
+});
+
+// Route → contract association proves every route has an owner. This is the
+// other direction: every declared contract must be served by a real route file
+// that imports it and exports its method, so an endpoint whose route was
+// renamed or deleted fails instead of lingering as an orphan.
+describe('endpoint → route association', () => {
+  it('pins the declared endpoint total', () => {
+    expect(DECLARED_ENDPOINTS).toHaveLength(39);
+    expect(DECLARED_ENDPOINTS).toHaveLength(countV2Endpoints());
+  });
+
+  it.each(DECLARED_ENDPOINTS.map((endpoint) => [endpoint.name, endpoint] as const))(
+    '%s is served by the route file its path derives',
+    (_name, endpoint) => {
+      const file = routeFileForPath(endpoint.path);
+      expect(
+        existsSync(file),
+        `${endpoint.contract}:${endpoint.name} declares ${endpoint.path} but ${relative(REPO_ROOT, file)} does not exist`,
+      ).toBe(true);
+
+      const source = readFileSync(file, 'utf8');
+      const imported = namedImports(sourceFile(source), (moduleName) =>
+        moduleName.endsWith('api-contract'),
+      );
+      expect(
+        [...imported.values()].includes(endpoint.name),
+        `${relative(REPO_ROOT, file)} does not import ${endpoint.name}`,
+      ).toBe(true);
+      expect(
+        exportsMethod(source, endpoint.method),
+        `${relative(REPO_ROOT, file)} does not export ${endpoint.method}`,
+      ).toBe(true);
+    },
+  );
+});
+
+describe('association gate red fixtures', () => {
+  it('derives the route file from a static and a templated path', () => {
+    expect(relative(API_DIR, routeFileForPath('/api/sites'))).toBe(join('sites', 'route.ts'));
+    expect(relative(API_DIR, routeFileForPath('/api/sites/[id]'))).toBe(
+      join('sites', '[id]', 'route.ts'),
+    );
+  });
+
+  it('flags an orphaned contract whose derived route file is absent', () => {
+    expect(existsSync(routeFileForPath('/api/does-not-exist'))).toBe(false);
+  });
+
+  it('flags a route file that imports no endpoint and exports the wrong method', () => {
+    const source = `import { somethingElse } from '@/features/example/api-contract';
+export async function POST(): Promise<Response> { return new Response(); }`;
+    const imported = namedImports(sourceFile(source), (moduleName) =>
+      moduleName.endsWith('api-contract'),
+    );
+    expect([...imported.values()].includes('exampleEndpoint')).toBe(false);
+    expect(exportsMethod(source, 'GET')).toBe(false);
+    expect(exportsMethod(source, 'POST')).toBe(true);
+  });
+
+  it('accepts an endpoint exported as a const handler', () => {
+    expect(exportsMethod('export const GET = handler;', 'GET')).toBe(true);
+    expect(exportsMethod('const GET = handler;', 'GET')).toBe(false);
+  });
+
+  it('rejects an undeclared input-marker class', () => {
+    expect(inputMarkers('// input: path')).toEqual(['path']);
+    expect(VALID_INPUT_CLASSES.has('path')).toBe(true);
+    expect(VALID_INPUT_CLASSES.has('body')).toBe(false);
+    expect(inputMarkers('// input: none\n// input: query')).toHaveLength(2);
   });
 });

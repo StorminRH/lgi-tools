@@ -420,7 +420,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "9384ba24a82381e6f35c1df23e42b017830c1cd4996a7b039754fa376a192635"
+      "reconciledHash": "91d76cd1435aba95d7e59f4418c527b2f2c37426471f4b2baaed793324c5c491"
     },
     "plan-session": {
       "deps": [
@@ -430,7 +430,7 @@
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "ed6c8fbf6713511315eb8403719e4ed439a36132426a7e0af1558f39add9a1a7"
+      "reconciledHash": "53763aa8caaec693160517a2c00496aa6a464b4b4a1256f4563f38d3285780fa"
     },
     "start-session": {
       "deps": [
@@ -439,7 +439,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "75faacbf5e1ad3b5db64bc579209e815f89432fc4ca12d57de756e4717a6cb49"
+      "reconciledHash": "9d638ddd88697e53b52477979e49ac6e05f0868af9f44de60cdb2e91280773a1"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -448,7 +448,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "efa0b6eb5e2a78e7147f2a43dbc766d873d2df8e490bbcfe572067b07aea1ebf"
+      "reconciledHash": "445d67b4c447dfadd95290f5d7f44ea59ec1a29574f6c0953a2add33d18507d2"
     },
     "close-out": {
       "deps": [
@@ -460,7 +460,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "bebcf37c1e7a052b7dbe0e1b2b970328579b5feca22bc9a34bb7421d4dd37dc0"
+      "reconciledHash": "91972f95bc4203e86638edddd0ce67af2a1bd833f335433495b724ceb562e59b"
     },
     "plan-version-audit": {
       "deps": [
@@ -469,7 +469,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "b057f9464ffeb3b3c6322087c01bd89c606a232aa1f179aeca55cc76cadbfb77"
+      "reconciledHash": "5743c445d7315dbc0280a86811187455067d2465d44753d746b99cd1fe1a4578"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -480,7 +480,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "748a40484cd8ccb49dba6e718a4bd129517a08b3b4025285354a78f8544a2321"
+      "reconciledHash": "ddfb8cae4fbf9086019f43e9a90f3486d0c855c48b58554102845e5fdabbc6da"
     },
     "version-audit": {
       "deps": [
@@ -489,7 +489,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "b057f9464ffeb3b3c6322087c01bd89c606a232aa1f179aeca55cc76cadbfb77"
+      "reconciledHash": "5743c445d7315dbc0280a86811187455067d2465d44753d746b99cd1fe1a4578"
     },
     "triage-issue": {
       "deps": [
@@ -498,7 +498,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "e059637516ed8f8d0774d6afcf621bb4e878ce0d6bd96385a0c32c3073d3dd82"
+      "reconciledHash": "f6ca8c656d9c5fea606781b6f34fa9619f94c71728787ac842fb833b8cb86ac3"
     },
     "ux-check": {
       "deps": [
@@ -507,7 +507,7 @@
         "docs/workflows/ux-check.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "d4c93ee8679a1f6e40f74f254d2944e5ffd8179a068225ec64e1e9f4ebabb0f4"
+      "reconciledHash": "fac1ae4ed4be1154c01d6722da3f9f1621c05cf995502ffc0565dc8489b4ad24"
     },
     "update-watch": {
       "deps": [
@@ -515,7 +515,7 @@
         "docs/workflows/update-watch.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "8e322ddb95faed6cf70ae9465baa00fe5d94fd4845f24f310252d8bc9c6b06ac"
+      "reconciledHash": "3757bbadc5b09e3aad88e665ac8b651ef6eea6d922f78733344ec443783f4ac2"
     },
     "resolve-update-watch": {
       "deps": [
@@ -523,7 +523,7 @@
         "docs/workflows/resolve-update-watch.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "747a3c3a367fb86155e80a31e6a7947a97206760689e3e63e888000051fd508a"
+      "reconciledHash": "21b2636ca34f82df192f07f94fb3d8364b31879e711292d9268167ab47bd87cd"
     },
     "adversarial-review": {
       "deps": [
@@ -531,7 +531,7 @@
         "docs/workflows/adversarial-review.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "ae3310328aef8f615480f44c14c35da329468a60420393b7ab31ba2085a951d0"
+      "reconciledHash": "591565a258c7075d47d026c0a778e3dc673a1a2ac0e28b0d0256410985639114"
     },
     "agent-policy-audit": {
       "deps": [
@@ -541,7 +541,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "9cfbc1ac24cf8fc1014764f92078e3c5d7e2e3727d57d1fb5fdbce2263101011"
+      "reconciledHash": "cf031c9a3ef18fe52096837a1b4b0562d7e3ac9a56ffe939eff9662e47f9b6de"
     }
   },
   "procedurePolicies": {

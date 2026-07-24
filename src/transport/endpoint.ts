@@ -41,11 +41,37 @@ export interface EndpointContract<
   path: string;
   request: TRequest;
   responses: TResponses;
+  /** Query-parameter schema slot; keys own the wire parameter names. */
+  query?: z.ZodObject;
+  /** Path-parameter schema slot bound to the path template's [segments]. */
+  params?: z.ZodObject;
 }
 
 type EndpointDefinition =
   | (EndpointContract<null> & { method: 'GET'; request: null })
   | (EndpointContract & { method: 'POST' });
+
+/** The `[segment]` names a path template declares, as a union of literal keys. */
+export type PathParamKeys<TPath extends string> =
+  TPath extends `${string}[${infer TKey}]${infer TRest}`
+    ? TKey | PathParamKeys<TRest>
+    : never;
+
+type ParamsKeysOf<TEndpoint> = TEndpoint extends { params: z.ZodObject<infer TShape> }
+  ? keyof TShape & string
+  : never;
+
+/**
+ * Binds a path template's `[segment]` names to its `params` schema keys in both
+ * directions, so a dynamic path without a matching schema — or a schema key the
+ * path never uses — fails to compile at the declaration site.
+ */
+type PathParamsBinding<TEndpoint extends EndpointContract> =
+  PathParamKeys<TEndpoint['path']> extends ParamsKeysOf<TEndpoint>
+    ? ParamsKeysOf<TEndpoint> extends PathParamKeys<TEndpoint['path']>
+      ? unknown
+      : { params: 'declares a key this path template does not contain' }
+    : { params: 'a [segment] in this path template needs a matching params key' };
 
 /** Declares a non-transforming JSON response codec. */
 export function jsonBody<T>(schema: z.ZodType<T, T>): JsonCodec<T> {
@@ -72,9 +98,12 @@ export function textBody(): TextCodec {
   return { kind: 'text' };
 }
 
-/** Preserves literal endpoint metadata while rejecting request schemas on GET contracts. */
+/**
+ * Preserves literal endpoint metadata while rejecting request schemas on GET contracts and
+ * path templates whose `[segment]` names and `params` schema keys disagree.
+ */
 export function defineEndpoint<const TEndpoint extends EndpointDefinition>(
-  endpoint: TEndpoint,
+  endpoint: TEndpoint & PathParamsBinding<TEndpoint>,
 ): TEndpoint {
   return endpoint;
 }
@@ -141,3 +170,58 @@ export type RequestInputOf<TEndpoint extends EndpointContract> =
   TEndpoint['request'] extends z.ZodTypeAny
     ? z.input<TEndpoint['request']>
     : never;
+
+type PathParamsOf<TEndpoint extends EndpointContract> =
+  [PathParamKeys<TEndpoint['path']>] extends [never]
+    ? { params?: never }
+    : { params: Record<PathParamKeys<TEndpoint['path']>, string | number> };
+
+type QueryInputOf<TEndpoint extends EndpointContract> =
+  TEndpoint['query'] extends z.ZodObject
+    ? { query?: z.input<TEndpoint['query']> }
+    : { query?: never };
+
+/** URL-building input for one endpoint: its path parameters and its declared query values. */
+export type UrlInputOf<TEndpoint extends EndpointContract> = PathParamsOf<TEndpoint> &
+  QueryInputOf<TEndpoint>;
+
+/** True when an endpoint's path template requires caller-supplied parameters. */
+export type RequiresUrlInput<TEndpoint extends EndpointContract> =
+  [PathParamKeys<TEndpoint['path']>] extends [never] ? false : true;
+
+/** Builds the concrete request URL from an endpoint's declared path, params, and query. */
+export function endpointUrl<const TEndpoint extends EndpointContract>(
+  endpoint: TEndpoint,
+  input: UrlInputOf<TEndpoint>,
+): string;
+// The implementation is contract-generic: the signature above proves the caller
+// supplied exactly the declared parameters, so the body reads them positionally.
+export function endpointUrl(
+  endpoint: EndpointContract,
+  input: { params?: Record<string, string | number>; query?: Record<string, unknown> },
+): string {
+  const path = endpoint.path.replace(/\[([^\]]+)\]/g, (_match, key: string) =>
+    encodeURIComponent(String(input.params?.[key])),
+  );
+
+  const search = new URLSearchParams();
+  for (const key of Object.keys(endpoint.query?.shape ?? {})) {
+    const value = input.query?.[key];
+    if (value !== undefined) search.set(key, String(value));
+  }
+
+  const suffix = search.toString();
+  return suffix.length > 0 ? `${path}?${suffix}` : path;
+}
+
+/** Parses request query parameters through an endpoint's declared query schema. */
+export function parseQueryInput<const TSchema extends z.ZodObject>(
+  endpoint: EndpointContract & { query: TSchema },
+  searchParams: URLSearchParams,
+): z.ZodSafeParseResult<z.output<TSchema>> {
+  const input: Record<string, string | undefined> = {};
+  for (const key of Object.keys(endpoint.query.shape)) {
+    input[key] = searchParams.get(key) ?? undefined;
+  }
+  return endpoint.query.safeParse(input);
+}

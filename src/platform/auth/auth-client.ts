@@ -9,11 +9,30 @@
 // without pulling the server module — and its db/drizzle imports — into the
 // client bundle.
 
-import { customSessionClient, genericOAuthClient } from 'better-auth/client/plugins';
+import { customSessionClient, genericOAuthClient, jwtClient } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
 import type { auth } from './auth';
 
-/** Browser Better Auth client configured with the EVE OAuth provider and shared session contract. */
+/**
+ * Browser Better Auth client configured with the EVE OAuth provider and shared session contract.
+ * `jwtClient` exposes the server `jwt` plugin's mint endpoint as `authClient.token()`, which the
+ * Convex bridge calls on every (re)connect — the library owns that wire shape, not a hand-pinned
+ * contract.
+ */
 export const authClient = createAuthClient({
-  plugins: [genericOAuthClient(), customSessionClient<typeof auth>()],
+  plugins: [genericOAuthClient(), customSessionClient<typeof auth>(), jwtClient()],
 });
+
+/**
+ * Mints a fresh Convex bridge JWT, returning null when the caller is anonymous or the mint fails.
+ * Convex's auth contract wants null rather than a rejection — a thrown network error (DNS,
+ * connection reset) would wedge its state machine until reload.
+ */
+export async function fetchConvexAccessToken(): Promise<string | null> {
+  try {
+    const { data } = await authClient.token();
+    return data?.token ?? null;
+  } catch {
+    return null;
+  }
+}

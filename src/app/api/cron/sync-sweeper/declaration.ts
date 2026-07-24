@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { CronSyncSweeperResponse } from '@/data/convex/api-contract';
 import type { CronRouteDeclaration } from '@/composition/pipelines/cron-gate';
 import { readEnv } from '@/lib/env';
@@ -36,6 +37,14 @@ export const syncSweeperDeclaration: CronRouteDeclaration<CronSyncSweeperRespons
     };
   },
 };
+
+// The engine's sweep mutation owns these counts; this is the wire boundary
+// where they enter the cron route's telemetry.
+const sweepCountsSchema = z.object({
+  dispatched: z.number(),
+  retired: z.number(),
+  deleted: z.number(),
+});
 
 async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
   const base = {
@@ -85,16 +94,20 @@ async function runSweep(started: number): Promise<CronSyncSweeperResponse> {
         durationMs: Date.now() - started,
       };
     }
-    // First-party service response; the engine's sweep mutation owns the
-    // trusted count shape.
-    const counts = (await response.json()) as {
-      dispatched: number;
-      retired: number;
-      deleted: number;
-    };
+    // First-party service response, but still validated: a drifted body used to
+    // propagate silently into the telemetry counts.
+    const counts = sweepCountsSchema.safeParse(await response.json());
+    if (!counts.success) {
+      return {
+        status: 'failed',
+        reason: 'sweep_invalid_response',
+        ...base,
+        durationMs: Date.now() - started,
+      };
+    }
     return {
       status: 'swept',
-      ...counts,
+      ...counts.data,
       durationMs: Date.now() - started,
     };
   } catch (err) {
