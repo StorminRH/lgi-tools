@@ -41,7 +41,7 @@ export function describeSdeStandDown(
     return `SDE re-ingest deferred to the daily cron (drift: stored=${storedVersion ?? '<none>'} remote=${remoteVersion}; ${attributeRows} attribute rows present).`;
   }
   if (remoteVersion === null) {
-    return `SDE ingest skipped (CCP SDE manifest unreachable; staying on stored version "${storedVersion}", ${attributeRows} attribute rows present).`;
+    return `SDE ingest skipped (CCP SDE manifest unreachable; staying on stored version "${storedVersion ?? '<none>'}", ${attributeRows} attribute rows present).`;
   }
   return `SDE ingest skipped (already at SDE version "${storedVersion}", ${attributeRows} attribute rows present).`;
 }

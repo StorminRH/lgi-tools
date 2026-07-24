@@ -62,5 +62,5 @@ AF-007: exports(src/data/esi-refresh-jobs/queries.ts) > 15
 - Watch (AF-008)
 
 ```watch-trigger
-AF-008: files(paths:src/platform/auth/types.ts,src/db/auth-schema.ts,src/platform/auth/api-contract.ts) >= 4
+AF-008: files(globs:src/platform/auth/*types.ts,src/platform/auth/*-contract.ts,src/db/*auth*schema.ts) >= 4
 ```

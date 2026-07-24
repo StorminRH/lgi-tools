@@ -9,8 +9,12 @@ const USER = 'eve-user-1';
 const CHAR = 90000001;
 
 let fetchSpy: ReturnType<typeof vi.spyOn>;
+let originalConvexUrl: string | undefined;
+let originalServiceSecret: string | undefined;
 
 beforeEach(() => {
+  originalConvexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+  originalServiceSecret = process.env.CONVEX_SERVICE_SECRET;
   process.env.NEXT_PUBLIC_CONVEX_URL = 'https://example.convex.cloud';
   process.env.CONVEX_SERVICE_SECRET = 'svc-secret';
   fetchSpy = vi.spyOn(globalThis, 'fetch');
@@ -19,8 +23,10 @@ beforeEach(() => {
 
 afterEach(() => {
   fetchSpy.mockRestore();
-  delete process.env.NEXT_PUBLIC_CONVEX_URL;
-  delete process.env.CONVEX_SERVICE_SECRET;
+  if (originalConvexUrl === undefined) delete process.env.NEXT_PUBLIC_CONVEX_URL;
+  else process.env.NEXT_PUBLIC_CONVEX_URL = originalConvexUrl;
+  if (originalServiceSecret === undefined) delete process.env.CONVEX_SERVICE_SECRET;
+  else process.env.CONVEX_SERVICE_SECRET = originalServiceSecret;
 });
 
 describe('onlineStatusPurgeContributor', () => {

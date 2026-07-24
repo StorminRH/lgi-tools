@@ -4,11 +4,10 @@
  * as missing, falling back to DATABASE_URL so local/dev and single-role
  * environments behave exactly as before the role split. The request path
  * (src/db/index.ts) must keep DATABASE_URL on the least-privilege runtime
- * role; this is the only sanctioned owner-credential read in src/.
+ * role; the script entrypoint supplies both values through the shared env
+ * boundary.
  */
-export function resolveMigrationUrl(
-  env: Record<string, string | undefined> = process.env,
-): string {
+export function resolveMigrationUrl(env: Record<string, string | undefined>): string {
   const migrationUrl = env.DATABASE_MIGRATION_URL?.trim();
   if (migrationUrl) return migrationUrl;
   const fallback = env.DATABASE_URL?.trim();

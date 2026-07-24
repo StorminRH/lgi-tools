@@ -5,15 +5,13 @@
  * JSON.stringified — not raw HTML. As defense-in-depth we also escape every `<`
  * to its JSON unicode form so no value can close the script tag early (the
  * breadcrumb data includes a DB-sourced site name, and the production CSP allows
- * `'unsafe-inline'`). JSX children would HTML-escape the JSON and break the
- * parser, which is why the single inline-HTML sink below is required here.
+ * `'unsafe-inline'`). React preserves text children of a script element, so the
+ * JSON remains parseable without an inline-HTML sink.
  */
 export function JsonLd({ data }: { data: Record<string, unknown> }) {
   return (
-    <script
-      type="application/ld+json"
-      // eslint-disable-next-line no-restricted-syntax -- server-built JSON-LD, `<`-escaped; JSX children would corrupt the JSON (see comment above)
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, '\\u003c') }}
-    />
+    <script type="application/ld+json">
+      {JSON.stringify(data).replace(/</g, '\\u003c')}
+    </script>
   );
 }

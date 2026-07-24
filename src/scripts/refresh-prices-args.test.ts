@@ -10,6 +10,13 @@ describe('parseIds', () => {
     expect(() => parseIds('34,abc')).toThrow('Invalid type ID: "abc"');
   });
 
+  it.each(['34abc', '1.5', '0', '-1', '9007199254740992'])(
+    'rejects invalid integer token %s',
+    (token) => {
+      expect(() => parseIds(token)).toThrow(`Invalid type ID: "${token}"`);
+    },
+  );
+
   it('throws when no ids survive filtering', () => {
     expect(() => parseIds(' , , ')).toThrow('No type IDs supplied');
   });
@@ -34,5 +41,11 @@ describe('parseArgs', () => {
 
   it('throws on an unknown flag', () => {
     expect(() => parseArgs(['--nope'])).toThrow('Unknown flag: --nope');
+  });
+
+  it('rejects multiple positional ID arguments', () => {
+    expect(() => parseArgs(['34', '35'])).toThrow(
+      'Multiple type ID arguments: "34" and "35"',
+    );
   });
 });

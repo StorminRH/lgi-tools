@@ -739,8 +739,9 @@ telemetry review argues for deferral — record the decision either way.
 directly vs. short reject-log-then-enforce window); how missing-provenance
 requests (no Origin, no Referer) are classified.
 
-**Baseline & hotspot note.** Neutral. Touches `auth-surface`-adjacent files;
-AF-008 Watch trigger must be rechecked in the same change.
+**Baseline & hotspot note.** Neutral. Touches the relocated auth-contract
+paths; AF-008's convention-matched auth-contract Watch trigger must be
+rechecked in the same change.
 
 **Delivery evidence.** Cross-origin mutation returns 403 in integration
 tests; a seeded unclassified mutating route fails the coverage test;

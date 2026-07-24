@@ -142,6 +142,23 @@
 
 ## Navigation
 
+- **Clear dismissed global-search results synchronously.** *What:* cancel the
+  pending 120 ms query and clear rendered sections when Escape or outside-press
+  dismisses the combobox, so an immediate refocus cannot briefly reopen results
+  for the cleared query. Add an interaction regression that covers
+  dismiss-then-refocus inside the debounce window. *Why deferred:* the behavior
+  predates the 3.10.1.2 ownership-only move and changing the live interaction
+  would require the route UX gate rather than a review-time relocation fix.
+  *Size:* S. *Trigger:* the next shell/search interaction pass, or a report of
+  stale results reopening.
+
+- **Make the application footer wrap below desktop widths.** *What:* replace
+  the fixed feedback-button clearance and non-wrapping link row with responsive
+  stacking/wrapping that preserves the desktop layout without horizontal
+  overflow. *Why deferred:* the layout predates the 3.10.1.2 ownership-only move;
+  changing it requires mobile UX capture and operator review. *Size:* S.
+  *Trigger:* the next responsive-shell pass, or a mobile overflow report.
+
 - **Category-dropdown top nav + module expansion** (from the 3.6.8 polish session —
   deferred to its own session). *What:* replace the flat tool strip with category
   dropdown menus — e.g. "Wormholes" → Sites & Anomalies, Roll Calculator, Codex.

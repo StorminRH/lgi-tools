@@ -21,6 +21,7 @@ from repo_measures import (
     clone_file_counts,
     export_count,
     named_file_count,
+    pattern_file_count,
     zone_file_count,
 )
 
@@ -86,7 +87,14 @@ def _measure(
         if argument.startswith("paths:"):
             paths = tuple(path.strip() for path in argument.removeprefix("paths:").split(","))
             return named_file_count(root, paths), clone_counts
-        raise MeasureError("files() requires a zone:<name> or paths:<path,...> subject")
+        if argument.startswith("globs:"):
+            patterns = tuple(
+                pattern.strip() for pattern in argument.removeprefix("globs:").split(",")
+            )
+            return pattern_file_count(root, patterns), clone_counts
+        raise MeasureError(
+            "files() requires a zone:<name>, paths:<path,...>, or globs:<pattern,...> subject"
+        )
     if metric == "clones":
         if not argument.startswith("dup:") or len(argument) == len("dup:"):
             raise MeasureError("clones() requires a dup:<fingerprint> subject")

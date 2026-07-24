@@ -54,6 +54,7 @@ describe('searchIconClass', () => {
   it('falls back to neutral for missing or legacy tones', () => {
     expect(searchIconClass(undefined)).toBe(pillToneClasses.neutral);
     expect(searchIconClass('cls-c1')).toBe(pillToneClasses.neutral);
+    expect(searchIconClass('toString')).toBe(pillToneClasses.neutral);
   });
 });
 

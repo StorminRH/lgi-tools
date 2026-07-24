@@ -62,7 +62,9 @@ When an audit leaves a Watch active, carry it as one data-only bullet and one
 machine-readable trigger fence. Omit this pair when no Watch is active. Repeat
 the pair for each active Watch. `files(zone:<name>)` counts one explicit Fallow
 zone; `files(paths:<path>,<path>,...)` counts one fixed repository-relative path
-set when ownership moves make a zone-level counter misleading.
+set when ownership moves make a zone-level counter misleading;
+`files(globs:<pattern>,<pattern>,...)` counts the distinct files matching a
+growable repository-relative pattern family.
 
 - Watch (AF-nnn)
 

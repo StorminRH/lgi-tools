@@ -50,6 +50,12 @@ describe('describeSdeStandDown', () => {
     expect(msg).toContain('staying on stored version "2026-05-01"');
   });
 
+  it('reports <none> when both stored and remote versions are unset', () => {
+    expect(describeSdeStandDown(null, null, '0')).toContain(
+      'staying on stored version "<none>"',
+    );
+  });
+
   it('reports already-current when stored and remote match', () => {
     const msg = describeSdeStandDown('2026-05-08', '2026-05-08', '5595');
     expect(msg).toContain('already at SDE version "2026-05-08"');

@@ -51,6 +51,7 @@ export function flattenSections(sections: SearchSection[]): SearchResult[] {
  * under the retired `cls-*` scheme) fall back to neutral.
  */
 export function searchIconClass(iconTone?: string): string {
-  const tone: PillTone = iconTone && iconTone in pillToneClasses ? (iconTone as PillTone) : 'neutral';
+  const tone: PillTone =
+    iconTone && Object.hasOwn(pillToneClasses, iconTone) ? (iconTone as PillTone) : 'neutral';
   return pillToneClasses[tone];
 }

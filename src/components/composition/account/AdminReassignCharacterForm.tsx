@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -19,6 +20,8 @@ export function AdminReassignCharacterForm({
   fromUserId: string;
   disabled?: boolean;
 }) {
+  const disabledReasonId = useId();
+
   return (
     <form
       method="POST"
@@ -40,11 +43,15 @@ export function AdminReassignCharacterForm({
         variant="secondary"
         size="sm"
         disabled={disabled}
+        aria-describedby={disabled ? disabledReasonId : undefined}
         title={disabled ? 'This character is already on your account' : undefined}
         className="text-isk whitespace-nowrap"
       >
         Reassign to me
       </Button>
+      <span id={disabledReasonId} className="sr-only">
+        This character is already on your account.
+      </span>
     </form>
   );
 }

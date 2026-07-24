@@ -115,6 +115,27 @@ class WatchTriggerTests(unittest.TestCase):
             self.fixture.messages(),
         )
 
+    def test_glob_set_detects_a_growing_contract_family(self) -> None:
+        self.fixture.write("src/platform/auth/types.ts", "")
+        self.fixture.write("src/platform/auth/api-contract.ts", "")
+        self.fixture.write("src/db/auth-schema.ts", "")
+        self.fixture.baseline(
+            "AF-008: files(globs:src/platform/auth/*types.ts,"
+            "src/platform/auth/*-contract.ts,src/db/*auth*schema.ts) >= 4\n"
+        )
+        self.assertEqual([], self.fixture.messages())
+
+        self.fixture.write("src/platform/auth/session-contract.ts", "")
+        self.assertEqual(
+            [
+                "docs/CODE_HEALTH_BASELINE.md:4: promote AF-008 — "
+                "files(globs:src/platform/auth/*types.ts,"
+                "src/platform/auth/*-contract.ts,src/db/*auth*schema.ts) = 4 "
+                "(trigger: >= 4)"
+            ],
+            self.fixture.messages(),
+        )
+
     def test_multiline_block_promotes_an_id_once_when_any_line_trips(self) -> None:
         self.fixture.write("src/queries.ts", "export const a = 1;\n")
         self.fixture.baseline(

@@ -48,13 +48,13 @@ function CharacterRowActions({
   needsReconnect: boolean;
 }) {
   return (
-    <span className="flex items-center gap-2 justify-end">
+    <div className="flex items-center gap-2 justify-end">
       {needsReconnect ? (
         <LinkCharacterButton label="Reconnect" emphasis="reconnect" />
       ) : null}
       {isActive ? null : <SwitchCharacterForm characterId={characterId} />}
       <UnlinkCharacterForm characterId={characterId} disabled={isOnlyCharacter} />
-    </span>
+    </div>
   );
 }
 

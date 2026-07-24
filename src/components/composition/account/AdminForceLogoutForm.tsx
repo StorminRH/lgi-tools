@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -17,6 +18,8 @@ export function AdminForceLogoutForm({
   userName: string;
   disabled?: boolean;
 }) {
+  const disabledReasonId = useId();
+
   return (
     <form
       method="POST"
@@ -33,11 +36,15 @@ export function AdminForceLogoutForm({
         variant="secondary"
         size="sm"
         disabled={disabled}
+        aria-describedby={disabled ? disabledReasonId : undefined}
         title={disabled ? 'Use the normal sign-out for your own session' : undefined}
         className="whitespace-nowrap"
       >
         Force logout
       </Button>
+      <span id={disabledReasonId} className="sr-only">
+        Use the normal sign-out for your own session.
+      </span>
     </form>
   );
 }
