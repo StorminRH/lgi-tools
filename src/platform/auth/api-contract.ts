@@ -295,10 +295,7 @@ const accountDeleteResponseSchema = z.object({ ok: z.literal(true) });
  * Successful full-account deletion acknowledgement.
  */
 export type AccountDeleteResponse = z.infer<typeof accountDeleteResponseSchema>;
-/**
- * Boundary validator for account delete endpoint; successful parsing yields the normalized auth
- * input consumed internally.
- */
+/** Full-account deletion endpoint with no request body and closed response statuses. */
 export const accountDeleteEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/delete',

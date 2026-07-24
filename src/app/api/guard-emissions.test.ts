@@ -390,13 +390,7 @@ describe('guard and parser emission boundaries', () => {
             relative(REPO_ROOT, file.fileName).startsWith(`${root}/`),
           ),
         )
-        .flatMap(exportedFunctions)
-        .filter(
-          (fn) =>
-            returnsResponse(fn.declaration, checker) ||
-            (returnsAnyOrUnknown(fn.declaration, checker) &&
-              functionProducesResponse(fn, checker)),
-        )
+        .flatMap((file) => reverseSweepFunctions(file, checker))
         .map((fn) => fn.key),
     );
     expect([...responseExports].sort()).toEqual([...PROTECTED_RESPONSE_EXPORTS].sort());

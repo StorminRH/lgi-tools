@@ -72,7 +72,7 @@ export function textBody(): TextCodec {
   return { kind: 'text' };
 }
 
-/** Defines an endpoint while preserving its literal method, path, statuses, and codecs. */
+/** Preserves literal endpoint metadata while rejecting request schemas on GET contracts. */
 export function defineEndpoint<const TEndpoint extends EndpointDefinition>(
   endpoint: TEndpoint,
 ): TEndpoint {

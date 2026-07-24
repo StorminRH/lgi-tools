@@ -24,10 +24,9 @@ import {
 import { EVE_AUTHORIZED_APPS_URL } from './eve-sso-constants';
 
 /**
- * The minimal slice of `apiFetch` the runners use: the no-body call and the
- * body call. The real `apiFetch` is assignable to this (its init params are
- * optional); a test stub is too. Keeps these runners off a hard import of the
- * client function while staying fully typed.
+ * Accepts an endpoint with its inferred call arguments and returns that
+ * endpoint's typed outcome. The real `apiFetch` and narrow test stubs both
+ * satisfy this seam without coupling these runners to the client function.
  */
 export type AccountApiCaller = <E extends EndpointContract>(
   endpoint: E,

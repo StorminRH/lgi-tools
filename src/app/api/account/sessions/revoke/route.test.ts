@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { rateLimitedFailure } from '@/lib/failure';
 
 // The route logs the caller out everywhere (revokes all their sessions). Mock auth +
 // the revoke query so these exercise the session gate + the act-on-self wiring.
@@ -48,11 +49,7 @@ describe('POST /api/account/sessions/revoke', () => {
   it('returns the rate-limit response before reading the session', async () => {
     checkRateLimitMock.mockResolvedValue({
       ok: false,
-      failure: {
-        category: 'rate_limited',
-        code: 'rate_limited',
-        retryAfterSeconds: 10,
-      },
+      failure: rateLimitedFailure(10),
     });
 
     const res = await POST(buildRequest());
