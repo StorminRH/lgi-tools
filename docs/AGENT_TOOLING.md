@@ -70,6 +70,11 @@ personal plugin source, export them as `CODEX_SKILLS_ROOT` and
 `PERSONAL_PLUGIN_SOURCE`, then rebuild and reinstall the Codex adapter:
 
 ```bash
+CODEX_SKILLS_ROOT="$(python3 -c 'from pathlib import Path; print(Path.home() / ".codex/skills")')"
+PERSONAL_PLUGIN_SOURCE="$(python3 -c 'from pathlib import Path; print(Path.home() / "plugins")')"
+export CODEX_SKILLS_ROOT PERSONAL_PLUGIN_SOURCE
+test -d "$CODEX_SKILLS_ROOT/.system/plugin-creator"
+test -d "$PERSONAL_PLUGIN_SOURCE/vercel-plugin"
 python3 .agent-local/sync_vercel_plugin.py --write
 python3 "$CODEX_SKILLS_ROOT/.system/plugin-creator/scripts/validate_plugin.py" \
   "$PERSONAL_PLUGIN_SOURCE/vercel-plugin"

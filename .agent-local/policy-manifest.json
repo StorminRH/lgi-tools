@@ -3,6 +3,7 @@
     "AGENTS.md",
     "src/AGENTS.md",
     "docs/AGENT_TOOLING.md",
+    "CONTRIBUTING.md",
     "docs/workflows/schema/chat-result.md",
     "docs/workflows/schema/code-health-baseline.md",
     "docs/workflows/schema/changelog-entry.md",
@@ -438,7 +439,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "556d324c3434f382bbc2048921177f99b694c880a14760a80ca216c5183825d9"
+      "reconciledHash": "75faacbf5e1ad3b5db64bc579209e815f89432fc4ca12d57de756e4717a6cb49"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -459,7 +460,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "e7a3c8ec3d411b31c4da36da99228d4f821814cc5fdc8d01224f77a1cac4dcfd"
+      "reconciledHash": "bebcf37c1e7a052b7dbe0e1b2b970328579b5feca22bc9a34bb7421d4dd37dc0"
     },
     "plan-version-audit": {
       "deps": [
@@ -468,7 +469,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "df0d76e0393f444bc6801c46e29ca96cc2da834ed4898d51e72f45c537a7f309"
+      "reconciledHash": "b057f9464ffeb3b3c6322087c01bd89c606a232aa1f179aeca55cc76cadbfb77"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -479,7 +480,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "efa56c452c324807357c86cca304300cb0df971d5658fd37f43331deb3e0b762"
+      "reconciledHash": "748a40484cd8ccb49dba6e718a4bd129517a08b3b4025285354a78f8544a2321"
     },
     "version-audit": {
       "deps": [
@@ -488,7 +489,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "df0d76e0393f444bc6801c46e29ca96cc2da834ed4898d51e72f45c537a7f309"
+      "reconciledHash": "b057f9464ffeb3b3c6322087c01bd89c606a232aa1f179aeca55cc76cadbfb77"
     },
     "triage-issue": {
       "deps": [
@@ -497,7 +498,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "22fb1b2e9d26d703baaaabe9b019991d93ac4fcf1f61d8417f71262bf03ab2c5"
+      "reconciledHash": "e059637516ed8f8d0774d6afcf621bb4e878ce0d6bd96385a0c32c3073d3dd82"
     },
     "ux-check": {
       "deps": [
@@ -522,7 +523,7 @@
         "docs/workflows/resolve-update-watch.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "62cdd8640ee0de9f114f55e7a35619f30ecabe04f007698e9ceaa37762b451c9"
+      "reconciledHash": "747a3c3a367fb86155e80a31e6a7947a97206760689e3e63e888000051fd508a"
     },
     "adversarial-review": {
       "deps": [
@@ -540,7 +541,7 @@
         "docs/workflows/agent-policy-audit.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "f1fe1c2ddeae3166655692291794acb00475a4f75e3c0461d4a69758174a91c8"
+      "reconciledHash": "9cfbc1ac24cf8fc1014764f92078e3c5d7e2e3727d57d1fb5fdbce2263101011"
     }
   },
   "procedurePolicies": {

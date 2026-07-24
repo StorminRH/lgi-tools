@@ -72,11 +72,11 @@ repeats the complete audit; it is never a targeted diff.
 1. Run `python3 .agent-local/resolve_development_state.py --pretty`.
 2. Require the directive to name `version-audit` as its handler. Its action
    distinguishes an initial/resumed close audit, a complete restart after
-   remediation, or a verified archive transition. Otherwise report the
-   directive and return control to `start-session`; this procedure never selects
-   a sibling handler. An explicitly requested periodic pass may run while
-   sessions remain only from an approved `Audit mode: Periodic` plan, and it
-   never archives.
+   remediation, or a verified archive transition. Otherwise return `BLOCKED`
+   with the complete directive as the invalid-transition evidence; this
+   procedure never selects a sibling handler. An explicitly requested periodic
+   pass may run while sessions remain only from an approved
+   `Audit mode: Periodic` plan, and it never archives.
 3. Verify the plan's `Procedure digest` is the SHA-256 of the current exact
    `docs/workflows/version-audit.md`; a mismatch returns to `plan-version-audit`.
 4. On a complete-restart directive, verify every mapped remediation sub-version

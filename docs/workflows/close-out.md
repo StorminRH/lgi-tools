@@ -284,11 +284,17 @@ the lifecycle-memory disposition.
 3. Privacy-scrub the title and body. Exclude personal names, email addresses,
    account handles, machine names, local paths, browser-profile details, and
    private identifiers; describe human review role-neutrally.
-4. Prepare the full Markdown body in a temporary file and resolve its path and
-   the final title before invoking the scrubber. Before publishing, run
-   `python3 .agent-local/scrub_pr_body.py --check` with that file passed through
-   `--body-file` and that title passed through `--title`, and **(planned)**
-   additionally run
+4. Prepare the full Markdown body in a temporary file, store its resolved path
+   in `PR_BODY_FILE`, and store the final title in `PR_TITLE`. Before publishing,
+   run:
+
+   ```bash
+   python3 .agent-local/scrub_pr_body.py --check \
+     --body-file "$PR_BODY_FILE" \
+     --title "$PR_TITLE"
+   ```
+
+   **(planned)** additionally run
    `python3 .agent-local/check_release_consistency.py --check --expect reconciled`
    — the final PR already carries the delivered sub-version's terminal roadmap
    row and matching `APP_VERSION`, so its release identity is `reconciled`.
@@ -298,12 +304,17 @@ the lifecycle-memory disposition.
 5. Drive the review as batched rounds and never push while a reviewer is
    mid-pass — a push to the head cancels an in-flight Greptile or CodeRabbit
    review before it reports. Begin each round by waiting for the head to go quiet
-   with the runtime's background `.agent-local/poll_pr_gate.py`, passing the
-   resolved repository, PR number, and `quiescent` mode as positional
-   arguments. The helper returns once every check run on the head — Greptile,
-   CodeRabbit, semgrep, CI — has completed and the set is stable. Continue
-   useful close-out work while it runs; do not reproduce its polling recipe in
-   prose or shell.
+   with the runtime's background poll helper. Resolve the repository into
+   `PR_REPOSITORY` and the PR number into `PR_NUMBER`, then run:
+
+   ```bash
+   python3 .agent-local/poll_pr_gate.py \
+     "$PR_REPOSITORY" "$PR_NUMBER" quiescent
+   ```
+
+   The helper returns once every check run on the head — Greptile, CodeRabbit,
+   semgrep, CI — has completed and the set is stable. Continue useful close-out
+   work while it runs.
 6. On that quiet head, collect every finding from all reviewers at once: the
    Greptile summary with its current-head inline findings, the gate of record,
    and CodeRabbit's advisory findings. If no current-head finding remains and the

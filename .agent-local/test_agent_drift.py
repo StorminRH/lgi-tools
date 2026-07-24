@@ -32,7 +32,11 @@ class DriftFixture:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
         self.manifest = {
-            "canonicalGuides": ["AGENTS.md", "docs/workflows/demo.md"],
+            "canonicalGuides": [
+                "AGENTS.md",
+                "CONTRIBUTING.md",
+                "docs/workflows/demo.md",
+            ],
             "requiredPaths": [".agent-local/check_agent_drift.py"],
             "forbiddenPaths": ["docs/retired.md"],
             "skillRoots": {
@@ -71,10 +75,15 @@ class DriftFixture:
             },
         }
         self.write("AGENTS.md", "guide\n")
+        self.write("CONTRIBUTING.md", "contribution guide\n")
         self.write(
             "docs/workflows/demo.md",
             "# Demonstration procedure\n\n"
-            "Complete the first checkpoint before the second checkpoint.\n",
+            "Complete the first checkpoint before the second checkpoint.\n\n"
+            "## Return the result\n\n"
+            "Apply `docs/workflows/schema/chat-result.md`.\n\n"
+            "### Next state\n\n"
+            "Return to the caller.\n",
         )
         self.write(".agent-local/check_agent_drift.py", "checker\n")
         self.write("docs/workflows/schema/session-contract.md", "contract standard\n")
@@ -199,6 +208,7 @@ class AgentDriftTests(unittest.TestCase):
         self.assertEqual([], self.check_procedures())
         self.assertEqual([], self.check_prose())
         self.assertEqual([], self.check_reconciliation())
+        self.assertEqual([], self.check_agent_markdown())
 
     def test_paths_report_missing_and_retired_entries(self) -> None:
         (self.fixture.root / "AGENTS.md").unlink()
@@ -292,7 +302,7 @@ class AgentDriftTests(unittest.TestCase):
             "AGENTS.md",
             "Run `pnpm test <arguments>`.\n\n"
             "```bash\n"
-            "python3 tool.py --out <output-path>\n"
+            "python3 tool.py --out <OUTPUT_PATH>\n"
             "```\n",
         )
         errors = self.check_agent_markdown()

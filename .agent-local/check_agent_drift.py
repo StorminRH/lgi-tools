@@ -367,7 +367,7 @@ def check_prose_ownership(manifest: dict, root: Path, errors: list[str]) -> None
 
 def policy_prose_paths(manifest: dict) -> list[str]:
     """Derive every live normative policy path so new surfaces cannot opt out."""
-    paths = ["CONTRIBUTING.md", *manifest["canonicalGuides"]]
+    paths = list(manifest["canonicalGuides"])
     for skill_root in manifest["skillRoots"].values():
         paths.extend(
             f"{skill_root}/{skill_name}/SKILL.md"
@@ -390,7 +390,7 @@ def check_agent_facing_markdown(
         r"^(?:[A-Z][A-Z0-9_]*=|python3|pnpm|npx|git|gh|codex|claude|"
         r"node|docker|vercel|curl|codegraph|\.[A-Za-z0-9_./-]+)"
     )
-    unresolved_shell_value = re.compile(r"<[a-z][^>\n]*>")
+    unresolved_shell_value = re.compile(r"<[A-Za-z][^>\n]*>")
 
     for raw_path in dict.fromkeys(paths):
         text = read_text(root / raw_path, root, errors)

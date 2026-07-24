@@ -143,10 +143,16 @@ Run the narrow checks first, then the aggregate policy gates:
 6. Run `git diff --check` and inspect the complete diff for policy changes not
    represented in the finding ledger.
 
-Do not run `pnpm verify` for a prose-only policy repair unless executable
-application or verification code changed. If executable Python policy tooling
-changed, run its focused tests and any repository gate that actually consumes
-that code.
+Run the repository-required pinned checkpoint for every repair before
+completion:
+
+```bash
+FALLOW_AUDIT_BASE=$(git rev-parse origin/main) pnpm verify
+```
+
+Retain the focused policy checks as additional validation.
+If executable Python policy tooling changed, also run its focused tests and any
+repository gate that actually consumes that code.
 
 ## Return the result
 
