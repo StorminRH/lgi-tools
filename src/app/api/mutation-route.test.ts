@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  forbiddenFailure,
   unauthenticatedFailure,
   validationFailure,
 } from '@/lib/failure';
@@ -21,7 +22,7 @@ function request(): Request {
 
 describe('runMutationRoute', () => {
   beforeEach(() => {
-    h.requireSameOriginMock.mockReset();
+    h.requireSameOriginMock.mockReset().mockReturnValue({ ok: true });
   });
 
   it('maps an authorization failure without observing, parsing, or handling', async () => {
@@ -50,7 +51,10 @@ describe('runMutationRoute', () => {
     const calls: string[] = [];
     const authorization = { ok: true as const, session: { userId: 'user-1' } };
     const response = new Response(null, { status: 204 });
-    h.requireSameOriginMock.mockImplementation(() => calls.push('origin'));
+    h.requireSameOriginMock.mockImplementation(() => {
+      calls.push('origin');
+      return { ok: true };
+    });
 
     const result = await runMutationRoute(request(), {
       authorize: async () => {
@@ -66,6 +70,34 @@ describe('runMutationRoute', () => {
 
     expect(result).toBe(response);
     expect(calls).toEqual(['authorize', 'origin', 'handle']);
+  });
+
+  it('maps an origin failure without parsing or handling', async () => {
+    const parse = vi.fn();
+    const handle = vi.fn();
+    h.requireSameOriginMock.mockReturnValue({
+      ok: false,
+      failure: forbiddenFailure(
+        'cross_origin',
+        'Cross-origin requests are not allowed',
+      ),
+    });
+
+    const result = await runMutationRoute(request(), {
+      authorize: async () => ({ ok: true as const, userId: 'user-1' }),
+      parse,
+      handle,
+    });
+
+    expect(result.status).toBe(403);
+    expect(result.headers.get('Content-Type')).toBe('application/problem+json');
+    expect(problemBodySchema.parse(await result.json())).toMatchObject({
+      type: 'https://lgi.tools/problems/forbidden',
+      status: 403,
+      code: 'cross_origin',
+    });
+    expect(parse).not.toHaveBeenCalled();
+    expect(handle).not.toHaveBeenCalled();
   });
 
   it('maps a parser failure without calling the handler', async () => {
@@ -94,7 +126,10 @@ describe('runMutationRoute', () => {
     const authorization = { ok: true as const, userId: 'user-1' };
     const body = { value: 42 };
     const response = Response.json({ ok: true });
-    h.requireSameOriginMock.mockImplementation(() => calls.push('origin'));
+    h.requireSameOriginMock.mockImplementation(() => {
+      calls.push('origin');
+      return { ok: true };
+    });
 
     const result = await runMutationRoute(request(), {
       authorize: async () => {

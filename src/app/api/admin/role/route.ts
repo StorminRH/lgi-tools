@@ -36,9 +36,10 @@ function buildRedirect(request: NextRequest, query: string | undefined): URL {
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await checkAdmin();
   if (!gate.ok) return problemResponse(gate.failure);
-  requireSameOrigin(request);
   const viewerUserId = gate.session.user.id;
   const actorCharacterId = gate.session.characterId;
+  const originCheck = requireSameOrigin(request);
+  if (!originCheck.ok) return problemResponse(originCheck.failure);
 
   const parsed = await parseFormBody(
     request,

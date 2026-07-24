@@ -48,5 +48,6 @@ export const putPreferenceEndpoint = defineEndpoint({
     204: emptyBody(),
     400: problem('invalid_json', 'invalid_body', 'invalid_value'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
   },
 });

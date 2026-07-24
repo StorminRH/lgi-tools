@@ -31,19 +31,28 @@ afterEach(() => {
 
 describe('requireSameOrigin', () => {
   it('prefers Origin over Referer and stays silent for the same origin', () => {
-    requireSameOrigin(mutationRequest({
+    const result = requireSameOrigin(mutationRequest({
       origin: 'https://lgi.tools',
       referer: 'https://foreign.example/private?credential=secret',
     }));
 
+    expect(result).toEqual({ ok: true });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('uses Referer when Origin is absent', () => {
-    requireSameOrigin(mutationRequest({
+    const result = requireSameOrigin(mutationRequest({
       referer: 'https://foreign.example/private?credential=secret',
     }));
 
+    expect(result).toEqual({
+      ok: false,
+      failure: {
+        category: 'forbidden',
+        code: 'cross_origin',
+        detail: 'Cross-origin requests are not allowed',
+      },
+    });
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cross_origin_mutation',
       metadata: {
@@ -55,8 +64,9 @@ describe('requireSameOrigin', () => {
   });
 
   it('stays silent when both browser-origin headers are missing', () => {
-    requireSameOrigin(mutationRequest());
+    const result = requireSameOrigin(mutationRequest());
 
+    expect(result).toEqual({ ok: true });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
@@ -64,10 +74,11 @@ describe('requireSameOrigin', () => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VERCEL_URL', 'lgi-tools-git-security.example.vercel.app');
 
-    requireSameOrigin(mutationRequest({
+    const result = requireSameOrigin(mutationRequest({
       origin: 'https://lgi-tools-git-security.example.vercel.app',
     }));
 
+    expect(result).toEqual({ ok: true });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
@@ -75,22 +86,24 @@ describe('requireSameOrigin', () => {
     vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('VERCEL_URL', 'lgi-tools-git-security.example.vercel.app');
 
-    requireSameOrigin(mutationRequest(
+    const result = requireSameOrigin(mutationRequest(
       { origin: 'https://security-preview.lgi.tools' },
       'https://security-preview.lgi.tools/api/preferences',
     ));
 
+    expect(result).toEqual({ ok: true });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('uses Better Auth for local development', () => {
     vi.stubEnv('BETTER_AUTH_URL', 'http://localhost:3000');
 
-    requireSameOrigin(mutationRequest(
+    const result = requireSameOrigin(mutationRequest(
       { origin: 'http://localhost:3000' },
       'http://localhost:3000/api/preferences',
     ));
 
+    expect(result).toEqual({ ok: true });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
@@ -99,8 +112,11 @@ describe('requireSameOrigin', () => {
     vi.stubEnv('VERCEL_URL', 'other.example.vercel.app');
     vi.stubEnv('BETTER_AUTH_URL', 'https://lgi.tools');
 
-    requireSameOrigin(mutationRequest({ origin: 'https://lgi.tools' }));
+    const result = requireSameOrigin(
+      mutationRequest({ origin: 'https://lgi.tools' }),
+    );
 
+    expect(result).toEqual({ ok: true });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
@@ -108,17 +124,24 @@ describe('requireSameOrigin', () => {
     vi.stubEnv('VERCEL_ENV', 'production');
     vi.stubEnv('BETTER_AUTH_URL', undefined);
 
-    requireSameOrigin(mutationRequest({ origin: 'https://lgi.tools' }));
+    const result = requireSameOrigin(
+      mutationRequest({ origin: 'https://lgi.tools' }),
+    );
 
+    expect(result).toEqual({ ok: true });
     expect(logUsageEventMock).not.toHaveBeenCalled();
   });
 
   it('retains a null Origin without exposing other request data', () => {
-    requireSameOrigin(mutationRequest({
+    const result = requireSameOrigin(mutationRequest({
       origin: 'null',
       authorization: 'Bearer secret',
     }));
 
+    expect(result).toMatchObject({
+      ok: false,
+      failure: { category: 'forbidden', code: 'cross_origin' },
+    });
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cross_origin_mutation',
       metadata: {
@@ -130,8 +153,14 @@ describe('requireSameOrigin', () => {
   });
 
   it('redacts malformed header content as invalid', () => {
-    requireSameOrigin(mutationRequest({ origin: 'not a URL with secret=abc' }));
+    const result = requireSameOrigin(
+      mutationRequest({ origin: 'not a URL with secret=abc' }),
+    );
 
+    expect(result).toMatchObject({
+      ok: false,
+      failure: { category: 'forbidden', code: 'cross_origin' },
+    });
     expect(logUsageEventMock).toHaveBeenCalledWith({
       action: 'cross_origin_mutation',
       metadata: {
@@ -147,9 +176,14 @@ describe('requireSameOrigin', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     logUsageEventMock.mockRejectedValueOnce(error);
 
-    expect(() => {
-      requireSameOrigin(mutationRequest({ origin: 'https://foreign.example' }));
-    }).not.toThrow();
+    expect(
+      requireSameOrigin(
+        mutationRequest({ origin: 'https://foreign.example' }),
+      ),
+    ).toMatchObject({
+      ok: false,
+      failure: { category: 'forbidden', code: 'cross_origin' },
+    });
 
     await vi.waitFor(() => {
       expect(consoleError).toHaveBeenCalledWith(

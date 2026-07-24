@@ -91,7 +91,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  requireSameOrigin(request);
+  const originCheck = requireSameOrigin(request);
+  if (!originCheck.ok) {
+    return apiResponse(feedbackEndpoint, 403, originCheck.failure);
+  }
 
   const session = await getSession();
   const authorName = session

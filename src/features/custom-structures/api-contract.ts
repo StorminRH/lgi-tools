@@ -98,6 +98,7 @@ export const createCustomStructureEndpoint = defineEndpoint({
     201: jsonBody(customStructuresResponseSchema),
     400: problem('invalid_json', 'invalid_body', 'invalid_structure', 'unknown_system'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
     409: problem('structure_limit'),
   },
 });
@@ -127,6 +128,7 @@ export const deleteCustomStructureEndpoint = defineEndpoint({
     200: jsonBody(customStructuresResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
   },
 });
 
@@ -157,6 +159,7 @@ export const setCustomStructurePinEndpoint = defineEndpoint({
     200: jsonBody(customStructuresResponseSchema),
     400: problem('invalid_json', 'invalid_body', 'unknown_system'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
   },
 });
 
@@ -188,6 +191,7 @@ export const setCustomStructureTaxEndpoint = defineEndpoint({
     200: jsonBody(customStructuresResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
   },
 });
 

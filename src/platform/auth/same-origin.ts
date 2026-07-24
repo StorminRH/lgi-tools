@@ -1,8 +1,10 @@
 import { SITE_URL } from '@/config/site-url';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import { readEnv } from '@/lib/env';
+import { forbiddenFailure, type AppFailure } from '@/lib/failure';
 
 type OriginSource = 'origin' | 'referer';
+type SameOriginResult = { ok: true } | { ok: false; failure: AppFailure };
 
 function normalizeOrigin(value: string, addHttps = false): string | null {
   try {
@@ -28,14 +30,15 @@ function canonicalOrigin(): string {
 }
 
 /**
- * Observes cross-origin browser mutations without changing their response.
- * Authentication and rate-limit gates remain the caller's responsibility.
+ * Enforces browser same-origin on mutations: explicit Origin/Referer mismatches return a
+ * forbidden `cross_origin` failure (and log telemetry); same-origin and provenance-less requests
+ * pass. Matching semantics are unchanged from the 3.9-era observer.
  */
-export function requireSameOrigin(request: Request): void {
+export function requireSameOrigin(request: Request): SameOriginResult {
   const origin = request.headers.get('origin');
   const referer = origin === null ? request.headers.get('referer') : null;
   const rawOrigin = origin ?? referer;
-  if (rawOrigin === null) return;
+  if (rawOrigin === null) return { ok: true };
 
   const requestUrl = new URL(request.url);
   const source: OriginSource = origin === null ? 'referer' : 'origin';
@@ -46,7 +49,7 @@ export function requireSameOrigin(request: Request): void {
   if (
     normalizedOrigin !== null
     && (normalizedOrigin === requestUrl.origin || normalizedOrigin === canonicalOrigin())
-  ) return;
+  ) return { ok: true };
 
   void logUsageEvent({
     action: 'cross_origin_mutation',
@@ -58,4 +61,12 @@ export function requireSameOrigin(request: Request): void {
   }).catch((error: unknown) => {
     console.error('[same-origin] telemetry write failed', error);
   });
+
+  return {
+    ok: false,
+    failure: forbiddenFailure(
+      'cross_origin',
+      'Cross-origin requests are not allowed',
+    ),
+  };
 }

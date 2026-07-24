@@ -397,6 +397,7 @@ export const createSavedPlanEndpoint = defineEndpoint({
     201: jsonBody(savedPlansResponseSchema),
     400: problem('invalid_json', 'invalid_body', 'unknown_blueprint'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
     409: problem('template_limit'),
   },
 });
@@ -423,6 +424,7 @@ export const renameSavedPlanEndpoint = defineEndpoint({
     200: jsonBody(savedPlansResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
   },
 });
 
@@ -448,6 +450,7 @@ export const favoriteSavedPlanEndpoint = defineEndpoint({
     200: jsonBody(savedPlansResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
   },
 });
 
@@ -472,5 +475,6 @@ export const deleteSavedPlanEndpoint = defineEndpoint({
     200: jsonBody(savedPlansResponseSchema),
     400: problem('invalid_json', 'invalid_body'),
     401: problem('unauthenticated'),
+    403: problem('cross_origin'),
   },
 });

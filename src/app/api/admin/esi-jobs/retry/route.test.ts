@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { forbiddenFailure } from '@/lib/failure';
+import { problemBodySchema } from '@/lib/problem';
 
 const ADMIN = {
   user: { id: 'user-admin' },
@@ -50,7 +52,7 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     requeueMock.mockReset();
     logUsageEventMock.mockReset();
     logUsageEventMock.mockResolvedValue(undefined);
-    sameOriginMock.mockReset();
+    sameOriginMock.mockReset().mockReturnValue({ ok: true });
   });
 
   it('returns 403 when there is no session', async () => {
@@ -77,6 +79,29 @@ describe('POST /api/admin/esi-jobs/retry', () => {
     const response = await POST(request);
     expect(response.status).toBe(400);
     expect(sameOriginMock).toHaveBeenCalledWith(request);
+    expect(requeueMock).not.toHaveBeenCalled();
+  });
+
+  it('returns the mapped cross-origin problem before parsing', async () => {
+    getSessionMock.mockResolvedValue(ADMIN);
+    sameOriginMock.mockReturnValue({
+      ok: false,
+      failure: forbiddenFailure(
+        'cross_origin',
+        'Cross-origin requests are not allowed',
+      ),
+    });
+    const { POST } = await importRoute();
+    const response = await POST(buildRequest({ jobId: '7' }));
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get('Content-Type')).toBe(
+      'application/problem+json',
+    );
+    expect(problemBodySchema.parse(await response.json())).toMatchObject({
+      type: 'https://lgi.tools/problems/forbidden',
+      code: 'cross_origin',
+    });
     expect(requeueMock).not.toHaveBeenCalled();
   });
 

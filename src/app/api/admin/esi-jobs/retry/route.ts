@@ -18,7 +18,8 @@ import { parseFormBody } from '@/transport/route-body';
 export async function POST(request: NextRequest): Promise<Response> {
   const gate = await checkAdmin();
   if (!gate.ok) return problemResponse(gate.failure);
-  requireSameOrigin(request);
+  const originCheck = requireSameOrigin(request);
+  if (!originCheck.ok) return problemResponse(originCheck.failure);
 
   const parsed = await parseFormBody(
     request,
