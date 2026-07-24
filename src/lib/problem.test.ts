@@ -83,4 +83,20 @@ describe('problem mapper', () => {
     expect(response.headers.get('Retry-After')).toBe('14');
     expect(body.retryAfterSeconds).toBe(14);
   });
+
+  it.each([0, -1, 1.5])(
+    'rejects invalid retryAfterSeconds %s before serialization',
+    (retryAfterSeconds) => {
+      expect(() =>
+        problemBody(
+          {
+            category: 'rate_limited',
+            code: 'rate_limited',
+            retryAfterSeconds,
+          },
+          'correlation-id',
+        ),
+      ).toThrow(new RangeError('retryAfterSeconds must be a positive integer'));
+    },
+  );
 });

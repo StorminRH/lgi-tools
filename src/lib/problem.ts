@@ -53,8 +53,18 @@ function statusFor(failure: AppFailure): number {
   return CATEGORY_STATUS[failure.category];
 }
 
+function assertValidRetryAfterSeconds(retryAfterSeconds: number | undefined): void {
+  if (
+    retryAfterSeconds !== undefined &&
+    (!Number.isInteger(retryAfterSeconds) || retryAfterSeconds <= 0)
+  ) {
+    throw new RangeError('retryAfterSeconds must be a positive integer');
+  }
+}
+
 /** Builds the safe problem body without serializing internal causes. */
 export function problemBody(failure: AppFailure, correlationId: string): ProblemBody {
+  assertValidRetryAfterSeconds(failure.retryAfterSeconds);
   return {
     type: `https://lgi.tools/problems/${failure.category}`,
     title: CATEGORY_TITLE[failure.category],
