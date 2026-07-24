@@ -14,6 +14,7 @@
     "docs/workflows/plan-session.md",
     "docs/workflows/start-session.md",
     "docs/workflows/pre-pr-design-review.md",
+    "docs/workflows/adversarial-review.md",
     "docs/workflows/close-out.md",
     "docs/workflows/version-audit.md",
     "docs/workflows/triage-issue.md",
@@ -219,6 +220,21 @@
         "SESSION_PLANNING"
       ],
       "procedure": "docs/workflows/resolve-update-watch.md"
+    },
+    "adversarial-review": {
+      "required": [
+        "docs/workflows/adversarial-review\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
+      ],
+      "forbidden": [
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/adversarial-review.md"
     }
   },
   "runtimeForbidden": {
@@ -498,6 +514,14 @@
         "docs/workflows/schema/chat-result.md"
       ],
       "reconciledHash": "7838abb282f4606910cc70bcc56424f487ffd85e39618f17f36e7f37569ea847"
+    },
+    "adversarial-review": {
+      "deps": [
+        "AGENTS.md",
+        "docs/workflows/adversarial-review.md",
+        "docs/workflows/schema/chat-result.md"
+      ],
+      "reconciledHash": "8a78f4b8e4c291fbe1a17fc31efe892ad82850ed7c8b2b01b5351f80a6a78975"
     }
   },
   "procedurePolicies": {
