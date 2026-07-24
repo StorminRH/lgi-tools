@@ -13,6 +13,7 @@ import tempfile
 import unittest
 
 from resolve_development_state import (
+    DELIVERY_UNITS,
     RELEASE_CONSISTENCY_GATE,
     as_built_binds,
     lifecycle_branch,
@@ -87,12 +88,12 @@ class ResolverFixture:
     def close(self) -> None:
         self.temporary.cleanup()
 
-    def write_roadmap(self, status: str) -> None:
+    def write_roadmap(self, status: str, *, sessions: int = 1) -> None:
         (self.docs / "VERSION_9_9_PLAN.md").write_text(
             "# Version 9.9\n\n## Status\n\n"
             "| Sub-version | Theme | Sessions | Status |\n"
             "| --- | --- | --- | --- |\n"
-            f"| 9.9.1.1 | Fixture | 1 | {status} |\n",
+            f"| 9.9.1.1 | Fixture | {sessions} | {status} |\n",
             encoding="utf-8",
         )
 
@@ -171,15 +172,22 @@ class ResolverFixture:
             encoding="utf-8",
         )
 
-    def write_contract(self, ux_gate: str | None = "No") -> Path:
+    def write_contract(
+        self,
+        ux_gate: str | None = "No",
+        *,
+        session: str = "9.9.1.1.1",
+        delivery_unit: str = DELIVERY_UNITS[1],
+    ) -> Path:
         directory = self.docs / "session-contracts/9.9"
         directory.mkdir(parents=True, exist_ok=True)
-        contract = directory / "9.9.1.1.1.md"
+        contract = directory / f"{session}.md"
+        subversion = ".".join(session.split(".")[:-1])
         ux_marker = f"\n**UX gate:** {ux_gate}\n" if ux_gate is not None else ""
         execution_frame = (
             "**Execution profile:** Frontier autonomous coding agent\n"
-            "**Delivery unit:** One agent session, one shared sub-version branch, one sub-version PR\n"
-            "**Roadmap coverage:** §9.9.1.1 fixture outcome\n"
+            f"**Delivery unit:** {delivery_unit}\n"
+            f"**Roadmap coverage:** §{subversion} fixture outcome\n"
             "**Internal phases:** 1. Implement fixture; 2. Verify fixture\n"
             "**Split triggers:** Material fixture scope conflict\n"
         )
@@ -198,9 +206,9 @@ class ResolverFixture:
             "Close-out behavior": "Commit the fixture result.",
         }
         contract.write_text(
-            "## Session 9.9.1.1.1 — Fixture\n\n"
-            "**Sub-version:** 9.9.1.1\n"
-            "**Master plan:** `docs/VERSION_9_9_PLAN.md` §9.9.1.1\n"
+            f"## Session {session} — Fixture\n\n"
+            f"**Sub-version:** {subversion}\n"
+            f"**Master plan:** `docs/VERSION_9_9_PLAN.md` §{subversion}\n"
             f"{ux_marker}{execution_frame}\n"
             + "\n\n".join(
                 f"## {number}. {title}\n\n{bodies[title]}"
@@ -212,7 +220,7 @@ class ResolverFixture:
         (directory / "INDEX.md").write_text(
             "| Session | Sub-version | Contract |\n"
             "| --- | --- | --- |\n"
-            "| 9.9.1.1.1 | 9.9.1.1 | `9.9.1.1.1.md` |\n",
+            f"| {session} | {subversion} | `{session}.md` |\n",
             encoding="utf-8",
         )
         return contract
@@ -270,6 +278,8 @@ class ResolverFixture:
     ) -> None:
         directory = self.docs / "session-plans/9.9"
         directory.mkdir(parents=True, exist_ok=True)
+        session = contract.stem
+        subversion = ".".join(session.split(".")[:-1])
         digest = hashlib.sha256(contract.read_bytes()).hexdigest()
         baseline_marker = (
             f"**Baseline effect:** {baseline_effect}\n"
@@ -284,11 +294,11 @@ class ResolverFixture:
             ),
             "No",
         )
-        body = f"""# Session 9.9.1.1.1 Implementation Plan — Fixture
+        body = f"""# Session {session} Implementation Plan — Fixture
 
 **Plan status:** Approved
 **Approved:** 2026-07-20
-**Contract:** `docs/session-contracts/9.9/9.9.1.1.1.md`
+**Contract:** `docs/session-contracts/9.9/{session}.md`
 **Contract digest:** `sha256:{digest}`
 **Planning standard:** `docs/workflows/schema/session-plan.md`
 **Execution status:** {execution_status}
@@ -305,14 +315,14 @@ class ResolverFixture:
 
 </hard_constraints>
 
-**Branch:** `codex/9.9.1.1-fixture` · **ends in PR:** no · **gate:** fixture evidence
+**Branch:** `codex/{subversion}-fixture` · **ends in PR:** no · **gate:** fixture evidence
 
 **Contract UX gate:** `{ux_gate}` · **required pause:** None
 
 ## Read first
 
 - `AGENTS.md`
-- `docs/session-contracts/9.9/9.9.1.1.1.md`
+- `docs/session-contracts/9.9/{session}.md`
 
 ## Current state and prerequisites
 
@@ -394,7 +404,7 @@ No runtime data flow changes.
 - **Lifecycle artifacts:** Mark the plan complete when appropriate.
 - **Handoff:** Rerun the resolver.
 """
-        (directory / "9.9.1.1.1.md").write_text(body, encoding="utf-8")
+        (directory / f"{session}.md").write_text(body, encoding="utf-8")
 
     def init_git(self, branch: str) -> None:
         subprocess.run(
@@ -1007,6 +1017,54 @@ class DevelopmentStateTests(unittest.TestCase):
         state, errors = resolve(self.fixture.root)
         self.assertEqual([], errors)
         self.assertEqual("session-ready", state["stage"])
+
+    def test_later_per_session_contract_applies_to_frozen_prior_session(self) -> None:
+        self.fixture.write_roadmap("PLANNED", sessions=2)
+        first = self.fixture.write_contract()
+        self.fixture.write_session_plan(first, execution_status="Complete")
+        second = self.fixture.write_contract(
+            session="9.9.1.1.2",
+            delivery_unit=DELIVERY_UNITS[0],
+        )
+        self.fixture.write_session_plan(second)
+        (second.parent / "INDEX.md").write_text(
+            "| Session | Sub-version | Contract |\n"
+            "| --- | --- | --- |\n"
+            "| 9.9.1.1.1 | 9.9.1.1 | `9.9.1.1.1.md` |\n"
+            "| 9.9.1.1.2 | 9.9.1.1 | `9.9.1.1.2.md` |\n",
+            encoding="utf-8",
+        )
+        self.fixture.write_as_built(first, pr="#299")
+
+        state, errors = resolve(self.fixture.root)
+
+        self.assertEqual([], errors)
+        self.assertEqual("session-ready", state["stage"])
+        self.assertEqual("9.9.1.1.2", state["session"])
+
+    def test_subversion_pr_contract_still_requires_deferred_prior_record(self) -> None:
+        self.fixture.write_roadmap("PLANNED", sessions=2)
+        first = self.fixture.write_contract()
+        self.fixture.write_session_plan(first, execution_status="Complete")
+        second = self.fixture.write_contract(session="9.9.1.1.2")
+        self.fixture.write_session_plan(second)
+        (second.parent / "INDEX.md").write_text(
+            "| Session | Sub-version | Contract |\n"
+            "| --- | --- | --- |\n"
+            "| 9.9.1.1.1 | 9.9.1.1 | `9.9.1.1.1.md` |\n"
+            "| 9.9.1.1.2 | 9.9.1.1 | `9.9.1.1.2.md` |\n",
+            encoding="utf-8",
+        )
+        self.fixture.write_as_built(first, pr="#299")
+
+        state, errors = resolve(self.fixture.root)
+
+        self.assertEqual([], errors)
+        self.assertEqual("as-built-needed", state["stage"])
+        self.assertIn(
+            "PR must defer to the final session under the one-sub-version-PR delivery unit",
+            state["asBuiltViolations"],
+        )
 
     def test_as_built_binding_floor(self) -> None:
         self.assertFalse(as_built_binds("3.10.1.2"))

@@ -41,9 +41,14 @@ A contract starts with this frame:
 the operator's local browser-review pause. A contract uses `Yes` when the
 session changes user-facing behavior or appearance and `No` otherwise.
 
-`Execution profile` and `Delivery unit` use the exact values shown above. Every
-session in a sub-version works on the same lifecycle branch; only the final
-session opens the sub-version PR.
+`Execution profile` uses the exact value shown above. `Delivery unit` is exactly
+either `One agent session, one shared sub-version branch, one sub-version PR` or
+`One agent session, one shared sub-version branch, one PR per session`. Every
+session in a sub-version works on the same lifecycle branch. The delivery choice
+is sub-version-wide: if any indexed contract declares one PR per session, every
+session in that sub-version ships through its own PR. This lets an approved
+operator restructure add later per-session contracts without editing an earlier
+frozen contract; otherwise only the final session opens the sub-version PR.
 `Roadmap coverage`, `Internal phases`, and `Split triggers` are non-empty.
 Roadmap coverage may name several approved roadmap sections. Internal phases
 are ordered work inside the session, not new delivery boundaries. Split

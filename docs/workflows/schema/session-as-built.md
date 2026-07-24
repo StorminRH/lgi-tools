@@ -40,11 +40,13 @@ The marker values are closed vocabularies:
   terminal bytes and any later edit to either prompt is mechanically visible.
 - `Branch` is the sub-version's deterministic lifecycle branch.
 - `PR` is the delivering PR's `#<number>`, written once that PR exists — on
-  the final session, and on every session whose contract declares one PR per
-  session. A non-final session under the one-sub-version-PR delivery unit
-  writes `Deferred to <final session id>` instead. The PR number plus
-  Delivered outcome make the record a complete devlog reference without
-  git-history archaeology.
+  the final session, and on every session in a sub-version whose effective
+  delivery unit is one PR per session. A per-session declaration on any indexed
+  contract applies to the whole sub-version so later operator-added splits do
+  not require edits to prior frozen contracts. A non-final session under the
+  one-sub-version-PR delivery unit writes `Deferred to <final session id>`
+  instead. The PR number plus Delivered outcome make the record a complete
+  devlog reference without git-history archaeology.
 - `Record standard` is exactly `docs/workflows/schema/session-as-built.md`.
 
 The record lives at `docs/session-as-built/X.Y/<session>.md`. Every record

@@ -1,6 +1,10 @@
 // API wire contract owned by the feedback feature (3.4.T).
 import { z } from 'zod';
-import type { ApiEndpoint } from '@/transport/api-client';
+import {
+  defineEndpoint,
+  emptyBody,
+  problem,
+} from '@/transport/endpoint';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from './constants';
 
 /**
@@ -17,16 +21,22 @@ export const FEEDBACK_PATH_MAX_LENGTH = 512;
  */
 export const feedbackRequestSchema = z.object({
   message: z.string().min(1).max(FEEDBACK_MESSAGE_MAX_LENGTH * 4),
-  path: z.string().regex(/^\//, 'path must start with /').max(FEEDBACK_PATH_MAX_LENGTH * 4),
+  path: z
+    .string()
+    .regex(/^\//, 'path must start with /')
+    .max(FEEDBACK_PATH_MAX_LENGTH * 4),
 });
 
-/**
- * Success is 204 No Content; errors are plain text (400/502/503) or the shared
- * RateLimitedBody 429 — there is no JSON success body to type.
- */
-export const feedbackEndpoint: ApiEndpoint<z.input<typeof feedbackRequestSchema>, undefined> = {
+/** Complete request and per-status response contract for feedback submission. */
+export const feedbackEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/feedback',
   request: feedbackRequestSchema,
-  response: null,
-};
+  responses: {
+    204: emptyBody(),
+    400: problem('invalid_json', 'invalid_body', 'message_empty', 'path_invalid'),
+    429: problem('rate_limited'),
+    502: problem('discord_failed'),
+    503: problem('feedback_unconfigured'),
+  },
+});

@@ -555,6 +555,7 @@ def as_built_schema_violations(
     contract: Path,
     plan: Path,
     root: Path,
+    per_session_delivery: bool,
     final_session: str | None = None,
 ) -> list[str]:
     """Return structural and marker violations for a session as-built record."""
@@ -594,15 +595,14 @@ def as_built_schema_violations(
     if marker(path, "Branch") != lifecycle_branch(subversion):
         violations.append(f"Branch must be {lifecycle_branch(subversion)!r}")
     pr_marker = marker(path, "PR") or ""
-    per_session = marker(contract, "Delivery unit") == DELIVERY_UNITS[0]
     is_final = final_session is None or path.stem == final_session
     if re.fullmatch(r"#\d+", pr_marker):
-        if not (per_session or is_final):
+        if not (per_session_delivery or is_final):
             violations.append(
                 "PR must defer to the final session under the one-sub-version-PR delivery unit"
             )
     elif re.fullmatch(r"Deferred to \d+(?:\.\d+)+", pr_marker):
-        if per_session or is_final:
+        if per_session_delivery or is_final:
             violations.append("PR must be '#<number>' on a session that ships its own PR")
         elif final_session is not None and pr_marker != f"Deferred to {final_session}":
             violations.append(f"PR must be 'Deferred to {final_session}'")
@@ -630,6 +630,13 @@ def missing_as_built(
         key=lambda item: tuple(int(part) for part in item[0].split(".")),
     )
     final_by_subversion = {subversion: session for session, (subversion, _) in ordered}
+    # Delivery is a sub-version choice. A later per-session split must not force
+    # edits to an earlier contract after that frozen prompt has been consumed.
+    per_session_subversions = {
+        subversion
+        for _, (subversion, contract) in ordered
+        if contract.is_file() and marker(contract, "Delivery unit") == DELIVERY_UNITS[0]
+    }
     for session, (subversion, contract) in ordered:
         if not as_built_binds(subversion):
             continue
@@ -652,6 +659,7 @@ def missing_as_built(
             contract,
             plan,
             root,
+            per_session_delivery=subversion in per_session_subversions,
             final_session=final_by_subversion[subversion],
         )
         if violations:

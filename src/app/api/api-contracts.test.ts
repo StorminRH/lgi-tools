@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // Mechanical API-contract completeness gate (3.9.2.4) — expands the 3.4.T
@@ -28,7 +29,8 @@ const CONTRACT_NAMED_IMPORT_RE =
   /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['"][^'"]*api-contract['"]/g;
 const INPUT_MARKER_RE = /^[ \t]*\/\/[ \t]*input:[ \t]*([a-z]+)[ \t]*$/gm;
 const VALID_INPUT_CLASSES = new Set(['none', 'query']);
-const SCHEMA_CONSUMPTION_RE = /\bparse(?:Json|Form)Body\b/;
+const ROUTE_BODY_MODULE = '@/transport/route-body';
+const SCHEMA_HELPERS = new Set(['parseJsonBody', 'parseFormBody', 'readJsonBody']);
 const JSON_RESPONSE_RE = /\.json\(/;
 const RESPONSE_PIN_RE = /\bsatisfies\s+([A-Za-z_$][\w$]*)/g;
 
@@ -58,8 +60,78 @@ const ROUTE_FILES = findRouteFiles(API_DIR).filter(
 );
 const label = (file: string) => relative(REPO_ROOT, file);
 
+function schemaImportSpecifiers(statement: ts.Statement): readonly ts.ImportSpecifier[] {
+  if (
+    !ts.isImportDeclaration(statement) ||
+    !ts.isStringLiteral(statement.moduleSpecifier) ||
+    statement.moduleSpecifier.text !== ROUTE_BODY_MODULE
+  ) {
+    return [];
+  }
+  const bindings = statement.importClause?.namedBindings;
+  return bindings && ts.isNamedImports(bindings) ? bindings.elements : [];
+}
+
+function importedHelperSymbol(
+  specifier: ts.ImportSpecifier,
+  checker: ts.TypeChecker,
+): ts.Symbol | undefined {
+  const importedName = specifier.propertyName?.text ?? specifier.name.text;
+  return SCHEMA_HELPERS.has(importedName)
+    ? checker.getSymbolAtLocation(specifier.name)
+    : undefined;
+}
+
+function isImportedHelperCall(
+  node: ts.Node,
+  checker: ts.TypeChecker,
+  importedHelperSymbols: ReadonlySet<ts.Symbol>,
+): boolean {
+  if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return false;
+  const callSymbol = checker.getSymbolAtLocation(node.expression);
+  return callSymbol !== undefined && importedHelperSymbols.has(callSymbol);
+}
+
 function hasSchemaConsumption(source: string): boolean {
-  return SCHEMA_CONSUMPTION_RE.test(source);
+  const fileName = 'route.ts';
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const compilerOptions = {
+    noLib: true,
+    noResolve: true,
+    target: ts.ScriptTarget.Latest,
+  } satisfies ts.CompilerOptions;
+  const host = ts.createCompilerHost(compilerOptions, true);
+  host.fileExists = (candidate) => candidate === fileName;
+  host.readFile = (candidate) => (candidate === fileName ? source : undefined);
+  host.getSourceFile = (candidate) => (candidate === fileName ? sourceFile : undefined);
+  const checker = ts
+    .createProgram([fileName], compilerOptions, host)
+    .getTypeChecker();
+  const importedHelperSymbols = new Set<ts.Symbol>();
+
+  for (const statement of sourceFile.statements) {
+    for (const specifier of schemaImportSpecifiers(statement)) {
+      const symbol = importedHelperSymbol(specifier, checker);
+      if (symbol) importedHelperSymbols.add(symbol);
+    }
+  }
+
+  let consumed = false;
+  function visit(node: ts.Node): void {
+    if (isImportedHelperCall(node, checker, importedHelperSymbols)) {
+      consumed = true;
+      return;
+    }
+    if (!consumed) ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return consumed;
 }
 
 function findInputMarkers(source: string): string[] {
@@ -91,6 +163,8 @@ function hasContractResponsePin(source: string): boolean {
 describe('route-source classifiers', () => {
   const contractImport =
     "import { requestSchema, type ResponseBody } from '@/features/example/api-contract';";
+  const routeBodyImport =
+    "import { parseJsonBody, readJsonBody } from '@/transport/route-body';";
   const pinnedResponse = 'return Response.json({ ok: true } satisfies ResponseBody);';
 
   it('reports a seeded contractless route and its missing input classification', () => {
@@ -108,6 +182,7 @@ describe('route-source classifiers', () => {
 
   it('rejects a marker on a schema-consuming route', () => {
     const source = `${contractImport}
+${routeBodyImport}
 // input: none
 parseJsonBody(request, requestSchema);
 ${pinnedResponse}`;
@@ -136,11 +211,68 @@ return Response.json({ ok: true } satisfies LocalResponse);`;
 
   it('accepts a schema-consuming route with a contract-pinned response', () => {
     const source = `${contractImport}
+${routeBodyImport}
 parseJsonBody(request, requestSchema);
 ${pinnedResponse}`;
     expect(hasSchemaConsumption(source)).toBe(true);
     expect(findInputMarkers(source)).toEqual([]);
     expect(hasContractResponsePin(source)).toBe(true);
+  });
+
+  it('accepts the v2 readJsonBody and endpoint-bound apiResponse pattern', () => {
+    const source = `${contractImport}
+${routeBodyImport}
+const parsed = await readJsonBody(request, requestSchema);
+if (!parsed.ok) return apiResponse(exampleEndpoint, 400, parsed.failure);
+return apiResponse(exampleEndpoint, 204);`;
+    expect(hasSchemaConsumption(source)).toBe(true);
+    expect(findInputMarkers(source)).toEqual([]);
+    expect(hasContractResponsePin(source)).toBe(true);
+  });
+
+  it('rejects a v2 route that also builds an unpinned raw JSON response', () => {
+    const source = `${contractImport}
+${routeBodyImport}
+const parsed = await readJsonBody(request, requestSchema);
+if (!parsed.ok) return apiResponse(exampleEndpoint, 400, parsed.failure);
+return Response.json({ ok: true });`;
+    expect(hasSchemaConsumption(source)).toBe(true);
+    expect(hasContractResponsePin(source)).toBe(false);
+  });
+
+  it('rejects helper names that are not calls to an imported route-body helper', () => {
+    const falsePositives = [
+      `${contractImport}\n// parseJsonBody(request, requestSchema);\n${pinnedResponse}`,
+      `${contractImport}\nconst note = 'readJsonBody(request, requestSchema)';\n${pinnedResponse}`,
+      `${contractImport}\n${routeBodyImport}\n${pinnedResponse}`,
+      `${contractImport}\nfunction parseJsonBody() {}\nparseJsonBody();\n${pinnedResponse}`,
+      `${contractImport}\nimport { parseJsonBody } from './local-helper';\nparseJsonBody();\n${pinnedResponse}`,
+    ];
+    expect(falsePositives.map(hasSchemaConsumption)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('accepts an aliased call to an imported route-body helper', () => {
+    const source = `${contractImport}
+import { readJsonBody as readBody } from '@/transport/route-body';
+await readBody(request, requestSchema);
+${pinnedResponse}`;
+    expect(hasSchemaConsumption(source)).toBe(true);
+  });
+
+  it('rejects a call to a nested binding that shadows an imported helper', () => {
+    const source = `${contractImport}
+${routeBodyImport}
+function handle(readJsonBody: () => void) {
+  readJsonBody();
+}
+${pinnedResponse}`;
+    expect(hasSchemaConsumption(source)).toBe(false);
   });
 });
 

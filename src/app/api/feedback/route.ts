@@ -6,14 +6,20 @@ import { APP_VERSION } from '@/config/app-version';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {
   FEEDBACK_PATH_MAX_LENGTH,
+  feedbackEndpoint,
   feedbackRequestSchema,
 } from '@/features/feedback/api-contract';
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from '@/features/feedback/constants';
+import {
+  dependencyUnavailableFailure,
+  validationFailure,
+} from '@/lib/failure';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { readEnv } from '@/lib/env';
-import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseJsonBody } from '@/transport/route-body';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { sanitiseUserText } from '@/lib/sanitise';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 // Per-IP rate limit. Feedback POSTs fan out to a Discord webhook, so an
 // unthrottled endpoint is a webhook-spam vector. 5/min is generous for a
@@ -58,23 +64,31 @@ function buildEmbed({
  */
 // authz: public
 export async function POST(request: NextRequest): Promise<Response> {
-  const parsed = await parseJsonBody(request, feedbackRequestSchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, feedbackRequestSchema);
+  if (!parsed.ok) return apiResponse(feedbackEndpoint, 400, parsed.failure);
 
-  const limit = await rateLimitGuard(request, {
+  const limit = await checkRateLimit(request, {
     name: 'feedback',
     perMinute: FEEDBACK_LIMIT_PER_MINUTE,
   });
-  if (!limit.ok) return limit.response;
+  if (!limit.ok) return apiResponse(feedbackEndpoint, 429, limit.failure);
 
   const message = sanitiseUserText(parsed.data.message, FEEDBACK_MESSAGE_MAX_LENGTH);
   if (message.length === 0) {
-    return new Response('message must not be empty', { status: 400 });
+    return apiResponse(
+      feedbackEndpoint,
+      400,
+      validationFailure('message_empty', 'message must not be empty'),
+    );
   }
 
   const path = sanitiseUserText(parsed.data.path, FEEDBACK_PATH_MAX_LENGTH);
   if (path.length === 0 || !path.startsWith('/')) {
-    return new Response('path must start with /', { status: 400 });
+    return apiResponse(
+      feedbackEndpoint,
+      400,
+      validationFailure('path_invalid', 'path must start with /'),
+    );
   }
 
   requireSameOrigin(request);
@@ -86,7 +100,15 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const webhookUrl = readEnv('DISCORD_WEBHOOK_URL');
   if (!webhookUrl) {
-    return new Response('Feedback channel is not configured', { status: 503 });
+    return apiResponse(
+      feedbackEndpoint,
+      503,
+      dependencyUnavailableFailure(
+        'feedback_unconfigured',
+        503,
+        { detail: 'Feedback channel is not configured' },
+      ),
+    );
   }
 
   const embed = buildEmbed({ message, path, authorName });
@@ -101,12 +123,28 @@ export async function POST(request: NextRequest): Promise<Response> {
       },
       body: JSON.stringify({ embeds: [embed] }),
     });
-  } catch {
-    return new Response('Could not reach Discord', { status: 502 });
+  } catch (cause) {
+    return apiResponse(
+      feedbackEndpoint,
+      502,
+      dependencyUnavailableFailure(
+        'discord_failed',
+        502,
+        { cause, detail: 'Could not reach Discord' },
+      ),
+    );
   }
 
   if (!discordResponse.ok) {
-    return new Response('Discord rejected the feedback', { status: 502 });
+    return apiResponse(
+      feedbackEndpoint,
+      502,
+      dependencyUnavailableFailure(
+        'discord_failed',
+        502,
+        { detail: 'Discord rejected the feedback' },
+      ),
+    );
   }
 
   void logUsageEvent({
@@ -115,5 +153,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     metadata: { messageLength: message.length, path },
   }).catch((err) => console.error('[feedback] telemetry write failed', err));
 
-  return new Response(null, { status: 204 });
+  return apiResponse(feedbackEndpoint, 204);
 }

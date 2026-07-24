@@ -110,17 +110,20 @@ not-applicable reason.
 
 ## Session memory and the final-session fork (planned)
 
-This section runs in planned mode only. One sub-version uses one lifecycle branch
-and one eventual PR; multiple scoped sessions may contribute verified commits
-before that PR opens. When the session contract's `Delivery unit` declares one
-PR per session, every session instead proceeds through **Pre-PR design-review
-gate** toward its own PR: a non-final such PR publishes no version, leaves the
-release triplet and changelog untouched so its identity stays `reconciled`, must
-work end to end on its own, and its as-built record carries its own PR number;
-after each squash merge the lifecycle branch is recreated from current
-`origin/main`. Ordinary mode has no session-plan status, no next-session
-pointer, and no final-vs-non-final fork — it always proceeds toward a single PR;
-skip to **Pre-PR design-review gate**.
+This section runs in planned mode only. Under the one-sub-version-PR delivery
+unit, one sub-version uses one lifecycle branch and one eventual PR; multiple
+scoped sessions may contribute verified commits before that PR opens. When any
+indexed contract in the sub-version declares one PR per session, that delivery
+unit applies to the whole sub-version and every session instead proceeds through
+**Pre-PR design-review gate** toward its own PR. This preserves earlier frozen
+contracts when an approved operator restructure adds later per-session
+contracts. A non-final such PR publishes no version, leaves the release triplet
+and changelog untouched so its identity stays `reconciled`, must work end to end
+on its own, and its as-built record carries its own PR number; after each squash
+merge the lifecycle branch is recreated from current `origin/main`. Ordinary
+mode has no session-plan status, no next-session pointer, and no
+final-vs-non-final fork — it always proceeds toward a single PR; skip to
+**Pre-PR design-review gate**.
 
 1. Determine from the approved contract index, master-plan row, and session
    plan whether another approved session remains in the sub-version. Record the
@@ -151,8 +154,8 @@ not completed returns `BLOCKED`.
 ## Pre-PR design-review gate
 
 This gate runs before any PR opens: for the final planned session, for every
-session of a contract that declares one PR per session, and for ordinary work —
-each a complete, reviewable change. Non-final sessions under the
+session in a sub-version whose effective delivery unit is one PR per session,
+and for ordinary work — each a complete, reviewable change. Non-final sessions under the
 one-sub-version-PR delivery unit skip it (per the fork above). It owns the
 whole-branch design judgment and does not repeat the session-level
 data-placement, rendering, UI, or public-truth review.
