@@ -578,7 +578,12 @@ reverse edge exists; `circular-dependencies` and `re-export-cycle` flip from
 ownership map and guides state the layer rules. Delivered by the amended
 session contract `3.10.1.2.1` under explicit operator direction (2026-07-23:
 day-one-correct structure outranks refactor size, PR size, and contract
-continuity) as one session with per-family verified commits.
+continuity) as one session with per-family verified commits. After the
+original 522-file PR exceeded both review bots' hard caps, the operator
+approved a narrow delivery exception on 2026-07-23: three sequential PRs at
+the existing identity, composition-socket, and final-tree commit boundaries,
+with Greptile and CodeRabbit fully settled on every part before any response
+or push. Only the third PR publishes the terminal release records.
 
 **In scope.** The relocations (composition band, platform, transport,
 data/online-status as a whole slice, the entry-script home, the composition
