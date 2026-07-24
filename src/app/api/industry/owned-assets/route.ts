@@ -1,13 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { getOwnedAssetDetailOnView } from '@/composition/sync/owned-assets-sync';
 import {
+  ownedAssetsEndpoint,
   ownedAssetsRequestSchema,
-  type OwnedAssetsBadRequest,
 } from '@/features/industry-planner/api-contract';
-import type { OwnedAssetsResponse } from '@/features/industry-planner/types';
 import { getCurrentUserId } from '@/platform/auth/session';
-import { parseJsonBody } from '@/transport/route-body';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/industry/owned-assets
@@ -21,20 +21,12 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  const parsed = await parseJsonBody(request, ownedAssetsRequestSchema, {
-    invalidJson: () =>
-      Response.json({ error: 'invalid_json' } satisfies OwnedAssetsBadRequest, { status: 400 }),
-    invalidBody: (error) =>
-      Response.json(
-        { error: 'invalid_request', issues: error.issues } satisfies OwnedAssetsBadRequest,
-        { status: 400 },
-      ),
-  });
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, ownedAssetsRequestSchema);
+  if (!parsed.ok) return apiResponse(ownedAssetsEndpoint, 400, parsed.failure);
 
   const userId = await getCurrentUserId();
   if (!userId) {
-    return Response.json({ assets: [] } satisfies OwnedAssetsResponse);
+    return apiResponse(ownedAssetsEndpoint, 200, { assets: [] });
   }
 
   const typeIds = Array.from(new Set(parsed.data.typeIds));
@@ -45,5 +37,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     returned: (value) => value.length,
   });
 
-  return Response.json({ assets } satisfies OwnedAssetsResponse);
+  return apiResponse(ownedAssetsEndpoint, 200, { assets });
 }

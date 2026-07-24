@@ -10,16 +10,15 @@
 // only the data.
 import { useCallback, useRef, useState } from 'react';
 import { toast } from '@/components/ui/toast';
-import { apiFetch, type ApiResult } from '@/transport/api-client';
+import { apiFetch } from '@/transport/api-client';
 import {
   deleteSavedPlanEndpoint,
   favoriteSavedPlanEndpoint,
   renameSavedPlanEndpoint,
   savedPlansEndpoint,
   type SavedPlanRow,
-  type SavedPlansResponse,
 } from './api-contract';
-import { echoOutcome } from './saved-plans-view';
+import { echoOutcome, type SavedPlansEchoResult } from './saved-plans-view';
 
 /** Client saved-plan controller state with rows, quota, loading, mutation, and error signals. */
 export interface SavedPlansState {
@@ -31,7 +30,7 @@ export interface SavedPlansState {
   // Shared completion for a mutating call: apply the echoed list on success,
   // otherwise surface the endpoint-specific error copy. Returns success.
   applyEcho: (
-    res: ApiResult<SavedPlansResponse> | null,
+    res: SavedPlansEchoResult | null,
     errorFor: (status: number) => string,
   ) => boolean;
   renameRow: (row: SavedPlanRow, draft: string) => void;
@@ -79,7 +78,7 @@ export function useSavedPlans(): SavedPlansState {
 
   const mutateRow = (
     id: string,
-    call: () => Promise<ApiResult<SavedPlansResponse>>,
+    call: () => Promise<SavedPlansEchoResult>,
     failMsg: string,
   ) => {
     setBusyId(id);

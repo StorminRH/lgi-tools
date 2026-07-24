@@ -2,13 +2,14 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { checkUserId } from '@/platform/auth/route-guards';
 import {
+  favoriteSavedPlanEndpoint,
   favoriteSavedPlanRequestSchema,
-  type SavedPlansResponse,
 } from '@/features/industry-planner/api-contract';
 import {
   listSavedPlans,
   setSavedPlanFavorite,
 } from '@/features/industry-planner/saved-plans-queries';
+import { apiResponse } from '@/transport/api-response';
 import { readJsonBody } from '@/transport/route-body';
 
 /**
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     handle: async ({ userId }, { id, favorite }) => {
       await setSavedPlanFavorite(userId, id, favorite);
       const plans = await listSavedPlans(userId);
-      return Response.json({ plans } satisfies SavedPlansResponse);
+      return apiResponse(favoriteSavedPlanEndpoint, 200, { plans });
     },
   });
 }

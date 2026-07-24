@@ -30,7 +30,7 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (...args: unknown[]) => h.logUsageEventMock(...args),
 }));
 
-import type { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { MAX_SAVED_PLANS_PER_USER } from '@/features/industry-planner/api-contract';
 import { problemBodySchema } from '@/lib/problem';
 import { GET, POST } from './route';
@@ -49,14 +49,14 @@ const planRow = {
 const VALID_BODY = { name: 'Hulk batch', snapshot: { v: 1, blueprintTypeId: 22548 } };
 
 function makeRequest(body: unknown, origin?: string): NextRequest {
-  return new Request('http://localhost:3000/api/account/saved-plans', {
+  return new NextRequest('http://localhost:3000/api/account/saved-plans', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(origin ? { Origin: origin } : {}),
     },
     body: typeof body === 'string' ? body : JSON.stringify(body),
-  }) as unknown as NextRequest;
+  });
 }
 
 beforeEach(() => {
@@ -121,14 +121,20 @@ describe('POST /api/account/saved-plans', () => {
     h.getBlueprintStructureMock.mockResolvedValue(null);
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('unknown blueprint');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'unknown_blueprint',
+      detail: 'unknown blueprint',
+    });
   });
 
   it('returns 409 when the caller is at the save cap', async () => {
     h.countSavedPlansMock.mockResolvedValue(MAX_SAVED_PLANS_PER_USER);
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(409);
-    expect(await res.text()).toBe('template limit reached');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'template_limit',
+      detail: 'template limit reached',
+    });
     expect(h.createSavedPlanMock).not.toHaveBeenCalled();
   });
 
@@ -139,7 +145,10 @@ describe('POST /api/account/saved-plans', () => {
       .mockResolvedValueOnce(MAX_SAVED_PLANS_PER_USER + 1);
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(409);
-    expect(await res.text()).toBe('template limit reached');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'template_limit',
+      detail: 'template limit reached',
+    });
     expect(h.createSavedPlanMock).toHaveBeenCalledTimes(1);
     const insertedId = h.createSavedPlanMock.mock.calls[0]?.[1]?.id;
     expect(h.deleteSavedPlanMock).toHaveBeenCalledWith('user-1', insertedId);

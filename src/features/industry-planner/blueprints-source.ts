@@ -27,7 +27,10 @@ function loadIndex(): Promise<BlueprintIndexEntry[]> {
     // retries rather than caching a rejected promise for the whole session.
     indexPromise = apiFetch(blueprintsEndpoint)
       .then((result) => {
-        if (!result.ok) throw new Error(`blueprint index ${result.status}`);
+        if (!result.ok) {
+          const reason = 'status' in result ? result.status : result.kind;
+          throw new Error(`blueprint index ${reason}`);
+        }
         return result.data.blueprints;
       })
       .catch((err) => {

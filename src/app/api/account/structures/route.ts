@@ -4,12 +4,13 @@ import { listCustomStructures } from '@/features/custom-structures/queries';
 // The available-structures wire shape is owned by the consuming slice (the
 // planner), the same consumer-owns-the-contract pattern as owned-blueprints —
 // so the planner never imports the custom-structures feature directly.
-import type { AvailableStructuresResponse } from '@/features/industry-planner/api-contract';
+import { availableStructuresEndpoint } from '@/features/industry-planner/api-contract';
 import {
   buildAvailableStructures,
   collectDogmaTypeIds,
 } from '@/features/industry-planner/available-structures';
 import { getCurrentUserId } from '@/platform/auth/session';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * GET /api/account/structures. The structures the caller can place a build in:
@@ -24,7 +25,7 @@ import { getCurrentUserId } from '@/platform/auth/session';
 // input: none
 export async function GET(): Promise<Response> {
   const userId = await getCurrentUserId();
-  if (!userId) return Response.json({ structures: [] } satisfies AvailableStructuresResponse);
+  if (!userId) return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
 
   const [custom, corp, structureTypes] = await Promise.all([
     listCustomStructures(userId),
@@ -32,11 +33,11 @@ export async function GET(): Promise<Response> {
     getStructureTypes(),
   ]);
   if (custom.length === 0 && corp.length === 0) {
-    return Response.json({ structures: [] } satisfies AvailableStructuresResponse);
+    return apiResponse(availableStructuresEndpoint, 200, { structures: [] });
   }
 
   // One batched dogma read across every structure + rig type referenced.
   const dogma = await getTypeAttributesBatch(collectDogmaTypeIds(custom, corp));
   const structures = buildAvailableStructures(custom, corp, structureTypes, dogma);
-  return Response.json({ structures } satisfies AvailableStructuresResponse);
+  return apiResponse(availableStructuresEndpoint, 200, { structures });
 }

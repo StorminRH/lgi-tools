@@ -2,12 +2,12 @@ import type { NextRequest } from 'next/server';
 import { getSkillLevelsForCharacterOnView } from '@/composition/sync/skills-sync';
 import { getCurrentUserId } from '@/platform/auth/session';
 import {
+  skillLevelsEndpoint,
   skillLevelsRequestSchema,
-  type SkillLevelsBadRequest,
-  type SkillLevelsResponse,
 } from '@/features/industry-planner/api-contract';
-import { parseJsonBody } from '@/transport/route-body';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
+import { apiResponse } from '@/transport/api-response';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/industry/skill-levels
@@ -23,20 +23,12 @@ import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
  */
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
-  const parsed = await parseJsonBody(request, skillLevelsRequestSchema, {
-    invalidJson: () =>
-      Response.json({ error: 'invalid_json' } satisfies SkillLevelsBadRequest, { status: 400 }),
-    invalidBody: (error) =>
-      Response.json(
-        { error: 'invalid_request', issues: error.issues } satisfies SkillLevelsBadRequest,
-        { status: 400 },
-      ),
-  });
-  if (!parsed.ok) return parsed.response;
+  const parsed = await readJsonBody(request, skillLevelsRequestSchema);
+  if (!parsed.ok) return apiResponse(skillLevelsEndpoint, 400, parsed.failure);
 
   const userId = await getCurrentUserId();
   if (!userId) {
-    return Response.json({ levels: null } satisfies SkillLevelsResponse);
+    return apiResponse(skillLevelsEndpoint, 200, { levels: null });
   }
   const levels = await measureOwnedDataRead({
     endpoint: '/api/industry/skill-levels',
@@ -44,5 +36,5 @@ export async function POST(request: NextRequest): Promise<Response> {
     read: () => getSkillLevelsForCharacterOnView(userId, parsed.data.characterId),
     returned: (value) => (value === null ? 0 : 1),
   });
-  return Response.json({ levels } satisfies SkillLevelsResponse);
+  return apiResponse(skillLevelsEndpoint, 200, { levels });
 }

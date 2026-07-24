@@ -1,5 +1,6 @@
-import type { BlueprintsResponse } from '@/features/industry-planner/api-contract';
+import { blueprintsEndpoint } from '@/features/industry-planner/api-contract';
 import { getBlueprintSearchIndex } from '@/features/industry-planner/queries';
+import { apiResponse } from '@/transport/api-response';
 
 /**
  * GET /api/industry/blueprints
@@ -10,5 +11,5 @@ import { getBlueprintSearchIndex } from '@/features/industry-planner/queries';
 // input: none
 export async function GET(): Promise<Response> {
   const blueprints = await getBlueprintSearchIndex();
-  return Response.json({ blueprints } satisfies BlueprintsResponse);
+  return apiResponse(blueprintsEndpoint, 200, { blueprints });
 }

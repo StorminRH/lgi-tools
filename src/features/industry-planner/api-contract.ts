@@ -1,11 +1,14 @@
 // API wire contract owned by the industry-planner feature (3.4.T).
 import { z } from 'zod';
 import { SECURITY_CLASSES } from '@/data/eve-data/security';
-import type { ApiEndpoint } from '@/transport/api-client';
+import {
+  defineEndpoint,
+  jsonBody,
+  problem,
+} from '@/transport/endpoint';
 import { planSnapshotWireSchema } from './template-snapshot';
 import type {
   AssetHolding,
-  AvailableStructuresResponse,
   BlueprintIndexEntry,
   BuildLocationData,
   IndustryStationView,
@@ -46,12 +49,14 @@ export type BlueprintsResponse = z.infer<typeof blueprintsResponseSchema>;
  * Typed endpoint definition for blueprints endpoint; method, path, request, and response contracts
  * remain coupled here.
  */
-export const blueprintsEndpoint: ApiEndpoint<null, BlueprintsResponse> = {
+export const blueprintsEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/industry/blueprints',
   request: null,
-  response: blueprintsResponseSchema,
-};
+  responses: {
+    200: jsonBody(blueprintsResponseSchema),
+  },
+});
 
 /**
  * ── POST /api/industry/build-location ───────────────────────────────────
@@ -92,24 +97,19 @@ export const buildLocationResponseSchema = z.object({
  */
 export type BuildLocationResponse = z.infer<typeof buildLocationResponseSchema>;
 
-/** 400 arms mirror the refresh endpoint's shape. */
-export type BuildLocationBadRequest =
-  | { error: 'invalid_json' }
-  | { error: 'invalid_request'; issues: unknown[] };
-
 /**
  * Typed endpoint definition for build location endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const buildLocationEndpoint: ApiEndpoint<
-  z.input<typeof buildLocationRequestSchema>,
-  BuildLocationResponse
-> = {
+export const buildLocationEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/industry/build-location',
   request: buildLocationRequestSchema,
-  response: buildLocationResponseSchema,
-};
+  responses: {
+    200: jsonBody(buildLocationResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
 
 /**
  * ── POST /api/industry/owned-blueprints ─────────────────────────────────
@@ -141,24 +141,19 @@ export const ownedBlueprintsResponseSchema = z.object({
   blueprints: z.array(ownedBlueprintMeEntrySchema),
 }) satisfies z.ZodType<OwnedBlueprintsResponse>;
 
-/** 400 arms mirror the build-location endpoint's shape. */
-export type OwnedBlueprintsBadRequest =
-  | { error: 'invalid_json' }
-  | { error: 'invalid_request'; issues: unknown[] };
-
 /**
  * Typed endpoint definition for owned blueprints endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const ownedBlueprintsEndpoint: ApiEndpoint<
-  z.input<typeof ownedBlueprintsRequestSchema>,
-  OwnedBlueprintsResponse
-> = {
+export const ownedBlueprintsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/industry/owned-blueprints',
   request: ownedBlueprintsRequestSchema,
-  response: ownedBlueprintsResponseSchema,
-};
+  responses: {
+    200: jsonBody(ownedBlueprintsResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
 
 /**
  * ── POST /api/industry/owned-assets ─────────────────────────────────────
@@ -194,24 +189,19 @@ export const ownedAssetsResponseSchema = z.object({
   assets: z.array(ownedAssetEntrySchema),
 }) satisfies z.ZodType<OwnedAssetsResponse>;
 
-/** 400 arms mirror the owned-blueprints endpoint's shape. */
-export type OwnedAssetsBadRequest =
-  | { error: 'invalid_json' }
-  | { error: 'invalid_request'; issues: unknown[] };
-
 /**
  * Typed endpoint definition for owned assets endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const ownedAssetsEndpoint: ApiEndpoint<
-  z.input<typeof ownedAssetsRequestSchema>,
-  OwnedAssetsResponse
-> = {
+export const ownedAssetsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/industry/owned-assets',
   request: ownedAssetsRequestSchema,
-  response: ownedAssetsResponseSchema,
-};
+  responses: {
+    200: jsonBody(ownedAssetsResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
 
 /**
  * ── POST /api/industry/skill-levels (authz: auth) ────────────────────────
@@ -242,24 +232,19 @@ export const skillLevelsResponseSchema = z.object({
  */
 export type SkillLevelsResponse = z.infer<typeof skillLevelsResponseSchema>;
 
-/** 400 arms mirror the build-location endpoint's shape. */
-export type SkillLevelsBadRequest =
-  | { error: 'invalid_json' }
-  | { error: 'invalid_request'; issues: unknown[] };
-
 /**
  * Typed endpoint definition for skill levels endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const skillLevelsEndpoint: ApiEndpoint<
-  z.input<typeof skillLevelsRequestSchema>,
-  SkillLevelsResponse
-> = {
+export const skillLevelsEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/industry/skill-levels',
   request: skillLevelsRequestSchema,
-  response: skillLevelsResponseSchema,
-};
+  responses: {
+    200: jsonBody(skillLevelsResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+  },
+});
 
 // ── GET /api/account/structures (authz: auth) ────────────────────────────
 // The structures the signed-in caller can place a build in — their custom
@@ -268,10 +253,8 @@ export const skillLevelsEndpoint: ApiEndpoint<
 // resolved structure + rig dogma so the bonus recomputes client-side, live.
 // Anonymous callers get an empty list.
 //
-// `AttrMap` is number-keyed in TS but serializes with string JSON keys, so the
-// runtime schema validates a string-keyed record; the endpoint's response type is
-// pinned to the number-keyed wire interface (the one place the SDE dogma's
-// number keys meet the wire's string keys).
+// `AttrMap` is number-keyed in the SDE domain but serializes with string JSON
+// keys, so the wire contract is inferred from this string-keyed record.
 const attrMapSchema = z.record(z.string(), z.number());
 
 /**
@@ -300,20 +283,23 @@ export const availableStructuresResponseSchema = z.object({
   structures: z.array(availableStructureSchema),
 });
 
-// Surfaced from the contract module (alongside the schema) so the route imports
-// its response shape from here — the api-contract is the one wire-shape home.
-export type { AvailableStructure, AvailableStructuresResponse } from './types';
+/** One custom or corporation structure available to the planner on the JSON wire. */
+export type AvailableStructure = z.infer<typeof availableStructureSchema>;
+/** Structures eligible for planner selection for the current caller. */
+export type AvailableStructuresResponse = z.infer<typeof availableStructuresResponseSchema>;
 
 /**
  * Typed endpoint definition for available structures endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const availableStructuresEndpoint: ApiEndpoint<null, AvailableStructuresResponse> = {
+export const availableStructuresEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/structures',
   request: null,
-  response: availableStructuresResponseSchema as unknown as z.ZodType<AvailableStructuresResponse>,
-};
+  responses: {
+    200: jsonBody(availableStructuresResponseSchema),
+  },
+});
 
 // ── Saved build templates (3.7.23.1) ──────────────────────────────────────
 // A named, versioned snapshot of the planner's complete configuration (inputs
@@ -371,12 +357,14 @@ export type SavedPlansResponse = z.infer<typeof savedPlansResponseSchema>;
  * ── GET /api/account/saved-plans ──────────────────────────────────────────
  * No request body; the response is savedPlansResponseSchema above.
  */
-export const savedPlansEndpoint: ApiEndpoint<null, SavedPlansResponse> = {
+export const savedPlansEndpoint = defineEndpoint({
   method: 'GET',
   path: '/api/account/saved-plans',
   request: null,
-  response: savedPlansResponseSchema,
-};
+  responses: {
+    200: jsonBody(savedPlansResponseSchema),
+  },
+});
 
 /**
  * ── POST /api/account/saved-plans ─────────────────────────────────────────
@@ -401,15 +389,17 @@ export type CreateSavedPlanRequest = z.input<typeof createSavedPlanRequestSchema
  * Typed endpoint definition for create saved plan endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const createSavedPlanEndpoint: ApiEndpoint<
-  CreateSavedPlanRequest,
-  SavedPlansResponse
-> = {
+export const createSavedPlanEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/saved-plans',
   request: createSavedPlanRequestSchema,
-  response: savedPlansResponseSchema,
-};
+  responses: {
+    201: jsonBody(savedPlansResponseSchema),
+    400: problem('invalid_json', 'invalid_body', 'unknown_blueprint'),
+    401: problem('unauthenticated'),
+    409: problem('template_limit'),
+  },
+});
 
 /** ── POST /api/account/saved-plans/rename ────────────────────────────────── */
 export const renameSavedPlanRequestSchema = z.object({
@@ -425,15 +415,16 @@ export type RenameSavedPlanRequest = z.input<typeof renameSavedPlanRequestSchema
  * Typed endpoint definition for rename saved plan endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const renameSavedPlanEndpoint: ApiEndpoint<
-  RenameSavedPlanRequest,
-  SavedPlansResponse
-> = {
+export const renameSavedPlanEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/saved-plans/rename',
   request: renameSavedPlanRequestSchema,
-  response: savedPlansResponseSchema,
-};
+  responses: {
+    200: jsonBody(savedPlansResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+  },
+});
 
 /** ── POST /api/account/saved-plans/favorite ──────────────────────────────── */
 export const favoriteSavedPlanRequestSchema = z.object({
@@ -449,15 +440,16 @@ export type FavoriteSavedPlanRequest = z.input<typeof favoriteSavedPlanRequestSc
  * Typed endpoint definition for favorite saved plan endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const favoriteSavedPlanEndpoint: ApiEndpoint<
-  FavoriteSavedPlanRequest,
-  SavedPlansResponse
-> = {
+export const favoriteSavedPlanEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/saved-plans/favorite',
   request: favoriteSavedPlanRequestSchema,
-  response: savedPlansResponseSchema,
-};
+  responses: {
+    200: jsonBody(savedPlansResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+  },
+});
 
 /** ── POST /api/account/saved-plans/delete ────────────────────────────────── */
 export const deleteSavedPlanRequestSchema = z.object({
@@ -472,12 +464,13 @@ export type DeleteSavedPlanRequest = z.input<typeof deleteSavedPlanRequestSchema
  * Typed endpoint definition for delete saved plan endpoint; method, path, request, and response
  * contracts remain coupled here.
  */
-export const deleteSavedPlanEndpoint: ApiEndpoint<
-  DeleteSavedPlanRequest,
-  SavedPlansResponse
-> = {
+export const deleteSavedPlanEndpoint = defineEndpoint({
   method: 'POST',
   path: '/api/account/saved-plans/delete',
   request: deleteSavedPlanRequestSchema,
-  response: savedPlansResponseSchema,
-};
+  responses: {
+    200: jsonBody(savedPlansResponseSchema),
+    400: problem('invalid_json', 'invalid_body'),
+    401: problem('unauthenticated'),
+  },
+});

@@ -1,8 +1,11 @@
 import type { Tone } from '@/components/ui/tones';
-import type { SecurityClass } from '@/data/eve-data/security';
 import type { TreeNode } from '@/data/eve-data/tree-resolver';
-import type { AttrMap } from '@/data/eve-data/types';
 import type { DepthBand, PriceSource, RegionalDiscount } from '@/data/market-prices/types';
+
+export type {
+  AvailableStructure,
+  AvailableStructuresResponse,
+} from './api-contract';
 
 /**
  * One searchable blueprint: its own type ID and display name plus the product
@@ -162,51 +165,6 @@ export interface IntermediatePrice {
   sellVolume: number | null;
   source: PriceSource | null;
   staleAfterMs: number | null;
-}
-
-// --- Build-structure selector (3.7.9.1.3) --------------------------------
-
-/**
- * A structure the planner can place a build in — SOURCE-AGNOSTIC so the corp-
- * pulled source (3.7.9.1.5) slots in beside the user's custom ones with no
- * selector/wiring change. There is no per-structure "role": one selected
- * structure bonuses each build node by THAT node's activity, from the structure's
- * own attrs plus whatever rigs fit it. The resolved structure + rig dogma travels
- * on the wire so the bonus recomputes client-side, live, as the build system /
- * per-node activity change. `securityClass` is the structure's own system band for
- * a corp structure; null for a custom one (pinned or not), whose rig bonus instead
- * scales against the security of the planner's selected build LOCATION. `systemId`
- * is the structure's home system — always set for corp, set for a custom structure
- * its owner PINNED in the builder (3.7.13.2) — and makes a pick lock the build
- * location to it (isSystemLocked); null = portable, borrowing whatever system the
- * planner has selected.
- */
-export interface AvailableStructure {
-  id: string;
-  source: 'custom' | 'corp';
-  name: string;
-  structureTypeId: number;
-  // The structure's SDE group id (1404 Engineering Complex, 1406 Refinery, 1657
-  // Citadel). Drives COVERAGE — which activities the structure can HOST, distinct
-  // from the rig/role BONUS: only a Refinery (1406) hosts reactions. Resolved from
-  // the structure type on the wire so the planner can gap-fill a reaction-only slot.
-  groupId: number;
-  systemId: number | null;
-  structureAttrs: AttrMap;
-  rigAttrs: AttrMap[];
-  securityClass: SecurityClass | null;
-  // The owner-set facility tax PERCENT (3.7.13.3): the authored completion for a
-  // corp structure, the builder entry for a custom one. Null = never entered —
-  // the fee path then assumes the 0.25% NPC baseline (labeled as assumed).
-  taxPct: number | null;
-}
-
-/**
- * Public structures eligible for planner selection, paired with the viewer's saved custom and
- * corporation structures when authenticated.
- */
-export interface AvailableStructuresResponse {
-  structures: AvailableStructure[];
 }
 
 // --- Build-location selector + net margin (3.5.2b) -----------------------

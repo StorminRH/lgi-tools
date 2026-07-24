@@ -1,12 +1,15 @@
-import { describe, expectTypeOf, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import {
+  availableStructuresEndpoint,
+  availableStructuresResponseSchema,
   availableStructureSchema,
   blueprintIndexEntrySchema,
   buildLocationResponseSchema,
 } from './api-contract';
 import type {
   AvailableStructure,
+  AvailableStructuresResponse,
   BlueprintIndexEntry,
   BuildLocationData,
 } from './types';
@@ -23,10 +26,6 @@ describe('industry-planner contract', () => {
   });
 
   it('carries a numeric groupId on the available structure (schema ⇄ type)', () => {
-    // Guards the coverage seam: adding groupId to the type but not the schema would
-    // silently strip it at runtime (the whole structure can't be toEqualTypeOf-pinned
-    // because attrMapSchema infers string keys vs AttrMap's number keys — so pin the
-    // one scalar field both ways).
     expectTypeOf<z.infer<typeof availableStructureSchema>['groupId']>().toEqualTypeOf<number>();
     expectTypeOf<AvailableStructure['groupId']>().toEqualTypeOf<number>();
   });
@@ -39,5 +38,27 @@ describe('industry-planner contract', () => {
       number | null
     >();
     expectTypeOf<AvailableStructure['taxPct']>().toEqualTypeOf<number | null>();
+  });
+
+  it('derives the available-structures wire type directly from its schema', () => {
+    expectTypeOf<AvailableStructuresResponse>().toEqualTypeOf<
+      z.infer<typeof availableStructuresResponseSchema>
+    >();
+    expect(availableStructuresEndpoint.responses[200].schema).toBe(
+      availableStructuresResponseSchema,
+    );
+  });
+
+  it('does not treat number-indexed dogma maps as the JSON wire type', () => {
+    type NumericIndexedStructure = Omit<
+      AvailableStructure,
+      'structureAttrs' | 'rigAttrs'
+    > & {
+      structureAttrs: Record<number, number>;
+      rigAttrs: Record<number, number>[];
+    };
+    expectTypeOf<{ structures: NumericIndexedStructure[] }>().not.toEqualTypeOf<
+      AvailableStructuresResponse
+    >();
   });
 });
