@@ -8,7 +8,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
 import { getCorpStructuresPageData } from '@/db/corp-structures-sync';
 import { getStructureRigs, getStructureTypes } from '@/data/eve-data/queries';
-import { auth } from '@/features/auth/auth';
+import { auth } from '@/platform/auth/auth';
 import { CustomStructureBuilder } from '@/features/custom-structures/components/CustomStructureBuilder';
 import { listCustomStructures } from '@/features/custom-structures/queries';
 import { CorpStructureSection } from '@/features/owned-structures/components/CorpStructureSection';

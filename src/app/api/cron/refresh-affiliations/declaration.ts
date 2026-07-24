@@ -1,9 +1,9 @@
-import type { CronRefreshAffiliationsResponse } from '@/features/auth/api-contract';
+import type { CronRefreshAffiliationsResponse } from '@/platform/auth/api-contract';
 import {
   ADVISORY_LOCK_AFFILIATION_REFRESH,
   refreshAffiliations,
-} from '@/features/auth/affiliation';
-import { listStaleLinkedCharacterIds } from '@/features/auth/affiliation-store';
+} from '@/platform/auth/affiliation';
+import { listStaleLinkedCharacterIds } from '@/platform/auth/affiliation-store';
 import type { CronRouteDeclaration } from '@/db/cron-gate';
 
 /**

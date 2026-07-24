@@ -281,7 +281,7 @@ describe('excerpt line + permalink helpers', () => {
   it('parseStartLine returns the first integer, else 1', () => {
     expect(parseStartLine('43-48')).toBe(43);
     expect(parseStartLine('8-14,48-62')).toBe(8);
-    expect(parseStartLine('src/features/auth/queries.ts:750-759')).toBe(750);
+    expect(parseStartLine('src/platform/auth/queries.ts:750-759')).toBe(750);
     expect(parseStartLine('convex/corpIndustryJobs.ts:238')).toBe(238);
     expect(parseStartLine('')).toBe(1);
     expect(parseStartLine('no digits here')).toBe(1);

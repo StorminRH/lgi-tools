@@ -13,8 +13,8 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import type { PanelCharacter } from '@/components/live-character-card';
 import { SectionLabel } from '@/components/ui/section-label';
-import { accountCharactersEndpoint } from '@/features/auth/api-contract';
-import { LinkCharacterButton } from '@/features/auth/components/LinkCharacterButton';
+import { accountCharactersEndpoint } from '@/platform/auth/api-contract';
+import { LinkCharacterButton } from '@/platform/auth/components/LinkCharacterButton';
 import { RosterCard } from '@/features/skill-queue/components/RosterCard';
 import { buildRosterCard, type RosterViewModel } from '@/features/skill-queue/roster-view-model';
 import { useSkillsLive } from '@/features/skill-queue/use-skills-live';

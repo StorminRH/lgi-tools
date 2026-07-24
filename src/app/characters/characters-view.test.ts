@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { EVE_SCOPES } from '@/features/auth/eve-sso';
-import type { LinkedCharacter } from '@/features/auth/linked-characters';
+import { EVE_SCOPES } from '@/platform/auth/eve-sso-constants';
+import type { LinkedCharacter } from '@/platform/auth/linked-characters';
 import { deriveAbsorbedCharacter, deriveCharacterRowView } from './characters-view';
 
 const character = (over: Partial<LinkedCharacter> = {}): LinkedCharacter => ({

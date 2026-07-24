@@ -11,12 +11,12 @@ const reservedTag = Object.assign(
 );
 const reserveMock = vi.fn((..._args: unknown[]) => Promise.resolve(reservedTag));
 
-vi.mock('@/features/auth/affiliation', () => ({
+vi.mock('@/platform/auth/affiliation', () => ({
   ADVISORY_LOCK_AFFILIATION_REFRESH: 31,
   refreshAffiliations: (...args: unknown[]) => refreshAffiliationsMock(...args),
 }));
 
-vi.mock('@/features/auth/affiliation-store', () => ({
+vi.mock('@/platform/auth/affiliation-store', () => ({
   listStaleLinkedCharacterIds: (...args: unknown[]) =>
     listStaleLinkedCharacterIdsMock(...args),
 }));

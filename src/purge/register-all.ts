@@ -9,7 +9,7 @@
 // imports are path-grouped); the orchestrator sorts by tier regardless.
 import { customStructuresPurgeContributor } from '@/features/custom-structures/purge';
 import { savedPlansPurgeContributor } from '@/features/industry-planner/purge';
-import { authPurgeContributor } from '@/features/auth/purge';
+import { authPurgeContributor } from '@/platform/auth/purge';
 import { industryJobsPurgeContributor } from '@/features/industry-jobs/purge';
 import { ownedAssetsPurgeContributor } from '@/features/owned-assets/purge';
 import { ownedBlueprintsPurgeContributor } from '@/features/owned-blueprints/purge';

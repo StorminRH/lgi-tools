@@ -11,7 +11,7 @@ import {
   upsertCorpStructureRigs,
 } from '@/features/owned-structures/queries';
 import { validateCorpStructureRigs } from '@/features/owned-structures/rig-validation';
-import { requireUserId } from '@/features/auth/route-guards';
+import { requireUserId } from '@/platform/auth/route-guards';
 import { stationManagerGate } from '@/db/corp-structures-sync';
 import { parseJsonBody } from '@/lib/route-body';
 

@@ -1,16 +1,16 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { adminUnlinkFormSchema } from '@/features/auth/api-contract';
-import { requireAdmin } from '@/features/auth/route-guards';
+import { adminUnlinkFormSchema } from '@/platform/auth/api-contract';
+import { requireAdmin } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/lib/route-body';
 import {
   accountBelongsToUser,
   getStoredActiveCharacterId,
   listLinkedCharacters,
   repointActiveToOldest,
-} from '@/features/auth/linked-characters';
-import { deleteLinkedCharacter } from '@/features/auth/admin-users';
+} from '@/platform/auth/linked-characters';
+import { deleteLinkedCharacter } from '@/platform/auth/admin-users';
 
 function redirectTo(request: NextRequest, userId: string, error?: string): Response {
   const url = new URL(`/admin/access/${userId}`, request.url);

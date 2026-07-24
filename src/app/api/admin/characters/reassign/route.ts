@@ -1,11 +1,11 @@
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { adminReassignFormSchema } from '@/features/auth/api-contract';
-import { reconcileAfterCharacterRemoval } from '@/features/auth/account-purge';
-import { accountBelongsToUser } from '@/features/auth/linked-characters';
-import { reassignCharacter } from '@/features/auth/admin-users';
-import { requireAdmin } from '@/features/auth/route-guards';
-import { requireSameOrigin } from '@/features/auth/same-origin';
+import { adminReassignFormSchema } from '@/platform/auth/api-contract';
+import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
+import { accountBelongsToUser } from '@/platform/auth/linked-characters';
+import { reassignCharacter } from '@/platform/auth/admin-users';
+import { requireAdmin } from '@/platform/auth/route-guards';
+import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { parseFormBody } from '@/lib/route-body';
 
 /**

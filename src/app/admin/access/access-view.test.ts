@@ -6,7 +6,7 @@ import {
   formatDateTime,
   mergeAdminRows,
 } from './access-view';
-import type { AdminUser } from '@/features/auth/admin-users';
+import type { AdminUser } from '@/platform/auth/admin-users';
 
 function admin(overrides: Partial<AdminUser>): AdminUser {
   return {

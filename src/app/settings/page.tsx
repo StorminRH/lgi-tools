@@ -8,7 +8,7 @@ import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { SectionHeader } from '@/components/ui/section-header';
 import { getCorpStructuresPageData } from '@/db/corp-structures-sync';
-import { auth } from '@/features/auth/auth';
+import { auth } from '@/platform/auth/auth';
 import {
   CorpSharingSettings,
   type SharingCorpView,

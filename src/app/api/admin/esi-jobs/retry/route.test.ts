@@ -13,7 +13,7 @@ const requeueMock = vi.fn();
 const logUsageEventMock = vi.fn();
 const sameOriginMock = vi.fn();
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
@@ -25,7 +25,7 @@ vi.mock('@/data/telemetry/queries', () => ({
   logUsageEvent: (input: unknown) => logUsageEventMock(input),
 }));
 
-vi.mock('@/features/auth/same-origin', () => ({
+vi.mock('@/platform/auth/same-origin', () => ({
   requireSameOrigin: (request: NextRequest) => sameOriginMock(request),
 }));
 

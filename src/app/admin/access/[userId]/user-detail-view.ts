@@ -1,5 +1,5 @@
 import type { ChipTone } from '@/components/ui/tones';
-import type { AdminUser } from '@/features/auth/admin-users';
+import type { AdminUser } from '@/platform/auth/admin-users';
 
 /**
  * Display-ready user detail state for App Router; consumers can render it without reconstructing

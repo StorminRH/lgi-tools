@@ -1,9 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { adminRevokeSessionsFormSchema } from '@/features/auth/api-contract';
-import { getUserById, revokeUserSessions } from '@/features/auth/admin-users';
-import { requireAdmin } from '@/features/auth/route-guards';
+import { adminRevokeSessionsFormSchema } from '@/platform/auth/api-contract';
+import { getUserById, revokeUserSessions } from '@/platform/auth/admin-users';
+import { requireAdmin } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/lib/route-body';
 
 /**

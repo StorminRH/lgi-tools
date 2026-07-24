@@ -7,7 +7,7 @@ export * from '../data/eve-data/schema';
 export * from '../data/market-prices/schema';
 export * from '../data/market-history/schema';
 export * from '../data/industry-indices/schema';
-export * from '../features/auth/schema';
+export * from './auth-schema';
 export * from '../features/owned-blueprints/schema';
 export * from '../features/owned-assets/schema';
 export * from '../features/owned-structures/schema';

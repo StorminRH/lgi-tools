@@ -18,11 +18,11 @@ const getSessionMock = vi.fn();
 const revokeUserSessionsMock = vi.fn();
 const rateLimitGuardMock = vi.fn();
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/admin-users', () => ({
+vi.mock('@/platform/auth/admin-users', () => ({
   revokeUserSessions: (u: string) => revokeUserSessionsMock(u),
 }));
 

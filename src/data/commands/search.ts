@@ -11,10 +11,10 @@
 //
 // This is a data slice, so it can't import the auth feature's client — it talks
 // to Better Auth's REST endpoints through the typed contracts on auth's shared
-// surface (features/auth/api-contract.ts), whose shapes are pinned by the
+// surface (platform/auth/api-contract.ts), whose shapes are pinned by the
 // better-auth version in package.json.
 
-import { signInOauth2Endpoint, signOutEndpoint } from '@/features/auth/api-contract';
+import { signInOauth2Endpoint, signOutEndpoint } from '@/platform/auth/api-contract';
 import { apiFetch } from '@/lib/api-client';
 import type { AppRouterInstance, SearchContext, SearchSource } from '@/search';
 import { rankFuzzyResults } from '@/search/rank';

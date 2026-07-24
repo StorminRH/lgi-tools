@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { PageHead } from '@/components/ui/page-head';
 import { PageShell } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getSession, isAdmin } from '@/features/auth/session';
+import { getSession, isAdmin } from '@/platform/auth/session';
 import { PrimitivesDemo } from './PrimitivesDemo';
 
 /** Static search and social metadata for the /preview/primitives route. */

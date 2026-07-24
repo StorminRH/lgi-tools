@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { getSession } from '@/features/auth/session';
-import { requireSameOrigin } from '@/features/auth/same-origin';
+import { getSession } from '@/platform/auth/session';
+import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { APP_VERSION } from '@/config/app-version';
 import { OUTBOUND_USER_AGENT } from '@/config/user-agent';
 import {

@@ -50,7 +50,7 @@ import '@/search/register-all';
 import { listRegisteredSources, searchAll, type SearchContext, type SearchResult, type SearchSection } from '@/search';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
-import type { Session } from '@/features/auth/types';
+import type { Session } from '@/platform/auth/types';
 
 const SITES_FIXTURE: SiteSearchEntry[] = [
   { id: 101, name: 'Perimeter Ambush Point', siteType: 'combat', wormholeClass: 'C1', blueLootIsk: 12_000_000, resourceValueIsk: null },

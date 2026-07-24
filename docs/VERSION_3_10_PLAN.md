@@ -154,7 +154,7 @@ and no separate elective campaign is scheduled.
 | 3.10.0.4 | Complete the agent workflow and lifecycle consolidation | 1 | SHIPPED |
 | **Phase 1 — Close the structural loopholes** | | | |
 | 3.10.1.1 | Full boundary coverage: every source area a named zone (§3.10.1.1) | 1 | SHIPPED |
-| 3.10.1.2 | Boundary hardening: shared→composition split, blocking cycles, `server-only` rails (§3.10.1.2 + §3.10.1.3) | 1 | PLANNED |
+| 3.10.1.2 | Day-one responsibility-layer restructure: composition band, platform/transport layers, zero-exception boundaries, blocking cycles, `server-only` rails (§3.10.1.2 + §3.10.1.3) | 1 | PLANNED |
 | **Phase 2 — Production flow contracts** | | | |
 | 3.10.2.1 | Typed error contract & RFC 9457 problem mapper (§3.10.2.1) | 1 | PLANNED |
 | 3.10.2.2 | Mutation pipeline: declared order & same-origin enforcement (LGI-03) (§3.10.2.2) | 1 | PLANNED |
@@ -542,38 +542,80 @@ notes; a seeded cross-zone import fails `pnpm fallow`; standard close-out.
 
 ---
 
-### 3.10.1.2 — Shared→composition split; cycles become blocking
+### 3.10.1.2 — Day-one responsibility-layer restructure; cycles become blocking
 
-**Objective.** Leaf shared code and cross-feature composition become two
-one-way zones, removing the sanctioned `shared`↔`features` cycle; with the
-graph clean, dependency cycles become CI failures rather than warnings.
+**Objective.** The source tree takes the shape it would have had with
+boundaries from day one — composition above the slices, domain features,
+platform capabilities and transport below them, foundations and
+vendors-as-rule at the bottom — with zero carried-forward cross-layer
+exceptions; with the relocated graph clean, dependency cycles become CI
+failures rather than warnings.
 
-**Done means.** The current `shared` zone splits: files importing
-`@/features`/`@/data` (20 of 34 today — app shell, home dashboard, global
-search, telemetry reporter) classify as `composition`, importable only by
-`app`; remaining leaf files keep a `shared` zone restricted to `ui`/`lib`;
-features may import leaf shared, never composition; no reverse edge exists;
-`circular-dependencies` and `re-export-cycle` flip from `warn` to `error`
-after a confirmed-clean run; guides state the two-zone rule.
+**Done means.** Cross-slice composition lives only in a composition band
+above the domain slices: `src/composition` owns the server side (the three
+registry aggregators, the purge orchestrator, the database sync workers with
+their shared port and dispatcher, the account-lifecycle orchestration, and
+the table-growth registry) and `src/components/composition` owns the
+app-shell UI (shell and dashboard modules, the PageMenu chain, and auth's
+account components grouped under `account/`), both importable only from the
+app band. `src/platform/<name>` owns structural capabilities as
+peer-isolated child zones: `auth` (hoisted from `src/features/auth` minus
+its UI, retiring the separate auth-surface zone), `esi` (from
+`src/lib/esi`), and the registry socket contracts features implement
+(`search`, `purge`, `page-settings` — contract types and pure utilities
+only). A new `src/transport` home owns shared request plumbing (typed
+client, body parsing, cron shell), with the API route handlers forming a
+transport-owned zone and per-slice `api-contract.ts` files staying in their
+slices. The whole online-status slice dissolves into `src/data`, deleting
+the recorded Convex exception; the tsx entry scripts move to an entry-point
+home so the database layer never imports upward; eve-sso splits its
+client-safe constants from its server functions along existing export seams.
+The former shared components zone resolves into the composition home and a
+reusable leaf zone covering `.ts` and `.tsx`. One-way layer rules with
+downward skips are enforced with zero recorded cross-layer exceptions; no
+reverse edge exists; `circular-dependencies` and `re-export-cycle` flip from
+`warn` to `error` after a confirmed-clean run on the relocated map; the
+ownership map and guides state the layer rules. Delivered by the amended
+session contract `3.10.1.2.1` under explicit operator direction (2026-07-23:
+day-one-correct structure outranks refactor size, PR size, and contract
+continuity) as one session with per-family verified commits. After the
+original 522-file PR exceeded both review bots' hard caps, the operator
+approved a narrow delivery exception on 2026-07-23: three sequential PRs at
+the existing identity, composition-socket, and final-tree commit boundaries,
+with Greptile and CodeRabbit fully settled on every part before any response
+or push. Only the third PR publishes the terminal release records.
 
-**In scope.** Zone reclassification, any file moves the session plan judges
-cheaper than pattern-listing, the two rule flips, guide updates.
+**In scope.** The relocations (composition band, platform, transport,
+data/online-status as a whole slice, the entry-script home, the composition
+and leaf component split), the eve-sso client/server split, zone-map
+rewiring to zero exceptions, the two rule flips, ownership-map and guide
+updates, the baseline-row and watch-trigger remap, and in-session safety
+drills (local Convex bundle push, the tsx CLI matrix, an operator-authorized
+cloned Neon branch migration drill, optional operator-authorized manual
+preview deployments with both databases, removed after use).
 
-**Out of scope.** Redesigning any shared component; new directory ceremony
-beyond what classification requires.
+**Out of scope.** Any runtime behavior change or component redesign beyond
+the named file splits; renaming `src/features` or its surviving slices;
+Phase 2 transport spine content.
 
 **Dependencies.** 3.10.1.1.
 
-**Decisions the session plan must resolve.** Physical move
-(`src/components` → split dirs) vs. pattern-based zone membership;
-disposition of any file that is genuinely both (split it or classify by
-dominant role).
+**Decisions the session plan must resolve.** Exact membership for both
+composition homes and the leaf zone; exact platform child sets and the
+per-registry socket-contract splits; the eve-sso split boundary; the
+entry-script home layout; the transport member set; correct placement for
+the search contract's type references; commit sequencing and per-commit
+proofs; drill triggers and authorization points.
 
-**Baseline & hotspot note.** Improves (removes a structural loophole;
-possible small file-count churn, no LOC growth).
+**Baseline & hotspot note.** Improves (removes the structural loophole,
+every misfiled ownership seam, and every recorded cross-layer exception;
+large file-path churn, no LOC growth beyond the split modules' headers).
 
-**Delivery evidence.** A seeded feature→composition import fails
-`pnpm fallow`; cycle rules at `error` with a green run; standard close-out.
+**Delivery evidence.** Full-coverage boundary run on the relocated tree with
+seeded upward, peer, and feature→composition violations failing
+`pnpm fallow` and a boundary configuration containing no upward or peer
+allow; cycle rules at `error` with a green run; the Convex bundle and tsx
+CLI proofs; standard close-out.
 
 ---
 
@@ -587,26 +629,33 @@ possible small file-count churn, no LOC growth).
 privileged auth, vendor adapters — mechanically cannot enter the client
 graph.
 
-**Done means.** The `server-only` package is a dependency; entry points of
-`src/db`, `src/lib/env.ts`, server auth configuration, the ESI dispatch
-gate, and vendor adapter roots import it; an ESLint restricted-import rule
-blocks client files from those roots; a test enumerates the approved
-server-only roots and fails when a new server root lacks the marker or a
-client file reaches one; the existing typed-env rail is unchanged.
+**Done means.** The `server-only` package is a dependency; every compatible
+server root imports it — roots whose module graphs are shared with the
+Convex isolate bundle or the tsx database CLI entry points (which run under
+plain Node, including on Vercel before the production build) instead carry a
+recorded exemption, because the marker throws in any non-Next server
+runtime; an ESLint restricted-import rule running inside `pnpm verify`/lint
+is the primary gate blocking client files from every root, marked or
+exempt; a discovery-based test enumerates the approved server-only roots and
+fails when a root lacks its marker or recorded exemption or when a client
+file can reach one through the import graph; the existing typed-env rail is
+unchanged.
 
-**In scope.** Marker imports, the lint rule, the enumeration test, guide
-updates.
+**In scope.** Marker imports, the lint rule, the enumeration test with its
+client-reach graph walk, the vitest resolution stub the marker requires,
+guide updates.
 
 **Out of scope.** Changing what is currently server vs. client; converting
-components between runtimes; Convex isolate modules (they have no client
-graph — record the exemption).
+components between runtimes; Convex isolate modules and the Convex-bundled
+ESI-gate chain (record the exemptions).
 
-**Dependencies.** 3.10.1.1 (zone map names the server roots).
+**Dependencies.** 3.10.1.1 (zone map names the server roots); the 3.10.1.2
+relocations (roots live at their platform-layer homes).
 
-**Decisions the session plan must resolve.** The authoritative root list;
-whether the enumeration test discovers roots from the zone map or a
-declared registry (prefer discovery, matching the 3.9 endpoint-gate
-pattern).
+**Decisions the session plan must resolve.** The authoritative root list and
+the per-root marker-versus-exemption split; the enumeration test's discovery
+mechanics (marker scan, vendor-SDK import scan, client-reach walk), matching
+the 3.9 endpoint-gate pattern.
 
 **Baseline & hotspot note.** Neutral.
 

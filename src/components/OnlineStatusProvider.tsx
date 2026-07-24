@@ -19,7 +19,7 @@ import { createContext, type ReactNode, useContext, useMemo } from 'react';
 import { api } from '@/data/convex/api';
 import { convexClient } from '@/data/convex/client';
 import { useSyncSubject } from '@/data/convex/use-sync-subject';
-import { useAuth } from '@/features/auth/components/AuthProvider';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 
 // characterId → online (true/false). Absent = unknown (no live doc / not ours).
 const OnlineStatusContext = createContext<ReadonlyMap<number, boolean>>(new Map());

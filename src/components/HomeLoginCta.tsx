@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { authClient } from '@/features/auth/auth-client';
+import { authClient } from '@/platform/auth/auth-client';
 
 /**
  * The anonymous hero's primary call to action. Kicks off the same EVE SSO

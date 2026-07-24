@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next/server', () => ({ after: mocks.after }));
 
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: mocks.listLinkedCharacters,
 }));
 

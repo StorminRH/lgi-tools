@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { getCurrentUserId } from '@/features/auth/session';
-import { requireUserId } from '@/features/auth/route-guards';
+import { getCurrentUserId } from '@/platform/auth/session';
+import { requireUserId } from '@/platform/auth/route-guards';
 import {
   createSavedPlanRequestSchema,
   MAX_SAVED_PLANS_PER_USER,

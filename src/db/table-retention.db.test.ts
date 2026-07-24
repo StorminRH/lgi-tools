@@ -9,10 +9,10 @@ import { gscSearchAnalytics, gscUrlInspection } from '@/data/gsc/schema';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
-} from '@/features/auth/constants';
-import { pruneCorpAccessAudit } from '@/features/auth/affiliation-store';
-import { pruneExpiredVerifications } from '@/features/auth/verification-retention';
-import { corpAccessAudit, verification } from '@/features/auth/schema';
+} from '@/platform/auth/constants';
+import { pruneCorpAccessAudit } from '@/platform/auth/affiliation-store';
+import { pruneExpiredVerifications } from '@/platform/auth/verification-retention';
+import { corpAccessAudit, verification } from '@/db/auth-schema';
 import { createDbTestHarness } from './test-support/db-test-harness';
 
 const harness = await createDbTestHarness({

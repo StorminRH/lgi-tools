@@ -19,18 +19,18 @@ const getStoredActiveCharacterIdMock = vi.fn();
 const repointActiveToOldestMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
   listLinkedCharacters: (u: string) => listLinkedCharactersMock(u),
   getStoredActiveCharacterId: (u: string) => getStoredActiveCharacterIdMock(u),
   repointActiveToOldest: (u: string) => repointActiveToOldestMock(u),
 }));
 
-vi.mock('@/features/auth/admin-users', () => ({
+vi.mock('@/platform/auth/admin-users', () => ({
   deleteLinkedCharacter: (u: string, c: number) => deleteLinkedCharacterMock(u, c),
 }));
 

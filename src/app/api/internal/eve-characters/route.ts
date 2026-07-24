@@ -8,13 +8,13 @@
 // authz: service
 // rate-limit: exempt — bearer-secret service auth, not an IP-keyed public surface.
 import { after } from 'next/server';
-import { refreshAffiliations } from '@/features/auth/affiliation';
+import { refreshAffiliations } from '@/platform/auth/affiliation';
 import {
   eveCharactersRequestSchema,
   type EveCharactersResponse,
-} from '@/features/auth/api-contract';
-import { listLinkedCharacters } from '@/features/auth/linked-characters';
-import { deriveCharacterHealth } from '@/features/auth/scope-health';
+} from '@/platform/auth/api-contract';
+import { listLinkedCharacters } from '@/platform/auth/linked-characters';
+import { deriveCharacterHealth } from '@/platform/auth/scope-health';
 import { freshnessGate } from '@/lib/esi-datasets/freshness';
 import { parseJsonBody } from '@/lib/route-body';
 import { requireServiceAuth } from '@/lib/service-auth';

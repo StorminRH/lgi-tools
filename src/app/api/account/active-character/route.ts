@@ -1,9 +1,9 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
-import { switchCharacterFormSchema } from '@/features/auth/api-contract';
-import { accountBelongsToUser, setActiveCharacter } from '@/features/auth/linked-characters';
-import { requireSession } from '@/features/auth/route-guards';
+import { switchCharacterFormSchema } from '@/platform/auth/api-contract';
+import { accountBelongsToUser, setActiveCharacter } from '@/platform/auth/linked-characters';
+import { requireSession } from '@/platform/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseFormBody } from '@/lib/route-body';
 

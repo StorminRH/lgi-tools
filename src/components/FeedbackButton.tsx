@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FeedbackModal } from '@/features/feedback/components/FeedbackModal';
-import { useAuth } from '@/features/auth/components/AuthProvider';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 
 /**
  * Floating feedback affordance. Fixed to the bottom-right corner so it's

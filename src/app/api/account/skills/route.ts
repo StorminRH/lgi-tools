@@ -1,5 +1,5 @@
 import { getSkillsForUserOnView } from '@/db/skills-sync';
-import { getCurrentUserId } from '@/features/auth/session';
+import { getCurrentUserId } from '@/platform/auth/session';
 import type { SkillsResponse } from '@/features/skill-queue/api-contract';
 import { measureOwnedDataRead } from '@/app/api/owned-data-telemetry';
 

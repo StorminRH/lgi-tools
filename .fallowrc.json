@@ -75,15 +75,16 @@
   "boundaries": {
     "zones": [
       {
-        "// note": "First-match-wins: auth-surface is listed BEFORE the features autoDiscover zone so these 3 files classify here, not into features/auth. Verified via `fallow list --boundaries` (auth-surface=3 files, classified ahead of the larger features/auth zone). Fallow is the sole mechanical boundary owner; docs/architecture-boundaries.md carries the single prose map.",
+        "// note": "Interim first-match rule retained until the final layer-map tightening retires auth-surface.",
         "name": "auth-surface",
         "patterns": [
-          "src/features/auth/types.ts",
-          "src/features/auth/schema.ts",
-          "src/features/auth/api-contract.ts"
+          "src/platform/auth/types.ts",
+          "src/platform/auth/api-contract.ts"
         ]
       },
       { "name": "ui", "patterns": ["src/components/ui/**"] },
+      { "name": "platform/auth", "patterns": ["src/platform/auth/**"] },
+      { "name": "composition", "patterns": ["src/composition/**"] },
       { "name": "features", "autoDiscover": ["src/features"] },
       { "name": "data", "autoDiscover": ["src/data"] },
       { "name": "lib", "patterns": ["src/lib/**"] },
@@ -102,9 +103,9 @@
       { "name": "runtime", "patterns": ["src/proxy*.ts", "src/instrumentation*.ts"] }
     ],
     "rules": [
-      { "from": "auth-surface", "allow": ["auth-surface", "lib"] },
+      { "from": "auth-surface", "allow": ["auth-surface", "lib", "config"] },
       {
-        "from": "features",
+        "from": "platform/auth",
         "allow": [
           "ui",
           "data",
@@ -118,7 +119,30 @@
           "page-settings"
         ]
       },
-      { "from": "data", "allow": ["lib", "auth-surface", "db", "config", "search", "purge"] },
+      {
+        "from": "composition",
+        "allow": ["platform/auth", "auth-surface", "data", "db", "purge", "lib", "config"]
+      },
+      {
+        "from": "features",
+        "allow": [
+          "ui",
+          "data",
+          "lib",
+          "shared",
+          "auth-surface",
+          "db",
+          "config",
+          "purge",
+          "search",
+          "page-settings",
+          "platform/auth"
+        ]
+      },
+      {
+        "from": "data",
+        "allow": ["lib", "auth-surface", "db", "config", "search", "purge", "platform/auth"]
+      },
       {
         "from": "data/npc-stats",
         "allow": [
@@ -128,7 +152,8 @@
           "db",
           "config",
           "search",
-          "purge"
+          "purge",
+          "platform/auth"
         ]
       },
       { "from": "lib", "allow": ["lib", "config"] },
@@ -143,7 +168,9 @@
           "auth-surface",
           "config",
           "page-settings",
-          "search"
+          "search",
+          "platform/auth",
+          "composition"
         ]
       },
       {
@@ -157,7 +184,9 @@
           "config",
           "page-settings",
           "auth-surface",
-          "lib"
+          "lib",
+          "platform/auth",
+          "composition"
         ]
       },
       {
@@ -169,14 +198,22 @@
           "auth-surface",
           "purge",
           "esi-datasets",
-          "lib"
+          "lib",
+          "platform/auth",
+          "composition"
         ]
       },
       { "from": "config", "allow": ["lib"] },
-      { "from": "purge", "allow": ["data", "features", "db", "lib"] },
-      { "from": "search", "allow": ["data", "features", "auth-surface", "lib"] },
-      { "from": "page-settings", "allow": ["features", "lib"] },
-      { "from": "esi-datasets", "allow": ["data", "db", "features", "lib"] },
+      { "from": "purge", "allow": ["data", "features", "db", "lib", "platform/auth"] },
+      {
+        "from": "search",
+        "allow": ["data", "features", "auth-surface", "lib", "platform/auth"]
+      },
+      { "from": "page-settings", "allow": ["features", "lib", "platform/auth"] },
+      {
+        "from": "esi-datasets",
+        "allow": ["data", "db", "features", "lib", "platform/auth", "composition"]
+      },
       {
         "from": "convex",
         "allow": ["data", "auth-surface", "lib", "features/online-status"],

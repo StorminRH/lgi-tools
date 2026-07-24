@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
   getStructureRigsMock: vi.fn(),
 }));
 
-vi.mock('@/features/auth/route-guards', () => ({
+vi.mock('@/platform/auth/route-guards', () => ({
   requireUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
 vi.mock('@/db/corp-structures-sync', () => ({

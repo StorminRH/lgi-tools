@@ -23,7 +23,7 @@ import { searchAll, type SearchResult, type SearchSection } from '@/search';
 import { setSiteSearchIndex } from '@/features/wormhole-sites/search';
 import type { SiteSearchEntry } from '@/features/wormhole-sites/queries';
 import { readRecents, pushRecent } from '@/features/search-recents/storage';
-import { useAuth } from '@/features/auth/components/AuthProvider';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 import { cn } from '@/components/ui/cn';
 import { TypeIcon } from '@/components/type-icon';
 import * as Combobox from '@/components/ui/combobox';

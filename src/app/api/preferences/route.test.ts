@@ -6,10 +6,10 @@ const h = vi.hoisted(() => ({
   upsertPreferenceMock: vi.fn(),
 }));
 
-vi.mock('@/features/auth/route-guards', () => ({
+vi.mock('@/platform/auth/route-guards', () => ({
   requireUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
-vi.mock('@/features/auth/session', () => ({
+vi.mock('@/platform/auth/session', () => ({
   getCurrentUserId: vi.fn(),
 }));
 vi.mock('@/data/preferences/queries', () => ({

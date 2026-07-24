@@ -9,7 +9,7 @@ import { USAGE_LOG_RETENTION_DAYS } from '@/data/telemetry/constants';
 import {
   CORP_ACCESS_AUDIT_RETENTION_DAYS,
   VERIFICATION_RETENTION_DAYS,
-} from '@/features/auth/constants';
+} from '@/platform/auth/constants';
 import * as schema from './schema';
 
 interface ManagedTableName {

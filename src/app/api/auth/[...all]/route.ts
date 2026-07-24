@@ -1,7 +1,8 @@
 import { toNextJsHandler } from 'better-auth/next-js';
-import { runWithAbsorbTracking } from '@/features/auth/absorb-context';
-import { decorateAbsorbRedirect } from '@/features/auth/absorb-redirect';
-import { auth } from '@/features/auth/auth';
+import '@/composition/account-lifecycle/register-owner-reconciler';
+import { runWithAbsorbTracking } from '@/platform/auth/absorb-context';
+import { decorateAbsorbRedirect } from '@/platform/auth/absorb-redirect';
+import { auth } from '@/platform/auth/auth';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
 // Better Auth's catch-all: login (EVE OAuth start + callback), sign-out, and

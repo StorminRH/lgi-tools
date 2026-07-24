@@ -1,5 +1,5 @@
 import { defineCronRoute } from '@/db/cron-gate';
-import type { CronRefreshAffiliationsResponse } from '@/features/auth/api-contract';
+import type { CronRefreshAffiliationsResponse } from '@/platform/auth/api-contract';
 import { refreshAffiliationsDeclaration } from './declaration';
 
 /**

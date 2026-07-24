@@ -10,7 +10,7 @@ import { PageShell } from '@/components/ui/page-shell';
 import { SegmentedControl } from '@/components/ui/segmented';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatIsoDay } from '@/lib/format/time';
-import { getSession, isAdmin } from '@/features/auth/session';
+import { getSession, isAdmin } from '@/platform/auth/session';
 import { MetricsSection } from './MetricsSection';
 import { OpsSection } from './OpsSection';
 import { parseRange, RANGES, rangeFor, type RangeKey } from './period';

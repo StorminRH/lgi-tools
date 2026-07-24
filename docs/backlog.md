@@ -453,6 +453,26 @@ is reprioritized.
   with its own review. *Size:* XS. *Trigger:* the next codegraph-hook or
   agent-tooling pass, or if non-source-read nudges become noisy in practice.
 
+## Identity and ESI robustness
+
+- **Verify the absorb-on-proof reassignment won its compare-and-swap.** *What:*
+  have the conditional character reassignment return whether it moved the row;
+  when a concurrent source-user change makes the update match zero rows, stop
+  before cleanup, telemetry, and the success result, with a race characterization
+  test. *Why deferred:* surfaced while reviewing the move-only identity-layer
+  split, but it changes the established absorb state machine rather than its
+  ownership or imports. *Size:* S. *Trigger:* the next identity-lifecycle
+  hardening slice, or before increasing link-flow concurrency.
+
+- **Harden the affiliation-response boundary.** *What:* require positive integer
+  character, corporation, alliance, and faction identifiers, and treat a
+  truncated or non-JSON successful response as a skippable failed batch so later
+  affiliation batches still run. *Why deferred:* both behaviors pre-date the
+  identity relocation and changing accepted upstream payloads and fallback
+  semantics is outside its behavior-preserving contract. *Size:* S. *Trigger:*
+  the next affiliation or ESI-resilience change, or an observed malformed
+  affiliation response.
+
 ## Security (deep-research report, 2026-07-19)
 
 > From the external Security Deep-Research Report (snapshot `141e914`, findings

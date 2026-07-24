@@ -1,5 +1,5 @@
-import type { LinkedCharacter } from '@/features/auth/linked-characters';
-import { deriveCharacterHealth, type GrantedScope, listGrantedScopes } from '@/features/auth/scope-health';
+import type { LinkedCharacter } from '@/platform/auth/linked-characters';
+import { deriveCharacterHealth, type GrantedScope, listGrantedScopes } from '@/platform/auth/scope-health';
 
 // Pure decision logic for the /characters surface, kept out of the JSX shells so
 // it can be tested directly. No DB, no network — everything derives from the

@@ -24,7 +24,7 @@ import {
 } from 'react';
 import { getPreferencesEndpoint, putPreferenceEndpoint } from '@/data/preferences/api-contract';
 import { processPreferencesResponse } from '@/data/preferences/parse-server-preferences';
-import { authClient } from '@/features/auth/auth-client';
+import { authClient } from '@/platform/auth/auth-client';
 import { apiFetch } from '@/lib/api-client';
 import {
   PREFERENCES,

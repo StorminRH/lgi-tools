@@ -5,8 +5,8 @@ import {
   type GetPreferencesResponse,
 } from '@/data/preferences/api-contract';
 import { getPreferencesForUser, upsertPreference } from '@/data/preferences/queries';
-import { getCurrentUserId } from '@/features/auth/session';
-import { requireUserId } from '@/features/auth/route-guards';
+import { getCurrentUserId } from '@/platform/auth/session';
+import { requireUserId } from '@/platform/auth/route-guards';
 import { validatePreferenceValue } from '@/lib/preferences';
 import { parseJsonBody } from '@/lib/route-body';
 

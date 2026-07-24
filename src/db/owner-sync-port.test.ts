@@ -3,15 +3,15 @@ import { EsiBudgetExhaustedError, EsiServerError } from '@/lib/esi';
 
 const readEsiAuthedMock = vi.hoisted(() => vi.fn());
 
-vi.mock('@/features/auth/eve-token-service', () => ({
+vi.mock('@/platform/auth/eve-token-service', () => ({
   getFreshAccessTokenForCharacter: vi.fn(),
 }));
 
-vi.mock('@/features/auth/affiliation-store', () => ({
+vi.mock('@/platform/auth/affiliation-store', () => ({
   getUserAffiliations: vi.fn(),
 }));
 
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   listLinkedCharacters: vi.fn(),
 }));
 

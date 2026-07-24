@@ -20,7 +20,7 @@ import {
   MenuRadioItemIndicator,
   MenuSeparator,
 } from '@/components/ui/menu';
-import { useAuth } from '@/features/auth/components/AuthProvider';
+import { useAuth } from '@/platform/auth/components/AuthProvider';
 import {
   buildRadioValue,
   parseRadioSelection,

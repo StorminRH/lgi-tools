@@ -20,15 +20,15 @@ const accountBelongsToUserMock = vi.fn();
 const purgeOwnCharacterMock = vi.fn();
 const logUsageEventMock = vi.fn();
 
-vi.mock('@/features/auth/auth', () => ({
+vi.mock('@/platform/auth/auth', () => ({
   auth: { api: { getSession: () => getSessionMock() } },
 }));
 
-vi.mock('@/features/auth/linked-characters', () => ({
+vi.mock('@/platform/auth/linked-characters', () => ({
   accountBelongsToUser: (u: string, c: number) => accountBelongsToUserMock(u, c),
 }));
 
-vi.mock('@/features/auth/account-purge', () => ({
+vi.mock('@/composition/account-lifecycle/account-purge', () => ({
   purgeOwnCharacter: (u: string, c: number) => purgeOwnCharacterMock(u, c),
 }));
 

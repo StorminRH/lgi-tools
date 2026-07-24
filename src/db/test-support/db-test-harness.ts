@@ -2,7 +2,7 @@ import { drizzle as drizzlePg, type PostgresJsDatabase } from 'drizzle-orm/postg
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, vi } from 'vitest';
 import { db as requestDb } from '@/db';
-import { account, characters, user } from '@/features/auth/schema';
+import { account, characters, user } from '@/db/auth-schema';
 import { readEnv } from '@/lib/env';
 
 // Real-Postgres test support is deliberately unzoned under `src/db/**`, so
