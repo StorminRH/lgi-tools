@@ -555,6 +555,7 @@ def as_built_schema_violations(
     contract: Path,
     plan: Path,
     root: Path,
+    final_session: str | None = None,
 ) -> list[str]:
     """Return structural and marker violations for a session as-built record."""
     schema = root / AS_BUILT_SCHEMA_RELPATH
@@ -593,7 +594,19 @@ def as_built_schema_violations(
     if marker(path, "Branch") != lifecycle_branch(subversion):
         violations.append(f"Branch must be {lifecycle_branch(subversion)!r}")
     pr_marker = marker(path, "PR") or ""
-    if not re.fullmatch(r"#\d+|Deferred to \d+(?:\.\d+)+", pr_marker):
+    per_session = marker(contract, "Delivery unit") == DELIVERY_UNITS[0]
+    is_final = final_session is None or path.stem == final_session
+    if re.fullmatch(r"#\d+", pr_marker):
+        if not (per_session or is_final):
+            violations.append(
+                "PR must defer to the final session under the one-sub-version-PR delivery unit"
+            )
+    elif re.fullmatch(r"Deferred to \d+(?:\.\d+)+", pr_marker):
+        if per_session or is_final:
+            violations.append("PR must be '#<number>' on a session that ships its own PR")
+        elif final_session is not None and pr_marker != f"Deferred to {final_session}":
+            violations.append(f"PR must be 'Deferred to {final_session}'")
+    else:
         violations.append("PR must be '#<number>' or 'Deferred to <final session id>'")
     if re.search(r"\b(?:TBD|TODO|FIXME)\b|\bX\.Y\.N\b", text, re.IGNORECASE):
         violations.append("as-built contains a placeholder token")
@@ -612,10 +625,12 @@ def missing_as_built(
     final session whose roadmap row turned terminal in the same close-out still
     has its record enforced.
     """
-    for session, (subversion, contract) in sorted(
+    ordered = sorted(
         contracts.items(),
         key=lambda item: tuple(int(part) for part in item[0].split(".")),
-    ):
+    )
+    final_by_subversion = {subversion: session for session, (subversion, _) in ordered}
+    for session, (subversion, contract) in ordered:
         if not as_built_binds(subversion):
             continue
         plan = docs / "session-plans" / version / f"{session}.md"
@@ -632,7 +647,13 @@ def missing_as_built(
             }
         if not contract.is_file():
             continue
-        violations = as_built_schema_violations(as_built, contract, plan, root)
+        violations = as_built_schema_violations(
+            as_built,
+            contract,
+            plan,
+            root,
+            final_session=final_by_subversion[subversion],
+        )
         if violations:
             return {
                 "subversion": subversion,
@@ -1151,15 +1172,20 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
         violations = "; ".join(str(item) for item in state.get("asBuiltViolations", []))
         detail = f": {violations}" if violations else ""
         return WorkflowDirective(
-            action=f"Author the as-built record for completed session {session}{detail}",
+            action=f"Restore a valid as-built record for completed session {session}{detail}",
             handler=None,
             mode="report",
             authority=(
                 "Limited to authoring the named session's as-built record to the "
                 "canonical schema on the lifecycle branch."
             ),
+            pause=(
+                "A valid as-built record is required before the lifecycle advances. "
+                "A digest mismatch means a frozen prompt changed after the record "
+                "sealed it: investigate and restore the prompt bytes rather than "
+                "re-stamping the record."
+            ),
             primary_artifact=str(state["asBuilt"]),
-            pause="A valid as-built record is required before the lifecycle advances.",
             branch=lifecycle_branch(str(state["subversion"])),
         )
     if stage == "audit-plan-needed":

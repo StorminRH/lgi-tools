@@ -220,8 +220,8 @@ when consumed, in-session operator direction supersedes its text, and it is
 never edited after its stage completes. The session as-built record
 (`docs/workflows/schema/session-as-built.md`) is the record of what a session
 actually delivered; close-out authors it at session close, the resolver
-requires a valid record for every completed session, and it archives with the
-version bundle. Planning reads live code first, then prior as-built records,
+requires a valid record for every completed session from the record's binding
+floor forward, and it archives with the version bundle. Planning reads live code first, then prior as-built records,
 then the prompt chain.
 
 - Branch previews are manual and on demand. They do not authorize production
