@@ -755,7 +755,9 @@ class DevelopmentStateTests(unittest.TestCase):
             "delivery unit": (
                 "**Delivery unit:** One agent session, one shared sub-version branch, one sub-version PR\n",
                 "**Delivery unit:** One branch\n",
-                "Delivery unit must be One agent session, one shared sub-version branch, one sub-version PR",
+                "Delivery unit must be one of: One agent session, one shared "
+                "sub-version branch, one PR per session | One agent session, "
+                "one shared sub-version branch, one sub-version PR",
             ),
             "roadmap coverage": (
                 "**Roadmap coverage:** §9.9.1.1 fixture outcome\n",
@@ -993,6 +995,18 @@ class DevelopmentStateTests(unittest.TestCase):
         violations = state["asBuiltViolations"]
         assert isinstance(violations, list)
         self.assertTrue(any(item.startswith("Plan digest must be") for item in violations))
+
+    def test_delivery_unit_accepts_per_session_prs(self) -> None:
+        self.fixture.write_roadmap("PLANNED")
+        contract = self.fixture.write_contract()
+        text = contract.read_text(encoding="utf-8").replace(
+            "one sub-version PR", "one PR per session"
+        )
+        contract.write_text(text, encoding="utf-8")
+        self.fixture.write_session_plan(contract)
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("session-ready", state["stage"])
 
     def test_as_built_binding_floor(self) -> None:
         self.assertFalse(as_built_binds("3.10.1.2"))

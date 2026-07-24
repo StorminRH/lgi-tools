@@ -39,10 +39,9 @@ The marker values are closed vocabularies:
   set the plan's final `Execution status`, so the digests seal the prompts'
   terminal bytes and any later edit to either prompt is mechanically visible.
 - `Branch` is the sub-version's deterministic lifecycle branch.
-- `PR` is `#<number>` on the sub-version's final session, written after the
-  sub-version PR exists, or `Deferred to <final session id>` on every earlier
-  session. The PR number plus Delivered outcome make the record a complete
-  devlog reference without git-history archaeology.
+- `PR` is `#<number>` — the session's own PR, written once that PR exists.
+  The PR number plus Delivered outcome make the record a complete devlog
+  reference without git-history archaeology.
 - `Record standard` is exactly `docs/workflows/schema/session-as-built.md`.
 
 The record lives at `docs/session-as-built/X.Y/<session>.md`. Every record
