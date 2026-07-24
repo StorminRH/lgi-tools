@@ -120,11 +120,12 @@ LIFECYCLE_BRANCH_PREFIX = "lifecycle/"
 def lifecycle_branch(subversion: str) -> str:
     """Return the deterministic lifecycle branch for a planned sub-version.
 
-    One stable branch name serves a sub-version, e.g. ``lifecycle/3.10.0.4``;
-    each session ships through its own PR from it and the branch is recreated
-    from current origin/main after each squash merge. The name is a pure
-    function of the sub-version with no runtime prefix or slug, so any session
-    resolves the same branch and a fresh clone can rediscover in-flight work.
+    One stable branch carries a sub-version's planning and every session until
+    its final PR merges, e.g. ``lifecycle/3.10.0.4``; under a per-session
+    delivery unit it is recreated from origin/main after each intermediate
+    squash merge. The name is a pure function of the sub-version with no
+    runtime prefix or slug, so any session resolves the same branch and a
+    fresh clone can rediscover in-flight work.
     """
     return f"{LIFECYCLE_BRANCH_PREFIX}{subversion}"
 
@@ -592,8 +593,8 @@ def as_built_schema_violations(
     if marker(path, "Branch") != lifecycle_branch(subversion):
         violations.append(f"Branch must be {lifecycle_branch(subversion)!r}")
     pr_marker = marker(path, "PR") or ""
-    if not re.fullmatch(r"#\d+", pr_marker):
-        violations.append("PR must be '#<number>'")
+    if not re.fullmatch(r"#\d+|Deferred to \d+(?:\.\d+)+", pr_marker):
+        violations.append("PR must be '#<number>' or 'Deferred to <final session id>'")
     if re.search(r"\b(?:TBD|TODO|FIXME)\b|\bX\.Y\.N\b", text, re.IGNORECASE):
         violations.append("as-built contains a placeholder token")
     return violations

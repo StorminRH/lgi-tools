@@ -205,13 +205,15 @@ branch and PR. Two tracks feed the delivery pipeline:
   close-out's only durable lifecycle record.
 - **Planned lifecycle work** begins only through `start-session`, which owns the
   deterministic `lifecycle/<sub-version>` branch and resolver dispatch. Use one
-  such branch name per sub-version; each approved session ships through its own
-  PR from that branch, and the branch is recreated from current `origin/main`
-  after each squash merge. Version features as `X.Y.N`; use `X.Y.N.M` for
-  ordered session slices. Non-final session PRs publish no version records; the
-  final session's PR publishes the planned version, bumps `APP_VERSION`, and
-  absorbs the pending fragments present at its cutoff into the new changelog
-  entry.
+  such branch per sub-version; it carries the sub-version's planning and every
+  session until the single sub-version PR merges, and multiple approved sessions
+  may commit to it before that PR opens. Version features as `X.Y.N`; use
+  `X.Y.N.M` for ordered session slices. The final session's PR publishes the
+  planned version, bumps `APP_VERSION`, and absorbs the pending fragments present
+  at its cutoff into the new changelog entry. A contract whose `Delivery unit`
+  declares one PR per session instead ships each of its sessions through its own
+  PR from that branch, recreated from `origin/main` after each squash merge;
+  its non-final session PRs publish no version records.
 Master plans, session contracts, and session plans are frozen prompts: each is
 the starting input for its stage, its claims are verified against live code
 when consumed, in-session operator direction supersedes its text, and it is
