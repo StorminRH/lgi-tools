@@ -60,41 +60,71 @@ const ROUTE_FILES = findRouteFiles(API_DIR).filter(
 );
 const label = (file: string) => relative(REPO_ROOT, file);
 
+function schemaImportSpecifiers(statement: ts.Statement): readonly ts.ImportSpecifier[] {
+  if (
+    !ts.isImportDeclaration(statement) ||
+    !ts.isStringLiteral(statement.moduleSpecifier) ||
+    statement.moduleSpecifier.text !== ROUTE_BODY_MODULE
+  ) {
+    return [];
+  }
+  const bindings = statement.importClause?.namedBindings;
+  return bindings && ts.isNamedImports(bindings) ? bindings.elements : [];
+}
+
+function importedHelperSymbol(
+  specifier: ts.ImportSpecifier,
+  checker: ts.TypeChecker,
+): ts.Symbol | undefined {
+  const importedName = specifier.propertyName?.text ?? specifier.name.text;
+  return SCHEMA_HELPERS.has(importedName)
+    ? checker.getSymbolAtLocation(specifier.name)
+    : undefined;
+}
+
+function isImportedHelperCall(
+  node: ts.Node,
+  checker: ts.TypeChecker,
+  importedHelperSymbols: ReadonlySet<ts.Symbol>,
+): boolean {
+  if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression)) return false;
+  const callSymbol = checker.getSymbolAtLocation(node.expression);
+  return callSymbol !== undefined && importedHelperSymbols.has(callSymbol);
+}
+
 function hasSchemaConsumption(source: string): boolean {
+  const fileName = 'route.ts';
   const sourceFile = ts.createSourceFile(
-    'route.ts',
+    fileName,
     source,
     ts.ScriptTarget.Latest,
     true,
     ts.ScriptKind.TS,
   );
-  const localHelpers = new Set<string>();
+  const compilerOptions = {
+    noLib: true,
+    noResolve: true,
+    target: ts.ScriptTarget.Latest,
+  } satisfies ts.CompilerOptions;
+  const host = ts.createCompilerHost(compilerOptions, true);
+  host.fileExists = (candidate) => candidate === fileName;
+  host.readFile = (candidate) => (candidate === fileName ? source : undefined);
+  host.getSourceFile = (candidate) => (candidate === fileName ? sourceFile : undefined);
+  const checker = ts
+    .createProgram([fileName], compilerOptions, host)
+    .getTypeChecker();
+  const importedHelperSymbols = new Set<ts.Symbol>();
 
   for (const statement of sourceFile.statements) {
-    if (
-      !ts.isImportDeclaration(statement) ||
-      !ts.isStringLiteral(statement.moduleSpecifier) ||
-      statement.moduleSpecifier.text !== ROUTE_BODY_MODULE
-    ) {
-      continue;
-    }
-    const bindings = statement.importClause?.namedBindings;
-    if (!bindings || !ts.isNamedImports(bindings)) continue;
-    for (const specifier of bindings.elements) {
-      const importedName = specifier.propertyName?.text ?? specifier.name.text;
-      if (SCHEMA_HELPERS.has(importedName)) {
-        localHelpers.add(specifier.name.text);
-      }
+    for (const specifier of schemaImportSpecifiers(statement)) {
+      const symbol = importedHelperSymbol(specifier, checker);
+      if (symbol) importedHelperSymbols.add(symbol);
     }
   }
 
   let consumed = false;
   function visit(node: ts.Node): void {
-    if (
-      ts.isCallExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      localHelpers.has(node.expression.text)
-    ) {
+    if (isImportedHelperCall(node, checker, importedHelperSymbols)) {
       consumed = true;
       return;
     }
@@ -233,6 +263,16 @@ import { readJsonBody as readBody } from '@/transport/route-body';
 await readBody(request, requestSchema);
 ${pinnedResponse}`;
     expect(hasSchemaConsumption(source)).toBe(true);
+  });
+
+  it('rejects a call to a nested binding that shadows an imported helper', () => {
+    const source = `${contractImport}
+${routeBodyImport}
+function handle(readJsonBody: () => void) {
+  readJsonBody();
+}
+${pinnedResponse}`;
+    expect(hasSchemaConsumption(source)).toBe(false);
   });
 });
 
