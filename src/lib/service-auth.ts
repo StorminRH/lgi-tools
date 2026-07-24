@@ -13,6 +13,12 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { connection } from 'next/server';
 import { readEnv } from '@/lib/env';
+import {
+  type AppFailure,
+  unauthenticatedFailure,
+  unexpectedFailure,
+} from '@/lib/failure';
+import { problemResponse } from '@/lib/problem';
 
 /**
  * Constant-time bearer check. Comparing SHA-256 digests (always 32 bytes) keeps
@@ -25,27 +31,42 @@ export function bearerMatches(authorization: string | null, secret: string): boo
   return timingSafeEqual(provided, expected);
 }
 
+/** Checks one bearer secret without constructing an HTTP response. */
+export async function checkBearerSecret(
+  req: Request,
+  envVar: 'CRON_SECRET' | 'CONVEX_SERVICE_SECRET',
+): Promise<{ ok: true } | { ok: false; failure: AppFailure }> {
+  await connection();
+  const secret = readEnv(envVar);
+  if (!secret) {
+    return {
+      ok: false,
+      failure: unexpectedFailure(
+        'not_configured',
+        undefined,
+        `${envVar} not configured`,
+      ),
+    };
+  }
+  if (!bearerMatches(req.headers.get('authorization'), secret)) {
+    return { ok: false, failure: unauthenticatedFailure() };
+  }
+  return { ok: true };
+}
+
 /**
  * Shared bearer-secret entry guard. Defers to request time (so Cache Components
  * doesn't try to prerender the route), then accepts only a caller presenting
- * `Authorization: Bearer ${secret}`. Returns an error Response to short-circuit
- * the handler — 500 if the secret is unset, 401 for a bad/absent bearer — or
- * null to proceed. One implementation means the check can't drift between the
- * cron and service route families.
+ * `Authorization: Bearer ${secret}`. Returns a mapped problem response to
+ * short-circuit the handler — 500 if the secret is unset, 401 for a bad or
+ * absent bearer — or null to proceed.
  */
 export async function requireBearerSecret(
   req: Request,
   envVar: 'CRON_SECRET' | 'CONVEX_SERVICE_SECRET',
 ): Promise<Response | null> {
-  await connection();
-  const secret = readEnv(envVar);
-  if (!secret) {
-    return new Response(`${envVar} not configured`, { status: 500 });
-  }
-  if (!bearerMatches(req.headers.get('authorization'), secret)) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-  return null;
+  const result = await checkBearerSecret(req, envVar);
+  return result.ok ? null : problemResponse(result.failure);
 }
 
 /**

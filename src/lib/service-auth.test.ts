@@ -1,8 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { problemBodySchema } from '@/lib/problem';
 
 vi.mock('next/server', () => ({ connection: vi.fn().mockResolvedValue(undefined) }));
 
-import { bearerMatches, requireBearerSecret, requireServiceAuth } from './service-auth';
+import {
+  bearerMatches,
+  checkBearerSecret,
+  requireBearerSecret,
+  requireServiceAuth,
+} from './service-auth';
 
 const SECRET = 'shared-secret';
 
@@ -32,17 +38,24 @@ describe('bearerMatches', () => {
 });
 
 describe('requireBearerSecret', () => {
-  it('returns a 500 naming the env var when the secret is unset', async () => {
+  it('returns a 500 problem naming the env var when the secret is unset', async () => {
     vi.stubEnv('CRON_SECRET', '');
     const res = await requireBearerSecret(makeRequest(`Bearer ${SECRET}`), 'CRON_SECRET');
     expect(res?.status).toBe(500);
-    expect(await res?.text()).toBe('CRON_SECRET not configured');
+    expect(problemBodySchema.parse(await res?.json())).toMatchObject({
+      status: 500,
+      code: 'not_configured',
+      detail: 'CRON_SECRET not configured',
+    });
   });
 
-  it('returns 401 Unauthorized for a missing bearer', async () => {
+  it('returns a 401 problem for a missing bearer', async () => {
     const res = await requireBearerSecret(makeRequest(), 'CRON_SECRET');
     expect(res?.status).toBe(401);
-    expect(await res?.text()).toBe('Unauthorized');
+    expect(problemBodySchema.parse(await res?.json())).toMatchObject({
+      status: 401,
+      code: 'unauthenticated',
+    });
   });
 
   it('returns 401 for a wrong bearer', async () => {
@@ -53,6 +66,32 @@ describe('requireBearerSecret', () => {
   it('returns null (proceed) for the right bearer', async () => {
     const res = await requireBearerSecret(makeRequest(`Bearer ${SECRET}`), 'CRON_SECRET');
     expect(res).toBeNull();
+  });
+});
+
+describe('checkBearerSecret', () => {
+  it('returns typed failures and preserves successful admission', async () => {
+    vi.stubEnv('CRON_SECRET', '');
+    await expect(
+      checkBearerSecret(makeRequest(`Bearer ${SECRET}`), 'CRON_SECRET'),
+    ).resolves.toEqual({
+      ok: false,
+      failure: {
+        category: 'unexpected',
+        code: 'not_configured',
+        cause: undefined,
+        detail: 'CRON_SECRET not configured',
+      },
+    });
+
+    vi.stubEnv('CRON_SECRET', SECRET);
+    await expect(checkBearerSecret(makeRequest(), 'CRON_SECRET')).resolves.toEqual({
+      ok: false,
+      failure: { category: 'unauthenticated', code: 'unauthenticated' },
+    });
+    await expect(
+      checkBearerSecret(makeRequest(`Bearer ${SECRET}`), 'CRON_SECRET'),
+    ).resolves.toEqual({ ok: true });
   });
 });
 
@@ -69,6 +108,10 @@ describe('requireServiceAuth', () => {
     vi.stubEnv('CONVEX_SERVICE_SECRET', '');
     const res = await requireServiceAuth(makeRequest('Bearer anything'));
     expect(res?.status).toBe(500);
-    expect(await res?.text()).toBe('CONVEX_SERVICE_SECRET not configured');
+    expect(problemBodySchema.parse(await res?.json())).toMatchObject({
+      status: 500,
+      code: 'not_configured',
+      detail: 'CONVEX_SERVICE_SECRET not configured',
+    });
   });
 });
