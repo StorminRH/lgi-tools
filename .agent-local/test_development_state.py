@@ -14,6 +14,7 @@ import unittest
 
 from resolve_development_state import (
     RELEASE_CONSISTENCY_GATE,
+    as_built_binds,
     lifecycle_branch,
     required_contract_sections,
     resolve,
@@ -47,6 +48,14 @@ PLAN_TITLES = (
     "Implementation blueprint",
     "Success criteria (agent-runnable — show the output)",
     "End of session",
+)
+AS_BUILT_TITLES = (
+    "Delivered outcome",
+    "Divergences from plan",
+    "Final surfaces",
+    "Discovered work",
+    "Successor notes",
+    "Verification summary",
 )
 PLAN_SUBTITLES = (
     "Scope coverage",
@@ -128,6 +137,14 @@ class ResolverFixture:
             "\n\n".join(plan_parts) + "\n",
             encoding="utf-8",
         )
+        (directory / "session-as-built.md").write_text(
+            "# As-built schema\n\n"
+            + "\n\n".join(
+                f"## {title}\n\nFixture guidance." for title in AS_BUILT_TITLES
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
     def write_audit(self, status: str, finding_status: str | None = None, *, digest: str | None = None) -> None:
         procedure = self.docs / "workflows/version-audit.md"
@@ -199,6 +216,50 @@ class ResolverFixture:
             encoding="utf-8",
         )
         return contract
+
+    def write_as_built(
+        self,
+        contract: Path,
+        *,
+        pr: str = "#1",
+        session: str = "9.9.1.1.1",
+        empty_section: str | None = None,
+    ) -> Path:
+        directory = self.docs / "session-as-built/9.9"
+        directory.mkdir(parents=True, exist_ok=True)
+        plan = self.docs / "session-plans/9.9" / f"{session}.md"
+        contract_digest = hashlib.sha256(contract.read_bytes()).hexdigest()
+        plan_digest = hashlib.sha256(plan.read_bytes()).hexdigest()
+        sections = {
+            "Delivered outcome": "Fixture delivered.",
+            "Divergences from plan": "None.",
+            "Final surfaces": "None.",
+            "Discovered work": "None.",
+            "Successor notes": "None.",
+            "Verification summary": "- SC-1: fixture evidence.",
+        }
+        if empty_section:
+            sections[empty_section] = ""
+        subversion = ".".join(session.split(".")[:-1])
+        path = directory / f"{session}.md"
+        path.write_text(
+            f"# Session {session} As-Built — Fixture\n\n"
+            "**Record status:** Final\n"
+            "**Recorded:** 2026-07-24\n"
+            f"**Contract:** `docs/session-contracts/9.9/{session}.md`\n"
+            f"**Contract digest:** `sha256:{contract_digest}`\n"
+            f"**Plan:** `docs/session-plans/9.9/{session}.md`\n"
+            f"**Plan digest:** `sha256:{plan_digest}`\n"
+            f"**Branch:** `lifecycle/{subversion}`\n"
+            f"**PR:** `{pr}`\n"
+            "**Record standard:** `docs/workflows/schema/session-as-built.md`\n\n"
+            + "\n\n".join(
+                f"## {title}\n\n{body}" for title, body in sections.items()
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return path
 
     def write_session_plan(
         self,
@@ -847,9 +908,11 @@ class DevelopmentStateTests(unittest.TestCase):
             "| 9.9.1.2 | Next work | 1 | PLANNED |\n",
             encoding="utf-8",
         )
-        # 9.9.1.1's contract/plan exist and are complete; the resolver advances past them.
+        # 9.9.1.1's contract/plan exist and are complete with a valid as-built;
+        # the resolver advances past them.
         contract = self.fixture.write_contract()
         self.fixture.write_session_plan(contract, execution_status="Complete")
+        self.fixture.write_as_built(contract)
         state, errors = resolve(self.fixture.root)
         self.assertEqual([], errors)
         self.assertEqual("contracts-needed", state["stage"])
@@ -857,6 +920,86 @@ class DevelopmentStateTests(unittest.TestCase):
         directive = state["directive"]
         assert isinstance(directive, dict)
         self.assertEqual("lifecycle/9.9.1.2", directive["branch"])
+
+    def test_completed_session_without_as_built_blocks(self) -> None:
+        (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
+            "# Version 9.9\n\n## Status\n\n"
+            "| Sub-version | Theme | Sessions | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 9.9.1.1 | Shipped work | 1 | SHIPPED |\n"
+            "| 9.9.1.2 | Next work | 1 | PLANNED |\n",
+            encoding="utf-8",
+        )
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("as-built-needed", state["stage"])
+        self.assertEqual("9.9.1.1.1", state["session"])
+        self.assertEqual("docs/session-as-built/9.9/9.9.1.1.1.md", state["asBuilt"])
+        directive = state["directive"]
+        assert isinstance(directive, dict)
+        self.assertIsNone(directive["handler"])
+        self.assertEqual("lifecycle/9.9.1.1", directive["branch"])
+
+    def test_malformed_as_built_reports_violations(self) -> None:
+        (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
+            "# Version 9.9\n\n## Status\n\n"
+            "| Sub-version | Theme | Sessions | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 9.9.1.1 | Shipped work | 1 | SHIPPED |\n"
+            "| 9.9.1.2 | Next work | 1 | PLANNED |\n",
+            encoding="utf-8",
+        )
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+        self.fixture.write_as_built(
+            contract,
+            pr="Pending",
+            empty_section="Successor notes",
+        )
+
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("as-built-needed", state["stage"])
+        violations = state["asBuiltViolations"]
+        assert isinstance(violations, list)
+        self.assertTrue(any("Successor notes" in item for item in violations))
+        self.assertTrue(any(item.startswith("PR must be") for item in violations))
+
+    def test_stale_plan_digest_invalidates_as_built(self) -> None:
+        # Editing a frozen prompt after its as-built sealed it must surface.
+        (self.fixture.docs / "VERSION_9_9_PLAN.md").write_text(
+            "# Version 9.9\n\n## Status\n\n"
+            "| Sub-version | Theme | Sessions | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| 9.9.1.1 | Shipped work | 1 | SHIPPED |\n"
+            "| 9.9.1.2 | Next work | 1 | PLANNED |\n",
+            encoding="utf-8",
+        )
+        contract = self.fixture.write_contract()
+        self.fixture.write_session_plan(contract, execution_status="Complete")
+        self.fixture.write_as_built(contract)
+        plan = self.fixture.docs / "session-plans/9.9/9.9.1.1.1.md"
+        plan.write_text(
+            plan.read_text(encoding="utf-8") + "\nedited after seal\n",
+            encoding="utf-8",
+        )
+
+        state, errors = resolve(self.fixture.root)
+        self.assertEqual([], errors)
+        self.assertEqual("as-built-needed", state["stage"])
+        violations = state["asBuiltViolations"]
+        assert isinstance(violations, list)
+        self.assertTrue(any(item.startswith("Plan digest must be") for item in violations))
+
+    def test_as_built_binding_floor(self) -> None:
+        self.assertFalse(as_built_binds("3.10.1.2"))
+        self.assertFalse(as_built_binds("3.10.0.2"))
+        self.assertTrue(as_built_binds("3.10.2.1"))
+        self.assertTrue(as_built_binds("3.11.0.1"))
+        self.assertTrue(as_built_binds("9.9.1.1"))
 
     def test_pre_3_9_artifacts_are_exempt_from_binding_markers(self) -> None:
         (self.fixture.docs / "VERSION_9_9_PLAN.md").unlink()

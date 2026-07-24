@@ -122,10 +122,12 @@ skip to **Pre-PR design-review gate**.
 2. If more sessions remain, skip the pre-PR design review and continue at
    **Finalize and verify the current head**. After that section's commit-and-push
    evidence exists, change the approved plan's `Execution status` from `Pending`
-   to `Complete`, point the durable handoff (`docs/SCRATCHPAD.md`) at the next
-   session, and make the required lifecycle commit and push to the lifecycle
-   branch. A lifecycle-only status commit does not rerun application tests. Stop
-   without opening a PR (`SESSION_HANDOFF`).
+   to `Complete`, author the session's as-built record per
+   `docs/workflows/schema/session-as-built.md` (its `PR` marker defers to the
+   sub-version's final session), point the durable handoff
+   (`docs/SCRATCHPAD.md`) at the next session, and make the required lifecycle
+   commit and push to the lifecycle branch. A lifecycle-only status commit does
+   not rerun application tests. Stop without opening a PR (`SESSION_HANDOFF`).
 3. If this is the final session, the sub-version's whole state ships inside its
    one PR. Continue only when the sub-version works end to end, depends on
    nothing unmerged, and is reviewable as one cohesive change. The final session
@@ -261,7 +263,10 @@ the lifecycle-memory disposition.
    by a canonical review-only workflow. Describe the coherent project outcome,
    not a file list, using these headings in order: `## What this does`, `## Why`,
    `## Notes`, and `## Test plan`. Record the existing verification as past-tense
-   evidence.
+   evidence. **(planned, final session)** With the PR number known, author the
+   final session's as-built record per
+   `docs/workflows/schema/session-as-built.md` carrying that number, commit,
+   and push it before the first review round begins.
 3. Privacy-scrub the title and body. Exclude personal names, email addresses,
    account handles, machine names, local paths, browser-profile details, and
    private identifiers; describe human review role-neutrally.

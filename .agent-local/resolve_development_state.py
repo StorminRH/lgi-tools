@@ -16,6 +16,10 @@ from pathlib import Path
 DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_SCHEMA_RELPATH = "docs/workflows/schema/session-contract.md"
 PLAN_SCHEMA_RELPATH = "docs/workflows/schema/session-plan.md"
+AS_BUILT_SCHEMA_RELPATH = "docs/workflows/schema/session-as-built.md"
+# Sessions in sub-versions at or above this floor require an as-built record
+# once their plan is Complete; earlier sessions predate the record species.
+AS_BUILT_BINDING_FLOOR = (3, 10, 2, 1)
 AUDIT_PROCEDURE_RELPATH = "docs/workflows/version-audit.md"
 POLICY_MANIFEST_RELPATH = ".agent-local/policy-manifest.json"
 RELEASE_CONSISTENCY_GATE = "python3 .agent-local/check_release_consistency.py --check"
@@ -538,6 +542,105 @@ def plan_schema_violations(path: Path, contract: Path, root: Path) -> list[str]:
     return violations
 
 
+def as_built_binds(subversion: str) -> bool:
+    """Return whether a completed session in this sub-version needs an as-built."""
+    return tuple(int(part) for part in subversion.split(".")) >= AS_BUILT_BINDING_FLOOR
+
+
+def as_built_schema_violations(
+    path: Path,
+    contract: Path,
+    plan: Path,
+    root: Path,
+) -> list[str]:
+    """Return structural and marker violations for a session as-built record."""
+    schema = root / AS_BUILT_SCHEMA_RELPATH
+    required = schema_headings(schema, 2)
+    if required is None:
+        return [f"canonical as-built schema is unusable: {AS_BUILT_SCHEMA_RELPATH}"]
+    text = path.read_text(encoding="utf-8")
+    violations: list[str] = []
+    first = next((line for line in text.splitlines() if line.strip()), "")
+    if not first.startswith(f"# Session {path.stem} As-Built — "):
+        violations.append(f"first heading must identify Session {path.stem} As-Built")
+    actual_h2 = re.findall(r"^## (.+?)\s*$", text, re.MULTILINE)
+    if actual_h2 != required:
+        violations.append("required ## sections must appear exactly once in canonical order")
+    if re.findall(r"^### ", text, re.MULTILINE):
+        violations.append("as-built records contain no ### subsections")
+    bodies = section_bodies(path, 2)
+    for title in required:
+        if not bodies.get(title, "").strip():
+            violations.append(f"section {title!r} is empty")
+    expected_markers = {
+        "Record status": "Final",
+        "Contract": str(contract.relative_to(root)),
+        "Contract digest": f"sha256:{sha256(contract)}",
+        "Plan": str(plan.relative_to(root)),
+        "Plan digest": f"sha256:{sha256(plan)}",
+        "Record standard": AS_BUILT_SCHEMA_RELPATH,
+    }
+    for label, expected_value in expected_markers.items():
+        if marker(path, label) != expected_value:
+            violations.append(f"{label} must be {expected_value!r}")
+    recorded = marker(path, "Recorded")
+    if recorded is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", recorded):
+        violations.append("Recorded must be a YYYY-MM-DD date")
+    subversion = ".".join(path.stem.split(".")[:-1])
+    if marker(path, "Branch") != lifecycle_branch(subversion):
+        violations.append(f"Branch must be {lifecycle_branch(subversion)!r}")
+    pr_marker = marker(path, "PR") or ""
+    if not re.fullmatch(r"#\d+|Deferred to \d+(?:\.\d+)+", pr_marker):
+        violations.append("PR must be '#<number>' or 'Deferred to <final session id>'")
+    if re.search(r"\b(?:TBD|TODO|FIXME)\b|\bX\.Y\.N\b", text, re.IGNORECASE):
+        violations.append("as-built contains a placeholder token")
+    return violations
+
+
+def missing_as_built(
+    contracts: dict[str, tuple[str, Path]],
+    version: str,
+    docs: Path,
+    root: Path,
+) -> dict[str, object] | None:
+    """Return the first completed session whose as-built record is absent or invalid.
+
+    Sweeps every indexed session, not only the incomplete sub-version's, so a
+    final session whose roadmap row turned terminal in the same close-out still
+    has its record enforced.
+    """
+    for session, (subversion, contract) in sorted(
+        contracts.items(),
+        key=lambda item: tuple(int(part) for part in item[0].split(".")),
+    ):
+        if not as_built_binds(subversion):
+            continue
+        plan = docs / "session-plans" / version / f"{session}.md"
+        if not execution_complete(plan):
+            continue
+        as_built = docs / "session-as-built" / version / f"{session}.md"
+        if not as_built.is_file():
+            return {
+                "subversion": subversion,
+                "session": session,
+                "asBuilt": str(as_built.relative_to(root)),
+                "asBuiltViolations": [],
+                "reason": "The completed session has no as-built record.",
+            }
+        if not contract.is_file():
+            continue
+        violations = as_built_schema_violations(as_built, contract, plan, root)
+        if violations:
+            return {
+                "subversion": subversion,
+                "session": session,
+                "asBuilt": str(as_built.relative_to(root)),
+                "asBuiltViolations": violations,
+                "reason": "The as-built record does not conform to the canonical schema.",
+            }
+    return None
+
+
 def vocabulary_binds(version: str) -> bool:
     """Return whether active artifacts must satisfy the 3.9 marker schema."""
     major, minor = (int(part) for part in version.split(".", maxsplit=1))
@@ -730,6 +833,10 @@ def resolve_state(root: Path = DEFAULT_ROOT) -> tuple[dict[str, object], list[st
         "masterPlan": str(roadmap.relative_to(root)),
         "contractIndex": str(contract_index.relative_to(root)),
     }
+    as_built_gap = missing_as_built(contracts, version, docs, root)
+    if as_built_gap is not None:
+        return {**common, "stage": "as-built-needed", **as_built_gap}, errors
+
     audit_plan = docs / "version-audits" / version / "PLAN.md"
     audit_status: str | None = None
     findings: list[AuditFinding] = []
@@ -1035,6 +1142,21 @@ def directive_for(state: dict[str, object]) -> WorkflowDirective:
             authority="Changes are limited to the approved session plan and contract.",
             primary_artifact=str(state["sessionPlan"]),
             pause=pause,
+            branch=lifecycle_branch(str(state["subversion"])),
+        )
+    if stage == "as-built-needed":
+        violations = "; ".join(str(item) for item in state.get("asBuiltViolations", []))
+        detail = f": {violations}" if violations else ""
+        return WorkflowDirective(
+            action=f"Author the as-built record for completed session {session}{detail}",
+            handler=None,
+            mode="report",
+            authority=(
+                "Limited to authoring the named session's as-built record to the "
+                "canonical schema on the lifecycle branch."
+            ),
+            primary_artifact=str(state["asBuilt"]),
+            pause="A valid as-built record is required before the lifecycle advances.",
             branch=lifecycle_branch(str(state["subversion"])),
         )
     if stage == "audit-plan-needed":
