@@ -1,0 +1,4 @@
+interface:
+  display_name: "Close Out"
+  short_description: "Verify, review, and deliver the current change"
+  default_prompt: "Use $close-out to run the authorized LGI.tools delivery pipeline for the current change."

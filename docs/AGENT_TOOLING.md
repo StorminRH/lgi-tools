@@ -65,12 +65,14 @@ python3 .agent-local/check_tooling_parity.py
 This is also called by `check_agent_drift.py` and therefore blocks close-out on
 tooling drift.
 
-After Claude's Vercel plugin updates, rebuild and reinstall the Codex adapter:
+After Claude's Vercel plugin updates, resolve the Codex skills root and the
+personal plugin source, export them as `CODEX_SKILLS_ROOT` and
+`PERSONAL_PLUGIN_SOURCE`, then rebuild and reinstall the Codex adapter:
 
 ```bash
 python3 .agent-local/sync_vercel_plugin.py --write
-python3 <codex-home>/skills/.system/plugin-creator/scripts/validate_plugin.py \
-  <personal-plugin-source>/vercel-plugin
+python3 "$CODEX_SKILLS_ROOT/.system/plugin-creator/scripts/validate_plugin.py" \
+  "$PERSONAL_PLUGIN_SOURCE/vercel-plugin"
 codex plugin add vercel-plugin@personal
 python3 .agent-local/sync_vercel_plugin.py --check
 python3 .agent-local/check_tooling_parity.py

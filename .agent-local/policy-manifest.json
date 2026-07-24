@@ -15,6 +15,7 @@
     "docs/workflows/start-session.md",
     "docs/workflows/pre-pr-design-review.md",
     "docs/workflows/adversarial-review.md",
+    "docs/workflows/agent-policy-audit.md",
     "docs/workflows/close-out.md",
     "docs/workflows/version-audit.md",
     "docs/workflows/triage-issue.md",
@@ -235,6 +236,21 @@
         "SESSION_PLANNING"
       ],
       "procedure": "docs/workflows/adversarial-review.md"
+    },
+    "agent-policy-audit": {
+      "required": [
+        "docs/workflows/agent-policy-audit\\.md",
+        "Invocation authority|Authorization",
+        "runtime mechanics",
+        "Return|result"
+      ],
+      "forbidden": [
+        "docs/DESIGN_PRINCIPLES\\.md",
+        "docs/PRE_PR_DESIGN_REVIEW\\.md",
+        "docs/VERSION_AUDIT\\.md",
+        "SESSION_PLANNING"
+      ],
+      "procedure": "docs/workflows/agent-policy-audit.md"
     }
   },
   "runtimeForbidden": {
@@ -301,13 +317,6 @@
     "docs/ux-check/README.md",
     "docs/ux-check/run-probes.mjs",
     "scripts/route-classification.json",
-    ".agents/skills/plan-version/agents/openai.yaml",
-    ".agents/skills/plan-session/agents/openai.yaml",
-    ".agents/skills/start-session/agents/openai.yaml",
-    ".agents/skills/pre-pr-design-review/agents/openai.yaml",
-    ".agents/skills/plan-version-audit/agents/openai.yaml",
-    ".agents/skills/plan-audit-remediation/agents/openai.yaml",
-    ".agents/skills/version-audit/agents/openai.yaml",
     "docs/workflows/plan-version.md",
     "docs/workflows/plan-session.md",
     "docs/workflows/start-session.md",
@@ -410,7 +419,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/session-contract.md"
       ],
-      "reconciledHash": "5f8651bc47428132e941be0edfe575537838ac39e0a66cc98a66e7a89887b122"
+      "reconciledHash": "9384ba24a82381e6f35c1df23e42b017830c1cd4996a7b039754fa376a192635"
     },
     "plan-session": {
       "deps": [
@@ -420,7 +429,7 @@
         "docs/workflows/schema/session-plan.md",
         "src/AGENTS.md"
       ],
-      "reconciledHash": "f562d0d47de1698a607cd792914b399a43876051ce1e7753cdf76a88a580bfcd"
+      "reconciledHash": "ed6c8fbf6713511315eb8403719e4ed439a36132426a7e0af1558f39add9a1a7"
     },
     "start-session": {
       "deps": [
@@ -429,7 +438,7 @@
         "docs/workflows/close-out.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "72a275e40e1b877d89ac68d3a42542ba7d787f686d60534e16f0c7fdc377493b"
+      "reconciledHash": "556d324c3434f382bbc2048921177f99b694c880a14760a80ca216c5183825d9"
     },
     "pre-pr-design-review": {
       "deps": [
@@ -438,7 +447,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "1c43de02a8c82126f71c821309122655ea218c326a1d0d32d4136bb60784146a"
+      "reconciledHash": "efa0b6eb5e2a78e7147f2a43dbc766d873d2df8e490bbcfe572067b07aea1ebf"
     },
     "close-out": {
       "deps": [
@@ -450,7 +459,7 @@
         "docs/workflows/schema/changelog-pending.md",
         "docs/workflows/schema/session-as-built.md"
       ],
-      "reconciledHash": "0f62a680d6307183491d84fb9b489f6e8bedfee10c71b7ea15fc1490db46e1dd"
+      "reconciledHash": "e7a3c8ec3d411b31c4da36da99228d4f821814cc5fdc8d01224f77a1cac4dcfd"
     },
     "plan-version-audit": {
       "deps": [
@@ -459,7 +468,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "970b6cf9a8314dd4381f1469b0bcf1213a5381cde5e31a4f7be1ef8079a26c82"
+      "reconciledHash": "df0d76e0393f444bc6801c46e29ca96cc2da834ed4898d51e72f45c537a7f309"
     },
     "plan-audit-remediation": {
       "deps": [
@@ -470,7 +479,7 @@
         "docs/workflows/schema/session-contract.md",
         "docs/workflows/schema/session-plan.md"
       ],
-      "reconciledHash": "dec0b0c9ce9b124c4864dbd7aae791704858d04e1ec2f3c604ad92f3562d8845"
+      "reconciledHash": "efa56c452c324807357c86cca304300cb0df971d5658fd37f43331deb3e0b762"
     },
     "version-audit": {
       "deps": [
@@ -479,7 +488,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/code-health-baseline.md"
       ],
-      "reconciledHash": "970b6cf9a8314dd4381f1469b0bcf1213a5381cde5e31a4f7be1ef8079a26c82"
+      "reconciledHash": "df0d76e0393f444bc6801c46e29ca96cc2da834ed4898d51e72f45c537a7f309"
     },
     "triage-issue": {
       "deps": [
@@ -488,7 +497,7 @@
         "docs/workflows/schema/chat-result.md",
         "docs/workflows/schema/changelog-pending.md"
       ],
-      "reconciledHash": "ed31c6eac08448f0b099537c05b516bb8d74b03f5834a5c4a6d2839e1ac43385"
+      "reconciledHash": "22fb1b2e9d26d703baaaabe9b019991d93ac4fcf1f61d8417f71262bf03ab2c5"
     },
     "ux-check": {
       "deps": [
@@ -497,7 +506,7 @@
         "docs/workflows/ux-check.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "f93b3ddd7d6fdd3cc8fa0bc115e1f14f25f47c960cff9232e8cfd315a53e1b7b"
+      "reconciledHash": "d4c93ee8679a1f6e40f74f254d2944e5ffd8179a068225ec64e1e9f4ebabb0f4"
     },
     "update-watch": {
       "deps": [
@@ -505,7 +514,7 @@
         "docs/workflows/update-watch.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "663a830868a79fe76ded18ef42509c761ce1b3304b628c0e6e53d0448ce29d8c"
+      "reconciledHash": "8e322ddb95faed6cf70ae9465baa00fe5d94fd4845f24f310252d8bc9c6b06ac"
     },
     "resolve-update-watch": {
       "deps": [
@@ -513,7 +522,7 @@
         "docs/workflows/resolve-update-watch.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "7838abb282f4606910cc70bcc56424f487ffd85e39618f17f36e7f37569ea847"
+      "reconciledHash": "62cdd8640ee0de9f114f55e7a35619f30ecabe04f007698e9ceaa37762b451c9"
     },
     "adversarial-review": {
       "deps": [
@@ -521,7 +530,17 @@
         "docs/workflows/adversarial-review.md",
         "docs/workflows/schema/chat-result.md"
       ],
-      "reconciledHash": "8a78f4b8e4c291fbe1a17fc31efe892ad82850ed7c8b2b01b5351f80a6a78975"
+      "reconciledHash": "ae3310328aef8f615480f44c14c35da329468a60420393b7ab31ba2085a951d0"
+    },
+    "agent-policy-audit": {
+      "deps": [
+        "AGENTS.md",
+        "src/AGENTS.md",
+        "docs/AGENT_TOOLING.md",
+        "docs/workflows/agent-policy-audit.md",
+        "docs/workflows/schema/chat-result.md"
+      ],
+      "reconciledHash": "f1fe1c2ddeae3166655692291794acb00475a4f75e3c0461d4a69758174a91c8"
     }
   },
   "procedurePolicies": {
@@ -549,45 +568,6 @@
     }
   },
   "proseOwnership": {
-    "paths": [
-      "AGENTS.md",
-      "src/AGENTS.md",
-      "CONTRIBUTING.md",
-      "docs/workflows/plan-version.md",
-      "docs/workflows/plan-session.md",
-      "docs/workflows/start-session.md",
-      "docs/workflows/pre-pr-design-review.md",
-      "docs/workflows/close-out.md",
-      "docs/workflows/version-audit.md",
-      "docs/workflows/triage-issue.md",
-      "docs/workflows/ux-check.md",
-      "docs/workflows/update-watch.md",
-      "docs/workflows/resolve-update-watch.md",
-      ".agents/skills/plan-version/SKILL.md",
-      ".agents/skills/plan-session/SKILL.md",
-      ".agents/skills/start-session/SKILL.md",
-      ".agents/skills/pre-pr-design-review/SKILL.md",
-      ".agents/skills/close-out/SKILL.md",
-      ".agents/skills/plan-version-audit/SKILL.md",
-      ".agents/skills/plan-audit-remediation/SKILL.md",
-      ".agents/skills/version-audit/SKILL.md",
-      ".agents/skills/triage-issue/SKILL.md",
-      ".agents/skills/ux-check/SKILL.md",
-      ".agents/skills/update-watch/SKILL.md",
-      ".agents/skills/resolve-update-watch/SKILL.md",
-      ".claude/skills/plan-version/SKILL.md",
-      ".claude/skills/plan-session/SKILL.md",
-      ".claude/skills/start-session/SKILL.md",
-      ".claude/skills/pre-pr-design-review/SKILL.md",
-      ".claude/skills/close-out/SKILL.md",
-      ".claude/skills/plan-version-audit/SKILL.md",
-      ".claude/skills/plan-audit-remediation/SKILL.md",
-      ".claude/skills/version-audit/SKILL.md",
-      ".claude/skills/triage-issue/SKILL.md",
-      ".claude/skills/ux-check/SKILL.md",
-      ".claude/skills/update-watch/SKILL.md",
-      ".claude/skills/resolve-update-watch/SKILL.md"
-    ],
     "minimumWords": 12,
     "exceptions": [
       {

@@ -16,7 +16,8 @@ Procedure: `docs/workflows/plan-session.md`.
 
 ## Invocation authority
 
-Invocation authorizes read-only investigation and planning. Persist the canonical session plan only after explicit operator approval.
+Invocation authorizes read-only investigation and planning. Persist the
+canonical session plan only after explicit operator approval.
 
 ## Claude Code runtime mechanics
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triage Issue"
+  short_description: "Validate an issue or contribution"
+  default_prompt: "Use $triage-issue to validate and size the requested LGI.tools issue or contribution."

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Validate parity between LGI.tools shared agent policy and runtime adapters."""
+"""Validate static parity between shared agent policy and runtime adapters.
+
+This ordinary-safe entry point never runs the lifecycle resolver or the
+release-consistency checker. Lifecycle workflows own those stateful checks.
+"""
 
 from __future__ import annotations
 
@@ -194,6 +198,22 @@ def check_skill_pairs(manifest: dict, root: Path, errors: list[str]) -> None:
                         f"{relative(path, root)}: contains wrong-runtime language /{pattern}/"
                     )
 
+            if runtime == "codex":
+                metadata_path = skill_root / skill_name / "agents" / "openai.yaml"
+                metadata = read_text(metadata_path, root, errors)
+                for marker in (
+                    "interface:",
+                    "display_name:",
+                    "short_description:",
+                    "default_prompt:",
+                    f"${skill_name}",
+                ):
+                    if marker not in metadata:
+                        errors.append(
+                            f"{relative(metadata_path, root)}: missing Codex skill "
+                            f"metadata marker {marker!r}"
+                        )
+
 
 def check_procedure_policies(manifest: dict, root: Path, errors: list[str]) -> None:
     """Require declared procedure checkpoints to occur in canonical order."""
@@ -281,7 +301,9 @@ def _prose_sentences(text: str) -> list[tuple[int, str]]:
 def check_prose_ownership(manifest: dict, root: Path, errors: list[str]) -> None:
     """Reject exact normalized normative sentences with more than one owner."""
     policy = manifest.get("proseOwnership", {})
-    paths = policy.get("paths", [])
+    paths = policy.get("paths")
+    if paths is None:
+        paths = policy_prose_paths(manifest)
     minimum_words = policy.get("minimumWords", 12)
     if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
         errors.append("proseOwnership.paths must be a string list")
@@ -343,6 +365,86 @@ def check_prose_ownership(manifest: dict, root: Path, errors: list[str]) -> None
         )
 
 
+def policy_prose_paths(manifest: dict) -> list[str]:
+    """Derive every live normative policy path so new surfaces cannot opt out."""
+    paths = ["CONTRIBUTING.md", *manifest["canonicalGuides"]]
+    for skill_root in manifest["skillRoots"].values():
+        paths.extend(
+            f"{skill_root}/{skill_name}/SKILL.md"
+            for skill_name in manifest["pairedSkills"]
+        )
+    return list(dict.fromkeys(paths))
+
+
+def check_agent_facing_markdown(
+    manifest: dict, root: Path, errors: list[str]
+) -> None:
+    """Reject recurring Markdown patterns that make agent policy unreliable."""
+    paths = [
+        *policy_prose_paths(manifest),
+        *manifest.get("imports", {}).keys(),
+    ]
+    task_box = re.compile(r"^\s*[-*+]\s+\[[ xX]\]\s+")
+    unstable_site_route = re.compile(r"(?<![A-Za-z0-9_-])/sites/\d+\b")
+    shell_head = re.compile(
+        r"^(?:[A-Z][A-Z0-9_]*=|python3|pnpm|npx|git|gh|codex|claude|"
+        r"node|docker|vercel|curl|codegraph|\.[A-Za-z0-9_./-]+)"
+    )
+    unresolved_shell_value = re.compile(r"<[a-z][^>\n]*>")
+
+    for raw_path in dict.fromkeys(paths):
+        text = read_text(root / raw_path, root, errors)
+        in_shell_fence = False
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                language = stripped[3:].strip().casefold()
+                if in_shell_fence:
+                    in_shell_fence = False
+                elif language in {"bash", "sh", "shell", "zsh"}:
+                    in_shell_fence = True
+                continue
+            if task_box.match(line):
+                errors.append(
+                    f"{raw_path}:{line_number}: task checkbox is human-oriented "
+                    "workflow state; use an agent action and evidence contract"
+                )
+            if unstable_site_route.search(line):
+                errors.append(
+                    f"{raw_path}:{line_number}: concrete data-backed /sites id "
+                    "may drift; resolve a current route at runtime"
+                )
+            if in_shell_fence and unresolved_shell_value.search(line):
+                errors.append(
+                    f"{raw_path}:{line_number}: shell command contains an unresolved "
+                    "angle-bracket value"
+                )
+            for inline in re.findall(r"`([^`\n]+)`", line):
+                if shell_head.match(inline) and unresolved_shell_value.search(inline):
+                    errors.append(
+                        f"{raw_path}:{line_number}: executable inline command contains "
+                        "an unresolved angle-bracket value"
+                    )
+
+    workflow_paths = [
+        raw_path
+        for raw_path in manifest["canonicalGuides"]
+        if raw_path.startswith("docs/workflows/")
+        and "/schema/" not in raw_path
+    ]
+    for raw_path in workflow_paths:
+        text = read_text(root / raw_path, root, errors)
+        for marker in (
+            "## Return the result",
+            "docs/workflows/schema/chat-result.md",
+            "### Next state",
+        ):
+            if marker not in text:
+                errors.append(
+                    f"{raw_path}: missing agent-facing result marker {marker!r}"
+                )
+
+
 def ledger_digest(root: Path, deps: list[str]) -> str:
     """Return one digest over the current content of a skill's policy deps.
 
@@ -393,10 +495,15 @@ def check_paths(manifest: dict, root: Path, errors: list[str]) -> None:
         for skill_root in manifest["skillRoots"].values()
         for skill_name in manifest["pairedSkills"]
     ]
+    codex_metadata_paths = [
+        f"{manifest['skillRoots']['codex']}/{skill_name}/agents/openai.yaml"
+        for skill_name in manifest["pairedSkills"]
+    ]
     for raw_path in [
         *manifest["canonicalGuides"],
         *manifest["requiredPaths"],
         *skill_paths,
+        *codex_metadata_paths,
     ]:
         path = root / raw_path
         if not path.is_file():
@@ -673,13 +780,11 @@ def main() -> int:
     check_skill_pairs(manifest, ROOT, errors)
     check_procedure_policies(manifest, ROOT, errors)
     check_prose_ownership(manifest, ROOT, errors)
+    check_agent_facing_markdown(manifest, ROOT, errors)
     check_skill_reconciliation(manifest, ROOT, errors)
     check_ignored(manifest, errors)
-    check_session_contracts(manifest, ROOT, errors)
     check_development_state_tests(errors)
     warnings = check_probe_layout(manifest, ROOT)
-    warnings.extend(check_lifecycle_checkers(errors))
-    check_development_state(manifest, errors)
     check_tooling(errors)
 
     for warning in warnings:

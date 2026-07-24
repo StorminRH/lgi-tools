@@ -40,9 +40,8 @@ Rules the pending checker (`.agent-local/check_pending_changelog.py`) enforces:
 - **Body.** One or more `#### <Category>` groups using only the closed set
   `Added`, `Changed`, `Fixed`, and `Removed` (the same vocabulary as
   `docs/workflows/schema/changelog-entry.md`). Each retained group has one or
-  more `- ` bullets. Write user-facing work in plain pilot language and internal
-  work in a plain sentence a teammate can understand. Do not use bold, inline
-  code, or links.
+  more `- ` bullets. Apply the audience and bullet-style rules from
+  `docs/workflows/schema/changelog-entry.md` unchanged.
 - **No version heading.** A fragment must not contain a `### vX.Y.N — date`
   entry heading or any `## ` master heading; the version is unknown until the
   planned release absorbs it.
@@ -56,9 +55,11 @@ Rules the pending checker (`.agent-local/check_pending_changelog.py`) enforces:
 At planned close-out, after syncing with current `origin/main` so fragments
 already merged there are present, the release folds every pending fragment into
 the new `### vX.Y.N — YYYY-MM-DD` entry. The deterministic ordering, grouping,
-and provenance are produced by
-`python3 .agent-local/fold_pending_changelog.py --prior-version <previous-version>`,
-which prints the folded Markdown and the exact list of consumed fragment files:
+and provenance belong to the fold utility. Resolve the prior release into the
+task-specific `PRIOR_VERSION` variable, then run
+`python3 .agent-local/fold_pending_changelog.py --prior-version
+"$PRIOR_VERSION"`. The command prints the folded Markdown and the exact list of
+consumed fragment files:
 
 1. Order fragments deterministically by `date`, then by file name.
 2. Group their bullets by category in the canonical `Added`, `Changed`,

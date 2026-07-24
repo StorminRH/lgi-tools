@@ -50,7 +50,9 @@ same branch and PR.
 2. Read the digest. Its findings are the **Security advisories** table, the
    **Major versions** table, the per-source **Service/EVE surface changes**, and
    the fenced `update-watch-deltas` keys in the collapsed footer. Cross-check the
-   advisories against live state with `pnpm audit` and `pnpm why <package>`.
+   advisories against live state with `pnpm audit`. Store the resolved
+   dependency in `UPDATE_WATCH_PACKAGE`, then run
+   `pnpm why "$UPDATE_WATCH_PACKAGE"`.
 3. Create a dedicated branch off the default branch — never commit to an
    unrelated in-flight branch.
 4. **Security advisories — fix what is safely fixable.**
@@ -123,7 +125,7 @@ The digest issue is the unit of work; own it end to end.
   handled, superseded, or a duplicate — do not open an empty PR. Close the issue
   directly with a comment explaining why, and stop.
 
-## End state
+## Return the result
 
 Return `REVIEW_READY` for a single green, reviewed open PR that clears the safe
 findings, records the informational ones, carries one pending fragment, and

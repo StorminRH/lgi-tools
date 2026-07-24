@@ -14,7 +14,8 @@ Procedure: `docs/workflows/version-audit.md`.
 
 ## Invocation authority
 
-Invocation authorizes the procedure's plan-version-audit entry mode. Audit artifacts remain unchanged until the operator approves the reviewed plan.
+Invocation authorizes the procedure's plan-version-audit entry mode. Audit
+artifacts remain unchanged until the operator approves the reviewed plan.
 
 ## Codex runtime mechanics
 

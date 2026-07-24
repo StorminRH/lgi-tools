@@ -16,7 +16,8 @@ Procedure: `docs/workflows/start-session.md`.
 
 ## Invocation authority
 
-Invocation permits only the resolver-selected action. Preserve its branch, artifact, gate, and pauses.
+Invocation permits only the resolver-selected action. Preserve its branch,
+artifact, gate, and pauses.
 
 ## Codex runtime mechanics
 

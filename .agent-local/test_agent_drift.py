@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 from pathlib import Path
 import subprocess
@@ -10,7 +11,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import check_agent_drift
 from check_agent_drift import (
+    check_agent_facing_markdown,
     check_development_state,
     check_paths,
     check_procedure_policies,
@@ -20,6 +23,7 @@ from check_agent_drift import (
     check_skill_pairs,
     check_skill_reconciliation,
     ledger_digest,
+    policy_prose_paths,
 )
 
 
@@ -130,6 +134,14 @@ class DriftFixture:
             "---\n"
             f"{body}\n",
         )
+        if runtime == "codex":
+            self.write(
+                ".agents/skills/demo/agents/openai.yaml",
+                "interface:\n"
+                '  display_name: "Demo"\n'
+                '  short_description: "Run the fixture skill"\n'
+                '  default_prompt: "Use $demo to run the fixture."\n',
+            )
 
 
 class AgentDriftTests(unittest.TestCase):
@@ -170,6 +182,13 @@ class AgentDriftTests(unittest.TestCase):
     def check_reconciliation(self) -> list[str]:
         errors: list[str] = []
         check_skill_reconciliation(self.fixture.manifest, self.fixture.root, errors)
+        return errors
+
+    def check_agent_markdown(self) -> list[str]:
+        errors: list[str] = []
+        check_agent_facing_markdown(
+            self.fixture.manifest, self.fixture.root, errors
+        )
         return errors
 
     def test_affected_checks_accept_the_passing_fixture(self) -> None:
@@ -247,6 +266,60 @@ class AgentDriftTests(unittest.TestCase):
             ".agents/skills/demo/SKILL.md: must point to docs/workflows/demo.md exactly once",
             self.check_skills(),
         )
+
+    def test_codex_skill_requires_complete_ui_metadata(self) -> None:
+        self.fixture.write(
+            ".agents/skills/demo/agents/openai.yaml",
+            "interface:\n  display_name: Demo\n",
+        )
+        errors = self.check_skills()
+        self.assertTrue(
+            any("missing Codex skill metadata marker" in error for error in errors)
+        )
+
+    def test_agent_markdown_rejects_task_boxes_and_unstable_routes(self) -> None:
+        self.fixture.write(
+            "AGENTS.md",
+            "- [ ] Human checkbox\n"
+            "Run the example against `/sites/100`.\n",
+        )
+        errors = self.check_agent_markdown()
+        self.assertTrue(any("task checkbox is human-oriented" in error for error in errors))
+        self.assertTrue(any("concrete data-backed /sites id" in error for error in errors))
+
+    def test_agent_markdown_rejects_shell_redirection_placeholders(self) -> None:
+        self.fixture.write(
+            "AGENTS.md",
+            "Run `pnpm test <arguments>`.\n\n"
+            "```bash\n"
+            "python3 tool.py --out <output-path>\n"
+            "```\n",
+        )
+        errors = self.check_agent_markdown()
+        self.assertTrue(
+            any("executable inline command" in error for error in errors)
+        )
+        self.assertTrue(any("shell command contains" in error for error in errors))
+
+    def test_agent_markdown_requires_the_shared_result_contract(self) -> None:
+        self.fixture.write("docs/workflows/demo.md", "# Demo\n")
+        errors = self.check_agent_markdown()
+        self.assertTrue(
+            any("missing agent-facing result marker" in error for error in errors)
+        )
+
+    def test_prose_paths_derive_every_canonical_guide_and_skill_pair(self) -> None:
+        self.fixture.manifest["proseOwnership"].pop("paths")
+        paths = policy_prose_paths(self.fixture.manifest)
+        self.assertIn("docs/workflows/demo.md", paths)
+        self.assertIn(".agents/skills/demo/SKILL.md", paths)
+        self.assertIn(".claude/skills/demo/SKILL.md", paths)
+
+    def test_ordinary_drift_entry_point_excludes_lifecycle_state(self) -> None:
+        source = inspect.getsource(check_agent_drift.main)
+        self.assertNotIn("check_session_contracts(", source)
+        self.assertNotIn("check_lifecycle_checkers(", source)
+        self.assertNotIn("check_development_state(", source)
 
     def test_procedure_checkpoints_must_remain_in_order(self) -> None:
         self.fixture.write(

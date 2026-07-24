@@ -1,0 +1,4 @@
+interface:
+  display_name: "UX Check"
+  short_description: "Capture and inspect changed user-facing routes"
+  default_prompt: "Use $ux-check to verify the affected LGI.tools routes and prepare them for operator review."
