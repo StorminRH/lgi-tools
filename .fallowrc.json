@@ -243,7 +243,7 @@
       { "from": "config", "allow": [] },
       {
         "from": "convex",
-        "allow": ["platform/esi", "auth-surface", "data", "lib"]
+        "allow": ["platform/esi", "platform/auth", "data", "lib"]
       },
       {
         "from": "esi-datasets",
