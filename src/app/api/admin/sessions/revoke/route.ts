@@ -1,9 +1,11 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { notFoundFailure, validationFailure } from '@/lib/failure';
+import { problemResponse } from '@/lib/problem';
 import { adminRevokeSessionsFormSchema } from '@/platform/auth/api-contract';
 import { getUserById, revokeUserSessions } from '@/platform/auth/admin-users';
-import { requireAdmin } from '@/platform/auth/route-guards';
+import { checkAdmin } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 
 /**
@@ -16,22 +18,29 @@ import { parseFormBody } from '@/transport/route-body';
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireAdmin,
+    authorize: checkAdmin,
     parse: (incoming) =>
       parseFormBody(
         incoming,
         adminRevokeSessionsFormSchema,
         (form) => ({ userId: form.get('userId') }),
-        () => new Response('Invalid form', { status: 400 }),
+        () => validationFailure('invalid_form_field', 'Invalid form'),
       ),
     handle: async ({ session }, { userId }) => {
       if (userId === session.user.id) {
-        return new Response('Cannot force-logout your own session', { status: 400 });
+        return problemResponse(
+          validationFailure(
+            'self_session',
+            'Cannot force-logout your own session',
+          ),
+        );
       }
 
       const target = await getUserById(userId);
       if (!target) {
-        return new Response('User not found', { status: 404 });
+        return problemResponse(
+          notFoundFailure('user_not_found', 'User not found'),
+        );
       }
 
       const revoked = await revokeUserSessions(userId);

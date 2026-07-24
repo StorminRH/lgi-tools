@@ -1,12 +1,12 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
 import {
   deleteSavedPlanRequestSchema,
   type SavedPlansResponse,
 } from '@/features/industry-planner/api-contract';
 import { deleteSavedPlan, listSavedPlans } from '@/features/industry-planner/saved-plans-queries';
-import { parseJsonBody } from '@/transport/route-body';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/saved-plans/delete — delete one of the caller's OWN
@@ -17,8 +17,8 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, deleteSavedPlanRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, deleteSavedPlanRequestSchema),
     handle: async ({ userId }, { id }) => {
       await deleteSavedPlan(userId, id);
       const plans = await listSavedPlans(userId);

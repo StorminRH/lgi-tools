@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { getCurrentUserId } from '@/platform/auth/session';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
 import {
   createSavedPlanRequestSchema,
   MAX_SAVED_PLANS_PER_USER,
@@ -15,7 +15,7 @@ import {
   deleteSavedPlan,
   listSavedPlans,
 } from '@/features/industry-planner/saved-plans-queries';
-import { parseJsonBody } from '@/transport/route-body';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * GET /api/account/saved-plans — the caller's saved build templates. The
@@ -41,8 +41,8 @@ export async function GET(): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, createSavedPlanRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, createSavedPlanRequestSchema),
     handle: async ({ userId }, body) => {
       const structure = await getBlueprintStructure(body.snapshot.blueprintTypeId);
       if (!structure) return new Response('unknown blueprint', { status: 400 });

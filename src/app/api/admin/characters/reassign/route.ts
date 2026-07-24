@@ -1,10 +1,12 @@
 import type { NextRequest } from 'next/server';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { notFoundFailure, validationFailure } from '@/lib/failure';
+import { problemResponse } from '@/lib/problem';
 import { adminReassignFormSchema } from '@/platform/auth/api-contract';
 import { reconcileAfterCharacterRemoval } from '@/platform/auth/account-purge';
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
 import { reassignCharacter } from '@/platform/auth/admin-users';
-import { requireAdmin } from '@/platform/auth/route-guards';
+import { checkAdmin } from '@/platform/auth/route-guards';
 import { requireSameOrigin } from '@/platform/auth/same-origin';
 import { parseFormBody } from '@/transport/route-body';
 
@@ -19,8 +21,8 @@ import { parseFormBody } from '@/transport/route-body';
  */
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return gate.response;
+  const gate = await checkAdmin();
+  if (!gate.ok) return problemResponse(gate.failure);
   requireSameOrigin(request);
   const session = gate.session;
   const toUserId = session.user.id;
@@ -29,17 +31,24 @@ export async function POST(request: NextRequest): Promise<Response> {
     request,
     adminReassignFormSchema,
     (form) => ({ characterId: form.get('characterId'), fromUserId: form.get('fromUserId') }),
-    () => new Response('Invalid form', { status: 400 }),
+    () => validationFailure('invalid_form_field', 'Invalid form'),
   );
-  if (!parsed.ok) return parsed.response;
+  if (!parsed.ok) return problemResponse(parsed.failure);
   const { characterId, fromUserId } = parsed.data;
 
   if (fromUserId === toUserId) {
-    return new Response('Character is already on your account', { status: 400 });
+    return problemResponse(
+      validationFailure(
+        'already_linked',
+        'Character is already on your account',
+      ),
+    );
   }
 
   if (!(await accountBelongsToUser(fromUserId, characterId))) {
-    return new Response('Character not linked to that user', { status: 404 });
+    return problemResponse(
+      notFoundFailure('not_linked', 'Character not linked to that user'),
+    );
   }
 
   const { sourceDeleted } = await reassignCharacter({ characterId, fromUserId, toUserId });

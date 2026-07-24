@@ -5,9 +5,10 @@ import { type PurgeCharacterResponse, purgeCharacterRequestSchema } from '@/plat
 import { accountBelongsToUser } from '@/platform/auth/linked-characters';
 import '@/composition/account-lifecycle/register-owner-reconciler';
 import { purgeOwnCharacter } from '@/composition/account-lifecycle/account-purge';
-import { requireSession } from '@/platform/auth/route-guards';
+import { validationFailure } from '@/lib/failure';
+import { checkSession } from '@/platform/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
-import { parseJsonBody } from '@/transport/route-body';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST-only. Purge one of the CALLER's OWN linked characters — the destructive
@@ -27,11 +28,19 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!limit.ok) return limit.response;
 
   return runMutationRoute(request, {
-    authorize: requireSession,
-    parse: (incoming) => parseJsonBody(incoming, purgeCharacterRequestSchema, {
-      invalidJson: () => new Response('Invalid character', { status: 400 }),
-      invalidBody: () => new Response('Invalid character', { status: 400 }),
-    }),
+    authorize: checkSession,
+    parse: async (incoming) => {
+      const parsed = await readJsonBody(incoming, purgeCharacterRequestSchema);
+      return parsed.ok
+        ? parsed
+        : {
+            ok: false,
+            failure: validationFailure(
+              parsed.failure.code,
+              'Invalid character',
+            ),
+          };
+    },
     handle: async ({ session }, { characterId }) => {
       // The security-critical line: never trust the posted id. Only purge among the
       // user's own linked characters.

@@ -8,8 +8,8 @@ import {
   deleteCustomStructure,
   listCustomStructures,
 } from '@/features/custom-structures/queries';
-import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/transport/route-body';
+import { checkUserId } from '@/platform/auth/route-guards';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures/delete. Deletes one of the caller's OWN
@@ -20,8 +20,8 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, deleteCustomStructureRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, deleteCustomStructureRequestSchema),
     handle: async ({ userId }, { id }) => {
       await deleteCustomStructure(userId, id);
       const structures = await listCustomStructures(userId);

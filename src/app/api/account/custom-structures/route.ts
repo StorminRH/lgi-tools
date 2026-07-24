@@ -14,8 +14,8 @@ import {
 } from '@/features/custom-structures/queries';
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
 import { validateCustomStructureSelection } from '@/features/custom-structures/validation';
-import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/transport/route-body';
+import { checkUserId } from '@/platform/auth/route-guards';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures — save one custom structure for the signed-in
@@ -27,8 +27,8 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, createCustomStructureRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, createCustomStructureRequestSchema),
     handle: async ({ userId }, body) => {
       const [types, rigs] = await Promise.all([getStructureTypes(), getStructureRigs()]);
       const check = validateCustomStructureSelection(body, types, rigs);

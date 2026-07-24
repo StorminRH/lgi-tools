@@ -11,9 +11,9 @@ import {
   upsertCorpStructureRigs,
 } from '@/features/owned-structures/queries';
 import { validateCorpStructureRigs } from '@/features/owned-structures/rig-validation';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
 import { stationManagerGate } from '@/composition/sync/corp-structures-sync';
-import { parseJsonBody } from '@/transport/route-body';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * Gated further by corp membership + the in-game Station_Manager role (below).
@@ -25,8 +25,8 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, setCorpStructureRigsRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, setCorpStructureRigsRequestSchema),
     handle: async ({ userId }, body) => {
       const { corporationId, structureId, rigTypeIds, taxPct } = body;
 

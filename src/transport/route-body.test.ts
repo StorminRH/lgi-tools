@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { validationFailure } from '@/lib/failure';
 import { parseFormBody, parseJsonBody, readJsonBody } from './route-body';
 
 const schema = z.object({ name: z.string().min(1), count: z.number() });
@@ -124,7 +125,8 @@ describe('parseFormBody', () => {
     for (const [k, v] of Object.entries(fields)) form.set(k, v);
     return new Request('http://test/api', { method: 'POST', body: form });
   };
-  const invalid = () => new Response('Invalid character', { status: 400 });
+  const invalid = () =>
+    validationFailure('invalid_form_field', 'Invalid character');
 
   it('returns the validated data from the picked fields', async () => {
     const r = await parseFormBody(
@@ -136,7 +138,7 @@ describe('parseFormBody', () => {
     expect(r).toEqual({ ok: true, data: { characterId: 90000001 } });
   });
 
-  it('returns the caller-built 400 on a schema mismatch', async () => {
+  it('returns the caller-built failure on a schema mismatch', async () => {
     const r = await parseFormBody(
       formReq({ characterId: 'not-a-number' }),
       formSchema,
@@ -145,19 +147,26 @@ describe('parseFormBody', () => {
     );
     expect(r.ok).toBe(false);
     if (!r.ok) {
-      expect(r.response.status).toBe(400);
-      expect(await r.response.text()).toBe('Invalid character');
+      expect(r.failure).toEqual({
+        category: 'validation',
+        code: 'invalid_form_field',
+        detail: 'Invalid character',
+      });
     }
   });
 
-  it('hands the ZodError to the error builder for per-field copy', async () => {
+  it('hands the ZodError to the failure builder for per-field copy', async () => {
     const r = await parseFormBody(
       formReq({}),
       formSchema,
       (form) => ({ characterId: form.get('characterId') }),
-      (error) => new Response(`Invalid ${error.issues[0]?.path.join('.') ?? 'form'}`, { status: 400 }),
+      (error) =>
+        validationFailure(
+          'invalid_form_field',
+          `Invalid ${error.issues[0]?.path.join('.') ?? 'form'}`,
+        ),
     );
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(await r.response.text()).toBe('Invalid characterId');
+    if (!r.ok) expect(r.failure.detail).toBe('Invalid characterId');
   });
 });

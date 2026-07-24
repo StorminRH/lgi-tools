@@ -6,8 +6,8 @@ import {
 } from '@/features/custom-structures/api-contract';
 import { listCustomStructures, setCustomStructurePin } from '@/features/custom-structures/queries';
 import { rejectUnknownSystemPin } from '@/features/custom-structures/system-pin';
-import { requireUserId } from '@/platform/auth/route-guards';
-import { parseJsonBody } from '@/transport/route-body';
+import { checkUserId } from '@/platform/auth/route-guards';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * POST /api/account/custom-structures/set-pin — pin one of the caller's own
@@ -19,8 +19,8 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, setCustomStructurePinRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, setCustomStructurePinRequestSchema),
     handle: async ({ userId }, { id, systemId }) => {
       const badPin = await rejectUnknownSystemPin(systemId);
       if (badPin) return badPin;

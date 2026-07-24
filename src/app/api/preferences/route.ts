@@ -6,9 +6,9 @@ import {
 } from '@/data/preferences/api-contract';
 import { getPreferencesForUser, upsertPreference } from '@/data/preferences/queries';
 import { getCurrentUserId } from '@/platform/auth/session';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
 import { validatePreferenceValue } from '@/lib/preferences';
-import { parseJsonBody } from '@/transport/route-body';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * Both handlers are scoped to the authenticated caller's own user rows; an
@@ -36,8 +36,8 @@ export async function GET(): Promise<Response> {
  */
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, putPreferenceRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, putPreferenceRequestSchema),
     handle: async ({ userId }, { key, value }) => {
       if (!validatePreferenceValue(key, value)) {
         return new Response('invalid value for key', { status: 400 });

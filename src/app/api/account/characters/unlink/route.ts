@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { validationFailure } from '@/lib/failure';
 import { unlinkCharacterFormSchema } from '@/platform/auth/api-contract';
 import { auth } from '@/platform/auth/auth';
 import { EVE_PROVIDER_ID } from '@/platform/auth/eve-sso-constants';
@@ -10,7 +11,7 @@ import {
   listLinkedCharacters,
   repointActiveToOldest,
 } from '@/platform/auth/linked-characters';
-import { requireSession } from '@/platform/auth/route-guards';
+import { checkSession } from '@/platform/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 import { parseFormBody } from '@/transport/route-body';
 
@@ -40,12 +41,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!limit.ok) return limit.response;
 
   return runMutationRoute(request, {
-    authorize: requireSession,
+    authorize: checkSession,
     parse: (incoming) => parseFormBody(
       incoming,
       unlinkCharacterFormSchema,
       (form) => ({ characterId: form.get('characterId') }),
-      () => new Response('Invalid character', { status: 400 }),
+      () => validationFailure('invalid_form_field', 'Invalid character'),
     ),
     handle: async ({ session }, { characterId }) => {
       const linked = await listLinkedCharacters(session.user.id);

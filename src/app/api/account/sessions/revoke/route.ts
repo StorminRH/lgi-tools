@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import type { SessionsRevokeResponse } from '@/platform/auth/api-contract';
 import { revokeUserSessions } from '@/platform/auth/admin-users';
-import { requireSession } from '@/platform/auth/route-guards';
+import { checkSession } from '@/platform/auth/route-guards';
 import { rateLimitGuard } from '@/lib/rate-limit';
 
 /**
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!limit.ok) return limit.response;
 
   return runMutationRoute(request, {
-    authorize: requireSession,
+    authorize: checkSession,
     handle: async ({ session }) => {
       const revoked = await revokeUserSessions(session.user.id);
       return Response.json({ revoked } satisfies SessionsRevokeResponse);

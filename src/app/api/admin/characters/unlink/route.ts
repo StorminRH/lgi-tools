@@ -1,8 +1,10 @@
 import type { NextRequest } from 'next/server';
 import { runMutationRoute } from '@/app/api/mutation-route';
 import { logUsageEvent } from '@/data/telemetry/queries';
+import { notFoundFailure, validationFailure } from '@/lib/failure';
+import { problemResponse } from '@/lib/problem';
 import { adminUnlinkFormSchema } from '@/platform/auth/api-contract';
-import { requireAdmin } from '@/platform/auth/route-guards';
+import { checkAdmin } from '@/platform/auth/route-guards';
 import { parseFormBody } from '@/transport/route-body';
 import {
   accountBelongsToUser,
@@ -31,17 +33,22 @@ function redirectTo(request: NextRequest, userId: string, error?: string): Respo
 // authz: admin
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireAdmin,
+    authorize: checkAdmin,
     parse: (incoming) =>
       parseFormBody(
         incoming,
         adminUnlinkFormSchema,
         (form) => ({ userId: form.get('userId'), characterId: form.get('characterId') }),
-        () => new Response('Invalid form', { status: 400 }),
+        () => validationFailure('invalid_form_field', 'Invalid form'),
       ),
     handle: async ({ session }, { userId, characterId }) => {
       if (!(await accountBelongsToUser(userId, characterId))) {
-        return new Response('Character not linked to that user', { status: 404 });
+        return problemResponse(
+          notFoundFailure(
+            'not_linked',
+            'Character not linked to that user',
+          ),
+        );
       }
 
       // Don't strand a user with no identity — reassign instead. (The button is

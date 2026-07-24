@@ -4,6 +4,11 @@ import { validationFailure, type AppFailure } from '@/lib/failure';
 /** Typed success-or-error result shared by transport-level request-body parsers. */
 export type ParsedBody<T> = { ok: true; data: T } | { ok: false; response: Response };
 
+/** Typed form-body result carrying an application failure instead of an HTTP response. */
+export type ParsedFormBody<T> =
+  | { ok: true; data: T }
+  | { ok: false; failure: AppFailure };
+
 /**
  * Routes with a JSON error contract (the planner/market on-view family) override
  * the default plain-text 400s so their per-slice `satisfies` pins stay at the
@@ -58,12 +63,12 @@ export async function parseFormBody<S extends z.ZodTypeAny>(
   request: Request,
   schema: S,
   pick: (form: FormData) => unknown,
-  invalid: (error: z.ZodError) => Response,
-): Promise<ParsedBody<z.infer<S>>> {
+  invalid: (error: z.ZodError) => AppFailure,
+): Promise<ParsedFormBody<z.infer<S>>> {
   const form = await request.formData();
   const parsed = schema.safeParse(pick(form));
   if (!parsed.success) {
-    return { ok: false, response: invalid(parsed.error) };
+    return { ok: false, failure: invalid(parsed.error) };
   }
   return { ok: true, data: parsed.data };
 }

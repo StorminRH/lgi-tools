@@ -6,9 +6,9 @@ import {
 } from '@/features/owned-structures/api-contract';
 import { setCorpStructureSharing } from '@/features/owned-structures/queries';
 import { getSessionCharacterId } from '@/platform/auth/session';
-import { requireUserId } from '@/platform/auth/route-guards';
+import { checkUserId } from '@/platform/auth/route-guards';
 import { stationManagerGate } from '@/composition/sync/corp-structures-sync';
-import { parseJsonBody } from '@/transport/route-body';
+import { readJsonBody } from '@/transport/route-body';
 
 /**
  * Gated further by corp membership + the in-game Station_Manager role (below).
@@ -22,8 +22,8 @@ import { parseJsonBody } from '@/transport/route-body';
 // authz: auth
 export async function POST(request: NextRequest): Promise<Response> {
   return runMutationRoute(request, {
-    authorize: requireUserId,
-    parse: (incoming) => parseJsonBody(incoming, setCorpStructureSharingRequestSchema),
+    authorize: checkUserId,
+    parse: (incoming) => readJsonBody(incoming, setCorpStructureSharingRequestSchema),
     handle: async ({ userId }, { corporationId, enabled }) => {
       // Membership first (fail-closed + audited; also refreshes affiliations), then the
       // Station_Manager role on the freshly-refreshed set — the shared two-step gate.

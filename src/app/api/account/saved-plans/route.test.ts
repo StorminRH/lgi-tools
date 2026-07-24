@@ -15,7 +15,7 @@ vi.mock('@/platform/auth/session', () => ({
   getCurrentUserId: (...args: unknown[]) => h.getCurrentUserIdMock(...args),
 }));
 vi.mock('@/platform/auth/route-guards', () => ({
-  requireUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
+  checkUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
 vi.mock('@/features/industry-planner/queries', () => ({
   getBlueprintStructure: (...args: unknown[]) => h.getBlueprintStructureMock(...args),
@@ -32,6 +32,7 @@ vi.mock('@/data/telemetry/queries', () => ({
 
 import type { NextRequest } from 'next/server';
 import { MAX_SAVED_PLANS_PER_USER } from '@/features/industry-planner/api-contract';
+import { problemBodySchema } from '@/lib/problem';
 import { GET, POST } from './route';
 
 const planRow = {
@@ -93,7 +94,7 @@ describe('POST /api/account/saved-plans', () => {
   it('returns 401 for an anonymous caller', async () => {
     h.requireUserIdMock.mockResolvedValue({
       ok: false,
-      response: new Response('Unauthorized', { status: 401 }),
+      failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(401);
@@ -109,7 +110,10 @@ describe('POST /api/account/saved-plans', () => {
   it('returns 400 for malformed JSON', async () => {
     const res = await POST(makeRequest('{not valid json'));
     expect(res.status).toBe(400);
-    expect(await res.text()).toBe('Invalid JSON');
+    expect(problemBodySchema.parse(await res.json())).toMatchObject({
+      code: 'invalid_json',
+      detail: 'Invalid JSON',
+    });
     expect(h.getBlueprintStructureMock).not.toHaveBeenCalled();
   });
 

@@ -11,7 +11,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('@/platform/auth/route-guards', () => ({
-  requireUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
+  checkUserId: (...args: unknown[]) => h.requireUserIdMock(...args),
 }));
 vi.mock('@/data/eve-data/queries', () => ({
   getStructureTypes: (...args: unknown[]) => h.getStructureTypesMock(...args),
@@ -76,7 +76,7 @@ describe('POST /api/account/custom-structures', () => {
   it('returns 401 for an anonymous caller', async () => {
     h.requireUserIdMock.mockResolvedValue({
       ok: false,
-      response: new Response('Unauthorized', { status: 401 }),
+      failure: { category: 'unauthenticated', code: 'unauthenticated' },
     });
     const res = await POST(makeRequest(VALID_BODY));
     expect(res.status).toBe(401);
