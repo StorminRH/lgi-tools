@@ -14,10 +14,13 @@ describe('disabled admin action explanations', () => {
       }),
     );
 
-    const describedBy = markup.match(/aria-describedby="([^"]+)"/)?.[1];
+    const button = markup.match(/<button\b[^>]*>Force logout<\/button>/)?.[0];
+    expect(button).toContain('disabled=""');
+    const describedBy = button?.match(/aria-describedby="([^"]+)"/)?.[1];
     expect(describedBy).toBeDefined();
-    expect(markup).toContain(`id="${describedBy}"`);
-    expect(markup).toContain('Use the normal sign-out for your own session.');
+    expect(markup).toContain(
+      `<span id="${describedBy}" class="sr-only">Use the normal sign-out for your own session.</span>`,
+    );
   });
 
   it('connects the reassign button to its screen-reader explanation', () => {
@@ -30,9 +33,12 @@ describe('disabled admin action explanations', () => {
       }),
     );
 
-    const describedBy = markup.match(/aria-describedby="([^"]+)"/)?.[1];
+    const button = markup.match(/<button\b[^>]*>Reassign to me<\/button>/)?.[0];
+    expect(button).toContain('disabled=""');
+    const describedBy = button?.match(/aria-describedby="([^"]+)"/)?.[1];
     expect(describedBy).toBeDefined();
-    expect(markup).toContain(`id="${describedBy}"`);
-    expect(markup).toContain('This character is already on your account.');
+    expect(markup).toContain(
+      `<span id="${describedBy}" class="sr-only">This character is already on your account.</span>`,
+    );
   });
 });
