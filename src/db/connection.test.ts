@@ -13,12 +13,25 @@ const LOCAL = 'postgres://lgi:lgi@localhost:5433/lgi_tools';
 // the driver + adapter so touching the lazy Proxy never opens a real
 // connection: we assert which URL the client is built with, not that it
 // connects.
-const { neonMock, drizzleHttpMock } = vi.hoisted(() => ({
+const { neonMock, drizzleHttpMock, neonConfigMock } = vi.hoisted(() => ({
   neonMock: vi.fn(() => ({ httpClient: true })),
   drizzleHttpMock: vi.fn(() => ({ select: () => {} })),
+  // The driver's per-query timeout hook is global-only, so the lazy client
+  // assigns it on construction; the mock stands in for that global.
+  neonConfigMock: {} as { fetchFunction?: unknown },
 }));
-vi.mock('@neondatabase/serverless', () => ({ neon: neonMock }));
+vi.mock('@neondatabase/serverless', () => ({
+  neon: neonMock,
+  neonConfig: neonConfigMock,
+}));
 vi.mock('drizzle-orm/neon-http', () => ({ drizzle: drizzleHttpMock }));
+
+const { fetchWithTimeoutMock } = vi.hoisted(() => ({
+  fetchWithTimeoutMock: vi.fn(async () => new Response('{}')),
+}));
+vi.mock('@/lib/fetch-with-timeout', () => ({
+  fetchWithTimeout: fetchWithTimeoutMock,
+}));
 
 describe('isPooledHost', () => {
   it('flags a `-pooler` host', () => {
@@ -70,6 +83,8 @@ describe('request-path db (Neon HTTP driver)', () => {
     vi.resetModules(); // reset the module-singleton _db between cases
     neonMock.mockClear();
     drizzleHttpMock.mockClear();
+    fetchWithTimeoutMock.mockClear();
+    delete neonConfigMock.fetchFunction;
   });
 
   it('lazily constructs the neon-http client off DATABASE_URL on first use', async () => {
@@ -81,6 +96,33 @@ describe('request-path db (Neon HTTP driver)', () => {
     expect(neonMock).toHaveBeenCalledTimes(1);
     expect(neonMock).toHaveBeenCalledWith(POOLED);
     expect(drizzleHttpMock).toHaveBeenCalledWith({ client: { httpClient: true } });
+  });
+
+  it('installs the per-query timeout bound lazily, not on import', async () => {
+    vi.stubEnv('LOCAL_DB_DRIVER', '');
+    vi.stubEnv('DATABASE_URL', POOLED);
+    const { db } = await import('./index');
+    // The hook is a driver global, so assigning it at module scope would make
+    // this module import-side-effecting.
+    expect(neonConfigMock.fetchFunction).toBeUndefined();
+
+    void db.select;
+    expect(neonConfigMock.fetchFunction).toBeTypeOf('function');
+
+    // Each query's fetch is bounded at 30s: generous enough that no real
+    // statement hits it, tight enough that a hang cannot run to the platform
+    // limit.
+    await (
+      neonConfigMock.fetchFunction as (
+        input: string | URL,
+        init?: RequestInit,
+      ) => Promise<Response>
+    )('https://example.neon.tech/sql', { method: 'POST' });
+    expect(fetchWithTimeoutMock).toHaveBeenCalledWith(
+      'https://example.neon.tech/sql',
+      { method: 'POST' },
+      30_000,
+    );
   });
 
   it('throws a clear error when DATABASE_URL is unset', async () => {

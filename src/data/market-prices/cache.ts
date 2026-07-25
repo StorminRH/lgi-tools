@@ -1,18 +1,12 @@
 import { count, desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { cacheLife, cacheTag } from 'next/cache';
-import type postgres from 'postgres';
-import { db } from '@/db';
+import { db, type Sql } from '@/db';
 import { withColdStartRetry } from '@/lib/neon-cold-start-retry';
 import { refreshPrices, type RefreshSummary } from './ingest';
 import { listStaleTypeIds } from './queries';
 import { marketPrices } from './schema';
 import type { AnyPgDb } from '@/lib/db-types';
-
-// postgres-js's Sql type — the raw client. refreshStalePrices takes it
-// directly and wraps it in `drizzle(client)`; the cron and the manual CLI
-// both hold a postgres-js client.
-type Sql = ReturnType<typeof postgres>;
 
 /**
  * `reason` records the one no-write outcome so the cron can tell a healthy

@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const limitMock = vi.fn();
 const redisCtorSpy = vi.fn();
 
-// Mock Upstash before importing the helper. The helper does
-// `new Redis({ url, token })`; we never need the constructed instance to
-// do anything, only to exist so the `Ratelimit` constructor doesn't throw.
-// Class form (not vi.fn) because the helper invokes it with `new`.
+// Mock Upstash before importing the helper. The helper constructs through
+// createUpstashClient (@/lib/upstash), which is the module that does
+// `new Redis(...)`; we never need the constructed instance to do anything, only
+// to exist so the `Ratelimit` constructor doesn't throw.
+// Class form (not vi.fn) because the factory invokes it with `new`.
 vi.mock('@upstash/redis', () => ({
   Redis: class MockRedis {
     constructor(opts: unknown) {
@@ -194,9 +195,14 @@ describe('rateLimit', () => {
     const { rateLimit } = await importHelper();
     await rateLimit('1.2.3.4', { name: 'feedback', perMinute: 5 });
 
+    // Also pins the bounded construction shape: the request-path limiter never
+    // ships the SDK's unbounded default (no timeout, five retries).
     expect(redisCtorSpy).toHaveBeenCalledWith({
       url: 'https://kv.example.upstash.io',
       token: 'kv-token',
+      automaticDeserialization: undefined,
+      signal: expect.any(Function),
+      retry: { retries: 1 },
     });
   });
 });

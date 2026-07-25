@@ -7,14 +7,14 @@
 // 'busy' until the pool recycled it. Locks guard redundant double-pulls
 // (idempotent writes), not data integrity; lock-key constants stay in the
 // owning slice.
-import type postgres from 'postgres';
+import type { ReservedConnection, Sql } from './index';
 
-type Sql = ReturnType<typeof postgres>;
 /**
  * Direct unpooled PostgreSQL session reserved for advisory-lock work; the lock helper owns
- * releasing and closing it.
+ * releasing and closing it. Re-exported from `@/db`, which owns the alias, so existing
+ * `@/db/advisory-lock` consumers keep their import path.
  */
-export type ReservedConnection = Awaited<ReturnType<Sql['reserve']>>;
+export type { ReservedConnection };
 
 /**
  * Closed advisory-lock result distinguishing completed callback work from lock contention without

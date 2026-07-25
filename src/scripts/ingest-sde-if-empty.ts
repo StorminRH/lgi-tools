@@ -33,7 +33,7 @@ import { getSdeMetaValue, setSdeMetaValue } from '../data/eve-data/meta';
 import { getRemoteSdeVersion } from '../data/eve-data/source';
 import { resolveAllTrees } from '../data/eve-data/tree-resolver';
 import { withAdvisoryLock } from '@/db/advisory-lock';
-import { resolveLockConnectionUrl } from '@/db';
+import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl } from '@/db';
 import { runScript } from './script-runtime';
 import { describeSdeStandDown, hasCompleteSdeData } from './sde-bootstrap';
 import { runSdePipeline } from '@/composition/pipelines/sde-pipeline';
@@ -57,7 +57,7 @@ try {
 
 // max: 2 — one connection holds the advisory lock, the other runs the
 // data ops. Same pattern as src/scripts/refresh-prices.ts.
-const client = postgres(lockUrl, { max: 2 });
+const client = postgres(lockUrl, { max: 2, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
 const LOCK_KEY_NUM = Number(ADVISORY_LOCK_SDE_INGEST);
 
 // Reads the SDE row-count sentinels + versions, then either bootstraps the full

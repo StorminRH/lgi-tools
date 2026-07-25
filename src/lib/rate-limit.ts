@@ -1,9 +1,8 @@
 import 'server-only';
 
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
 import { rateLimitedFailure } from "@/lib/failure";
-import { resolveUpstashRest } from "@/lib/upstash";
+import { createUpstashClient, resolveUpstashRest } from "@/lib/upstash";
 
 // Shared sliding-window rate limiter backed by Upstash Redis. Stateless
 // across Vercel serverless invocations (in-process counters don't survive
@@ -37,6 +36,13 @@ interface RateLimitOptions {
 const limiters = new Map<string, Ratelimit>();
 let warnedAboutMissingEnv = false;
 
+// This limiter sits on the request path, so a Redis outage must surface fast
+// rather than stall the invocation toward the 300s platform limit. One retry
+// covers a transient non-abort network error; a timeout abort rethrows
+// immediately by SDK design, so the total wait stays near the bound.
+const RATE_LIMIT_REDIS_TIMEOUT_MS = 2000;
+const RATE_LIMIT_REDIS_RETRIES = 1;
+
 function getLimiter(
   options: RateLimitOptions,
   upstash: NonNullable<ReturnType<typeof resolveUpstashRest>>,
@@ -46,7 +52,11 @@ function getLimiter(
   if (cached) return cached;
 
   const limiter = new Ratelimit({
-    redis: new Redis(upstash),
+    redis: createUpstashClient({
+      ...upstash,
+      timeoutMs: RATE_LIMIT_REDIS_TIMEOUT_MS,
+      retries: RATE_LIMIT_REDIS_RETRIES,
+    }),
     limiter: Ratelimit.slidingWindow(options.perMinute, "60 s"),
     analytics: true,
     prefix: `lgi:ratelimit:${options.name}`,

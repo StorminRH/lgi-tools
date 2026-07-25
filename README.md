@@ -30,7 +30,8 @@ The current tool catalogue:
 - [Convex](https://convex.dev) — live reactive backend for online-status state
   (runs on `:3210` in local dev)
 - [Better Auth](https://better-auth.com) — sessions and EVE Online SSO
-- [Upstash Redis](https://upstash.com) — rate limiting (production)
+- [Upstash Redis](https://upstash.com) — rate limiting, the shared ESI request
+  budget, and short-lived scheduling hints (production)
 - [Vercel](https://vercel.com) (hosting + cron)
 - pnpm + [Vitest](https://vitest.dev)
 

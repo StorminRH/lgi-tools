@@ -55,6 +55,24 @@ describe('inspectUrl', () => {
     );
   });
 
+  it('bounds both outbound legs: the API request and the SDK token fetch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ inspectionResult: {} }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await inspectUrl('https://lgi.tools/sites/3');
+
+    // The API request routes through fetchWithTimeout, which attaches the
+    // abort signal that enforces the bound.
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+    // Token acquisition is the SDK's own fetch, bounded through its transporter.
+    expect(authState.options?.transporterOptions).toEqual({ timeout: 10_000 });
+  });
+
   it('returns null for a successful response without index status', async () => {
     vi.stubGlobal(
       'fetch',

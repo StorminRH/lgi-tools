@@ -68,6 +68,21 @@ async function retryDelayFor(
   return BASE_DELAY_MS * 2 ** (attempt - 1);
 }
 
+// Walks the same cause/sourceError chain looking for our own timeout abort. The
+// reason is a `TimeoutError` DOMException, matched by name rather than by
+// instance so it holds across runtimes (Convex, Node, the edge runtime) that
+// each construct their own DOMException.
+function hasTimeoutAbort(err: unknown): boolean {
+  let node: unknown = err;
+  for (let depth = 0; depth < MAX_CHAIN_DEPTH && node != null; depth++) {
+    if ((node as { name?: unknown }).name === 'TimeoutError') return true;
+    node =
+      (node as { cause?: unknown }).cause ??
+      (node as { sourceError?: unknown }).sourceError;
+  }
+  return false;
+}
+
 /**
  * The neon-http driver (\@neondatabase/serverless) has exactly three
  * `NeonDbError` constructions on the query path; two are connection-class:
@@ -80,8 +95,16 @@ async function retryDelayFor(
  * up") are the cold-start-shaped ones. Drizzle wraps every query error in
  * DrizzleQueryError with `cause` set, so the matcher walks the chain — it
  * works with or without the wrapper.
+ *
+ * One carve-out: the driver wraps EVERY fetch rejection with the
+ * "Error connecting to database" prefix, including our own per-query timeout
+ * abort (src/db/index.ts sets `neonConfig.fetchFunction`). Treating that as a
+ * cold start would multiply one bounded 30s hang into the whole retry envelope —
+ * the opposite of what the bound is for — so a wrap whose cause chain carries a
+ * `TimeoutError` is declined and rethrown on the first attempt.
  */
 export function isNeonColdStartError(err: unknown): boolean {
+  if (hasTimeoutAbort(err)) return false;
   let node: unknown = err;
   for (let depth = 0; depth < MAX_CHAIN_DEPTH && node instanceof Error; depth++) {
     if (node.name === 'NeonDbError') {

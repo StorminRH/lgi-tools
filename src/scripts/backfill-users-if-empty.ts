@@ -20,7 +20,7 @@ config({ path: readEnv('DOTENV_PATH') ?? '.env.local' });
 import postgres from 'postgres';
 import { syntheticEmail } from '@/platform/auth/synthetic-email';
 import { withAdvisoryLock, type ReservedConnection } from '@/db/advisory-lock';
-import { resolveLockConnectionUrl } from '@/db';
+import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl } from '@/db';
 import { runScript } from './script-runtime';
 
 if (!readEnv('DATABASE_URL')) {
@@ -39,7 +39,7 @@ try {
   process.exit(0);
 }
 
-const client = postgres(lockUrl, { max: 2 });
+const client = postgres(lockUrl, { max: 2, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
 // Distinct from the SDE ingest lock (8273619013) — guards against two preview
 // builds racing the same branch DB. Session-scoped; released in finally.
 const LOCK_KEY_NUM = 8419273051;

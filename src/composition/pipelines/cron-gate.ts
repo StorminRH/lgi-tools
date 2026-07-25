@@ -1,7 +1,7 @@
 // One route shell owns auth → idle probe → pre-lock gate → advisory lock →
 // work → telemetry ordering. Routes declare policy and supply domain work;
 // none reassemble the lifecycle or reach its lower-level primitives directly.
-import type postgres from 'postgres';
+import type { Sql } from '@/db';
 import { logUsageEvent } from '@/data/telemetry/queries';
 import type { UsageAction } from '@/data/telemetry/types';
 import { directClient } from '@/db';
@@ -10,8 +10,6 @@ import {
   withAdvisoryLock,
   type ReservedConnection,
 } from '@/db/advisory-lock';
-
-type Sql = ReturnType<typeof postgres>;
 
 /**
  * Wake class a cron declares: `batch` for daily jobs whose purpose is waking

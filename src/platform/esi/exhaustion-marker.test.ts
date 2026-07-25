@@ -26,11 +26,22 @@ const mocks = vi.hoisted(() => {
     }
   }
 
-  return { store, configured, fail, set, FakeRedis };
+  // The module now resolves its client through the shared factory, so the seam
+  // under mock is the factory rather than the vendor package. `configured`
+  // still drives the unconfigured path.
+  const resolveUpstashClient = vi.fn(
+    (options: { timeoutMs: number; retries: number }) => {
+      void options;
+      return configured() ? new FakeRedis() : null;
+    },
+  );
+
+  return { store, configured, fail, set, FakeRedis, resolveUpstashClient };
 });
 
-vi.mock('@upstash/redis', () => ({ Redis: mocks.FakeRedis }));
-vi.mock('@/lib/upstash', () => ({ resolveUpstashRest: mocks.configured }));
+vi.mock('@/lib/upstash', () => ({
+  resolveUpstashClient: mocks.resolveUpstashClient,
+}));
 
 import {
   hasRecentBudgetExhaustion,
@@ -54,6 +65,17 @@ describe('recent ESI budget exhaustion marker', () => {
     markRecentBudgetExhaustion();
 
     expect(mocks.set).toHaveBeenCalledWith(KEY, 1, { ex: 35 * 60 });
+  });
+
+  it('resolves its client with an explicit bound and no retries', () => {
+    markRecentBudgetExhaustion();
+
+    // A hint write on the ESI go/no-go path must never inherit the SDK's
+    // unbounded default.
+    expect(mocks.resolveUpstashClient).toHaveBeenCalledWith({
+      timeoutMs: 2000,
+      retries: 0,
+    });
   });
 
   it('distinguishes marker absence from a recent refusal', async () => {

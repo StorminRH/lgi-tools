@@ -7,7 +7,7 @@ import postgres from 'postgres';
 import { refreshStalePrices } from '../data/market-prices/cache';
 import { refreshPrices } from '../data/market-prices/ingest';
 import { getPrices } from '../data/market-prices/queries';
-import { resolveLockConnectionUrl } from '@/db';
+import { PG_CONNECT_TIMEOUT_SECONDS, resolveLockConnectionUrl } from '@/db';
 import { parseArgs } from './refresh-prices-args';
 import { runScript } from './script-runtime';
 
@@ -19,7 +19,7 @@ const mode = parseArgs(process.argv.slice(2));
 //
 // max: 5 gives headroom for the parallel bulk-upsert against the ~6,000-type
 // tracked set (bumped from 2 in 3.0.4 when the set grew).
-const client = postgres(resolveLockConnectionUrl(), { max: 5 });
+const client = postgres(resolveLockConnectionUrl(), { max: 5, connect_timeout: PG_CONNECT_TIMEOUT_SECONDS });
 
 async function main() {
   const db = drizzle(client);

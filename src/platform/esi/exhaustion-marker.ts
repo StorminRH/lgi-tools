@@ -1,12 +1,18 @@
-import { Redis } from '@upstash/redis';
-import { resolveUpstashRest } from '@/lib/upstash';
+import { resolveUpstashClient, type UpstashRedis } from '@/lib/upstash';
 
 const RECENT_EXHAUSTION_KEY = 'lgi:esi:recent-exhaustion';
 const RECENT_EXHAUSTION_TTL_SECONDS = 35 * 60;
+// The marker is a hint on the ESI go/no-go path: a slow Redis must not add
+// latency to a refusal that is already handled upstream. Zero retries because
+// sustained exhaustion re-marks on every refusal.
+const MARKER_TIMEOUT_MS = 2000;
+const MARKER_RETRIES = 0;
 
-function resolveRedis(): Redis | null {
-  const upstash = resolveUpstashRest();
-  return upstash ? new Redis(upstash) : null;
+function resolveRedis(): UpstashRedis | null {
+  return resolveUpstashClient({
+    timeoutMs: MARKER_TIMEOUT_MS,
+    retries: MARKER_RETRIES,
+  });
 }
 
 /**
